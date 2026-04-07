@@ -1,0 +1,3 @@
+[submodule "vendor/next-gen-atlas"]
+	path = vendor/next-gen-atlas
+	url = https://github.com/sky-ecosystem/next-gen-atlas
