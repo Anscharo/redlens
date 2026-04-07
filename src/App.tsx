@@ -3,14 +3,13 @@ import { useSearch } from "./hooks/useSearch";
 import { SearchResult } from "./components/SearchResult";
 import type { AtlasNode } from "./types";
 
-// Heading styles by depth
 const DEPTH_HEADING: Record<number, string> = {
-  1: "text-2xl font-bold text-slate-900",
-  2: "text-xl font-bold text-slate-900",
-  3: "text-lg font-semibold text-slate-800",
-  4: "text-base font-semibold text-slate-800",
-  5: "text-sm font-semibold text-slate-700",
-  6: "text-sm font-medium text-slate-700",
+  1: "text-2xl font-bold",
+  2: "text-xl font-bold",
+  3: "text-lg font-semibold",
+  4: "text-base font-semibold",
+  5: "text-sm font-semibold",
+  6: "text-sm font-medium",
 };
 
 const DEPTH_INDENT: Record<number, string> = {
@@ -22,13 +21,7 @@ const DEPTH_INDENT: Record<number, string> = {
   6: "pl-16",
 };
 
-function ScopeNode({
-  node,
-  isTarget,
-}: {
-  node: AtlasNode;
-  isTarget: boolean;
-}) {
+function ScopeNode({ node, isTarget }: { node: AtlasNode; isTarget: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,23 +35,36 @@ function ScopeNode({
       ref={ref}
       id={node.id}
       className={[
-        "py-3 border-b border-slate-100",
+        "py-4 border-b",
         DEPTH_INDENT[node.depth] ?? "pl-16",
-        isTarget ? "bg-yellow-50 -mx-4 px-4 ring-2 ring-yellow-300 ring-inset rounded" : "",
       ].join(" ")}
+      style={{
+        borderColor: "var(--border)",
+        backgroundColor: isTarget ? "var(--red-dim)" : undefined,
+        marginLeft: isTarget ? "-1rem" : undefined,
+        paddingLeft: isTarget ? `calc(${["0","0","1rem","2rem","3rem","4rem"][node.depth - 1] ?? "4rem"} + 1rem)` : undefined,
+        boxShadow: isTarget ? "inset 3px 0 0 var(--red)" : undefined,
+        scrollMarginTop: "64px",
+      }}
     >
-      <p className={`mb-1 ${DEPTH_HEADING[node.depth] ?? "text-sm font-medium text-slate-700"}`}>
+      <p
+        className={`mb-1 ${DEPTH_HEADING[node.depth] ?? "text-sm font-medium"}`}
+        style={{ color: isTarget ? "var(--tan)" : "var(--tan)" }}
+      >
         {node.title}
       </p>
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[11px] font-medium bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+      <div className="flex items-center gap-3 mb-3">
+        <span
+          className="text-[11px] font-medium px-1.5 py-0.5 rounded mono"
+          style={{ background: "var(--surface)", color: "var(--red)", border: "1px solid var(--border)" }}
+        >
           {node.type}
         </span>
-        <span className="text-xs font-mono text-slate-400">{node.doc_no}</span>
-        <span className="text-[10px] font-mono text-slate-300">{node.id}</span>
+        <span className="text-xs mono" style={{ color: "var(--tan-2)" }}>{node.doc_no}</span>
+        <span className="text-[10px] mono" style={{ color: "var(--tan-3)" }}>{node.id}</span>
       </div>
       {node.content && (
-        <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--tan-2)" }}>
           {node.content}
         </p>
       )}
@@ -77,10 +83,7 @@ function NodeDetail({ id }: { id: string }) {
         const target = docs[id];
         if (!target) { setLoaded(true); return; }
 
-        // Go one level up (parent), or use the target itself if it's a root
         const parent = target.parentId ? (docs[target.parentId] ?? target) : target;
-
-        // Collect parent + everything under it (A.2.2.2.*)
         const prefix = parent.doc_no + ".";
         const nodes = Object.values(docs).filter(
           (n) => n.id === parent.id || n.doc_no.startsWith(prefix)
@@ -94,7 +97,7 @@ function NodeDetail({ id }: { id: string }) {
 
   if (!loaded) {
     return (
-      <div className="flex items-center justify-center py-24 text-slate-400 text-sm">
+      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--gray)" }}>
         Loading…
       </div>
     );
@@ -102,7 +105,7 @@ function NodeDetail({ id }: { id: string }) {
 
   if (scopeNodes.length === 0) {
     return (
-      <div className="flex items-center justify-center py-24 text-red-400 text-sm">
+      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--red)" }}>
         Node not found: {id}
       </div>
     );
@@ -126,7 +129,6 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync state with browser back/forward
   useEffect(() => {
     function onPopState() {
       setNodeId(new URLSearchParams(window.location.search).get("id"));
@@ -147,7 +149,6 @@ export default function App() {
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const q = e.target.value;
     setQuery(q);
-    // Typing clears the detail view and shows results
     if (nodeId) {
       history.pushState(null, "", "/");
       setNodeId(null);
@@ -160,12 +161,16 @@ export default function App() {
   const isSearching = state.status === "searching";
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       {/* Search bar */}
-      <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3">
+      <header
+        className="sticky top-0 z-10 px-4 py-3 border-b"
+        style={{ background: "var(--bg)", borderColor: "var(--border)" }}
+      >
         <div className="max-w-2xl mx-auto relative">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+            style={{ color: "var(--gray)" }}
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
@@ -181,10 +186,21 @@ export default function App() {
             onChange={handleChange}
             placeholder={ready ? "Search the Sky Atlas…" : "Loading index…"}
             disabled={!ready}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent disabled:opacity-50 disabled:cursor-wait"
+            className="w-full pl-9 pr-4 py-2 text-sm rounded border disabled:opacity-40 disabled:cursor-wait focus:outline-none"
+            style={{
+              background: "var(--surface)",
+              color: "var(--tan)",
+              borderColor: "var(--border)",
+              fontFamily: "inherit",
+            }}
+            onFocus={e => (e.target.style.borderColor = "var(--accent)")}
+            onBlur={e => (e.target.style.borderColor = "var(--border)")}
           />
           {isSearching && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 animate-pulse">
+            <span
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs animate-pulse mono"
+              style={{ color: "var(--gray)" }}
+            >
               searching…
             </span>
           )}
@@ -199,10 +215,13 @@ export default function App() {
       ) : (
         <main className="flex-1 max-w-2xl mx-auto w-full">
           {state.status === "done" && (
-            <div className="px-4 py-2 text-xs text-slate-400 border-b border-slate-100">
+            <div
+              className="px-4 py-2 text-xs border-b mono"
+              style={{ color: "var(--tan-3)", borderColor: "var(--border)" }}
+            >
               {hits.length === 0
-                ? `No results for "${state.query}"`
-                : `${hits.length} result${hits.length !== 1 ? "s" : ""} · ${state.durationMs.toFixed(0)} ms`}
+                ? `no results for "${state.query}"`
+                : `${hits.length} result${hits.length !== 1 ? "s" : ""} · ${state.durationMs.toFixed(0)}ms`}
             </div>
           )}
 
@@ -217,7 +236,10 @@ export default function App() {
           )}
 
           {state.status === "idle" && (
-            <div className="flex flex-col items-center justify-center py-24 text-slate-400 select-none">
+            <div
+              className="flex flex-col items-center justify-center py-24 select-none"
+              style={{ color: "var(--tan-3)" }}
+            >
               <svg
                 className="w-10 h-10 mb-3 opacity-30"
                 fill="none"
@@ -233,13 +255,19 @@ export default function App() {
           )}
 
           {state.status === "loading" && (
-            <div className="flex items-center justify-center py-24 text-slate-400 text-sm">
+            <div
+              className="flex items-center justify-center py-24 text-sm"
+              style={{ color: "var(--gray)" }}
+            >
               Loading search index…
             </div>
           )}
 
           {state.status === "error" && (
-            <div className="flex items-center justify-center py-24 text-red-500 text-sm">
+            <div
+              className="flex items-center justify-center py-24 text-sm"
+              style={{ color: "var(--red)" }}
+            >
               {state.message}
             </div>
           )}

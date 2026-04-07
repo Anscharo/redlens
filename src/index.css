@@ -1,7 +1,52 @@
 @import "tailwindcss";
 
+:root {
+  --bg:        #160e0d;   /* charcoal with a reddish undertone */
+  --surface:   #221614;
+  --hover:     #2d1e1b;
+  --border:    #3d2c28;
+  --red:       #a63228;   /* burn red — badges, target highlight */
+  --red-dim:   #753021;
+  --accent:    #c67267;   /* browner/pinker — focus, interactive */
+  --gray:      #7a6860;
+  --tan:       #f3e7ce;   /* primary text — lightened */
+  --tan-2:     #e4d1b9;   /* secondary */
+  --tan-3:     #a38f79;   /* muted */
+}
+
+html, body, #root {
+  background-color: var(--bg);
+  color: var(--tan);
+  font-family: 'Lora', Georgia, serif;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+code, .mono {
+  font-family: 'Source Code Pro', 'Courier New', monospace;
+}
+
 mark {
-  background-color: theme(colors.yellow.200);
-  color: inherit;
+  background-color: var(--red-dim);
+  color: var(--tan);
   border-radius: 2px;
+  padding: 0 1px;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  filter: invert(0.5);
 }
