@@ -7,6 +7,7 @@ export interface AtlasNode {
   parentId: string | null;
   content: string;
   order: number; // parse order, used for sorting within a scope
+  addresses: Record<string, { chain: string; explorerUrl: string }>;
 }
 
 export interface SearchHit {

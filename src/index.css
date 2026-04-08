@@ -3,7 +3,7 @@
 :root {
   --bg:        #160e0d;   /* charcoal with a reddish undertone */
   --surface:   #221614;
-  --hover:     #2d1e1b;
+  --hover:     #3a1f1a;
   --border:    #3d2c28;
   --red:       #a63228;   /* burn red — badges, target highlight */
   --red-dim:   #753021;
@@ -49,4 +49,30 @@ mark {
 
 input[type="search"]::-webkit-search-cancel-button {
   filter: invert(0.5);
+}
+
+/* ScopeNode states */
+.scope-node {
+  transition: opacity 0.1s, background-color 0.1s;
+}
+.scope-node.is-muted {
+  opacity: 0.45;
+}
+.scope-node.is-muted:hover {
+  opacity: 1;
+  background-color: var(--hover);
+}
+.scope-node.is-target {
+  opacity: 1;
+}
+
+/* KaTeX dark mode */
+.katex {
+  color: var(--tan);
+  font-size: 1em;
+}
+.katex-display {
+  overflow-x: auto;
+  padding: 0.5rem 0;
+  margin: 0.75rem 0;
 }

@@ -27,6 +27,88 @@ const HEADING_RE =
   /^(#{1,6}) ([\w.]+) - (.+?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->$/;
 
 // ---------------------------------------------------------------------------
+// Onchain address extraction
+// ---------------------------------------------------------------------------
+const ETH_ADDR_RE = /0x[0-9a-fA-F]{40}/g;
+// Base58, 43-44 chars, word boundary — covers standard Solana pubkeys
+const SOL_ADDR_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
+const WINDOW = 300; // chars before the address to scan for chain hints
+
+// Ordered by specificity — more specific patterns first within each entry
+const CHAIN_HINTS = [
+  { chain: "ethereum",  patterns: [/\bethereum\b/i, /\bmainnet\b/i] },
+  { chain: "base",      patterns: [/\bbase\b/i] },
+  { chain: "arbitrum",  patterns: [/\barbitrum\b/i, /\barb\b/i] },
+  { chain: "optimism",  patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
+  { chain: "polygon",   patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
+  { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
+  { chain: "gnosis",    patterns: [/\bgnosis\b/i, /\bxdai\b/i] },
+];
+
+const EXPLORER = {
+  ethereum:  "https://etherscan.io/address/",
+  base:      "https://basescan.org/address/",
+  arbitrum:  "https://arbiscan.io/address/",
+  optimism:  "https://optimistic.etherscan.io/address/",
+  polygon:   "https://polygonscan.com/address/",
+  avalanche: "https://snowtrace.io/address/",
+  gnosis:    "https://gnosisscan.io/address/",
+  solana:    "https://explorer.solana.com/address/",
+};
+
+// "address on [the] CHAIN is 0x..." — most reliable signal
+const EXPLICIT_RE = /\baddress\s+on\s+(?:the\s+)?(.{3,30}?)\s+is\s*$/i;
+
+function detectChain(content, matchIndex) {
+  // Pass 1: explicit "address on X is" pattern in the 120 chars immediately before
+  const tight = content.slice(Math.max(0, matchIndex - 120), matchIndex);
+  const explicit = tight.match(EXPLICIT_RE);
+  if (explicit) {
+    const phrase = explicit[1].toLowerCase();
+    for (const { chain, patterns } of CHAIN_HINTS) {
+      if (patterns.some((p) => p.test(phrase))) return chain;
+    }
+  }
+
+  // Pass 2: first chain keyword found in tight window (100 chars)
+  for (const { chain, patterns } of CHAIN_HINTS) {
+    if (patterns.some((p) => p.test(tight))) return chain;
+  }
+
+  // Pass 3: first chain keyword found in wide window (300 chars)
+  const wide = content.slice(Math.max(0, matchIndex - WINDOW), matchIndex);
+  for (const { chain, patterns } of CHAIN_HINTS) {
+    if (patterns.some((p) => p.test(wide))) return chain;
+  }
+
+  return "ethereum";
+}
+
+// Returns { address → { chain, explorerUrl } }
+function extractAddresses(content) {
+  const result = {};
+
+  // EVM addresses (0x-prefixed)
+  ETH_ADDR_RE.lastIndex = 0;
+  let m;
+  while ((m = ETH_ADDR_RE.exec(content)) !== null) {
+    const addr = m[0];
+    if (result[addr]) continue;
+    const chain = detectChain(content, m.index);
+    result[addr] = { chain, explorerUrl: EXPLORER[chain] + addr };
+  }
+
+  // Solana addresses (base58, 43-44 chars) — assumed Solana by pattern alone
+  SOL_ADDR_RE.lastIndex = 0;
+  while ((m = SOL_ADDR_RE.exec(content)) !== null) {
+    const addr = m[0];
+    if (result[addr]) continue;
+    result[addr] = { chain: "solana", explorerUrl: EXPLORER.solana + addr };
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // Parse
 // ---------------------------------------------------------------------------
 function parse(src) {
@@ -206,6 +288,7 @@ for (const node of nodes) {
     parentId: node.parentId,
     order: node.order,
     content: node.content,
+    addresses: extractAddresses(node.content),
   };
 }
 
