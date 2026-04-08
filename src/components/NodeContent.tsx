@@ -1,3 +1,4 @@
+import { memo, useMemo, createContext, useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -13,6 +14,12 @@ interface Props {
   addresses?: Record<string, { chain: string; explorerUrl: string }>;
   onNavigate?: (id: string) => void;
 }
+
+// onNavigate is threaded through React context so the `components` object can
+// live at module scope (and therefore be reference-stable across renders).
+const NavigateContext = createContext<((id: string) => void) | undefined>(undefined);
+
+const remarkPlugins = [remarkGfm, remarkMath];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const ETH_ADDRESS_RE = /0x[0-9a-fA-F]{40}/g;
@@ -41,7 +48,10 @@ function rehypeEthAddresses(addressMap: Record<string, { explorerUrl: string }>)
           parts.push({ type: "text", value: node.value.slice(last, match.index) });
         }
         const addr = match[0];
-        const url = addressMap[addr]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        // EVM addresses are keyed by lowercase in the merged map (normalized in
+        // build-index.mjs). Solana base58 keeps original casing.
+        const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
+        const url = addressMap[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
         parts.push({
           type: "element",
           tagName: "a",
@@ -63,135 +73,146 @@ function rehypeEthAddresses(addressMap: Record<string, { explorerUrl: string }>)
   };
 }
 
-export function NodeContent({ content, addresses = {}, onNavigate }: Props) {
-  const components: Components = {
-    // UUID links → internal navigation; eth addresses → Etherscan
-    a({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode }) {
-      if (href && UUID_RE.test(href) && onNavigate) {
-        return (
-          <a
-            href={`/?id=${href}`}
-            onClick={(e) => { e.preventDefault(); onNavigate(href); }}
-            style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
-            {...props}
-          >
-            {children}
-          </a>
-        );
-      }
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
-          {...props}
-        >
-          {children}
-        </a>
-      );
-    },
+function MarkdownLink({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode }) {
+  const onNavigate = useContext(NavigateContext);
+  if (href && UUID_RE.test(href) && onNavigate) {
+    return (
+      <a
+        href={`${import.meta.env.BASE_URL}?id=${href}`}
+        onClick={(e) => { e.preventDefault(); onNavigate(href); }}
+        style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
+        {...props}
+      >
+        {children}
+      </a>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
+      {...props}
+    >
+      {children}
+    </a>
+  );
+}
 
-    p({ children }) {
-      return (
-        <p className="mb-3 last:mb-0 leading-relaxed text-sm" style={{ color: "var(--tan-2)" }}>
-          {children}
-        </p>
-      );
-    },
+const components: Components = {
+  // UUID links → internal navigation; eth addresses → Etherscan
+  a: MarkdownLink,
 
-    ul({ children }) {
-      return (
-        <ul className="mb-3 pl-5 space-y-1 text-sm list-disc" style={{ color: "var(--tan-2)" }}>
-          {children}
-        </ul>
-      );
-    },
-    ol({ children }) {
-      return (
-        <ol className="mb-3 pl-5 space-y-1 text-sm list-decimal" style={{ color: "var(--tan-2)" }}>
-          {children}
-        </ol>
-      );
-    },
+  p({ children }) {
+    return (
+      <p className="mb-3 last:mb-0 leading-relaxed text-sm" style={{ color: "var(--tan-2)" }}>
+        {children}
+      </p>
+    );
+  },
 
-    code({ children, className }) {
-      const isBlock = className?.startsWith("language-");
-      if (isBlock) {
-        return (
-          <code
-            className={`block mono text-xs p-3 rounded overflow-x-auto mb-3 ${className ?? ""}`}
-            style={{ background: "var(--surface)", color: "var(--tan)", border: "1px solid var(--border)" }}
-          >
-            {children}
-          </code>
-        );
-      }
+  ul({ children }) {
+    return (
+      <ul className="mb-3 pl-5 space-y-1 text-sm list-disc" style={{ color: "var(--tan-2)" }}>
+        {children}
+      </ul>
+    );
+  },
+  ol({ children }) {
+    return (
+      <ol className="mb-3 pl-5 space-y-1 text-sm list-decimal" style={{ color: "var(--tan-2)" }}>
+        {children}
+      </ol>
+    );
+  },
+
+  code({ children, className }) {
+    const isBlock = className?.startsWith("language-");
+    if (isBlock) {
       return (
         <code
-          className="mono text-xs px-1 py-0.5 rounded"
+          className={`block mono text-xs p-3 rounded overflow-x-auto mb-3 ${className ?? ""}`}
           style={{ background: "var(--surface)", color: "var(--tan)", border: "1px solid var(--border)" }}
         >
           {children}
         </code>
       );
-    },
+    }
+    return (
+      <code
+        className="mono text-xs px-1 py-0.5 rounded"
+        style={{ background: "var(--surface)", color: "var(--tan)", border: "1px solid var(--border)" }}
+      >
+        {children}
+      </code>
+    );
+  },
 
-    pre({ children }) {
-      return <pre className="mb-3">{children}</pre>;
-    },
+  pre({ children }) {
+    return <pre className="mb-3">{children}</pre>;
+  },
 
-    table({ children }) {
-      return (
-        <div className="overflow-x-auto mb-3">
-          <table className="w-full text-xs border-collapse" style={{ color: "var(--tan-2)" }}>
-            {children}
-          </table>
-        </div>
-      );
-    },
-    th({ children }) {
-      return (
-        <th
-          className="text-left px-3 py-2 font-semibold text-xs"
-          style={{ borderBottom: "1px solid var(--border)", color: "var(--tan)" }}
-        >
+  table({ children }) {
+    return (
+      <div className="overflow-x-auto mb-3">
+        <table className="w-full text-xs border-collapse" style={{ color: "var(--tan-2)" }}>
           {children}
-        </th>
-      );
-    },
-    td({ children }) {
-      return (
-        <td className="px-3 py-2 text-xs" style={{ borderBottom: "1px solid var(--border)" }}>
-          {children}
-        </td>
-      );
-    },
+        </table>
+      </div>
+    );
+  },
+  th({ children }) {
+    return (
+      <th
+        className="text-left px-3 py-2 font-semibold text-xs"
+        style={{ borderBottom: "1px solid var(--border)", color: "var(--tan)" }}
+      >
+        {children}
+      </th>
+    );
+  },
+  td({ children }) {
+    return (
+      <td className="px-3 py-2 text-xs" style={{ borderBottom: "1px solid var(--border)" }}>
+        {children}
+      </td>
+    );
+  },
 
-    blockquote({ children }) {
-      return (
-        <blockquote
-          className="pl-3 mb-3 italic text-sm"
-          style={{ borderLeft: "3px solid var(--border)", color: "var(--tan-3)" }}
-        >
-          {children}
-        </blockquote>
-      );
-    },
+  blockquote({ children }) {
+    return (
+      <blockquote
+        className="pl-3 mb-3 italic text-sm"
+        style={{ borderLeft: "3px solid var(--border)", color: "var(--tan-3)" }}
+      >
+        {children}
+      </blockquote>
+    );
+  },
 
-    hr() {
-      return <hr className="my-4" style={{ borderColor: "var(--border)" }} />;
-    },
-  };
+  hr() {
+    return <hr className="my-4" style={{ borderColor: "var(--border)" }} />;
+  },
+};
+
+const EMPTY_ADDRESSES: Record<string, { chain: string; explorerUrl: string }> = {};
+
+export const NodeContent = memo(function NodeContent({ content, addresses = EMPTY_ADDRESSES, onNavigate }: Props) {
+  const rehypePlugins = useMemo(
+    () => [rehypeKatex, rehypeEthAddresses(addresses)],
+    [addresses]
+  );
 
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex, rehypeEthAddresses(addresses)]}
-
-      components={components}
-    >
-      {content}
-    </ReactMarkdown>
+    <NavigateContext.Provider value={onNavigate}>
+      <ReactMarkdown
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
+        components={components}
+      >
+        {content}
+      </ReactMarkdown>
+    </NavigateContext.Provider>
   );
-}
+});

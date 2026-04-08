@@ -8,9 +8,10 @@ let idx: lunr.Index | null = null;
 let docs: Record<string, AtlasNode> = {};
 
 async function init() {
+  const base = import.meta.env.BASE_URL;
   const [idxRes, docsRes] = await Promise.all([
-    fetch("/search-index.json"),
-    fetch("/docs.json"),
+    fetch(`${base}search-index.json`),
+    fetch(`${base}docs.json`),
   ]);
   const [idxData, docsData] = await Promise.all([
     idxRes.json() as Promise<object>,
@@ -56,8 +57,28 @@ function buildSnippet(content: string, matchedTerms: string[]): string {
   return excerpt;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function search(q: string): SearchHit[] {
   if (!idx) return [];
+
+  // Direct UUID lookup — bypass Lunr entirely
+  if (UUID_RE.test(q.trim())) {
+    const doc = docs[q.trim().toLowerCase()];
+    if (doc) {
+      return [{
+        id: doc.id,
+        score: 1,
+        doc_no: doc.doc_no,
+        title: doc.title,
+        type: doc.type,
+        depth: doc.depth,
+        parentId: doc.parentId,
+        snippet: doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
+      }];
+    }
+    return [];
+  }
 
   let results: lunr.Index.Result[];
   try {

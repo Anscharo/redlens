@@ -7,7 +7,16 @@ export interface AtlasNode {
   parentId: string | null;
   content: string;
   order: number; // parse order, used for sorting within a scope
-  addresses: Record<string, { chain: string; explorerUrl: string }>;
+  addresses: Record<string, AddressInfo>;
+}
+
+export interface AddressInfo {
+  chain: string;
+  explorerUrl: string;
+  roles: string[];          // multi-label tags from build-index.mjs ROLE_VOCAB
+  entityLabel: string | null;
+  aliases: string[];        // other labels found for this address across the Atlas
+  expectedTokens: string[]; // text-derived guess at which ERC20s to query
 }
 
 export interface SearchHit {

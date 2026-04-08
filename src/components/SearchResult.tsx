@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { SearchHit } from "../types";
 
 interface Props {
@@ -5,10 +6,10 @@ interface Props {
   onNavigate: (id: string) => void;
 }
 
-export function SearchResult({ hit, onNavigate }: Props) {
+export const SearchResult = memo(function SearchResult({ hit, onNavigate }: Props) {
   return (
     <a
-      href={`/?id=${hit.id}`}
+      href={`${import.meta.env.BASE_URL}?id=${hit.id}`}
       onClick={(e) => { e.preventDefault(); onNavigate(hit.id); }}
       className="block group px-4 py-3 border-b"
       style={{
@@ -47,4 +48,4 @@ export function SearchResult({ hit, onNavigate }: Props) {
       )}
     </a>
   );
-}
+});

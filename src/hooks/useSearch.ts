@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { SearchHit, WorkerOutMessage } from "../types";
 
-type SearchState =
+export type SearchState =
   | { status: "idle" }
   | { status: "loading" } // worker not ready yet
   | { status: "searching" }
