@@ -1,73 +1,39 @@
-# React + TypeScript + Vite
+# RedLens — Sky Atlas
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A search-first reader for the [Sky Atlas](https://github.com/sky-ecosystem/next-gen-atlas), the canonical document describing the Sky ecosystem's structure, governance, and operations.
 
-Currently, two official plugins are available:
+An alternative to [sky-atlas.io](https://sky-atlas.io) with a focus on:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Fast full-content search** — every node of the Atlas is indexed (lunr.js, in a Web Worker), so queries hit the entire ~48k-line corpus instantly.
+- **On-chain annotations** — addresses mentioned in the Atlas are detected at build time, classified by chain and role, and linked to the appropriate block explorer. The goal is to surface live on-chain context (balances, holdings) next to the governance text that references them.
 
-## React Compiler
+## Build & run locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Requires [pnpm](https://pnpm.io/) and Node 22+.
 
-## Expanding the ESLint configuration
+```bash
+# clone with the Atlas submodule
+git clone --recurse-submodules https://github.com/Anscharo/redlens.git
+cd redlens
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+pnpm install
+pnpm build:index   # parses the Atlas markdown into docs.json + search-index.json
+pnpm dev           # start the Vite dev server
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+If you cloned without `--recurse-submodules`, run:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+git submodule update --init --recursive
 ```
+
+To produce a production build:
+
+```bash
+pnpm build         # runs build:index, then tsc + vite build
+pnpm preview       # serve the built site locally
+```
+
+## Deployment
+
+`main` is auto-deployed to GitHub Pages via `.github/workflows/deploy.yml`. The workflow also runs on a daily schedule, pulling the latest upstream Atlas content on each build.

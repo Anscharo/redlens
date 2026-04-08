@@ -47,7 +47,11 @@ export default function App() {
 
   const toggleScope = useCallback((scope: AtlasNode) => {
     setActiveScope((prev) => (prev?.id === scope.id ? null : scope));
-  }, []);
+    if (nodeId) {
+      history.pushState(null, "", import.meta.env.BASE_URL);
+      setNodeId(null);
+    }
+  }, [nodeId]);
 
   const handleHintClick = useCallback((q: string) => {
     setQuery(q);
