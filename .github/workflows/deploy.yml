@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -33,6 +35,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Pull latest Atlas content
+        run: git -C vendor/next-gen-atlas fetch origin main && git -C vendor/next-gen-atlas checkout origin/main
 
       - run: pnpm build
 
