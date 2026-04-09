@@ -75,6 +75,50 @@ pnpm dev              # Vite dev server (requires build:index + build:addresses 
 pnpm preview          # serve the production build locally
 ```
 
+## Atlas MCP server (local)
+
+This repo also ships a local [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the Sky Atlas as queryable tools for Claude Code (or any MCP client). It uses a local vector index over `docs.json` so you can ask natural-language questions about the Atlas without sending any data off your machine.
+
+Three tools are exposed:
+- `atlas_search(query, k?, type?)` — semantic search over all 9,825 nodes
+- `atlas_get(id)` — fetch a single node by UUID or doc number (e.g. `A.6.1.1.1`)
+- `atlas_neighbors(id, window?)` — parent + sibling + child context around a node
+
+### Setup
+
+1. **Install [Ollama](https://ollama.com/)** and pull the embedding model (one-time, ~270 MB):
+   ```bash
+   ollama pull nomic-embed-text
+   ```
+   Ollama must be running at `http://localhost:11434` (the default). Override with `OLLAMA_URL` if you've moved it.
+
+2. **Build the docs index** if you haven't already:
+   ```bash
+   pnpm build:index
+   ```
+
+3. **Build the vector index** (embeds all atlas nodes — takes a couple of minutes the first time):
+   ```bash
+   pnpm build:rag
+   ```
+   Output lives in `.cache/atlas-rag/` (gitignored). Re-run whenever `docs.json` changes.
+
+4. **Use it.** The repo ships a `.mcp.json` at the root, so any Claude Code session opened in this directory auto-discovers the server. The first time you run a tool, Claude will prompt you to approve it.
+
+### Smoke tests
+
+```bash
+node scripts/query-rag.mjs "what is spark"   # direct RAG query, no MCP layer
+node scripts/test-mcp.mjs                     # exercise the JSON-RPC stdio protocol
+```
+
+### Notes
+
+- Zero npm dependencies — the server uses only Node built-ins (`fs`, `readline`, `fetch`).
+- The vector store is brute-force cosine over an L2-normalized `Float32Array` (~30 MB scan per query, fine for 9,825 nodes).
+- Server logs go to stderr; stdout is reserved for JSON-RPC messages.
+- Index is **not** auto-rebuilt by `pnpm build` because the web build shouldn't depend on Ollama being online. Run `pnpm build:rag` manually after `build:index` when you want to refresh it.
+
 ## Deployment
 
 `main` is auto-deployed to GitHub Pages via `.github/workflows/deploy.yml`. The workflow:
