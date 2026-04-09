@@ -69,18 +69,43 @@ console.log(`Chainlog addresses: ${chainlogEntries.length}`);
 
 const calls = []; // { address, chainlogId, fnName, abi }
 
-for (const [addr, info] of chainlogEntries) {
-  let cache;
+// Helper: load and parse an ABI from the etherscan cache. Returns null if
+// the file is absent or the ABI field is empty/invalid.
+async function loadAbi(addr) {
   try {
-    cache = JSON.parse(await fs.readFile(path.join(CACHE_DIR, "1", `${addr}.json`), "utf8"));
+    const entry = JSON.parse(await fs.readFile(path.join(CACHE_DIR, "1", `${addr}.json`), "utf8"));
+    if (!entry.abi) return null;
+    return JSON.parse(entry.abi);
   } catch {
-    console.warn(`  ! no cache for ${info.chainlogId} (${addr})`);
+    return null;
+  }
+}
+
+let proxyUpgraded = 0;
+
+for (const [addr, info] of chainlogEntries) {
+  // For proxy contracts, prefer the implementation ABI — it exposes the actual
+  // state-reading functions rather than just implementation()/admin(). Call
+  // target is still the proxy address (delegatecall routing handles the rest).
+  let abi = null;
+  if (info.isProxy && info.implementation) {
+    abi = await loadAbi(info.implementation);
+    if (abi) {
+      proxyUpgraded++;
+    } else {
+      console.warn(`  ! proxy ${info.chainlogId}: no impl ABI for ${info.implementation}, falling back to proxy ABI`);
+    }
+  }
+
+  // Fall back to the proxy's own ABI (or use it directly for non-proxies)
+  if (!abi) {
+    abi = await loadAbi(addr);
+  }
+
+  if (!abi) {
+    console.warn(`  ! no ABI for ${info.chainlogId} (${addr})`);
     continue;
   }
-  if (!cache.abi) continue;
-
-  let abi;
-  try { abi = JSON.parse(cache.abi); } catch { continue; }
 
   // Filter to no-arg view/pure functions only
   const viewFns = abi.filter(
@@ -95,7 +120,7 @@ for (const [addr, info] of chainlogEntries) {
   }
 }
 
-console.log(`Total calls: ${calls.length} across ${chainlogEntries.length} contracts`);
+console.log(`Total calls: ${calls.length} across ${chainlogEntries.length} contracts (${proxyUpgraded} using impl ABI)`);
 
 // ---------------------------------------------------------------------------
 // Execute via multicall3 in batches (multicall has a practical limit around

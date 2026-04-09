@@ -48,14 +48,13 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
       const parent = target.parentId ? docs[target.parentId] ?? null : null;
 
       // Siblings: same parentId, already sorted by `order` in the prebuilt index.
-      // Find target's position with a single linear scan, then slice ±8 around it.
       const siblings = byParent.get(target.parentId) ?? [];
       const idx = siblings.indexOf(target);
-      const above = idx > 0 ? siblings.slice(Math.max(0, idx - 8), idx) : [];
-      const below = idx >= 0 ? siblings.slice(idx + 1, idx + 9) : [];
+      const above = idx > 0 ? siblings.slice(0, idx) : [];
+      const below = idx >= 0 ? siblings.slice(idx + 1) : [];
 
       // Direct children of target — also pre-sorted.
-      const children = (byParent.get(target.id) ?? []).slice(0, 8);
+      const children = byParent.get(target.id) ?? [];
 
       // Display order: parent → above siblings → target → children → below siblings
       const scopeNodes: AtlasNode[] = [];

@@ -236,6 +236,39 @@ for (const [addr, info] of Object.entries(atlas)) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Fetch implementation ABIs for proxy contracts
+//
+// fetch-snapshots.mjs reads contracts as proxies using their implementation's
+// ABI. Those impl addresses are never in the Atlas itself, so they won't have
+// been fetched above. Do a second pass here so the cache is complete before
+// the snapshot step runs.
+// ---------------------------------------------------------------------------
+const implAddrs = [...new Set(
+  Object.values(out)
+    .filter((a) => a.isProxy && a.implementation)
+    .map((a) => a.implementation)
+)];
+
+if (implAddrs.length) {
+  console.log(`\nFetching implementation ABIs for ${implAddrs.length} proxy contracts…`);
+  let implMisses = 0;
+  for (const impl of implAddrs) {
+    const cached = await readCache(1, impl);
+    if (cached) continue;
+    try {
+      const entry = await fetchEtherscan(1, impl);
+      await writeCache(1, impl, entry);
+      implMisses++;
+      console.log(`  cached ${impl} (${entry.contractName || "unverified"})`);
+      await sleep(250);
+    } catch (err) {
+      console.warn(`  ! impl ${impl}: ${err.message}`);
+    }
+  }
+  console.log(`  ${implMisses} new, ${implAddrs.length - implMisses} already cached`);
+}
+
 await fs.writeFile(OUT_PATH, JSON.stringify(out));
 await fs.unlink(MERGED_PATH).catch(() => {});
 
