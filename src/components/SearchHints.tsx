@@ -1,5 +1,4 @@
 const HINTS: { label: string; query: string; description: string }[] = [
-  { label: "exact phrase",       query: '"alignment engineering"',     description: "Wrap in quotes for exact phrases" },
   { label: "wildcard",           query: "govern*",                     description: "Trailing * matches any suffix" },
   { label: "0x address",         query: "0x*",                        description: "All nodes containing an Ethereum address" },
   { label: "doc number",         query: "A.1.2",                      description: "Jump directly to a section by number" },

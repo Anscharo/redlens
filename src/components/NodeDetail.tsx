@@ -3,6 +3,8 @@ import { ScopeNode } from "./ScopeNode";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
 import { loadDocs } from "../lib/docs";
+import { loadAddresses } from "../lib/addresses";
+import { setAddressMap } from "./NodeContent";
 import type { AtlasNode, AddressInfo } from "../types";
 
 // Extract UUIDs from markdown links in content: [text](uuid)
@@ -26,8 +28,12 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    loadDocs()
-      .then((docs) => {
+    Promise.all([loadDocs(), loadAddresses()])
+      .then(([docs, addresses]) => {
+        // Push the shared address map into NodeContent's module-level lookup so
+        // its rehype plugin can resolve explorer URLs. Idempotent.
+        setAddressMap(addresses);
+
         const target = docs[id];
         if (!target) { setLoaded(true); return; }
 
@@ -54,9 +60,16 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
         const linkedIds = extractLinkedIds([target]);
         const linked = linkedIds.map((lid) => docs[lid]).filter((n): n is AtlasNode => !!n);
 
+        // Join target's addressRefs against the shared map
+        const resolved: Record<string, AddressInfo> = {};
+        for (const ref of target.addressRefs ?? []) {
+          const info = addresses[ref];
+          if (info) resolved[ref] = info;
+        }
+
         setScopeNodes(nodes);
         setLinkedNodes(linked);
-        setTargetAddresses(target.addresses ?? {});
+        setTargetAddresses(resolved);
         setLoaded(true);
       });
   }, [id]);

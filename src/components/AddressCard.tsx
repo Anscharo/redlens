@@ -3,9 +3,9 @@ import type { AddressInfo } from "../types";
 export function AddressCard({ address, info }: { address: string; info: AddressInfo }) {
   return (
     <div className="py-3 border-b" style={{ borderColor: "var(--border)" }}>
-      {info.entityLabel && (
+      {info.label && (
         <p className="text-sm font-semibold mb-1" style={{ color: "var(--tan)" }}>
-          {info.entityLabel}
+          {info.label}
         </p>
       )}
       {info.aliases.length > 0 && (
@@ -26,8 +26,21 @@ export function AddressCard({ address, info }: { address: string; info: AddressI
       >
         {address}
       </a>
-      {info.roles.length > 0 && (
+      {(info.roles.length > 0 || (info.isProxy && info.implementation)) && (
         <div className="flex flex-wrap gap-1">
+          {info.isProxy && info.implementation && (
+            <span
+              className="mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
+              style={{
+                background: "var(--surface)",
+                color: "var(--accent)",
+                border: "1px solid var(--border)",
+              }}
+              title={`implementation ${info.implementation}`}
+            >
+              proxy → {info.implementation.slice(0, 6)}…{info.implementation.slice(-4)}
+            </span>
+          )}
           {info.roles.map((role) => (
             <span
               key={role}

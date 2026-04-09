@@ -26,7 +26,7 @@ export const RelatedNode = memo(function RelatedNode({ node, onNavigate }: { nod
       </div>
       {node.content && (
         <div className="line-clamp-4 text-sm" style={{ color: "var(--tan-2)" }}>
-          <NodeContent content={node.content} addresses={node.addresses} onNavigate={onNavigate} />
+          <NodeContent content={node.content} onNavigate={onNavigate} />
         </div>
       )}
     </div>

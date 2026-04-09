@@ -29,7 +29,10 @@ const HEADING_RE =
 // ---------------------------------------------------------------------------
 // Onchain address extraction
 // ---------------------------------------------------------------------------
-const ETH_ADDR_RE = /0x[0-9a-fA-F]{40}/g;
+// EVM addresses are exactly 40 hex chars. The negative lookbehind/lookahead
+// stop us from matching the leading 40 hex of a longer hex blob like a 64-hex
+// transaction hash or raw calldata.
+const ETH_ADDR_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
 // Base58, 43-44 chars, word boundary — covers standard Solana pubkeys
 const SOL_ADDR_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
 
@@ -687,6 +690,38 @@ for (const node of nodes) {
 console.log("\nMerging address annotations across nodes…");
 const mergedAddrs = mergeAddressAnnotations(Object.values(docs));
 console.log(`  ${Object.keys(mergedAddrs).length} unique addresses merged`);
+
+// Strip the per-node addresses map: every node now carries only the list of
+// normalized address keys it references. The frontend joins these against the
+// shared public/addresses.json (built later by scripts/build-addresses.mjs).
+for (const node of Object.values(docs)) {
+  node.addressRefs = Object.keys(node.addresses || {}).sort();
+  delete node.addresses;
+}
+
+// Address stats — show before any UI consumes the merged map.
+{
+  const total = Object.keys(mergedAddrs).length;
+  let withLabel = 0;
+  const byChain = {};
+  for (const info of Object.values(mergedAddrs)) {
+    if (info.entityLabel) withLabel++;
+    byChain[info.chain] = (byChain[info.chain] ?? 0) + 1;
+  }
+  console.log(`  with atlas-prose label: ${withLabel} / ${total}`);
+  console.log("  by chain:");
+  for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${c.padEnd(12)} ${n}`);
+  }
+}
+
+// Hand the merged map to scripts/build-addresses.mjs as an intermediate file.
+// Not a shipping artifact — build-addresses overwrites public/addresses.json
+// and deletes this baton afterwards.
+fs.writeFileSync(
+  path.join(OUT_DIR, "addresses.merged.json"),
+  JSON.stringify(mergedAddrs)
+);
 
 fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify(docs));
 fs.writeFileSync(

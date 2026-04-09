@@ -16,6 +16,12 @@ dist-ssr
 public/search-index.json
 public/docs.json
 
+# Generated from atlas + etherscan (build-addresses script)
+public/addresses.json
+
+# Intermediate handoff file from build:index → build:addresses
+public/addresses.merged.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

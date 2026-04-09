@@ -59,6 +59,19 @@ function buildSnippet(content: string, matchedTerms: string[]): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Extract quoted "phrases" from a query and return them along with the
+// query stripped of quotes. Lunr has no native phrase operator, so we
+// post-filter results by literal substring match.
+function extractPhrases(q: string): { phrases: string[]; rest: string } {
+  const phrases: string[] = [];
+  const rest = q.replace(/"([^"]+)"/g, (_, p: string) => {
+    const trimmed = p.trim();
+    if (trimmed) phrases.push(trimmed);
+    return ` ${p} `;
+  });
+  return { phrases, rest };
+}
+
 function search(q: string): SearchHit[] {
   if (!idx) return [];
 
@@ -80,13 +93,15 @@ function search(q: string): SearchHit[] {
     return [];
   }
 
+  const { phrases, rest } = extractPhrases(q);
+
   let results: lunr.Index.Result[];
   try {
-    results = idx.search(q);
+    results = idx.search(rest);
   } catch {
     // lunr throws on bad query syntax — fall back to wildcard search
     try {
-      results = idx.search(q.split(/\s+/).map(t => `${t}*`).join(" "));
+      results = idx.search(rest.split(/\s+/).filter(Boolean).map(t => `${t}*`).join(" "));
     } catch {
       return [];
     }
@@ -96,8 +111,16 @@ function search(q: string): SearchHit[] {
     const doc = docs[r.ref];
     if (!doc) return null;
 
-    // Collect the unique stemmed terms that matched
-    const matchedTerms = Object.keys(r.matchData.metadata);
+    // Phrase post-filter: every quoted phrase must literally appear in the content.
+    if (phrases.length > 0) {
+      const lower = doc.content.toLowerCase();
+      for (const p of phrases) {
+        if (!lower.includes(p.toLowerCase())) return null;
+      }
+    }
+
+    // Collect the unique stemmed terms that matched, plus phrases for highlighting.
+    const matchedTerms = [...Object.keys(r.matchData.metadata), ...phrases];
 
     return {
       id: doc.id,

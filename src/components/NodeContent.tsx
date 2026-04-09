@@ -1,4 +1,4 @@
-import { memo, useMemo, createContext, useContext } from "react";
+import { memo, createContext, useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
@@ -11,7 +11,6 @@ import type { AnchorHTMLAttributes } from "react";
 
 interface Props {
   content: string;
-  addresses?: Record<string, { chain: string; explorerUrl: string }>;
   onNavigate?: (id: string) => void;
 }
 
@@ -21,13 +20,24 @@ const NavigateContext = createContext<((id: string) => void) | undefined>(undefi
 
 const remarkPlugins = [remarkGfm, remarkMath];
 
+// Module-level shared address map. NodeDetail calls setAddressMap() once after
+// loadAddresses() resolves; the rehype plugin reads from here on every walk.
+// Keeping this at module scope means rehypePlugins is a constant array (no
+// useMemo) and NodeContent re-renders only when content/onNavigate change.
+let SHARED_ADDRESSES: Record<string, { explorerUrl: string }> = {};
+export function setAddressMap(m: Record<string, { explorerUrl: string }>) {
+  SHARED_ADDRESSES = m;
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const ETH_ADDRESS_RE = /0x[0-9a-fA-F]{40}/g;
+// Exactly 40 hex chars; lookarounds reject matches inside longer hex strings
+// like tx hashes or calldata.
+const ETH_ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
 const SOL_ADDRESS_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
 const ONCHAIN_RE = new RegExp(`${ETH_ADDRESS_RE.source}|${SOL_ADDRESS_RE.source}`, "g");
 
-// Rehype plugin: link addresses using the pre-built map from the build step
-function rehypeEthAddresses(addressMap: Record<string, { explorerUrl: string }>) {
+// Rehype plugin: link addresses using the shared SHARED_ADDRESSES map.
+function rehypeEthAddresses() {
   return () => (tree: Root) => {
     const replacements: Array<{ parent: Element; index: number; nodes: ElementContent[] }> = [];
 
@@ -51,7 +61,7 @@ function rehypeEthAddresses(addressMap: Record<string, { explorerUrl: string }>)
         // EVM addresses are keyed by lowercase in the merged map (normalized in
         // build-index.mjs). Solana base58 keeps original casing.
         const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-        const url = addressMap[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
         parts.push({
           type: "element",
           tagName: "a",
@@ -196,14 +206,9 @@ const components: Components = {
   },
 };
 
-const EMPTY_ADDRESSES: Record<string, { chain: string; explorerUrl: string }> = {};
+const rehypePlugins = [rehypeKatex, rehypeEthAddresses()];
 
-export const NodeContent = memo(function NodeContent({ content, addresses = EMPTY_ADDRESSES, onNavigate }: Props) {
-  const rehypePlugins = useMemo(
-    () => [rehypeKatex, rehypeEthAddresses(addresses)],
-    [addresses]
-  );
-
+export const NodeContent = memo(function NodeContent({ content, onNavigate }: Props) {
   return (
     <NavigateContext.Provider value={onNavigate}>
       <ReactMarkdown

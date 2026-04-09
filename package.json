@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:index": "node scripts/build-index.mjs",
-    "build": "pnpm build:index && tsc -b && vite build",
+    "build:index": "node --env-file-if-exists=.env.local scripts/build-index.mjs",
+    "build:addresses": "node --env-file-if-exists=.env.local scripts/build-addresses.mjs",
+    "build": "pnpm build:index && pnpm build:addresses && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
