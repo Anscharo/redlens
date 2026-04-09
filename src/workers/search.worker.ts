@@ -1,24 +1,48 @@
 /// <reference lib="webworker" />
 import lunr from "lunr";
-import type { AtlasNode, SearchHit, WorkerInMessage, WorkerOutMessage } from "../types";
+import type { AtlasNode, AddressInfo, SearchHit, WorkerInMessage, WorkerOutMessage } from "../types";
 
 declare const self: DedicatedWorkerGlobalScope;
 
 let idx: lunr.Index | null = null;
 let docs: Record<string, AtlasNode> = {};
 
+// Address reverse-lookup structures, built at init from addresses.json + docs.
+// chainlogId  → lowercase address  (e.g. "MCD_VAT" → "0x35d1…")
+// address     → node ids that reference it via addressRefs
+let chainlogToAddr: Map<string, string> = new Map();
+let addrToNodeIds: Map<string, string[]> = new Map();
+
 async function init() {
   const base = import.meta.env.BASE_URL;
-  const [idxRes, docsRes] = await Promise.all([
+  const [idxRes, docsRes, addrsRes] = await Promise.all([
     fetch(`${base}search-index.json`),
     fetch(`${base}docs.json`),
+    fetch(`${base}addresses.json`),
   ]);
-  const [idxData, docsData] = await Promise.all([
+  const [idxData, docsData, addrsData] = await Promise.all([
     idxRes.json() as Promise<object>,
     docsRes.json() as Promise<Record<string, AtlasNode>>,
+    addrsRes.json() as Promise<Record<string, AddressInfo>>,
   ]);
+
   idx = lunr.Index.load(idxData);
   docs = docsData;
+
+  // Build chainlogId → address map
+  for (const [addr, info] of Object.entries(addrsData)) {
+    if (info.chainlogId) chainlogToAddr.set(info.chainlogId, addr);
+  }
+
+  // Build address → node ids reverse map from docs addressRefs
+  for (const [id, doc] of Object.entries(docs)) {
+    for (const ref of doc.addressRefs ?? []) {
+      const list = addrToNodeIds.get(ref);
+      if (list) list.push(id);
+      else addrToNodeIds.set(ref, [id]);
+    }
+  }
+
   post({ type: "ready" });
 }
 
@@ -49,7 +73,6 @@ function buildSnippet(content: string, matchedTerms: string[]): string {
 
   // Wrap matched terms in <mark>
   for (const term of matchedTerms) {
-    // escape for regex
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     excerpt = excerpt.replace(new RegExp(escaped, "gi"), "<mark>$&</mark>");
   }
@@ -58,6 +81,8 @@ function buildSnippet(content: string, matchedTerms: string[]): string {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Chainlog IDs are ALL_CAPS_WITH_UNDERSCORES, at least 3 chars, starting with a letter.
+const CHAINLOG_RE = /^[A-Z][A-Z0-9_]{2,}$/;
 
 // Extract quoted "phrases" from a query and return them along with the
 // query stripped of quotes. Lunr has no native phrase operator, so we
@@ -72,42 +97,68 @@ function extractPhrases(q: string): { phrases: string[]; rest: string } {
   return { phrases, rest };
 }
 
+function docToHit(doc: AtlasNode, score = 1, snippet?: string): SearchHit {
+  return {
+    id: doc.id,
+    score,
+    doc_no: doc.doc_no,
+    title: doc.title,
+    type: doc.type,
+    depth: doc.depth,
+    parentId: doc.parentId,
+    snippet: snippet ?? (doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : "")),
+  };
+}
+
 function search(q: string): SearchHit[] {
   if (!idx) return [];
 
+  const trimmed = q.trim();
+
   // Direct UUID lookup — bypass Lunr entirely
-  if (UUID_RE.test(q.trim())) {
-    const doc = docs[q.trim().toLowerCase()];
-    if (doc) {
-      return [{
-        id: doc.id,
-        score: 1,
-        doc_no: doc.doc_no,
-        title: doc.title,
-        type: doc.type,
-        depth: doc.depth,
-        parentId: doc.parentId,
-        snippet: doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
-      }];
-    }
-    return [];
+  if (UUID_RE.test(trimmed)) {
+    const doc = docs[trimmed.toLowerCase()];
+    return doc ? [docToHit(doc)] : [];
   }
 
   const { phrases, rest } = extractPhrases(q);
 
+  // Chainlog reverse-map results — collected into a scored map first so they
+  // can be merged with lunr results below. Chainlog hits get score 2 so they
+  // surface above typical lunr scores but can be outranked by a very strong
+  // lunr match on the same node.
+  const chainlogHits = new Map<string, SearchHit>();
+  if (CHAINLOG_RE.test(trimmed)) {
+    const addr = chainlogToAddr.get(trimmed);
+    if (addr) {
+      for (const id of addrToNodeIds.get(addr) ?? []) {
+        const doc = docs[id];
+        if (doc) chainlogHits.set(id, docToHit(doc, 2));
+      }
+    }
+  }
+
+  // A bare hex-prefix query ("0x", "0x35d1", partial address) won't match
+  // anything in lunr as-is because it has no trailing wildcard. Auto-append *
+  // so the user doesn't have to remember to type it.
+  const HEX_PREFIX_RE = /^0x[0-9a-fA-F]*$/i;
+  const normalized = HEX_PREFIX_RE.test(rest.trim())
+    ? rest.trim() + "*"
+    : rest;
+
   let results: lunr.Index.Result[];
   try {
-    results = idx.search(rest);
+    results = idx.search(normalized);
   } catch {
     // lunr throws on bad query syntax — fall back to wildcard search
     try {
-      results = idx.search(rest.split(/\s+/).filter(Boolean).map(t => `${t}*`).join(" "));
+      results = idx.search(normalized.split(/\s+/).filter(Boolean).map(t => `${t}*`).join(" "));
     } catch {
       return [];
     }
   }
 
-  return results.map((r) => {
+  const lunrHits = results.map((r) => {
     const doc = docs[r.ref];
     if (!doc) return null;
 
@@ -119,7 +170,6 @@ function search(q: string): SearchHit[] {
       }
     }
 
-    // Collect the unique stemmed terms that matched, plus phrases for highlighting.
     const matchedTerms = [...Object.keys(r.matchData.metadata), ...phrases];
 
     return {
@@ -133,6 +183,32 @@ function search(q: string): SearchHit[] {
       snippet: buildSnippet(doc.content, matchedTerms),
     } satisfies SearchHit;
   }).filter((h): h is SearchHit => h !== null);
+
+  // Merge with three tiers:
+  //   1. found by BOTH chainlog + lunr  (best snippet from lunr, highest priority)
+  //   2. chainlog only
+  //   3. lunr only  (sorted by lunr score)
+  if (chainlogHits.size === 0) return lunrHits;
+
+  const lunrById = new Map(lunrHits.map((h) => [h.id, h]));
+
+  const both: SearchHit[] = [];
+  const chainlogOnly: SearchHit[] = [];
+  for (const [id, chainlogHit] of chainlogHits) {
+    const lunrHit = lunrById.get(id);
+    if (lunrHit) {
+      // Use lunr's snippet (has highlights) but keep chainlog's tier
+      both.push({ ...lunrHit, score: lunrHit.score });
+    } else {
+      chainlogOnly.push(chainlogHit);
+    }
+  }
+  const lunrOnly = lunrHits.filter((h) => !chainlogHits.has(h.id));
+
+  both.sort((a, b) => b.score - a.score);
+  lunrOnly.sort((a, b) => b.score - a.score);
+
+  return [...both, ...chainlogOnly, ...lunrOnly];
 }
 
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {

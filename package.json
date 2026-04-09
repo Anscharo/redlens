@@ -7,7 +7,8 @@
     "dev": "vite",
     "build:index": "node --env-file-if-exists=.env.local scripts/build-index.mjs",
     "build:addresses": "node --env-file-if-exists=.env.local scripts/build-addresses.mjs",
-    "build": "pnpm build:index && pnpm build:addresses && tsc -b && vite build",
+    "build:snapshot": "node --env-file-if-exists=.env.local scripts/fetch-snapshots.mjs",
+    "build": "pnpm build:index && pnpm build:addresses && pnpm build:snapshot && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -20,7 +21,8 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "unist-util-visit": "^5.1.0"
+    "unist-util-visit": "^5.1.0",
+    "viem": "^2.47.11"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

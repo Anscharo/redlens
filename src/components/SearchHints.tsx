@@ -1,6 +1,7 @@
 const HINTS: { label: string; query: string; description: string }[] = [
   { label: "wildcard",           query: "govern*",                     description: "Trailing * matches any suffix" },
   { label: "0x address",         query: "0x*",                        description: "All nodes containing an Ethereum address" },
+  { label: "chainlog id",        query: "MCD_VAT",                    description: "All nodes referencing a Sky chainlog contract" },
   { label: "doc number",         query: "A.1.2",                      description: "Jump directly to a section by number" },
   { label: "field: title",       query: "title:facilitator",          description: "Search only in the title field" },
   { label: "field: type",        query: "type:Annotation",            description: "Filter by node type" },

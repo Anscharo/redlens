@@ -30,8 +30,9 @@ export function setAddressMap(m: Record<string, { explorerUrl: string }>) {
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-// Exactly 40 hex chars; lookarounds reject matches inside longer hex strings
-// like tx hashes or calldata.
+// Address: exactly 40 hex chars; lookarounds reject matches inside longer hex strings
+// (tx hashes, bytes32 values, role IDs, etc. are all 0x+64 hex and indistinguishable
+// from each other — we do not auto-link them).
 const ETH_ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
 const SOL_ADDRESS_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
 const ONCHAIN_RE = new RegExp(`${ETH_ADDRESS_RE.source}|${SOL_ADDRESS_RE.source}`, "g");
@@ -58,10 +59,15 @@ function rehypeEthAddresses() {
           parts.push({ type: "text", value: node.value.slice(last, match.index) });
         }
         const addr = match[0];
-        // EVM addresses are keyed by lowercase in the merged map (normalized in
-        // build-index.mjs). Solana base58 keeps original casing.
-        const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-        const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        let url: string;
+        if (addr.length === 66) {
+          // 0x + 64 hex = transaction hash
+          url = `https://etherscan.io/tx/${addr}`;
+        } else {
+          // 0x + 40 hex = EVM address (keyed lowercase); or Solana base58 (case-sensitive)
+          const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
+          url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        }
         parts.push({
           type: "element",
           tagName: "a",

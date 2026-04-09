@@ -52,6 +52,8 @@ Detected at build time, written into `node.addresses` as `Record<address, Addres
 
 The hex-boundary lookarounds on the EVM pattern are **load-bearing**: without them, the regex matches the leading 40 hex chars of any longer hex blob — transaction hashes (64 hex), bytes32 values, raw calldata — and ships those phantom addresses into `addresses.json`. Both `scripts/build-index.mjs` and `src/components/NodeContent.tsx` use the same boundary form and must stay in sync. If you change one, change both.
 
+**0x + 64 hex values** (tx hashes, bytes32 constants, role IDs, domain separators, etc.) are **not linked** — they are visually identical and cannot be reliably distinguished from context.
+
 **Chain detection (`detectChain`)** — three-pass priority:
 1. Explicit phrase: `address on [the] CHAIN is` in the 120 chars before the address (most reliable signal — user explicitly asked for this).
 2. Tight-window keyword scan (120 chars before).

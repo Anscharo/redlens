@@ -4,6 +4,7 @@ import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
+import { loadChainState, type ChainValue } from "../lib/chainstate";
 import { setAddressMap } from "./NodeContent";
 import type { AtlasNode, AddressInfo } from "../types";
 
@@ -24,16 +25,17 @@ interface DetailState {
   scopeNodes: AtlasNode[];
   linkedNodes: AtlasNode[];
   targetAddresses: Record<string, AddressInfo>;
+  chainValues: Record<string, Record<string, ChainValue>>;
 }
 
-const INITIAL: DetailState = { loaded: false, scopeNodes: [], linkedNodes: [], targetAddresses: {} };
+const INITIAL: DetailState = { loaded: false, scopeNodes: [], linkedNodes: [], targetAddresses: {}, chainValues: {} };
 
 export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: string) => void }) {
   const [state, setState] = useState<DetailState>(INITIAL);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadAtlas(), loadAddresses()]).then(([{ docs, byParent }, addresses]) => {
+    Promise.all([loadAtlas(), loadAddresses(), loadChainState()]).then(([{ docs, byParent }, addresses, chainState]) => {
       if (cancelled) return;
 
       // Push the shared address map into NodeContent's module-level lookup so
@@ -64,19 +66,22 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
         .map((lid) => docs[lid])
         .filter((n): n is AtlasNode => !!n);
 
-      // Join target's addressRefs against the shared map
+      // Join target's addressRefs against the shared address map and chain state
       const targetAddresses: Record<string, AddressInfo> = {};
+      const chainValues: Record<string, Record<string, ChainValue>> = {};
       for (const ref of target.addressRefs ?? []) {
         const info = addresses[ref];
         if (info) targetAddresses[ref] = info;
+        const cv = chainState.values[ref];
+        if (cv) chainValues[ref] = cv;
       }
 
-      setState({ loaded: true, scopeNodes, linkedNodes, targetAddresses });
+      setState({ loaded: true, scopeNodes, linkedNodes, targetAddresses, chainValues });
     });
     return () => { cancelled = true; };
   }, [id]);
 
-  const { loaded, scopeNodes, linkedNodes, targetAddresses } = state;
+  const { loaded, scopeNodes, linkedNodes, targetAddresses, chainValues } = state;
 
   if (!loaded) {
     return (
@@ -129,7 +134,7 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
                 addresses · {Object.keys(targetAddresses).length}
               </p>
               {Object.entries(targetAddresses).map(([address, info]) => (
-                <AddressCard key={address} address={address} info={info} />
+                <AddressCard key={address} address={address} info={info} chainValues={chainValues[address]} />
               ))}
             </div>
           )}
