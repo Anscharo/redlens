@@ -38,6 +38,9 @@ jobs:
         run: git -C vendor/next-gen-atlas fetch origin main && git -C vendor/next-gen-atlas checkout origin/main
 
       - run: pnpm build
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
 
       - name: SPA fallback (copy index.html → 404.html)
         run: cp dist/index.html dist/404.html
