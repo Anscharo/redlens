@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { ScopeNode } from "./ScopeNode";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
-import { loadDocs } from "../lib/docs";
+import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { setAddressMap } from "./NodeContent";
 import type { AtlasNode, AddressInfo } from "../types";
@@ -10,69 +10,73 @@ import type { AtlasNode, AddressInfo } from "../types";
 // Extract UUIDs from markdown links in content: [text](uuid)
 const UUID_LINK_RE = /\[[^\]]+\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/g;
 
-function extractLinkedIds(nodes: AtlasNode[]): string[] {
+function extractLinkedIds(node: AtlasNode): string[] {
   const seen = new Set<string>();
   const ids: string[] = [];
-  for (const node of nodes) {
-    for (const m of node.content.matchAll(UUID_LINK_RE)) {
-      if (!seen.has(m[1])) { seen.add(m[1]); ids.push(m[1]); }
-    }
+  for (const m of node.content.matchAll(UUID_LINK_RE)) {
+    if (!seen.has(m[1])) { seen.add(m[1]); ids.push(m[1]); }
   }
   return ids;
 }
 
+interface DetailState {
+  loaded: boolean;
+  scopeNodes: AtlasNode[];
+  linkedNodes: AtlasNode[];
+  targetAddresses: Record<string, AddressInfo>;
+}
+
+const INITIAL: DetailState = { loaded: false, scopeNodes: [], linkedNodes: [], targetAddresses: {} };
+
 export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: string) => void }) {
-  const [scopeNodes, setScopeNodes] = useState<AtlasNode[]>([]);
-  const [linkedNodes, setLinkedNodes] = useState<AtlasNode[]>([]);
-  const [targetAddresses, setTargetAddresses] = useState<Record<string, AddressInfo>>({});
-  const [loaded, setLoaded] = useState(false);
+  const [state, setState] = useState<DetailState>(INITIAL);
 
   useEffect(() => {
-    Promise.all([loadDocs(), loadAddresses()])
-      .then(([docs, addresses]) => {
-        // Push the shared address map into NodeContent's module-level lookup so
-        // its rehype plugin can resolve explorer URLs. Idempotent.
-        setAddressMap(addresses);
+    let cancelled = false;
+    Promise.all([loadAtlas(), loadAddresses()]).then(([{ docs, byParent }, addresses]) => {
+      if (cancelled) return;
 
-        const target = docs[id];
-        if (!target) { setLoaded(true); return; }
+      // Push the shared address map into NodeContent's module-level lookup so
+      // its rehype plugin can resolve explorer URLs. Idempotent.
+      setAddressMap(addresses);
 
-        const parent = target.parentId ? docs[target.parentId] ?? null : null;
+      const target = docs[id];
+      if (!target) { setState({ ...INITIAL, loaded: true }); return; }
 
-        // Immediate siblings (same parentId, excluding target itself)
-        const siblings = Object.values(docs)
-          .filter((n) => n.parentId === target.parentId && n.id !== target.id)
-          .sort((a, b) => a.order - b.order);
-        const above = siblings.filter((n) => n.order < target.order).slice(-8);
-        const below = siblings.filter((n) => n.order > target.order).slice(0, 8);
+      const parent = target.parentId ? docs[target.parentId] ?? null : null;
 
-        // Direct children of target
-        const children = Object.values(docs)
-          .filter((n) => n.parentId === target.id)
-          .sort((a, b) => a.order - b.order)
-          .slice(0, 8);
+      // Siblings: same parentId, already sorted by `order` in the prebuilt index.
+      // Find target's position with a single linear scan, then slice ±8 around it.
+      const siblings = byParent.get(target.parentId) ?? [];
+      const idx = siblings.indexOf(target);
+      const above = idx > 0 ? siblings.slice(Math.max(0, idx - 8), idx) : [];
+      const below = idx >= 0 ? siblings.slice(idx + 1, idx + 9) : [];
 
-        // Display order: parent → above siblings → target → children → below siblings
-        const nodes: AtlasNode[] = [];
-        if (parent) nodes.push(parent);
-        nodes.push(...above, target, ...children, ...below);
+      // Direct children of target — also pre-sorted.
+      const children = (byParent.get(target.id) ?? []).slice(0, 8);
 
-        const linkedIds = extractLinkedIds([target]);
-        const linked = linkedIds.map((lid) => docs[lid]).filter((n): n is AtlasNode => !!n);
+      // Display order: parent → above siblings → target → children → below siblings
+      const scopeNodes: AtlasNode[] = [];
+      if (parent) scopeNodes.push(parent);
+      scopeNodes.push(...above, target, ...children, ...below);
 
-        // Join target's addressRefs against the shared map
-        const resolved: Record<string, AddressInfo> = {};
-        for (const ref of target.addressRefs ?? []) {
-          const info = addresses[ref];
-          if (info) resolved[ref] = info;
-        }
+      const linkedNodes = extractLinkedIds(target)
+        .map((lid) => docs[lid])
+        .filter((n): n is AtlasNode => !!n);
 
-        setScopeNodes(nodes);
-        setLinkedNodes(linked);
-        setTargetAddresses(resolved);
-        setLoaded(true);
-      });
+      // Join target's addressRefs against the shared map
+      const targetAddresses: Record<string, AddressInfo> = {};
+      for (const ref of target.addressRefs ?? []) {
+        const info = addresses[ref];
+        if (info) targetAddresses[ref] = info;
+      }
+
+      setState({ loaded: true, scopeNodes, linkedNodes, targetAddresses });
+    });
+    return () => { cancelled = true; };
   }, [id]);
+
+  const { loaded, scopeNodes, linkedNodes, targetAddresses } = state;
 
   if (!loaded) {
     return (
