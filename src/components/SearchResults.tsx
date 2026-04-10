@@ -30,7 +30,7 @@ export function SearchResults({ state, activeScope, onNavigate, onHintClick }: P
             style={{ color: "var(--tan-3)", borderColor: "var(--border)" }}
           >
             {hits.length === 0
-              ? `no results for "${state.query}"${activeScope ? ` in ${activeScope.doc_no}` : ""}`
+              ? `no results for "${state.query}"${activeScope ? ` in ${activeScope.doc_no}` : ""}${activeScope && allHits.length > 0 ? ` (${allHits.length} in other scopes)` : ""}`
               : `${hits.length}${allHits.length !== hits.length ? ` of ${allHits.length}` : ""} result${hits.length !== 1 ? "s" : ""}${activeScope ? ` in ${activeScope.doc_no}` : ""} · ${state.durationMs.toFixed(0)}ms`}
           </div>
         )}
@@ -43,12 +43,7 @@ export function SearchResults({ state, activeScope, onNavigate, onHintClick }: P
             ))}
           </ul>
         )}
-        {state.status === "idle" && <SearchHints onSearch={onHintClick} />}
-        {state.status === "loading" && (
-          <div className="flex-1 flex items-center justify-center py-24 text-sm" style={{ color: "var(--gray)" }}>
-            Loading search index…
-          </div>
-        )}
+        {(state.status === "idle" || state.status === "loading") && <SearchHints onSearch={onHintClick} />}
         {state.status === "error" && (
           <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--red)" }}>
             {state.message}

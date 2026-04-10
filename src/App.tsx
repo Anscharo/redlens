@@ -4,6 +4,7 @@ import { useScopes } from "./hooks/useScopes";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
 import { NodeDetail } from "./components/NodeDetail";
+import { TreeSidebar } from "./components/TreeSidebar";
 import type { AtlasNode } from "./types";
 
 export default function App() {
@@ -74,18 +75,21 @@ export default function App() {
         onToggleScope={toggleScope}
       />
 
-      {nodeId ? (
-        <div className="flex-1 overflow-hidden flex">
-          <NodeDetail id={nodeId} onNavigate={navigate} />
+      <div className="flex-1 flex overflow-hidden">
+        <TreeSidebar nodeId={nodeId} onNavigate={navigate} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {nodeId ? (
+            <NodeDetail id={nodeId} onNavigate={navigate} />
+          ) : (
+            <SearchResults
+              state={state}
+              activeScope={activeScope}
+              onNavigate={navigate}
+              onHintClick={handleHintClick}
+            />
+          )}
         </div>
-      ) : (
-        <SearchResults
-          state={state}
-          activeScope={activeScope}
-          onNavigate={navigate}
-          onHintClick={handleHintClick}
-        />
-      )}
+      </div>
     </div>
   );
 }

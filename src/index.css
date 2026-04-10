@@ -51,6 +51,78 @@ input[type="search"]::-webkit-search-cancel-button {
   filter: invert(0.5);
 }
 
+/* Depth palette — 17 levels: white → saturated rainbow → pastel rainbow */
+:root {
+  --depth-1:  #e8e0d8;  /* white */
+  --depth-2:  #a63228;  /* deep red */
+  --depth-3:  #c4512a;  /* reddish orange */
+  --depth-4:  #d4822a;  /* orange */
+  --depth-5:  #c9a832;  /* golden */
+  --depth-6:  #5da65a;  /* green */
+  --depth-7:  #4aa8b8;  /* azure */
+  --depth-8:  #3a72b5;  /* blue */
+  --depth-9:  #4b4ea0;  /* indigo */
+  --depth-10: #7b52a8;  /* violet */
+  --depth-11: #a84a78;  /* magenta */
+  --depth-12: #d4a0b8;  /* light pink */
+  --depth-13: #e8c0b8;  /* pinky white */
+  --depth-14: #e8ccb0;  /* orange white */
+  --depth-15: #e8deb0;  /* yellow white */
+  --depth-16: #c0deb8;  /* green white */
+  --depth-17: #b0cce0;  /* blue white */
+}
+
+/* Tree sidebar — visible at ≥1500px */
+.tree-sidebar {
+  display: none;
+  width: 20%;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  background: #0e0907;
+  flex-shrink: 0;
+}
+@media (min-width: 1500px) {
+  .tree-sidebar { display: flex; flex-direction: column; }
+}
+.tree-row {
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 10px;
+  transition: background-color 0.1s;
+}
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.tree-row.is-selected {
+  background: rgba(255, 255, 255, 0.06);
+}
+.tree-toggle {
+  cursor: pointer;
+  line-height: 1;
+}
+.tree-toggle:hover {
+  color: var(--tan) !important;
+}
+
+/* Breadcrumb */
+.breadcrumb-link {
+  color: var(--tan-3);
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: 4px;
+  transition: background-color 0.15s, color 0.15s;
+}
+.breadcrumb-link .short { display: inline; }
+.breadcrumb-link .full  { display: none; }
+.breadcrumb-link:hover .short { display: none; }
+.breadcrumb-link:hover .full  { display: inline; }
+.breadcrumb-link:hover {
+  background-color: color-mix(in srgb, var(--crumb-color) 25%, transparent);
+  color: var(--crumb-color);
+}
+
 /* ScopeNode states */
 .scope-node {
   transition: opacity 0.1s, background-color 0.1s;

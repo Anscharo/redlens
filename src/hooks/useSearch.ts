@@ -13,6 +13,7 @@ export function useSearch() {
   const [ready, setReady] = useState(false);
   const [state, setState] = useState<SearchState>({ status: "loading" });
   const pendingId = useRef(0);
+  const lastQuery = useRef("");
 
   useEffect(() => {
     const worker = new Worker(
@@ -26,13 +27,12 @@ export function useSearch() {
         setReady(true);
         setState({ status: "idle" });
       } else if (msg.type === "results") {
-        // Only apply if this is still the latest query
         if (msg.id === pendingId.current) {
           setState({
             status: "done",
             hits: msg.hits,
             durationMs: msg.durationMs,
-            query: "", // filled below via closure workaround
+            query: lastQuery.current,
           });
         }
       } else if (msg.type === "error") {
@@ -54,15 +54,10 @@ export function useSearch() {
       return;
     }
 
+    lastQuery.current = trimmed;
     const id = ++pendingId.current;
     setState({ status: "searching" });
     worker.postMessage({ type: "query", id, q: trimmed });
-
-    // Patch query into done state when it arrives
-    setState((prev) => {
-      if (prev.status === "done") return { ...prev, query: trimmed };
-      return prev;
-    });
   }, []);
 
   return { state, search, ready };

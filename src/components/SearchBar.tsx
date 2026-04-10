@@ -85,7 +85,7 @@ export function SearchBar({
                   borderColor: active ? "var(--red)" : "var(--border)",
                   boxShadow: active ? "inset 2px 0 0 var(--red)" : undefined,
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.color = "var(--tan-2)"; }}}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = "var(--depth-1)"; e.currentTarget.style.color = "var(--tan-2)"; }}}
                 onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--tan-3)"; }}}
                 title={s.title}
               >

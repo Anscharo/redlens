@@ -1,3 +1,43 @@
+/** Semantic depth per Atlas spec. Handles supporting doc patterns (.0.3, .0.4, .0.6, .1.X, .varX).
+ *  NR-X (Needed Research) nodes need parentDocNo to resolve depth (parent + 1). */
+export function realDepth(doc_no: string, parentDocNo?: string): number {
+  if (doc_no.startsWith("NR-")) return parentDocNo ? realDepth(parentDocNo) + 1 : 1;
+  const parts = doc_no.split(".");
+
+  // .varX → parent depth + 1
+  const varIdx = parts.findIndex((p) => p.startsWith("var"));
+  if (varIdx >= 0) return realDepth(parts.slice(0, varIdx).join(".")) + 1;
+
+  // Find last supporting-doc directory marker: .0.3 / .0.4 / .0.6
+  let markerIdx = -1;
+  for (let i = 1; i < parts.length - 1; i++) {
+    if (parts[i] === "0" && (parts[i + 1] === "3" || parts[i + 1] === "4" || parts[i + 1] === "6")) {
+      markerIdx = i;
+    }
+  }
+
+  if (markerIdx >= 0) {
+    const targetDepth = markerIdx - 1; // segments before marker, minus A prefix
+    const supportingIdx = markerIdx + 2; // index of the instance number
+    const baseDepth = targetDepth + 1;
+    // Scenario nesting after instance: each .1.X pair = +1 level
+    const after = parts.slice(supportingIdx + 1);
+    let extra = 0;
+    let i = 0;
+    while (i < after.length) {
+      if (after[i] === "1" && i + 1 < after.length) {
+        extra++; i += 2;
+      } else {
+        extra++; i++;
+      }
+    }
+    return baseDepth + extra;
+  }
+
+  // Regular document: segments - 1 (A prefix doesn't count)
+  return parts.length - 1;
+}
+
 export interface AtlasNode {
   id: string;
   doc_no: string;
@@ -33,6 +73,10 @@ export interface SearchHit {
   depth: number;
   parentId: string | null;
   snippet: string; // highlighted HTML snippet from content
+  titleHtml: string; // highlighted HTML title
+  matchReason: string; // why this result was included, e.g. "title + content"
+  chainlogId?: string; // set when result was found via chainlog reverse-lookup
+  chainlogAddress?: string; // the resolved address for chainlog matches
 }
 
 // Worker message types

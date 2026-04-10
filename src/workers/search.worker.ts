@@ -71,13 +71,28 @@ function buildSnippet(content: string, matchedTerms: string[]): string {
   const end = Math.min(content.length, start + WINDOW);
   let excerpt = (start > 0 ? "…" : "") + content.slice(start, end) + (end < content.length ? "…" : "");
 
-  // Wrap matched terms in <mark>
-  for (const term of matchedTerms) {
-    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    excerpt = excerpt.replace(new RegExp(escaped, "gi"), "<mark>$&</mark>");
+  // Wrap matched terms in <mark>, extending to cover the full word (not just the stem)
+  const valid = matchedTerms.filter(t => t.length >= 2);
+  if (valid.length > 0) {
+    const pattern = valid
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\w*")
+      .join("|");
+    excerpt = excerpt.replace(new RegExp(pattern, "gi"), "<mark>$&</mark>");
   }
 
   return excerpt;
+}
+
+function highlightTerms(text: string, terms: string[]): string {
+  const valid = terms.filter(t => t.length >= 2);
+  if (valid.length === 0) return text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  let result = text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  // Single-pass replacement to avoid matching inside <mark> tags
+  const pattern = valid
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\w*")
+    .join("|");
+  result = result.replace(new RegExp(pattern, "gi"), "<mark>$&</mark>");
+  return result;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -97,12 +112,14 @@ function extractPhrases(q: string): { phrases: string[]; rest: string } {
   return { phrases, rest };
 }
 
-function docToHit(doc: AtlasNode, score = 1, snippet?: string): SearchHit {
+function docToHit(doc: AtlasNode, score = 1, snippet?: string, terms: string[] = [], matchReason = ""): SearchHit {
   return {
     id: doc.id,
     score,
     doc_no: doc.doc_no,
     title: doc.title,
+    titleHtml: terms.length > 0 ? highlightTerms(doc.title, terms) : doc.title.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!)),
+    matchReason,
     type: doc.type,
     depth: doc.depth,
     parentId: doc.parentId,
@@ -128,12 +145,21 @@ function search(q: string): SearchHit[] {
   // surface above typical lunr scores but can be outranked by a very strong
   // lunr match on the same node.
   const chainlogHits = new Map<string, SearchHit>();
+  let matchedChainlogId: string | undefined;
+  let matchedChainlogAddr: string | undefined;
   if (CHAINLOG_RE.test(trimmed)) {
     const addr = chainlogToAddr.get(trimmed);
     if (addr) {
+      matchedChainlogId = trimmed;
+      matchedChainlogAddr = addr;
       for (const id of addrToNodeIds.get(addr) ?? []) {
         const doc = docs[id];
-        if (doc) chainlogHits.set(id, docToHit(doc, 2));
+        if (doc) {
+          const hit = docToHit(doc, 2, undefined, [], "chainlog");
+          hit.chainlogId = trimmed;
+          hit.chainlogAddress = addr;
+          chainlogHits.set(id, hit);
+        }
       }
     }
   }
@@ -162,21 +188,42 @@ function search(q: string): SearchHit[] {
     const doc = docs[r.ref];
     if (!doc) return null;
 
-    // Phrase post-filter: every quoted phrase must literally appear in the content.
+    // Phrase post-filter: every quoted phrase must literally appear in title or content.
     if (phrases.length > 0) {
-      const lower = doc.content.toLowerCase();
+      const lowerContent = doc.content.toLowerCase();
+      const lowerTitle = doc.title.toLowerCase();
       for (const p of phrases) {
-        if (!lower.includes(p.toLowerCase())) return null;
+        const lp = p.toLowerCase();
+        if (!lowerContent.includes(lp) && !lowerTitle.includes(lp)) return null;
       }
     }
 
-    const matchedTerms = [...Object.keys(r.matchData.metadata), ...phrases];
+    // Include both stemmed terms (from lunr metadata) and original query words
+    // so highlighting covers cases where stemming diverges (e.g. "sky" → "ski")
+    const queryWords = rest.trim().split(/\s+/).filter(Boolean);
+    const matchedTerms = [...new Set([...Object.keys(r.matchData.metadata), ...queryWords, ...phrases])];
+
+    // Build match reason from which fields each term matched in
+    const fieldSet = new Set<string>();
+    const meta = r.matchData.metadata as Record<string, Record<string, unknown>>;
+    for (const fields of Object.values(meta)) {
+      for (const f of Object.keys(fields)) fieldSet.add(f);
+    }
+    const parts: string[] = [];
+    if (fieldSet.has("title")) parts.push("title");
+    if (fieldSet.has("doc_no")) parts.push("doc number");
+    if (fieldSet.has("type")) parts.push("type");
+    if (fieldSet.has("content")) parts.push("content");
+    if (phrases.length > 0) parts.push("exact phrase");
+    const matchReason = parts.join(" + ");
 
     return {
       id: doc.id,
       score: r.score,
       doc_no: doc.doc_no,
       title: doc.title,
+      titleHtml: highlightTerms(doc.title, matchedTerms),
+      matchReason,
       type: doc.type,
       depth: doc.depth,
       parentId: doc.parentId,
@@ -197,8 +244,8 @@ function search(q: string): SearchHit[] {
   for (const [id, chainlogHit] of chainlogHits) {
     const lunrHit = lunrById.get(id);
     if (lunrHit) {
-      // Use lunr's snippet (has highlights) but keep chainlog's tier
-      both.push({ ...lunrHit, score: lunrHit.score });
+      // Use lunr's snippet (has highlights) but carry chainlog info
+      both.push({ ...lunrHit, score: lunrHit.score, matchReason: "chainlog + " + lunrHit.matchReason, chainlogId: matchedChainlogId, chainlogAddress: matchedChainlogAddr });
     } else {
       chainlogOnly.push(chainlogHit);
     }

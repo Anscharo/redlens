@@ -36,51 +36,136 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const ETH_ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
 const SOL_ADDRESS_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
 const ONCHAIN_RE = new RegExp(`${ETH_ADDRESS_RE.source}|${SOL_ADDRESS_RE.source}`, "g");
+// 0x + 64 hex only when preceded by "Transaction Hash:" (case-insensitive)
+const TX_HASH_RE = /Transaction\s+Hash:\s*(0x[0-9a-fA-F]{64})\b/gi;
 
-// Rehype plugin: link addresses using the shared SHARED_ADDRESSES map.
+// Split a text node by a regex, calling `onMatch` for each match to produce link nodes.
+// Returns null if no matches (no splitting needed).
+function splitTextByPattern(
+  text: string,
+  re: RegExp,
+  onMatch: (match: RegExpExecArray) => { linkText: string; url: string },
+): ElementContent[] | null {
+  re.lastIndex = 0;
+  if (!re.test(text)) return null;
+  re.lastIndex = 0;
+
+  const parts: ElementContent[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push({ type: "text", value: text.slice(last, match.index) });
+    }
+    const { linkText, url } = onMatch(match);
+    // Emit any text between match start and the linkText portion
+    const linkStart = text.indexOf(linkText, match.index);
+    if (linkStart > match.index + (last === match.index ? 0 : 0)) {
+      // There's prefix text inside the match (e.g. "Transaction Hash: " before the hash)
+      parts.push({ type: "text", value: text.slice(match.index, linkStart) });
+    }
+    parts.push({
+      type: "element",
+      tagName: "a",
+      properties: { href: url, target: "_blank", rel: "noopener noreferrer" },
+      children: [{ type: "text", value: linkText }],
+    });
+    last = linkStart + linkText.length;
+  }
+  if (last < text.length) {
+    parts.push({ type: "text", value: text.slice(last) });
+  }
+  return parts;
+}
+
+// Match a bare 0x + 64 hex string (tx hash inside a code element)
+const TX_HASH_BARE_RE = /^0x[0-9a-fA-F]{64}$/;
+// Match "Transaction Hash:" (with optional trailing whitespace) at the end of a text node
+const TX_LABEL_RE = /Transaction\s+Hash:\s*$/i;
+
+// Rehype plugin: link addresses and tx hashes using the shared SHARED_ADDRESSES map.
 function rehypeEthAddresses() {
   return () => (tree: Root) => {
     const replacements: Array<{ parent: Element; index: number; nodes: ElementContent[] }> = [];
+
+    // Pre-pass: find <code> elements containing a tx hash preceded by "Transaction Hash:" text.
+    // Wrap the <code> in an <a> linking to etherscan.
+    const codeReplacements: Array<{ parent: Element; index: number; node: ElementContent }> = [];
+    visit(tree, "element", (node: Element, index, parent) => {
+      if (index == null || !parent || node.tagName !== "code") return;
+      if ("tagName" in parent && (parent as Element).tagName === "a") return;
+      // Check if code contains a single text child that is a tx hash
+      if (node.children.length !== 1 || node.children[0].type !== "text") return;
+      const codeText = node.children[0].value.trim();
+      if (!TX_HASH_BARE_RE.test(codeText)) return;
+      // Check preceding sibling is a text node ending with "Transaction Hash:"
+      const siblings = (parent as Element).children;
+      for (let si = index - 1; si >= 0; si--) {
+        const sib = siblings[si];
+        if (sib.type === "text") {
+          if (TX_LABEL_RE.test(sib.value)) {
+            codeReplacements.push({
+              parent: parent as Element,
+              index,
+              node: {
+                type: "element",
+                tagName: "a",
+                properties: { href: `https://etherscan.io/tx/${codeText}`, target: "_blank", rel: "noopener noreferrer" },
+                children: [node],
+              },
+            });
+          }
+          break; // stop at first text sibling regardless
+        }
+        // skip whitespace-only text nodes or other inline elements
+        if (sib.type === "element") break;
+      }
+    });
+    for (const { parent, index, node } of codeReplacements.reverse()) {
+      parent.children.splice(index, 1, node);
+    }
 
     visit(tree, "text", (node: Text, index, parent) => {
       if (index == null || !parent) return;
       if ("tagName" in parent && (parent as Element).tagName === "a") return;
 
-      ONCHAIN_RE.lastIndex = 0;
-      if (!ONCHAIN_RE.test(node.value)) return;
-      ONCHAIN_RE.lastIndex = 0;
+      // First pass: "Transaction Hash: 0x..." → link the hash to etherscan/tx
+      const txParts = splitTextByPattern(node.value, TX_HASH_RE, (m) => ({
+        linkText: m[1], // the 0x... hash (capture group 1)
+        url: `https://etherscan.io/tx/${m[1]}`,
+      }));
 
-      const parts: ElementContent[] = [];
-      let last = 0;
-      let match: RegExpExecArray | null;
-
-      while ((match = ONCHAIN_RE.exec(node.value)) !== null) {
-        if (match.index > last) {
-          parts.push({ type: "text", value: node.value.slice(last, match.index) });
+      if (txParts) {
+        // Second pass: run address linking on each remaining text node
+        const finalParts: ElementContent[] = [];
+        for (const part of txParts) {
+          if (part.type === "text") {
+            const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
+              const addr = m[0];
+              const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
+              const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+              return { linkText: addr, url };
+            });
+            if (addrParts) finalParts.push(...addrParts);
+            else finalParts.push(part);
+          } else {
+            finalParts.push(part);
+          }
         }
-        const addr = match[0];
-        let url: string;
-        if (addr.length === 66) {
-          // 0x + 64 hex = transaction hash
-          url = `https://etherscan.io/tx/${addr}`;
-        } else {
-          // 0x + 40 hex = EVM address (keyed lowercase); or Solana base58 (case-sensitive)
-          const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-          url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
-        }
-        parts.push({
-          type: "element",
-          tagName: "a",
-          properties: { href: url, target: "_blank", rel: "noopener noreferrer" },
-          children: [{ type: "text", value: addr }],
-        });
-        last = match.index + addr.length;
-      }
-      if (last < node.value.length) {
-        parts.push({ type: "text", value: node.value.slice(last) });
+        replacements.push({ parent: parent as Element, index, nodes: finalParts });
+        return;
       }
 
-      replacements.push({ parent: parent as Element, index, nodes: parts });
+      // No tx hashes — just do address linking
+      const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
+        const addr = m[0];
+        const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
+        const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        return { linkText: addr, url };
+      });
+      if (addrParts) {
+        replacements.push({ parent: parent as Element, index, nodes: addrParts });
+      }
     });
 
     for (const { parent, index, nodes } of replacements.reverse()) {
