@@ -4,6 +4,8 @@ export interface AtlasBundle {
   docs: Record<string, AtlasNode>;
   /** parentId → children sorted by `order`. Root nodes are keyed by `null`. */
   byParent: Map<string | null, AtlasNode[]>;
+  /** doc_no → node id (for doc_no-based lookups) */
+  docNoToId: Map<string, string>;
 }
 
 let cached: Promise<AtlasBundle> | null = null;
@@ -45,9 +47,10 @@ function buildBundle(docs: Record<string, AtlasNode>): AtlasBundle {
 
     // Check if this is a scenario (.1.X after a tenet):
     // parent tenet pattern: ...0.4.N.1.X — parent is ...0.4.N
+    // Only match if the candidate parent's doc_no ends with .0.4.N (is actually a tenet)
     if (parts.length >= 3 && parts[parts.length - 2] === "1") {
       const candidateParent = parts.slice(0, -2).join(".");
-      if (docNoToId.has(candidateParent)) {
+      if (docNoToId.has(candidateParent) && /\.0\.4\.\d+$/.test(candidateParent)) {
         return docNoToId.get(candidateParent)!;
       }
     }
@@ -65,7 +68,7 @@ function buildBundle(docs: Record<string, AtlasNode>): AtlasBundle {
     bucket.push(node);
   }
   for (const bucket of byParent.values()) bucket.sort((a, b) => a.order - b.order);
-  return { docs, byParent };
+  return { docs, byParent, docNoToId };
 }
 
 export function loadAtlas(): Promise<AtlasBundle> {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { List, useListRef } from "react-window";
 import { prepareWithSegments, layoutWithLines, type PreparedTextWithSegments } from "@chenglou/pretext";
 import { useAtlasTree } from "../hooks/useAtlasTree";
-import { realDepth, type AtlasNode } from "../types";
+import { realDepth, segmentDepths, type AtlasNode } from "../types";
 
 const ROW_HEIGHT = 20;
 const FONT = "10px Lora";
@@ -43,6 +43,7 @@ interface Props {
 interface TreeRowData {
   visibleNodes: VisibleNode[];
   selectedIndex: number;
+  focusedIndex: number;
   expandedIds: Set<string>;
   sidebarWidth: number;
   onNavigate: (id: string) => void;
@@ -54,6 +55,8 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(220);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const clickedRef = useRef(false); // suppress scroll when click came from sidebar
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef();
 
@@ -128,6 +131,10 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   }, [visibleNodes, nodeId]);
 
   useEffect(() => {
+    if (clickedRef.current) {
+      clickedRef.current = false;
+      return; // don't scroll — user clicked in sidebar, they can see it
+    }
     if (selectedIndex >= 0 && listRef.current) {
       listRef.current.scrollToRow({ index: selectedIndex, align: "smart" });
     }
@@ -143,19 +150,76 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
     });
   }, []);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (visibleNodes.length === 0) return;
+    const idx = focusedIndex >= 0 ? focusedIndex : selectedIndex;
+
+    switch (e.key) {
+      case "ArrowDown": {
+        e.preventDefault();
+        const next = Math.min(idx + 1, visibleNodes.length - 1);
+        setFocusedIndex(next);
+        listRef.current?.scrollToRow({ index: next, align: "smart" });
+        break;
+      }
+      case "ArrowUp": {
+        e.preventDefault();
+        const prev = Math.max(idx - 1, 0);
+        setFocusedIndex(prev);
+        listRef.current?.scrollToRow({ index: prev, align: "smart" });
+        break;
+      }
+      case "ArrowRight": {
+        e.preventDefault();
+        if (idx >= 0) {
+          const node = visibleNodes[idx].node;
+          if (visibleNodes[idx].hasChildren && !expandedIds.has(node.id)) {
+            setExpandedIds((prev) => new Set(prev).add(node.id));
+          }
+        }
+        break;
+      }
+      case "ArrowLeft": {
+        e.preventDefault();
+        if (idx >= 0) {
+          const node = visibleNodes[idx].node;
+          if (expandedIds.has(node.id)) {
+            setExpandedIds((prev) => { const next = new Set(prev); next.delete(node.id); return next; });
+          }
+        }
+        break;
+      }
+      case "Enter": {
+        e.preventDefault();
+        if (idx >= 0) {
+          onNavigate(visibleNodes[idx].node.id);
+          setFocusedIndex(-1);
+        }
+        break;
+      }
+    }
+  }, [visibleNodes, focusedIndex, selectedIndex, expandedIds, listRef, onNavigate]);
+
+  const handleRowClick = useCallback((id: string) => {
+    clickedRef.current = true;
+    setFocusedIndex(-1);
+    onNavigate(id);
+  }, [onNavigate]);
+
   const rowProps: TreeRowData = useMemo(() => ({
     visibleNodes,
     selectedIndex,
+    focusedIndex,
     expandedIds,
     sidebarWidth,
-    onNavigate,
+    onNavigate: handleRowClick,
     onToggle: toggleExpand,
-  }), [visibleNodes, selectedIndex, expandedIds, sidebarWidth, onNavigate, toggleExpand]);
+  }), [visibleNodes, selectedIndex, focusedIndex, expandedIds, sidebarWidth, handleRowClick, toggleExpand]);
 
   if (!bundle) return <div className="tree-sidebar" ref={containerRef} />;
 
   return (
-    <div className="tree-sidebar" ref={containerRef}>
+    <div className="tree-sidebar" ref={containerRef} tabIndex={0} onKeyDown={handleKeyDown} style={{ outline: "none" }}>
       <List
         listRef={listRef}
         rowCount={visibleNodes.length}
@@ -180,6 +244,7 @@ const TreeRow = memo(function TreeRow({
   style,
   visibleNodes,
   selectedIndex,
+  focusedIndex,
   expandedIds,
   sidebarWidth,
   onNavigate,
@@ -189,6 +254,7 @@ const TreeRow = memo(function TreeRow({
   if (!item) return null;
   const { node, hasChildren, treeDepth } = item;
   const isSelected = index === selectedIndex;
+  const isFocused = index === focusedIndex;
   const isExpanded = expandedIds.has(node.id);
   const indent = 3;
   const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
@@ -203,25 +269,39 @@ const TreeRow = memo(function TreeRow({
         ...style,
         paddingLeft: indent + 2,
         paddingRight: PAD_X,
-        boxShadow: isSelected ? `inset 2px 0 0 ${depthVar}` : undefined,
+        boxShadow: isSelected
+          ? `inset 2px 0 0 ${depthVar}`
+          : isFocused
+            ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px rgba(255, 255, 255, 0.1)`
+            : undefined,
         display: "flex",
         alignItems: "center",
         gap: 2,
       }}
-      className={`tree-row ${isSelected ? "is-selected" : ""}`}
+      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
       onClick={() => onNavigate(node.id)}
     >
-      {/* Doc number — pad last segment to 2 chars for alignment */}
+      {/* Doc number — each segment colored by its semantic depth */}
       <span
         className="mono"
         style={{
           flexShrink: 0,
-          fontSize: 7,
-          color: "var(--gray)",
+          fontSize: 8,
           userSelect: "none",
+          display: "inline-flex",
+          alignItems: "center",
         }}
       >
-        {node.doc_no}
+        {(() => {
+          const parts = node.doc_no.split(".");
+          const depths = segmentDepths(node.doc_no);
+          return parts.map((seg, i) => (
+            <span key={i}>
+              {i > 0 && <span style={{ color: "var(--gray)" }}>.</span>}
+              <span style={{ color: depths[i] === 0 ? "var(--gray)" : `var(--depth-${Math.min(depths[i], 17)})` }}>{seg}</span>
+            </span>
+          ));
+        })()}
         {node.doc_no.split(".").pop()!.length < 2 && <span style={{ visibility: "hidden" }}>0</span>}
       </span>
 
@@ -232,7 +312,7 @@ const TreeRow = memo(function TreeRow({
           width: TOGGLE_WIDTH,
           textAlign: "center",
           flexShrink: 0,
-          fontSize: 8,
+          fontSize: 9,
           color: hasChildren ? "var(--tan-3)" : "transparent",
           userSelect: "none",
         }}

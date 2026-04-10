@@ -54,22 +54,22 @@ input[type="search"]::-webkit-search-cancel-button {
 /* Depth palette — 17 levels: white → saturated rainbow → pastel rainbow */
 :root {
   --depth-1:  #e8e0d8;  /* white */
-  --depth-2:  #a63228;  /* deep red */
-  --depth-3:  #c4512a;  /* reddish orange */
-  --depth-4:  #d4822a;  /* orange */
-  --depth-5:  #c9a832;  /* golden */
-  --depth-6:  #5da65a;  /* green */
+  --depth-2:  #d01010;  /* deep red */
+  --depth-3:  #d34a1c;  /* reddish orange */
+  --depth-4:  #df8525;  /* orange */
+  --depth-5:  #d8b235;  /* golden */
+  --depth-6:  #4fa34c;  /* green */
   --depth-7:  #4aa8b8;  /* azure */
   --depth-8:  #3a72b5;  /* blue */
-  --depth-9:  #4b4ea0;  /* indigo */
-  --depth-10: #7b52a8;  /* violet */
-  --depth-11: #a84a78;  /* magenta */
-  --depth-12: #d4a0b8;  /* light pink */
-  --depth-13: #e8c0b8;  /* pinky white */
-  --depth-14: #e8ccb0;  /* orange white */
-  --depth-15: #e8deb0;  /* yellow white */
-  --depth-16: #c0deb8;  /* green white */
-  --depth-17: #b0cce0;  /* blue white */
+  --depth-9:  #5458c3;  /* indigo */
+  --depth-10: #8d5dbf;  /* violet */
+  --depth-11: #ba5184;  /* magenta */
+  --depth-12: #e4a6c3;  /* light pink */
+  --depth-13: #f7b9ad;  /* pinky white */
+  --depth-14: #e9c098;  /* orange white */
+  --depth-15: #e0d5a2;  /* yellow white */
+  --depth-16: #b0d6a5;  /* green white */
+  --depth-17: #a9cce4;  /* blue white */
 }
 
 /* Tree sidebar — visible at ≥1500px */
@@ -96,6 +96,9 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 .tree-row.is-selected {
   background: rgba(255, 255, 255, 0.06);
+}
+.tree-row.is-focused {
+  background: rgba(255, 255, 255, 0.03);
 }
 .tree-toggle {
   cursor: pointer;

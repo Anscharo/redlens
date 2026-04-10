@@ -38,6 +38,58 @@ export function realDepth(doc_no: string, parentDocNo?: string): number {
   return parts.length - 1;
 }
 
+/** Returns semantic depth for each segment of a doc_no (for per-segment coloring).
+ *  Regular segments get incrementing depths. Directory markers (.0.3, .0.4, .0.6)
+ *  and their instances share the supporting doc's depth. Scenario .1.X pairs share one depth. */
+export function segmentDepths(doc_no: string): number[] {
+  if (doc_no.startsWith("NR-")) return [1];
+  const parts = doc_no.split(".");
+  const depths: number[] = new Array(parts.length).fill(0);
+
+  let curDepth = 0;
+  let inTenet = false; // track if we just processed a .0.4.X tenet group
+  let i = 0;
+  while (i < parts.length) {
+    // .varX → same depth as parent scenario
+    if (parts[i].startsWith("var")) {
+      curDepth++;
+      depths[i] = curDepth;
+      inTenet = false;
+      i++;
+      continue;
+    }
+    // .0.{3|4|6}.X directory pattern
+    if (parts[i] === "0" && i + 2 < parts.length && (parts[i + 1] === "3" || parts[i + 1] === "4" || parts[i + 1] === "6")) {
+      curDepth++;
+      depths[i] = curDepth;
+      depths[i + 1] = curDepth;
+      depths[i + 2] = curDepth;
+      inTenet = parts[i + 1] === "4"; // only .0.4 enables scenario nesting
+      i += 3;
+      continue;
+    }
+    // .1.X scenario pattern — only valid immediately after a tenet (.0.4.X) group
+    if (inTenet && parts[i] === "1" && i + 1 < parts.length) {
+      curDepth++;
+      depths[i] = curDepth;
+      depths[i + 1] = curDepth;
+      inTenet = false; // scenarios don't nest further via .1.X
+      i += 2;
+      continue;
+    }
+    // Regular segment
+    if (i === 0) {
+      depths[i] = 0; // A prefix
+    } else {
+      curDepth++;
+      depths[i] = curDepth;
+    }
+    inTenet = false;
+    i++;
+  }
+  return depths;
+}
+
 export interface AtlasNode {
   id: string;
   doc_no: string;
