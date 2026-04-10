@@ -90,6 +90,10 @@ export function segmentDepths(doc_no: string): number[] {
   return depths;
 }
 
+export function depthColor(depth: number): string {
+  return `var(--depth-${Math.min(Math.max(depth, 1), 17)})`;
+}
+
 export interface AtlasNode {
   id: string;
   doc_no: string;

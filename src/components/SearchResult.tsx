@@ -1,9 +1,5 @@
 import { memo } from "react";
-import { realDepth, type SearchHit } from "../types";
-
-function depthColor(depth: number): string {
-  return `var(--depth-${Math.min(Math.max(depth, 1), 17)})`;
-}
+import { realDepth, depthColor, type SearchHit } from "../types";
 
 interface Props {
   hit: SearchHit;

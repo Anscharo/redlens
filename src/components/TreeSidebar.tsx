@@ -12,7 +12,7 @@ const PAD_X = 6;
 interface VisibleNode {
   node: AtlasNode;
   hasChildren: boolean;
-  treeDepth: number; // actual tree depth (not capped at 6)
+  treeDepth: number;
 }
 
 // Cache prepared text measurements
@@ -31,7 +31,7 @@ function truncateTitle(title: string, maxWidth: number): string {
   const prepared = getPrepared(title);
   const result = layoutWithLines(prepared, maxWidth, 14);
   if (result.lineCount <= 1) return title;
-  return result.lines[0].text.trimEnd() + "…";
+  return result.lines[0].text.trimEnd() + "\u2026";
 }
 
 interface Props {
@@ -39,7 +39,6 @@ interface Props {
   onNavigate: (id: string) => void;
 }
 
-// Props passed to each row via rowProps
 interface TreeRowData {
   visibleNodes: VisibleNode[];
   selectedIndex: number;
@@ -50,17 +49,47 @@ interface TreeRowData {
   onToggle: (id: string, e: React.MouseEvent) => void;
 }
 
+// Hoisted static styles for TreeRow
+const DOC_NUM_STYLE: React.CSSProperties = {
+  flexShrink: 0,
+  fontSize: 8,
+  userSelect: "none",
+  display: "inline-flex",
+  alignItems: "center",
+};
+const DOT_STYLE: React.CSSProperties = { color: "var(--gray)" };
+const HIDDEN_PAD_STYLE: React.CSSProperties = { visibility: "hidden" };
+const TOGGLE_BASE: React.CSSProperties = {
+  width: TOGGLE_WIDTH,
+  textAlign: "center",
+  flexShrink: 0,
+  fontSize: 9,
+  userSelect: "none",
+};
+const TITLE_BASE: React.CSSProperties = {
+  flex: 1,
+  overflow: "hidden",
+  whiteSpace: "nowrap",
+};
+const ROW_LAYOUT_STYLE: React.CSSProperties = {
+  paddingLeft: 5, // indent (3) + 2
+  paddingRight: PAD_X,
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+};
+
 export function TreeSidebar({ nodeId, onNavigate }: Props) {
   const bundle = useAtlasTree();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(220);
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const clickedRef = useRef(false); // suppress scroll when click came from sidebar
+  const clickedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef();
 
-  // Initialize expanded state: depths 1–3
+  // Initialize expanded state: depths 1-3
   useEffect(() => {
     if (!bundle || initialized) return;
     const initial = new Set<string>();
@@ -94,15 +123,20 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
     });
   }, [bundle, nodeId]);
 
-  // Track sidebar width via ResizeObserver
+  // Track sidebar width via ResizeObserver — debounced with rAF + threshold
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    let rafId = 0;
     const ro = new ResizeObserver(([entry]) => {
-      setSidebarWidth(entry.contentRect.width);
+      const newWidth = entry.contentRect.width;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setSidebarWidth(prev => Math.abs(prev - newWidth) > 10 ? newWidth : prev);
+      });
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => { ro.disconnect(); cancelAnimationFrame(rafId); };
   }, []);
 
   // Build flat visible nodes list
@@ -133,7 +167,7 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   useEffect(() => {
     if (clickedRef.current) {
       clickedRef.current = false;
-      return; // don't scroll — user clicked in sidebar, they can see it
+      return;
     }
     if (selectedIndex >= 0 && listRef.current) {
       listRef.current.scrollToRow({ index: selectedIndex, align: "smart" });
@@ -256,81 +290,59 @@ const TreeRow = memo(function TreeRow({
   const isSelected = index === selectedIndex;
   const isFocused = index === focusedIndex;
   const isExpanded = expandedIds.has(node.id);
-  const indent = 3;
   const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
 
-  const docNumWidth = node.doc_no.length * 4; // ~4px per char at 7px mono
-  const availableWidth = sidebarWidth - indent - 2 - docNumWidth - TOGGLE_WIDTH - PAD_X - 6;
-  const displayTitle = truncateTitle(node.title, Math.max(availableWidth, 20));
+  const docNumWidth = node.doc_no.length * 4;
+  const availableWidth = sidebarWidth - 5 - docNumWidth - TOGGLE_WIDTH - PAD_X - 6;
+
+  const displayTitle = useMemo(
+    () => truncateTitle(node.title, Math.max(availableWidth, 20)),
+    [node.title, availableWidth]
+  );
+
+  const docNoSegments = useMemo(() => {
+    const parts = node.doc_no.split(".");
+    const depths = segmentDepths(node.doc_no);
+    return { parts, depths, needsPad: parts[parts.length - 1].length < 2 };
+  }, [node.doc_no]);
+
+  const boxShadow = isSelected
+    ? `inset 2px 0 0 ${depthVar}`
+    : isFocused
+      ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px rgba(255, 255, 255, 0.1)`
+      : undefined;
 
   return (
     <div
-      style={{
-        ...style,
-        paddingLeft: indent + 2,
-        paddingRight: PAD_X,
-        boxShadow: isSelected
-          ? `inset 2px 0 0 ${depthVar}`
-          : isFocused
-            ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px rgba(255, 255, 255, 0.1)`
-            : undefined,
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-      }}
+      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow }}
       className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
       onClick={() => onNavigate(node.id)}
     >
       {/* Doc number — each segment colored by its semantic depth */}
-      <span
-        className="mono"
-        style={{
-          flexShrink: 0,
-          fontSize: 8,
-          userSelect: "none",
-          display: "inline-flex",
-          alignItems: "center",
-        }}
-      >
-        {(() => {
-          const parts = node.doc_no.split(".");
-          const depths = segmentDepths(node.doc_no);
-          return parts.map((seg, i) => (
-            <span key={i}>
-              {i > 0 && <span style={{ color: "var(--gray)" }}>.</span>}
-              <span style={{ color: depths[i] === 0 ? "var(--gray)" : `var(--depth-${Math.min(depths[i], 17)})` }}>{seg}</span>
-            </span>
-          ));
-        })()}
-        {node.doc_no.split(".").pop()!.length < 2 && <span style={{ visibility: "hidden" }}>0</span>}
+      <span className="mono" style={DOC_NUM_STYLE}>
+        {docNoSegments.parts.map((seg, i) => (
+          <span key={i}>
+            {i > 0 && <span style={DOT_STYLE}>.</span>}
+            <span style={{ color: docNoSegments.depths[i] === 0 ? "var(--gray)" : `var(--depth-${Math.min(docNoSegments.depths[i], 17)})` }}>{seg}</span>
+          </span>
+        ))}
+        {docNoSegments.needsPad && <span style={HIDDEN_PAD_STYLE}>0</span>}
       </span>
 
       {/* Toggle */}
       <span
         className="tree-toggle"
-        style={{
-          width: TOGGLE_WIDTH,
-          textAlign: "center",
-          flexShrink: 0,
-          fontSize: 9,
-          color: hasChildren ? "var(--tan-3)" : "transparent",
-          userSelect: "none",
-        }}
+        style={{ ...TOGGLE_BASE, color: hasChildren ? "var(--tan-3)" : "transparent" }}
         onClick={hasChildren ? (e) => onToggle(node.id, e) : undefined}
       >
-        {hasChildren ? (isExpanded ? "▾" : "▸") : "·"}
+        {hasChildren ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
       </span>
 
       {/* Title */}
       <span
         className="tree-title"
-        style={{
-          color: depthVar,
-          flex: 1,
-          overflow: "hidden",
-          whiteSpace: "nowrap",
-        }}
-        title={node.doc_no + " — " + node.title}
+        style={{ ...TITLE_BASE, color: depthVar }}
+        title={node.doc_no + " \u2014 " + node.title}
       >
         {displayTitle}
       </span>

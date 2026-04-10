@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { prepare, layout } from "@chenglou/pretext";
+import { useState, useEffect } from "react";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { ScopeNode } from "./ScopeNode";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
@@ -7,171 +7,7 @@ import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { loadChainState, type ChainValue } from "../lib/chainstate";
 import { setAddressMap } from "./NodeContent";
-import { realDepth, type AtlasNode, type AddressInfo } from "../types";
-
-// --- Breadcrumb helpers ---
-
-const STOP_WORDS = /\b(the|a|of|an|and|or|for|in|on|to|at|by|with|from)\b/gi;
-
-const ABBREVIATIONS: Record<string, string> = {
-  directory: "Dir.",
-  directories: "Dirs.",
-  document: "Doc.",
-  documents: "Docs.",
-  configuration: "Config.",
-  configurations: "Configs.",
-  specification: "Spec.",
-  specifications: "Specs.",
-  controller: "Ctrl.",
-  controllers: "Ctrls.",
-  primitives: "Prims.",
-  primitive: "Prim.",
-  instances: "Inst.",
-  instance: "Inst.",
-  artifacts: "Artfcts.",
-  properties: "Props.",
-  property: "Prop.",
-  governance: "Gov.",
-  definition: "Def.",
-  definitions: "Defs.",
-  ecosystem: "Eco.",
-  implementation: "Impl.",
-  implementations: "Impls.",
-  transformation: "Xform.",
-  transformations: "Xforms.",
-  transitionary: "Trans.",
-  customizations: "Customs.",
-  customization: "Custom.",
-  accessibility: "A11y.",
-  reimbursement: "Reimb.",
-  communication: "Comms.",
-  communications: "Comms.",
-  responsibilities: "Resps.",
-  responsibility: "Resp.",
-  authorization: "Auth.",
-  infrastructure: "Infra.",
-  determination: "Determ.",
-  administrative: "Admin.",
-  accountability: "Acctbl.",
-  reconciliation: "Recon.",
-  documentation: "Docs.",
-  identification: "Ident.",
-  interpolation: "Interp.",
-  participation: "Partic.",
-  representation: "Rep.",
-  classification: "Class.",
-  incorporation: "Incorp.",
-  consolidation: "Consol.",
-  qualification: "Qual.",
-  organizational: "Org.",
-  comprehensive: "Compr.",
-  bootstrapping: "Bootstrap.",
-  distribution: "Distrib.",
-  management: "Mgmt.",
-  operational: "Oper.",
-  parameters: "Params.",
-  parameter: "Param.",
-  collateral: "Collat.",
-  foundation: "Fndn.",
-  information: "Info.",
-  transaction: "Txn.",
-  transactions: "Txns.",
-  integration: "Integ.",
-  integrations: "Integs.",
-  requirements: "Reqs.",
-  requirement: "Req.",
-  environment: "Env.",
-  application: "App.",
-  applications: "Apps.",
-  verification: "Verif.",
-  notification: "Notif.",
-  notifications: "Notifs.",
-};
-
-function shortenTitle(title: string, maxChars: number, abbrRatio = 0.5): string {
-  // Drop stop words
-  let t = title.replace(STOP_WORDS, "").replace(/\s{2,}/g, " ").trim();
-  // Abbreviate words (longest first for max savings)
-  const words = t.split(" ");
-  const maxAbbrev = Math.max(1, Math.floor(words.length * abbrRatio));
-  let abbrCount = 0;
-  const candidates = words
-    .map((w, i) => ({ i, w, abbr: ABBREVIATIONS[w.toLowerCase()] }))
-    .filter((c) => c.abbr)
-    .sort((a, b) => b.w.length - a.w.length);
-  for (const c of candidates) {
-    if (abbrCount >= maxAbbrev) break;
-    words[c.i] = c.abbr;
-    abbrCount++;
-  }
-  t = words.join(" ");
-  if (t.length > maxChars) {
-    t = t.slice(0, maxChars - 1) + "…";
-  }
-  return t;
-}
-
-const BREADCRUMB_FONT = "12px 'Source Code Pro', monospace";
-const SEPARATOR = " / ";
-
-/** Use pretext to measure total breadcrumb width and progressively shorten until it fits. */
-function fitBreadcrumbs(titles: string[], availableWidth: number): string[] {
-  if (titles.length <= 2) {
-    // Normal mode: no shortening
-    return titles
-  }
-  if (titles.length <= 4) {
-    // some shortening
-    return titles.map((t) => shortenTitle(t, 48, 0.33));
-  }
-  if (titles.length <= 6) {
-    // Normal mode: standard shortening
-    return titles.map((t) => shortenTitle(t, 36, 0.66));
-  }
-  debugger
-  // Start aggressive: try decreasing maxChars and increasing abbr ratio
-  const steps: Array<{ maxChars: number; abbrRatio: number }> = [
-    { maxChars: 26, abbrRatio: 0.66 },
-    { maxChars: 22, abbrRatio: 0.8 },
-    { maxChars: 16, abbrRatio: 1.0 },
-    { maxChars: 10, abbrRatio: 1.0 },
-    { maxChars: 8, abbrRatio: 1.0 },
-  ];
-
-  for (const { maxChars, abbrRatio } of steps) {
-    const shortened = titles.map((t) => shortenTitle(t, maxChars, abbrRatio));
-    const fullText = shortened.join(SEPARATOR);
-    const prepared = prepare(fullText, BREADCRUMB_FONT);
-    const { lineCount } = layout(prepared, availableWidth, 16);
-    if (lineCount <= 1) return shortened;
-  }
-
-  // Last resort: already at minimum
-  return titles.map((t) => shortenTitle(t, 6, 1.0));
-}
-
-function buildAncestors(docs: Record<string, AtlasNode>, docNoToId: Map<string, string>, nodeId: string): AtlasNode[] {
-  const node = docs[nodeId];
-  if (!node || node.doc_no.startsWith("NR-")) return [];
-  const ancestors: AtlasNode[] = [];
-  const parts = node.doc_no.split(".");
-  // Walk from root toward the node, building each ancestor's doc_no
-  // A.1.2.3 → ancestors are A.1, A.1.2
-  for (let i = 2; i < parts.length; i++) {
-    const ancestorDocNo = parts.slice(0, i).join(".");
-    const aid = docNoToId.get(ancestorDocNo);
-    if (aid && docs[aid]) ancestors.push(docs[aid]);
-  }
-  return ancestors;
-}
-
-function depthColor(depth: number): string {
-  if (depth <= 1) return "var(--depth-1)";
-  if (depth >= 17) return "var(--depth-17)";
-  return `var(--depth-${depth})`;
-}
-
-// --- End breadcrumb helpers ---
+import { type AtlasNode, type AddressInfo } from "../types";
 
 // Extract UUIDs from markdown links in content: [text](uuid)
 const UUID_LINK_RE = /\[[^\]]+\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/g;
@@ -185,6 +21,19 @@ function extractLinkedIds(node: AtlasNode): string[] {
   return ids;
 }
 
+function buildAncestors(docs: Record<string, AtlasNode>, docNoToId: Map<string, string>, nodeId: string): AtlasNode[] {
+  const node = docs[nodeId];
+  if (!node || node.doc_no.startsWith("NR-")) return [];
+  const ancestors: AtlasNode[] = [];
+  const parts = node.doc_no.split(".");
+  for (let i = 2; i < parts.length; i++) {
+    const ancestorDocNo = parts.slice(0, i).join(".");
+    const aid = docNoToId.get(ancestorDocNo);
+    if (aid && docs[aid]) ancestors.push(docs[aid]);
+  }
+  return ancestors;
+}
+
 interface DetailState {
   loaded: boolean;
   ancestors: AtlasNode[];
@@ -196,19 +45,12 @@ interface DetailState {
 
 const INITIAL: DetailState = { loaded: false, ancestors: [], scopeNodes: [], linkedNodes: [], targetAddresses: {}, chainValues: {} };
 
+// Hoisted constant styles
+const GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };
+const LEFT_PANE_STYLE: React.CSSProperties = { borderRight: "1px solid var(--border)" };
+
 export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: string) => void }) {
   const [state, setState] = useState<DetailState>(INITIAL);
-  const [breadcrumbWidth, setBreadcrumbWidth] = useState(1000);
-  const breadcrumbRef = useRef<HTMLElement>(null);
-
-  // Track breadcrumb container width
-  useEffect(() => {
-    const el = breadcrumbRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setBreadcrumbWidth(entry.contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,12 +102,6 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
 
   const { loaded, ancestors, scopeNodes, linkedNodes, targetAddresses, chainValues } = state;
 
-  // Fit breadcrumbs to single line when deep (>8 ancestors)
-  const fittedTitles = useMemo(() => {
-    if (ancestors.length === 0) return [];
-    return fitBreadcrumbs(ancestors.map((a) => a.title), breadcrumbWidth - 46); // 46 = paddingLeft + paddingRight
-  }, [ancestors, breadcrumbWidth]);
-
   if (!loaded) {
     return (
       <div className="flex-1 flex items-center justify-center py-24 text-sm" style={{ color: "var(--gray)" }}>
@@ -282,36 +118,16 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
     );
   }
 
+  const addressCount = Object.keys(targetAddresses).length;
+
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
-      {/* Breadcrumb — fixed strip below search bar */}
-      {ancestors.length > 0 && (
-        <nav
-          ref={breadcrumbRef}
-          className={`flex items-center gap-x-1 text-xs mono ${ancestors.length > 6 ? "" : "flex-wrap"}`}
-          style={{ color: "var(--tan-3)", paddingLeft: 30, paddingRight: 16, paddingTop: 6, paddingBottom: 6, borderBottom: "1px solid var(--border)", background: "var(--bg)", overflow: "hidden", whiteSpace: ancestors.length > 6 ? "nowrap" : undefined }}
-        >
-          {ancestors.map((a, i) => (
-            <span key={a.id} className="flex items-center gap-x-1">
-              {i > 0 && <span style={{ color: "var(--tan-3)" }}>/</span>}
-              <a
-                href={`${import.meta.env.BASE_URL}?id=${a.id}`}
-                onClick={(e) => { e.preventDefault(); onNavigate(a.id); }}
-                className="breadcrumb-link"
-                style={{ "--crumb-color": depthColor(realDepth(a.doc_no)) } as React.CSSProperties}
-              >
-                <span className="short">{fittedTitles[i] ?? a.title}</span>
-                <span className="full">{a.title}</span>
-              </a>
-            </span>
-          ))}
-        </nav>
-      )}
+      <Breadcrumbs ancestors={ancestors} onNavigate={onNavigate} />
 
       {/* Content grid */}
-      <div className="flex-1 lg:grid lg:grid-cols-[3fr_2fr]" style={{ minHeight: 0, overflow: "hidden" }}>
+      <div className="flex-1 lg:grid lg:grid-cols-[3fr_2fr]" style={GRID_STYLE}>
       {/* Left — context */}
-      <div className="overflow-y-auto" style={{ borderRight: "1px solid var(--border)" }}>
+      <div className="overflow-y-auto" style={LEFT_PANE_STYLE}>
         <div className="max-w-2xl mx-auto px-4 py-6">
           {scopeNodes.map((node) => (
             <ScopeNode key={node.id} node={node} isTarget={node.id === id} onNavigate={onNavigate} />
@@ -337,10 +153,10 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
             </p>
           )}
 
-          {Object.keys(targetAddresses).length > 0 && (
+          {addressCount > 0 && (
             <div className="mt-8">
               <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
-                addresses · {Object.keys(targetAddresses).length}
+                addresses · {addressCount}
               </p>
               {Object.entries(targetAddresses).map(([address, info]) => (
                 <AddressCard key={address} address={address} info={info} chainValues={chainValues[address]} />
