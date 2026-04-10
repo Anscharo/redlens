@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
-import { List, useListRef } from "react-window";
+import { List, useListRef, type RowComponentProps } from "react-window";
 import { prepareWithSegments, layoutWithLines, type PreparedTextWithSegments } from "@chenglou/pretext";
 import { useAtlasTree } from "../hooks/useAtlasTree";
 import { realDepth, segmentDepths, type AtlasNode } from "../types";
@@ -87,7 +87,7 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const clickedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const listRef = useListRef();
+  const listRef = useListRef(null);
 
   // Initialize expanded state: depths 1-3
   useEffect(() => {
@@ -267,12 +267,6 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   );
 }
 
-type TreeRowProps = {
-  ariaAttributes: Record<string, unknown>;
-  index: number;
-  style: React.CSSProperties;
-} & TreeRowData;
-
 const TreeRow = memo(function TreeRow({
   index,
   style,
@@ -283,7 +277,7 @@ const TreeRow = memo(function TreeRow({
   sidebarWidth,
   onNavigate,
   onToggle,
-}: TreeRowProps) {
+}: RowComponentProps<TreeRowData>) {
   const item = visibleNodes[index];
   if (!item) return null;
   const { node, hasChildren, treeDepth } = item;

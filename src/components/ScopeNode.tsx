@@ -64,7 +64,7 @@ export const ScopeNode = memo(function ScopeNode({ node, isTarget, onNavigate }:
         </span>
         <span className="text-xs mono" style={DOCNO_STYLE}>{node.doc_no}</span>
         <a
-          href={`https://sky-atlas.powerhouse.io/#${node.id}`}
+          href={`https://sky-atlas.io/#${node.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="text-[10px] mono scope-uuid-link"
