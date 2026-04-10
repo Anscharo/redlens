@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function SearchResults({ state, activeScope, onNavigate, onHintClick }: Props) {
-  const allHits = state.status === "done" ? state.hits : [];
+  const allHits = useMemo(() => state.status === "done" ? state.hits : [], [state]);
   const hits = useMemo(
     () =>
       activeScope

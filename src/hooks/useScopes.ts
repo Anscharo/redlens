@@ -8,7 +8,7 @@ export function useScopes() {
   const [scopes, setScopes] = useState<AtlasNode[]>(cached ?? []);
 
   useEffect(() => {
-    if (cached) { setScopes(cached); return; }
+    if (cached) { return; }
     loadDocs().then((docs) => {
       const s = Object.values(docs)
         .filter((n) => n.depth === 1)

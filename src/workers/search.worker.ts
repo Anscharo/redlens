@@ -10,8 +10,8 @@ let docs: Record<string, AtlasNode> = {};
 // Address reverse-lookup structures, built at init from addresses.json + docs.
 // chainlogId  → lowercase address  (e.g. "MCD_VAT" → "0x35d1…")
 // address     → node ids that reference it via addressRefs
-let chainlogToAddr: Map<string, string> = new Map();
-let addrToNodeIds: Map<string, string[]> = new Map();
+const chainlogToAddr: Map<string, string> = new Map();
+const addrToNodeIds: Map<string, string[]> = new Map();
 
 async function init() {
   const base = import.meta.env.BASE_URL;

@@ -20,14 +20,7 @@ const NavigateContext = createContext<((id: string) => void) | undefined>(undefi
 
 const remarkPlugins = [remarkGfm, remarkMath];
 
-// Module-level shared address map. NodeDetail calls setAddressMap() once after
-// loadAddresses() resolves; the rehype plugin reads from here on every walk.
-// Keeping this at module scope means rehypePlugins is a constant array (no
-// useMemo) and NodeContent re-renders only when content/onNavigate change.
-let SHARED_ADDRESSES: Record<string, { explorerUrl: string }> = {};
-export function setAddressMap(m: Record<string, { explorerUrl: string }>) {
-  SHARED_ADDRESSES = m;
-}
+import { getAddressMap } from "../lib/addressMap";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // Address: exactly 40 hex chars; lookarounds reject matches inside longer hex strings
@@ -83,7 +76,7 @@ const TX_HASH_BARE_RE = /^0x[0-9a-fA-F]{64}$/;
 // Match "Transaction Hash:" (with optional trailing whitespace) at the end of a text node
 const TX_LABEL_RE = /Transaction\s+Hash:\s*$/i;
 
-// Rehype plugin: link addresses and tx hashes using the shared SHARED_ADDRESSES map.
+// Rehype plugin: link addresses and tx hashes using the shared getAddressMap() map.
 function rehypeEthAddresses() {
   return () => (tree: Root) => {
     const replacements: Array<{ parent: Element; index: number; nodes: ElementContent[] }> = [];
@@ -143,7 +136,7 @@ function rehypeEthAddresses() {
             const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
               const addr = m[0];
               const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-              const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+              const url = getAddressMap()[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
               return { linkText: addr, url };
             });
             if (addrParts) finalParts.push(...addrParts);
@@ -160,7 +153,7 @@ function rehypeEthAddresses() {
       const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
         const addr = m[0];
         const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-        const url = SHARED_ADDRESSES[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+        const url = getAddressMap()[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
         return { linkText: addr, url };
       });
       if (addrParts) {

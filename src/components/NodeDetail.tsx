@@ -6,7 +6,7 @@ import { AddressCard } from "./AddressCard";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { loadChainState, type ChainValue } from "../lib/chainstate";
-import { setAddressMap } from "./NodeContent";
+import { setAddressMap } from "../lib/addressMap";
 import { type AtlasNode, type AddressInfo } from "../types";
 
 // Extract UUIDs from markdown links in content: [text](uuid)

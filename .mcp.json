@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "atlas": {
-      "command": "node",
-      "args": ["mcp-atlas/server.mjs"]
+      "command": "pnpm",
+      "args": ["mcp:atlas"]
     }
   }
 }

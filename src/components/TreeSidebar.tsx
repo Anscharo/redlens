@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { List, useListRef, type RowComponentProps } from "react-window";
 import { prepareWithSegments, layoutWithLines, type PreparedTextWithSegments } from "@chenglou/pretext";
 import { useAtlasTree } from "../hooks/useAtlasTree";
@@ -81,43 +81,41 @@ const ROW_LAYOUT_STYLE: React.CSSProperties = {
 
 export function TreeSidebar({ nodeId, onNavigate }: Props) {
   const bundle = useAtlasTree();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [initialized, setInitialized] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(220);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const clickedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef(null);
 
-  // Initialize expanded state: depths 1-3
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const initializedRef = useRef(false);
+
+  // Initialize expanded state: depths 1–3 (one-time sync when bundle loads)
   useEffect(() => {
-    if (!bundle || initialized) return;
+    if (!bundle || initializedRef.current) return;
+    initializedRef.current = true;
     const initial = new Set<string>();
     for (const node of Object.values(bundle.docs)) {
       if (node.depth <= 3) initial.add(node.id);
     }
-    setExpandedIds(initial);
-    setInitialized(true);
-  }, [bundle, initialized]);
+    setExpandedIds(initial); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [bundle]);
 
-  // When nodeId changes, expand all ancestors
+  // Expand ancestors when nodeId changes
   useEffect(() => {
     if (!bundle || !nodeId) return;
-    const { docs } = bundle;
+    const { docs, docNoToId } = bundle;
     const target = docs[nodeId];
     if (!target) return;
 
+    const parts = target.doc_no.split(".");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      let cur = target;
       let changed = false;
-      while (cur.parentId) {
-        if (!next.has(cur.parentId)) {
-          next.add(cur.parentId);
-          changed = true;
-        }
-        cur = docs[cur.parentId];
-        if (!cur) break;
+      for (let i = 2; i < parts.length; i++) {
+        const aid = docNoToId.get(parts.slice(0, i).join("."));
+        if (aid && !next.has(aid)) { next.add(aid); changed = true; }
       }
       return changed ? next : prev;
     });
@@ -267,7 +265,7 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   );
 }
 
-const TreeRow = memo(function TreeRow({
+function TreeRow({
   index,
   style,
   visibleNodes,
@@ -279,26 +277,31 @@ const TreeRow = memo(function TreeRow({
   onToggle,
 }: RowComponentProps<TreeRowData>) {
   const item = visibleNodes[index];
-  if (!item) return null;
-  const { node, hasChildren, treeDepth } = item;
-  const isSelected = index === selectedIndex;
-  const isFocused = index === focusedIndex;
-  const isExpanded = expandedIds.has(node.id);
-  const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
+  const node = item?.node;
+  const title = node?.title ?? "";
+  const docNo = node?.doc_no ?? "";
 
-  const docNumWidth = node.doc_no.length * 4;
+  const docNumWidth = docNo.length * 4;
   const availableWidth = sidebarWidth - 5 - docNumWidth - TOGGLE_WIDTH - PAD_X - 6;
 
   const displayTitle = useMemo(
-    () => truncateTitle(node.title, Math.max(availableWidth, 20)),
-    [node.title, availableWidth]
+    () => title ? truncateTitle(title, Math.max(availableWidth, 20)) : "",
+    [title, availableWidth]
   );
 
   const docNoSegments = useMemo(() => {
-    const parts = node.doc_no.split(".");
-    const depths = segmentDepths(node.doc_no);
+    if (!docNo) return { parts: [] as string[], depths: [] as number[], needsPad: false };
+    const parts = docNo.split(".");
+    const depths = segmentDepths(docNo);
     return { parts, depths, needsPad: parts[parts.length - 1].length < 2 };
-  }, [node.doc_no]);
+  }, [docNo]);
+
+  if (!item) return null;
+  const { hasChildren, treeDepth } = item;
+  const isSelected = index === selectedIndex;
+  const isFocused = index === focusedIndex;
+  const isExpanded = expandedIds.has(node!.id);
+  const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
 
   const boxShadow = isSelected
     ? `inset 2px 0 0 ${depthVar}`
@@ -342,4 +345,4 @@ const TreeRow = memo(function TreeRow({
       </span>
     </div>
   );
-});
+}

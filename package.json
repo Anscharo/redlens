@@ -11,7 +11,8 @@
     "build:rag": "node --env-file-if-exists=.env.local scripts/build-rag.mjs",
     "build": "pnpm build:index && pnpm build:addresses && pnpm build:snapshot && tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mcp:atlas": "node mcp-atlas/server.mjs"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.5",
