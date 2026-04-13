@@ -33,11 +33,27 @@ function buildAncestors(docs: Record<string, AtlasNode>, docNoToId: Map<string, 
   return ancestors;
 }
 
-function flattenTree(byParent: Map<string | null, AtlasNode[]>): AtlasNode[] {
-  const result: AtlasNode[] = [];
+// Pre-computed per-node values so CollapsibleNode doesn't recompute on every render
+interface FlatEntry {
+  node: AtlasNode;
+  depth: number;
+  color: string;
+  indentPadding: number;
+  hasContent: boolean;
+}
+
+function flattenTree(byParent: Map<string | null, AtlasNode[]>): FlatEntry[] {
+  const result: FlatEntry[] = [];
   function walk(parentId: string | null) {
     for (const node of byParent.get(parentId) ?? []) {
-      result.push(node);
+      const depth = realDepth(node.doc_no);
+      result.push({
+        node,
+        depth,
+        color: depthColor(depth),
+        indentPadding: (depth - 1) * 6,
+        hasContent: !!node.content,
+      });
       walk(node.id);
     }
   }
@@ -49,9 +65,12 @@ function flattenTree(byParent: Map<string | null, AtlasNode[]>): AtlasNode[] {
 const GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };
 const LEFT_PANE_STYLE: React.CSSProperties = { borderRight: "1px solid var(--border)" };
 
+// (A) Stable empty Set — reused on every navigation reset to avoid extra render
+const EMPTY_SET: Set<string> = new Set();
+
 interface LoadedData {
   atlas: AtlasBundle;
-  flatNodes: AtlasNode[];
+  flatNodes: FlatEntry[];
   addresses: Record<string, AddressInfo>;
   chainState: { values: Record<string, Record<string, ChainValue>> };
 }
@@ -68,8 +87,8 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
     });
   }, []);
 
-  // Reset user toggles on navigation
-  useEffect(() => { setUserToggles(new Set()); }, [id]);
+  // (A) Reset user toggles on navigation — stable ref avoids extra render
+  useEffect(() => { setUserToggles(EMPTY_SET); }, [id]);
 
   // Auto-expanded nodes: target + parent + all siblings
   const autoExpanded = useMemo(() => {
@@ -133,6 +152,22 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
     }
   }, [id, data]);
 
+  // (C) Memoize the 10K node list — only re-evaluates when selection or expansion changes
+  // Must be before early returns so hook order is stable.
+  const nodeList = useMemo(() =>
+    data ? data.flatNodes.map(entry => (
+      <CollapsibleNode
+        key={entry.node.id}
+        entry={entry}
+        isSelected={entry.node.id === id}
+        isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
+        onNavigate={onNavigate}
+        onToggle={handleToggle}
+      />
+    )) : null,
+    [data, id, autoExpanded, userToggles, onNavigate, handleToggle]
+  );
+
   if (!data) {
     return (
       <div className="flex-1 flex items-center justify-center py-24 text-sm" style={{ color: "var(--gray)" }}>
@@ -159,16 +194,7 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
         {/* Left — full atlas tree */}
         <div className="overflow-y-auto" style={LEFT_PANE_STYLE}>
           <div className="max-w-2xl mx-auto px-4 py-2">
-            {data.flatNodes.map(node => (
-              <CollapsibleNode
-                key={node.id}
-                node={node}
-                isSelected={node.id === id}
-                isExpanded={autoExpanded.has(node.id) !== userToggles.has(node.id)}
-                onNavigate={onNavigate}
-                onToggle={handleToggle}
-              />
-            ))}
+            {nodeList}
           </div>
         </div>
 
@@ -225,25 +251,23 @@ const DEPTH_HEADING: Record<number, string> = {
   12: "text-xs font-normal",
 };
 
+const BORDER_WIDTH = 3;
+
 const CollapsibleNode = memo(function CollapsibleNode({
-  node,
+  entry,
   isSelected,
   isExpanded,
   onNavigate,
   onToggle,
 }: {
-  node: AtlasNode;
+  entry: FlatEntry;
   isSelected: boolean;
   isExpanded: boolean;
   onNavigate: (id: string) => void;
   onToggle: (id: string) => void;
 }) {
-  const depth = realDepth(node.doc_no);
-  const color = depthColor(depth);
-  const hasContent = !!node.content;
-
-  const indentPadding = ((depth - 1) * 6)
-  const borderWidth = 3
+  // (B) depth, color, indentPadding, hasContent pre-computed at flatten time
+  const { node, depth, color, indentPadding, hasContent } = entry;
 
   return (
     <div
@@ -251,13 +275,13 @@ const CollapsibleNode = memo(function CollapsibleNode({
       className="atlas-node relative"
       style={{
         padding: 4,
-        boxShadow: isSelected ? `inset ${borderWidth}px 0 0 ${color}` : undefined,
+        boxShadow: isSelected ? `inset ${BORDER_WIDTH}px 0 0 ${color}` : undefined,
         scrollMarginTop: "64px",
       }}
     >
       {/* Depth dots — fixed positions so each level aligns across all nodes */}
       {depth > 1 && (
-        <span className="absolute flex items-center" style={{ left: borderWidth+ 2, top: 1 }}>
+        <span className="absolute flex items-center" style={{ left: BORDER_WIDTH+ 2, top: 1 }}>
           {Array.from({ length: depth }, (_, i) => (
             <span key={i} style={{ width:4, textAlign: "center", color: depthColor(i + 1), fontSize: i === depth -1 ?  11 : 8, lineHeight: 1 }}>{"\u2022"}</span>
           ))}
@@ -266,7 +290,7 @@ const CollapsibleNode = memo(function CollapsibleNode({
       {/* Title bar — always visible */}
       <div
         className="flex items-center gap-2"
-        style={{ paddingLeft: isSelected ? indentPadding - borderWidth: indentPadding}}
+        style={{ paddingLeft: isSelected ? indentPadding - BORDER_WIDTH: indentPadding}}
       >
       {/* Toggle chevron */}
         <span
@@ -293,7 +317,7 @@ const CollapsibleNode = memo(function CollapsibleNode({
       {/* Expanded content */}
       {isExpanded && hasContent && (
         <div className="pb-3 mt-2"
-        style={{paddingLeft: (isSelected ? indentPadding - borderWidth: indentPadding) + 24}}
+        style={{paddingLeft: (isSelected ? indentPadding - BORDER_WIDTH: indentPadding) + 24}}
         
         >
           <div className="flex items-center gap-3 mb-2">  
