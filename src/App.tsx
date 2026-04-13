@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useTransition } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearch } from "./hooks/useSearch";
 import { useScopes } from "./hooks/useScopes";
 import { SearchBar } from "./components/SearchBar";
