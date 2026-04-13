@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
-import type { AtlasNode } from "../types";
+import type { AtlasNode, SearchHit } from "../types";
 import type { SearchState } from "../hooks/useSearch";
 
 interface Props {
@@ -10,9 +10,9 @@ interface Props {
   onNavigate: (id: string) => void;
   onHintClick: (query: string) => void;
 }
-
+const empty: SearchHit[] = []
 export function SearchResults({ state, activeScope, onNavigate, onHintClick }: Props) {
-  const allHits = useMemo(() => state.status === "done" ? state.hits : [], [state]);
+  const allHits = state.status === "done" ? state.hits : empty;
   const hits = useMemo(
     () =>
       activeScope

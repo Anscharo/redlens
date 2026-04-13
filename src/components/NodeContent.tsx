@@ -1,10 +1,7 @@
-import { memo, createContext, useContext } from "react";
+import { memo, createContext, useContext, useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
-import rehypeKatex from "rehype-katex";
 import { visit } from "unist-util-visit";
-import "katex/dist/katex.min.css";
 import type { Components } from "react-markdown";
 import type { Root, Text, Element, ElementContent } from "hast";
 import type { AnchorHTMLAttributes } from "react";
@@ -18,7 +15,7 @@ interface Props {
 // live at module scope (and therefore be reference-stable across renders).
 const NavigateContext = createContext<((id: string) => void) | undefined>(undefined);
 
-const remarkPlugins = [remarkGfm, remarkMath];
+const remarkPluginsBase = [remarkGfm];
 
 import { getAddressMap } from "../lib/addressMap";
 
@@ -79,6 +76,7 @@ const TX_LABEL_RE = /Transaction\s+Hash:\s*$/i;
 // Rehype plugin: link addresses and tx hashes using the shared getAddressMap() map.
 function rehypeEthAddresses() {
   return () => (tree: Root) => {
+    const addresses = getAddressMap();
     const replacements: Array<{ parent: Element; index: number; nodes: ElementContent[] }> = [];
 
     // Pre-pass: find <code> elements containing a tx hash preceded by "Transaction Hash:" text.
@@ -136,7 +134,7 @@ function rehypeEthAddresses() {
             const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
               const addr = m[0];
               const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-              const url = getAddressMap()[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
+              const url = addresses[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
               return { linkText: addr, url };
             });
             if (addrParts) finalParts.push(...addrParts);
@@ -290,14 +288,48 @@ const components: Components = {
   },
 };
 
-const rehypePlugins = [rehypeKatex, rehypeEthAddresses()];
+// Detect content that remark-math would parse: $...$ or $$...$$
+const MATH_RE = /\$\$|\$[^$\s]/;
+
+const ethAddressesPlugin = rehypeEthAddresses();
+const rehypePluginsBase = [ethAddressesPlugin];
+
+// Lazy-loaded math plugins — cached at module scope after first load
+let remarkPluginsMath: any[] | null = null;
+let rehypePluginsMath: any[] | null = null;
+let katexPromise: Promise<void> | null = null;
+
+function loadKatex(): Promise<void> {
+  if (!katexPromise) {
+    katexPromise = Promise.all([
+      import("rehype-katex"),
+      import("remark-math"),
+      import("katex/dist/katex.min.css"),
+    ]).then(([rehypeKatexMod, remarkMathMod]) => {
+      remarkPluginsMath = [remarkGfm, remarkMathMod.default];
+      rehypePluginsMath = [rehypeKatexMod.default, ethAddressesPlugin];
+    });
+  }
+  return katexPromise;
+}
 
 export const NodeContent = memo(function NodeContent({ content, onNavigate }: Props) {
+  const hasMath = MATH_RE.test(content);
+  const [katexReady, setKatexReady] = useState(!!rehypePluginsMath);
+
+  useEffect(() => {
+    if (hasMath && !rehypePluginsMath) {
+      loadKatex().then(() => setKatexReady(true));
+    }
+  }, [hasMath]);
+
+  const usesMath = hasMath && katexReady;
+
   return (
     <NavigateContext.Provider value={onNavigate}>
       <ReactMarkdown
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={rehypePlugins}
+        remarkPlugins={usesMath ? remarkPluginsMath! : remarkPluginsBase}
+        rehypePlugins={usesMath ? rehypePluginsMath! : rehypePluginsBase}
         components={components}
       >
         {content}

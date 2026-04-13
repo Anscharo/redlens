@@ -3,13 +3,17 @@ import { NodeContent } from "./NodeContent";
 import type { AtlasNode } from "../types";
 
 export const RelatedNode = memo(function RelatedNode({ node, onNavigate }: { node: AtlasNode; onNavigate: (id: string) => void }) {
+  const href = `${import.meta.env.BASE_URL}?id=${node.id}`;
+
   return (
-    <div
-      className="py-4 border-b cursor-pointer"
-      style={{ borderColor: "var(--border)" }}
-      onClick={() => onNavigate(node.id)}
-      onMouseEnter={e => (e.currentTarget.style.background = "var(--hover)")}
-      onMouseLeave={e => (e.currentTarget.style.background = "")}
+    <a
+      href={href}
+      className="related-node block py-4 border-b no-underline"
+      style={{ borderColor: "var(--border)", color: "inherit" }}
+      onClick={e => {
+        e.preventDefault();
+        onNavigate(node.id);
+      }}
     >
       <p className="text-sm font-semibold mb-1" style={{ color: "var(--tan)" }}>
         {node.title}
@@ -29,6 +33,6 @@ export const RelatedNode = memo(function RelatedNode({ node, onNavigate }: { nod
           <NodeContent content={node.content} onNavigate={onNavigate} />
         </div>
       )}
-    </div>
+    </a>
   );
 });

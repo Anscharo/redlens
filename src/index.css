@@ -136,6 +136,14 @@ input[type="search"]::-webkit-search-cancel-button {
   color: var(--accent);
 }
 
+/* RelatedNode — pure CSS hover */
+.related-node {
+  transition: background-color 0.1s;
+}
+.related-node:hover {
+  background-color: var(--hover);
+}
+
 /* ScopeNode states */
 .scope-node {
   transition: opacity 0.1s, background-color 0.1s;
@@ -149,6 +157,41 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 .scope-node.is-target {
   opacity: 1;
+}
+
+/* Atlas tree view */
+.atlas-node {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
+  border-bottom: 1px solid var(--border);
+}
+.atlas-node-title {
+  border-radius: 2px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.atlas-node-title, .atlas-toggle {
+  transition: background-color 0.1s;
+}
+.atlas-node-title:hover {
+  background-color: var(--hover);
+}
+.atlas-toggle {
+  border-radius: 2px;
+  padding: 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+.atlas-toggle:hover {
+  background-color: var(--hover);
+  color: var(--tan) !important;
+}
+.atlas-external-link {
+  color: var(--tan-3);
+  transition: color 0.1s;
+}
+.atlas-external-link:hover {
+  color: var(--accent);
 }
 
 /* KaTeX dark mode */

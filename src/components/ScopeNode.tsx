@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useMemo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { NodeContent } from "./NodeContent";
 import { realDepth, depthColor, type AtlasNode } from "../types";
 
@@ -21,19 +21,19 @@ export const ScopeNode = memo(function ScopeNode({ node, isTarget, onNavigate }:
   const indent = (depth - 1) * 3;
   const color = depthColor(depth);
 
-  const containerStyle = useMemo((): React.CSSProperties => ({
+  const containerStyle: React.CSSProperties = {
     borderColor: "var(--border)",
     marginLeft: indent,
     borderLeft: isTarget ? `${1 + depth}px solid var(--depth-${Math.min(depth, 17)})` : undefined,
     paddingLeft: isTarget ? Math.max(4, 15 - (1 + depth)) : 15,
     scrollMarginTop: "64px",
-  }), [indent, isTarget, depth]);
+  };
 
-  const badgeStyle = useMemo((): React.CSSProperties => ({
+  const badgeStyle: React.CSSProperties = {
     background: "var(--surface)",
     color,
     border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
-  }), [color]);
+  };
 
   useEffect(() => {
     if (isTarget) {

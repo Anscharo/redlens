@@ -7,6 +7,7 @@ interface Props {
 }
 
 export const SearchResult = memo(function SearchResult({ hit, onNavigate }: Props) {
+  const color = depthColor(realDepth(hit.doc_no));
   const shortAddr = hit.chainlogAddress
     ? `${hit.chainlogAddress.slice(0, 6)}…${hit.chainlogAddress.slice(-4)}`
     : "";
@@ -56,8 +57,8 @@ export const SearchResult = memo(function SearchResult({ hit, onNavigate }: Prop
             className="text-[11px] font-medium px-1.5 py-0.5 rounded mono"
             style={{
               background: "var(--surface)",
-              color: depthColor(realDepth(hit.doc_no)),
-              border: `1px solid color-mix(in srgb, ${depthColor(realDepth(hit.doc_no))} 40%, transparent)`,
+              color,
+              border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
             }}
           >
             {hit.type}

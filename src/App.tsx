@@ -3,7 +3,7 @@ import { useSearch } from "./hooks/useSearch";
 import { useScopes } from "./hooks/useScopes";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
-import { NodeDetail } from "./components/NodeDetail";
+import { AtlasView } from "./components/AtlasView";
 import { TreeSidebar } from "./components/TreeSidebar";
 import type { AtlasNode } from "./types";
 
@@ -79,7 +79,7 @@ export default function App() {
         <TreeSidebar nodeId={nodeId} onNavigate={navigate} />
         <div className="flex-1 flex flex-col overflow-hidden">
           {nodeId ? (
-            <NodeDetail id={nodeId} onNavigate={navigate} />
+            <AtlasView id={nodeId} onNavigate={navigate} />
           ) : (
             <SearchResults
               state={state}
