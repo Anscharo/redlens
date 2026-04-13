@@ -251,7 +251,7 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
   if (!bundle) return <div className="tree-sidebar" ref={containerRef} />;
 
   return (
-    <div className="tree-sidebar" ref={containerRef} tabIndex={0} onKeyDown={handleKeyDown} style={{ outline: "none" }}>
+    <div className="tree-sidebar" ref={containerRef} tabIndex={0} onKeyDown={handleKeyDown} role="tree" aria-label="Atlas tree">
       <List
         listRef={listRef}
         rowCount={visibleNodes.length}

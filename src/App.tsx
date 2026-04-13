@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { useSearch } from "./hooks/useSearch";
 import { useScopes } from "./hooks/useScopes";
 import { SearchBar } from "./components/SearchBar";
@@ -17,6 +17,9 @@ export default function App() {
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [atlasEverShown, setAtlasEverShown] = useState(!!nodeId);
+
+  useEffect(() => { if (nodeId && !atlasEverShown) setAtlasEverShown(true); }, [nodeId, atlasEverShown]);
 
   useEffect(() => {
     function onPopState() {
@@ -78,15 +81,18 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         <TreeSidebar nodeId={nodeId} onNavigate={navigate} />
         <div className="flex-1 flex flex-col overflow-hidden">
-          {nodeId ? (
-            <AtlasView id={nodeId} onNavigate={navigate} />
-          ) : (
+          {!nodeId && (
             <SearchResults
               state={state}
               activeScope={activeScope}
               onNavigate={navigate}
               onHintClick={handleHintClick}
             />
+          )}
+          {atlasEverShown && (
+            <div className="flex-1 flex flex-col overflow-hidden" style={{ display: nodeId ? undefined : "none" }}>
+              <AtlasView id={nodeId!} onNavigate={navigate} />
+            </div>
           )}
         </div>
       </div>

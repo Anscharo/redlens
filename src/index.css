@@ -8,10 +8,10 @@
   --red:       #a63228;   /* burn red — badges, target highlight */
   --red-dim:   #753021;
   --accent:    #c67267;   /* browner/pinker — focus, interactive */
-  --gray:      #7a6860;
+  --gray:      #9a8a80;   /* bumped from #7a6860 — passes 4.5:1 on --bg */
   --tan:       #f3e7ce;   /* primary text — lightened */
   --tan-2:     #e4d1b9;   /* secondary */
-  --tan-3:     #a38f79;   /* muted */
+  --tan-3:     #b8a48e;   /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
 }
 
 html, body, #root {
@@ -27,6 +27,17 @@ html, body, #root {
 
 code, .mono {
   font-family: 'Source Code Pro', 'Courier New', monospace;
+}
+
+/* Global focus-visible ring */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Inset variant for elements that clip overflow */
+.tree-sidebar:focus-visible,
+.tree-row:focus-visible {
+  outline-offset: -2px;
 }
 
 mark {
@@ -58,11 +69,11 @@ input[type="search"]::-webkit-search-cancel-button {
   --depth-3:  #d34a1c;  /* reddish orange */
   --depth-4:  #df8525;  /* orange */
   --depth-5:  #d8b235;  /* golden */
-  --depth-6:  #4fa34c;  /* green */
-  --depth-7:  #4aa8b8;  /* azure */
-  --depth-8:  #3a72b5;  /* blue */
-  --depth-9:  #5458c3;  /* indigo */
-  --depth-10: #8d5dbf;  /* violet */
+  --depth-6:  #5fbf5c;  /* green — bumped for 4.5:1 on --bg */
+  --depth-7:  #5cc0d0;  /* azure — bumped for 4.5:1 on --bg */
+  --depth-8:  #5a94d8;  /* blue — bumped for 4.5:1 on --bg */
+  --depth-9:  #7a7ee0;  /* indigo — bumped for 4.5:1 on --bg */
+  --depth-10: #a87ae0;  /* violet — bumped for 4.5:1 on --bg */
   --depth-11: #ba5184;  /* magenta */
   --depth-12: #e4a6c3;  /* light pink */
   --depth-13: #f7b9ad;  /* pinky white */
@@ -121,10 +132,13 @@ input[type="search"]::-webkit-search-cancel-button {
 .breadcrumb-link .full  { display: none; }
 .breadcrumb-link:hover .short { display: none; }
 .breadcrumb-link:hover .full  { display: inline; }
-.breadcrumb-link:hover {
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
   background-color: color-mix(in srgb, var(--crumb-color) 25%, transparent);
   color: var(--crumb-color);
 }
+.breadcrumb-link:focus-visible .short { display: none; }
+.breadcrumb-link:focus-visible .full  { display: inline; }
 
 /* ScopeNode UUID link — pure CSS hover */
 .scope-uuid-link {
@@ -132,7 +146,8 @@ input[type="search"]::-webkit-search-cancel-button {
   text-decoration: none;
   transition: color 0.1s;
 }
-.scope-uuid-link:hover {
+.scope-uuid-link:hover,
+.scope-uuid-link:focus-visible {
   color: var(--accent);
 }
 
@@ -140,7 +155,8 @@ input[type="search"]::-webkit-search-cancel-button {
 .related-node {
   transition: background-color 0.1s;
 }
-.related-node:hover {
+.related-node:hover,
+.related-node:focus-visible {
   background-color: var(--hover);
 }
 
@@ -173,7 +189,8 @@ input[type="search"]::-webkit-search-cancel-button {
 .atlas-node-title, .atlas-toggle {
   transition: background-color 0.1s;
 }
-.atlas-node-title:hover {
+.atlas-node-title:hover,
+.atlas-node-title:focus-visible {
   background-color: var(--hover);
 }
 .atlas-toggle {
@@ -182,7 +199,8 @@ input[type="search"]::-webkit-search-cancel-button {
   cursor: pointer;
   line-height: 1;
 }
-.atlas-toggle:hover {
+.atlas-toggle:hover,
+.atlas-toggle:focus-visible {
   background-color: var(--hover);
   color: var(--tan) !important;
 }
@@ -190,7 +208,8 @@ input[type="search"]::-webkit-search-cancel-button {
   color: var(--tan-3);
   transition: color 0.1s;
 }
-.atlas-external-link:hover {
+.atlas-external-link:hover,
+.atlas-external-link:focus-visible {
   color: var(--accent);
 }
 

@@ -51,15 +51,13 @@ export function SearchBar({
             onChange={onChange}
             placeholder={ready ? "Search the Sky Atlas…" : "Loading index…"}
             disabled={!ready}
-            className="w-full pl-9 pr-4 py-2 text-sm rounded border disabled:opacity-40 disabled:cursor-wait focus:outline-none"
+            className="w-full pl-9 pr-4 py-2 text-sm rounded border disabled:opacity-40 disabled:cursor-wait"
             style={{
               background: "var(--surface)",
               color: "var(--tan)",
               borderColor: "var(--border)",
               fontFamily: "inherit",
             }}
-            onFocus={e => (e.target.style.borderColor = "var(--accent)")}
-            onBlur={e => (e.target.style.borderColor = "var(--border)")}
           />
           {isSearching && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs animate-pulse mono" style={{ color: "var(--gray)" }}>
@@ -67,39 +65,43 @@ export function SearchBar({
             </span>
           )}
         </div>
-      </div>
 
-      {/* Scope filter pills */}
-      {scopes.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-2 max-w-2xl mx-auto lg:max-w-none pl-9">
-          {scopes.map((s) => {
-            const active = activeScope?.id === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => onToggleScope(s)}
-                className="mono text-xs px-2 py-0.5 rounded border transition-colors"
-                style={{
-                  background: active ? "var(--red-dim)" : "var(--surface)",
-                  color: active ? "var(--tan)" : "var(--tan-3)",
-                  borderColor: active ? "var(--red)" : "var(--border)",
-                  boxShadow: active ? "inset 2px 0 0 var(--red)" : undefined,
-                }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = "var(--depth-1)"; e.currentTarget.style.color = "var(--tan-2)"; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--tan-3)"; }}}
-                title={s.title}
-              >
-                {s.doc_no}
-              </button>
-            );
-          })}
-          {activeScope && (
-            <span className="text-xs self-center ml-1" style={{ color: "var(--tan-3)" }}>
-              {activeScope.title}
+        {/* Scope filter pills — inline with search */}
+        {scopes.length > 0 && (
+          <>
+            <span className="mono text-xs shrink-0" style={{ color: "var(--tan-3)" }}>IN</span>
+            <div className="flex flex-wrap gap-1.5 shrink-0">
+              {scopes.map((s) => {
+                const active = activeScope?.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => onToggleScope(s)}
+                    className="mono text-xs px-2 py-0.5 rounded border transition-colors"
+                    style={{
+                      background: active ? "var(--red-dim)" : "var(--surface)",
+                      color: active ? "var(--tan)" : "var(--tan-3)",
+                      borderColor: active ? "var(--red)" : "var(--border)",
+                      boxShadow: active ? "inset 2px 0 0 var(--red)" : undefined,
+                    }}
+                    onMouseEnter={e => { if (!active) { e.currentTarget.style.borderColor = "var(--depth-1)"; e.currentTarget.style.color = "var(--tan-2)"; }}}
+                    onMouseLeave={e => { if (!active) { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--tan-3)"; }}}
+                    title={s.title}
+                  >
+                    {s.doc_no}
+                  </button>
+                );
+              })}
+            </div>
+            <span
+              className="mono text-xs shrink-0"
+              style={{ color: "var(--tan-3)", minWidth: "12rem", visibility: activeScope ? "visible" : "hidden" }}
+            >
+              {activeScope?.title ?? "\u00A0"}
             </span>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </header>
   );
 }

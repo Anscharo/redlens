@@ -175,6 +175,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ ancestors, onNavigate }: 
   return (
     <nav
       ref={breadcrumbRef}
+      aria-label="Breadcrumbs"
       className={`flex items-center gap-x-1 text-xs mono ${ancestors.length > 6 ? "" : "flex-wrap"}`}
       style={ancestors.length > 6 ? NAV_STYLE_NOWRAP : NAV_STYLE_BASE}
     >

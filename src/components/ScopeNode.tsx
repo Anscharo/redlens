@@ -45,8 +45,11 @@ export const ScopeNode = memo(function ScopeNode({ node, isTarget, onNavigate }:
     <div
       ref={ref}
       id={node.id}
+      role="button"
+      tabIndex={0}
       className={`scope-node py-4 border-b cursor-pointer ${isTarget ? "is-target" : ""}`}
       onClick={() => onNavigate(node.id)}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onNavigate(node.id); } }}
       style={containerStyle}
     >
       <p

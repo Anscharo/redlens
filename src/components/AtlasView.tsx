@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useCallback, memo, startTransition } from "react";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
@@ -79,11 +79,14 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
   const [data, setData] = useState<LoadedData | null>(null);
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
 
-  // Load data once
+  // Load data once — wrap in startTransition so the loading state shows
+  // immediately while React mounts ~10K nodes in the background.
   useEffect(() => {
     Promise.all([loadAtlas(), loadAddresses(), loadChainState()]).then(([atlas, addresses, chainState]) => {
       setAddressMap(addresses);
-      setData({ atlas, flatNodes: flattenTree(atlas.byParent), addresses, chainState });
+      startTransition(() => {
+        setData({ atlas, flatNodes: flattenTree(atlas.byParent), addresses, chainState });
+      });
     });
   }, []);
 
@@ -294,15 +297,23 @@ const CollapsibleNode = memo(function CollapsibleNode({
       >
       {/* Toggle chevron */}
         <span
+          role={hasContent ? "button" : undefined}
+          tabIndex={hasContent ? 0 : undefined}
+          aria-expanded={hasContent ? isExpanded : undefined}
+          aria-label={hasContent ? `Toggle ${node.title}` : undefined}
           className="atlas-toggle text-[11px] w-3 text-center shrink-0"
           style={{ color: hasContent ? "var(--tan-3)" : "transparent", display: "inline-flex" }}
           onClick={hasContent ? (e: React.MouseEvent) => { e.stopPropagation(); onToggle(node.id); } : undefined}
+          onKeyDown={hasContent ? (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggle(node.id); } } : undefined}
         >
           {hasContent ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
         </span>
       <div
+        role="button"
+        tabIndex={0}
         className="atlas-node-title flex items-center gap-2 py-1.5 cursor-pointer"
         onClick={() => onNavigate(node.id)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onNavigate(node.id); } }}
       >
         <span
           className={DEPTH_HEADING[depth] ?? "text-sm font-medium"}
