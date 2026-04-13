@@ -1,0 +1,10 @@
+{
+  "number": 208,
+  "title": "Atlas Edit Proposal — 2026-03-23",
+  "body": "This proposal includes the following edits:\n\n- **Remove Governance Poll Requirement For SparkLend Parameter Changes** - Removes the requirement for a Governance Poll before modifying SparkLend Liquidation Threshold and Liquidation Bonus parameters, allowing these changes to proceed directly to an Executive Vote via the Operational Weekly Cycle.\n- **Remove Signal Requests And Non-Standard Weekly Polls From The Atlas** - Removes Non-Standard Weekly Polls, Signal Requests, and the Signal Request reference from the Emergency Declaration Procedure.\n- **Clarify Facilitator Authority To Update Atlas After Spell Execution** - Codifies the existing practice of the Core Facilitator updating Sky Core Atlas documents after a Spell executes, with Operational Facilitators responsible for Agent Artifact follow-ups.\n- **Add Spark Foundation Grant Authorization For Q2 2026** - Authorizes a cash grant of 1,100,000 USDS per month to the Spark Foundation and 100,000 USDS per month to the Spark Asset Foundation from the SubDAO Proxy for Q2 2026.\n- **Update Spark Prime Arkis Deployment Parameters** - Removes Interim Deployment status from Arkis, raises Maximum Exposure from $20M to $50M, and reduces Instance Capital Requirement Ratio from 100% to 50%.\n- **Fix Sentora RLUSD Morpho Vault V2 MaxExchangeRate Precision** - Corrects the maxExchangeRate precision for the Sentora RLUSD Morpho Vault V2 from 3e6 to 3e18 to match RLUSD's 18-decimal token standard.",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/208",
+  "commentCount": 2,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo, useState, useEffect } from "react";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
 import type { AtlasNode, SearchHit } from "../types";
@@ -10,8 +10,9 @@ interface Props {
   onNavigate: (id: string) => void;
   onHintClick: (query: string) => void;
 }
+const PAGE_SIZE = 500;
 const empty: SearchHit[] = []
-export function SearchResults({ state, activeScope, onNavigate, onHintClick }: Props) {
+export const SearchResults = memo(function SearchResults({ state, activeScope, onNavigate, onHintClick }: Props) {
   const allHits = state.status === "done" ? state.hits : empty;
   const hits = useMemo(
     () =>
@@ -20,6 +21,12 @@ export function SearchResults({ state, activeScope, onNavigate, onHintClick }: P
         : allHits,
     [allHits, activeScope]
   );
+
+  const [visible, setVisible] = useState(PAGE_SIZE);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [hits]);
+
+  const displayed = hits.slice(0, visible);
+  const remaining = hits.length - displayed.length;
 
   return (
     <main className="flex-1 overflow-y-auto">
@@ -31,17 +38,28 @@ export function SearchResults({ state, activeScope, onNavigate, onHintClick }: P
           >
             {hits.length === 0
               ? `no results for "${state.query}"${activeScope ? ` in ${activeScope.doc_no}` : ""}${activeScope && allHits.length > 0 ? ` (${allHits.length} in other scopes)` : ""}`
-              : `${hits.length}${allHits.length !== hits.length ? ` of ${allHits.length}` : ""} result${hits.length !== 1 ? "s" : ""}${activeScope ? ` in ${activeScope.doc_no}` : ""} · ${state.durationMs.toFixed(0)}ms`}
+              : `${displayed.length < hits.length ? `${displayed.length} of ` : ""}${hits.length}${allHits.length !== hits.length ? ` of ${allHits.length}` : ""} result${hits.length !== 1 ? "s" : ""}${activeScope ? ` in ${activeScope.doc_no}` : ""} · ${state.durationMs.toFixed(0)}ms`}
           </div>
         )}
-        {hits.length > 0 && (
+        {displayed.length > 0 && (
           <ul>
-            {hits.map((hit) => (
+            {displayed.map((hit) => (
               <li key={hit.id}>
                 <SearchResult hit={hit} onNavigate={onNavigate} />
               </li>
             ))}
           </ul>
+        )}
+        {remaining > 0 && (
+          <div className="px-4 py-4 text-center">
+            <button
+              onClick={() => setVisible(v => v + PAGE_SIZE)}
+              className="text-xs mono px-3 py-1.5 rounded"
+              style={{ color: "var(--accent)", border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer" }}
+            >
+              show {Math.min(remaining, PAGE_SIZE)} more ({remaining} remaining)
+            </button>
+          </div>
         )}
         {(state.status === "idle" || state.status === "loading") && <SearchHints onSearch={onHintClick} />}
         {state.status === "error" && (
@@ -52,4 +70,4 @@ export function SearchResults({ state, activeScope, onNavigate, onHintClick }: P
       </div>
     </main>
   );
-}
+});

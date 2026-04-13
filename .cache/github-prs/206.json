@@ -1,0 +1,10 @@
+{
+  "number": 206,
+  "title": "Lint Lists",
+  "body": "@blimpa @Coolcatcatio\r\n\r\nThis PR updates all lists within the Atlas to follow the markdown specification.\r\n\r\nIt also adds a markdownlint config file to start the process of fixing formatting across editors.",
+  "author": "0xldr",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/206",
+  "commentCount": 2,
+  "reviewCount": 2,
+  "approvalCount": 1
+}

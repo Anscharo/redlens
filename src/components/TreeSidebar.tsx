@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, useTransition } from "react";
 import { List, useListRef, type RowComponentProps } from "react-window";
 import { prepareWithSegments, layoutWithLines, type PreparedTextWithSegments } from "@chenglou/pretext";
 import { useAtlasTree } from "../hooks/useAtlasTree";
@@ -89,17 +89,18 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
 
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const initializedRef = useRef(false);
+  const [, startTransition] = useTransition();
 
-  // Initialize expanded state: depths 1–3 (one-time sync when bundle loads)
+  // Initialize expanded state: depths 1–2 (one-time deferred update when bundle loads)
   useEffect(() => {
     if (!bundle || initializedRef.current) return;
     initializedRef.current = true;
     const initial = new Set<string>();
     for (const node of Object.values(bundle.docs)) {
-      if (node.depth <= 3) initial.add(node.id);
+      if (node.depth <= 2) initial.add(node.id);
     }
-    setExpandedIds(initial); // eslint-disable-line react-hooks/set-state-in-effect
-  }, [bundle]);
+    startTransition(() => setExpandedIds(initial)); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [bundle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Expand ancestors when nodeId changes
   useEffect(() => {

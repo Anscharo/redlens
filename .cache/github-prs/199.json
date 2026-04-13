@@ -1,0 +1,10 @@
+{
+  "number": 199,
+  "title": "Global linting - Remove extra spaces",
+  "body": "Extra spaces have been removed.\r\n\r\n---\r\n\r\nThe following have been kept unchanged:\r\n\r\n- Code blocks/lines have been kept unchanged excepting the removal of:\r\n  - Line-final spaces\r\n  - Interlinear spaces\r\n- Table layouts excepting the removal of:\r\n  - Line-final spaces\r\n\r\nNewlines have not been changed.",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/199",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

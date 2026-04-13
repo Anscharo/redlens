@@ -1,0 +1,10 @@
+{
+  "number": 163,
+  "title": "SparkLend Assorted Updates",
+  "body": "Adds SparkLend Gnosis assets.\r\nAdditionally, this PR contains the changes proposed via:\r\n\r\n- [Gnosis] SparkLend - Deprecate Market Phase 1\r\n- [Ethereum] SparkLend - Deprecate tBTC Phase 1\r\n- [Ethereum] SparkLend - Deprecate ezETH Phase 1\r\n- [Ethereum] SparkLend - Deprecate rsETH Phase 1\r\n\r\nSee https://forum.sky.money/t/january-29-2026-proposed-changes/27620",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/163",
+  "commentCount": 0,
+  "reviewCount": 4,
+  "approvalCount": 1
+}

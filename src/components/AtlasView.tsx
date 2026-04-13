@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, memo, startTransition } from
 import { Breadcrumbs } from "./Breadcrumbs";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
+import { NodeHistory } from "./NodeHistory";
 import { NodeContent } from "./NodeContent";
 import { loadAtlas, type AtlasBundle } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
@@ -229,6 +230,11 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
                   ))}
                 </div>
               )}
+
+              <div className="mt-8">
+                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>history</p>
+                <NodeHistory nodeId={id} />
+              </div>
             </div>
           </div>
         )}

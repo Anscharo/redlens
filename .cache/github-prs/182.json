@@ -1,0 +1,10 @@
+{
+  "number": 182,
+  "title": "remove ALLOCATOR-NOVA-A from DC-IAM and set `line` to 0",
+  "body": "https://forum.sky.money/t/allocator-nova-a-parameter-changes/27692",
+  "author": "0xldr",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/182",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}
