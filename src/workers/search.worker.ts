@@ -168,6 +168,19 @@ function search(q: string): SearchHit[] {
   // anything in lunr as-is because it has no trailing wildcard. Auto-append *
   // so the user doesn't have to remember to type it.
   const HEX_PREFIX_RE = /^0x[0-9a-fA-F]*$/i;
+
+  // Token tickers (all-caps, 3-8 chars like SUSDS, USDC, MKR, stUSDS) get
+  // mangled by lunr's stemmer — "SUSDS" stems to match "sUSDe". Treat them
+  // as implicit exact phrases so the post-filter requires a literal substring.
+  const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
+  const restWords = rest.trim().split(/\s+/).filter(Boolean);
+  for (const word of restWords) {
+    const bare = word.replace(/^[+\-~]/, "").replace(/[~^*]\d*$/, "");
+    if (bare.length >= 3 && bare.length <= 8 && TICKER_RE.test(bare) && !phrases.includes(bare)) {
+      phrases.push(bare);
+    }
+  }
+
   const normalized = HEX_PREFIX_RE.test(rest.trim())
     ? rest.trim() + "*"
     : rest;
