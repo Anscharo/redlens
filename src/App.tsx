@@ -5,6 +5,7 @@ import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
 import { AtlasView } from "./components/AtlasView";
 import { TreeSidebar } from "./components/TreeSidebar";
+import { prefetchNodeContent } from "./components/NodeContent";
 import type { AtlasNode } from "./types";
 
 export default function App() {
@@ -28,6 +29,8 @@ export default function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => { prefetchNodeContent(); }, []);
 
   useEffect(() => {
     if (!nodeId) inputRef.current?.focus();
