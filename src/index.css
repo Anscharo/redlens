@@ -178,7 +178,7 @@ input[type="search"]::-webkit-search-cancel-button {
 /* Atlas tree view */
 .atlas-node {
   content-visibility: auto;
-  contain-intrinsic-size: auto 36px;
+  contain-intrinsic-size: auto 40px;
   border-bottom: 1px solid var(--border);
 }
 .atlas-node-title {
