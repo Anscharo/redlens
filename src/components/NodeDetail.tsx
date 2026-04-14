@@ -128,7 +128,7 @@ export function NodeDetail({ id, onNavigate }: { id: string; onNavigate: (id: st
       <div className="flex-1 lg:grid lg:grid-cols-[3fr_2fr]" style={GRID_STYLE}>
       {/* Left — context */}
       <div className="overflow-y-auto" style={LEFT_PANE_STYLE}>
-        <div className="max-w-2xl mx-auto px-4 py-6">
+        <div className="mx-auto px-4 py-6">
           {scopeNodes.map((node) => (
             <ScopeNode key={node.id} node={node} isTarget={node.id === id} onNavigate={onNavigate} />
           ))}

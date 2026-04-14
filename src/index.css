@@ -12,6 +12,7 @@
   --tan:       #f3e7ce;   /* primary text — lightened */
   --tan-2:     #e4d1b9;   /* secondary */
   --tan-3:     #b8a48e;   /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
+  --max-prose-width: 68ch;
 }
 
 html, body, #root {
@@ -101,6 +102,7 @@ input[type="search"]::-webkit-search-cancel-button {
   font-family: 'Lora', Georgia, serif;
   font-size: 10px;
   transition: background-color 0.1s;
+  border-radius: 2px;
 }
 .tree-row:hover {
   background: rgba(255, 255, 255, 0.1);
@@ -153,6 +155,9 @@ input[type="search"]::-webkit-search-cancel-button {
 
 /* RelatedNode — pure CSS hover */
 .related-node {
+  border-radius: 2px;
+  margin: 2px;
+  padding: 2px;
   transition: background-color 0.1s;
 }
 .related-node:hover,
@@ -162,6 +167,8 @@ input[type="search"]::-webkit-search-cancel-button {
 
 /* ScopeNode states */
 .scope-node {
+  border-radius: 2px;
+  margin: 2px;
   transition: opacity 0.1s, background-color 0.1s;
 }
 .scope-node.is-muted {
@@ -175,6 +182,24 @@ input[type="search"]::-webkit-search-cancel-button {
   opacity: 1;
 }
 
+/* ─── View-children fill ─── */
+.view-children-fill {
+  padding: 4px 2px;
+  margin: 0 2px 2px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 2px;
+  transition: background-color 0.1s, color 0.1s;
+}
+.view-children-fill:hover {
+  background-color: var(--hover);
+  color: var(--tan-2);
+}
+/* No border between a node and its view-children fill — they read as one unit */
+.atlas-node:has(+ .view-children-fill) {
+  border-bottom: none;
+}
+
 /* Atlas tree view */
 .atlas-node {
   content-visibility: auto;
@@ -183,6 +208,7 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 .atlas-node-title {
   border-radius: 2px;
+  margin: 2px;
   padding-left: 2px;
   padding-right: 2px;
 }
@@ -260,6 +286,8 @@ input[type="search"]::-webkit-search-cancel-button {
 /* ─── Search hint rows ─── */
 .hint-row {
   background: transparent;
+  border-radius: 2px;
+  margin: 2px;
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -272,6 +300,8 @@ input[type="search"]::-webkit-search-cancel-button {
   display: block;
   border-bottom: 1px solid var(--border);
   text-decoration: none;
+  border-radius: 2px;
+  margin: 2px;
   transition: background 0.1s;
 }
 .search-result-link:hover {
@@ -319,11 +349,13 @@ input[type="search"]::-webkit-search-cancel-button {
   margin-bottom: 0.75rem;
   line-height: 1.625;
   font-size: 0.875rem;
+  max-width: var(--max-prose-width);
   color: var(--tan-2);
 }
 .atlas-md p:last-child { margin-bottom: 0; }
 .atlas-md ul,
 .atlas-md ol {
+  max-width: var(--max-prose-width);
   margin-bottom: 0.75rem;
   padding-left: 1.25rem;
   font-size: 0.875rem;
@@ -333,6 +365,7 @@ input[type="search"]::-webkit-search-cancel-button {
 .atlas-md ol { list-style-type: decimal; }
 .atlas-md li + li { margin-top: 0.25rem; }
 .atlas-md code {
+  max-width: var(--max-prose-width);
   font-family: 'Source Code Pro', 'Courier New', monospace;
   font-size: 0.75rem;
   padding: 1px 4px;
@@ -370,6 +403,7 @@ input[type="search"]::-webkit-search-cancel-button {
   border-bottom: 1px solid var(--border);
 }
 .atlas-md blockquote {
+  max-width: calc(var(--max-prose-width) - 5rem);
   padding-left: 0.75rem;
   margin-bottom: 0.75rem;
   font-style: italic;
@@ -378,6 +412,7 @@ input[type="search"]::-webkit-search-cancel-button {
   color: var(--tan-3);
 }
 .atlas-md hr {
+  max-width: calc(var(--max-prose-width) - 5rem);
   margin: 1rem 0;
   border-color: var(--border);
 }

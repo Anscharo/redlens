@@ -26,7 +26,7 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
     initializedRef.current = true;
     const initial = new Set<string>();
     for (const node of Object.values(bundle.docs)) {
-      if (node.depth <= 2) initial.add(node.id);
+      if (node.depth <= 1) initial.add(node.id);
     }
     startTransition(() => setExpandedIds(initial)); // eslint-disable-line react-hooks/set-state-in-effect
   }, [bundle]); // eslint-disable-line react-hooks/exhaustive-deps

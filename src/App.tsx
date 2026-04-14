@@ -49,7 +49,10 @@ export default function App() {
     history.pushState(null, "", `${import.meta.env.BASE_URL}?id=${id}`);
     setNodeId(id);
     setView("annotations");
-  }, []);
+    setQuery("");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    search("");
+  }, [search]);
 
   const handleViewChange = useCallback((v: "annotations" | "history") => {
     const params = new URLSearchParams(window.location.search);

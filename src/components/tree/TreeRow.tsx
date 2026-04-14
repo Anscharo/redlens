@@ -24,14 +24,14 @@ export interface TreeRowData {
 }
 
 const DOC_NUM_STYLE: React.CSSProperties = {
-  flexShrink: 0, fontSize: 8, userSelect: "none", display: "inline-flex", alignItems: "center",
+  flexShrink: 0, fontSize: 8, userSelect: "none", display: "inline-flex", alignItems: "center", letterSpacing: "0.01em",
 };
 const DOT_STYLE: React.CSSProperties = { color: "var(--gray)" };
 const HIDDEN_PAD_STYLE: React.CSSProperties = { visibility: "hidden" };
 const TOGGLE_BASE: React.CSSProperties = {
   width: TOGGLE_WIDTH, textAlign: "center", flexShrink: 0, fontSize: 9, userSelect: "none",
 };
-const TITLE_BASE: React.CSSProperties = { flex: 1, overflow: "hidden", whiteSpace: "nowrap" };
+const TITLE_BASE: React.CSSProperties = { flex: 1, overflow: "hidden", whiteSpace: "nowrap", letterSpacing: "0.035em" };
 export const ROW_LAYOUT_STYLE: React.CSSProperties = {
   paddingLeft: 5, paddingRight: PAD_X, display: "flex", alignItems: "center", gap: 2,
 };

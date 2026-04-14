@@ -68,11 +68,12 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       style={{
         padding: 4,
         boxShadow: isSelected ? `inset ${BORDER_WIDTH}px 0 0 ${color}` : undefined,
+        borderTop:isSelected ? `${BORDER_WIDTH}px solid ${color}` : undefined,
         scrollMarginTop: "64px",
       }}
     >
       {depth > 1 && (
-        <span className="absolute flex items-center" style={{ left: BORDER_WIDTH + 2, top: 1 }}>
+        <span className="absolute flex items-center" style={{ left: BORDER_WIDTH + 4, top: 4 }}>
           {Array.from({ length: depth }, (_, i) => (
             <span key={i} style={{ width: 4, textAlign: "center", color: depthColor(i + 1), fontSize: i === depth - 1 ? 11 : 8, lineHeight: 1 }}>{"\u2022"}</span>
           ))}

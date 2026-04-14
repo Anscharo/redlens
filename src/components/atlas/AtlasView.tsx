@@ -6,12 +6,16 @@ import { loadChainState, type ChainValue } from "../../lib/chainstate";
 import { setAddressMap } from "../../lib/addressMap";
 import { type AtlasNode, type AddressInfo } from "../../types";
 import { CollapsibleNode, flattenTree } from "./CollapsibleNode";
+import { useDepth6Expand } from "./useDepth6Expand";
 import { RightPanel } from "./RightPanel";
 import {
   extractLinkedIds, buildAncestors,
   ATLAS_GRID_STYLE, ATLAS_LEFT_PANE_STYLE, ATLAS_EMPTY_SET,
   type LoadedData,
 } from "../../lib/atlasHelpers";
+
+const ViewChildrenFill = ({ nodeId, docNo, onExpand }: { nodeId: string; docNo: string; onExpand: (id: string) => void }) =>
+  <button type="button" onClick={() => onExpand(nodeId)} className="view-children-fill w-full text-center mono text-[10px] text-tan-3 bg-transparent cursor-pointer">view all descendants of {docNo}</button>;
 
 export function AtlasView({ id, onNavigate, view, onViewChange }: {
   id: string;
@@ -80,23 +84,33 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
   useEffect(() => {
     if (!id || !data) return;
     requestAnimationFrame(() => {
-      document.getElementById(id)?.scrollIntoView({ behavior: "instant", block: "start" });
+      const el = document.getElementById(id);
+      if (!el) return;
+      const { top, bottom } = el.getBoundingClientRect();
+      const inView = bottom > 64 && top < window.innerHeight; // 64px = sticky header
+      if (!inView) el.scrollIntoView({ behavior: "instant", block: "start" });
     });
   }, [id, data]);
 
+  const { expandedParents, hasDeepChildren, expandParent } = useDepth6Expand(data?.flatNodes ?? [], id);
+
   const nodeList = useMemo(() => {
     if (!data) return null;
-    return data.flatNodes.map(entry => (
-      <CollapsibleNode
-        key={entry.node.id}
-        entry={entry}
-        isSelected={entry.node.id === id}
-        isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
-        onNavigate={onNavigate}
-        onToggle={handleToggle}
-      />
-    ));
-  }, [data, id, autoExpanded, userToggles, onNavigate, handleToggle]);
+    const items: JSX.Element[] = [];
+    for (const entry of data.flatNodes) {
+      if (entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")) continue;
+      items.push(
+        <CollapsibleNode key={entry.node.id} entry={entry}
+          isSelected={entry.node.id === id}
+          isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
+          onNavigate={onNavigate} onToggle={handleToggle} />
+      );
+      if (hasDeepChildren.has(entry.node.id) && !expandedParents.has(entry.node.id)) {
+        items.push(<ViewChildrenFill key={`fill-${entry.node.id}`} nodeId={entry.node.id} docNo={entry.node.doc_no} onExpand={expandParent} />);
+      }
+    }
+    return items;
+  }, [data, id, autoExpanded, userToggles, onNavigate, handleToggle, expandedParents, hasDeepChildren, expandParent]);
 
   if (!data) {
     return <div className="flex-1 flex items-center justify-center py-24 text-sm text-gray">Loading…</div>;
@@ -113,7 +127,7 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
       {id && <Breadcrumbs ancestors={ancestors} onNavigate={onNavigate} />}
       <div className="flex-1 lg:grid lg:grid-cols-[3fr_2fr]" style={ATLAS_GRID_STYLE}>
         <div className="overflow-y-auto" style={ATLAS_LEFT_PANE_STYLE}>
-          <div className="max-w-2xl mx-auto px-1 py-2">
+          <div className="mx-auto px-3 py-2">
             {nodeList}
           </div>
         </div>

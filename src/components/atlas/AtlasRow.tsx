@@ -30,7 +30,7 @@ export function AtlasRow({
 
   return (
     <div style={style} {...ariaAttributes}>
-      <div className="max-w-2xl mx-auto px-1">
+      <div className="mx-auto px-6">
         <CollapsibleNode
           entry={entry}
           isSelected={nodeId === selectedId}

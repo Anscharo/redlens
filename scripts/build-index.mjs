@@ -563,28 +563,28 @@ function parse(src) {
   return { nodes, nodeMap };
 }
 
-// Strip leading/trailing backtick delimiters from multi-line backtick blocks.
-// A multi-line backtick block opens when a line STARTS with ` and doesn't
-// close on the same line, and ends at a line that is just ` or ends with `.
+// Convert single-backtick block delimiters (an Atlas authoring quirk) to
+// proper markdown code fences so react-markdown renders them correctly.
+//
+// Same-line:   `code`  → `code`   (kept as inline code — backticks preserved)
+// Multi-line:  `code\n...\nmore`  → ```\ncode\n...\nmore\n```
 function cleanContent(lines) {
   const out = [];
   let inBlock = false;
+  const blockLines = [];
 
   for (const line of lines) {
     if (!inBlock) {
-      // Detect opening: line starts with backtick and either the line is
-      // longer than 1 char (opening backtick + content) and the line does NOT
-      // end with another backtick that closes it on the same line, OR the
-      // line is solely a backtick (unusual but handle it).
       if (line.startsWith("`")) {
         const inner = line.slice(1);
         if (inner.endsWith("`") && inner.length > 0) {
-          // Closed on same line — just strip the wrapping backticks
-          out.push(inner.slice(0, -1));
+          // Same-line wrapper — preserve as inline code
+          out.push("`" + inner.slice(0, -1) + "`");
         } else {
           // Multi-line block opens
           inBlock = true;
-          if (inner.trim()) out.push(inner); // keep first-line content if any
+          blockLines.length = 0;
+          if (inner.trim()) blockLines.push(inner);
         }
       } else {
         out.push(line);
@@ -594,11 +594,22 @@ function cleanContent(lines) {
       if (line === "`" || line.endsWith("`")) {
         inBlock = false;
         const inner = line.endsWith("`") ? line.slice(0, -1) : "";
-        if (inner.trim()) out.push(inner);
+        if (inner.trim()) blockLines.push(inner);
+        out.push("```");
+        out.push(...blockLines);
+        out.push("```");
+        blockLines.length = 0;
       } else {
-        out.push(line);
+        blockLines.push(line);
       }
     }
+  }
+
+  // Unclosed block — flush as code fence rather than silently dropping content
+  if (inBlock && blockLines.length > 0) {
+    out.push("```");
+    out.push(...blockLines);
+    out.push("```");
   }
 
   return out.join("\n").trim();
