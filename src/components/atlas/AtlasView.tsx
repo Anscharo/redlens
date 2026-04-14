@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, startTransition } from "react";
+import { useState, useEffect, useMemo, useCallback, startTransition, type ReactElement } from "react";
 import { Breadcrumbs } from "../Breadcrumbs";
 import { loadAtlas } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
@@ -96,7 +96,7 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
 
   const nodeList = useMemo(() => {
     if (!data) return null;
-    const items: JSX.Element[] = [];
+    const items: ReactElement[] = [];
     for (const entry of data.flatNodes) {
       if (entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")) continue;
       items.push(
