@@ -133,8 +133,8 @@ function fitBreadcrumbs(titles: string[], availableWidth: number): string[] {
 
 const NAV_STYLE_BASE: React.CSSProperties = {
   color: "var(--tan-3)",
-  paddingLeft: 30,
-  paddingRight: 16,
+  paddingLeft: 8,
+  paddingRight: 8,
   paddingTop: 6,
   paddingBottom: 6,
   borderBottom: "1px solid var(--border)",
@@ -167,7 +167,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ ancestors, onNavigate }: 
 
   const fittedTitles = useMemo(() => {
     if (ancestors.length === 0) return [];
-    return fitBreadcrumbs(ancestors.map((a) => a.title), breadcrumbWidth - 46);
+    return fitBreadcrumbs(ancestors.map((a) => a.title), breadcrumbWidth - 28);
   }, [ancestors, breadcrumbWidth]);
 
   if (ancestors.length === 0) return null;

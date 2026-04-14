@@ -1,5 +1,15 @@
-/** Single diff line: [op, text] where op is "="|"+"|"-", or ["…"] for a gap */
-export type DiffLine = ["=" | "+" | "-", string] | ["…"];
+/** Word-level segment within an intraline diff */
+export type WordSegment = ["=" | "+" | "-", string];
+
+/** Single diff line:
+ *  ["="|"+"|"-", text]  — unchanged / added / removed line
+ *  ["~", segments]       — modified line with intraline word diff
+ *  ["…"]                 — gap between context hunks
+ */
+export type DiffLine =
+  | ["=" | "+" | "-", string]
+  | ["~", WordSegment[]]
+  | ["…"];
 
 export interface HistoryEntry {
   date: string;

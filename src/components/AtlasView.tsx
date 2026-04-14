@@ -76,7 +76,12 @@ interface LoadedData {
   chainState: { values: Record<string, Record<string, ChainValue>> };
 }
 
-export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: string) => void }) {
+export function AtlasView({ id, onNavigate, view, onViewChange }: {
+  id: string;
+  onNavigate: (id: string) => void;
+  view: "annotations" | "history";
+  onViewChange: (v: "annotations" | "history") => void;
+}) {
   const [data, setData] = useState<LoadedData | null>(null);
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
 
@@ -174,7 +179,7 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
 
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center py-24 text-sm" style={{ color: "var(--gray)" }}>
+      <div className="flex-1 flex items-center justify-center py-24 text-sm text-gray">
         Loading…
       </div>
     );
@@ -182,7 +187,7 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
 
   if (id && !data.atlas.docs[id]) {
     return (
-      <div className="flex items-center justify-center py-24 text-sm" style={{ color: "var(--red)" }}>
+      <div className="flex items-center justify-center py-24 text-sm text-red">
         Node not found: {id}
       </div>
     );
@@ -213,6 +218,8 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
               chainValues={chainValues}
               annotationCount={annotationCount}
               onNavigate={onNavigate}
+              tab={view}
+              onTabChange={onViewChange}
             />
           </div>
         )}
@@ -225,17 +232,7 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
 
 type RightTab = "annotations" | "history";
 
-const TAB_STYLE_BASE: React.CSSProperties = {
-  fontFamily: "'Source Code Pro', monospace",
-  fontSize: 11,
-  padding: "6px 14px",
-  cursor: "pointer",
-  background: "none",
-  border: "none",
-  borderBottom: "2px solid transparent",
-  color: "var(--tan-3)",
-  transition: "color 0.1s, border-color 0.1s",
-};
+// Tab styles handled by .right-tab CSS class in index.css
 
 function RightPanel({
   id,
@@ -244,6 +241,8 @@ function RightPanel({
   chainValues,
   annotationCount,
   onNavigate,
+  tab,
+  onTabChange,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
@@ -251,48 +250,28 @@ function RightPanel({
   chainValues: Record<string, Record<string, ChainValue>>;
   annotationCount: number;
   onNavigate: (id: string) => void;
+  tab: RightTab;
+  onTabChange: (t: RightTab) => void;
 }) {
-  const [tab, setTab] = useState<RightTab>("annotations");
-  const prevId = useRef(id);
-
-  // Stay on history tab when navigating if user explicitly chose it,
-  // but reset to annotations when navigating away from a node entirely.
-  useEffect(() => {
-    if (prevId.current !== id) {
-      prevId.current = id;
-      setTab("annotations");
-    }
-  }, [id]);
 
   return (
     <>
       {/* Tab bar */}
-      <div
-        className="shrink-0 flex border-b"
-        style={{ borderColor: "var(--border)" }}
-        role="tablist"
-      >
+      <div className="shrink-0 flex border-b border-border" role="tablist">
+
         <button
           role="tab"
           aria-selected={tab === "annotations"}
-          onClick={() => setTab("annotations")}
-          style={{
-            ...TAB_STYLE_BASE,
-            color: tab === "annotations" ? "var(--tan)" : "var(--tan-3)",
-            borderBottomColor: tab === "annotations" ? "var(--accent)" : "transparent",
-          }}
+          onClick={() => onTabChange("annotations")}
+          className="right-tab"
         >
           annotations{annotationCount > 0 ? ` · ${annotationCount}` : ""}
         </button>
         <button
           role="tab"
           aria-selected={tab === "history"}
-          onClick={() => setTab("history")}
-          style={{
-            ...TAB_STYLE_BASE,
-            color: tab === "history" ? "var(--tan)" : "var(--tan-3)",
-            borderBottomColor: tab === "history" ? "var(--accent)" : "transparent",
-          }}
+          onClick={() => onTabChange("history")}
+          className="right-tab"
         >
           history
         </button>
@@ -304,7 +283,7 @@ function RightPanel({
           <div className="px-4 py-5">
             {linkedNodes.length > 0 ? (
               <>
-                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
+                <p className="text-xs mono mb-4 text-tan-3">
                   {linkedNodes.length} linked node{linkedNodes.length !== 1 ? "s" : ""}
                 </p>
                 {linkedNodes.map(node => (
@@ -312,11 +291,11 @@ function RightPanel({
                 ))}
               </>
             ) : (
-              <p className="text-xs mono" style={{ color: "var(--tan-3)" }}>no linked nodes</p>
+              <p className="text-xs mono text-tan-3">no linked nodes</p>
             )}
             {Object.keys(targetAddresses).length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
+                <p className="text-xs mono mb-4 text-tan-3">
                   addresses · {Object.keys(targetAddresses).length}
                 </p>
                 {Object.entries(targetAddresses).map(([address, info]) => (
@@ -419,7 +398,7 @@ const CollapsibleNode = memo(function CollapsibleNode({
         >
           {node.title}
         </span>
-        <span className="text-[10px] mono" style={{ color: "var(--tan-3)" }}>{node.id}</span>
+        <span className="text-[10px] mono text-tan-3">{node.id}</span>
       </div>
       </div>
 

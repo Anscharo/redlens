@@ -387,6 +387,26 @@ input[type="search"]::-webkit-search-cancel-button {
   text-underline-offset: 3px;
 }
 
+/* ─── Right panel tab button ─── */
+.right-tab {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  padding: 6px 14px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tan-3);
+  transition: color 0.1s, border-color 0.1s;
+}
+.right-tab[aria-selected="true"] {
+  color: var(--tan);
+  border-bottom-color: var(--accent);
+}
+.right-tab:hover:not([aria-selected="true"]) {
+  color: var(--tan-2);
+}
+
 /* KaTeX dark mode */
 .katex {
   color: var(--tan);

@@ -27,7 +27,7 @@ export function SearchBar({
       {/* Single row on tablet+, two rows on phone */}
       <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-2 gap-y-2">
         <a href={import.meta.env.BASE_URL} className="shrink-0" title="Home">
-          <img src={`${import.meta.env.BASE_URL}icon-SMALL.png`} alt="Home" className="w-7 h-7 object-cover rounded-[30%]" />
+          <img src={`${import.meta.env.BASE_URL}icon-SMALL.png`} alt="Home" width="28" height="28" className="w-7 h-7 object-cover rounded-[30%]" />
         </a>
 
         {/* Input stretches to fill available space */}
