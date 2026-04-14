@@ -1,0 +1,10 @@
+{
+  "number": 117,
+  "title": "Migrate To Markdown File",
+  "body": "As part of join work between Atlas Axis and Core Facilitator teams, this pull request migrates the Atlas from HTML to Markdown. This allows us to express the full hierarchical structure of the Atlas and will support future automations and AI integrations that are under development.",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/117",
+  "commentCount": 0,
+  "reviewCount": 2,
+  "approvalCount": 1
+}

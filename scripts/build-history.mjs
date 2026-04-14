@@ -62,7 +62,7 @@ function readAtlasAt(hash) {
 }
 
 // ---------------------------------------------------------------------------
-// Parse atlas into uuid → { doc_no, title, type, contentHash }
+// Parse atlas into uuid → { doc_no, title, type, contentHash, content }
 // ---------------------------------------------------------------------------
 
 function parseAtlas(text) {
@@ -78,6 +78,7 @@ function parseAtlas(text) {
       const content = contentLines.join("\n").trim();
       const entry = nodes.get(currentId);
       entry.contentHash = crypto.createHash("md5").update(content).digest("hex");
+      entry.content = content;
     }
   }
 
@@ -88,13 +89,75 @@ function parseAtlas(text) {
       const [, , doc_no, title, type, id] = m;
       currentId = id;
       contentLines = [];
-      nodes.set(id, { doc_no, title, type, contentHash: "" });
+      nodes.set(id, { doc_no, title, type, contentHash: "", content: "" });
     } else if (currentId) {
       contentLines.push(line);
     }
   }
   flush();
   return nodes;
+}
+
+// ---------------------------------------------------------------------------
+// Line-level LCS diff → compact [op, text][] with ±2 lines of context
+// op: "=" unchanged, "+" added, "-" removed
+// ---------------------------------------------------------------------------
+
+function lineDiff(prevText, currText) {
+  const a = (prevText || "").split("\n");
+  const b = (currText || "").split("\n");
+
+  // Myers LCS via DP — practical for small node content
+  const m = a.length, n = b.length;
+  // dp[i][j] = length of LCS of a[0..i-1] and b[0..j-1]
+  const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    }
+  }
+
+  // Backtrack to produce edit script
+  const ops = []; // each: [op, text]
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+      ops.push(["=", a[i-1]]); i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      ops.push(["+", b[j-1]]); j--;
+    } else {
+      ops.push(["-", a[i-1]]); i--;
+    }
+  }
+  ops.reverse();
+
+  // Trim to context: keep only changed lines ± CONTEXT unchanged lines
+  const CONTEXT = 2;
+  const changed = new Set();
+  for (let k = 0; k < ops.length; k++) {
+    if (ops[k][0] !== "=") {
+      for (let c = Math.max(0, k - CONTEXT); c <= Math.min(ops.length - 1, k + CONTEXT); c++) {
+        changed.add(c);
+      }
+    }
+  }
+
+  // If nothing changed (title-only diff or hash collision) return empty
+  if (changed.size === 0) return [];
+
+  const result = [];
+  let lastIncluded = -1;
+  for (let k = 0; k < ops.length; k++) {
+    if (changed.has(k)) {
+      if (lastIncluded >= 0 && k > lastIncluded + 1) {
+        result.push(["…"]); // gap marker
+      }
+      result.push(ops[k]);
+      lastIncluded = k;
+    }
+  }
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -276,12 +339,8 @@ async function main() {
     const text = readAtlasAt(commit.hash);
     const snapshot = parseAtlas(text);
 
-    // First commit: everything is "added" but we skip it — it's the baseline.
-    if (i === 0) {
-      prevSnapshot = snapshot;
-      prevHash = commit.hash;
-      continue;
-    }
+    // On the very first atlas commit, prevSnapshot is empty so every node is "added".
+    // This records the creation of all nodes that haven't changed since.
 
     const { added, modified, removed } = diffSnapshots(prevSnapshot, snapshot);
     const allChanged = [...added, ...modified, ...removed];
@@ -314,6 +373,27 @@ async function main() {
         commitHash: commit.hash.slice(0, 7),
         changeType,
       };
+
+      // Compute per-node content diff (skip for "added" on first commit — too noisy)
+      if (changeType === "modified") {
+        const prevContent = prevSnapshot.get(node.id)?.content ?? "";
+        const currContent = snapshot.get(node.id)?.content ?? "";
+        const diff = lineDiff(prevContent, currContent);
+        if (diff.length > 0) entry.diff = diff;
+      } else if (changeType === "added" && i > 0) {
+        // Node newly introduced mid-history: show its full content as added lines
+        const currContent = snapshot.get(node.id)?.content ?? "";
+        if (currContent) {
+          const lines = currContent.split("\n").map(l => ["+", l]);
+          entry.diff = lines.length > 20 ? [...lines.slice(0, 20), ["…"]] : lines;
+        }
+      } else if (changeType === "removed") {
+        const prevContent = prevSnapshot.get(node.id)?.content ?? "";
+        if (prevContent) {
+          const lines = prevContent.split("\n").map(l => ["-", l]);
+          entry.diff = lines.length > 20 ? [...lines.slice(0, 20), ["…"]] : lines;
+        }
+      }
 
       if (pr) {
         entry.pr = pr.number;

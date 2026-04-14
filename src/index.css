@@ -65,9 +65,9 @@ input[type="search"]::-webkit-search-cancel-button {
 /* Depth palette — 17 levels: white → saturated rainbow → pastel rainbow */
 :root {
   --depth-1:  #e8e0d8;  /* white */
-  --depth-2:  #d01010;  /* deep red */
-  --depth-3:  #d34a1c;  /* reddish orange */
-  --depth-4:  #df8525;  /* orange */
+  --depth-2:  #fd3a3a;  /* deep red */
+  --depth-3:  #fd7041;  /* reddish orange */
+  --depth-4:  #ed9332;  /* orange */
   --depth-5:  #d8b235;  /* golden */
   --depth-6:  #5fbf5c;  /* green — bumped for 4.5:1 on --bg */
   --depth-7:  #5cc0d0;  /* azure — bumped for 4.5:1 on --bg */
@@ -103,13 +103,13 @@ input[type="search"]::-webkit-search-cancel-button {
   transition: background-color 0.1s;
 }
 .tree-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.1);
 }
 .tree-row.is-selected {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 .tree-row.is-focused {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }
 .tree-toggle {
   cursor: pointer;
@@ -211,6 +211,180 @@ input[type="search"]::-webkit-search-cancel-button {
 .atlas-external-link:hover,
 .atlas-external-link:focus-visible {
   color: var(--accent);
+}
+
+/* ─── Custom color utilities ─── */
+@layer utilities {
+  .text-tan   { color: var(--tan); }
+  .text-tan-2 { color: var(--tan-2); }
+  .text-tan-3 { color: var(--tan-3); }
+  .text-accent { color: var(--accent); }
+  .text-gray  { color: var(--gray); }
+  .text-red   { color: var(--red); }
+  .border-border { border-color: var(--border); }
+}
+
+/* ─── Search header ─── */
+.search-header {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+/* ─── Search input ─── */
+.search-input {
+  background: var(--surface);
+  color: var(--tan);
+  border-color: var(--border);
+  font-family: inherit;
+}
+
+/* ─── Scope filter pill ─── */
+.scope-pill {
+  background: var(--surface);
+  color: var(--tan-3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.1s, color 0.1s, background 0.1s, box-shadow 0.1s;
+}
+.scope-pill:hover:not([data-active="true"]) {
+  border-color: var(--depth-1);
+  color: var(--tan-2);
+}
+.scope-pill[data-active="true"] {
+  background: var(--red-dim);
+  color: var(--tan);
+  border-color: var(--red);
+  box-shadow: inset 2px 0 0 var(--red);
+}
+
+/* ─── Search hint rows ─── */
+.hint-row {
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.hint-row:hover {
+  background: var(--hover);
+}
+
+/* ─── Search result link card ─── */
+.search-result-link {
+  display: block;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+.search-result-link:hover {
+  background: var(--hover);
+}
+
+/* ─── Load more button ─── */
+.load-more-btn {
+  color: var(--accent);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.load-more-btn:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+/* ─── Shared badge (surface bg + border) ─── */
+.badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.badge-red    { color: var(--red); }
+.badge-accent { color: var(--accent); }
+.badge-muted  { color: var(--tan-3); }
+
+/* ─── Accent underline link ─── */
+.link-accent {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ─── Chain value key column ─── */
+.chain-key {
+  color: var(--tan-3);
+  min-width: 7rem;
+}
+
+/* ─── Atlas markdown content ─── */
+.atlas-md p {
+  margin-bottom: 0.75rem;
+  line-height: 1.625;
+  font-size: 0.875rem;
+  color: var(--tan-2);
+}
+.atlas-md p:last-child { margin-bottom: 0; }
+.atlas-md ul,
+.atlas-md ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--tan-2);
+}
+.atlas-md ul { list-style-type: disc; }
+.atlas-md ol { list-style-type: decimal; }
+.atlas-md li + li { margin-top: 0.25rem; }
+.atlas-md code {
+  font-family: 'Source Code Pro', 'Courier New', monospace;
+  font-size: 0.75rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--tan);
+  border: 1px solid var(--border);
+}
+.atlas-md pre {
+  margin-bottom: 0.75rem;
+}
+.atlas-md pre > code {
+  display: block;
+  padding: 0.75rem;
+  overflow-x: auto;
+  border-radius: 4px;
+}
+.atlas-md table {
+  width: 100%;
+  font-size: 0.75rem;
+  border-collapse: collapse;
+  color: var(--tan-2);
+}
+.atlas-md th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--tan);
+}
+.atlas-md td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.atlas-md blockquote {
+  padding-left: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+  font-size: 0.875rem;
+  border-left: 3px solid var(--border);
+  color: var(--tan-3);
+}
+.atlas-md hr {
+  margin: 1rem 0;
+  border-color: var(--border);
+}
+.atlas-md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* KaTeX dark mode */

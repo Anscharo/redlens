@@ -14,30 +14,20 @@ const HINTS: { label: string; query: string; description: string }[] = [
 export function SearchHints({ onSearch }: { onSearch: (q: string) => void }) {
   return (
     <div className="px-4 py-8 max-w-2xl mx-auto">
-      <p className="text-xs mono mb-6" style={{ color: "var(--tan-3)" }}>search patterns</p>
+      <p className="text-xs mono mb-6 text-tan-3">search patterns</p>
       <div className="space-y-1">
         {HINTS.map((h) => (
           <button
             key={h.query}
             onClick={() => onSearch(h.query)}
-            className="w-full text-left flex items-baseline gap-4 px-3 py-2 rounded"
-            style={{ background: "transparent" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "var(--hover)")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+            className="hint-row w-full text-left flex items-baseline gap-4 px-3 py-2 rounded"
           >
-            <span className="mono text-xs shrink-0 w-32" style={{ color: "var(--tan-3)" }}>
-              {h.label}
-            </span>
-            <span className="mono text-sm shrink-0" style={{ color: "var(--accent)" }}>
-              {h.query}
-            </span>
-            <span className="text-xs hidden sm:block" style={{ color: "var(--tan-3)" }}>
-              {h.description}
-            </span>
+            <span className="mono text-xs shrink-0 w-32 text-tan-3">{h.label}</span>
+            <span className="mono text-sm shrink-0 text-accent">{h.query}</span>
+            <span className="text-xs hidden sm:block text-tan-3">{h.description}</span>
           </button>
         ))}
       </div>
-
     </div>
   );
 }

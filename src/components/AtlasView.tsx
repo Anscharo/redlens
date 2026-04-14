@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, memo, startTransition } from "react";
+import { useState, useEffect, useMemo, useCallback, memo, startTransition, useRef } from "react";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { RelatedNode } from "./RelatedNode";
 import { AddressCard } from "./AddressCard";
@@ -189,6 +189,7 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
   }
 
   const addressCount = Object.keys(targetAddresses).length;
+  const annotationCount = linkedNodes.length + addressCount;
 
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: 0 }}>
@@ -197,49 +198,140 @@ export function AtlasView({ id, onNavigate }: { id: string; onNavigate: (id: str
       <div className="flex-1 lg:grid lg:grid-cols-[3fr_2fr]" style={GRID_STYLE}>
         {/* Left — full atlas tree */}
         <div className="overflow-y-auto" style={LEFT_PANE_STYLE}>
-          <div className="max-w-2xl mx-auto px-4 py-2">
+          <div className="max-w-2xl mx-auto px-1 py-2">
             {nodeList}
           </div>
         </div>
 
-        {/* Right — annotations */}
+        {/* Right — tabbed panel */}
         {id && (
-          <div className="overflow-y-auto hidden lg:block">
-            <div className="px-4 py-6">
-              {linkedNodes.length > 0 ? (
-                <>
-                  <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
-                    annotations · {linkedNodes.length} linked node{linkedNodes.length !== 1 ? "s" : ""}
-                  </p>
-                  {linkedNodes.map(node => (
-                    <RelatedNode key={node.id} node={node} onNavigate={onNavigate} />
-                  ))}
-                </>
-              ) : (
-                <p className="text-xs mono" style={{ color: "var(--tan-3)" }}>
-                  annotations · no linked nodes
-                </p>
-              )}
-              {addressCount > 0 && (
-                <div className="mt-8">
-                  <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
-                    addresses · {addressCount}
-                  </p>
-                  {Object.entries(targetAddresses).map(([address, info]) => (
-                    <AddressCard key={address} address={address} info={info} chainValues={chainValues[address]} />
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-8">
-                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>history</p>
-                <NodeHistory nodeId={id} />
-              </div>
-            </div>
+          <div className="flex flex-col hidden lg:flex" style={{ minHeight: 0 }}>
+            <RightPanel
+              id={id}
+              linkedNodes={linkedNodes}
+              targetAddresses={targetAddresses}
+              chainValues={chainValues}
+              annotationCount={annotationCount}
+              onNavigate={onNavigate}
+            />
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// --- RightPanel (tabbed: Annotations | History) ---
+
+type RightTab = "annotations" | "history";
+
+const TAB_STYLE_BASE: React.CSSProperties = {
+  fontFamily: "'Source Code Pro', monospace",
+  fontSize: 11,
+  padding: "6px 14px",
+  cursor: "pointer",
+  background: "none",
+  border: "none",
+  borderBottom: "2px solid transparent",
+  color: "var(--tan-3)",
+  transition: "color 0.1s, border-color 0.1s",
+};
+
+function RightPanel({
+  id,
+  linkedNodes,
+  targetAddresses,
+  chainValues,
+  annotationCount,
+  onNavigate,
+}: {
+  id: string;
+  linkedNodes: AtlasNode[];
+  targetAddresses: Record<string, AddressInfo>;
+  chainValues: Record<string, Record<string, ChainValue>>;
+  annotationCount: number;
+  onNavigate: (id: string) => void;
+}) {
+  const [tab, setTab] = useState<RightTab>("annotations");
+  const prevId = useRef(id);
+
+  // Stay on history tab when navigating if user explicitly chose it,
+  // but reset to annotations when navigating away from a node entirely.
+  useEffect(() => {
+    if (prevId.current !== id) {
+      prevId.current = id;
+      setTab("annotations");
+    }
+  }, [id]);
+
+  return (
+    <>
+      {/* Tab bar */}
+      <div
+        className="shrink-0 flex border-b"
+        style={{ borderColor: "var(--border)" }}
+        role="tablist"
+      >
+        <button
+          role="tab"
+          aria-selected={tab === "annotations"}
+          onClick={() => setTab("annotations")}
+          style={{
+            ...TAB_STYLE_BASE,
+            color: tab === "annotations" ? "var(--tan)" : "var(--tan-3)",
+            borderBottomColor: tab === "annotations" ? "var(--accent)" : "transparent",
+          }}
+        >
+          annotations{annotationCount > 0 ? ` · ${annotationCount}` : ""}
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === "history"}
+          onClick={() => setTab("history")}
+          style={{
+            ...TAB_STYLE_BASE,
+            color: tab === "history" ? "var(--tan)" : "var(--tan-3)",
+            borderBottomColor: tab === "history" ? "var(--accent)" : "transparent",
+          }}
+        >
+          history
+        </button>
+      </div>
+
+      {/* Tab content */}
+      <div className="overflow-y-auto flex-1">
+        {tab === "annotations" ? (
+          <div className="px-4 py-5">
+            {linkedNodes.length > 0 ? (
+              <>
+                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
+                  {linkedNodes.length} linked node{linkedNodes.length !== 1 ? "s" : ""}
+                </p>
+                {linkedNodes.map(node => (
+                  <RelatedNode key={node.id} node={node} onNavigate={onNavigate} />
+                ))}
+              </>
+            ) : (
+              <p className="text-xs mono" style={{ color: "var(--tan-3)" }}>no linked nodes</p>
+            )}
+            {Object.keys(targetAddresses).length > 0 && (
+              <div className="mt-8">
+                <p className="text-xs mono mb-4" style={{ color: "var(--tan-3)" }}>
+                  addresses · {Object.keys(targetAddresses).length}
+                </p>
+                {Object.entries(targetAddresses).map(([address, info]) => (
+                  <AddressCard key={address} address={address} info={info} chainValues={chainValues[address]} />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="px-4 py-5">
+            <NodeHistory nodeId={id} />
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -334,7 +426,10 @@ const CollapsibleNode = memo(function CollapsibleNode({
       {/* Expanded content */}
       {isExpanded && hasContent && (
         <div className="pb-3 mt-2"
-        style={{paddingLeft: (isSelected ? indentPadding - BORDER_WIDTH: indentPadding) + 24}}
+        style={{
+          marginLeft: (isSelected ? indentPadding - BORDER_WIDTH: indentPadding) + 7,
+          boxShadow: `inset 1px 0 0 var(--border)`,
+          paddingLeft:  18}}
         
         >
           <div className="flex items-center gap-3 mb-2">  

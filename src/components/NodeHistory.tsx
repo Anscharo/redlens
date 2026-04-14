@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { loadHistory, type HistoryEntry } from "../lib/history";
+import { loadHistory, type HistoryEntry, type DiffLine } from "../lib/history";
 
 const CHANGE_COLOR: Record<string, string> = {
   added:    "var(--depth-6)",

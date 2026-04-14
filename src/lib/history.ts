@@ -1,3 +1,6 @@
+/** Single diff line: [op, text] where op is "="|"+"|"-", or ["…"] for a gap */
+export type DiffLine = ["=" | "+" | "-", string] | ["…"];
+
 export interface HistoryEntry {
   date: string;
   commitHash: string;
@@ -13,6 +16,8 @@ export interface HistoryEntry {
   summary?: string;
   /** Matched PR body bullet description, if any */
   description?: string;
+  /** Per-node line diff */
+  diff?: DiffLine[];
 }
 
 // Module-level cache: nodeId → promise

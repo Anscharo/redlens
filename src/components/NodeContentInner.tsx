@@ -143,14 +143,14 @@ function rehypeEthAddresses() {
   };
 }
 
-function MarkdownLink({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode }) {
+// UUID and eth-address links — styling via .atlas-md a in CSS
+function MarkdownLink({ href, children, node: _node, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: unknown }) {
   const onNavigate = useContext(NavigateContext);
   if (href && UUID_RE.test(href) && onNavigate) {
     return (
       <a
         href={`${import.meta.env.BASE_URL}?id=${href}`}
         onClick={(e) => { e.preventDefault(); onNavigate(href); }}
-        style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
         {...props}
       >
         {children}
@@ -158,81 +158,23 @@ function MarkdownLink({ href, children, ...props }: AnchorHTMLAttributes<HTMLAnc
     );
   }
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: "3px" }}
-      {...props}
-    >
+    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
       {children}
     </a>
   );
 }
 
+// Only override table (for the overflow wrapper) and a (for SPA navigation).
+// All other elements (p, ul, ol, code, pre, blockquote, hr, th, td) are
+// styled via the .atlas-md CSS ruleset in index.css.
 const components: Components = {
   a: MarkdownLink,
-  p({ children }) {
-    return <p className="mb-3 last:mb-0 leading-relaxed text-sm" style={{ color: "var(--tan-2)" }}>{children}</p>;
-  },
-  ul({ children }) {
-    return <ul className="mb-3 pl-5 space-y-1 text-sm list-disc" style={{ color: "var(--tan-2)" }}>{children}</ul>;
-  },
-  ol({ children }) {
-    return <ol className="mb-3 pl-5 space-y-1 text-sm list-decimal" style={{ color: "var(--tan-2)" }}>{children}</ol>;
-  },
-  code({ children, className }) {
-    const isBlock = className?.startsWith("language-");
-    if (isBlock) {
-      return (
-        <code
-          className={`block mono text-xs p-3 rounded overflow-x-auto mb-3 ${className ?? ""}`}
-          style={{ background: "var(--surface)", color: "var(--tan)", border: "1px solid var(--border)" }}
-        >
-          {children}
-        </code>
-      );
-    }
-    return (
-      <code
-        className="mono text-xs px-1 py-0.5 rounded"
-        style={{ background: "var(--surface)", color: "var(--tan)", border: "1px solid var(--border)" }}
-      >
-        {children}
-      </code>
-    );
-  },
-  pre({ children }) {
-    return <pre className="mb-3">{children}</pre>;
-  },
   table({ children }) {
     return (
       <div className="overflow-x-auto mb-3">
-        <table className="w-full text-xs border-collapse" style={{ color: "var(--tan-2)" }}>
-          {children}
-        </table>
+        <table>{children}</table>
       </div>
     );
-  },
-  th({ children }) {
-    return (
-      <th className="text-left px-3 py-2 font-semibold text-xs" style={{ borderBottom: "1px solid var(--border)", color: "var(--tan)" }}>
-        {children}
-      </th>
-    );
-  },
-  td({ children }) {
-    return <td className="px-3 py-2 text-xs" style={{ borderBottom: "1px solid var(--border)" }}>{children}</td>;
-  },
-  blockquote({ children }) {
-    return (
-      <blockquote className="pl-3 mb-3 italic text-sm" style={{ borderLeft: "3px solid var(--border)", color: "var(--tan-3)" }}>
-        {children}
-      </blockquote>
-    );
-  },
-  hr() {
-    return <hr className="my-4" style={{ borderColor: "var(--border)" }} />;
   },
 };
 
@@ -272,13 +214,15 @@ export default function NodeContentInner({ content, onNavigate }: Props) {
 
   return (
     <NavigateContext.Provider value={onNavigate}>
-      <ReactMarkdown
-        remarkPlugins={usesMath ? remarkPluginsMath! : remarkPluginsBase}
-        rehypePlugins={usesMath ? rehypePluginsMath! : rehypePluginsBase}
-        components={components}
-      >
-        {content}
-      </ReactMarkdown>
+      <div className="atlas-md">
+        <ReactMarkdown
+          remarkPlugins={usesMath ? remarkPluginsMath! : remarkPluginsBase}
+          rehypePlugins={usesMath ? rehypePluginsMath! : rehypePluginsBase}
+          components={components}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
     </NavigateContext.Provider>
   );
 }
