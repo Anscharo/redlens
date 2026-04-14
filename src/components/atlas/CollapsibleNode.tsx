@@ -12,9 +12,9 @@ export interface FlatEntry {
 
 export function flattenTree(byParent: Map<string | null, AtlasNode[]>): FlatEntry[] {
   const result: FlatEntry[] = [];
-  function walk(parentId: string | null) {
+  function walk(parentId: string | null, parentDocNo?: string) {
     for (const node of byParent.get(parentId) ?? []) {
-      const depth = realDepth(node.doc_no);
+      const depth = realDepth(node.doc_no, parentDocNo);
       result.push({
         node,
         depth,
@@ -22,7 +22,7 @@ export function flattenTree(byParent: Map<string | null, AtlasNode[]>): FlatEntr
         indentPadding: (depth - 1) * 7,
         hasContent: !!node.content,
       });
-      walk(node.id);
+      walk(node.id, node.doc_no);
     }
   }
   walk(null);

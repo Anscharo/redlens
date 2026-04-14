@@ -53,15 +53,17 @@ export function TreeRow({
     [title, availableWidth]
   );
 
+  if (!item) return null;
+  const { hasChildren, treeDepth } = item;
+
   const docNoSegments = useMemo(() => {
     if (!docNo) return { parts: [] as string[], depths: [] as number[], needsPad: false };
     const parts = docNo.split(".");
-    const depths = segmentDepths(docNo);
+    // NR-X nodes have a single opaque token; colour it at the node's actual tree depth
+    // rather than letting segmentDepths fall back to 1.
+    const depths = docNo.startsWith("NR-") ? [treeDepth] : segmentDepths(docNo);
     return { parts, depths, needsPad: parts[parts.length - 1].length < 2 };
-  }, [docNo]);
-
-  if (!item) return null;
-  const { hasChildren, treeDepth } = item;
+  }, [docNo, treeDepth]);
   const isSelected = index === selectedIndex;
   const isFocused = index === focusedIndex;
   const isExpanded = expandedIds.has(node!.id);

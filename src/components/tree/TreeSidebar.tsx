@@ -68,11 +68,11 @@ export function TreeSidebar({ nodeId, onNavigate }: Props) {
     if (!bundle) return [];
     const { byParent } = bundle;
     const result: VisibleNode[] = [];
-    function walk(parentId: string | null) {
+    function walk(parentId: string | null, parentDocNo?: string) {
       for (const node of byParent.get(parentId) ?? []) {
         const hasChildren = byParent.has(node.id);
-        result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no) });
-        if (hasChildren && expandedIds.has(node.id)) walk(node.id);
+        result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no, parentDocNo) });
+        if (hasChildren && expandedIds.has(node.id)) walk(node.id, node.doc_no);
       }
     }
     walk(null);
