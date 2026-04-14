@@ -160,9 +160,9 @@ const ENTITY_PATTERNS = [
   // "X at address"
   /\b([A-Z][A-Za-z0-9 .&'’-]{2,60}?)\s+at\s+address\b/,
   // "Recipient: X" / "Multisig: X"
-  /\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\s*[:\-]\s*([A-Z][A-Za-z0-9 .&'’-]{2,60})/,
+  /\b(?:Recipient|Multisig|Operator|Owner|Controller|Executor)\s*[:-]\s*([A-Z][A-Za-z0-9 .&'’-]{2,60})/,
   // Markdown bold/italic name immediately followed by colon: **X:** or *X:*
-  /\*\*([A-Z][A-Za-z0-9 .&'’-]{2,60}?)\*\*\s*[:\-]/,
+  /\*\*([A-Z][A-Za-z0-9 .&'’-]{2,60}?)\*\*\s*[:-]/,
 ];
 
 function annotationWindow(content, matchIndex, addrLength) {

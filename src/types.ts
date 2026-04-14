@@ -44,7 +44,7 @@ export function realDepth(doc_no: string, parentDocNo?: string): number {
 export function segmentDepths(doc_no: string): number[] {
   if (doc_no.startsWith("NR-")) return [1];
   const parts = doc_no.split(".");
-  const depths: number[] = new Array(parts.length).fill(0);
+  const depths: number[] = Array.from({ length: parts.length }, () => 0);
 
   let curDepth = 0;
   let inTenet = false; // track if we just processed a .0.4.X tenet group

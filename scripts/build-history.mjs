@@ -408,7 +408,7 @@ async function main() {
   const history = new Map();
 
   let prevSnapshot = new Map();
-  let prevHash = null;
+  let _prevHash = null;
   let totalChanges = 0;
 
   for (let i = 0; i < commits.length; i++) {

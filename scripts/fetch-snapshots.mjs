@@ -152,7 +152,7 @@ const values = {}; // addrLower → { fnName → serialized result | null }
 
 for (let i = 0; i < calls.length; i++) {
   const { address, fnName } = calls[i];
-  const { status, result, error } = rawResults[i];
+  const { status, result } = rawResults[i];
 
   if (!values[address]) values[address] = {};
 
