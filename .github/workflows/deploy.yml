@@ -37,6 +37,11 @@ jobs:
       - name: Pull latest Atlas content
         run: git -C vendor/next-gen-atlas fetch origin main && git -C vendor/next-gen-atlas checkout origin/main
 
+      - name: Append new node history
+        run: pnpm build:history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - run: pnpm build
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}

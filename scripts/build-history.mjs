@@ -400,15 +400,48 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(PR_CACHE_DIR, { recursive: true });
 
-  console.error("loading commits…");
-  const commits = getCommits();
-  console.error(`  ${commits.length} commits touch ${ATLAS_FILE}`);
+  const lastCommitFile = path.join(OUT_DIR, "_last_commit.txt");
+  const manifestFile = path.join(OUT_DIR, "_manifest.json");
 
-  // nodeId → array of history entries
-  const history = new Map();
-
+  // Incremental mode: pick up from where the last run left off.
+  let lastCommitHash = null;
+  let existingManifest = {};
   let prevSnapshot = new Map();
-  let _prevHash = null;
+  let startIndex = 0;
+
+  if (fs.existsSync(lastCommitFile) && fs.existsSync(manifestFile)) {
+    lastCommitHash = fs.readFileSync(lastCommitFile, "utf8").trim();
+    existingManifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
+    console.error(`incremental mode: last processed commit ${lastCommitHash.slice(0, 7)}, ${Object.keys(existingManifest).length} nodes in manifest`);
+  }
+
+  console.error("loading commits…");
+  const allCommits = getCommits();
+  console.error(`  ${allCommits.length} commits touch ${ATLAS_FILE}`);
+
+  if (lastCommitHash) {
+    const idx = allCommits.findIndex(c => c.hash === lastCommitHash);
+    if (idx >= 0) {
+      startIndex = idx + 1;
+      // Reconstruct prevSnapshot from the last processed commit so diffs are correct
+      prevSnapshot = parseAtlas(readAtlasAt(lastCommitHash));
+      console.error(`  skipping ${startIndex} already-processed commits, ${allCommits.length - startIndex} new`);
+    } else {
+      console.error(`  last commit not found in history, falling back to full rebuild`);
+      lastCommitHash = null;
+      existingManifest = {};
+    }
+  }
+
+  const commits = allCommits.slice(startIndex);
+
+  if (commits.length === 0) {
+    console.error("no new commits to process");
+    return;
+  }
+
+  // nodeId → new entries added in this run only
+  const newHistory = new Map();
   let totalChanges = 0;
 
   for (let i = 0; i < commits.length; i++) {
@@ -427,7 +460,7 @@ async function main() {
 
     if (allChanged.length === 0) {
       prevSnapshot = snapshot;
-      prevHash = commit.hash;
+      lastCommitHash = commit.hash;
       continue;
     }
 
@@ -460,7 +493,7 @@ async function main() {
         const currContent = snapshot.get(node.id)?.content ?? "";
         const diff = lineDiff(prevContent, currContent);
         if (diff.length > 0) entry.diff = diff;
-      } else if (changeType === "added" && i > 0) {
+      } else if (changeType === "added" && (startIndex + i) > 0) {
         // Node newly introduced mid-history: show its full content as added lines
         const currContent = snapshot.get(node.id)?.content ?? "";
         if (currContent) {
@@ -496,32 +529,39 @@ async function main() {
         if (pr.body.length < 500) entry.description = pr.body;
       }
 
-      if (!history.has(node.id)) history.set(node.id, []);
-      history.get(node.id).push(entry);
+      if (!newHistory.has(node.id)) newHistory.set(node.id, []);
+      newHistory.get(node.id).push(entry);
       totalChanges++;
     }
 
     prevSnapshot = snapshot;
-    prevHash = commit.hash;
+    lastCommitHash = commit.hash;
   }
 
-  // Write per-node files
+  // Write per-node files: append new entries to any existing file
   let fileCount = 0;
-  for (const [nodeId, entries] of history) {
+  for (const [nodeId, newEntries] of newHistory) {
     const filePath = path.join(OUT_DIR, `${nodeId}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(entries));
+    const existing = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : [];
+    fs.writeFileSync(filePath, JSON.stringify([...existing, ...newEntries]));
     fileCount++;
   }
 
-  console.error(`\ndone: ${fileCount} node history files, ${totalChanges} total change entries`);
+  console.error(`\ndone: ${fileCount} node history files updated, ${totalChanges} new change entries`);
 
-  // Write a manifest so the frontend knows which nodes have history
-  const manifest = {};
-  for (const [nodeId, entries] of history) {
-    manifest[nodeId] = entries.length;
+  // Merge new counts into existing manifest and write
+  const manifest = { ...existingManifest };
+  for (const [nodeId, newEntries] of newHistory) {
+    manifest[nodeId] = (manifest[nodeId] ?? 0) + newEntries.length;
   }
-  fs.writeFileSync(path.join(OUT_DIR, "_manifest.json"), JSON.stringify(manifest));
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest));
   console.error(`manifest: ${Object.keys(manifest).length} nodes with history`);
+
+  // Checkpoint: record the last processed commit for next incremental run
+  fs.writeFileSync(lastCommitFile, lastCommitHash);
+  console.error(`checkpoint: ${lastCommitHash}`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
