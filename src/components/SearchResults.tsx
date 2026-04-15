@@ -3,17 +3,19 @@ import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
 import type { AtlasNode, SearchHit } from "../types";
 import type { SearchState } from "../hooks/useSearch";
+import type { ReportId } from "../App";
 
 interface Props {
   state: SearchState;
   activeScope: AtlasNode | null;
   onNavigate: (id: string) => void;
   onHintClick: (query: string) => void;
+  onReportClick: (id: ReportId) => void;
 }
 const PAGE_SIZE = 500;
 const empty: SearchHit[] = [];
 
-export const SearchResults = memo(function SearchResults({ state, activeScope, onNavigate, onHintClick }: Props) {
+export const SearchResults = memo(function SearchResults({ state, activeScope, onNavigate, onHintClick, onReportClick }: Props) {
   const allHits = state.status === "done" ? state.hits : empty;
   const hits = useMemo(
     () =>
@@ -58,7 +60,7 @@ export const SearchResults = memo(function SearchResults({ state, activeScope, o
             </button>
           </div>
         )}
-        {(state.status === "idle" || state.status === "loading") && <SearchHints onSearch={onHintClick} />}
+        {(state.status === "idle" || state.status === "loading") && <SearchHints onSearch={onHintClick} onReport={onReportClick} />}
         {state.status === "error" && (
           <div className="flex items-center justify-center py-24 text-sm text-red">
             {state.message}
