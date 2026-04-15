@@ -77,7 +77,7 @@ pnpm preview          # serve the production build locally
 
 ## Atlas MCP server (local)
 
-This repo also ships a local [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the Sky Atlas as queryable tools for Claude Code (or any MCP client). It uses a local vector index over `docs.json` so you can ask natural-language questions about the Atlas without sending any data off your machine.
+This repo ships a local [Model Context Protocol](https://modelcontextprotocol.io/) server that exposes the Sky Atlas as queryable tools for Claude Code (or any MCP client). It uses a local vector index over `docs.json` so you can ask natural-language questions about the Atlas without sending any data off your machine.
 
 Three tools are exposed:
 - `atlas_search(query, k?, type?)` — semantic search over all 9,825 nodes
@@ -118,6 +118,69 @@ node scripts/test-mcp.mjs                     # exercise the JSON-RPC stdio prot
 - The vector store is brute-force cosine over an L2-normalized `Float32Array` (~30 MB scan per query, fine for 9,825 nodes).
 - Server logs go to stderr; stdout is reserved for JSON-RPC messages.
 - Index is **not** auto-rebuilt by `pnpm build` because the web build shouldn't depend on Ollama being online. Run `pnpm build:rag` manually after `build:index` when you want to refresh it.
+
+## Atlas MCP server (hosted)
+
+A hosted MCP server is deployed on Cloudflare Workers, backed by a D1 (SQLite) graph database containing all 9,825 Atlas nodes, a typed edge graph, named entity catalog, and on-chain address data. No local setup required — connect any MCP client directly.
+
+**Endpoint:** `https://redlens-mcp.anscharo.workers.dev/mcp`
+
+### Connecting
+
+Add to your `.mcp.json` or MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "redlens-atlas": {
+      "url": "https://redlens-mcp.anscharo.workers.dev/mcp"
+    }
+  }
+}
+```
+
+### Tools
+
+| Tool | Description |
+|---|---|
+| `atlas_search(query, k?, type?)` | FTS5 full-text search over all 9,825 nodes |
+| `atlas_get(id)` | Fetch a node by UUID or doc number |
+| `atlas_neighbors(id, window?)` | Parent + siblings + children context |
+| `atlas_traverse(id, hops?, edge_type?, direction?)` | Multi-hop graph traversal via typed edges |
+| `atlas_entity(name)` | All Atlas sections, responsibilities, and Active Data for a named entity (e.g. `spark`, `endgame-edge`, `operational-facilitator`) |
+
+### REST API
+
+The same Worker also exposes a REST API for the RedLens frontend:
+
+```
+GET /api/search?q=<query>&k=<n>&type=<type>   Full-text search
+GET /api/node/:id                              Node by UUID or doc number
+GET /api/entity/:name                          Entity view (nodes + responsibilities + active data)
+GET /api/traverse/:id?hops=2&type=<edge_type>  Graph traversal
+```
+
+### Graph database
+
+The D1 database holds:
+
+| Table | Contents |
+|---|---|
+| `atlas_nodes` | All 9,825 nodes with full content + FTS5 index |
+| `entities` | 49 named entities (Prime Agents, Executor Agents, Facilitators, GovOps, ERG members, Aligned Delegates) |
+| `addresses` | 294 on-chain addresses with chain-state snapshots |
+| `edges` | 12,438 typed edges: `parent_of`, `cites`, `annotates`, `active_data_for`, `member_of`, `member_of_erg`, `has_address`, `mentions`, `proxies_to` |
+
+### Infrastructure source
+
+The Worker source lives in `redlens-mcp/`. To rebuild the graph database after an Atlas update:
+
+```bash
+cd redlens-mcp
+npm run build:data      # regenerate docs.json + addresses.json from source
+npm run graph:remote    # re-import all tables into D1
+npm run deploy          # redeploy the Worker
+```
 
 ## Deployment
 
