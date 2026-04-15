@@ -365,7 +365,6 @@ input[type="search"]::-webkit-search-cancel-button {
 .atlas-md ol { list-style-type: decimal; }
 .atlas-md li + li { margin-top: 0.25rem; }
 .atlas-md code {
-  max-width: var(--max-prose-width);
   font-family: 'Source Code Pro', 'Courier New', monospace;
   font-size: 0.75rem;
   padding: 1px 4px;

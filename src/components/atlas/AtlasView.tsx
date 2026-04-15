@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, startTransition, type ReactElement } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, startTransition, type ReactElement } from "react";
 import { Breadcrumbs } from "../Breadcrumbs";
 import { loadAtlas } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
@@ -81,18 +81,23 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
     });
   }, []);
 
+  const { expandedParents, hasDeepChildren, expandParent } = useDepth6Expand(data?.flatNodes ?? [], id);
+
+  // Scroll after expand: the target may be hidden (depth >= 6) until expandedParents is
+  // populated, so we depend on expandedParents and guard with a ref to avoid re-scrolling
+  // when "view children" clicks later change expandedParents.
+  const scrolledRef = useRef<string | null>(null);
   useEffect(() => {
     if (!id || !data) return;
     requestAnimationFrame(() => {
       const el = document.getElementById(id);
-      if (!el) return;
+      if (!el || scrolledRef.current === id) return;
       const { top, bottom } = el.getBoundingClientRect();
-      const inView = bottom > 64 && top < window.innerHeight; // 64px = sticky header
-      if (!inView) el.scrollIntoView({ behavior: "instant", block: "start" });
+      if (bottom <= 64 || top >= window.innerHeight)
+        el.scrollIntoView({ behavior: "instant", block: "start" });
+      scrolledRef.current = id;
     });
-  }, [id, data]);
-
-  const { expandedParents, hasDeepChildren, expandParent } = useDepth6Expand(data?.flatNodes ?? [], id);
+  }, [id, data, expandedParents]);
 
   const nodeList = useMemo(() => {
     if (!data) return null;
