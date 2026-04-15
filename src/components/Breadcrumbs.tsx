@@ -51,7 +51,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ ancestors, onNavigate }: 
         <span key={a.id} className="flex items-center gap-x-1">
           {i > 0 && <span style={SEPARATOR_STYLE}>/</span>}
           <a
-            href={`${import.meta.env.BASE_URL}?id=${a.id}`}
+            href={`/atlas?id=${a.id}`}
             onClick={(e) => { e.preventDefault(); onNavigate(a.id); }}
             className="breadcrumb-link"
             style={{ "--crumb-color": depthColor(realDepth(a.doc_no)) } as React.CSSProperties}

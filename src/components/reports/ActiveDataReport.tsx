@@ -44,7 +44,7 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
         <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--tan)' }}>Active Data Index</h1>
         <p className="text-sm text-tan-3 mb-5">
           All Active Data sections, their Responsible Parties, and edit processes.{' '}
-          <a href={`${BASE}?id=75e8fd51-a540-4c3a-aaa9-1a38502f89b2`} className="text-accent hover:underline">A.1.12 Updating Active Data ↗</a>
+          <a href={`/atlas?id=75e8fd51-a540-4c3a-aaa9-1a38502f89b2`} className="text-accent hover:underline">A.1.12 Updating Active Data ↗</a>
         </p>
 
         <div className="flex flex-wrap items-center gap-4 mb-4">

@@ -138,7 +138,15 @@ function search(q: string): SearchHit[] {
     return doc ? [docToHit(doc)] : [];
   }
 
-  const { phrases, rest } = extractPhrases(q);
+  // Extract in:DOCNUMBER scope filter before other processing
+  const IN_RE = /\bin:(\S+)/gi;
+  let inPrefix: string | null = null;
+  const qWithoutIn = q.replace(IN_RE, (_, prefix: string) => {
+    inPrefix = prefix.toUpperCase();
+    return ' ';
+  }).trim();
+
+  const { phrases, rest } = extractPhrases(qWithoutIn);
 
   // Chainlog reverse-map results — collected into a scored map first so they
   // can be merged with lunr results below. Chainlog hits get score 2 so they
@@ -244,13 +252,18 @@ function search(q: string): SearchHit[] {
     } satisfies SearchHit;
   }).filter((h): h is SearchHit => h !== null);
 
+  // Apply in:DOCNUMBER scope filter if present
+  const scopedLunrHits = inPrefix
+    ? lunrHits.filter(h => h.doc_no === inPrefix || h.doc_no.startsWith(inPrefix + "."))
+    : lunrHits;
+
   // Merge with three tiers:
   //   1. found by BOTH chainlog + lunr  (best snippet from lunr, highest priority)
   //   2. chainlog only
   //   3. lunr only  (sorted by lunr score)
-  if (chainlogHits.size === 0) return lunrHits;
+  if (chainlogHits.size === 0) return scopedLunrHits;
 
-  const lunrById = new Map(lunrHits.map((h) => [h.id, h]));
+  const lunrById = new Map(scopedLunrHits.map((h) => [h.id, h]));
 
   const both: SearchHit[] = [];
   const chainlogOnly: SearchHit[] = [];
@@ -263,7 +276,7 @@ function search(q: string): SearchHit[] {
       chainlogOnly.push(chainlogHit);
     }
   }
-  const lunrOnly = lunrHits.filter((h) => !chainlogHits.has(h.id));
+  const lunrOnly = scopedLunrHits.filter((h) => !chainlogHits.has(h.id));
 
   both.sort((a, b) => b.score - a.score);
   lunrOnly.sort((a, b) => b.score - a.score);

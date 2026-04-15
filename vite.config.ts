@@ -5,12 +5,16 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
 
 const commitHash = (() => {
-  try {
-    return execSync('git rev-parse --short HEAD').toString().trim()
-  } catch {
-    return 'dev'
-  }
+  try { return execSync('git rev-parse --short HEAD').toString().trim() }
+  catch { return 'dev' }
 })()
+
+const atlasCommit = (() => {
+  try { return execSync('git -C vendor/next-gen-atlas rev-parse --short HEAD').toString().trim() }
+  catch { return 'unknown' }
+})()
+
+const buildTime = new Date().toISOString()
 
 export default defineConfig({
   base: '/redlens/',
@@ -77,6 +81,8 @@ export default defineConfig({
     }),
   ],
   define: {
-    __COMMIT_HASH__: JSON.stringify(commitHash),
+    __COMMIT_HASH__:  JSON.stringify(commitHash),
+    __ATLAS_COMMIT__: JSON.stringify(atlasCommit),
+    __BUILD_TIME__:   JSON.stringify(buildTime),
   },
 })

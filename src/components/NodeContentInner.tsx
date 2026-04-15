@@ -22,7 +22,7 @@ function MarkdownLink({ href, children, node: _node, ...props }: AnchorHTMLAttri
   if (href && UUID_RE.test(href) && onNavigate) {
     return (
       <a
-        href={`${import.meta.env.BASE_URL}?id=${href}`}
+        href={`/atlas?id=${href}`}
         onClick={(e) => { e.preventDefault(); onNavigate(href); }}
         {...props}
       >

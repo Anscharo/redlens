@@ -3,7 +3,7 @@ import { NodeContent } from "./NodeContent";
 import type { AtlasNode } from "../types";
 
 export const RelatedNode = memo(function RelatedNode({ node, onNavigate }: { node: AtlasNode; onNavigate: (id: string) => void }) {
-  const href = `${import.meta.env.BASE_URL}?id=${node.id}`;
+  const href = `/atlas?id=${node.id}`;
 
   return (
     <div className="related-node py-4 border-b border-border">

@@ -6,7 +6,7 @@ const BASE = import.meta.env.BASE_URL;
 function NodeLink({ docNo, uuid, children }: { docNo: string; uuid: string; children: React.ReactNode }) {
   if (!uuid) return <span className="mono text-xs text-tan-3">{children}</span>;
   return (
-    <a href={`${BASE}?id=${uuid}`} className="mono text-xs text-accent hover:underline" title={docNo}>
+    <a href={`/atlas?id=${uuid}`} className="mono text-xs text-accent hover:underline" title={docNo}>
       {children}
     </a>
   );

@@ -34,7 +34,7 @@ export const SearchResult = memo(function SearchResult({ hit, onNavigate }: Prop
         )}
       </div>
       <a
-        href={`${import.meta.env.BASE_URL}?id=${hit.id}`}
+        href={`/atlas?id=${hit.id}`}
         onClick={(e) => { e.preventDefault(); onNavigate(hit.id); }}
         className="search-result-link px-4 py-3"
       >

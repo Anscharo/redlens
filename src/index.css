@@ -283,6 +283,26 @@ input[type="search"]::-webkit-search-cancel-button {
   box-shadow: inset 2px 0 0 var(--red);
 }
 
+/* ─── Top nav links ─── */
+.nav-link {
+  color: var(--tan-3);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+.nav-link:hover {
+  color: var(--tan);
+  border-color: var(--border);
+  background: var(--surface);
+}
+.nav-link[data-active="true"] {
+  color: var(--tan);
+  border-color: var(--border);
+  background: var(--surface);
+}
+
 /* ─── Search hint rows ─── */
 .hint-row {
   background: transparent;

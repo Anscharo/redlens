@@ -3,6 +3,10 @@
     "atlas": {
       "command": "pnpm",
       "args": ["mcp:atlas"]
+    },
+    "cloudflare": {
+      "command": "npx",
+      "args": ["-y", "@cloudflare/mcp-server-cloudflare"]
     }
   }
 }
