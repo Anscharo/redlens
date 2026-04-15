@@ -1,0 +1,16 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "redlens-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-04-15",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": { "enabled": true },
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "redlens-atlas",
+			"database_id": "ff9f4fd6-8d87-4ac5-8a91-7a165420a52b"
+		}
+	]
+}
