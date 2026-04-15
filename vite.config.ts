@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
 
 const commitHash = (() => {
   try { return execSync('git rev-parse --short HEAD').toString().trim() }
@@ -15,6 +16,11 @@ const atlasCommit = (() => {
 })()
 
 const buildTime = new Date().toISOString()
+
+const nodeCount = (() => {
+  try { return Object.keys(JSON.parse(readFileSync('public/docs.json', 'utf-8'))).length }
+  catch { return 0 }
+})()
 
 export default defineConfig({
   base: '/redlens/',
@@ -84,5 +90,6 @@ export default defineConfig({
     __COMMIT_HASH__:  JSON.stringify(commitHash),
     __ATLAS_COMMIT__: JSON.stringify(atlasCommit),
     __BUILD_TIME__:   JSON.stringify(buildTime),
+    __NODE_COUNT__:   JSON.stringify(nodeCount),
   },
 })

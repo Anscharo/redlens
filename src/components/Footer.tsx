@@ -39,6 +39,9 @@ export function Footer() {
           className="hover:underline" style={{ color: "var(--tan-3)" }}>
           <span className="hidden sm:inline">atlas&nbsp;</span>{__ATLAS_COMMIT__}
         </a>
+        {__NODE_COUNT__ > 0 && (
+          <span style={{ color: "var(--tan-3)" }}>&nbsp;·&nbsp;{__NODE_COUNT__.toLocaleString()}&nbsp;<span className="hidden sm:inline">nodes</span></span>
+        )}
       </FooterItem>
       <Sep />
       <FooterItem>

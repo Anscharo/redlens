@@ -3,3 +3,4 @@
 declare const __COMMIT_HASH__: string;
 declare const __ATLAS_COMMIT__: string;
 declare const __BUILD_TIME__: string;
+declare const __NODE_COUNT__: number;
