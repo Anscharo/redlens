@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useLocation, Switch, Route } from "wouter";
+import { useLocation, useSearchParams, Switch, Route } from "wouter";
 import { useSearch } from "./hooks/useSearch";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
@@ -24,27 +24,10 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // nodeId lives in URL as /atlas?id=UUID — track as state for reactivity
-  const [nodeId, setNodeId] = useState<string | null>(
-    () => location === "/atlas" ? new URLSearchParams(window.location.search).get("id") : null
-  );
-
-  // Sync nodeId from URL on browser back/forward within /atlas
-  useEffect(() => {
-    const sync = () => {
-      if (window.location.pathname.endsWith("/atlas")) {
-        setNodeId(new URLSearchParams(window.location.search).get("id"));
-      } else {
-        setNodeId(null);
-      }
-    };
-    window.addEventListener("popstate", sync);
-    return () => window.removeEventListener("popstate", sync);
-  }, []);
-
-  useEffect(() => {
-    if (location !== "/atlas") setNodeId(null);
-  }, [location]);
+  // nodeId and view derived reactively from URL search params via wouter
+  const [searchParams] = useSearchParams();
+  const nodeId = location === "/atlas" ? searchParams.get("id") : null;
+  const atlasView = searchParams.get("view") === "history" ? "history" as const : "annotations" as const;
 
   useEffect(() => {
     if (location === "/" && !nodeId) inputRef.current?.focus();
@@ -52,7 +35,6 @@ export default function App() {
 
   const navigateToNode = useCallback((id: string) => {
     navigate(`/atlas?id=${id}`);
-    setNodeId(id);
     setQuery(""); search("");
   }, [navigate, search]);
 
@@ -62,10 +44,11 @@ export default function App() {
   }, [navigate, search]);
 
   const handleViewChange = useCallback((v: "annotations" | "history") => {
-    const params = new URLSearchParams(window.location.search);
-    v === "history" ? params.set("view", "history") : params.delete("view");
+    const params = new URLSearchParams();
+    if (nodeId) params.set("id", nodeId);
+    if (v === "history") params.set("view", "history");
     navigate(`/atlas?${params}`);
-  }, [navigate]);
+  }, [navigate, nodeId]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const q = e.target.value;
@@ -110,7 +93,7 @@ export default function App() {
               <AtlasView
                 id={nodeId ?? ""}
                 onNavigate={navigateToNode}
-                view={new URLSearchParams(window.location.search).get("view") === "history" ? "history" : "annotations"}
+                view={atlasView}
                 onViewChange={handleViewChange}
               />
             </Route>
