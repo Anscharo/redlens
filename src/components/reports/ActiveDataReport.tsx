@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { ACTIVE_DATA_INDEX, ALL_AGENTS, type ActiveDataEntry } from "../../data/precalculated/activeDataIndex";
 import { AGENT_META } from "../../data/precalculated/ofResponsibilities";
 
-const BASE = import.meta.env.BASE_URL;
 
 const PARTY_COLORS: Record<string, string> = {
   'Core Facilitator':              'var(--red)',

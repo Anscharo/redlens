@@ -10,7 +10,8 @@
     "build:snapshot": "node --env-file-if-exists=.env.local scripts/fetch-snapshots.mjs",
     "build:rag": "node --env-file-if-exists=.env.local scripts/build-rag.mjs",
     "build:history": "node scripts/build-history.mjs",
-    "build": "pnpm build:index && pnpm build:addresses && pnpm build:snapshot && tsc -b && vite build",
+    "build:ts": "tsc -b",
+    "build": "pnpm build:index && pnpm build:addresses && pnpm build:snapshot && pnpm run build:ts && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "mcp:atlas": "node mcp-atlas/server.mjs"

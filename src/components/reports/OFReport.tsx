@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { OF_RESPONSIBILITIES, AGENTS, AGENT_META, CATEGORY_LABELS, type OFResponsibility } from "../../data/precalculated/ofResponsibilities";
 
-const BASE = import.meta.env.BASE_URL;
 
 function NodeLink({ docNo, uuid, children }: { docNo: string; uuid: string; children: React.ReactNode }) {
   if (!uuid) return <span className="mono text-xs text-tan-3">{children}</span>;
