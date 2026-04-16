@@ -228,13 +228,13 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
             <thead>
               <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
                 <th className="py-2 px-3 font-normal w-40">Controller</th>
-                <th className="py-2 px-3 font-normal">Section</th>
+                <th className="py-2 px-3 font-normal">Doc</th>
+                <th className="py-2 px-3 font-normal w-36">Role</th>
                 <th className="py-2 px-3 font-normal w-24">Agent</th>
                 <th className="py-2 px-3 font-normal w-36">OEA</th>
                 <th className="py-2 px-3 font-normal w-36">Facilitator</th>
                 <th className="py-2 px-3 font-normal w-36">GovOps</th>
                 <th className="py-2 px-3 font-normal w-32">Process</th>
-                <th className="py-2 px-3 font-normal w-16">Data</th>
               </tr>
             </thead>
             <tbody>
@@ -246,8 +246,18 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
                       {r.controllerDocNo}
                     </button>
                   </td>
-                  <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.controllerTitle}
+                  <td className="py-2 px-3 align-top">
+                    {r.activeDataDocs[0] ? (
+                      <button onClick={() => onNavigate(r.activeDataDocs[0].id)}
+                        className="text-sm text-tan hover:underline text-left">
+                        {r.activeDataDocs[0].title}
+                      </button>
+                    ) : (
+                      <span className="text-sm text-tan-3">{r.controllerTitle}</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 align-top">
+                    <span className="text-xs text-tan-3">{r.entityName}</span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     <span className="mono text-xs text-tan-3">{r.agent ?? "—"}</span>
@@ -278,20 +288,6 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
                   </td>
                   <td className="py-2 px-3 align-top">
                     <span className="mono text-xs text-tan-3">{r.process}</span>
-                  </td>
-                  <td className="py-2 px-3 align-top">
-                    {r.activeDataDocs.length > 0 ? (
-                      <div className="flex flex-col gap-0.5">
-                        {r.activeDataDocs.map(d => (
-                          <button key={d.id} onClick={() => onNavigate(d.id)}
-                            className="mono text-[10px] text-accent hover:underline text-left">
-                            {d.doc_no.split(".").slice(-1)[0]}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="mono text-[10px] text-tan-3">—</span>
-                    )}
                   </td>
                 </tr>
               ))}

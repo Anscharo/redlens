@@ -30,7 +30,6 @@
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "unist-util-visit": "^5.1.0",
-    "viem": "^2.47.11",
     "wouter": "^3.9.0"
   },
   "devDependencies": {
@@ -50,6 +49,7 @@
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
+    "viem": "^2.48.0",
     "vite": "^8.0.4",
     "vite-plugin-pwa": "^1.2.0"
   },
