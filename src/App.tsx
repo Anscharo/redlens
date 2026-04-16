@@ -9,6 +9,7 @@ import { OFReport } from "./components/reports/OFReport";
 import { ActiveDataReport } from "./components/reports/ActiveDataReport";
 import { ReportsIndex } from "./components/ReportsIndex";
 import { EntitiesPage } from "./components/EntitiesPage";
+import { SearchHintsPage } from "./components/SearchHints";
 import { prefetchNodeContent } from "./components/NodeContent";
 import { DevPanel } from "./DevPanel";
 import { Footer } from "./components/Footer";
@@ -54,7 +55,7 @@ export default function App() {
     const q = e.target.value;
 
     if (q === "/reports") { navigate("/reports"); setQuery(""); search(""); return; }
-    if (q === "/hints")   { navigate("/"); setQuery(""); search(""); return; }
+    if (q === "/hints")   { navigate("/search-hints"); setQuery(""); search(""); return; }
 
     setQuery(q);
     if (location !== "/") navigate("/");
@@ -101,6 +102,7 @@ export default function App() {
             <Route path="/reports/of-responsibilities"><OFReport onNavigate={navigateToNode} /></Route>
             <Route path="/reports/active-data"><ActiveDataReport onNavigate={navigateToNode} /></Route>
             <Route path="/entities"><EntitiesPage onNavigate={navigateToNode} /></Route>
+            <Route path="/search-hints"><SearchHintsPage onHintClick={(q) => { navigate("/"); setQuery(q); search(q); }} /></Route>
           </Switch>
         </div>
       </div>

@@ -41,7 +41,7 @@ export function SearchBar({ inputRef, query, onChange, ready, isSearching, onNav
             type="search"
             value={query}
             onChange={onChange}
-            placeholder={ready ? "Search the Sky Atlas…" : "Loading index…"}
+            placeholder={ready ? "Search the Atlas or type /hints for query help" : "Loading index…"}
             disabled={!ready}
             className="search-input w-full pl-9 pr-4 py-2 text-sm rounded border disabled:opacity-40 disabled:cursor-wait"
           />

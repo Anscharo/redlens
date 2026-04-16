@@ -146,7 +146,16 @@ function search(q: string): SearchHit[] {
     return ' ';
   }).trim();
 
-  const { phrases, rest } = extractPhrases(qWithoutIn);
+  // Extract type:"quoted multi-word value" before lunr — lunr has no quoted field syntax.
+  // Stored as a post-filter; the entire token is removed from the lunr query.
+  const TYPE_QUOTED_RE = /\btype:"([^"]+)"/gi;
+  let typeFilter: string | null = null;
+  const qForPhrases = qWithoutIn.replace(TYPE_QUOTED_RE, (_, value) => {
+    typeFilter = value.trim().toLowerCase();
+    return ' ';
+  }).trim();
+
+  const { phrases, rest } = extractPhrases(qForPhrases);
 
   // Chainlog reverse-map results — collected into a scored map first so they
   // can be merged with lunr results below. Chainlog hits get score 2 so they

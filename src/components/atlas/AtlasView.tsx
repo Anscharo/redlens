@@ -3,6 +3,7 @@ import { Breadcrumbs } from "../Breadcrumbs";
 import { loadAtlas } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
 import { loadChainState, type ChainValue } from "../../lib/chainstate";
+import { getEdges, type EdgeResult } from "../../lib/graph";
 import { setAddressMap } from "../../lib/addressMap";
 import { type AtlasNode, type AddressInfo } from "../../types";
 import { CollapsibleNode, flattenTree } from "./CollapsibleNode";
@@ -13,6 +14,8 @@ import {
   ATLAS_GRID_STYLE, ATLAS_LEFT_PANE_STYLE, ATLAS_EMPTY_SET,
   type LoadedData,
 } from "../../lib/atlasHelpers";
+
+const EMPTY_EDGES: EdgeResult = { outbound: [], inbound: [] };
 
 const ViewChildrenFill = ({ nodeId, docNo, onExpand }: { nodeId: string; docNo: string; onExpand: (id: string) => void }) =>
   <button type="button" onClick={() => onExpand(nodeId)} className="view-children-fill w-full text-center mono text-[10px] text-tan-3 bg-transparent cursor-pointer">view all descendants of {docNo}</button>;
@@ -25,6 +28,7 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
 }) {
   const [data, setData] = useState<LoadedData | null>(null);
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
+  const [graphEdges, setGraphEdges] = useState<EdgeResult>(EMPTY_EDGES);
 
   useEffect(() => {
     Promise.all([loadAtlas(), loadAddresses(), loadChainState()]).then(([atlas, addresses, chainState]) => {
@@ -35,7 +39,11 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
     });
   }, []);
 
-  useEffect(() => { setUserToggles(ATLAS_EMPTY_SET); }, [id]);
+  useEffect(() => {
+    setUserToggles(ATLAS_EMPTY_SET);
+    setGraphEdges(EMPTY_EDGES);
+    if (id) getEdges(id).then(setGraphEdges);
+  }, [id]);
 
   const autoExpanded = useMemo(() => {
     if (!data || !id) return new Set<string>();
@@ -144,6 +152,7 @@ export function AtlasView({ id, onNavigate, view, onViewChange }: {
               targetAddresses={targetAddresses}
               chainValues={chainValues}
               annotationCount={annotationCount}
+              graphEdges={graphEdges}
               onNavigate={onNavigate}
               tab={view}
               onTabChange={onViewChange}

@@ -135,7 +135,7 @@ export interface SearchHit {
   chainlogAddress?: string; // the resolved address for chainlog matches
 }
 
-// Worker message types
+// Worker message types — search
 export type WorkerInMessage =
   | { type: "query"; id: number; q: string }
   | { type: "ping" };
@@ -144,3 +144,44 @@ export type WorkerOutMessage =
   | { type: "ready" }
   | { type: "results"; id: number; hits: SearchHit[]; durationMs: number }
   | { type: "error"; id: number; message: string };
+
+// ---------------------------------------------------------------------------
+// Graph types (relations.json — compact keys to minimise payload)
+// ---------------------------------------------------------------------------
+
+export interface RelationEntity {
+  id: string;
+  slug: string;
+  name: string;
+  et: string;        // entity_type: agent | operational_facilitator | core_facilitator | govops | alignment_conserver | ecosystem_actor | scope
+  st: string | null; // subtype: prime | executor | operational | core | aligned_delegate
+  did: string | null;// defining_doc_id — UUID of the Atlas doc that defines this entity
+}
+
+export interface RelationEdge {
+  f: string;          // from_id (UUID or "addr:chain")
+  ft: string;         // from_type: doc | entity | address
+  t: string;          // to_id
+  tt: string;         // to_type: doc | entity | address
+  e: string;          // edge_type
+  s?: string[];       // source_doc_nos — Atlas doc_nos that prove this edge
+  m?: string;         // meta JSON string, only present when non-null
+}
+
+// RelationEdge with worker-resolved labels for entity endpoints
+export interface ResolvedEdge extends RelationEdge {
+  from_label?: string; // entity name when from_type === 'entity'
+  to_label?: string;   // entity name when to_type   === 'entity'
+}
+
+// Worker message types — graph
+export type GraphWorkerInMessage =
+  | { type: "ping" }
+  | { type: "edges"; id: string }                 // get all edges for a doc or entity id
+  | { type: "entity"; slug: string };             // get entity + its edges by slug
+
+export type GraphWorkerOutMessage =
+  | { type: "ready" }
+  | { type: "edges"; id: string; inbound: ResolvedEdge[]; outbound: ResolvedEdge[] }
+  | { type: "entity"; slug: string; entity: RelationEntity | null; edges: ResolvedEdge[] }
+  | { type: "error"; message: string };

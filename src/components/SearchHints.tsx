@@ -14,8 +14,16 @@ const HINTS: { label: string; query: string; description: string }[] = [
 
 const SLASH: { cmd: string; description: string }[] = [
   { cmd: "/reports", description: "Open the reports index" },
-  { cmd: "/hints",   description: "Show this screen" },
+  { cmd: "/hints",   description: "Open the search syntax reference" },
 ];
+
+export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
+  return (
+    <main className="flex-1 overflow-y-auto">
+      <SearchHints onSearch={onHintClick} />
+    </main>
+  );
+}
 
 export function SearchHints({ onSearch, slashFilter }: { onSearch: (q: string) => void; slashFilter?: string | null }) {
   if (slashFilter !== null && slashFilter !== undefined) {

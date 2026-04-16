@@ -1,23 +1,22 @@
-import { useState, useMemo } from "react";
-import { ACTIVE_DATA_INDEX, ALL_AGENTS, type ActiveDataEntry } from "../../data/precalculated/activeDataIndex";
-import { AGENT_META } from "../../data/precalculated/ofResponsibilities";
+import { useState, useMemo, useEffect } from "react";
+import { buildActiveDataIndex, ALL_AGENTS, type ActiveDataEntry } from "../../data/precalculated/activeDataIndex";
+import { loadDocs } from "../../lib/docs";
 
-
-const PARTY_COLORS: Record<string, string> = {
-  'Core Facilitator':              'var(--red)',
-  'Core GovOps':                   'var(--accent)',
-  'Operational GovOps':            '#7a9e7e',
-  'Operational GovOps Soter Labs': '#7a9e7e',
-  'Redline Facilitation Group':    '#c4a35a',  // Ozone OF
-  'Endgame Edge':                  '#b8860b',  // Amatsu OF
-  'Support Facilitators':          'var(--tan-3)',
-  'Viridian Advisors':             'var(--tan-3)',
+const ENTITY_COLORS: Record<string, string> = {
+  'Core Facilitator':           'var(--red)',
+  'Core GovOps':                'var(--accent)',
+  'Soter Labs':                 '#7a9e7e',
+  'Redline Facilitation Group': '#c4a35a',
+  'Endgame Edge':               '#b8860b',
+  'Support Facilitators':       'var(--tan-3)',
+  'Viridian Advisors':          'var(--tan-3)',
+  'Core Council Risk Advisor':  'var(--tan-3)',
 };
 
 function exportCSV(rows: ActiveDataEntry[]) {
-  const header = 'Doc No,Title,Responsible Party,Process,Agent\n';
+  const header = 'Doc No,Title,Context,Entity,Role,Process,Agent\n';
   const body = rows.map(r =>
-    `"${r.controllerDocNo}","${r.title}","${r.responsibleParty}","${r.process}","${r.agent ?? 'Sky Core'}"`
+    `"${r.controllerDocNo}","${r.title}","${r.context ?? ''}","${r.entityName}","${r.entityRole}","${r.process}","${r.agent ?? 'Governance'}"`
   ).join('\n');
   const blob = new Blob([header + body], { type: 'text/csv' });
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'active-data-index.csv' });
@@ -25,16 +24,21 @@ function exportCSV(rows: ActiveDataEntry[]) {
 }
 
 export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [index, setIndex] = useState<ActiveDataEntry[]>([]);
   const [agentFilter, setAgentFilter] = useState<string | null>(null);
-  const [partyFilter, setPartyFilter] = useState<string | null>(null);
+  const [entityFilter, setEntityFilter] = useState<string | null>(null);
 
-  const rows = useMemo(() => ACTIVE_DATA_INDEX.filter(r => {
-    if (agentFilter === 'Sky Core') return r.agent === null;
+  useEffect(() => {
+    loadDocs().then(docs => setIndex(buildActiveDataIndex(docs)));
+  }, []);
+
+  const rows = useMemo(() => index.filter(r => {
+    if (agentFilter === 'Governance') return r.agent === null;
     if (agentFilter) return r.agent === agentFilter;
     return true;
-  }).filter(r => !partyFilter || r.responsibleParty === partyFilter), [agentFilter, partyFilter]);
+  }).filter(r => !entityFilter || r.entityName === entityFilter), [index, agentFilter, entityFilter]);
 
-  const parties = useMemo(() => [...new Set(ACTIVE_DATA_INDEX.map(r => r.responsibleParty))], []);
+  const entities = useMemo(() => [...new Set(index.map(r => r.entityName))], [index]);
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -42,14 +46,14 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
         <p className="mono text-xs text-tan-3 mb-1">report</p>
         <h1 className="text-xl font-semibold mb-1" style={{ color: 'var(--tan)' }}>Active Data Index</h1>
         <p className="text-sm text-tan-3 mb-5">
-          All Active Data sections, their Responsible Parties, and edit processes.{' '}
+          All Active Data sections, their responsible entities, and edit processes.{' '}
           <a href={`/atlas?id=75e8fd51-a540-4c3a-aaa9-1a38502f89b2`} className="text-accent hover:underline">A.1.12 Updating Active Data ↗</a>
         </p>
 
-        <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="flex flex-wrap items-center gap-4 mb-3">
           <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-xs text-tan-3 mr-1">Agent:</span>
-            {['Sky Core', ...ALL_AGENTS].map(a => (
+            <span className="text-xs text-tan-3 mr-1">Scope:</span>
+            {['Governance', ...ALL_AGENTS].map(a => (
               <button key={a} onClick={() => setAgentFilter(agentFilter === a ? null : a)}
                 data-active={agentFilter === a ? 'true' : undefined}
                 className="scope-pill mono text-xs px-2 py-0.5 rounded">{a}</button>
@@ -59,10 +63,10 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
 
         <div className="flex flex-wrap gap-1.5 items-center mb-6">
           <span className="text-xs text-tan-3 mr-1">Editor:</span>
-          {parties.map(p => (
-            <button key={p} onClick={() => setPartyFilter(partyFilter === p ? null : p)}
-              data-active={partyFilter === p ? 'true' : undefined}
-              className="scope-pill mono text-xs px-2 py-0.5 rounded">{p}</button>
+          {entities.map(e => (
+            <button key={e} onClick={() => setEntityFilter(entityFilter === e ? null : e)}
+              data-active={entityFilter === e ? 'true' : undefined}
+              className="scope-pill mono text-xs px-2 py-0.5 rounded">{e}</button>
           ))}
         </div>
 
@@ -79,9 +83,9 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
             <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
               <th className="py-2 px-3 font-normal w-44">Doc</th>
               <th className="py-2 px-3 font-normal">Section</th>
-              <th className="py-2 px-3 font-normal w-48">Responsible Party</th>
+              <th className="py-2 px-3 font-normal w-52">Responsible Party</th>
               <th className="py-2 px-3 font-normal w-40">Process</th>
-              <th className="py-2 px-3 font-normal w-28">Agent</th>
+              <th className="py-2 px-3 font-normal w-28">Scope</th>
             </tr>
           </thead>
           <tbody>
@@ -96,29 +100,23 @@ export function ActiveDataReport({ onNavigate }: { onNavigate: (id: string) => v
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
                   {r.title}
-                  {r.note && <span className="ml-2 mono text-xs text-tan-3">({r.note})</span>}
+                  {r.context && <span className="ml-1.5 text-xs text-tan-3">— {r.context}</span>}
                 </td>
                 <td className="py-2 px-3 align-top">
-                  <span className="text-xs" style={{ color: PARTY_COLORS[r.responsibleParty] ?? 'var(--tan-3)' }}>
-                    {r.responsibleParty}
-                  </span>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs" style={{ color: ENTITY_COLORS[r.entityName] ?? 'var(--tan-3)' }}>
+                      {r.entityName}
+                    </span>
+                    {r.entityRole !== r.entityName && (
+                      <span className="mono text-[10px] text-tan-3 opacity-70">{r.entityRole}</span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-2 px-3 align-top">
                   <span className="mono text-xs text-tan-3">{r.process}</span>
                 </td>
                 <td className="py-2 px-3 align-top">
-                  {r.agent
-                    ? (() => {
-                        const meta = AGENT_META[r.agent];
-                        return (
-                          <div className="flex flex-col gap-0.5">
-                            <span className="mono text-xs px-1.5 py-0.5 rounded bg-[var(--surface)] text-tan-3 border border-[var(--border)]">{r.agent}</span>
-                            {meta && <span className="mono text-[10px] text-tan-3 opacity-60">via {meta.executorAgent}</span>}
-                          </div>
-                        );
-                      })()
-                    : <span className="mono text-xs text-tan-3">Sky Core</span>
-                  }
+                  <span className="mono text-xs text-tan-3">{r.agent ?? 'Governance'}</span>
                 </td>
               </tr>
             ))}

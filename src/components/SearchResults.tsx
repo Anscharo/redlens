@@ -46,8 +46,8 @@ export const SearchResults = memo(function SearchResults({ state, query, onNavig
             </button>
           </div>
         )}
-        {(state.status === "idle" || state.status === "loading") && (
-          <SearchHints onSearch={onHintClick} slashFilter={query.startsWith('/') ? query : null} />
+        {(state.status === "idle" || state.status === "loading") && query.startsWith('/') && (
+          <SearchHints onSearch={onHintClick} slashFilter={query} />
         )}
         {state.status === "error" && (
           <div className="flex items-center justify-center py-24 text-sm text-red">{state.message}</div>
