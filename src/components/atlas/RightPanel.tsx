@@ -99,7 +99,7 @@ export function RightPanel({
                 <div className="space-y-2">
                   {graphRels.map((e, i) => {
                     const isOut = outRels.includes(e);
-                    const otherId   = isOut ? e.t  : e.f;
+                    const otherId   = (isOut ? e.t  : e.f) ?? "";
                     const otherType = isOut ? e.tt : e.ft;
                     const otherLabel = isOut
                       ? (e.to_label   ?? otherId.slice(0, 8))
