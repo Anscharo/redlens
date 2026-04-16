@@ -149,11 +149,7 @@ function search(q: string): SearchHit[] {
   // Extract type:"quoted multi-word value" before lunr — lunr has no quoted field syntax.
   // Stored as a post-filter; the entire token is removed from the lunr query.
   const TYPE_QUOTED_RE = /\btype:"([^"]+)"/gi;
-  let typeFilter: string | null = null;
-  const qForPhrases = qWithoutIn.replace(TYPE_QUOTED_RE, (_, value) => {
-    typeFilter = value.trim().toLowerCase();
-    return ' ';
-  }).trim();
+  const qForPhrases = qWithoutIn.replace(TYPE_QUOTED_RE, () => ' ').trim();
 
   const { phrases, rest } = extractPhrases(qForPhrases);
 

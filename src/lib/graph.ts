@@ -1,4 +1,22 @@
-import type { ResolvedEdge, RelationEntity, GraphWorkerOutMessage } from "../types";
+import type { ResolvedEdge, RelationEntity, RelationEdge, GraphWorkerOutMessage, SerializedSubgraph } from "../types";
+
+export interface GraphData {
+  entities: RelationEntity[];
+  edges: RelationEdge[];
+}
+
+// Module-level cache for the raw graph data (used by reports)
+let graphCache: Promise<GraphData> | null = null;
+
+/** Load the full relations.json once and cache it. Used by reports that need bulk data. */
+export function loadGraph(): Promise<GraphData> {
+  if (!graphCache) {
+    graphCache = fetch(`${import.meta.env.BASE_URL}relations.json`)
+      .then(r => r.json() as Promise<{ entities: RelationEntity[]; edges: RelationEdge[] }>)
+      .then(data => ({ entities: data.entities, edges: data.edges }));
+  }
+  return graphCache;
+}
 
 export interface EdgeResult {
   outbound: ResolvedEdge[];
@@ -19,8 +37,9 @@ let ready = false;
 const readyCallbacks: Array<() => void> = [];
 
 // Pending query callbacks keyed by request id
-const edgePending  = new Map<string, (r: EdgeResult) => void>();
-const entityPending = new Map<string, (r: EntityResult) => void>();
+const edgePending     = new Map<string, (r: EdgeResult) => void>();
+const entityPending   = new Map<string, (r: EntityResult) => void>();
+const subgraphPending = new Map<string, (r: SerializedSubgraph) => void>();
 
 function getWorker(): Worker {
   if (worker) return worker;
@@ -49,6 +68,13 @@ function getWorker(): Worker {
     if (msg.type === "entity") {
       const cb = entityPending.get(msg.slug);
       if (cb) { entityPending.delete(msg.slug); cb({ entity: msg.entity, edges: msg.edges }); }
+      return;
+    }
+
+    if (msg.type === "neighbors" || msg.type === "subgraph") {
+      const key = msg.type === "neighbors" ? msg.id : msg.rootId;
+      const cb = subgraphPending.get(key);
+      if (cb) { subgraphPending.delete(key); cb({ nodes: msg.nodes, edges: msg.edges }); }
       return;
     }
   });
@@ -82,6 +108,26 @@ export async function getEntity(slug: string): Promise<EntityResult> {
   return new Promise(resolve => {
     entityPending.set(slug, resolve);
     w.postMessage({ type: "entity", slug });
+  });
+}
+
+/** BFS neighbors up to `depth` hops (default 1). Returns serialized subgraph. */
+export async function getNeighbors(id: string, depth = 1): Promise<SerializedSubgraph> {
+  const w = getWorker();
+  await whenReady();
+  return new Promise(resolve => {
+    subgraphPending.set(id, resolve);
+    w.postMessage({ type: "neighbors", id, depth });
+  });
+}
+
+/** BFS subgraph rooted at `rootId` to `depth` hops — for visualization. */
+export async function getSubgraph(rootId: string, depth: number): Promise<SerializedSubgraph> {
+  const w = getWorker();
+  await whenReady();
+  return new Promise(resolve => {
+    subgraphPending.set(rootId, resolve);
+    w.postMessage({ type: "subgraph", rootId, depth });
   });
 }
 

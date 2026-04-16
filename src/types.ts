@@ -174,14 +174,24 @@ export interface ResolvedEdge extends RelationEdge {
   to_label?: string;   // entity name when to_type   === 'entity'
 }
 
+// Serialized subgraph — passed over postMessage to the main thread (and eventually sigma.js)
+export interface SerializedSubgraph {
+  nodes: Array<{ id: string; attrs: Record<string, unknown> }>;
+  edges: Array<{ key: string; src: string; tgt: string; attrs: Record<string, unknown> }>;
+}
+
 // Worker message types — graph
 export type GraphWorkerInMessage =
   | { type: "ping" }
-  | { type: "edges"; id: string }                 // get all edges for a doc or entity id
-  | { type: "entity"; slug: string };             // get entity + its edges by slug
+  | { type: "edges"; id: string }
+  | { type: "entity"; slug: string }
+  | { type: "neighbors"; id: string; depth?: number }   // BFS depth 1 by default
+  | { type: "subgraph"; rootId: string; depth: number }; // BFS subgraph for viz
 
 export type GraphWorkerOutMessage =
   | { type: "ready" }
   | { type: "edges"; id: string; inbound: ResolvedEdge[]; outbound: ResolvedEdge[] }
   | { type: "entity"; slug: string; entity: RelationEntity | null; edges: ResolvedEdge[] }
+  | { type: "neighbors"; id: string } & SerializedSubgraph
+  | { type: "subgraph"; rootId: string } & SerializedSubgraph
   | { type: "error"; message: string };
