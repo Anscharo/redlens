@@ -65,22 +65,22 @@
 
   /* ─── Depth palette ─── */
   /* 5-color jewel-tone cycle (red, orange, green, blue, purple) starting at depth-1, looping through depth-17. */
-  --depth-1: #9a0000;  /* red */
+  --depth-1: #b40000;  /* red */
   --depth-2: #a36600;  /* orange */
-  --depth-3: #1c701e;  /* green */
-  --depth-4: #2b51c5;  /* blue */
-  --depth-5: #5200a3;  /* purple */
-  --depth-6: #9a0000;  /* red */
+  --depth-3: #269929;  /* green */
+  --depth-4: #4b6cd9;  /* blue */
+  --depth-5: #7800f0;  /* purple */
+  --depth-6: #b40000;  /* red */
   --depth-7: #a36600;  /* orange */
-  --depth-8: #1c701e;  /* green */
-  --depth-9: #2b51c5;  /* blue */
-  --depth-10: #5200a3; /* purple */
-  --depth-11: #9a0000; /* red */
+  --depth-8: #269929;  /* green */
+  --depth-9: #4b6cd9;  /* blue */
+  --depth-10: #7800f0; /* purple */
+  --depth-11: #b40000; /* red */
   --depth-12: #a36600; /* orange */
-  --depth-13: #1c701e; /* green */
-  --depth-14: #2b51c5; /* blue */
-  --depth-15: #5200a3; /* purple */
-  --depth-16: #9a0000; /* red */
+  --depth-13: #269929; /* green */
+  --depth-14: #4b6cd9; /* blue */
+  --depth-15: #7800f0; /* purple */
+  --depth-16: #b40000; /* red */
   --depth-17: #a36600; /* orange */
 }
 
@@ -514,6 +514,7 @@ mark {
   height: 16px;
   line-height: 1;
   flex-shrink: 0;
+  color: var(--c, var(--gray));
   border-bottom: 3px solid var(--c, var(--gray));
 }
 

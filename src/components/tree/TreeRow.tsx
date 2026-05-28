@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { type RowComponentProps } from "react-window";
-import { segmentDepths } from "../../lib/depth";
+import { segmentDepths, chicletColor } from "../../lib/depth";
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
@@ -78,7 +78,7 @@ export function TreeRow({
     return { parts, depths, width };
   }, [docNo, treeDepth]);
 
-  const availableWidth = sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6;
+  const availableWidth = sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5;
 
   const displayTitle = useMemo(
     () => (title ? truncateTitle(title, Math.max(availableWidth, 20)) : ""),
@@ -90,6 +90,7 @@ export function TreeRow({
   const isSelected = index === selectedIndex;
   const isFocused = index === focusedIndex;
   const isExpanded = expandedIds.has(node!.id);
+  const titleColor = chicletColor(docNoSegments.depths[docNoSegments.depths.length - 1] ?? 0);
   const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
   const selectedBar = `color-mix(in srgb, ${depthVar} 80%, var(--row-bar-tint))`;
   const boxShadow = isSelected
@@ -110,17 +111,19 @@ export function TreeRow({
         } else onNavigate(node.id);
       }}
     >
-      
       <span
         className="tree-toggle"
-        style={{ ...TOGGLE_BASE, color: hasChildren ? "var(--tan-3)" : "transparent" }}
+        style={{
+          ...TOGGLE_BASE,
+          color: hasChildren ? (isExpanded ? titleColor : "var(--tan-3)") : "transparent",
+        }}
         onClick={hasChildren ? (e) => onToggle(node.id, e) : undefined}
       >
         {hasChildren ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
       </span>
       <DocNoChiclets parts={docNoSegments.parts} depths={docNoSegments.depths} />
       <span
-        style={{ ...TITLE_BASE, color: "var(--tan)" }}
+        style={{ ...TITLE_BASE, color: titleColor }}
         title={node.doc_no + " \u2014 " + node.title}
       >
         {displayTitle}
