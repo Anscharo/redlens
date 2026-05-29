@@ -86,3 +86,74 @@ jobs:
       - name: Run worker tests
         run: pnpm test --run --passWithNoTests
         working-directory: redlens-mcp
+
+  server:
+    name: "CI: Railway server (Postgres + MCP smoke)"
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: redlens
+          POSTGRES_PASSWORD: redlens
+          POSTGRES_DB: redlens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U redlens -d redlens"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://redlens:redlens@localhost:5432/redlens
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          # Full history so sync:atlas can derive commit_seq from atlas git-log
+          # order; sync degrades gracefully (commit_seq=null) if it's shallow.
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Regenerate the gitignored artifacts the server reads (docs.json, graph.json).
+      # addresses.atlas / chain-state / manifest / history are committed.
+      - name: Build atlas artifacts
+        run: pnpm build:index && pnpm build:graph
+
+      - name: Type check server
+        run: pnpm exec tsc -p tsconfig.server.json --noEmit
+
+      - name: Unit tests (tool layer)
+        run: pnpm test:server
+
+      # End-to-end: migration runner + structural sync against a fresh Postgres.
+      # Embeddings are NOT run in CI (no OPENROUTER_API_KEY by design) — semantic
+      # search just stays empty; lexical / graph / structural paths are exercised.
+      - name: "sync:atlas (migrations + structural sync)"
+        run: bun run sync:atlas
+
+      - name: Health + MCP smoke
+        run: |
+          bun src/server/index.ts &
+          SRV=$!
+          for i in $(seq 1 30); do curl -fsS localhost:3000/health >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS localhost:3000/health | tee /dev/stderr | grep -q '"status":"ok"' \
+            || { echo "health check failed"; kill $SRV 2>/dev/null; exit 1; }
+          RESP=$(curl -fsS -H 'Accept: application/json, text/event-stream' -H 'Content-Type: application/json' \
+            -X POST localhost:3000/mcp \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}')
+          echo "$RESP" | grep -q '"atlas_query"' \
+            || { echo "tools/list missing atlas_query"; kill $SRV 2>/dev/null; exit 1; }
+          echo "smoke OK"
+          kill $SRV 2>/dev/null

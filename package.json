@@ -35,6 +35,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:server": "bun test src/server",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "check:pr": "bash scripts/aux/check-atlas-pr.sh",
