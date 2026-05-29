@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " will review the Payout Claim and if it contains all required elements and supportive documentation, will immediately transmit it to the Resilience Fund Technical Committee."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

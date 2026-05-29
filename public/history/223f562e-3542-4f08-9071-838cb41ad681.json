@@ -62,5 +62,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Immunefi Vulnerability Severity Classification System ([https://immunefi.com/severity-updated/](https://immunefi.com/severity-updated/)) is applicable to both Sky Core and SparkLend. The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Protocol"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitator"
+          ],
+          [
+            "+",
+            "Security Workstream Lead"
+          ],
+          [
+            "=",
+            " is authorized to adopt a new severity system for the Bug Bounty Programs in consultation with relevant technical stakeholders."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

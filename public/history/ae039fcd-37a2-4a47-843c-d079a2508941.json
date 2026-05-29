@@ -30,5 +30,31 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The address of the Grove"
+          ],
+          [
+            "+",
+            " LayerZero v2 governance relay"
+          ],
+          [
+            "=",
+            " receiver on Avalanche is: `0x380Be2b91B63BF75B194913b6e2C07Df09598c22`"
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

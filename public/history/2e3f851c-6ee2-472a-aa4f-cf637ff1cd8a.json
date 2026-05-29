@@ -139,5 +139,59 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "The Active Data is updated as follows:"
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- The Responsible Party is the "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- The Update Process must follow the protocol for ‘Direct Edit’."
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

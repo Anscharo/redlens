@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "Grove will transfer 500 million GROVE tokens from the Grove SubProxy to the Grove Foundation Multisig. The address of the Grove Foundation Multisig on the Ethereum Mainnet is `0xE3EC4CC359E68c9dCE15Bf667b1aD37Df54a5a42`."
+      ]
+    ]
+  }
+]

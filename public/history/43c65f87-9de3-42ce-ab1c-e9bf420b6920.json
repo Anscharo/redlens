@@ -60,5 +60,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The budget of the Resilience Fund is defined in [A.2.9.1.1.1.1.1 - Resilience Fund Current Budget](aa1e93e5-8fc0-4e12-ad9d-8bb9f6cd8956). The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator can propose to pay out the budget manually through a Weekly Governance Cycle, according to the rules related to claims described in this Section. The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator can propose modifications to the document cited above through the Weekly Governance Cycle."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

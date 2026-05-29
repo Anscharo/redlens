@@ -9,5 +9,13 @@
         "The Executive Process Liaison reviews the submitted Prime Spell Form for completeness and clarity, and discusses possible Prime Spell content and potential blockers with the Prime Agent. The Executive Process Liaison must verify the Prime Agent's complexity score calculation. The Executive Process Liaison must deliver the items, including the verified complexity score, to the Core Council Tracker by Wednesday, 16:00 UTC of week 0."
       ]
     ]
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "moved",
+    "movedFrom": "content/A/1/10/2/3/2/2/3/1/2/document.md",
+    "movedTo": "content/A/1/10/2/3/2/2/3/1/2/1/document.md"
   }
 ]

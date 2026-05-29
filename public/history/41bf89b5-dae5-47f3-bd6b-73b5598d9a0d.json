@@ -120,5 +120,34 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- Spark - 0 USDS"
+      ],
+      [
+        "+",
+        "- Grove - 0 USDS"
+      ],
+      [
+        "=",
+        "- Obex - 0 USDS"
+      ],
+      [
+        "=",
+        "- Skybase - 0 USDS"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

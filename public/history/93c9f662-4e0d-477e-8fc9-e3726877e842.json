@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The DC-IAM allows any user to adjust the Debt Ceiling of a supported vault type according to the rules defined in the DC-IAM smart contract logic and parameters set by the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            ". The DC-IAM holds three parameters that can be set by Sky Governance for each vault type, (i) Maximum Debt Ceiling (`line`), (ii) Target Available Debt (`gap`), and (iii) Ceiling Increase Cooldown (`ttl`)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

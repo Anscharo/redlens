@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Stability Parameter Bounded External Access Module Operators can be modified by the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            ", in consultation with the Core Council Risk Advisor. This process will be conducted through the Operational Weekly Governance Cycle or, if necessary, through out-of-schedule Executive Votes."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -9,5 +9,59 @@
         "After the items are delivered to the Core Council Tracker, the [A.1.8.1.1 - Core Council Risk Advisor](d80c8f64-b3f6-430d-bf62-8e50a3783e73) conducts a pre-risk review of the proposed Prime Spell content. The pre-risk review identifies any preliminary risk concerns that should inform the Strategic Team's approval of Spell scope. The pre-risk review must be completed before the Strategic Team approval specified in [A.1.10.2.3.2.2.3.1.4 - Strategic Team Approves Spell Scope](05e33459-9ee6-430c-af72-13db2004c505)."
       ]
     ]
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "-",
+            "After the items are delivered to the Core Council Tracker, the"
+          ],
+          [
+            "+",
+            "The"
+          ],
+          [
+            "=",
+            " [A.1.8.1.1 - Core Council Risk Advisor](d80c8f64-b3f6-430d-bf62-8e50a3783e73) conducts a pre-risk review of the proposed Prime Spell content. The pre-risk review identifies any preliminary risk concerns that should inform the Strategic Team's approval of Spell scope. The pre-risk review must be completed"
+          ],
+          [
+            "+",
+            " by Wednesday, 16:00 UTC of week 0,"
+          ],
+          [
+            "=",
+            " before the Strategic Team approval specified in [A.1.10.2.3.2.2.3.1."
+          ],
+          [
+            "-",
+            "4"
+          ],
+          [
+            "+",
+            "3"
+          ],
+          [
+            "=",
+            " - Strategic Team Approves Spell Scope](05e33459-9ee6-430c-af72-13db2004c505)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "moved",
+    "movedFrom": "content/A/1/10/2/3/2/2/3/1/3/document.md",
+    "movedTo": "content/A/1/10/2/3/2/2/3/1/2/2/document.md"
   }
 ]

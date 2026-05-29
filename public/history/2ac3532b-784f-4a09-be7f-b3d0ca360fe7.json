@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Deployment Checklist defines standardized steps for contract deployments, covering deployer hygiene, foundry setup, test deployments, and verification. The Deployment Checklist must be followed and completed for all contract deployments and submitted as specified in [A.1.10.2.5.2.2.1 - Deployment Checklist Submission Requirements](25477ece-2fbc-4341-92e5-f596e151534d)."
+      ]
+    ]
+  }
+]

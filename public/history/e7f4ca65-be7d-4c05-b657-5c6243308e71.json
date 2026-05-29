@@ -53,5 +53,91 @@
       ]
     ],
     "changeKind": "typo"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The element \"Included In An Executive Vote\" refers to the "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            "’"
+          ],
+          [
+            "+",
+            "s"
+          ],
+          [
+            "=",
+            " act of adding a Resilience Research and Preparedness grant payment to an Executive Vote. The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "are"
+          ],
+          [
+            "+",
+            "is"
+          ],
+          [
+            "=",
+            " also responsible for providing provenance for such requests by confirming payment requests on the Executive Sheet. See [A.1.11.1.3.0.3.1 - Executive Sheet - Element Annotation](52aef6ac-9eda-4795-9dab-73ea85b8ca31)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

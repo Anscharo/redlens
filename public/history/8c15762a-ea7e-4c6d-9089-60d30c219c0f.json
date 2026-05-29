@@ -113,5 +113,171 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Until"
+          ],
+          [
+            "-",
+            " the tokens of"
+          ],
+          [
+            "=",
+            " a Prime Agent"
+          ],
+          [
+            "-",
+            " are Publicly Held, as defined"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "in"
+          ],
+          [
+            "+",
+            "has"
+          ],
+          [
+            "=",
+            " [A"
+          ],
+          [
+            "-",
+            ".2.2.5.2"
+          ],
+          [
+            "=",
+            "."
+          ],
+          [
+            "-",
+            "3"
+          ],
+          [
+            "+",
+            "0"
+          ],
+          [
+            "=",
+            ".1.1"
+          ],
+          [
+            "+",
+            ".54"
+          ],
+          [
+            "=",
+            " -"
+          ],
+          [
+            "-",
+            " Publicly"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Held"
+          ],
+          [
+            "+",
+            "Independent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Definition"
+          ],
+          [
+            "+",
+            "Governance"
+          ],
+          [
+            "=",
+            "]("
+          ],
+          [
+            "-",
+            "d6265f88"
+          ],
+          [
+            "+",
+            "6e1c1d71"
+          ],
+          [
+            "=",
+            "-"
+          ],
+          [
+            "-",
+            "d2d0"
+          ],
+          [
+            "+",
+            "7f57"
+          ],
+          [
+            "=",
+            "-"
+          ],
+          [
+            "-",
+            "457b"
+          ],
+          [
+            "+",
+            "4842"
+          ],
+          [
+            "=",
+            "-"
+          ],
+          [
+            "-",
+            "8958"
+          ],
+          [
+            "+",
+            "9767"
+          ],
+          [
+            "=",
+            "-"
+          ],
+          [
+            "-",
+            "a3c22f9a5718"
+          ],
+          [
+            "+",
+            "7de8f27a532a"
+          ],
+          [
+            "=",
+            "), the Root Edit Primitive will not be operational. Instead, if a Prime Agent wishes to edit its Agent Artifact, it must use the customary Atlas Edit Proposal processes specified in the Sky Core Atlas at [A.1.11.2 - Atlas Edit Weekly Cycle](14e99d92-71fc-44d9-9dbf-933bce2e1b32) or [A.1.12.2 - Atlas Edit Monthly Cycle](d2cbddd2-58ef-4311-a71d-d2c340364cb5). The process for Prime Agents to use the Atlas Edit Proposal process is further specified in [A.2.2.5.2.3.2 - Atlas Edit Proposal Process For Prime Agents](364e52eb-4529-46a9-9852-edaaab88baeb)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

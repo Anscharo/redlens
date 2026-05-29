@@ -9,5 +9,35 @@
         "The Synome Editor role is held by Archon Labs."
       ]
     ]
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Synome Editor role is held by Archon "
+          ],
+          [
+            "-",
+            "Labs"
+          ],
+          [
+            "+",
+            "Tech"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

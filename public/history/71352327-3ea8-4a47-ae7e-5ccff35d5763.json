@@ -98,5 +98,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator selects the members of the Resilience Technical Committee and manages payments for their services on a project basis. The associated budget is defined in [A.2.9.1.1.1.1.1 - Resilience Fund Current Budget](aa1e93e5-8fc0-4e12-ad9d-8bb9f6cd8956)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

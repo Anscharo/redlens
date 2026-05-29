@@ -24,5 +24,17 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "removed",
+    "diff": [
+      [
+        "-",
+        "For each of Spark and Grove, a minimum of 10% of the total token supply must be in circulation (float) within a year, and maintain that float afterward. If the float goes below the 10% threshold, the Prime Agent might have 1 natural year to get the float back to 10% or above. If the float falls below 10%, Sky will mint additional Prime Agent tokens until the 10% threshold is reached. Newly minted tokens would be farmed and the revenue from farming would be returned to the Prime Agent, net of a penalty for needing to trigger the minimum float."
+      ]
+    ]
   }
 ]

@@ -30,5 +30,39 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "This Instance's associated Instance Configuration Document is located at ["
+          ],
+          [
+            "+",
+            "A.6.1.1.1.2.6.1.3.1.12.4 - "
+          ],
+          [
+            "=",
+            "Ethereum Mainnet - Transfer USDG to Paxos (receive PYUSD) Instance Configuration Document"
+          ],
+          [
+            "-",
+            " - A.6.1.1.1.2.6.1.3.1.12.4"
+          ],
+          [
+            "=",
+            "](bef47e5b-5568-4df4-9294-2eb108a006c6)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

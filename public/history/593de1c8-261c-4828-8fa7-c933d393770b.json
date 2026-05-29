@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "Module Onboarding Checklists define use-case specific steps that must be followed when a Core Spell includes the onboarding of a new module. Module Onboarding Checklists are created after the first onboarding of a given module type, based on the learnings from that onboarding. The absence of a Module Onboarding Checklist does not block the onboarding of a new module type."
+      ]
+    ]
+  }
+]

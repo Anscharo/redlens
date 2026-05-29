@@ -9,5 +9,43 @@
         "Following the Strategic Team's approval as specified in [A.1.10.2.3.2.2.3.1.4 - Strategic Team Approves Spell Scope](05e33459-9ee6-430c-af72-13db2004c505), the Executive Process Liaison should communicate the approved scope to the Prime Agent and the Core Council Risk Advisor."
       ]
     ]
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Following the Strategic Team's approval as specified in [A.1.10.2.3.2.2.3.1."
+          ],
+          [
+            "-",
+            "4"
+          ],
+          [
+            "+",
+            "3"
+          ],
+          [
+            "=",
+            " - Strategic Team Approves Spell Scope](05e33459-9ee6-430c-af72-13db2004c505), the Executive Process Liaison should communicate the approved scope to the Prime Agent and the Core Council Risk Advisor."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "moved",
+    "movedFrom": "content/A/1/10/2/3/2/2/3/1/5/document.md",
+    "movedTo": "content/A/1/10/2/3/2/2/3/1/4/document.md"
   }
 ]

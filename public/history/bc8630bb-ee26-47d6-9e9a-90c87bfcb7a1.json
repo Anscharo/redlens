@@ -24,5 +24,55 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "For SparkLend, the Assets In Scope for the Bug Bounty Program is specified on SparkLend’s listing on the Immunefi platform, which can be found at ([https://immunefi.com/bounty/sparklend/](https://immunefi.com/bounty/sparklend/)). For SparkLend, the Assets In Scope only include smart contracts."
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Protocol"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitator"
+          ],
+          [
+            "+",
+            "Security Workstream Lead"
+          ],
+          [
+            "=",
+            " is responsible for maintaining these lists of Assets In Scope, in consultation with the relevant stakeholders."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

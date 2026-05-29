@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein define Operational Reference Materials used in connection with infrastructure changes and contract deployments. Operational Reference Materials are maintained in the Ecosystem Operational References repository (https://github.com/Atlas-Axis/ecosystem-operational-references). Users must verify their local copy is aligned with the latest version in the Ecosystem Operational References repository before each use of the reference materials."
+      ]
+    ]
+  }
+]

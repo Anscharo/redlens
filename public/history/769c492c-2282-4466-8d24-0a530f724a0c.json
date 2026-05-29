@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "When they deem it necessary, the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " may initiate a Governance Poll to onboard or offboard Arrangers. The list of current active Arrangers is maintained in [A.3.4.3.2.1 - List Of Active Arrangers](b8791aaa-84b7-4012-8a4f-053595ec232a)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]
