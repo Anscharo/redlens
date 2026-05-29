@@ -26,6 +26,11 @@
     "build:railway": "bun scripts/required/build-index.mjs && bun scripts/required/build-graph.mjs && bun scripts/required/build-manifest.mjs && bun run build:ts && bun run build:vite",
     "build": "pnpm build:index && pnpm build:glossary && pnpm build:addresses && pnpm build:snapshot && pnpm build:graph && pnpm build:manifest && pnpm run build:ts && vite build",
     "build:server": "pnpm build:index && pnpm build:graph && pnpm build:rag",
+    "start": "bun src/server/index.ts",
+    "sync:atlas": "bun src/server/sync.ts",
+    "sync:embeddings": "bun src/server/sync-embeddings.ts",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
     "lint": "oxlint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -39,6 +44,7 @@
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@xyflow/react": "^12.10.2",
     "graphology": "^0.26.0",
     "graphology-layout-forceatlas2": "^0.10.1",
@@ -55,7 +61,8 @@
     "remark-math": "^6.0.0",
     "unist-util-visit": "^5.1.0",
     "workbox-window": "^7.4.1",
-    "wouter": "^3.9.0"
+    "wouter": "^3.9.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",
@@ -82,6 +89,9 @@
   },
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
-    "onlyBuiltDependencies": ["onnxruntime-node", "protobufjs"]
+    "onlyBuiltDependencies": [
+      "onnxruntime-node",
+      "protobufjs"
+    ]
   }
 }

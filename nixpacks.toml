@@ -1,15 +1,23 @@
 [phases.setup]
-nixPkgs = ["bun"]
+nixPkgs = ["bun", "git"]
 
 [phases.install]
 cmds = ["bun install"]
 
-# Regenerate only the gitignored artifacts (docs.json, search-index.json,
-# graph.json) then rebuild the Vite bundle. Skips build:addresses /
-# build:snapshot / build:history — their outputs are committed and require
-# API keys that belong in Railway env, not the build phase.
+# build:railway runs build-index/build-graph, which parse
+# vendor/next-gen-atlas/content/** — so the submodule MUST be populated. Railway's
+# checkout doesn't init submodules, so do it here (idempotent if already present).
+# Then regenerate the gitignored artifacts (docs.json, graph.json) and the Vite
+# bundle. Skips build:addresses/snapshot/history — those outputs are committed and
+# need API keys that belong in Railway env, not the build phase.
 [phases.build]
-cmds = ["bun run build:railway"]
+cmds = [
+  "git submodule update --init --recursive",
+  "bun run build:railway",
+]
 
+# Ordering invariant: PG must be current (sync:atlas) before the in-memory
+# indexes load + serve. sync is sha-gated, so steady-state boots skip it fast.
+# Embeddings are a separate lane (pnpm sync:embeddings), not run at boot.
 [start]
-cmd = "bun src/server.ts"
+cmd = "bun run sync:atlas && bun run start"
