@@ -1,0 +1,15 @@
+[phases.setup]
+nixPkgs = ["bun"]
+
+[phases.install]
+cmds = ["bun install"]
+
+# Regenerate only the gitignored artifacts (docs.json, search-index.json,
+# graph.json) then rebuild the Vite bundle. Skips build:addresses /
+# build:snapshot / build:history — their outputs are committed and require
+# API keys that belong in Railway env, not the build phase.
+[phases.build]
+cmds = ["bun run build:railway"]
+
+[start]
+cmd = "bun src/server.ts"

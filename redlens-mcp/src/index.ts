@@ -198,6 +198,118 @@ async function getAncestorChains(db: D1Database, seedUuids: string[]): Promise<M
   return out;
 }
 
+// ── Query helpers (used by /api/query) ───────────────────────────────────────
+
+// "30d" → ISO date 30 days ago; ISO strings pass through.
+function resolveSince(s: string): string {
+  const rel = s.match(/^(\d+)d$/);
+  if (rel) {
+    const d = new Date(Date.now() - parseInt(rel[1]) * 86_400_000);
+    return d.toISOString().slice(0, 10);
+  }
+  return s;
+}
+
+// Set of doc IDs that have a history entry matching the given constraints.
+// recent_commits=N → docs changed within the last N commits of HEAD (commit_seq based).
+// since/until → date-based filter. Both can be combined (AND semantics).
+// Returns null when no constraints are specified (= no filter).
+async function getHistorySet(
+  db: D1Database,
+  since: string | undefined,
+  until: string | undefined,
+  changeType: string | undefined,
+  recentCommits: number | undefined,
+): Promise<Set<string> | null> {
+  if (!since && !until && !changeType && !recentCommits) return null;
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (recentCommits) {
+    where.push("commit_seq >= (SELECT MAX(commit_seq) FROM node_history) - ?");
+    params.push(recentCommits);
+  }
+  if (since) { where.push("date >= ?"); params.push(since); }
+  if (until) { where.push("date <= ?"); params.push(until); }
+  if (changeType) { where.push("change_type = ?"); params.push(changeType); }
+  const { results } = await db
+    .prepare(`SELECT DISTINCT doc_id FROM node_history WHERE ${where.join(" AND ")}`)
+    .bind(...params)
+    .all<{ doc_id: string }>();
+  return new Set(results.map((r) => r.doc_id));
+}
+
+// Set of all descendant doc IDs under a given ancestor node.
+async function getAncestorSet(db: D1Database, ancestorId: string): Promise<Set<string> | null> {
+  const node = await db
+    .prepare(`SELECT id FROM docs WHERE ${isUuid(ancestorId) ? "id" : "doc_no"} = ? LIMIT 1`)
+    .bind(ancestorId)
+    .first<{ id: string }>();
+  if (!node) return null;
+  const { results } = await db
+    .prepare(`
+      WITH RECURSIVE tree(id) AS (
+        SELECT ? UNION ALL SELECT d.id FROM docs d JOIN tree t ON d.parent_id = t.id
+      )
+      SELECT id FROM tree
+    `)
+    .bind(node.id)
+    .all<{ id: string }>();
+  return new Set(results.map((r) => r.id));
+}
+
+// Set of doc IDs that match a status string (checked via FTS on content).
+async function getStatusSet(db: D1Database, status: string): Promise<Set<string> | null> {
+  if (!status) return null;
+  try {
+    const { results } = await db
+      .prepare(`
+        SELECT n.id FROM docs_fts
+        JOIN docs n ON docs_fts.rowid = n.rowid
+        WHERE docs_fts MATCH ?
+        LIMIT 500
+      `)
+      .bind(status)
+      .all<{ id: string }>();
+    return new Set(results.map((r) => r.id));
+  } catch {
+    return null;
+  }
+}
+
+type CoreParam = { id: string; doc_no: string; name: string; type: string; value: string };
+
+// For a set of doc IDs, fetch their immediate child docs as "params".
+async function fetchDocParams(db: D1Database, docIds: string[]): Promise<Map<string, CoreParam[]>> {
+  if (docIds.length === 0) return new Map();
+  const ph = docIds.map(() => "?").join(",");
+  const { results } = await db
+    .prepare(`
+      SELECT id, doc_no, title AS name, type, content AS value, parent_id
+      FROM docs WHERE parent_id IN (${ph}) ORDER BY parent_id, ord
+    `)
+    .bind(...docIds)
+    .all<CoreParam & { parent_id: string }>();
+  const map = new Map<string, CoreParam[]>();
+  for (const { parent_id, ...param } of results) {
+    if (!map.has(parent_id)) map.set(parent_id, []);
+    map.get(parent_id)!.push(param);
+  }
+  return map;
+}
+
+// Intersect a list of IDs against constraint sets.
+// A null set means "no constraint" (pass through). An empty set means "no matches".
+function applyConstraints(
+  ids: string[],
+  ...sets: Array<Set<string> | null>
+): string[] {
+  let result = ids;
+  for (const s of sets) {
+    if (s !== null) result = result.filter((id) => s.has(id));
+  }
+  return result;
+}
+
 // Where the deployed RedLens app serves the per-node history JSON.
 // v0: hardcoded GitHub Pages URL. Swap to an env var when we have a stable need.
 const HISTORY_BASE_URL = "https://anscharo.github.io/redlens/history";
@@ -214,11 +326,14 @@ function createMcpServer(env: Env): McpServer {
   // ---- atlas_describe ----
   server.tool(
     "atlas_describe",
-    "Self-describing schema. Returns live doc-type taxonomy with counts, edge-type vocabulary with counts, entity types and slugs, Type Specifications, and atlas/vectors commit pins. Call once at session start to discover what's available without relying on hardcoded lists that drift as the atlas evolves.",
+    "Self-describing schema. Returns live doc-type taxonomy with counts, edge-type vocabulary with counts, " +
+    "entity types and slugs, entity_type_graph (how entity types connect via graph edges — use this to " +
+    "understand traversal chains like facilitator → executor → prime), Type Specifications, and atlas/vectors " +
+    "commit pins. Call when you need the live schema, entity traversal chains, exact counts, or the atlas commit pin.",
     {},
     async () => {
       const meta = await getMeta(db);
-      const [docTypes, edgeTypes, entityTypes, entitySlugs, typeSpecs, docCount] = await Promise.all([
+      const [docTypes, edgeTypes, entityTypes, entitySlugs, typeSpecs, docCount, entityTypeGraph] = await Promise.all([
         db.prepare(`SELECT type, COUNT(*) AS count FROM docs GROUP BY type ORDER BY count DESC`)
           .all<{ type: string; count: number }>(),
         db.prepare(`SELECT edge_type, COUNT(*) AS count FROM edges GROUP BY edge_type ORDER BY count DESC`)
@@ -232,6 +347,19 @@ function createMcpServer(env: Env): McpServer {
                     ORDER BY doc_no LIMIT 200`)
           .all<{ id: string; doc_no: string; title: string }>(),
         db.prepare(`SELECT COUNT(*) AS count FROM docs`).first<{ count: number }>(),
+        // Entity→entity edge relationships: shows which entity types connect to which,
+        // and via what edge type. Deterministically derived from the graph — use this
+        // to understand traversal chains (e.g. facilitator → executor → prime).
+        db.prepare(`
+          SELECT e1.entity_type AS from_type, ed.edge_type, e2.entity_type AS to_type,
+                 COUNT(*) AS count
+          FROM entities e1
+          JOIN edges ed ON ed.from_id = e1.id AND ed.from_type = 'entity' AND ed.to_type = 'entity'
+          JOIN entities e2 ON e2.id = ed.to_id
+          WHERE e1.is_active = 1 AND e2.is_active = 1
+          GROUP BY e1.entity_type, ed.edge_type, e2.entity_type
+          ORDER BY count DESC
+        `).all<{ from_type: string; edge_type: string; to_type: string; count: number }>(),
       ]);
       return ok(meta, {
         doc_count: docCount?.count ?? 0,
@@ -239,6 +367,7 @@ function createMcpServer(env: Env): McpServer {
         edge_types: edgeTypes.results,
         entity_types: entityTypes.results,
         entity_slugs: entitySlugs.results.map((r) => r.slug),
+        entity_type_graph: entityTypeGraph.results,
         type_specifications: typeSpecs.results,
       });
     },
@@ -673,6 +802,192 @@ function createMcpServer(env: Env): McpServer {
         })),
       }));
       return ok(meta, { count: instances.length, instances });
+    },
+  );
+
+  // ---- atlas_query — unified multi-dimensional query ----
+  server.tool(
+    "atlas_query",
+    "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (q), " +
+    "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +
+    "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
+    "ancestor scope (ancestor_id), and inline instance params (include_params). " +
+    "All active dimensions are intersected server-side. " +
+    "Use instead of chaining atlas_search + atlas_filter + atlas_entity + atlas_history when the question " +
+    "spans multiple dimensions (e.g. 'Active Primitive Instances for primes connected to X updated in last 30 days').",
+    {
+      q:               z.string().optional().describe("Keyword/semantic search terms (hybrid FTS5+vector by default)."),
+      entity:          z.string().optional().describe("Entity slug. With no other graph params: returns all edge-grouped docs (broad view)."),
+      edge_types:      z.array(z.string()).optional().describe("Filter entity edges to these types. Omit for broad view."),
+      target_type:     z.string().optional().describe("Atlas doc type filter (e.g. 'Active Data', 'Primitive Instance')."),
+      via_entity_type: z.string().optional().describe("Entity-chain traversal: entity → entities of this type → their docs. E.g. via_entity_type='prime' with entity='endgame-edge' finds docs for primes connected to that entity."),
+      recent_commits:  z.number().int().min(1).max(500).optional().describe("Restrict to docs changed within the last N commits of HEAD. Prefer this over since/until for 'recent' questions — commit proximity is more meaningful than calendar time for atlas changes."),
+      since:           z.string().optional().describe("ISO date (YYYY-MM-DD) or relative ('30d') — restrict to docs changed on/after this date. Use recent_commits instead when the question says 'recently' without a specific date."),
+      until:           z.string().optional().describe("ISO date or relative — restrict to docs changed on/before this date."),
+      change_type:     z.enum(["added", "modified", "removed", "moved"]).optional().describe("Filter history to this change type."),
+      status:          z.string().optional().describe("Filter by instance status: Active, Suspended, Completed, Inactive."),
+      ancestor_id:     z.string().optional().describe("UUID or doc_no — restrict results to descendants of this node."),
+      include_params:  z.boolean().optional().describe("Inline immediate child docs as 'params' on each result (for Primitive Instance and Reward docs)."),
+      direction:       z.enum(["out", "in", "both"]).optional().describe("Edge direction for entity traversal. Default: out."),
+      k:               z.number().int().min(1).max(50).default(10).describe("Max results to return."),
+      enrich:          z.boolean().default(true).describe("Include full content and ancestor chain. Default true."),
+    },
+    async ({ q, entity, edge_types, target_type, via_entity_type, recent_commits,
+             since: sinceRaw, until: untilRaw, change_type, status, ancestor_id,
+             include_params, direction, k, enrich }) => {
+      const meta = await getMeta(db);
+
+      if (!q && !entity && !target_type) {
+        return ok(meta, { error: "at least one of q, entity, or target_type is required" });
+      }
+
+      const since = sinceRaw ? resolveSince(sinceRaw) : undefined;
+      const until = untilRaw ? resolveSince(untilRaw) : undefined;
+
+      // Resolve entity
+      let entityId: string | null = null;
+      if (entity) {
+        const rec = await db.prepare(`SELECT id FROM entities WHERE slug = ? LIMIT 1`).bind(entity).first<{ id: string }>();
+        if (!rec) return ok(meta, { error: `Entity '${entity}' not found` });
+        entityId = rec.id;
+      }
+
+      // Build constraint sets in parallel
+      const [historySet, ancestorSet, statusSet] = await Promise.all([
+        getHistorySet(db, since, until, change_type, recent_commits),
+        ancestor_id ? getAncestorSet(db, ancestor_id) : Promise.resolve(null),
+        status ? getStatusSet(db, status) : Promise.resolve(null),
+      ]);
+
+      const constrain = (ids: string[]) => applyConstraints(ids, historySet, ancestorSet, statusSet);
+
+      const enrichRows = async (rows: BaseRow[]) => {
+        if (rows.length === 0) return rows as (BaseRow & Record<string, unknown>)[];
+        const ids = rows.map((r) => r.id);
+        const [anc, paramsMap] = await Promise.all([
+          enrich ? getAncestorChains(db, ids) : Promise.resolve(new Map<string, Ancestor[]>()),
+          include_params ? fetchDocParams(db, ids) : Promise.resolve(new Map<string, CoreParam[]>()),
+        ]);
+        return rows.map((r) => ({
+          ...r,
+          ...(enrich ? { ancestors: anc.get(r.id) ?? [] } : {}),
+          ...(include_params ? { params: paramsMap.get(r.id) ?? [] } : {}),
+        }));
+      };
+
+      const cols = `n.id, n.doc_no, n.title, n.type, n.depth, n.parent_id${enrich ? ", n.content" : ""}`;
+
+      // ── Mode: entity chain ──────────────────────────────────────────────
+      if (entityId && via_entity_type) {
+        const edgeFilter = edge_types?.length
+          ? `AND ed.edge_type IN (${edge_types.map(() => "?").join(",")})`
+          : "";
+        const { results: chainEnts } = await db
+          .prepare(`SELECT e2.id FROM edges ed JOIN entities e2 ON e2.id = ed.to_id
+                    WHERE ed.from_id = ? AND ed.from_type = 'entity' AND ed.to_type = 'entity'
+                    ${edgeFilter} AND e2.entity_type = ?`)
+          .bind(...[entityId, ...(edge_types ?? []), via_entity_type])
+          .all<{ id: string }>();
+        const chainIds = chainEnts.map((e) => e.id);
+        if (chainIds.length === 0) return ok(meta, { entity, via_entity_type, mode: "entity_chain", count: 0, results: [] });
+        const ph = chainIds.map(() => "?").join(",");
+        const { results: docRows } = await db
+          .prepare(`SELECT DISTINCT ${cols} FROM edges ed JOIN docs n ON n.id = ed.to_id
+                    WHERE ed.from_id IN (${ph}) AND ed.from_type = 'entity' AND ed.to_type = 'doc'
+                    ${target_type ? "AND n.type = ?" : ""} ORDER BY n.doc_no LIMIT ?`)
+          .bind(...[...chainIds, ...(target_type ? [target_type] : []), k * 4])
+          .all<BaseRow>();
+        const kept = docRows.filter((r) => constrain([r.id]).length > 0).slice(0, k);
+        const enriched = await enrichRows(kept);
+        return ok(meta, { entity, via_entity_type, mode: "entity_chain", count: enriched.length, results: enriched });
+      }
+
+      // ── Mode: entity broad ──────────────────────────────────────────────
+      if (entityId && !edge_types?.length && !q) {
+        const { results } = await db
+          .prepare(`SELECT e.edge_type, ${cols} FROM edges e JOIN docs n ON e.to_id = n.id
+                    WHERE e.from_id = ? ${target_type ? "AND n.type = ?" : ""}
+                    ORDER BY e.edge_type, n.doc_no LIMIT 200`)
+          .bind(...(target_type ? [entityId, target_type] : [entityId]))
+          .all<BaseRow & { edge_type: string }>();
+        const grouped: Record<string, unknown[]> = {};
+        for (const { edge_type, ...doc } of results) {
+          (grouped[edge_type] ??= []).push(doc);
+        }
+        for (const rel of Object.keys(grouped)) {
+          const docs = grouped[rel] as BaseRow[];
+          const kept = docs.filter((d) => constrain([d.id]).length > 0);
+          grouped[rel] = await enrichRows(kept);
+          if ((grouped[rel] as unknown[]).length === 0) delete grouped[rel];
+        }
+        return ok(meta, { entity, mode: "entity_broad", by_relationship: grouped });
+      }
+
+      // ── Mode: target_type only ──────────────────────────────────────────
+      if (!entity && !q && target_type) {
+        const { results: typeRows } = await db
+          .prepare(`SELECT ${cols} FROM docs n WHERE n.type = ? ORDER BY n.doc_no LIMIT ?`)
+          .bind(target_type, k * 4)
+          .all<BaseRow>();
+        const kept = typeRows.filter((r) => constrain([r.id]).length > 0).slice(0, k);
+        const enriched = await enrichRows(kept);
+        return ok(meta, { mode: "type_list", type: target_type, count: enriched.length, results: enriched });
+      }
+
+      // ── Build entity doc set ────────────────────────────────────────────
+      let entityDocIds: Set<string> | null = null;
+      if (entityId) {
+        const typeFilter = edge_types?.length
+          ? `AND e.edge_type IN (${edge_types.map(() => "?").join(",")})`
+          : "";
+        const { results: edgeRows } = await db
+          .prepare(`SELECT DISTINCT n.id FROM edges e JOIN docs n ON e.to_id = n.id
+                    WHERE e.from_id = ? ${typeFilter} ${target_type ? "AND n.type = ?" : ""} LIMIT 500`)
+          .bind(...[entityId, ...(edge_types ?? []), ...(target_type ? [target_type] : [])])
+          .all<{ id: string }>();
+        entityDocIds = new Set(constrain(edgeRows.map((r) => r.id)));
+      }
+
+      // ── Search ──────────────────────────────────────────────────────────
+      let searchRows: SearchRow[] = [];
+      if (q) {
+        const fetchK = Math.min(k * 4, 200);
+        const [lex, sem] = await Promise.all([
+          runLexical(db, q, target_type, fetchK),
+          runSemantic(env, db, q, target_type, fetchK).catch(() => [] as SemanticRow[]),
+        ]);
+        searchRows = rrfMerge(lex, sem);
+      }
+
+      // ── Intersect and constrain ─────────────────────────────────────────
+      let resultRows: SearchRow[];
+      if (q && entityDocIds) {
+        resultRows = searchRows.filter((r) => entityDocIds!.has(r.id));
+      } else if (q) {
+        resultRows = searchRows;
+      } else {
+        const ids = [...(entityDocIds ?? [])].slice(0, k);
+        if (ids.length === 0) return ok(meta, { entity, mode: "entity_narrow", count: 0, results: [] });
+        const ph = ids.map(() => "?").join(",");
+        const { results: docRows } = await db
+          .prepare(`SELECT ${cols} FROM docs n WHERE n.id IN (${ph}) ORDER BY n.doc_no`)
+          .bind(...ids).all<BaseRow>();
+        const enriched = await enrichRows(docRows);
+        return ok(meta, { entity, mode: "entity_narrow", count: enriched.length, results: enriched });
+      }
+
+      const constrainedIds = new Set(constrain(resultRows.map((r) => r.id)));
+      const trimmed = resultRows.filter((r) => constrainedIds.has(r.id)).slice(0, k);
+      const baseRows: BaseRow[] = trimmed.map((r) => ({
+        id: r.id, doc_no: r.doc_no, title: r.title, type: r.type,
+        depth: r.depth, parent_id: r.parent_id, content: r.content,
+      }));
+      const enriched = await enrichRows(baseRows);
+      const mode = q && entityDocIds ? "hybrid_graph" : "search";
+      const out = enriched.map((r, i) => ({
+        ...r, snippet: trimmed[i]?.snippet ?? "", score: trimmed[i]?.rrf_score ?? trimmed[i]?.score ?? 0,
+      }));
+      return ok(meta, { mode, count: out.length, results: out });
     },
   );
 
@@ -1173,25 +1488,59 @@ app.post("/mcp", async (c) => {
 // REST: meta
 app.get("/api/meta", async (c) => c.json(await getMeta(c.env.DB)));
 
-// REST: search
+// REST: search — hybrid (FTS5 + semantic RRF) with optional enrichment.
+// ?enrich=true adds ancestors (breadcrumb) and full content to each result,
+// so callers can answer without a follow-up atlas_get round-trip.
+// ?mode=lexical|semantic|hybrid (default: hybrid)
 app.get("/api/search", async (c) => {
   const q = c.req.query("q") ?? "";
   const k = Math.min(parseInt(c.req.query("k") ?? "10"), 50);
-  const type = c.req.query("type");
+  const type = c.req.query("type") ?? undefined;
+  const mode = (c.req.query("mode") ?? "hybrid") as "lexical" | "semantic" | "hybrid";
+  const enrich = c.req.query("enrich") === "true";
   if (!q) return c.json({ error: "q required" }, 400);
 
-  let sql = `SELECT n.id,n.doc_no,n.title,n.type,n.depth,
-             snippet(docs_fts,4,'<mark>','</mark>','…',24) AS snippet,
-             bm25(docs_fts) AS score
-             FROM docs_fts JOIN docs n ON docs_fts.rowid=n.rowid
-             WHERE docs_fts MATCH ?
-             ${type ? "AND n.type=?" : ""}
-             ORDER BY score LIMIT ?`;
-  const params: unknown[] = [q, ...(type ? [type] : []), k];
-  const { results } = await c.env.DB.prepare(sql)
-    .bind(...params)
-    .all();
-  return c.json({ count: results.length, results });
+  const fetchK = Math.min(k * 4, 200);
+  const [lex, sem] = await Promise.all([
+    mode === "semantic" ? Promise.resolve<LexicalRow[]>([]) : runLexical(c.env.DB, q, type, fetchK),
+    mode === "lexical"
+      ? Promise.resolve<SemanticRow[]>([])
+      : runSemantic(c.env, c.env.DB, q, type, fetchK).catch((err) => {
+          console.error("REST semantic search failed:", err);
+          return [] as SemanticRow[];
+        }),
+  ]);
+
+  let merged: SearchRow[];
+  if (mode === "lexical") merged = lex;
+  else if (mode === "semantic") merged = sem;
+  else merged = rrfMerge(lex, sem);
+
+  const trimmed = merged.slice(0, k);
+
+  if (enrich) {
+    const ids = trimmed.map((r) => r.id);
+    const ancestors = await getAncestorChains(c.env.DB, ids);
+    const results = trimmed.map((r) => ({
+      id: r.id,
+      doc_no: r.doc_no,
+      title: r.title,
+      type: r.type,
+      depth: r.depth,
+      snippet: r.snippet ?? "",
+      score: r.rrf_score ?? r.score,
+      content: r.content,
+      ancestors: ancestors.get(r.id) ?? [],
+    }));
+    return c.json({ count: results.length, mode, results });
+  }
+
+  const results = trimmed.map(({ content: _c, ...rest }) => ({
+    ...rest,
+    snippet: rest.snippet ?? "",
+    score: rest.rrf_score ?? rest.score,
+  }));
+  return c.json({ count: results.length, mode, results });
 });
 
 // REST: get node
@@ -1335,5 +1684,254 @@ app.get("/api/traverse/:id", async (c) => {
 
   return c.json({ count: results.length, results });
 });
+
+// REST: entities — all active entity slugs for system-prompt injection
+app.get("/api/entities", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT slug, name, entity_type, subtype FROM entities WHERE is_active = 1 ORDER BY entity_type, slug`,
+  ).all<{ slug: string; name: string; entity_type: string; subtype: string | null }>();
+  return c.json({ count: results.length, entities: results });
+});
+
+// REST: query — unified search + graph traversal with multi-dimension intersection.
+//
+// Core dimensions (any combination):
+//   q              → hybrid FTS5+semantic search
+//   entity         → entity slug → connected docs
+//   edge_types     → filter which edges to follow from entity
+//   target_type    → filter by Atlas doc type
+//   via_entity_type → entity-chain traversal: entity → entities of this type → their docs
+//
+// Filter dimensions (applied as AND intersections on top of any mode):
+//   since / until  → restrict to docs changed in this window (ISO date or "30d")
+//   change_type    → added|modified|removed|moved
+//   status         → Active|Suspended|Completed|Inactive (content match)
+//   ancestor_id    → restrict to descendants of this node
+//
+// Enrichment:
+//   enrich=true    → add content + ancestors to each result
+//   include_params → inline immediate child docs as "params" (for instance docs)
+app.get("/api/query", async (c) => {
+  const q               = c.req.query("q") ?? undefined;
+  const entity          = c.req.query("entity")?.toLowerCase();
+  const edgeTypes       = c.req.query("edge_types")?.split(",").map((s) => s.trim()).filter(Boolean);
+  const targetType      = c.req.query("target_type") ?? undefined;
+  const direction       = (c.req.query("direction") ?? "out") as "out" | "in" | "both";
+  const hops            = Math.min(parseInt(c.req.query("hops") ?? "2"), 4);
+  const enrich          = c.req.query("enrich") === "true";
+  const k               = Math.min(parseInt(c.req.query("k") ?? "10"), 50);
+  const sinceRaw        = c.req.query("since") ?? undefined;
+  const untilRaw        = c.req.query("until") ?? undefined;
+  const changeType      = c.req.query("change_type") ?? undefined;
+  const status          = c.req.query("status") ?? undefined;
+  const ancestorIdRaw   = c.req.query("ancestor_id") ?? undefined;
+  const viaEntityType   = c.req.query("via_entity_type") ?? undefined;
+  const includeParams   = c.req.query("include_params") === "true";
+  const recentCommits   = c.req.query("recent_commits") ? parseInt(c.req.query("recent_commits")!) : undefined;
+
+  const since = sinceRaw ? resolveSince(sinceRaw) : undefined;
+  const until = untilRaw ? resolveSince(untilRaw) : undefined;
+
+  if (!q && !entity && !targetType) {
+    return c.json({ error: "at least one of q, entity, or target_type is required" }, 400);
+  }
+
+  // ── Resolve entity slug → id ──────────────────────────────────────────────
+  let entityId: string | null = null;
+  if (entity) {
+    const rec = await c.env.DB
+      .prepare(`SELECT id FROM entities WHERE slug = ? LIMIT 1`)
+      .bind(entity)
+      .first<{ id: string }>();
+    if (!rec) return c.json({ error: `Entity '${entity}' not found` }, 404);
+    entityId = rec.id;
+  }
+
+  // ── Build constraint sets (run in parallel) ───────────────────────────────
+  const [historySet, ancestorSet, statusSet] = await Promise.all([
+    getHistorySet(c.env.DB, since, until, changeType, recentCommits),
+    ancestorIdRaw ? getAncestorSet(c.env.DB, ancestorIdRaw) : Promise.resolve(null),
+    status ? getStatusSet(c.env.DB, status) : Promise.resolve(null),
+  ]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const constrain = (ids: string[]) => applyConstraints(ids, historySet, ancestorSet, statusSet);
+
+  const enrichRows = async (rows: BaseRow[]) => {
+    if (rows.length === 0) return rows as (BaseRow & Record<string, unknown>)[];
+    const ids = rows.map((r) => r.id);
+    const [anc, paramsMap] = await Promise.all([
+      enrich ? getAncestorChains(c.env.DB, ids) : Promise.resolve(new Map<string, Ancestor[]>()),
+      includeParams ? fetchDocParams(c.env.DB, ids) : Promise.resolve(new Map<string, CoreParam[]>()),
+    ]);
+    return rows.map((r) => ({
+      ...r,
+      ...(enrich ? { ancestors: anc.get(r.id) ?? [] } : {}),
+      ...(includeParams ? { params: paramsMap.get(r.id) ?? [] } : {}),
+    }));
+  };
+
+  // ── Mode: entity chain (via_entity_type set) ──────────────────────────────
+  // entity → entities of via_entity_type → their docs
+  if (entityId && viaEntityType) {
+    const edgeFilter = edgeTypes?.length
+      ? `AND ed.edge_type IN (${edgeTypes.map(() => "?").join(",")})`
+      : "";
+    const { results: chainEntities } = await c.env.DB
+      .prepare(`
+        SELECT e2.id FROM edges ed
+        JOIN entities e2 ON e2.id = ed.to_id
+        WHERE ed.from_id = ? AND ed.from_type = 'entity' AND ed.to_type = 'entity'
+        ${edgeFilter}
+        AND e2.entity_type = ?
+      `)
+      .bind(...[entityId, ...(edgeTypes ?? []), viaEntityType])
+      .all<{ id: string }>();
+
+    const chainIds = chainEntities.map((e) => e.id);
+    if (chainIds.length === 0) {
+      return c.json({ entity, via_entity_type: viaEntityType, mode: "entity_chain", count: 0, results: [] });
+    }
+
+    const ph = chainIds.map(() => "?").join(",");
+    const { results: docRows } = await c.env.DB
+      .prepare(`
+        SELECT DISTINCT n.id, n.doc_no, n.title, n.type, n.depth, n.parent_id
+          ${enrich ? ", n.content" : ""}
+        FROM edges ed JOIN docs n ON n.id = ed.to_id
+        WHERE ed.from_id IN (${ph}) AND ed.from_type = 'entity' AND ed.to_type = 'doc'
+        ${targetType ? "AND n.type = ?" : ""}
+        ORDER BY n.doc_no LIMIT ?
+      `)
+      .bind(...[...chainIds, ...(targetType ? [targetType] : []), k * 4])
+      .all<BaseRow>();
+
+    const constrained = constrain(docRows.map((r) => r.id));
+    const kept = docRows.filter((r) => constrained.includes(r.id)).slice(0, k);
+    const enriched = await enrichRows(kept);
+
+    // Also apply q filter if present
+    let final = enriched;
+    if (q && kept.length > 0) {
+      const qLower = q.toLowerCase();
+      final = enriched.filter((r) =>
+        r.title.toLowerCase().includes(qLower) || (r as any).content?.toLowerCase().includes(qLower)
+      );
+    }
+
+    return c.json({ entity, via_entity_type: viaEntityType, mode: "entity_chain", count: final.length, results: final });
+  }
+
+  // ── Mode: entity broad (no edge_types, no q) ──────────────────────────────
+  if (entityId && !edgeTypes?.length && !q) {
+    const { results } = await c.env.DB
+      .prepare(`
+        SELECT e.edge_type, n.id, n.doc_no, n.title, n.type, n.depth, n.parent_id
+               ${enrich ? ", n.content" : ""}
+        FROM edges e JOIN docs n ON e.to_id = n.id
+        WHERE e.from_id = ?
+        ${targetType ? "AND n.type = ?" : ""}
+        ORDER BY e.edge_type, n.doc_no
+        LIMIT 200
+      `)
+      .bind(...(targetType ? [entityId, targetType] : [entityId]))
+      .all<BaseRow & { edge_type: string }>();
+
+    const grouped: Record<string, unknown[]> = {};
+    for (const { edge_type, ...doc } of results) {
+      (grouped[edge_type] ??= []).push(doc);
+    }
+
+    // Apply constraints and enrich within each group
+    for (const rel of Object.keys(grouped)) {
+      const docs = grouped[rel] as BaseRow[];
+      const constrainedIds = constrain(docs.map((d) => d.id));
+      const kept = docs.filter((d) => constrainedIds.includes(d.id));
+      grouped[rel] = await enrichRows(kept);
+      if ((grouped[rel] as unknown[]).length === 0) delete grouped[rel];
+    }
+
+    return c.json({ entity, mode: "entity_broad", by_relationship: grouped });
+  }
+
+  // ── Mode: target_type only ────────────────────────────────────────────────
+  if (!entity && !q && targetType) {
+    const { results: typeRows } = await c.env.DB
+      .prepare(`SELECT id, doc_no, title, type, depth, parent_id${enrich ? ", content" : ""} FROM docs WHERE type = ? ORDER BY doc_no LIMIT ?`)
+      .bind(targetType, k * 4)
+      .all<BaseRow>();
+    const constrainedIds = constrain(typeRows.map((r) => r.id));
+    const kept = typeRows.filter((r) => constrainedIds.includes(r.id)).slice(0, k);
+    const enriched = await enrichRows(kept);
+    return c.json({ mode: "type_list", type: targetType, count: enriched.length, results: enriched });
+  }
+
+  // ── Build entity doc set (for narrow or intersection) ─────────────────────
+  let entityDocIds: Set<string> | null = null;
+  if (entityId) {
+    const typeFilter = edgeTypes?.length
+      ? `AND e.edge_type IN (${edgeTypes.map(() => "?").join(",")})`
+      : "";
+    const { results: edgeRows } = await c.env.DB
+      .prepare(`
+        SELECT DISTINCT n.id FROM edges e JOIN docs n ON e.to_id = n.id
+        WHERE e.from_id = ? ${typeFilter}
+        ${targetType ? "AND n.type = ?" : ""}
+        LIMIT 500
+      `)
+      .bind(...[entityId, ...(edgeTypes ?? []), ...(targetType ? [targetType] : [])])
+      .all<{ id: string }>();
+    entityDocIds = new Set(constrain(edgeRows.map((r) => r.id)));
+  }
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  let searchRows: SearchRow[] = [];
+  if (q) {
+    const fetchK = Math.min(k * 4, 200);
+    const [lex, sem] = await Promise.all([
+      runLexical(c.env.DB, q, targetType, fetchK),
+      runSemantic(c.env, c.env.DB, q, targetType, fetchK).catch(() => [] as SemanticRow[]),
+    ]);
+    searchRows = rrfMerge(lex, sem);
+  }
+
+  // ── Intersect ─────────────────────────────────────────────────────────────
+  let resultRows: SearchRow[];
+  if (q && entityDocIds) {
+    resultRows = searchRows.filter((r) => entityDocIds!.has(r.id));
+  } else if (q) {
+    resultRows = searchRows;
+  } else {
+    // entity narrow only
+    const ids = [...(entityDocIds ?? [])].slice(0, k);
+    if (ids.length === 0) return c.json({ entity, mode: "entity_narrow", count: 0, results: [] });
+    const ph = ids.map(() => "?").join(",");
+    const { results: docRows } = await c.env.DB
+      .prepare(`SELECT id, doc_no, title, type, depth, parent_id${enrich ? ", content" : ""} FROM docs WHERE id IN (${ph}) ORDER BY doc_no`)
+      .bind(...ids)
+      .all<BaseRow>();
+    const enriched = await enrichRows(docRows);
+    return c.json({ entity, mode: "entity_narrow", count: enriched.length, results: enriched });
+  }
+
+  // Apply remaining constraints to search results, then slice
+  const constrainedIds = new Set(constrain(resultRows.map((r) => r.id)));
+  const trimmed = resultRows.filter((r) => constrainedIds.has(r.id)).slice(0, k);
+
+  // ── Final enrich ──────────────────────────────────────────────────────────
+  const mode = q && entityDocIds ? "hybrid_graph" : "search";
+  const baseRows: BaseRow[] = trimmed.map((r) => ({
+    id: r.id, doc_no: r.doc_no, title: r.title, type: r.type,
+    depth: r.depth, parent_id: r.parent_id, content: r.content,
+  }));
+  const enriched = await enrichRows(baseRows);
+  const out = enriched.map((r, i) => ({
+    ...r,
+    snippet: trimmed[i]?.snippet ?? "",
+    score: trimmed[i]?.rrf_score ?? trimmed[i]?.score ?? 0,
+  }));
+  return c.json({ mode, count: out.length, results: out });
+});
+
 
 export default app;

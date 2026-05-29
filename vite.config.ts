@@ -48,8 +48,12 @@ const artifactHashes: Record<string, string> = (() => {
   }
 })();
 
-// CF Pages sets CF_PAGES=1 automatically; GH Pages is served under /redlens/.
-const base = process.env.CF_PAGES === "1" ? "/" : "/redlens/";
+// CF Pages sets CF_PAGES=1 automatically; Railway sets RAILWAY_ENVIRONMENT.
+// Both deploy to the domain apex so base is "/". GH Pages lives under /redlens/.
+const base =
+  process.env.CF_PAGES === "1" || process.env.RAILWAY_ENVIRONMENT
+    ? "/"
+    : "/redlens/";
 
 export default defineConfig({
   base,
@@ -58,7 +62,7 @@ export default defineConfig({
       name: "redirect-root",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
-          if (req.url === "/" || req.url === base.slice(0, -1)) {
+          if (base !== "/" && (req.url === "/" || req.url === base.slice(0, -1))) {
             res.writeHead(307, { Location: base });
             res.end();
             return;

@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-    "target": "es2023",
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.server.tsbuildinfo",
+    "target": "ESNext",
+    "lib": ["ESNext"],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": ["bun-types"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -13,10 +13,6 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Type safety */
-    "strict": true,
 
     /* Linting */
     "noUnusedLocals": true,
@@ -24,6 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/server.ts"]
+  "include": ["src/server.ts"]
 }

@@ -16,7 +16,7 @@ createRoot(document.getElementById("root")!).render(
         </div>
       )}
     >
-      <Router base="/redlens">
+      <Router base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <App />
       </Router>
     </ErrorBoundary>
