@@ -9923,13 +9923,13 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
-  "active_data_for": 76,
+  "active_data_for": 75,
   "annotates": 102,
-  "cites": 1851,
+  "cites": 1846,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 352,
+  "defines_entity": 351,
   "ecosystem_accord": 20,
   "has_address": 235,
   "has_status": 136,
@@ -9940,13 +9940,13 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 192,
   "listed_in": 26,
   "located_at": 186,
-  "mentions": 544,
+  "mentions": 541,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
   "prime_agent_for": 8,
   "proxies_to": 61,
-  "responsible_party_for": 64,
+  "responsible_party_for": 63,
 }
 `;
 
@@ -10131,7 +10131,6 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
 [
   "A.1.1.3.1.0.6.1 → A.1.1.3.1",
   "A.1.10.2.3.2.2.1.5.0.6.1 → A.1.10.2.3.2.2.1.5",
-  "A.1.10.2.5.1.3.2.0.6.1 → A.1.10.2.5.1.3.2",
   "A.1.5.10.2.0.6.1 → A.1.5.10.2",
   "A.1.6.1.5.0.6.1 → A.1.6.1.5",
   "A.1.6.6.1.3.0.6.1 → A.1.6.6.1.3",
@@ -10248,11 +10247,6 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "party": "JanSky",
   },
   {
-    "adc": "A.1.10.2.5.1.3.2",
-    "declared": "Core Spell Teams",
-    "party": "Core Spell Teams",
-  },
-  {
     "adc": "A.1.5.10.2",
     "declared": "Core Facilitator",
     "party": "JanSky",
@@ -10329,13 +10323,13 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   },
   {
     "adc": "A.2.9.1.1.1.2.3",
-    "declared": "Core Facilitator",
-    "party": "JanSky",
+    "declared": "Support Facilitators",
+    "party": "Support Facilitators",
   },
   {
     "adc": "A.2.9.1.1.2.6",
-    "declared": "Core Facilitator",
-    "party": "JanSky",
+    "declared": "Support Facilitators",
+    "party": "Support Facilitators",
   },
   {
     "adc": "A.3.7.1.5.3",
