@@ -85,11 +85,11 @@ export function TreeRow({
     [title, availableWidth],
   );
 
-  if (!item) return null;
+  if (!item || !node) return null;
   const { hasChildren } = item;
   const isSelected = index === selectedIndex;
   const isFocused = index === focusedIndex;
-  const isExpanded = expandedIds.has(node!.id);
+  const isExpanded = expandedIds.has(node.id);
   const titleColor = chicletColor(docNoSegments.depths[docNoSegments.depths.length - 1] ?? 0);
   const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
   const selectedBar = `color-mix(in srgb, ${depthVar} 80%, var(--row-bar-tint))`;
@@ -101,7 +101,7 @@ export function TreeRow({
 
   return (
     <div
-      data-node-id={node!.id}
+      data-node-id={node.id}
       style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, ["--row-color" as string]: depthVar }}
       className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
       onClick={(e) => {

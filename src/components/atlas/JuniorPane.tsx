@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, type ReactElement } from "react";
 import { buildAncestors, type LoadedData } from "../../lib/atlasHelpers";
 import { CollapsibleNode } from "./CollapsibleNode";
+import { AtlasActionsContext } from "./AtlasActionsContext";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
   <button
@@ -92,6 +93,11 @@ export function JuniorPane({
   const docNo = node?.doc_no ?? "";
   const hasAbove = ancestors.length > 0;
 
+  const ctxValue = useMemo(
+    () => ({ navigate: onShiftNavigate, toggle: handleToggle, splitNavigate: onShiftNavigate }),
+    [onShiftNavigate, handleToggle],
+  );
+
   const items = useMemo(() => {
     const result: ReactElement[] = [];
     if (hasAbove) result.push(<TopNote key="top" />);
@@ -103,9 +109,6 @@ export function JuniorPane({
           idPrefix="junior"
           isSelected={entry.node.id === splitId}
           isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
-          onNavigate={onShiftNavigate}
-          onToggle={handleToggle}
-          onShiftNavigate={onShiftNavigate}
         />,
       );
     }
@@ -127,8 +130,6 @@ export function JuniorPane({
     docNo,
     autoExpanded,
     userToggles,
-    handleToggle,
-    onShiftNavigate,
   ]);
 
   return (
@@ -172,7 +173,9 @@ export function JuniorPane({
         </button>
       </div>
       <div className="overflow-y-auto flex-1">
-        <div className="mx-auto px-3 py-2">{items}</div>
+        <div className="mx-auto px-3 py-2">
+          <AtlasActionsContext.Provider value={ctxValue}>{items}</AtlasActionsContext.Provider>
+        </div>
       </div>
     </div>
   );
