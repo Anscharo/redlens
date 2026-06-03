@@ -1,6 +1,6 @@
 # RedLens' Sky Atlas
 
-A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github.com/sky-ecosystem/next-gen-atlas). The atlas is included as a git submodule at `vendor/next-gen-atlas/`; source documents live at `vendor/next-gen-atlas/content/**` (one `document.md` per node, atomized since PR #236). When the atlas gets a new commit, trigger the **Atlas Update** GitHub Actions workflow (`.github/workflows/atlas-update.yml`) — it pulls the submodule, rebuilds all artifacts, and opens a PR.
+A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github.com/sky-ecosystem/next-gen-atlas). The atlas is included as a git submodule at `vendor/next-gen-atlas/`; source documents live at `vendor/next-gen-atlas/content/**` (one `document.md` per node, atomized since PR #236). Atlas-derived artifacts (`docs.json`, `graph.json`, `relations.json`, `search-index.json`, `glossary.json`, `addresses.atlas.json`, `manifest.json`, `history/`) are **not committed to git** — they are built ephemerally at container startup (by the Dockerfile) or synced into Postgres (doc content + history + embeddings, by the Railway atlas worker service). The in-process updater polls `sync_state.atlas_sha` and rebuilds in-memory indexes from DB rows on drift — no git access needed at runtime.
 
 **Atlas Markdown syntax reference**: `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` — canonical spec for heading format, document numbering, document types, extra fields, and nesting rules. Read this before touching the parser.
 
@@ -26,7 +26,9 @@ pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json
 pnpm build:at        # reproducible build at a specific atlas commit
 pnpm pull-atlas      # git submodule update --init --recursive (populate submodule after a shallow clone)
 pnpm build:rag       # Workers AI bge-base-en embeddings → .cache/atlas-vectors/{vectors,ids,meta} (hosted MCP server only; NOT in pnpm build)
-pnpm dev             # vite dev server
+pnpm sync:history-pg # read public/history/*.json → upsert atlas_history in Postgres (with diff)
+pnpm atlas:worker    # full atlas worker cycle: drift check → build → sync all Postgres tables
+pnpm dev             # vite dev server (requires artifacts built first — see Local dev below)
 pnpm preview         # serve the production build locally
 pnpm build           # frontend pipeline: index → glossary → addresses → snapshot → graph → manifest → tsc → vite
 pnpm build:server    # hosted MCP server pipeline: index + graph + rag (run before sync-db sync scripts)
@@ -34,6 +36,17 @@ REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SH
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
 ```
+
+### Local dev
+
+Atlas artifacts (`docs.json`, `graph.json`, `relations.json`, `glossary.json`, `search-index.json`, `addresses.atlas.json`) are not committed. Build them before `pnpm dev`:
+
+```bash
+pnpm build:index && pnpm build:graph && pnpm build:glossary
+pnpm dev
+```
+
+The history tab in dev will show empty (no local Postgres with history data) unless you run `pnpm dev:server` with a `DATABASE_URL` pointing to a Postgres instance that the history worker has populated.
 
 ### Process inventory scripts
 
@@ -46,7 +59,7 @@ The curated process inventory (`public/processes.json` + `public/processes-ignor
 
 **For workflows / CI to call (humans rarely run directly):**
 
-- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Called from `.github/workflows/atlas-update.yml`. Humans only run it manually to refresh the audit cache before triage.
+- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Humans run it manually to refresh the audit cache before triage.
 
 **One-shot / rarely needed:**
 

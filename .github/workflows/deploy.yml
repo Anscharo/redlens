@@ -11,8 +11,11 @@ on:
       - "tsconfig*.json"
       - "package.json"
       - "pnpm-lock.yaml"
-      # Tracked data artifacts the bundle reads
-      - "public/**"
+      # Committed data artifacts (on-chain; curated)
+      - "public/addresses.json"
+      - "public/chain-state.json"
+      - "public/processes.json"
+      - "public/processes-ignored.json"
       # Atlas content (submodule pointer change)
       - "vendor/next-gen-atlas"
       # Build pipeline scripts
@@ -49,19 +52,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Use the atlas SHA pinned in main (the submodule was checked out at the
-      # tracked commit). Atlas advances arrive via atlas-update.yml → PR → merge,
-      # so frontend, D1, and Vectorize all ship the same atlas snapshot.
+      # Atlas-derived artifacts are no longer committed to git — build them
+      # ephemerally here for the Pages preview bundle. History is served via the
+      # Railway API; the history tab shows empty on Pages (no backend), which the
+      # UI handles gracefully. build:addresses / build:snapshot are on-chain data
+      # with separate cadence and are still committed (committed artifacts load fine
+      # in Pages since they remain in git).
+      - name: Build atlas artifacts
+        run: pnpm build:index && pnpm build:graph && pnpm build:glossary && pnpm build:manifest
 
-      - name: Append new node history
-        run: pnpm build:history
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - run: pnpm build
-        env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+      - run: pnpm build:ts && pnpm build:vite
 
       - name: SPA fallback (copy index.html → 404.html)
         run: cp dist/index.html dist/404.html
