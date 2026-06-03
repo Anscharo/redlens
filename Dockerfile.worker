@@ -1,0 +1,42 @@
+# Atlas worker image — separate cron service that runs a full atlas build,
+# syncs all Postgres tables (doc_meta with content, addresses, sync_state,
+# history, embeddings), and exits. The web service's in-process updater then
+# detects the sync_state.atlas_sha change and rebuilds in-memory indexes from
+# the updated DB rows. No git access needed on the web service side.
+#
+# Differences from the main Dockerfile:
+#   - Full (non-shallow) atlas clone: git log walking for build-history
+#   - gh CLI: `gh api` for PR metadata
+#   - No Vite/SPA build: worker runs scripts at runtime only
+#   - OPENROUTER_API_KEY: needed for sync-embeddings (set in Railway dashboard)
+FROM oven/bun:1.3
+
+# git: walk atlas commit history + runtime git ls-remote check.
+# python3: build-history.mjs calls compose.py (needed for pre-PR-236 commits).
+# gh: `gh api` calls for PR metadata (title, author, body).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git python3 ca-certificates curl \
+ && curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends gh \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Deps first — cached across source-only changes.
+COPY package.json bun.lockb ./
+RUN bun install --frozen-lockfile
+
+# Repo source (without node_modules/dist/.git/vendor via .dockerignore).
+COPY . .
+
+# Clone the atlas with FULL git history (not shallow) so build-history.mjs
+# can walk the complete commit log. Placed after COPY . . so a lens source
+# change invalidates this layer and picks up a fresh atlas clone.
+RUN git clone --no-single-branch \
+      https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas
+
+# No build step — the worker runs scripts at runtime, not a compiled bundle.

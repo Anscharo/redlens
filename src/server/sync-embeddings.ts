@@ -4,6 +4,7 @@
 //
 //   bun src/server/sync-embeddings.ts   # embed all new/changed docs
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { join } from "node:path";
 import { sql, toVectorLiteral } from "./db.ts";
 import { config } from "./config.ts";
@@ -58,8 +59,15 @@ async function main() {
     );
   }
 
-  const manifest = JSON.parse(readFileSync(join(config.publicDir, "manifest.json"), "utf8"));
-  const atlasSha: string = manifest.atlasCommit ?? "unknown";
+  const atlasSha: string = (() => {
+    try {
+      return execSync("git rev-parse HEAD", {
+        cwd: join(config.root, "vendor/next-gen-atlas"),
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+    } catch { return "unknown"; }
+  })();
 
   const docs = Object.values(
     JSON.parse(readFileSync(join(config.publicDir, "docs.json"), "utf8")) as Record<string, AtlasNode>,

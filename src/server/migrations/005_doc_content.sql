@@ -1,0 +1,1 @@
+ALTER TABLE atlas_doc_meta ADD COLUMN IF NOT EXISTS content TEXT;

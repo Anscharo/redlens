@@ -11,6 +11,7 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
+import { handleHistory } from "./history.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -52,6 +53,8 @@ const server = Bun.serve({
     // backend shipped without them; no OAuth/JWT/DB env vars are touched.
     // Auth routes own their own Set-Cookie / Location headers; CORS is moot
     // (same-origin browser navigation + same-origin fetch), so don't re-wrap.
+    if (pathname.startsWith("/api/history/")) return handleHistory(req, pathname);
+
     if (config.chatEnabled) {
       if (pathname.startsWith("/api/auth/")) return handleAuth(req, pathname);
       if (pathname === "/api/chat") return handleChat(req);

@@ -1,26 +1,24 @@
-// In-process atlas freshness updater (Alternative A — see
-// docs/plans/atlas-runtime-freshness-inprocess.md). A checker compares the
-// upstream atlas head (git ls-remote) against the live in-memory sha; on drift it
-// spawns a build subprocess (refresh-atlas-build.mjs) to regenerate artifacts on
-// disk, then atomically swaps the in-memory indexes via rebuildFromDisk (which
-// advances meta.atlasCommit) and kicks the DB sync lanes. Single-replica, single
-// build in flight. This is the full-rebuild+swap path; the subprocess-shrink
-// (server owns the index, patchDocs + toJSON) layers on later.
+// In-process atlas freshness updater — DB-driven (Part E).
+// Polls sync_state.atlas_sha from Postgres every ~30s; on drift, reads
+// atlas_doc_meta content from the DB to rebuild public/docs.json and
+// public/addresses.atlas.json, then runs build-graph + build-glossary
+// subprocesses (which read docs.json), mirrors to dist/, and patches the
+// live in-memory indexes via refreshInPlaceFromDisk. No git ls-remote, no
+// git fetch, no Postgres writes — all Postgres writes belong to the worker.
 import { spawn } from "node:child_process";
+import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "./config.ts";
+import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk } from "./indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
-
-const SUBMODULE = join(config.root, "vendor/next-gen-atlas");
+import type { AtlasNode } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
 
-// Pure trigger decision (unit-tested). `lastTried` is the target sha of a build
-// that COMPLETED but failed to advance the live sha (a broken build); we don't
-// re-trigger it until upstream moves again, so a broken build degrades to
-// stuck-stale + loud logs instead of an infinite rebuild loop. A *failed* build
-// (nonzero exit) does NOT set lastTried, so transient failures still retry.
+// Pure trigger decision (unit-tested). `lastTried` is the target sha of a
+// build that COMPLETED but failed to advance the live sha; we don't re-trigger
+// until upstream moves again. A *failed* build does NOT set lastTried.
 export function decide(s: {
   upstream: string | null;
   live: string | null;
@@ -28,9 +26,9 @@ export function decide(s: {
   lastTried: string | null;
 }): Decision {
   if (s.building) return "idle";
-  if (!s.upstream) return "idle"; // couldn't read upstream this tick
-  if (s.upstream === s.live) return "idle"; // fresh
-  if (s.upstream === s.lastTried) return "idle"; // already attempted, didn't take
+  if (!s.upstream) return "idle";
+  if (s.upstream === s.live) return "idle";
+  if (s.upstream === s.lastTried) return "idle";
   return "build";
 }
 
@@ -53,107 +51,166 @@ function spawnCollect(
   });
 }
 
-// Upstream atlas head via the submodule's origin remote (no checkout).
-export async function getUpstreamSha(): Promise<string | null> {
-  const { code, stdout } = await spawnCollect(
-    "git",
-    ["-C", SUBMODULE, "ls-remote", "origin", "refs/heads/main"],
-    true,
-  );
-  if (code !== 0) return null;
-  const sha = stdout.trim().split(/\s+/)[0] ?? "";
-  return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
-}
-
-async function runRefreshBuild(): Promise<boolean> {
-  // BUILD_SKIP_SEARCH_INDEX=1: the subprocess emits docs.json/graph.json/etc.
-  // WITHOUT the heavy MiniSearch index — the server patches + re-serializes it
-  // (refreshInPlaceFromDisk), so the ~316 MB index build never runs in the
-  // subprocess. Drops subprocess peak ~316 MB → ~180 MB.
-  const { code } = await spawnCollect("bun", ["scripts/required/refresh-atlas-build.mjs"], false, {
-    BUILD_SKIP_SEARCH_INDEX: "1",
-  });
-  return code === 0;
-}
-
-// Best-effort DB lanes after a successful swap, run sequentially (sync:atlas
-// structural, then sync:embeddings) so two heavy bun subprocesses don't hit the
-// live server at once. Fire-and-forget at the call site so it never blocks the
-// loop.
-async function kickSync(log: (m: string) => void): Promise<void> {
-  for (const script of ["src/server/sync.ts", "src/server/sync-embeddings.ts"]) {
-    try {
-      const { code } = await spawnCollect("bun", [script], false);
-      log(`${script} exited ${code}`);
-    } catch {
-      log(`${script} spawn error`);
-    }
+// Poll sync_state.atlas_sha (fast, same-process DB connection; replaces git ls-remote).
+export async function getDbAtlasSha(): Promise<string | null> {
+  try {
+    const rows = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
+    return (rows[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
+  } catch {
+    return null;
   }
 }
 
-// Populate/refresh embeddings once at boot — covers first deploy and every
-// redeploy (e.g. a GitHub-triggered rebuild). Detached + best-effort so a slow
-// or failing OpenRouter never blocks the health check; hash-gated, so it's a
-// fast no-op when embeddings are already current. (The updater's kickSync covers
-// runtime atlas-poll updates; this covers deploys.) Skipped without an API key.
+// Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
+// run build-graph and build-glossary subprocesses (they read docs.json), then
+// mirror all public/*.json → dist/. This replaces the old refresh-atlas-build.mjs
+// subprocess which needed git. Returns true on success.
+async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promise<boolean> {
+  try {
+    // 1. Read atlas_doc_meta → write public/docs.json
+    interface DocRow { id: string; doc_no: string; title: string; type: string; depth: number; parentId: string | null; content: string | null; order: number; }
+    const docRows = await sql<DocRow[]>`
+      SELECT id, doc_no, title, type, depth,
+             parent_id AS "parentId", content, ord AS "order"
+      FROM atlas_doc_meta ORDER BY ord
+    `;
+    const docMap: Record<string, AtlasNode> = {};
+    for (const r of docRows) {
+      docMap[r.id] = {
+        id: r.id,
+        doc_no: r.doc_no,
+        title: r.title,
+        type: r.type,
+        depth: r.depth,
+        parentId: r.parentId,
+        content: r.content ?? "",
+        order: r.order,
+      };
+    }
+    writeFileSync(join(config.publicDir, "docs.json"), JSON.stringify(docMap));
+    log(`refresh-from-db: ${docRows.length} docs → public/docs.json`);
+
+    // 2. Read atlas_addresses → write public/addresses.atlas.json (seed for build-graph)
+    interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
+    const addrRows = await sql<AddrRow[]>`
+      SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
+      FROM atlas_addresses
+    `;
+    const addrAtlas: Record<string, object> = {};
+    for (const r of addrRows) {
+      addrAtlas[r.address] = {
+        chain: r.chain,
+        entityLabel: r.entity_label,
+        roles: r.roles ?? [],
+        aliases: r.aliases ?? [],
+        expectedTokens: r.expected_tokens ?? [],
+      };
+    }
+    writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify(addrAtlas));
+
+    // 3. Run build-graph subprocess (reads docs.json → writes graph.json, relations.json; enriches addresses.atlas.json)
+    const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
+    if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
+
+    // 4. Run build-glossary subprocess (reads docs.json → writes glossary.json)
+    const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
+    if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
+
+    // 5. Write minimal manifest so refreshInPlaceFromDisk reads the correct atlasCommit
+    writeFileSync(join(config.publicDir, "manifest.json"), JSON.stringify({ atlasCommit: dbSha }));
+
+    // 6. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it)
+    const distDir = config.distDir;
+    if (existsSync(distDir)) {
+      let n = 0;
+      for (const f of readdirSync(config.publicDir)) {
+        if (f.endsWith(".json") && f !== "search-index.json") {
+          copyFileSync(join(config.publicDir, f), join(distDir, f));
+          n++;
+        }
+      }
+      // Drop stale search-index so refreshInPlaceFromDisk writes a fresh one
+      const si = join(distDir, "search-index.json");
+      if (existsSync(si)) unlinkSync(si);
+      log(`refresh-from-db: mirrored ${n} json → dist/`);
+    }
+
+    return true;
+  } catch (e) {
+    log(`refresh-from-db error: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+// Seed embeddings only on first boot (table empty). After that, the atlas
+// worker cron keeps them current. Detached + best-effort so a slow OpenRouter
+// never blocks the health check. Skipped without an API key.
 export function startBootEmbeddings(): void {
   if (!config.openrouterApiKey) {
     console.log("boot-embeddings: skipped (OPENROUTER_API_KEY not set)");
     return;
   }
-  console.log("boot-embeddings: sync:embeddings (detached, best-effort)");
-  spawnCollect("bun", ["src/server/sync-embeddings.ts"], false)
-    .then(({ code }) => console.log(`boot-embeddings: exited ${code}`))
-    .catch((e) => console.warn(`boot-embeddings: spawn error ${(e as Error).message}`));
+  void (async () => {
+    try {
+      const [row] = await sql<[{ n: number }]>`SELECT COUNT(*)::int AS n FROM atlas_doc_embeddings`;
+      if ((row?.n ?? 0) > 0) {
+        console.log(`boot-embeddings: ${row.n} present, worker handles updates`);
+        return;
+      }
+    } catch { /* proceed — table may not exist yet */ }
+    console.log("boot-embeddings: seeding empty table (detached, best-effort)");
+    spawnCollect("bun", ["src/server/sync-embeddings.ts"], false)
+      .then(({ code }) => console.log(`boot-embeddings: exited ${code}`))
+      .catch((e) => console.warn(`boot-embeddings: spawn error ${(e as Error).message}`));
+  })();
 }
 
-// Start the periodic checker. No-op unless ATLAS_UPDATE_ENABLED is set. Uses a
-// self-scheduling timer (not setInterval) so ticks never overlap.
+// Start the periodic DB-drift checker. No-op unless ATLAS_UPDATE_ENABLED is set.
+// Uses a self-scheduling timer (not setInterval) so ticks never overlap.
 export function startUpdater(): void {
   const enabled = process.env.ATLAS_UPDATE_ENABLED === "1" || process.env.ATLAS_UPDATE_ENABLED === "true";
   if (!enabled) {
     console.log("atlas-updater: disabled (set ATLAS_UPDATE_ENABLED=1 to enable)");
     return;
   }
-  const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 5 * 60_000);
+  // Default 30s: polling sync_state is a cheap DB query, not a network call to GitHub.
+  const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 30_000);
   const log = (m: string) => console.log(`atlas-updater: ${m}`);
 
   let building = false;
   let lastTried: string | null = null;
 
-  log(`enabled, interval ${Math.round(intervalMs / 1000)}s`);
+  log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
 
   async function tick(): Promise<void> {
     try {
-      const upstream = await getUpstreamSha();
+      const upstream = await getDbAtlasSha();
       const live = getIndexes().meta.atlasCommit ?? null;
       if (decide({ upstream, live, building, lastTried }) === "build") {
         building = true;
-        log(`drift: upstream ${short(upstream)} ≠ live ${short(live)} — building`);
-        const ok = await runRefreshBuild();
+        log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
+        const ok = await runRefreshFromDb(upstream!, log);
         if (ok) {
-          // Primary: in-place patch + re-serialize the index. Fallback (full
-          // rebuild + swap) recovers from any in-place failure — readArtifacts
-          // sees no search-index.json (subprocess dropped it) → addAll rebuild.
           let newSha: string | null;
           try {
             const d = refreshInPlaceFromDisk(getIndexes());
-            newSha = getIndexes().meta.atlasCommit ?? null;
+            // Advance atlasCommit to the DB sha (manifest was written with this sha).
+            getIndexes().meta = { ...getIndexes().meta, atlasCommit: upstream };
+            newSha = upstream;
             log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
           } catch (e) {
-            log(`in-place update failed (${(e as Error).message}) — full rebuild+swap fallback`);
+            log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
             newSha = rebuildFromDisk().meta.atlasCommit ?? null;
           }
           if (newSha === upstream) {
             log(`updated → live now ${short(newSha)}`);
             lastTried = null;
-            void kickSync(log); // fire-and-forget; DB lanes are best-effort
           } else {
-            lastTried = upstream; // updated but sha didn't advance — stop hammering
-            log(`WARNING updated but live is ${short(newSha)} (expected ${short(upstream)}); not advancing — will not retry this target`);
+            lastTried = upstream;
+            log(`WARNING updated but live is ${short(newSha)} (expected ${short(upstream)}); not retrying this target`);
           }
         } else {
-          log("build failed — will retry next interval"); // transient: do NOT set lastTried
+          log("refresh-from-db failed — will retry next interval");
         }
         building = false;
       }
