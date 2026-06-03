@@ -45,7 +45,7 @@ const skipIfNoHistory = have ? describe : describe.skip;
 
 skipIfNoHistory("history canaries", () => {
   // ──────────── load-once shared state ────────────
-  const docs = have ? JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")) : {};
+  const docs = have ? JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")).nodes : {};
   const rels = have ? JSON.parse(fs.readFileSync(RELS_PATH, "utf8")) : { entities: [] };
 
   // doc_no prefix for each prime agent — used to scope per-prime assertions.

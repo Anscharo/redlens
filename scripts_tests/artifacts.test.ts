@@ -19,10 +19,10 @@ function loadJson<T>(name: string): T | null {
   return JSON.parse(fs.readFileSync(p, "utf8")) as T;
 }
 
-const docs = loadJson<Record<string, AtlasNode>>("docs.json")!;
+const docs = (loadJson<{ nodes: Record<string, AtlasNode> }>("docs.json")?.nodes ?? {}) as Record<string, AtlasNode>;
 const addresses = loadJson<Record<string, AddressInfo>>("addresses.json");
-const atlasAddresses = loadJson<Record<string, { chain: string }>>("addresses.atlas.json");
-const glossary = loadJson<Record<string, { nodeId: string }[]>>("glossary.json");
+const atlasAddresses = loadJson<{ addresses: Record<string, { chain: string }> }>("addresses.atlas.json")?.addresses ?? null;
+const glossary = loadJson<{ terms: Record<string, { nodeId: string }[]> }>("glossary.json")?.terms ?? null;
 const chainState = loadJson<{ block: string; values: Record<string, unknown> }>("chain-state.json");
 const relations = loadJson<{
   entities: { id: string; slug: string }[];
