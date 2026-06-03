@@ -121,7 +121,7 @@ function buildEmbedText(node) {
 async function main() {
   console.log(`reading ${DOCS_PATH}`);
   const docs = JSON.parse(readFileSync(DOCS_PATH, "utf8"));
-  const nodes = Object.values(docs);
+  const nodes = Object.values(docs.nodes);
   console.log(`  ${nodes.length} nodes`);
 
   // Stable order — sort by doc_no so vectors.bin layout is reproducible.

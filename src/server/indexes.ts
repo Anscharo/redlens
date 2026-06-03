@@ -97,7 +97,7 @@ export interface Artifacts {
 }
 
 export function readArtifactsFromDisk(): Artifacts {
-  const rawDocs = readJson<Record<string, AtlasNode>>("docs.json");
+  const rawDocs = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
   const graphJson = readJson<{ meta?: Record<string, unknown>; entities: Entity[]; edges: Edge[] }>("graph.json");
 
   let searchIndexJson: string | null = null;
@@ -107,18 +107,12 @@ export function readArtifactsFromDisk(): Artifacts {
     searchIndexJson = null; // fall back to building from docs
   }
 
-  let meta: Record<string, string | null> = {};
-  try {
-    const m = readJson<{ atlasCommit?: string; redlensCommit?: string; generatedAt?: string }>("manifest.json");
-    meta = {
-      atlasCommit: m.atlasCommit ?? null,
-      redlensCommit: m.redlensCommit ?? null,
-      generatedAt: m.generatedAt ?? null,
-    };
-  } catch {
-    meta = {};
-  }
-  return { docs: Object.values(rawDocs), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };
+  const meta: Record<string, string | null> = {
+    atlasCommit: (graphJson.meta?.atlasCommit as string | undefined) ?? rawDocs.atlasCommit ?? null,
+    redlensCommit: null,
+    generatedAt: null,
+  };
+  return { docs: Object.values(rawDocs.nodes), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };
 }
 
 // Pure builder: construct the full in-memory index set from artifact arrays.

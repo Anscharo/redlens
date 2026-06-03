@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
+import { useAtlasVersion } from "../hooks/useAtlasVersion";
+import { loadAtlas } from "../lib/docs";
 
 const BASE = import.meta.env.BASE_URL;
 const REPO = "https://github.com/Anscharo/redlens";
@@ -10,18 +12,23 @@ export function Footer() {
   const online = useOnlineStatus();
   const { needRefresh, applyUpdate } = useSWUpdate();
   const [block, setBlock] = useState<string | null>(null);
+  const [atlasCommit, setAtlasCommit] = useState<string | null>(null);
+  const [nodeCount, setNodeCount] = useState<number>(0);
+  const atlasNeedsUpdate = useAtlasVersion(atlasCommit);
 
   useEffect(() => {
     fetch(`${BASE}chain-state.json`)
       .then((r) => r.json())
-      .then((d) => {
-        if (d.block) setBlock(d.block);
-      })
+      .then((d) => { if (d.block) setBlock(d.block); })
       .catch(() => {});
+    loadAtlas().then((b) => {
+      setAtlasCommit(b.atlasCommit);
+      setNodeCount(Object.keys(b.docs).length);
+    }).catch(() => {});
   }, []);
 
   const buildDate = __BUILD_TIME__.slice(0, 19).replace("T", " ");
-  const hasStatus = !online || needRefresh;
+  const hasStatus = !online || needRefresh || atlasNeedsUpdate;
 
   return (
     // Left-packed: status (the update/offline warning) leads, then build info.
@@ -49,6 +56,16 @@ export function Footer() {
               update available ↻
             </StatusPill>
           )}
+          {atlasNeedsUpdate && (
+            <StatusPill
+              as="button"
+              color="var(--accent)"
+              title="Atlas content has been updated — click to reload"
+              onClick={() => window.location.reload()}
+            >
+              atlas updated ↻
+            </StatusPill>
+          )}
         </div>
       )}
       {hasStatus && <Sep />}
@@ -70,25 +87,27 @@ export function Footer() {
           <Sep />
         </>
       )}
-      <FooterItem>
-        <a
-          href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${__ATLAS_COMMIT__}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-          style={{ color: "var(--tan-3)" }}
-        >
-          <span className="hidden sm:inline">atlas&nbsp;</span>
-          {__ATLAS_COMMIT__}
-        </a>
-        {__NODE_COUNT__ > 0 && (
-          <span style={{ color: "var(--tan-3)" }}>
-            &nbsp;·&nbsp;{__NODE_COUNT__.toLocaleString()}&nbsp;
-            <span className="hidden sm:inline">nodes</span>
-          </span>
-        )}
-      </FooterItem>
-      <Sep />
+      {atlasCommit && (
+        <FooterItem>
+          <a
+            href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${atlasCommit}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+            style={{ color: "var(--tan-3)" }}
+          >
+            <span className="hidden sm:inline">atlas&nbsp;</span>
+            {atlasCommit.slice(0, 7)}
+          </a>
+          {nodeCount > 0 && (
+            <span style={{ color: "var(--tan-3)" }}>
+              &nbsp;·&nbsp;{nodeCount.toLocaleString()}&nbsp;
+              <span className="hidden sm:inline">nodes</span>
+            </span>
+          )}
+        </FooterItem>
+      )}
+      {atlasCommit && <Sep />}
       <FooterItem>
         <a
           href={`${REPO}/commit/${__COMMIT_HASH__}`}

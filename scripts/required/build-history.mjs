@@ -508,7 +508,7 @@ function loadAgentNamePrefixes() {
   const docsPath = path.join(ROOT, "public/docs.json");
   if (!fs.existsSync(relsPath) || !fs.existsSync(docsPath)) return [];
   const rels = JSON.parse(fs.readFileSync(relsPath, "utf8"));
-  const docs = JSON.parse(fs.readFileSync(docsPath, "utf8"));
+  const docs = JSON.parse(fs.readFileSync(docsPath, "utf8")).nodes;
   const out = [];
   for (const e of rels.entities ?? []) {
     if (e.et !== "agent" || !e.did) continue;

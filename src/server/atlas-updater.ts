@@ -12,6 +12,7 @@ import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk } from "./indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
+import { broadcastAtlasUpdate } from "./sse.ts";
 import type { AtlasNode } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
@@ -87,7 +88,7 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
         order: r.order,
       };
     }
-    writeFileSync(join(config.publicDir, "docs.json"), JSON.stringify(docMap));
+    writeFileSync(join(config.publicDir, "docs.json"), JSON.stringify({ atlasCommit: dbSha, nodes: docMap }));
     log(`refresh-from-db: ${docRows.length} docs → public/docs.json`);
 
     // 2. Read atlas_addresses → write public/addresses.atlas.json (seed for build-graph)
@@ -106,7 +107,7 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
         expectedTokens: r.expected_tokens ?? [],
       };
     }
-    writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify(addrAtlas));
+    writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
     // 3. Run build-graph subprocess (reads docs.json → writes graph.json, relations.json; enriches addresses.atlas.json)
     const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
@@ -204,6 +205,7 @@ export function startUpdater(): void {
           }
           if (newSha === upstream) {
             log(`updated → live now ${short(newSha)}`);
+            if (newSha) broadcastAtlasUpdate(newSha);
             lastTried = null;
           } else {
             lastTried = upstream;

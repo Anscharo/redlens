@@ -47,7 +47,7 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
     p = fetch(`/api/history/${nodeId}`)
       .then((r) => (r.ok ? (r.json() as Promise<HistoryEntry[]>) : null))
       .catch(() => null);
-    cache.set(nodeId, p!);
+    cache.set(nodeId, p);
   }
   return p;
 }

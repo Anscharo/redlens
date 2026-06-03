@@ -12,6 +12,7 @@ import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory } from "./history.ts";
+import { registerSSEClient } from "./sse.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -54,6 +55,21 @@ const server = Bun.serve({
     // Auth routes own their own Set-Cookie / Location headers; CORS is moot
     // (same-origin browser navigation + same-origin fetch), so don't re-wrap.
     if (pathname.startsWith("/api/history/")) return handleHistory(req, pathname);
+
+    if (pathname === "/api/atlas-events") {
+      let unregister: (() => void) | null = null;
+      const stream = new ReadableStream({
+        start(controller) {
+          const enc = new TextEncoder();
+          const enqueue = (s: string) => controller.enqueue(enc.encode(s));
+          unregister = registerSSEClient(enqueue, () => controller.close());
+        },
+        cancel() { unregister?.(); },
+      });
+      return new Response(stream, {
+        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive", ...CORS },
+      });
+    }
 
     if (config.chatEnabled) {
       if (pathname.startsWith("/api/auth/")) return handleAuth(req, pathname);

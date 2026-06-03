@@ -5,18 +5,15 @@
 //   bun src/server/sync.ts            # sha-gated: skips if already current
 //   bun src/server/sync.ts --force    # sync regardless of sha
 //
-// Reads: public/{docs,graph,addresses.atlas,addresses,chain-state}.json
+// Reads: public/{docs,addresses.atlas,addresses,chain-state}.json
 // History is synced by the history worker (sync-history-pg.ts), not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
 import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { contentHash } from "./embed-text.ts";
-import type { AtlasNode, Entity } from "./indexes.ts";
-// slugify is the same helper the graph build + D1 sync use to resolve labels → entity ids.
-import { slugify } from "../../scripts/lib/graph-patterns.mjs";
+import type { AtlasNode } from "./indexes.ts";
 
 const FORCE = process.argv.includes("--force");
 const pub = (f: string) => join(config.publicDir, f);
@@ -38,14 +35,8 @@ async function main() {
   await waitForDb(); // tolerate Railway's private-network / fresh-PG boot lag
   await runMigrations();
 
-  const atlasSha = (() => {
-    const atlasDir = join(import.meta.dir, "../../vendor/next-gen-atlas");
-    try {
-      return execSync("git rev-parse HEAD", { cwd: atlasDir, encoding: "utf8" }).trim();
-    } catch {
-      return "unknown";
-    }
-  })();
+  const docsFile = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
+  const atlasSha = docsFile.atlasCommit ?? "unknown";
 
   const prevState = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
   const prevSha: string | null = prevState[0]?.atlas_sha ?? null;
@@ -57,7 +48,7 @@ async function main() {
   console.log(`sync:atlas — ${prevSha?.slice(0, 12) ?? "(empty)"} → ${atlasSha.slice(0, 12)}`);
 
   // ── doc_meta ──────────────────────────────────────────────────────────────
-  const docs = Object.values(readJson<Record<string, AtlasNode>>("docs.json"));
+  const docs = Object.values(docsFile.nodes);
   const docRows: DocMetaRow[] = docs.map((d) => ({
     id: d.id,
     doc_no: d.doc_no,
@@ -86,9 +77,9 @@ async function main() {
   const removedDocIds = [...before.keys()].filter((id) => !newIds.has(id));
 
   // ── addresses (build rows; written inside the txn below) ─────────────────────
-  const addrAtlas = readJson<Record<string, {
+  const addrAtlas = readJson<{ atlasCommit?: string; addresses: Record<string, {
     chain?: string; roles?: string[]; entityLabel?: string; aliases?: string[]; expectedTokens?: string[];
-  }>>("addresses.atlas.json");
+  }> }>("addresses.atlas.json").addresses;
   const addrOnChain = existsSync(pub("addresses.json"))
     ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; isProxy?: boolean; implementation?: string }>>("addresses.json")
     : {};
@@ -106,14 +97,10 @@ async function main() {
     }
   }
 
-  const entities = readJson<{ entities: Entity[] }>("graph.json").entities;
-  const entityIdBySlug = new Map(entities.map((e) => [e.slug, e.id]));
-
   const addrRows = Object.entries(addrAtlas).map(([addr, a]) => {
     const oc = addrOnChain[addr] ?? {};
     const label = oc.chainlogId ?? a.entityLabel ?? oc.etherscanName ?? null;
     const cs = chainStateByAddr[addr.toLowerCase()];
-    const entityId = label ? entityIdBySlug.get(slugify(label)) ?? null : null;
     const record = {
       address: addr.toLowerCase(),
       chain: a.chain ?? "ethereum",
@@ -131,7 +118,6 @@ async function main() {
       // Snapshot block lives inside the JSONB as chain_state->>'block' (no
       // separate column) — merge the per-chain block in alongside the view-fns.
       chain_state: cs ? { block: cs.block, ...(cs.values as Record<string, unknown>) } : null,
-      entity_id: entityId,
       atlas_sha: atlasSha,
     };
     return { ...record, content_hash: Bun.hash(JSON.stringify(record)).toString(16) };
@@ -142,7 +128,7 @@ async function main() {
   const addrCols = [
     "address", "chain", "label", "chainlog_id", "etherscan_name", "is_contract", "is_proxy",
     "implementation", "roles", "aliases", "expected_tokens", "chain_state",
-    "entity_id", "content_hash", "atlas_sha",
+    "content_hash", "atlas_sha",
   ];
   const JSONB_COLS = new Set(["roles", "aliases", "expected_tokens", "chain_state"]);
   const setClause = addrCols

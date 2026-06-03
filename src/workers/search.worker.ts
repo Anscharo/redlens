@@ -48,12 +48,12 @@ async function init() {
   const base = import.meta.env.BASE_URL;
   const [idxText, docsData, addrsData] = await Promise.all([
     fetchTextVerified(`${base}search-index.json`, "search-index.json"),
-    fetchJsonVerified<Record<string, AtlasNode>>(`${base}docs.json`, "docs.json"),
+    fetchJsonVerified<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>(`${base}docs.json`, "docs.json"),
     fetchJsonVerified<Record<string, AddressInfo>>(`${base}addresses.json`, "addresses.json"),
   ]);
 
   idx = MiniSearch.loadJSON(idxText, MINISEARCH_OPTIONS);
-  docs = docsData;
+  docs = docsData.nodes;
 
   for (const [addr, info] of Object.entries(addrsData)) {
     if (info.chainlogId) chainlogToAddr.set(info.chainlogId, addr);

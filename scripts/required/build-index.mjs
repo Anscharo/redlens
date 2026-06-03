@@ -10,7 +10,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import MiniSearch from "minisearch";
 
@@ -170,8 +170,13 @@ console.log(`\n${total} unique addresses extracted`);
 for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1]))
   console.log(`  ${c.padEnd(12)} ${n}`);
 
-fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify(chainMap));
-fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify(docs));
+const atlasCommit = (() => {
+  try { return execSync("git rev-parse HEAD", { cwd: path.join(ROOT, "vendor/next-gen-atlas"), encoding: "utf8" }).trim(); }
+  catch { return "unknown"; }
+})();
+
+fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: chainMap }));
+fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify({ atlasCommit, nodes: docs }));
 if (idx) fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringify(idx));
 
 const docsSize = (fs.statSync(path.join(OUT_DIR, "docs.json")).size / 1024).toFixed(1);

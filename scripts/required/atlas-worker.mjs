@@ -7,7 +7,7 @@
 //
 // On change, embeddings and history run in parallel after the structural sync:
 //
-//   build-index → build-graph → sync.ts →
+//   build-index → sync.ts →
 //     ┌── sync-embeddings.ts              (atlas_doc_embeddings)
 //     └── build-history → sync-history-pg (atlas_history)
 //
@@ -121,9 +121,6 @@ async function main() {
   console.log("atlas-worker: build-index…");
   run("bun", ["scripts/required/build-index.mjs"]);
 
-  console.log("atlas-worker: build-graph…");
-  run("bun", ["scripts/required/build-graph.mjs"]);
-
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
   console.log("atlas-worker: sync.ts…");
   run("bun", ["src/server/sync.ts"]);
@@ -185,4 +182,7 @@ async function main() {
   console.log(`atlas-worker: done in ${elapsed}s`);
 }
 
-await main();
+main().catch((err) => {
+  console.error("atlas-worker: fatal error:", err?.message ?? err);
+  process.exit(1);
+});

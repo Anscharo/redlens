@@ -34,10 +34,10 @@ let cached: Promise<Record<string, AddressInfo>> | null = null;
 export function loadAddresses(): Promise<Record<string, AddressInfo>> {
   if (!cached) {
     cached = Promise.all([
-      fetchJsonVerified<Record<string, AtlasAddr>>(
+      fetchJsonVerified<{ atlasCommit?: string; addresses: Record<string, AtlasAddr> }>(
         `${import.meta.env.BASE_URL}addresses.atlas.json`,
         "addresses.atlas.json",
-      ),
+      ).then((f) => f.addresses),
       fetchJsonVerified<Record<string, OnChainAddr>>(
         `${import.meta.env.BASE_URL}addresses.json`,
         "addresses.json",

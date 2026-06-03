@@ -34,10 +34,8 @@ jobs:
       - name: Build graph
         run: pnpm build:graph
 
-      # Don't rebuild manifest here — the committed public/manifest.json is
-      # the source of truth. The "Run tests" step below executes
-      # manifest.test.ts which verifies committed hashes match disk
-      # (i.e. fresh deterministic rebuilds match what atlas-update PR'd).
+      # manifest.json is a build artifact (not committed). manifest.test.ts
+      # skips itself when it's absent, so no build:manifest step needed here.
 
       - name: Type check
         run: pnpm build:ts
@@ -127,7 +125,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Regenerate the gitignored artifacts the server reads (docs.json, graph.json).
-      # addresses.atlas / chain-state / manifest / history are committed.
+      # addresses.atlas.json and chain-state.json are committed; history is not needed here.
       - name: Build atlas artifacts
         run: pnpm build:index && pnpm build:graph
 

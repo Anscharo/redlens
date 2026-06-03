@@ -25,6 +25,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
 
 import { slugify } from "../lib/graph-patterns.mjs";
 import {
@@ -50,6 +51,10 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
+const atlasCommit = (() => {
+  try { return execSync("git rev-parse HEAD", { cwd: path.join(ROOT, "vendor/next-gen-atlas"), encoding: "utf8" }).trim(); }
+  catch { return "unknown"; }
+})();
 
 // ---------------------------------------------------------------------------
 // Load inputs
@@ -57,7 +62,7 @@ const ROOT = path.resolve(__dirname, "../..");
 
 console.log("Loading docs.json…");
 const rawDocs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8"));
-const allDocs = Object.values(rawDocs);
+const allDocs = Object.values(rawDocs.nodes);
 console.log(`  ${allDocs.length} docs`);
 
 const docById = new Map(allDocs.map((d) => [d.id, d]));
@@ -69,7 +74,7 @@ const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
 console.log("Loading address artifacts…");
 const addressesAtlas = JSON.parse(
   fs.readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8"),
-);
+).addresses;
 const addressesOnChain = (() => {
   try {
     return JSON.parse(fs.readFileSync(path.join(ROOT, "public/addresses.json"), "utf8"));
@@ -627,6 +632,7 @@ fs.writeFileSync(
   path.join(ROOT, "public/graph.json"),
   JSON.stringify({
     meta: {
+      atlasCommit,
       schemaVersion: 4,
       counts: {
         entities: entityRows.length,
@@ -700,6 +706,7 @@ fs.writeFileSync(
   path.join(ROOT, "public/relations.json"),
   JSON.stringify({
     meta: {
+      atlasCommit,
       schemaVersion: 4,
       counts: { entities: relationEntities.length, edges: relationEdges.length },
     },
@@ -782,7 +789,7 @@ console.log(`  public/relations.json written (${(relSize / 1024).toFixed(0)} KB)
     if (fallback) { entry.entityLabel = fallback; chainlogFallback++; }
   }
 
-  fs.writeFileSync(path.join(ROOT, "public/addresses.atlas.json"), JSON.stringify(addressesAtlas));
+  fs.writeFileSync(path.join(ROOT, "public/addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesAtlas }));
   console.log(
     `  Atlas enrichment:` +
     ` ${icdUpdated} ICD` +
