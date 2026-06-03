@@ -119,21 +119,35 @@ c. **Link DATABASE_URL** to the same Postgres instance:
    railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
    ```
 
-d. **Set the worker variables:**
+d. **Create a GitHub token for PR metadata.** The worker uses `gh pr view` to
+   fetch PR title, author, and body for atlas history entries. This only reads
+   the public `sky-ecosystem/next-gen-atlas` repo, so the token needs minimal
+   permissions:
+
+   - GitHub → **Settings → Developer settings → Personal access tokens →
+     Fine-grained tokens → Generate new token**
+   - **Repository access:** Public repositories (read-only)
+   - **Permissions:** none additional — public repo content is readable with
+     any valid token
+   - Copy the `github_pat_…` value
+
+   *The container has no stored `gh` credentials, so without this token every
+   `gh pr view` call fails silently — history entries record only the commit
+   hash and diff, with no PR title, author, or summary.*
+
+e. **Set the worker variables:**
    ```bash
-   railway variables --set 'OPENROUTER_API_KEY=sk-or-...' --service redlens-worker
-   railway variables --set 'GITHUB_TOKEN=ghp_...'         --service redlens-worker
+   railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
+   railway variables --set 'OPENROUTER_API_KEY=sk-or-...'            --service redlens-worker
+   railway variables --set 'GITHUB_TOKEN=github_pat_...'             --service redlens-worker
    ```
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `DATABASE_URL` | **yes** | Same Postgres as the web service |
+| `GITHUB_TOKEN` | **yes** | `gh pr view` for history PR metadata — no stored creds in container |
 | `OPENROUTER_API_KEY` | optional | Embeddings — skipped gracefully if unset |
-| `GITHUB_TOKEN` | optional | PR metadata (title, author, body) in history builds |
 | `ATLAS_WORKER_FULL=1` | optional | Force a full history rebuild from the beginning |
-
-*Without `GITHUB_TOKEN`, history entries still record the commit and diff but
-lack PR title/author/summary data.*
 
 ## 5. Configure services and deploy
 
