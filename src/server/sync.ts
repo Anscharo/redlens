@@ -5,10 +5,11 @@
 //   bun src/server/sync.ts            # sha-gated: skips if already current
 //   bun src/server/sync.ts --force    # sync regardless of sha
 //
-// Reads: public/{docs,graph,addresses.atlas,addresses,chain-state,manifest}.json
+// Reads: public/{docs,graph,addresses.atlas,addresses,chain-state}.json
 // History is synced by the history worker (sync-history-pg.ts), not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { execSync } from "node:child_process";
 import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
@@ -37,8 +38,14 @@ async function main() {
   await waitForDb(); // tolerate Railway's private-network / fresh-PG boot lag
   await runMigrations();
 
-  const manifest = readJson<{ atlasCommit?: string }>("manifest.json");
-  const atlasSha = manifest.atlasCommit ?? "unknown";
+  const atlasSha = (() => {
+    const atlasDir = join(import.meta.dir, "../../vendor/next-gen-atlas");
+    try {
+      return execSync("git rev-parse HEAD", { cwd: atlasDir, encoding: "utf8" }).trim();
+    } catch {
+      return "unknown";
+    }
+  })();
 
   const prevState = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
   const prevSha: string | null = prevState[0]?.atlas_sha ?? null;

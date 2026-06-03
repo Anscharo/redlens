@@ -126,9 +126,6 @@ CREATE TABLE IF NOT EXISTS kv_meta (
   key   TEXT PRIMARY KEY,
   value TEXT
 );
--- node_history — DEPRECATED. History is now stored in Postgres atlas_history
--- and served via GET /api/history/:nodeId. This table is no longer synced.
--- ---------------------------------------------------------------------------
 -- schema_migrations — tracks which one-time migrations have been applied.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS schema_migrations (
