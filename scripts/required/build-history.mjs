@@ -24,7 +24,6 @@ import { fileURLToPath } from "node:url";
 import { execSync, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { HEADING_RE } from "../lib/atlas-parser.mjs";
-import { extractForumBullets, findForumTopicIds } from "../lib/forum-parse.mjs";
 import {
   classifyDiff,
   classifyPrTitle,
@@ -40,7 +39,6 @@ const ATLAS_FILE = "Sky Atlas/Sky Atlas.md";
 const CONTENT_DIR = "content";
 const OUT_DIR = path.join(ROOT, "public/history");
 const PR_CACHE_DIR = path.join(ROOT, ".cache/github-prs");
-const FORUM_CACHE_DIR = path.join(ROOT, ".cache/discourse");
 const REPO = "sky-ecosystem/next-gen-atlas";
 
 // ---------------------------------------------------------------------------
@@ -466,49 +464,6 @@ function extractPrNumber(message) {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** Strip governance-boilerplate noise from a description / PR body. Returns
- *  null if there's nothing meaningful left, so callers can skip setting the
- *  field rather than carry forward a near-empty string. */
-
-/** If the PR body links to a Sky forum post and we have it cached, parse the
- *  post into bullets + extraRefs. Returns null if no forum link or cache miss.
- *  See scripts/lib/forum-parse.mjs for the parse contract. */
-function loadForumExtras(pr) {
-  if (!pr?.body) return null;
-  const topicIds = findForumTopicIds(pr.body);
-  if (topicIds.length === 0) return null;
-
-  // If a PR references multiple topics (rare; happens when a Weekly Cycle is
-  // split across two posts), merge bullets and refs from all available ones.
-  const bullets = [];
-  const docNos = new Set();
-  const uuids = new Set();
-  let any = false;
-  for (const id of topicIds) {
-    const p = path.join(FORUM_CACHE_DIR, `${id}.json`);
-    if (!fs.existsSync(p)) {
-      console.error(`    forum cache miss for topic ${id} — run pnpm build:forum-cache`);
-      continue;
-    }
-    let entry;
-    try {
-      entry = JSON.parse(fs.readFileSync(p, "utf8"));
-    } catch {
-      continue;
-    }
-    if (!entry.post1Raw) continue;
-    const { bullets: bs, extraRefs } = extractForumBullets(entry.post1Raw, {
-      fallbackTitle: pr.title,
-    });
-    bullets.push(...bs);
-    for (const r of extraRefs.docNos) docNos.add(r);
-    for (const r of extraRefs.uuids) uuids.add(r);
-    any = true;
-  }
-  if (!any) return null;
-  return { bullets, extraRefs: { docNos, uuids } };
-}
-
 async function fetchPr(prNum) {
   const cacheFile = path.join(PR_CACHE_DIR, `${prNum}.json`);
   if (fs.existsSync(cacheFile)) {
@@ -668,40 +623,20 @@ async function main() {
 
     // Try to match bullets to nodes for edit proposals. Pass the unique nodes
     // (modified ∪ added ∪ removed) so a moved-and-modified node isn't scored twice.
-    //
-    // PR bullets come from two sources:
-    //   - parsePrBullets(pr.body) — the canonical Atlas Edit Proposal bullets.
-    //   - loadForumExtras(pr)     — Weekly Cycle ### blocks or the SAEP Summary
-    //     section, when the PR links to a Sky forum post (some PRs put the real
-    //     proposal there and leave the GitHub body almost empty).
     let bulletMatches = new Map();
     let prHasInlineBullets = false;
     if (pr?.body) {
       const prBullets = parsePrBullets(pr.body);
       prHasInlineBullets = prBullets.length > 0;
-      const forumExtras = loadForumExtras(pr);
-      const bullets = [...prBullets, ...(forumExtras?.bullets ?? [])];
-      if (bullets.length > 0) {
+      if (prBullets.length > 0) {
         const matchTargets = [...added, ...modified, ...removed];
-        // SAEP mode: single-bullet forum result + no inline PR bullets → that
-        // bullet is the PR-level summary; route forum extraRefs to it.
-        const refFallback =
-          prBullets.length === 0 && forumExtras?.bullets.length === 1
-            ? forumExtras.bullets[0]
-            : null;
-        bulletMatches = matchBulletsToNodes(bullets, matchTargets, snapshot, {
-          extraRefs: forumExtras?.extraRefs ?? null,
-          refFallback,
+        bulletMatches = matchBulletsToNodes(prBullets, matchTargets, snapshot, {
           agentNamePrefixes,
         });
         if (matchTargets.length > 0) {
           const rate = ((bulletMatches.size / matchTargets.length) * 100).toFixed(0);
-          const src =
-            forumExtras?.bullets.length
-              ? ` (pr=${prBullets.length}+forum=${forumExtras.bullets.length})`
-              : "";
           console.error(
-            `    bullets: ${bulletMatches.size}/${matchTargets.length} matched (${rate}%)${src}`,
+            `    bullets: ${bulletMatches.size}/${matchTargets.length} matched (${rate}%)`,
           );
         }
       }
@@ -761,11 +696,8 @@ async function main() {
         if (cleaned) entry.description = cleaned;
         // matchScore omitted from output — internal quality signal only
       } else if (pr?.body && !prHasInlineBullets && pr.body.length < 500) {
-        // No-bullet-match fallback. Only useful for plain non-bulleted PRs
-        // (Spark proposals, single-fix commits) where the whole body is the
-        // summary. Forum-linked PRs typically have a bare URL as the body and
-        // are deliberately left summary-less here — the matched-bullet rows
-        // carry the real information.
+        // No-bullet-match fallback: plain non-bulleted PRs (Spark proposals,
+        // single-fix commits) where the whole body is the summary.
         entry.summary = pr.title;
         const cleaned = cleanDescription(pr.body);
         if (cleaned) entry.description = cleaned;

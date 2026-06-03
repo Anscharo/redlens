@@ -1086,18 +1086,6 @@
     "isContract": true,
     "isProxy": false
   },
-  "0x26e9512547fec1906c55256e491dfb6673d8c23f": {
-    "chain": "avalanche",
-    "etherscanName": "CCTPReceiver",
-    "isContract": true,
-    "isProxy": false
-  },
-  "0x8ea8dff8c29f568ea1e716e2c3afbd003eb83cfa": {
-    "chain": "avalanche",
-    "etherscanName": "CCTPv2Receiver",
-    "isContract": true,
-    "isProxy": false
-  },
   "0xfd9dea9a8d5b955649579af482db7198a392a9f5": {
     "chain": "ethereum",
     "etherscanName": "MainnetController",

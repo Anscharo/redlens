@@ -42,11 +42,31 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
+      - uses: pnpm/action-setup@v6
+        if: steps.atlas.outputs.proceed == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.atlas.outputs.proceed == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.atlas.outputs.proceed == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Rebuild artifacts and update snapshots
+        if: steps.atlas.outputs.proceed == 'true'
+        run: |
+          pnpm build:index
+          pnpm build:graph
+          pnpm test:snap:update
+
       - name: Commit updated submodule pointer
         if: steps.atlas.outputs.proceed == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vendor/next-gen-atlas
+          git add vendor/next-gen-atlas graph-snapshots/__snapshots__
           git commit -m "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}"
           git push
