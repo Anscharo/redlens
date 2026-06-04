@@ -45,7 +45,10 @@ export interface SearchHit {
 }
 
 // Worker message types — search
-export type WorkerInMessage = { type: "query"; id: number; q: string } | { type: "ping" };
+export type WorkerInMessage =
+  | { type: "query"; id: number; q: string }
+  | { type: "ping" }
+  | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
 export type WorkerOutMessage =
   | { type: "ready" }

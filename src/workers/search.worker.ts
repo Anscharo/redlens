@@ -7,7 +7,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from "../types";
-import { fetchJsonVerified, fetchTextVerified } from "../lib/verify";
+import { fetchTextVerified } from "../lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
 import { UUID_RE } from "../lib/patterns";
 
@@ -44,18 +44,24 @@ const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 // NOTE: the phrase-filter substring check means "USDC" also matches "USDCe" in content.
 const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
 
+// Resolved by the "preload" message from the main thread, which forwards
+// already-loaded atlas + address data so this worker doesn't fetch them again.
+let resolvePreload!: (data: { docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> }) => void;
+const preloadPromise = new Promise<{ docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> }>(
+  (res) => { resolvePreload = res; },
+);
+
 async function init() {
   const base = import.meta.env.BASE_URL;
-  const [idxText, docsData, addrsData] = await Promise.all([
+  const [idxText, { docs: preloadedDocs, addresses: preloadedAddrs }] = await Promise.all([
     fetchTextVerified(`${base}search-index.json`, "search-index.json"),
-    fetchJsonVerified<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>(`${base}docs.json`, "docs.json"),
-    fetchJsonVerified<Record<string, AddressInfo>>(`${base}addresses.json`, "addresses.json"),
+    preloadPromise,
   ]);
 
   idx = MiniSearch.loadJSON(idxText, MINISEARCH_OPTIONS);
-  docs = docsData.nodes;
+  docs = preloadedDocs;
 
-  for (const [addr, info] of Object.entries(addrsData)) {
+  for (const [addr, info] of Object.entries(preloadedAddrs)) {
     if (info.chainlogId) chainlogToAddr.set(info.chainlogId, addr);
   }
 
@@ -375,6 +381,10 @@ function search(q: string): SearchHit[] {
 
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   const msg = e.data;
+  if (msg.type === "preload") {
+    resolvePreload({ docs: msg.docs, addresses: msg.addresses });
+    return;
+  }
   if (msg.type === "ping") {
     post({ type: "ready" });
     return;
