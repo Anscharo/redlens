@@ -163,9 +163,12 @@ c. **Deploy.** Railway redeploys the web service automatically on push or
    variable change. The worker deploys on its cron schedule. To trigger the
    worker manually: service **Deployments → Trigger deploy**.
 
-   *The web service Docker build clones the atlas, runs `build:railway` to
-   produce initial artifacts, then starts with `sync:atlas && start`. The
-   worker image is headless (no Vite build) and simply runs
+   *The web service uses a two-stage Docker build: the builder stage clones
+   the atlas and bakes docs.json, graph.json, and the Vite bundle into the
+   image; the runtime stage is lean (no git, no python3). The server starts
+   immediately serving the baked-in atlas snapshot; the in-process updater
+   then keeps it fresh from Postgres as the worker advances the atlas.
+   The worker image is headless (no Vite build) and runs
    `atlas-worker.mjs` on each cron tick.*
 
 ## 6. Verify
@@ -304,6 +307,12 @@ which hits Etherscan or an RPC endpoint. On-chain data (`addresses.json`,
 
 **Container crash-loops on `ERR_POSTGRES_CONNECTION_CLOSED`**
 → `DATABASE_URL` isn't wired. Re-check step 2d.
+
+**Atlas tree shows empty on first deploy**
+→ The image bakes in a snapshot of the atlas at build time, so this
+should not happen on a normal deploy. If it does, the builder stage
+likely failed to clone the atlas — check the Railway build logs for the
+`git clone` step.
 
 **Semantic search returns nothing**
 → `OPENROUTER_API_KEY` is missing or out of credits; lexical search still

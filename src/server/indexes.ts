@@ -96,15 +96,25 @@ export interface Artifacts {
   searchIndexJson: string | null;
 }
 
+const EMPTY_ARTIFACTS: Artifacts = { docs: [], entities: [], edges: [], meta: {}, searchIndexJson: null };
+
 export function readArtifactsFromDisk(): Artifacts {
-  const rawDocs = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
-  const graphJson = readJson<{ meta?: Record<string, unknown>; entities: Entity[]; edges: Edge[] }>("graph.json");
+  let rawDocs: { atlasCommit?: string; nodes: Record<string, AtlasNode> };
+  let graphJson: { meta?: Record<string, unknown>; entities: Entity[]; edges: Edge[] };
+  try {
+    rawDocs = readJson("docs.json");
+    graphJson = readJson("graph.json");
+  } catch {
+    // Artifacts not yet built — cold start before the worker has populated Postgres.
+    // The in-process updater will detect drift and rebuild from DB within 30s.
+    return EMPTY_ARTIFACTS;
+  }
 
   let searchIndexJson: string | null = null;
   try {
     searchIndexJson = readFileSync(join(config.publicDir, "search-index.json"), "utf8");
   } catch {
-    searchIndexJson = null; // fall back to building from docs
+    searchIndexJson = null;
   }
 
   const meta: Record<string, string | null> = {
