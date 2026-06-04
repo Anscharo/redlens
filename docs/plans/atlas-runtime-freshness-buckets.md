@@ -31,7 +31,7 @@ only when *code* changes.
         │ relations.json   │            │ (no restart)              │
         │ glossary,history │            └───────────────────────────┘
         └──────────────────┘                       ▲
-                 │ public read (CDN-fronted)        │ /health → live sha
+                 │ public read (CDN-fronted)        │ api/health → live sha
                  ▼
         BROWSER: client-side search fetches the same blobs
                  (manifest-versioned URLs; same code, untouched)
@@ -96,7 +96,7 @@ resolution of the "multi-MB blobs in Postgres" worry.
   rebuilds only on code changes); `NO_CACHE` and the redeploy mutation drop out
   of the data hot path.
 - **Unchanged:** Postgres + pgvector + chat env; **client-side search** (origin
-  only); `/health` (reports the live sha, advanced after each reload).
+  only); `api/health` (reports the live sha, advanced after each reload).
 - **Net:** more moving parts than today (bucket + job + reload endpoint/token +
   SPA fetch config), but data updates are incremental and restart-free, and the
   image rebuilds only on code change.

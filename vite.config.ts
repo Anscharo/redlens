@@ -15,12 +15,8 @@ const commitHash = (() => {
 const buildTime = new Date().toISOString();
 
 
-// CF Pages sets CF_PAGES=1 automatically; Railway sets RAILWAY_ENVIRONMENT.
-// Both deploy to the domain apex so base is "/". GH Pages lives under /redlens/.
-const base =
-  process.env.CF_PAGES === "1" || process.env.RAILWAY_ENVIRONMENT
-    ? "/"
-    : "/redlens/";
+// Default base is "/". Only GitHub Pages lives under /redlens/ — opt in explicitly.
+const base = process.env.GITHUB_PAGES === "1" ? "/redlens/" : "/";
 
 export default defineConfig(() => {
   // The chat widget + auth/profile button need the Bun /api backend, which only
@@ -105,8 +101,10 @@ export default defineConfig(() => {
           "**/chain-state.json",
           "**/history/**",
         ],
-        // Serve index.html for all navigation requests so deep-URL refreshes work offline.
+        // Serve index.html for SPA routes, but not for server endpoints — those
+        // must reach the Bun server directly.
         navigateFallback: `${base}index.html`,
+        navigateFallbackDenylist: [/^\/api\//, /^\/mcp$/],
         runtimeCaching: [
           {
             // Large atlas files: serve cached version immediately, refresh in background.

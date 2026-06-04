@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 // Two-channel staleness detection:
 //
-//   Mount check — one fetch("/health") to catch pages loaded with a stale
+//   Mount check — one fetch("api/health") to catch pages loaded with a stale
 //   cached docs.json (e.g. SW served an old version after an atlas update).
 //
 //   SSE — /api/atlas-events carries broadcasts from the in-process updater,
@@ -21,7 +21,7 @@ export function useAtlasVersion(loadedCommit: string | null) {
     };
 
     // Mount check: was this page loaded with already-stale data?
-    fetch("/health")
+    fetch("/api/health")
       .then((r) => r.ok ? r.json() : null)
       .then((d: { atlas_sha?: string } | null) => signal(d?.atlas_sha))
       .catch(() => {});

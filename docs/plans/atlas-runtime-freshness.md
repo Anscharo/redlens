@@ -33,9 +33,9 @@ Each cron firing (railway.cron.toml, every 5 min), in order:
                       start:   sync:atlas → serve → spawn detached embed reconcile
 ```
 
-The cron is tiny: it needs neither the submodule nor a build toolchain. `git ls-remote` gives the upstream head SHA without a checkout; `/health` reports the web service's live `atlas_sha`. If they differ **and** no deploy is already in flight, it calls the Railway API to redeploy the web service, then exits.
+The cron is tiny: it needs neither the submodule nor a build toolchain. `git ls-remote` gives the upstream head SHA without a checkout; `api/health` reports the web service's live `atlas_sha`. If they differ **and** no deploy is already in flight, it calls the Railway API to redeploy the web service, then exits.
 
-`/health` is the web service's existing **public** route (`index.ts:39`) — it exposes only `atlas_sha` + a doc count, nothing sensitive — so the cron reads it over the public domain. There is no cron→web private call and no internal endpoint, so the service keeps its default bind; the only external call the cron makes is the Railway API redeploy (HTTPS, token-scoped).
+`api/health` is the web service's existing **public** route (`index.ts:39`) — it exposes only `atlas_sha` + a doc count, nothing sensitive — so the cron reads it over the public domain. There is no cron→web private call and no internal endpoint, so the service keeps its default bind; the only external call the cron makes is the Railway API redeploy (HTTPS, token-scoped).
 
 The redeploy does everything else, the same way a deploy does today: the build pulls fresh atlas, regenerates `docs.json`/`graph.json`/etc. **and** the Vite bundle, the start command's `sync:atlas` updates Postgres before serving, and once serving the boot spawns the embed reconcile (below). The SPA ships fresh because its bundle was just rebuilt — no separate SPA work.
 
@@ -77,7 +77,7 @@ So embedding rides the deploy itself: **the boot spawns `sync:embeddings` as a d
 
 ## What we deliberately do NOT build
 
-Because a redeploy refreshes the whole app, none of this is needed: a storage bucket or other cross-process channel, an `/internal/reload` index-swap hook, in-memory hot-swap, versioned/content-addressed SPA artifacts, browser-side polling, **any internal endpoint, the `::` dual-stack bind, or Railway private networking** (the cron reads only the public `/health`). If the chatbot later needs no-interrupt updates, that's a separate change layered on then — not now.
+Because a redeploy refreshes the whole app, none of this is needed: a storage bucket or other cross-process channel, an `/internal/reload` index-swap hook, in-memory hot-swap, versioned/content-addressed SPA artifacts, browser-side polling, **any internal endpoint, the `::` dual-stack bind, or Railway private networking** (the cron reads only the public `api/health`). If the chatbot later needs no-interrupt updates, that's a separate change layered on then — not now.
 
 ## On-chain artifacts are a separate cadence
 
@@ -93,7 +93,7 @@ This is accepted for now (option A). `build:history` is in the slow lane because
 
 **New:**
 - `railway.cron.toml` — cron service config: `cronSchedule` (every 5 min), start command = the detector script. Wired to a second Railway service in the dashboard, with a Railway API token to trigger the redeploy.
-- `scripts/required/refresh-atlas.mjs` (+ `pnpm refresh:atlas`) — each firing: `ls-remote` vs public `/health`; on drift, if no redeploy is already in flight for that target sha, trigger a redeploy via the Railway API (`serviceInstanceRedeploy`) and record the target sha; else exit. No `NO_CACHE` needed (probe-verified an explicit redeploy rebuilds).
+- `scripts/required/refresh-atlas.mjs` (+ `pnpm refresh:atlas`) — each firing: `ls-remote` vs public `api/health`; on drift, if no redeploy is already in flight for that target sha, trigger a redeploy via the Railway API (`serviceInstanceRedeploy`) and record the target sha; else exit. No `NO_CACHE` needed (probe-verified an explicit redeploy rebuilds).
 
 **Changed:**
 - `src/server/index.ts` — after `Bun.serve` is listening, spawn the `sync:embeddings` reconcile as a detached background subprocess (stdio inherited to logs), guarded behind an env flag so local dev can opt out. No bind change, no internal endpoint.
@@ -119,7 +119,7 @@ Create the cron service from this repo pointed at `railway.cron.toml`, then give
 **Env vars on the cron service:**
 - `RAILWAY_PROJECT_TOKEN` — the project token above (`Project-Access-Token` header).
 - `WEB_SERVICE_ID` and `WEB_ENVIRONMENT_ID` — the web service's IDs (the redeploy mutation takes them explicitly even though the token is environment-scoped; read them once from `railway status --json` or the dashboard URL).
-- `WEB_HEALTH_URL` — the web service's **public** `/health` URL (drift check; no private networking).
+- `WEB_HEALTH_URL` — the web service's **public** `api/health` URL (drift check; no private networking).
 - `ATLAS_REMOTE` — upstream atlas git URL for `git ls-remote ... refs/heads/main` (e.g. `https://github.com/sky-ecosystem/next-gen-atlas.git`).
 - `RAILWAY_API_URL` (optional) — defaults to `https://backboard.railway.com/graphql/v2`.
 
@@ -131,4 +131,4 @@ No same-project/same-environment requirement between cron and web (private netwo
 
 - **Redeploy rebuilds — RESOLVED (probe-verified 2026-06-01).** An explicit redeploy with no source change rebuilds and re-runs the `fetch origin/main` layer, no `NO_CACHE` needed (see *Live probe*). The cron calls `serviceInstanceRedeploy(serviceId, environmentId)` and reads the `deployments` query `status` enum for the in-flight guard.
 - **Project-token API authz — ASSUMED (not live-tested).** The CLI login token is `Not Authorized` for the API (verified); a project token is the documented credential (see *Operator setup*). Exercising it live would mean running the paid probe service, so it's taken on the docs' word. First real implementation step should be a one-call smoke test of `serviceInstanceRedeploy` under the actual project token before wiring the full detector.
-- **Live SHA source — RESOLVED.** `/health` returns `atlas_sha` from the in-memory `ix.meta.atlasCommit` baked into the running bundle (`index.ts:41`) — exactly the "is the running bundle stale?" signal the cron needs. Use `/health`, not a `sync_state` query.
+- **Live SHA source — RESOLVED.** `api/health` returns `atlas_sha` from the in-memory `ix.meta.atlasCommit` baked into the running bundle (`index.ts:41`) — exactly the "is the running bundle stale?" signal the cron needs. Use `api/health`, not a `sync_state` query.

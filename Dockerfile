@@ -22,14 +22,11 @@ ARG VITE_CHAT_ENABLED=0
 RUN rm -rf vendor/next-gen-atlas \
  && git clone --depth 1 --single-branch --branch main \
       https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas \
- && RAILWAY_ENVIRONMENT=production VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED \
-    bun run build:index \
+ && bun run build:index \
  && bun run build:graph \
  && bun run build:glossary \
- && RAILWAY_ENVIRONMENT=production VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED \
-    bun run build:ts \
- && RAILWAY_ENVIRONMENT=production VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED \
-    bun run build:vite \
+ && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
+ && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
@@ -54,7 +51,6 @@ COPY --from=builder /app/package.json     ./
 # and the in-process updater's write path both resolve to the same directory.
 RUN ln -s /app/dist /app/public
 
-ENV PORT=3000
-EXPOSE 3000
+EXPOSE 8080
 
 CMD ["bun", "run", "start"]

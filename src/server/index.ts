@@ -1,5 +1,5 @@
 // Railway Bun service entry. Serves:
-//   GET  /health            — liveness check (atlas_sha + index counts)
+//   GET  /api/health         — liveness check (atlas_sha + index counts)
 //   GET  /api/atlas-events  — SSE stream: atlas-update events from in-process updater
 //   GET  /api/history/:id   — node change log from Postgres
 //   POST /mcp               — MCP streamable HTTP transport (stateless, no auth)
@@ -43,7 +43,7 @@ const server = Bun.serve({
   idleTimeout: 120,
 
   routes: {
-    "/health": () =>
+    "/api/health": () =>
       Response.json(
         { status: "ok", atlas_sha: ix.meta.atlasCommit ?? null, docs: ix.docMap.size },
         { headers: CORS },

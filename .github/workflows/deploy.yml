@@ -62,6 +62,8 @@ jobs:
         run: pnpm build:index && pnpm build:graph && pnpm build:glossary && pnpm build:manifest
 
       - run: pnpm build:ts && pnpm build:vite
+        env:
+          GITHUB_PAGES: "1"
 
       - name: SPA fallback (copy index.html → 404.html)
         run: cp dist/index.html dist/404.html

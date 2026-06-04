@@ -35,7 +35,7 @@ north star; this is the slice we build now.
 ## Module layout
 ```
 src/server/
-  index.ts        # Bun.serve: static SPA + /health + /mcp ; boot-loads indexes + pg
+  index.ts        # Bun.serve: static SPA + api/health + /mcp ; boot-loads indexes + pg
   config.ts       # env (PORT, DATABASE_URL, OPENROUTER_API_KEY, EMBED_MODEL, MCP_PATH)
   db.ts           # pg Pool
   migrate.ts      # numbered-migration runner + schema_migrations
@@ -78,7 +78,7 @@ pure renumber doesn't churn embeddings (matches build-rag + chatbot-plan).
 
 ## Verification (how the user tests)
 1. `pnpm db:up` (docker Postgres+pgvector) → `pnpm sync:atlas` → `pnpm sync:embeddings`.
-2. `pnpm start` (or `bun src/server/index.ts`) → `GET /health` green.
+2. `pnpm start` (or `bun src/server/index.ts`) → `GET api/health` green.
 3. Point an MCP client at `http://localhost:PORT/mcp`; exercise the 5 tools.
 
 ## Status (2026-05-29)

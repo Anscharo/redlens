@@ -42,12 +42,7 @@ jobs:
         run: pnpm build:glossary
 
       - name: Build frontend
-        # glossary.json, chain-state.json, etc. are committed and used as-is.
-        # CF_PAGES=1 sets base:"/" in vite.config.ts so assets resolve correctly
-        # at the preview subdomain instead of /redlens/…
         run: pnpm exec vite build
-        env:
-          CF_PAGES: "1"
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1

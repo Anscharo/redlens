@@ -175,7 +175,7 @@ c. **Deploy.** Railway redeploys the web service automatically on push or
 
 a. **Health check:**
    ```bash
-   curl https://<your-domain>/health
+   curl https://<your-domain>/api/health
    # → { "status": "ok", "atlas_sha": "...", "docs": N }
    ```
 
@@ -183,7 +183,7 @@ b. **Web service boot logs** — look for `db: connected`, `sync:atlas — done`
    and `listening on :3000`.
 
 c. **Worker logs** — after the first cron fires (~12 min), look for
-   `atlas-worker: done in Xs`. The `atlas_sha` in `/health` will advance.
+   `atlas-worker: done in Xs`. The `atlas_sha` in `/api/health` will advance.
 
 d. **Open the site** in a browser. Lexical search works immediately. Semantic
    search fills in once embeddings finish *(first run takes a few minutes).*
@@ -326,7 +326,7 @@ the worker isn't running (check its Deployments tab and logs).
 → The worker hasn't run yet, or `DATABASE_URL` is not set on the worker
 service. Check worker logs for `atlas-worker: done`.
 
-**Worker cron runs but `atlas_sha` in `/health` doesn't advance**
+**Worker cron runs but `atlas_sha` in `/api/health` doesn't advance**
 → Worker `DATABASE_URL` points to a different Postgres than the web service.
 Both must reference `${{Postgres.DATABASE_URL}}` from the same Postgres
 instance in the same Railway project.
