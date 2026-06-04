@@ -30,14 +30,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build index
-        # docs.json and search-index.json are gitignored (too large to commit);
-        # they must be generated before vite build.
+        # docs.json and search-index.json are gitignored; must be generated before vite build.
         run: pnpm build:index
 
       - name: Build graph
         # relations.json is committed but regenerating ensures it matches the
         # docs.json built above (graph reads docs.json as input).
         run: pnpm build:graph
+
+      - name: Build glossary
+        run: pnpm build:glossary
 
       - name: Build frontend
         # glossary.json, chain-state.json, etc. are committed and used as-is.

@@ -74,9 +74,9 @@ export function flattenTree(byParent: Map<string | null, AtlasNode[]>): FlatEntr
 export interface LoadedData {
   atlas: AtlasBundle;
   flatNodes: FlatEntry[];
-  addresses: Record<string, AddressInfo>;
-  chainState: { values: Record<string, Record<string, ChainValue>> };
-  glossary: Glossary;
+  addresses: Record<string, AddressInfo> | null;
+  chainState: { values: Record<string, Record<string, ChainValue>> } | null;
+  glossary: Glossary | null;
 }
 
 export const ATLAS_GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };
