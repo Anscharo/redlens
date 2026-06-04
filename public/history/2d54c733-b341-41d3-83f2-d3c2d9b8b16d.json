@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The address of the Circle CCTP v2 TokenMessenger contract for transferring USDC between Ethereum Mainnet and Avalanche is: `0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d`."
+      ]
+    ]
+  }
+]

@@ -53,5 +53,13 @@
       ]
     ],
     "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/5/2/1/1/1/document.md",
+    "movedTo": "content/A/2/2/6/2/1/1/1/document.md"
   }
 ]

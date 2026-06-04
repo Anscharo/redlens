@@ -60,5 +60,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein contain all data and specifications for Grove’s Instance of the Root Edit Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "5"
+          ],
+          [
+            "+",
+            "6"
+          ],
+          [
+            "=",
+            ".2 - Root Edit Primitive](78488c6b-d77f-4344-b954-476e415a2c7d)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

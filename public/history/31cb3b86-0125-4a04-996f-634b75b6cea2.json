@@ -185,5 +185,325 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Integration Boost is provided to DeFi protocol partners that allow users to deposit USDS balances."
+          ],
+          [
+            "-",
+            " Sky makes payments"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "to"
+          ],
+          [
+            "+",
+            "The"
+          ],
+          [
+            "=",
+            " Integration Boost "
+          ],
+          [
+            "-",
+            "partners"
+          ],
+          [
+            "+",
+            "is"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "equal"
+          ],
+          [
+            "+",
+            "calculated"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "to"
+          ],
+          [
+            "+",
+            "as"
+          ],
+          [
+            "=",
+            " the Sky Savings Rate times the Unrewarded USDS balances in "
+          ],
+          [
+            "-",
+            "their"
+          ],
+          [
+            "+",
+            "the Integration Boost Partner's"
+          ],
+          [
+            "=",
+            " protocol"
+          ],
+          [
+            "+",
+            ". Integration Boost payments are paid to the Prime Agent associated with the Integration Boost Partner, as specified in [A.2.2.4.2 - Reward Recipient And Sharing](40395562-d447-4c85-b670-c08d2341bcd2)"
+          ],
+          [
+            "=",
+            ". The"
+          ],
+          [
+            "+",
+            " non-binding"
+          ],
+          [
+            "=",
+            " expectation is that the Integration Boost "
+          ],
+          [
+            "-",
+            "Partner"
+          ],
+          [
+            "+",
+            "amount"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "will"
+          ],
+          [
+            "+",
+            "is"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "pass"
+          ],
+          [
+            "+",
+            "passed"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "these"
+          ],
+          [
+            "+",
+            "through from the Prime Agent to the"
+          ],
+          [
+            "=",
+            " Integration Boost "
+          ],
+          [
+            "-",
+            "Payments"
+          ],
+          [
+            "+",
+            "Partner,"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "along"
+          ],
+          [
+            "+",
+            "and from the Integration Boost Partner"
+          ],
+          [
+            "=",
+            " to "
+          ],
+          [
+            "-",
+            "their"
+          ],
+          [
+            "+",
+            "USDS"
+          ],
+          [
+            "=",
+            " users,"
+          ],
+          [
+            "-",
+            " thus"
+          ],
+          [
+            "=",
+            " providing "
+          ],
+          [
+            "-",
+            "USDS"
+          ],
+          [
+            "+",
+            "those"
+          ],
+          [
+            "=",
+            " users with the equivalent of the Sky Savings Rate."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "Integration Boost "
+          ],
+          [
+            "-",
+            "partners"
+          ],
+          [
+            "+",
+            "Partners"
+          ],
+          [
+            "=",
+            " are"
+          ],
+          [
+            "+",
+            " Integrators that receive the Integration Boost, as"
+          ],
+          [
+            "=",
+            " part of the Integrator Program"
+          ],
+          [
+            "-",
+            " as"
+          ],
+          [
+            "=",
+            " defined in [A"
+          ],
+          [
+            "-",
+            ".2"
+          ],
+          [
+            "=",
+            ".2"
+          ],
+          [
+            "-",
+            ".8.1"
+          ],
+          [
+            "=",
+            ".2."
+          ],
+          [
+            "-",
+            "1"
+          ],
+          [
+            "+",
+            "4"
+          ],
+          [
+            "=",
+            ".1 - Integrator Program](37c38f07-b5a0-40df-939c-a54330ea3c7b)."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "Current and onboarding Integrators are recorded in [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".1.2.1."
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "4"
+          ],
+          [
+            "=",
+            " - Current And Onboarding Integrators](f3952cc5-cde2-46b9-b575-034dda83570b)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/2/2/1/1/document.md",
+    "movedTo": "content/A/2/2/9/2/2/1/1/document.md"
   }
 ]

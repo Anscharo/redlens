@@ -31,5 +31,17 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/4/5/1/document.md",
     "movedTo": "content/A/1/5/5/1/document.md"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "removed",
+    "diff": [
+      [
+        "-",
+        "The Facilitator \"Ecosystem\" is temporarily exempt from the general rule prohibiting Alignment Conservers from being operationally active in multiple ecosystem roles. \"Ecosystem\" will continue to act in the Facilitator role as well as provide operational services as an Ecosystem Actor. This exception must be resolved as soon as it is reasonably possible to do so."
+      ]
+    ]
   }
 ]

@@ -93,5 +93,123 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "A selection of vulnerabilities is deemed out of scope for the Bug Bounty Program. An overview of these out of scope vulnerabilities can be found on Sky’s listing on the Immunefi platform ([https://immunefi.com/"
+          ],
+          [
+            "+",
+            "bug-"
+          ],
+          [
+            "=",
+            "bounty/"
+          ],
+          [
+            "-",
+            "makerdao"
+          ],
+          [
+            "+",
+            "sky/scope"
+          ],
+          [
+            "=",
+            "/](https://immunefi.com/"
+          ],
+          [
+            "+",
+            "bug-"
+          ],
+          [
+            "=",
+            "bounty/"
+          ],
+          [
+            "-",
+            "makerdao"
+          ],
+          [
+            "+",
+            "sky/scope"
+          ],
+          [
+            "=",
+            "/)). Feasibility limitations also apply, which can be found in the aforementioned listing on the Immunefi website."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "Specific rules applying to the Bug Bounty Program can be found at the website above, listed under the following categories:"
+      ],
+      [
+        "…"
+      ],
+      [
+        "=",
+        "- Prohibited activities"
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "For SparkLend, the rules, terms, and exceptions can be found on SparkLend’s listing on the Immunefi platform ([https://immunefi.com/"
+          ],
+          [
+            "+",
+            "bug-"
+          ],
+          [
+            "=",
+            "bounty/sparklend"
+          ],
+          [
+            "+",
+            "/scope"
+          ],
+          [
+            "=",
+            "/](https://immunefi.com/"
+          ],
+          [
+            "+",
+            "bug-"
+          ],
+          [
+            "=",
+            "bounty/sparklend"
+          ],
+          [
+            "+",
+            "/scope"
+          ],
+          [
+            "=",
+            "/))."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

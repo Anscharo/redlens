@@ -9,5 +9,13 @@
         "The Root Edit Primitive must specify a voting period of at least 14 days."
       ]
     ]
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/5/2/2/2/8/1/1/document.md",
+    "movedTo": "content/A/2/2/6/2/2/2/8/1/1/document.md"
   }
 ]

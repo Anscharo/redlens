@@ -425,5 +425,111 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- Payment Accuracy Previously Confirmed By Core GovOps"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "    - The document [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".1.2.1."
+          ],
+          [
+            "-",
+            "7"
+          ],
+          [
+            "+",
+            "5"
+          ],
+          [
+            "=",
+            ".1.0.6.1 - Sky Core Distribution Reward Reimbursement Amounts](169eb312-ed63-4a83-9f5d-43b621c0705e) in the Sky Core Atlas is updated as follows:"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "        - Updated Fields"
+      ],
+      [
+        "=",
+        "            - Status"
+      ],
+      [
+        "…"
+      ],
+      [
+        "=",
+        "                - New value: Populate with name of Prime Agent."
+      ],
+      [
+        "=",
+        "        - Responsible Party: Core GovOps"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - Triggers: [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".1.2.4.1.4 - Process Definition For Executive Vote Reimbursement](59259360-a288-4412-a39a-da3991c60f8f)"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Payment Inaccuracy Previously Found By Core GovOps"
+      ],
+      [
+        "=",
+        "    - TBD"
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/1/2/4/1/3/4/1/document.md",
+    "movedTo": "content/A/2/2/9/1/2/4/1/3/4/1/document.md"
   }
 ]

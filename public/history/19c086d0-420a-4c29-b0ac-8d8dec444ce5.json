@@ -103,5 +103,35 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein implement the Core Governance Primitives for Osero. See [A.2.2."
+          ],
+          [
+            "-",
+            "10"
+          ],
+          [
+            "+",
+            "11"
+          ],
+          [
+            "=",
+            " - Core Governance Primitives](6fa54611-c744-4b9d-897d-b2a20e9cae5d)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]
