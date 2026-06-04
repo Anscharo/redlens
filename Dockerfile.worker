@@ -27,7 +27,7 @@ RUN apt-get update \
 WORKDIR /app
 
 # Deps first — cached across source-only changes.
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 RUN bun install
 
 # Repo source (without node_modules/dist/.git/vendor via .dockerignore).

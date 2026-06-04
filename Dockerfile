@@ -9,7 +9,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 RUN bun install
 
 COPY . .
@@ -40,12 +40,13 @@ FROM oven/bun:1.3
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules     ./node_modules
-COPY --from=builder /app/dist            ./dist
-COPY --from=builder /app/src/server      ./src/server
+COPY --from=builder /app/node_modules      ./node_modules
+COPY --from=builder /app/dist             ./dist
+COPY --from=builder /app/src/server       ./src/server
+COPY --from=builder /app/src/lib          ./src/lib
 COPY --from=builder /app/scripts/required ./scripts/required
-COPY --from=builder /app/scripts/lib     ./scripts/lib
-COPY --from=builder /app/package.json    ./
+COPY --from=builder /app/scripts/lib      ./scripts/lib
+COPY --from=builder /app/package.json     ./
 
 # Vite copies public/ into dist/ at build time, so dist/ already has all
 # atlas artifacts. Symlink public/ → dist/ so the server's config.publicDir

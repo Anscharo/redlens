@@ -77,9 +77,9 @@ async function main() {
   const removedDocIds = [...before.keys()].filter((id) => !newIds.has(id));
 
   // ── addresses (build rows; written inside the txn below) ─────────────────────
-  const addrAtlas = readJson<{ atlasCommit?: string; addresses: Record<string, {
+  const addrAtlas = readJson<{ atlasCommit?: string; addresses?: Record<string, {
     chain?: string; roles?: string[]; entityLabel?: string; aliases?: string[]; expectedTokens?: string[];
-  }> }>("addresses.atlas.json").addresses;
+  }> }>("addresses.atlas.json").addresses ?? {};
   const addrOnChain = existsSync(pub("addresses.json"))
     ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; isProxy?: boolean; implementation?: string }>>("addresses.json")
     : {};
