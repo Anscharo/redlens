@@ -43,6 +43,7 @@ const server = Bun.serve({
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     if (pathname === "/health") {
+      console.info("health check")
       return Response.json(
         { status: "ok", atlas_sha: ix.meta.atlasCommit ?? null, docs: ix.docMap.size },
         { headers: CORS },
