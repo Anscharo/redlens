@@ -155,7 +155,7 @@ async function main() {
     });
     if (removedDocIds.length) {
       await chunked(removedDocIds, 5000, async (chunk) => {
-        await tx.unsafe(`DELETE FROM atlas_doc_meta WHERE id = ANY($1::uuid[])`, [chunk]);
+        await tx.unsafe(`DELETE FROM atlas_doc_meta WHERE id = ANY($1::uuid[])`, [`{${chunk.join(',')}}`]);
       });
     }
     await chunked(addrRows, 1000, async (chunk) => {

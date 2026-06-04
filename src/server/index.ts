@@ -33,7 +33,7 @@ function withCors(res: Response): Response {
   for (const [k, v] of Object.entries(CORS)) headers.set(k, v);
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
-
+console.info("Starting Bun")
 const server = Bun.serve({
   port: config.port,
   idleTimeout: 120,
@@ -41,7 +41,7 @@ const server = Bun.serve({
     const { pathname } = new URL(req.url);
 
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-
+    
     if (pathname === "/health") {
       console.info("health check")
       return Response.json(
