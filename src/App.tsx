@@ -138,7 +138,7 @@ export default function App() {
               resizable
               minWidth={180}
               maxWidth={600}
-              storageKey="redlens:tree-sidebar-width"
+              storageKey="redline-sky-atlas:tree-sidebar-width"
             >
               <TreeSidebar
                 nodeId={nodeId}

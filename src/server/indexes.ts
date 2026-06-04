@@ -119,7 +119,7 @@ export function readArtifactsFromDisk(): Artifacts {
 
   const meta: Record<string, string | null> = {
     atlasCommit: (graphJson.meta?.atlasCommit as string | undefined) ?? rawDocs.atlasCommit ?? null,
-    redlensCommit: null,
+    appCommit: null,
     generatedAt: null,
   };
   return { docs: Object.values(rawDocs.nodes), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };

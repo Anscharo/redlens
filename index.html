@@ -9,7 +9,7 @@
     <script>
       (function () {
         try {
-          var raw = localStorage.getItem("redlens:palette-overrides");
+          var raw = localStorage.getItem("redline-sky-atlas:palette-overrides");
           if (!raw) return;
           var p = JSON.parse(raw);
           if (!p || p.v !== 1 || !p.values) return;
@@ -22,7 +22,7 @@
         } catch (e) {}
       })();
     </script>
-    <title>RedLens' Sky Atlas</title>
+    <title>Sky Atlas by Redline</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Non-render-blocking: loads as print then swaps to all on load -->

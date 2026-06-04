@@ -166,3 +166,4 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     </div>
   );
 }
+

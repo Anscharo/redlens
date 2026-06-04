@@ -116,7 +116,7 @@ export function Footer() {
           className="hover:underline"
           style={{ color: "var(--tan-3)" }}
         >
-          <span className="hidden sm:inline">redlens&nbsp;</span>
+          <span className="hidden sm:inline">sky-atlas&nbsp;</span>
           {__COMMIT_HASH__}
         </a>
       </FooterItem>

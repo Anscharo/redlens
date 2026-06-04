@@ -7,7 +7,7 @@
  * frontend verifies each fetched JSON against the expected hash before using
  * it, so CDN tampering / stale caches / truncated responses hard-fail.
  *
- * Also pins the atlas submodule SHA and the redlens commit SHA so the
+ * Also pins the atlas submodule SHA and the app commit SHA so the
  * manifest is a self-contained provenance record for this build.
  *
  * Run: node scripts/build-manifest.mjs
@@ -77,7 +77,7 @@ for (const name of ARTIFACTS) {
 
 const manifest = {
   generatedAt: new Date().toISOString(),
-  redlensCommit: gitRev(ROOT),
+  appCommit: gitRev(ROOT),
   atlasCommit: gitRev(path.join(ROOT, "vendor/next-gen-atlas")),
   artifacts,
 };
@@ -85,7 +85,7 @@ const manifest = {
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + "\n");
 
 console.log("=== Manifest ===");
-console.log(`redlens: ${manifest.redlensCommit?.slice(0, 12) ?? "unknown"}`);
+console.log(`app:     ${manifest.appCommit?.slice(0, 12) ?? "unknown"}`);
 console.log(`atlas:   ${manifest.atlasCommit?.slice(0, 12) ?? "unknown"}`);
 for (const [name, info] of Object.entries(artifacts)) {
   const kb = (info.bytes / 1024).toFixed(1).padStart(8);

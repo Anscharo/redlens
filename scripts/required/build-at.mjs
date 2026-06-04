@@ -141,7 +141,7 @@ run("pnpm build:manifest");
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "public/manifest.json"), "utf8"));
 console.log("\n=== Reproducible build ===");
 console.log(`atlas:   ${manifest.atlasCommit}`);
-console.log(`redlens: ${manifest.redlensCommit}`);
+console.log(`app:     ${manifest.appCommit}`);
 const chainStatePath = path.join(ROOT, "public/chain-state.json");
 const blockNum = fs.existsSync(chainStatePath)
   ? (() => { const cs = JSON.parse(fs.readFileSync(chainStatePath, "utf8")); return cs.block ?? Object.values(cs.chains ?? {})[0]?.block ?? null; })()

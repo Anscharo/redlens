@@ -4,7 +4,7 @@
 
 import { PALETTE_TOKENS, type PaletteToken } from "./palette-tokens";
 
-export const STORAGE_KEY = "redlens:palette-overrides";
+export const STORAGE_KEY = "redline-sky-atlas:palette-overrides";
 export const SCHEMA_VERSION = 1;
 
 interface PaletteOverridesV1 {

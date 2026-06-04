@@ -19,7 +19,7 @@ avoid FOUC.
 ## Persistence shape
 
 ```
-localStorage["redlens:palette-overrides"] = {
+localStorage["redline-sky-atlas:palette-overrides"] = {
   "v": 1,
   "values": { "bg": "#1a0f0c", "row-hover": "rgba(255, 250, 240, 0.12)", … }
 }

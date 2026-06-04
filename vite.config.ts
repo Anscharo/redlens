@@ -78,8 +78,8 @@ export default defineConfig(() => {
       // imported module: …/RadarPage-<hash>.js" until the user reloads).
       registerType: "prompt",
       manifest: {
-        name: "RedLens' Sky Atlas",
-        short_name: "RedLens",
+        name: "Sky Atlas by Redline",
+        short_name: "redline-atlas",
         description: "Search-first interface for the Sky ecosystem Atlas",
         start_url: base,
         scope: base,
@@ -109,11 +109,22 @@ export default defineConfig(() => {
         navigateFallback: `${base}index.html`,
         runtimeCaching: [
           {
-            // Atlas data JSON files — network-first, 3 s timeout before falling to cache
-            urlPattern: /\/(docs|search-index|addresses(?:\.atlas)?|relations|chain-state|glossary|manifest)\.json$/,
+            // Large atlas files: serve cached version immediately, refresh in background.
+            // The SSE "atlas updated ↻" pill tells users when a new version is ready so
+            // being one load cycle behind is acceptable.
+            urlPattern: /\/(docs|search-index|relations)\.json$/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "atlas-data-large",
+              expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+          {
+            // Small atlas files: network-first (fast to fetch, worth having fresh values).
+            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|glossary|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "atlas-data",
+              cacheName: "atlas-data-small",
               networkTimeoutSeconds: 3,
               expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
             },

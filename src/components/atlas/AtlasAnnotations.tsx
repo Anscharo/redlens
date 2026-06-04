@@ -7,7 +7,7 @@ import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { GlossaryEntry } from "../../lib/glossary";
 
-const RIGHT_PANEL_KEY = "redlens:right-panel-width";
+const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_MIN = 260;
 const RIGHT_PANEL_MAX = 800;
 const RIGHT_PANEL_DEFAULT = 420;
