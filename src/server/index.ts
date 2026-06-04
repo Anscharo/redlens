@@ -91,7 +91,22 @@ const server = Bun.serve({
     }
 
     if (pathname !== "/") {
-      const file = Bun.file(config.distDir + pathname);
+      const filePath = config.distDir + pathname;
+      // Serve pre-compressed .gz if available and client accepts gzip.
+      // Content-Type reflects the original file (browser decompresses transparently).
+      if (req.headers.get("accept-encoding")?.includes("gzip")) {
+        const gz = Bun.file(filePath + ".gz");
+        if (await gz.exists()) {
+          const mime = pathname.endsWith(".json") ? "application/json"
+            : pathname.endsWith(".js") ? "application/javascript"
+            : pathname.endsWith(".css") ? "text/css"
+            : "application/octet-stream";
+          return new Response(gz, {
+            headers: { "Content-Encoding": "gzip", "Content-Type": mime, "Vary": "Accept-Encoding" },
+          });
+        }
+      }
+      const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
     }
     return new Response(Bun.file(config.distDir + "/index.html"));

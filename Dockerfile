@@ -29,7 +29,8 @@ RUN rm -rf vendor/next-gen-atlas \
  && RAILWAY_ENVIRONMENT=production VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED \
     bun run build:ts \
  && RAILWAY_ENVIRONMENT=production VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED \
-    bun run build:vite
+    bun run build:vite \
+ && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
 # Lean image — no git, no python3, no atlas source, no build toolchain.
