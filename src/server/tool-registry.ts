@@ -8,6 +8,8 @@ import { type Indexes } from "./indexes.ts";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult, type SearchArgs } from "./tools.ts";
 import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
+import { atlasNeighbors, atlasTraverse, atlasEntity, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
+import { atlasHistory, atlasRecentChanges, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 
 export interface AtlasTool {
   name: string;
@@ -61,6 +63,107 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       chain: z.string().optional().describe("Optional chain filter (e.g. 'ethereum', 'solana')."),
     },
     handler: (ix, a) => atlasGetAddress(ix, a.address as string, a.chain as string | undefined),
+  },
+  {
+    name: "atlas_neighbors",
+    description: "Return the hierarchical context around a node: parent, N siblings above/below, and direct children.",
+    shape: {
+      id: z.string().describe("Node UUID or doc_no."),
+      window: z.number().int().min(0).max(32).default(8).describe("Max siblings and children to include."),
+    },
+    handler: (ix, a) => atlasNeighbors(ix, a.id as string, (a.window as number | undefined) ?? 8),
+  },
+  {
+    name: "atlas_traverse",
+    description: "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes.",
+    shape: {
+      id: z.string().describe("Starting node UUID or doc_no."),
+      edge_type: z.string().optional().describe("Edge type filter (e.g. 'cites', 'responsible_party_for')."),
+      hops: z.number().int().min(1).max(4).default(2),
+      direction: z.enum(["out", "in", "both"]).default("out"),
+    },
+    handler: (ix, a) => atlasTraverse(ix, a.id as string, a.edge_type as string | undefined, (a.hops as number | undefined) ?? 2, (a.direction as "out" | "in" | "both" | undefined) ?? "out"),
+  },
+  {
+    name: "atlas_entity",
+    description: "Get all Atlas sections related to a named entity (agent, role, or actor). Returns nodes, inbound references, and Active Data sections they control.",
+    shape: {
+      name: z.string().describe("Entity slug (e.g. 'spark', 'operational-facilitator')."),
+    },
+    handler: (ix, a) => atlasEntity(ix, a.name as string),
+  },
+  {
+    name: "atlas_filter",
+    description: "Filter Atlas documents by structural attributes. Compose any of: type, entity slug (restricts to entity's artifact subtree), ancestor_id (recursive descendants), doc_no_pattern (SQL LIKE, e.g. '%.0.4.%'), depth_min/max.",
+    shape: {
+      type: z.string().optional().describe("Atlas doc type (e.g. 'Active Data', 'Core', 'Action Tenet')."),
+      entity: z.string().optional().describe("Entity slug — restricts to the entity's defining_doc subtree."),
+      ancestor_id: z.string().optional().describe("UUID or doc_no — restricts to recursive descendants."),
+      doc_no_pattern: z.string().optional().describe("LIKE pattern over doc_no (use % wildcards)."),
+      depth_min: z.number().int().min(0).max(20).optional(),
+      depth_max: z.number().int().min(0).max(20).optional(),
+      limit: z.number().int().min(1).max(500).default(200),
+      include_content: z.boolean().default(true).describe("Include full content. Set false for lighter listing responses."),
+    },
+    handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
+  },
+  {
+    name: "atlas_entity_params",
+    description: "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded as child Cores.",
+    shape: {
+      id: z.string().optional().describe("Doc UUID or doc_no (typically an instance doc)."),
+      entity: z.string().optional().describe("Entity slug — fetch params for all instance docs under entity."),
+      type_hint: z.string().optional().describe("Filter instance docs by type (e.g. 'Reward'). Only applies with entity."),
+      limit: z.number().int().min(1).max(200).default(50),
+    },
+    handler: (ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1]),
+  },
+  {
+    name: "atlas_history",
+    description: "Why was this changed? Returns the git-log of changes for one Atlas doc, newest first, each with PR title/author/url and matched summary/description from the PR body. Filter by date range, PR number, or change type.",
+    shape: {
+      id: z.string().describe("Doc UUID or doc_no."),
+      since: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
+      until: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
+      pr: z.number().int().optional().describe("Filter to a single PR number."),
+      change_type: z.enum(["added", "modified", "removed", "moved"]).optional(),
+      with_diff: z.boolean().default(false).describe("Include line+word diffs in the response."),
+    },
+    handler: (ix, a) => atlasHistory(ix, a.id as string, a as Parameters<typeof atlasHistory>[2]),
+  },
+  {
+    name: "atlas_recent_changes",
+    description: "What changed recently? Returns the most recent change events across the whole atlas, optionally filtered by doc type, change type, or entity. Defaults to the last 30 days.",
+    shape: {
+      since: z.string().optional().describe("ISO date. Defaults to 30 days ago."),
+      until: z.string().optional(),
+      type: z.string().optional().describe("Atlas doc type filter."),
+      change_type: z.enum(["added", "modified", "removed", "moved"]).optional(),
+      entity: z.string().optional().describe("Entity slug — restricts to docs linked via responsible_party_for / active_data_for."),
+      k: z.number().int().min(1).max(200).default(50),
+    },
+    handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),
+  },
+  {
+    name: "atlas_pr",
+    description: "What did PR #N touch? Returns every doc affected by a single GitHub PR against next-gen-atlas, with per-doc summary/description from the PR body.",
+    shape: {
+      pr_number: z.number().int().describe("GitHub PR number on sky-ecosystem/next-gen-atlas."),
+    },
+    handler: (ix, a) => atlasPr(ix, a.pr_number as number),
+  },
+  {
+    name: "atlas_changed_between",
+    description: "Which docs changed between two atlas commits? Pass two short SHAs and get every doc added/modified/moved/removed in that window. Uses commit_seq for exact topological ordering.",
+    shape: {
+      commit_a: z.string().describe("First boundary commit SHA (7-char prefix or full)."),
+      commit_b: z.string().describe("Second boundary commit SHA."),
+      change_type: z.enum(["added", "modified", "removed", "moved"]).optional(),
+      ancestor_id: z.string().optional().describe("Restrict results to descendants of this node."),
+      entity: z.string().optional().describe("Restrict to docs linked to this entity."),
+      limit: z.number().int().min(1).max(500).default(100),
+    },
+    handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
   },
   {
     name: "atlas_query",

@@ -54,37 +54,6 @@ jobs:
       - name: Bundle
         run: pnpm exec vite build
 
-  worker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Cloudflare runtime types
-        run: npx wrangler types
-        working-directory: redlens-mcp
-
-      - name: Type check worker
-        run: npx tsc --noEmit
-        working-directory: redlens-mcp
-
-      # schema.sql is validated end-to-end in the lint-and-build job's
-      # "Apply schema + sync to local D1" step (which goes further: it also
-      # runs sync-d1.mjs against the resulting local D1).
-
-      - name: Run worker tests
-        run: pnpm test --run --passWithNoTests
-        working-directory: redlens-mcp
-
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
     runs-on: ubuntu-latest
