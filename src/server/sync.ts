@@ -32,11 +32,15 @@ async function chunked<T>(rows: T[], size: number, fn: (chunk: T[]) => Promise<v
 
 async function main() {
   const startedAt = new Date();
+  console.log("sync:atlas — waiting for db…");
   await waitForDb(); // tolerate Railway's private-network / fresh-PG boot lag
+  console.log("sync:atlas — running migrations…");
   await runMigrations();
 
+  console.log("sync:atlas — reading docs.json…");
   const docsFile = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
   const atlasSha = docsFile.atlasCommit ?? "unknown";
+  console.log(`sync:atlas — docs.json: ${Object.keys(docsFile.nodes).length} nodes, atlasCommit=${atlasSha.slice(0, 12)}`);
 
   const prevState = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
   const prevSha: string | null = prevState[0]?.atlas_sha ?? null;
@@ -187,4 +191,8 @@ async function main() {
   await sql.end();
 }
 
-await main();
+main().catch((err) => {
+  console.error("sync:atlas — fatal error:", err?.message ?? err);
+  console.error(err?.stack ?? "");
+  process.exit(1);
+});
