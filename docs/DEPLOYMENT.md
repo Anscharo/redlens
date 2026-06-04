@@ -337,6 +337,13 @@ instance in the same Railway project.
 `https://<your-domain>/api/auth/<provider>/callback`. On a custom domain set
 `APP_URL` (step 7d) and re-check the provider config.
 
+**"pnpm could not be found" / wrong start command**
+→ Railway auto-detected the pnpm workspace and set its own start command,
+overriding the Dockerfile CMD. The fix is already in `railway.toml`
+(`startCommand = "bun run sync:atlas && bun run start"`), but if Railway
+picked up a stale dashboard override first, clear it: service → **Settings →
+Deploy → Start Command** → remove any custom value and redeploy.
+
 **Build fails on git/python/submodule**
 → The builder must be `DOCKERFILE` (set in `railway.toml`); Nixpacks/Railpack
 can't carry git + python3 + the atlas checkout needed at build time.

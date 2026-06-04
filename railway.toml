@@ -5,6 +5,7 @@
 builder = "DOCKERFILE"
 
 [deploy]
+startCommand = "bun run sync:atlas && bun run start"
 healthcheckPath = "/health"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
