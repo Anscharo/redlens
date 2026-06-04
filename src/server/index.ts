@@ -1,7 +1,9 @@
 // Railway Bun service entry. Serves:
-//   GET  /health   — Railway health check (atlas_sha + index counts)
-//   POST /mcp       — MCP streamable HTTP transport (stateless, no auth)
-//   *               — static dist/ with SPA fallback to index.html
+//   GET  /health            — liveness check (atlas_sha + index counts)
+//   GET  /api/atlas-events  — SSE stream: atlas-update events from in-process updater
+//   GET  /api/history/:id   — node change log from Postgres
+//   POST /mcp               — MCP streamable HTTP transport (stateless, no auth)
+//   *                       — static dist/ with SPA fallback to index.html
 // In-memory indexes load once at boot before serving.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
@@ -33,31 +35,21 @@ function withCors(res: Response): Response {
   for (const [k, v] of Object.entries(CORS)) headers.set(k, v);
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
-console.info("Starting Bun")
+
+const NOT_FOUND = () => new Response(null, { status: 404 });
+
 const server = Bun.serve({
   port: config.port,
   idleTimeout: 120,
-  async fetch(req) {
-    const { pathname } = new URL(req.url);
 
-    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    
-    if (pathname === "/health") {
-      console.info("health check")
-      return Response.json(
+  routes: {
+    "/health": () =>
+      Response.json(
         { status: "ok", atlas_sha: ix.meta.atlasCommit ?? null, docs: ix.docMap.size },
         { headers: CORS },
-      );
-    }
+      ),
 
-    // Chat + OAuth are gated behind CHAT_ENABLED (off by default). When disabled
-    // these routes fall through to the static handler → 404, exactly as if the
-    // backend shipped without them; no OAuth/JWT/DB env vars are touched.
-    // Auth routes own their own Set-Cookie / Location headers; CORS is moot
-    // (same-origin browser navigation + same-origin fetch), so don't re-wrap.
-    if (pathname.startsWith("/api/history/")) return handleHistory(req, pathname);
-
-    if (pathname === "/api/atlas-events") {
+    "/api/atlas-events": () => {
       let unregister: (() => void) | null = null;
       const stream = new ReadableStream({
         start(controller) {
@@ -68,27 +60,36 @@ const server = Bun.serve({
         cancel() { unregister?.(); },
       });
       return new Response(stream, {
-        headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", "Connection": "keep-alive", ...CORS },
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+          ...CORS,
+        },
       });
-    }
+    },
 
-    if (config.chatEnabled) {
-      if (pathname.startsWith("/api/auth/")) return handleAuth(req, pathname);
-      if (pathname === "/api/chat") return handleChat(req);
-      if (pathname === "/api/usage") return handleUsage(req);
-    }
+    "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
+
+    "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
+    "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
+    "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+  },
+
+  // Fallback: CORS preflight + MCP endpoint (runtime config path) + static SPA files.
+  async fetch(req: Request) {
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+    const { pathname } = new URL(req.url);
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
-      // Stateless: a fresh server + transport per request (mirrors the CF worker).
       const mcp = createMcpServer();
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       await mcp.connect(transport);
       return withCors(await transport.handleRequest(req));
     }
 
-    // Static SPA. Serve the exact file if present, else fall back to index.html
-    // so client-side routes resolve.
     if (pathname !== "/") {
       const file = Bun.file(config.distDir + pathname);
       if (await file.exists()) return new Response(file);
@@ -98,6 +99,17 @@ const server = Bun.serve({
 });
 
 console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
+
+// Sync baked-in atlas artifacts → Postgres in the background.
+// Fire-and-forget: a sync failure never affects the live server — the image
+// already has valid data and the in-process updater keeps indexes fresh from DB.
+void Bun.spawn(["bun", "src/server/sync.ts"], {
+  stdout: "inherit",
+  stderr: "inherit",
+  env: { ...process.env },
+}).exited.then((code) => {
+  if (code !== 0) console.warn(`sync:atlas exited ${code} — server continues with baked-in data`);
+});
 
 // Refresh embeddings on boot (first deploy + every redeploy), detached + best-effort.
 startBootEmbeddings();
