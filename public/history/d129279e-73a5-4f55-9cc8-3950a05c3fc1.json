@@ -24,5 +24,39 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "In the short term, Superstate Exposures (see [A.3.2.2.1.1.1.2.1.2.1 - Superstate Capital"
+          ],
+          [
+            "-",
+            " Requirement"
+          ],
+          [
+            "=",
+            " Ratio"
+          ],
+          [
+            "+",
+            " Requirement"
+          ],
+          [
+            "=",
+            "](ffca1065-7f92-4815-8a65-52bdbc82c558)) automatically have Instance Smart Contract CRR and Instance Administrative CRR of zero. In the long term, given the similarity of these assets to Real World Assets, adapted frameworks for Smart Contract Risk and Administrative Risk for these exposures must be developed. See [A.3.2.2.1.2.4.2 - Legal Recourse Assets](717b33c3-708e-4acf-acb4-7be5d5039a2f)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -45,5 +45,59 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "In order for an Integrator and the Prime Agent that manages the relationship with such Integrator to be eligible for the Core Governance Reward, the frontend maintained by the Integrator must satisfy compliance requirements as specified in [A.2.2."
+          ],
+          [
+            "-",
+            "10"
+          ],
+          [
+            "+",
+            "11"
+          ],
+          [
+            "=",
+            ".1.3 - Compliance Requirements](068c37b5-2cda-4bcc-90af-7b70c746dbc3)."
+          ]
+        ]
+      ],
+      [
+        "-",
+        ""
+      ],
+      [
+        "-",
+        "A single entity may serve as both the Integrator operating a frontend and the Prime Agent managing the relationship with that Integrator, in which case such entity is eligible to receive both the Integrator and Prime Agent rewards for that frontend."
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "The current eligible recipients for the Core Governance Reward Primitive are specified in the documents herein."
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/10/1/2/document.md",
+    "movedTo": "content/A/2/2/11/1/2/document.md"
   }
 ]

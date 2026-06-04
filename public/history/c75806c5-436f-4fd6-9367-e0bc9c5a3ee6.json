@@ -60,5 +60,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein contain all data and specifications for Keel’s Instances of the Executor Accord Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "5"
+          ],
+          [
+            "+",
+            "6"
+          ],
+          [
+            "=",
+            ".1 - Executor Accord Primitive](88017877-3ec1-4c43-a035-6bebdf11d9bb)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

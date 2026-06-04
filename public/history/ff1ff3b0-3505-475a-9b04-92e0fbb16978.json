@@ -115,5 +115,35 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein contain all data and specifications for Osero's instance of the Prime Transformation Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "4"
+          ],
+          [
+            "+",
+            "5"
+          ],
+          [
+            "=",
+            ".2 - Prime Transformation Primitive](81411106-fd6d-4f9c-b3ae-7af7b5e62482)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

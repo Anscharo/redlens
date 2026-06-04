@@ -103,5 +103,35 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein implement the Ecosystem Upkeep Primitives for Osero. See [A.2.2."
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "7"
+          ],
+          [
+            "=",
+            " - Ecosystem Upkeep Primitives](25673fd2-76cb-4c4d-8ec6-8c489207bcfc)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

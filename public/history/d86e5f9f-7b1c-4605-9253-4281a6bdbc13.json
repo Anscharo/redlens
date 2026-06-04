@@ -350,5 +350,83 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Agent Artifact is updated pursuant to the following requirements. Each Output \"set\" is triggered following the completion of its respective Input stage, which latter is defined in [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".2.2.3.1.3 - Required Primitive Inputs](b91d0eb6-fa86-486c-8350-4564bdb5af09)."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- After Prime Agent's `Initial planning document` Status is set to `Drafting`"
+      ],
+      [
+        "…"
+      ],
+      [
+        "=",
+        "                - New value: set to `Pending GovOps review`"
+      ],
+      [
+        "=",
+        "        - Responsible party: Operational GovOps [ automated]"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - Trigger - Process: [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".2.2.3.2 - Process Definition for Operational GovOps Review](38c54d2b-715b-433d-a9ff-af5cbecc89a2)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/2/2/3/1/4/2/document.md",
+    "movedTo": "content/A/2/2/9/2/2/3/1/4/2/document.md"
   }
 ]

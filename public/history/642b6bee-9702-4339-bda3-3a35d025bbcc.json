@@ -24,5 +24,39 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Ethena Aggregate Exposure is the sum of Ethena Exposures (see [A.3.2.2.1.1.1.2.1.1.1 - Ethena Capital"
+          ],
+          [
+            "-",
+            " Requirement"
+          ],
+          [
+            "=",
+            " Ratio"
+          ],
+          [
+            "+",
+            " Requirement"
+          ],
+          [
+            "=",
+            "](7ce05a43-e3ec-4c54-a11e-30e56526cfdd)) across all Prime Agents in the Sky Ecosystem."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -103,5 +103,35 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein contain all data and specifications for Osero's Instances of the Integration Boost Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".2 - Integration Boost Primitive](73577399-62e4-4a83-ae11-64ef7e7b7f20)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

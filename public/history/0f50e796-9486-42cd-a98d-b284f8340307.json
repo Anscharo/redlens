@@ -222,5 +222,51 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "        - New value: Populate with name of Prime Agent."
+      ],
+      [
+        "=",
+        "- Responsible Party: Core GovOps"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Triggers: [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".2.2.4.1.4 - Process Definition For Executive Vote Reimbursement](c40a0708-12e4-46da-89d7-0e5a3a839455)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/2/2/4/1/3/4/1/1/document.md",
+    "movedTo": "content/A/2/2/9/2/2/4/1/3/4/1/1/document.md"
   }
 ]

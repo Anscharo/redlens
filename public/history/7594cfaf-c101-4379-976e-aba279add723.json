@@ -143,5 +143,35 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein implement the Genesis Primitives for Osero. See [A.2.2."
+          ],
+          [
+            "-",
+            "4"
+          ],
+          [
+            "+",
+            "5"
+          ],
+          [
+            "=",
+            " - Genesis Primitives](3d5e3668-8333-4908-adcc-5784cfe7f6b5)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

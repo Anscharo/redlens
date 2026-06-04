@@ -60,5 +60,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Prime Agent drafts an update to the Prime Agent Artifact adding the Token SkyLink to the list of active Token SkyLink deployments and including the information specified in [A.2.2."
+          ],
+          [
+            "-",
+            "7"
+          ],
+          [
+            "+",
+            "8"
+          ],
+          [
+            "=",
+            ".1.2.2 - List of Active Token SkyLink Deployments](bf3ede73-bba3-4048-b105-a49400611fcb). The Prime Agent submits the draft to the Powerhouse system. The output of this step is a draft Prime Agent Artifact update in the Powerhouse system."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/7/1/1/1/2/1/document.md",
+    "movedTo": "content/A/2/2/8/1/1/1/2/1/document.md"
   }
 ]

@@ -321,5 +321,59 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "                - New value (optional): populate with reasoning"
+      ],
+      [
+        "=",
+        "        - Responsible party: Core GovOps"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - Trigger - Process: [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".1.2.4.1.3.4.1 - Sky Core Atlas Updates](cca17fe9-3dc9-48ce-be26-39a1625b3690)"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Core GovOps Finds Inaccurate Payment"
+      ],
+      [
+        "=",
+        "    - Edit `Distribution Reward Payments` Active Data Document"
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/1/2/4/1/3/3/document.md",
+    "movedTo": "content/A/2/2/9/1/2/4/1/3/3/document.md"
   }
 ]
