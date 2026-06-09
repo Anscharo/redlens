@@ -4,7 +4,7 @@ import type {
   RelationEdge,
   GraphWorkerOutMessage,
 } from "../types";
-import { fetchJsonVerified } from "./verify";
+import { fetchJson } from "./verify";
 
 export interface GraphData {
   participants: GraphEntity[];
@@ -24,7 +24,7 @@ let graphCache: Promise<GraphData> | null = null;
 
 export function loadGraph(): Promise<GraphData> {
   if (!graphCache) {
-    graphCache = fetchJsonVerified<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
+    graphCache = fetchJson<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
       `${import.meta.env.BASE_URL}relations.json`,
       "relations.json",
     ).then((data) => ({
