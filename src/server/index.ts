@@ -15,6 +15,7 @@ import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
+import { sql, waitForDb } from "./db.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -115,16 +116,42 @@ const server = Bun.serve({
 
 console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
 
-// Sync baked-in atlas artifacts → Postgres in the background.
-// Fire-and-forget: a sync failure never affects the live server — the image
-// already has valid data and the in-process updater keeps indexes fresh from DB.
-void Bun.spawn(["bun", "src/server/sync.ts"], {
-  stdout: "inherit",
-  stderr: "inherit",
-  env: { ...process.env },
-}).exited.then((code) => {
-  if (code !== 0) console.warn(`sync:atlas exited ${code} — server continues with baked-in data`);
-});
+// Seed Postgres from the baked-in atlas artifacts ONLY when the DB has never
+// been initialized (no sync_state row). After the first seed the atlas worker
+// is the sole authoritative writer and may have advanced the atlas past this
+// image's snapshot — re-syncing on every boot would roll the DB (and every
+// reader, via the in-process updater) back to this image's older atlas. The
+// updater keeps in-memory indexes fresh from the DB regardless, so the web
+// service never needs to write after the initial seed.
+void (async () => {
+  try {
+    await waitForDb();
+    // to_regclass returns NULL (not an error) when the table doesn't exist yet,
+    // so a genuinely fresh DB is distinguishable from a transient query failure.
+    const reg = await sql`SELECT to_regclass('public.sync_state') AS t`;
+    if (reg[0]?.t != null) {
+      const seeded = await sql`SELECT 1 FROM sync_state WHERE id = 1`;
+      if (seeded.length > 0) {
+        console.log("sync:atlas — skipped (DB already seeded; atlas worker owns updates)");
+        return;
+      }
+    }
+    // Fresh DB (no sync_state table) or table present but unseeded → seed once.
+  } catch {
+    // Fail closed: an error here means we can't confirm the DB is empty, and a
+    // regressive write would roll every reader back to this image's atlas. The
+    // worker seeds/advances the DB on its next cron, so skipping is safe.
+    console.warn("sync:atlas — skipped (could not determine seed state)");
+    return;
+  }
+  Bun.spawn(["bun", "src/server/sync.ts"], {
+    stdout: "inherit",
+    stderr: "inherit",
+    env: { ...process.env },
+  }).exited.then((code) => {
+    if (code !== 0) console.warn(`sync:atlas exited ${code} — server continues with baked-in data`);
+  });
+})();
 
 // Refresh embeddings on boot (first deploy + every redeploy), detached + best-effort.
 startBootEmbeddings();
