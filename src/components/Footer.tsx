@@ -5,8 +5,16 @@ import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { loadAtlas } from "../lib/docs";
 
 const BASE = import.meta.env.BASE_URL;
-const REPO = "https://github.com/Anscharo/redlens";
+const REPO = __REPO_URL__;
 const PROVENANCE_HREF = `${BASE}provenance`;
+
+// Clear only the StaleWhileRevalidate atlas cache before reloading — otherwise
+// the SW serves the stale docs.json and the "atlas updated" notice loops forever.
+function reloadWithFreshAtlas() {
+  const reload = () => window.location.reload();
+  if (!("caches" in window)) { reload(); return; }
+  caches.delete("atlas-data-large").then(reload, reload);
+}
 
 export function Footer() {
   const online = useOnlineStatus();
@@ -61,7 +69,7 @@ export function Footer() {
               as="button"
               color="var(--accent)"
               title="Atlas content has been updated — click to reload"
-              onClick={() => window.location.reload()}
+              onClick={reloadWithFreshAtlas}
             >
               atlas updated ↻
             </StatusPill>

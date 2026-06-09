@@ -12,6 +12,17 @@ const commitHash = (() => {
   }
 })();
 
+const repoUrl = (() => {
+  try {
+    return execSync("git remote get-url origin")
+      .toString().trim()
+      .replace(/^git@github\.com:/, "https://github.com/")
+      .replace(/\.git$/, "");
+  } catch {
+    return "https://github.com/Anscharo/redlens";
+  }
+})();
+
 const buildTime = new Date().toISOString();
 
 
@@ -150,6 +161,7 @@ export default defineConfig(() => {
       __COMMIT_HASH__: JSON.stringify(commitHash),
       __BUILD_TIME__: JSON.stringify(buildTime),
       __CHAT_ENABLED__: JSON.stringify(chatEnabled),
+      __REPO_URL__: JSON.stringify(repoUrl),
     },
   };
 });
