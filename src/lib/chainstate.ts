@@ -1,4 +1,4 @@
-import { fetchJsonVerified } from "./verify";
+import { fetchJson } from "./verify";
 
 interface ChainState {
   block: string;
@@ -14,7 +14,7 @@ let cached: Promise<ChainState> | null = null;
 
 export function loadChainState(): Promise<ChainState> {
   if (!cached) {
-    cached = fetchJsonVerified<ChainState>(
+    cached = fetchJson<ChainState>(
       `${import.meta.env.BASE_URL}chain-state.json`,
       "chain-state.json",
     ).catch(() => ({ block: "", values: {} }));

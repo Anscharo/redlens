@@ -7,7 +7,7 @@
 //
 // On change, embeddings and history run in parallel after the structural sync:
 //
-//   build-index → sync.ts →
+//   build-index → build-graph → sync.ts →
 //     ┌── sync-embeddings.ts              (atlas_doc_embeddings)
 //     └── build-history → sync-history-pg (atlas_history)
 //
@@ -120,6 +120,12 @@ async function main() {
 
   console.log("atlas-worker: build-index…");
   run("bun", ["scripts/required/build-index.mjs"]);
+
+  // build-graph enriches addresses.atlas.json (Phase 4.5: ICD-derived roles,
+  // entity/doc-title labels) before sync.ts reads it — otherwise atlas_addresses
+  // is persisted with only the structural Phase-2.6 annotation.
+  console.log("atlas-worker: build-graph…");
+  run("bun", ["scripts/required/build-graph.mjs"]);
 
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
   console.log("atlas-worker: sync.ts…");

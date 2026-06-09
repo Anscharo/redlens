@@ -7,7 +7,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from "../types";
-import { fetchTextVerified } from "../lib/verify";
+import { fetchText } from "../lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
 import { UUID_RE } from "../lib/patterns";
 
@@ -54,7 +54,7 @@ const preloadPromise = new Promise<{ docs: Record<string, AtlasNode>; addresses:
 async function init() {
   const base = import.meta.env.BASE_URL;
   const [idxText, { docs: preloadedDocs, addresses: preloadedAddrs }] = await Promise.all([
-    fetchTextVerified(`${base}search-index.json`, "search-index.json"),
+    fetchText(`${base}search-index.json`, "search-index.json"),
     preloadPromise,
   ]);
 

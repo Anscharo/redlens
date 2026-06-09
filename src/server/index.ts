@@ -102,7 +102,7 @@ const server = Bun.serve({
             : pathname.endsWith(".css") ? "text/css"
             : "application/octet-stream";
           return new Response(gz, {
-            headers: { "Content-Encoding": "gzip", "Content-Type": mime },
+            headers: { "Content-Encoding": "gzip", "Content-Type": mime, "Vary": "Accept-Encoding" },
           });
         }
       }

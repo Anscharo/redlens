@@ -1,5 +1,5 @@
 import type { AddressInfo } from "../types";
-import { fetchJsonVerified } from "./verify";
+import { fetchJson } from "./verify";
 
 const EXPLORER: Record<string, string> = {
   ethereum: "https://etherscan.io/address/",
@@ -34,11 +34,11 @@ let cached: Promise<Record<string, AddressInfo>> | null = null;
 export function loadAddresses(): Promise<Record<string, AddressInfo>> {
   if (!cached) {
     cached = Promise.all([
-      fetchJsonVerified<{ atlasCommit?: string; addresses: Record<string, AtlasAddr> }>(
+      fetchJson<{ atlasCommit?: string; addresses: Record<string, AtlasAddr> }>(
         `${import.meta.env.BASE_URL}addresses.atlas.json`,
         "addresses.atlas.json",
       ).then((f) => f.addresses),
-      fetchJsonVerified<Record<string, OnChainAddr>>(
+      fetchJson<Record<string, OnChainAddr>>(
         `${import.meta.env.BASE_URL}addresses.json`,
         "addresses.json",
       ),
