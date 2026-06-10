@@ -1,8 +1,0 @@
-{
-  "model": "Xenova/bge-base-en-v1.5",
-  "dim": 768,
-  "count": 10287,
-  "normalized": true,
-  "maxChars": 2048,
-  "atlasCommit": "b2e6d18144b6a22d32d738d2363a7bdb3487ad59"
-}
