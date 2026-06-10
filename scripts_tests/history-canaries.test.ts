@@ -15,7 +15,10 @@ const HISTORY_DIR = path.join(ROOT, "public/history");
 const DOCS_PATH = path.join(ROOT, "public/docs.json");
 const RELS_PATH = path.join(ROOT, "public/relations.json");
 
-const have = fs.existsSync(HISTORY_DIR) && fs.existsSync(DOCS_PATH);
+const have =
+  fs.existsSync(HISTORY_DIR) &&
+  fs.existsSync(DOCS_PATH) &&
+  fs.existsSync(path.join(HISTORY_DIR, "_manifest.json"));
 
 interface HistoryEntry {
   date: string;
