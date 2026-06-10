@@ -38,7 +38,8 @@ jobs:
         run: pnpm build:graph
 
       - name: Build history
-        run: pnpm build:history
+        # --out-json: write public/history/*.json (no DB) for the canary tests.
+        run: pnpm build:history --out-json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

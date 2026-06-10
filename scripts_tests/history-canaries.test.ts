@@ -89,11 +89,15 @@ skipIfNoHistory("history canaries", () => {
   // Each of these was a false attribution we identified and fixed during the
   // matcher iteration. Locking in so a future change doesn't regress them.
 
-  it("Launch Agent 7 defining doc is tagged with the LA7 bullet for PR #186", () => {
+  // PR #186's GitHub body is just a forum link (no inline bullets). Bullet
+  // attribution used to come from fetching + parsing that forum page, but that
+  // was removed for being unreliable — so a bullet-less PR must now fall back to
+  // the PR title. This guards that fallback (and that forum parsing stays gone).
+  it("Launch Agent 7 defining doc falls back to the PR #186 title (no forum parse)", () => {
     const la7 = "d0d77316-0b08-447c-b75a-ae7926b07019";
     const entry = loadEntries(la7).find((e) => e.pr === 186);
     expect(entry).toBeDefined();
-    expect(entry!.summary).toBe("Add Launch Agent 7 Artifact");
+    expect(entry!.summary).toBe("2026-02-16 AEW proposal");
   });
 
   it("Launch Agent 7 instance docs are not falsely tagged with the Skybase bullet", () => {

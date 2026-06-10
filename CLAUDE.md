@@ -21,12 +21,11 @@ pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
 pnpm build:snapshot  # viem multicall snapshots → public/chain-state.json
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
-pnpm build:history   # git log of atlas submodule → public/history/<uuid>.json
+pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
 pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json
 pnpm build:at        # reproducible build at a specific atlas commit
 pnpm pull-atlas      # git submodule update --init --recursive (populate submodule after a shallow clone)
 pnpm build:rag       # Workers AI bge-base-en embeddings → .cache/atlas-vectors/{vectors,ids,meta} (hosted MCP server only; NOT in pnpm build)
-pnpm sync:history-pg # read public/history/*.json → upsert atlas_history in Postgres (with diff)
 pnpm atlas:worker    # full atlas worker cycle: drift check → build → sync all Postgres tables
 pnpm dev             # vite dev server (requires artifacts built first — see Local dev below)
 pnpm preview         # serve the production build locally
@@ -83,7 +82,7 @@ Scripts are split: `scripts/required/` holds the build pipeline entry-points wir
 - Frontend `loadAddresses()` loads both in parallel, merges per-address, resolves `label = chainlogId ?? entityLabel ?? etherscanName`.
 
 - **`scripts/required/build-graph.mjs`** — pattern-driven relation extraction. **Phase 2.6** (before entity extraction) scans all doc content for addresses and applies structural role/label/token annotation — this replaces what was previously in `build-index`. **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges. **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback. Emits `public/graph.json` and `public/relations.json`. No loopback to build-index. See `.claude/skills/parse-atlas/SKILL.md`. Imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2w), `lib/address-chains.mjs`, `lib/address-annotate.mjs`.
-- **`scripts/required/build-history.mjs`** — walks git log of the atlas submodule, emits `public/history/<uuid>.json` per node. Imports `lib/atlas-parser.mjs` for `HEADING_RE`.
+- **`scripts/required/build-history.mjs`** — walks git log of the atlas submodule and computes per-node change history with diffs. Two sinks: **default** upserts straight into Postgres `atlas_history` (reads its own incremental cursor via `MAX(commit_seq)`, runs under Bun); **`--out-json`** writes the legacy `public/history/<uuid>.json` files (DB-less, for the canary/artifact tests). Shared DB write path lives in `src/server/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`). Imports `lib/atlas-parser.mjs` for `HEADING_RE`.
 - **`scripts/required/build-manifest.mjs`** — sha256 digest of every shipping artifact.
 - **`scripts/required/build-at.mjs`** — reproducible build at a pinned atlas commit; orchestrates the other `build:*` scripts.
 

@@ -8,8 +8,8 @@
 // On change, embeddings and history run in parallel after the structural sync:
 //
 //   build-index → build-graph → sync.ts →
-//     ┌── sync-embeddings.ts              (atlas_doc_embeddings)
-//     └── build-history → sync-history-pg (atlas_history)
+//     ┌── sync-embeddings.ts   (atlas_doc_embeddings)
+//     └── build-history        (atlas_history — DB sink, reads its own cursor)
 //
 // Lightweight check: if upstream git SHA matches sync_state.atlas_sha AND no
 // stale embeddings exist, exits immediately (no work needed).
@@ -26,14 +26,12 @@
 //   OPENROUTER_API_KEY  — for embeddings (skipped if unset)
 //   ATLAS_WORKER_FULL   — set to "1" to force a full history rebuild
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { SQL } from "bun";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
-const HISTORY_DIR = path.join(ROOT, "public/history");
 
 function run(cmd, args, opts = {}) {
   console.log(`$ ${cmd} ${args.join(" ")}`);
@@ -131,50 +129,21 @@ async function main() {
   console.log("atlas-worker: sync.ts…");
   run("bun", ["src/server/sync.ts"]);
 
-  // ── History cursor for incremental walk ───────────────────────────────────
-  const db2 = new SQL(process.env.DATABASE_URL);
-  let cursor = null;
-  if (!full) {
-    try {
-      const rows = await db2`
-        SELECT commit_sha FROM atlas_history
-        WHERE commit_seq = (SELECT MAX(commit_seq) FROM atlas_history WHERE commit_seq IS NOT NULL)
-        LIMIT 1
-      `;
-      cursor = rows[0]?.commit_sha ?? null;
-    } catch { /* first run */ }
-    console.log(`atlas-worker: history cursor = ${cursor ? cursor.slice(0, 12) : "none (full)"}`);
-  }
-  await db2.close();
-
-  mkdirSync(HISTORY_DIR, { recursive: true });
-  if (cursor && !full) {
-    writeFileSync(path.join(HISTORY_DIR, "_last_commit.txt"), cursor);
-    const manifestPath = path.join(HISTORY_DIR, "_manifest.json");
-    if (!existsSync(manifestPath)) writeFileSync(manifestPath, "{}");
-  } else {
-    for (const f of ["_last_commit.txt", "_manifest.json"]) {
-      const p = path.join(HISTORY_DIR, f);
-      if (existsSync(p)) try { execFileSync("rm", [p]); } catch { /* ignore */ }
-    }
-  }
-
   // ── Parallel: embeddings + history ───────────────────────────────────────
+  // build-history reads its own incremental cursor from atlas_history and
+  // upserts straight into it (DB sink), so no cursor files to seed here.
   console.log("atlas-worker: parallel — sync-embeddings + build-history…");
   const results = await Promise.allSettled([
     // Branch 1: embeddings (skipped without API key — sync-embeddings guards internally)
     runAsync("bun", ["src/server/sync-embeddings.ts"]),
 
     // Branch 2: history (incremental git walk → Postgres)
-    (async () => {
-      await runAsync("bun", ["scripts/required/build-history.mjs"], {
-        env: {
-          ...process.env,
-          GH_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
-        },
-      });
-      await runAsync("bun", ["src/server/sync-history-pg.ts"]);
-    })(),
+    runAsync("bun", ["scripts/required/build-history.mjs", ...(full ? ["--full"] : [])], {
+      env: {
+        ...process.env,
+        GH_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "",
+      },
+    }),
   ]);
 
   for (const result of results) {

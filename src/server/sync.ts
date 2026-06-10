@@ -6,7 +6,7 @@
 //   bun src/server/sync.ts --force    # sync regardless of sha
 //
 // Reads: public/{docs,addresses.atlas,addresses,chain-state}.json
-// History is synced by the history worker (sync-history-pg.ts), not here.
+// History is written by build-history.mjs (DB sink) in the worker, not here.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { sql, waitForDb } from "./db.ts";
