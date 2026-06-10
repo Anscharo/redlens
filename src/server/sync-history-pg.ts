@@ -83,7 +83,7 @@ async function main() {
     let events: Array<{
       date?: string; commitHash?: string; changeType?: string; pr?: number;
       prTitle?: string; prUrl?: string; prAuthor?: string; summary?: string;
-      description?: string; movedFrom?: string; movedTo?: string; diff?: unknown;
+      description?: string; movedFrom?: string; movedTo?: string; diff?: DiffLine[];
     }>;
     try {
       events = JSON.parse(readFileSync(join(dir, f), "utf8"));
