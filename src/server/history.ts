@@ -13,7 +13,7 @@ const CHANGE_TYPE_REVERSE: Record<string, HistoryEntry["changeType"]> = {
   removed: "removed",
 };
 
-interface HistoryRow {
+interface HistoryQueryRow {
   commit_sha: string;
   // TIMESTAMPTZ comes back as a Date (or ISO string); JSONB diff normally an
   // array, but legacy double-encoded rows come back as a JSON string.
@@ -32,7 +32,7 @@ interface HistoryRow {
 
 /** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
  *  string). The frontend renders/sorts on a plain `YYYY-MM-DD`, so normalise. */
-function toIsoDate(v: HistoryRow["committed_at"]): string {
+function toIsoDate(v: HistoryQueryRow["committed_at"]): string {
   if (!v) return "";
   const d = v instanceof Date ? v : new Date(v);
   return Number.isNaN(d.getTime()) ? String(v).slice(0, 10) : d.toISOString().slice(0, 10);
@@ -41,7 +41,7 @@ function toIsoDate(v: HistoryRow["committed_at"]): string {
 /** Older rows were written with a double-encoded diff (a JSON *string* inside
  *  the JSONB column) which crashes DiffView's `.map`. Parse those back to an
  *  array; only surface a diff when it's genuinely an array. */
-function toDiff(v: HistoryRow["diff"]): DiffLine[] | undefined {
+function toDiff(v: HistoryQueryRow["diff"]): DiffLine[] | undefined {
   let d: unknown = v;
   if (typeof d === "string") {
     try {
@@ -53,7 +53,7 @@ function toDiff(v: HistoryRow["diff"]): DiffLine[] | undefined {
   return Array.isArray(d) ? (d as DiffLine[]) : undefined;
 }
 
-export function toEntry(row: HistoryRow): HistoryEntry {
+export function toEntry(row: HistoryQueryRow): HistoryEntry {
   const entry: HistoryEntry = {
     date: toIsoDate(row.committed_at),
     commitHash: row.commit_sha,
@@ -77,7 +77,7 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
   if (!UUID_RE.test(nodeId)) return new Response(null, { status: 404 });
 
   try {
-    const rows = await sql<HistoryRow[]>`
+    const rows = await sql<HistoryQueryRow[]>`
       SELECT commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
              pr_author, summary, description, moved_from, moved_to, diff
       FROM atlas_history

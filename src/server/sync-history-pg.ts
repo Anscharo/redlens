@@ -14,6 +14,7 @@ import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
 import { UUID_RE } from "../lib/patterns.ts";
+import type { DiffLine } from "../lib/history.ts";
 
 const pub = (f: string) => join(config.publicDir, f);
 
@@ -36,7 +37,7 @@ function gitCommitSeq(): Map<string, number> {
   }
 }
 
-interface HistRow {
+interface HistoryInsert {
   doc_id: string;
   commit_sha: string;
   committed_at: string | null;
@@ -50,7 +51,7 @@ interface HistRow {
   moved_from: string | null;
   moved_to: string | null;
   change_type: string;
-  diff: unknown | null;
+  diff: DiffLine[] | null;
 }
 
 const HISTORY_COLS = [
@@ -76,7 +77,7 @@ async function main() {
   const seqByCommit = gitCommitSeq();
   const files = readdirSync(dir).filter((f) => UUID_RE.test(f.replace(/\.json$/, "")));
 
-  const rows: HistRow[] = [];
+  const rows: HistoryInsert[] = [];
   for (const f of files) {
     const docId = f.replace(/\.json$/, "");
     let events: Array<{
@@ -132,7 +133,7 @@ async function main() {
     const valuesSql = chunk
       .map((r) => {
         const ph = HISTORY_COLS.map((c) => {
-          params.push((r as Record<string, unknown>)[c]);
+          params.push(r[c]);
           return c === "diff" ? `$${params.length}::jsonb` : `$${params.length}`;
         });
         return `(${ph.join(",")})`;
