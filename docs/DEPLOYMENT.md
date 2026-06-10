@@ -80,11 +80,11 @@ d. **Wire `DATABASE_URL` to Postgres:**
 
 For a condensed variable-name cheat sheet, see [railway-env-vars.md](./railway-env-vars.md).
 
-### 3a. Get an OpenRouter API key
+### 3a. Get an OpenRouter API key → `OPENROUTER_API_KEY`
 
-1. Go to [openrouter.ai](https://openrouter.ai) and sign in.
+1. Go to [openrouter.ai/keys](https://openrouter.ai/keys) and sign in.
 2. Add credits: **Settings → Credits → Add Credits**.
-3. **Settings → Keys → Create Key** → copy the value (starts with `sk-or-`).
+3. **Create Key** → copy the value (starts with `sk-or-`).
 
 ### 3b. Set the variables
 
@@ -119,13 +119,15 @@ c. **Link DATABASE_URL** to the same Postgres instance:
    railway variables --set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service redlens-worker
    ```
 
-d. **Create a GitHub token for PR metadata.** The worker uses `gh pr view` to
-   fetch PR title, author, and body for atlas history entries. This only reads
-   the public `sky-ecosystem/next-gen-atlas` repo, so the token needs minimal
-   permissions:
+d. **Create a GitHub fine-grained token → `GITHUB_TOKEN`.** The worker uses
+   `gh pr view` to fetch PR title, author, and body for atlas history entries.
+   This only reads the public `sky-ecosystem/next-gen-atlas` repo, so the token
+   needs minimal permissions:
 
-   - GitHub → **Settings → Developer settings → Personal access tokens →
-     Fine-grained tokens → Generate new token**
+   - [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens)
+     → **Generate new token**
+   - **Token Name**:  can be whatever you want Reccomend "railway worker"
+   - **Expiration**: Will need to do this again when it expires. Reccomend long since this is read only 
    - **Repository access:** Public repositories (read-only)
    - **Permissions:** none additional — public repo content is readable with
      any valid token
@@ -202,26 +204,26 @@ Chat + auth ship **disabled** by default. Turning it on takes **two** switches:
 - **`CHAT_ENABLED=1`** — a **runtime** Railway variable that mounts the
   `/api/auth/*`, `/api/chat`, and `/api/usage` routes.
 
-### 7a. Generate the JWT session secret
+### 7a. Generate the JWT session secret → `CHAT_JWT_SECRET`
 
 ```bash
 openssl rand -hex 32
 ```
 
-### 7b. Create a GitHub OAuth app
+### 7b. Create a GitHub OAuth app → `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
 1. [github.com/settings/developers](https://github.com/settings/developers)
    → **OAuth Apps → New OAuth App**.
 2. **Authorization callback URL:**
-   `https://<your-domain>/api/auth/github/callback`
+   `https://https://atlas.redline.support/api/auth/github/callback`
 3. Copy the **Client ID** and generate a **Client secret**.
 
-### 7c. Create a Google OAuth app
+### 7c. Create a Google OAuth app → `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 
-1. [Google Cloud Console](https://console.cloud.google.com) → **APIs &
-   Services → Credentials → Create Credentials → OAuth client ID**.
+1. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+   → **Create Credentials → OAuth client ID**.
 2. **Authorized redirect URI:**
-   `https://<your-domain>/api/auth/google/callback`
+   `https://https://atlas.redline.support/api/auth/google/callback`
 3. Copy the **Client ID** and **Client secret**.
 
 ### 7d. Set the chat variables
@@ -261,7 +263,7 @@ The workflow is responsible for keeping the **git submodule pointer** and
 **graph snapshots** current. It does **not** sync Postgres or build history —
 those are handled entirely by the Railway atlas worker.
 
-## 8. Install the bot (GitHub App)
+## 8. Install the bot (GitHub App) → `ATLAS_BOT_APP_ID`, `ATLAS_BOT_PRIVATE_KEY`
 
 The workflow pushes directly to `main`. If your repo has branch protection
 requiring pull request reviews, the default `GITHUB_TOKEN` cannot bypass it.
@@ -273,7 +275,7 @@ a. **Create the App:** [github.com/settings/apps](https://github.com/settings/ap
    - **Pull requests:** Read & write
    - **Issues:** Read & write
 
-b. **Generate a private key** and note the **App ID**.
+b. **Generate a private key** (gives `ATLAS_BOT_PRIVATE_KEY`) and note the **App ID** (gives `ATLAS_BOT_APP_ID`).
 
 c. **Install the App on this repo.**
 
