@@ -1,0 +1,10 @@
+{
+  "number": 253,
+  "title": "Atlas Edit Proposal — 2026-06-01",
+  "body": "This week's Atlas Edit Weekly Cycle proposal includes the following edits:\n\n- **Unify Reward Recipient And Sharing Across Sky Primitive Reward Mechanisms** — Establishes that all Sky Primitive reward payments go to the Prime Agent managing the Integrator relationship, with sharing subject to bilateral negotiation.\n- **Rename Capital Requirement Ratio To Capital Ratio Requirement** — Renames Capital Requirement Ratio to Capital Ratio Requirement across the Atlas to align with the Laniakea Risk Framework convention.\n- **Remove Irrelevant Facilitator Ecosystem Exemptions** — Removes two exemptions that previously applied to Facilitator Ecosystem, who held the Protocol, Accessibility, Stability, and Support Scopes before the scope-facilitator structure was replaced by the Agent framework.\n- **Amend Circle CCTP v2 TokenMessenger Contract Address Documents In Grove Artifact** — Adds the missing TokenMessenger contract address for Avalanche, and consolidates two Base documents recording the same contract address into a single document.\n- **Update Immunefi Bug Bounty Program URLs** — Updates outdated Immunefi links, reflecting the MakerDAO → Sky rebrand.",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/253",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

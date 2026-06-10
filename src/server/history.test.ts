@@ -124,6 +124,52 @@ describe("toEntry", () => {
     expect(entry.movedTo).toBe("A.1.3");
     expect(entry.diff).toBe(diff);
   });
+
+  const baseRow = {
+    commit_sha: "abc1234",
+    change_type: "added",
+    pr_number: null,
+    pr_title: null,
+    pr_url: null,
+    pr_author: null,
+    summary: null,
+    description: null,
+    moved_from: null,
+    moved_to: null,
+  } as const;
+
+  it("coerces a legacy double-encoded (string) diff back to an array", () => {
+    const entry = toEntry({
+      ...baseRow,
+      committed_at: "2024-01-01",
+      diff: '[["+","new line"]]' as any,
+    });
+    expect(entry.diff).toEqual([["+", "new line"]]);
+  });
+
+  it("drops a diff string that is not valid JSON", () => {
+    const entry = toEntry({ ...baseRow, committed_at: "2024-01-01", diff: "not json" as any });
+    expect("diff" in entry).toBe(false);
+  });
+
+  it("drops a diff whose JSON is not an array", () => {
+    const entry = toEntry({ ...baseRow, committed_at: "2024-01-01", diff: '{"x":1}' as any });
+    expect("diff" in entry).toBe(false);
+  });
+
+  it("normalises a Date committed_at to YYYY-MM-DD", () => {
+    const entry = toEntry({
+      ...baseRow,
+      committed_at: new Date("2026-05-20T10:09:52-07:00") as any,
+      diff: null,
+    });
+    expect(entry.date).toBe("2026-05-20");
+  });
+
+  it("normalises an ISO-string committed_at to YYYY-MM-DD", () => {
+    const entry = toEntry({ ...baseRow, committed_at: "2026-05-20T00:00:00.000Z", diff: null });
+    expect(entry.date).toBe("2026-05-20");
+  });
 });
 
 // ── handleHistory ─────────────────────────────────────────────────────────────

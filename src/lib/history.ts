@@ -35,6 +35,17 @@ export interface HistoryEntry {
   movedTo?: string;
 }
 
+/** Single source of truth for change-type → CSS color, shared by the atlas
+ *  history panel (EntryRow) and the radar actor history (ActorHistory).
+ *  added/removed reuse the diff-view tokens so the label color matches the
+ *  diff body; modified/moved have no diff equivalent. */
+export const CHANGE_COLOR: Record<string, string> = {
+  added: "var(--diff-added-fg)",
+  modified: "var(--tan-3)",
+  removed: "var(--diff-removed-fg)",
+  moved: "var(--accent)",
+};
+
 // Module-level cache: nodeId → promise
 const cache = new Map<string, Promise<HistoryEntry[] | null>>();
 

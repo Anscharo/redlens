@@ -1,0 +1,10 @@
+{
+  "number": 246,
+  "title": "Atlas Edit Proposal — 2026-05-18",
+  "body": "On behalf of @atlas-axis, we are submitting the Atlas Edit Weekly Cycle proposal below.\n\nThis proposal includes the following edits:\n\n- **Define Executive Process Liaison And Strategic Team Roles** — Adds definitional documents for the Executive Process Liaison and Strategic Team, and adds Prime Agents to the Roles in the Executive Process Section.\n- **Rebrand Launch Agent 6 To Osero** — Now that Launch Agent 6 has come out of stealth, its name is updated to Osero across the Atlas.\n- **Fix Stale Cross-Reference Labels And Naming Inconsistencies** — Updates stale cross-reference labels to the canonical short format, normalizes curly quotes and apostrophes in cross-references, and fixes a title-case inconsistency in Ecosystem Accord 7.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/246",
+  "commentCount": 0,
+  "reviewCount": 3,
+  "approvalCount": 1
+}

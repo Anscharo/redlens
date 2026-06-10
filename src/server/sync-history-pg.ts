@@ -118,27 +118,31 @@ async function main() {
 
   console.log(`sync:history-pg — upserting ${rows.length} rows from ${files.length} nodes`);
 
+  // `diff` is JSONB. Build the INSERT by hand so the placeholder carries an
+  // explicit `$N::jsonb` cast and the RAW JS value is passed through — Bun.sql
+  // JSON-encodes it once for the cast. Pre-stringifying (the old approach) made
+  // Bun encode the string a second time, storing a jsonb *string scalar* that
+  // read back as a string and crashed the diff renderer. Mirrors sync.ts.
+  const setClause = HISTORY_COLS.filter((c) => c !== "doc_id" && c !== "commit_sha" && c !== "change_type")
+    .map((c) => `${c} = excluded.${c}`)
+    .join(", ");
+
   await chunked(rows, 1000, async (chunk) => {
-    // diff is JSONB; pass as JSON string so Bun.sql serialises it correctly.
-    const prepared = chunk.map((r) => ({
-      ...r,
-      diff: r.diff != null ? JSON.stringify(r.diff) : null,
-    }));
-    await sql`
-      INSERT INTO atlas_history ${sql(prepared as unknown as Record<PropertyKey, unknown>[], ...HISTORY_COLS)}
-      ON CONFLICT (doc_id, commit_sha, change_type) DO UPDATE SET
-        committed_at  = excluded.committed_at,
-        commit_seq    = excluded.commit_seq,
-        pr_number     = excluded.pr_number,
-        pr_title      = excluded.pr_title,
-        pr_url        = excluded.pr_url,
-        pr_author     = excluded.pr_author,
-        summary       = excluded.summary,
-        description   = excluded.description,
-        moved_from    = excluded.moved_from,
-        moved_to      = excluded.moved_to,
-        diff          = excluded.diff
-    `;
+    const params: unknown[] = [];
+    const valuesSql = chunk
+      .map((r) => {
+        const ph = HISTORY_COLS.map((c) => {
+          params.push((r as Record<string, unknown>)[c]);
+          return c === "diff" ? `$${params.length}::jsonb` : `$${params.length}`;
+        });
+        return `(${ph.join(",")})`;
+      })
+      .join(",");
+    await sql.unsafe(
+      `INSERT INTO atlas_history (${HISTORY_COLS.join(",")}) VALUES ${valuesSql}
+       ON CONFLICT (doc_id, commit_sha, change_type) DO UPDATE SET ${setClause}`,
+      params,
+    );
   });
 
   console.log(`sync:history-pg — done (${rows.length} rows across ${files.length} nodes)`);

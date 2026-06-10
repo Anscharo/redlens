@@ -1,0 +1,10 @@
+{
+  "number": 240,
+  "title": "Spark artifact changes (2026-04-22 exec)",
+  "body": "- rETH deprecation\r\n- WETH IRM\r\n- USDT IRM",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/240",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

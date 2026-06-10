@@ -15,7 +15,9 @@ const CHANGE_TYPE_REVERSE: Record<string, HistoryEntry["changeType"]> = {
 
 interface HistoryRow {
   commit_sha: string;
-  committed_at: string | null;
+  // TIMESTAMPTZ comes back as a Date (or ISO string); JSONB diff normally an
+  // array, but legacy double-encoded rows come back as a JSON string.
+  committed_at: string | Date | null;
   change_type: string;
   pr_number: number | null;
   pr_title: string | null;
@@ -25,12 +27,35 @@ interface HistoryRow {
   description: string | null;
   moved_from: string | null;
   moved_to: string | null;
-  diff: DiffLine[] | null;
+  diff: DiffLine[] | string | null;
+}
+
+/** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
+ *  string). The frontend renders/sorts on a plain `YYYY-MM-DD`, so normalise. */
+function toIsoDate(v: HistoryRow["committed_at"]): string {
+  if (!v) return "";
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? String(v).slice(0, 10) : d.toISOString().slice(0, 10);
+}
+
+/** Older rows were written with a double-encoded diff (a JSON *string* inside
+ *  the JSONB column) which crashes DiffView's `.map`. Parse those back to an
+ *  array; only surface a diff when it's genuinely an array. */
+function toDiff(v: HistoryRow["diff"]): DiffLine[] | undefined {
+  let d: unknown = v;
+  if (typeof d === "string") {
+    try {
+      d = JSON.parse(d);
+    } catch {
+      return undefined;
+    }
+  }
+  return Array.isArray(d) ? (d as DiffLine[]) : undefined;
 }
 
 export function toEntry(row: HistoryRow): HistoryEntry {
   const entry: HistoryEntry = {
-    date: row.committed_at ?? "",
+    date: toIsoDate(row.committed_at),
     commitHash: row.commit_sha,
     changeType: CHANGE_TYPE_REVERSE[row.change_type] ?? (row.change_type as HistoryEntry["changeType"]),
   };
@@ -40,7 +65,8 @@ export function toEntry(row: HistoryRow): HistoryEntry {
   if (row.pr_url) entry.prUrl = row.pr_url;
   if (row.summary) entry.summary = row.summary;
   if (row.description) entry.description = row.description;
-  if (row.diff) entry.diff = row.diff;
+  const diff = toDiff(row.diff);
+  if (diff) entry.diff = diff;
   if (row.moved_from) entry.movedFrom = row.moved_from;
   if (row.moved_to) entry.movedTo = row.moved_to;
   return entry;

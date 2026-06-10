@@ -1,20 +1,20 @@
 import type { DiffLine, WordSegment } from "../../lib/history";
 
 const DIFF_LINE_BG: Record<string, string> = {
-  "+": "color-mix(in srgb, var(--depth-6) 12%, transparent)",
+  "+": "var(--diff-added-bg)",
   "-": "var(--diff-removed-bg)",
   "=": "transparent",
 };
 const DIFF_LINE_COLOR: Record<string, string> = {
-  "+": "var(--depth-6)",
+  "+": "var(--diff-added-fg)",
   "-": "var(--diff-removed-fg)",
   "=": "var(--tan-3)",
 };
 const DIFF_LINE_PREFIX: Record<string, string> = { "+": "+", "-": "−", "=": " " };
 
 const WORD_ADDED_STYLE: React.CSSProperties = {
-  background: "color-mix(in srgb, var(--depth-6) 30%, transparent)",
-  color: "var(--depth-6)",
+  background: "var(--diff-added-bg)",
+  color: "var(--diff-added-fg)",
   borderRadius: 2,
 };
 const WORD_REMOVED_STYLE: React.CSSProperties = {
@@ -52,6 +52,9 @@ function IntralineDiff({ segments }: { segments: WordSegment[] }) {
 }
 
 export function DiffView({ lines }: { lines: DiffLine[] }) {
+  // Defensive: a malformed payload (e.g. a legacy double-encoded jsonb diff
+  // that arrives as a string) must degrade, not crash the whole history tab.
+  if (!Array.isArray(lines)) return null;
   return (
     <div
       className="mt-2 rounded overflow-x-auto mono text-[10px] leading-relaxed"

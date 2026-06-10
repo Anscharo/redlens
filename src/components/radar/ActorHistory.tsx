@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { loadHistory, type HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, loadHistory, type HistoryEntry } from "../../lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "../../types";
 import { ROUTES } from "../../lib/routes";
@@ -46,12 +46,6 @@ const CATEGORY_TOOLTIP: Record<Category, string> = {
   param: "A document that is the source of a parameter for one of this agent's instances.",
   primitive: "A primitive that this agent is authorized to own and invoke.",
   reward: "The rewards primitive linked to this agent's compensation.",
-};
-
-const CHANGE_COLOR: Record<string, string> = {
-  added: "var(--depth-6)",
-  modified: "var(--tan-3)",
-  removed: "var(--red)",
 };
 
 const CHANGE_INDICATOR: Record<string, string> = {
