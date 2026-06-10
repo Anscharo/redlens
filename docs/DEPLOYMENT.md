@@ -215,7 +215,7 @@ openssl rand -hex 32
 1. [github.com/settings/developers](https://github.com/settings/developers)
    → **OAuth Apps → New OAuth App**.
 2. **Authorization callback URL:**
-   `https://https://atlas.redline.support/api/auth/github/callback`
+   `https://atlas.redline.support/api/auth/github/callback`
 3. Copy the **Client ID** and generate a **Client secret**.
 
 ### 7c. Create a Google OAuth app → `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
@@ -223,7 +223,7 @@ openssl rand -hex 32
 1. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
    → **Create Credentials → OAuth client ID**.
 2. **Authorized redirect URI:**
-   `https://https://atlas.redline.support/api/auth/google/callback`
+   `https://atlas.redline.support/api/auth/google/callback`
 3. Copy the **Client ID** and **Client secret**.
 
 ### 7d. Set the chat variables
