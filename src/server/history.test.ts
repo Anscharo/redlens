@@ -8,12 +8,12 @@ const VALID_UUID = "d0d77316-0b08-447c-b75a-ae7926b07019";
 
 describe("toEntry", () => {
   it("maps DB change_type synonyms to frontend vocabulary", () => {
-    const cases: [string, string][] = [
+    const cases = [
       ["content", "modified"],
       ["structural", "moved"],
       ["added", "added"],
       ["removed", "removed"],
-    ];
+    ] as const;
     for (const [dbVal, expected] of cases) {
       const entry = toEntry({
         commit_sha: "abc1234",
