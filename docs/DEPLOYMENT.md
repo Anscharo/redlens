@@ -78,7 +78,7 @@ d. **Wire `DATABASE_URL` to Postgres:**
 
 ## 3. Set the web service environment variables
 
-`PORT` is injected by Railway automatically.
+For a condensed variable-name cheat sheet, see [railway-env-vars.md](./railway-env-vars.md).
 
 ### 3a. Get an OpenRouter API key
 
@@ -227,6 +227,7 @@ openssl rand -hex 32
 ### 7d. Set the chat variables
 
 ```bash
+railway variables --set 'VITE_CHAT_ENABLED=1'              --service redlens-atlas
 railway variables --set 'CHAT_ENABLED=1'                   --service redlens-atlas
 railway variables --set 'CHAT_JWT_SECRET=<from 7a>'        --service redlens-atlas
 railway variables --set 'GITHUB_CLIENT_ID=<from 7b>'       --service redlens-atlas
@@ -235,9 +236,17 @@ railway variables --set 'GOOGLE_CLIENT_ID=<from 7c>'       --service redlens-atl
 railway variables --set 'GOOGLE_CLIENT_SECRET=<from 7c>'   --service redlens-atlas
 ```
 
-*Also rebuild with `--build-arg VITE_CHAT_ENABLED=1` so the widget is in the
-bundle. If you later move to a custom domain, set `APP_URL=https://<custom-domain>`
-and update the callback URLs.*
+| Variable | Purpose |
+|---|---|
+| `VITE_CHAT_ENABLED` | Build arg — bakes the chat widget into the Vite bundle; Railway passes it to Docker automatically |
+| `CHAT_ENABLED` | Runtime switch — mounts `/api/auth/*`, `/api/chat`, `/api/usage` routes |
+| `CHAT_JWT_SECRET` | Signs session cookies |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
+
+*Setting `VITE_CHAT_ENABLED` triggers a full image rebuild so the bundle includes
+the widget. If you later move to a custom domain, also set
+`APP_URL=https://<custom-domain>` and update the provider callback URLs.*
 
 ---
 
