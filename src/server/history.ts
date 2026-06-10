@@ -28,7 +28,7 @@ interface HistoryRow {
   diff: DiffLine[] | null;
 }
 
-function toEntry(row: HistoryRow): HistoryEntry {
+export function toEntry(row: HistoryRow): HistoryEntry {
   const entry: HistoryEntry = {
     date: row.committed_at ?? "",
     commitHash: row.commit_sha,
