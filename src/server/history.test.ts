@@ -28,6 +28,10 @@ describe("toEntry", () => {
         moved_from: null,
         moved_to: null,
         diff: null,
+        change_kind: null,
+        review_count: null,
+        approval_count: null,
+        comment_count: null,
       });
       expect(entry.changeType, `change_type="${dbVal}"`).toBe(expected);
     }
@@ -47,6 +51,10 @@ describe("toEntry", () => {
       moved_from: null,
       moved_to: null,
       diff: null,
+      change_kind: null,
+      review_count: null,
+      approval_count: null,
+      comment_count: null,
     });
     expect(entry.changeType).toBe("future_type" as any);
   });
@@ -65,6 +73,10 @@ describe("toEntry", () => {
       moved_from: null,
       moved_to: null,
       diff: null,
+      change_kind: null,
+      review_count: null,
+      approval_count: null,
+      comment_count: null,
     });
     expect(entry.date).toBe("");
   });
@@ -83,6 +95,10 @@ describe("toEntry", () => {
       moved_from: null,
       moved_to: null,
       diff: null,
+      change_kind: null,
+      review_count: null,
+      approval_count: null,
+      comment_count: null,
     });
     expect("pr" in entry).toBe(false);
     expect("prTitle" in entry).toBe(false);
@@ -93,6 +109,10 @@ describe("toEntry", () => {
     expect("diff" in entry).toBe(false);
     expect("movedFrom" in entry).toBe(false);
     expect("movedTo" in entry).toBe(false);
+    expect("changeKind" in entry).toBe(false);
+    expect("reviewCount" in entry).toBe(false);
+    expect("approvalCount" in entry).toBe(false);
+    expect("commentCount" in entry).toBe(false);
   });
 
   it("maps all optional fields when present", () => {
@@ -110,6 +130,10 @@ describe("toEntry", () => {
       moved_from: "A.1.2",
       moved_to: "A.1.3",
       diff,
+      change_kind: "typo",
+      review_count: 3,
+      approval_count: 2,
+      comment_count: 5,
     });
     expect(entry.date).toBe("2024-03-15");
     expect(entry.commitHash).toBe("abc1234");
@@ -123,6 +147,10 @@ describe("toEntry", () => {
     expect(entry.movedFrom).toBe("A.1.2");
     expect(entry.movedTo).toBe("A.1.3");
     expect(entry.diff).toBe(diff);
+    expect(entry.changeKind).toBe("typo");
+    expect(entry.reviewCount).toBe(3);
+    expect(entry.approvalCount).toBe(2);
+    expect(entry.commentCount).toBe(5);
   });
 
   const baseRow = {
@@ -136,6 +164,10 @@ describe("toEntry", () => {
     description: null,
     moved_from: null,
     moved_to: null,
+    change_kind: null,
+    review_count: null,
+    approval_count: null,
+    comment_count: null,
   } as const;
 
   it("coerces a legacy double-encoded (string) diff back to an array", () => {

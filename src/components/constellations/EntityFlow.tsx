@@ -107,7 +107,16 @@ function CardBody({ entity, onSelect }: {
   onSelect: (id: string) => void;
 }) {
   const [edgeResult, setEdgeResult] = useState<EdgeResult | null>(null);
-  useEffect(() => { getEdges(entity.id).then(setEdgeResult); }, [entity.id]);
+  useEffect(() => {
+    setEdgeResult(null);
+    let cancelled = false;
+    getEdges(entity.id).then((r) => {
+      if (!cancelled) setEdgeResult(r);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entity.id]);
 
   const grouped = useMemo(() => {
     if (!edgeResult) return [];

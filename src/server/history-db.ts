@@ -15,6 +15,7 @@ export const CHANGE_TYPE_MAP: Record<string, string> = { modified: "content", mo
 export const HISTORY_COLS = [
   "doc_id", "commit_sha", "committed_at", "commit_seq", "pr_number", "pr_title", "pr_url",
   "pr_author", "summary", "description", "moved_from", "moved_to", "change_type", "diff",
+  "change_kind", "review_count", "approval_count", "comment_count",
 ] as const;
 
 /** A single history entry as emitted by build-history.mjs (also the on-disk
@@ -32,6 +33,10 @@ export interface HistoryEvent {
   movedFrom?: string;
   movedTo?: string;
   diff?: DiffLine[];
+  changeKind?: string;
+  reviewCount?: number;
+  approvalCount?: number;
+  commentCount?: number;
 }
 
 /** One row to upsert into atlas_history. */
@@ -50,6 +55,10 @@ export interface HistoryInsert {
   moved_to: string | null;
   change_type: string;
   diff: DiffLine[] | null;
+  change_kind: string | null;
+  review_count: number | null;
+  approval_count: number | null;
+  comment_count: number | null;
 }
 
 /** Topological commit order (oldest = 1) of the atlas submodule, keyed by the
@@ -93,6 +102,10 @@ export function eventToRow(
     moved_to: e.movedTo ?? null,
     change_type: CHANGE_TYPE_MAP[e.changeType] ?? e.changeType,
     diff: e.diff ?? null,
+    change_kind: e.changeKind ?? null,
+    review_count: e.reviewCount ?? null,
+    approval_count: e.approvalCount ?? null,
+    comment_count: e.commentCount ?? null,
   };
 }
 
