@@ -119,7 +119,10 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
     0,
     BATCH_MAX,
   );
-  if (ids.length === 0) return Response.json({}, { headers: { "Cache-Control": "public, max-age=300" } });
+  // No Cache-Control: this is a POST, which browsers don't cache anyway. The
+  // single-doc GET caches; here the client-side `loadHistoryBatch` cache seed
+  // is what avoids refetching.
+  if (ids.length === 0) return Response.json({});
 
   try {
     const rows = await sql<(HistoryQueryRow & { doc_id: string })[]>`
@@ -131,7 +134,7 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
     `;
     const out: Record<string, HistoryEntry[]> = {};
     for (const row of rows) (out[row.doc_id] ??= []).push(toEntry(row));
-    return Response.json(out, { headers: { "Cache-Control": "public, max-age=300" } });
+    return Response.json(out);
   } catch {
     return new Response(null, { status: 503 });
   }

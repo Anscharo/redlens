@@ -353,7 +353,6 @@ describe("handleHistoryBatch", () => {
     expect(body[VALID_UUID][0].changeType).toBe("modified");
     expect(body[VALID_UUID_2]).toHaveLength(1);
     expect(body[VALID_UUID_2][0].changeType).toBe("removed");
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
   });
 
   it("returns 503 when the DB throws", async () => {
