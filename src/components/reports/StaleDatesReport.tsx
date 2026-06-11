@@ -25,19 +25,19 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
     >
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
-          <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
+          <span className="mono text-base font-semibold" style={{ color: "var(--tan)" }}>
             {c.dateISO}
           </span>
-          <span className="mono text-xs" style={{ color: "var(--tan-2)" }}>
+          <span className="mono text-base" style={{ color: "var(--tan-2)" }}>
             {staleness(c)}
           </span>
         </span>
-        <span className="text-sm" style={{ color: "var(--tan)" }}>
+        <span className="text-lg" style={{ color: "var(--tan)" }}>
           {c.title}
         </span>
-        <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
+        <span className="mono text-base text-accent ml-auto">{c.docNo}</span>
       </div>
-      <p className="text-[11px] mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
+      <p className="text-sm mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
         …{c.contextBefore}
         <em>{c.raw}</em>
         {c.contextAfter}…
@@ -49,12 +49,12 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
 function Section({ title, hint, claims, tone }: { title: string; hint: string; claims: DateClaim[]; tone: string }) {
   return (
     <section className="mb-8">
-      <h2 className="text-sm font-semibold mb-0.5" style={{ color: tone }}>
-        {title} <span className="mono text-xs text-tan-3">({claims.length})</span>
+      <h2 className="text-lg font-semibold mb-0.5" style={{ color: tone }}>
+        {title} <span className="mono text-base text-tan-3">({claims.length})</span>
       </h2>
-      <p className="text-xs text-tan-3 mb-2">{hint}</p>
+      <p className="text-base text-tan-3 mb-2">{hint}</p>
       {claims.length === 0 ? (
-        <p className="mono text-xs text-tan-3">none</p>
+        <p className="mono text-base text-tan-3">none</p>
       ) : (
         claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} />)
       )}
@@ -71,20 +71,20 @@ export function StaleDatesReport() {
   return (
     <div className="px-6 py-6">
       <div className="max-w-4xl mx-auto">
-        <p className="mono text-xs text-tan-3 mb-1">report</p>
-        <h1 className="text-xl font-semibold mb-1" style={{ color: "var(--tan)" }}>
+        <p className="mono text-base text-tan-3 mb-1">report</p>
+        <h1 className="text-2xl font-semibold mb-1" style={{ color: "var(--tan)" }}>
           Stale Dates
         </h1>
-        <p className="text-sm text-tan-3 mb-6">
+        <p className="text-lg text-tan-3 mb-6">
           Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked
           against today's date. An overdue claim means the event happened and the text was never
           updated — or it slipped.
           {report && (
-            <span className="mono text-xs"> {report.totalDateMentions} dated mentions scanned.</span>
+            <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
         {!report ? (
-          <p className="mono text-xs text-tan-3">loading…</p>
+          <p className="mono text-base text-tan-3">loading…</p>
         ) : (
           <>
             <Section
