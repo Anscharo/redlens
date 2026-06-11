@@ -14,6 +14,7 @@
   --red-dim: #753021;
   --accent: #c67267; /* browner/pinker — focus, interactive */
   --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
+  --warn: #c9a227; /* amber — due-soon / caution accents */
 
   /* ─── Text ─── */
   --gray: #9a8a80; /* bumped from #7a6860 — passes 4.5:1 on --bg */

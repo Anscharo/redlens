@@ -6,8 +6,13 @@
 // docs.json) and the actual date — no build step or stored artifact.
 
 import type { AtlasNode } from "../types";
+import { stripMarkdownLinks } from "./atlasHelpers";
 
 export type DatePrecision = "day" | "month" | "quarter";
+
+// Claims crossing today within this many days land in the "due soon" bucket.
+// UI copy interpolates this constant — keep logic and labels in sync.
+export const DUE_SOON_DAYS = 7;
 
 export interface DateClaim {
   docId: string;
@@ -24,7 +29,7 @@ export interface DateClaim {
 
 export interface StaleDatesReport {
   stale: DateClaim[]; // future-tense, date passed
-  dueSoon: DateClaim[]; // future-tense, passes within the next 7 days
+  dueSoon: DateClaim[]; // future-tense, passes within DUE_SOON_DAYS
   upcoming: DateClaim[]; // future-tense, further out
   totalDateMentions: number;
 }
@@ -52,10 +57,6 @@ const FUTURE_RE =
   /\b(will|shall|scheduled|planned|upcoming|expected|estimated|beginning|begins|starting|takes? effect|no later than|to be\s+\w+(?:ed|en))\b/i;
 const BY_DATE_RE = /(?:^|\s)by\s*$/i;
 
-// Markdown links carry URL slugs ("derecognition-due-to-…") that poison tense
-// detection — replace each link with its visible text before any matching.
-const stripLinks = (s: string) => s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1");
-
 function daysInMonth(y: number, mo: number): number {
   return new Date(Date.UTC(y, mo, 0)).getUTCDate();
 }
@@ -69,12 +70,16 @@ function boundaryUTC(y: number, mo: number, day: number | null): number {
 const fmtISO = (utc: number) => new Date(utc).toISOString().slice(0, 10);
 
 export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: DateClaim[]; mentions: number } {
-  const content = stripLinks(doc.content ?? "");
-  if (!content) return { claims: [], mentions: 0 };
+  const source = doc.content ?? "";
+  // Prefilter: <1% of docs contain a 4-digit year at all — skip the link
+  // stripping and the five full regex scans for the other 99%.
+  if (!/\b2\d{3}\b/.test(source)) return { claims: [], mentions: 0 };
+  // Markdown links carry URL slugs ("derecognition-due-to-…") that poison
+  // tense detection — reduce links to their visible text before any matching.
+  const content = stripMarkdownLinks(source);
 
   const matches: RawMatch[] = [];
   for (const { re, map } of DATE_RES) {
-    re.lastIndex = 0;
     for (const m of content.matchAll(re)) {
       const [y, mo, day, precision] = map(m);
       if (y < 2015 || y > 2100 || mo < 1 || mo > 12) continue;
@@ -120,7 +125,7 @@ export function buildStaleDatesReport(
     report.totalDateMentions += mentions;
     for (const c of claims) {
       if (c.daysUntilStale < 0) report.stale.push(c);
-      else if (c.daysUntilStale <= 7) report.dueSoon.push(c);
+      else if (c.daysUntilStale <= DUE_SOON_DAYS) report.dueSoon.push(c);
       else report.upcoming.push(c);
     }
   }

@@ -1,15 +1,40 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { AtlasNode } from "../../types";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
-import { useLoaded } from "../../hooks/useAtlasData";
-import { buildStaleDatesReport, type DateClaim } from "../../lib/staleDates";
+import { useUTCDay } from "../../hooks/useUTCDay";
+import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 
 function staleness(c: DateClaim): string {
+  // The viewer's local day and the day the atlas text was written against can
+  // differ by a day either way, so near the boundary hedge with "~1d" rather
+  // than claiming "today".
+  if (Math.abs(c.daysUntilStale) <= 1) return "(~1d)";
   if (c.daysUntilStale < 0) return `(${-c.daysUntilStale}d overdue)`;
-  if (c.daysUntilStale === 0) return "(today)";
   return `(in ${c.daysUntilStale}d)`;
 }
+
+const SECTIONS: { key: "upcoming" | "dueSoon" | "stale"; title: string; hint: string; tone: string }[] = [
+  {
+    key: "upcoming",
+    title: "Upcoming",
+    hint: "The atlas's live calendar — future claims with dates still ahead.",
+    tone: "var(--accent)",
+  },
+  {
+    key: "dueSoon",
+    title: `Due within ${DUE_SOON_DAYS} days`,
+    hint: "Future claims about to cross today — stale soon unless the atlas is updated.",
+    tone: "var(--warn)",
+  },
+  {
+    key: "stale",
+    title: "Stale",
+    hint: "The date has passed but the atlas still phrases the event as future.",
+    tone: "var(--red)",
+  },
+];
 
 function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
@@ -20,24 +45,18 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
     <AtlasLink
       to={atlasHref(c.docId)}
       title={c.title}
-      className="block py-4 px-3 border-b last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
-      style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
+      className="block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
+      style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold" style={{ color: "var(--tan)" }}>
-            {c.dateISO}
-          </span>
-          <span className="mono text-base" style={{ color: "var(--tan-2)" }}>
-            {staleness(c)}
-          </span>
+          <span className="mono text-base font-semibold text-tan">{c.dateISO}</span>
+          <span className="mono text-base text-tan-2">{staleness(c)}</span>
         </span>
-        <span className="text-lg" style={{ color: "var(--tan)" }}>
-          {c.title}
-        </span>
+        <span className="text-lg text-tan">{c.title}</span>
         <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
       </div>
-      <p className="text-sm mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
+      <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
         …{c.contextBefore}
         <em>{c.raw}</em>
         {c.contextAfter}…
@@ -63,18 +82,28 @@ function Section({ title, hint, claims, tone }: { title: string; hint: string; c
 }
 
 export function StaleDatesReport() {
-  const docs = useLoaded(loadDocs);
-  // Recomputed from the loaded atlas + the actual current date on every
-  // visit — no build step involved, so it can never serve yesterday's view.
-  const report = useMemo(() => (docs ? buildStaleDatesReport(docs) : null), [docs]);
+  const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const day = useUTCDay();
+
+  useEffect(() => {
+    setError(null);
+    loadDocs().then(setDocs).catch((err) => setError(String(err)));
+  }, [attempt]);
+
+  // Recomputed from the loaded atlas + the current UTC day — no build step
+  // involved, and the day-keyed memo re-buckets a tab left open past midnight.
+  const report = useMemo(
+    () => (docs ? buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`)) : null),
+    [docs, day],
+  );
 
   return (
     <div className="px-6 py-6">
       <div className="max-w-4xl mx-auto">
         <p className="mono text-base text-tan-3 mb-1">report</p>
-        <h1 className="text-2xl font-semibold mb-1" style={{ color: "var(--tan)" }}>
-          Stale Dates
-        </h1>
+        <h1 className="text-2xl font-semibold mb-1 text-tan">Stale Dates</h1>
         <p className="text-lg text-tan-3 mb-6">
           Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked
           against today's date. An overdue claim means the event happened and the text was never
@@ -83,29 +112,24 @@ export function StaleDatesReport() {
             <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
-        {!report ? (
+        {error ? (
+          <div className="flex items-center gap-3">
+            <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
+              Failed to load report.
+            </p>
+            <button
+              onClick={() => setAttempt((n) => n + 1)}
+              className="text-xs mono text-accent hover:underline"
+            >
+              retry
+            </button>
+          </div>
+        ) : !report ? (
           <p className="mono text-base text-tan-3">loading…</p>
         ) : (
-          <>
-            <Section
-              title="Upcoming"
-              hint="The atlas's live calendar — future claims with dates still ahead."
-              claims={report.upcoming}
-              tone="var(--accent)"
-            />
-            <Section
-              title="Due within 7 days"
-              hint="Future claims about to cross today — stale next week unless the atlas is updated."
-              claims={report.dueSoon}
-              tone="#c9a227"
-            />
-            <Section
-              title="Stale"
-              hint="The date has passed but the atlas still phrases the event as future."
-              claims={report.stale}
-              tone="var(--red)"
-            />
-          </>
+          SECTIONS.map((s) => (
+            <Section key={s.key} title={s.title} hint={s.hint} claims={report[s.key]} tone={s.tone} />
+          ))
         )}
       </div>
     </div>

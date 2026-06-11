@@ -19,14 +19,14 @@ export function rateContrast(ratio: number): ContrastLevel {
 /** Worst-case background token per foreground token (for inline swatch badges). */
 export const SWATCH_WORST_BG: Record<string, string> = {
   tan: "surface", "tan-2": "surface", "tan-3": "surface", gray: "surface",
-  red: "surface", "red-dim": "bg", "error-text": "surface",
+  red: "surface", "red-dim": "bg", "error-text": "surface", warn: "surface",
   accent: "surface", magenta: "tan", "terminal-green": "surface", "lily-green": "bg",
   "entity-agent": "surface", "entity-facilitator-org": "surface",
   "entity-govops-org": "surface", "entity-delegate-org": "surface",
   "entity-development-company": "surface", "entity-foundation": "surface",
   "entity-composite-party": "surface", "entity-governance-body": "surface",
   "entity-operational-party": "surface", "entity-ecosystem-actor": "surface",
-  "entity-instance": "surface", "entity-fallback": "surface",
+  "entity-instance": "surface", "entity-multisig": "surface", "entity-fallback": "surface",
   "diff-removed-fg": "diff-removed-bg", "edge-label-fg": "bg-deep",
   ...Object.fromEntries(Array.from({ length: 17 }, (_, i) => [`depth-${i + 1}`, "surface"])),
 };
