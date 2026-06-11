@@ -6,9 +6,9 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { buildStaleDatesReport, type DateClaim } from "../../lib/staleDates";
 
 function staleness(c: DateClaim): string {
-  if (c.daysUntilStale < 0) return `${-c.daysUntilStale}d overdue`;
-  if (c.daysUntilStale === 0) return "today";
-  return `in ${c.daysUntilStale}d`;
+  if (c.daysUntilStale < 0) return `(${-c.daysUntilStale}d overdue)`;
+  if (c.daysUntilStale === 0) return "(today)";
+  return `(in ${c.daysUntilStale}d)`;
 }
 
 function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
@@ -35,7 +35,7 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
         <span className="text-lg" style={{ color: "var(--tan)" }}>
           {c.title}
         </span>
-        <span className="mono text-base text-accent ml-auto">{c.docNo}</span>
+        <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
       </div>
       <p className="text-sm mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
         …{c.contextBefore}
