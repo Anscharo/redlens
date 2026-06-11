@@ -12,10 +12,15 @@ function staleness(c: DateClaim): string {
 }
 
 function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
+  // The tone lives on a left bar (the selected-node idiom) — --red on the
+  // dark background is unreadable as small text, so the date stays tan.
   return (
-    <div className="py-2 border-b last:border-b-0" style={{ borderColor: "var(--border)" }}>
+    <div
+      className="py-2 pl-3 border-b last:border-b-0"
+      style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
+    >
       <div className="flex items-baseline gap-3 flex-wrap">
-        <span className="mono text-xs" style={{ color: tone }}>
+        <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
           {c.dateISO}
         </span>
         <span className="mono text-[10px] text-tan-3">{staleness(c)}</span>
