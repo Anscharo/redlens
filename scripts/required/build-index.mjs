@@ -25,8 +25,16 @@ void sha256;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const ATLAS_PATH = path.join(ROOT, "vendor/next-gen-atlas/Sky Atlas/Sky Atlas.md");
-const OUT_DIR = path.join(ROOT, "public");
+
+// Isolation overrides (preview builds). Default to the main ROOT-relative paths
+// so the steady-state build is byte-identical. A preview points ATLAS_SRC_DIR at
+// its extracted tarball and ATLAS_OUT_DIR at a private temp dir, so it can never
+// clobber the live main artifacts the singleton server serves. ATLAS_COMMIT lets
+// a preview stamp the known SHA (a tarball extract has no .git to rev-parse).
+const ATLAS_SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
+const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
+const ATLAS_PATH = path.join(ATLAS_SRC_DIR, "Sky Atlas/Sky Atlas.md");
+const CONTENT_DIR = path.join(ATLAS_SRC_DIR, "content");
 
 // ---------------------------------------------------------------------------
 // Per-node address extraction — chain detection only.
@@ -105,9 +113,6 @@ function printStats(nodes) {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-const ATLAS_ROOT = path.join(ROOT, "vendor/next-gen-atlas");
-const CONTENT_DIR = path.join(ATLAS_ROOT, "content");
-
 // Decomposed tree → parse content/**/document.md directly (no python/compose).
 // Falls back to the legacy composed monolith if content/ is absent (e.g. a
 // pre-decomposition checkout or a pre-composed Sky Atlas.md).
@@ -169,8 +174,8 @@ console.log(`\n${total} unique addresses extracted`);
 for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1]))
   console.log(`  ${c.padEnd(12)} ${n}`);
 
-const atlasCommit = (() => {
-  try { return execSync("git rev-parse HEAD", { cwd: path.join(ROOT, "vendor/next-gen-atlas"), encoding: "utf8" }).trim(); }
+const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
+  try { return execSync("git rev-parse HEAD", { cwd: ATLAS_SRC_DIR, encoding: "utf8" }).trim(); }
   catch { return "unknown"; }
 })();
 

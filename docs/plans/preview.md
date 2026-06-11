@@ -209,6 +209,11 @@ validation cross-check). Then run the existing ancestor-stack for `parentId`.
 >   authority — ignores `_index.md` entirely and orders by folder integer-sort; making `_index.md`
 >   authoritative would risk *false-failing* trees where compose succeeds (stale `_index.md`, valid
 >   folders). The folder walk is the source of truth; `_index.md` is decompose-generated/derived.
+>   **Spec-confirmed**: `vendor/next-gen-atlas/sync/README.md` states `_index.md` files "aren't
+>   load-bearing for anything other than browsing convenience." Also confirmed there: NR ordering
+>   is `targets[0]` placement + numeric order (matches `parseTree`), bodies are byte-faithful, and
+>   the README's own `document.md` example shows the display heading uses semantic `depth`+1 hashes
+>   — *not* the structural level — which is exactly why `parseTree` recomputes depth structurally.
 
 **Payoff**: removes `python3` + `compose.py` from the build entirely — confirmed: every
 `execFileSync`/`spawn` left in `scripts/required` + `scripts/lib` is `git`, none python. No
@@ -231,6 +236,28 @@ Fix: add env-var overrides (`ATLAS_SRC_DIR` / `ATLAS_OUT_DIR`, defaulting to tod
 temp dirs. `build-graph` also reads `addresses.json` + `chain-state.json` — point those at
 the **existing main copies** (reuse; see caveat). Surgical change; main path stays
 byte-identical (verify with `REPRO=1 pnpm test`).
+
+> **IMPLEMENTED (step 2, 2026-06-11).** Four env overrides on `build-index`, `build-graph`,
+> **and `build-glossary`** (all three preview-pipeline stages — `build-glossary` reads the
+> preview's own `docs.json` and writes its own `glossary.json` via `ATLAS_OUT_DIR`, else it
+> would read main's docs and clobber the live glossary). A union grep across the three scripts +
+> every `lib/` module they import confirms the only file writers are these three, all now
+> `OUT_DIR`-routed. Each override defaults to the current `ROOT`-relative path so the main build
+> is byte-identical:
+> - `ATLAS_SRC_DIR` — atlas repo root (content/, Sky Atlas/, .git) → build-index source + git.
+> - `ATLAS_OUT_DIR` — artifacts this build OWNS (docs / addresses.atlas / graph / relations /
+>   search-index — read AND written here).
+> - `ATLAS_ONCHAIN_DIR` — inputs REUSED from main (`addresses.json`, `chain-state.json`),
+>   defaults to `ATLAS_OUT_DIR`. A preview sets this to main's `public/` so it doesn't refetch
+>   Etherscan. Branch-new addresses simply get no on-chain enrichment (MVP-acceptable).
+> - `ATLAS_COMMIT` — stamps the known SHA (a tarball extract has no `.git` to `rev-parse`).
+>
+> These are read once at subprocess startup, so isolation is per-spawn: the preview server
+> sets them in the child env per build; concurrent builds are separate processes with separate
+> dirs, none touching `public/`. Verified: REPRO byte-identical with no env set; a live build
+> into `/tmp` left `public/` hashes unchanged; fixture test `scripts_tests/preview-isolation.test.ts`
+> (3 cases) proves isolation + branch-new-address tolerance + on-chain reuse. Full suite 384 ✓,
+> snapshots 134 ✓.
 
 ## Frontend — data-source base override
 
