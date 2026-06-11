@@ -35,7 +35,9 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
           {c.title}
         </span>
       </div>
-      <p className="text-[11px] mt-1 text-tan-3">…{c.context}…</p>
+      <p className="text-[11px] mt-1 ml-4 text-tan-3" style={{ maxWidth: "95ch" }}>
+        …{c.context}…
+      </p>
     </div>
   );
 }
