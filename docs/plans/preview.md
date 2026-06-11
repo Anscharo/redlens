@@ -13,6 +13,86 @@ atlas, with new/changed docs visually flagged. No diff view — the atlas itself
 Key constraint: **no redeploy.** Pasting a preview URL must work against the running web
 service — resolve → loading state → live preview atlas.
 
+---
+
+## Implementation status & handoff (updated 2026-06-11)
+
+This plan is authoritative. Inline `> IMPLEMENTED` blocks mark completed work; where the design
+prose under one describes the *original* approach, the block (and the "Superseded" list below)
+win. Work is on branch **`futures`**. Build order is the "Build sequencing" section.
+
+### Done
+- **Step 1** — commit `65de9efa`. Direct `parseTree()` parser; retires compose.py/python3.
+  Files: `scripts/lib/atlas-parser.mjs` (`parseTree`, `checkTreeInvariants`),
+  `scripts/required/build-index.mjs` (wired; `parse()` monolith fallback kept),
+  `scripts/aux/ab-parse-check.mjs` (A/B harness). Full detail in the step-1 block below.
+- **Step 2** — commit `117d67d4`. Env-var build isolation on build-index/graph/glossary
+  (`ATLAS_SRC_DIR`/`ATLAS_OUT_DIR`/`ATLAS_ONCHAIN_DIR`/`ATLAS_COMMIT`); fixture
+  `scripts_tests/preview-isolation.test.ts`. Step-2 block below.
+- **Step 3a** — this commit. Pure, tested server trio under `src/server/preview/`:
+  - `resolve.ts` — `decodeId(raw)`, `gateError(p)`, `makeGhClient(token)`, `resolveRef(p, gh)`;
+    consts `CANONICAL_OWNER`/`CANONICAL_REPO`. URL-id parse + GitHub resolution (PR→fork head
+    repo+sha+state, branch→tip). `sha`-kind ids are resolved upstream via the previews table.
+  - `tarball.ts` — `fetchArchive`, `gunzipCapped` (bomb guard), `extractContentArchive`
+    (native `Bun.Archive`), `fetchAndExtract`; `DEFAULT_CAPS` (64MB / 20k docs, env-tunable
+    `PREVIEW_MAX_DECOMPRESSED_BYTES` / `PREVIEW_MAX_DOCS`); `CapExceededError`, `SourceGoneError`.
+    `extractContentArchive` returns `{ srcDir, docCount }` where `srcDir` is the archive's top
+    dir (use as `ATLAS_SRC_DIR`).
+  - `cache.ts` — `previewPaths(sha)` (`{dir,atlasDir,outDir,metaPath}`), `bundleReady`,
+    `read/writeMeta`, `artifactPath` (allowlist), `touch`, `remove`, `evictLru(keep=20)`;
+    `PreviewMeta` type, `ARTIFACT_ALLOWLIST`, `PREVIEW_DIR` (`/tmp/previews`, env `PREVIEW_DIR`).
+  - `preview.test.ts` — 14 `bun test` cases (run: `bun test src/server/preview/`), incl. the
+    decompression-bomb abort and traversal containment. Live-verified end-to-end (real GitHub
+    resolve + 13.7MB download + extract of 10,342 docs).
+
+### Next — Step 3b (server wiring). Build in this order; verifiable locally (see env below).
+1. **config + migration + previews-db** — add `githubToken` + `previewEnabled` to
+   `src/server/config.ts`; `src/server/migrations/006_previews.sql`
+   (`sha PK, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, created_at, last_access,
+   doc_count, build_ms`); call `runMigrations()` (`src/server/migrate.ts`) at boot in
+   `index.ts` (idempotent; needed because `sync.ts` only runs it on an *unseeded* DB). New
+   `preview/db.ts`: upsert row, `last_access` touch, daily-quota count
+   (`count(*) where created_at >= date_trunc('day', now() at time zone 'utc')`).
+2. **orchestration + per-sha SSE hub** — one in-process `Map<sha, inflight>` is BOTH the
+   build-dedup and the SSE hub (a 2nd request for the same sha attaches to the in-flight build's
+   event stream). Spawn build-index→graph→glossary via the `spawnCollect` pattern
+   (`atlas-updater.ts:36`) with env `{ ATLAS_SRC_DIR: <srcDir from extract>,
+   ATLAS_OUT_DIR: <sha>/out, ATLAS_ONCHAIN_DIR: config.publicDir, ATLAS_COMMIT: <sha> }` +
+   timeout. **Non-zero build-index exit → `build-failed` (never a 500).** Global cap 2 concurrent
+   + queue. Quota order: count → build → insert-on-success (failed builds stay quota-free). Emit
+   phases resolving→fetching→building→ready|failed; write `meta.json` + upsert row on success.
+3. **handler + diff + wire** — dispatch `/api/preview/*` from the `index.ts` **fetch fallback**
+   (NOT the routes object — need dynamic `:id`/`:sha` segments and `server.requestIP()`):
+   `GET /api/preview/:id/events` (SSE; drives the build), `GET /api/preview/:sha/:artifact.json`
+   (validate 40-hex sha + `artifactPath` allowlist), `GET /api/preview/:sha/diff.json`. Per-IP
+   limit via `server.requestIP`. `previewEnabled` gate. `sha`-kind id → look up repo in previews
+   table; absent → `not-found`.
+
+### Superseded decisions (the design prose still mentions the old plan — these win)
+- **pg advisory lock DROPPED for MVP** (mentioned ~"Storage, two tiers" + "Resolved during
+  planning"). Bun.sql *pools* connections, so session `pg_advisory_lock`/`unlock` can land on
+  different backends and leak; `pg_advisory_xact_lock` can't span a multi-second build; and under
+  single-replica + ephemeral `/tmp` it buys ~nothing. Use the in-process `Map<sha,inflight>`.
+  Keep the `previews` **table** (sha→repo durability + quota) — only the lock is dropped.
+- **Diff is computed from IN-MEMORY main docs**, not a Postgres `atlas_doc_meta` query (the
+  "Visual indicators" section says Postgres). Use `diffDocs(getIndexes().docMap, previewNodes)`
+  from `src/server/atlas-refresh.ts` (same `embed-text.ts` `contentHash`). Guard the cold-start
+  case (empty indexes) → "main not ready", don't emit an all-added diff. Cache key
+  `(previewSha, getIndexes().meta.atlasCommit)`.
+- **Whole archive is extracted then `content/` read** (the pipeline step 2 says "stream-extract
+  `content/**` only"). `Bun.Archive` can't filter/strip, so we gunzip-with-cap then extract all;
+  the cap bounds the full **33.5MB** decompressed archive (not content/ alone) at 64MB. Detail in
+  Security §1.
+
+### Verification environment (this machine, 2026-06-11) — confirmed reachable
+- Local Postgres at `postgres://redlens:redlens@localhost:5432/redlens`, fully seeded
+  (`atlas_doc_meta`, `schema_migrations`, …) → DB paths testable locally.
+- `GITHUB_TOKEN=$(gh auth token)` works for resolution + tarball downloads.
+- Test commands: server → `bun test src/server/...`; build/parse → `pnpm test`,
+  `REPRO=1 pnpm test`, `pnpm test:snap`; A/B parser equivalence → `node scripts/aux/ab-parse-check.mjs`.
+
+---
+
 ## Core insight
 
 A full rebuild of `docs.json` + `relations.json` + `glossary.json` + `search-index.json`
@@ -385,16 +465,27 @@ singleton, unauthenticated. Three attack classes and their answers:
 
 1. **Hostile input content** (decompression bombs, 500k-doc trees → OOM/disk-full → singleton
    restart → site-wide downtime). Mitigations, all P0:
-   - tar entry sanitization: reject `..` / absolute paths
-   - **stream-extract with hard caps** (measured 2026-06: content is 5.6MB raw / ~2.9MB
-     gzipped tarball / 10,342 document.md): extract only `content/**` entries, count
-     decompressed bytes during streaming, abort at **15MB** decompressed (~2.5× current);
-     doc-count cap **20k** (2× current). A decompression bomb dies mid-stream after a few MB.
-     (Alternatives evaluated: Git Trees API = 1 request per blob ≈ 10k calls/build — kills the
-     5,000/hr budget; GraphQL blob batching = 100+ heavy queries. One ~3MB tarball wins.)
-   - build subprocess gets a timeout + memory limit — an OOM kills the build, not the server
-   - global cap of 2 concurrent builds with a small queue (the per-SHA advisory lock doesn't
-     bound distinct-SHA builds)
+   - **IMPLEMENTED (step 3a, 2026-06-11)** in `src/server/preview/tarball.ts`. Two layers:
+     (a) **bomb guard** — we gunzip the fetched stream ourselves with a running byte counter
+     (`gunzipCapped`) and abort the moment decompressed output exceeds the cap, before that many
+     bytes are buffered; (b) **tar parsing + path containment** delegated to the native
+     **`Bun.Archive`** (Bun ≥1.3) rather than a hand-rolled parser — verified that `../`
+     traversal entries are collapsed in-bounds and never escape the extract dir. The build reads
+     only the archive's `<top>/content/**`; other entries (Static/, sync/, the composed monolith)
+     are extracted alongside and ignored.
+   - **Cap is the FULL decompressed archive, not content/ alone** — the earlier "5.6MB / 2.9MB"
+     figure measured `content/` only and is stale. Live measurement 2026-06: gz **13.7MB**,
+     decompressed **33.5MB** (content/ + a 12MB `Static/` + the 3.4MB composed monolith). Cap set
+     to **64MB** (≈90% growth headroom; bounds a bomb), env-tunable via
+     `PREVIEW_MAX_DECOMPRESSED_BYTES`; doc-count cap **20k** (`PREVIEW_MAX_DOCS`). The 33.5MB
+     plain tar is held in memory during extraction (×2 concurrency ≈ 128MB peak — acceptable
+     against the server's existing ~300MB index). (Alternatives evaluated: Git Trees API ≈ 10k
+     calls/build kills the 5,000/hr budget; one tarball wins despite the size.)
+   - build subprocess gets a timeout — an OOM/hang kills the build, not the server. Explicit
+     memory limit deferred: input is already bounded by the 64MB/20k caps, which bounds build
+     memory by construction.
+   - global cap of 2 concurrent builds with a small queue (in-process `Map<sha,inflight>` also
+     dedups concurrent requests for the same sha → one build, many SSE subscribers)
 2. **Hostile requests**. P0: strict 40-hex validation on `<sha>` path params; artifact-name
    allowlist on `GET /api/preview/<sha>/<artifact>.json` (else path traversal into `/tmp`);
    per-IP rate limit on resolution (reuse `src/server/rate-limit.ts`).
