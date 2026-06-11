@@ -81,6 +81,8 @@ _From `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` §8_
 | Active Data            | `{Controller}.0.6.{N}`                 | `A.1.1.3.1.0.6.1`        |
 | Needed Research        | `NR-{N}` (global)                      | `NR-5`                   |
 
+**New-type tripwire:** `KNOWN_DOC_TYPES` in `scripts/lib/atlas-parser.mjs` mirrors this table. A heading with a `[Type]` outside the set parses normally (content is never dropped) but emits a `[drift] unknown document type` warning, and `parser.test.ts` fails CI until the type is reviewed — either handled by an extraction pattern or deliberately added to the set. Build stderr from atlas updates is diffed against `.github/atlas-warnings-baseline.txt` by `atlas-update.yml`; new lines open/append an `atlas-drift` issue for analysis.
+
 ### Special directory numbers
 
 - `.0.3` = Element Annotation Directory
