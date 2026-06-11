@@ -62,3 +62,47 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
   }
   return p;
 }
+
+/** Max ids per /api/history/batch request — shared by the server (hard cap on
+ *  a hostile payload) and the client (chunk size). Comfortably above the
+ *  largest real actor doc-set (~1.2k for Spark). */
+export const BATCH_MAX = 2000;
+
+/** Fetch history for many docs in one round-trip via POST /api/history/batch,
+ *  keyed by docId. Used by the radar actor view so it doesn't fan out into
+ *  hundreds of per-doc `/api/history/:id` requests. Docs with no history map to
+ *  `[]`. On a backend-less deploy (GitHub Pages) the fetch fails and every id
+ *  resolves to `[]`, matching `loadHistory`'s graceful-null behaviour.
+ *
+ *  Successful responses also seed the per-doc `cache` so a later single-doc
+ *  `loadHistory` (e.g. the atlas history panel) reuses the result. */
+export async function loadHistoryBatch(nodeIds: string[]): Promise<Map<string, HistoryEntry[]>> {
+  const ids = [...new Set(nodeIds)];
+  const out = new Map<string, HistoryEntry[]>();
+  for (let i = 0; i < ids.length; i += BATCH_MAX) {
+    const chunk = ids.slice(i, i + BATCH_MAX);
+    let data: Record<string, HistoryEntry[]> | null = null;
+    try {
+      const r = await fetch("/api/history/batch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: chunk }),
+      });
+      data = r.ok ? ((await r.json()) as Record<string, HistoryEntry[]>) : null;
+    } catch {
+      data = null;
+    }
+    for (const id of chunk) {
+      if (data) {
+        const entries = data[id] ?? [];
+        out.set(id, entries);
+        // Seed the single-doc cache (only on a real response, so a transient
+        // failure doesn't poison it with empties).
+        if (!cache.has(id)) cache.set(id, Promise.resolve(entries.length ? entries : null));
+      } else {
+        out.set(id, []);
+      }
+    }
+  }
+  return out;
+}

@@ -1,7 +1,7 @@
 // GET /api/history/:nodeId — serve atlas_history rows for a single node.
 // Replaces the former public/history/<uuid>.json static files.
 import { sql } from "./db.ts";
-import type { HistoryEntry, DiffLine } from "../lib/history.ts";
+import { BATCH_MAX, type HistoryEntry, type DiffLine } from "../lib/history.ts";
 import { UUID_RE } from "../lib/patterns.ts";
 
 // Postgres stores "content" / "structural" (chatbot-plan vocabulary);
@@ -87,6 +87,42 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
     return Response.json(rows.map(toEntry), {
       headers: { "Cache-Control": "public, max-age=300" },
     });
+  } catch {
+    return new Response(null, { status: 503 });
+  }
+}
+
+/** POST /api/history/batch — body `{ ids: string[] }`. Returns the change log
+ *  for many docs in one round-trip, keyed by doc_id, so the radar actor view
+ *  doesn't fan out into hundreds of `/api/history/:id` requests. Docs with no
+ *  history are simply absent from the response. */
+export async function handleHistoryBatch(req: Request): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(null, { status: 400 });
+  }
+  const raw = (body as { ids?: unknown })?.ids;
+  if (!Array.isArray(raw)) return new Response(null, { status: 400 });
+
+  const ids = [...new Set(raw.filter((x): x is string => typeof x === "string" && UUID_RE.test(x)))].slice(
+    0,
+    BATCH_MAX,
+  );
+  if (ids.length === 0) return Response.json({}, { headers: { "Cache-Control": "public, max-age=300" } });
+
+  try {
+    const rows = await sql<(HistoryQueryRow & { doc_id: string })[]>`
+      SELECT doc_id, commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
+             pr_author, summary, description, moved_from, moved_to, diff
+      FROM atlas_history
+      WHERE doc_id IN ${sql(ids)}
+      ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST
+    `;
+    const out: Record<string, HistoryEntry[]> = {};
+    for (const row of rows) (out[row.doc_id] ??= []).push(toEntry(row));
+    return Response.json(out, { headers: { "Cache-Control": "public, max-age=300" } });
   } catch {
     return new Response(null, { status: 503 });
   }
