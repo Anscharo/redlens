@@ -19,11 +19,14 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
       className="py-2 pl-3 border-b last:border-b-0"
       style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
     >
-      <div className="flex items-baseline gap-3 flex-wrap">
+      <div className="flex items-baseline gap-6 flex-wrap">
         <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
           {c.dateISO}
         </span>
         <span className="mono text-[10px] text-tan-3">{staleness(c)}</span>
+        <span className="text-xs" style={{ color: "var(--tan)" }}>
+          {c.title}
+        </span>
         <AtlasLink
           to={atlasHref(c.docId)}
           className="mono text-xs text-accent hover:underline"
@@ -31,9 +34,6 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
         >
           {c.docNo}
         </AtlasLink>
-        <span className="text-xs" style={{ color: "var(--tan)" }}>
-          {c.title}
-        </span>
       </div>
       <p className="text-[11px] mt-1 ml-4 text-tan-3" style={{ maxWidth: "95ch" }}>
         …{c.context}…
