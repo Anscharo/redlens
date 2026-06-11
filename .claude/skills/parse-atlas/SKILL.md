@@ -13,7 +13,7 @@ description: >
 license: MIT
 metadata:
   author: anscharo
-  version: "2.0"
+  version: "2.1"
 ---
 
 # parse-atlas
@@ -139,15 +139,20 @@ Every entity type below either has a defining Atlas doc number pattern, or is bo
 | `governance_body`     | —                      | Bootstrapped: **Sky Governance**                                                                                                                                                                                                                  |
 | `facilitator_org`     | —                      | Named in `"The (Operational\|Core) Facilitator for {Executor} is {Name}."`                                                                                                                                                                        |
 | `govops_org`          | —                      | Named in `"(Operational\|Core) GovOps for {Executor} is {Name}."`                                                                                                                                                                                 |
-| `delegate_org`        | —                      | Active Delegates: Current Aligned Delegates Active Data (`5f584db8`, `is_active=1`). Derecognized: Derecognized Delegates Active Data (`e7aec672`, `is_active=0`). Ranked: `A.1.5.4.1.{L}.3.1`. Fallback: `addresses.json` entries with `roles: ["delegate"]`. If an entity already exists as `ecosystem_actor` and appears in the active delegates table, it is **upgraded to `delegate_org`** (Pattern 16). |
+| `delegate_org`        | —                      | Active Delegates: Current Aligned Delegates Active Data (`5f584db8`, `is_active=1`). Derecognized: Derecognized Delegates Active Data (`e7aec672`, `is_active=0`). Ranked: UUID-anchored current-members docs (`RANKED_DELEGATE_UUIDS` — L1 `46c0f334`, L2 `ebe4da3b`; doc_nos `A.1.6.4.1.{L}.3.1` after the A.1.5→A.1.6 renumber). Fallback: `addresses.json` entries with `roles: ["delegate"]`. If an entity already exists as `ecosystem_actor` and appears in the active delegates table, it is **upgraded to `delegate_org`** (Pattern 16). |
 | `src_member`          | —                      | Named in the SRC Membership Registry Active Data (`d9c6ed16`). Institutional risk advisors (currently Blockworks Advisory, L2 Beat, Aragon). Meta carries `domain_expertise`, `start_date`, `term_status`, `standing`.                           |
 | `ecosystem_actor`     | —                      | Catch-all: named actors surfaced by patterns that don't fit a more specific kind (ERG members, role-binding holders, etc.)                                                                                                                        |
+| `ecosystem_actor`     | `individual`           | Natural person / forum handle from the Current Authorized Forum Accounts table (`b71564fd`, Pattern 16 Table 4). Source of `authorized_rep_for` edges. Dropped from `relations.json` unless pinned.                                              |
+| `ecosystem_actor`     | `integration_partner`  | Integration Boost partner promoted from `Integration Partner Name` ICD params (Pattern 19). Source of `integration_partner_of` edges; pinned into `relations.json`.                                                                              |
+| `multisig`            | —                      | Multisig detected via the structural five-child convention (Pattern 17). Entity id = root doc UUID. Meta: `{address, chain, threshold, purpose_doc_no}`. Target of `signer_of` / `can_modify_signers_of`.                                        |
 | `instance`            | `<primitive-slug>`     | Primitive Instance Configuration Document under the **Active/Suspended/Completed Instances** tier. Operational deployment per atlas A.2.2.1.3. Entity id = ICD doc UUID. Emitted for every in-scope primitive (see Pattern 14 for the allowlist). `st` is the primitive slug (`distribution-reward`, `integration-boost`, `allocation-system`, etc.). Status (Active/Suspended/Completed) lives in `meta.status`. |
 | `invocation`          | `<primitive-slug>`     | ICD under the **In Progress Invocations** tier. The in-progress act of enabling a primitive per atlas A.2.2.1.4 — distinct from an Instance. Same param shape and same entity id derivation as `instance`; the only difference is lifecycle stage. `meta.status = "InProgress"`. |
 
 **Halo Agents** are mentioned in `A.6.1.1.5.1` as a future category but have no structural pattern yet — do not classify.
 
 **Key principle:** Key on doc_no position first, then title shape. Never on names alone — agent names change.
+
+**Registry docs are anchored by UUID, never by doc_no constant.** The 2026 A.1 renumbering (A.1.5→A.1.6 Aligned Delegates, A.1.8→A.1.9 ERG) silently zeroed out `aligned_delegate_for`, `ranked_delegate_for`, and `erg_member_for` for months because `graph-patterns.mjs` held doc_no string constants. Those are now UUID constants (`ALIGNED_DELEGATES_UUID`, `ERG_MEMBERSHIP_UUID`, `RANKED_DELEGATE_UUIDS`, `SPELL_TEAM_UUID`); source citations derive the doc_no at runtime via `doc.doc_no`. Any new pattern that pins a specific document MUST follow this rule, and SHOULD warn to console when the UUID is not found.
 
 ---
 
@@ -287,9 +292,9 @@ Every `type = "Active Data Controller"` contains:
 
 ### Pattern 7: ERG membership
 
-Source: `A.1.8.1.2.2.0.6.1`. Members are plain-text list items with no UUID — create synthetic entities.
+Source: `ERG_MEMBERSHIP_UUID` (`e9807449-fdc3-4860-8d53-c56181311618`; doc_no `A.1.9.1.2.2.0.6.1` after the A.1.8→A.1.9 renumber — UUID-anchored for exactly that reason). Members are plain-text list items with no UUID — create synthetic entities.
 
-- `erg_member_for`: `entity(member) → doc(A.1.8.1.2.2.0.6.1)`, source: `[A.1.8.1.2.2.0.6.1]`
+- `erg_member_for`: `entity(member) → doc(ERG membership doc)`, source: `[derived doc_no]`
 
 ### Pattern 8: UUID citation links
 
@@ -308,19 +313,19 @@ Every `[text](uuid)` markdown link → `cites` edge, source: `[source_doc_no]`
 
 All delegates are "Aligned Delegates" relative to Sky Governance. A subset are "Ranked Delegates" with a budget level.
 
-**Aligned Delegates list:** `A.1.5.1.5.0.6.1` (Active Data, referenced at atlas line 1935: "The list of currently recognized Aligned Delegates is defined as Active Data in [A.1.5.1.5.0.6.1 - Current Aligned Delegates](…)").
+**Aligned Delegates registry:** `ALIGNED_DELEGATES_UUID` (`5f584db8-…` — the same Current Aligned Delegates Active Data doc that Pattern 16 Table 1 parses; doc_no `A.1.6.1.5.0.6.1` after the A.1.5→A.1.6 renumber). The doc is a **table** today, so `aligned_delegate_for` edges are emitted from the table rows in Phase 2.7; the prose-list path here is a fallback.
 
-- `aligned_delegate_for`: `entity(delegate) → entity(Sky Governance)`, source: `[A.1.5.1.5.0.6.1]`
+- `aligned_delegate_for`: `entity(delegate) → entity(Sky Governance)`, source: `[derived doc_no]`
 
 Each delegate entity has `entity_type = delegate_org`.
 
-**Ranked Delegates** (subset with budget). Doc_no template is `A.1.5.4.1.{level}.3.1`:
+**Ranked Delegates** (subset with budget). UUID-anchored via `RANKED_DELEGATE_UUIDS`:
 
-| doc_no            | Content (verified)                                                                                                                             |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `A.1.5.4.1.1.3.1` | "The current Level 1 Ranked Delegates are BLUE and Cloaky."                                                                                    |
-| `A.1.5.4.1.2.3.1` | "The current Level 2 Ranked Delegate is Bonapublica."                                                                                          |
-| `A.1.5.4.1.3.3.1` | **Does not exist.** L3 has selection criteria (`A.1.5.4.1.3.3`) and one annotation (`A.1.5.4.1.3.3.0.3.1`) but no current-members enumeration. |
+| level | UUID       | doc_no (current)  | Content (verified)                                    |
+| ----- | ---------- | ----------------- | ------------------------------------------------------ |
+| 1     | `46c0f334` | `A.1.6.4.1.1.3.1` | "The current Level 1 Ranked Delegates are BLUE and Cloaky." |
+| 2     | `ebe4da3b` | `A.1.6.4.1.2.3.1` | "The current Level 2 Ranked Delegate is Bonapublica."  |
+| 3     | —          | —                 | **No current-members doc.** L3 is defined by criteria (greatest delegated Voting Power not in L1/L2), not an enumeration. |
 
 Content shape varies by count — L1 plural (`Delegates are X and Y`), L2 singular (`Delegate is X`). Regex must accept both:
 
@@ -330,7 +335,7 @@ Content shape varies by count — L1 plural (`Delegates are X and Y`), L2 singul
 
 Split the name list on `,\s*|\s+and\s+`. For each name:
 
-- Emit `ranked_delegate_for`: `entity → entity(Sky Governance)`, `meta.level = L`, source: `[A.1.5.4.1.L.3.1]`.
+- Emit `ranked_delegate_for`: `entity → entity(Sky Governance)`, `meta.level = L`, source: `[derived doc_no]`.
 
 Ranked delegate status is layered on top of Aligned Delegate status — if the entity also has `aligned_delegate_for`, keep both edges. Do not subtype the entity; the ranking is purely an edge property.
 
@@ -599,6 +604,70 @@ Three Active Data nodes contain structured registry tables whose rows become nam
 
 These utilities are reusable for any future Active Data table added to Phase 2.7.
 
+**Table 4 — Current Authorized Forum Accounts (`b71564fd-22e0-4c69-99d1-5b23fc1fa329`, `A.2.7.1.1.1.1.4.0.6.1`):**
+- Columns: `Entity Name` | `Role` | `Entity Handle` | `Handles of Authorized Representatives`
+- Row entity resolved via `normalizeKey` name index ("Redline" → Redline Facilitation Group); created as `ecosystem_actor` if unknown (e.g. Rune). Gets `meta.forum_handle` + `meta.forum_role` and a `listed_in` edge with `{handle, role}` meta.
+- Each rep handle (parentheticals like "(and their authorized representatives)" stripped; split on commas) resolves via the same index — org handles like "SoterLabs" / "Endgame-Edge" reuse the org entity; unknown handles become `ecosystem_actor` `st="individual"` (Le_Bateleur, redlexic, ldr, votewizard, …). Emits `authorized_rep_for`: `entity(rep) → entity(org)` (table-derived, no source_doc_nos).
+- This table is the atlas's primary source for **named individuals**.
+
+**Table 5 — Aligned Delegate Breach Registry (`1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb`, `A.1.6.6.1.3.0.6.1`):**
+- Columns: `Date` | `Identity` | `Breach Tier` | `Reasoning Post`
+- Each row emits `listed_in` → the registry doc with `{date, breach_tier, reasoning_url}` meta on the delegate entity (resolved via `normalizeKey`; created as `delegate_org` if missing). Dated governance events, one edge per breach.
+
+**`aligned_delegate_for` emission moved here:** the Current Aligned Delegates doc is a table (no longer a prose list), so Phase 2.7 Table 1 also emits `aligned_delegate_for`: `entity(delegate) → entity(Sky Governance)` per row, source `[registry doc_no]`. The Phase 2 prose path (Pattern 10) remains as a fallback should the atlas revert to a list.
+
+**Drift detector:** after table extraction, every `type="Active Data"` doc with ≥1 non-empty table row that is neither extracted (`HANDLED_TABLE_UUIDS`) nor deliberately ignored (`KNOWN_UNEXTRACTED_TABLES` — currently only Registered Spell Checklists `93f5b36b`, external URLs) produces a loud `[drift]` warning. This is the tripwire for the **29 per-instance payment-ledger Active Data stubs** ("List Of Integration Boost Payments" etc. — all empty today) and the empty Registered Multisigs registry (`7d966e5e`): the moment the atlas populates one, the build says so.
+
+### Pattern 17: Multisigs (`scripts/lib/graph-multisigs.mjs`, Phase 2.8)
+
+Every multisig in the atlas is a parent doc with a regular set of child Cores, matched by **title suffix** (prefixes vary; some roots aren't even titled "…Multisig" — "Core Council Buffer", "Multisig Freeze Of SparkLend"):
+
+```
+{root}            multisig root (entity id = this doc's UUID)
+{root}.N  …Address                        "The address of the X on {Chain} is `0x…`."
+{root}.N  …(Required )Number Of Signers   "The X (currently )has a M/N signing requirement."  ← 27/27 uniform
+{root}.N  …(Current )Signers              three shapes, below
+{root}.N  …Usage Standards                purpose prose → meta.purpose_doc_no
+{root}.N  …(Signer )Modification(s)       "{Parties} can change the signers …"
+```
+
+- **Detection:** group candidate children by parent doc_no; a parent with both a threshold doc and a signers doc is a multisig root. Do not key on the root title.
+- **Display name** = subject of the threshold sentence (uniform), agent-prefixed for `A.6.1.1.X` subtree roots ("Keel Freezer Multisig"). Collisions: chain suffix when the colliding pair is on different chains ("… (Solana)"), else scope-title suffix ("Operator Multisig (The Protocol Scope)").
+- **Signer shapes** (`parseSignerGroups`): (a) `"N (N) address(es) controlled by {Party}"` runs — the dominant shape; (b) bullet `"- {Party}: N signers"`; (c) plain bullet roster after `"has the following signers"` (each = 1 signer, may be individuals like VoteWizard/LDR).
+- **Party resolution:** bare role references ("the Core Facilitator", "Core GovOps") resolve to the current holder via role edges and stamp `meta.via_role` — so signer edges follow the holder on rebuild. Prefixed names ("Operational GovOps Soter Labs") strip the role prefix. Unknown names create `ecosystem_actor` (or `foundation` by name suffix): Osero (note: also a Prime Agent name — resolves to the agent), Spark Assets Foundation, VoteWizard.
+- **Edges:** `signer_of` (`meta.signer_count`), `can_modify_signers_of` (skipped when the Modification subject is "The signers" — self-referential — or a governance-process sentence), `has_address`, `defines_entity`. Prose-derived edges carry `source_doc_nos`.
+- **Never-silent:** detected roots whose threshold/address/signers don't parse emit per-doc warnings; stats line reports roots/edges/warnings.
+- ~28 multisigs today: 4 SkyLink Freezers (A.1.10.4.1.\*), SparkLend Security Access, Demand Side Buffer (A.2.2.4.3), Core Council + Aligned Delegates Buffers (A.2.3.1.2.2.2.\*), 2 Operator Multisigs (A.3/A.4), Skybase USDS Demand Subsidies, per-agent Relayer/Freezer multisigs (A.6.1.1.{1,2,3,5,6}).
+- **The five-child convention is editorial, not spec-guaranteed** — robustness comes from the warnings, not from assuming stability.
+
+### Pattern 18: Transfer/grant events (`scripts/lib/graph-transfers.mjs`, Phase 2.8)
+
+Three shapes become `funds_transfer` edges (`entity(sender) → entity(recipient)`, meta `{kind, status, amounts, tx_hash?, period?, period_months?, begin_date?, recipient_address?}`):
+
+- **A. Grants (`A.2.13.1.X.Y`, `isGrantDoc`):** structured bullets — Recipient / Recipient Address / Transaction Hash / per-token `{TOKEN} amount:` lines. Sender = `sky-core`. `kind="grant"`, status `disbursed`/`approved`.
+- **B. Genesis distributions:** docs titled `Minting Of Tokens…` / `Transfer Of Tokens…` under agent artifacts. Mint sentence → `kind="genesis_mint"` (agent → account holder). Transfer sentence `"X transferred 6.5 billion SPK tokens … to the Sky Pause Proxy"` → `kind="genesis"`; "will transfer" → `status="planned"`. **Strip markdown links before matching** — citation link text carries doc_no dots that break sentence-boundary `[^.]` classes. Party aliases: "Sky Pause Proxy"/"Sky" → `sky-core`; `"X SubProxy( Account)?"` → agent X.
+- **C. Accord grant authorizations:** docs titled `…Grant Authorization…` (directory docs starting "The documents herein" skipped). `"grant of {N} USDS per month to the {Recipient} from {Sender}'s Prime Treasury for a three (3) month period"`. `kind="authorization"`; `meta.period` from the title suffix ("December 2025"), `begin_date` from a separate "beginning on …" match. Multi-grant docs only capture the first grant (known limitation).
+- `funds_transfer` is **graph.json-only** (filtered from `relations.json`) — event data for the chatbot/MCP, not the canvas.
+
+### Pattern 19: Integration partners (Phase 2.8, from Phase 2.5 params)
+
+Every `Integration Partner Name` param value on an integration-boost instance/invocation becomes an `ecosystem_actor` `st="integration_partner"` (reusing an existing entity when the slug matches) plus `integration_partner_of`: `entity(partner) → entity(instance)`, source `[param leaf doc_no]`. Answers cross-agent "all Integration Boost vendors" queries; 10 partners today (Aave, Kamino, Drift, Save, Lifinity, MarginFi, Euler, Curve, Morpho, Compound).
+
+### Pattern 20: Spell Team + org-to-org prose
+
+- **Spell Team** (`SPELL_TEAM_UUID = 4862ed4e-097b-42fa-a197-1d407d220a77`, "Spell Team Configuration"): `"Sky has two teams of technical contributors for Spell development, Dewiz, and Sidestream."` → each team gets `holds_role_for` → the doc with `meta.role = "spell_team_member"` (rides the Pattern 11 roleBindings mechanism).
+- **Org prose** (`graph-entity-edges.mjs` 2x): two conservative shapes, edges emitted **only when both endpoints already resolve to entities** (unresolved matches are logged and skipped — recall deliberately low):
+  - `"X is the Prime Foundation associated with Y."` → `prime_foundation_for`
+  - `"X is a development company that provides services to the Y"` → `provides_services_to`
+
+### Not in the atlas (verified 2026-06; do not extract — chatbot should say so)
+
+- **Reward payout amounts/history** — 29 per-instance payment-ledger Active Data slots exist but are ALL empty. The drift detector fires when one gains rows.
+- **Spell execution history** — only process docs (Crafter/Reviewer rules) + the Registered Spell Checklists table (external GitHub URLs).
+- **Pioneer Chain activation dates** — instances + networks only; derive dates from `atlas_history` (when the ICD doc appeared / status flipped).
+- **Individual signer addresses for multisigs** — only org-level groupings (counts per controlling entity); a build-addresses Safe-owner enrichment could backfill this on-chain, not from the atlas.
+- **Org hierarchy** — no reporting lines between Sky Core / facilitators / govops anywhere; Atlas Axis / Redline / Soter Labs are parallel role-holders. The only supervisory phrasing is "Executor Agents supervise other Agents" (A.1.14.4.6).
+
 ---
 
 ## Editorial Decisions
@@ -770,10 +839,28 @@ ranked_delegate_for                entity  → entity   delegate_org       → S
 
 ```
 comprises                          entity  → entity   composite_party → member entity
-erg_member_for                     entity  → doc      ERG member → A.1.8.1.2.2.0.6.1
+erg_member_for                     entity  → doc      ERG member → ERG membership doc (ERG_MEMBERSHIP_UUID)
 responsible_party_for              entity  → doc      Responsible Party → Active Data Controller
-holds_role_for                     entity  → doc      Named role binding; meta.role
+holds_role_for                     entity  → doc      Named role binding; meta.role (incl. spell_team_member, Pattern 20)
 invoked_by                         entity  → entity   instance → agent(prime); meta.status
+authorized_rep_for                 entity  → entity   forum rep (individual) → org (Pattern 16 Table 4); table-derived, no sources
+integration_partner_of             entity  → entity   integration partner → instance (Pattern 19)
+prime_foundation_for               entity  → entity   foundation → agent (Pattern 20 prose)
+provides_services_to               entity  → entity   dev company → org (Pattern 20 prose)
+```
+
+**Multisigs (Pattern 17)**:
+
+```
+signer_of                          entity  → entity   signer org/individual → multisig; meta.signer_count, meta.via_role?
+can_modify_signers_of              entity  → entity   authorized modifier → multisig; meta.via_role?
+```
+
+**Events (Pattern 18; graph.json-only, filtered from relations.json)**:
+
+```
+funds_transfer                     entity  → entity   sender → recipient; meta {kind: grant|genesis|genesis_mint|authorization,
+                                                       status, amounts, tx_hash?, period?, period_months?, begin_date?}
 ```
 
 **Accord / definition**:
@@ -804,12 +891,13 @@ annotates                          doc     → doc      Annotation/Tenet/Variati
 active_data_for                    doc     → doc      Active Data (*.0.6.X) → its controller
 located_at                         doc     → doc      ICD Location → ICD (via UUID in content)
 instance_of                        doc     → doc      ICD → primitive root (strip 2 segments)
-listed_in                          entity  → doc      Table entity (delegate_org, src_member) → Active Data node (Pattern 16); structural, no source_doc_nos required
+invocation_of                      doc     → doc      In-progress invocation ICD → primitive root; meta.status = "InProgress"
+listed_in                          entity  → doc      Table entity → Active Data node (Pattern 16); structural, no source_doc_nos required; breach rows carry {date, breach_tier, reasoning_url} meta
 has_status                         doc     → doc      Primitive root → Global Activation Status (strip 2)
 implements                         doc     → doc      Agent primitive → global def in A.2.2 (via "See" cite)
 ```
 
-**Total: 27 edge types.**
+**Total: 35 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
 
 ### Entity meta serialization
 
@@ -881,6 +969,19 @@ For `et="instance"`, the parsed meta is:
 - **Editorial Decision §12 (new):** rationale for UUID anchoring, address-based identity lookup, and `ecosystem_actor → delegate_org` upgrade.
 - **Edge total:** 26 → 27 (`listed_in` added; `instance_of` reverts to `doc → doc` only — the `entity → doc` variant described in v2.0 was incorrect and has been replaced).
 
+**v2.1 diff from v2.0** (2026-06 chatbot gap-analysis sweep):
+
+- **UUID-anchor bug fix:** the A.1 renumbering (A.1.5→A.1.6, A.1.8→A.1.9) had silently zeroed `aligned_delegate_for`, `ranked_delegate_for`, and `erg_member_for` — the doc_no constants in `graph-patterns.mjs` pointed at docs that no longer exist. Replaced with `ALIGNED_DELEGATES_UUID`, `ERG_MEMBERSHIP_UUID`, `RANKED_DELEGATE_UUIDS`, each warning to console when missing. `aligned_delegate_for` is now emitted from the registry table rows in Phase 2.7 (the doc became a table; prose path kept as fallback).
+- **Pattern 16 — Tables 4+5:** Current Authorized Forum Accounts (`b71564fd`; `meta.forum_handle`/`forum_role`, rep individuals, `authorized_rep_for`) and Aligned Delegate Breach Registry (`1ddd9cf6`; dated `listed_in` breach events).
+- **Pattern 16 — drift detector:** loud `[drift]` warning for any non-handled Active Data table with rows (tripwire for the 29 empty payment ledgers + Registered Multisigs `7d966e5e`).
+- **Pattern 17 (new) — Multisigs:** five-child structural convention, threshold/signer prose shapes, role-reference resolution with `meta.via_role`, `multisig` entity type, `signer_of` + `can_modify_signers_of` edges. `scripts/lib/graph-multisigs.mjs`, Phase 2.8.
+- **Pattern 18 (new) — Transfer/grant events:** A.2.13 grants, genesis distributions, accord grant authorizations → `funds_transfer` (graph.json-only). `scripts/lib/graph-transfers.mjs`, Phase 2.8.
+- **Pattern 19 (new) — Integration partners:** `Integration Partner Name` params → `ecosystem_actor/integration_partner` entities + `integration_partner_of` edges.
+- **Pattern 20 (new) — Spell Team + org prose:** `holds_role_for` `meta.role="spell_team_member"` (Dewiz, Sidestream); `prime_foundation_for` + `provides_services_to` prose edges (emit only when both endpoints resolve).
+- **"Not in the atlas" section (new):** payout history, spell execution history, pioneer dates, individual signer addresses, org hierarchy.
+- **relations.json filter:** `KEEP_ACTOR_EDGE_TYPES` grew `signer_of`/`can_modify_signers_of`/`integration_partner_of`; `OMIT_EDGE_TYPES` (new) drops `funds_transfer` + `authorized_rep_for` from the browser artifact.
+- **Entity types:** 14 → 15 (`multisig`; `ecosystem_actor` subtypes `individual`, `integration_partner`). **Edge total:** 28 → 35.
+
 ---
 
 ## Out of Scope (Atlas-excluded)
@@ -889,7 +990,7 @@ Categories the atlas itself excludes or frames as non-entities. Do not extract.
 
 - **Shadow Delegates** (`A.1.9.2.2.4.2`): atlas says verbatim "They are not officially recorded in the Atlas and do not receive any compensation from Sky." Do not create entities for them.
 - **Core Council** (`A.0.1.1.46`): defined as a _group of Executor Agents_, not a distinct actor. Already covered as the set of `agent/core_executor` entities whose titles start "Core Council Executor Agent". No separate entity kind.
-- **SPK Company Ltd** (`A.6.1.1.1.2.1.4.2.1.2.1`): named legal entity with no atlas-level category. Extract as `ecosystem_actor` if a pattern surfaces it.
+- **SPK Company Ltd** (`A.6.1.1.1.2.1.4.2.1.2.1`): named legal entity with no atlas-level category. Surfaced as `ecosystem_actor` by Pattern 18 (genesis transfer party) since v2.1.
 
 ---
 
@@ -899,8 +1000,8 @@ Categories the atlas itself excludes or frames as non-entities. Do not extract.
 - **Proto-Agents**: atlas defines the stage but names no current instances. `agent/proto` subtype reserved; pattern will land if/when named
 - **Multi-party Ecosystem Accords**: `A.2.8.2.2` (Prime Program) covers Sky + Spark + Grove + Moonbow — parse from party-details docs, not title
 - **Executor Accord position**: currently `.2.2` for all checked agents — derive from citation, not position
-- **Spell Roster roles** (Crafter, Reviewer, `A.1.9.2.1.9`): not verified; defer until we decide to extract spell-level roles
-- **Grant events**: per-grant disbursements (e.g., `A.2.13.1.1.1` — August 2025 grant to SFF) are per-event data, not roles. Currently unextracted; revisit when time-series events become part of the model
+- ~~**Spell Roster roles**~~ — **addressed (v2.1)**: Spell Team membership extracted via `SPELL_TEAM_UUID` (Pattern 20). Per-spell Crafter/Reviewer assignments and execution history are not in the atlas.
+- ~~**Grant events**~~ — **addressed (v2.1)**: Pattern 18 extracts grants, genesis distributions, and accord authorizations as `funds_transfer` edges. Known limitation: multi-grant authorization docs only capture the first grant.
 - ~~**Compound prose values**~~ — **addressed**: `PARAM_EXPANDERS["Token Address"]` splits multi-chain prose into per-chain `Token Address (<Chain>)` keys for Agent Token. Unset agents (Keel, Skybase, Obex, Pattern, Launch Agent 6/7) still emit a single `Token Address` key with the placeholder prose. Future compound-prose patterns in other primitives can be handled by adding more expanders.
 - **Key-variation normalisation**: `Token Address` vs `Pool Address` vs `Token Address (ERC4626 Vault)` are preserved as-written. A consumer-side normaliser (e.g. "any `*Address` key is an on-chain contract") has not been specified. Document the taxonomy once use cases converge
-- **Integrator partners as entities**: Aave, Kamino, CoW Swap, Morpho vault operators etc. appear as Instance param values but have no entity identity. Promoting them would unlock per-partner cross-agent queries but requires defining the scope (all IB partners? Allocation System protocols too?) and a shape (`entity_type = "integrator"`?)
+- ~~**Integrator partners as entities**~~ — **addressed (v2.1)** for Integration Boost partners (Pattern 19, `st="integration_partner"`). Allocation System target protocols (Morpho vault operators, CoW Swap, …) remain param values only — promote if per-protocol queries become a need.

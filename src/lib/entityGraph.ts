@@ -13,6 +13,7 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   operational_party: "Operational Party",
   ecosystem_actor: "Ecosystem Actor",
   instance: "Instance",
+  multisig: "Multisig",
 };
 
 export const SUBTYPE_LABEL: Record<string, string> = {
@@ -21,6 +22,8 @@ export const SUBTYPE_LABEL: Record<string, string> = {
   aligned_delegate: "Aligned Delegate",
   operational: "Operational",
   core: "Core",
+  individual: "Individual",
+  integration_partner: "Integration Partner",
 };
 
 /** Labels vary by the edge's direction relative to the viewer.
@@ -47,6 +50,13 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   ranked_delegate_for: { forward: "ranked delegate for", reverse: "has ranked delegate" },
   holds_role_for: { forward: "holds role for", reverse: "has role-holder" },
   comprises: { forward: "comprises", reverse: "part of" },
+  signer_of: { forward: "signer of", reverse: "has signer" },
+  can_modify_signers_of: { forward: "can modify signers of", reverse: "signers modifiable by" },
+  funds_transfer: { forward: "transferred funds to", reverse: "received funds from" },
+  authorized_rep_for: { forward: "authorized rep for", reverse: "has authorized rep" },
+  integration_partner_of: { forward: "integration partner of", reverse: "has integration partner" },
+  prime_foundation_for: { forward: "prime foundation for", reverse: "has prime foundation" },
+  provides_services_to: { forward: "provides services to", reverse: "served by" },
   // doc ↔ entity
   ecosystem_accord: { forward: "binds", reverse: "party to" },
   defines_entity: { forward: "defines", reverse: "defined by" },
@@ -86,6 +96,7 @@ export const ENTITY_TYPE_COLOR: Record<string, string> = {
   operational_party: "var(--entity-operational-party)",
   ecosystem_actor: "var(--entity-ecosystem-actor)",
   instance: "var(--entity-instance)",
+  multisig: "var(--entity-multisig)",
 };
 
 export interface EntityNodeData {
@@ -155,6 +166,7 @@ export const CONNECTED_ENTITY_TYPES: ReadonlySet<string> = new Set([
   "operational_party",
   "ecosystem_actor",
   "instance",
+  "multisig",
 ]);
 
 /** Entity↔entity edges only, for the ReactFlow graph. */

@@ -102,6 +102,7 @@ const KNOWN_ENTITY_TYPES = new Set([
   "instance",
   "invocation",
   "primitive",
+  "multisig",
 ]);
 
 const KNOWN_EDGE_TYPES = new Set([
@@ -140,6 +141,16 @@ const KNOWN_EDGE_TYPES = new Set([
   "implements",
   // instance → agent
   "invoked_by",
+  // multisigs (Pattern 17)
+  "signer_of",
+  "can_modify_signers_of",
+  // transfer/grant events (Pattern 18)
+  "funds_transfer",
+  // registries / org relations
+  "authorized_rep_for",
+  "integration_partner_of",
+  "prime_foundation_for",
+  "provides_services_to",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -497,8 +508,12 @@ describe("Pattern 12 — composite parties", () => {
 describe("auditability", () => {
   it("every role edge carries ≥1 source_doc_no (auditable-edge requirement)", () => {
     // Structural edges (parent_of, defines_entity, has_address, proxies_to) are
-    // exempt — they're derived from id references, not from prose.
-    const STRUCTURAL = new Set(["parent_of", "defines_entity", "has_address", "proxies_to", "listed_in"]);
+    // exempt — they're derived from id references, not from prose. Table-derived
+    // edges (listed_in, authorized_rep_for) are likewise exempt (Pattern 16).
+    const STRUCTURAL = new Set([
+      "parent_of", "defines_entity", "has_address", "proxies_to",
+      "listed_in", "authorized_rep_for",
+    ]);
     const bad: string[] = [];
     for (const e of graph.edges) {
       if (STRUCTURAL.has(e.edge_type)) continue;
@@ -563,9 +578,16 @@ describe("Pattern 11 — role bindings (holds_role_for)", () => {
 describe("relations.json — lean browser payload", () => {
   it("only pinned ecosystem_actors survive (load-bearing role/RP edges)", () => {
     // Most ecosystem_actors are filtered from relations.json. Actors that are the
-    // source of a holds_role_for or responsible_party_for edge are pinned so their
-    // relationship survives (e.g. BA Labs → Core Council Risk Advisor).
-    const PINNED_EDGE_TYPES = new Set(["holds_role_for", "responsible_party_for"]);
+    // source of a load-bearing edge are pinned so their relationship survives
+    // (e.g. BA Labs → Core Council Risk Advisor; multisig signers; integration
+    // partners). Mirrors KEEP_ACTOR_EDGE_TYPES in build-graph.mjs.
+    const PINNED_EDGE_TYPES = new Set([
+      "holds_role_for",
+      "responsible_party_for",
+      "signer_of",
+      "can_modify_signers_of",
+      "integration_partner_of",
+    ]);
     const pinned = new Set(
       relations.edges
         .filter((e) => PINNED_EDGE_TYPES.has(e.e) && e.ft === "entity")

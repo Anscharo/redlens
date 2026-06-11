@@ -67,10 +67,10 @@ export interface GraphEntity {
   id: string;
   slug: string;
   name: string;
-  et: string; // agent | facilitator_org | govops_org | delegate_org | development_company | foundation | composite_party | governance_body | operational_party | ecosystem_actor | instance | primitive
-  st: string | null; // agent subtypes: prime | operational_executor | core_executor; instance: <primitive-slug>; primitive: <primitive-slug>
+  et: string; // agent | facilitator_org | govops_org | delegate_org | development_company | foundation | composite_party | governance_body | operational_party | ecosystem_actor | instance | primitive | multisig
+  st: string | null; // agent subtypes: prime | operational_executor | core_executor; instance: <primitive-slug>; primitive: <primitive-slug>; ecosystem_actor: individual | integration_partner
   did: string | null; // defining_doc_id — UUID of the Atlas doc that defines this entity
-  m?: string; // meta JSON, non-null only. For et=instance: { primitive_doc_no, agent_doc_no, status, params }. For et=primitive: { agent_doc_id, primitive_category_doc_id, status }.
+  m?: string; // meta JSON, non-null only. For et=instance: { primitive_doc_no, agent_doc_no, status, params }. For et=primitive: { agent_doc_id, primitive_category_doc_id, status }. For et=multisig: { address, chain, threshold, purpose_doc_no }.
 }
 
 export interface RelationEdge {

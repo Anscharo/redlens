@@ -16,8 +16,7 @@ import {
   extractAssignment,
   extractRP,
   rpRoleAndName,
-  ALIGNED_DELEGATES_DOC_NO,
-  ERG_DOC_NO,
+  ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
@@ -137,11 +136,15 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   }
 
   // --- 2m. aligned_delegate_for (Pattern 10) ---
+  // Fallback path for a list/prose-shaped registry. The doc is a table today,
+  // so alignedDelegateNames is usually empty and the edges are emitted from
+  // the table rows in build-graph Phase 2.7 instead.
+  const alignedDelegatesDoc = docById.get(ALIGNED_DELEGATES_UUID);
   for (const name of alignedDelegateNames) {
     const entity = entityByName(name);
-    if (entity) {
+    if (entity && alignedDelegatesDoc) {
       addEdge(entity.id, "entity", skyGovernance.id, "entity", "aligned_delegate_for", [
-        ALIGNED_DELEGATES_DOC_NO,
+        alignedDelegatesDoc.doc_no,
       ]);
     }
   }
@@ -235,7 +238,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   if (ergDoc) {
     for (const name of ergMemberNames) {
       const entity = entityByName(name);
-      if (entity) addEdge(entity.id, "entity", ergDoc.id, "doc", "erg_member_for", [ERG_DOC_NO]);
+      if (entity) addEdge(entity.id, "entity", ergDoc.id, "doc", "erg_member_for", [ergDoc.doc_no]);
     }
   }
 
@@ -366,6 +369,49 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
       const chain = info?.chain ?? "ethereum";
       addEdge(d.id, "doc", `${addr.toLowerCase()}:${chain}`, "address", "mentions", [d.doc_no]);
     }
+  }
+
+  // --- 2x. Org-to-org prose relations ---
+  // Two conservative sentence shapes; an edge is emitted only when BOTH
+  // endpoints resolve to existing entities (unresolved matches are logged,
+  // never guessed — these are long-tail color, recall is deliberately low).
+  //   "Rubicon is the Prime Foundation associated with Obex."  → prime_foundation_for
+  //   "Phoenix Labs is a development company that provides services to the
+  //    Spark Foundation"                                       → provides_services_to
+  const PRIME_FOUNDATION_RE =
+    /\b([A-Z][A-Za-z0-9'&. -]+?) is the Prime Foundation associated with (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+  const PROVIDES_SERVICES_RE =
+    /\b([A-Z][A-Za-z0-9'&. -]+?) is an? [a-z -]*company that provides services to (?:the )?([A-Z][A-Za-z0-9'&. -]+?)[.,]/g;
+  {
+    let emitted = 0,
+      skipped = 0;
+    const seen = new Set();
+    for (const d of allDocs) {
+      const content = d.content ?? "";
+      for (const [re, edgeType] of [
+        [PRIME_FOUNDATION_RE, "prime_foundation_for"],
+        [PROVIDES_SERVICES_RE, "provides_services_to"],
+      ]) {
+        re.lastIndex = 0;
+        for (const m of content.matchAll(re)) {
+          const fromName = m[1].trim().replace(/^the\s+/i, "");
+          const toName = m[2].trim().replace(/^the\s+/i, "");
+          const from = entityByName(fromName);
+          const to = entityByName(toName);
+          if (!from || !to || from.id === to.id) {
+            skipped++;
+            console.warn(`  org-prose: unresolved ${edgeType} "${fromName}" → "${toName}" (${d.doc_no})`);
+            continue;
+          }
+          const key = `${edgeType}:${from.id}:${to.id}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          addEdge(from.id, "entity", to.id, "entity", edgeType, [d.doc_no]);
+          emitted++;
+        }
+      }
+    }
+    console.log(`  org-prose: ${emitted} edges (${skipped} unresolved matches skipped)`);
   }
 
   // --- 2w. proxies_to (address → implementation address) ---

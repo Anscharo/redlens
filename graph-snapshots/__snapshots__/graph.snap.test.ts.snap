@@ -9924,29 +9924,37 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
   "active_data_for": 76,
+  "aligned_delegate_for": 13,
   "annotates": 102,
+  "can_modify_signers_of": 27,
   "cites": 1859,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 352,
+  "defines_entity": 385,
   "ecosystem_accord": 20,
-  "has_address": 235,
+  "erg_member_for": 8,
+  "has_address": 263,
   "has_status": 136,
-  "holds_role_for": 2,
+  "holds_role_for": 4,
   "implements": 188,
   "instance_of": 188,
+  "integration_partner_of": 10,
   "invocation_of": 5,
   "invoked_by": 192,
-  "listed_in": 26,
+  "listed_in": 43,
   "located_at": 186,
   "mentions": 544,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
   "prime_agent_for": 8,
+  "prime_foundation_for": 5,
+  "provides_services_to": 2,
   "proxies_to": 61,
+  "ranked_delegate_for": 3,
   "responsible_party_for": 64,
+  "signer_of": 56,
 }
 `;
 
@@ -10208,7 +10216,23 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
 ]
 `;
 
-exports[`governance edges > aligned_delegate_for 1`] = `[]`;
+exports[`governance edges > aligned_delegate_for 1`] = `
+[
+  "AegisD → Sky Governance",
+  "AxisLegati → Sky Governance",
+  "Blue → Sky Governance",
+  "Bonapublica → Sky Governance",
+  "Brendan Navigator → Sky Governance",
+  "Cloaky → Sky Governance",
+  "Excel → Sky Governance",
+  "Kuzmich → Sky Governance",
+  "Max Staking Yield → Sky Governance",
+  "OPEX → Sky Governance",
+  "PBG → Sky Governance",
+  "Tango → Sky Governance",
+  "WBC → Sky Governance",
+]
+`;
 
 exports[`governance edges > ecosystem_accord — accord doc → party entity 1`] = `
 [
