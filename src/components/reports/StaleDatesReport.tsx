@@ -77,10 +77,10 @@ export function StaleDatesReport() {
         ) : (
           <>
             <Section
-              title="Stale"
-              hint="The date has passed but the atlas still phrases the event as future."
-              claims={report.stale}
-              tone="var(--red)"
+              title="Upcoming"
+              hint="The atlas's live calendar — future claims with dates still ahead."
+              claims={report.upcoming}
+              tone="var(--accent)"
             />
             <Section
               title="Due within 7 days"
@@ -89,10 +89,10 @@ export function StaleDatesReport() {
               tone="#c9a227"
             />
             <Section
-              title="Upcoming"
-              hint="The atlas's live calendar — future claims with dates still ahead."
-              claims={report.upcoming}
-              tone="var(--accent)"
+              title="Stale"
+              hint="The date has passed but the atlas still phrases the event as future."
+              claims={report.stale}
+              tone="var(--red)"
             />
           </>
         )}
