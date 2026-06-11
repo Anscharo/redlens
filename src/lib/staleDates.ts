@@ -16,7 +16,9 @@ export interface DateClaim {
   raw: string; // matched date text
   dateISO: string; // staleness boundary (month/quarter → period end)
   precision: DatePrecision;
-  context: string;
+  context: string; // contextBefore + raw + contextAfter
+  contextBefore: string; // snippet text preceding the date (for emphasis rendering)
+  contextAfter: string; // snippet text following the date
   daysUntilStale: number; // negative = already stale
 }
 
@@ -85,10 +87,12 @@ export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: D
 
   const claims: DateClaim[] = [];
   for (const t of matches) {
-    const before = content.slice(Math.max(0, t.start - 140), t.start);
-    const after = content.slice(t.end, t.end + 80);
+    const before = content.slice(Math.max(0, t.start - 160), t.start);
+    const after = content.slice(t.end, t.end + 96);
     if (!FUTURE_RE.test(before + " " + after) && !BY_DATE_RE.test(before)) continue;
     const utc = boundaryUTC(t.y, t.mo, t.day);
+    const contextBefore = before.slice(-132).replace(/\s+/g, " ").trimStart();
+    const contextAfter = after.replace(/\s+/g, " ").trimEnd();
     claims.push({
       docId: doc.id,
       docNo: doc.doc_no,
@@ -96,7 +100,9 @@ export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: D
       raw: t.raw,
       dateISO: fmtISO(utc),
       precision: t.precision,
-      context: (before.slice(-110) + t.raw + after).replace(/\s+/g, " ").trim(),
+      context: contextBefore + t.raw + contextAfter,
+      contextBefore,
+      contextAfter,
       daysUntilStale: Math.round((utc - todayUTC) / 86_400_000),
     });
   }

@@ -14,9 +14,13 @@ function staleness(c: DateClaim): string {
 function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
   // dark background is unreadable as small text, so the date stays tan.
+  // The whole row is one link to the doc; the doc number renders as plain
+  // text on the right (nested anchors are invalid HTML).
   return (
-    <div
-      className="py-2 pl-3 border-b last:border-b-0"
+    <AtlasLink
+      to={atlasHref(c.docId)}
+      title={c.title}
+      className="block py-2 px-3 border-b last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
       style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
     >
       <div className="flex items-baseline gap-6 flex-wrap">
@@ -28,23 +32,17 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
             {staleness(c)}
           </span>
         </span>
-        <span className="flex items-baseline gap-2">
-          <span className="text-sm" style={{ color: "var(--tan)" }}>
-            {c.title}
-          </span>
-          <AtlasLink
-            to={atlasHref(c.docId)}
-            className="mono text-xs text-accent hover:underline"
-            title={c.title}
-          >
-            {c.docNo}
-          </AtlasLink>
+        <span className="text-sm" style={{ color: "var(--tan)" }}>
+          {c.title}
         </span>
+        <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
       </div>
       <p className="text-[11px] mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
-        …{c.context}…
+        …{c.contextBefore}
+        <em>{c.raw}</em>
+        {c.contextAfter}…
       </p>
-    </div>
+    </AtlasLink>
   );
 }
 
