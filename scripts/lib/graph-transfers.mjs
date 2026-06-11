@@ -42,8 +42,37 @@ const GENESIS_MINT_RE =
 const AUTH_GRANT_RE =
   /grant of\s+([\d,.]+)\s+([A-Z]{2,10})\s+per month to (?:the )?(.+?) from (.+?)(?:['’]s)? (?:Prime )?Treasury\b[\s\S]*?for a\s+\w+\s*\((\d+)\)\s*month period/i;
 const AUTH_BEGIN_RE = /beginning on ([^.]+?)\./i;
-// Directory docs ("The documents herein record …") are containers, not events.
-const DIRECTORY_RE = /^The documents? herein\b/i;
+
+// Shape D — accord capital allocations. Title must END with the allocation
+// phrase ("Spark Initial Allocation", "Genesis Capital Allocation") so
+// mechanics docs like "Initial Allocation Distribution" don't gate in.
+//   "The Initial Allocation for Spark is 25,000,000 USDS."
+//   "The Genesis Capital Allocation for Amatsu is 25,000,000 USDS. The
+//    transfer … will be included in the March 26, 2026 Executive Vote."
+const ALLOCATION_TITLE_RE = /\b(?:Initial Allocation|Genesis Capital Allocation)$/i;
+const ALLOCATION_RE =
+  /\bThe (Initial Allocation|Genesis Capital Allocation) for (.+?) is ([\d,.]+)\s+([A-Z]{2,10})\./i;
+const ALLOCATION_VOTE_RE = /included in the ([^.]+?Executive Vote)/i;
+
+// Shape E — executed budget transfers. No title gate: the required
+// "{amount} {TOKEN} from … to …" core makes the sentence intrinsically
+// monetary, and endpoints resolve-only (never created), so prose like
+// "the Spell Crafter has transferred the spell" can't produce an edge.
+//   "Sky has transferred 2 million USDS from the Sky Ecosystem Liquidity
+//    Bootstrapping Budget to Spark to provide liquidity to market makers."
+const BUDGET_TRANSFER_RE =
+  /\b(.+?)\s+has transferred\s+([\d,.]+(?:\s+(?:billion|million|thousand))?)\s+([A-Z]{2,10})\s+from\s+(?:the\s+)?([^.]+?)\s+to\s+([A-Z][\w-]*(?:\s+[A-Z][\w-]*)*)/;
+
+// Enumerated allocation form (A.2.8.2.5.2.2): "Sky Core shall directly
+// transfer (1) 20,000,000 USDS to the Core Council Executor Agent 1 SubProxy
+// and (2) 5,000,000 USDS to the Core Council Buffer." One edge per item.
+const ALLOCATION_DIRECT_RE = /(?:^|,\s*)([A-Z][A-Za-z ]+?)\s+shall directly transfer\b/;
+const ALLOCATION_ITEM_RE =
+  /\(\d+\)\s*([\d,.]+(?:\s+(?:billion|million|thousand))?)\s+([A-Z]{2,10})\s+to\s+(?:the\s+)?([^.,()]+?)(?=\s+and\s+\(|[.,(])/g;
+
+// Directory docs ("The documents herein record …" / "The subdocuments
+// herein set out …") are containers, not events.
+const DIRECTORY_RE = /^The (?:sub)?documents? herein\b/i;
 // Markdown links inject doc_no dots into sentences ("specified in [A.6.1.… -
 // Title](uuid)") which break the [^.] sentence-boundary classes — strip them
 // entirely before matching.
@@ -69,7 +98,10 @@ function trailingProperNoun(s) {
 
 export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges, addEntity) {
   const nameIndex = buildNameIndex(entityMap);
-  const stats = { grants: 0, genesis: 0, authorizations: 0, planned: 0, warnings: 0 };
+  const stats = {
+    grants: 0, genesis: 0, authorizations: 0, allocations: 0, budgetTransfers: 0,
+    planned: 0, warnings: 0,
+  };
   const warn = (msg) => { stats.warnings++; console.warn(`  transfers: ${msg}`); };
 
   function resolveParty(rawName, sourceDoc, { create = true } = {}) {
@@ -79,9 +111,13 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     if (alias) return entityMap.get(alias) ?? null;
     // "Spark SubProxy Account" / "Grove SubProxy" → the agent
     const acct = name.match(/^(.+?)\s+(?:SubProxy(?:\s+Account)?|Account)$/i);
+    // Prose refers to multisigs without the suffix ("the Core Council
+    // Buffer") while Pattern 17 names them from the threshold sentence
+    // ("Core Council Buffer Multisig") — try the suffixed form last.
     const direct =
       nameIndex.get(normalizeKey(name)) ??
-      (acct ? nameIndex.get(normalizeKey(acct[1])) : null);
+      (acct ? nameIndex.get(normalizeKey(acct[1])) : null) ??
+      nameIndex.get(normalizeKey(`${name} Multisig`));
     if (direct) return direct;
     if (!create) return null;
     const et = /\bFoundation$/i.test(name) ? "foundation" : "ecosystem_actor";
@@ -187,6 +223,71 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
       begin_date: content.match(AUTH_BEGIN_RE)?.[1]?.trim(),
     });
     stats.authorizations++;
+  }
+
+  // --- Shape D: accord capital allocations ---
+  for (const d of allDocs) {
+    if (!ALLOCATION_TITLE_RE.test(d.title)) continue;
+    const content = stripLinks(d.content ?? "");
+    if (DIRECTORY_RE.test(content.trim())) continue;
+    const m = content.match(ALLOCATION_RE);
+    if (m) {
+      const recipient = resolveParty(m[2], d, { create: false });
+      if (!recipient) { warn(`allocation recipient unresolved "${m[2]}": ${d.doc_no}`); continue; }
+      const vote = content.match(ALLOCATION_VOTE_RE)?.[1]?.trim();
+      addTransfer(skyCore, recipient, d, {
+        kind: "allocation",
+        allocation_type: /genesis/i.test(m[1]) ? "genesis_capital" : "initial",
+        status: vote ? "planned" : "allocated",
+        amounts: { [m[4]]: m[3] },
+        ...(vote ? { scheduled: vote } : {}),
+      });
+      stats.allocations++;
+      continue;
+    }
+    // Enumerated form: one edge per "(n) {amount} {TOKEN} to {recipient}" item.
+    const direct = content.match(ALLOCATION_DIRECT_RE);
+    const items = direct ? [...content.matchAll(ALLOCATION_ITEM_RE)] : [];
+    if (!direct || !items.length) { warn(`allocation did not parse: ${d.doc_no} ("${d.title}")`); continue; }
+    const sender = resolveParty(direct[1], d, { create: false }) ?? skyCore;
+    for (const item of items) {
+      const rawRecipient = item[3].trim();
+      const recipient = resolveParty(rawRecipient, d, { create: false });
+      if (!recipient) { warn(`allocation recipient unresolved "${rawRecipient}": ${d.doc_no}`); continue; }
+      addTransfer(sender, recipient, d, {
+        kind: "allocation",
+        allocation_type: "genesis_capital",
+        status: "planned",
+        amounts: { [item[2]]: item[1] },
+        ...(rawRecipient !== recipient.name ? { account: rawRecipient } : {}),
+      });
+      stats.allocations++;
+    }
+  }
+
+  // --- Shape E: executed budget transfers ---
+  for (const d of allDocs) {
+    if (/^(Minting|Transfer) Of Tokens/i.test(d.title)) continue; // Shape B owns these
+    const content = stripLinks(d.content ?? "");
+    if (DIRECTORY_RE.test(content.trim())) continue;
+    const m = content.match(BUDGET_TRANSFER_RE);
+    if (!m) continue;
+    const fromRaw = m[1].trim();
+    const from =
+      resolveParty(fromRaw, d, { create: false }) ??
+      resolveParty(trailingProperNoun(fromRaw), d, { create: false });
+    const to = resolveParty(m[5], d, { create: false });
+    if (!from || !to || from.id === to.id) {
+      warn(`budget transfer endpoints unresolved: ${d.doc_no} ("${d.title}")`);
+      continue;
+    }
+    addTransfer(from, to, d, {
+      kind: "budget_transfer",
+      status: "completed",
+      amounts: { [m[3]]: m[2] },
+      source_budget: m[4].trim(),
+    });
+    stats.budgetTransfers++;
   }
 
   return stats;

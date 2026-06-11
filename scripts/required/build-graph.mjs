@@ -755,6 +755,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   console.log(
     `  Phase 2.8: funds_transfer — ${txStats.grants} grants, ${txStats.genesis} genesis` +
     ` (${txStats.planned} planned), ${txStats.authorizations} authorizations` +
+    `, ${txStats.allocations} allocations, ${txStats.budgetTransfers} budget transfers` +
     (txStats.warnings ? `, ${txStats.warnings} WARNINGS` : ""),
   );
 }
