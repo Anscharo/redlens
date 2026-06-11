@@ -173,13 +173,13 @@
     },
     "Core|s:party-comprises": {
       "total": 20,
-      "uncovered": 10,
+      "uncovered": 9,
       "samples": [
         "A.2.8.2.10.1.1.1",
-        "A.2.8.2.10.1.1.2",
         "A.2.8.2.2.1.1.1",
         "A.2.8.2.3.1.1.1",
-        "A.2.8.2.4.1.1.1"
+        "A.2.8.2.4.1.1.1",
+        "A.2.8.2.5.1.1.1"
       ]
     },
     "Core|s:resp-party": {
@@ -205,10 +205,8 @@
     },
     "Core|s:role-held-by": {
       "total": 3,
-      "uncovered": 1,
-      "samples": [
-        "A.1.3.2.1.1"
-      ]
+      "uncovered": 0,
+      "samples": []
     },
     "Core|s:serves-as": {
       "total": 11,

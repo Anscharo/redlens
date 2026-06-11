@@ -85,6 +85,20 @@ _From `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` §8_
 
 **Coverage census tripwire:** `pnpm census:check` (`scripts/required/check-atlas-census.mjs` + `scripts/lib/census-fingerprint.mjs`) fingerprints every doc by structural shape (data tables, addresses, backtick-bullet params, stereotyped relationship sentences) and counts, per fingerprint, the docs that contributed nothing to `graph.json` (no non-incidental edge endpoint, no `source_doc_nos` credit, no entity meta reference). New signal clusters with uncovered docs — or growth in existing ones — emit `[drift] census:` warnings against the committed `.github/atlas-census-baseline.json` (auto-updated by `atlas-update.yml` in the bump commit, like snapshots). This is the generalized "atlas started encoding a structure no pattern handles" detector — when a pattern consumes a doc, credit it in `source_doc_nos` or entity meta (e.g. multisig `threshold_doc_no`) or the census will count it as uncovered.
 
+**Census baseline triage (2026-06)** — verdicts for the clusters frozen in the initial baseline, so they aren't re-investigated:
+
+| Cluster | Verdict |
+| --- | --- |
+| `bullet-kv` (~80) | **Genuine gap, extraction deferred** (modeling decision): protocol-scope risk params (A.3.7 collateral types, LitePSM, stUSDS), SparkLend Cap Automator params (agent Omni Documents), ALM/rate-limit config outside ICD `Parameters` subtrees. Lexical/semantic search reaches them; graph param extraction would need new entity modeling. |
+| `s:transfer` (~34) | Mostly false positives (operational runbook steps: "Call mintUSDS Function", "Encode Transfer Function"). **Genuine subset deferred**: accord monetary facts — Prime TGE, Initial Allocation Distribution, 2× "Sky has transferred N USDS" Liquidity Bootstrapping docs (A.2.8.2.2.2.7.4.\*) — candidate Pattern 18 extension. |
+| `s:role-for-is` (32), `s:serves-as` (10) | False positives of the sentence heuristics (e.g. "The Liquidation Ratio for X is", concept definitions). No action. |
+| `s:party-comprises` (9) | All "Sky Details" docs — deliberate Sky-party short-circuit (Editorial Decision 2). |
+| `s:addr-of-is` (8) | Addresses ARE captured by Phase 2.6 annotation (`addresses.atlas.json`); no graph edge because they aren't ICD params or multisig children. Acceptable. |
+| `s:modify-signers` (1) | Core Council Buffer Modification — deliberate Pattern 17 self-referential skip. |
+| `table` (3) | Core-typed informational tables (reward schedule, lawyer registry areas, balance-sheet classification) — readable content, nothing relational to extract. |
+
+Two clusters from the first census run were **fixed**, not baselined: `s:signing-req` (multisig threshold docs — provenance added via `threshold_doc_no`) and `s:role-held-by` (Designated Synome Editor — see Pattern 11).
+
 ### Special directory numbers
 
 - `.0.3` = Element Annotation Directory
@@ -368,7 +382,9 @@ Currently known bindings (discovered by the walk, not hardcoded):
 | `51b1fe46` (pinned) | `A.1.7.1.1.2` | `core_council_risk_advisor`      | BA Labs |
 | `57fa2bd5` (PR #227) | `A.1.7.1.2.2` | `protocol_security_workstream_lead` | Vamsi |
 
-New roles added under `A.1.7.1` are picked up automatically — no code changes needed.
+New roles added under `A.1.7.1` are picked up automatically — no code changes needed. (The section currently sits at `A.1.8.1` after a renumber — the UUID anchor is what holds.)
+
+**Global "Designated …" sweep (1k1 in `graph-entities.mjs`):** binding docs are NOT confined to this section — the census found `Designated Synome Editor` (A.1.3.2.1.1, Synome scope): "The Synome Editor role is held by Archon Tech." Any doc titled `Designated …` whose content matches `/The (.+?) role is held by ([^.]+)\./` emits a `holds_role_for` edge with the role slug taken from the sentence itself. The title gate keeps prose hypotheticals out; a binding doc without the "Designated" title surfaces in the census `s:role-held-by` cluster instead of being guessed.
 
 Emit for each binding doc found:
 

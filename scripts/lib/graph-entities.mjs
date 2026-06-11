@@ -288,6 +288,35 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
       console.warn(`[graph] Expected CCRA binding (${CCRA_BINDING_UUID}) not found — A.1.7.1 may have restructured`);
   }
 
+  // --- 1k1. Role bindings outside the Active Ecosystem Actors walk ---
+  // The census found "Designated Synome Editor" (A.1.3.2.1.1, Synome scope):
+  // binding docs are not confined to the section 1k walks. Any doc titled
+  // "Designated …" with the binding sentence gets the same treatment; the
+  // role slug comes from the sentence itself ("The Synome Editor role is
+  // held by Archon Tech."). Title gate keeps prose hypotheticals out — a
+  // binding doc without the "Designated" title shows up in the census's
+  // role-held-by cluster instead of being guessed at here.
+  const seenBindingDocs = new Set(roleBindings.map((b) => b.bindingDoc.id));
+  for (const d of allDocs) {
+    if (seenBindingDocs.has(d.id) || !/\bdesignated\b/i.test(d.title)) continue;
+    const m = d.content?.match(/\bThe\s+(.{2,60}?)\s+role is held by\s+([^.\n]+)\./i);
+    if (!m) continue;
+    const name = m[2].trim();
+    if (/^(?:the|a|an|any|another|one|such|that|this|it)\b/i.test(name)) continue;
+    const s = slugify(name);
+    let entity = entityMap.get(s);
+    if (!entity)
+      entity = addEntity(s, name, "ecosystem_actor", null, d.id, {
+        source: "role_binding",
+        source_doc_no: d.doc_no,
+      });
+    roleBindings.push({
+      holder: entity,
+      bindingDoc: d,
+      roleSlug: m[1].trim().toLowerCase().replace(/\s+/g, "_"),
+    });
+  }
+
   // --- 1k2. Spell Team members (Spell Team Configuration doc) ---
   // "Currently, Sky has two teams of technical contributors for Spell
   // development, Dewiz, and Sidestream." Each named team gets a holds_role_for

@@ -44,7 +44,9 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   const entityByName = (name) => entityMap.get(slugify(name));
 
   function addEdge(fromId, fromType, toId, toType, edgeType, sourceDocNos = [], meta = null) {
-    edges.push({ fromId, fromType, toId, toType, edgeType, sourceDocNos, meta });
+    const edge = { fromId, fromType, toId, toType, edgeType, sourceDocNos, meta };
+    edges.push(edge);
+    return edge;
   }
 
   // --- 2i. prime_agent_for: each Prime Agent → Sky Core (Pattern 1) ---
@@ -217,7 +219,10 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     return entityMap.get(slugify(cleaned)) ?? null;
   }
 
-  const emittedComprises = new Set();
+  // One comprises edge per (party, member) pair, but every accord that
+  // re-states the party is appended to source_doc_nos — accord 10 restating
+  // "Grove comprises …" is provenance, not a duplicate to drop.
+  const emittedComprises = new Map(); // key → edge
   for (const [, partyDocs] of accordPartyDocsByAccordDocNo) {
     for (const { partyEntity, sourceDocNo, memberStr, isSky } of partyDocs) {
       if (isSky) continue;
@@ -225,9 +230,14 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
         const memberEntity = resolveMember(memberName);
         if (memberEntity && memberEntity.id !== partyEntity.id) {
           const key = `${partyEntity.id}:${memberEntity.id}`;
-          if (!emittedComprises.has(key)) {
-            emittedComprises.add(key);
-            addEdge(partyEntity.id, "entity", memberEntity.id, "entity", "comprises", [sourceDocNo]);
+          const prior = emittedComprises.get(key);
+          if (prior) {
+            if (!prior.sourceDocNos.includes(sourceDocNo)) prior.sourceDocNos.push(sourceDocNo);
+          } else {
+            emittedComprises.set(
+              key,
+              addEdge(partyEntity.id, "entity", memberEntity.id, "entity", "comprises", [sourceDocNo]),
+            );
           }
         }
       }
