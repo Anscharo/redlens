@@ -20,7 +20,7 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
     <AtlasLink
       to={atlasHref(c.docId)}
       title={c.title}
-      className="block py-2 px-3 border-b last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
+      className="block py-4 px-3 border-b last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
       style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
     >
       <div className="flex items-baseline gap-6 flex-wrap">
