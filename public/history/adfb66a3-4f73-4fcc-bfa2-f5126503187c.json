@@ -388,5 +388,26 @@
     "changeType": "moved",
     "movedFrom": "content/A/2/2/8/2/2/3/5/4/2/document.md",
     "movedTo": "content/A/2/2/9/2/2/3/5/4/2/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "modified",
+    "diff": [
+      [
+        "-",
+        "The Agent Artifact documents specified herein are updated as the output of this process. The Output \"sets\" are mutually exclusive."
+      ],
+      [
+        "=",
+        "The Agent Artifact documents specified herein are updated as the output of this process. The Output \"sets\" are mutually exclusive."
+      ],
+      [
+        "=",
+        ""
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

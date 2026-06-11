@@ -275,5 +275,51 @@
       ]
     ],
     "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "99a267c",
+    "commitSeq": 1095,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- LTV: 0%"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Liquidation Threshold: "
+          ],
+          [
+            "-",
+            "80"
+          ],
+          [
+            "+",
+            "70"
+          ],
+          [
+            "=",
+            "%"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- E-mode Category: ETH"
+      ],
+      [
+        "=",
+        "- Liquidation Bonus: 7%"
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

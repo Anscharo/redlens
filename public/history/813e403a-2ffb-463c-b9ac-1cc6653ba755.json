@@ -31,5 +31,83 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/2/4/12/4/6/document.md",
     "movedTo": "content/A/1/10/2/4/12/4/6/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "If a validator suspects that"
+          ],
+          [
+            "+",
+            " the"
+          ],
+          [
+            "=",
+            " Core "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "are"
+          ],
+          [
+            "+",
+            "is"
+          ],
+          [
+            "=",
+            " malicious or "
+          ],
+          [
+            "-",
+            "colluding"
+          ],
+          [
+            "+",
+            "compromised"
+          ],
+          [
+            "=",
+            ", they must notify Sky Governance by reporting the issues they found publicly. This permits"
+          ],
+          [
+            "+",
+            " the"
+          ],
+          [
+            "=",
+            " Sky Governance community to independently investigate the issue and act together to mitigate an attack"
+          ],
+          [
+            "-",
+            ", even if all Core Facilitators are compromised or acting maliciously"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

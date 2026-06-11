@@ -31,5 +31,17 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/10/2/3/0/4/1/document.md",
     "movedTo": "content/A/1/11/2/3/0/4/1/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "removed",
+    "diff": [
+      [
+        "-",
+        "Unanimity is not required among the Core Facilitators to block an Atlas Edit Weekly Cycle Proposal for misalignment."
+      ]
+    ]
   }
 ]
