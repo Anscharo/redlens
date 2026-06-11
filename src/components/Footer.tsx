@@ -3,6 +3,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { loadAtlas } from "../lib/docs";
+import { useDataSource } from "../lib/dataSource";
 
 const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
@@ -17,23 +18,35 @@ function reloadWithFreshAtlas() {
 }
 
 export function Footer() {
+  const { base, preview } = useDataSource();
   const online = useOnlineStatus();
   const { needRefresh, applyUpdate } = useSWUpdate();
   const [block, setBlock] = useState<string | null>(null);
   const [atlasCommit, setAtlasCommit] = useState<string | null>(null);
   const [nodeCount, setNodeCount] = useState<number>(0);
-  const atlasNeedsUpdate = useAtlasVersion(atlasCommit);
+  const [previewRepo, setPreviewRepo] = useState<string | null>(null);
+  // No "atlas updated" prompt in preview — the bundle is pinned to a SHA, so we
+  // pass null (useAtlasVersion no-ops on null), keeping the hook call unconditional.
+  const atlasNeedsUpdate = useAtlasVersion(preview ? null : atlasCommit);
 
   useEffect(() => {
+    // chain state is reused from main even in preview (on-chain, shared).
     fetch(`${BASE}chain-state.json`)
       .then((r) => r.json())
       .then((d) => { if (d.block) setBlock(d.block); })
       .catch(() => {});
-    loadAtlas().then((b) => {
+    loadAtlas(base).then((b) => {
       setAtlasCommit(b.atlasCommit);
       setNodeCount(Object.keys(b.docs).length);
     }).catch(() => {});
-  }, []);
+  }, [base]);
+
+  useEffect(() => {
+    if (!preview) { setPreviewRepo(null); return; }
+    fetch(`${base}meta.json`).then((r) => r.json()).then((m) => setPreviewRepo(m.repo)).catch(() => {});
+  }, [base, preview]);
+
+  const atlasRepo = previewRepo ?? "sky-ecosystem/next-gen-atlas";
 
   const buildDate = __BUILD_TIME__.slice(0, 19).replace("T", " ");
   const hasStatus = !online || needRefresh || atlasNeedsUpdate;
@@ -98,7 +111,7 @@ export function Footer() {
       {atlasCommit && (
         <FooterItem>
           <a
-            href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${atlasCommit}`}
+            href={`https://github.com/${atlasRepo}/commit/${atlasCommit}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"
