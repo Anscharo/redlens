@@ -23,8 +23,10 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
         <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
           {c.dateISO}
         </span>
-        <span className="mono text-[10px] text-tan-3">{staleness(c)}</span>
-        <span className="text-xs" style={{ color: "var(--tan)" }}>
+        <span className="mono text-xs" style={{ color: "var(--tan-2)" }}>
+          {staleness(c)}
+        </span>
+        <span className="text-sm" style={{ color: "var(--tan)" }}>
           {c.title}
         </span>
         <AtlasLink
@@ -35,7 +37,7 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
           {c.docNo}
         </AtlasLink>
       </div>
-      <p className="text-[11px] mt-1 ml-4 text-tan-3" style={{ maxWidth: "95ch" }}>
+      <p className="text-[11px] mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
         …{c.context}…
       </p>
     </div>
