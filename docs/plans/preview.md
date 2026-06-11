@@ -45,28 +45,40 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
     decompression-bomb abort and traversal containment. Live-verified end-to-end (real GitHub
     resolve + 13.7MB download + extract of 10,342 docs).
 
-### Next — Step 3b (server wiring). Build in this order; verifiable locally (see env below).
-1. **config + migration + previews-db** — add `githubToken` + `previewEnabled` to
-   `src/server/config.ts`; `src/server/migrations/006_previews.sql`
-   (`sha PK, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, created_at, last_access,
-   doc_count, build_ms`); call `runMigrations()` (`src/server/migrate.ts`) at boot in
-   `index.ts` (idempotent; needed because `sync.ts` only runs it on an *unseeded* DB). New
-   `preview/db.ts`: upsert row, `last_access` touch, daily-quota count
-   (`count(*) where created_at >= date_trunc('day', now() at time zone 'utc')`).
-2. **orchestration + per-sha SSE hub** — one in-process `Map<sha, inflight>` is BOTH the
-   build-dedup and the SSE hub (a 2nd request for the same sha attaches to the in-flight build's
-   event stream). Spawn build-index→graph→glossary via the `spawnCollect` pattern
-   (`atlas-updater.ts:36`) with env `{ ATLAS_SRC_DIR: <srcDir from extract>,
-   ATLAS_OUT_DIR: <sha>/out, ATLAS_ONCHAIN_DIR: config.publicDir, ATLAS_COMMIT: <sha> }` +
-   timeout. **Non-zero build-index exit → `build-failed` (never a 500).** Global cap 2 concurrent
-   + queue. Quota order: count → build → insert-on-success (failed builds stay quota-free). Emit
-   phases resolving→fetching→building→ready|failed; write `meta.json` + upsert row on success.
-3. **handler + diff + wire** — dispatch `/api/preview/*` from the `index.ts` **fetch fallback**
-   (NOT the routes object — need dynamic `:id`/`:sha` segments and `server.requestIP()`):
-   `GET /api/preview/:id/events` (SSE; drives the build), `GET /api/preview/:sha/:artifact.json`
-   (validate 40-hex sha + `artifactPath` allowlist), `GET /api/preview/:sha/diff.json`. Per-IP
-   limit via `server.requestIP`. `previewEnabled` gate. `sha`-kind id → look up repo in previews
-   table; absent → `not-found`.
+- **Step 3b** — this commit. Server wiring, **verified end-to-end over real HTTP** (boot →
+  resolve `main` → SSE `resolving→fetching→building→ready` → artifact + diff). Files:
+  - `config.ts` — `previewEnabled`, `githubToken`, `previewDailyQuota` (13),
+    `previewMaxConcurrentBuilds` (2), `previewBuildTimeoutMs` (120s).
+  - `migrations/006_previews.sql` — the `previews` table; `runMigrations()` now called at boot
+    in `index.ts` (gated on `previewEnabled`) since `sync.ts` only runs it on an unseeded DB.
+  - `preview/db.ts` — `upsertPreview`, `getPreviewRow` (sha→repo recovery), `isKnownSha`,
+    `touchPreview`, `previewsTodayCount` (UTC-day quota). created_at preserved on conflict →
+    re-builds are quota-exempt.
+  - `preview/build.ts` — `getOrStartBuild(resolved)` + `subscribeBuild(sha, send)`. One
+    `Map<sha, Inflight>` = dedup + SSE hub. Spawns index→graph→glossary (`bun`, cwd `config.root`,
+    env `ATLAS_SRC_DIR`/`ATLAS_OUT_DIR`/`ATLAS_ONCHAIN_DIR=publicDir`/`ATLAS_COMMIT`, timeout).
+    Global semaphore (cap 2). Quota count→build→upsert. Non-zero build-index exit → `build-failed`.
+  - `preview/handler.ts` — `handlePreview(req, server, pathname)`, dispatched from the `index.ts`
+    fetch fallback (`fetch(req, server)`). `GET /api/preview/:id/events` (SSE, drives build,
+    per-IP limit via `server.requestIP`), `:sha/diff.json` (diffDocs vs in-memory main, cached by
+    `(sha, mainSha)`, 503 if main not loaded), `:sha/:artifact.json` (40-hex + `artifactPath`
+    allowlist). Resolution TTL cache (60s); `sha`-kind id recovers repo from `previews`.
+  - `preview/handler.test.ts` — 1 `bun test` case (artifact/meta/diff/allowlist/sha-validation).
+  - 58 server `bun test` pass; full vitest 384 + snapshots 134 unaffected.
+
+### Next — Step 4 (frontend). Not started.
+Per the "Frontend — data-source base override" section: keyed loader caches + keyed workers →
+data-source context → `/preview/:id/*` routes (open the SSE, "Preparing preview Sky Atlas…"
+loader) → top banner + first-visit interstitial → green new/changed indicators from `diff.json`
+(P1) → error states → hide reports/chat nav. The SSE event shape is
+`event: preview\ndata: {phase, sha?, code?, message?}` where phase ∈
+resolving|fetching|building|ready|failed and code is a `PreviewErrorCode`.
+
+Also outstanding (server-side, deferred): **PR-state sweep** (P1, worker service — see Banner
+section); the Dockerfile `python3` removal follow-up; and `GITHUB_TOKEN` + `PREVIEW_ENABLED=1`
+must be set on the Railway web service (see Deployment notes). Minor: `subscribeBuild` replays an
+initial `fetching` then the build emits `fetching` again → two identical events (frontend is
+phase-idempotent; harmless).
 
 ### Superseded decisions (the design prose still mentions the old plan — these win)
 - **pg advisory lock DROPPED for MVP** (mentioned ~"Storage, two tiers" + "Resolved during

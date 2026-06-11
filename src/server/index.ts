@@ -16,6 +16,8 @@ import { handleUsage } from "./rate-limit.ts";
 import { handleHistory } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
+import { runMigrations } from "./migrate.ts";
+import { handlePreview } from "./preview/handler.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -78,10 +80,12 @@ const server = Bun.serve({
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
   },
 
-  // Fallback: CORS preflight + MCP endpoint (runtime config path) + static SPA files.
-  async fetch(req: Request) {
+  // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
+  async fetch(req: Request, server) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     const { pathname } = new URL(req.url);
+
+    if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
@@ -158,3 +162,19 @@ startBootEmbeddings();
 
 // In-process atlas freshness updater (no-op unless ATLAS_UPDATE_ENABLED is set).
 startUpdater();
+
+// Preview feature: ensure the previews table exists. runMigrations() is
+// idempotent (skips already-applied files); we call it here because sync.ts only
+// runs migrations on an unseeded DB, so a seeded prod DB would never get the new
+// previews migration otherwise. Detached + best-effort — previews just fail if
+// the DB is unreachable; the rest of the server is unaffected.
+if (config.previewEnabled) {
+  void (async () => {
+    try {
+      await waitForDb();
+      await runMigrations();
+    } catch (e) {
+      console.warn(`preview: migration check failed: ${(e as Error).message}`);
+    }
+  })();
+}
