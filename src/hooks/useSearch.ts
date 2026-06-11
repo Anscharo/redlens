@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { SearchHit, WorkerOutMessage } from "../types";
 import { loadAtlas } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
+import { useDataSource } from "../lib/dataSource";
 
 export type SearchState =
   | { status: "idle" }
@@ -11,6 +12,7 @@ export type SearchState =
   | { status: "error"; message: string };
 
 export function useSearch() {
+  const { base } = useDataSource();
   const workerRef = useRef<Worker | null>(null);
   const readyRef = useRef(false);
   const [ready, setReady] = useState(false);
@@ -20,9 +22,11 @@ export function useSearch() {
   const pendingBeforeReady = useRef<{ q: string; id: number } | null>(null);
 
   useEffect(() => {
-    const worker = new Worker(new URL("../workers/search.worker.ts", import.meta.url), {
-      type: "module",
-    });
+    readyRef.current = false;
+    setReady(false);
+    const url = new URL("../workers/search.worker.ts", import.meta.url);
+    if (base !== import.meta.env.BASE_URL) url.searchParams.set("base", base);
+    const worker = new Worker(url, { type: "module" });
 
     worker.addEventListener("error", (e: ErrorEvent) => {
       console.error("Search worker error:", e.message, e);
@@ -60,13 +64,14 @@ export function useSearch() {
     workerRef.current = worker;
 
     // Forward already-loaded docs + addresses so the search worker doesn't
-    // fetch them again independently (avoids duplicate 5.6 MB downloads).
-    Promise.all([loadAtlas(), loadAddresses()]).then(([bundle, addresses]) => {
+    // fetch them again independently (avoids duplicate 5.6 MB downloads). In
+    // preview, docs come from the preview bundle (base); addresses from main.
+    Promise.all([loadAtlas(base), loadAddresses()]).then(([bundle, addresses]) => {
       worker.postMessage({ type: "preload", docs: bundle.docs, addresses: addresses ?? {} });
     }).catch(() => {});
 
     return () => worker.terminate();
-  }, []);
+  }, [base]);
 
   const search = useCallback((q: string) => {
     const worker = workerRef.current;

@@ -52,7 +52,9 @@ const preloadPromise = new Promise<{ docs: Record<string, AtlasNode>; addresses:
 );
 
 async function init() {
-  const base = import.meta.env.BASE_URL;
+  // Preview passes its bundle base via ?base= (e.g. /api/preview/<sha>/) so the
+  // search index matches the preview docs; default is the live atlas.
+  const base = new URLSearchParams(self.location.search).get("base") ?? import.meta.env.BASE_URL;
   const [idxText, { docs: preloadedDocs, addresses: preloadedAddrs }] = await Promise.all([
     fetchText(`${base}search-index.json`, "search-index.json"),
     preloadPromise,

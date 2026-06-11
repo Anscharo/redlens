@@ -1,7 +1,9 @@
 import type { AtlasNode } from "../types";
 import { fetchJson } from "../lib/verify";
 
-const BASE = import.meta.env.BASE_URL;
+// loadAtlas(base) passes a preview's data-source base as a ?base= query param
+// (e.g. /api/preview/<sha>/); default is the live atlas under BASE_URL.
+const BASE = new URLSearchParams(self.location.search).get("base") ?? import.meta.env.BASE_URL;
 
 function buildAndSend(docs: Record<string, AtlasNode>, atlasCommit: string | null) {
   const docNoToId = new Map<string, string>();

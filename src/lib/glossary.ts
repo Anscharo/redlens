@@ -11,12 +11,14 @@ export type Glossary = Record<string, GlossaryEntry[]>;
 
 type GlossaryLookup = Record<string, GlossaryEntry[]>;
 
-let cached: Promise<Glossary> | null = null;
+// Keyed by data-source base (default = live atlas; a preview passes its bundle base).
+const cache = new Map<string, Promise<Glossary>>();
 
-export function loadGlossary(): Promise<Glossary> {
+export function loadGlossary(base: string = import.meta.env.BASE_URL): Promise<Glossary> {
+  let cached = cache.get(base);
   if (!cached) {
-    const BASE = import.meta.env.BASE_URL;
-    cached = fetch(`${BASE}glossary.json`).then((r) => r.json()).then((f) => f.terms ?? f);
+    cached = fetch(`${base}glossary.json`).then((r) => r.json()).then((f) => f.terms ?? f);
+    cache.set(base, cached);
   }
   return cached;
 }

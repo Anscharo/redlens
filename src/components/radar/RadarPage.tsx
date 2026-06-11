@@ -2,6 +2,7 @@ import { Suspense, use, useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
+import { useDataSource } from "../../lib/dataSource";
 import { buildRewardsIndex } from "../../lib/rewardsIndex";
 import { buildActiveDataRows } from "../../lib/activeDataIndex";
 import { buildSidebarActors, buildActorProfile } from "../../lib/actorIndex";
@@ -24,8 +25,9 @@ interface InnerProps extends Props {
 }
 
 function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps) {
-  const docs = use(loadDocs());
-  const graph = use(loadGraph());
+  const { base } = useDataSource();
+  const docs = use(loadDocs(base));
+  const graph = use(loadGraph(base));
 
   const sidebarGroups = useMemo(() => buildSidebarActors(graph, docs), [graph, docs]);
   const filteredGroups = useMemo(() => {

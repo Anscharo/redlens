@@ -9,14 +9,18 @@ export interface AtlasBundle {
   atlasCommit: string | null;
 }
 
-let cached: Promise<AtlasBundle> | null = null;
+// Cache per data-source base so main → preview → main never serves the wrong
+// bundle. Default base ("/") is the live atlas; a preview passes
+// "/api/preview/<sha>/" (threaded into the worker via a ?base= query param).
+const atlasCache = new Map<string, Promise<AtlasBundle>>();
 
-export function loadAtlas(): Promise<AtlasBundle> {
+export function loadAtlas(base: string = import.meta.env.BASE_URL): Promise<AtlasBundle> {
+  let cached = atlasCache.get(base);
   if (!cached) {
     cached = new Promise<AtlasBundle>((resolve, reject) => {
-      const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
-        type: "module",
-      });
+      const url = new URL("../workers/atlas.worker.ts", import.meta.url);
+      if (base !== import.meta.env.BASE_URL) url.searchParams.set("base", base);
+      const worker = new Worker(url, { type: "module" });
       worker.addEventListener("message", (e) => {
         const msg = e.data;
         if (msg.type === "ready") {
@@ -33,27 +37,30 @@ export function loadAtlas(): Promise<AtlasBundle> {
         }
       });
     }).catch((err) => {
-      cached = null;
+      atlasCache.delete(base);
       throw err;
     });
+    atlasCache.set(base, cached);
   }
-  return cached!;
+  return cached;
 }
 
-// Cache the derived promise so `use(loadDocs())` always sees the same identity
-// across renders. Returning a fresh `.then(...)` each call makes React Suspense
-// treat every render as a new suspended fetch, flashing the fallback and
-// resetting scroll position.
-let docsPromise: Promise<Record<string, AtlasNode>> | null = null;
+// Cache the derived promise per base so `use(loadDocs())` always sees the same
+// identity across renders. Returning a fresh `.then(...)` each call makes React
+// Suspense treat every render as a new suspended fetch, flashing the fallback
+// and resetting scroll position.
+const docsPromises = new Map<string, Promise<Record<string, AtlasNode>>>();
 
-export function loadDocs(): Promise<Record<string, AtlasNode>> {
+export function loadDocs(base: string = import.meta.env.BASE_URL): Promise<Record<string, AtlasNode>> {
+  let docsPromise = docsPromises.get(base);
   if (!docsPromise) {
-    docsPromise = loadAtlas()
+    docsPromise = loadAtlas(base)
       .then((b) => b.docs)
       .catch((err) => {
-        docsPromise = null;
+        docsPromises.delete(base);
         throw err;
       });
+    docsPromises.set(base, docsPromise);
   }
   return docsPromise;
 }

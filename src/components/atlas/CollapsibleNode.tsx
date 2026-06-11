@@ -5,6 +5,7 @@ import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
+import { usePreviewDiff } from "../../lib/previewDiff";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -46,12 +47,19 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   }, [node.doc_no, parentDocNo]);
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
 
+  // Preview redline: green bottom border on docs this branch ADDS. (Changed
+  // docs are tracked too but get word-level underlines — P2 — not a node border,
+  // since "changed vs current main" is noisy until merge-base diffing lands.)
+  // Empty outside preview, so this is a no-op for the live atlas.
+  const diff = usePreviewDiff();
+  const redline = diff.added.has(node.id) ? { borderBottom: "2px solid var(--preview-add)" } : null;
+
   return (
     <article
       id={idPrefix ? `${idPrefix}-${node.id}` : node.id}
       className={`atlas-node relative${isSelected ? " is-selected" : ""}`}
       data-has-hidden={hiddenCount > 0 ? "true" : undefined}
-      style={{ ["--row-color" as string]: color } as React.CSSProperties}
+      style={{ ["--row-color" as string]: color, ...redline } as React.CSSProperties}
       aria-label={`${node.doc_no} — ${node.title}`}
       aria-expanded={hasContent ? isExpanded : undefined}
       tabIndex={0}

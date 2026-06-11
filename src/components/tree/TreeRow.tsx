@@ -4,6 +4,7 @@ import { segmentDepths, chicletColor } from "../../lib/depth";
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
+import { usePreviewDiff } from "../../lib/previewDiff";
 
 export const ROW_HEIGHT = 26;
 const TOGGLE_WIDTH = 12;
@@ -66,6 +67,7 @@ export function TreeRow({
   const title = node?.title ?? "";
   const docNo = node?.doc_no ?? "";
   const treeDepth = item?.treeDepth ?? 0;
+  const diff = usePreviewDiff();
 
   const docNoSegments = useMemo(() => {
     if (!docNo) return { parts: [] as string[], depths: [] as number[], width: 0 };
@@ -93,11 +95,15 @@ export function TreeRow({
   const titleColor = chicletColor(docNoSegments.depths[docNoSegments.depths.length - 1] ?? 0);
   const depthVar = `var(--depth-${Math.min(Math.max(treeDepth, 1), 17)})`;
   const selectedBar = `color-mix(in srgb, ${depthVar} 80%, var(--row-bar-tint))`;
-  const boxShadow = isSelected
+  const baseShadow = isSelected
     ? `inset 3px 0 0 ${selectedBar}`
     : isFocused
       ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px var(--row-hover)`
-      : undefined;
+      : "";
+  // Preview redline: green bottom bar for docs this branch ADDS (changed-doc
+  // word-level underlines are P2; node-level "changed" is noisy pre-merge-base).
+  const redlineShadow = diff.added.has(node.id) ? "inset 0 -2px 0 var(--preview-add)" : "";
+  const boxShadow = [baseShadow, redlineShadow].filter(Boolean).join(", ") || undefined;
 
   return (
     <div

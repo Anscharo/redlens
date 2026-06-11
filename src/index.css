@@ -13,6 +13,7 @@
   --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
   --red-dim: #753021;
   --accent: #c67267; /* browner/pinker — focus, interactive */
+  --preview-add: #57ab5a; /* preview redline: new/changed docs (green) */
   --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
 
   /* ─── Text ─── */
