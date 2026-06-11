@@ -20,22 +20,26 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
       style={{ borderColor: "var(--border)", borderLeft: `2px solid ${tone}` }}
     >
       <div className="flex items-baseline gap-6 flex-wrap">
-        <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
-          {c.dateISO}
+        <span className="flex items-baseline gap-2">
+          <span className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
+            {c.dateISO}
+          </span>
+          <span className="mono text-xs" style={{ color: "var(--tan-2)" }}>
+            {staleness(c)}
+          </span>
         </span>
-        <span className="mono text-xs" style={{ color: "var(--tan-2)" }}>
-          {staleness(c)}
+        <span className="flex items-baseline gap-2">
+          <span className="text-sm" style={{ color: "var(--tan)" }}>
+            {c.title}
+          </span>
+          <AtlasLink
+            to={atlasHref(c.docId)}
+            className="mono text-xs text-accent hover:underline"
+            title={c.title}
+          >
+            {c.docNo}
+          </AtlasLink>
         </span>
-        <span className="text-sm" style={{ color: "var(--tan)" }}>
-          {c.title}
-        </span>
-        <AtlasLink
-          to={atlasHref(c.docId)}
-          className="mono text-xs text-accent hover:underline"
-          title={c.title}
-        >
-          {c.docNo}
-        </AtlasLink>
       </div>
       <p className="text-[11px] mt-1 ml-4" style={{ maxWidth: "95ch", color: "var(--tan-2)" }}>
         …{c.context}…
