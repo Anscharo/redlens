@@ -34,6 +34,7 @@ pnpm build:server    # hosted MCP server pipeline: index + graph + rag (run befo
 REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SHA must be byte-identical
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
+pnpm census:check    # coverage census: warn ([drift]) when uncovered structure clusters appear/grow vs .github/atlas-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 ```
 
 ### Local dev
