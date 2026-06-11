@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../types";
-import { buildStaleDatesReport } from "./staleDates";
+import { buildStaleDatesReport, extractDateClaims } from "./staleDates";
 
 const ROOT = path.resolve(__dirname, "../..");
 const docs: Record<string, AtlasNode> = JSON.parse(
@@ -61,5 +61,139 @@ describe("stale dates report", () => {
       expect(c.context.length).toBeGreaterThan(10);
       expect(c.dateISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Synthetic-content unit tests — exercise each extraction path in isolation,
+// independent of what shapes the current atlas happens to contain.
+// ---------------------------------------------------------------------------
+
+const TODAY_UTC = Date.UTC(2026, 5, 11); // 2026-06-11
+
+function fakeDoc(content: string): AtlasNode {
+  return {
+    id: "00000000-0000-0000-0000-000000000000",
+    doc_no: "A.9.9",
+    title: "Synthetic",
+    type: "Core",
+    depth: 2,
+    parentId: null,
+    order: 0,
+    content,
+    contentHash: "",
+    addressRefs: [],
+  } as unknown as AtlasNode;
+}
+
+function claimsOf(content: string) {
+  return extractDateClaims(fakeDoc(content), TODAY_UTC);
+}
+
+describe("extractDateClaims — date shapes", () => {
+  it('"Month D, YYYY" (day precision)', () => {
+    const { claims } = claimsOf("The transfer will be included in the March 26, 2026 Executive Vote.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ raw: "March 26, 2026", dateISO: "2026-03-26", precision: "day" });
+  });
+
+  it('"D Month YYYY" (day precision, dedupes the inner month-year match)', () => {
+    const { claims, mentions } = claimsOf("The cliff will occur on 17 June 2026.");
+    expect(mentions).toBe(1);
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ raw: "17 June 2026", dateISO: "2026-06-17", precision: "day" });
+  });
+
+  it("ISO YYYY-MM-DD (day precision)", () => {
+    const { claims } = claimsOf("The deployment is scheduled for 2026-04-09.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ raw: "2026-04-09", dateISO: "2026-04-09", precision: "day" });
+  });
+
+  it("Q-quarter resolves to the quarter's last day", () => {
+    const { claims } = claimsOf("Payments will begin in Q2 2026.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ raw: "Q2 2026", dateISO: "2026-06-30", precision: "quarter" });
+  });
+
+  it("month-year resolves to the month's last day (leap year)", () => {
+    const { claims } = claimsOf("The freeze will end in February 2028.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({ raw: "February 2028", dateISO: "2028-02-29", precision: "month" });
+  });
+
+  it("years outside 2015–2100 are not even counted as mentions", () => {
+    expect(claimsOf("The system will launch in March 2101.").mentions).toBe(0);
+    expect(claimsOf("Founded in March 1999, it will expand.").mentions).toBe(0);
+  });
+});
+
+describe("extractDateClaims — tense gating", () => {
+  it("a date without future phrasing produces a mention but no claim", () => {
+    const { claims, mentions } = claimsOf("The grant was disbursed on March 26, 2026.");
+    expect(mentions).toBe(1);
+    expect(claims).toHaveLength(0);
+  });
+
+  it('"by {date}" qualifies without any other marker', () => {
+    const { claims } = claimsOf("Agents must update their artifacts by September 1, 2026.");
+    expect(claims).toHaveLength(1);
+    expect(claims[0].dateISO).toBe("2026-09-01");
+  });
+
+  it("future words hiding in link URLs do not qualify (link stripping)", () => {
+    const { claims, mentions } = claimsOf(
+      "Removed on 2024-04-06. See [the post](https://forum.example/t/this-will-be-scheduled-soon/123).",
+    );
+    expect(mentions).toBe(1);
+    expect(claims).toHaveLength(0);
+  });
+
+  it("future words in link TEXT still qualify (visible text is kept)", () => {
+    const { claims } = claimsOf(
+      "See [the vote that will run on May 1, 2027](https://vote.example/) for details.",
+    );
+    expect(claims).toHaveLength(1);
+  });
+});
+
+describe("extractDateClaims — context split", () => {
+  it("daysUntilStale measures from the provided today", () => {
+    const { claims } = claimsOf("The checklist will apply from June 18, 2026.");
+    expect(claims[0].daysUntilStale).toBe(7);
+  });
+
+  it("splits around the matched occurrence even when the date appears twice", () => {
+    const { claims } = claimsOf(
+      "June 1, 2026 was announced. Work will continue and must end on June 1, 2026.",
+    );
+    expect(claims).toHaveLength(2);
+    // The second claim's before-text contains the first occurrence — an
+    // indexOf-based split in the renderer would have italicized the wrong one.
+    expect(claims[1].contextBefore).toContain("June 1, 2026");
+    expect(claims[1].contextAfter).toBe(".");
+    expect(claims[1].context).toBe(claims[1].contextBefore + claims[1].raw + claims[1].contextAfter);
+  });
+
+  it("collapses internal whitespace in the snippet", () => {
+    const { claims } = claimsOf("The vote\n\nwill be held on   March 26, 2026 as\nplanned.");
+    expect(claims[0].context).toBe("The vote will be held on March 26, 2026 as planned.");
+  });
+});
+
+describe("buildStaleDatesReport — bucketing (synthetic)", () => {
+  it("one doc per bucket lands where expected", () => {
+    const mk = (id: string, content: string) =>
+      ({ ...fakeDoc(content), id, doc_no: `A.9.${id}` }) as AtlasNode;
+    const docs: Record<string, AtlasNode> = {
+      a: mk("a", "The vote will be held on March 26, 2026."), // past → stale
+      b: mk("b", "The vote will be held on June 15, 2026."), // +4d → dueSoon
+      c: mk("c", "The vote will be held on September 1, 2026."), // far → upcoming
+    };
+    const r = buildStaleDatesReport(docs, new Date("2026-06-11T12:00:00Z"));
+    expect(r.stale.map((c) => c.docId)).toEqual(["a"]);
+    expect(r.dueSoon.map((c) => c.docId)).toEqual(["b"]);
+    expect(r.upcoming.map((c) => c.docId)).toEqual(["c"]);
+    expect(r.totalDateMentions).toBe(3);
   });
 });
