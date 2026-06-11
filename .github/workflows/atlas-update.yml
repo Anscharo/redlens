@@ -66,6 +66,7 @@ jobs:
         run: |
           pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm build:graph 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm test:snap:update
           git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
@@ -85,7 +86,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vendor/next-gen-atlas graph-snapshots/__snapshots__
+          git add vendor/next-gen-atlas graph-snapshots/__snapshots__ .github/atlas-census-baseline.json
           git commit -m "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}"
           git push
 

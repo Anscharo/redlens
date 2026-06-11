@@ -197,6 +197,7 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
           address,
           chain: address ? chain : null,
           threshold,
+          threshold_doc_no: slot.threshold.doc_no,
           purpose_doc_no: slot.usage?.doc_no ?? null,
         });
         ent.id = root.id; // doc UUID is the entity id, like instances

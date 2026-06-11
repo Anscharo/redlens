@@ -83,6 +83,8 @@ _From `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` §8_
 
 **New-type tripwire:** `KNOWN_DOC_TYPES` in `scripts/lib/atlas-parser.mjs` mirrors this table. A heading with a `[Type]` outside the set parses normally (content is never dropped) but emits a `[drift] unknown document type` warning, and `parser.test.ts` fails CI until the type is reviewed — either handled by an extraction pattern or deliberately added to the set. Build stderr from atlas updates is diffed against `.github/atlas-warnings-baseline.txt` by `atlas-update.yml`; new lines open/append an `atlas-drift` issue for analysis.
 
+**Coverage census tripwire:** `pnpm census:check` (`scripts/required/check-atlas-census.mjs` + `scripts/lib/census-fingerprint.mjs`) fingerprints every doc by structural shape (data tables, addresses, backtick-bullet params, stereotyped relationship sentences) and counts, per fingerprint, the docs that contributed nothing to `graph.json` (no non-incidental edge endpoint, no `source_doc_nos` credit, no entity meta reference). New signal clusters with uncovered docs — or growth in existing ones — emit `[drift] census:` warnings against the committed `.github/atlas-census-baseline.json` (auto-updated by `atlas-update.yml` in the bump commit, like snapshots). This is the generalized "atlas started encoding a structure no pattern handles" detector — when a pattern consumes a doc, credit it in `source_doc_nos` or entity meta (e.g. multisig `threshold_doc_no`) or the census will count it as uncovered.
+
 ### Special directory numbers
 
 - `.0.3` = Element Annotation Directory
