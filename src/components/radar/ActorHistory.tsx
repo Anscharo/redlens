@@ -153,11 +153,18 @@ export function ActorHistory({ profile }: Props) {
       const docCategory = buildDocCategoryMap(profile, byParent);
       // One batched round-trip instead of one request per doc — an actor like
       // Spark spans ~1.2k docs once instance subtrees are included.
-      loadHistoryBatch([...docCategory.keys()]).then((byDoc) => {
+      return loadHistoryBatch([...docCategory.keys()]).then((byDoc) => {
         if (cancelled) return;
         setEntries(mergeByCommit([...byDoc], docCategory, docs));
         setLoading(false);
       });
+    }).catch(() => {
+      // loadHistoryBatch swallows its own errors, but loadAtlas can reject
+      // (worker / docs.json failure). Without this the panel would hang on
+      // "loading history…" forever — degrade to the empty state instead.
+      if (cancelled) return;
+      setEntries([]);
+      setLoading(false);
     });
     return () => { cancelled = true; };
   }, [profile, docs]);
