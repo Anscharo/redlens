@@ -191,8 +191,29 @@ validation cross-check). Then run the existing ancestor-stack for `parentId`.
    Any disagreement between the two encodings aborts the build (previews: surfaces as
    `build-failed`).
 
-**Payoff**: removes `python3` + `compose.py` from the build entirely — no python in the
-previews path or the runtime image; main pipeline simplifies too.
+> **IMPLEMENTED (step 1, 2026-06-11).** `parseTree()` + `checkTreeInvariants()` in
+> `scripts/lib/atlas-parser.mjs`; build-index wired to it (compose/python removed, monolith
+> `parse()` kept as fallback); A/B harness at `scripts/aux/ab-parse-check.mjs`. Gates all green
+> (A/B byte-identical 10,342 nodes × 9 fields; test:snap 134; REPRO; full suite 383). Two
+> decisions from review to carry into step 3:
+>
+> - **`parseTree` is STRICTER than compose.py** — it *throws* on the invariants above; compose.py
+>   only warns-and-continues (unemitted docs, orphan NRs) and never checks path==docNo. Identical
+>   on today's well-formed atlas. But a messy unmerged PR (hand-edited `docNo` without moving the
+>   folder, transient dup uuid) will hard-fail `parseTree`. **Decided: hard-fail is correct for
+>   MVP** — the build-index subprocess exits non-zero, which the step-3 server maps to the
+>   existing `build-failed` error state with a clear message. Degrade-to-best-effort is a P2
+>   option, not MVP. The step-3 server MUST treat a non-zero build-index exit as `build-failed`
+>   (not a 500), so an invariant violation reads as "this PR can't be previewed: <reason>".
+> - **`_index.md` is deliberately NOT a hard cross-check.** compose.py — the byte-identity
+>   authority — ignores `_index.md` entirely and orders by folder integer-sort; making `_index.md`
+>   authoritative would risk *false-failing* trees where compose succeeds (stale `_index.md`, valid
+>   folders). The folder walk is the source of truth; `_index.md` is decompose-generated/derived.
+
+**Payoff**: removes `python3` + `compose.py` from the build entirely — confirmed: every
+`execFileSync`/`spawn` left in `scripts/required` + `scripts/lib` is `git`, none python. No
+python in the previews path or the runtime image; main pipeline simplifies too. (Follow-up:
+the Dockerfile builder stage can drop its `python3` apt install.)
 
 **Scope boundary**: `build-history` time-travels across the pre-decomposition era (before atlas
 commit `15909e53` there was no `content/**`) and keeps its existing compose-based path for old
