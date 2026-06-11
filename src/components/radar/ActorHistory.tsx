@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { CHANGE_COLOR, loadHistory, type HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, loadHistoryBatch, type HistoryEntry } from "../../lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "../../types";
 import { ROUTES } from "../../lib/routes";
 import { useRadar } from "./RadarContext";
+import { loadAtlas } from "../../lib/docs";
+import { descendantIds } from "../../lib/instanceDescendants";
 import { shortenTitle } from "../../lib/shortenTitle";
 import { ROW_COLORS, BORDER } from "./primitiveTable";
 
-type Category = "definition" | "instance" | "param" | "primitive" | "reward";
+type Category = "definition" | "instance" | "param" | "primitive" | "reward" | "config";
 type ChangeKind = "lint" | "typo" | "semantic";
 
 interface AffectedDoc {
@@ -38,6 +40,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   param: "instance parameter",
   primitive: "primitive agent owns",
   reward: "rewards primitive",
+  config: "instance config",
 };
 
 const CATEGORY_TOOLTIP: Record<Category, string> = {
@@ -46,6 +49,7 @@ const CATEGORY_TOOLTIP: Record<Category, string> = {
   param: "A document that is the source of a parameter for one of this agent's instances.",
   primitive: "A primitive that this agent is authorized to own and invoke.",
   reward: "The rewards primitive linked to this agent's compensation.",
+  config: "A configuration document nested inside one of this agent's instances (e.g. rate limits, contract addresses, off-chain parameters).",
 };
 
 const CHANGE_INDICATOR: Record<string, string> = {
@@ -54,7 +58,10 @@ const CHANGE_INDICATOR: Record<string, string> = {
   removed: "−",
 };
 
-function buildDocCategoryMap(profile: ActorProfile): Map<string, Category> {
+function buildDocCategoryMap(
+  profile: ActorProfile,
+  byParent: Map<string | null, AtlasNode[]>,
+): Map<string, Category> {
   const map = new Map<string, Category>();
   // Invocation ICDs feed into history alongside instance ICDs — they're the
   // same kind of governance doc, just at a different lifecycle stage.
@@ -65,7 +72,15 @@ function buildDocCategoryMap(profile: ActorProfile): Map<string, Category> {
   }
   if (profile.rewardsAgent?.dr?.primitiveId) map.set(profile.rewardsAgent.dr.primitiveId, "reward");
   if (profile.rewardsAgent?.ib?.primitiveId) map.set(profile.rewardsAgent.ib.primitiveId, "reward");
-  // Param-source docs first so the instance-root override wins if a param
+  // Every doc nested under an instance/invocation root, so subtree edits (rate
+  // limits, contract addresses, off-chain params) surface. Written before
+  // param/instance/definition so those more-specific categories override a doc
+  // that is both a descendant and, say, a param source.
+  for (const inst of icds) {
+    if (!inst.docId) continue;
+    for (const id of descendantIds(inst.docId, byParent)) map.set(id, "config");
+  }
+  // Param-source docs next so the instance-root override wins if a param
   // points at its own config root (rare but possible).
   for (const inst of icds) {
     for (const p of inst.signalParams) {
@@ -131,15 +146,19 @@ export function ActorHistory({ profile }: Props) {
     let cancelled = false;
     setLoading(true);
     setEntries(null);
-    const docCategory = buildDocCategoryMap(profile);
-    const ids = [...docCategory.keys()];
-    Promise.all(ids.map((id) => loadHistory(id).then((h) => [id, h ?? []] as const))).then(
-      (results) => {
+    // byParent is the doc_no-based tree (loadAtlas → atlas.worker); needed to
+    // expand instance roots into their nested config docs. Cached promise.
+    loadAtlas().then(({ byParent }) => {
+      if (cancelled) return;
+      const docCategory = buildDocCategoryMap(profile, byParent);
+      // One batched round-trip instead of one request per doc — an actor like
+      // Spark spans ~1.2k docs once instance subtrees are included.
+      loadHistoryBatch([...docCategory.keys()]).then((byDoc) => {
         if (cancelled) return;
-        setEntries(mergeByCommit(results, docCategory, docs));
+        setEntries(mergeByCommit([...byDoc], docCategory, docs));
         setLoading(false);
-      },
-    );
+      });
+    });
     return () => { cancelled = true; };
   }, [profile, docs]);
 
@@ -216,6 +235,12 @@ function Entry({ entry }: { entry: MergedEntry }) {
 }
 
 function DocTable({ docs }: { docs: AffectedDoc[] }) {
+  // Nested instance-config edits are the noisy long tail — collapse them by
+  // default so the agent-level docs (definition, instance, params) stay legible.
+  const [showConfig, setShowConfig] = useState(false);
+  const primary = docs.filter((d) => d.category !== "config");
+  const config = docs.filter((d) => d.category === "config");
+  const visible = showConfig ? [...primary, ...config] : primary;
   return (
     <table className="w-full mono text-[10px]" style={{ borderCollapse: "collapse", tableLayout: "fixed" }}>
       <colgroup>
@@ -233,7 +258,22 @@ function DocTable({ docs }: { docs: AffectedDoc[] }) {
         </tr>
       </thead>
       <tbody>
-        {docs.map((d, i) => <DocRow key={d.docId} doc={d} rowIndex={i} />)}
+        {visible.map((d, i) => <DocRow key={d.docId} doc={d} rowIndex={i} />)}
+        {config.length > 0 && (
+          <tr>
+            <td colSpan={4} className="py-1">
+              <button
+                className="mono text-[10px] hover:underline focus-visible:underline"
+                style={{ color: "var(--tan-3)" }}
+                onClick={() => setShowConfig((s) => !s)}
+                aria-expanded={showConfig}
+              >
+                {showConfig ? "▾ hide" : `▸ +${config.length}`} instance config{" "}
+                {config.length === 1 ? "change" : "changes"}
+              </button>
+            </td>
+          </tr>
+        )}
       </tbody>
     </table>
   );

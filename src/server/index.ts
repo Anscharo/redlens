@@ -13,7 +13,7 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
-import { handleHistory } from "./history.ts";
+import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 
@@ -71,6 +71,8 @@ const server = Bun.serve({
       });
     },
 
+    // Static segment wins over the `:id` param route, so this matches first.
+    "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
