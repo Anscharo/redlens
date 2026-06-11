@@ -86,5 +86,88 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/11/2/1/7/1/document.md",
     "movedTo": "content/A/1/12/2/1/7/1/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "An Atlas Edit Proposal can be blocked by the Core Facilitator"
+          ],
+          [
+            "-",
+            " for misalignment. Unanimity among the Core Facilitators is not required to block an AEP"
+          ],
+          [
+            "=",
+            " for misalignment."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "Where an AEP has been blocked for misalignment, the Core Facilitator must update the AEP status as \"Rejected-Misaligned\"."
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "-",
+            "Each"
+          ],
+          [
+            "+",
+            "The"
+          ],
+          [
+            "=",
+            " Core Facilitator should issue a written advisory opinion containing their findings/reasoning"
+          ],
+          [
+            "-",
+            " either supporting or rejecting"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "the"
+          ],
+          [
+            "+",
+            "for"
+          ],
+          [
+            "=",
+            " blocking"
+          ],
+          [
+            "-",
+            " of"
+          ],
+          [
+            "=",
+            " the AEP."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

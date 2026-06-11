@@ -1,0 +1,30 @@
+[
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "Upon delivery of the interim audit report, the team responsible for the audited code reviews the report and confirms that the audited scope and commit hash match the audit request. The audited artifact must not proceed to deployment, Spell inclusion, or governance vote until the team has accepted the report."
+      ],
+      [
+        "+",
+        ""
+      ],
+      [
+        "+",
+        "An audit is considered complete when the final audit report is published at the independently verifiable hosting location specified in [A.1.10.2.7.3 - Audit Execution And Report Delivery](31544b57-28e8-4cee-b4ae-f73c2cacabad)."
+      ],
+      [
+        "+",
+        ""
+      ],
+      [
+        "+",
+        "If the interim audit report identifies findings, the artifact must not proceed to deployment, Spell inclusion, or governance vote until the remediation process specified in [A.1.10.2.7.5 - Findings Remediation](80eab9dd-3833-4418-9845-b648e19fb72f) is completed."
+      ]
+    ]
+  }
+]

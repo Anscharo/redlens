@@ -185,5 +185,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "99a267c",
+    "commitSeq": 1095,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "- LTV: 81%"
+      ],
+      [
+        "=",
+        "- Liquidation Threshold: 82%"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- E-mode Category: "
+          ],
+          [
+            "-",
+            "BTC"
+          ],
+          [
+            "+",
+            "0"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Liquidation Bonus: 8%"
+      ],
+      [
+        "=",
+        "- Reserve Factor: 20%"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]
