@@ -78,6 +78,15 @@ async function main() {
     process.exit(1);
   }
 
+  // Stale-dates log runs every cycle (before the early-exit gate): its output
+  // changes with the calendar even when the atlas SHA hasn't moved. Uses the
+  // docs.json from the image/previous build — best-effort, never fatal.
+  try {
+    run("bun", ["scripts/required/check-stale-dates.mjs"]);
+  } catch (err) {
+    console.warn(`atlas-worker: stale-dates check failed: ${err?.message ?? err}`);
+  }
+
   const db = new SQL(process.env.DATABASE_URL);
 
   // ── Lightweight check ─────────────────────────────────────────────────────

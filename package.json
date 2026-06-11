@@ -16,6 +16,7 @@
     "atlas:worker": "bun scripts/required/atlas-worker.mjs",
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "census:check": "node scripts/required/check-atlas-census.mjs",
+    "dates:check": "bun scripts/required/check-stale-dates.mjs",
     "processes:check": "node scripts/required/check-processes-dirty.mjs",
     "processes:triage": "bash scripts/aux/processes-triage.sh",
     "processes:apply-decisions": "node scripts/aux/processes-apply-decisions.mjs",
