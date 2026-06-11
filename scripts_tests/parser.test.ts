@@ -10,6 +10,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import type { AtlasNode } from "../src/types";
+// @ts-expect-error — .mjs import from TypeScript test
 import { KNOWN_DOC_TYPES } from "../scripts/lib/atlas-parser.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
