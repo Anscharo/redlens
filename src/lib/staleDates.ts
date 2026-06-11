@@ -3,8 +3,7 @@
 // atlas asserts something will happen that should already have happened
 // (executed-but-not-retensed, or slipped). Pure data logic: the report
 // component recomputes on every load, so it tracks both atlas updates (fresh
-// docs.json) and the actual date; scripts/required/check-stale-dates.mjs runs
-// the same code from the atlas cron worker.
+// docs.json) and the actual date — no build step or stored artifact.
 
 import type { AtlasNode } from "../types";
 

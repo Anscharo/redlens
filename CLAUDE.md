@@ -35,7 +35,6 @@ REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SH
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
 pnpm census:check    # coverage census: warn ([drift]) when uncovered structure clusters appear/grow vs .github/atlas-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
-pnpm dates:check     # stale-dates check (bun): future-tense claims with past dates from public/docs.json + the actual date. Run by the atlas worker every cron cycle (before its early-exit gate). Always exits 0.
 ```
 
 ### Local dev
@@ -144,7 +143,7 @@ Entity-focused view at `/radar` (index) and `/radar/:slug` (actor page). Builds 
 
 **Reports (`src/components/reports/`):**
 
-Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step, can't serve a stale view); the same logic runs from the atlas cron worker via `pnpm dates:check`.
+Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step or worker involvement — it can't serve a stale view).
 
 **Graph snapshots (`graph-snapshots/`):**
 
