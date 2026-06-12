@@ -147,7 +147,7 @@ Color tokens live as CSS variables in `src/index.css`:
 - `--bg #160e0d` (charcoal w/ red undertone), `--surface`, `--hover #3a1f1a`
 - `--red #a63228`, `--accent #c67267` (links/focus, browner-pinker — _not_ the original error-looking red)
 - `--tan #f3e7ce` / `--tan-2` / `--tan-3` (tans/browns)
-- Fonts: Lora (serif body), Source Code Pro (mono)
+- Fonts: Inter (body), Source Code Pro (mono)
 - KaTeX is overridden to use `--tan` color
 
 Selected-node treatment: red left bar, transparent background, brighter text. Don't add backgrounds to the selected node.

@@ -62,27 +62,28 @@
   --entity-instance: #7a8a9c;
   --entity-fallback: #888888;
 
-  --max-prose-width: 68ch;
+  --max-prose-width: 90ch;
 
   /* ─── Depth palette ─── */
-  /* 5-color jewel-tone cycle (red, orange, green, blue, purple) starting at depth-1, looping through depth-17. */
-  --depth-1: #b40000;  /* red */
-  --depth-2: #a36600;  /* orange */
-  --depth-3: #269929;  /* green */
-  --depth-4: #4b6cd9;  /* blue */
-  --depth-5: #7800f0;  /* purple */
-  --depth-6: #b40000;  /* red */
-  --depth-7: #a36600;  /* orange */
-  --depth-8: #269929;  /* green */
-  --depth-9: #4b6cd9;  /* blue */
-  --depth-10: #7800f0; /* purple */
-  --depth-11: #b40000; /* red */
-  --depth-12: #a36600; /* orange */
-  --depth-13: #269929; /* green */
-  --depth-14: #4b6cd9; /* blue */
-  --depth-15: #7800f0; /* purple */
-  --depth-16: #b40000; /* red */
-  --depth-17: #a36600; /* orange */
+  /* 5-color jewel-tone cycle (red, orange, green, blue, purple) starting at depth-1, looping through depth-17.
+     All five pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify with wcag-contrast before changing. */
+  --depth-1: #e25549;  /* red */
+  --depth-2: #d98e2b;  /* orange */
+  --depth-3: #55a653;  /* green */
+  --depth-4: #6e8ee8;  /* blue */
+  --depth-5: #a878e8;  /* purple */
+  --depth-6: #e25549;  /* red */
+  --depth-7: #d98e2b;  /* orange */
+  --depth-8: #55a653;  /* green */
+  --depth-9: #6e8ee8;  /* blue */
+  --depth-10: #a878e8; /* purple */
+  --depth-11: #e25549; /* red */
+  --depth-12: #d98e2b; /* orange */
+  --depth-13: #55a653; /* green */
+  --depth-14: #6e8ee8; /* blue */
+  --depth-15: #a878e8; /* purple */
+  --depth-16: #e25549; /* red */
+  --depth-17: #d98e2b; /* orange */
 }
 
 /* Light theme — fill in when the toggle is wired up.
@@ -344,7 +345,7 @@ mark {
      the cached size can go stale as nodes expand/collapse during navigation,
      causing layout to shift unexpectedly when clicking — re-enable only with a
      proper virtualizer if scroll perf becomes a problem. */
-  padding: 7px 4px 9px 10px;
+  padding: 1.6px 4px 3.4px 10px;
   margin-left: 4px;
   border-radius: 4px;
   scroll-margin-top: 64px; /* HEADER_OFFSET in src/lib/layout.ts — keep in sync */
@@ -520,9 +521,9 @@ mark {
 }
 
 .atlas-node-body {
-  padding-bottom: 24px;
-  margin-top: 8px;
-  margin-left: 12px; 
+  padding-bottom: 12.6px;
+  margin-top: 4.5px;
+  margin-left: 12px;
 }
 
 /* ─── Custom color utilities ─── */
@@ -759,9 +760,9 @@ mark {
 
 /* ─── Atlas markdown content ─── */
 .atlas-md p {
-  margin-bottom: 0.75rem;
-  line-height: 1.625;
-  font-size: 1rem;
+  margin-bottom: 0.625rem;
+  line-height: 1.55;
+  font-size: 0.9rem;
   max-width: var(--max-prose-width);
   color: var(--tan-2);
 }
@@ -771,9 +772,9 @@ mark {
 .atlas-md ul,
 .atlas-md ol {
   max-width: var(--max-prose-width);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.625rem;
   padding-left: 1.25rem;
-  font-size: 1rem;
+  font-size: 0.9rem;
   color: var(--tan-2);
 }
 .atlas-md ul {
@@ -827,7 +828,7 @@ mark {
   padding-left: 0.75rem;
   margin-bottom: 0.75rem;
   font-style: italic;
-  font-size: 1rem;
+  font-size: 0.9rem;
   border-left: 3px solid var(--border);
   color: var(--tan-3);
 }

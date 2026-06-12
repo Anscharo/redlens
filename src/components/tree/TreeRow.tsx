@@ -5,7 +5,7 @@ import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
 
-export const ROW_HEIGHT = 26;
+export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
 

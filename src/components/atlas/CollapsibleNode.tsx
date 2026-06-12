@@ -8,7 +8,7 @@ import { useAtlasActions } from "./AtlasActionsContext";
 
 const DRAG_THRESHOLD_PX = 4;
 
-const TITLE_CLASS = "text-xl font-bold";
+const TITLE_CLASS = "text-lg font-bold";
 
 export const CollapsibleNode = memo(function CollapsibleNode({
   entry,
