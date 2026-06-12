@@ -17,7 +17,13 @@ const cache = new Map<string, Promise<Glossary>>();
 export function loadGlossary(base: string = import.meta.env.BASE_URL): Promise<Glossary> {
   let cached = cache.get(base);
   if (!cached) {
-    cached = fetch(`${base}glossary.json`).then((r) => r.json()).then((f) => f.terms ?? f);
+    cached = fetch(`${base}glossary.json`)
+      .then((r) => r.json())
+      .then((f) => f.terms ?? f)
+      .catch((err) => {
+        cache.delete(base); // don't cache the rejection — retry on next call
+        throw err;
+      });
     cache.set(base, cached);
   }
   return cached;

@@ -28,6 +28,10 @@ interface HistoryQueryRow {
   moved_from: string | null;
   moved_to: string | null;
   diff: DiffLine[] | string | null;
+  change_kind: string | null;
+  review_count: number | null;
+  approval_count: number | null;
+  comment_count: number | null;
 }
 
 /** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
@@ -69,6 +73,10 @@ export function toEntry(row: HistoryQueryRow): HistoryEntry {
   if (diff) entry.diff = diff;
   if (row.moved_from) entry.movedFrom = row.moved_from;
   if (row.moved_to) entry.movedTo = row.moved_to;
+  if (row.change_kind) entry.changeKind = row.change_kind as HistoryEntry["changeKind"];
+  if (row.review_count != null) entry.reviewCount = row.review_count;
+  if (row.approval_count != null) entry.approvalCount = row.approval_count;
+  if (row.comment_count != null) entry.commentCount = row.comment_count;
   return entry;
 }
 
@@ -79,7 +87,8 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
   try {
     const rows = await sql<HistoryQueryRow[]>`
       SELECT commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
-             pr_author, summary, description, moved_from, moved_to, diff
+             pr_author, summary, description, moved_from, moved_to, diff,
+             change_kind, review_count, approval_count, comment_count
       FROM atlas_history
       WHERE doc_id = ${nodeId}
       ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST

@@ -53,7 +53,7 @@ export type WorkerInMessage =
 export type WorkerOutMessage =
   | { type: "ready" }
   | { type: "results"; id: number; hits: SearchHit[]; durationMs: number }
-  | { type: "error"; id: number; message: string };
+  | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
 // ---------------------------------------------------------------------------
 // Graph types (relations.json — compact keys to minimise payload)

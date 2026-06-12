@@ -399,5 +399,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
 });
 
 init().catch((err) => {
-  console.error("Search worker init failed:", err);
+  // Surface the failure to the main thread — a silent catch leaves useSearch
+  // in "loading" forever (the graph/atlas workers post the same way).
+  post({ type: "error", message: String(err) });
 });

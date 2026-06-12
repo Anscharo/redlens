@@ -122,7 +122,23 @@ export function buildOverrideSnippet(
 
 export const ALL_TOKEN_NAMES: readonly string[] = PALETTE_TOKENS.map((t) => t.name);
 
-/** Read the current stylesheet value of a CSS custom property (not any inline override). */
+// Stylesheet defaults are static per page load, so cache after first read.
+const defaultCache = new Map<string, string>();
+
+/** Read the stylesheet default of a CSS custom property. getComputedStyle
+ *  reflects inline overrides (set pre-paint by index.html and by apply()),
+ *  so any inline value is lifted for the read and restored — otherwise an
+ *  overridden token reports its override as the "default" and both the
+ *  back-to-default check and buildOverrideSnippet compare against the wrong
+ *  baseline. */
 export function cssDefault(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+  const hit = defaultCache.get(name);
+  if (hit !== undefined) return hit;
+  const root = document.documentElement;
+  const inline = root.style.getPropertyValue(`--${name}`);
+  if (inline) root.style.removeProperty(`--${name}`);
+  const value = getComputedStyle(root).getPropertyValue(`--${name}`).trim();
+  if (inline) root.style.setProperty(`--${name}`, inline);
+  defaultCache.set(name, value);
+  return value;
 }
