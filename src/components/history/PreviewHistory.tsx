@@ -1,0 +1,68 @@
+import { useEffect, useState } from "react";
+import { useDataSource } from "../../lib/dataSource";
+import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
+import { NodeHistory } from "./NodeHistory";
+import { DiffView } from "./DiffView";
+
+// History tab in preview mode. The real per-doc history lives in Postgres for
+// the *live* atlas, which is meaningless for an unmerged branch — so instead we
+// synthesize "this preview adds/changes this doc" from the accurate diff, with a
+// link to the source. (Diff-as-history; real per-commit history is P2.)
+const CANONICAL = "sky-ecosystem/next-gen-atlas";
+
+interface Meta {
+  ref: string;
+  kind: string;
+  repo: string;
+  sha: string;
+  prNumber?: number;
+  prTitle?: string;
+  prAuthor?: string;
+}
+
+export function PreviewHistory({ nodeId }: { nodeId: string }) {
+  const { base } = useDataSource();
+  const diff = usePreviewDiff();
+  const patch = usePreviewPatch(nodeId);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  useEffect(() => {
+    fetch(`${base}meta.json`).then((r) => r.json()).then(setMeta).catch(() => {});
+  }, [base]);
+
+  const status = diff.added.has(nodeId) ? "Added" : diff.changed.has(nodeId) ? "Changed" : null;
+  const srcUrl = meta
+    ? meta.kind === "pr" && meta.prNumber
+      ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
+      : `https://github.com/${meta.repo}/commit/${meta.sha}`
+    : null;
+  const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? "this preview";
+
+  return (
+    <div className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      {status ? (
+        <div className="pl-3 pb-3" style={{ borderLeft: "2px solid var(--preview-add)" }}>
+          <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>{status} in this preview</div>
+          <div className="mt-1">
+            {label}
+            {meta?.prAuthor ? ` · by ${meta.prAuthor}` : ""}
+          </div>
+          {srcUrl && (
+            <a href={srcUrl} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
+              view on GitHub →
+            </a>
+          )}
+          {patch && patch.length > 0 && <DiffView lines={patch} />}
+        </div>
+      ) : (
+        <p>Unchanged by this preview.</p>
+      )}
+      {/* Below the preview pseudo-entry, the doc's real main-branch history.
+          UUIDs are stable across the PR, so /api/history/<uuid> resolves the
+          live history for changed docs; added docs (new UUID) show empty. */}
+      <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="mb-2" style={{ color: "var(--tan-3)" }}>On the live atlas</div>
+        <NodeHistory nodeId={nodeId} />
+      </div>
+    </div>
+  );
+}

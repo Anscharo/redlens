@@ -16,11 +16,13 @@ import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../indexes.ts";
 import { decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
-import { previewPaths, artifactPath, bundleReady, touch } from "./cache.ts";
-import { getPreviewRow, touchPreview } from "./db.ts";
+import { previewPaths, artifactPath, bundleReady, touch, remove as removeBundle } from "./cache.ts";
+import { getPreviewRow, touchPreview, isBlockedSha } from "./db.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
-const CORS = { "access-control-allow-origin": "*" };
+// noindex on every preview response: unreviewed (possibly fork) content must
+// never be search-indexed under our domain (SEO-laundering defense).
+const CORS = { "access-control-allow-origin": "*", "x-robots-tag": "noindex" };
 const gh = makeGhClient(config.githubToken);
 
 // Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
@@ -135,6 +137,12 @@ async function drive(rawId: string, ip: string, send: (ev: PreviewEvent) => void
     return () => {};
   }
   const sha = r.sha;
+  // Admin takedown: a blocked sha neither serves its cached bundle nor rebuilds.
+  if (await isBlockedSha(sha).catch(() => false)) {
+    removeBundle(sha);
+    send({ phase: "failed", code: "not-found" });
+    return () => {};
+  }
   if (bundleReady(sha)) {
     touch(sha);
     void touchPreview(sha).catch(() => {});
@@ -147,6 +155,12 @@ async function drive(rawId: string, ip: string, send: (ev: PreviewEvent) => void
 
 function diffResponse(sha: string): Response {
   if (!bundleReady(sha)) return json({ error: "not-found" }, 404);
+  // PR previews ship an accurate diff.json in the bundle (GitHub PR files);
+  // serve it directly. Branch/sha previews fall through to the vs-main hash diff.
+  const bundleDiff = path.join(previewPaths(sha).outDir, "diff.json");
+  if (fs.existsSync(bundleDiff)) {
+    return new Response(Bun.file(bundleDiff), { headers: { "Content-Type": "application/json", ...CORS } });
+  }
   const ix = getIndexes();
   if (ix.docMap.size === 0) return json({ error: "main-not-ready" }, 503);
   const mainSha = ix.meta.atlasCommit ?? "unknown";
@@ -163,10 +177,18 @@ function diffResponse(sha: string): Response {
   return json(diff, 200);
 }
 
-function artifactResponse(sha: string, name: string): Response {
+async function artifactResponse(sha: string, name: string): Promise<Response> {
   const p = artifactPath(sha, name);
   if (!p || !fs.existsSync(p)) return json({ error: "not-found" }, 404);
   touch(sha);
+  // meta.json: overlay the live pr_state from the DB (the PR-state worker keeps
+  // it current) so banners flip to merged/closed without a rebuild.
+  if (name === "meta.json") {
+    const meta = JSON.parse(fs.readFileSync(p, "utf8"));
+    const row = await getPreviewRow(sha).catch(() => null);
+    if (row?.pr_state) meta.prState = row.pr_state;
+    return json(meta, 200);
+  }
   return new Response(Bun.file(p), { headers: { "Content-Type": "application/json", ...CORS } });
 }
 
@@ -175,7 +197,7 @@ function json(body: unknown, status: number): Response {
 }
 
 /** Dispatch /api/preview/* . pathname includes the leading "/api/preview/". */
-export function handlePreview(req: Request, server: Server, pathname: string): Response {
+export function handlePreview(req: Request, server: Server, pathname: string): Response | Promise<Response> {
   if (!config.previewEnabled) return json({ error: "not-found" }, 404);
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);

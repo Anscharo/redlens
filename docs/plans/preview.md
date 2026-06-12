@@ -66,21 +66,73 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
   - `preview/handler.test.ts` — 1 `bun test` case (artifact/meta/diff/allowlist/sha-validation).
   - 58 server `bun test` pass; full vitest 384 + snapshots 134 unaffected.
 
-### Next — Step 4 (frontend). Not started.
-Per the "Frontend — data-source base override" section: keyed loader caches + keyed workers →
-data-source context → `/preview/:id/*` routes (open the SSE, "Preparing preview Sky Atlas…"
-loader) → top banner + first-visit interstitial → green new/changed indicators from `diff.json`
-(P1) → error states → hide reports/chat nav. The SSE event shape is
-`event: preview\ndata: {phase, sha?, code?, message?}` where phase ∈
-resolving|fetching|building|ready|failed and code is a `PreviewErrorCode`.
+- **Step 4** — committed (`358a28cd` + `5c97f963`). Unified preview frontend: `DataSourceContext`
+  ({base, preview}); `loadAtlas/loadDocs/loadGraph/loadGlossary` + atlas & search workers take a
+  base (keyed / `?base=`); `useAtlasData`/`useAtlasTree`/`RadarPage`/`useSearch`/`Footer` read it.
+  `/preview/:id/*` mounts the SAME `<App/>` under a wouter `<Router base>` via `PreviewGate` (SSE
+  loader → reader/radar/search render against the preview bundle). Banner (links to GitHub
+  source). Reports + chat hidden. Footer preview-aware. Right-panel graph relations DISABLED in
+  preview (graph worker is a main-only singleton — keying it is the remaining P1).
 
-Also outstanding (server-side, deferred): **PR-state sweep** (P1, worker service — see Banner
-section); the Dockerfile `python3` removal follow-up; and `GITHUB_TOKEN` + `PREVIEW_ENABLED=1`
-must be set on the Railway web service (see Deployment notes). Minor: `subscribeBuild` replays an
-initial `fetching` then the build emits `fetching` again → two identical events (frontend is
-phase-idempotent; harmless).
+- **Step 5** — this commit. PR-state worker + accurate diff + redline UI:
+  - **PR-state worker** — `src/server/preview/pr-state.ts` `sweepPrStates(sql)`, run each cron
+    tick at the top of `scripts/required/atlas-worker.mjs` (before the atlas early-exit). Updates
+    `previews.pr_state`; the web service overlays it when serving `meta.json` (`handler.ts`
+    `artifactResponse` special-cases meta) so banners flip merged/closed without rebuilding.
+  - **Accurate diff** — `src/server/preview/pr-diff.ts`: for PRs, GitHub `/pulls/{n}/files`
+    (head vs base = merge-base accurate) → map `content/**/document.md` paths → doc ids
+    (`pathToDocNo`); written into the bundle `diff.json` at build time (`build.ts`). `diffResponse`
+    serves the bundle diff for PRs, falls back to the vs-main hash diff for branch/sha. Decisive:
+    pull-256 = 38 added/0 changed, pull-257 = 0/3 — vs the hash diff's 41/381 and 3/397.
+  - **Redline UI** — added → solid green border, changed → dashed (`CollapsibleNode` + `TreeRow`),
+    now that changed is accurate. **Pseudo-history**: `PreviewHistory.tsx` (RightPanel branches
+    `preview ? PreviewHistory : NodeHistory`) shows "Added/Changed in this preview · pull-N · by
+    author" + GitHub link, suppressing the main `/api/history` fetch. **Only-changed toggle**:
+    `PreviewViewProvider` (onlyChanged) + `usePreviewKeepSet(byParent)` (changed/added + ancestors,
+    same byParent the panes render from); `PreviewTreeToggle` above the sidebar filters BOTH the
+    sidebar (`TreeSidebar` walk) and reader (`AtlasReader` docList). Verified: 1089→50 nodes, 38
+    green. Main mode confirmed unaffected (no banner, 0 borders, search/radar OK).
+
+- **Step 6** — this commit (2026-06-12). Patches, unified compare diff, fork unlock:
+  - **Line/word diffs in preview history** — `patch-diff.ts` `patchToDiffLines` parses GitHub's
+    unified `patch` into the live-history `DiffLine[]` shape (LCS word-diff ported from
+    build-history.mjs); bundle gains `patches.json` (id → DiffLine[], lazy via `usePreviewPatch`);
+    `PreviewHistory` renders `<DiffView>` under the pseudo-entry, with the doc's real main-branch
+    `NodeHistory` below ("On the live atlas" — UUIDs are stable so `/api/history/<uuid>` is valid).
+  - **Unified accurate diff** — `fetchPreviewFiles`: PR → `/pulls/{n}/files`; branch/sha/fork →
+    `compare/main...{sha}` (merge-base, works cross-fork by bare sha). The "branch/sha degrade"
+    item is FIXED. Compare's 300-file cap (files don't paginate — verified) recovered via
+    per-commit union (≤100 commits, then `diffTruncated`). `runBuild` restructured: diff fetch
+    starts before the tarball, graph ∥ glossary (`Promise.all`) — GitHub round-trip fully hidden.
+  - **Fork unlock + screening** — see "Fork screening" (Identity section) + security class 3:
+    lineage (`checkForkLineage`, `not-a-fork`), shared history (`not-derived`), trust tiers
+    (`trust.ts`, `fork-not-trusted`, tiered quotas 13/10/3), fork interstitial + red banner
+    (owner, behind-main, trust + new-address warnings), address-introduction count, blocklist
+    (migration 007 `blocked_at`+`trust_tier`), noindex everywhere. Live-verified on the real fork
+    `sean-mc-grath:sean-assessment` (unknown tier, 13 ahead/4 behind, 9 added/191 changed) +
+    pull-257 regression + blocked-sha takedown/evict + interstitial sessionStorage flow.
+  - **Markers (supersedes step-5 borders)**: redlines are `+`/`Δ` between doc-no and title
+    (white, `PreviewMark`), not green borders; All-mode dims untouched docs to 0.88;
+    Changed-only is a flat list (no ancestors).
+
+### Next — remaining
+- **Deploy**: set `GITHUB_TOKEN` + `PREVIEW_ENABLED=1` on the Railway **web** service; the worker
+  service already has `GITHUB_TOKEN`. Migrations `006`/`007` run at boot.
+- **Graph relations keyed** (P1) — re-enable right-panel relations in preview by keying the graph
+  worker per base.
+- **Dockerfile** `python3` removal; `subscribeBuild` double-`fetching` event (cosmetic).
 
 ### Superseded decisions (the design prose still mentions the old plan — these win)
+- **Diff is now GitHub PR-files, not the vs-main hash diff, for PRs** (supersedes "Visual
+  indicators" + the P2 "merge-base diff baseline"). GitHub computes head-vs-base, so we get
+  merge-base accuracy *for free* without git history — the P2 item is effectively done for PRs.
+  The vs-main `diffDocs` survives only as the branch/sha fallback. Diff lives in the bundle
+  (`out/diff.json`), immutable per preview sha — no longer keyed by `(previewSha, mainSha)` for PRs.
+- **Changed docs DO get a node-level border now** (dashed green; added = solid). The earlier
+  "only border added; changed is too noisy" note was because of the vs-main false positives — the
+  PR-files diff removed them, so changed is real and bordered. (Word-level underlines still P2.)
+- **History tab in preview = pseudo-history** (was an open gap). `PreviewHistory` shows the doc's
+  add/change in this preview; the main `/api/history` fetch is suppressed in preview.
 - **pg advisory lock DROPPED for MVP** (mentioned ~"Storage, two tiers" + "Resolved during
   planning"). Bun.sql *pools* connections, so session `pg_advisory_lock`/`unlock` can land on
   different backends and leak; `pg_advisory_xact_lock` can't span a multi-second build; and under
@@ -120,12 +172,15 @@ Two-layer identity:
 - **URL id** (human, shareable, *mutable* — tracks the branch tip):
   - `/preview/pull-256/atlas`
   - `/preview/blimpa:spark-proposal/radar` (`owner:branch` for forks)
-  - **MVP trigger gate (temporary)**: at launch, only open PRs against
-    `sky-ecosystem/next-gen-atlas` (including fork-head PRs) and branches on that repo
-    resolve; bare `owner:branch` fork URLs return a friendly "open a draft PR to preview"
-    error. This makes every buildable input publicly proposed and attributable. The
-    `owner:branch` grammar and resolution path stay in the design — the end state is **any
-    fork URL**, unlocked once safety screening (content/size vetting) exists (P2).
+  - **Fork screening (2026-06-12, supersedes the MVP gate)**: bare `owner:branch` fork URLs
+    now resolve, behind three screens — (1) **lineage**: the repo must be a TRUE GitHub fork
+    of the canonical atlas (`fork: true` + parent/source = canonical), else `not-a-fork`;
+    (2) **shared history**: the merge-base compare vs main must succeed, else `not-derived`;
+    (3) **trust**: the owner's merged-PR track record into sky-ecosystem repos picks a tier
+    (`src/server/preview/trust.ts`) — `trusted` (whitelist or ≥1 atlas-merged PR, shares the
+    13/day pool), `known` (org-merged, 10/day pool), `unknown` (no history, established
+    account: 3/day pool + loud warnings), `refused` (no history + account <30 days:
+    `fork-not-trusted`). Whitelist: `Endgame-Edge`, `Redline-Group`.
   - **`/` in branch names** (e.g. `feat/parser-fix`) is mapped to `~` in the URL id:
     `/preview/blimpa:feat~parser-fix/atlas`. `~` is URL-unreserved but **forbidden in git ref
     names**, so the mapping is unambiguous and reversible (`~` → `/` on decode). Never emit a
@@ -508,12 +563,28 @@ singleton, unauthenticated. Three attack classes and their answers:
      don't insert and are deliberately exempt — regeneration is free, new analysis is quota'd.
      Over quota → `quota-exceeded` error state.
 3. **Hostile *plausible* content** — a lookalike branch with swapped addresses, shared via a
-   `/preview/...` link as if legit (credibility-wrapper attack). Mitigations: the MVP trigger
-   gate (everything buildable is a public, attributable PR/branch on the canonical repo), plus
-   **banner + interstitial** (decided): first visit to a given preview shows a one-click
-   interstitial — "This is unreviewed proposed content from <author>, not the live atlas" —
-   dismissed per preview per session. Re-evaluate when arbitrary forks unlock (P2 safety
-   screening).
+   `/preview/...` link as if legit (credibility-wrapper attack). **IMPLEMENTED (2026-06-12)**
+   when arbitrary forks unlocked:
+   - **Lineage + shared-history + trust screens** (see "Fork screening" above) — repo-name
+     spoofing blocked, no-common-ancestor repos rejected, history-less fresh accounts refused.
+   - **Fork interstitial** (`PreviewInterstitial.tsx`, forks only): first visit per session
+     shows a one-click warning — owner named, "never had a PR accepted" line for unknown-tier
+     owners, address warning — dismissed per sha (sessionStorage). PRs/canonical branches stay
+     banner-only (publicly proposed + attributable).
+   - **Fork banner variant** (`PreviewBanner.tsx`): red `FORK PREVIEW` chip, owner, commits
+     behind main, trust + new-address warnings.
+   - **Address-introduction screen**: at build time the bundle's `addresses.atlas.json` keys
+     are compared against main's → `meta.newAddresses`; banner + interstitial warn when > 0
+     (targets the swapped-payment-address attack specifically).
+   - **Blocklist** (migration 007 `blocked_at`): a blocked sha never serves or rebuilds and
+     its bundle is evicted. Takedown = `UPDATE previews SET blocked_at = now() WHERE sha = …`.
+   - **noindex**: `X-Robots-Tag: noindex` on all `/api/preview/*` responses and SPA
+     `/preview/*` routes (no SEO laundering of fork content).
+   - **Tiered quotas**: `trust_tier` stored per previews row; pools counted per tier
+     (`PREVIEW_DAILY_QUOTA` 13 / `PREVIEW_FORK_DAILY_QUOTA` 10 / `PREVIEW_UNKNOWN_FORK_DAILY_QUOTA` 3).
+   - **Compare 300-file cap** (GitHub compare doesn't paginate files): recovered by unioning
+     files across the branch's ahead-of-merge-base commits (bounded at 100 commits →
+     `meta.diffTruncated` + banner note beyond that).
 
 ## Build sequencing (P0 dependency order)
 

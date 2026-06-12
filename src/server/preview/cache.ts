@@ -25,6 +25,7 @@ export const ARTIFACT_ALLOWLIST = new Set([
   "addresses.atlas.json",
   "meta.json",
   "diff.json",
+  "patches.json",
 ]);
 
 export interface PreviewMeta {
@@ -39,6 +40,15 @@ export interface PreviewMeta {
   resolvedAt: string;
   docCount: number;
   buildMs: number;
+  // Fork previews only (repo ≠ canonical): provenance + screening results.
+  forkOwner?: string;
+  trustTier?: "trusted" | "known" | "unknown";
+  aheadBy?: number;
+  behindBy?: number;
+  /** Addresses in this preview's atlas not present in the live atlas. */
+  newAddresses?: number;
+  /** Diff recovery was bounded — markers may miss docs on very large forks. */
+  diffTruncated?: boolean;
 }
 
 export interface PreviewPaths {

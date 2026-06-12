@@ -4,6 +4,8 @@ import App from "../../App";
 import { AuthProvider } from "../chat/auth";
 import { DataSourceContext } from "../../lib/dataSource";
 import { PreviewDiffProvider } from "../../lib/previewDiff";
+import { PreviewViewProvider } from "../../lib/previewView";
+import { PreviewInterstitial } from "./PreviewInterstitial";
 
 // Preview is NOT a separate view: the gate builds the bundle (SSE), then mounts
 // the normal <App/> under a /preview/:id router base with the preview data
@@ -21,6 +23,9 @@ const PHASE_TEXT: Record<Exclude<Phase, "ready" | "failed">, string> = {
 const ERROR_TEXT: Record<string, string> = {
   "gate-rejected": "Open a draft PR against next-gen-atlas to preview this branch.",
   "not-found": "No such PR, branch, or pinned commit.",
+  "not-a-fork": "That repo isn't a fork of the canonical atlas.",
+  "not-derived": "This fork doesn't share history with the canonical atlas, so it can't be redlined.",
+  "fork-not-trusted": "This fork's owner has no contribution history with the Sky ecosystem — open a draft PR to preview it.",
   "source-gone": "The source is gone (the fork may have been deleted).",
   "cap-exceeded": "This atlas is too large to preview.",
   "build-failed": "This proposal could not be built into a preview.",
@@ -80,15 +85,19 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
 
   const base = `${import.meta.env.BASE_URL}api/preview/${sha}/`;
   return (
-    <Router base={routerBase}>
-      <DataSourceContext.Provider value={{ base, preview: { id, sha } }}>
-        <PreviewDiffProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </PreviewDiffProvider>
-      </DataSourceContext.Provider>
-    </Router>
+    <PreviewInterstitial sha={sha} base={base}>
+      <Router base={routerBase}>
+        <DataSourceContext.Provider value={{ base, preview: { id, sha } }}>
+          <PreviewDiffProvider>
+            <PreviewViewProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </PreviewViewProvider>
+          </PreviewDiffProvider>
+        </DataSourceContext.Provider>
+      </Router>
+    </PreviewInterstitial>
   );
 }
 

@@ -16,6 +16,8 @@ export interface PreviewRow {
   pr_state: string | null;
   doc_count: number;
   build_ms: number;
+  blocked_at: string | null;
+  trust_tier: string | null;
 }
 
 /** Upsert on a successful build. created_at is preserved on conflict (re-builds
@@ -23,15 +25,16 @@ export interface PreviewRow {
 export async function upsertPreview(m: PreviewMeta): Promise<void> {
   await sql`
     INSERT INTO previews
-      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, last_access)
+      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, last_access)
     VALUES
       (${m.sha}, ${m.repo}, ${m.ref}, ${m.kind}, ${m.prNumber ?? null}, ${m.prTitle ?? null},
-       ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, now())
+       ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, ${m.trustTier ?? null}, now())
     ON CONFLICT (sha) DO UPDATE SET
       repo = EXCLUDED.repo, ref = EXCLUDED.ref, kind = EXCLUDED.kind,
       pr_number = EXCLUDED.pr_number, pr_title = EXCLUDED.pr_title,
       pr_author = EXCLUDED.pr_author, pr_state = EXCLUDED.pr_state,
-      doc_count = EXCLUDED.doc_count, build_ms = EXCLUDED.build_ms, last_access = now()
+      doc_count = EXCLUDED.doc_count, build_ms = EXCLUDED.build_ms,
+      trust_tier = EXCLUDED.trust_tier, last_access = now()
   `;
 }
 
@@ -51,12 +54,27 @@ export async function touchPreview(sha: string): Promise<void> {
   await sql`UPDATE previews SET last_access = now() WHERE sha = ${sha}`;
 }
 
-/** Count NEW previews analyzed today (UTC). Re-builds of known SHAs don't insert,
- *  so they're exempt — regeneration is free, new analysis is quota'd. */
-export async function previewsTodayCount(): Promise<number> {
-  const rows = (await sql`
-    SELECT count(*)::int AS n FROM previews
-    WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
-  `) as { n: number }[];
+/** Count NEW previews analyzed today (UTC) in a quota pool. Re-builds of known
+ *  SHAs don't insert, so they're exempt — regeneration is free, new analysis is
+ *  quota'd. Pools (see trust.ts): "trusted" counts canonical/PR rows (NULL tier)
+ *  plus trusted-tier forks; "known"/"unknown" count exactly that fork tier. */
+export async function previewsTodayCount(pool: "trusted" | "known" | "unknown" = "trusted"): Promise<number> {
+  const rows = (
+    pool === "trusted"
+      ? await sql`
+          SELECT count(*)::int AS n FROM previews
+          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
+            AND (trust_tier IS NULL OR trust_tier = 'trusted')`
+      : await sql`
+          SELECT count(*)::int AS n FROM previews
+          WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
+            AND trust_tier = ${pool}`
+  ) as { n: number }[];
   return rows[0]?.n ?? 0;
+}
+
+/** Admin-takedown check: a blocked sha must never build or serve. */
+export async function isBlockedSha(sha: string): Promise<boolean> {
+  const rows = (await sql`SELECT 1 FROM previews WHERE sha = ${sha} AND blocked_at IS NOT NULL`) as unknown[];
+  return rows.length > 0;
 }

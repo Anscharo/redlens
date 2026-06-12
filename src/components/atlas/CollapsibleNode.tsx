@@ -5,7 +5,8 @@ import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
-import { usePreviewDiff } from "../../lib/previewDiff";
+import { PreviewMark } from "../preview/PreviewMark";
+import { usePreviewDim } from "../../lib/previewFilter";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -46,20 +47,15 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     };
   }, [node.doc_no, parentDocNo]);
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
-
-  // Preview redline: green bottom border on docs this branch ADDS. (Changed
-  // docs are tracked too but get word-level underlines — P2 — not a node border,
-  // since "changed vs current main" is noisy until merge-base diffing lands.)
-  // Empty outside preview, so this is a no-op for the live atlas.
-  const diff = usePreviewDiff();
-  const redline = diff.added.has(node.id) ? { borderBottom: "2px solid var(--preview-add)" } : null;
+  // Selected node always full-strength; otherwise dim untouched docs in preview.
+  const dim = usePreviewDim(node.id) && !isSelected;
 
   return (
     <article
       id={idPrefix ? `${idPrefix}-${node.id}` : node.id}
       className={`atlas-node relative${isSelected ? " is-selected" : ""}`}
       data-has-hidden={hiddenCount > 0 ? "true" : undefined}
-      style={{ ["--row-color" as string]: color, ...redline } as React.CSSProperties}
+      style={{ ["--row-color" as string]: color, opacity: dim ? 0.88 : undefined } as React.CSSProperties}
       aria-label={`${node.doc_no} — ${node.title}`}
       aria-expanded={hasContent ? isExpanded : undefined}
       tabIndex={0}
@@ -106,6 +102,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
+        <PreviewMark nodeId={node.id} className="text-lg" />
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
             {node.title}

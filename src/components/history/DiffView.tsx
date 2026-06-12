@@ -57,7 +57,7 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
   if (!Array.isArray(lines)) return null;
   return (
     <div
-      className="mt-2 rounded overflow-x-auto mono text-[10px] leading-relaxed"
+      className="mt-2 rounded overflow-x-auto mono text-[11px] leading-relaxed"
       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
     >
       {lines.map((line, i) => {

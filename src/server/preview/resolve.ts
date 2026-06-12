@@ -9,9 +9,10 @@
 // `/` in a branch name is encoded as `~` in the URL id (git forbids `~` in refs,
 // so the mapping is unambiguous and reversible).
 //
-// MVP trigger gate: only PRs (incl. fork-head PRs) and canonical-repo branches
-// resolve. A bare fork branch (`owner:branch`, owner ≠ canonical) is gate-rejected
-// until arbitrary-fork safety screening lands (P2).
+// Fork screening: a bare fork branch (`owner:branch`, owner ≠ canonical) resolves
+// only if the repo is a TRUE fork of the canonical atlas (GitHub `fork: true` +
+// parent/source === canonical) — this blocks arbitrary repos merely *named*
+// next-gen-atlas. Shared-history and trust screening happen downstream (build.ts).
 
 export const CANONICAL_OWNER = "sky-ecosystem";
 export const ATLAS_REPO_NAME = "next-gen-atlas";
@@ -48,10 +49,20 @@ export function decodeId(raw: string): ParsedId | null {
   return { kind: "branch", owner: CANONICAL_OWNER, repo: CANONICAL_REPO, ref };
 }
 
-/** MVP trigger gate. Pure. */
-export function gateError(p: ParsedId): "gate-rejected" | null {
-  if (p.kind === "branch" && p.owner !== CANONICAL_OWNER) return "gate-rejected";
+/** Trigger gate. Pure. Fork branches now pass — they're screened by lineage
+ *  (resolveRef) + trust (build). Kept as a hook for future grammar-level gates. */
+export function gateError(_p: ParsedId): "gate-rejected" | null {
   return null;
+}
+
+/** Is this resolved preview a fork (non-canonical repo)? */
+export function isFork(repo: string): boolean {
+  return !repo.startsWith(`${CANONICAL_OWNER}/`);
+}
+
+/** Fork owner from a repo slug ("owner/name" → "owner"). */
+export function repoOwner(repo: string): string {
+  return repo.split("/")[0] ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +103,17 @@ export interface Resolved {
   pr?: { number: number; title: string; author: string; state: "open" | "merged" | "closed" };
 }
 
-export type ResolveError = "gate-rejected" | "not-found";
+export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork";
+
+/** Lineage screen for non-canonical owners: the repo must be a TRUE GitHub fork
+ *  of the canonical atlas. Blocks lookalike repos that were never forked. */
+export async function checkForkLineage(repo: string, gh: GhClient): Promise<"ok" | "not-a-fork" | "not-found"> {
+  const r = await gh.fetchJson(`/repos/${repo}`);
+  if (r.status === 404 || !r.ok) return "not-found";
+  const parent = r.json?.parent?.full_name;
+  const source = r.json?.source?.full_name;
+  return r.json?.fork === true && (parent === CANONICAL_REPO || source === CANONICAL_REPO) ? "ok" : "not-a-fork";
+}
 
 /**
  * Resolve a parsed pr/branch id to its head SHA via the GitHub API. `sha` ids are
@@ -120,7 +141,11 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
     };
   }
 
-  // branch (canonical only — gate already rejected forks)
+  // branch — canonical or fork. Forks get the lineage screen first.
+  if (p.owner !== CANONICAL_OWNER) {
+    const lineage = await checkForkLineage(p.repo, gh);
+    if (lineage !== "ok") return { error: lineage === "not-found" ? "not-found" : "not-a-fork" };
+  }
   const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };

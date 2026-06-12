@@ -8,7 +8,8 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { execFileSync } from "node:child_process";
 
-import { decodeId, gateError, resolveRef, type GhClient } from "./resolve.ts";
+import { decodeId, gateError, resolveRef, checkForkLineage, isFork, repoOwner, type GhClient } from "./resolve.ts";
+import { tierFor } from "./trust.ts";
 import {
   gunzipCapped,
   extractContentArchive,
@@ -16,6 +17,7 @@ import {
   archiveUrl,
 } from "./tarball.ts";
 import { previewPaths, artifactPath, bundleReady, writeMeta, evictLru } from "./cache.ts";
+import { pathToDocNo, mapChangedDocs } from "./pr-diff.ts";
 
 // ---------------------------------------------------------------------------
 // resolve
@@ -36,11 +38,17 @@ test("decodeId parses every id form", () => {
   expect(decodeId("feat~x")).toMatchObject({ owner: "sky-ecosystem", ref: "feat/x" });
 });
 
-test("gate rejects bare fork branches, allows canonical + PRs", () => {
-  expect(gateError(decodeId("blimpa:spark")!)).toBe("gate-rejected");
+test("gate passes everything (forks screened by lineage + trust, not grammar)", () => {
+  expect(gateError(decodeId("blimpa:spark")!)).toBeNull();
   expect(gateError(decodeId("my-branch")!)).toBeNull();
   expect(gateError(decodeId("pull-1")!)).toBeNull();
   expect(gateError(decodeId("a".repeat(40))!)).toBeNull();
+});
+
+test("isFork / repoOwner helpers", () => {
+  expect(isFork("blimpa/next-gen-atlas")).toBe(true);
+  expect(isFork("sky-ecosystem/next-gen-atlas")).toBe(false);
+  expect(repoOwner("blimpa/next-gen-atlas")).toBe("blimpa");
 });
 
 function fakeGh(map: Record<string, { ok?: boolean; status?: number; json: any }>): GhClient {
@@ -79,13 +87,77 @@ test("resolveRef: canonical branch → tip sha; missing → not-found", async ()
   expect(await resolveRef(decodeId("nope")!, gh)).toEqual({ error: "not-found" });
 });
 
-test("resolveRef: fork branch is gate-rejected before any fetch", async () => {
-  const gh = fakeGh({});
-  expect(await resolveRef(decodeId("blimpa:spark")!, gh)).toEqual({ error: "gate-rejected" });
+test("checkForkLineage: true fork ok, lookalike rejected, missing repo not-found", async () => {
+  const trueFork = fakeGh({
+    "/repos/blimpa/next-gen-atlas": { json: { fork: true, parent: { full_name: "sky-ecosystem/next-gen-atlas" } } },
+  });
+  expect(await checkForkLineage("blimpa/next-gen-atlas", trueFork)).toBe("ok");
+
+  const lookalike = fakeGh({ "/repos/evil/next-gen-atlas": { json: { fork: false } } });
+  expect(await checkForkLineage("evil/next-gen-atlas", lookalike)).toBe("not-a-fork");
+
+  const forkOfOther = fakeGh({
+    "/repos/x/next-gen-atlas": { json: { fork: true, parent: { full_name: "someone/else" } } },
+  });
+  expect(await checkForkLineage("x/next-gen-atlas", forkOfOther)).toBe("not-a-fork");
+
+  expect(await checkForkLineage("ghost/next-gen-atlas", fakeGh({}))).toBe("not-found");
+});
+
+test("resolveRef: true-fork branch resolves; lookalike → not-a-fork", async () => {
+  const gh = fakeGh({
+    "/repos/blimpa/next-gen-atlas": { json: { fork: true, source: { full_name: "sky-ecosystem/next-gen-atlas" } } },
+    "/repos/blimpa/next-gen-atlas/branches/spark": { json: { commit: { sha: "forktip" } } },
+  });
+  expect(await resolveRef(decodeId("blimpa:spark")!, gh)).toMatchObject({
+    repo: "blimpa/next-gen-atlas",
+    sha: "forktip",
+    kind: "branch",
+    ref: "spark",
+  });
+
+  const evil = fakeGh({ "/repos/evil/next-gen-atlas": { json: { fork: false } } });
+  expect(await resolveRef(decodeId("evil:spark")!, evil)).toEqual({ error: "not-a-fork" });
+});
+
+test("trust tierFor: whitelist/atlas-merged → trusted; org-merged → known; history-less by account age", () => {
+  expect(tierFor(0, 0, 9999, true)).toBe("trusted"); // whitelist
+  expect(tierFor(0, 5, 10, false)).toBe("trusted"); // atlas-merged trumps account age
+  expect(tierFor(3, 0, 10, false)).toBe("known"); // org-merged, never atlas
+  expect(tierFor(0, 0, 1500, false)).toBe("unknown"); // no history, old account
+  expect(tierFor(0, 0, 3, false)).toBe("refused"); // no history, fresh account
 });
 
 test("archiveUrl points at the resolved (fork) repo", () => {
   expect(archiveUrl("blimpa/next-gen-atlas", "abc")).toBe("https://github.com/blimpa/next-gen-atlas/archive/abc.tar.gz");
+});
+
+// ---------------------------------------------------------------------------
+// pr-diff (accurate diff from GitHub PR files)
+// ---------------------------------------------------------------------------
+
+test("pathToDocNo maps content document paths, skips non-docs", () => {
+  expect(pathToDocNo("content/A/2/2/4/document.md")).toBe("A.2.2.4");
+  expect(pathToDocNo("content/NR/1/document.md")).toBe("NR-1");
+  expect(pathToDocNo("content/A/1/_index.md")).toBeNull(); // nav, not a doc
+  expect(pathToDocNo("Sky Atlas/Sky Atlas.md")).toBeNull();
+  expect(pathToDocNo("README.md")).toBeNull();
+});
+
+test("mapChangedDocs: added→added, modified→changed, removed/_index skipped", () => {
+  const docNoToId = new Map([["A.2.2.4", "id-a"], ["A.9", "id-b"], ["NR-1", "id-nr"]]);
+  const diff = mapChangedDocs(
+    [
+      { filename: "content/A/2/2/4/document.md", status: "added" },
+      { filename: "content/A/9/document.md", status: "modified" },
+      { filename: "content/NR/1/document.md", status: "removed" }, // gone → skip
+      { filename: "content/A/1/_index.md", status: "modified" }, // nav → skip
+      { filename: "content/A/unknown/document.md", status: "added" }, // not in index → skip
+    ],
+    docNoToId,
+  );
+  expect(diff.added).toEqual(["id-a"]);
+  expect(diff.changed).toEqual(["id-b"]);
 });
 
 // ---------------------------------------------------------------------------

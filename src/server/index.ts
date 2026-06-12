@@ -114,7 +114,10 @@ const server = Bun.serve({
       const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
     }
-    return new Response(Bun.file(config.distDir + "/index.html"));
+    // SPA fallback. Preview routes get noindex — unreviewed (possibly fork)
+    // content must never be search-indexed under our domain.
+    const spaHeaders = pathname.includes("/preview/") ? { "x-robots-tag": "noindex" } : undefined;
+    return new Response(Bun.file(config.distDir + "/index.html"), { headers: spaHeaders });
   },
 });
 

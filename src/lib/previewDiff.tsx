@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useDataSource } from "./dataSource";
+import type { DiffLine } from "./history";
 
 // Doc ids the preview adds / changes vs current main (from GET diff.json).
 // Drives the green new/changed redline indicators. Empty (and no fetch) outside
@@ -38,4 +39,43 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
     };
   }, [base, preview]);
   return <PreviewDiffContext.Provider value={diff}>{children}</PreviewDiffContext.Provider>;
+}
+
+// ---------------------------------------------------------------------------
+// Lazy per-doc patches (GET patches.json). Larger than diff.json, so it's NOT
+// loaded by the eager provider above — only fetched the first time a preview
+// history tab mounts (usePreviewPatch), then cached per base. Maps doc id →
+// rendered line diff in the same DiffLine[] shape the live history uses.
+// ---------------------------------------------------------------------------
+
+const patchCache = new Map<string, Promise<Record<string, DiffLine[]>>>();
+
+function loadPreviewPatches(base: string): Promise<Record<string, DiffLine[]>> {
+  let p = patchCache.get(base);
+  if (!p) {
+    p = fetch(`${base}patches.json`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}));
+    patchCache.set(base, p);
+  }
+  return p;
+}
+
+export function usePreviewPatch(nodeId: string): DiffLine[] | null {
+  const { base, preview } = useDataSource();
+  const [lines, setLines] = useState<DiffLine[] | null>(null);
+  useEffect(() => {
+    if (!preview) {
+      setLines(null);
+      return;
+    }
+    let live = true;
+    loadPreviewPatches(base).then((m) => {
+      if (live) setLines(m[nodeId] ?? null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [base, preview, nodeId]);
+  return lines;
 }
