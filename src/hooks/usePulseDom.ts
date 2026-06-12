@@ -26,6 +26,7 @@ export function usePulseDom(
 ): void {
   useEffect(() => {
     if (!nodeId) return;
+    const container = containerRef.current;
 
     let cancelled = false;
     let rafId: number;
@@ -33,7 +34,7 @@ export function usePulseDom(
 
     function tryPulse(attemptsLeft: number) {
       if (cancelled) return;
-      const el = containerRef.current?.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+      const el = container?.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
       if (el) {
         el.classList.add("is-pulse");
         timer = setTimeout(() => el.classList.remove("is-pulse"), ROW_PULSE_MS);
@@ -50,7 +51,7 @@ export function usePulseDom(
       cancelled = true;
       cancelAnimationFrame(rafId);
       clearTimeout(timer);
-      containerRef.current
+      container
         ?.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`)
         ?.classList.remove("is-pulse");
     };

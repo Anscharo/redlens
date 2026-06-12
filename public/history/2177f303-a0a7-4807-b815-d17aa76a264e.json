@@ -60,5 +60,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Distribution Reward is paid to Prime Agents"
+          ],
+          [
+            "-",
+            " and third-party partners"
+          ],
+          [
+            "=",
+            " that drive adoption of USDS. See [A.2.2."
+          ],
+          [
+            "-",
+            "8"
+          ],
+          [
+            "+",
+            "9"
+          ],
+          [
+            "=",
+            ".1 - Distribution Reward Primitive](e632c38f-3e4e-4c7e-acfd-b6ec45a422e6)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -10,7 +10,7 @@ PRAGMA foreign_keys = ON;
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS docs (
   id          TEXT PRIMARY KEY,
-  doc_no      TEXT UNIQUE NOT NULL,
+  doc_no      TEXT NOT NULL,
   title       TEXT NOT NULL,
   type        TEXT NOT NULL,
   depth       INTEGER NOT NULL DEFAULT 0,
@@ -156,3 +156,11 @@ CREATE INDEX IF NOT EXISTS idx_hist_date      ON node_history(date DESC);
 CREATE INDEX IF NOT EXISTS idx_hist_type_date ON node_history(change_type, date DESC);
 CREATE INDEX IF NOT EXISTS idx_hist_pr        ON node_history(pr_number);
 CREATE INDEX IF NOT EXISTS idx_hist_seq       ON node_history(commit_seq);
+
+-- ---------------------------------------------------------------------------
+-- schema_migrations — tracks which one-time migrations have been applied.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id         TEXT PRIMARY KEY,
+  applied_at TEXT NOT NULL
+);

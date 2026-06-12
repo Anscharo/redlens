@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Other than Andromeda, all old RWA exposure that was added before Endgame must stay for as long as necessary, and optimized for yield if possible. When it is possible, the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " should take action to wind down and offboard all such Legacy RWA. Governance actions related to optimizations, wind down and offboardings can be done directly in Executive Votes with no prior Governance Poll needed."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

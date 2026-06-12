@@ -60,5 +60,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Resilience Research and Preparedness budget is specified in [A.2.10.1.2.1 - Current Budget](afb4b3c3-96ad-422d-9033-bd4e5feca90c). The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " can trigger a payout from the budget to a relevant recipient address through a Governance Poll."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

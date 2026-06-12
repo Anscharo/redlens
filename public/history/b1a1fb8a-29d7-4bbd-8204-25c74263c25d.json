@@ -217,5 +217,72 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-25",
+    "commitHash": "f5d4d29",
+    "commitSeq": 1092,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "- Base Rate: 0%"
+      ],
+      [
+        "=",
+        "- Slope 1: N/A"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Slope 1 Spread: -0."
+          ],
+          [
+            "-",
+            "30"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            "%"
+          ]
+        ]
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Slope 2: "
+          ],
+          [
+            "-",
+            "120"
+          ],
+          [
+            "+",
+            "75"
+          ],
+          [
+            "=",
+            "%"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Reserve State: Active"
+      ],
+      [
+        "=",
+        "- Collateral: Yes"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -6,6 +6,7 @@ import {
   buildOverrideSnippet,
   clearInlineOverrides,
   clearOverrides,
+  cssDefault,
   normalize,
   readOverrides,
   writeOverrides,
@@ -40,7 +41,7 @@ export function useColorOverrides(): UseColorOverridesResult {
     if (!token) return;
     setDraft((d) => {
       // Setting back to default removes the override entry entirely.
-      if (normalize(value) === normalize(token.defaultValue)) {
+      if (normalize(value) === normalize(cssDefault(name))) {
         if (!(name in d)) return d;
         const next = { ...d };
         delete next[name];
@@ -75,7 +76,7 @@ export function useColorOverrides(): UseColorOverridesResult {
   const effectiveValue = useCallback(
     (name: string): string => {
       if (name in draft) return draft[name];
-      return TOKEN_BY_NAME.get(name)?.defaultValue ?? "";
+      return cssDefault(name);
     },
     [draft],
   );

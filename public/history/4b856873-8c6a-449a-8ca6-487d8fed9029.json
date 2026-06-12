@@ -97,5 +97,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The market capitalization is determined as the total token supply multiplied by the TWAP of the token over the 24-hour period ending at 23:59 UTC on the last day of each month, immediately preceding the payment event. This value is applied in the rebate calculation under the Upkeep Rebate Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "7"
+          ],
+          [
+            "=",
+            ".2 - Upkeep Rebate Primitive](569e1c2b-0e69-43e7-8491-06cc5f7d2988)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/6/1/2/document.md",
+    "movedTo": "content/A/2/2/7/1/2/document.md"
   }
 ]

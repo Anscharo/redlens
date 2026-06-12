@@ -1,0 +1,470 @@
+/* chat.css — styles + (tasteful) motion for the floating Atlas agent only.
+   The rest of RedLens stays calm; the agent surface is allowed to breathe.
+   Ported from docs/plans/design_handoff_floating_chat/chat/chat.css — inline
+   styles from the prototype are folded into the .rlc-* classes here so the TSX
+   stays free of inline-style objects (house rule). Tokens come from index.css. */
+
+/* ── Chat-local palette ────────────────────────────────────────────────────
+   The floating agent intentionally diverges from the app's warm charcoal-red:
+   its surfaces are a calm neutral gray. We achieve this by re-binding the warm
+   surface tokens (--surface/--bg/--hover/--border) ONLY within the chat subtree,
+   so every .rlc-* rule that references them turns gray automatically. Warm text
+   (--tan*) and the brand --accent are inherited from :root unchanged, so cream
+   text and pink interactive accents still read on the gray. */
+.rlc-launcher,
+.rlc-panel,
+.rlc-signin,
+.rlc-avatar,
+.rlc-menu {
+  --surface: #212329; /* cards, inputs, bubbles, chips (raised) */
+  --bg: #141519;      /* recessed: kbd, chip bg, switch off, scrollbar gutter */
+  --hover: #282b31;   /* hover fills */
+  --border: #30333a;  /* neutral gray hairline */
+}
+
+/* ── Launcher (collapsed pill) ─────────────────────────────────────────── */
+.rlc-launcher {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px 9px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--tan-2);
+  font: 400 12.5px/1 var(--serif, "Lora", serif);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  transition: border-color 140ms, background 140ms, transform 140ms, box-shadow 220ms;
+}
+.rlc-launcher:hover {
+  background: var(--hover);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  color: var(--tan);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 0 22px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.rlc-launcher:active { transform: translateY(1px); }
+.rlc-ember {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 70%, transparent);
+  animation: rlc-ember 3.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes rlc-ember {
+  0%, 100% { box-shadow: 0 0 6px 0 color-mix(in srgb, var(--accent) 65%, transparent); opacity: 0.92; }
+  50% { box-shadow: 0 0 13px 2px color-mix(in srgb, var(--accent) 80%, transparent); opacity: 1; }
+}
+.rlc-launcher kbd {
+  font: 500 10px/1 "Source Code Pro", monospace;
+  color: var(--tan-3);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 5px;
+  margin-left: 2px;
+}
+
+/* ── Panel shell + entrance ────────────────────────────────────────────── */
+/* Width of the anchored right column — also the amount the app shell is pushed.
+   One var keeps the fixed drawer and the shell's padding-right in lock-step. */
+:root { --rlc-anchored-w: clamp(340px, 30vw, 460px); }
+
+.rlc-panel {
+  /* shared shell — placement-specific geometry lives in the [data-place] rules */
+  position: fixed;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  background: #1a1c20; /* the one custom value: dark neutral gray elevated surface */
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+/* float (default): a docked card in the bottom-right corner */
+.rlc-panel[data-place="float"] {
+  bottom: 20px;
+  right: 20px;
+  width: 420px;
+  height: min(620px, 82vh);
+  border-radius: 8px;
+  box-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 color-mix(in srgb, #c4c8cf 14%, transparent);
+  transform-origin: bottom right;
+  animation: rlc-pop 160ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+/* anchored: a full-height right column. The shell is padded by the same width
+   (see .app-shell rule below) so this reserves layout space instead of
+   overlaying — effectively a 4th column. */
+.rlc-panel[data-place="anchored"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--rlc-anchored-w);
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: -14px 0 34px -16px rgba(0, 0, 0, 0.6);
+  animation: rlc-slide 200ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes rlc-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes rlc-slide {
+  from { transform: translateX(24px); opacity: 0.5; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Push the whole app left when the chat is anchored open. The shell keeps its
+   own scroll mode (h-dvh inner-scroll or min-h-dvh window-scroll) — we only
+   reserve a right gutter the fixed drawer fills. */
+.app-shell { transition: padding-right 200ms cubic-bezier(0.2, 0.7, 0.3, 1); }
+body.rlc-anchored .app-shell { padding-right: var(--rlc-anchored-w); }
+
+/* The footer is a fixed full-width bar, so it ignores the shell padding — pull
+   its right edge in to meet the anchored drawer so it doesn't run underneath. */
+.app-footer { transition: right 200ms cubic-bezier(0.2, 0.7, 0.3, 1); }
+body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
+
+@media (max-width: 520px) {
+  /* float grows to near-full-width; anchored becomes a full-screen takeover
+     (can't push content to zero width), so it stops pushing the shell. */
+  .rlc-panel[data-place="float"] { width: calc(100vw - 24px); right: 12px; bottom: 12px; height: 78vh; }
+  .rlc-panel[data-place="anchored"] { width: 100vw; }
+  body.rlc-anchored .app-shell { padding-right: 0; }
+  body.rlc-anchored .app-footer { right: 0; }
+}
+
+/* ── Header ────────────────────────────────────────────────────────────── */
+.rlc-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px 11px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.18);
+}
+.rlc-header-title { font: 600 13.5px/1.1 var(--serif, "Lora", serif); color: var(--tan); }
+.rlc-header-sub { font: 400 9px/1.1 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.05em; }
+.rlc-spark { color: var(--accent); line-height: 1; }
+
+.rlc-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--tan-3);
+  cursor: pointer;
+  font: 400 13px/1 "Source Code Pro", monospace;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.rlc-iconbtn:hover { background: var(--hover); color: var(--tan); border-color: var(--border); }
+
+/* ── Scroll region ─────────────────────────────────────────────────────── */
+.rlc-thread { flex: 1; overflow-y: auto; padding: 14px 16px 18px; }
+.rlc-thread::-webkit-scrollbar { width: 9px; }
+.rlc-thread::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; border: 2px solid var(--bg); }
+.rlc-thread::-webkit-scrollbar-thumb:hover { background: var(--hover); }
+
+.rlc-turn { animation: rlc-turn 200ms ease-out; }
+@keyframes rlc-turn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* user turn */
+.rlc-user-label { font: 400 9.5px/1 "Source Code Pro", monospace; color: var(--tan-3); text-align: right; letter-spacing: 0.04em; }
+.rlc-user-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px 8px 2px 8px;
+  padding: 8px 12px;
+  font: 400 13.5px/1.5 var(--serif, "Lora", serif);
+  color: var(--tan);
+}
+/* assistant turn */
+.rlc-agent-label { font: 400 9.5px/1 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.05em; }
+.rlc-thinking { display: flex; align-items: center; gap: 7px; color: var(--tan-3); font: 400 11px/1 "Source Code Pro", monospace; }
+
+/* ── Sources cluster ───────────────────────────────────────────────────── */
+.rlc-sources { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
+.rlc-sources-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rlc-sources-label { font: 400 10px/1 "Source Code Pro", monospace; color: var(--tan-3); text-transform: lowercase; margin: 0 0 7px; }
+.rlc-cite {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+}
+.rlc-cite:hover { background: var(--hover); border-color: var(--accent); }
+.rlc-cite-doc { font: 400 10px/1 "Source Code Pro", monospace; color: var(--tan-3); }
+.rlc-cite-title { font: 400 12px/1 var(--serif, "Lora", serif); color: var(--tan-2); }
+
+/* ── Tool trace ────────────────────────────────────────────────────────── */
+.rlc-trace {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 60%, var(--bg));
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.rlc-trace-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tan-3);
+  font: 400 10.5px/1 "Source Code Pro", monospace;
+  letter-spacing: 0.03em;
+  transition: color 100ms;
+}
+.rlc-trace-head:hover { color: var(--tan); }
+.rlc-trace-caret { display: inline-block; color: var(--accent); transition: transform 150ms; }
+.rlc-trace-caret[data-open="false"] { transform: rotate(-90deg); }
+.rlc-trace-rounds { margin-left: auto; color: var(--gray); }
+.rlc-trace-row {
+  display: grid;
+  grid-template-columns: 14px auto 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 11px 5px 12px;
+  border-top: 1px solid var(--border);
+  font: 400 10.5px/1.4 "Source Code Pro", monospace;
+}
+.rlc-trace-arrow-ok { color: var(--terminal-green); }
+.rlc-trace-arrow-err { color: var(--red); }
+.rlc-trace-name { color: var(--accent); }
+.rlc-trace-arg { color: var(--tan-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rlc-trace-meta { color: var(--gray); }
+
+/* ── Composer ──────────────────────────────────────────────────────────── */
+.rlc-composer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 10px 12px 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.rlc-inputwrap {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.rlc-inputwrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.rlc-textarea {
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--tan);
+  font: 400 13.5px/1.5 var(--serif, "Lora", serif);
+  padding: 10px 12px 4px;
+  max-height: 120px;
+}
+.rlc-textarea::placeholder { color: var(--gray); }
+
+.rlc-composer-row { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px 10px; }
+.rlc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.rlc-chip-icon { color: var(--accent); display: flex; }
+.rlc-chip-label { font: 400 9.5px/1 "Source Code Pro", monospace; color: var(--tan-3); }
+.rlc-hint { font: 400 9.5px/1 "Source Code Pro", monospace; color: var(--gray); margin-left: auto; }
+
+.rlc-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  color: var(--tan);
+  transition: background 120ms, opacity 120ms;
+}
+.rlc-send:hover { background: var(--red); }
+.rlc-send:disabled { opacity: 0.4; cursor: default; background: var(--surface); border-color: var(--border); color: var(--tan-3); }
+.rlc-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  transition: background 120ms;
+}
+.rlc-stop:hover { background: var(--hover); }
+.rlc-stop-glyph { width: 9px; height: 9px; background: var(--accent); border-radius: 1px; display: block; }
+
+/* ── Usage note ────────────────────────────────────────────────────────── */
+.rlc-usage { display: flex; align-items: center; gap: 6px; padding: 8px 4px 0; }
+.rlc-usage-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; background: var(--accent); }
+.rlc-usage-dot[data-hot="true"] { background: var(--red); }
+.rlc-usage-text { font: 400 9.5px/1.4 "Source Code Pro", monospace; color: var(--tan-3); }
+.rlc-usage-text[data-hot="true"] { color: var(--accent); }
+
+/* ── Empty / signed-out states ─────────────────────────────────────────── */
+.rlc-empty-title { font: 600 15px/1.2 var(--serif, "Lora", serif); color: var(--tan); }
+.rlc-empty-body { font: 400 12.5px/1.55 var(--serif, "Lora", serif); color: var(--tan-3); margin: 0 0 14px; }
+.rlc-starter {
+  text-align: left;
+  width: 100%;
+  font: 400 12.5px/1.4 var(--serif, "Lora", serif);
+  color: var(--tan-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms, color 100ms;
+}
+.rlc-starter:hover { background: var(--hover); border-color: var(--accent); color: var(--tan); }
+.rlc-starter:disabled { cursor: default; opacity: 1; }
+.rlc-starters-locked { display: flex; flex-direction: column; gap: 7px; opacity: 0.5; pointer-events: none; }
+
+/* ── Atlas citation links inside markdown ──────────────────────────────── */
+.rlc-md a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  cursor: pointer;
+  transition: text-decoration-color 100ms, color 100ms;
+}
+.rlc-md a:hover { text-decoration-color: var(--accent); color: var(--tan); }
+.rlc-md { font: 400 13.5px/1.62 var(--serif, "Lora", serif); color: var(--tan-2); }
+.rlc-md p { margin: 0 0 11px; }
+.rlc-md ul, .rlc-md ol { margin: 0 0 12px; padding-left: 17px; display: flex; flex-direction: column; gap: 6px; }
+.rlc-md strong { color: var(--tan); font-weight: 600; }
+.rlc-md code { font-family: "Source Code Pro", monospace; font-size: 12px; }
+.rlc-md blockquote {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--red);
+  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+  border-radius: 0 4px 4px 0;
+  font-style: italic;
+  color: var(--tan-2);
+}
+
+/* ── Streaming caret + thinking twinkle ────────────────────────────────── */
+.rlc-caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-left: 1px;
+  background: var(--accent);
+  animation: rlc-blink 1s steps(2) infinite;
+}
+@keyframes rlc-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+.rlc-twinkle { color: var(--accent); animation: rlc-twinkle 1.4s ease-in-out infinite; display: inline-block; }
+@keyframes rlc-twinkle { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* ── Avatar dropdown (NavBar profile) ──────────────────────────────────── */
+.rlc-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border); cursor: pointer; display: block; }
+.rlc-avatar:hover { border-color: var(--accent); }
+.rlc-menu {
+  position: absolute;
+  top: 38px;
+  right: 0;
+  z-index: 50;
+  width: 230px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+  animation: rlc-pop 120ms ease-out;
+  transform-origin: top right;
+}
+.rlc-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tan-2);
+  font: 400 13px/1.2 var(--serif, "Lora", serif);
+  text-align: left;
+  transition: background 100ms, color 100ms;
+}
+.rlc-menu-item:hover { background: var(--hover); color: var(--tan); }
+.rlc-menu-name { font: 600 13.5px/1.2 var(--serif, "Lora", serif); color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rlc-pref-pill { font: 400 10.5px/1 "Source Code Pro", monospace; color: var(--tan); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; background: var(--bg); }
+.rlc-switch { width: 30px; height: 17px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); position: relative; flex-shrink: 0; transition: background 120ms, border-color 120ms; }
+.rlc-switch[data-on="true"] { background: var(--red-dim); border-color: var(--red); }
+.rlc-switch-knob { position: absolute; top: 1px; left: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--gray); transition: left 120ms, background 120ms; }
+.rlc-switch[data-on="true"] .rlc-switch-knob { left: 14px; background: var(--tan); }
+
+.rlc-signin {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 12px/1 "Source Code Pro", monospace;
+  letter-spacing: 0.03em;
+  text-transform: lowercase;
+  color: var(--tan-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 7px 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.rlc-signin:hover { background: var(--hover); color: var(--tan); border-color: var(--accent); }
+
+/* ── Reduce motion (pref + OS) ─────────────────────────────────────────── */
+.rlc-nomotion .rlc-panel,
+.rlc-nomotion .rlc-turn,
+.rlc-nomotion .rlc-menu,
+.rlc-nomotion .rlc-ember,
+.rlc-nomotion .rlc-twinkle,
+.rlc-nomotion .rlc-caret { animation: none !important; }
+.rlc-nomotion .rlc-caret { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .rlc-panel, .rlc-turn, .rlc-menu, .rlc-ember, .rlc-twinkle, .rlc-caret { animation: none !important; }
+  .rlc-caret { opacity: 1; }
+}

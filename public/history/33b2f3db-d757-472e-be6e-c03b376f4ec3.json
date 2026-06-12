@@ -145,5 +145,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein contain all data and specifications for Pattern's instances of the Upkeep Rebate Primitive. See [A.2.2."
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "7"
+          ],
+          [
+            "=",
+            ".2 - Upkeep Rebate Primitive](569e1c2b-0e69-43e7-8491-06cc5f7d2988)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

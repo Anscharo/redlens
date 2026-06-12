@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "Updates to Core Spell Checklists are submitted as Pull Requests to the Spell Checklists repository (https://github.com/sky-ecosystem/pe-checklists/tree/master/spell). Each Pull Request requires two (2) approvals, one (1) from each Core Spell Team, before it can be merged. The Pull Request author must communicate the priority of the update to the Core Spell Teams, and if the update is required before the next Spell, reviewing and merging must be prioritized accordingly."
+      ]
+    ]
+  }
+]

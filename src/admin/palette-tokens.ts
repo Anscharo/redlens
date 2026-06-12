@@ -14,7 +14,6 @@ export interface PaletteToken {
   label: string;
   group: PaletteGroup;
   alpha: boolean;
-  defaultValue: string;
 }
 
 export const GROUP_ORDER: readonly PaletteGroup[] = [
@@ -43,79 +42,80 @@ export const GROUP_LABEL: Record<PaletteGroup, string> = {
 
 export const PALETTE_TOKENS: readonly PaletteToken[] = [
   // ─── Surface ───
-  { name: "bg", label: "Background", group: "surface", alpha: false, defaultValue: "#160e0d" },
-  { name: "bg-deep", label: "Deep BG", group: "surface", alpha: false, defaultValue: "#0e0907" },
-  { name: "surface", label: "Surface", group: "surface", alpha: false, defaultValue: "#221614" },
-  { name: "hover", label: "Hover", group: "surface", alpha: false, defaultValue: "#3a1f1a" },
-  { name: "border", label: "Border", group: "surface", alpha: false, defaultValue: "#3d2c28" },
-  { name: "atlas-row-selected", label: "Atlas Row Selected", group: "surface", alpha: false, defaultValue: "#1f1f1f" },
-  { name: "row-pulse-flash", label: "Row Pulse Flash", group: "surface", alpha: true, defaultValue: "rgba(255, 255, 255, 0.28)" },
-  { name: "row-bar-tint", label: "Row Bar Tint", group: "surface", alpha: false, defaultValue: "#ffffff" },
+  { name: "bg", label: "Background", group: "surface", alpha: false },
+  { name: "bg-deep", label: "Deep BG", group: "surface", alpha: false },
+  { name: "surface", label: "Surface", group: "surface", alpha: false },
+  { name: "hover", label: "Hover", group: "surface", alpha: false },
+  { name: "border", label: "Border", group: "surface", alpha: false },
+  { name: "atlas-row-selected", label: "Atlas Row Selected", group: "surface", alpha: false },
+  { name: "row-pulse-flash", label: "Row Pulse Flash", group: "surface", alpha: true },
+  { name: "row-bar-tint", label: "Row Bar Tint", group: "surface", alpha: false },
 
   // ─── Brand ───
-  { name: "red", label: "Red", group: "brand", alpha: false, defaultValue: "#a63228" },
-  { name: "red-dim", label: "Red Dim", group: "brand", alpha: false, defaultValue: "#753021" },
-  { name: "accent", label: "Accent", group: "brand", alpha: false, defaultValue: "#c67267" },
-  { name: "magenta", label: "Magenta", group: "brand", alpha: false, defaultValue: "#c61f7c" },
-  { name: "terminal-green", label: "Terminal Green", group: "brand", alpha: false, defaultValue: "#399930" },
-  { name: "lily-green", label: "Lily Green", group: "brand", alpha: false, defaultValue: "#ecffea" },
+  { name: "red", label: "Red", group: "brand", alpha: false },
+  { name: "red-dim", label: "Red Dim", group: "brand", alpha: false },
+  { name: "accent", label: "Accent", group: "brand", alpha: false },
+  { name: "error-text", label: "Error Text", group: "brand", alpha: false },
+  { name: "magenta", label: "Magenta", group: "brand", alpha: false },
+  { name: "terminal-green", label: "Terminal Green", group: "brand", alpha: false },
+  { name: "lily-green", label: "Lily Green", group: "brand", alpha: false },
 
   // ─── Text ───
-  { name: "gray", label: "Gray", group: "text", alpha: false, defaultValue: "#9a8a80" },
-  { name: "tan", label: "Tan (primary)", group: "text", alpha: false, defaultValue: "#f3e7ce" },
-  { name: "tan-2", label: "Tan 2", group: "text", alpha: false, defaultValue: "#e4d1b9" },
-  { name: "tan-3", label: "Tan 3", group: "text", alpha: false, defaultValue: "#b8a48e" },
+  { name: "gray", label: "Gray", group: "text", alpha: false },
+  { name: "tan", label: "Tan (primary)", group: "text", alpha: false },
+  { name: "tan-2", label: "Tan 2", group: "text", alpha: false },
+  { name: "tan-3", label: "Tan 3", group: "text", alpha: false },
 
   // ─── Row overlays (alpha) ───
-  { name: "row-hover", label: "Row Hover", group: "row", alpha: true, defaultValue: "rgba(255, 255, 255, 0.1)" },
-  { name: "row-selected", label: "Row Selected", group: "row", alpha: true, defaultValue: "rgba(255, 255, 255, 0.08)" },
-  { name: "row-focused", label: "Row Focused", group: "row", alpha: true, defaultValue: "rgba(255, 255, 255, 0.04)" },
+  { name: "row-hover", label: "Row Hover", group: "row", alpha: true },
+  { name: "row-selected", label: "Row Selected", group: "row", alpha: true },
+  { name: "row-focused", label: "Row Focused", group: "row", alpha: true },
 
   // ─── Shadows (alpha) ───
-  { name: "shadow", label: "Shadow", group: "shadow", alpha: true, defaultValue: "rgba(0, 0, 0, 0.3)" },
-  { name: "shadow-strong", label: "Shadow Strong", group: "shadow", alpha: true, defaultValue: "rgba(0, 0, 0, 0.5)" },
+  { name: "shadow", label: "Shadow", group: "shadow", alpha: true },
+  { name: "shadow-strong", label: "Shadow Strong", group: "shadow", alpha: true },
 
   // ─── Graph chrome ───
-  { name: "edge", label: "Edge", group: "graph", alpha: false, defaultValue: "#5a3a32" },
-  { name: "edge-label-fg", label: "Edge Label", group: "graph", alpha: false, defaultValue: "#8a6a60" },
-  { name: "graph-dots", label: "Graph Dots", group: "graph", alpha: false, defaultValue: "#2a1a16" },
+  { name: "edge", label: "Edge", group: "graph", alpha: false },
+  { name: "edge-label-fg", label: "Edge Label", group: "graph", alpha: false },
+  { name: "graph-dots", label: "Graph Dots", group: "graph", alpha: false },
 
   // ─── Diff ───
-  { name: "diff-removed-bg", label: "Diff Removed BG", group: "diff", alpha: false, defaultValue: "#4a1010" },
-  { name: "diff-removed-fg", label: "Diff Removed FG", group: "diff", alpha: false, defaultValue: "#e8d5d5" },
+  { name: "diff-removed-bg", label: "Diff Removed BG", group: "diff", alpha: false },
+  { name: "diff-removed-fg", label: "Diff Removed FG", group: "diff", alpha: false },
 
   // ─── Entity types ───
-  { name: "entity-agent", label: "Agent", group: "entity", alpha: false, defaultValue: "#c67267" },
-  { name: "entity-facilitator-org", label: "Facilitator", group: "entity", alpha: false, defaultValue: "#e0a060" },
-  { name: "entity-govops-org", label: "GovOps", group: "entity", alpha: false, defaultValue: "#8fb8c2" },
-  { name: "entity-delegate-org", label: "Aligned Delegate", group: "entity", alpha: false, defaultValue: "#9ab58a" },
-  { name: "entity-development-company", label: "Dev Company", group: "entity", alpha: false, defaultValue: "#a0b0d0" },
-  { name: "entity-foundation", label: "Foundation", group: "entity", alpha: false, defaultValue: "#b8a0c8" },
-  { name: "entity-composite-party", label: "Composite Party", group: "entity", alpha: false, defaultValue: "#c8b070" },
-  { name: "entity-governance-body", label: "Governance Body", group: "entity", alpha: false, defaultValue: "#90a880" },
-  { name: "entity-operational-party", label: "Operational Party", group: "entity", alpha: false, defaultValue: "#c09080" },
-  { name: "entity-ecosystem-actor", label: "Ecosystem Actor", group: "entity", alpha: false, defaultValue: "#a89090" },
-  { name: "entity-instance", label: "Instance", group: "entity", alpha: false, defaultValue: "#7a8a9c" },
-  { name: "entity-fallback", label: "Fallback", group: "entity", alpha: false, defaultValue: "#888888" },
+  { name: "entity-agent", label: "Agent", group: "entity", alpha: false },
+  { name: "entity-facilitator-org", label: "Facilitator", group: "entity", alpha: false },
+  { name: "entity-govops-org", label: "GovOps", group: "entity", alpha: false },
+  { name: "entity-delegate-org", label: "Aligned Delegate", group: "entity", alpha: false },
+  { name: "entity-development-company", label: "Dev Company", group: "entity", alpha: false },
+  { name: "entity-foundation", label: "Foundation", group: "entity", alpha: false },
+  { name: "entity-composite-party", label: "Composite Party", group: "entity", alpha: false },
+  { name: "entity-governance-body", label: "Governance Body", group: "entity", alpha: false },
+  { name: "entity-operational-party", label: "Operational Party", group: "entity", alpha: false },
+  { name: "entity-ecosystem-actor", label: "Ecosystem Actor", group: "entity", alpha: false },
+  { name: "entity-instance", label: "Instance", group: "entity", alpha: false },
+  { name: "entity-fallback", label: "Fallback", group: "entity", alpha: false },
 
   // ─── Depth jewel-tone palette (5-color cycle red→orange→green→blue→purple starting at depth-1, looping through depth-17) ───
-  { name: "depth-1", label: "Depth 1 (red)", group: "depth", alpha: false, defaultValue: "#9a0000" },
-  { name: "depth-2", label: "Depth 2 (orange)", group: "depth", alpha: false, defaultValue: "#a36600" },
-  { name: "depth-3", label: "Depth 3 (green)", group: "depth", alpha: false, defaultValue: "#1c701e" },
-  { name: "depth-4", label: "Depth 4 (blue)", group: "depth", alpha: false, defaultValue: "#2b51c5" },
-  { name: "depth-5", label: "Depth 5 (purple)", group: "depth", alpha: false, defaultValue: "#5200a3" },
-  { name: "depth-6", label: "Depth 6 (red)", group: "depth", alpha: false, defaultValue: "#9a0000" },
-  { name: "depth-7", label: "Depth 7 (orange)", group: "depth", alpha: false, defaultValue: "#a36600" },
-  { name: "depth-8", label: "Depth 8 (green)", group: "depth", alpha: false, defaultValue: "#1c701e" },
-  { name: "depth-9", label: "Depth 9 (blue)", group: "depth", alpha: false, defaultValue: "#2b51c5" },
-  { name: "depth-10", label: "Depth 10 (purple)", group: "depth", alpha: false, defaultValue: "#5200a3" },
-  { name: "depth-11", label: "Depth 11 (red)", group: "depth", alpha: false, defaultValue: "#9a0000" },
-  { name: "depth-12", label: "Depth 12 (orange)", group: "depth", alpha: false, defaultValue: "#a36600" },
-  { name: "depth-13", label: "Depth 13 (green)", group: "depth", alpha: false, defaultValue: "#1c701e" },
-  { name: "depth-14", label: "Depth 14 (blue)", group: "depth", alpha: false, defaultValue: "#2b51c5" },
-  { name: "depth-15", label: "Depth 15 (purple)", group: "depth", alpha: false, defaultValue: "#5200a3" },
-  { name: "depth-16", label: "Depth 16 (red)", group: "depth", alpha: false, defaultValue: "#9a0000" },
-  { name: "depth-17", label: "Depth 17 (orange)", group: "depth", alpha: false, defaultValue: "#a36600" },
+  { name: "depth-1", label: "Depth 1 (red)", group: "depth", alpha: false },
+  { name: "depth-2", label: "Depth 2 (orange)", group: "depth", alpha: false },
+  { name: "depth-3", label: "Depth 3 (green)", group: "depth", alpha: false },
+  { name: "depth-4", label: "Depth 4 (blue)", group: "depth", alpha: false },
+  { name: "depth-5", label: "Depth 5 (purple)", group: "depth", alpha: false },
+  { name: "depth-6", label: "Depth 6 (red)", group: "depth", alpha: false },
+  { name: "depth-7", label: "Depth 7 (orange)", group: "depth", alpha: false },
+  { name: "depth-8", label: "Depth 8 (green)", group: "depth", alpha: false },
+  { name: "depth-9", label: "Depth 9 (blue)", group: "depth", alpha: false },
+  { name: "depth-10", label: "Depth 10 (purple)", group: "depth", alpha: false },
+  { name: "depth-11", label: "Depth 11 (red)", group: "depth", alpha: false },
+  { name: "depth-12", label: "Depth 12 (orange)", group: "depth", alpha: false },
+  { name: "depth-13", label: "Depth 13 (green)", group: "depth", alpha: false },
+  { name: "depth-14", label: "Depth 14 (blue)", group: "depth", alpha: false },
+  { name: "depth-15", label: "Depth 15 (purple)", group: "depth", alpha: false },
+  { name: "depth-16", label: "Depth 16 (red)", group: "depth", alpha: false },
+  { name: "depth-17", label: "Depth 17 (orange)", group: "depth", alpha: false },
 ] as const;
 
 export const TOKEN_BY_NAME: ReadonlyMap<string, PaletteToken> = new Map(

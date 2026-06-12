@@ -126,5 +126,31 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " will pay 0.50% of its market capitalization per year in USDS."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

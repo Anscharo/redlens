@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein define Agent Spell Checklists. Agent Spell Checklists are used by Agents and reviewed by the Core Spell Teams."
+      ]
+    ]
+  }
+]

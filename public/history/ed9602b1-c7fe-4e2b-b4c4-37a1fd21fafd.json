@@ -60,5 +60,65 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "As operators of the Spark Liquidity Layer, Spark automatically inherits, and is subject to, the base class of operational requirements related to Total Risk Capital management defined in [A.2.2.9.1.1.3.2.1.2 - Primes"
+          ],
+          [
+            "-",
+            "’"
+          ],
+          [
+            "+",
+            "'"
+          ],
+          [
+            "=",
+            " Total Risk Capital (TRC) Management](3af8a3a2-25e5-44b3-87a4-7df1f2712685). Modifications to the base operational logic automatically propagate to the Spark Artifact."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "lint"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "As operators of the Spark Liquidity Layer, Spark automatically inherits, and is subject to, the base class of operational requirements related to Total Risk Capital management defined in [A.2.2."
+          ],
+          [
+            "-",
+            "9"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            ".1.1.3.2.1.2 - Primes' Total Risk Capital (TRC) Management](3af8a3a2-25e5-44b3-87a4-7df1f2712685). Modifications to the base operational logic automatically propagate to the Spark Artifact."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

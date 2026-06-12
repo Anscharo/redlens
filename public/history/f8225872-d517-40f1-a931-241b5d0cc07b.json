@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-25",
+    "commitHash": "25a64cf",
+    "commitSeq": 1088,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The specific `RateLimitID`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact."
+      ]
+    ]
+  }
+]

@@ -1,0 +1,23 @@
+# Local Postgres + pgvector for the Railway MCP service. Railway provisions its
+# own Postgres; this is dev/test parity. Use pgvector/pgvector (NOT stock
+# postgres) so `CREATE EXTENSION vector` works.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: redlens-pg
+    environment:
+      POSTGRES_USER: redlens
+      POSTGRES_PASSWORD: redlens
+      POSTGRES_DB: redlens
+    ports:
+      - "5432:5432"
+    volumes:
+      - redlens-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redlens -d redlens"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  redlens-pgdata:

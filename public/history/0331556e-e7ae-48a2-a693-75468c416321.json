@@ -225,5 +225,59 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "- Core Council Executor Agent 1 - 25,000,000 USDS"
+      ],
+      [
+        "=",
+        "- Keel - 10,000,000 USDS"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "-"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " - 10,500,000 USDS"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Amatsu - 25,000,000 USDS"
+      ],
+      [
+        "=",
+        "- Ozone - 25,000,000 USDS"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

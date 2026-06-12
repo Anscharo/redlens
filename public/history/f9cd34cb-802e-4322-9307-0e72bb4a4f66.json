@@ -37,5 +37,43 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/4/1/4/3/1/1/3/document.md",
     "movedTo": "content/A/1/10/4/1/4/3/1/1/3/document.md"
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The signers of the Plasma SkyLink Freezer Multisig are three (3) addresses controlled by Operational GovOps Soter Labs, one (1) address controlled by Operational Facilitator Redline Facilitation Group, and one (1) address controlled by"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

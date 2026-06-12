@@ -29,5 +29,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " uses the Sky Forum for governance-related discussion. Posts should use the \""
+          ],
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Prime\" category."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

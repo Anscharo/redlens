@@ -84,5 +84,39 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "This document contains a Directory of all prospective Instances of the Executor Accord Primitive whose Invocation is currently in progress. Invocations that are completed successfully are moved to [A.6.1.1.6.2.2.1.1.2 - Active Instances Directory"
+          ],
+          [
+            "+",
+            "]"
+          ],
+          [
+            "=",
+            "(8466094a-9e2a-4dad-bac9-88e0bb8987aa)"
+          ],
+          [
+            "-",
+            "]"
+          ],
+          [
+            "=",
+            ", whereas failed Invocations are Archived in [A.6.1.1.6.2.2.1.1.5 - Hub Data Repository](f5ddf7f3-add9-4599-ae6e-108d56abcb5b)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "lint"
   }
 ]

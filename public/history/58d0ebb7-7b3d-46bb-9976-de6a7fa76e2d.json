@@ -65,5 +65,73 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein implement the SkyLink Primitives for"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            ". See [A.2.2.7 - SkyLink Primitives](7b5d8965-a64c-4c44-b742-607f51f69d8f)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein implement the SkyLink Primitives for Osero. See [A.2.2."
+          ],
+          [
+            "-",
+            "7"
+          ],
+          [
+            "+",
+            "8"
+          ],
+          [
+            "=",
+            " - SkyLink Primitives](7b5d8965-a64c-4c44-b742-607f51f69d8f)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

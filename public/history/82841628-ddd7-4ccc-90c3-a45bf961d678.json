@@ -106,5 +106,63 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The process to pay 0.50% of"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            "'s market capitalization per year in USDS will be specified in future iterations of the"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Artifact."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

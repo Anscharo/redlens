@@ -153,5 +153,76 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Sky has transferred 500,000 USDS from the Core Council Buffer to the"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Foundation."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "The address of the"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Foundation on the Ethereum Mainnet is `0xfDD055D3CCEE0D955031CF1FD76c8Db9317cCC58`."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -69,5 +69,63 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The documents herein specify"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " governance information that is unrelated to the use of the Root Edit Primitive. The governance process for updating the"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Artifact is specified in the Root Edit Primitive above at [A.6.1.1.7.2.2.2 - Root Edit Primitive](6c61b3d8-6cc8-4250-8173-eee8396a4ef4)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -1,0 +1,12 @@
+# Keep the build context lean. The atlas is cloned fresh in the Dockerfile (the
+# submodule + .git aren't used at build — Railway strips .git anyway), so exclude
+# both vendor/next-gen-atlas and .git.
+node_modules
+redlens-mcp/node_modules
+dist
+.cache
+*.log
+.env.local
+.DS_Store
+.git
+vendor/next-gen-atlas

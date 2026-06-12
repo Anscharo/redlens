@@ -60,5 +60,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "An Agent Collateral Portfolio is defined as the total amount of capital that the Prime Agent has deployed from Sky through the Allocation System Primitive, excluding any portion of that capital held in USDS. See [A.2.2."
+          ],
+          [
+            "-",
+            "9"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            ".1 - Allocation System Primitive](9db14ab7-bb4b-4751-8084-843bd4359f2a)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

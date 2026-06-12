@@ -1,0 +1,11 @@
+# Dockerfile builder. Nixpacks is deprecated and Railpack's slim runtime can't
+# carry git + the build toolchain + the submodule .git that the in-process atlas
+# updater needs at runtime — so we own the image explicitly. See ./Dockerfile.
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

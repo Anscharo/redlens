@@ -123,8 +123,19 @@ const { nodes } = parse(src);
 
 printStats(nodes);
 
-console.log("\nBuilding MiniSearch index…");
-const idx = buildIndex(nodes);
+// BUILD_SKIP_SEARCH_INDEX=1 emits docs.json without building search-index.json —
+// for the in-process self-updater's subprocess-shrink (the server owns + serializes
+// the index incrementally). DORMANT: only safe once the server maintains the index
+// (patchDocs + toJSON); otherwise rebuildFromDisk falls back to addAll and the
+// 316 MB build just moves into the live server. See atlas-runtime-freshness-inprocess.md.
+const skipSearchIndex = process.env.BUILD_SKIP_SEARCH_INDEX === "1";
+let idx = null;
+if (skipSearchIndex) {
+  console.log("\nSkipping MiniSearch index build (BUILD_SKIP_SEARCH_INDEX=1)");
+} else {
+  console.log("\nBuilding MiniSearch index…");
+  idx = buildIndex(nodes);
+}
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
@@ -161,8 +172,10 @@ for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1]))
 
 fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify(chainMap));
 fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify(docs));
-fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringify(idx));
+if (idx) fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringify(idx));
 
 const docsSize = (fs.statSync(path.join(OUT_DIR, "docs.json")).size / 1024).toFixed(1);
-const idxSize  = (fs.statSync(path.join(OUT_DIR, "search-index.json")).size / 1024).toFixed(1);
-console.log(`\nWrote docs.json (${docsSize} KB), search-index.json (${idxSize} KB), addresses.atlas.json`);
+const idxNote = idx
+  ? `, search-index.json (${(fs.statSync(path.join(OUT_DIR, "search-index.json")).size / 1024).toFixed(1)} KB)`
+  : " (search-index.json skipped)";
+console.log(`\nWrote docs.json (${docsSize} KB)${idxNote}, addresses.atlas.json`);

@@ -4,6 +4,7 @@ import { type FlatEntry } from "../../lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
+import { useAtlasActions } from "./AtlasActionsContext";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -16,9 +17,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   hiddenCount = 0,
   parentDocNo,
   onExpandChildren,
-  onNavigate,
-  onToggle,
-  onShiftNavigate,
   idPrefix,
 }: {
   entry: FlatEntry;
@@ -27,11 +25,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   hiddenCount?: number;
   parentDocNo?: string;
   onExpandChildren?: (id: string) => void;
-  onNavigate: (id: string) => void;
-  onToggle: (id: string) => void;
-  onShiftNavigate?: (id: string) => void;
   idPrefix?: string;
 }) {
+  const { navigate, toggle, splitNavigate } = useAtlasActions();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   // NR-X nodes are leaves attached to regular tree nodes. The doc_no is opaque
@@ -75,26 +71,26 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
         // inRowBar = click landed on the title row (chiclets/title), not the expanded body. See data-row-bar attr below.
         const inRowBar = !!(e.target as Element).closest("[data-row-bar]");
-        if (e.shiftKey && onShiftNavigate) {
+        if (e.shiftKey) {
           e.preventDefault();
-          onShiftNavigate(node.id);
+          splitNavigate(node.id);
           return;
         }
         if (!isSelected) {
           // Click anywhere on the row (title or body) selects it.
-          onNavigate(node.id);
+          navigate(node.id);
           return;
         }
         // Already selected: only title-bar clicks toggle the body. Body clicks do nothing.
-        if (inRowBar && hasContent) onToggle(node.id);
+        if (inRowBar && hasContent) toggle(node.id);
       }}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           if (isSelected && hasContent) {
-            onToggle(node.id);
+            toggle(node.id);
           } else {
-            onNavigate(node.id);
+            navigate(node.id);
           }
         }
       }}
@@ -135,7 +131,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       )}
       {isExpanded && hasContent && (
         <div className="atlas-node-body">
-          <NodeContent content={node.content} onNavigate={onNavigate} />
+          <NodeContent content={node.content} onNavigate={navigate} />
         </div>
       )}
     </article>

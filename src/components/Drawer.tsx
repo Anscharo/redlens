@@ -34,7 +34,7 @@ export function Drawer({
   open,
   onClose,
   breakpoint = 1050,
-  defaultWidth: defaultWidth = 220,
+  defaultWidth = 220,
   desktopMode = "static",
   resizable = false,
   minWidth = 180,

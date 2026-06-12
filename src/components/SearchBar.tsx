@@ -5,8 +5,6 @@ import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RefObject } from "react";
 
-const BASE = import.meta.env.BASE_URL;
-
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
 
 const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
@@ -47,14 +45,28 @@ export function SearchBar({
       style={{ background: "var(--bg)" }}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-        <Link to="/" className="order-1 shrink-0" title="Home">
-          <img
-            src={`${BASE}icon-SMALL.png`}
-            alt="Home"
-            width="28"
-            height="28"
-            className="w-7 h-7 object-cover rounded-[30%]"
-          />
+        <Link
+          to="/"
+          className="order-1 shrink-0 flex items-center justify-center w-7 h-7"
+          title="Home"
+          aria-label="Home"
+          style={{ color: "var(--accent)" }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />
+            <path d="M9.5 21v-6h5v6" />
+          </svg>
         </Link>
         <NavBar activePage={activePage} />
 

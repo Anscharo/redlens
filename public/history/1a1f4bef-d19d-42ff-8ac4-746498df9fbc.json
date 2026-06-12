@@ -24,5 +24,47 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The onboarding/offboarding of SparkLend collateral is temporarily controlled by Sky Core, but will be transitioned to Spark in the future. Currently, it is implemented by the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            ", in consultation with the Core Council Risk Advisor and Phoenix Labs, through the Operational Weekly Cycle."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

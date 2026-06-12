@@ -15,6 +15,7 @@ on:
 permissions:
   contents: write
   issues: write
+  pull-requests: write
 
 jobs:
   build:
@@ -50,7 +51,7 @@ jobs:
             echo "Already at latest (${OLD:0:7}). Use force=true to rebuild anyway."
           fi
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
         if: steps.atlas.outputs.proceed == 'true'
 
       - uses: actions/setup-node@v4
@@ -181,12 +182,14 @@ jobs:
           app_id: ${{ secrets.ATLAS_BOT_APP_ID }}
           private_key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
 
-      - name: Push to main
+      - name: Push branch and open auto-merge PR
         env:
           BOT_TOKEN: ${{ steps.bot-token.outputs.token }}
+          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
         run: |
           SHORT="${{ needs.build.outputs.short }}"
           DATE=$(date -u +%Y-%m-%d)
+          BRANCH="atlas-update/${SHORT}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -195,16 +198,35 @@ jobs:
           git add vendor/next-gen-atlas public/ graph-snapshots/
 
           if git diff --cached --quiet; then
-            echo "No artifact changes — skipping push."
+            echo "No artifact changes — skipping PR."
             exit 0
           fi
 
+          git checkout -b "$BRANCH"
           git commit -m "chore: atlas update ${SHORT} (${DATE})"
+          git push -f origin "$BRANCH"
 
-          # Rebase onto any commits that landed on main while we were building.
-          git pull --rebase origin main
+          # Ensure label exists (idempotent).
+          gh label create atlas-update \
+            --color 0075ca \
+            --description "Automated atlas content update" \
+            2>/dev/null || true
 
-          git push origin HEAD:main
+          # Create PR if one doesn't already exist for this branch.
+          if ! gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: atlas update ${SHORT} (${DATE})" \
+            --body "Automated atlas update — submodule → \`${{ needs.build.outputs.atlas_sha }}\`." \
+            --label "atlas-update"; then
+            echo "PR already exists for $BRANCH."
+          fi
+
+          # Merge immediately via the bot token — the bot is a bypass actor in
+          # branch protection, so CI checks are not required. The build job
+          # above already ran the equivalent (type-check + bundle + snapshots).
+          # --auto would block forever because bot-created PRs don't trigger CI.
+          gh pr merge "$BRANCH" --rebase
 
           # Tag the atlas SHA so "what was deployed when X happened" is
           # answerable by atlas version.

@@ -47,12 +47,12 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 export function PanelError({ reset }: { reset?: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <p className="text-xs mono" style={{ color: "var(--red)" }}>failed to load</p>
+      <p className="text-xs mono" style={{ color: "var(--error-text)" }}>failed to load</p>
       {reset && <button onClick={reset} className="text-xs mono text-accent hover:underline">retry</button>}
     </div>
   );
 }
 
 export function InlineError() {
-  return <span className="text-xs mono" style={{ color: "var(--red)" }} role="alert">failed to render</span>;
+  return <span className="text-xs mono" style={{ color: "var(--error-text)" }} role="alert">failed to render</span>;
 }

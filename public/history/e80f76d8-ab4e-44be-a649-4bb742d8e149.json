@@ -28,5 +28,51 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " engaged in terms of agreement with Sky in Ecosystem Accord 6, located in [A.2.8.2.6 - Ecosystem Accord 6: Sky And"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            "](45125ff8-5435-4cbf-9b20-9f55a1dbc883)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

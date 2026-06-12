@@ -85,7 +85,7 @@ export function buildOverrideSnippet(
   for (const token of registry) {
     const draftValue = draft[token.name];
     if (draftValue === undefined) continue;
-    if (normalize(draftValue) === normalize(token.defaultValue)) continue;
+    if (normalize(draftValue) === normalize(cssDefault(token.name))) continue;
     const list = changedByGroup.get(token.group) ?? [];
     list.push(token);
     changedByGroup.set(token.group, list);
@@ -121,3 +121,8 @@ export function buildOverrideSnippet(
 }
 
 export const ALL_TOKEN_NAMES: readonly string[] = PALETTE_TOKENS.map((t) => t.name);
+
+/** Read the current stylesheet value of a CSS custom property (not any inline override). */
+export function cssDefault(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+}

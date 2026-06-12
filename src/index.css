@@ -10,9 +10,10 @@
   --border: #3d2c28;
 
   /* ─── Brand ─── */
-  --red: #a63228; /* burn red — badges, target highlight */
+  --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
   --red-dim: #753021;
   --accent: #c67267; /* browner/pinker — focus, interactive */
+  --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
 
   /* ─── Text ─── */
   --gray: #9a8a80; /* bumped from #7a6860 — passes 4.5:1 on --bg */
@@ -542,7 +543,7 @@ mark {
     color: var(--gray);
   }
   .text-red {
-    color: var(--red);
+    color: var(--error-text);
   }
   .border-border {
     border-color: var(--border);
@@ -734,7 +735,7 @@ mark {
   border-radius: 4px;
 }
 .badge-red {
-  color: var(--red);
+  color: var(--error-text);
 }
 .badge-accent {
   color: var(--accent);

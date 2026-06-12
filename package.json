@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/aux/dev.mjs",
+    "dev:vite": "vite",
+    "dev:server": "bun src/server/index.ts",
     "build:index": "node --env-file-if-exists=.env.local scripts/required/build-index.mjs",
     "build:glossary": "node scripts/required/build-glossary.mjs",
     "build:addresses": "node --env-file-if-exists=.env.local scripts/required/build-addresses.mjs",
@@ -22,12 +24,22 @@
     "processes:bootstrap": "node scripts/aux/processes-bootstrap.mjs",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
+    "build:vite": "vite build",
+    "build:railway": "bun scripts/required/build-index.mjs && bun scripts/required/build-graph.mjs && bun scripts/required/build-manifest.mjs && bun run build:ts && bun run build:vite",
     "build": "pnpm build:index && pnpm build:glossary && pnpm build:addresses && pnpm build:snapshot && pnpm build:graph && pnpm build:manifest && pnpm run build:ts && vite build",
     "build:server": "pnpm build:index && pnpm build:graph && pnpm build:rag",
+    "start": "bun src/server/index.ts",
+    "refresh:atlas-build": "bun scripts/required/refresh-atlas-build.mjs",
+    "sync:atlas": "bun src/server/sync.ts",
+    "sync:embeddings": "bun src/server/sync-embeddings.ts",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down",
+    "db:migrate": "bun src/server/migrate.ts",
     "lint": "oxlint .",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:server": "bun test src/server",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "check:pr": "bash scripts/aux/check-atlas-pr.sh",
@@ -37,14 +49,18 @@
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.5",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@uiw/react-color": "^2.10.1",
     "@xyflow/react": "^12.10.2",
+    "arctic": "^3.7.0",
     "graphology": "^0.26.0",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-layout-noverlap": "^0.4.2",
     "graphology-traversal": "^0.3.1",
+    "jose": "^6.2.3",
     "katex": "^0.16.45",
     "minisearch": "^7.2.0",
+    "openai": "^6.39.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
@@ -53,8 +69,11 @@
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "unist-util-visit": "^5.1.0",
+    "wcag-contrast": "3.0.0",
     "workbox-window": "^7.4.1",
-    "wouter": "^3.9.0"
+    "wouter": "^3.9.0",
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@huggingface/transformers": "^4.2.0",
@@ -67,7 +86,9 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/wcag-contrast": "^3.0.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "bun-types": "^1.2.0",
     "jsdom": "^29.1.1",
     "knip": "^6.6.0",
     "oxlint": "^1.62.0",
@@ -83,6 +104,9 @@
     "node": ">=22"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["onnxruntime-node", "protobufjs"]
+    "onlyBuiltDependencies": [
+      "onnxruntime-node",
+      "protobufjs"
+    ]
   }
 }

@@ -21,29 +21,37 @@ export function Footer() {
   }, []);
 
   const buildDate = __BUILD_TIME__.slice(0, 19).replace("T", " ");
+  const hasStatus = !online || needRefresh;
 
   return (
+    // Left-packed: status (the update/offline warning) leads, then build info.
+    // The right edge is ceded to the chat — the launcher (float) floats over the
+    // empty right gutter, and when the chat is anchored the footer shrinks to its
+    // left edge (see body.rlc-anchored .app-footer in chat.css).
     <footer
-      className="fixed bottom-0 left-0 right-0 border-t flex items-center justify-between gap-0 overflow-hidden"
+      className="app-footer fixed bottom-0 left-0 right-0 border-t flex items-center overflow-hidden"
       style={{ borderColor: "var(--border)", background: "var(--bg)", height: "24px", zIndex: 10 }}
     >
-      <div className="flex items-center">
-        {!online && (
-          <StatusPill color="var(--red)" title="No network connection">
-            offline
-          </StatusPill>
-        )}
-        {needRefresh && (
-          <StatusPill
-            as="button"
-            color="var(--magenta)"
-            title="A new version is available — click to reload"
-            onClick={applyUpdate}
-          >
-            update available ↻
-          </StatusPill>
-        )}
-      </div>
+      {hasStatus && (
+        <div className="flex items-center shrink-0">
+          {!online && (
+            <StatusPill color="var(--red)" title="No network connection">
+              offline
+            </StatusPill>
+          )}
+          {needRefresh && (
+            <StatusPill
+              as="button"
+              color="var(--magenta)"
+              title="A new version is available — click to reload"
+              onClick={applyUpdate}
+            >
+              update available ↻
+            </StatusPill>
+          )}
+        </div>
+      )}
+      {hasStatus && <Sep />}
       <div className="flex items-center overflow-hidden">
       {block && (
         <>

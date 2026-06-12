@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Core Spell Crafter Checklist defines standardized steps for Spell Crafters. The Core Spell Crafter Checklist is not mandatory."
+      ]
+    ]
+  }
+]

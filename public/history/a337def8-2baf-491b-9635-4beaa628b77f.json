@@ -62,5 +62,55 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " can implement various perpetual yield strategies, including on-chain and off-chain mechanisms, that enable the Sky Protocol to take advantage of high risk-adjusted return on perpetual yield strategies in the crypto markets."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "Exposure targets specified in this document override requirements defined by other Articles of the Stability Scope."
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

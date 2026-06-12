@@ -1,11 +1,20 @@
 import { forwardRef } from "react";
+import type { ContrastLevel } from "./contrast";
 import type { PaletteToken } from "./palette-tokens";
+
+const BADGE_COLOR: Record<ContrastLevel, string> = {
+  AAA: "var(--gray)",
+  AA: "var(--terminal-green)",
+  "AA Large": "var(--depth-2)",
+  Fail: "var(--error-text)",
+};
 
 interface SwatchProps {
   token: PaletteToken;
   value: string;
   isOverridden: boolean;
   onClick: () => void;
+  contrastBadge?: { ratio: number; level: ContrastLevel };
 }
 
 // Checkerboard pattern for alpha previews.
@@ -18,7 +27,7 @@ const CHECKER_BG: React.CSSProperties = {
 };
 
 export const Swatch = forwardRef<HTMLButtonElement, SwatchProps>(function Swatch(
-  { token, value, isOverridden, onClick },
+  { token, value, isOverridden, onClick, contrastBadge },
   ref,
 ) {
   return (
@@ -99,6 +108,16 @@ export const Swatch = forwardRef<HTMLButtonElement, SwatchProps>(function Swatch
       >
         {value}
       </span>
+      {contrastBadge && (
+        <span
+          className="mono"
+          style={{ fontSize: 9, fontWeight: 700, color: BADGE_COLOR[contrastBadge.level] }}
+          title={`Contrast ratio: ${contrastBadge.ratio.toFixed(2)} (worst-case bg)`}
+        >
+          Contrast: {contrastBadge.ratio.toFixed(1)}{" "}
+          {contrastBadge.level === "AA Large" ? "BB" : contrastBadge.level}
+        </span>
+      )}
     </button>
   );
 });

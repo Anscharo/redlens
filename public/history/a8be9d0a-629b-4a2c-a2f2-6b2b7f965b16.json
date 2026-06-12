@@ -61,5 +61,91 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/4/1/4/3/1/1/5/document.md",
     "movedTo": "content/A/1/10/4/1/4/3/1/1/5/document.md"
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Operational GovOps Soter Labs, Operational Facilitator Redline Facilitation Group, and"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " can change the signers of the Plasma SkyLink Freezer Multisig so long as:"
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- there are five (5) signers;"
+      ],
+      [
+        "…"
+      ],
+      [
+        "=",
+        "- three (3) signers are controlled by Operational GovOps Soter Labs;"
+      ],
+      [
+        "=",
+        "- one (1) signer is controlled by Operational Facilitator Redline Facilitation Group; and"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- one (1) signer is controlled by"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

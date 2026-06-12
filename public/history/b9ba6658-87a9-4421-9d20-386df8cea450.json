@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Technical Scope Template is a standardized template for announcing any infrastructure changes, whether on-chain or off-chain. The Technical Scope Template must be completed for all infrastructure changes and submitted as specified in [A.1.10.2.5.2.1.1 - Technical Scope Template Submission Requirements](a6acd80e-289a-4159-ba51-3399c5d90f3d)."
+      ]
+    ]
+  }
+]

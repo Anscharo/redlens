@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein define the Spell Checklists used across Sky Core and Agent Spells, including their categorization, update processes, and registration."
+      ]
+    ]
+  }
+]

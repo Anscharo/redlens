@@ -163,7 +163,7 @@ export function RewardsReport() {
 
         {error ? (
           <div className="flex items-center gap-3">
-            <p className="text-sm mono" style={{ color: "var(--red)" }}>Failed to load report.</p>
+            <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Failed to load report.</p>
             <button
               onClick={() => setAttempt((n) => n + 1)}
               className="text-xs mono text-accent hover:underline"

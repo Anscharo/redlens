@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Core Spell Reviewer Checklist defines the mandatory steps for internal and external Spell Reviewers. All Spell Reviewers must complete the Core Spell Reviewer Checklist for every Core Spell review."
+      ]
+    ]
+  }
+]

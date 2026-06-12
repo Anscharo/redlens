@@ -100,17 +100,6 @@
     "isContract": true,
     "isProxy": false
   },
-  "0x2847540606a790e5083d0d63470fab01344c8e92": {
-    "chain": "ethereum",
-    "isContract": false,
-    "isProxy": false
-  },
-  "0x2c89024c13a80bc1b662a3db990524652c15221c": {
-    "chain": "ethereum",
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false
-  },
   "0xe3dc949720da42c5c842d06974bcb7b03f4f604f": {
     "chain": "ethereum",
     "isContract": false,
@@ -788,6 +777,12 @@
     "isContract": true,
     "isProxy": false
   },
+  "0xb0c424116172b55cbb6dd3136f5989f7959e5b91": {
+    "chain": "ethereum",
+    "etherscanName": "VaultV2",
+    "isContract": true,
+    "isProxy": false
+  },
   "0xfe6eb3b609a7c8352a241f7f3a21cea4e9209b8f": {
     "chain": "ethereum",
     "etherscanName": "ERC1967Proxy",
@@ -1077,6 +1072,18 @@
   "0x380be2b91b63bf75b194913b6e2c07df09598c22": {
     "chain": "avalanche",
     "etherscanName": "LZReceiver",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x26e9512547fec1906c55256e491dfb6673d8c23f": {
+    "chain": "avalanche",
+    "etherscanName": "CCTPReceiver",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x8ea8dff8c29f568ea1e716e2c3afbd003eb83cfa": {
+    "chain": "avalanche",
+    "etherscanName": "CCTPv2Receiver",
     "isContract": true,
     "isProxy": false
   },

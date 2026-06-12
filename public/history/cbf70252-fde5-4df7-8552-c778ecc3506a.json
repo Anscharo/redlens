@@ -68,5 +68,60 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Resilience Research Projects require different approval processes depending on the total cost of the project. Projects with a total cost under 15,000 USDS can be directly approved by the "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator and included in an Executive Vote without a prior Governance Poll. Projects with a total cost of 15,000 USDS or above require a Governance Poll followed by inclusion in an Executive Vote."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator must formally approve the inclusion of funding in a Governance Poll or directly in an Executive Vote, as applicable, by replying to the Forum Post containing their evaluation (see [A.2.10.1.5 - Review Process](35aec115-f27c-42f2-9812-644a2df8f38f))."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

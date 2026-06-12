@@ -242,5 +242,72 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "99a267c",
+    "commitSeq": 1095,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "The current rsETH risk parameters are:"
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- LTV: "
+          ],
+          [
+            "-",
+            "75"
+          ],
+          [
+            "+",
+            "0"
+          ],
+          [
+            "=",
+            "%"
+          ]
+        ]
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Liquidation Threshold: "
+          ],
+          [
+            "-",
+            "76"
+          ],
+          [
+            "+",
+            "70"
+          ],
+          [
+            "=",
+            "%"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- E-mode Category: 0"
+      ],
+      [
+        "=",
+        "- Liquidation Bonus: 10%"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

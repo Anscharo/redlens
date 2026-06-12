@@ -155,5 +155,199 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/2/3/2/1/2/1/2/1/document.md",
     "movedTo": "content/A/1/10/2/3/2/1/2/1/2/1/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "- The addresses of the deployed contracts"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- A link to the audit reports"
+          ],
+          [
+            "-",
+            ","
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "ideally"
+          ],
+          [
+            "+",
+            "as"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "externally"
+          ],
+          [
+            "+",
+            "specified"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "verifiable"
+          ],
+          [
+            "+",
+            "in"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "sources"
+          ],
+          [
+            "+",
+            "[A.1.10.2.7.6 - Audit Recordkeeping](610c8780-178b-4055-9387-373e014c8202)"
+          ],
+          [
+            "=",
+            ", "
+          ],
+          [
+            "-",
+            "such"
+          ],
+          [
+            "+",
+            "hosted"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "as"
+          ],
+          [
+            "+",
+            "on"
+          ],
+          [
+            "=",
+            " the"
+          ],
+          [
+            "-",
+            " Chain"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Security"
+          ],
+          [
+            "+",
+            "auditor's"
+          ],
+          [
+            "=",
+            " website "
+          ],
+          [
+            "-",
+            "link"
+          ],
+          [
+            "+",
+            "or"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "to"
+          ],
+          [
+            "+",
+            "another"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "an"
+          ],
+          [
+            "+",
+            "independently"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "audit"
+          ],
+          [
+            "+",
+            "verifiable"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "report"
+          ],
+          [
+            "+",
+            "source"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Confirmation that the deployed code matches the commit hash that was sent for audit."
+      ],
+      [
+        "=",
+        "- Constructor arguments are as expected in the Init script"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

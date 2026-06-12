@@ -24,5 +24,51 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The"
+          ],
+          [
+            "-",
+            " Sky"
+          ],
+          [
+            "=",
+            " Core"
+          ],
+          [
+            "-",
+            " Stability"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            ", in consultation with the Core Council Risk Advisor, may recommend changes to any of the parameters specified in the subdocuments of [A.3.3.2.7.1.1.1 - Lite Peg Stability Module Parameter Definitions](9196786a-18b6-4dea-b4e2-852090371dd7). These changes will be subject to an Executive Vote through the Operational Weekly Governance Cycle."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

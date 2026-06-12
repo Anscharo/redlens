@@ -65,5 +65,51 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " is an Agent focused on building credit infrastructure for onchain and traditional finance, with a focus on USD₮ liquidity. In addition to allocating capital to scale Sky's collateral portfolio,"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " serves as a platform enabling stablecoin distribution hubs—including exchanges, wallets, and neobanks—to access institutional grade lending infrastructure underpinning USDS through a suite of products."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

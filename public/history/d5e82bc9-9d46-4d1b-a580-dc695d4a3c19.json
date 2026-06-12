@@ -68,5 +68,43 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/4/5/0/4/1/1/1/document.md",
     "movedTo": "content/A/1/5/5/0/4/1/1/1/document.md"
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "That Entity is alternating between two roles to perform their duties in separate time intervals does not negate the misalignment risk that the Target Document is intended to protect against. They are still formally occupying two roles at once. They still have access to sensitive information and experiences in two roles with different mandates and incentives."
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Facilitator should derecognize Entity per [A.1.5"
+          ],
+          [
+            "-",
+            " - A10 - Alignment Conservers - Accountability And Misalignment Handling"
+          ],
+          [
+            "+",
+            ".10"
+          ],
+          [
+            "=",
+            " - AC Derecognition](ac998664-5b5e-4ea5-813b-dc3105ea6cf2)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

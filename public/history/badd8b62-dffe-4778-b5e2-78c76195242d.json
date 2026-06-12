@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Agent Spell Reviewer Checklist defines standardized steps for Agent Spell Reviewers. Beginning with the June 18, 2026 Executive Vote, all Agents must complete this checklist and include it in the Spell review Pull Request prior to Spell handover for every Agent Spell."
+      ]
+    ]
+  }
+]

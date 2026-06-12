@@ -60,5 +60,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Sky Direct Exposures are designated by the Core Facilitator in consultation with the Core Council Risk Advisor via posts to the Sky Forum under the \"Sky Core\" category. Sky Direct Exposures are recorded in [A.2.2."
+          ],
+          [
+            "-",
+            "9"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            ".1.1.1.1.2.0.6.1 - List Of Current Sky Direct Exposures](5f368e33-7a82-4244-a9ba-f285193ec043) and must specify the asset that is being designated as a Sky Direct Exposure and the Prime Agent responsible for implementing the exposure."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/9/1/1/1/1/1/document.md",
+    "movedTo": "content/A/2/2/10/1/1/1/1/1/document.md"
   }
 ]

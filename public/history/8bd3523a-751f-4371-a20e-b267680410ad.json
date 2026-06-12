@@ -31,5 +31,51 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/2/4/12/4/5/document.md",
     "movedTo": "content/A/1/10/2/4/12/4/5/document.md"
+  },
+  {
+    "date": "2026-06-11",
+    "commitHash": "f114a09",
+    "commitSeq": 1097,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Issues found during the Spell validation should be reported to "
+          ],
+          [
+            "-",
+            "all"
+          ],
+          [
+            "+",
+            "the"
+          ],
+          [
+            "=",
+            " Core"
+          ],
+          [
+            "-",
+            " Facilitators, not a single"
+          ],
+          [
+            "=",
+            " Facilitator"
+          ],
+          [
+            "-",
+            ", to mitigate the risk of compromised or malicious actors"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

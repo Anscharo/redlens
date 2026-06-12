@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein define the Integrator Program, the rules governing reward payments to Integrators across Sky Primitives, and the Demand Side Buffer that disburses such payments."
+      ]
+    ]
+  }
+]

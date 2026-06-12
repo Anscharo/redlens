@@ -61,5 +61,71 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Until the Powerhouse system supports submitting Artifact Edit Proposals, "
+          ],
+          [
+            "-",
+            "AGENT6"
+          ],
+          [
+            "+",
+            "OSERO"
+          ],
+          [
+            "=",
+            " token holders may submit Artifact Edit Proposals by posting them to the Sky Forum under the \""
+          ],
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Prime\" category. The title of the post must include the text \""
+          ],
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Artifact Edit Proposal\". The post must include cryptographic proof that the author controls an account holding the required percentage of the total "
+          ],
+          [
+            "-",
+            "AGENT6"
+          ],
+          [
+            "+",
+            "OSERO"
+          ],
+          [
+            "=",
+            " token supply specified in [A.6.1.1.7.2.2.2.2.1.2.1.1 - Root Edit Proposal Submission](70c91853-b74b-4c6b-befb-8446f00c9691)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -60,5 +60,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "SEJRC is JRC rented from another Prime Agent via the [A.2.2."
+          ],
+          [
+            "-",
+            "9"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            ".2 - Junior Risk Capital Rental Primitive](d8086dc0-7e77-4c6b-98c7-5fc41337a1ce). The capital remains in the lender's treasury but counts towards the borrower's JRC amount. SEJRC is represented by a registered Ecosystem Accord signifying that a specified amount of the lending Agent's JRC (held within the lender's treasury) is designated to count towards the borrowing Agent's JRC requirement for the duration and terms specified in the Accord."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

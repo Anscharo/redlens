@@ -138,5 +138,55 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "If Legal Counsel is NOT RF-qualified in the Lawyer Registry ([A.2.9.1.1.2 - Lawyer Registry](4c327b04-48f7-4941-b996-1c629eb42bf7)), then the "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            ", or alternatively the Resilience Fund Technical Committee Member, will verify if the Legal Counsel complies with requisites in Lawyer Registry Acceptance Criteria and LR Resilience Fund Acceptance Criteria. See: [A.2.9.1.1.2.2 - Lawyer Registry Acceptance Criteria](2b66ce16-d104-4238-b7d5-e4c6fe8d961b) and [A.2.9.1.1.2.3 - Resilience Fund Representation Requirements](b39f4808-18ae-456b-86fc-d449a69ea99a)."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "If the Legal Counsel of the quote is determined by the Resilience Technical Committee to comply with the requirements of this Artifact, the quote is pre-approved and the legal counsel is added to the LR."
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

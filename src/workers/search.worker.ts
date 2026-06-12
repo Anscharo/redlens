@@ -162,18 +162,16 @@ function search(q: string): SearchHit[] {
   }
 
   // Extract field scope: title:foo, content:foo, doc_no:foo
-  // fieldScopedTerms tracks which terms belong to title: or content: so they
-  // only highlight in that field, not everywhere.
-  let searchFields: string[] | undefined;
+  // Terms are removed from the query — free terms search all fields, field-scoped
+  // terms are enforced via the filter callback so mixed queries like
+  // `title:Facilitator core` correctly restrict only "Facilitator" to the title.
   const fieldScopedTerms = new Map<string, string[]>();
   const restAfterFields = restAfterPhrases
     .replace(/\b(title|content|doc_no):\s*(\S+)/gi, (_, field, term) => {
       const f = (field as string).toLowerCase();
-      if (!searchFields) searchFields = [];
-      searchFields.push(f);
       if (!fieldScopedTerms.has(f)) fieldScopedTerms.set(f, []);
       fieldScopedTerms.get(f)!.push(term as string);
-      return term as string;
+      return " "; // removed from MiniSearch query; checked via filter instead
     })
     .trim();
 
@@ -224,26 +222,68 @@ function search(q: string): SearchHit[] {
     casePhrases.push(matchedChainlogId);
   }
 
+  // Pre-compile all regexes once per search (not once per document).
+  const phraseRes = phrases.map(
+    (p) => new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i"),
+  );
+  const casePhraseRes = casePhrases.map(
+    (p) => new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b"),
+  );
+  // field:term regexes — case-insensitive; doc_no uses simple includes
+  const fieldTermRes = new Map<string, RegExp[]>(
+    [...fieldScopedTerms.entries()].map(([f, terms]) => [
+      f,
+      terms.map((t) => new RegExp("\\b" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i")),
+    ]),
+  );
+
+  // Single filter function passed to MiniSearch (and applied to the queryEmpty path).
+  // Handles: type:, in:, field:term, phrase, case-phrase, and -exclusion.
+  const hasFilters =
+    typeFilters.length > 0 ||
+    inPrefix !== null ||
+    fieldTermRes.size > 0 ||
+    phraseRes.length > 0 ||
+    casePhraseRes.length > 0 ||
+    excludeTerms.length > 0;
+
+  const docFilter = hasFilters
+    ? (result: { id: unknown }) => {
+        const doc = docs[result.id as string];
+        if (!doc) return false;
+        if (typeFilters.length > 0 && !typeFilters.includes(doc.type.toLowerCase())) return false;
+        if (inPrefix && doc.doc_no !== inPrefix && !doc.doc_no.startsWith(inPrefix + ".")) return false;
+        for (const [field, res] of fieldTermRes) {
+          const text = field === "title" ? doc.title : field === "content" ? doc.content : doc.doc_no;
+          if (res.some((re) => !re.test(text))) return false;
+        }
+        if (phraseRes.some((re) => !re.test(doc.content) && !re.test(doc.title))) return false;
+        if (casePhraseRes.some((re) => !re.test(doc.content) && !re.test(doc.title))) return false;
+        if (excludeTerms.length > 0) {
+          const haystack = (doc.title + " " + doc.content).toLowerCase();
+          if (excludeTerms.some((t) => haystack.includes(t))) return false;
+        }
+        return true;
+      }
+    : undefined;
+
   const queryEmpty = !finalQuery;
 
   type MiniResult = { id: unknown; score: number; terms: string[]; queryTerms: string[]; match: Record<string, string[]> };
   let results: MiniResult[];
 
   if (queryEmpty) {
-    results = Object.keys(docs).map((id) => ({
-      id,
-      score: 1,
-      terms: [],
-      queryTerms: [],
-      match: {},
-    }));
+    const filter = docFilter ?? (() => true);
+    results = Object.keys(docs)
+      .filter((id) => filter({ id }))
+      .map((id) => ({ id, score: 1, terms: [], queryTerms: [], match: {} }));
   } else {
     results = idx.search(finalQuery, {
       prefix: true,
       fuzzy: fuzzyLevel || false,
       boost: { title: 10, doc_no: 5, type: 2 },
       combineWith: "OR",
-      ...(searchFields ? { fields: searchFields } : {}),
+      ...(docFilter ? { filter: docFilter } : {}),
     }) as MiniResult[];
   }
 
@@ -274,30 +314,6 @@ function search(q: string): SearchHit[] {
       const doc = docs[r.id as string];
       if (!doc) return null;
 
-      // Type post-filter
-      if (typeFilters.length > 0 && !typeFilters.includes(doc.type.toLowerCase())) return null;
-
-      // Phrase post-filter: every quoted phrase must appear as a whole-word sequence
-      if (phrases.length > 0) {
-        for (const p of phrases) {
-          const re = new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
-          if (!re.test(doc.content) && !re.test(doc.title)) return null;
-        }
-      }
-      // Case-sensitive phrase post-filter (single-quoted phrases)
-      if (casePhrases.length > 0) {
-        for (const p of casePhrases) {
-          const re = new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b");
-          if (!re.test(doc.content) && !re.test(doc.title)) return null;
-        }
-      }
-
-      // Exclusion post-filter
-      if (excludeTerms.length > 0) {
-        const haystack = (doc.title + " " + doc.content).toLowerCase();
-        if (excludeTerms.some((t) => haystack.includes(t))) return null;
-      }
-
       // Build matchReason from MiniSearch match object: { term: [field, ...] }
       const fieldSet = new Set<string>();
       for (const fields of Object.values(r.match)) {
@@ -305,9 +321,9 @@ function search(q: string): SearchHit[] {
       }
       const parts: string[] = [];
       if (typeFilters.length > 0) parts.push("type");
-      if (fieldSet.has("title")) parts.push("title");
-      if (fieldSet.has("doc_no")) parts.push("doc number");
-      if (fieldSet.has("content")) parts.push("content");
+      if (fieldSet.has("title") || fieldTermRes.has("title")) parts.push("title");
+      if (fieldSet.has("doc_no") || fieldTermRes.has("doc_no")) parts.push("doc number");
+      if (fieldSet.has("content") || fieldTermRes.has("content")) parts.push("content");
       if (phrases.length > 0 || casePhrases.length > 0) parts.push("exact phrase");
       const matchReason = parts.join(" + ");
 
@@ -326,18 +342,13 @@ function search(q: string): SearchHit[] {
     })
     .filter((h): h is SearchHit => h !== null);
 
-  // Apply in:DOCNUMBER scope filter
-  const scopedHits = inPrefix
-    ? hits.filter((h) => h.doc_no === inPrefix || h.doc_no.startsWith(inPrefix + "."))
-    : hits;
-
   // Merge with three tiers:
   //   1. found by BOTH chainlog + search  (best snippet from search, highest priority)
   //   2. chainlog only
   //   3. search only  (sorted by score)
-  if (chainlogHits.size === 0) return scopedHits;
+  if (chainlogHits.size === 0) return hits;
 
-  const hitsById = new Map(scopedHits.map((h) => [h.id, h]));
+  const hitsById = new Map(hits.map((h) => [h.id, h]));
 
   const both: SearchHit[] = [];
   const chainlogOnly: SearchHit[] = [];
@@ -354,7 +365,7 @@ function search(q: string): SearchHit[] {
       chainlogOnly.push(chainlogHit);
     }
   }
-  const searchOnly = scopedHits.filter((h) => !chainlogHits.has(h.id));
+  const searchOnly = hits.filter((h: SearchHit) => !chainlogHits.has(h.id));
 
   both.sort((a, b) => b.score - a.score);
   searchOnly.sort((a, b) => b.score - a.score);

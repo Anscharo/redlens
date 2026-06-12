@@ -65,5 +65,35 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Sky retains 322,222,222 "
+          ],
+          [
+            "-",
+            "AGENT6"
+          ],
+          [
+            "+",
+            "OSERO"
+          ],
+          [
+            "=",
+            " tokens, distributing these as specified in a future iteration of the Atlas."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

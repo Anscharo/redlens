@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-25",
+    "commitHash": "25a64cf",
+    "commitSeq": 1088,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein contain specific off-chain parameters for this Instance."
+      ]
+    ]
+  }
+]

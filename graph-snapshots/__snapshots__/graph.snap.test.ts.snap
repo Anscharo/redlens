@@ -5361,15 +5361,15 @@ exports[`allocation-system sub-doc content > Spark > Avalanche - Aave v3 USDC Va
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 20,000,000 USDC
-- \`slope\`: 10,000,000 USDC per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: Unlimited",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -5966,15 +5966,15 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Aave Cor
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 100,000,000 USDT
-- \`slope\`: 1,000,000,000 USDT per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: Unlimited
-- \`slope\`: Unlimited",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Outflow Rate Limits",
   },
   {
@@ -6520,8 +6520,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Arkis 1`
     "title": "Maximum Exposure",
   },
   {
-    "content": "The Instance Capital Requirement Ratio for this Instance is 50%.",
-    "title": "Instance Capital Requirement Ratio",
+    "content": "The Instance Capital Ratio Requirement for this Instance is 50%.",
+    "title": "Instance Capital Ratio Requirement",
   },
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
@@ -7387,6 +7387,10 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Ethena s
 - \`maxAmount\`: unlimited
 - \`slope\`: unlimited",
     "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
   },
   {
     "content": "For operational processes defining the operations performed to manage the Ethena Instance, including rate limiting, role-based access control, and minting of USDe functionality see [A.6.1.1.1.2.6.1.3.1.4.1.3 - Instance-specific Operational Processes](6a009815-fba1-452c-af33-7ac5454211f1). For detailed logic specific for this instance see [A.6.1.1.1.2.6.1.3.1.4.2.3.1 - Initiate A sUSDe Cooldown Period](cf235e02-23fb-48e6-b39e-b4fd09dc7911), [A.6.1.1.1.2.6.1.3.1.4.2.3.2 - Cool Down sUSDe Shares](24171b90-4967-4c15-ac77-789d42b0fc80), [A.6.1.1.1.2.6.1.3.1.4.2.3.3 - Unstake sUSDe And Return It To ALM Proxy](57337963-ea1f-4d12-bea4-127896d35855) and [A.6.1.1.1.2.6.1.3.1.4.2.3.4 - Emergency Procedure To Withdraw Ethena Balances](037dc4f2-0b55-42a9-851c-8769b60b7122).",
@@ -8283,7 +8287,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 100,000,000 USDT
+- \`maxAmount\`: 0
 - \`slope\`: 1,000,000,000 USDT per day",
     "title": "Inflow Rate Limits",
   },
@@ -8333,6 +8337,105 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
 - Absolute cap: 250 million
 - Relative cap: 100%",
     "title": "cbBTC/USDT 86% LLTV Pool",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x0f963A8A8c01042B69054e787E5763ABbB0646A3\`",
+    "title": "Curator Role Address",
+  },
+  {
+    "content": "\`0xf5748bBeFa17505b2F7222B23ae11584932C908B\`",
+    "title": "Guardian Role Address",
+  },
+  {
+    "content": "Timelock: 240 hours (10 days)",
+    "title": "Timelock",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Blue Chip USDT Vault 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Spark Blue Chip USDT Vault Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Morpho",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDT",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "sparkUSDT",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xb0c424116172B55CbB6dD3136F5989F7959e5B91\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xdac17f958d2ee523a2206206994597c13d831ec7\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178\`",
+    "title": "Allocator Role Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit’s inflow/outflow are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The inflow rate limits are:
+
+- \`maxAmount\`: 100,000,000 USDT
+- \`slope\`: 1,000,000,000 USDT per day",
+    "title": "Inflow Rate Limits",
+  },
+  {
+    "content": "The outflow rate limits are:
+
+- \`maxAmount\`: unlimited
+- \`slope\`: unlimited",
+    "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
   },
   {
     "content": "The documents herein define the Instance contract addresses.",
@@ -8442,7 +8545,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Sa
   {
     "content": "The Risk parameters are:
 
-- Supply cap: 250,000 WETH
+- Supply cap: 500,000 WETH
 - Max yield: 5%
 - Current yield (at launch): 0%",
     "title": "Spark Savings ETH Risk Parameters",
@@ -8555,7 +8658,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Sa
   {
     "content": "The Risk parameters are:
 
-- Supply cap: 1,000,000,000 USDC
+- Supply cap: 2,000,000,000 USDC
 - Max yield: 10%
 - Current yield (at launch): 0%",
     "title": "Spark Savings USDC Risk Parameters",
@@ -8668,7 +8771,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Sa
   {
     "content": "The Risk parameters are:
 
-- Supply cap: 2,000,000,000 USDT
+- Supply cap: 4,000,000,000 USDT
 - Max yield: 10%
 - Current yield (at launch): 0%",
     "title": "Spark Savings USDT Risk Parameters",
@@ -8848,6 +8951,10 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - SparkLen
     "title": "Underlying Asset Address",
   },
   {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
     "content": "The current \`maxAmount\` and \`slope\` for this conduit’s inflow/outflow are defined in the subdocuments herein.",
     "title": "Rate Limits",
   },
@@ -8863,6 +8970,10 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - SparkLen
 
 - \`maxAmount\`: Unlimited",
     "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
   },
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
@@ -9812,30 +9923,30 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
-  "active_data_for": 75,
-  "annotates": 102,
-  "cites": 1842,
+  "active_data_for": 76,
+  "annotates": 101,
+  "cites": 1875,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 350,
+  "defines_entity": 352,
   "ecosystem_accord": 20,
-  "has_address": 232,
+  "has_address": 233,
   "has_status": 136,
   "holds_role_for": 2,
   "implements": 188,
-  "instance_of": 187,
+  "instance_of": 188,
   "invocation_of": 5,
-  "invoked_by": 191,
+  "invoked_by": 192,
   "listed_in": 26,
-  "located_at": 185,
-  "mentions": 536,
+  "located_at": 186,
+  "mentions": 542,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
   "prime_agent_for": 8,
   "proxies_to": 61,
-  "responsible_party_for": 63,
+  "responsible_party_for": 64,
 }
 `;
 
@@ -9871,14 +9982,6 @@ exports[`entities > composite parties and their members 1`] = `
     "name": "Keel",
   },
   {
-    "members": [
-      "Launch Agent 6",
-      "Launch Agent 6 Foundation",
-      "Stablewatch",
-    ],
-    "name": "Launch Agent 6",
-  },
-  {
     "members": [],
     "name": "Moonbow",
   },
@@ -9889,6 +9992,14 @@ exports[`entities > composite parties and their members 1`] = `
       "Treadstone",
     ],
     "name": "Obex",
+  },
+  {
+    "members": [
+      "Osero",
+      "Osero Foundation",
+      "Stablewatch",
+    ],
+    "name": "Osero",
   },
   {
     "members": [
@@ -10005,8 +10116,8 @@ exports[`entities > prime agents 1`] = `
   },
   {
     "definingDoc": "A.6.1.1.7",
-    "name": "Launch Agent 6",
-    "slug": "launch-agent-6",
+    "name": "Osero",
+    "slug": "osero",
   },
   {
     "definingDoc": "A.6.1.1.8",
@@ -10020,19 +10131,20 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
 [
   "A.1.1.3.1.0.6.1 → A.1.1.3.1",
   "A.1.10.2.3.2.2.1.5.0.6.1 → A.1.10.2.3.2.2.1.5",
+  "A.1.10.2.5.1.3.2.0.6.1 → A.1.10.2.5.1.3.2",
   "A.1.5.10.2.0.6.1 → A.1.5.10.2",
   "A.1.6.1.5.0.6.1 → A.1.6.1.5",
   "A.1.6.6.1.3.0.6.1 → A.1.6.6.1.3",
   "A.1.9.1.2.2.0.6.1 → A.1.9.1.2.2",
   "A.2.11.1.3.4.2.0.6.1 → A.2.11.1.3.4.2",
-  "A.2.2.8.1.2.1.1.2.1.1.0.6.1 → A.2.2.8.1.2.1.1.2.1.1",
-  "A.2.2.8.1.2.1.4.6.1.0.6.1 → A.2.2.8.1.2.1.4.6.1",
-  "A.2.2.8.1.2.1.6.1.0.6.1 → A.2.2.8.1.2.1.6.1",
-  "A.2.2.8.1.2.1.6.2.0.6.1 → A.2.2.8.1.2.1.6.2",
-  "A.2.2.8.1.2.1.7.1.0.6.1 → A.2.2.8.1.2.1.7.1",
-  "A.2.2.8.2.2.1.5.1.0.6.1 → A.2.2.8.2.2.1.5.1",
-  "A.2.2.8.3.1.2.1.0.6.1 → A.2.2.8.3.1.2.1",
-  "A.2.2.9.1.1.1.1.2.0.6.1 → A.2.2.9.1.1.1.1.2",
+  "A.2.2.10.1.1.1.1.2.0.6.1 → A.2.2.10.1.1.1.1.2",
+  "A.2.2.4.1.2.1.1.0.6.1 → A.2.2.4.1.2.1.1",
+  "A.2.2.4.3.6.1.0.6.1 → A.2.2.4.3.6.1",
+  "A.2.2.9.1.2.1.4.1.0.6.1 → A.2.2.9.1.2.1.4.1",
+  "A.2.2.9.1.2.1.4.2.0.6.1 → A.2.2.9.1.2.1.4.2",
+  "A.2.2.9.1.2.1.5.1.0.6.1 → A.2.2.9.1.2.1.5.1",
+  "A.2.2.9.2.2.1.5.1.0.6.1 → A.2.2.9.2.2.1.5.1",
+  "A.2.2.9.3.1.2.1.0.6.1 → A.2.2.9.3.1.2.1",
   "A.2.7.1.1.1.1.4.0.6.1 → A.2.7.1.1.1.1.4",
   "A.2.8.1.2.0.6.1 → A.2.8.1.2",
   "A.2.9.1.1.1.2.3.0.6.1 → A.2.9.1.1.1.2.3",
@@ -10112,7 +10224,7 @@ exports[`governance edges > ecosystem_accord — accord doc → party entity 1`]
   "A.2.8.2.4 → Sky Core",
   "A.2.8.2.5 → Core Council Executor Agent 1",
   "A.2.8.2.5 → Sky Core",
-  "A.2.8.2.6 → Launch Agent 6",
+  "A.2.8.2.6 → Osero",
   "A.2.8.2.6 → Sky Core",
   "A.2.8.2.7 → Sky Core",
   "A.2.8.2.7 → Skybase",
@@ -10134,6 +10246,11 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "adc": "A.1.10.2.3.2.2.1.5",
     "declared": "Core Facilitator",
     "party": "JanSky",
+  },
+  {
+    "adc": "A.1.10.2.5.1.3.2",
+    "declared": "Core Spell Teams",
+    "party": "Core Spell Teams",
   },
   {
     "adc": "A.1.5.10.2",
@@ -10161,44 +10278,44 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "party": "Atlas Axis",
   },
   {
-    "adc": "A.2.2.8.1.2.1.1.2.1.1",
+    "adc": "A.2.2.10.1.1.1.1.2",
+    "declared": "Core Facilitator",
+    "party": "JanSky",
+  },
+  {
+    "adc": "A.2.2.4.1.2.1.1",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
   },
   {
-    "adc": "A.2.2.8.1.2.1.4.6.1",
+    "adc": "A.2.2.4.3.6.1",
     "declared": "Operational GovOps Soter Labs",
     "party": "Soter Labs",
   },
   {
-    "adc": "A.2.2.8.1.2.1.6.1",
+    "adc": "A.2.2.9.1.2.1.4.1",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
   },
   {
-    "adc": "A.2.2.8.1.2.1.6.2",
+    "adc": "A.2.2.9.1.2.1.4.2",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
   },
   {
-    "adc": "A.2.2.8.1.2.1.7.1",
+    "adc": "A.2.2.9.1.2.1.5.1",
     "declared": "Core GovOps",
     "party": "Atlas Axis",
   },
   {
-    "adc": "A.2.2.8.2.2.1.5.1",
+    "adc": "A.2.2.9.2.2.1.5.1",
     "declared": "Core GovOps",
     "party": "Atlas Axis",
   },
   {
-    "adc": "A.2.2.8.3.1.2.1",
+    "adc": "A.2.2.9.3.1.2.1",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
-  },
-  {
-    "adc": "A.2.2.9.1.1.1.1.2",
-    "declared": "Core Facilitator",
-    "party": "JanSky",
   },
   {
     "adc": "A.2.7.1.1.1.1.4",
@@ -10212,13 +10329,13 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   },
   {
     "adc": "A.2.9.1.1.1.2.3",
-    "declared": "Support Facilitators",
-    "party": "Support Facilitators",
+    "declared": "Core Facilitator",
+    "party": "JanSky",
   },
   {
     "adc": "A.2.9.1.1.2.6",
-    "declared": "Support Facilitators",
-    "party": "Support Facilitators",
+    "declared": "Core Facilitator",
+    "party": "JanSky",
   },
   {
     "adc": "A.3.7.1.5.3",
@@ -10532,16 +10649,16 @@ exports[`instances > agent-token instances 1`] = `
   },
   {
     "agent": "A.6.1.1.7",
-    "name": "Launch Agent 6's Instance of the Agent Token Primitive",
+    "name": "Osero's Instance of the Agent Token Primitive",
     "params": {
       "Genesis Supply": "1 billion",
-      "Token Address": "The address of AGENT6 will be specified in a future iteration of the Launch Agent 6 Artifact.",
-      "Token Admin": "The token Admin will be specified in a future iteration of the Launch Agent 6 Artifact.",
-      "Token Emissions": "Token emissions beyond the Genesis Supply are permanently disabled; this cannot be reverted by Launch Agent 6 Governance. Sky Governance retains the ability to revert where Launch Agent 6 is in violation of Risk Capital requirements and emissions are required by the Risk Framework. See [A.3.2 - Risk Capital](55999acf-75fe-4adf-8584-9746ef50d3e4).",
-      "Token Name": "Launch Agent 6",
-      "Token Symbol": "AGENT6",
+      "Token Address": "The address of OSERO will be specified in a future iteration of the Osero Artifact.",
+      "Token Admin": "The token Admin will be specified in a future iteration of the Osero Artifact.",
+      "Token Emissions": "Token emissions beyond the Genesis Supply are permanently disabled; this cannot be reverted by Osero Governance. Sky Governance retains the ability to revert where Osero is in violation of Risk Capital requirements and emissions are required by the Risk Framework. See [A.3.2 - Risk Capital](55999acf-75fe-4adf-8584-9746ef50d3e4).",
+      "Token Name": "Osero",
+      "Token Symbol": "OSERO",
     },
-    "slug": "launch-agent-6-agent-token-launch-agent-6-s-instance-of-the-agent-token-primitive",
+    "slug": "osero-agent-token-osero-s-instance-of-the-agent-token-primitive",
     "status": "Active",
   },
   {
@@ -10607,11 +10724,11 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Avalanche - Aave v3 USDC Vault",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
-      "Inflow Rate Limits / maxAmount": "20,000,000 USDC",
-      "Inflow Rate Limits / slope": "10,000,000 USDC per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Avalanche",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "Unlimited",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Aave",
       "Token": "aAvaxUSDC",
@@ -10739,11 +10856,11 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - Aave Core USDT",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDT",
-      "Inflow Rate Limits / maxAmount": "100,000,000 USDT",
-      "Inflow Rate Limits / slope": "1,000,000,000 USDT per day",
+      "Inflow Rate Limits / maxAmount": "0",
+      "Inflow Rate Limits / slope": "0",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "Unlimited",
-      "Outflow Rate Limits / slope": "Unlimited",
+      "Outflow Rate Limits / maxAmount": "0",
+      "Outflow Rate Limits / slope": "0",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "Aave Core",
       "Token": "aEthUSDT",
@@ -10833,7 +10950,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Asset Supplied By Spark Liquidity Layer": "USDC",
       "Inflow Rate Limits / maxAmount": "5,000,000 USDC",
       "Inflow Rate Limits / slope": "5,000,000 USDC per day",
-      "Instance Capital Requirement Ratio": "The Instance Capital Requirement Ratio for this Instance is 50%.",
+      "Instance Capital Ratio Requirement": "The Instance Capital Ratio Requirement for this Instance is 50%.",
       "Maximum Exposure": "The Maximum Exposure for this Instance is $50 million.",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
@@ -11161,7 +11278,7 @@ exports[`instances > allocation-system instances 1`] = `
     "params": {
       "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
       "Asset Supplied By Spark Liquidity Layer": "USDT",
-      "Inflow Rate Limits / maxAmount": "100,000,000 USDT",
+      "Inflow Rate Limits / maxAmount": "0",
       "Inflow Rate Limits / slope": "1,000,000,000 USDT per day",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "unlimited",
@@ -11173,6 +11290,26 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-morpho-usdt",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Spark Blue Chip USDT Vault",
+    "params": {
+      "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
+      "Asset Supplied By Spark Liquidity Layer": "USDT",
+      "Inflow Rate Limits / maxAmount": "100,000,000 USDT",
+      "Inflow Rate Limits / slope": "1,000,000,000 USDT per day",
+      "Network": "Ethereum Mainnet",
+      "Outflow Rate Limits / maxAmount": "unlimited",
+      "Outflow Rate Limits / slope": "unlimited",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Morpho",
+      "Token": "sparkUSDT",
+      "Token Address": "0xb0c424116172B55CbB6dD3136F5989F7959e5B91",
+      "Underlying Asset Address": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-spark-blue-chip-usdt-vault",
     "status": "Active",
   },
   {
@@ -11248,6 +11385,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Inflow Rate Limits / slope": "50,000,000 DAI per day",
       "Network": "Ethereum Mainnet",
       "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Target Protocol": "SparkLend Protocol",
       "Token": "spDai",
       "Token Address": "0x4DEDf26112B3Ec8eC46e7E31EA5e123490B05B8B",
@@ -12630,7 +12768,7 @@ exports[`instances > core-governance-reward instances 1`] = `
     "name": "Sky.money Frontend",
     "params": {
       "Reward Code": "1",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.10.1.4.2.1 - Tracking Via Reward Codes](b16cb8a3-aea3-4fda-b904-eb782ea7a8e1).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.11.1.4.2.1 - Tracking Via Reward Codes](b16cb8a3-aea3-4fda-b904-eb782ea7a8e1).",
     },
     "slug": "skybase-core-governance-reward-sky-money-frontend",
     "status": "Active",
@@ -12647,7 +12785,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "SparkLend",
     "params": {
       "Reward Code": "128",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "spark-distribution-reward-sparklend",
     "status": "Active",
@@ -12657,7 +12795,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "Grove Finance",
     "params": {
       "Reward Code": "2002",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "grove-distribution-reward-grove-finance",
     "status": "Active",
@@ -12667,7 +12805,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "1inch",
     "params": {
       "Reward Code": "4011",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "keel-distribution-reward-1inch",
     "status": "Active",
@@ -12687,7 +12825,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "CoW Swap",
     "params": {
       "Reward Code": "1003",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.2 - Ethereum Mainnet CoW Swap Tracking Methodology](1b5cc0ee-0ee8-467e-ab49-33c06ad417dc). Specifically, on-chain Settlement Events on the CoW Swap settlement contract ([https://etherscan.io/address/0x9008D19f58AAbD9eD0D60971565AA8510560ab41](https://etherscan.io/address/0x9008D19f58AAbD9eD0D60971565AA8510560ab41)) are checked for where they coincide perfectly with USDS deposit transactions into sUSDS.",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.2 - Ethereum Mainnet CoW Swap Tracking Methodology](1b5cc0ee-0ee8-467e-ab49-33c06ad417dc). Specifically, on-chain Settlement Events on the CoW Swap settlement contract ([https://etherscan.io/address/0x9008D19f58AAbD9eD0D60971565AA8510560ab41](https://etherscan.io/address/0x9008D19f58AAbD9eD0D60971565AA8510560ab41)) are checked for where they coincide perfectly with USDS deposit transactions into sUSDS.",
     },
     "slug": "skybase-distribution-reward-cow-swap",
     "status": "Active",
@@ -12697,7 +12835,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "DeFi Saver",
     "params": {
       "Reward Code": "1002",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-defi-saver",
     "status": "Active",
@@ -12717,7 +12855,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "MOM",
     "params": {
       "Reward Code": "1015",
-      "Tracking Methodology": "This Instance uses the Tracking Methodologies specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2) and [A.2.2.8.1.2.1.2.2.3 - Base Tracking Methodology](f710bddf-dc1d-483c-9503-483574cb6333).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodologies specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2) and [A.2.2.9.1.2.1.1.2.3 - Base Tracking Methodology](f710bddf-dc1d-483c-9503-483574cb6333).",
     },
     "slug": "skybase-distribution-reward-mom",
     "status": "Active",
@@ -12727,7 +12865,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "ParaSwap",
     "params": {
       "Reward Code": "1004",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-paraswap",
     "status": "Active",
@@ -12737,7 +12875,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "Sky.money App",
     "params": {
       "Reward Code": "1",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-sky-money-app",
     "status": "Active",
@@ -12747,7 +12885,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "Sky.money Open Source Widgets",
     "params": {
       "Reward Code": "0",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-sky-money-open-source-widgets",
     "status": "Active",
@@ -12757,7 +12895,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "Summer.fi",
     "params": {
       "Reward Code": "1001",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-summer-fi",
     "status": "Completed",
@@ -12767,7 +12905,7 @@ exports[`instances > distribution-reward instances 1`] = `
     "name": "Yearn (Gimme)",
     "params": {
       "Reward Code": "1007",
-      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.8.1.2.1.2.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
+      "Tracking Methodology": "This Instance uses the Tracking Methodology specified in [A.2.2.9.1.2.1.1.2.1 - Ethereum Mainnet General Tracking Methodology](87fd6861-ba8a-4bde-945e-ee9ad37ae3e2).",
     },
     "slug": "skybase-distribution-reward-yearn-gimme",
     "status": "Active",
@@ -12837,7 +12975,7 @@ exports[`instances > executor-accord instances 1`] = `
     "params": {
       "Operational Executor Agent": "The Operational Facilitator and Operational GovOps for Ozone are specified in [A.6.1.2.2 - Operational Executor Agent Ozone](565660dd-7850-4c3a-8dba-554542bf103a)",
     },
-    "slug": "launch-agent-6-executor-accord-ozone",
+    "slug": "osero-executor-accord-ozone",
     "status": "Active",
   },
   {
@@ -12856,7 +12994,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 104,
+  "allocation-system": 105,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,
@@ -13018,7 +13156,7 @@ exports[`instances > pioneer-chain instances 1`] = `
       "Address": "0x1369f7b2b38c76B6478c0f0E66D94923421891Ba",
       "Network": "Avalanche",
       "Pioneer Incentive Pool / Network": "Ethereum Mainnet",
-      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.8.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
+      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.9.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
     },
     "slug": "grove-pioneer-chain-avalanche",
     "status": "Active",
@@ -13029,7 +13167,7 @@ exports[`instances > pioneer-chain instances 1`] = `
     "params": {
       "Address": "8JmDPG5BFQ6gpUPJV9xBixYJLqTKCSNotkXksTmNsQfj",
       "Network": "Solana",
-      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.8.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
+      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.9.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
     },
     "slug": "keel-pioneer-chain-solana",
     "status": "Active",
@@ -13040,9 +13178,9 @@ exports[`instances > pioneer-chain instances 1`] = `
     "params": {
       "Address": "0x24fdcd3bFA5C2553e05B2f9AD0365EBC296278D3",
       "Network": "Plasma",
-      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.8.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
+      "Terms": "The Pioneer Incentive Pool for this Instance is governed by the terms specified in [A.2.2.9.3.1.4 - Pioneer Incentive Pool](04edac33-19d5-4a87-a8ab-945a0cd57771).",
     },
-    "slug": "launch-agent-6-pioneer-chain-plasma",
+    "slug": "osero-pioneer-chain-plasma",
     "status": "Active",
   },
 ]
@@ -13106,11 +13244,11 @@ exports[`instances > upkeep-rebate instances 1`] = `
   },
   {
     "agent": "A.6.1.1.7",
-    "name": "Launch Agent 6's Instance of the Upkeep Rebate Primitive",
+    "name": "Osero's Instance of the Upkeep Rebate Primitive",
     "params": {
       "Parameters": "Every Prime Agent is entitled to the Upkeep Rebate Primitive for tokens of other Prime Agents that they hold. Because this right automatically applies, there are no parameters.",
     },
-    "slug": "launch-agent-6-upkeep-rebate-launch-agent-6-s-instance-of-the-upkeep-rebate-primitive",
+    "slug": "osero-upkeep-rebate-osero-s-instance-of-the-upkeep-rebate-primitive",
     "status": "Active",
   },
   {
@@ -13216,9 +13354,9 @@ exports[`role edges > operational_executor_agent_for 1`] = `
   "Amatsu → Grove",
   "Amatsu → Keel",
   "Amatsu → Spark",
-  "Ozone → Launch Agent 6",
   "Ozone → Launch Agent 7",
   "Ozone → Obex",
+  "Ozone → Osero",
   "Ozone → Pattern",
   "Ozone → Skybase",
 ]
@@ -13242,9 +13380,9 @@ exports[`role edges > prime_agent_for 1`] = `
 [
   "Grove → Sky Core",
   "Keel → Sky Core",
-  "Launch Agent 6 → Sky Core",
   "Launch Agent 7 → Sky Core",
   "Obex → Sky Core",
+  "Osero → Sky Core",
   "Pattern → Sky Core",
   "Skybase → Sky Core",
   "Spark → Sky Core",

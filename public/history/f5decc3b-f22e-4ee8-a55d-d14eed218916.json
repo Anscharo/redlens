@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Strategic Team is the actor responsible for reviewing submitted items and approving the scope of Prime Agent content advancing through the Prime Spell Process. The Strategic Team's approval reflects assessment of business needs and strategic alignment with the Sky Ecosystem's broader objectives. The Strategic Team's scope-approval role exists due to the current bounded capacity for Prime Spells and is expected to evolve as that capacity scales."
+      ]
+    ]
+  }
+]

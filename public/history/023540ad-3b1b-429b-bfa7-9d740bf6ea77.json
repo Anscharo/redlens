@@ -528,5 +528,35 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/13/5/1/document.md",
     "movedTo": "content/A/1/14/5/1/document.md"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Initiation of the Agent Termination Protocol requires the token holders of an Agent to follow the special voting requirements prescribed in the Root Edit Primitive for the Agent’s termination, as specified in [A.2.2."
+          ],
+          [
+            "-",
+            "5"
+          ],
+          [
+            "+",
+            "6"
+          ],
+          [
+            "=",
+            ".2.2.2.8.1 - Agent Termination Process](82f9f4b9-76db-4ad7-94af-200ffe7c3b75). These requirements include a minimum voting period, a minimum quorum, a supermajority approval threshold, and advance notice of the Agent’s proposed termination and the subsequent Agent vote issued in the Sky Forum by the Operational Facilitator."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
   }
 ]

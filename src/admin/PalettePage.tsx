@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { ColorPickerModal } from "./ColorPickerModal";
+import { ContrastAudit } from "./ContrastAudit";
+import { PalettePreview } from "./PalettePreview";
 import { SwatchGrid } from "./SwatchGrid";
 import {
   GROUP_LABEL,
@@ -176,9 +178,22 @@ export function PalettePage() {
           >
             {GROUP_LABEL.depth}
           </h2>
-          <p style={{ fontSize: 12, color: "var(--tan-3)", margin: "0 0 10px" }}>
-            17 colors used by the doc-tree depth coloring. Editable, but keep the gradient sane.
-          </p>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12, margin: "0 0 10px" }}>
+            <p style={{ fontSize: 12, color: "var(--tan-3)", margin: 0 }}>
+              17 colors used by the doc-tree depth coloring. Editable, but keep the gradient sane.
+            </p>
+            <button
+              className="mono"
+              onClick={() => {
+                for (let i = 6; i <= 17; i++) {
+                  setDraftValue(`depth-${i}`, effectiveValue(`depth-${((i - 1) % 5) + 1}`));
+                }
+              }}
+              style={{ fontSize: 11, padding: "3px 10px", background: "var(--surface)", color: "var(--tan-3)", border: "1px solid var(--border)", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              copy pattern
+            </button>
+          </div>
           <SwatchGrid
             tokens={tokensByGroup.get("depth") ?? []}
             draft={draft}
@@ -186,6 +201,12 @@ export function PalettePage() {
             onSwatchClick={setEditing}
           />
         </section>
+
+        <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "32px 0 24px" }} />
+        <ContrastAudit effectiveValue={effectiveValue} />
+
+        <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "32px 0 24px" }} />
+        <PalettePreview effectiveValue={effectiveValue} />
       </div>
 
       {editingToken && (

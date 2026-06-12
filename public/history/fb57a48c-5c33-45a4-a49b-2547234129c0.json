@@ -31,5 +31,83 @@
     "changeType": "moved",
     "movedFrom": "content/A/1/9/2/2/document.md",
     "movedTo": "content/A/1/10/2/2/document.md"
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Several different actors within the Sky Community play a role in the Executive Process. The specific actors involved vary depending on the content of the items included in the Executive Process. These actors"
+          ],
+          [
+            "-",
+            " are"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "categorized"
+          ],
+          [
+            "+",
+            "include"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "into"
+          ],
+          [
+            "+",
+            "the"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "four"
+          ],
+          [
+            "+",
+            "following"
+          ],
+          [
+            "=",
+            " groups: Governance Point, Technical Point, Content Liaisons,"
+          ],
+          [
+            "-",
+            " and"
+          ],
+          [
+            "=",
+            " SKY holders (acting directly or via Aligned Delegates and Shadow Delegates)"
+          ],
+          [
+            "+",
+            ", and Prime Agents"
+          ],
+          [
+            "=",
+            "."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -60,5 +60,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "On an ongoing basis, the Prime Agent team or Operational GovOps operates the Allocation Instance, scaling exposure up and down. Any change to the Allocation Instance outside of the limits specified in the Prime Agent Artifact or requiring judgment on the part of Operational GovOps (where the Allocation System Instance is operationalized by the Operational Executor Agent) requires a new vote of Prime Agent token holders. See [A.2.2."
+          ],
+          [
+            "-",
+            "9"
+          ],
+          [
+            "+",
+            "10"
+          ],
+          [
+            "=",
+            ".1.1.3.3.1 - Modification Of Existing Instances](c1b5708c-e88f-45e0-92e1-b76e68b34f13). As part of monthly and quarterly settlement cycles, Core GovOps reviews yields and obligations, applying penalties retroactively for any previously undisclosed violations. In the event of any such violations, Operational GovOps may be required to take escalatory steps based on the fallback strategy in the Prime Agent Artifact."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/9/1/1/3/3/document.md",
+    "movedTo": "content/A/2/2/10/1/1/3/3/document.md"
   }
 ]

@@ -1,88 +1,164 @@
-# Follow-up: pre-existing tech debt in atlas view (file-length splits)
+# AtlasView refactor — hooks, context, component splits
 
-## Context (carry forward)
-RedLens is a Vite + React 19 atlas viewer. Two atlas-shell files violate the repo's "max ~150 lines per file" rule from `CLAUDE.md`:
+## Context
 
-| File | Lines | Target |
+`AtlasView.tsx` is 382 lines and does too many things: loads data, computes per-node annotations,
+manages left-pane expand/scroll/toggle state, renders both panes, wires up a resize handle.
+`pr-ready-refactor-prompt.md` is COMPLETED — all prerequisites are met.
+
+This is a structural-only refactor. No behaviour changes, no visual changes, no new dependencies.
+MUST NOT touch `src/index.css`, the build pipeline, `package.json`, or atlas data.
+
+---
+
+## Architecture target
+
+```
+AtlasView                          ← data loading + cross-cutting state + layout shell
+  useAtlasData()                   → data
+  useAtlasSelection(id, onNav)     → selectedId, handleNavigate
+  useNodeAnnotations(id, data)     → linkedNodes, targetAddresses, chainValues, glossaryTerms
+  useGraphEdges(id)                → graphEdges  (or move inside RightPanel — see commit 3)
+  ancestors useMemo                → stays (feeds Breadcrumbs)
+
+  <AtlasActionsContext>            ← stable callbacks: navigate, toggle, splitNavigate
+    <Breadcrumbs />
+    <AtlasReader id data selectedId />      ← owns expand/toggle/scroll state + docList
+    <AtlasAnnotations id data ... />        ← resize handle + RightPanel wrapper
+```
+
+---
+
+## Commits — work in this order
+
+### Commit 1 — `AtlasActionsContext`: pull stable callbacks out of props
+
+`onNavigate` (`handleNavigate`), `onToggle` (`handleToggle`), and `onShiftNavigate`
+(`onSplitChange`) are stable `useCallback` values that today thread through the `docList`
+useMemo as dep-array entries and as props on every `CollapsibleNode`. Putting them in context:
+
+- Removes 3 props from `CollapsibleNode` (and from the `docList` loop)
+- Removes those 3 from the `docList` dep array — the memo is now immune to callback identity
+- Extends naturally to `NodeContent`, which already consumes an `onNavigate` context
+
+**New file:** `src/components/atlas/AtlasActionsContext.tsx`
+
+```ts
+interface AtlasActions {
+  navigate: (id: string) => void;
+  toggle: (id: string) => void;
+  splitNavigate: (id: string) => void;
+}
+export const AtlasActionsContext = createContext<AtlasActions | null>(null);
+export function useAtlasActions(): AtlasActions { ... }  // throws if no provider
+```
+
+**`AtlasView`:** wrap the return in `<AtlasActionsContext.Provider value={{ navigate: handleNavigate, toggle: handleToggle, splitNavigate: onSplitChange }}>`. Remove the three props from the `docList` loop and its dep array.
+
+**`CollapsibleNode`:** consume `useAtlasActions()` instead of receiving `onNavigate`, `onToggle`,
+`onShiftNavigate` as props. Remove those from the props interface.
+
+`selectedId` stays a prop — context bypasses `memo()`, so putting it in context would make all
+1200 nodes re-render on selection change, reversing the lag fix.
+
+Commit subject: `feat: AtlasActionsContext — pull navigate/toggle/split out of CollapsibleNode props`
+
+---
+
+### Commit 2 — Extract custom hooks
+
+Extract these from `AtlasView` into `src/hooks/` (or `src/components/atlas/` if atlas-specific):
+
+| Hook | Wraps | File |
 |---|---|---|
-| `src/components/atlas/AtlasView.tsx` | 369 | ~150 |
+| `useAtlasData()` | Promise.all load + setData | `src/hooks/useAtlasData.ts` |
+| `useAtlasSelection(id, onNavigate)` | selectedId state + mirror effect + handleNavigate | `src/hooks/useAtlasSelection.ts` |
+| `useNodeAnnotations(id, data)` | linkedNodes/addresses/chainValues/glossaryTerms memo (includes glossaryLookup internally) | `src/hooks/useNodeAnnotations.ts` |
+| `useGraphEdges(id)` | graphEdges state + cancellable fetch | `src/hooks/useGraphEdges.ts` |
+| `useAtlasScroll(id, data, expandedParents)` | scrolledRef + two scroll effects | `src/components/atlas/useAtlasScroll.ts` |
 
-`CollapsibleNode.tsx` is resolved — the meta row was extracted as `NodeMeta.tsx` (conditionally mounted when `isSelected`, 143 lines). `AtlasView.tsx` remains over target.
+`AtlasView` after this commit becomes a thin coordinator: a handful of hook calls, a few
+remaining memos (`ancestors`, `expandedSet`, `docList`), and the render.
 
-**Prerequisite**: This PR is intended to land *after* `pr-ready-refactor-prompt.md` so that `CollapsibleNode.tsx`'s inline-style migration has already moved a lot of JSX bulk into CSS. Run that prompt first if it hasn't been landed yet.
+Commit subject: `refactor: extract useAtlasData/Selection/NodeAnnotations/GraphEdges/Scroll`
 
-The repo is configured to commit as `darkstar-covenant`. **MUST NOT** add `Co-Authored-By: Claude …` trailers to any commit.
+---
 
-## Scope
+### Commit 3 — Extract `AtlasReader` (left pane)
 
-**Allowed to edit:**
-- `src/components/atlas/CollapsibleNode.tsx`
-- `src/components/atlas/AtlasView.tsx`
-- `src/components/tree/TreeRow.tsx` (non-null narrowing only — commit 2)
-- New: `src/components/atlas/AtlasReader.tsx` (if commit 1 needs an extracted sub-component)
+Pull the entire left-pane into `src/components/atlas/AtlasReader.tsx`. Crucially, the state
+that is only ever used by the left pane moves **into** `AtlasReader` — it does not stay in
+`AtlasView` as pass-through props:
 
-**MUST NOT edit:** `src/index.css` (this PR is structural only — no visual change at all), the build pipeline, `package.json`, atlas data, or anything outside `src/components/atlas/`. MUST NOT change behaviour. MUST NOT introduce new dependencies.
+State / logic that moves into `AtlasReader`:
+- `userToggles`, `handleToggle` (already in context after commit 1, but the state lives here)
+- `seenExpanded` ref, `expandedSet` useMemo
+- `useDepth6Expand` → `expandedParents`, `hiddenCount`, `expandParent`
+- `scrollContainerRef`, `scrolledRef`, `useAtlasScroll`
+- `useExpandingAttr`, `handleExpandParent`
+- `docList` useMemo (it only feeds the left pane)
 
-## Two commits — work in this order
+Props `AtlasReader` receives from `AtlasView`:
+- `id: string`
+- `selectedId: string | null`
+- `splitId: string | null`
+- `onSplitChange: (id: string | null) => void`
+- `data: LoadedData`
 
-### Commit 1 — Trim `AtlasView.tsx`
+`AtlasActionsContext` (from commit 1) means `onNavigate`, `onToggle`, `onShiftNavigate` are
+not props — `AtlasReader` reads them from context internally where needed.
 
-`AtlasView.tsx` is 384 lines and does three loosely-related things: load data + memos, render the left-pane atlas reader, render the right-pane annotations panel + resize handle. The cleanest extraction is to pull the **left-pane** (the scroll container + split-pane toggle button + `docList` + `JuniorPane` mount) into a new `src/components/atlas/AtlasReader.tsx`.
+Commit subject: `refactor: extract AtlasReader — left pane owns its own expand/scroll state`
 
-Constraints:
-- All state still lives in `AtlasView` and is passed down as props. Do NOT lift state into the new component.
-- Pass the already-computed `docList: ReactElement[]` as a prop — do NOT rebuild it inside `AtlasReader`.
-- Pass `id`, `splitId`, `onSplitChange`, `data`, and `scrollContainerRef` as props.
-- The new file should land under ~120 lines.
+---
 
-`AtlasView.tsx` afterwards should be a thin coordinator under ~250 lines (still over the 150 target but a clear improvement; a follow-up could pull out more if needed).
+### Commit 4 — Extract `AtlasAnnotations` (right pane wrapper)
 
-Commit subject: `Extract AtlasReader sub-component from AtlasView`.
+Pull the right-pane wrapper into `src/components/atlas/AtlasAnnotations.tsx`:
+- The `rightWidth` state + `useResizeDrag` call
+- The resize handle `<div>`
+- The `ErrorBoundary` + `RightPanel` with all its props
 
-### Commit 2 — Narrow `TreeRow.tsx` non-null assertions
+`graphEdges` can move inside `AtlasAnnotations` — it is only consumed by `RightPanel` and
+can be fetched locally given `id`.
 
-`src/components/tree/TreeRow.tsx` accesses `node!.id`. The component already early-returns on `if (!item) return null` after the hooks, so the `node!` syntax is a smell — the type narrowing just wasn't carried through. Note: hooks must be called unconditionally, so the early return must stay *after* the `useMemo` calls. The fix is:
+Props `AtlasAnnotations` receives:
+- `id: string`
+- `linkedNodes`, `targetAddresses`, `chainValues`, `glossaryTerms`, `annotationCount` (from `useNodeAnnotations` in `AtlasView`)
+- `tab`, `onTabChange`
+- `onNavigate`, `onNavigateByDocNo` (right panel nav is not latency-sensitive, uses raw `onNavigate`)
+
+Commit subject: `refactor: extract AtlasAnnotations — right pane owns resize + edge fetch`
+
+---
+
+### Commit 5 — Narrow `TreeRow.tsx` non-null assertions
+
+`src/components/tree/TreeRow.tsx` uses `node!.id`. The component already guards with
+`if (!item) return null` after hooks, so `node!` is just unfinished narrowing. Fix:
 
 ```ts
 const item = visibleNodes[index];
 const node = item?.node;
-// ...useMemo hooks stay here, using docNo/title/treeDepth derived above...
+// useMemo hooks stay here (hooks must be unconditional)
 if (!item || !node) return null;
-const { hasChildren } = item;
-// drop every `node!` below; node is AtlasNode here
+// drop every node! below — node is AtlasNode here
 ```
 
-Commit subject: `Narrow node type in TreeRow to drop non-null assertions`.
+Commit subject: `refactor: narrow node type in TreeRow to drop non-null assertions`
 
-## Forbidden actions
-- MUST NOT add `Co-Authored-By: Claude …` trailers.
-- MUST NOT change behaviour anywhere — the metaRow + reader extraction MUST render an identical DOM tree and produce identical event handling.
-- MUST NOT touch `src/index.css`, `package.json`, `vite.config.ts`, build pipeline, or atlas data.
-- MUST NOT introduce new dependencies.
+---
 
-## Checkpoints (output after each commit)
-After each of the two commits, output:
-1. ✅ Commit N subject — short summary of the diff
-2. `git diff --stat HEAD^ HEAD`
-3. `wc -l` for each touched component file so we can track the slimming progress.
+## Constraints (all commits)
 
-## Stop conditions
-- Stop and ask if `AtlasView` cannot be reduced to under 280 lines without restructuring state (which is out of scope for this PR).
+- MUST NOT change behaviour — identical DOM output, identical event handling
+- MUST NOT touch `src/index.css`, `package.json`, `vite.config.ts`, build pipeline, atlas data
+- MUST NOT introduce new dependencies
+- Max 3 components per file (only if 2 are <8 lines); max ~150 lines per file
 
-## Verification
+## Verification (run after all commits)
 
-After all three commits:
-1. `pnpm tsc --noEmit` — clean.
-2. `pnpm test` — all tests pass (including any inherited tests for the extracted components if `CollapsibleNode.test.tsx` was the first prompt's test file).
-3. `pnpm dev`, open `http://localhost:5173/redlens/atlas?id=<any-uuid>`. Visually confirm zero diff:
-   a. The type pill, both copy buttons (with "copied" flip), and sky-atlas link render identically.
-   b. Clicking either copy button still copies the right thing and flips for ~1.2 s.
-   c. Atlas list scrolls, expands, navigates as before.
-   d. Shift-click still opens the split pane; closing it works.
-   e. Right panel still renders annotations / glossary / history correctly.
-4. `git diff --stat <previous-PR-tip>..HEAD` — only the four files listed in **Scope** appear, no `src/index.css`, no test config, no data artifacts.
-5. `wc -l src/components/atlas/AtlasView.tsx src/components/atlas/AtlasReader.tsx` — final lines should be roughly:
-   - `AtlasView.tsx`: ≤ 280 lines (still over target — flagged for a future PR if reviewers want)
-   - `AtlasReader.tsx`: ≤ 120 lines
-
-Done only when 1–5 all pass.
+1. `pnpm tsc --noEmit` — clean
+2. `pnpm dev` — visually confirm: list scrolls/expands/navigates, shift-click split pane,
+   right panel tabs, back/forward selection, resize handle all work identically
+3. `git diff --stat` — only files in scope appear; no `src/index.css`, no build artifacts

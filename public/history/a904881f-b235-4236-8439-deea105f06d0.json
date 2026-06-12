@@ -107,5 +107,87 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "Every six (6) months, Arrangers are also required to publish a stress test analysis that demonstrates how the structures would perform under historical financial crisis scenarios and other hypothetical scenarios."
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " must periodically fund independent Ecosystem Actors to review and verify the quality and the results of the stress tests. Should an independent review produce an unfavorable result, the "
+          ],
+          [
+            "-",
+            "Stability"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "Facilitators"
+          ],
+          [
+            "+",
+            "Facilitator"
+          ],
+          [
+            "=",
+            " must propose a Governance Poll for warning, temporarily deactivating, or permanently offboarding the Arranger and/or the Asset Managers connected to the discovered issue."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "To be considered compliant, Arrangers’ monthly reports must satisfy the requirements of one of the following documents:"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -404,6 +404,69 @@ for (const stmt of [
   }
 }
 
+// ---------------------------------------------------------------------------
+// Migration runner
+// Each migration carries a shouldRun() predicate that inspects the actual DB
+// state. Returns true (run it), false (already correct — record and skip), or
+// null (DB unreachable — skip without recording).
+// schema_migrations is created here so it exists before schema.sql runs.
+// ---------------------------------------------------------------------------
+
+const MIGRATIONS = [
+  {
+    id: "001-drop-unique-doc-no",
+    file: path.join(MCP_DIR, "migrations/001-drop-unique-doc-no.sql"),
+    shouldRun() {
+      const rows = d1Query("SELECT sql FROM sqlite_master WHERE type='table' AND name='docs'");
+      if (rows === null) return null;
+      return (rows[0]?.sql ?? "").includes("UNIQUE");
+    },
+  },
+];
+
+function recordMigration(id) {
+  const ts = new Date().toISOString();
+  try {
+    execSync(
+      `npx wrangler@latest d1 execute ${DB} ${FLAG} --command="INSERT OR IGNORE INTO schema_migrations (id, applied_at) VALUES ('${id}', '${ts}')"`,
+      { stdio: "pipe", cwd: MCP_DIR },
+    );
+  } catch { /* ignore */ }
+}
+
+try {
+  execSync(
+    `npx wrangler@latest d1 execute ${DB} ${FLAG} --command="CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"`,
+    { stdio: "pipe", cwd: MCP_DIR },
+  );
+} catch { /* ignore */ }
+
+const appliedMigrations = new Set(
+  (d1Query("SELECT id FROM schema_migrations") ?? []).map((r) => r.id),
+);
+
+console.log("Running migrations…");
+for (const mig of MIGRATIONS) {
+  if (appliedMigrations.has(mig.id)) {
+    console.log(`  ${mig.id} already applied`);
+    continue;
+  }
+  const needed = mig.shouldRun ? mig.shouldRun() : true;
+  if (needed === null) {
+    console.log(`  ${mig.id} skipped (DB unreachable)`);
+    continue;
+  }
+  if (!needed) {
+    console.log(`  ${mig.id} not needed — recording`);
+    recordMigration(mig.id);
+    continue;
+  }
+  console.log(`  ${mig.id} running…`);
+  runFile(mig.file);
+  recordMigration(mig.id);
+  console.log(`  ${mig.id} done`);
+}
+
 runFile(SCHEMA);
 console.log("  schema done");
 runFile(clearFile);

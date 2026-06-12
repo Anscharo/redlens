@@ -208,7 +208,7 @@ function ActorItemsSection({ groups, pick, anchorPrefix }: SectionProps) {
                     {prim.status && <StatusPill s={prim.status} />}
                     <span className="mono text-[10px]" style={{ color: "var(--tan-3)", opacity: 0.6 }}>({items.length})</span>
                     {prim.isUnknown && (
-                      <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--red)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
+                      <span className="mono text-[10px] px-1 rounded" style={{ color: "var(--error-text)", border: "1px solid var(--red)" }} title="Not listed in Current Primitives (A.2.2.1.5.1)">unknown</span>
                     )}
                   </div>
                   <div style={{ columns: "520px", columnGap: "0.75rem" }}>

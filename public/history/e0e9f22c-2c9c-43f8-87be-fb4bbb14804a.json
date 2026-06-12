@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-25",
+    "commitHash": "b994d8a",
+    "commitSeq": 1091,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer parameters."
+      ]
+    ]
+  }
+]

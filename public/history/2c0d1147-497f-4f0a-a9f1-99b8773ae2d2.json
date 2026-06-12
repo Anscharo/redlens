@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "Agent Spell Crafters and Reviewers, including external auditors, are encouraged to extend and improve Agent Spell Checklists as improvements are identified during Spell crafting. Updates are submitted as Pull Requests to the Spell Checklists repository (https://github.com/sky-ecosystem/pe-checklists/tree/master/spell) and require two (2) approvals, one (1) from each Core Spell Team, before they can be merged."
+      ],
+      [
+        "+",
+        ""
+      ],
+      [
+        "+",
+        "Further details on periodic review and improvement of Agent Spell Checklists by the Protocol Security Workstream Lead will be specified in a future iteration of the Atlas."
+      ]
+    ]
+  }
+]

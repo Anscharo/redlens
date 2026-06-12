@@ -27,8 +27,6 @@ concurrency:
   group: sync-db
   cancel-in-progress: true
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────
@@ -45,7 +43,7 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:
@@ -111,7 +109,7 @@ jobs:
           submodules: recursive
           lfs: true
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
         with:

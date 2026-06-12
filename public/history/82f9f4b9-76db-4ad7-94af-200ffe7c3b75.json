@@ -9,5 +9,13 @@
         "The Agent Termination Process, as specified in [A.1.14.5 - Agent Termination Protocol](fe833d0e-8451-45e0-84a5-229d6ec964a8), deviates from the general Artifact Edit Process and follows the special voting process specified in the documents herein."
       ]
     ]
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/5/2/2/2/8/1/document.md",
+    "movedTo": "content/A/2/2/6/2/2/2/8/1/document.md"
   }
 ]

@@ -77,5 +77,51 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-25",
+    "commitHash": "c199043",
+    "commitSeq": 1087,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "The Risk parameters are:"
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- Supply cap: "
+          ],
+          [
+            "-",
+            "250"
+          ],
+          [
+            "+",
+            "500"
+          ],
+          [
+            "=",
+            ",000 WETH"
+          ]
+        ]
+      ],
+      [
+        "=",
+        "- Max yield: 5%"
+      ],
+      [
+        "=",
+        "- Current yield (at launch): 0%"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

@@ -548,5 +548,172 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "- Prospective Integrators"
+      ],
+      [
+        "=",
+        "    - Near Term process:"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - The Prospective Integrator must first apply to the Integrator program and be approved by Operational GovOps per [A"
+          ],
+          [
+            "-",
+            ".2"
+          ],
+          [
+            "=",
+            ".2"
+          ],
+          [
+            "-",
+            ".8.1"
+          ],
+          [
+            "=",
+            ".2."
+          ],
+          [
+            "-",
+            "1"
+          ],
+          [
+            "+",
+            "4"
+          ],
+          [
+            "=",
+            ".1.2.1 - Near Term Process](7fe5dbb2-a07d-4ef9-94de-f54a2d568c57). Post approval, Operational GovOps issues a Reward Code to the Integrator."
+          ]
+        ]
+      ],
+      [
+        "=",
+        "        - The Prime Agent and the third party develop a plan to track USDS utilization attributable to the actor using either on-chain or off-chain data."
+      ],
+      [
+        "=",
+        "    - Long Term process:"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - The Prospective Integrator must first apply to the Integrator program and be approved by Operational GovOps pursuant to [A"
+          ],
+          [
+            "-",
+            ".2"
+          ],
+          [
+            "=",
+            ".2"
+          ],
+          [
+            "-",
+            ".8.1"
+          ],
+          [
+            "=",
+            ".2."
+          ],
+          [
+            "-",
+            "1"
+          ],
+          [
+            "+",
+            "4"
+          ],
+          [
+            "=",
+            ".1.2.2 - Long Term Process](6283379c-d871-40a9-a915-d716d7df5642). Post approval, Operational GovOps issues a Reward Code to the Integrator."
+          ]
+        ]
+      ],
+      [
+        "=",
+        "        - The Prime Agent develops a plan to track USDS utilization attributable to it using either on-chain or off-chain data. Where applicable, the plan should include how the Prime Agent will support the prospective Integrator in including the Reward Code in their on-chain infrastructure."
+      ],
+      [
+        "=",
+        "- The Prime Agent may also be (or choose to be) an Integrator itself and deploy a Reward Code on its frontend to earn the Distribution Reward."
+      ],
+      [
+        "…"
+      ],
+      [
+        "=",
+        "        - The Prime Agent develops a plan to track USDS utilization attributable to it using either on-chain or off-chain data."
+      ],
+      [
+        "=",
+        "    - Long Term process:"
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "        - The Prime Agent must first apply to the Integrator program and be approved by Operational GovOps pursuant to [A"
+          ],
+          [
+            "-",
+            ".2"
+          ],
+          [
+            "=",
+            ".2"
+          ],
+          [
+            "-",
+            ".8.1"
+          ],
+          [
+            "=",
+            ".2."
+          ],
+          [
+            "-",
+            "1"
+          ],
+          [
+            "+",
+            "4"
+          ],
+          [
+            "=",
+            ".1.2.2 - Long Term Process](6283379c-d871-40a9-a915-d716d7df5642). Post approval, Operational GovOps issues a Reward Code to the Prime Agent."
+          ]
+        ]
+      ],
+      [
+        "=",
+        "        - The Prime Agent develops a plan to track USDS utilization attributable to it using either on-chain or off-chain data."
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/8/1/2/3/1/2/document.md",
+    "movedTo": "content/A/2/2/9/1/2/3/1/2/document.md"
   }
 ]

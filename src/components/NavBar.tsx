@@ -1,5 +1,6 @@
 import { Link } from "./Link";
 import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
+import { ProfileButton } from "./chat/ProfileButton";
 
 export interface NavBarProps {
   activePage: NavPage | null;
@@ -18,6 +19,7 @@ export function NavBar({ activePage }: NavBarProps) {
       <NavLink page="reports" active={activePage === "reports"}>
         Reports
       </NavLink>
+      {__CHAT_ENABLED__ && <ProfileButton />}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
+import { AtlasActionsContext } from "./AtlasActionsContext";
 import { type FlatEntry } from "../../lib/atlasHelpers";
 import { type AtlasNode } from "../../types";
 
@@ -37,14 +38,13 @@ function setup(overrides: Overrides = {}) {
   const onToggle = vi.fn();
   const onShiftNavigate = vi.fn();
   const utils = render(
-    <CollapsibleNode
-      entry={baseEntry}
-      isSelected={overrides.isSelected ?? false}
-      isExpanded={overrides.isExpanded ?? false}
-      onNavigate={onNavigate}
-      onToggle={onToggle}
-      onShiftNavigate={onShiftNavigate}
-    />,
+    <AtlasActionsContext.Provider value={{ navigate: onNavigate, toggle: onToggle, splitNavigate: onShiftNavigate }}>
+      <CollapsibleNode
+        entry={baseEntry}
+        isSelected={overrides.isSelected ?? false}
+        isExpanded={overrides.isExpanded ?? false}
+      />
+    </AtlasActionsContext.Provider>,
   );
   return { ...utils, onNavigate, onToggle, onShiftNavigate };
 }

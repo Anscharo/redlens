@@ -8,7 +8,7 @@ An alternative to [sky-atlas.io](https://sky-atlas.io) with a focus on surfacing
 
 - **Build/dev**: Vite+ + pnpm + TypeScript
 - **UI**: React 19 + Tailwind v4
-- **Search**: lunr.js (full-content index, runs in a Web Worker)
+- **Search**: MiniSearch (full-content index, runs in a Web Worker)
 - **Markdown**: react-markdown + remark-gfm + KaTeX; custom rehype plugin linkifies on-chain addresses
 - **Graph**: graphology (Web Worker) for typed entity/document relationships
 
@@ -16,7 +16,7 @@ An alternative to [sky-atlas.io](https://sky-atlas.io) with a focus on surfacing
 
 ### Search
 
-- **Full-content search** — every node of the Atlas is indexed (lunr.js, Web Worker), so queries hit the entire ~50k-line corpus instantly
+- **Full-content search** — every node of the Atlas is indexed (MiniSearch, Web Worker), so queries hit the entire ~50k-line corpus instantly
 - **Chainlog ID search** — type `MCD_VAT`, `USDS`, `REWARDS_LSSKY_SKY`, etc. to find all nodes that reference that contract
 - **Address prefix search** — type `0x` or any address prefix to find nodes containing matching addresses
 - **Phrase search** — wrap terms in quotes for exact substring matching: `"surplus buffer"`
@@ -125,7 +125,10 @@ This is not part of `pnpm build` — it's slow and requires GitHub API access fo
 
 ## Deployment
 
-`main` is auto-deployed to GitHub Pages via `.github/workflows/deploy.yml`. The workflow runs on every push to `main`, daily on a schedule, and on manual trigger. It requires two repository secrets: `ETHERSCAN_API_KEY` and `ETH_RPC_URL`.
+RedLens deploys two ways:
+
+- **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires two repository secrets: `ETHERSCAN_API_KEY` and `ETH_RPC_URL`.
+- **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Keeping the atlas up to date
 

@@ -242,5 +242,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The "
+          ],
+          [
+            "-",
+            "Support"
+          ],
+          [
+            "+",
+            "Core"
+          ],
+          [
+            "=",
+            " Facilitator must review the Reimbursement Claim and decide whether to trigger a Governance Poll to perform a claims payout, by developing an internal model with input from experts and professionals."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "=",
+        "The Payout Reimbursement Claim must contain the following elements:"
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

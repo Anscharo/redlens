@@ -6,9 +6,9 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 
 ## Stack
 
-- **Build/dev**: Vite+ (`vp`) + pnpm + TypeScript
+- **Build/dev**: Vite + pnpm + TypeScript
 - **UI**: React 19 + Tailwind v4 (via `@tailwindcss/vite`)
-- **Search**: lunr.js (full-content index, runs in a Web Worker)
+- **Search**: MiniSearch (full-content index, runs in a Web Worker)
 - **Markdown**: react-markdown + remark-gfm + remark-math + rehype-katex (KaTeX)
 - **Custom rehype plugin**: linkifies on-chain addresses to block explorers
 - **Graph**: graphology (in a Web Worker) for node relations
@@ -35,8 +35,6 @@ pnpm test:snap       # graph snapshot tests — fail if relations.json structure
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
 ```
 
-The Vite+ binary lives at `~/.vite-plus/0.1.16/bin/vp` (it cannot be run via `pnpm dlx`).
-
 ### Process inventory scripts
 
 The curated process inventory (`public/processes.json` + `public/processes-ignored.json`) is reconciled against atlas drift via a separate set of scripts. They split cleanly into human entry-points and machine entry-points.
@@ -62,7 +60,7 @@ Each build pass is its own script. They run in order in `pnpm build`:
 
 Scripts are split: `scripts/required/` holds the build pipeline entry-points wired into `pnpm build:*`; `scripts/lib/` holds shared modules (parsing, regexes, extraction phases) imported by those entry-points; `scripts/aux/` holds offline / one-off / experimental scripts (`build-rag`, `query-rag`, `tva.sh`, etc.) that are not part of the core build chain.
 
-- **`scripts/required/build-index.mjs`** — parses `Sky Atlas.md`, emits `public/docs.json` (`Record<uuid, AtlasNode>`), `public/search-index.json` (serialized lunr index), and a minimal `public/addresses.atlas.json` (`{ addr: { chain } }`). Annotation (roles, labels, tokens) is deferred to `build-graph` Phase 2.6. Imports `lib/atlas-parser.mjs`, `lib/address-chains.mjs`.
+- **`scripts/required/build-index.mjs`** — parses `Sky Atlas.md`, emits `public/docs.json` (`Record<uuid, AtlasNode>`), `public/search-index.json` (serialized MiniSearch index), and a minimal `public/addresses.atlas.json` (`{ addr: { chain } }`). Annotation (roles, labels, tokens) is deferred to `build-graph` Phase 2.6. Imports `lib/atlas-parser.mjs`, `lib/address-chains.mjs`.
 - **`scripts/required/build-glossary.mjs`** — finds all `Definitions` sections, collects direct `[Core]` children as terms, emits `public/glossary.json` keyed by lowercased term.
 - **`scripts/required/build-addresses.mjs`** — fetches Sky chainlog, calls Etherscan `getsourcecode` per unique address (read-through disk cache at `.cache/etherscan/<chainid>/<addr>.json`), emits `public/addresses.json` (on-chain fields only: `chain`, `chainlogId`, `etherscanName`, `isContract`, `isProxy`, `implementation`). Does **not** delete `public/addresses.atlas.json`. Imports `lib/address-enrich.mjs`.
 
@@ -98,7 +96,7 @@ See `.claude/skills/address-extraction/SKILL.md` for the full reference: EVM/Sol
 
 **Workers:**
 
-- **`src/workers/search.worker.ts`** — loads `docs.json` + `search-index.json`, runs lunr queries, generates highlighted snippets. Phrase post-filter: `"quoted"` phrases are stripped before the lunr query, then every hit is checked for literal substring containment.
+- **`src/workers/search.worker.ts`** — loads `docs.json` + `search-index.json`, runs MiniSearch queries, generates highlighted snippets. Phrase post-filter: `"quoted"` phrases are stripped before the MiniSearch query, then every hit is checked for literal substring containment.
 - **`src/workers/atlas.worker.ts`** — loads and parses `docs.json` for the atlas tree view.
 - **`src/workers/graph.worker.ts`** — loads `relations.json` into a graphology `MultiDirectedGraph`; answers edge queries, BFS neighbor/subgraph requests for the main thread.
 
@@ -159,7 +157,7 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
 - **Use semantic HTML elements**: `h1`–`h6` for headings, `<button>` for actions, `<a>` for navigation, `<article>`/`<section>`/`<header>` for sectioned content. Prefer native elements over `<div>`/`<span>` with ARIA roles when a semantic element fits.
 - **Don't add hover/click logic in JS when CSS will do it.**
 - **The home button is a plain HTML link** (`<a href="/">`), not an `onClick` handler.
-- **Search quality > bundle size** for the lunr index. Full-content indexing is intentional.
+- **Search quality > bundle size** for the MiniSearch index. Full-content indexing is intentional.
 - **Scroll-to is `behavior: "instant"`**, not smooth — the user found smooth scrolling sluggish.
 - **Sticky header collisions**: any scroll target needs `scrollMarginTop: "64px"`.
 - **Don't override git user.name/email.** Trust global config.

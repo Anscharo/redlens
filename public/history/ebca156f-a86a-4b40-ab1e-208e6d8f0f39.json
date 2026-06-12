@@ -29,5 +29,83 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "Grove"
+          ],
+          [
+            "-",
+            " will"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "transfer"
+          ],
+          [
+            "+",
+            "transferred"
+          ],
+          [
+            "=",
+            " 2.5 billion GROVE tokens from the Grove SubProxy to"
+          ],
+          [
+            "+",
+            " the"
+          ],
+          [
+            "=",
+            " Grove Labs"
+          ],
+          [
+            "+",
+            " Multisig"
+          ],
+          [
+            "=",
+            ". The address of"
+          ],
+          [
+            "+",
+            " the"
+          ],
+          [
+            "=",
+            " Grove Labs"
+          ],
+          [
+            "+",
+            " Multisig"
+          ],
+          [
+            "=",
+            " on the Ethereum Mainnet is `0x1EBC4425B16FD76F01f9260d8bfFE0c2C6ecCe70`."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
+  },
+  {
+    "date": "2026-05-29",
+    "commitHash": "7fa69a6",
+    "commitSeq": 1093,
+    "changeType": "moved",
+    "movedFrom": "content/A/6/1/1/2/2/1/4/2/1/2/4/document.md",
+    "movedTo": "content/A/6/1/1/2/2/1/4/2/1/2/3/1/document.md"
   }
 ]

@@ -8,9 +8,16 @@ const MS = 700;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  // jsdom's rAF is backed by setTimeout, which fake timers intercept — make it
+  // synchronous so tests can assert immediately after renderHook/rerender.
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((fn) => {
+    fn(performance.now());
+    return 0;
+  });
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 

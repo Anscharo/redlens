@@ -188,5 +188,72 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-25",
+    "commitHash": "2b0a8c5",
+    "commitSeq": 1089,
+    "changeType": "modified",
+    "diff": [
+      [
+        "=",
+        "The inflow rate limits are:"
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- `maxAmount`:"
+          ],
+          [
+            "-",
+            " 100,000,000"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "USDT"
+          ],
+          [
+            "+",
+            "0"
+          ]
+        ]
+      ],
+      [
+        "~",
+        [
+          [
+            "=",
+            "- `slope`:"
+          ],
+          [
+            "-",
+            " 1,000,000,000 USDT per"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "day"
+          ],
+          [
+            "+",
+            "0"
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]

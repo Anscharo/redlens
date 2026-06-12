@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "added",
+    "diff": [
+      [
+        "+",
+        "The Executive Process Liaison is the liaison between each Prime Agent and Sky Core in the Prime Spell Process. The Executive Process Liaison role is currently held by Core GovOps."
+      ]
+    ]
+  }
+]

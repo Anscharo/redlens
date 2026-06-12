@@ -263,5 +263,43 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "The Ecosystem Upkeep Fee Primitive requires Prime Agents to pay an annual fee equivalent to 50 basis points (bps) (0.50%) of their market capitalization to Sky, payable in USDS and accounted for monthly. The annual fee of 50 basis points (bps) (0.50%) of the market capitalization is divided into twelve (12) equal monthly payments. Payments must occur on the first day of each month, with the fee transferred to an address designated by Sky Core in [A.2.2."
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "7"
+          ],
+          [
+            "=",
+            ".1.1 - Sky Core-Designated Address](2a5f0e38-e51a-4a68-a4b8-1a912b8bb12e)."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "typo"
+  },
+  {
+    "date": "2026-06-04",
+    "commitHash": "4c0bd4c",
+    "commitSeq": 1094,
+    "changeType": "moved",
+    "movedFrom": "content/A/2/2/6/1/document.md",
+    "movedTo": "content/A/2/2/7/1/document.md"
   }
 ]

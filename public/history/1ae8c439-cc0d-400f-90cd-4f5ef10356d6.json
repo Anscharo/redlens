@@ -69,5 +69,100 @@
     "prUrl": "https://github.com/sky-ecosystem/next-gen-atlas/pull/236",
     "reviewCount": 1,
     "approvalCount": 1
+  },
+  {
+    "date": "2026-05-21",
+    "commitHash": "535f470",
+    "commitSeq": 1086,
+    "changeType": "modified",
+    "diff": [
+      [
+        "~",
+        [
+          [
+            "=",
+            "677,777,778 "
+          ],
+          [
+            "-",
+            "AGENT6"
+          ],
+          [
+            "+",
+            "OSERO"
+          ],
+          [
+            "=",
+            " tokens are allocated to the"
+          ],
+          [
+            "-",
+            " Launch Agent"
+          ],
+          [
+            "=",
+            " "
+          ],
+          [
+            "-",
+            "6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " Prime Treasury ("
+          ],
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            "’s SubProxy)."
+          ]
+        ]
+      ],
+      [
+        "=",
+        ""
+      ],
+      [
+        "~",
+        [
+          [
+            "-",
+            "Launch Agent 6"
+          ],
+          [
+            "+",
+            "Osero"
+          ],
+          [
+            "=",
+            " will use 150,000,000 "
+          ],
+          [
+            "-",
+            "AGENT6"
+          ],
+          [
+            "+",
+            "OSERO"
+          ],
+          [
+            "=",
+            " tokens for incentives."
+          ]
+        ]
+      ]
+    ],
+    "changeKind": "semantic"
   }
 ]
