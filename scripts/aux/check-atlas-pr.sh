@@ -178,7 +178,9 @@ MANIFEST_COMMIT=$(MF="$ROOT/public/manifest.json" node -e "
 
 if [[ -n "$MANIFEST_COMMIT" && "$MANIFEST_COMMIT" == "$MERGE_BASE" && -f "$ROOT/public/relations.json" ]]; then
   echo "Baseline: seeding worktree from cached build at merge base (${MERGE_BASE7})"
-  cp -r "$ROOT/public" "$WORKTREE/public"
+  # The worktree already has a public/ (committed assets) — copy contents,
+  # not the directory, or cp nests it as public/public.
+  cp -r "$ROOT/public/." "$WORKTREE/public/"
   cp "$WT_PUBLIC/relations.json" "$BASELINE"
 else
   echo ""

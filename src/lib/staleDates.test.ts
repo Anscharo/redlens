@@ -16,6 +16,17 @@ const docs: Record<string, AtlasNode> = JSON.parse(
 const FIXED_TODAY = new Date("2026-06-11T12:00:00Z");
 const report = buildStaleDatesReport(docs, FIXED_TODAY);
 
+// Content canaries below assert that specific atlas claims are extracted.
+// docs.json may be built at an arbitrary atlas commit (pnpm check:pr builds
+// at PR heads whose branches can predate these claims), so each canary is
+// skipped when its source text is absent from the snapshot — but still fails
+// if the text is present and extraction misses it.
+const atlasContent = Object.values(docs)
+  .map((d) => d.content)
+  .join("\n");
+const hasGenesisClaim = atlasContent.includes("March 26, 2026");
+const hasJune18Claim = atlasContent.includes("June 18, 2026");
+
 describe("stale dates report", () => {
   it("buckets are consistent with daysUntilStale", () => {
     expect(report.stale.every((c) => c.daysUntilStale < 0)).toBe(true);
@@ -23,7 +34,7 @@ describe("stale dates report", () => {
     expect(report.upcoming.every((c) => c.daysUntilStale > 7)).toBe(true);
   });
 
-  it("finds the known stale governance claims (as of 2026-06-11)", () => {
+  it.skipIf(!hasGenesisClaim)("finds the known stale governance claims (as of 2026-06-11)", () => {
     const staleDocNos = new Set(report.stale.map((c) => c.docNo));
     // Genesis Capital transfers "will be included in the March 26, 2026
     // Executive Vote" — verified stale claims at the fixed date.
@@ -49,7 +60,7 @@ describe("stale dates report", () => {
     }
   });
 
-  it("a claim exactly 7 days out lands in dueSoon", () => {
+  it.skipIf(!hasJune18Claim)("a claim exactly 7 days out lands in dueSoon", () => {
     // Agent Spell Reviewer Checklist: "Beginning with the June 18, 2026
     // Executive Vote" — exactly one week from the fixed date.
     expect(report.dueSoon.some((c) => c.dateISO === "2026-06-18")).toBe(true);
