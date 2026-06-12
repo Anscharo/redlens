@@ -33,6 +33,7 @@ import {
 } from "../lib/history-classify.mjs";
 import { sql, waitForDb } from "../../src/server/db.ts";
 import { runMigrations } from "../../src/server/migrate.ts";
+import { lineDiff } from "../../src/lib/diffCore.ts";
 import {
   eventToRow,
   gitCommitSeq,
@@ -283,154 +284,10 @@ function loadSnapshot(hash) {
 }
 
 // ---------------------------------------------------------------------------
-// Generic LCS backtrack — used for both line and word diffs
-// Returns edit ops as [op, token][] (op: "="|"+"|"-")
+// Line/word diff machinery lives in the shared core (src/lib/diffCore.ts),
+// also used by the preview diff path — one implementation, byte-identical
+// output. This script runs under Bun, which imports .ts directly.
 // ---------------------------------------------------------------------------
-
-function lcsOps(a, b) {
-  const m = a.length,
-    n = b.length;
-  const dp = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] =
-        a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
-    }
-  }
-  const ops = [];
-  let i = m,
-    j = n;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      ops.push(["=", a[i - 1]]);
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      ops.push(["+", b[j - 1]]);
-      j--;
-    } else {
-      ops.push(["-", a[i - 1]]);
-      i--;
-    }
-  }
-  ops.reverse();
-  return ops;
-}
-
-// ---------------------------------------------------------------------------
-// Word-level diff for a single changed line pair
-// Tokenises on word/whitespace/punctuation boundaries.
-// Returns [op, text][] — consecutive same-op tokens are merged for compactness.
-// ---------------------------------------------------------------------------
-
-function wordTokenize(text) {
-  return text.match(/\w+|\s+|[^\w\s]/g) ?? [];
-}
-
-function wordDiff(prevLine, currLine) {
-  const a = wordTokenize(prevLine);
-  const b = wordTokenize(currLine);
-  const raw = lcsOps(a, b);
-
-  // Merge consecutive tokens with the same op into single segments
-  const merged = [];
-  for (const [op, tok] of raw) {
-    if (merged.length && merged[merged.length - 1][0] === op) {
-      merged[merged.length - 1][1] += tok;
-    } else {
-      merged.push([op, tok]);
-    }
-  }
-  return merged;
-}
-
-// ---------------------------------------------------------------------------
-// Line-level diff → compact [op, text][] with ±2 lines of context.
-// Adjacent -/+ line pairs are replaced with ["~", wordDiff] intraline entries.
-// ops: "=" unchanged, "+" added, "-" removed, "~" intraline, "…" gap
-// ---------------------------------------------------------------------------
-
-
-function lineDiff(prevText, currText) {
-  const a = (prevText || "").split("\n");
-  const b = (currText || "").split("\n");
-
-  const rawOps = lcsOps(a, b);
-
-  // Pair up adjacent -/+ runs for intraline diffing (1:1 within each run)
-  const ops = [];
-  let k = 0;
-  while (k < rawOps.length) {
-    // Collect a run of consecutive removals then additions
-    let rStart = k;
-    while (k < rawOps.length && rawOps[k][0] === "-") k++;
-    let rEnd = k;
-    let aStart = k;
-    while (k < rawOps.length && rawOps[k][0] === "+") k++;
-    let aEnd = k;
-
-    const removals = rawOps.slice(rStart, rEnd);
-    const additions = rawOps.slice(aStart, aEnd);
-
-    if (removals.length > 0 && additions.length > 0) {
-      // Pair 1:1 up to the shorter side; emit intraline diff for pairs
-      const pairs = Math.min(removals.length, additions.length);
-      for (let p = 0; p < pairs; p++) {
-        const wd = wordDiff(removals[p][1], additions[p][1]);
-        // Only use intraline if the lines actually share some content
-        const hasUnchanged = wd.some(([op]) => op === "=");
-        if (hasUnchanged) {
-          ops.push(["~", wd]);
-        } else {
-          // Completely different lines — keep as separate -/+
-          ops.push(removals[p]);
-          ops.push(additions[p]);
-        }
-      }
-      // Emit any unpaired remainder as plain -/+
-      for (let p = pairs; p < removals.length; p++) ops.push(removals[p]);
-      for (let p = pairs; p < additions.length; p++) ops.push(additions[p]);
-    } else {
-      // No pairing — emit as-is
-      for (const op of removals) ops.push(op);
-      for (const op of additions) ops.push(op);
-    }
-
-    // Emit any "=" lines we skipped over before the run
-    if (rStart === aStart) {
-      // No removals or additions — just an equals op
-      if (k <= rStart) {
-        ops.push(rawOps[k]);
-        k++;
-      }
-    }
-  }
-
-  // Trim to context: keep only changed lines ± CONTEXT unchanged lines
-  const CONTEXT = 2;
-  const changed = new Set();
-  for (let i = 0; i < ops.length; i++) {
-    if (ops[i][0] !== "=") {
-      for (let c = Math.max(0, i - CONTEXT); c <= Math.min(ops.length - 1, i + CONTEXT); c++) {
-        changed.add(c);
-      }
-    }
-  }
-
-  if (changed.size === 0) return [];
-
-  const result = [];
-  let lastIncluded = -1;
-  for (let i = 0; i < ops.length; i++) {
-    if (changed.has(i)) {
-      if (lastIncluded >= 0 && i > lastIncluded + 1) result.push(["…"]);
-      result.push(ops[i]);
-      lastIncluded = i;
-    }
-  }
-
-  return result;
-}
 
 // ---------------------------------------------------------------------------
 // Diff two snapshots → { added, modified, removed, moved }

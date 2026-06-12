@@ -15,8 +15,17 @@ describe("parsePreviewInput", () => {
     expect(parsePreviewInput(`https://github.com/blimpa/next-gen-atlas/commit/${sha}`)).toBe(sha);
     // bare repo URL has nothing to preview
     expect(parsePreviewInput("https://github.com/blimpa/next-gen-atlas")).toBeNull();
-    // other repos don't parse
+    // a fork's /pull/N is a PR against the FORK (PR numbers are repo-local)
     expect(parsePreviewInput("https://github.com/blimpa/other-repo/pull/1")).toBeNull();
+    expect(parsePreviewInput("https://github.com/blimpa/next-gen-atlas/pull/1")).toBeNull();
+  });
+
+  it("parses renamed-fork URLs and ids (repo name carried in the id)", () => {
+    expect(parsePreviewInput("https://github.com/blimpa/my-atlas/tree/spark")).toBe("blimpa:my-atlas:spark");
+    expect(parsePreviewInput("https://github.com/blimpa/my-atlas/tree/feat/x")).toBe("blimpa:my-atlas:feat~x");
+    // canonical-owner lookalike repo is still not THE atlas
+    expect(parsePreviewInput("https://github.com/sky-ecosystem/other/tree/main")).toBe("sky-ecosystem:other:main");
+    expect(parsePreviewInput("blimpa:my-atlas:feat/x")).toBe("blimpa:my-atlas:feat~x");
   });
 
   it("passes through bare ids and normalizes", () => {

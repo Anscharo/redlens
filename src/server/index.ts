@@ -179,5 +179,9 @@ if (config.previewEnabled) {
     } catch (e) {
       console.warn(`preview: migration check failed: ${(e as Error).message}`);
     }
+    // Background bundle sweeper: blocked-sha takedowns, stale-vs-main
+    // eviction (after the updater hot-swaps main), LRU/orphan collection.
+    const { startPreviewSweeper } = await import("./preview/sweeper.ts");
+    startPreviewSweeper();
   })();
 }

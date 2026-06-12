@@ -36,6 +36,10 @@ test("decodeId parses every id form", () => {
   // ~ decodes to / in the ref
   expect(decodeId("blimpa:feat~parser-fix")).toMatchObject({ ref: "feat/parser-fix" });
   expect(decodeId("feat~x")).toMatchObject({ owner: "sky-ecosystem", ref: "feat/x" });
+  // renamed fork: owner:repo:branch
+  expect(decodeId("blimpa:my-atlas:spark")).toEqual({ kind: "branch", owner: "blimpa", repo: "blimpa/my-atlas", ref: "spark" });
+  expect(decodeId("blimpa:my-atlas:feat~x")).toMatchObject({ repo: "blimpa/my-atlas", ref: "feat/x" });
+  expect(decodeId("a:b:c:d")).toBeNull(); // refs can't contain ':'
 });
 
 test("gate passes everything (forks screened by lineage + trust, not grammar)", () => {
@@ -48,6 +52,8 @@ test("gate passes everything (forks screened by lineage + trust, not grammar)", 
 test("isFork / repoOwner helpers", () => {
   expect(isFork("blimpa/next-gen-atlas")).toBe(true);
   expect(isFork("sky-ecosystem/next-gen-atlas")).toBe(false);
+  // a same-owner lookalike repo is NOT canonical — fork-treated
+  expect(isFork("sky-ecosystem/lookalike")).toBe(true);
   expect(repoOwner("blimpa/next-gen-atlas")).toBe("blimpa");
 });
 
@@ -118,6 +124,21 @@ test("resolveRef: true-fork branch resolves; lookalike → not-a-fork", async ()
 
   const evil = fakeGh({ "/repos/evil/next-gen-atlas": { json: { fork: false } } });
   expect(await resolveRef(decodeId("evil:spark")!, evil)).toEqual({ error: "not-a-fork" });
+});
+
+test("resolveRef: RENAMED fork resolves through the same lineage screen", async () => {
+  const gh = fakeGh({
+    "/repos/blimpa/my-atlas": { json: { fork: true, source: { full_name: "sky-ecosystem/next-gen-atlas" } } },
+    "/repos/blimpa/my-atlas/branches/spark": { json: { commit: { sha: "renamedtip" } } },
+  });
+  expect(await resolveRef(decodeId("blimpa:my-atlas:spark")!, gh)).toMatchObject({
+    repo: "blimpa/my-atlas",
+    sha: "renamedtip",
+    kind: "branch",
+  });
+  // canonical-owner lookalike repo goes through lineage too (and fails it)
+  const lookalike = fakeGh({ "/repos/sky-ecosystem/lookalike": { json: { fork: false } } });
+  expect(await resolveRef(decodeId("sky-ecosystem:lookalike:main")!, lookalike)).toEqual({ error: "not-a-fork" });
 });
 
 test("trust tierFor: whitelist/atlas-merged → trusted; org-merged → known; history-less by account age", () => {

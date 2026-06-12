@@ -11,11 +11,13 @@ export interface PreviewDiff {
   added: Set<string>;
   changed: Set<string>;
   renumbered: Record<string, [string, string]>;
-  /** Added docs whose doc number exists on the live atlas under another uuid. */
-  reusedSlot: Set<string>;
+  /** Added docs whose doc number exists on the live atlas under another uuid:
+   *  id → the old occupant's title + where it sits in this preview (absent =
+   *  removed by the preview). */
+  reusedSlot: Record<string, { title?: string; movedTo?: string }>;
 }
 
-const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: new Set() };
+const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {} };
 
 const PreviewDiffContext = createContext<PreviewDiff>(EMPTY);
 
@@ -40,7 +42,10 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
           added: new Set<string>(d.added ?? []),
           changed: new Set<string>(d.changed ?? []),
           renumbered: d.renumbered ?? {},
-          reusedSlot: new Set<string>(d.reusedSlot ?? []),
+          // Older bundles shipped reusedSlot as a bare id array — normalize.
+          reusedSlot: Array.isArray(d.reusedSlot)
+            ? Object.fromEntries((d.reusedSlot as string[]).map((id) => [id, {}]))
+            : (d.reusedSlot ?? {}),
         });
       })
       .catch(() => {});

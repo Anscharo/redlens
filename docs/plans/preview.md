@@ -116,6 +116,19 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
     (white, `PreviewMark`), not green borders; All-mode dims untouched docs to 0.88;
     Changed-only is a flat list (no ancestors).
 
+- **Step 7** — background bundle sweeper (`src/server/preview/sweeper.ts`, started at boot when
+  previews are enabled, `PREVIEW_SWEEP_INTERVAL_MS` default 10min). Three jobs per tick:
+  **blocked** — evicts bundles of `blocked_at` shas proactively (takedown no longer waits for the
+  next request); **stale** — `meta.baseAtlasCommit` (new field, recorded at build) is compared to
+  the live `getIndexes().meta.atlasCommit`; once main hot-swaps past a bundle, it's evicted and the
+  next visit rebuilds against current main (quota-free) — bundles touched within
+  `PREVIEW_SWEEP_GRACE_MS` (10min) are spared so an active session isn't yanked; **lru/orphan** —
+  `evictLru` now also runs on the timer, not only after successful builds. Also fixes a latent
+  race: `evictLru` treats a mid-build dir as an interrupted one, so concurrent build A finishing
+  could delete build B's half-built dir — eviction (post-build + sweeper) now skips
+  `inflightShas()`. The PR-state sweep (worker cron) is unchanged and complementary: it owns the
+  DB row freshness; this sweeper owns the web service's disk.
+
 ### Next — remaining
 - **Deploy**: set `GITHUB_TOKEN` + `PREVIEW_ENABLED=1` on the Railway **web** service; the worker
   service already has `GITHUB_TOKEN`. Migrations `006`/`007` run at boot.
@@ -173,6 +186,11 @@ Two-layer identity:
 - **URL id** (human, shareable, *mutable* — tracks the branch tip):
   - `/preview/pull-256/atlas`
   - `/preview/blimpa:spark-proposal/radar` (`owner:branch` for forks)
+  - `/preview/blimpa:my-atlas:spark/atlas` (`owner:repo:branch` for RENAMED forks, 2026-06-12 —
+    the repo name never mattered for safety, only fork lineage does; `:` is unambiguous since
+    git forbids it in refs and GitHub in names. `isFork` is now `repo !== CANONICAL_REPO`, so a
+    canonical-owner lookalike repo is fork-screened too. Fork `/pull/N` URLs are rejected in the
+    input parser — PR numbers are repo-local, only canonical PRs are previewable.)
   - **Fork screening (2026-06-12, supersedes the MVP gate)**: bare `owner:branch` fork URLs
     now resolve, behind three screens — (1) **network** (a CAPABILITY check, not trust): the
     repo must be a TRUE GitHub fork of the canonical atlas (`fork: true` + parent/source =
@@ -205,7 +223,7 @@ Two-layer identity:
 Resolution:
 - `pull-N` → GitHub API → `head.repo.full_name` + `head.sha`. **The PR head can live on a
   fork** (the `blimpa` example), so read `head.repo` — never assume the canonical repo.
-- `owner:branch` / `branch` → GitHub API → branch tip SHA.
+- `owner:branch` / `owner:repo:branch` / `branch` → GitHub API → branch tip SHA.
 - In-memory `id → { sha, resolvedAt }` map, short TTL (~60s). On miss/expiry, re-resolve the
   tip; unchanged SHA → serve cache; moved SHA (new PR commits / branch push) → build the new
   SHA. **This is how "branch receives updates" solves itself.**

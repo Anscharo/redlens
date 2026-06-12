@@ -52,7 +52,16 @@ interface Inflight {
 
 const inflight = new Map<string, Inflight>();
 
+/** Shas with a build in progress — eviction (post-build + sweeper) must skip
+ *  them: a mid-build dir is indistinguishable from an interrupted one. */
+export function inflightShas(): Set<string> {
+  return new Set(inflight.keys());
+}
+
 function emit(f: Inflight, ev: PreviewEvent): void {
+  // Dedup: getOrStartBuild seeds `current` as fetching (sent on subscribe) and
+  // runBuild emits fetching again — don't re-broadcast an identical event.
+  if (JSON.stringify(ev) === JSON.stringify(f.current)) return;
   f.current = ev;
   for (const s of f.subscribers) {
     try {
@@ -264,6 +273,14 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         docCount,
         buildMs: Date.now() - t0,
       };
+      // Diff baseline: which main this bundle's redlines were computed against.
+      // The sweeper evicts the bundle when main moves past it. Cold start
+      // (indexes not loaded) leaves it unset → swept as stale, regenerable.
+      try {
+        meta.baseAtlasCommit = getIndexes().meta.atlasCommit ?? undefined;
+      } catch {
+        /* indexes not loaded yet */
+      }
       // Effective tier rides on every screened preview (PR + fork) — drives the
       // banner warnings, interstitial, and pool accounting. forkOwner stays
       // fork-only (a PR with a fork head is still a PR preview).
@@ -317,13 +334,20 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
           // additions; the old occupant's move shows on its own history entry.
           const mainDocNos = new Map<string, string>();
           for (const [mid, mnode] of mainDocs) mainDocNos.set(mnode.doc_no, mid);
-          const reusedSlot: string[] = [];
+          // id → who held this doc number on the live atlas, and where that doc
+          // sits in THIS preview (absent = the occupant was removed). Lets the
+          // new doc's history reference the old occupant's move (both sides of
+          // a slot swap tell the story).
+          const reusedSlot: Record<string, { title: string; movedTo?: string }> = {};
           for (const id of added) {
             const prevNode = byId.get(id);
             if (!prevNode) continue;
             const occupant = mainDocNos.get(prevNode.doc_no);
             if (occupant && occupant !== id) {
-              reusedSlot.push(id);
+              reusedSlot[id] = {
+                title: mainDocs.get(occupant)?.title ?? occupant.slice(0, 8),
+                movedTo: byId.get(occupant)?.doc_no,
+              };
               const dl = contentDiff("", prevNode.content ?? "");
               if (dl.length) patches[id] = dl;
               else delete patches[id];
@@ -337,7 +361,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         /* diff endpoint falls back to vs-main */
       }
       emit(f, { phase: "ready", sha });
-      evictLru();
+      evictLru(undefined, undefined, inflightShas());
     } finally {
       release();
     }

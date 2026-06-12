@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
-// below, the previews this browser has opened (localStorage) unioned with
-// everything live in the DB (GET /api/preview/list).
+// below, "my recent previews" — strictly the INTERSECTION of what this browser
+// has opened (localStorage) and what is live in the DB (GET /api/preview/list).
+// Local-only entries (DB wiped / sha blocked) and DB-only entries (other
+// people's previews) are both hidden.
 
 interface DbRow {
   sha: string;
@@ -25,38 +27,25 @@ interface Entry {
   at: number;
 }
 
-const CANONICAL_OWNER = "sky-ecosystem";
-
-function rowId(r: DbRow): string {
-  if (r.kind === "pr" && r.pr_number) return `pull-${r.pr_number}`;
-  const owner = r.repo.split("/")[0];
-  const ref = r.ref.replaceAll("/", "~");
-  if (r.kind === "branch") return owner === CANONICAL_OWNER ? ref : `${owner}:${ref}`;
-  return r.sha;
-}
-
 function mergeEntries(rows: DbRow[]): Entry[] {
   const bySha = new Map(rows.map((r) => [r.sha, r]));
   const out = new Map<string, Entry>();
-  for (const r of rows) {
-    const id = rowId(r);
-    out.set(id, {
-      id,
-      title: r.pr_title ?? undefined,
-      detail: [r.pr_author && `by ${r.pr_author}`, r.pr_state && r.pr_state !== "open" && r.pr_state, `${r.doc_count} docs`]
-        .filter(Boolean)
-        .join(" · "),
-      at: Date.parse(r.last_access) || 0,
-    });
-  }
   for (const l of localPreviews()) {
     const db = bySha.get(l.sha);
-    if (!out.has(l.id)) {
-      out.set(l.id, { id: l.id, title: db?.pr_title ?? undefined, detail: db ? `${db.doc_count} docs` : "opened here", at: l.at });
-    } else {
-      const e = out.get(l.id)!;
-      e.at = Math.max(e.at, l.at);
+    if (!db) continue; // AND-semantics: must still be live in the DB
+    const prev = out.get(l.id);
+    if (prev) {
+      prev.at = Math.max(prev.at, l.at);
+      continue;
     }
+    out.set(l.id, {
+      id: l.id,
+      title: db.pr_title ?? undefined,
+      detail: [db.pr_author && `by ${db.pr_author}`, db.pr_state && db.pr_state !== "open" && db.pr_state, `${db.doc_count} docs`]
+        .filter(Boolean)
+        .join(" · "),
+      at: l.at,
+    });
   }
   return [...out.values()].sort((a, b) => b.at - a.at);
 }

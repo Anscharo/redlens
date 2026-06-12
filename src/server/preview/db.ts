@@ -104,3 +104,10 @@ export async function isBlockedSha(sha: string): Promise<boolean> {
   const rows = (await sql`SELECT 1 FROM previews WHERE sha = ${sha} AND blocked_at IS NOT NULL`) as unknown[];
   return rows.length > 0;
 }
+
+/** All blocked shas — the sweeper evicts their bundles proactively, so a
+ *  takedown takes effect without waiting for the next request. */
+export async function blockedShas(): Promise<Set<string>> {
+  const rows = (await sql`SELECT sha FROM previews WHERE blocked_at IS NOT NULL`) as { sha: string }[];
+  return new Set(rows.map((r) => r.sha));
+}

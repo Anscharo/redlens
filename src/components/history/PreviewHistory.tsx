@@ -33,9 +33,10 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   // A changed doc that moved: same UUID, new doc number ([live, preview]).
   const renumber = diff.renumbered[nodeId];
   // Added doc whose doc number exists on the live atlas under another uuid
-  // (slot reuse, flagged server-side). The label gets an asterisk; the
-  // disclaimer below the live-history heading explains it.
-  const reusedPath = status === "Added" && diff.reusedSlot.has(nodeId);
+  // (slot reuse, flagged server-side with the old occupant's title + where it
+  // moved). The label gets an asterisk; the disclaimer below the live-history
+  // heading explains it.
+  const reused = status === "Added" ? diff.reusedSlot[nodeId] : undefined;
   const srcUrl = meta
     ? meta.kind === "pr" && meta.prNumber
       ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
@@ -49,7 +50,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
         <div className="pl-3 pb-3" style={{ borderLeft: "2px solid var(--preview-add)" }}>
           <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>
             {status}
-            {reusedPath ? "*" : ""} in this preview
+            {reused ? "*" : ""} in this preview
           </div>
           <div className="mt-1">
             {label}
@@ -75,10 +76,11 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           live history for changed docs; added docs (new UUID) show empty. */}
       <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="mb-2" style={{ color: "var(--tan-3)" }}>On the live atlas</div>
-        {reusedPath && (
+        {reused && (
           <p className="mb-2 leading-snug" style={{ color: "var(--tan-3)" }}>
-            * This doc has a new UUID but reuses an existing doc number. The diff above shows the edit
-            at that location; the doc itself is classified as new, with no prior history.
+            * This doc is new but takes over an existing doc number
+            {reused.title ? <> — previously “{reused.title}”, which {reused.movedTo ? `moved to ${reused.movedTo} in this preview` : "is not present in this preview"}</> : null}
+            . As a new doc it has no prior history.
           </p>
         )}
         <NodeHistory nodeId={nodeId} />

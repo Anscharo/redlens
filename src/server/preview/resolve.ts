@@ -2,17 +2,22 @@
 //
 // A preview URL id is human and mutable; it resolves to an immutable head SHA.
 // Forms:
-//   pull-256          → PR #256 against the canonical repo (head may be a fork)
-//   owner:branch      → branch `branch` on `owner/next-gen-atlas` (a fork)
-//   branch            → branch on the canonical repo
-//   <40-hex>          → a pinned SHA (repo recovered from the previews table upstream)
+//   pull-256           → PR #256 against the canonical repo (head may be a fork)
+//   owner:branch       → branch `branch` on `owner/next-gen-atlas` (a fork)
+//   owner:repo:branch  → branch on `owner/repo` (a RENAMED fork — the repo name
+//                        never mattered for safety, only lineage does)
+//   branch             → branch on the canonical repo
+//   <40-hex>           → a pinned SHA (repo recovered from the previews table upstream)
 // `/` in a branch name is encoded as `~` in the URL id (git forbids `~` in refs,
-// so the mapping is unambiguous and reversible).
+// so the mapping is unambiguous and reversible). The extra `:` separators are
+// unambiguous too: git forbids `:` in refs and GitHub forbids it in owner/repo
+// names.
 //
-// Fork screening: a bare fork branch (`owner:branch`, owner ≠ canonical) resolves
-// only if the repo is a TRUE fork of the canonical atlas (GitHub `fork: true` +
-// parent/source === canonical) — this blocks arbitrary repos merely *named*
-// next-gen-atlas. Shared-history and trust screening happen downstream (build.ts).
+// Fork screening: any non-canonical repo (including a canonical-owner repo that
+// isn't THE atlas) resolves only if it is a TRUE fork of the canonical atlas
+// (GitHub `fork: true` + parent/source === canonical) — this blocks arbitrary
+// repos merely *named* next-gen-atlas. Shared-history and trust screening
+// happen downstream (build.ts).
 
 export const CANONICAL_OWNER = "sky-ecosystem";
 export const ATLAS_REPO_NAME = "next-gen-atlas";
@@ -41,9 +46,17 @@ export function decodeId(raw: string): ParsedId | null {
   const ci = raw.indexOf(":");
   if (ci >= 0) {
     const owner = raw.slice(0, ci);
-    const ref = decodeRef(raw.slice(ci + 1));
-    if (!owner || !ref) return null;
-    return { kind: "branch", owner, repo: `${owner}/${ATLAS_REPO_NAME}`, ref };
+    let rest = raw.slice(ci + 1);
+    // Optional repo segment (owner:repo:branch) for renamed forks.
+    let repoName = ATLAS_REPO_NAME;
+    const ci2 = rest.indexOf(":");
+    if (ci2 >= 0) {
+      repoName = rest.slice(0, ci2);
+      rest = rest.slice(ci2 + 1);
+    }
+    const ref = decodeRef(rest);
+    if (!owner || !repoName || !ref || ref.includes(":")) return null;
+    return { kind: "branch", owner, repo: `${owner}/${repoName}`, ref };
   }
   const ref = decodeRef(raw);
   return { kind: "branch", owner: CANONICAL_OWNER, repo: CANONICAL_REPO, ref };
@@ -55,9 +68,10 @@ export function gateError(_p: ParsedId): "gate-rejected" | null {
   return null;
 }
 
-/** Is this resolved preview a fork (non-canonical repo)? */
+/** Is this resolved preview a fork? Anything that isn't THE canonical repo —
+ *  a same-owner lookalike repo is fork-treated too. */
 export function isFork(repo: string): boolean {
-  return !repo.startsWith(`${CANONICAL_OWNER}/`);
+  return repo !== CANONICAL_REPO;
 }
 
 /** Fork owner from a repo slug ("owner/name" → "owner"). */
@@ -147,7 +161,7 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
   }
 
   // branch — canonical or fork. Forks get the lineage screen first.
-  if (p.owner !== CANONICAL_OWNER) {
+  if (p.repo !== CANONICAL_REPO) {
     const lineage = await checkForkLineage(p.repo, gh);
     if (lineage !== "ok") return { error: lineage === "not-found" ? "not-found" : "not-a-fork" };
   }

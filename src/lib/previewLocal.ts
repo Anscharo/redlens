@@ -3,32 +3,38 @@
 // and lets the index list "your" previews without any account).
 
 const CANONICAL_OWNER = "sky-ecosystem";
+const ATLAS_REPO_NAME = "next-gen-atlas";
 const SHA_RE = /^[0-9a-f]{40}$/i;
 
 // `/` in branch names is encoded as `~` in preview ids (see server resolve.ts).
 const enc = (ref: string) => ref.replaceAll("/", "~");
 
-/** Pasted URL or bare id → preview id (pull-N / owner:branch / branch / sha),
- *  or null if unparseable. Accepted URL forms on any fork of next-gen-atlas:
- *  /pull/N, /tree/<branch>, /commit/<sha>; plus bare pull-N, 40-hex, N, ids. */
+/** Pasted URL or bare id → preview id (pull-N / owner:branch / owner:repo:branch
+ *  / branch / sha), or null if unparseable. URLs work for ANY repo — renamed
+ *  forks included; the server screens by fork lineage, not by repo name.
+ *  Accepted URL forms: /pull/N (canonical only — PR numbers are repo-local),
+ *  /tree/<branch>, /commit/<sha>; plus bare pull-N, 40-hex, N, ids. */
 export function parsePreviewInput(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
 
-  const url = s.match(/github\.com\/([^/\s]+)\/next-gen-atlas\/?(.*)$/i);
+  const url = s.match(/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\/(.*))?$/i);
   if (url) {
-    const [, owner, rest] = url;
+    const [, owner, repo, rest = ""] = url;
+    const canonical = owner === CANONICAL_OWNER && repo === ATLAS_REPO_NAME;
     const pull = rest.match(/^pull\/(\d+)/);
-    if (pull) return `pull-${pull[1]}`;
+    // PR numbers are repo-local: a fork's /pull/N is a PR against the FORK,
+    // not the atlas — only the canonical repo's PRs are previewable.
+    if (pull) return canonical ? `pull-${pull[1]}` : null;
     const tree = rest.match(/^tree\/(.+?)\/?$/);
     if (tree) {
       const ref = enc(decodeURIComponent(tree[1]));
-      return owner === CANONICAL_OWNER ? ref : `${owner}:${ref}`;
+      if (canonical) return ref;
+      return repo === ATLAS_REPO_NAME ? `${owner}:${ref}` : `${owner}:${repo}:${ref}`;
     }
     const commit = rest.match(/^commit\/([0-9a-f]{40})/i);
     if (commit) return commit[1].toLowerCase();
-    if (!rest) return null; // bare repo URL — no ref to preview
-    return null;
+    return null; // bare repo URL — no ref to preview
   }
   // URL-shaped input that didn't match the atlas patterns is unparseable —
   // don't let it fall through to the bare-id forms below.
@@ -37,6 +43,10 @@ export function parsePreviewInput(raw: string): string | null {
   if (SHA_RE.test(s)) return s.toLowerCase();
   if (/^pull-\d+$/.test(s)) return s;
   if (/^#?\d+$/.test(s)) return `pull-${s.replace("#", "")}`; // "256" / "#256"
+  if (/^[\w.-]+:[\w.-]+:[^\s:]+$/.test(s)) {
+    const [owner, repo, ref] = s.split(":");
+    return `${owner}:${repo}:${enc(ref)}`; // renamed fork
+  }
   if (/^[\w.-]+:[^\s:]+$/.test(s)) {
     const [owner, ref] = s.split(":");
     return `${owner}:${enc(ref)}`;

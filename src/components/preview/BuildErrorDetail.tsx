@@ -3,40 +3,9 @@
 // an expected/found line pair with a CHARACTER-level diff, so near-invisible
 // defects (a trailing dot in a docNo) light up instead of hiding in plain text.
 
-type CharOp = ["=" | "-" | "+", string];
+import { charDiff } from "../../lib/diffCore";
 
-// LCS over characters; inputs are short (doc numbers, uuids), so the O(m·n)
-// table is trivial. Merges consecutive same-op chars into segments.
-function charOps(a: string, b: string): CharOp[] {
-  const m = a.length;
-  const n = b.length;
-  const dp: Int32Array[] = Array.from({ length: m + 1 }, () => new Int32Array(n + 1));
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
-  const ops: CharOp[] = [];
-  let i = m;
-  let j = n;
-  const push = (op: CharOp[0], ch: string) => {
-    const last = ops[ops.length - 1];
-    if (last && last[0] === op) last[1] = ch + last[1];
-    else ops.push([op, ch]);
-  };
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      i--;
-      j--;
-      push("=", a[i]);
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      j--;
-      push("+", b[j]);
-    } else {
-      i--;
-      push("-", a[i]);
-    }
-  }
-  return ops.reverse();
-}
+type CharOp = ["=" | "-" | "+", string];
 
 const MARK: React.CSSProperties = {
   background: "var(--diff-removed-bg)",
@@ -66,7 +35,7 @@ function DiffLine({ label, ops, keep }: { label: string; ops: CharOp[]; keep: "-
 
 export function BuildErrorDetail({ message }: { message: string }) {
   const ticked = [...message.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
-  const pair = ticked.length === 2 && ticked[0] !== ticked[1] ? charOps(ticked[0], ticked[1]) : null;
+  const pair = ticked.length === 2 && ticked[0] !== ticked[1] ? (charDiff(ticked[0], ticked[1]) as CharOp[]) : null;
   return (
     <>
       <pre

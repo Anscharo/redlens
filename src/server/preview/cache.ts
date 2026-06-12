@@ -40,6 +40,9 @@ export interface PreviewMeta {
   resolvedAt: string;
   docCount: number;
   buildMs: number;
+  /** Main atlas commit the bundle's diff/markers were computed against. The
+   *  sweeper evicts the bundle once main moves past it (stale redlines). */
+  baseAtlasCommit?: string;
   // Trust screening: effective tier of the PR author / fork owner (absent only
   // for canonical-branch previews). forkOwner is set for fork previews only.
   trustTier?: "trusted" | "known" | "unknown";
@@ -110,9 +113,11 @@ export function remove(sha: string, root = PREVIEW_DIR): void {
 
 /**
  * Evict all but the KEEP most-recently-accessed bundles. Also sweeps dirs with
- * no valid bundle (interrupted builds) regardless of recency. Returns evicted shas.
+ * no valid bundle (interrupted builds) regardless of recency. Returns evicted
+ * shas. `skip` (in-flight builds) are never touched — a mid-build dir looks
+ * exactly like an interrupted one.
  */
-export function evictLru(keep = KEEP, root = PREVIEW_DIR): string[] {
+export function evictLru(keep = KEEP, root = PREVIEW_DIR, skip?: Set<string>): string[] {
   let entries: string[];
   try {
     entries = fs.readdirSync(root);
@@ -122,6 +127,7 @@ export function evictLru(keep = KEEP, root = PREVIEW_DIR): string[] {
   const dirs = entries
     .map((name) => {
       try {
+        if (skip?.has(name)) return null;
         const full = path.join(root, name);
         if (!fs.statSync(full).isDirectory()) return null;
         return { sha: name, mtime: fs.statSync(full).mtimeMs, ready: bundleReady(name, root) };
