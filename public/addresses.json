@@ -1750,6 +1750,13 @@
     "isContract": true,
     "isProxy": false
   },
+  "0x987f1c31f9935e9926555bcfb76516bb2ececcad": {
+    "chain": "ethereum",
+    "chainlogId": "OBEX_STARGUARD",
+    "etherscanName": "StarGuard",
+    "isContract": true,
+    "isProxy": false
+  },
   "0x51e9681d7a05abfd33efafd43e5dd3afc0093f1d": {
     "chain": "ethereum",
     "chainlogId": "ALLOCATOR_OBEX_A_BUFFER",
