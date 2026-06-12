@@ -217,6 +217,11 @@ echo "Recording baseline graph snapshots ..."
   > /dev/null 2>&1 || true
 cp -r "$WORKTREE/graph-snapshots" "$SNAP_BASELINE/"
 
+# Re-baseline the coverage census at the merge base (worktree copy only) so the
+# post-PR census reports drift caused by this PR, not by atlas main drift.
+echo "Recording baseline coverage census ..."
+(cd "$WORKTREE" && pnpm census:check --update) > /dev/null 2>&1 || true
+
 # ---------------------------------------------------------------------------
 # Failure report writer (PR build or test failures only)
 # ---------------------------------------------------------------------------
@@ -286,6 +291,16 @@ if [[ -s "$SNAP_LOG" ]]; then
 else
   echo "(no snapshot changes)"
 fi
+
+# ---------------------------------------------------------------------------
+# Phase 3.5: coverage census — informational, not a gate
+# Flags docs the PR adds in structure clusters no extraction pattern consumes
+# ("silently dropped" content). Baselined at the merge base above.
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== coverage census (PR vs merge base) ==="
+CENSUS_OUT=$( (cd "$WORKTREE" && pnpm --silent census:check) 2>&1 || true )
+echo "$CENSUS_OUT"
 
 # ---------------------------------------------------------------------------
 # Success: compute relationship delta (PR vs main baseline)
@@ -380,6 +395,15 @@ JS
   echo "## Relationship delta (PR vs merge base)"
   echo ""
   echo "$DELTA"
+  echo ""
+  echo "## Coverage census (PR vs merge base)"
+  echo ""
+  echo "Drift lines mean the PR adds docs in structure clusters the graph does"
+  echo "not consume — content that would be silently dropped from the graph."
+  echo ""
+  echo '```'
+  echo "$CENSUS_OUT"
+  echo '```'
   echo ""
   echo "## Graph snapshot diff"
   echo ""
