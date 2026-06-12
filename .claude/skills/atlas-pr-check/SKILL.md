@@ -12,7 +12,7 @@ description: >
 license: MIT
 metadata:
   author: anscharo
-  version: "1.0"
+  version: "1.1"
 ---
 
 # atlas-pr-check
@@ -28,20 +28,21 @@ pnpm check:pr <pr-number>
 
 Only **OPEN** PRs are accepted. Closed / merged PRs are rejected at the start.
 
-The script:
+The script (requires the `gh` CLI on PATH for PR metadata):
 1. Fetches the PR's head SHA from `sky-ecosystem/next-gen-atlas`
-2. Pre-fetches `refs/pull/<N>/head` into the atlas submodule (handles fork PRs)
-3. Runs `pnpm build:at <sha>` (index → graph → manifest)
-4. Runs `pnpm test`
-5. On **success** — writes a relationship-delta report with a full `diff -ru` of graph snapshots (untruncated); atlas stays at PR SHA
-6. On **failure** — writes a diagnosis report and exits 1
+2. Creates a **disposable git worktree** at HEAD — all builds run there, so the
+   main checkout's `public/` and pinned submodule are never touched
+3. Builds a baseline at the PR's **merge base** with atlas main (seeded from the
+   cached `public/` build when the merge base matches `manifest.atlasCommit`)
+4. Fetches `refs/pull/<N>/head` into the worktree's atlas submodule (handles fork PRs)
+5. Runs `pnpm build:at <sha>` (index → graph → manifest) at the PR head
+6. Runs `pnpm test`
+7. On **success** — writes a relationship-delta report (PR vs merge base) with a
+   full `diff -ru` of graph snapshots (untruncated)
+8. On **failure** — writes a diagnosis report and exits 1
+9. Removes the worktree either way — no cleanup needed afterwards
 
 Report location: `.cache/pr-check/pr<N>-<sha7>.md`
-
-Restore the pinned atlas commit when done:
-```bash
-git submodule update
-```
 
 ---
 
@@ -75,7 +76,14 @@ decision tree below.
 
 ### Decision tree
 
-The "Failed phase" in the report is `build:at <sha>` or `pnpm test`.
+A report titled **"Atlas PR check — BASELINE FAILED"** means the build failed at
+the PR's **merge base**, before the PR's changes were even applied. This is
+pre-existing breakage in the atlas snapshot the PR is based on (common for stale
+PRs branched from an old main — e.g. a duplicate UUID later fixed upstream).
+It is not the PR's fault and not fixable in RedLens; the PR needs an upstream
+rebase before it can be checked.
+
+Otherwise the "Failed phase" in the report is `build:at <sha>` or `pnpm test`.
 `build:at` is a wrapper — scan the build log for the **last `$ pnpm build:*`
 line** to find the actual sub-command that failed.
 
@@ -104,7 +112,8 @@ added / reordered a field in the document header.
 
 **Action — update parsers and tests only. Do not touch the parse-atlas skill.**
 
-1. Read the raw diff: `git -C vendor/next-gen-atlas diff HEAD~1 "Sky Atlas/Sky Atlas.md" | head -200`
+1. Read the raw diff (the script leaves `origin/pr/<N>` fetched in the submodule):
+   `git -C vendor/next-gen-atlas diff "$(git -C vendor/next-gen-atlas merge-base origin/pr/<N> origin/main)" origin/pr/<N> -- content/ | head -200`
 2. Identify what changed in the heading format or doc type list
 3. Update `scripts/lib/atlas-parser.mjs` to handle the new format
 4. Update `scripts_tests/parser.test.ts` if any assertion expectations changed
@@ -123,7 +132,8 @@ of expressing an existing relationship.
 
 **Action — update code AND the parse-atlas skill.**
 
-1. Read the atlas diff: `git -C vendor/next-gen-atlas diff HEAD~1 "Sky Atlas/Sky Atlas.md" | head -400`
+1. Read the atlas diff (same merge-base→PR-head form as category 1):
+   `git -C vendor/next-gen-atlas diff "$(git -C vendor/next-gen-atlas merge-base origin/pr/<N> origin/main)" origin/pr/<N> -- content/ | head -400`
 2. Identify the new pattern (new heading under a Scope/Article, new ICD field, etc.)
 3. Update `.claude/skills/parse-atlas/SKILL.md` (see "When to update" section below)
 4. Update the relevant `scripts/lib/graph-*.mjs` module to extract the new pattern
