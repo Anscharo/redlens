@@ -103,6 +103,7 @@ const KNOWN_ENTITY_TYPES = new Set([
   "invocation",
   "primitive",
   "multisig",
+  "bridge",
 ]);
 
 const KNOWN_EDGE_TYPES = new Set([
@@ -144,6 +145,8 @@ const KNOWN_EDGE_TYPES = new Set([
   // multisigs (Pattern 17)
   "signer_of",
   "can_modify_signers_of",
+  // bridge validator sets (Pattern 21)
+  "validator_of",
   // transfer/grant events (Pattern 18)
   "funds_transfer",
   // registries / org relations
@@ -587,6 +590,7 @@ describe("relations.json — lean browser payload", () => {
       "signer_of",
       "can_modify_signers_of",
       "integration_partner_of",
+      "validator_of",
     ]);
     const pinned = new Set(
       relations.edges
@@ -610,5 +614,54 @@ describe("relations.json — lean browser payload", () => {
       (e) => (e.ft === "entity" && !ids.has(e.f)) || (e.tt === "entity" && !ids.has(e.t)),
     );
     expect(dangling.map((e) => `${e.e}: ${e.f} → ${e.t}`)).toEqual([]);
+  });
+});
+
+describe("Pattern 21 — bridge validator sets", () => {
+  const bridges = graph.entities.filter((e) => e.entity_type === "bridge");
+  const SOLANA_GOV_BRIDGE = "07d43b8c-1230-4de9-959b-8593d69e922a"; // A.1.10.4.1.2.3.3.2
+
+  it("extracts the six SkyLink bridge components", () => {
+    // 3 networks (Solana/Avalanche/Plasma) × Token Bridge + Governance Bridge.
+    // Grows when new deployments land (e.g. the SLL Governance Bridges from
+    // atlas PRs #230/#233) — update alongside the snapshot.
+    expect(bridges.length).toBe(6);
+    for (const b of bridges) {
+      const meta = JSON.parse(b.meta ?? "{}");
+      expect(meta.quorum, b.name).toMatch(/^\d+\/\d+$/);
+      expect(meta.quorum_doc_no, b.name).toBeTruthy();
+      expect(docs[b.id], `${b.name} id must be its root doc UUID`).toBeDefined();
+    }
+  });
+
+  it("Solana Governance Bridge: name, quorum, and full validator roster", () => {
+    const b = entityById.get(SOLANA_GOV_BRIDGE);
+    expect(b?.name).toBe("Governance Bridge (Solana SkyLink Bridge)");
+    expect(JSON.parse(b?.meta ?? "{}").quorum).toBe("4/7");
+    const validators = graph.edges
+      .filter((e) => e.edge_type === "validator_of" && e.to_id === SOLANA_GOV_BRIDGE)
+      .map((e) => entityById.get(e.from_id)?.name)
+      .sort();
+    expect(validators).toEqual(
+      ["Canary", "Deutsche Telekom", "Horizen", "LayerZero", "Luganodes", "Nethermind", "P2P"],
+    );
+  });
+
+  it("validators are deduped across bridges (LayerZero validates all six)", () => {
+    const lz = graph.entities.find((e) => e.slug === "layerzero");
+    expect(lz?.subtype).toBe("bridge_validator");
+    const lzEdges = graph.edges.filter(
+      (e) => e.edge_type === "validator_of" && e.from_id === lz?.id,
+    );
+    expect(lzEdges.length).toBe(bridges.length);
+  });
+
+  it("Root Edit Primitive 'Quorum Requirement' spec prose is not matched", () => {
+    // A.2.2.6.* quorum docs are primitive spec text with no roster sibling —
+    // the child-pair gate must exclude them.
+    const rootEditBridge = bridges.find((b) =>
+      JSON.parse(b.meta ?? "{}").quorum_doc_no?.startsWith("A.2.2.6."),
+    );
+    expect(rootEditBridge).toBeUndefined();
   });
 });

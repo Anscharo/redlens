@@ -13,7 +13,7 @@ description: >
 license: MIT
 metadata:
   author: anscharo
-  version: "2.1"
+  version: "2.2"
 ---
 
 # parse-atlas
@@ -163,6 +163,8 @@ Every entity type below either has a defining Atlas doc number pattern, or is bo
 | `ecosystem_actor`     | `individual`           | Natural person / forum handle from the Current Authorized Forum Accounts table (`b71564fd`, Pattern 16 Table 4). Source of `authorized_rep_for` edges. Dropped from `relations.json` unless pinned.                                              |
 | `ecosystem_actor`     | `integration_partner`  | Integration Boost partner promoted from `Integration Partner Name` ICD params (Pattern 19). Source of `integration_partner_of` edges; pinned into `relations.json`.                                                                              |
 | `multisig`            | —                      | Multisig detected via the structural five-child convention (Pattern 17). Entity id = root doc UUID. Meta: `{address, chain, threshold, purpose_doc_no}`. Target of `signer_of` / `can_modify_signers_of`.                                        |
+| `ecosystem_actor`     | `bridge_validator`     | External validator org from a bridge roster sentence (Pattern 21). Source of `validator_of` edges; pinned into `relations.json`. Deduped by slug across bridges (LayerZero, Nethermind, Horizen, Deutsche Telekom, Canary, Luganodes, P2P).      |
+| `bridge`              | —                      | Cross-chain bridge component detected via the Validators + Quorum Requirement child pair (Pattern 21). Entity id = root doc UUID. Meta: `{component, network, quorum, quorum_doc_no}`. Target of `validator_of`.                                 |
 | `instance`            | `<primitive-slug>`     | Primitive Instance Configuration Document under the **Active/Suspended/Completed Instances** tier. Operational deployment per atlas A.2.2.1.3. Entity id = ICD doc UUID. Emitted for every in-scope primitive (see Pattern 14 for the allowlist). `st` is the primitive slug (`distribution-reward`, `integration-boost`, `allocation-system`, etc.). Status (Active/Suspended/Completed) lives in `meta.status`. |
 | `invocation`          | `<primitive-slug>`     | ICD under the **In Progress Invocations** tier. The in-progress act of enabling a primitive per atlas A.2.2.1.4 — distinct from an Instance. Same param shape and same entity id derivation as `instance`; the only difference is lifecycle stage. `meta.status = "InProgress"`. |
 
@@ -682,6 +684,24 @@ Every `Integration Partner Name` param value on an integration-boost instance/in
 - **Org prose** (`graph-entity-edges.mjs` 2x): two conservative shapes, edges emitted **only when both endpoints already resolve to entities** (unresolved matches are logged and skipped — recall deliberately low):
   - `"X is the Prime Foundation associated with Y."` → `prime_foundation_for`
   - `"X is a development company that provides services to the Y"` → `provides_services_to`
+
+### Pattern 21: Bridge validator sets (`scripts/lib/graph-bridges.mjs`, Phase 2.8)
+
+Cross-chain bridges document validator configuration as a parent doc (the bridge-component root) with a uniform pair of child Cores:
+
+```
+{root}            bridge root (entity id = this doc's UUID)
+{root}.N  Validators           "The validators for the {Component} are A, B, …, and Z."
+{root}.N  Quorum Requirement   "The quorum requirement for the {Component} is M/N."
+```
+
+- **Two shapes today:** SkyLink (`A.1.10.4.1.*`): "{Network} SkyLink Bridge" → "Validators" container → "{Token|Governance} Bridge" root → pair. SLL Governance Bridge (incoming via atlas PRs #230/#233): "Governance Bridge Validators" hub → "{Network}" root → pair.
+- **Detection:** group docs titled `Validators` / `Quorum Requirement` by parent doc_no; a parent owning **both, with both sentences parsing**, is a bridge root. The pair-plus-sentence gate excludes the Root Edit Primitive "Quorum Requirement" spec docs (`A.2.2.6.*` — no roster sibling, no `M/N` sentence) and the "Validators" container docs ("The documents herein…" never matches the roster sentence). Subjects of the two sentences are cross-checked; mismatch warns.
+- **Display name** = roster-sentence subject, qualified by the nearest ancestor titled `…Bridge` ("Governance Bridge (Solana SkyLink Bridge)"), else by the root title when it differs from the subject (SLL shape — root is the network doc: "(Avalanche)"), agent-prefixed under `A.6.1.1.X` like Pattern 17 ("Spark Governance Bridge (Avalanche)").
+- **Edges:** `validator_of` (`entity(validator) → entity(bridge)`, source `[roster doc_no]`), `defines_entity`. Quorum lives on the bridge meta; `meta.quorum_doc_no` carries provenance so the census counts the quorum doc as covered (same mechanism as the multisig `threshold_doc_no` fix).
+- **Validators** are `ecosystem_actor` `st="bridge_validator"`, deduped by slug across bridges (same 7 orgs validate every Governance Bridge; Token Bridges list LayerZero + Nethermind only). Pinned into `relations.json` via `KEEP_ACTOR_EDGE_TYPES`.
+- 6 bridges / 27 `validator_of` edges today (3 SkyLink networks × Token + Governance components). Atlas PRs #230/#233 add SLL Governance Bridges for Tempo/Avalanche — picked up automatically on merge.
+- **Never-silent:** half-parsed pairs, subject mismatches, and empty rosters warn; stats line reports roots/edges/warnings.
 
 ### Not in the atlas (verified 2026-06; do not extract — chatbot should say so)
 

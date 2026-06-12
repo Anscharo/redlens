@@ -30,6 +30,7 @@ import { execSync } from "node:child_process";
 import { slugify, normalizeKey, buildNameIndex } from "../lib/graph-patterns.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
+import { extractBridges } from "../lib/graph-bridges.mjs";
 import {
   parseMarkdownTable,
   extractEthAddresses,
@@ -758,6 +759,14 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     `, ${txStats.allocations} allocations, ${txStats.budgetTransfers} budget transfers` +
     (txStats.warnings ? `, ${txStats.warnings} WARNINGS` : ""),
   );
+
+  // --- Bridge validator sets (Pattern 21) ---
+  const brStats = extractBridges(allDocs, docById, docByDocNo, entityMap, edges, addPatternEntity);
+  console.log(
+    `  Phase 2.8: ${brStats.roots} bridges, ${brStats.validatorEdges} validator_of,` +
+    ` ${brStats.created} new validator entities` +
+    (brStats.warnings ? `, ${brStats.warnings} WARNINGS` : ""),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -861,10 +870,11 @@ const OMIT_ENTITY_TYPES = new Set(["ecosystem_actor"]);
 const KEEP_ACTOR_EDGE_TYPES = new Set([
   "holds_role_for",
   "responsible_party_for",
-  // multisig + integration-partner actors stay visible in the UI
+  // multisig + integration-partner + bridge-validator actors stay visible in the UI
   "signer_of",
   "can_modify_signers_of",
   "integration_partner_of",
+  "validator_of",
 ]);
 // Edge types that are graph.json-only (chatbot/MCP data, not browser UI):
 // funds_transfer is event data; authorized_rep_for points at forum-handle

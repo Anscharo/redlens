@@ -9931,7 +9931,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 386,
+  "defines_entity": 392,
   "ecosystem_accord": 20,
   "erg_member_for": 8,
   "has_address": 263,
@@ -9955,6 +9955,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "ranked_delegate_for": 3,
   "responsible_party_for": 64,
   "signer_of": 56,
+  "validator_of": 27,
 }
 `;
 

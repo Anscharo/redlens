@@ -14,6 +14,7 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   ecosystem_actor: "Ecosystem Actor",
   instance: "Instance",
   multisig: "Multisig",
+  bridge: "Bridge",
 };
 
 export const SUBTYPE_LABEL: Record<string, string> = {
@@ -24,6 +25,7 @@ export const SUBTYPE_LABEL: Record<string, string> = {
   core: "Core",
   individual: "Individual",
   integration_partner: "Integration Partner",
+  bridge_validator: "Bridge Validator",
 };
 
 /** Labels vary by the edge's direction relative to the viewer.
@@ -52,6 +54,7 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   comprises: { forward: "comprises", reverse: "part of" },
   signer_of: { forward: "signer of", reverse: "has signer" },
   can_modify_signers_of: { forward: "can modify signers of", reverse: "signers modifiable by" },
+  validator_of: { forward: "validator of", reverse: "has validator" },
   funds_transfer: { forward: "transferred funds to", reverse: "received funds from" },
   authorized_rep_for: { forward: "authorized rep for", reverse: "has authorized rep" },
   integration_partner_of: { forward: "integration partner of", reverse: "has integration partner" },
@@ -97,6 +100,7 @@ export const ENTITY_TYPE_COLOR: Record<string, string> = {
   ecosystem_actor: "var(--entity-ecosystem-actor)",
   instance: "var(--entity-instance)",
   multisig: "var(--entity-multisig)",
+  bridge: "var(--entity-bridge)",
 };
 
 export interface EntityNodeData {
@@ -167,6 +171,7 @@ export const CONNECTED_ENTITY_TYPES: ReadonlySet<string> = new Set([
   "ecosystem_actor",
   "instance",
   "multisig",
+  "bridge",
 ]);
 
 /** Entity↔entity edges only, for the ReactFlow graph. */

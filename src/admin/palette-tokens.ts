@@ -98,6 +98,7 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   { name: "entity-ecosystem-actor", label: "Ecosystem Actor", group: "entity", alpha: false },
   { name: "entity-instance", label: "Instance", group: "entity", alpha: false },
   { name: "entity-multisig", label: "Multisig", group: "entity", alpha: false },
+  { name: "entity-bridge", label: "Bridge", group: "entity", alpha: false },
   { name: "entity-fallback", label: "Fallback", group: "entity", alpha: false },
 
   // ─── Depth jewel-tone palette (5-color cycle red→orange→green→blue→purple starting at depth-1, looping through depth-17) ───
