@@ -40,7 +40,9 @@ export function PreviewBanner() {
   }, [base, preview]);
   if (!preview) return null;
 
-  const isFork = !!meta && !meta.repo.startsWith(`${CANONICAL_REPO.split("/")[0]}/`);
+  // forkOwner is only set by the server for true fork previews — a PR whose
+  // head lives on a fork is still a PR preview, not a fork preview.
+  const isFork = !!meta?.forkOwner;
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? preview.id;
   const src = meta ? sourceUrl(meta) : null;
   const srcLabel = meta?.kind === "pr" ? "view PR on GitHub ↗" : meta?.kind === "branch" ? "view branch ↗" : "view commit ↗";
@@ -68,11 +70,14 @@ export function PreviewBanner() {
         {isFork ? ` · by ${meta!.forkOwner ?? meta!.repo.split("/")[0]}` : ""}
         {meta?.prAuthor ? ` · proposed by ${meta.prAuthor}` : ""}
         {meta?.prState && meta.prState !== "open" ? ` · ${meta.prState}` : ""}
+        {isFork && meta!.behindBy === 0 && meta!.aheadBy === 0
+          ? " · up to date with sky-ecosystem/next-gen-atlas:main"
+          : ""}
         {isFork && (meta!.behindBy ?? 0) > 0 ? ` · ${meta!.behindBy} commits behind main` : ""}
       </span>
-      {isFork && meta!.trustTier === "unknown" && (
+      {meta?.trustTier === "unknown" && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
-          no PRs accepted into the atlas
+          author has no PRs accepted into the atlas
         </span>
       )}
       {isFork && (meta!.newAddresses ?? 0) > 0 && (

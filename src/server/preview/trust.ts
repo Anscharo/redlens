@@ -45,6 +45,13 @@ export function tierFor(
   return "refused";
 }
 
+/** PR-ness is cheap (anyone can open a draft PR), so it never UPGRADES
+ *  treatment — it only un-refuses, keeping "open a draft PR to preview" viable
+ *  for legitimate newcomers. They build with full unknown-tier warnings. */
+export function effectivePrTier(t: TrustTier): Exclude<TrustTier, "refused"> {
+  return t === "refused" ? "unknown" : t;
+}
+
 // 24h cache. Trust changes slowly; this keeps us far under the search-API
 // rate limit even under hostile request churn.
 const cache = new Map<string, { at: number; v: Trust }>();

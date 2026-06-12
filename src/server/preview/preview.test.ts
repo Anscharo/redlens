@@ -9,7 +9,7 @@ import { Readable } from "node:stream";
 import { execFileSync } from "node:child_process";
 
 import { decodeId, gateError, resolveRef, checkForkLineage, isFork, repoOwner, type GhClient } from "./resolve.ts";
-import { tierFor } from "./trust.ts";
+import { tierFor, effectivePrTier } from "./trust.ts";
 import {
   gunzipCapped,
   extractContentArchive,
@@ -128,6 +128,13 @@ test("trust tierFor: whitelist/atlas-merged → trusted; org-merged → known; h
   expect(tierFor(0, 0, 3, false)).toBe("refused"); // no history, fresh account
 });
 
+test("effectivePrTier: PR-ness only un-refuses, never upgrades", () => {
+  expect(effectivePrTier("refused")).toBe("unknown");
+  expect(effectivePrTier("unknown")).toBe("unknown");
+  expect(effectivePrTier("known")).toBe("known");
+  expect(effectivePrTier("trusted")).toBe("trusted");
+});
+
 test("archiveUrl points at the resolved (fork) repo", () => {
   expect(archiveUrl("blimpa/next-gen-atlas", "abc")).toBe("https://github.com/blimpa/next-gen-atlas/archive/abc.tar.gz");
 });
@@ -158,6 +165,22 @@ test("mapChangedDocs: added→added, modified→changed, removed/_index skipped"
   );
   expect(diff.added).toEqual(["id-a"]);
   expect(diff.changed).toEqual(["id-b"]);
+});
+
+test("mapChangedDocs: doc identity trumps file status when mainIds is given", () => {
+  const docNoToId = new Map([["A.1", "new-uuid"], ["A.2", "old-uuid"]]);
+  const diff = mapChangedDocs(
+    [
+      // modified file, but the doc inside carries a uuid main doesn't have → ADDED
+      { filename: "content/A/1/document.md", status: "modified" },
+      // added file, but the uuid exists in main (doc moved/renumbered) → CHANGED
+      { filename: "content/A/2/document.md", status: "added" },
+    ],
+    docNoToId,
+    new Set(["old-uuid", "other-uuid"]),
+  );
+  expect(diff.added).toEqual(["new-uuid"]);
+  expect(diff.changed).toEqual(["old-uuid"]);
 });
 
 // ---------------------------------------------------------------------------

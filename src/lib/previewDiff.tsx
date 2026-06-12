@@ -3,14 +3,19 @@ import { useDataSource } from "./dataSource";
 import type { DiffLine } from "./history";
 
 // Doc ids the preview adds / changes vs current main (from GET diff.json).
-// Drives the green new/changed redline indicators. Empty (and no fetch) outside
-// preview mode, so the default context works everywhere without a provider.
+// Drives the green new/changed redline indicators. `renumbered` maps a changed
+// doc id to its [live, preview] doc numbers when the change includes a move.
+// Empty (and no fetch) outside preview mode, so the default context works
+// everywhere without a provider.
 export interface PreviewDiff {
   added: Set<string>;
   changed: Set<string>;
+  renumbered: Record<string, [string, string]>;
+  /** Added docs whose doc number exists on the live atlas under another uuid. */
+  reusedSlot: Set<string>;
 }
 
-const EMPTY: PreviewDiff = { added: new Set(), changed: new Set() };
+const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: new Set() };
 
 const PreviewDiffContext = createContext<PreviewDiff>(EMPTY);
 
@@ -31,7 +36,12 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!live || !d) return;
-        setDiff({ added: new Set<string>(d.added ?? []), changed: new Set<string>(d.changed ?? []) });
+        setDiff({
+          added: new Set<string>(d.added ?? []),
+          changed: new Set<string>(d.changed ?? []),
+          renumbered: d.renumbered ?? {},
+          reusedSlot: new Set<string>(d.reusedSlot ?? []),
+        });
       })
       .catch(() => {});
     return () => {

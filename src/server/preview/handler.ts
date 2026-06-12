@@ -17,7 +17,7 @@ import type { AtlasNode } from "../indexes.ts";
 import { decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, touch, remove as removeBundle } from "./cache.ts";
-import { getPreviewRow, touchPreview, isBlockedSha } from "./db.ts";
+import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 // noindex on every preview response: unreviewed (possibly fork) content must
@@ -201,6 +201,12 @@ export function handlePreview(req: Request, server: Server, pathname: string): R
   if (!config.previewEnabled) return json({ error: "not-found" }, 404);
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);
+  // GET /api/preview/list — live previews for the /preview index page.
+  if (segs.length === 1 && segs[0] === "list") {
+    return listPreviews()
+      .then((rows) => json(rows, 200))
+      .catch(() => json([], 200));
+  }
   if (segs.length !== 2) return json({ error: "not-found" }, 404);
   const [a, b] = segs;
 

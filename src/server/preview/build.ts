@@ -12,12 +12,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "../config.ts";
+import { getIndexes } from "../indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
+import { contentDiff } from "./patch-diff.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
-import { upsertPreview, isKnownSha, isBlockedSha, previewsTodayCount } from "./db.ts";
+import { upsertPreview, isKnownSha, isBlockedSha, previewsTodayCount, previewsTodayCountForOwner } from "./db.ts";
 import { isFork, repoOwner, makeGhClient, type Resolved } from "./resolve.ts";
-import { computeTrust, type TrustTier } from "./trust.ts";
+import { computeTrust, effectivePrTier, type TrustTier } from "./trust.ts";
 
 export type PreviewErrorCode =
   | "gate-rejected"
@@ -93,17 +95,35 @@ function release(): void {
   }
 }
 
-function spawnBuild(args: string[], env: Record<string, string>): Promise<number> {
+// stderr is captured (and still forwarded to the server log) so a failed build
+// can tell the user WHAT was malformed — e.g. parseTree invariant violations
+// pinpointing the bad document — instead of a generic "could not be built".
+function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
+    let stderr = "";
     const child = spawn("bun", args, {
       cwd: config.root,
       env: { ...process.env, ...env },
-      stdio: ["ignore", "inherit", "inherit"],
+      stdio: ["ignore", "inherit", "pipe"],
       timeout: config.previewBuildTimeoutMs,
     });
-    child.on("close", (code) => resolve(code ?? 1));
-    child.on("error", () => resolve(1));
+    child.stderr?.on("data", (d: Buffer) => {
+      stderr += d.toString();
+      process.stderr.write(d);
+    });
+    child.on("close", (code) => resolve({ code: code ?? 1, stderr }));
+    child.on("error", () => resolve({ code: 1, stderr }));
   });
+}
+
+// Trim subprocess stderr to a user-displayable reason: the last few meaningful
+// lines (the invariant/exception summary), minus stack-trace noise.
+function buildErrorTail(stderr: string): string | undefined {
+  const lines = stderr
+    .split("\n")
+    .filter((l) => l.trim() && !/^\s*at /.test(l) && !/^\s*\d+ \|/.test(l) && !/^\s*\^\s*$/.test(l) && !/^Bun v/.test(l));
+  const tail = lines.slice(-6).join("\n").slice(-600);
+  return tail || undefined;
 }
 
 function fail(f: Inflight, sha: string, code: PreviewErrorCode, message?: string): void {
@@ -131,17 +151,44 @@ function countNewAddresses(outDir: string): number {
   }
 }
 
-// Fork screening + quota pool selection. Canonical/PR previews bypass trust
-// scoring and use the main pool; forks are tiered by owner track record.
+// Is this preview a FORK preview? PRs are publicly proposed against canonical,
+// so they're never fork-treated — even though a PR's head repo usually IS a
+// fork. Only bare branch/sha previews of non-canonical repos count.
+function isForkPreview(resolved: Resolved): boolean {
+  return !resolved.pr && isFork(resolved.repo);
+}
+
+// Trust screening + quota pool selection. Treatment follows the EFFECTIVE tier
+// of whoever is responsible for the content:
+//   canonical branch → no author to score, canonical pool
+//   PR → score the PR AUTHOR; PR-ness only un-refuses (never upgrades).
+//        trusted-author PRs draw from the canonical pool; known/unknown PRs
+//        share those fork pools — burner-PR spam can only drain the 2/day pool.
+//   bare fork branch → score the fork OWNER; refused tier rejects the build;
+//        trusted owners get their own per-owner pool.
 async function forkGate(
   resolved: Resolved,
-): Promise<{ tier?: TrustTier; pool: "trusted" | "known" | "unknown"; quota: number } | "fork-not-trusted"> {
-  if (!isFork(resolved.repo)) return { pool: "trusted", quota: config.previewDailyQuota };
-  const trust = await computeTrust(repoOwner(resolved.repo), makeGhClient(config.githubToken));
+): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
+  if (!resolved.pr && !isFork(resolved.repo)) {
+    return { count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
+  }
+  const gh = makeGhClient(config.githubToken);
+  if (resolved.pr) {
+    const tier = effectivePrTier((await computeTrust(resolved.pr.author, gh)).tier);
+    if (tier === "trusted")
+      return { tier, count: () => previewsTodayCount("canonical"), quota: config.previewDailyQuota };
+    if (tier === "known")
+      return { tier, count: () => previewsTodayCount("known"), quota: config.previewForkDailyQuota };
+    return { tier, count: () => previewsTodayCount("unknown"), quota: config.previewUnknownForkDailyQuota };
+  }
+  const owner = repoOwner(resolved.repo);
+  const trust = await computeTrust(owner, gh);
   if (trust.tier === "refused") return "fork-not-trusted";
-  if (trust.tier === "trusted") return { tier: "trusted", pool: "trusted", quota: config.previewDailyQuota };
-  if (trust.tier === "known") return { tier: "known", pool: "known", quota: config.previewForkDailyQuota };
-  return { tier: "unknown", pool: "unknown", quota: config.previewUnknownForkDailyQuota };
+  if (trust.tier === "trusted")
+    return { tier: "trusted", count: () => previewsTodayCountForOwner(owner), quota: config.previewTrustedForkDailyQuota };
+  if (trust.tier === "known")
+    return { tier: "known", count: () => previewsTodayCount("known"), quota: config.previewForkDailyQuota };
+  return { tier: "unknown", count: () => previewsTodayCount("unknown"), quota: config.previewUnknownForkDailyQuota };
 }
 
 async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
@@ -160,7 +207,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
       return;
     }
     // Quota gates only NEW analyses; re-builds of a known sha are free.
-    if (!(await isKnownSha(sha)) && (await previewsTodayCount(gate.pool)) >= gate.quota) {
+    if (!(await isKnownSha(sha)) && (await gate.count()) >= gate.quota) {
       fail(f, sha, "quota-exceeded");
       return;
     }
@@ -185,18 +232,20 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
       emit(f, { phase: "building", sha });
       const base = { ATLAS_SRC_DIR: srcDir, ATLAS_OUT_DIR: paths.outDir, ATLAS_COMMIT: sha };
       // build-index strictness (parseTree invariants) makes a malformed PR exit
-      // non-zero → build-failed, never a 500.
-      if ((await spawnBuild(["scripts/required/build-index.mjs"], base)) !== 0) return fail(f, sha, "build-failed");
+      // non-zero → build-failed (with the violation surfaced), never a 500.
+      const index = await spawnBuild(["scripts/required/build-index.mjs"], base);
+      if (index.code !== 0) return fail(f, sha, "build-failed", buildErrorTail(index.stderr));
       // graph + glossary both consume only build-index's docs.json and write
       // disjoint files (graph: graph/relations/addresses.atlas; glossary:
       // glossary) — run them concurrently.
-      const [graphCode, glossaryCode] = await Promise.all([
+      const [graph, glossary] = await Promise.all([
         spawnBuild(["scripts/required/build-graph.mjs"], { ...base, ATLAS_ONCHAIN_DIR: config.publicDir }),
         spawnBuild(["scripts/required/build-glossary.mjs"], { ATLAS_OUT_DIR: paths.outDir }),
       ]);
-      if (graphCode !== 0 || glossaryCode !== 0) return fail(f, sha, "build-failed");
+      if (graph.code !== 0 || glossary.code !== 0)
+        return fail(f, sha, "build-failed", buildErrorTail(graph.code !== 0 ? graph.stderr : glossary.stderr));
 
-      const fork = isFork(resolved.repo);
+      const fork = isForkPreview(resolved);
       const filesR = await filesP;
       // Shared-history screen: a fork whose compare vs main failed (no common
       // ancestor / unknown commit) is not a derivative of the atlas — reject.
@@ -215,9 +264,12 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         docCount,
         buildMs: Date.now() - t0,
       };
+      // Effective tier rides on every screened preview (PR + fork) — drives the
+      // banner warnings, interstitial, and pool accounting. forkOwner stays
+      // fork-only (a PR with a fork head is still a PR preview).
+      meta.trustTier = gate.tier;
       if (fork) {
         meta.forkOwner = repoOwner(resolved.repo);
-        meta.trustTier = gate.tier;
         if (filesR.ok) {
           meta.aheadBy = filesR.v.aheadBy;
           meta.behindBy = filesR.v.behindBy;
@@ -236,10 +288,48 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         if (filesR.ok) {
           const nodes = Object.values(
             JSON.parse(fs.readFileSync(path.join(paths.outDir, "docs.json"), "utf8")).nodes,
-          ) as { doc_no: string; id: string }[];
+          ) as { doc_no: string; id: string; content?: string }[];
+          const byId = new Map(nodes.map((n) => [n.id, n]));
           const docNoToId = new Map(nodes.map((n) => [n.doc_no, n.id]));
-          const { added, changed, patches, noPatch } = mapChangedDocs(filesR.v.files, docNoToId);
-          fs.writeFileSync(path.join(paths.outDir, "diff.json"), JSON.stringify({ added, changed }));
+          // Identity-aware added/changed split: a doc uuid absent from the live
+          // atlas is NEW even if its file was "modified" (and vice versa).
+          const mainDocs = getIndexes().docMap;
+          const mainIds = mainDocs.size > 0 ? new Set(mainDocs.keys()) : undefined;
+          const { added, changed, patches, noPatch } = mapChangedDocs(filesR.v.files, docNoToId, mainIds);
+          // For CHANGED docs, GitHub's per-path patch can cross doc identities
+          // (renumbering moves docs between paths). Replace it with an identity
+          // diff — this uuid's content here vs on the live atlas — and record
+          // renumberings explicitly.
+          const renumbered: Record<string, [string, string]> = {};
+          for (const id of changed) {
+            const mainNode = mainDocs.get(id);
+            const prevNode = byId.get(id);
+            if (!mainNode || !prevNode) continue;
+            const dl = contentDiff(mainNode.content ?? "", prevNode.content ?? "");
+            if (dl.length) patches[id] = dl;
+            else delete patches[id];
+            if (mainNode.doc_no !== prevNode.doc_no) renumbered[id] = [mainNode.doc_no, prevNode.doc_no];
+          }
+          // ADDED docs in a reused slot (new uuid at a doc number that exists on
+          // the live atlas under a different uuid): the GitHub per-path patch
+          // shows the old occupant's content being edited away — misleading for
+          // a new doc. Flag the reuse and show the doc's own content as pure
+          // additions; the old occupant's move shows on its own history entry.
+          const mainDocNos = new Map<string, string>();
+          for (const [mid, mnode] of mainDocs) mainDocNos.set(mnode.doc_no, mid);
+          const reusedSlot: string[] = [];
+          for (const id of added) {
+            const prevNode = byId.get(id);
+            if (!prevNode) continue;
+            const occupant = mainDocNos.get(prevNode.doc_no);
+            if (occupant && occupant !== id) {
+              reusedSlot.push(id);
+              const dl = contentDiff("", prevNode.content ?? "");
+              if (dl.length) patches[id] = dl;
+              else delete patches[id];
+            }
+          }
+          fs.writeFileSync(path.join(paths.outDir, "diff.json"), JSON.stringify({ added, changed, renumbered, reusedSlot }));
           fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
           if (noPatch > 0) console.warn(`[preview] ${sha.slice(0, 8)}: ${noPatch} changed doc(s) had no patch (binary/truncated/rename)`);
         }

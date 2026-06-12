@@ -40,9 +40,11 @@ export interface PreviewMeta {
   resolvedAt: string;
   docCount: number;
   buildMs: number;
-  // Fork previews only (repo ≠ canonical): provenance + screening results.
-  forkOwner?: string;
+  // Trust screening: effective tier of the PR author / fork owner (absent only
+  // for canonical-branch previews). forkOwner is set for fork previews only.
   trustTier?: "trusted" | "known" | "unknown";
+  // Fork previews only (bare branch/sha of a non-canonical repo):
+  forkOwner?: string;
   aheadBy?: number;
   behindBy?: number;
   /** Addresses in this preview's atlas not present in the live atlas. */

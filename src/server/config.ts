@@ -61,12 +61,15 @@ export const config = {
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.
-  previewDailyQuota: Number(process.env.PREVIEW_DAILY_QUOTA ?? 13),
-  // Tiered fork pools (see preview/trust.ts): canonical/PR/trusted forks share
-  // previewDailyQuota; known-tier forks (merged into the org, never the atlas)
-  // share the fork pool; unknown-tier (no merged history) share the small pool.
-  previewForkDailyQuota: Number(process.env.PREVIEW_FORK_DAILY_QUOTA ?? 10),
-  previewUnknownForkDailyQuota: Number(process.env.PREVIEW_UNKNOWN_FORK_DAILY_QUOTA ?? 3),
+  // Quota pools, all per UTC day (see preview/trust.ts for tiers):
+  //   canonical branches + PRs against canonical → shared previewDailyQuota
+  //   each trusted-tier fork owner → its OWN previewTrustedForkDailyQuota
+  //   known-tier forks (org-merged, never the atlas) → shared fork pool
+  //   unknown-tier forks (no merged history) → shared small pool
+  previewDailyQuota: Number(process.env.PREVIEW_DAILY_QUOTA ?? 10),
+  previewTrustedForkDailyQuota: Number(process.env.PREVIEW_TRUSTED_FORK_DAILY_QUOTA ?? 10),
+  previewForkDailyQuota: Number(process.env.PREVIEW_FORK_DAILY_QUOTA ?? 7),
+  previewUnknownForkDailyQuota: Number(process.env.PREVIEW_UNKNOWN_FORK_DAILY_QUOTA ?? 2),
   previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
   previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
 

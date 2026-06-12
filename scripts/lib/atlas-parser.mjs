@@ -343,8 +343,13 @@ function checkTreeInvariants(docs, ordered, nodes, nodeMap) {
   for (const d of docs) {
     if (d.doc_no.startsWith("NR-")) continue;
     const fromPath = d.folderPath.join(".");
+    // Backtick-delimit the compared values: consumers (preview build-failed UI)
+    // detect exactly two backticked tokens and render a char-level diff, so
+    // near-invisible defects (a trailing dot) get highlighted.
     if (fromPath !== d.doc_no)
-      errs.push(`path/docNo mismatch: folder ${d.folderPath.join("/")} ⇒ ${fromPath} but docNo=${d.doc_no}`);
+      errs.push(
+        `path/docNo mismatch: folder ${d.folderPath.join("/")} expects \`${fromPath}\` but frontmatter docNo is \`${d.doc_no}\``,
+      );
   }
 
   // 4. parentId closure.

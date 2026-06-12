@@ -6,6 +6,8 @@ import { DataSourceContext } from "../../lib/dataSource";
 import { PreviewDiffProvider } from "../../lib/previewDiff";
 import { PreviewViewProvider } from "../../lib/previewView";
 import { PreviewInterstitial } from "./PreviewInterstitial";
+import { recordLocalPreview } from "../../lib/previewLocal";
+import { BuildErrorDetail } from "./BuildErrorDetail";
 
 // Preview is NOT a separate view: the gate builds the bundle (SSE), then mounts
 // the normal <App/> under a /preview/:id router base with the preview data
@@ -23,8 +25,10 @@ const PHASE_TEXT: Record<Exclude<Phase, "ready" | "failed">, string> = {
 const ERROR_TEXT: Record<string, string> = {
   "gate-rejected": "Open a draft PR against next-gen-atlas to preview this branch.",
   "not-found": "No such PR, branch, or pinned commit.",
-  "not-a-fork": "That repo isn't a fork of the canonical atlas.",
-  "not-derived": "This fork doesn't share history with the canonical atlas, so it can't be redlined.",
+  "not-a-fork":
+    "This repo can't be compared against the atlas (it's not in its fork network). Fork sky-ecosystem/next-gen-atlas and push your branch there.",
+  "not-derived":
+    "This branch shares no history with the atlas, so there's nothing to redline it against. Branch from the atlas's history and push again.",
   "fork-not-trusted": "This fork's owner has no contribution history with the Sky ecosystem — open a draft PR to preview it.",
   "source-gone": "The source is gone (the fork may have been deleted).",
   "cap-exceeded": "This atlas is too large to preview.",
@@ -34,17 +38,18 @@ const ERROR_TEXT: Record<string, string> = {
 };
 
 export function usePreviewBuild(id: string) {
-  const [state, setState] = useState<{ phase: Phase; sha: string | null; code: string | null }>({
+  const [state, setState] = useState<{ phase: Phase; sha: string | null; code: string | null; message: string | null }>({
     phase: "resolving",
     sha: null,
     code: null,
+    message: null,
   });
   useEffect(() => {
-    setState({ phase: "resolving", sha: null, code: null });
+    setState({ phase: "resolving", sha: null, code: null, message: null });
     const es = new EventSource(`${import.meta.env.BASE_URL}api/preview/${encodeURIComponent(id)}/events`);
     es.addEventListener("preview", (e) => {
-      const ev = JSON.parse((e as MessageEvent).data) as { phase: Phase; sha?: string; code?: string };
-      setState((s) => ({ phase: ev.phase, sha: ev.sha ?? s.sha, code: ev.code ?? s.code }));
+      const ev = JSON.parse((e as MessageEvent).data) as { phase: Phase; sha?: string; code?: string; message?: string };
+      setState((s) => ({ phase: ev.phase, sha: ev.sha ?? s.sha, code: ev.code ?? s.code, message: ev.message ?? s.message }));
       if (ev.phase === "ready" || ev.phase === "failed") es.close();
     });
     es.onerror = () => {
@@ -57,12 +62,19 @@ export function usePreviewBuild(id: string) {
 }
 
 export function PreviewGate({ id, routerBase }: { id: string; routerBase: string }) {
-  const { phase, sha, code } = usePreviewBuild(id);
+  const { phase, sha, code, message } = usePreviewBuild(id);
+
+  // Remember successful opens so the /preview index can list "your" previews
+  // (survives DB wipes; no account needed).
+  useEffect(() => {
+    if (phase === "ready" && sha) recordLocalPreview(id, sha);
+  }, [phase, sha, id]);
 
   if (phase === "failed") {
     return (
       <Centered>
         <p className="text-red">{(code && ERROR_TEXT[code]) ?? "Preview failed."}</p>
+        {message && <BuildErrorDetail message={message} />}
         <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
           ← back to the live atlas
         </a>

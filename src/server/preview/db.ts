@@ -56,21 +56,47 @@ export async function touchPreview(sha: string): Promise<void> {
 
 /** Count NEW previews analyzed today (UTC) in a quota pool. Re-builds of known
  *  SHAs don't insert, so they're exempt — regeneration is free, new analysis is
- *  quota'd. Pools (see trust.ts): "trusted" counts canonical/PR rows (NULL tier)
- *  plus trusted-tier forks; "known"/"unknown" count exactly that fork tier. */
-export async function previewsTodayCount(pool: "trusted" | "known" | "unknown" = "trusted"): Promise<number> {
+ *  quota'd. Pools (see trust.ts): "canonical" counts canonical branches (NULL
+ *  tier) plus trusted-author PRs; "known"/"unknown" count that effective tier
+ *  across PR and fork previews alike. */
+export async function previewsTodayCount(pool: "canonical" | "known" | "unknown"): Promise<number> {
   const rows = (
-    pool === "trusted"
+    pool === "canonical"
       ? await sql`
           SELECT count(*)::int AS n FROM previews
           WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
-            AND (trust_tier IS NULL OR trust_tier = 'trusted')`
+            AND (trust_tier IS NULL OR (kind = 'pr' AND trust_tier = 'trusted'))`
       : await sql`
           SELECT count(*)::int AS n FROM previews
           WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
             AND trust_tier = ${pool}`
   ) as { n: number }[];
   return rows[0]?.n ?? 0;
+}
+
+/** Trusted-tier FORK previews: each owner gets its OWN daily pool. PR rows are
+ *  excluded — trusted-author PRs draw from the canonical pool instead. */
+export async function previewsTodayCountForOwner(owner: string): Promise<number> {
+  const rows = (await sql`
+    SELECT count(*)::int AS n FROM previews
+    WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
+      AND trust_tier = 'trusted'
+      AND kind <> 'pr'
+      AND repo LIKE ${owner + "/%"}
+  `) as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
+/** Live previews for the /preview index page, newest-touched first. Blocked
+ *  rows are invisible. */
+export async function listPreviews(limit = 50): Promise<PreviewRow[]> {
+  return (await sql`
+    SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access
+    FROM previews
+    WHERE blocked_at IS NULL
+    ORDER BY last_access DESC
+    LIMIT ${limit}
+  `) as PreviewRow[];
 }
 
 /** Admin-takedown check: a blocked sha must never build or serve. */

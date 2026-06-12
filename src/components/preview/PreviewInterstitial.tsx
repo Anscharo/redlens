@@ -1,20 +1,21 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-// Fork-only click-through. PR / canonical-branch previews are publicly proposed
-// and attributable, so they pass straight through; a fork has no public proposal,
-// so the first visit per session shows a one-click warning before any content.
+// Low-trust click-through: shown on first visit per session for (a) fork
+// previews whose owner is NOT trusted-tier (whitelisted orgs / atlas-merged
+// contributors skip it — the fork banner still carries provenance + address
+// notes), and (b) PR previews whose author is unknown-tier (no merged history
+// — opening a PR is cheap, so PR-ness alone earns no clean treatment).
 // Dismissal is per preview sha per session (sessionStorage).
 
 interface Meta {
   repo: string;
   ref: string;
+  prAuthor?: string;
   forkOwner?: string;
   trustTier?: string;
   newAddresses?: number;
   behindBy?: number;
 }
-
-const CANONICAL_PREFIX = "sky-ecosystem/";
 
 export function PreviewInterstitial({ sha, base, children }: { sha: string; base: string; children: ReactNode }) {
   const ackKey = `preview-ack-${sha}`;
@@ -35,21 +36,31 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
 
   if (acked) return children;
   if (meta === undefined) return null; // meta loading — blank beat, no flash of content
-  const isFork = !!meta && !meta.repo.startsWith(CANONICAL_PREFIX);
-  if (!isFork) return children;
+  const isFork = !!meta?.forkOwner && meta.trustTier !== "trusted";
+  const lowTrustPr = !meta?.forkOwner && meta?.trustTier === "unknown";
+  if (!isFork && !lowTrustPr) return children;
 
-  const owner = meta!.forkOwner ?? meta!.repo.split("/")[0];
+  const owner = meta!.forkOwner ?? meta!.prAuthor ?? meta!.repo.split("/")[0];
   return (
     <div
       className="flex flex-col items-center justify-center gap-4 px-6"
       style={{ height: "100vh", textAlign: "center", background: "var(--bg)" }}
     >
       <div className="mono text-xs" style={{ color: "var(--red)", fontWeight: 700, letterSpacing: "0.1em" }}>
-        UNREVIEWED FORK
+        {isFork ? "UNREVIEWED FORK" : "UNREVIEWED PROPOSAL"}
       </div>
       <p className="text-lg max-w-xl" style={{ color: "var(--tan)" }}>
-        This is unreviewed fork content from <strong>{owner}</strong> — not the live Sky Atlas, and not
-        proposed to it.
+        {isFork ? (
+          <>
+            This is unreviewed fork content from <strong>{owner}</strong> — not the live Sky Atlas, and
+            not proposed to it.
+          </>
+        ) : (
+          <>
+            This is unreviewed proposed content from <strong>{owner}</strong> — a pull request that has
+            not been reviewed or merged into the live Sky Atlas.
+          </>
+        )}
       </p>
       {meta!.trustTier === "unknown" && (
         <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>

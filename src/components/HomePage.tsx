@@ -4,7 +4,9 @@ import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 const SKY_URL = "https://sky.money";
 const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";
 
-const CARDS: { page: NavPage; name: string; desc: string }[] = [
+// `page` cards route in-SPA (wouter Link); `href` cards leave the router —
+// /preview mounts its own shell, so it needs a plain full-load anchor.
+const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
   {
     page: "atlas",
     name: "Reader",
@@ -16,9 +18,9 @@ const CARDS: { page: NavPage; name: string; desc: string }[] = [
     desc: "View info about Parties in the Sky Ecosystem: Agents, Facilitators, Alignment Conservers and more",
   },
   {
-    page: "reports",
-    name: "Reports",
-    desc: "Specific reports extracted directly from the Atlas as it updates",
+    href: `${import.meta.env.BASE_URL}preview`,
+    name: "Preview",
+    desc: "Paste any atlas PR, branch, or fork URL and read it as a live redlined atlas — every changed section marked inline",
   },
 ];
 
@@ -48,16 +50,24 @@ export function HomePage() {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {CARDS.map((c) => (
-            <Link
-              key={c.page}
-              to={NAV_PAGE_ROUTES[c.page]}
-              className="home-card flex flex-col items-start text-left w-full"
-            >
-              <p className="text-sm font-semibold text-tan mb-2">{c.name}</p>
-              <p className="text-xs text-tan-3 leading-relaxed">{c.desc}</p>
-            </Link>
-          ))}
+          {CARDS.map((c) => {
+            const body = (
+              <>
+                <p className="text-sm font-semibold text-tan mb-2">{c.name}</p>
+                <p className="text-xs text-tan-3 leading-relaxed">{c.desc}</p>
+              </>
+            );
+            const cls = "home-card flex flex-col items-start text-left w-full";
+            return c.page ? (
+              <Link key={c.name} to={NAV_PAGE_ROUTES[c.page]} className={cls}>
+                {body}
+              </Link>
+            ) : (
+              <a key={c.name} href={c.href} className={cls}>
+                {body}
+              </a>
+            );
+          })}
         </div>
       </div>
     </main>

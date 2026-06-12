@@ -106,7 +106,8 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
     starts before the tarball, graph ∥ glossary (`Promise.all`) — GitHub round-trip fully hidden.
   - **Fork unlock + screening** — see "Fork screening" (Identity section) + security class 3:
     lineage (`checkForkLineage`, `not-a-fork`), shared history (`not-derived`), trust tiers
-    (`trust.ts`, `fork-not-trusted`, tiered quotas 13/10/3), fork interstitial + red banner
+    (`trust.ts`, `fork-not-trusted`; pools: canonical 10 shared, trusted fork 10/owner,
+    known 7 shared, unknown 2 shared; PRs always canonical-pool), fork interstitial + red banner
     (owner, behind-main, trust + new-address warnings), address-introduction count, blocklist
     (migration 007 `blocked_at`+`trust_tier`), noindex everywhere. Live-verified on the real fork
     `sean-mc-grath:sean-assessment` (unknown tier, 13 ahead/4 behind, 9 added/191 changed) +
@@ -173,14 +174,25 @@ Two-layer identity:
   - `/preview/pull-256/atlas`
   - `/preview/blimpa:spark-proposal/radar` (`owner:branch` for forks)
   - **Fork screening (2026-06-12, supersedes the MVP gate)**: bare `owner:branch` fork URLs
-    now resolve, behind three screens — (1) **lineage**: the repo must be a TRUE GitHub fork
-    of the canonical atlas (`fork: true` + parent/source = canonical), else `not-a-fork`;
-    (2) **shared history**: the merge-base compare vs main must succeed, else `not-derived`;
+    now resolve, behind three screens — (1) **network** (a CAPABILITY check, not trust): the
+    repo must be a TRUE GitHub fork of the canonical atlas (`fork: true` + parent/source =
+    canonical), else `not-a-fork` — only repos in the fork network can be merge-base-compared
+    by GitHub's API, and without that compare there's no diff to redline against (a
+    clone-pushed repo is unaddressable + undiffable, regardless of its content);
+    (2) **shared history**: the merge-base compare vs main must succeed, else `not-derived`
+    (a real fork can still carry an orphan/rewritten branch — fork-ness is repo-level,
+    derivation is commit-level);
     (3) **trust**: the owner's merged-PR track record into sky-ecosystem repos picks a tier
-    (`src/server/preview/trust.ts`) — `trusted` (whitelist or ≥1 atlas-merged PR, shares the
-    13/day pool), `known` (org-merged, 10/day pool), `unknown` (no history, established
-    account: 3/day pool + loud warnings), `refused` (no history + account <30 days:
-    `fork-not-trusted`). Whitelist: `Endgame-Edge`, `Redline-Group`.
+    (`src/server/preview/trust.ts`) — `trusted` (whitelist or ≥1 atlas-merged PR: its OWN
+    10/day pool per owner), `known` (org-merged: shared 7/day pool), `unknown` (no history,
+    established account: shared 2/day pool + loud warnings), `refused` (no history + account
+    <30 days: `fork-not-trusted`). Whitelist: `Endgame-Edge`, `Redline-Group`.
+    **PRs are trust-scored too, by their AUTHOR** — opening a PR is cheap, so PR-ness never
+    upgrades treatment; it only un-refuses (`effectivePrTier`: refused→unknown, so newcomers'
+    draft PRs build with full unknown-tier warnings in the 2/day pool). Trusted-author PRs +
+    canonical branches share the canonical 10/day pool; known/unknown-author PRs share those
+    fork pools. A PR whose head lives on a fork is still a PR preview (no fork banner /
+    forkOwner), but warnings + interstitial follow the author's effective tier.
   - **`/` in branch names** (e.g. `feat/parser-fix`) is mapped to `~` in the URL id:
     `/preview/blimpa:feat~parser-fix/atlas`. `~` is URL-unreserved but **forbidden in git ref
     names**, so the mapping is unambiguous and reversible (`~` → `/` on decode). Never emit a
@@ -567,10 +579,12 @@ singleton, unauthenticated. Three attack classes and their answers:
    when arbitrary forks unlocked:
    - **Lineage + shared-history + trust screens** (see "Fork screening" above) — repo-name
      spoofing blocked, no-common-ancestor repos rejected, history-less fresh accounts refused.
-   - **Fork interstitial** (`PreviewInterstitial.tsx`, forks only): first visit per session
-     shows a one-click warning — owner named, "never had a PR accepted" line for unknown-tier
-     owners, address warning — dismissed per sha (sessionStorage). PRs/canonical branches stay
-     banner-only (publicly proposed + attributable).
+   - **Low-trust interstitial** (`PreviewInterstitial.tsx`): first visit per session shows a
+     one-click warning — owner named, "never had a PR accepted" line for unknown-tier owners,
+     address warning — dismissed per sha (sessionStorage). Shown for NON-trusted forks and
+     unknown-author PRs; **trusted-tier forks (whitelist / atlas-merged) skip it** — their
+     fork banner still carries provenance + address notes. Canonical branches and
+     trusted/known-author PRs stay banner-only.
    - **Fork banner variant** (`PreviewBanner.tsx`): red `FORK PREVIEW` chip, owner, commits
      behind main, trust + new-address warnings.
    - **Address-introduction screen**: at build time the bundle's `addresses.atlas.json` keys
@@ -580,8 +594,10 @@ singleton, unauthenticated. Three attack classes and their answers:
      its bundle is evicted. Takedown = `UPDATE previews SET blocked_at = now() WHERE sha = …`.
    - **noindex**: `X-Robots-Tag: noindex` on all `/api/preview/*` responses and SPA
      `/preview/*` routes (no SEO laundering of fork content).
-   - **Tiered quotas**: `trust_tier` stored per previews row; pools counted per tier
-     (`PREVIEW_DAILY_QUOTA` 13 / `PREVIEW_FORK_DAILY_QUOTA` 10 / `PREVIEW_UNKNOWN_FORK_DAILY_QUOTA` 3).
+   - **Tiered quotas**: `trust_tier` stored per previews row; pools counted per tier —
+     canonical (branches + PRs, NULL tier) shared `PREVIEW_DAILY_QUOTA` 10; each trusted-tier
+     fork owner its own `PREVIEW_TRUSTED_FORK_DAILY_QUOTA` 10; known shared
+     `PREVIEW_FORK_DAILY_QUOTA` 7; unknown shared `PREVIEW_UNKNOWN_FORK_DAILY_QUOTA` 2.
    - **Compare 300-file cap** (GitHub compare doesn't paginate files): recovered by unioning
      files across the branch's ahead-of-merge-base commits (bounded at 100 commits →
      `meta.diffTruncated` + banner note beyond that).

@@ -105,8 +105,13 @@ export interface Resolved {
 
 export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork";
 
-/** Lineage screen for non-canonical owners: the repo must be a TRUE GitHub fork
- *  of the canonical atlas. Blocks lookalike repos that were never forked. */
+/** Network screen for non-canonical owners: the repo must be a TRUE GitHub fork
+ *  of the canonical atlas. This is a CAPABILITY check, not a trust check — only
+ *  repos in the canonical fork network can be merge-base-compared by GitHub's
+ *  API, and without that compare there is no accurate diff to redline against.
+ *  (It also rejects lookalike repos merely named next-gen-atlas with a crisp
+ *  error instead of a confusing downstream compare failure. Trust is screened
+ *  separately, by owner/author merged-PR history — see trust.ts.) */
 export async function checkForkLineage(repo: string, gh: GhClient): Promise<"ok" | "not-a-fork" | "not-found"> {
   const r = await gh.fetchJson(`/repos/${repo}`);
   if (r.status === 404 || !r.ok) return "not-found";

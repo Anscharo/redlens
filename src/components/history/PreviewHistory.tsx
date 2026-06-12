@@ -30,6 +30,12 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   }, [base]);
 
   const status = diff.added.has(nodeId) ? "Added" : diff.changed.has(nodeId) ? "Changed" : null;
+  // A changed doc that moved: same UUID, new doc number ([live, preview]).
+  const renumber = diff.renumbered[nodeId];
+  // Added doc whose doc number exists on the live atlas under another uuid
+  // (slot reuse, flagged server-side). The label gets an asterisk; the
+  // disclaimer below the live-history heading explains it.
+  const reusedPath = status === "Added" && diff.reusedSlot.has(nodeId);
   const srcUrl = meta
     ? meta.kind === "pr" && meta.prNumber
       ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
@@ -41,11 +47,19 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
     <div className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
       {status ? (
         <div className="pl-3 pb-3" style={{ borderLeft: "2px solid var(--preview-add)" }}>
-          <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>{status} in this preview</div>
+          <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>
+            {status}
+            {reusedPath ? "*" : ""} in this preview
+          </div>
           <div className="mt-1">
             {label}
             {meta?.prAuthor ? ` · by ${meta.prAuthor}` : ""}
           </div>
+          {renumber && (
+            <div className="mt-1" style={{ color: "var(--accent)" }}>
+              renumbered {renumber[0]} → {renumber[1]}
+            </div>
+          )}
           {srcUrl && (
             <a href={srcUrl} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: "var(--accent)" }}>
               view on GitHub →
@@ -61,6 +75,12 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           live history for changed docs; added docs (new UUID) show empty. */}
       <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="mb-2" style={{ color: "var(--tan-3)" }}>On the live atlas</div>
+        {reusedPath && (
+          <p className="mb-2 leading-snug" style={{ color: "var(--tan-3)" }}>
+            * This doc has a new UUID but reuses an existing doc number. The diff above shows the edit
+            at that location; the doc itself is classified as new, with no prior history.
+          </p>
+        )}
         <NodeHistory nodeId={nodeId} />
       </div>
     </div>

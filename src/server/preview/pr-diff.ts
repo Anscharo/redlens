@@ -139,9 +139,17 @@ export async function fetchPreviewFiles(resolved: Resolved, token: string): Prom
 }
 
 // Map changed files → doc ids + rendered patches via the preview's doc_no → id
-// index. `added` → added; `modified`/`renamed`/`changed` → changed; `removed`
-// skipped (the doc isn't in the preview to flag).
-export function mapChangedDocs(files: ChangedFile[], docNoToId: Map<string, string>): PreviewDiffFull {
+// index. `removed` files are skipped (the doc isn't in the preview to flag).
+// added-vs-changed is decided by DOC IDENTITY when `mainIds` is provided: a
+// "modified" file can carry a brand-new document (new uuid in an existing
+// path) → that's an ADDED doc, and an "added" file can carry an existing uuid
+// (doc moved to a new number) → that's a CHANGED doc. File status is only the
+// fallback when the caller has no main-atlas id set.
+export function mapChangedDocs(
+  files: ChangedFile[],
+  docNoToId: Map<string, string>,
+  mainIds?: Set<string>,
+): PreviewDiffFull {
   const added = new Set<string>();
   const changed = new Set<string>();
   const patches: Record<string, DiffLine[]> = {};
@@ -152,8 +160,8 @@ export function mapChangedDocs(files: ChangedFile[], docNoToId: Map<string, stri
     const id = docNoToId.get(docNo);
     if (!id) continue;
     if (f.status === "removed") continue;
-    if (f.status === "added") added.add(id);
-    else changed.add(id);
+    const isNew = mainIds ? !mainIds.has(id) : f.status === "added";
+    (isNew ? added : changed).add(id);
     const lines = patchToDiffLines(f.patch);
     if (lines.length) patches[id] = lines;
     else noPatch++;

@@ -93,6 +93,39 @@ function pairRuns(rawOps: [string, string][]): DiffLine[] {
   return ops;
 }
 
+// Identity diff: two versions of the SAME doc's content → DiffLine[]. Used for
+// "changed" preview docs instead of GitHub's per-path patch, which crosses doc
+// identities when documents are renumbered (the file at a path can change
+// occupants). Line-level LCS + the same pairing pass, trimmed to ±2 context
+// with ["…"] gaps, capped like the live history diffs. NOTE: compares against
+// CURRENT main, not the merge base — if main edited the same doc after the
+// fork branched, those edits appear too; acceptable for "vs live atlas".
+export function contentDiff(prev: string, curr: string, maxLines = 20): DiffLine[] {
+  if (prev === curr) return [];
+  // "" means NO lines, not one empty line — split would yield [""] and emit a
+  // spurious ["-",""] when diffing against empty (brand-new doc content).
+  const a = prev === "" ? [] : prev.split("\n");
+  const b = curr === "" ? [] : curr.split("\n");
+  const ops = pairRuns(lcsOps(a, b));
+  const CONTEXT = 2;
+  const keep = new Set<number>();
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i][0] !== "=") {
+      for (let c = Math.max(0, i - CONTEXT); c <= Math.min(ops.length - 1, i + CONTEXT); c++) keep.add(c);
+    }
+  }
+  if (keep.size === 0) return [];
+  const out: DiffLine[] = [];
+  let last = -1;
+  for (let i = 0; i < ops.length; i++) {
+    if (!keep.has(i)) continue;
+    if (last >= 0 && i > last + 1) out.push(["…"]);
+    out.push(ops[i]);
+    last = i;
+  }
+  return out.length > maxLines ? [...out.slice(0, maxLines), ["…"] as DiffLine] : out;
+}
+
 // A unified-diff patch → DiffLine[]. Hunks (`@@ ... @@`) become ["…"] gaps;
 // each hunk body's ±/context lines flow through pairRuns. Capped at `maxLines`
 // (matching the live history path's 20-line cap) with a trailing ["…"].
