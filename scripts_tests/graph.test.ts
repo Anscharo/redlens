@@ -623,9 +623,21 @@ describe("Pattern 21 — bridge validator sets", () => {
 
   it("extracts the six SkyLink bridge components", () => {
     // 3 networks (Solana/Avalanche/Plasma) × Token Bridge + Governance Bridge.
-    // Grows when new deployments land (e.g. the SLL Governance Bridges from
-    // atlas PRs #230/#233) — update alongside the snapshot.
-    expect(bridges.length).toBe(6);
+    // UUID-anchored, not count-exact: new deployments (e.g. the SLL Governance
+    // Bridges from atlas PRs #230/#233) legitimately grow the set — that delta
+    // belongs in the snapshot diff, not a test failure.
+    const SKYLINK_BRIDGE_ROOTS = [
+      "16b49e7d-7360-41bf-ae7a-3c7380972987", // A.1.10.4.1.2.3.3.1 Token Bridge (Solana)
+      "07d43b8c-1230-4de9-959b-8593d69e922a", // A.1.10.4.1.2.3.3.2 Governance Bridge (Solana)
+      "3a3bcbb1-0989-4d62-80c3-7a71de0b022a", // A.1.10.4.1.3.3.3.1 Token Bridge (Avalanche)
+      "6a24fd94-9915-468d-a2a4-14f222ff5980", // A.1.10.4.1.3.3.3.2 Governance Bridge (Avalanche)
+      "658d9408-ecdd-4279-8f88-d1ed9e6bcd45", // A.1.10.4.1.4.3.3.1 Token Bridge (Plasma)
+      "6aea3973-59ed-4f64-ad7f-4d1ad53e4357", // A.1.10.4.1.4.3.3.2 Governance Bridge (Plasma)
+    ];
+    const byId = new Set(bridges.map((b) => b.id));
+    for (const id of SKYLINK_BRIDGE_ROOTS) {
+      expect(byId.has(id), `missing bridge for root doc ${id}`).toBe(true);
+    }
     for (const b of bridges) {
       const meta = JSON.parse(b.meta ?? "{}");
       expect(meta.quorum, b.name).toMatch(/^\d+\/\d+$/);
@@ -647,13 +659,16 @@ describe("Pattern 21 — bridge validator sets", () => {
     );
   });
 
-  it("validators are deduped across bridges (LayerZero validates all six)", () => {
-    const lz = graph.entities.find((e) => e.slug === "layerzero");
-    expect(lz?.subtype).toBe("bridge_validator");
+  it("validators are deduped across bridges (one LayerZero entity, many edges)", () => {
+    const lz = graph.entities.filter((e) => e.slug === "layerzero");
+    expect(lz.length).toBe(1);
+    expect(lz[0].subtype).toBe("bridge_validator");
     const lzEdges = graph.edges.filter(
-      (e) => e.edge_type === "validator_of" && e.from_id === lz?.id,
+      (e) => e.edge_type === "validator_of" && e.from_id === lz[0].id,
     );
-    expect(lzEdges.length).toBe(bridges.length);
+    // Validates all six SkyLink components today; a floor, not an exact count —
+    // new bridges may or may not include LayerZero.
+    expect(lzEdges.length).toBeGreaterThanOrEqual(6);
   });
 
   it("Root Edit Primitive 'Quorum Requirement' spec prose is not matched", () => {
