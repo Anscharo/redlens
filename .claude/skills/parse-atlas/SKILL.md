@@ -682,7 +682,7 @@ Every `Integration Partner Name` param value on an integration-boost instance/in
 
 - **Spell Team** (`SPELL_TEAM_UUID = 4862ed4e-097b-42fa-a197-1d407d220a77`, "Spell Team Configuration"): `"Sky has two teams of technical contributors for Spell development, Dewiz, and Sidestream."` → each team gets `holds_role_for` → the doc with `meta.role = "spell_team_member"` (rides the Pattern 11 roleBindings mechanism).
 - **Org prose** (`graph-entity-edges.mjs` 2x): two conservative shapes, edges emitted **only when both endpoints already resolve to entities** (unresolved matches are logged and skipped — recall deliberately low):
-  - `"X is the Prime Foundation associated with Y."` → `prime_foundation_for`
+  - `"X is the Prime Foundation associated with Y."` → `prime_foundation_of`
   - `"X is a development company that provides services to the Y"` → `provides_services_to`
 
 ### Pattern 21: Bridge validator sets (`scripts/lib/graph-bridges.mjs`, Phase 2.8)
@@ -888,7 +888,7 @@ holds_role_for                     entity  → doc      Named role binding; meta
 invoked_by                         entity  → entity   instance → agent(prime); meta.status
 authorized_rep_for                 entity  → entity   forum rep (individual) → org (Pattern 16 Table 4); table-derived, no sources
 integration_partner_of             entity  → entity   integration partner → instance (Pattern 19)
-prime_foundation_for               entity  → entity   foundation → agent (Pattern 20 prose)
+prime_foundation_of               entity  → entity   foundation → agent (Pattern 20 prose)
 provides_services_to               entity  → entity   dev company → org (Pattern 20 prose)
 ```
 
@@ -1020,7 +1020,7 @@ For `et="instance"`, the parsed meta is:
 - **Pattern 17 (new) — Multisigs:** five-child structural convention, threshold/signer prose shapes, role-reference resolution with `meta.via_role`, `multisig` entity type, `signer_of` + `can_modify_signers_of` edges. `scripts/lib/graph-multisigs.mjs`, Phase 2.8.
 - **Pattern 18 (new) — Transfer/grant events:** A.2.13 grants, genesis distributions, accord grant authorizations → `funds_transfer` (graph.json-only). `scripts/lib/graph-transfers.mjs`, Phase 2.8.
 - **Pattern 19 (new) — Integration partners:** `Integration Partner Name` params → `ecosystem_actor/integration_partner` entities + `integration_partner_of` edges.
-- **Pattern 20 (new) — Spell Team + org prose:** `holds_role_for` `meta.role="spell_team_member"` (Dewiz, Sidestream); `prime_foundation_for` + `provides_services_to` prose edges (emit only when both endpoints resolve).
+- **Pattern 20 (new) — Spell Team + org prose:** `holds_role_for` `meta.role="spell_team_member"` (Dewiz, Sidestream); `prime_foundation_of` + `provides_services_to` prose edges (emit only when both endpoints resolve).
 - **"Not in the atlas" section (new):** payout history, spell execution history, pioneer dates, individual signer addresses, org hierarchy.
 - **relations.json filter:** `KEEP_ACTOR_EDGE_TYPES` grew `signer_of`/`can_modify_signers_of`/`integration_partner_of`; `OMIT_EDGE_TYPES` (new) drops `funds_transfer` + `authorized_rep_for` from the browser artifact.
 - **Entity types:** 14 → 15 (`multisig`; `ecosystem_actor` subtypes `individual`, `integration_partner`). **Edge total:** 28 → 35.

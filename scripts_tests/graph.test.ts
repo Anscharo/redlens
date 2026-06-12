@@ -152,7 +152,7 @@ const KNOWN_EDGE_TYPES = new Set([
   // registries / org relations
   "authorized_rep_for",
   "integration_partner_of",
-  "prime_foundation_for",
+  "prime_foundation_of",
   "provides_services_to",
 ]);
 

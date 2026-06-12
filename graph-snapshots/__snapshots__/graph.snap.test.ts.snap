@@ -9949,7 +9949,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
   "prime_agent_for": 8,
-  "prime_foundation_for": 5,
+  "prime_foundation_of": 5,
   "provides_services_to": 2,
   "proxies_to": 61,
   "ranked_delegate_for": 3,

@@ -15,7 +15,13 @@ function staleness(c: DateClaim): string {
   return `(in ${c.daysUntilStale}d)`;
 }
 
-const SECTIONS: { key: "upcoming" | "dueSoon" | "stale"; title: string; hint: string; tone: string }[] = [
+const SECTIONS: {
+  key: "upcoming" | "dueSoon" | "stale";
+  title: string;
+  hint: string;
+  tone: string;
+  textTone?: string; // heading text when the bar tone is too dark to read on --bg
+}[] = [
   {
     key: "upcoming",
     title: "Upcoming",
@@ -32,7 +38,8 @@ const SECTIONS: { key: "upcoming" | "dueSoon" | "stale"; title: string; hint: st
     key: "stale",
     title: "Stale",
     hint: "The date has passed but the atlas still phrases the event as future.",
-    tone: "var(--red)",
+    tone: "var(--red)", // left bar only — keeps the selected-node idiom
+    textTone: "var(--error-text)", // --red is below 3:1 on --bg; use the accessible alias
   },
 ];
 
@@ -65,10 +72,10 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
   );
 }
 
-function Section({ title, hint, claims, tone }: { title: string; hint: string; claims: DateClaim[]; tone: string }) {
+function Section({ title, hint, claims, tone, textTone }: { title: string; hint: string; claims: DateClaim[]; tone: string; textTone?: string }) {
   return (
     <section className="mb-8">
-      <h2 className="text-lg font-semibold mb-0.5" style={{ color: tone }}>
+      <h2 className="text-lg font-semibold mb-0.5" style={{ color: textTone ?? tone }}>
         {title} <span className="mono text-base text-tan-3">({claims.length})</span>
       </h2>
       <p className="text-base text-tan-3 mb-2">{hint}</p>
@@ -128,7 +135,7 @@ export function StaleDatesReport() {
           <p className="mono text-base text-tan-3">loading…</p>
         ) : (
           SECTIONS.map((s) => (
-            <Section key={s.key} title={s.title} hint={s.hint} claims={report[s.key]} tone={s.tone} />
+            <Section key={s.key} title={s.title} hint={s.hint} claims={report[s.key]} tone={s.tone} textTone={s.textTone} />
           ))
         )}
       </div>

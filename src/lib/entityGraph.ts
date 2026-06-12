@@ -58,7 +58,7 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   funds_transfer: { forward: "transferred funds to", reverse: "received funds from" },
   authorized_rep_for: { forward: "authorized rep for", reverse: "has authorized rep" },
   integration_partner_of: { forward: "integration partner of", reverse: "has integration partner" },
-  prime_foundation_for: { forward: "prime foundation for", reverse: "has prime foundation" },
+  prime_foundation_of: { forward: "prime foundation of", reverse: "has prime foundation" },
   provides_services_to: { forward: "provides services to", reverse: "served by" },
   // doc ↔ entity
   ecosystem_accord: { forward: "binds", reverse: "party to" },

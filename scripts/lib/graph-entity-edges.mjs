@@ -385,7 +385,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // Two conservative sentence shapes; an edge is emitted only when BOTH
   // endpoints resolve to existing entities (unresolved matches are logged,
   // never guessed — these are long-tail color, recall is deliberately low).
-  //   "Rubicon is the Prime Foundation associated with Obex."  → prime_foundation_for
+  //   "Rubicon is the Prime Foundation associated with Obex."  → prime_foundation_of
   //   "Phoenix Labs is a development company that provides services to the
   //    Spark Foundation"                                       → provides_services_to
   const PRIME_FOUNDATION_RE =
@@ -399,7 +399,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     for (const d of allDocs) {
       const content = d.content ?? "";
       for (const [re, edgeType] of [
-        [PRIME_FOUNDATION_RE, "prime_foundation_for"],
+        [PRIME_FOUNDATION_RE, "prime_foundation_of"],
         [PROVIDES_SERVICES_RE, "provides_services_to"],
       ]) {
         re.lastIndex = 0;
