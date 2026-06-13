@@ -381,11 +381,34 @@ mark {
   .tree-row.is-pulse {
     animation: none;
   }
+  .atlas-node-toggle {
+    transition: none;
+  }
 }
 
 .atlas-node.is-selected {
   background-color: var(--atlas-row-selected);
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row-color) 80%, var(--row-bar-tint));
+}
+
+/* Cradle: rail down the left of the selected node's descendants, in the
+   selected node's depth color, closing with a curved foot under the last
+   one. Sits at the same x as the selection bar so it reads as hanging from
+   the selected row. */
+.atlas-node.in-cradle::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  border-left: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  pointer-events: none;
+}
+.atlas-node.cradle-foot::before {
+  bottom: 4px;
+  border-bottom: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  border-bottom-left-radius: 8px;
 }
 .atlas-node:not(.is-selected):hover,
 .atlas-node:not(.is-selected):focus-visible {
@@ -408,6 +431,35 @@ mark {
 }
 .atlas-node.is-selected .atlas-node-meta {
   background-color: var(--atlas-row-selected);
+}
+.atlas-node-toggle {
+  width: 14px;
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+  color: var(--tan-2);
+  user-select: none;
+  /* expanded state rotates the same › / » glyph to point down — keeps the
+     baseline identical between states (no down-chevron glyph needed) */
+  transition: transform 0.15s;
+}
+.atlas-node-toggle.is-open {
+  transform: rotate(90deg);
+}
+button.atlas-node-toggle:hover {
+  color: var(--tan);
+}
+/* Expand-all (»/«) stays invisible until the row is hovered or focused,
+   keeping rows quiet; still keyboard-reachable via focus-visible. */
+button.atlas-node-expand-all {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.atlas-node:hover button.atlas-node-expand-all,
+.atlas-node:focus-within button.atlas-node-expand-all,
+button.atlas-node-expand-all:focus-visible {
+  opacity: 1;
 }
 .atlas-node-title {
   border-radius: 2px;

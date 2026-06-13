@@ -158,7 +158,7 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
 - **Don't add hover/click logic in JS when CSS will do it.**
 - **The home button is a plain HTML link** (`<a href="/">`), not an `onClick` handler.
 - **Search quality > bundle size** for the MiniSearch index. Full-content indexing is intentional.
-- **Scroll-to is `behavior: "instant"`**, not smooth — the user found smooth scrolling sluggish.
+- **Scroll-to is a fast fixed-duration glide** (`src/lib/animatedScroll.ts`): 220ms ease-out over the full distance, so duration never grows with distance. Never use native `behavior: "smooth"` — the user found it sluggish. Reduced-motion falls back to instant.
 - **Sticky header collisions**: any scroll target needs `scrollMarginTop: "64px"`.
 - **Don't override git user.name/email.** Trust global config.
 - **Show stats before touching the UI** when changing the build pipeline. The user wants to see counts/samples before any visual change consumes new data.

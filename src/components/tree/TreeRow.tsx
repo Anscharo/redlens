@@ -115,7 +115,7 @@ export function TreeRow({
         className="tree-toggle"
         style={{
           ...TOGGLE_BASE,
-          color: hasChildren ? (isExpanded ? titleColor : "var(--tan-3)") : "transparent",
+          color: hasChildren ? "var(--tan-2)" : "transparent",
         }}
         onClick={hasChildren ? (e) => onToggle(node.id, e) : undefined}
       >

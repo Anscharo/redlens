@@ -1,5 +1,7 @@
 import { useRef, useEffect } from "react";
 import { type LoadedData } from "../../lib/atlasHelpers";
+import { scrollRequestStore } from "../../lib/scrollRequestStore";
+import { scrollIfOutOfView } from "../../lib/animatedScroll";
 
 export function useAtlasScroll(
   id: string,
@@ -18,10 +20,19 @@ export function useAtlasScroll(
     requestAnimationFrame(() => {
       const el = document.getElementById(id);
       if (!el || scrolledRef.current === id) return;
-      const { top, bottom } = el.getBoundingClientRect();
-      if (bottom <= 64 || top >= window.innerHeight)
-        el.scrollIntoView({ behavior: "instant", block: "start" });
+      scrollIfOutOfView(el);
       scrolledRef.current = id;
     });
   }, [id, data, expandedParents]);
+
+  // Sidebar clicks always request a scroll, even when the clicked row is
+  // already the selection (the id-change effect above won't re-fire then).
+  useEffect(() => {
+    return scrollRequestStore.subscribe((targetId) => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(targetId);
+        if (el) scrollIfOutOfView(el);
+      });
+    });
+  }, []);
 }
