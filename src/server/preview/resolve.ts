@@ -160,6 +160,9 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
     };
   }
 
+  // sha ids are resolved upstream via the previews table, not here.
+  if (p.kind === "sha") return { error: "not-found" };
+
   // branch — canonical or fork. Forks get the lineage screen first.
   if (p.repo !== CANONICAL_REPO) {
     const lineage = await checkForkLineage(p.repo, gh);

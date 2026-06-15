@@ -245,7 +245,7 @@ test("extractContentArchive: extracts content/**, ignores junk, counts docs", as
     { "A/0/document.md": "preamble", "A/1/document.md": "gov", "A/1/_index.md": "idx" },
     { "README.md": "readme", "sync/compose.py": "py" },
   );
-  const plain = Buffer.from(Bun.gunzipSync(gz));
+  const plain = Buffer.from(Bun.gunzipSync(gz as unknown as Uint8Array<ArrayBuffer>));
   const atlasDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-"));
   const { srcDir, docCount } = await extractContentArchive(plain, atlasDir);
   expect(docCount).toBe(2);
@@ -258,7 +258,7 @@ test("extractContentArchive: extracts content/**, ignores junk, counts docs", as
 
 test("extractContentArchive: doc cap aborts and cleans up", async () => {
   const gz = makeAtlasTarGz({ "A/0/document.md": "x", "A/1/document.md": "y" });
-  const plain = Buffer.from(Bun.gunzipSync(gz));
+  const plain = Buffer.from(Bun.gunzipSync(gz as unknown as Uint8Array<ArrayBuffer>));
   const atlasDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-"));
   await expect(extractContentArchive(plain, atlasDir, { maxBytes: 1e9, maxDocs: 1 })).rejects.toBeInstanceOf(CapExceededError);
   expect(fs.existsSync(atlasDir)).toBe(false); // cleaned

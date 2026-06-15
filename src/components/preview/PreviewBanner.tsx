@@ -14,6 +14,7 @@ interface PreviewMeta {
   prState?: string;
   forkOwner?: string;
   trustTier?: string;
+  aheadBy?: number;
   behindBy?: number;
   newAddresses?: number;
   diffTruncated?: boolean;

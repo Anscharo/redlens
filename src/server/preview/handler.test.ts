@@ -58,9 +58,9 @@ test("handler: artifact + meta served, diff vs main, allowlist + sha validation"
   const { call, someId, newId } = s;
 
   expect((await call(`/api/preview/${SHA}/docs.json`)).status).toBe(200);
-  expect((await (await call(`/api/preview/${SHA}/meta.json`)).json()).docCount).toBe(2);
+  expect(((await (await call(`/api/preview/${SHA}/meta.json`)).json()) as any).docCount).toBe(2);
 
-  const diff = await (await call(`/api/preview/${SHA}/diff.json`)).json();
+  const diff = (await (await call(`/api/preview/${SHA}/diff.json`)).json()) as any;
   expect(diff.added).toContain(newId);
   expect(diff.changed).toContain(someId);
 

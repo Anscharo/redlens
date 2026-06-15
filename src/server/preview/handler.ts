@@ -27,7 +27,7 @@ const gh = makeGhClient(config.githubToken);
 
 // Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
 // is picked up within ~60s without re-hitting GitHub on every request.
-type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" };
+type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" };
 const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
 const RESOLVE_TTL_MS = 60_000;
 
@@ -197,7 +197,7 @@ function json(body: unknown, status: number): Response {
 }
 
 /** Dispatch /api/preview/* . pathname includes the leading "/api/preview/". */
-export function handlePreview(req: Request, server: Server, pathname: string): Response | Promise<Response> {
+export function handlePreview(req: Request, server: Server<unknown>, pathname: string): Response | Promise<Response> {
   if (!config.previewEnabled) return json({ error: "not-found" }, 404);
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);

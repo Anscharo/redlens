@@ -45,7 +45,7 @@ export interface PreviewMeta {
   baseAtlasCommit?: string;
   // Trust screening: effective tier of the PR author / fork owner (absent only
   // for canonical-branch previews). forkOwner is set for fork previews only.
-  trustTier?: "trusted" | "known" | "unknown";
+  trustTier?: "trusted" | "known" | "unknown" | "refused";
   // Fork previews only (bare branch/sha of a non-canonical repo):
   forkOwner?: string;
   aheadBy?: number;

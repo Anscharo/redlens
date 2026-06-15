@@ -30,8 +30,10 @@ const MAX_UNION_COMMITS = 100; // bound the per-commit recovery fan-out
 /** Compare failed outright (404 = no common ancestor / unknown sha). For forks
  *  this is fatal — shared history with main is a screening requirement. */
 export class CompareError extends Error {
-  constructor(public status: number) {
+  status: number;
+  constructor(status: number) {
     super(`compare failed (${status})`);
+    this.status = status;
   }
 }
 
