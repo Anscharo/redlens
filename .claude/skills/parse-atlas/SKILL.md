@@ -721,6 +721,23 @@ A.6.1.1.X.3.1.N  Agent-Specific Emergency Response  agent-only protocol (stub to
 - **Accords are deliberately NOT re-linked here.** Each omni "Ecosystem Accord N" node (`A.6.1.1.X.3.{N}`) already carries a `cites` edge (Pattern 8) to its canonical `A.2.8.2.N` accord doc, which links to the party entity via `ecosystem_accord` (Pattern 4). A new edge would duplicate that path (Editorial Decision §7 — no edges without added signal).
 - **Never-silent:** missing agent, missing forum category, or missing Discord URL warn; stats line reports channels/emergencies/warnings.
 
+### Pattern 23: Pending operational transitions (`scripts/lib/graph-transitions.mjs`, Phase 2.8)
+
+The atlas records a small set of operational-control handoffs — a system/process moving from one party to another, typically Sky Core → a Prime Agent as the agent matures. These become `pending_transition` `doc(subject) → entity(future holder)` edges for the chatbot/MCP ("what control is handing off, to whom, and is it overdue?"). graph.json-only (`OMIT_EDGE_TYPES`).
+
+```
+"Control of the Lite PSM is being transitioned to Grove."
+"The modification of SparkLend parameters is temporarily controlled by Sky Core, but will be transitioned to Spark in the future."
+"… control will transition to Spark Governance." (estimated September 17, 2025 — overdue)
+```
+
+- **Strict gate (this phrasing is ~80% false positives).** A naive "transition/temporary" sweep catches the macro *"transition to Endgame"*, tuning-parameter "transitions", and breach-severity changes. The gate is: a control/operational verb in the doc **and** a `transition(?:ed|ing)? … to {party}` clause whose target **resolves to an agent or Sky bootstrap entity**. Unresolved operational-looking targets warn (never-silent); known non-parties (`Endgame`, …) are skipped quietly via `SKIP_HOLDERS`.
+- **Holder resolution:** agent slugs are the lowercased name (`grove`, `spark`); `"X Governance"` falls back to `X` (so "Spark Governance" → Spark agent, "Sky Core Governance" → Sky Core). `current_holder` is read from a `controlled by {Party}` clause in the same doc — **no `i` flag**, so `[A-Z]` stops the capture at the first lower-case word.
+- **`est_date` stays a raw string**, never a computed `overdue` flag — a build-time `Date.now()` would break reproducibility. Consumers (the Stale Dates report) compare it to today themselves.
+- **Cross-scope duplication is expected:** Andromeda and Lite PSM are stated in both the protocol scope (`A.3.3.2.7.*`) and restated in Grove's omni (`A.6.1.1.2.3.4.*`) — one edge per declaring doc (honest per-doc provenance); consumers dedupe by future holder if needed.
+- **No `DIRECTORY_RE` skip:** a doc may open with a "The documents herein …" intro and still carry a real transition (SparkLend `A.6.1.1.1.3.2.1`). The resolvable-holder gate already excludes pure directory docs ("… the transition to ownership by Grove" — "ownership" doesn't resolve).
+- 9 edges today (Andromeda/Lite PSM → Grove ×2 each across scopes; SparkLend + its param-modification / collateral / decentralization-gated params → Spark). The Stale Dates report tags the dated ones (`DateClaim.transition`) so the overdue Sept-2025 handoff surfaces as a `handoff` chip.
+
 ### Not in the atlas (verified 2026-06; do not extract — chatbot should say so)
 
 - **Reward payout amounts/history** — 29 per-instance payment-ledger Active Data slots exist but are ALL empty. The drift detector fires when one gains rows.
@@ -930,6 +947,12 @@ governance_channel                 doc     → entity   Sky Forum / Discord omni
 emergency_response                 doc     → entity   Emergency Response omni doc → prime agent; meta {scope: ecosystem|agent_specific, status: placeholder|specified}
 ```
 
+**Pending operational transitions (Pattern 23; graph.json-only, filtered from relations.json)**:
+
+```
+pending_transition                 doc     → entity   subject doc → future holder (agent/bootstrap); meta {current_holder?, est_date?}
+```
+
 **Events (Pattern 18; graph.json-only, filtered from relations.json)**:
 
 ```
@@ -971,7 +994,7 @@ has_status                         doc     → doc      Primitive root → Globa
 implements                         doc     → doc      Agent primitive → global def in A.2.2 (via "See" cite)
 ```
 
-**Total: 38 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
+**Total: 39 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
 
 ### Entity meta serialization
 
@@ -1060,8 +1083,9 @@ For `et="instance"`, the parsed meta is:
 
 - **Pattern 21 (new) — Bridge validator sets:** SkyLink + SLL Governance bridges via the Validators + Quorum Requirement child pair; `bridge` entity type, `ecosystem_actor/bridge_validator`, `validator_of` edge. `scripts/lib/graph-bridges.mjs`, Phase 2.8. (Edge vocabulary section + edge total were not bumped when the pattern body landed; reconciled here.)
 - **Pattern 22 (new) — Prime omni-doc governance metadata:** the uniform `A.6.1.1.X.3.1` Governance Information subtree → `governance_channel` (forum category / Discord URL) + `emergency_response` (scope + placeholder status) edges, `doc → entity(prime agent)`. `scripts/lib/graph-omni.mjs`, Phase 2.8. Both graph.json-only (chat / forum indexing, not the canvas). Omni accord nodes deliberately left to their existing `cites` linkage.
-- **relations.json filter:** `OMIT_EDGE_TYPES` grew `governance_channel` + `emergency_response`.
-- **Entity types:** 15 → 16 (`bridge`). **Edge total:** 35 → 38 (`validator_of`, `governance_channel`, `emergency_response`).
+- **Pattern 23 (new) — Pending operational transitions:** control-handoff prose (`control … transition to {agent}`, `temporarily controlled by Sky Core`) → `pending_transition` `doc → entity(future holder)` edges, meta `{current_holder?, est_date?}`. `scripts/lib/graph-transitions.mjs`, Phase 2.8, graph.json-only. The Stale Dates report gained a `DateClaim.transition` flag + `handoff` chip so the overdue Sept-2025 SparkLend handoff is visible client-side.
+- **relations.json filter:** `OMIT_EDGE_TYPES` grew `governance_channel` + `emergency_response` + `pending_transition`.
+- **Entity types:** 15 → 16 (`bridge`). **Edge total:** 35 → 39 (`validator_of`, `governance_channel`, `emergency_response`, `pending_transition`).
 
 ---
 

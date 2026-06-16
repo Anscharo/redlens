@@ -192,6 +192,21 @@ describe("extractDateClaims — context split", () => {
   });
 });
 
+describe("extractDateClaims — transition (handoff) tagging", () => {
+  it("flags an operational control handoff (the real SparkLend → Spark Governance case)", () => {
+    const { claims } = claimsOf(
+      "At such time, which is currently estimated for September 17, 2025, control will transition to Spark Governance.",
+    );
+    expect(claims).toHaveLength(1);
+    expect(claims[0].transition).toBe(true);
+  });
+
+  it("does not flag ordinary dated claims as handoffs", () => {
+    const { claims } = claimsOf("The transfer will be included in the March 26, 2026 Executive Vote.");
+    expect(claims[0].transition).toBe(false);
+  });
+});
+
 describe("buildStaleDatesReport — bucketing (synthetic)", () => {
   it("one doc per bucket lands where expected", () => {
     const mk = (id: string, content: string) =>

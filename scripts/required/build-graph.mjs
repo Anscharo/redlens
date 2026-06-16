@@ -32,6 +32,7 @@ import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
 import { extractOmni } from "../lib/graph-omni.mjs";
+import { extractTransitions } from "../lib/graph-transitions.mjs";
 import {
   parseMarkdownTable,
   extractEthAddresses,
@@ -775,6 +776,13 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     `  Phase 2.8: ${omStats.channels} governance_channel, ${omStats.emergencies} emergency_response` +
     (omStats.warnings ? `, ${omStats.warnings} WARNINGS` : ""),
   );
+
+  // --- Pending operational transitions (Pattern 23) ---
+  const trStats = extractTransitions(allDocs, docById, docByDocNo, entityMap, edges);
+  console.log(
+    `  Phase 2.8: ${trStats.count} pending_transition` +
+    (trStats.warnings ? `, ${trStats.warnings} WARNINGS` : ""),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -895,6 +903,7 @@ const OMIT_EDGE_TYPES = new Set([
   "authorized_rep_for",
   "governance_channel",
   "emergency_response",
+  "pending_transition",
 ]);
 const pinnedActorIds = new Set(
   edges

@@ -61,6 +61,15 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
           <span className="mono text-base text-tan-2">{staleness(c)}</span>
         </span>
         <span className="text-lg text-tan">{c.title}</span>
+        {c.transition && (
+          <span
+            className="mono text-xs px-1.5 py-0.5 rounded"
+            style={{ background: "var(--hover)", color: "var(--accent)" }}
+            title="Operational control handoff — checked against the date the transition was estimated for"
+          >
+            handoff
+          </span>
+        )}
         <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
       </div>
       <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>

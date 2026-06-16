@@ -157,6 +157,8 @@ const KNOWN_EDGE_TYPES = new Set([
   // prime omni-doc governance metadata (Pattern 22)
   "governance_channel",
   "emergency_response",
+  // pending operational transitions (Pattern 23)
+  "pending_transition",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -728,5 +730,54 @@ describe("Pattern 22 — prime omni-doc governance metadata", () => {
     const relTypes = new Set(relations.edges.map((e) => e.e));
     expect(relTypes.has("governance_channel")).toBe(false);
     expect(relTypes.has("emergency_response")).toBe(false);
+  });
+});
+
+describe("Pattern 23 — pending operational transitions", () => {
+  const transitions = edgesOfType("pending_transition");
+
+  it("pending_transition is doc(subject) → entity(future holder) with provenance", () => {
+    expect(transitions.length).toBeGreaterThanOrEqual(5);
+    for (const e of transitions) {
+      expect(e.from_type).toBe("doc");
+      expect(e.to_type).toBe("entity");
+      const holder = entityById.get(e.to_id);
+      // Future holders are Prime Agents or Sky bootstraps — never an ecosystem_actor.
+      expect(["agent", "operational_party", "governance_body"]).toContain(holder?.entity_type);
+      expect(parseSources(e).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("captures the known Sky Core → agent handoffs (SparkLend→Spark, Lite PSM→Grove)", () => {
+    const byHolder = (name: string) =>
+      transitions
+        .map((e) => ({ doc: docByDocNo.get(parseSources(e)[0]), holder: entityById.get(e.to_id)?.name }))
+        .filter((x) => x.holder === name);
+    const toSpark = byHolder("Spark");
+    const toGrove = byHolder("Grove");
+    expect(toSpark.length).toBeGreaterThanOrEqual(1);
+    expect(toGrove.length).toBeGreaterThanOrEqual(1);
+    // SparkLend control transitions to Spark; Lite PSM / Andromeda to Grove.
+    expect(transitions.some((e) => parseSources(e)[0] === "A.6.1.1.1.3.2.1")).toBe(true);
+  });
+
+  it("the overdue SparkLend-params handoff carries its estimated date in meta", () => {
+    // A.6.1.1.1.2.2.2.2.1.2.4 — "estimated for September 17, 2025".
+    const e = transitions.find((t) => parseSources(t)[0] === "A.6.1.1.1.2.2.2.2.1.2.4");
+    expect(e).toBeDefined();
+    const meta = JSON.parse(e!.meta ?? "{}");
+    expect(meta.est_date).toMatch(/2025/);
+    expect(meta.current_holder).toBe("Sky Core");
+  });
+
+  it("est_date stays a raw string (no build-time overdue flag → deterministic)", () => {
+    for (const e of transitions) {
+      const meta = JSON.parse(e.meta ?? "{}");
+      expect(meta).not.toHaveProperty("overdue");
+    }
+  });
+
+  it("is graph.json-only (chat/MCP, not the canvas)", () => {
+    expect(new Set(relations.edges.map((e) => e.e)).has("pending_transition")).toBe(false);
   });
 });

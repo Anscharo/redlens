@@ -25,6 +25,7 @@ export interface DateClaim {
   contextBefore: string; // snippet text preceding the date (for emphasis rendering)
   contextAfter: string; // snippet text following the date
   daysUntilStale: number; // negative = already stale
+  transition: boolean; // the dated claim is an operational control handoff (Pattern 23 territory)
 }
 
 export interface StaleDatesReport {
@@ -56,6 +57,13 @@ const DATE_RES: { re: RegExp; map: (m: RegExpMatchArray) => [number, number, num
 const FUTURE_RE =
   /\b(will|shall|scheduled|planned|upcoming|expected|estimated|beginning|begins|starting|takes? effect|no later than|to be\s+\w+(?:ed|en))\b/i;
 const BY_DATE_RE = /(?:^|\s)by\s*$/i;
+
+// A dated claim that is an operational control handoff ("control will transition
+// to Spark Governance" — estimated 2025-09-17, now overdue). Surfaced as a tag
+// so a facilitator can spot stale handoffs among ordinary stale dates; mirrors
+// the graph's Pattern 23 `pending_transition` edge.
+const TRANSITION_CTX_RE =
+  /transition(?:ed|ing)?\s+(?:over\s+)?to\s+[A-Z]|control[^.]{0,50}\btransition|hand(?:ed|ing|s|-)?\s?off/i;
 
 function daysInMonth(y: number, mo: number): number {
   return new Date(Date.UTC(y, mo, 0)).getUTCDate();
@@ -109,6 +117,7 @@ export function extractDateClaims(doc: AtlasNode, todayUTC: number): { claims: D
       contextBefore,
       contextAfter,
       daysUntilStale: Math.round((utc - todayUTC) / 86_400_000),
+      transition: TRANSITION_CTX_RE.test(before + " " + t.raw + " " + after),
     });
   }
   return { claims, mentions: matches.length };
