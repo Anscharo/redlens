@@ -93,16 +93,6 @@ pnpm preview # serve the production build locally
 | `build:graph` | Extracts typed relationships from the atlas text → graph artifacts |
 | `build:manifest` | sha256 digest of all artifacts → integrity manifest |
 
-### Hosted MCP server data
-
-The frontend bundle has no need for the embedding vectors that power semantic search on the hosted MCP server, so they're built separately:
-
-```bash
-pnpm build:server   # build:index + build:graph + build:rag
-```
-
-`build:rag` writes `.cache/atlas-vectors/{vectors,ids,meta}` (gitignored, ~30 MB, requires `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` for Workers AI bge-base-en). The `sync-db` workflow runs `pnpm build:server` and then uploads the graph to D1 and the vectors to Cloudflare Vectorize.
-
 Each stage can also be run individually. 
 
 ### Build at any historical atlas commit

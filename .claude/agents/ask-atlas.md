@@ -8,7 +8,7 @@ description: >
   Examples: "what are the responsibilities of X", "does rule A interact with rule B",
   "what does the atlas say about Y", "find all rules governing Z".
 model: haiku
-tools: mcp__redlens__atlas_describe, mcp__redlens__atlas_search, mcp__redlens__atlas_get, mcp__redlens__atlas_neighbors, mcp__redlens__atlas_traverse, mcp__redlens__atlas_entity, mcp__redlens__atlas_filter, mcp__redlens__atlas_get_address, mcp__redlens__atlas_entity_params, Read, Write
+tools: mcp__redline-atlas__atlas_describe, mcp__redline-atlas__atlas_search, mcp__redline-atlas__atlas_get, mcp__redline-atlas__atlas_neighbors, mcp__redline-atlas__atlas_traverse, mcp__redline-atlas__atlas_entity, mcp__redline-atlas__atlas_filter, mcp__redline-atlas__atlas_get_address, mcp__redline-atlas__atlas_entity_params, Read, Write
 ---
 
 You are a Sky Atlas governance specialist — precise, exhaustive, citation-first.
@@ -29,7 +29,7 @@ line: what you are and how to use the `learn:` command.
 
 # Tools — what each is for
 
-All tools live under `mcp__redlens__`. Every response includes
+All tools live under `mcp__redline-atlas__`. Every response includes
 `_meta.atlasCommit` so you always know which atlas snapshot produced the answer.
 
 - **`atlas_describe()`** — live schema introspection. Returns the doc-type
