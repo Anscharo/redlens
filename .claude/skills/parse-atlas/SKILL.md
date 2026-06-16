@@ -703,6 +703,24 @@ Cross-chain bridges document validator configuration as a parent doc (the bridge
 - 6 bridges / 27 `validator_of` edges today (3 SkyLink networks × Token + Governance components). Atlas PRs #230/#233 add SLL Governance Bridges for Tempo/Avalanche — picked up automatically on merge.
 - **Never-silent:** half-parsed pairs, subject mismatches, and empty rosters warn; stats line reports roots/edges/warnings.
 
+### Pattern 22: Prime omni-doc governance metadata (`scripts/lib/graph-omni.mjs`, Phase 2.8)
+
+Every Prime Agent's Omni Documents carry a uniform "Governance Information" subtree (`A.6.1.1.X.3.1`) whose direct children declare where the agent is governed and how it responds to emergencies. Two edge types tag those docs onto the prime agent entity for chat / forum indexing — **not** the entity canvas (both are in `OMIT_EDGE_TYPES`, graph.json-only).
+
+```
+A.6.1.1.X.3.1.N  Sky Forum                          "{Agent} uses the Sky Forum … use the '{Agent} Prime' category."
+A.6.1.1.X.3.1.N  Discord                            "… Discord is located at [url](url)."
+A.6.1.1.X.3.1.N  Sky Ecosystem Emergency Response   ecosystem-wide protocol (stub today)
+A.6.1.1.X.3.1.N  Agent-Specific Emergency Response  agent-only protocol (stub today)
+```
+
+- **Detection:** direct children of a Governance Information node (`/^A\.6\.1\.1\.\d+\.3\.1\.\d+$/`) whose title is exactly `Sky Forum` / `Discord` (→ `governance_channel`) or ends `Emergency Response` (→ `emergency_response`). Title-gated, so the rich Spark governance docs under the same subtree (Delegation Framework, Spark Risk Council) are not matched.
+- **Agent resolution:** `A.6.1.1.X` doc → its prime agent entity via `entityByDocId`. Warns and skips if unresolved.
+- **`governance_channel`** (`doc → entity`): `meta.platform` = `forum` | `discord`. Forum carries `meta.category` (the `'{Agent} Prime'` posting category — extracted from the "use the '…' category" sentence, both ASCII and typographic quotes); Discord carries `meta.url` (first markdown link). 8 forums (one per agent) + 2 Discords (Spark, Skybase) today.
+- **`emergency_response`** (`doc → entity`): `meta.scope` = `ecosystem` | `agent_specific`; `meta.status` = `placeholder` | `specified` (detected via "will be specified in a future iteration"). 16 today (8 agents × 2 scopes), **all `placeholder`** — modeled now so the edge already points at the doc when the atlas fills the protocol in.
+- **Accords are deliberately NOT re-linked here.** Each omni "Ecosystem Accord N" node (`A.6.1.1.X.3.{N}`) already carries a `cites` edge (Pattern 8) to its canonical `A.2.8.2.N` accord doc, which links to the party entity via `ecosystem_accord` (Pattern 4). A new edge would duplicate that path (Editorial Decision §7 — no edges without added signal).
+- **Never-silent:** missing agent, missing forum category, or missing Discord URL warn; stats line reports channels/emergencies/warnings.
+
 ### Not in the atlas (verified 2026-06; do not extract — chatbot should say so)
 
 - **Reward payout amounts/history** — 29 per-instance payment-ledger Active Data slots exist but are ALL empty. The drift detector fires when one gains rows.
@@ -899,6 +917,19 @@ signer_of                          entity  → entity   signer org/individual �
 can_modify_signers_of              entity  → entity   authorized modifier → multisig; meta.via_role?
 ```
 
+**Bridge validator sets (Pattern 21)**:
+
+```
+validator_of                       entity  → entity   bridge_validator → bridge; source [roster doc_no]
+```
+
+**Prime omni-doc governance metadata (Pattern 22; graph.json-only, filtered from relations.json)**:
+
+```
+governance_channel                 doc     → entity   Sky Forum / Discord omni doc → prime agent; meta {platform: forum|discord, category?, url?}
+emergency_response                 doc     → entity   Emergency Response omni doc → prime agent; meta {scope: ecosystem|agent_specific, status: placeholder|specified}
+```
+
 **Events (Pattern 18; graph.json-only, filtered from relations.json)**:
 
 ```
@@ -940,7 +971,7 @@ has_status                         doc     → doc      Primitive root → Globa
 implements                         doc     → doc      Agent primitive → global def in A.2.2 (via "See" cite)
 ```
 
-**Total: 35 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
+**Total: 38 edge types** — verify against the artifact with `new Set(graph.edges.map(e => e.edge_type)).size`.
 
 ### Entity meta serialization
 
@@ -1024,6 +1055,13 @@ For `et="instance"`, the parsed meta is:
 - **"Not in the atlas" section (new):** payout history, spell execution history, pioneer dates, individual signer addresses, org hierarchy.
 - **relations.json filter:** `KEEP_ACTOR_EDGE_TYPES` grew `signer_of`/`can_modify_signers_of`/`integration_partner_of`; `OMIT_EDGE_TYPES` (new) drops `funds_transfer` + `authorized_rep_for` from the browser artifact.
 - **Entity types:** 14 → 15 (`multisig`; `ecosystem_actor` subtypes `individual`, `integration_partner`). **Edge total:** 28 → 35.
+
+**v2.2 diff from v2.1** (2026-06 omni-doc sweep):
+
+- **Pattern 21 (new) — Bridge validator sets:** SkyLink + SLL Governance bridges via the Validators + Quorum Requirement child pair; `bridge` entity type, `ecosystem_actor/bridge_validator`, `validator_of` edge. `scripts/lib/graph-bridges.mjs`, Phase 2.8. (Edge vocabulary section + edge total were not bumped when the pattern body landed; reconciled here.)
+- **Pattern 22 (new) — Prime omni-doc governance metadata:** the uniform `A.6.1.1.X.3.1` Governance Information subtree → `governance_channel` (forum category / Discord URL) + `emergency_response` (scope + placeholder status) edges, `doc → entity(prime agent)`. `scripts/lib/graph-omni.mjs`, Phase 2.8. Both graph.json-only (chat / forum indexing, not the canvas). Omni accord nodes deliberately left to their existing `cites` linkage.
+- **relations.json filter:** `OMIT_EDGE_TYPES` grew `governance_channel` + `emergency_response`.
+- **Entity types:** 15 → 16 (`bridge`). **Edge total:** 35 → 38 (`validator_of`, `governance_channel`, `emergency_response`).
 
 ---
 

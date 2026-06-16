@@ -31,6 +31,7 @@ import { slugify, normalizeKey, buildNameIndex } from "../lib/graph-patterns.mjs
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
+import { extractOmni } from "../lib/graph-omni.mjs";
 import {
   parseMarkdownTable,
   extractEthAddresses,
@@ -767,6 +768,13 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     ` ${brStats.created} new validator entities` +
     (brStats.warnings ? `, ${brStats.warnings} WARNINGS` : ""),
   );
+
+  // --- Prime Agent omni-doc governance metadata (Pattern 22) ---
+  const omStats = extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges);
+  console.log(
+    `  Phase 2.8: ${omStats.channels} governance_channel, ${omStats.emergencies} emergency_response` +
+    (omStats.warnings ? `, ${omStats.warnings} WARNINGS` : ""),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -878,8 +886,16 @@ const KEEP_ACTOR_EDGE_TYPES = new Set([
 ]);
 // Edge types that are graph.json-only (chatbot/MCP data, not browser UI):
 // funds_transfer is event data; authorized_rep_for points at forum-handle
-// individuals that would clutter the canvas.
-const OMIT_EDGE_TYPES = new Set(["parent_of", "funds_transfer", "authorized_rep_for"]);
+// individuals that would clutter the canvas; governance_channel /
+// emergency_response are omni-doc metadata for chat / forum indexing, not the
+// entity canvas.
+const OMIT_EDGE_TYPES = new Set([
+  "parent_of",
+  "funds_transfer",
+  "authorized_rep_for",
+  "governance_channel",
+  "emergency_response",
+]);
 const pinnedActorIds = new Set(
   edges
     .filter((e) => KEEP_ACTOR_EDGE_TYPES.has(e.edgeType) && e.fromType === "entity")

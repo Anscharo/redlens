@@ -154,6 +154,9 @@ const KNOWN_EDGE_TYPES = new Set([
   "integration_partner_of",
   "prime_foundation_of",
   "provides_services_to",
+  // prime omni-doc governance metadata (Pattern 22)
+  "governance_channel",
+  "emergency_response",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -678,5 +681,52 @@ describe("Pattern 21 — bridge validator sets", () => {
       JSON.parse(b.meta ?? "{}").quorum_doc_no?.startsWith("A.2.2.6."),
     );
     expect(rootEditBridge).toBeUndefined();
+  });
+});
+
+describe("Pattern 22 — prime omni-doc governance metadata", () => {
+  const channels = edgesOfType("governance_channel");
+  const emergencies = edgesOfType("emergency_response");
+
+  it("governance_channel + emergency_response are doc → entity(agent) with provenance", () => {
+    for (const e of [...channels, ...emergencies]) {
+      expect(e.from_type, "source is the omni doc").toBe("doc");
+      expect(e.to_type, "target is an entity").toBe("entity");
+      const agent = entityById.get(e.to_id);
+      expect(agent?.entity_type, "target is a prime agent").toBe("agent");
+      expect(agent?.subtype).toBe("prime");
+      expect(parseSources(e).length, "carries source_doc_nos").toBeGreaterThan(0);
+    }
+  });
+
+  it("every Prime Agent has a Sky Forum channel with its '<Agent> Prime' category", () => {
+    // 8 prime agents → 8 forum channels; Discord is optional (Spark + Skybase today).
+    const forums = channels.filter((e) => JSON.parse(e.meta ?? "{}").platform === "forum");
+    expect(forums.length).toBe(8);
+    for (const e of forums) {
+      const meta = JSON.parse(e.meta ?? "{}");
+      expect(meta.category, e.source_doc_nos ?? "").toMatch(/ Prime$/);
+    }
+    // Discord channels carry a URL, no category.
+    const discords = channels.filter((e) => JSON.parse(e.meta ?? "{}").platform === "discord");
+    expect(discords.length).toBeGreaterThanOrEqual(1);
+    for (const e of discords) expect(JSON.parse(e.meta ?? "{}").url).toMatch(/^https?:\/\//);
+  });
+
+  it("emergency_response covers both scopes per agent and flags placeholder status", () => {
+    // 8 agents × {ecosystem, agent_specific} = 16 today, all stubs.
+    expect(emergencies.length).toBe(16);
+    const scopes = emergencies.map((e) => JSON.parse(e.meta ?? "{}").scope).sort();
+    expect(scopes.filter((s) => s === "ecosystem").length).toBe(8);
+    expect(scopes.filter((s) => s === "agent_specific").length).toBe(8);
+    for (const e of emergencies) {
+      expect(["placeholder", "specified"]).toContain(JSON.parse(e.meta ?? "{}").status);
+    }
+  });
+
+  it("omni governance metadata is graph.json-only (kept out of the browser canvas)", () => {
+    const relTypes = new Set(relations.edges.map((e) => e.e));
+    expect(relTypes.has("governance_channel")).toBe(false);
+    expect(relTypes.has("emergency_response")).toBe(false);
   });
 });
