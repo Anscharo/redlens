@@ -127,7 +127,8 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
   try {
     const rows = await sql<(HistoryQueryRow & { doc_id: string })[]>`
       SELECT doc_id, commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
-             pr_author, summary, description, moved_from, moved_to, diff
+             pr_author, summary, description, moved_from, moved_to, diff,
+             change_kind, review_count, approval_count, comment_count
       FROM atlas_history
       WHERE doc_id IN ${sql(ids)}
       ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST

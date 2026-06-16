@@ -788,6 +788,12 @@
     "isContract": true,
     "isProxy": false
   },
+  "0xb0c424116172b55cbb6dd3136f5989f7959e5b91": {
+    "chain": "ethereum",
+    "etherscanName": "VaultV2",
+    "isContract": true,
+    "isProxy": false
+  },
   "0xfe6eb3b609a7c8352a241f7f3a21cea4e9209b8f": {
     "chain": "ethereum",
     "etherscanName": "ERC1967Proxy",
@@ -1077,6 +1083,18 @@
   "0x380be2b91b63bf75b194913b6e2c07df09598c22": {
     "chain": "avalanche",
     "etherscanName": "LZReceiver",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x26e9512547fec1906c55256e491dfb6673d8c23f": {
+    "chain": "avalanche",
+    "etherscanName": "CCTPReceiver",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x8ea8dff8c29f568ea1e716e2c3afbd003eb83cfa": {
+    "chain": "avalanche",
+    "etherscanName": "CCTPv2Receiver",
     "isContract": true,
     "isProxy": false
   },
@@ -1740,6 +1758,13 @@
     "chain": "ethereum",
     "chainlogId": "OBEX_SUBPROXY",
     "etherscanName": "SubProxy",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x987f1c31f9935e9926555bcfb76516bb2ececcad": {
+    "chain": "ethereum",
+    "chainlogId": "OBEX_STARGUARD",
+    "etherscanName": "StarGuard",
     "isContract": true,
     "isProxy": false
   },

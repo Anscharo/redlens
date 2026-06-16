@@ -117,10 +117,9 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
     const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
     if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
 
-    // 5. Write minimal manifest so refreshInPlaceFromDisk reads the correct atlasCommit
-    writeFileSync(join(config.publicDir, "manifest.json"), JSON.stringify({ atlasCommit: dbSha }));
-
-    // 6. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it)
+    // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
+    //    No manifest.json is written: readArtifactsFromDisk derives atlasCommit from
+    //    graph.json meta / docs.json (both carry dbSha), so manifest is vestigial here.
     const distDir = config.distDir;
     if (existsSync(distDir)) {
       let n = 0;
@@ -195,9 +194,10 @@ export function startUpdater(): void {
           let newSha: string | null;
           try {
             const d = refreshInPlaceFromDisk(getIndexes());
-            // Advance atlasCommit to the DB sha (manifest was written with this sha).
-            getIndexes().meta = { ...getIndexes().meta, atlasCommit: upstream };
-            newSha = upstream;
+            // refreshInPlaceFromDisk already set meta.atlasCommit from the freshly
+            // written docs.json/graph.json (both carry dbSha === upstream); read it
+            // back as the convergence signal rather than asserting it.
+            newSha = getIndexes().meta.atlasCommit ?? null;
             log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
           } catch (e) {
             log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
