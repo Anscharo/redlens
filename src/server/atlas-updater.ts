@@ -119,7 +119,8 @@ export async function getDbAtlasSha(): Promise<string | null> {
   try {
     const rows = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
     return (rows[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
-  } catch {
+  } catch (e) {
+    console.warn(`getDbAtlasSha: ${(e as Error).message}`);
     return null;
   }
 }
