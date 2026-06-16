@@ -16,7 +16,13 @@ let cached: Promise<Glossary> | null = null;
 export function loadGlossary(): Promise<Glossary> {
   if (!cached) {
     const BASE = import.meta.env.BASE_URL;
-    cached = fetch(`${BASE}glossary.json`).then((r) => r.json());
+    cached = fetch(`${BASE}glossary.json`)
+      .then((r) => r.json())
+      .then((f) => f.terms ?? f)
+      .catch((err) => {
+        cached = null; // don't cache the rejection — retry on next call
+        throw err;
+      });
   }
   return cached;
 }

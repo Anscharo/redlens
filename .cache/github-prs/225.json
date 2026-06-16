@@ -1,0 +1,10 @@
+{
+  "number": 225,
+  "title": "Assorted Spark artifact fixes",
+  "body": "- Restored accidentally removed _Off-chain Operational Parameters_ documents for the Ethena sUSDe and for the DAI SLL instances.\r\n-  Added missing _rateLimitID_ document for the latter instance.",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/225",
+  "commentCount": 0,
+  "reviewCount": 2,
+  "approvalCount": 1
+}

@@ -24,7 +24,6 @@ import { fileURLToPath } from "node:url";
 import { execSync, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import { HEADING_RE } from "../lib/atlas-parser.mjs";
-import { extractForumBullets, findForumTopicIds } from "../lib/forum-parse.mjs";
 import {
   classifyDiff,
   classifyPrTitle,
@@ -32,6 +31,20 @@ import {
   matchBulletsToNodes,
   parsePrBullets,
 } from "../lib/history-classify.mjs";
+import { sql, waitForDb } from "../../src/server/db.ts";
+import { runMigrations } from "../../src/server/migrate.ts";
+import {
+  eventToRow,
+  gitCommitSeq,
+  readHistoryCursor,
+  upsertHistory,
+} from "../../src/server/history-db.ts";
+
+// Two sinks: default writes history straight to Postgres (atlas_history);
+// `--out-json` writes the legacy per-node public/history/<uuid>.json files
+// (DB-less — used by the canary/artifact tests). `--full` forces a full walk.
+const OUT_JSON = process.argv.includes("--out-json");
+const FULL = process.argv.includes("--full");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -40,7 +53,6 @@ const ATLAS_FILE = "Sky Atlas/Sky Atlas.md";
 const CONTENT_DIR = "content";
 const OUT_DIR = path.join(ROOT, "public/history");
 const PR_CACHE_DIR = path.join(ROOT, ".cache/github-prs");
-const FORUM_CACHE_DIR = path.join(ROOT, ".cache/discourse");
 const REPO = "sky-ecosystem/next-gen-atlas";
 
 // ---------------------------------------------------------------------------
@@ -466,49 +478,6 @@ function extractPrNumber(message) {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** Strip governance-boilerplate noise from a description / PR body. Returns
- *  null if there's nothing meaningful left, so callers can skip setting the
- *  field rather than carry forward a near-empty string. */
-
-/** If the PR body links to a Sky forum post and we have it cached, parse the
- *  post into bullets + extraRefs. Returns null if no forum link or cache miss.
- *  See scripts/lib/forum-parse.mjs for the parse contract. */
-function loadForumExtras(pr) {
-  if (!pr?.body) return null;
-  const topicIds = findForumTopicIds(pr.body);
-  if (topicIds.length === 0) return null;
-
-  // If a PR references multiple topics (rare; happens when a Weekly Cycle is
-  // split across two posts), merge bullets and refs from all available ones.
-  const bullets = [];
-  const docNos = new Set();
-  const uuids = new Set();
-  let any = false;
-  for (const id of topicIds) {
-    const p = path.join(FORUM_CACHE_DIR, `${id}.json`);
-    if (!fs.existsSync(p)) {
-      console.error(`    forum cache miss for topic ${id} — run pnpm build:forum-cache`);
-      continue;
-    }
-    let entry;
-    try {
-      entry = JSON.parse(fs.readFileSync(p, "utf8"));
-    } catch {
-      continue;
-    }
-    if (!entry.post1Raw) continue;
-    const { bullets: bs, extraRefs } = extractForumBullets(entry.post1Raw, {
-      fallbackTitle: pr.title,
-    });
-    bullets.push(...bs);
-    for (const r of extraRefs.docNos) docNos.add(r);
-    for (const r of extraRefs.uuids) uuids.add(r);
-    any = true;
-  }
-  if (!any) return null;
-  return { bullets, extraRefs: { docNos, uuids } };
-}
-
 async function fetchPr(prNum) {
   const cacheFile = path.join(PR_CACHE_DIR, `${prNum}.json`);
   if (fs.existsSync(cacheFile)) {
@@ -553,7 +522,7 @@ function loadAgentNamePrefixes() {
   const docsPath = path.join(ROOT, "public/docs.json");
   if (!fs.existsSync(relsPath) || !fs.existsSync(docsPath)) return [];
   const rels = JSON.parse(fs.readFileSync(relsPath, "utf8"));
-  const docs = JSON.parse(fs.readFileSync(docsPath, "utf8"));
+  const docs = JSON.parse(fs.readFileSync(docsPath, "utf8")).nodes;
   const out = [];
   for (const e of rels.entities ?? []) {
     if (e.et !== "agent" || !e.did) continue;
@@ -567,21 +536,28 @@ function loadAgentNamePrefixes() {
 }
 
 async function main() {
-  fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.mkdirSync(PR_CACHE_DIR, { recursive: true });
+  if (OUT_JSON) fs.mkdirSync(OUT_DIR, { recursive: true });
   const agentNamePrefixes = loadAgentNamePrefixes();
   console.error(`  ${agentNamePrefixes.length} agent name → doc_no scopes`);
 
   const lastCommitFile = path.join(OUT_DIR, "_last_commit.txt");
   const manifestFile = path.join(OUT_DIR, "_manifest.json");
 
-  // Incremental mode: pick up from where the last run left off.
+  // Incremental cursor: the short sha of the newest commit already recorded.
+  // DB sink reads it from atlas_history; --out-json reads the checkpoint files.
+  // `--full` forces a full walk in either mode.
   let lastCommitHash = null;
   let existingManifest = {};
   let prevSnapshot = new Map();
   let startIndex = 0;
 
-  if (fs.existsSync(lastCommitFile) && fs.existsSync(manifestFile)) {
+  if (!OUT_JSON) {
+    await waitForDb();
+    await runMigrations();
+    if (!FULL) lastCommitHash = await readHistoryCursor(sql);
+    console.error(`db sink: history cursor = ${lastCommitHash ? lastCommitHash.slice(0, 7) : "none (full)"}`);
+  } else if (!FULL && fs.existsSync(lastCommitFile) && fs.existsSync(manifestFile)) {
     lastCommitHash = fs.readFileSync(lastCommitFile, "utf8").trim();
     existingManifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
     console.error(
@@ -594,11 +570,13 @@ async function main() {
   console.error(`  ${allCommits.length} commits touch ${ATLAS_FILE} or ${CONTENT_DIR}/`);
 
   if (lastCommitHash) {
-    const idx = allCommits.findIndex((c) => c.hash === lastCommitHash);
+    // Cursor may be a 7-char short sha (DB) or a full sha (legacy file); the
+    // full commit hashes start with either, so prefix-match handles both.
+    const idx = allCommits.findIndex((c) => c.hash.startsWith(lastCommitHash));
     if (idx >= 0) {
       startIndex = idx + 1;
       // Reconstruct prevSnapshot from the last processed commit so diffs are correct
-      prevSnapshot = loadSnapshot(lastCommitHash);
+      prevSnapshot = loadSnapshot(allCommits[idx].hash);
       console.error(
         `  skipping ${startIndex} already-processed commits, ${allCommits.length - startIndex} new`,
       );
@@ -613,6 +591,7 @@ async function main() {
 
   if (commits.length === 0) {
     console.error("no new commits to process");
+    if (!OUT_JSON) await sql.end();
     return;
   }
 
@@ -668,40 +647,20 @@ async function main() {
 
     // Try to match bullets to nodes for edit proposals. Pass the unique nodes
     // (modified ∪ added ∪ removed) so a moved-and-modified node isn't scored twice.
-    //
-    // PR bullets come from two sources:
-    //   - parsePrBullets(pr.body) — the canonical Atlas Edit Proposal bullets.
-    //   - loadForumExtras(pr)     — Weekly Cycle ### blocks or the SAEP Summary
-    //     section, when the PR links to a Sky forum post (some PRs put the real
-    //     proposal there and leave the GitHub body almost empty).
     let bulletMatches = new Map();
     let prHasInlineBullets = false;
     if (pr?.body) {
       const prBullets = parsePrBullets(pr.body);
       prHasInlineBullets = prBullets.length > 0;
-      const forumExtras = loadForumExtras(pr);
-      const bullets = [...prBullets, ...(forumExtras?.bullets ?? [])];
-      if (bullets.length > 0) {
+      if (prBullets.length > 0) {
         const matchTargets = [...added, ...modified, ...removed];
-        // SAEP mode: single-bullet forum result + no inline PR bullets → that
-        // bullet is the PR-level summary; route forum extraRefs to it.
-        const refFallback =
-          prBullets.length === 0 && forumExtras?.bullets.length === 1
-            ? forumExtras.bullets[0]
-            : null;
-        bulletMatches = matchBulletsToNodes(bullets, matchTargets, snapshot, {
-          extraRefs: forumExtras?.extraRefs ?? null,
-          refFallback,
+        bulletMatches = matchBulletsToNodes(prBullets, matchTargets, snapshot, {
           agentNamePrefixes,
         });
         if (matchTargets.length > 0) {
           const rate = ((bulletMatches.size / matchTargets.length) * 100).toFixed(0);
-          const src =
-            forumExtras?.bullets.length
-              ? ` (pr=${prBullets.length}+forum=${forumExtras.bullets.length})`
-              : "";
           console.error(
-            `    bullets: ${bulletMatches.size}/${matchTargets.length} matched (${rate}%)${src}`,
+            `    bullets: ${bulletMatches.size}/${matchTargets.length} matched (${rate}%)`,
           );
         }
       }
@@ -761,11 +720,8 @@ async function main() {
         if (cleaned) entry.description = cleaned;
         // matchScore omitted from output — internal quality signal only
       } else if (pr?.body && !prHasInlineBullets && pr.body.length < 500) {
-        // No-bullet-match fallback. Only useful for plain non-bulleted PRs
-        // (Spark proposals, single-fix commits) where the whole body is the
-        // summary. Forum-linked PRs typically have a bare URL as the body and
-        // are deliberately left summary-less here — the matched-bullet rows
-        // carry the real information.
+        // No-bullet-match fallback: plain non-bulleted PRs (Spark proposals,
+        // single-fix commits) where the whole body is the summary.
         entry.summary = pr.title;
         const cleaned = cleanDescription(pr.body);
         if (cleaned) entry.description = cleaned;
@@ -780,9 +736,29 @@ async function main() {
     lastCommitHash = commit.hash;
   }
 
-  // Write per-node files: append new entries to any existing file.
-  // Dedup key is (commitHash, changeType) so a node can have both a
-  // "modified" and a "moved" entry from the same commit — see diffSnapshots.
+  if (!OUT_JSON) {
+    // ── DB sink: upsert straight into atlas_history ──────────────────────────
+    // commit_seq comes from the full submodule log (same numbering the table
+    // already uses), keyed by short sha. The upsert's (doc_id, commit_sha,
+    // change_type) conflict key makes re-runs idempotent — no per-file dedup.
+    const seqByCommit = gitCommitSeq();
+    const rows = [];
+    for (const [nodeId, newEntries] of newHistory) {
+      for (const e of newEntries) {
+        const row = eventToRow(nodeId, e, seqByCommit);
+        if (row) rows.push(row);
+      }
+    }
+    await upsertHistory(sql, rows);
+    await sql.end();
+    console.error(
+      `\ndone: upserted ${rows.length} change entries across ${newHistory.size} nodes into atlas_history`,
+    );
+    return;
+  }
+
+  // ── --out-json sink: per-node files, append + dedup on (commitHash, changeType)
+  // so a node can carry both a "modified" and a "moved" entry from one commit.
   let fileCount = 0;
   for (const [nodeId, newEntries] of newHistory) {
     const filePath = path.join(OUT_DIR, `${nodeId}.json`);

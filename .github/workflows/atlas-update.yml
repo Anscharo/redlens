@@ -1,39 +1,31 @@
-name: Atlas Update
+name: Atlas Submodule Update
 
 on:
   workflow_dispatch:
     inputs:
       force:
-        description: "Rebuild even if Atlas commit hasn't changed"
+        description: "Bump submodule even if atlas SHA hasn't changed"
         type: boolean
         default: false
   schedule:
-    # Hourly. Self-aborts if the atlas submodule SHA hasn't advanced
-    # (see "Check for Atlas update" step), so no-change runs are cheap.
+    # Hourly. Self-aborts if the atlas submodule SHA hasn't advanced.
     - cron: "0 * * * *"
 
 permissions:
   contents: write
-  issues: write
   pull-requests: write
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     environment: CI
-    outputs:
-      proceed: ${{ steps.atlas.outputs.proceed }}
-      short: ${{ steps.atlas.outputs.short }}
-      old: ${{ steps.atlas.outputs.old }}
-      atlas_sha: ${{ steps.atlas.outputs.atlas_sha }}
-      processes_dirty: ${{ steps.processes.outputs.dirty }}
     steps:
       - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Check for Atlas update
+      - name: Check for atlas update
         id: atlas
         run: |
           OLD=$(git -C vendor/next-gen-atlas rev-parse HEAD)
@@ -42,13 +34,12 @@ jobs:
           NEW=$(git -C vendor/next-gen-atlas rev-parse HEAD)
           echo "old=${OLD:0:7}" >> "$GITHUB_OUTPUT"
           echo "short=${NEW:0:7}" >> "$GITHUB_OUTPUT"
-          echo "atlas_sha=${NEW}" >> "$GITHUB_OUTPUT"
           if [ "$OLD" != "$NEW" ] || [ "${{ inputs.force }}" = "true" ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
             echo "Atlas advanced: ${OLD:0:7} → ${NEW:0:7}"
           else
             echo "proceed=false" >> "$GITHUB_OUTPUT"
-            echo "Already at latest (${OLD:0:7}). Use force=true to rebuild anyway."
+            echo "Already at latest (${OLD:0:7})."
           fi
 
       - uses: pnpm/action-setup@v6
@@ -60,177 +51,22 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
         if: steps.atlas.outputs.proceed == 'true'
+        run: pnpm install --frozen-lockfile
 
-      - run: pnpm build:index
+      - name: Rebuild artifacts and update snapshots
         if: steps.atlas.outputs.proceed == 'true'
-
-      - run: pnpm build:glossary
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - name: build:addresses
-        if: steps.atlas.outputs.proceed == 'true'
-        continue-on-error: true
-        run: pnpm build:addresses
-        env:
-          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
-
-      - name: build:snapshot
-        if: steps.atlas.outputs.proceed == 'true'
-        run: pnpm build:snapshot
-        env:
-          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
-
-      - run: pnpm build:history
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - run: pnpm build:graph
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - run: pnpm build:manifest
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - run: pnpm test:snap:update
-        if: steps.atlas.outputs.proceed == 'true'
-
-      - name: Type check
-        if: steps.atlas.outputs.proceed == 'true'
-        run: pnpm build:ts
-
-      - name: Bundle check
-        if: steps.atlas.outputs.proceed == 'true'
-        run: pnpm exec vite build
-
-      - name: Check process inventory drift
-        id: processes
-        if: steps.atlas.outputs.proceed == 'true'
-        # Never fails the build. Sets dirty/missing/candidates outputs and
-        # auto-applies title/doc_no snapshot updates to public/processes.json.
-        run: pnpm processes:check
-
-      - name: Upload built artifacts
-        if: steps.atlas.outputs.proceed == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: atlas-artifacts
-          retention-days: 1
-          path: |
-            public/
-            graph-snapshots/
-
-      - name: Open / update process review issue
-        if: steps.atlas.outputs.proceed == 'true' && steps.processes.outputs.dirty == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SHORT="${{ steps.atlas.outputs.short }}"
-          TITLE="Process inventory review needed (atlas ${SHORT})"
+          pnpm build:index
+          pnpm build:graph
+          pnpm test:snap:update
 
-          # Find an existing open issue with the processes-review label; reuse
-          # it across atlas updates so we don't pile up stale issues.
-          EXISTING=$(gh issue list \
-            --state open \
-            --label processes-review \
-            --json number \
-            --jq '.[0].number' || echo "")
-
-          # Ensure the label exists (idempotent — ignore "already exists" error).
-          gh label create processes-review \
-            --color FBCA04 \
-            --description "Curated process inventory needs reconciliation with atlas" \
-            2>/dev/null || true
-
-          if [ -n "$EXISTING" ]; then
-            gh issue edit "$EXISTING" \
-              --title "$TITLE" \
-              --body-file .cache/processes-audit.md
-            echo "Updated issue #$EXISTING"
-          else
-            gh issue create \
-              --title "$TITLE" \
-              --label processes-review \
-              --body-file .cache/processes-audit.md
-          fi
-
-  push:
-    needs: build
-    if: needs.build.outputs.proceed == 'true'
-    runs-on: ubuntu-latest
-    environment: atlas-update-main-bypass
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Pin submodule to new atlas SHA
+      - name: Commit updated submodule pointer
+        if: steps.atlas.outputs.proceed == 'true'
         run: |
-          git -C vendor/next-gen-atlas fetch origin
-          git -C vendor/next-gen-atlas checkout ${{ needs.build.outputs.atlas_sha }}
-
-      - name: Download built artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: atlas-artifacts
-          path: .
-
-      - name: Generate bot token
-        id: bot-token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.ATLAS_BOT_APP_ID }}
-          private_key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
-
-      - name: Push branch and open auto-merge PR
-        env:
-          BOT_TOKEN: ${{ steps.bot-token.outputs.token }}
-          GH_TOKEN: ${{ steps.bot-token.outputs.token }}
-        run: |
-          SHORT="${{ needs.build.outputs.short }}"
-          DATE=$(date -u +%Y-%m-%d)
-          BRANCH="atlas-update/${SHORT}"
-
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${BOT_TOKEN}@github.com/${{ github.repository }}
-
-          git add vendor/next-gen-atlas public/ graph-snapshots/
-
-          if git diff --cached --quiet; then
-            echo "No artifact changes — skipping PR."
-            exit 0
-          fi
-
-          git checkout -b "$BRANCH"
-          git commit -m "chore: atlas update ${SHORT} (${DATE})"
-          git push -f origin "$BRANCH"
-
-          # Ensure label exists (idempotent).
-          gh label create atlas-update \
-            --color 0075ca \
-            --description "Automated atlas content update" \
-            2>/dev/null || true
-
-          # Create PR if one doesn't already exist for this branch.
-          if ! gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "chore: atlas update ${SHORT} (${DATE})" \
-            --body "Automated atlas update — submodule → \`${{ needs.build.outputs.atlas_sha }}\`." \
-            --label "atlas-update"; then
-            echo "PR already exists for $BRANCH."
-          fi
-
-          # Merge immediately via the bot token — the bot is a bypass actor in
-          # branch protection, so CI checks are not required. The build job
-          # above already ran the equivalent (type-check + bundle + snapshots).
-          # --auto would block forever because bot-created PRs don't trigger CI.
-          gh pr merge "$BRANCH" --rebase
-
-          # Tag the atlas SHA so "what was deployed when X happened" is
-          # answerable by atlas version.
-          FULL_SHA="${{ needs.build.outputs.atlas_sha }}"
-          TAG="atlas-${SHORT}"
-          git tag -a "$TAG" -m "Atlas commit ${FULL_SHA}"
-          git push origin "$TAG" || echo "Tag $TAG already exists, skipping"
+          git add vendor/next-gen-atlas graph-snapshots/__snapshots__
+          git commit -m "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}"
+          git push

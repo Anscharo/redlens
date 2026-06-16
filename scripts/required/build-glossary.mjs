@@ -22,16 +22,15 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const DOCS_PATH = path.join(ROOT, "public/docs.json");
 const OUT_PATH = path.join(ROOT, "public/glossary.json");
 
-function buildGlossary(docs) {
-  const nodes = Object.values(docs);
-  const nodeMap = docs;
-
+function buildGlossary(nodeMap) {
+  const nodes = Object.values(nodeMap);
   const definitionsSections = nodes.filter((n) => n.title === "Definitions");
 
   const childrenByParent = {};
@@ -111,12 +110,13 @@ function printStats(glossary, definitionsSections) {
 // Main
 // ---------------------------------------------------------------------------
 console.log(`Reading ${path.relative(ROOT, DOCS_PATH)}…`);
-const docs = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8"));
+const docsFile = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8"));
+const atlasCommit = docsFile.atlasCommit ?? "unknown";
 
-const { glossary, definitionsSections } = buildGlossary(docs);
+const { glossary, definitionsSections } = buildGlossary(docsFile.nodes);
 
 printStats(glossary, definitionsSections);
 
-fs.writeFileSync(OUT_PATH, JSON.stringify(glossary));
+fs.writeFileSync(OUT_PATH, JSON.stringify({ atlasCommit, terms: glossary }));
 const size = (fs.statSync(OUT_PATH).size / 1024).toFixed(1);
 console.log(`\nWrote ${path.relative(ROOT, OUT_PATH)} (${size} KB)`);

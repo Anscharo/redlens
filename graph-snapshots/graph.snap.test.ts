@@ -35,7 +35,7 @@ type AtlasNode = { id: string; doc_no: string; title: string; type: string; pare
 type Relations = { entities: Entity[]; edges: Edge[] };
 
 const relations: Relations = JSON.parse(fs.readFileSync(path.join(PUBLIC, "relations.json"), "utf8"));
-const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"));
+const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8")).nodes;
 
 const entityById = new Map(relations.entities.map((e) => [e.id, e]));
 

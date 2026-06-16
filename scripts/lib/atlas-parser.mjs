@@ -6,7 +6,7 @@ import crypto from "crypto";
 
 // sha256 of the raw markdown slice between a heading and the next heading —
 // lets anyone with the atlas SHA recompute the hash of a single node
-// independently and verify what redlens is showing for it.
+// independently and verify what Sky Atlas by Redline is showing for it.
 export function sha256(s) {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");
 }

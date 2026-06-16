@@ -56,7 +56,7 @@ const UUID_RE = /^id: ([0-9a-f-]{36})$/m;
 
 // ---------------------------------------------------------------------------
 
-const docs = JSON.parse(fs.readFileSync(DOCS, "utf8"));
+const docs = JSON.parse(fs.readFileSync(DOCS, "utf8")).nodes;
 const processes = JSON.parse(fs.readFileSync(PROCESSES, "utf8"));
 const ignored = JSON.parse(fs.readFileSync(IGNORED, "utf8"));
 

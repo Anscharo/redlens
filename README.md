@@ -89,19 +89,9 @@ pnpm preview # serve the production build locally
 | `build:index` | Parses Sky Atlas.md → node index + full-text search index |
 | `build:glossary` | Extracts Definitions sections → glossary lookup |
 | `build:addresses` | Enriches on-chain addresses from chainlog + Etherscan → address metadata |
-| `build:snapshot` | Reads view-function values via RPC → chain state pinned to a block |
+| `snap:chainstate` | Reads view-function values via RPC → chain state pinned to a block |
 | `build:graph` | Extracts typed relationships from the atlas text → graph artifacts |
 | `build:manifest` | sha256 digest of all artifacts → integrity manifest |
-
-### Hosted MCP server data
-
-The frontend bundle has no need for the embedding vectors that power semantic search on the hosted MCP server, so they're built separately:
-
-```bash
-pnpm build:server   # build:index + build:graph + build:rag
-```
-
-`build:rag` writes `.cache/atlas-vectors/{vectors,ids,meta}` (gitignored, ~30 MB, requires `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` for Workers AI bge-base-en). The `sync-db` workflow runs `pnpm build:server` and then uploads the graph to D1 and the vectors to Cloudflare Vectorize.
 
 Each stage can also be run individually. 
 
@@ -128,7 +118,7 @@ This is not part of `pnpm build` — it's slow and requires GitHub API access fo
 RedLens deploys two ways:
 
 - **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires two repository secrets: `ETHERSCAN_API_KEY` and `ETH_RPC_URL`.
-- **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+- **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `api/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Keeping the atlas up to date
 

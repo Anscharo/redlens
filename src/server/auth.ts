@@ -59,7 +59,7 @@ interface GithubUser {
 
 async function ghFetch<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`https://api.github.com${path}`, {
-    headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "redlens-atlas" },
+    headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "redline-sky-atlas" },
   });
   if (!res.ok) throw new Error(`github ${path} ${res.status}`);
   return (await res.json()) as T;

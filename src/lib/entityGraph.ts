@@ -32,6 +32,10 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
     forward: "operational executor agent for",
     reverse: "has operational executor agent",
   },
+  core_executor_agent_for: {
+    forward: "core executor agent for",
+    reverse: "has core executor agent",
+  },
   operational_facilitator_for: {
     forward: "operational facilitator for",
     reverse: "has operational facilitator",

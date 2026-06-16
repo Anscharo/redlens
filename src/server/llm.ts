@@ -15,7 +15,7 @@ export function getClient(): OpenAI {
       apiKey: config.openrouterApiKey,
       baseURL: config.openrouterBaseUrl,
       // OpenRouter ranking/attribution headers (optional but recommended).
-      defaultHeaders: { "X-Title": "RedLens Atlas" },
+      defaultHeaders: { "X-Title": "Sky Atlas by Redline" },
     });
   }
   return client;

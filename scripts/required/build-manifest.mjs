@@ -2,12 +2,11 @@
 /**
  * Emits public/manifest.json — a sha256 digest of every shipping artifact.
  *
- * Runs last in `pnpm build`. vite.config.ts reads the manifest at build time
- * and inlines the hash map into the bundle as __ARTIFACT_HASHES__. The
- * frontend verifies each fetched JSON against the expected hash before using
- * it, so CDN tampering / stale caches / truncated responses hard-fail.
+ * Runs last in `pnpm build`. The digest is a provenance / reproducibility
+ * record: graph.json is gitignored but built deterministically, so a committed
+ * manifest hash should always match a fresh rebuild.
  *
- * Also pins the atlas submodule SHA and the redlens commit SHA so the
+ * Also pins the atlas submodule SHA and the app commit SHA so the
  * manifest is a self-contained provenance record for this build.
  *
  * Run: node scripts/build-manifest.mjs
@@ -23,10 +22,10 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const PUBLIC = path.join(ROOT, "public");
 const OUT = path.join(PUBLIC, "manifest.json");
 
-// Every shipping artifact gets a sha256 here. Frontend assets are verified
-// at fetch time against the inlined hash map. graph.json is included as a
-// reproducibility check — it's gitignored but built deterministically, so
-// the committed manifest's hash should always match a fresh rebuild.
+// Every shipping artifact gets a sha256 here for provenance. graph.json is
+// included as a reproducibility check — it's gitignored but built
+// deterministically, so the committed manifest's hash should always match a
+// fresh rebuild.
 // Out of scope:
 //   - addresses.merged.json — intermediate, gitignored
 //   - history/** — too many files, fetched on demand
@@ -77,7 +76,7 @@ for (const name of ARTIFACTS) {
 
 const manifest = {
   generatedAt: new Date().toISOString(),
-  redlensCommit: gitRev(ROOT),
+  appCommit: gitRev(ROOT),
   atlasCommit: gitRev(path.join(ROOT, "vendor/next-gen-atlas")),
   artifacts,
 };
@@ -85,7 +84,7 @@ const manifest = {
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + "\n");
 
 console.log("=== Manifest ===");
-console.log(`redlens: ${manifest.redlensCommit?.slice(0, 12) ?? "unknown"}`);
+console.log(`app:     ${manifest.appCommit?.slice(0, 12) ?? "unknown"}`);
 console.log(`atlas:   ${manifest.atlasCommit?.slice(0, 12) ?? "unknown"}`);
 for (const [name, info] of Object.entries(artifacts)) {
   const kb = (info.bytes / 1024).toFixed(1).padStart(8);

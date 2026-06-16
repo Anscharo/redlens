@@ -1,0 +1,46 @@
+name: History Canaries
+
+on:
+  pull_request:
+    paths:
+      - "scripts/required/build-history.mjs"
+      - "scripts/lib/history-classify.mjs"
+      - "scripts_tests/history-canaries.test.ts"
+      - "scripts_tests/history-classify.test.ts"
+  workflow_dispatch:
+
+jobs:
+  canaries:
+    name: "build:history + canary tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build index + graph so build-history can load agentNamePrefixes
+      - name: Build index
+        run: pnpm build:index
+
+      - name: Build graph
+        run: pnpm build:graph
+
+      - name: Build history
+        # --out-json: write public/history/*.json (no DB) for the canary tests.
+        run: pnpm build:history --out-json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run history canaries
+        run: pnpm exec vitest run scripts_tests/history-canaries.test.ts scripts_tests/history-classify.test.ts

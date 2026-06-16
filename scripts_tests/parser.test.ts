@@ -18,7 +18,7 @@ const DOCS_PATH = path.join(ROOT, "public/docs.json");
 const HEADING_RE = /^(#{1,6}) ([\w.-]+) - (.+?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->$/;
 
 const atlasSrc = fs.readFileSync(ATLAS_PATH, "utf8");
-const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8"));
+const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")).nodes;
 
 function sha256(s: string) {
   return crypto.createHash("sha256").update(s, "utf8").digest("hex");

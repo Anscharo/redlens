@@ -51,7 +51,7 @@ beforeAll(() => {
     if (!existsSync(resolve(p))) throw new Error(`${p} missing — run pnpm build:index first`);
   }
   ms = MiniSearch.loadJSON(readFileSync(resolve("public/search-index.json"), "utf8"), MINISEARCH_OPTIONS);
-  docs = JSON.parse(readFileSync(resolve("public/docs.json"), "utf8")) as Record<string, Doc>;
+  docs = JSON.parse(readFileSync(resolve("public/docs.json"), "utf8")).nodes as Record<string, Doc>;
   addrs = JSON.parse(readFileSync(resolve("public/addresses.json"), "utf8")) as Record<string, AddrInfo>;
 
   for (const doc of Object.values(docs)) byDocNo.set(doc.doc_no, doc);

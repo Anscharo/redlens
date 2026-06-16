@@ -64,7 +64,7 @@
   - **`GET /api/auth/me`** — returns `{ id, name, avatarUrl, provider }` or `401`; called on app boot to hydrate auth state.
   - **`POST /api/auth/signout`** — clears JWT cookie, returns `200`.
   - **`GET /api/usage`** — returns `{ userTokens, allTokens, globalLimit, windowTokens, windowLimit, windowResetsAt }` for the rate limit UI.
-  - **`GET /health`** — Railway health check; ports over from the existing Cloudflare Worker. Returns `200 OK` with `{ status: "ok", atlas_sha }`. Railway gates rolling deploys on this.
+  - **`GET api/health`** — Railway health check; ports over from the existing Cloudflare Worker. Returns `200 OK` with `{ status: "ok", atlas_sha }`. Railway gates rolling deploys on this.
   - **Shared OAuth popup util** — `openAuthPopup()` used by both the profile button and the chat widget. One implementation, two entry points.
 
   ### Postgres (single DB) — Railway
@@ -410,12 +410,12 @@
   **Embeddings are a derived recall index, not atlas truth** — a missing or stale vector only means that one doc temporarily leans on lexical/FTS search (which covers it fully). Atlas *structure* being out of sync is the real harm. So embedding generation runs in its own lane, **never inside the blocking sync transaction or the deploy/health gate**. There is **no `build-rag` in CI and no `OPENROUTER_API_KEY` in GitHub secrets** — embeddings are entirely a Railway runtime concern, and the Git-LFS vector baseline retires.
 
   - **Scoped work queue, not a scan.** `sync:atlas` already computes the changed-doc set from the `content_hash` diff (~10–100 docs/update). That exact set is the reconciler's queue. The *only* full pass is the one-time bge→Qwen3 cutover, where every vector is genuinely from the wrong model.
-  - **Background reconciler.** After `/health` is green and the process is serving, a background task embeds queued docs via OpenRouter in small batches with backoff. Failures are logged, not propagated — a doc just stays stale for the next pass. Runs on boot *and* on an interval, so an OpenRouter hiccup self-heals: "1 or 2 off, gradually fixed."
+  - **Background reconciler.** After `api/health` is green and the process is serving, a background task embeds queued docs via OpenRouter in small batches with backoff. Failures are logged, not propagated — a doc just stays stale for the next pass. Runs on boot *and* on an interval, so an OpenRouter hiccup self-heals: "1 or 2 off, gradually fixed."
   - **Lazy-on-query = prioritization, never a hot-path embed.** When a result-set doc has `embedding.content_hash ≠ doc.content_hash`, *enqueue/bump* it for async re-embed and serve the response with its stale-but-present vector (or lexical fallback). ⚠️ The check is a cheap hash comparison — **never synchronously call OpenRouter to embed a document inside a query**; that would add seconds and re-couple the hot path. (Embedding the *query* string in the hot path is fine — that's the one fast call semantic search always makes.)
   - **Backstop drain** guarantees convergence: a changed doc that's never queried still heals, because the reconciler drains the known changed set in the background regardless.
   - **Missing-vector tolerance.** Semantic search left-joins `atlas_doc_embeddings`; docs without a current vector simply aren't semantic candidates and hybrid RRF falls back to their lexical hit. No errors, just slightly narrower semantic recall until healed.
   - **Cutover is painless:** on the bge→Qwen3 switch all ~10K are stale, the app boots and serves immediately (lexical-only semantic at first), and the reconciler fills vectors over minutes in the background — no giant blocking boot. ≈ $0.015 one-time.
-  - **Observability:** surface a stale-count (docs awaiting embedding) on `/health` detail or in `sync_log`, so "are we caught up on vectors?" is answerable.
+  - **Observability:** surface a stale-count (docs awaiting embedding) on `api/health` detail or in `sync_log`, so "are we caught up on vectors?" is answerable.
 
   ---
 
@@ -522,7 +522,7 @@
   Nothing is deleted until its replacement is proven. The old GH Pages site and the CF Worker each stay live as fallbacks until the thing that supersedes them is validated. Changes to `.github/workflows/` grouped by lifecycle:
 
   **Immediate (at cutover start)**
-  - **`ci.yml` — KEEP + ADD a Bun-service job.** Existing `lint-and-build` unchanged. New job must do more than `tsc`: (a) `tsc --noEmit` on the Bun source, (b) unit tests on the ported tool layer (RRF + graphology traversals), (c) a **Postgres service container** exercising `sync:atlas` end-to-end against a fresh DB + the migration runner, (d) a `/health` boot smoke test. (c)+(d) catch what's most likely to break.
+  - **`ci.yml` — KEEP + ADD a Bun-service job.** Existing `lint-and-build` unchanged. New job must do more than `tsc`: (a) `tsc --noEmit` on the Bun source, (b) unit tests on the ported tool layer (RRF + graphology traversals), (c) a **Postgres service container** exercising `sync:atlas` end-to-end against a fresh DB + the migration runner, (d) a `api/health` boot smoke test. (c)+(d) catch what's most likely to break.
   - **`atlas-update.yml` — UNCHANGED.** Still rebuilds artifacts → commits to `public/` → opens PR. **No `build-rag` step** — embeddings are a Railway-runtime concern (background reconciler), never built in CI.
   - **`claude.yml`, `claude-code-review.yml`, `processes-autoclose.yml` — UNCHANGED.** Hosting-agnostic GitHub automation.
   - **`cf-pages-preview.yml` — KEEP.** Frontend-only static PR preview. Caveat: the chat widget is non-functional in previews (no `/api/*` backend); it only reviews UI / atlas-reader changes.

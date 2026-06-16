@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
 const HISTORY_DIR = path.join(ROOT, "public/history");
 
-const docs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8"));
+const docs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8")).nodes;
 const rels = JSON.parse(fs.readFileSync(path.join(ROOT, "public/relations.json"), "utf8"));
 
 const entities = rels.entities;

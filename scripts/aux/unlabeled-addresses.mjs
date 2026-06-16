@@ -12,14 +12,14 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // Merge atlas (annotation) and on-chain files to get full address view
-const atlas = JSON.parse(readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8"));
+const atlas = JSON.parse(readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8")).addresses;
 const onChain = JSON.parse(readFileSync(path.join(ROOT, "public/addresses.json"), "utf8"));
 const addrs = {};
 for (const [addr, a] of Object.entries(atlas)) {
   const o = onChain[addr] ?? {};
   addrs[addr] = { ...a, ...o, label: o.chainlogId ?? a.entityLabel ?? o.etherscanName ?? null };
 }
-const docs = JSON.parse(readFileSync(path.join(ROOT, "public/docs.json"), "utf8"));
+const docs = JSON.parse(readFileSync(path.join(ROOT, "public/docs.json"), "utf8")).nodes;
 
 // Reverse map: lowercase addr → [{ doc_no, title, type }]
 const addrToDocs = new Map();

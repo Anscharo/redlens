@@ -65,7 +65,7 @@ const relations: Relations = JSON.parse(
 );
 const docs: Record<string, AtlasNode> = JSON.parse(
   fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"),
-);
+).nodes;
 
 const entityById = new Map(graph.entities.map((e) => [e.id, e]));
 const docByDocNo = new Map<string, AtlasNode>();

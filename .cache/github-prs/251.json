@@ -1,0 +1,10 @@
+{
+  "number": 251,
+  "title": "Atlas Edit Proposal — 2026-05-25",
+  "body": "# Proposal 2026-05-25 — Summary\n\n- **Introduce Independent Governance Standard For Root Edit Primitive Operation** — Adds Independent Governance as the new condition for Root Edit Primitive operation, and removes the prior Publicly Held token threshold and Minimum Float requirement.\n- **Add Spell Checklists And Reference Materials** — Defines Core and Agent Spell Checklist categories and maintains a list of the current checklists. Mandates use of a standardized Technical Scope Template and Deployment Checklist within the Executive Process.\n- **Add GROVE Token Transfer To Grove Foundation** — Adds a transfer of 500M GROVE from the Grove SubProxy to the Grove Foundation Multisig.\n- **Specify Pre-Risk Review Timing** — Adds a Wednesday 16:00 UTC deadline for the Core Council Risk Advisor's pre-risk review of proposed Spell items.\n- **Add Grove To Current Phased-Out Genesis Capital** — Adds Grove with a value of 0 USDS to the list of Active Data; Grove was not previously listed because it had not yet received its Genesis Capital.\n- **Add Grove Circle CCTP Governance Relay Receivers To Grove Artifact** — Documents the Grove Circle CCTP governance relay receivers (Circle CCTP v1 and v2) on Avalanche.\n- **Rename Synome Editor To Archon Tech** — Updates the Designated Synome Editor from Archon Labs to Archon Tech.\n- **Replace Legacy Facilitator Terminology** — Renames Support Facilitator and Stability Facilitator to Core Facilitator or Protocol Security Workstream Lead where applicable, keeping one reference for historical context.\n- **Fix Cross-Reference Formatting** — Corrects eight cross-reference formatting issues across the Atlas.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/251",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

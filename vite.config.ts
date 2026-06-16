@@ -3,7 +3,6 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "child_process";
-import { readFileSync } from "fs";
 
 const commitHash = (() => {
   try {
@@ -13,47 +12,22 @@ const commitHash = (() => {
   }
 })();
 
-const atlasCommit = (() => {
+const repoUrl = (() => {
   try {
-    return execSync("git -C vendor/next-gen-atlas rev-parse --short HEAD").toString().trim();
+    return execSync("git remote get-url origin")
+      .toString().trim()
+      .replace(/^git@github\.com:/, "https://github.com/")
+      .replace(/\.git$/, "");
   } catch {
-    return "unknown";
+    return "https://github.com/Anscharo/redlens";
   }
 })();
 
 const buildTime = new Date().toISOString();
 
-const nodeCount = (() => {
-  try {
-    return Object.keys(JSON.parse(readFileSync("public/docs.json", "utf-8"))).length;
-  } catch {
-    return 0;
-  }
-})();
 
-// Artifact hashes are read from public/manifest.json (emitted by
-// scripts/build-manifest.mjs). The frontend compares each fetched JSON's
-// sha256 against this map before using it — catches CDN tampering, truncated
-// responses, and stale worker caches.
-const artifactHashes: Record<string, string> = (() => {
-  try {
-    const m = JSON.parse(readFileSync("public/manifest.json", "utf-8"));
-    const out: Record<string, string> = {};
-    for (const [name, info] of Object.entries(m.artifacts ?? {})) {
-      out[name] = (info as { sha256: string }).sha256;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-})();
-
-// CF Pages sets CF_PAGES=1 automatically; Railway sets RAILWAY_ENVIRONMENT.
-// Both deploy to the domain apex so base is "/". GH Pages lives under /redlens/.
-const base =
-  process.env.CF_PAGES === "1" || process.env.RAILWAY_ENVIRONMENT
-    ? "/"
-    : "/redlens/";
+// Default base is "/". Only GitHub Pages lives under /redlens/ — opt in explicitly.
+const base = process.env.GITHUB_PAGES === "1" ? "/redlens/" : "/";
 
 export default defineConfig(() => {
   // The chat widget + auth/profile button need the Bun /api backend, which only
@@ -111,8 +85,8 @@ export default defineConfig(() => {
       // imported module: …/RadarPage-<hash>.js" until the user reloads).
       registerType: "prompt",
       manifest: {
-        name: "RedLens' Sky Atlas",
-        short_name: "RedLens",
+        name: "Sky Atlas by Redline",
+        short_name: "redline-atlas",
         description: "Search-first interface for the Sky ecosystem Atlas",
         start_url: base,
         scope: base,
@@ -138,15 +112,28 @@ export default defineConfig(() => {
           "**/chain-state.json",
           "**/history/**",
         ],
-        // Serve index.html for all navigation requests so deep-URL refreshes work offline.
+        // Serve index.html for SPA routes, but not for server endpoints — those
+        // must reach the Bun server directly.
         navigateFallback: `${base}index.html`,
+        navigateFallbackDenylist: [/^\/api\//, /^\/mcp$/],
         runtimeCaching: [
           {
-            // Atlas data JSON files — network-first, 3 s timeout before falling to cache
-            urlPattern: /\/(docs|search-index|addresses(?:\.atlas)?|relations|chain-state|glossary|manifest)\.json$/,
+            // Large atlas files: serve cached version immediately, refresh in background.
+            // The SSE "atlas updated ↻" pill tells users when a new version is ready so
+            // being one load cycle behind is acceptable.
+            urlPattern: /\/(docs|search-index|relations)\.json$/,
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "atlas-data-large",
+              expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+          {
+            // Small atlas files: network-first (fast to fetch, worth having fresh values).
+            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|glossary|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "atlas-data",
+              cacheName: "atlas-data-small",
               networkTimeoutSeconds: 3,
               expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
             },
@@ -172,11 +159,9 @@ export default defineConfig(() => {
   ],
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
-      __ATLAS_COMMIT__: JSON.stringify(atlasCommit),
       __BUILD_TIME__: JSON.stringify(buildTime),
-      __NODE_COUNT__: JSON.stringify(nodeCount),
-      __ARTIFACT_HASHES__: JSON.stringify(artifactHashes),
       __CHAT_ENABLED__: JSON.stringify(chatEnabled),
+      __REPO_URL__: JSON.stringify(repoUrl),
     },
   };
 });

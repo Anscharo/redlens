@@ -41,7 +41,7 @@ if (!API_KEY) {
 // ---------------------------------------------------------------------------
 let atlas;
 try {
-  atlas = JSON.parse(await fs.readFile(ATLAS_PATH, "utf8"));
+  atlas = JSON.parse(await fs.readFile(ATLAS_PATH, "utf8")).addresses;
 } catch (err) {
   if (err.code === "ENOENT") {
     console.error("public/addresses.atlas.json not found. Run `pnpm build:index` first.");

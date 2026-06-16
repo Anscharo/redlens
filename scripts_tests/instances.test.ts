@@ -14,7 +14,7 @@ const relations: Relations = JSON.parse(
 );
 const docs: Record<string, AtlasNode> = JSON.parse(
   fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"),
-);
+).nodes;
 
 const INSTANCE_SLUGS = new Set([
   "distribution-reward",

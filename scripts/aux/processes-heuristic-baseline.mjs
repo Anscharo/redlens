@@ -4,7 +4,7 @@
 // Run: node scripts/aux/processes-heuristic-baseline.mjs > .cache/processes-heuristic.json
 import fs from "node:fs";
 
-const docs = JSON.parse(fs.readFileSync("public/docs.json", "utf8"));
+const docs = JSON.parse(fs.readFileSync("public/docs.json", "utf8")).nodes;
 const processes = JSON.parse(fs.readFileSync("public/processes.json", "utf8"));
 
 const NON_STEP_TYPES = new Set([

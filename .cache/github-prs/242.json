@@ -1,0 +1,10 @@
+{
+  "number": 242,
+  "title": "Atlas Edit Proposal — 2026-05-11",
+  "body": "This proposal includes the following edits:\n\n- **Specify The Agent Termination Process In Root Edit Primitive** — Specifies the Agent Termination Process that each Prime Agent must incorporate into its Root Edit Primitive by September 1, 2026.\n- **Define Synome Documents And The Delegated Authority Update Process** — Defines Synome Documents, their relationship to Atlas Documents, and the delegated authority process for updating them.\n- **Update Freezer Multisig Configuration For Obex** — Updates the Obex Freezer Multisig signing threshold from 2/4 to 2/5, broadening control from the agent to include the Operational Executor Agent.\n- **Add Distribution Reward Instance For 1inch To Keel Artifact** — Adds 1inch as a Distribution Reward recipient under the Keel Artifact.\n- **Fix Incorrect Signer Rotation Registry References** — Removes Multisig Registry update instructions from the Signer Rotation sections, routing signer change notifications and threshold-reduction approvals to the Protocol Security Workstream Lead.\n- **Restore Short Term SKY Staking Rewards Rate** — Restores the rate for Short Term SKY Staking Rewards, updated to 50% of Step 2 Capital.\n- **Capitalize Spell And Spells Throughout The Atlas** — Capitalizes \"Spell\" and \"Spells\" throughout the Atlas as formally defined terms.\n- **Codify Prime Spell Process** — Codifies the four-week process Prime Agents follow to bring proposed actions through governance and into Sky Core Spells for on-chain execution.\n- **Fix Minor Inconsistencies Throughout The Atlas** — Fixes instances of \"Core Facilitators\" to the correct singular form reflecting the current governance structure; removes the \"Sky\" qualifier from \"Sky Core Facilitator\" where the context is unambiguous; fixes two typos, an incorrect UUID, and a stale citation.",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/242",
+  "commentCount": 1,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

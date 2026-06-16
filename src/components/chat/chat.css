@@ -1,5 +1,5 @@
 /* chat.css — styles + (tasteful) motion for the floating Atlas agent only.
-   The rest of RedLens stays calm; the agent surface is allowed to breathe.
+   The rest of Sky Atlas by Redline stays calm; the agent surface is allowed to breathe.
    Ported from docs/plans/design_handoff_floating_chat/chat/chat.css — inline
    styles from the prototype are folded into the .rlc-* classes here so the TSX
    stays free of inline-style objects (house rule). Tokens come from index.css. */

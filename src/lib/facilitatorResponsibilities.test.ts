@@ -12,7 +12,7 @@ const PUBLIC = path.join(ROOT, "public");
 
 const docs: Record<string, AtlasNode> = JSON.parse(
   fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"),
-);
+).nodes;
 const relations: { entities: GraphEntity[]; edges: RelationEdge[] } = JSON.parse(
   fs.readFileSync(path.join(PUBLIC, "relations.json"), "utf8"),
 );
@@ -35,7 +35,7 @@ const invocations = relations.entities.filter((e) => e.et === "invocation");
 const primitives = relations.entities.filter((e) => e.et === "primitive");
 
 const results = deriveResponsibilities(
-  { docs, byParent, docNoToId },
+  { docs, byParent, docNoToId, atlasCommit: null },
   { participants, instances, invocations, primitives, edges: relations.edges },
 );
 

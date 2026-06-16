@@ -1,16 +1,8 @@
 {
   "mcpServers": {
-    "redlens": {
+    "redline-atlas": {
       "type": "http",
-      "url": "https://redlens-mcp.anscharo.workers.dev/mcp"
-    },
-    "redlens-local": {
-      "type": "http",
-      "url": "http://localhost:8787/mcp"
-    },
-    "cloudflare": {
-      "command": "npx",
-      "args": ["-y", "@cloudflare/mcp-server-cloudflare"]
+      "url": "https://atlas.redline.support/mcp"
     }
   }
 }

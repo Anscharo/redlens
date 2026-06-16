@@ -6,6 +6,7 @@ export interface AtlasBundle {
   byParent: Map<string | null, AtlasNode[]>;
   /** doc_no → node id (for doc_no-based lookups) */
   docNoToId: Map<string, string>;
+  atlasCommit: string | null;
 }
 
 let cached: Promise<AtlasBundle> | null = null;
@@ -22,6 +23,7 @@ export function loadAtlas(): Promise<AtlasBundle> {
           worker.terminate();
           resolve({
             docs: msg.docs,
+            atlasCommit: msg.atlasCommit ?? null,
             byParent: new Map(msg.byParentEntries),
             docNoToId: new Map(msg.docNoToIdEntries),
           });

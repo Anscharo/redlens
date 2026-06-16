@@ -3,9 +3,9 @@
 // staleness) import these — a mismatch would silently re-embed everything or
 // nothing, so keep them here and nowhere else.
 //
-// Embed text = title + content (matches build-rag's buildEmbedText). NO
-// truncation: Qwen3's 32K context fits every atlas doc whole, which retires the
-// long-node chunking concern. content_hash excludes doc_no/parent/depth so a
+// Embed text = title + content. NO truncation: Qwen3's 32K context fits every
+// atlas doc whole, which retires the long-node chunking concern. content_hash
+// excludes doc_no/parent/depth so a
 // pure renumber doesn't churn embeddings.
 import { createHash } from "node:crypto";
 import type { AtlasNode } from "./indexes.ts";

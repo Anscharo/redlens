@@ -1,9 +1,9 @@
 import type { AtlasNode } from "../types";
-import { fetchJsonVerified } from "../lib/verify";
+import { fetchJson } from "../lib/verify";
 
 const BASE = import.meta.env.BASE_URL;
 
-function buildAndSend(docs: Record<string, AtlasNode>) {
+function buildAndSend(docs: Record<string, AtlasNode>, atlasCommit: string | null) {
   const docNoToId = new Map<string, string>();
   for (const node of Object.values(docs)) {
     docNoToId.set(node.doc_no, node.id);
@@ -57,11 +57,12 @@ function buildAndSend(docs: Record<string, AtlasNode>) {
   self.postMessage({
     type: "ready",
     docs,
+    atlasCommit,
     byParentEntries: Array.from(byParent.entries()),
     docNoToIdEntries: Array.from(docNoToId.entries()),
   });
 }
 
-fetchJsonVerified<Record<string, AtlasNode>>(`${BASE}docs.json`, "docs.json")
-  .then(buildAndSend)
+fetchJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>(`${BASE}docs.json`, "docs.json")
+  .then((f) => buildAndSend(f.nodes, f.atlasCommit ?? null))
   .catch((err) => self.postMessage({ type: "error", message: String(err) }));

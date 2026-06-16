@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { SearchHit, WorkerOutMessage } from "../types";
+import { loadAtlas } from "../lib/docs";
+import { loadAddresses } from "../lib/addresses";
 
 export type SearchState =
   | { status: "idle" }
@@ -56,6 +58,13 @@ export function useSearch() {
     });
 
     workerRef.current = worker;
+
+    // Forward already-loaded docs + addresses so the search worker doesn't
+    // fetch them again independently (avoids duplicate 5.6 MB downloads).
+    Promise.all([loadAtlas(), loadAddresses()]).then(([bundle, addresses]) => {
+      worker.postMessage({ type: "preload", docs: bundle.docs, addresses: addresses ?? {} });
+    }).catch(() => {});
+
     return () => worker.terminate();
   }, []);
 

@@ -45,12 +45,15 @@ export interface SearchHit {
 }
 
 // Worker message types — search
-export type WorkerInMessage = { type: "query"; id: number; q: string } | { type: "ping" };
+export type WorkerInMessage =
+  | { type: "query"; id: number; q: string }
+  | { type: "ping" }
+  | { type: "preload"; docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> };
 
 export type WorkerOutMessage =
   | { type: "ready" }
   | { type: "results"; id: number; hits: SearchHit[]; durationMs: number }
-  | { type: "error"; id: number; message: string };
+  | { type: "error"; id?: number; message: string }; // no id for init-time failures
 
 // ---------------------------------------------------------------------------
 // Graph types (relations.json — compact keys to minimise payload)

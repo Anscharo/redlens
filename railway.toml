@@ -5,7 +5,6 @@
 builder = "DOCKERFILE"
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 60
+startCommand = "bun run start"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
