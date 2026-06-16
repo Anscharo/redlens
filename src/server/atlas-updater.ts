@@ -1,10 +1,16 @@
 // In-process atlas freshness updater — DB-driven (Part E).
 // Polls sync_state.atlas_sha from Postgres every ~30s; on drift, reads
-// atlas_doc_meta content from the DB to rebuild public/docs.json and
+// atlas_doc_meta content from the DB (in ONE transactional snapshot, so the sha
+// label always matches the rows) to rebuild public/docs.json and
 // public/addresses.atlas.json, then runs build-graph + build-glossary
 // subprocesses (which read docs.json), mirrors to dist/, and patches the
-// live in-memory indexes via refreshInPlaceFromDisk. No git ls-remote, no
-// git fetch, no Postgres writes — all Postgres writes belong to the worker.
+// live in-memory indexes via refreshInPlaceFromDisk. No git, no Postgres writes
+// — all Postgres writes belong to the worker.
+//
+// Failure handling: a build that fails or doesn't converge is retried with
+// exponential backoff (never permanently skipped — that risked days of silent
+// staleness on the few-times-a-week cadence), and escalates to ERROR logs +
+// the freshness "stuck" status after ESCALATE_AFTER consecutive failures.
 import { spawn } from "node:child_process";
 import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -17,20 +23,53 @@ import type { AtlasNode } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
 
-// Pure trigger decision (unit-tested). `lastTried` is the target sha of a
-// build that COMPLETED but failed to advance the live sha; we don't re-trigger
-// until upstream moves again. A *failed* build does NOT set lastTried.
+// Pure trigger decision (unit-tested). Builds when there is drift and we are
+// not already building and the backoff window has elapsed. `now`/`nextAttemptAt`
+// (ms epoch) gate retries: a failed/non-converged build sets nextAttemptAt into
+// the future, so we re-poll cheaply but don't re-build until it passes.
 export function decide(s: {
   upstream: string | null;
   live: string | null;
   building: boolean;
-  lastTried: string | null;
+  now: number;
+  nextAttemptAt: number;
 }): Decision {
   if (s.building) return "idle";
   if (!s.upstream) return "idle";
   if (s.upstream === s.live) return "idle";
-  if (s.upstream === s.lastTried) return "idle";
+  if (s.now < s.nextAttemptAt) return "idle";
   return "build";
+}
+
+// Exponential backoff from the poll interval, capped. failures>=1.
+export function backoffMs(failures: number, base: number): number {
+  const cap = Number(process.env.ATLAS_UPDATE_MAX_BACKOFF_MS ?? 30 * 60_000);
+  return Math.min(base * 2 ** Math.min(failures - 1, 20), cap);
+}
+
+// Loud-log + freshness "stuck" threshold (consecutive failed/non-converged builds).
+const ESCALATE_AFTER = Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3);
+
+// Observable updater state, read by freshness.ts to distinguish a benign
+// not-yet-converged updater ("syncing") from one that is genuinely stuck.
+export interface UpdaterState {
+  building: boolean;
+  consecutiveFailures: number;
+  lastError: string | null;
+  // ms epoch when live first diverged from upstream and hasn't reconverged;
+  // null while converged. Drives the stuck alarm.
+  divergedSinceMs: number | null;
+  lastSuccessMs: number | null;
+}
+const updaterState: UpdaterState = {
+  building: false,
+  consecutiveFailures: 0,
+  lastError: null,
+  divergedSinceMs: null,
+  lastSuccessMs: null,
+};
+export function getUpdaterState(): Readonly<UpdaterState> {
+  return updaterState;
 }
 
 function spawnCollect(
@@ -62,19 +101,53 @@ export async function getDbAtlasSha(): Promise<string | null> {
   }
 }
 
+interface DocRow { id: string; doc_no: string; title: string; type: string; depth: number; parentId: string | null; content: string | null; order: number; }
+interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
+
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
 // run build-graph and build-glossary subprocesses (they read docs.json), then
-// mirror all public/*.json → dist/. This replaces the old refresh-atlas-build.mjs
-// subprocess which needed git. Returns true on success.
-async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promise<boolean> {
+// mirror all public/*.json → dist/. Returns the atlas sha actually built (read
+// inside the snapshot) on success, or null on failure/refusal.
+async function runRefreshFromDb(log: (m: string) => void): Promise<string | null> {
   try {
-    // 1. Read atlas_doc_meta → write public/docs.json
-    interface DocRow { id: string; doc_no: string; title: string; type: string; depth: number; parentId: string | null; content: string | null; order: number; }
-    const docRows = await sql<DocRow[]>`
-      SELECT id, doc_no, title, type, depth,
-             parent_id AS "parentId", content, ord AS "order"
-      FROM atlas_doc_meta ORDER BY ord
-    `;
+    // ── ⑥ single consistent snapshot: read the sha AND the rows in ONE
+    //    transaction, so the sha we stamp into docs.json always matches the
+    //    content we read (the worker can't commit a newer sha mid-read). ──
+    let dbSha: string | null = null;
+    let docRows: DocRow[] = [];
+    let addrRows: AddrRow[] = [];
+    await sql.begin(async (tx) => {
+      const st = await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`;
+      dbSha = (st[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
+      docRows = (await tx`
+        SELECT id, doc_no, title, type, depth,
+               parent_id AS "parentId", content, ord AS "order"
+        FROM atlas_doc_meta ORDER BY ord
+      `) as unknown as DocRow[];
+      addrRows = (await tx`
+        SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
+        FROM atlas_addresses
+      `) as unknown as AddrRow[];
+    });
+    if (!dbSha) {
+      log("refuse: sync_state has no atlas_sha");
+      return null;
+    }
+
+    // ── A.2 sanity floor gate: never swap to an empty or drastically smaller
+    //    doc set (a torn/half-truncated DB read). Refuse → keep last-good. ──
+    const liveCount = (() => { try { return getIndexes().docMap.size; } catch { return 0; } })();
+    const floorRatio = Number(process.env.ATLAS_MIN_DOC_RATIO ?? 0.5);
+    if (docRows.length === 0) {
+      log(`refuse: DB returned 0 docs (live has ${liveCount}) — keeping last-good`);
+      return null;
+    }
+    if (liveCount > 0 && docRows.length < liveCount * floorRatio) {
+      log(`refuse: DB doc count ${docRows.length} < ${Math.round(floorRatio * 100)}% of live ${liveCount} — keeping last-good`);
+      return null;
+    }
+
+    // 1. atlas_doc_meta → public/docs.json (stamped with the in-snapshot sha)
     const docMap: Record<string, AtlasNode> = {};
     for (const r of docRows) {
       docMap[r.id] = {
@@ -91,12 +164,7 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
     writeFileSync(join(config.publicDir, "docs.json"), JSON.stringify({ atlasCommit: dbSha, nodes: docMap }));
     log(`refresh-from-db: ${docRows.length} docs → public/docs.json`);
 
-    // 2. Read atlas_addresses → write public/addresses.atlas.json (seed for build-graph)
-    interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
-    const addrRows = await sql<AddrRow[]>`
-      SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
-      FROM atlas_addresses
-    `;
+    // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
     const addrAtlas: Record<string, object> = {};
     for (const r of addrRows) {
       addrAtlas[r.address] = {
@@ -109,17 +177,15 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
     }
     writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
-    // 3. Run build-graph subprocess (reads docs.json → writes graph.json, relations.json; enriches addresses.atlas.json)
+    // 3. build-graph subprocess (reads docs.json → graph.json, relations.json; enriches addresses.atlas.json)
     const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
     if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
 
-    // 4. Run build-glossary subprocess (reads docs.json → writes glossary.json)
+    // 4. build-glossary subprocess (reads docs.json → glossary.json)
     const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
     if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
 
     // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
-    //    No manifest.json is written: readArtifactsFromDisk derives atlasCommit from
-    //    graph.json meta / docs.json (both carry dbSha), so manifest is vestigial here.
     const distDir = config.distDir;
     if (existsSync(distDir)) {
       let n = 0;
@@ -129,16 +195,15 @@ async function runRefreshFromDb(dbSha: string, log: (m: string) => void): Promis
           n++;
         }
       }
-      // Drop stale search-index so refreshInPlaceFromDisk writes a fresh one
       const si = join(distDir, "search-index.json");
       if (existsSync(si)) unlinkSync(si);
       log(`refresh-from-db: mirrored ${n} json → dist/`);
     }
 
-    return true;
+    return dbSha;
   } catch (e) {
     log(`refresh-from-db error: ${(e as Error).message}`);
-    return false;
+    return null;
   }
 }
 
@@ -178,7 +243,9 @@ export function startUpdater(): void {
   const log = (m: string) => console.log(`atlas-updater: ${m}`);
 
   let building = false;
-  let lastTried: string | null = null;
+  let consecutiveFailures = 0;
+  let nextAttemptAt = 0;
+  let failingTarget: string | null = null;
 
   log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
 
@@ -186,38 +253,70 @@ export function startUpdater(): void {
     try {
       const upstream = await getDbAtlasSha();
       const live = getIndexes().meta.atlasCommit ?? null;
-      if (decide({ upstream, live, building, lastTried }) === "build") {
+
+      // Divergence clock (drives the stuck alarm): set when live first differs
+      // from a known upstream, cleared on convergence / no-drift.
+      if (upstream && live !== upstream) {
+        if (updaterState.divergedSinceMs === null) updaterState.divergedSinceMs = Date.now();
+      } else {
+        updaterState.divergedSinceMs = null;
+      }
+
+      // A fresh upstream target resets backoff — it deserves an immediate try.
+      if (upstream && upstream !== failingTarget) {
+        failingTarget = null;
+        consecutiveFailures = 0;
+        nextAttemptAt = 0;
+      }
+
+      if (decide({ upstream, live, building, now: Date.now(), nextAttemptAt }) === "build") {
         building = true;
+        updaterState.building = true;
         log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
-        const ok = await runRefreshFromDb(upstream!, log);
-        if (ok) {
+
+        const builtSha = await runRefreshFromDb(log);
+        let converged = false;
+        if (builtSha) {
           let newSha: string | null;
           try {
             const d = refreshInPlaceFromDisk(getIndexes());
-            // refreshInPlaceFromDisk already set meta.atlasCommit from the freshly
-            // written docs.json/graph.json (both carry dbSha === upstream); read it
-            // back as the convergence signal rather than asserting it.
             newSha = getIndexes().meta.atlasCommit ?? null;
             log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
           } catch (e) {
             log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
             newSha = rebuildFromDisk().meta.atlasCommit ?? null;
           }
-          if (newSha === upstream) {
-            log(`updated → live now ${short(newSha)}`);
-            if (newSha) broadcastAtlasUpdate(newSha);
-            lastTried = null;
-          } else {
-            lastTried = upstream;
-            log(`WARNING updated but live is ${short(newSha)} (expected ${short(upstream)}); not retrying this target`);
-          }
+          converged = newSha === builtSha;
+          if (!converged) log(`WARNING built ${short(builtSha)} but live is ${short(newSha)}`);
+        }
+
+        if (converged) {
+          consecutiveFailures = 0;
+          failingTarget = null;
+          nextAttemptAt = 0;
+          updaterState.consecutiveFailures = 0;
+          updaterState.lastError = null;
+          updaterState.lastSuccessMs = Date.now();
+          updaterState.divergedSinceMs = null;
+          log(`updated → live now ${short(builtSha)}`);
+          if (builtSha) broadcastAtlasUpdate(builtSha);
         } else {
-          log("refresh-from-db failed — will retry next interval");
+          // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
+          failingTarget = upstream;
+          consecutiveFailures++;
+          const wait = backoffMs(consecutiveFailures, intervalMs);
+          nextAttemptAt = Date.now() + wait;
+          updaterState.consecutiveFailures = consecutiveFailures;
+          updaterState.lastError = builtSha ? "did not converge after rebuild" : "refresh-from-db refused/failed";
+          const level = consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
+          log(`${level}: build for ${short(upstream)} failed (attempt ${consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
         }
         building = false;
+        updaterState.building = false;
       }
     } catch (e) {
       building = false;
+      updaterState.building = false;
       log(`tick error: ${(e as Error).message}`);
     } finally {
       setTimeout(tick, intervalMs).unref?.();

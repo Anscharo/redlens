@@ -178,11 +178,33 @@ c. **Deploy.** Railway redeploys the web service automatically on push or
 a. **Health check:**
    ```bash
    curl https://<your-domain>/api/health
-   # → { "status": "ok", "atlas_sha": "...", "docs": N }
+   # → { "status":"ok", "atlas_sha":"...", "db_sha":"...", "age_seconds":N,
+   #     "schema":"00X_...", "required_schema":"00X_...", "db_reachable":true, "docs":N }
    ```
+   `/api/health` is **liveness** — it always returns HTTP 200 while the process
+   is up (a stale snapshot must not restart-loop a healthy container), and
+   reports the freshness `status` in the body.
 
-b. **Web service boot logs** — look for `db: connected`, `sync:atlas — done`,
-   and `listening on :3000`.
+   For **alerting**, point an uptime monitor at `/api/freshness`, which is
+   status-coded:
+   ```bash
+   curl -i https://<your-domain>/api/freshness
+   # 200 → status "ok" | "syncing"   (healthy: converged, or briefly catching up)
+   # 503 → status "stuck"            (updater hasn't converged past ATLAS_STUCK_SECONDS)
+   #     | "stale"                   (no worker sync in ATLAS_STALE_SECONDS — worker likely dead)
+   #     | "schema_behind"           (DB schema older than this image requires)
+   #     | "degraded"                (DB unreachable)
+   ```
+   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 48h —
+   matches the few-times-a-week atlas cadence), `ATLAS_STUCK_SECONDS` (default
+   30m), `ATLAS_MIN_DOC_RATIO` (default 0.5 — refuse a hot-swap if the DB doc
+   count drops below this fraction of the live count), `ATLAS_UPDATE_MAX_BACKOFF_MS`
+   (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER` (default 3).
+
+b. **Web service boot logs** — look for `db: connected`, `migrations: …`,
+   `sync:atlas — done`, and `listening on :3000`. Migrations run at web boot
+   now (advisory-locked, race-safe with the worker), so a redeploy that ships a
+   new migration applies it even on an already-seeded DB.
 
 c. **Worker logs** — after the first cron fires (~12 min), look for
    `atlas-worker: done in Xs`. The `atlas_sha` in `/api/health` will advance.
