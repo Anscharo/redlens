@@ -40,3 +40,8 @@ RUN git clone --no-single-branch \
       https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas
 
 # No build step — the worker runs scripts at runtime, not a compiled bundle.
+
+# Default entry point. Railway's railway.worker.toml startCommand overrides this,
+# but it makes the image self-contained when run directly (local debugging /
+# non-Railway deploys) instead of starting and exiting with no entry point.
+CMD ["bun", "scripts/required/atlas-worker.mjs"]

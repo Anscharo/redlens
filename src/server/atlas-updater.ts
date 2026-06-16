@@ -119,7 +119,10 @@ export async function getDbAtlasSha(): Promise<string | null> {
   try {
     const rows = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
     return (rows[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
-  } catch {
+  } catch (e) {
+    // Surface the failure category (table not yet created vs connection
+    // refused vs pool exhausted) — otherwise it idles silently in decide().
+    console.warn(`atlas-updater: getDbAtlasSha failed: ${(e as Error).message}`);
     return null;
   }
 }
