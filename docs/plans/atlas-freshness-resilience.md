@@ -31,14 +31,18 @@ follow-up:
 - **Single-transaction snapshot read** — sha + doc/address rows read in one
   `sql.begin`; `docs.json` stamped with the in-snapshot sha so label matches
   content.
-- **Sanity floor gate** — refuse a hot-swap to 0 docs / below
-  `ATLAS_MIN_DOC_RATIO` of the live count; keep last-good.
 - **Stuck alarm** — updater publishes `divergedSinceMs`; freshness distinguishes
   a benign `syncing` from a genuinely `stuck` updater.
 
+A doc-count floor gate was considered (refuse a swap on a large drop) and
+**deliberately dropped**: the worker writes docs + `sync_state` in one
+transaction and the updater reads them in one snapshot, so a present sha already
+implies a complete doc set — a count delta carries no torn-read signal, and
+gating on it would wrongly refuse legitimate large atlas deletions (pinning the
+reader to a stale version forever, the exact failure this work removes).
+
 Tunables: `ATLAS_STALE_SECONDS` (48h), `ATLAS_STUCK_SECONDS` (30m),
-`ATLAS_MIN_DOC_RATIO` (0.5), `ATLAS_UPDATE_MAX_BACKOFF_MS` (30m),
-`ATLAS_UPDATE_ESCALATE_AFTER` (3).
+`ATLAS_UPDATE_MAX_BACKOFF_MS` (30m), `ATLAS_UPDATE_ESCALATE_AFTER` (3).
 
 ## Deferred — ② atomic publish via live-as-bundle (do with preview / PR #79)
 
@@ -69,13 +73,36 @@ versioned scheme, served via a `current` pointer the updater flips atomically:
 **Wins:** whole-set atomicity (never a torn cross-file read); A.2 "keep
 last-good" becomes "don't flip the pointer" (instant rollback, previous bundle
 still on disk); one serving mechanism for live + preview; natural substrate for
-time-travel. The sanity floor gate and convergence logic from PR #70 stay; only
-*where artifacts land and how they're published* changes.
+time-travel. The convergence/retry logic from PR #70 stays; only *where
+artifacts land and how they're published* changes.
 
 **Note:** preview's sweeper already does "stale-vs-main eviction after the
 updater hot-swaps main" and keys `PreviewMeta.baseAtlasCommit` off main's sha —
 so preview already depends on knowing main's version. Live-as-bundle makes that
 coupling explicit instead of implicit.
+
+## Code-review follow-ups
+
+A high-effort review of this work surfaced 10 findings. Resolved: floor-gate
+removal; stuck-alarm hardening (always-on default + convergence-only divergence
+clock + crash-proof self-scheduling loop); honest CI health assertion
+(HTTP 200 + `db_reachable`, not the status enum); per-file/advisory-lock
+migration runner with non-transactional opt-out (`-- migrate:no-transaction`);
+shared `docRowToNode`/`writeDocsJson` so the DB→docs.json path can't silently
+drift from the worker build; split freshness DB reads so a `schema_migrations`
+failure isn't mislabeled `degraded`; folded the updater's retry bookkeeping into
+the single `updaterState`.
+
+Deferred:
+- **#7** — cache the schema version / batch the two freshness reads (they're
+  serial on a polled path; schema version is runtime-invariant). `TODO(#7)` in
+  `freshness.ts`.
+- **#8** — key the retry/divergence bookkeeping off the in-snapshot `builtSha`
+  rather than the tick's `upstream` (a worker advance mid-tick can skip one
+  backoff step). Minor, self-healing.
+- **#10** — `REQUIRED_SCHEMA` + schema compare are lexical on filenames (breaks
+  at the 1000th migration / non-padded names). Parse the leading integer or add
+  a convention guard.
 
 ## Still open
 

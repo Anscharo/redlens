@@ -16,10 +16,10 @@ import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from
 import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
-import { getIndexes, rebuildFromDisk } from "./indexes.ts";
+import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson } from "./indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
-import type { AtlasNode } from "./indexes.ts";
+import type { AtlasNode, DocMetaRow } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
 
@@ -47,11 +47,28 @@ export function backoffMs(failures: number, base: number): number {
   return Math.min(base * 2 ** Math.min(failures - 1, 20), cap);
 }
 
+// Pure: next value of the divergence clock (unit-tested). Set on first
+// divergence from a KNOWN upstream; cleared ONLY on real convergence
+// (live === upstream); a null/unknown upstream preserves the prior value so a
+// transient DB read failure can't keep restarting the stuck timer.
+export function nextDivergedSince(
+  prev: number | null,
+  upstream: string | null,
+  live: string | null,
+  now: number,
+): number | null {
+  if (!upstream) return prev;
+  if (live === upstream) return null;
+  return prev ?? now;
+}
+
 // Loud-log + freshness "stuck" threshold (consecutive failed/non-converged builds).
 const ESCALATE_AFTER = Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3);
 
-// Observable updater state, read by freshness.ts to distinguish a benign
-// not-yet-converged updater ("syncing") from one that is genuinely stuck.
+// Single source of truth for updater state — read by freshness.ts (to tell a
+// benign "syncing" from a genuinely "stuck" updater) and mutated only by the
+// tick loop. Folding the retry bookkeeping (nextAttemptAt/failingTarget) in
+// here too avoids a second copy in the loop's closure that could silently desync.
 export interface UpdaterState {
   building: boolean;
   consecutiveFailures: number;
@@ -60,6 +77,10 @@ export interface UpdaterState {
   // null while converged. Drives the stuck alarm.
   divergedSinceMs: number | null;
   lastSuccessMs: number | null;
+  // Retry gate: earliest ms epoch for the next build attempt, and the sha that
+  // build is backing off on (so a fresh upstream resets the backoff).
+  nextAttemptAt: number;
+  failingTarget: string | null;
 }
 const updaterState: UpdaterState = {
   building: false,
@@ -67,6 +88,8 @@ const updaterState: UpdaterState = {
   lastError: null,
   divergedSinceMs: null,
   lastSuccessMs: null,
+  nextAttemptAt: 0,
+  failingTarget: null,
 };
 export function getUpdaterState(): Readonly<UpdaterState> {
   return updaterState;
@@ -101,7 +124,6 @@ export async function getDbAtlasSha(): Promise<string | null> {
   }
 }
 
-interface DocRow { id: string; doc_no: string; title: string; type: string; depth: number; parentId: string | null; content: string | null; order: number; }
 interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
 
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
@@ -114,7 +136,7 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     //    transaction, so the sha we stamp into docs.json always matches the
     //    content we read (the worker can't commit a newer sha mid-read). ──
     let dbSha: string | null = null;
-    let docRows: DocRow[] = [];
+    let docRows: DocMetaRow[] = [];
     let addrRows: AddrRow[] = [];
     await sql.begin(async (tx) => {
       const st = await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`;
@@ -123,7 +145,7 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
         SELECT id, doc_no, title, type, depth,
                parent_id AS "parentId", content, ord AS "order"
         FROM atlas_doc_meta ORDER BY ord
-      `) as unknown as DocRow[];
+      `) as unknown as DocMetaRow[];
       addrRows = (await tx`
         SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
         FROM atlas_addresses
@@ -133,35 +155,16 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
       log("refuse: sync_state has no atlas_sha");
       return null;
     }
-
-    // ── A.2 sanity floor gate: never swap to an empty or drastically smaller
-    //    doc set (a torn/half-truncated DB read). Refuse → keep last-good. ──
-    const liveCount = (() => { try { return getIndexes().docMap.size; } catch { return 0; } })();
-    const floorRatio = Number(process.env.ATLAS_MIN_DOC_RATIO ?? 0.5);
-    if (docRows.length === 0) {
-      log(`refuse: DB returned 0 docs (live has ${liveCount}) — keeping last-good`);
-      return null;
-    }
-    if (liveCount > 0 && docRows.length < liveCount * floorRatio) {
-      log(`refuse: DB doc count ${docRows.length} < ${Math.round(floorRatio * 100)}% of live ${liveCount} — keeping last-good`);
-      return null;
-    }
+    // No doc-count floor gate: the worker writes docs + sync_state in ONE
+    // transaction and we read them back in ONE snapshot, so a present sha always
+    // implies a complete doc set. A doc-count delta carries no torn-read signal
+    // here — gating on it would only wrongly refuse legitimate large atlas
+    // deletions (and pin the reader to a stale version forever).
 
     // 1. atlas_doc_meta → public/docs.json (stamped with the in-snapshot sha)
     const docMap: Record<string, AtlasNode> = {};
-    for (const r of docRows) {
-      docMap[r.id] = {
-        id: r.id,
-        doc_no: r.doc_no,
-        title: r.title,
-        type: r.type,
-        depth: r.depth,
-        parentId: r.parentId,
-        content: r.content ?? "",
-        order: r.order,
-      };
-    }
-    writeFileSync(join(config.publicDir, "docs.json"), JSON.stringify({ atlasCommit: dbSha, nodes: docMap }));
+    for (const r of docRows) docMap[r.id] = docRowToNode(r);
+    writeDocsJson(config.publicDir, dbSha, docMap);
     log(`refresh-from-db: ${docRows.length} docs → public/docs.json`);
 
     // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
@@ -230,47 +233,45 @@ export function startBootEmbeddings(): void {
   })();
 }
 
-// Start the periodic DB-drift checker. No-op unless ATLAS_UPDATE_ENABLED is set.
+// Start the periodic DB-drift checker. ON by default in every real deploy of
+// this server (it IS the single-replica freshness mechanism); ATLAS_UPDATE_ENABLED=0
+// is a kill switch to disable it out-of-band (no redeploy) if it ever misbehaves.
 // Uses a self-scheduling timer (not setInterval) so ticks never overlap.
 export function startUpdater(): void {
-  const enabled = process.env.ATLAS_UPDATE_ENABLED === "1" || process.env.ATLAS_UPDATE_ENABLED === "true";
-  if (!enabled) {
-    console.log("atlas-updater: disabled (set ATLAS_UPDATE_ENABLED=1 to enable)");
+  const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
+  if (disabled) {
+    console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");
     return;
   }
   // Default 30s: polling sync_state is a cheap DB query, not a network call to GitHub.
   const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 30_000);
   const log = (m: string) => console.log(`atlas-updater: ${m}`);
 
-  let building = false;
-  let consecutiveFailures = 0;
-  let nextAttemptAt = 0;
-  let failingTarget: string | null = null;
-
   log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
+
+  // Schedule the next tick. The arrow + .catch() guarantees the self-scheduling
+  // loop can NEVER surface an unhandled rejection or die: tick() is fully
+  // try/catch/finally today, but passing it bare to setTimeout would drop a
+  // rejected promise on the floor if a future edit ever threw outside that guard.
+  const schedule = () =>
+    setTimeout(() => void tick().catch((e) => log(`tick rejected: ${(e as Error).message}`)), intervalMs).unref?.();
 
   async function tick(): Promise<void> {
     try {
       const upstream = await getDbAtlasSha();
       const live = getIndexes().meta.atlasCommit ?? null;
 
-      // Divergence clock (drives the stuck alarm): set when live first differs
-      // from a known upstream, cleared on convergence / no-drift.
-      if (upstream && live !== upstream) {
-        if (updaterState.divergedSinceMs === null) updaterState.divergedSinceMs = Date.now();
-      } else {
-        updaterState.divergedSinceMs = null;
-      }
+      // Divergence clock (drives the stuck alarm) — see nextDivergedSince.
+      updaterState.divergedSinceMs = nextDivergedSince(updaterState.divergedSinceMs, upstream, live, Date.now());
 
       // A fresh upstream target resets backoff — it deserves an immediate try.
-      if (upstream && upstream !== failingTarget) {
-        failingTarget = null;
-        consecutiveFailures = 0;
-        nextAttemptAt = 0;
+      if (upstream && upstream !== updaterState.failingTarget) {
+        updaterState.failingTarget = null;
+        updaterState.consecutiveFailures = 0;
+        updaterState.nextAttemptAt = 0;
       }
 
-      if (decide({ upstream, live, building, now: Date.now(), nextAttemptAt }) === "build") {
-        building = true;
+      if (decide({ upstream, live, building: updaterState.building, now: Date.now(), nextAttemptAt: updaterState.nextAttemptAt }) === "build") {
         updaterState.building = true;
         log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
 
@@ -291,10 +292,9 @@ export function startUpdater(): void {
         }
 
         if (converged) {
-          consecutiveFailures = 0;
-          failingTarget = null;
-          nextAttemptAt = 0;
           updaterState.consecutiveFailures = 0;
+          updaterState.failingTarget = null;
+          updaterState.nextAttemptAt = 0;
           updaterState.lastError = null;
           updaterState.lastSuccessMs = Date.now();
           updaterState.divergedSinceMs = null;
@@ -302,28 +302,25 @@ export function startUpdater(): void {
           if (builtSha) broadcastAtlasUpdate(builtSha);
         } else {
           // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
-          failingTarget = upstream;
-          consecutiveFailures++;
-          const wait = backoffMs(consecutiveFailures, intervalMs);
-          nextAttemptAt = Date.now() + wait;
-          updaterState.consecutiveFailures = consecutiveFailures;
+          updaterState.failingTarget = upstream;
+          updaterState.consecutiveFailures++;
+          const wait = backoffMs(updaterState.consecutiveFailures, intervalMs);
+          updaterState.nextAttemptAt = Date.now() + wait;
           updaterState.lastError = builtSha ? "did not converge after rebuild" : "refresh-from-db refused/failed";
-          const level = consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
-          log(`${level}: build for ${short(upstream)} failed (attempt ${consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
+          const level = updaterState.consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
+          log(`${level}: build for ${short(upstream)} failed (attempt ${updaterState.consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
         }
-        building = false;
         updaterState.building = false;
       }
     } catch (e) {
-      building = false;
       updaterState.building = false;
       log(`tick error: ${(e as Error).message}`);
     } finally {
-      setTimeout(tick, intervalMs).unref?.();
+      schedule();
     }
   }
 
-  setTimeout(tick, intervalMs).unref?.();
+  schedule();
 }
 
 function short(sha: string | null): string {

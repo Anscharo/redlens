@@ -1,6 +1,6 @@
 // Run under `bun test` (NOT vitest) — see vitest.config.ts exclude of src/server.
 import { describe, it, expect } from "bun:test";
-import { decide, backoffMs } from "./atlas-updater.ts";
+import { decide, backoffMs, nextDivergedSince } from "./atlas-updater.ts";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -29,6 +29,30 @@ describe("decide", () => {
 
   it("re-builds the SAME target once the backoff window elapses (never a permanent skip)", () => {
     expect(decide({ upstream: B, live: A, building: false, now: T + 6000, nextAttemptAt: T + 5000 })).toBe("build");
+  });
+});
+
+describe("nextDivergedSince", () => {
+  it("starts the clock on first divergence from a known upstream", () => {
+    expect(nextDivergedSince(null, B, A, T)).toBe(T);
+  });
+
+  it("keeps the original start time while divergence persists (does not reset)", () => {
+    expect(nextDivergedSince(T, B, A, T + 9999)).toBe(T);
+  });
+
+  it("clears the clock only on real convergence (live === upstream)", () => {
+    expect(nextDivergedSince(T, A, A, T + 100)).toBe(null);
+  });
+
+  it("preserves the clock on a transient null upstream (DB blip) — no restart", () => {
+    // The bug this guards: a null upstream must NOT clear an in-progress clock,
+    // or a flapping DB keeps the stuck alarm from ever firing.
+    expect(nextDivergedSince(T, null, A, T + 100)).toBe(T);
+  });
+
+  it("stays clear when converged and upstream momentarily unreadable", () => {
+    expect(nextDivergedSince(null, null, A, T)).toBe(null);
   });
 });
 

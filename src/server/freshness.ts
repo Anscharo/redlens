@@ -88,6 +88,10 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
   let ageSeconds: number | null = null;
   let schemaVersion: string | null = null;
   let dbReachable = true;
+  // sync_state read defines reachability — if THIS fails, the DB is down.
+  // TODO(#7): schema_migrations.max(id) is runtime-invariant (changes only at
+  // boot/cron) and these two reads are serial on a frequently-polled path —
+  // cache the schema version and/or batch the two queries into one round-trip.
   try {
     const [s] = await sql`SELECT atlas_sha, synced_at FROM sync_state WHERE id = 1`;
     const row = s as { atlas_sha?: string; synced_at?: string | Date } | undefined;
@@ -95,10 +99,19 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
     if (row?.synced_at) {
       ageSeconds = Math.max(0, Math.round((now - new Date(row.synced_at).getTime()) / 1000));
     }
-    const [m] = await sql`SELECT max(id) AS v FROM schema_migrations`;
-    schemaVersion = (m as { v?: string } | undefined)?.v ?? null;
   } catch {
     dbReachable = false;
+  }
+  // Schema version is a SEPARATE concern: a failure here (e.g. the table is
+  // absent after a rolled-back boot migration) must not flip dbReachable and
+  // mislabel a reachable DB as "degraded". Left null → not flagged schema_behind.
+  if (dbReachable) {
+    try {
+      const [m] = await sql`SELECT max(id) AS v FROM schema_migrations`;
+      schemaVersion = (m as { v?: string } | undefined)?.v ?? null;
+    } catch {
+      schemaVersion = null;
+    }
   }
 
   const input: FreshnessInput = { liveSha, dbSha, ageSeconds, divergedAgeSeconds, schemaVersion, dbReachable };

@@ -195,5 +195,5 @@ void (async () => {
 // Refresh embeddings on boot (first deploy + every redeploy), detached + best-effort.
 startBootEmbeddings();
 
-// In-process atlas freshness updater (no-op unless ATLAS_UPDATE_ENABLED is set).
+// In-process atlas freshness updater (on by default; ATLAS_UPDATE_ENABLED=0 disables).
 startUpdater();

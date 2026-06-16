@@ -90,14 +90,13 @@ For a condensed variable-name cheat sheet, see [railway-env-vars.md](./railway-e
 
 ```bash
 railway variables --set 'OPENROUTER_API_KEY=sk-or-...' --service redlens-atlas
-railway variables --set 'ATLAS_UPDATE_ENABLED=1'        --service redlens-atlas
 ```
 
 | Variable | Value | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Set in step 2d |
 | `OPENROUTER_API_KEY` | `sk-or-…` | Semantic search embeddings + chat |
-| `ATLAS_UPDATE_ENABLED` | `1` | Enables the in-process DB poller |
+| `ATLAS_UPDATE_ENABLED` | _(unset)_ | In-process DB poller, **on by default**; set `0` only as a kill switch to disable it |
 
 ## 4. Add the atlas worker cron service
 
@@ -197,9 +196,8 @@ a. **Health check:**
    ```
    Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 48h —
    matches the few-times-a-week atlas cadence), `ATLAS_STUCK_SECONDS` (default
-   30m), `ATLAS_MIN_DOC_RATIO` (default 0.5 — refuse a hot-swap if the DB doc
-   count drops below this fraction of the live count), `ATLAS_UPDATE_MAX_BACKOFF_MS`
-   (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER` (default 3).
+   30m), `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
+   (default 3).
 
 b. **Web service boot logs** — look for `db: connected`, `migrations: …`,
    `sync:atlas — done`, and `listening on :3000`. Migrations run at web boot
@@ -352,8 +350,10 @@ likely failed to clone the atlas — check the Railway build logs for the
 works. Check the key and your OpenRouter balance.
 
 **Atlas text never updates without a redeploy**
-→ `ATLAS_UPDATE_ENABLED` isn't set to `1` on the web service (step 3b), or
-the worker isn't running (check its Deployments tab and logs).
+→ the in-process poller was disabled via `ATLAS_UPDATE_ENABLED=0` on the web
+service, or the worker isn't running (check its Deployments tab and logs).
+`/api/freshness` will show `stale` (worker down) or `stuck` (poller not
+converging).
 
 **History tab is empty / always empty**
 → The worker hasn't run yet, or `DATABASE_URL` is not set on the worker
