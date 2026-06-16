@@ -89,7 +89,7 @@ pnpm preview # serve the production build locally
 | `build:index` | Parses Sky Atlas.md → node index + full-text search index |
 | `build:glossary` | Extracts Definitions sections → glossary lookup |
 | `build:addresses` | Enriches on-chain addresses from chainlog + Etherscan → address metadata |
-| `build:snapshot` | Reads view-function values via RPC → chain state pinned to a block |
+| `snap:chainstate` | Reads view-function values via RPC → chain state pinned to a block |
 | `build:graph` | Extracts typed relationships from the atlas text → graph artifacts |
 | `build:manifest` | sha256 digest of all artifacts → integrity manifest |
 

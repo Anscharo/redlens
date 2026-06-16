@@ -19,7 +19,7 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 pnpm build:index     # parses content/** → public/docs.json + public/search-index.json + public/addresses.atlas.json (chain only; annotation added by build-graph)
 pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
-pnpm build:snapshot  # viem multicall snapshots → public/chain-state.json
+pnpm snap:chainstate  # viem multicall snapshots → public/chain-state.json
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
 pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
 pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json

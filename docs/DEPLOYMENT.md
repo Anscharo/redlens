@@ -311,7 +311,7 @@ which hits Etherscan or an RPC endpoint. On-chain data (`addresses.json`,
 - **Submodule pointer in git** stays current via the hourly atlas-update
   workflow, keeping CI + graph snapshots in sync.
 - **On-chain data** (`addresses.json`, `chain-state.json`) refreshes on its
-  own cadence via `build:addresses` / `build:snapshot` — separate from the
+  own cadence via `build:addresses` / `snap:chainstate` — separate from the
   atlas loop and not automated by default.
 
 ## Troubleshooting
