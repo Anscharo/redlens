@@ -125,7 +125,7 @@ run("pnpm build:graph");
 
 if (block != null) {
   console.log(`\nRunning build:snapshot at block ${block}`);
-  runWithEnv("pnpm build:snapshot", { BLOCK_NUMBER: String(block) });
+  runWithEnv("pnpm snap:chainstate", { BLOCK_NUMBER: String(block) });
 
   // Pin this block for future reproducible builds at this atlas SHA
   pinBlock(resolvedSha, block);

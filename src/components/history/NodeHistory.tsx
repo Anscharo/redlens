@@ -12,10 +12,10 @@ const PRE_MD_COMPARE_URL =
 function PreMdFooter() {
   return (
     <p
-      className="mono text-[10px] pl-3 pb-3 -mt-2 leading-snug"
-      style={{ color: "var(--tan-3)", borderLeft: "2px solid var(--border)" }}
+      className="mono text-[10px] px-2 py-2.5 leading-snug"
+      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
-      Before this commit the atlas was maintained as a single HTML file. 79 prior commits exist in the vendor repo —{" "}
+      Before 'Migrate To Markdown File' the atlas was maintained as a single HTML file. 79 prior commits exist in the vendor repo —{" "}
       <a
         href={PRE_MD_COMPARE_URL}
         target="_blank"

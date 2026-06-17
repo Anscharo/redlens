@@ -5,7 +5,7 @@
 //   - raw entity/edge arrays + adjacency maps for aggregate queries
 // Doc content lives here (not in Postgres); semantic search returns ids that
 // these maps resolve back to full nodes.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
@@ -22,6 +22,39 @@ export interface AtlasNode {
   content: string;
   contentHash?: string;
   addressRefs?: string[];
+}
+
+// atlas_doc_meta row shape (after column aliasing) — the inverse of sync.ts's
+// AtlasNode→row write. Shared so the in-process updater's DB→docs.json path
+// stays in lockstep with the worker build and never silently drops a field.
+export interface DocMetaRow {
+  id: string;
+  doc_no: string;
+  title: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  content: string | null;
+  order: number;
+}
+
+export function docRowToNode(r: DocMetaRow): AtlasNode {
+  return {
+    id: r.id,
+    doc_no: r.doc_no,
+    title: r.title,
+    type: r.type,
+    depth: r.depth,
+    parentId: r.parentId,
+    content: r.content ?? "",
+    order: r.order,
+  };
+}
+
+// The docs.json envelope contract ({ atlasCommit, nodes }) read by
+// readArtifactsFromDisk and the frontend. One writer, so the shape can't drift.
+export function writeDocsJson(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
+  writeFileSync(join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
 }
 
 export interface Entity {

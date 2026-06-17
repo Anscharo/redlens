@@ -13,9 +13,11 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
-import { handleHistory } from "./history.ts";
+import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
+import { runMigrations } from "./migrate.ts";
+import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -44,11 +46,33 @@ const server = Bun.serve({
   idleTimeout: 120,
 
   routes: {
-    "/api/health": () =>
-      Response.json(
-        { status: "ok", atlas_sha: ix.meta.atlasCommit ?? null, docs: ix.docMap.size },
+    // Liveness — ALWAYS 200 if the process is up. Body carries the freshness
+    // snapshot for humans; never fail this on staleness (would restart-loop a
+    // healthy container). Reads getIndexes() fresh so a post-fallback swap (which
+    // replaces the index object) is reflected — not the boot-captured `ix`.
+    "/api/health": async () => {
+      const f = await evaluateFreshness();
+      return Response.json(
+        {
+          status: f.status,
+          atlas_sha: f.liveSha,
+          db_sha: f.dbSha,
+          age_seconds: f.ageSeconds,
+          schema: f.schemaVersion,
+          required_schema: f.requiredSchema,
+          db_reachable: f.dbReachable,
+          docs: f.docs,
+        },
         { headers: CORS },
-      ),
+      );
+    },
+
+    // Freshness — status-coded for an external uptime monitor: 200 when ok or
+    // still converging, 503 when stale / schema-behind / DB unreachable.
+    "/api/freshness": async () => {
+      const f = await evaluateFreshness();
+      return Response.json(f, { status: freshnessHttpStatus(f.status), headers: CORS });
+    },
 
     "/api/atlas-events": () => {
       let unregister: (() => void) | null = null;
@@ -71,6 +95,8 @@ const server = Bun.serve({
       });
     },
 
+    // Static segment wins over the `:id` param route, so this matches first.
+    "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
@@ -126,6 +152,19 @@ console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
 void (async () => {
   try {
     await waitForDb();
+    // Apply migrations at boot, race-safe (advisory lock) against the worker
+    // cron and the seed spawn below. Critical: a redeploy that ships a new
+    // migration applies it HERE even on an already-seeded DB — otherwise the
+    // schema would only advance on the worker's next cron and DB-backed routes
+    // would error against missing columns until then. Failure is non-fatal: the
+    // atlas reader serves from disk artifacts without a DB, and the skew shows
+    // up at /api/freshness as schema_behind/degraded rather than crash-looping.
+    try {
+      const ran = await runMigrations();
+      if (ran.length) console.log(`migrations: applied ${ran.length} → ${ran.join(", ")}`);
+    } catch (e) {
+      console.error(`migrations: boot run failed (${(e as Error).message}) — serving on existing schema; see /api/freshness`);
+    }
     // to_regclass returns NULL (not an error) when the table doesn't exist yet,
     // so a genuinely fresh DB is distinguishable from a transient query failure.
     const reg = await sql`SELECT to_regclass('public.sync_state') AS t`;
@@ -156,5 +195,5 @@ void (async () => {
 // Refresh embeddings on boot (first deploy + every redeploy), detached + best-effort.
 startBootEmbeddings();
 
-// In-process atlas freshness updater (no-op unless ATLAS_UPDATE_ENABLED is set).
+// In-process atlas freshness updater (on by default; ATLAS_UPDATE_ENABLED=0 disables).
 startUpdater();
