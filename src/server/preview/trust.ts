@@ -53,9 +53,11 @@ export function effectivePrTier(t: TrustTier): Exclude<TrustTier, "refused"> {
 }
 
 // 24h cache. Trust changes slowly; this keeps us far under the search-API
-// rate limit even under hostile request churn.
+// rate limit even under hostile request churn. FIFO cap prevents unbounded
+// growth under adversarial churn with many distinct owners.
 const cache = new Map<string, { at: number; v: Trust }>();
 const TTL_MS = 24 * 60 * 60_000;
+const MAX_TRUST_CACHE = 1000;
 
 async function searchMergedCount(gh: GhClient, q: string): Promise<number> {
   const r = await gh.fetchJson(`/search/issues?q=${encodeURIComponent(q)}&per_page=1`);
@@ -89,5 +91,6 @@ export async function computeTrust(owner: string, gh: GhClient): Promise<Trust> 
 
   const v: Trust = { tier: tierFor(orgMerged, atlasMerged, accountAgeDays, whitelisted), orgMerged, atlasMerged, accountAgeDays };
   cache.set(owner, { at: now, v });
+  if (cache.size > MAX_TRUST_CACHE) cache.delete(cache.keys().next().value!);
   return v;
 }

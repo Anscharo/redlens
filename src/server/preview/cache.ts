@@ -129,8 +129,9 @@ export function evictLru(keep = KEEP, root = PREVIEW_DIR, skip?: Set<string>): s
       try {
         if (skip?.has(name)) return null;
         const full = path.join(root, name);
-        if (!fs.statSync(full).isDirectory()) return null;
-        return { sha: name, mtime: fs.statSync(full).mtimeMs, ready: bundleReady(name, root) };
+        const st = fs.statSync(full);
+        if (!st.isDirectory()) return null;
+        return { sha: name, mtime: st.mtimeMs, ready: bundleReady(name, root) };
       } catch {
         return null;
       }

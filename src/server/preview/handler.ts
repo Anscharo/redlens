@@ -76,6 +76,7 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
         }
       : { error: "not-found" };
   } else if (gateError(parsed)) {
+    // gateError always returns null — reserved for future grammar-level gates
     v = { error: "gate-rejected" };
   } else {
     v = await resolveRef(parsed, gh);
