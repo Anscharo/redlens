@@ -3,7 +3,7 @@
 // Bundles live under PREVIEW_DIR/<sha>/ — ephemeral by design (Railway wipes
 // /tmp on every restart/deploy; that's fine, everything regenerates from the
 // previews table's sha→repo map). Layout per sha:
-//   <sha>/atlas/      extracted content/** (build source)
+//   <sha>/src/        extracted content/** (build source)
 //   <sha>/out/        built artifacts (docs.json, relations.json, …)
 //   <sha>/meta.json   PreviewMeta (banner + interstitial)
 //
@@ -58,14 +58,14 @@ export interface PreviewMeta {
 
 export interface PreviewPaths {
   dir: string;
-  atlasDir: string;
+  srcDir: string;
   outDir: string;
   metaPath: string;
 }
 
 export function previewPaths(sha: string, root = PREVIEW_DIR): PreviewPaths {
   const dir = path.join(root, sha);
-  return { dir, atlasDir: path.join(dir, "atlas"), outDir: path.join(dir, "out"), metaPath: path.join(dir, "meta.json") };
+  return { dir, srcDir: path.join(dir, "src"), outDir: path.join(dir, "out"), metaPath: path.join(dir, "meta.json") };
 }
 
 /** A bundle is ready when its meta + the core artifact exist. */
@@ -129,8 +129,9 @@ export function evictLru(keep = KEEP, root = PREVIEW_DIR, skip?: Set<string>): s
       try {
         if (skip?.has(name)) return null;
         const full = path.join(root, name);
-        if (!fs.statSync(full).isDirectory()) return null;
-        return { sha: name, mtime: fs.statSync(full).mtimeMs, ready: bundleReady(name, root) };
+        const st = fs.statSync(full);
+        if (!st.isDirectory()) return null;
+        return { sha: name, mtime: st.mtimeMs, ready: bundleReady(name, root) };
       } catch {
         return null;
       }

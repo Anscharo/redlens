@@ -208,9 +208,7 @@ startUpdater();
 // stale-vs-main eviction after the updater hot-swaps main, LRU/orphan
 // collection). The previews migrations are applied by the always-on boot
 // runMigrations() above — no preview-specific migration call is needed.
-if (config.previewEnabled) {
-  void (async () => {
-    const { startPreviewSweeper } = await import("./preview/sweeper.ts");
-    startPreviewSweeper();
-  })();
-}
+void (async () => {
+  const { startPreviewSweeper } = await import("./preview/sweeper.ts");
+  startPreviewSweeper();
+})();

@@ -6,6 +6,8 @@ const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";
 
 // `page` cards route in-SPA (wouter Link); `href` cards leave the router —
 // /preview mounts its own shell, so it needs a plain full-load anchor.
+const PREVIEW_ENABLED = import.meta.env.VITE_PREVIEW_ENABLED === "true";
+
 const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
   {
     page: "atlas",
@@ -17,11 +19,17 @@ const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
     name: "Radar",
     desc: "View info about Parties in the Sky Ecosystem: Agents, Facilitators, Alignment Conservers and more",
   },
-  {
-    href: `${import.meta.env.BASE_URL}preview`,
-    name: "Preview",
-    desc: "Paste any atlas PR, branch, or fork URL and read it as a live redlined atlas — every changed section marked inline",
-  },
+  PREVIEW_ENABLED
+    ? {
+        href: `${import.meta.env.BASE_URL}preview`,
+        name: "Preview",
+        desc: "Paste any atlas PR, branch, or fork URL and read it as a live redlined atlas — every changed section marked inline",
+      }
+    : {
+        page: "reports" as NavPage,
+        name: "Reports",
+        desc: "Op Facilitator responsibilities, Active Data index, integrator rewards, and more",
+      },
 ];
 
 export function HomePage() {

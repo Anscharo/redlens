@@ -1,7 +1,6 @@
 // Handler dispatch + diff + artifact serving. Needs built main artifacts
 // (public/docs.json etc.) so diff has an in-memory baseline; skips otherwise.
-// Run via `bun test`. previewEnabled/PREVIEW_DIR are set before a dynamic import
-// so config + cache pick them up.
+// Run via `bun test`. PREVIEW_DIR is set before a dynamic import so cache picks it up.
 
 import { test, expect } from "bun:test";
 import fs from "node:fs";
@@ -14,10 +13,6 @@ const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
 async function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h-"));
   process.env.PREVIEW_DIR = dir;
-  // config is a singleton that may already be loaded (env-at-import won't take);
-  // flip the flag on the object directly so the handler isn't gated off.
-  const { config } = await import("../config.ts");
-  config.previewEnabled = true;
   const { loadIndexes, setIndexes, getIndexes } = await import("../indexes.ts");
   setIndexes(loadIndexes());
   const ix = getIndexes();

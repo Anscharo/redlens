@@ -38,6 +38,7 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
   if (meta === undefined) return null; // meta loading — blank beat, no flash of content
   const isFork = !!meta?.forkOwner && meta.trustTier !== "trusted";
   const lowTrustPr = !meta?.forkOwner && meta?.trustTier === "unknown";
+  // meta === null (fetch failed) → both false → fail open; our server's fault, fork banner still shows.
   if (!isFork && !lowTrustPr) return children;
 
   const owner = meta!.forkOwner ?? meta!.prAuthor ?? meta!.repo.split("/")[0];

@@ -53,11 +53,9 @@ export const config = {
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
 
-  // Preview feature (/api/preview/*): build any atlas PR/branch into a live
-  // redline reader. OFF by default — needs GITHUB_TOKEN + a migrated previews
-  // table; when off the routes 404. GITHUB_TOKEN does PR/branch resolution +
+  // Preview feature (/api/preview/*): always active server-side; surfaced in
+  // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
   // tarball downloads (previously only the worker needed GitHub access).
-  previewEnabled: process.env.PREVIEW_ENABLED === "1" || process.env.PREVIEW_ENABLED === "true",
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.

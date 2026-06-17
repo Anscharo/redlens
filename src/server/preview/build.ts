@@ -236,7 +236,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
 
       fs.rmSync(paths.dir, { recursive: true, force: true });
       fs.mkdirSync(paths.outDir, { recursive: true });
-      const { srcDir, docCount } = await fetchAndExtract(resolved.repo, sha, config.githubToken, paths.atlasDir);
+      const { srcDir, docCount } = await fetchAndExtract(resolved.repo, sha, config.githubToken, paths.srcDir);
 
       emit(f, { phase: "building", sha });
       const base = { ATLAS_SRC_DIR: srcDir, ATLAS_OUT_DIR: paths.outDir, ATLAS_COMMIT: sha };
