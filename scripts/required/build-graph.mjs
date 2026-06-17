@@ -894,15 +894,14 @@ const KEEP_ACTOR_EDGE_TYPES = new Set([
 ]);
 // Edge types that are graph.json-only (chatbot/MCP data, not browser UI):
 // funds_transfer is event data; authorized_rep_for points at forum-handle
-// individuals that would clutter the canvas; governance_channel /
-// emergency_response are omni-doc metadata for chat / forum indexing, not the
-// entity canvas.
+// individuals that would clutter the canvas; pending_transition is chat/MCP
+// handoff data. governance_channel / emergency_response stay in relations.json
+// — they feed the Radar "Contact" section (doc→entity, so they never reach the
+// entity↔entity canvas anyway).
 const OMIT_EDGE_TYPES = new Set([
   "parent_of",
   "funds_transfer",
   "authorized_rep_for",
-  "governance_channel",
-  "emergency_response",
   "pending_transition",
 ]);
 const pinnedActorIds = new Set(

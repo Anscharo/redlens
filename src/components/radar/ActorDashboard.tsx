@@ -5,6 +5,7 @@ import type { ActorProfile, ActorRelation, Recommendation } from "../../lib/acto
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, edgeLabel } from "../../lib/entityGraph";
 import { atlasHref, actorHref } from "../../lib/routes";
 import { ActorChain } from "./ActorChain";
+import { ActorContact } from "./ActorContact";
 import { ActorResponsibilities } from "./ActorResponsibilities";
 import { ActorRewards } from "./ActorRewards";
 import { ActorInstances } from "./ActorInstances";
@@ -146,6 +147,9 @@ export function ActorDashboard({ profile }: Props) {
           <div className="mb-6">
             <ActorChain chain={chain} currentSlug={entity.slug} />
           </div>
+
+          {/* Contact — governance channels + emergency response (Prime Agents) */}
+          <ActorContact contact={profile.contact} />
 
           {entity.et === "composite_party" && (
             <Section title="Composite Party">

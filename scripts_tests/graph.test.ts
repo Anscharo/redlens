@@ -726,10 +726,18 @@ describe("Pattern 22 — prime omni-doc governance metadata", () => {
     }
   });
 
-  it("omni governance metadata is graph.json-only (kept out of the browser canvas)", () => {
-    const relTypes = new Set(relations.edges.map((e) => e.e));
-    expect(relTypes.has("governance_channel")).toBe(false);
-    expect(relTypes.has("emergency_response")).toBe(false);
+  it("omni governance metadata reaches relations.json as doc → entity (for the Radar Contact section)", () => {
+    // Kept in the browser payload so the actor page can render Contact, but
+    // doc → entity so it never enters the entity↔entity canvas (buildEntityEdges
+    // filters ft === "entity" && tt === "entity").
+    const rel = relations.edges.filter(
+      (e) => e.e === "governance_channel" || e.e === "emergency_response",
+    );
+    expect(rel.length).toBeGreaterThan(0);
+    for (const e of rel) {
+      expect(e.ft).toBe("doc");
+      expect(e.tt).toBe("entity");
+    }
   });
 });
 
