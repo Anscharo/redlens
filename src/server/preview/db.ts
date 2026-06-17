@@ -82,7 +82,7 @@ export async function previewsTodayCountForOwner(owner: string): Promise<number>
     WHERE created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
       AND trust_tier = 'trusted'
       AND kind <> 'pr'
-      AND repo LIKE ${owner + "/%"}
+      AND starts_with(repo, ${owner + "/"})
   `) as { n: number }[];
   return rows[0]?.n ?? 0;
 }
