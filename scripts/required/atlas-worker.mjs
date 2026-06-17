@@ -33,6 +33,11 @@ import { SQL } from "bun";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
 
+// --no-fetch (or ATLAS_WORKER_NO_FETCH=1): build the CHECKED-OUT submodule commit
+// instead of fetching + checking out origin/main. Used by `pnpm dev` — local dev
+// builds the pinned commit you have, not upstream main (that's the cron's job).
+const NO_FETCH = process.argv.includes("--no-fetch") || process.env.ATLAS_WORKER_NO_FETCH === "1";
+
 function run(cmd, args, opts = {}) {
   console.log(`$ ${cmd} ${args.join(" ")}`);
   execFileSync(cmd, args, { stdio: "inherit", cwd: ROOT, ...opts });
@@ -51,9 +56,12 @@ function runAsync(cmd, args, opts = {}) {
 }
 
 async function getUpstreamSha() {
+  // Local dev (--no-fetch): the "upstream" is the checked-out submodule commit,
+  // so we sync the DB to exactly what's on disk. Otherwise: the tip of origin/main.
+  const ref = NO_FETCH ? ["rev-parse", "HEAD"] : ["ls-remote", "origin", "refs/heads/main"];
   try {
     const { stdout } = await new Promise((resolve, reject) => {
-      const child = spawn("git", ["-C", SUBMODULE, "ls-remote", "origin", "refs/heads/main"], {
+      const child = spawn("git", ["-C", SUBMODULE, ...ref], {
         stdio: ["ignore", "pipe", "inherit"],
         cwd: ROOT,
       });
@@ -95,7 +103,10 @@ async function main() {
   ]);
 
   const alreadyCurrent = upstreamSha && upstreamSha === syncState;
-  const noStaleEmbeds = staleCount === 0;
+  // In local --no-fetch mode don't gate on embeddings (dev usually has no API key;
+  // embeddings are optional) — fast-exit purely on the sha match so repeated
+  // `pnpm dev` runs are instant once the DB is current.
+  const noStaleEmbeds = NO_FETCH ? true : staleCount === 0;
 
   if (!full && alreadyCurrent && noStaleEmbeds) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — nothing to do`);
@@ -112,9 +123,13 @@ async function main() {
   await db.close();
 
   // ── Full build ────────────────────────────────────────────────────────────
-  console.log("atlas-worker: fetching atlas origin/main…");
-  run("git", ["-C", SUBMODULE, "fetch", "origin", "main"]);
-  run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
+  if (NO_FETCH) {
+    console.log("atlas-worker: --no-fetch — building the checked-out submodule commit (local dev)");
+  } else {
+    console.log("atlas-worker: fetching atlas origin/main…");
+    run("git", ["-C", SUBMODULE, "fetch", "origin", "main"]);
+    run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
+  }
 
   console.log("atlas-worker: build-index…");
   run("bun", ["scripts/required/build-index.mjs"]);

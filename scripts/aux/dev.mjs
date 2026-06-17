@@ -1,9 +1,13 @@
-// Dev runner: starts the Bun API server (src/server/index.ts) and Vite
-// together, prefixing each process's output with a colored [server] / [vite]
-// label so the interleaved logs in `pnpm dev` are distinguishable. Replaces the
-// old inline `bun … & vite & wait` script. FORCE_COLOR keeps each tool's own
-// colors alive even though we pipe their stdio through here.
+// Dev runner: a one-command local environment. First runs preflight() (Docker
+// daemon up → Postgres container up + healthy → migrations → atlas artifacts),
+// then starts the Bun API server (src/server/index.ts) and Vite together,
+// prefixing each process's output with a colored [server] / [vite] label so the
+// interleaved logs in `pnpm dev` are distinguishable. FORCE_COLOR keeps each
+// tool's own colors alive even though we pipe their stdio through here.
 import { spawn } from "node:child_process";
+import { preflight } from "./dev-preflight.mjs";
+
+await preflight();
 
 // Chat + auth are off by default (see vite.config.ts / src/server/config.ts).
 // One dev knob lights up both halves: set CHAT_ENABLED=1 or VITE_CHAT_ENABLED=1
