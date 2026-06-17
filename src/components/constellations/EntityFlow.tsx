@@ -110,9 +110,11 @@ function CardBody({ entity, onSelect }: {
   useEffect(() => {
     setEdgeResult(null);
     let cancelled = false;
-    getEdges(entity.id).then((r) => {
-      if (!cancelled) setEdgeResult(r);
-    });
+    getEdges(entity.id)
+      .then((r) => {
+        if (!cancelled) setEdgeResult(r);
+      })
+      .catch((err) => console.warn("graph edges request failed", err));
     return () => {
       cancelled = true;
     };

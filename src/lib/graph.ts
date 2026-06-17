@@ -70,6 +70,28 @@ const edgePending = new Map<string, (r: EdgeResult) => void>();
 const queryPending = new Map<number, (r: { neighborIds: string[]; topId: string | null }) => void>();
 const clusterPending = new Map<string, (ids: string[]) => void>();
 
+// If the worker dies mid-request the response never arrives, leaking the pending
+// callback and hanging the awaiting promise forever. Register every request with
+// a timeout that clears the entry and rejects, so callers can recover.
+const REQUEST_TIMEOUT_MS = 5000;
+
+function registerPending<K, V>(
+  map: Map<K, (v: V) => void>,
+  key: K,
+  resolve: (v: V) => void,
+  reject: (e: Error) => void,
+  label: string,
+): void {
+  const timer = setTimeout(() => {
+    map.delete(key);
+    reject(new Error(`graph worker ${label} request (${String(key)}) timed out`));
+  }, REQUEST_TIMEOUT_MS);
+  map.set(key, (v: V) => {
+    clearTimeout(timer);
+    resolve(v);
+  });
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
 
@@ -128,8 +150,8 @@ export function getConstellationInit(): Promise<ConstellationInit> {
 export async function getEdges(id: string): Promise<EdgeResult> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    edgePending.set(id, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(edgePending, id, resolve, reject, "edges");
     w.postMessage({ type: "edges", id });
   });
 }
@@ -140,8 +162,8 @@ export async function constellationQuery(
 ): Promise<{ neighborIds: string[]; topId: string | null }> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    queryPending.set(id, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(queryPending, id, resolve, reject, "constellation-query");
     w.postMessage({ type: "constellation-query", id, q });
   });
 }
@@ -149,8 +171,8 @@ export async function constellationQuery(
 export async function constellationCluster(agentId: string): Promise<string[]> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    clusterPending.set(agentId, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(clusterPending, agentId, resolve, reject, "constellation-cluster");
     w.postMessage({ type: "constellation-cluster", agentId });
   });
 }

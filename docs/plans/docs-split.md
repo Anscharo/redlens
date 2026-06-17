@@ -77,30 +77,51 @@ as a served file).
 
 ## Browser loading sequence
 
-Both files are fetched in parallel at startup. `docs-meta.json` wins the race:
+**Single-owner rule: each file crosses the network exactly once.** This matches
+the architecture already in place for `docs.json` — `atlas.worker` is the sole
+fetcher, and every other consumer (the main thread, `search.worker`) gets the
+data by `postMessage`, never by an independent fetch. The split preserves that
+ownership model; it does not introduce parallel fetches in multiple consumers.
 
-1. `docs-meta.json` arrives → atlas worker builds `byParent` / `docNoToId` →
-   sends tree to UI → **sidebar renders**
-2. `docs-content.json` arrives shortly after → merged into node map
-3. By the time the user clicks a node, content is ready with no spinner needed
+`atlas.worker` fetches **both** files and emits two messages:
 
-The data layer (`loadAtlas()` / `src/lib/docs.ts`) fires both fetches together
-and exposes the merged result. Components above it see no interface change —
-they still receive full `AtlasNode` objects. The only visible difference is that
-the tree appears sooner.
+1. `docs-meta.json` arrives → worker builds `byParent` / `docNoToId` → posts a
+   **`tree`** message (meta + lookup maps, no content) → **sidebar renders**
+2. `docs-content.json` arrives shortly after → merged into the node map → worker
+   posts a **`ready`** message with the complete `AtlasNode` map
+3. Main thread forwards the merged docs to `search.worker` via the existing
+   `preload` message — the search worker fetches no docs of its own
+4. By the time the user clicks a node, content is present with no spinner needed
+
+The data layer (`loadAtlas()` / `src/lib/docs.ts`) does not fetch — it spawns
+the atlas worker and resolves from the worker's messages, exactly as today. The
+`AtlasBundle` contract grows a two-phase shape: the tree/lookup maps resolve on
+the `tree` message (early), the full `content`-bearing node map resolves on the
+`ready` message (slightly later). Components downstream of the merged result see
+no interface change — they still receive full `AtlasNode` objects; only the tree
+appears sooner.
+
+We deliberately do **not** rely on the HTTP cache to dedupe fetches across
+consumers: parallel in-flight requests for the same URL are not reliably
+coalesced, so two consumers fetching `docs-content.json` "in parallel" can both
+hit the network. Single-owner + `postMessage` fan-out is the only guarantee.
 
 On very slow connections where content hasn't arrived yet, the existing node
 content loading skeleton handles the wait — no new loading states needed.
 
 ## Worker changes
 
-**`atlas.worker.ts`**: fetch `docs-meta.json` instead of `docs.json`. The
-worker only needs metadata to build the tree; it never uses `content`.
+**`atlas.worker.ts`**: fetch `docs-meta.json` **and** `docs-content.json` (it is
+the single owner of both). Build the tree from meta and post it immediately
+(`tree` message) so the sidebar can render before content lands; then merge
+content into the node map and post the complete docs (`ready` message).
 
-**`search.worker.ts`**: fetch both files. The search index (`search-index.json`)
-is pre-built; the worker uses docs for snippet generation (needs content) and
-result metadata (needs meta). Load both in parallel; index queries can begin as
-soon as the search index loads regardless.
+**`search.worker.ts`**: **no fetch change** — it continues to receive docs via
+the `preload` message from the main thread (which got them from the atlas
+worker). It only fetches its own pre-built `search-index.json`, as today. The
+worker uses the preloaded docs for snippet generation (content) and result
+metadata; index queries can begin as soon as `search-index.json` loads,
+regardless of when the preload arrives.
 
 **`graph.worker.ts`**: no change — loads `relations.json`, not `docs.json`.
 
@@ -114,16 +135,22 @@ naturally output both new files to the preview `out/` directory.
 - Add `docs-meta.json` and `docs-content.json`
 - Remove `docs.json` (no longer a browser artifact)
 
-## Interaction with SHA-keyed serving (future)
+## Prerequisite: SHA-keyed serving
 
-This split works cleanly with SHA-keyed artifact URLs. Both new files get
-`Cache-Control: immutable` cache headers. `window.__ATLAS_SHA__` injected into
-HTML gives the browser the URL without an extra round-trip:
+This split lands **after** `sha-keyed-serving.md`, which moves live atlas
+artifacts from flat `BASE_URL` paths to immutable, SHA-keyed URLs
+(`/api/atlas/<sha>/<name>.json`). Once that prerequisite is in:
 
-```
-/api/atlas/<sha>/docs-meta.json   Cache-Control: immutable, max-age=2592000
-/api/atlas/<sha>/docs-content.json  Cache-Control: immutable, max-age=2592000
-```
+- The two new files are added to the artifact allowlist and serve at
+  `/api/atlas/<sha>/docs-meta.json` and `/api/atlas/<sha>/docs-content.json`
+  automatically, with `Cache-Control: immutable`.
+- Consumers fetch `${base}docs-meta.json` where `base` is already sha-keyed
+  (`window.__ATLAS_SHA__` injected into the HTML) — the single-owner atlas-worker
+  loading design above is unaffected by the URL scheme.
+
+If for any reason the split lands first, both files simply serve flat under
+`BASE_URL` like `docs.json` does today; the only change at SHA-keying time is the
+allowlist entry.
 
 ## Files to change
 
@@ -131,9 +158,9 @@ HTML gives the browser the URL without an extra round-trip:
 |---|---|
 | `scripts/required/build-index.mjs` | emit `docs-meta.json` + `docs-content.json` alongside `docs.json` |
 | `scripts/required/build-manifest.mjs` | include new files, exclude `docs.json` from browser set |
-| `src/workers/atlas.worker.ts` | fetch `docs-meta.json` |
-| `src/workers/search.worker.ts` | fetch `docs-content.json` (meta already in search index) |
-| `src/lib/docs.ts` | `loadAtlas()` fetches both, merges before exposing |
+| `src/workers/atlas.worker.ts` | sole fetcher: fetch both `docs-meta.json` + `docs-content.json`; post `tree` (meta) then `ready` (merged) |
+| `src/workers/search.worker.ts` | **no fetch change** — still preloaded from main thread; keeps fetching only `search-index.json` |
+| `src/lib/docs.ts` | `loadAtlas()` resolves from the worker's two-phase messages (tree early, merged docs later); no fetch added |
 | `src/server/preview/cache.ts` | update `ARTIFACT_ALLOWLIST` |
 | `src/lib/staleDates.ts`, `activeDataIndex.ts`, etc. | no change (use merged result from `loadAtlas()`) |
 
