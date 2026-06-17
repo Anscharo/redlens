@@ -1,0 +1,10 @@
+{
+  "number": 255,
+  "title": "Atlas Edit Proposal — 2026-06-08",
+  "body": "This Atlas Edit Weekly Cycle proposal includes the following edits:\n\n- **Add Audit Process** — Adds a new Audit Process codifying the audit requirements for new smart contract code introduced to the Sky Ecosystem, covering script structure standards, audit intake and delivery, report review and acceptance, findings remediation, and audit recordkeeping.\n- **Add USD Stablecoin To USDS Swap Authorization For Grove** — Authorizes Grove to swap USD stablecoins held in its SubProxy Account to USDS at approximately a 1:1 rate, with each swap documented in a Technical Scope, for direct inclusion in a Grove Spell without a prior token holder vote.\n- **Update Documents To Reflect A Single Core Facilitator** — Corrects mentions of multiple Core Facilitators in Spell validation reporting and AEP misalignment procedures, and removes an Action Tenet that only applied with multiple Core Facilitators.\n- **Remove Duplicate Sentences And Fix Broken Cross-Reference** — Removes a duplicate sentence in two documents and corrects a broken cross-reference.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/255",
+  "commentCount": 0,
+  "reviewCount": 2,
+  "approvalCount": 1
+}
