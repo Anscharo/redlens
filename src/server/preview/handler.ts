@@ -30,6 +30,7 @@ const gh = makeGhClient(config.githubToken);
 type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" };
 const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
 const RESOLVE_TTL_MS = 60_000;
+const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
 
 // Per-IP fixed window on the build-triggering events endpoint.
 const ipHits = new Map<string, { n: number; reset: number }>();
@@ -39,6 +40,10 @@ function rateLimited(ip: string): boolean {
   const now = Date.now();
   const w = ipHits.get(ip);
   if (!w || now > w.reset) {
+    // Sweep expired entries when the map grows large (scanner IPs that never return).
+    if (ipHits.size > 5000) {
+      for (const [k, v] of ipHits) if (now > v.reset) ipHits.delete(k);
+    }
     ipHits.set(ip, { n: 1, reset: now + IP_WINDOW_MS });
     return false;
   }
@@ -78,6 +83,7 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
     v = await resolveRef(parsed, gh);
   }
   resolveCache.set(rawId, { at: now, v });
+  if (resolveCache.size > RESOLVE_CACHE_MAX) resolveCache.delete(resolveCache.keys().next().value!);
   return v;
 }
 
@@ -172,7 +178,9 @@ function diffResponse(sha: string): Response {
     ) as AtlasNode[];
     const delta = diffDocs(ix.docMap, previewNodes);
     diff = { added: delta.added.map((n) => n.id), changed: delta.changed.map((n) => n.id) };
-    diffCache.set(key, diff);
+    // Skip caching when atlasCommit is unknown (main not yet loaded) — the key
+    // would be "<sha>:unknown" and would serve a stale diff once main loads.
+    if (mainSha !== "unknown") diffCache.set(key, diff);
   }
   return json(diff, 200);
 }

@@ -22,7 +22,7 @@ import type { DiffLine } from "../../lib/history";
 import { makeGhClient, CANONICAL_REPO, type Resolved, type GhClient } from "./resolve.ts";
 import { patchToDiffLines } from "./patch-diff.ts";
 
-const COMPARE_BASE = "main";
+const COMPARE_BASE = "main"; // fragile: update if sky-ecosystem/next-gen-atlas renames its default branch
 const MAX_PAGES = 50; // PR files: 5000; atlas previews never approach this
 const COMPARE_FILE_CAP = 300; // GitHub hard cap on compare .files
 const MAX_UNION_COMMITS = 100; // bound the per-commit recovery fan-out
