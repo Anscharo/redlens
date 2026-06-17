@@ -1,6 +1,6 @@
 // previews table access. The table is metadata only (sha→repo durability +
 // quota accounting + telemetry); bundles live on disk (cache.ts). See
-// migrations/006_previews.sql.
+// migrations/007_previews.sql (trust/takedown columns in 008_preview_trust.sql).
 
 import { sql } from "../db.ts";
 import type { PreviewMeta } from "./cache.ts";

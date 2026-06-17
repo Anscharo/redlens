@@ -49,8 +49,10 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
   resolve `main` → SSE `resolving→fetching→building→ready` → artifact + diff). Files:
   - `config.ts` — `previewEnabled`, `githubToken`, `previewDailyQuota` (13),
     `previewMaxConcurrentBuilds` (2), `previewBuildTimeoutMs` (120s).
-  - `migrations/006_previews.sql` — the `previews` table; `runMigrations()` now called at boot
-    in `index.ts` (gated on `previewEnabled`) since `sync.ts` only runs it on an unseeded DB.
+  - `migrations/007_previews.sql` — the `previews` table (renumbered from 006 on the #70 merge
+    to avoid colliding with `006_history_metrics.sql`). Applied by the always-on boot
+    `runMigrations()` in `index.ts` (no longer a preview-gated migration call — #70's boot run
+    covers it on seeded prod DBs, which `sync.ts` would otherwise skip).
   - `preview/db.ts` — `upsertPreview`, `getPreviewRow` (sha→repo recovery), `isKnownSha`,
     `touchPreview`, `previewsTodayCount` (UTC-day quota). created_at preserved on conflict →
     re-builds are quota-exempt.

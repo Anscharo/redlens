@@ -204,21 +204,12 @@ startBootEmbeddings();
 // In-process atlas freshness updater (on by default; ATLAS_UPDATE_ENABLED=0 disables).
 startUpdater();
 
-// Preview feature: ensure the previews table exists. runMigrations() is
-// idempotent (skips already-applied files); we call it here because sync.ts only
-// runs migrations on an unseeded DB, so a seeded prod DB would never get the new
-// previews migration otherwise. Detached + best-effort — previews just fail if
-// the DB is unreachable; the rest of the server is unaffected.
+// Preview feature: start the background bundle sweeper (blocked-sha takedowns,
+// stale-vs-main eviction after the updater hot-swaps main, LRU/orphan
+// collection). The previews migrations are applied by the always-on boot
+// runMigrations() above — no preview-specific migration call is needed.
 if (config.previewEnabled) {
   void (async () => {
-    try {
-      await waitForDb();
-      await runMigrations();
-    } catch (e) {
-      console.warn(`preview: migration check failed: ${(e as Error).message}`);
-    }
-    // Background bundle sweeper: blocked-sha takedowns, stale-vs-main
-    // eviction (after the updater hot-swaps main), LRU/orphan collection.
     const { startPreviewSweeper } = await import("./preview/sweeper.ts");
     startPreviewSweeper();
   })();
