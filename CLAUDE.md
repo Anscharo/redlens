@@ -37,14 +37,15 @@ pnpm census:check    # coverage census: warn ([drift]) when uncovered structure 
 
 ### Local dev
 
-Atlas artifacts (`docs.json`, `graph.json`, `relations.json`, `glossary.json`, `search-index.json`, `addresses.atlas.json`) are not committed. Build them before `pnpm dev`:
-
 ```bash
-pnpm build:index && pnpm build:graph && pnpm build:glossary
 pnpm dev
 ```
 
-The history tab in dev will show empty (no local Postgres with history data) unless you run `pnpm dev:server` with a `DATABASE_URL` pointing to a Postgres instance that the history worker has populated.
+`pnpm dev` is one-command: a preflight (`scripts/aux/dev-preflight.mjs`) runs, in order: `pnpm install` (only when `pnpm-lock.yaml`'s content hash changed — stamped in `node_modules/.dev-deps-hash`, so the steady state pays no install); ensures the Docker daemon is up (launches Docker Desktop on macOS, instructs on Linux); brings the Postgres container up + healthy (`docker compose`); runs the atlas worker in `--no-fetch` mode to sync Postgres to the **checked-out** atlas commit (build index+graph → `sync.ts` → history; embeddings only if an API key is set); and builds the atlas artifacts (`docs.json`, `graph.json`, `relations.json`, `glossary.json`, `search-index.json`, `addresses.atlas.json` — none committed) if they're missing. Then it starts the Bun API server + Vite together.
+
+Local dev builds the **checked-out** submodule commit, NOT `origin/main` — advancing to upstream is the cron worker's job (`pnpm atlas:worker`, no `--no-fetch`). Syncing the DB to the checked-out commit also stops the in-process updater from looping to drag live back to a stale local `sync_state.atlas_sha`.
+
+Escape hatches: `DEV_NO_INSTALL=1` (skip the install check), `DEV_NO_WORKER=1` (DB up but skip the atlas sync; the server migrates at boot), `DEV_NO_DB=1` (skip Docker/Postgres entirely — reader works off disk artifacts; history/chat/preview need a DB), `DEV_NO_BUILD=1` (skip the artifact build). After a shallow clone run `pnpm pull-atlas` first to populate the submodule.
 
 ### Process inventory scripts
 
