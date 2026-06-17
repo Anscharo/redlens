@@ -27,7 +27,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { slugify } from "../lib/graph-patterns.mjs";
+import { slugify, normalizeKey, buildNameIndex } from "../lib/graph-patterns.mjs";
+import { extractMultisigs } from "../lib/graph-multisigs.mjs";
+import { extractTransfers } from "../lib/graph-transfers.mjs";
+import { extractBridges } from "../lib/graph-bridges.mjs";
+import { extractOmni } from "../lib/graph-omni.mjs";
+import { extractTransitions } from "../lib/graph-transitions.mjs";
 import {
   parseMarkdownTable,
   extractEthAddresses,
@@ -313,6 +318,9 @@ function icdParamLabel(key, params, agentName, instanceName) {
 const icdAnnotations = new Map(); // lowercase addr → { roles, entityLabel, chain }
 // IB partner names and agent token symbols — collected for Phase 4.5 logging.
 const ibPartnerNames = new Set();
+// (partnerName, instance entity, param-leaf doc_no) triples — consumed by the
+// integration-partner promotion in Phase 2.8.
+const ibPartnerLinks = [];
 const agentTokenSymbols = new Set();
 let icdHasAddressCount = 0;
 let icdAgentResolved = 0;
@@ -330,8 +338,12 @@ for (const ent of entityMap.values()) {
 
   // Collect IB partner names and agent token symbols (logged at end).
   if (ent.subtype === "integration-boost") {
-    const partner = params["Integration Partner Name"]?.[0];
-    if (partner && partner.length > 1) ibPartnerNames.add(partner);
+    const tuple = params["Integration Partner Name"];
+    const partner = tuple?.[0];
+    if (partner && partner.length > 1) {
+      ibPartnerNames.add(partner);
+      ibPartnerLinks.push({ partner, instance: ent, srcDocNo: tuple[2] });
+    }
   }
   if (ent.subtype === "agent-token") {
     const symbol = params["Token Symbol"]?.[0];
@@ -405,6 +417,13 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   const CURRENT_DELEGATES_UUID  = "5f584db8-f8d8-4118-988c-b2bc3f68ceb7";
   const DERECOGNIZED_UUID       = "e7aec672-ed19-4329-aaf7-736950be2eb7";
   const SRC_UUID                = "d9c6ed16-5b0d-4a6f-bb43-387398090afc";
+  const FORUM_ACCOUNTS_UUID     = "b71564fd-22e0-4c69-99d1-5b23fc1fa329"; // A.2.7.1.1.1.1.4.0.6.1
+  const BREACH_REGISTRY_UUID    = "1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb"; // A.1.6.6.1.3.0.6.1
+  // Tables we deliberately do not extract (the drift detector skips them):
+  // Registered Spell Checklists — external GitHub URLs, no graph value.
+  const KNOWN_UNEXTRACTED_TABLES = new Set([
+    "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
+  ]);
 
   // Reverse map: address (no chain suffix) → entity id, from existing has_address edges
   const addrToEntityId = new Map();
@@ -442,6 +461,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   }
 
   let enriched = 0, created = 0, derecognized = 0, srcMembers = 0;
+  const skyGovernance = entityMap.get("sky-governance");
 
   // --- Table 1: Current Aligned Delegates ---
   const delegatesDoc = docById.get(CURRENT_DELEGATES_UUID);
@@ -492,14 +512,17 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
         created++;
       }
 
-      addTableEdge(
-        entity?.id ?? entityMap.get(slugify(name))?.id,
-        "entity",
-        CURRENT_DELEGATES_UUID,
-        "doc",
-        "listed_in",
-        null,
-      );
+      const rowEntityId = entity?.id ?? entityMap.get(slugify(name))?.id;
+      addTableEdge(rowEntityId, "entity", CURRENT_DELEGATES_UUID, "doc", "listed_in", null);
+      // Inclusion in this registry IS Aligned Delegate recognition (Pattern 10).
+      // The doc used to be a prose list (handled in Phase 2 as a fallback);
+      // as a table, the role edges are emitted here.
+      if (rowEntityId && skyGovernance) {
+        edges.push({
+          fromId: rowEntityId, fromType: "entity", toId: skyGovernance.id, toType: "entity",
+          edgeType: "aligned_delegate_for", sourceDocNos: [delegatesDoc.doc_no],
+        });
+      }
     }
   }
 
@@ -551,9 +574,214 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     }
   }
 
+  // --- Table 4: Current Authorized Forum Accounts ---
+  // Columns: Entity Name | Role | Entity Handle | Handles of Authorized
+  // Representatives. Row entities get meta.forum_handle; each rep handle
+  // becomes an ecosystem_actor (st="individual") with an authorized_rep_for
+  // edge to the org. Reps that resolve to existing orgs (e.g. "SoterLabs" for
+  // Amatsu) reuse that entity rather than creating an individual.
+  let forumRows = 0, forumReps = 0;
+  const forumDoc = docById.get(FORUM_ACCOUNTS_UUID);
+  if (forumDoc) {
+    const nameIndex = buildNameIndex(entityMap);
+    const registerInIndex = (e) => {
+      for (const key of [normalizeKey(e.name), normalizeKey(e.slug)])
+        if (key && !nameIndex.has(key)) nameIndex.set(key, e);
+    };
+    for (const row of parseMarkdownTable(forumDoc.content ?? "")) {
+      const name = row["Entity Name"]?.trim();
+      if (!name || name === "N/A") continue;
+      let entity = nameIndex.get(normalizeKey(name));
+      if (!entity) {
+        entity = addTableEntity(slugify(name), name, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
+          source: "forum_accounts_table",
+        });
+        registerInIndex(entity);
+      }
+      const handle = row["Entity Handle"]?.trim();
+      const role = row["Role"]?.trim();
+      const m = JSON.parse(entity.meta ?? "{}");
+      if (handle && handle !== "N/A") m.forum_handle = handle;
+      if (role && role !== "N/A") m.forum_role = role;
+      entity.meta = JSON.stringify(m);
+      addTableEdge(entity.id, "entity", FORUM_ACCOUNTS_UUID, "doc", "listed_in", {
+        handle: handle !== "N/A" ? handle : undefined,
+        role: role !== "N/A" ? role : undefined,
+      });
+      forumRows++;
+
+      const repsRaw = (row["Handles of Authorized Representatives"] ?? "")
+        .replace(/\s*\([^)]*\)\s*/g, " ")
+        .trim();
+      if (!repsRaw || repsRaw === "N/A") continue;
+      for (const handleName of repsRaw.split(/,\s*/).map((s) => s.trim()).filter(Boolean)) {
+        let rep = nameIndex.get(normalizeKey(handleName));
+        if (!rep) {
+          rep = addTableEntity(slugify(handleName), handleName, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
+            source: "forum_accounts_table",
+            forum_handle: handleName,
+          });
+          rep.subtype = "individual";
+          registerInIndex(rep);
+        }
+        if (rep.id === entity.id) continue;
+        addTableEdge(rep.id, "entity", entity.id, "entity", "authorized_rep_for", {
+          handle: handleName,
+        });
+        forumReps++;
+      }
+    }
+  } else {
+    console.warn(`  Phase 2.7: Forum Accounts doc (${FORUM_ACCOUNTS_UUID}) not found`);
+  }
+
+  // --- Table 5: Aligned Delegate Breach Registry ---
+  // Columns: Date | Identity | Breach Tier | Reasoning Post. Rows are dated
+  // governance events attached to existing delegate entities via listed_in.
+  let breaches = 0;
+  const breachDoc = docById.get(BREACH_REGISTRY_UUID);
+  if (breachDoc) {
+    const nameIndex = buildNameIndex(entityMap);
+    for (const row of parseMarkdownTable(breachDoc.content ?? "")) {
+      const identity = row["Identity"]?.trim();
+      if (!identity) continue;
+      let entity = nameIndex.get(normalizeKey(identity));
+      if (!entity) {
+        entity = addTableEntity(slugify(identity), identity, "delegate_org", 1, BREACH_REGISTRY_UUID, {
+          source: "breach_registry_table",
+        });
+        nameIndex.set(normalizeKey(identity), entity);
+      }
+      addTableEdge(entity.id, "entity", BREACH_REGISTRY_UUID, "doc", "listed_in", {
+        date: row["Date"]?.trim(),
+        breach_tier: row["Breach Tier"]?.trim(),
+        reasoning_url: extractUrl(row["Reasoning Post"] ?? "") ?? undefined,
+      });
+      breaches++;
+    }
+  } else {
+    console.warn(`  Phase 2.7: Breach Registry doc (${BREACH_REGISTRY_UUID}) not found`);
+  }
+
   console.log(
     `\n  Phase 2.7: ${enriched} delegates enriched, ${created} created,` +
-    ` ${derecognized} derecognized, ${srcMembers} SRC members`,
+    ` ${derecognized} derecognized, ${srcMembers} SRC members,` +
+    ` ${forumRows} forum rows (${forumReps} rep edges), ${breaches} breaches`,
+  );
+
+  // --- Drift detector: Active Data tables we are not extracting ---
+  // Fires when any Active Data doc outside the handled/known-ignored sets
+  // gains table rows — e.g. the 29 per-instance payment ledgers (all empty
+  // today) or the Registered Multisigs registry. Loud by design.
+  const HANDLED_TABLE_UUIDS = new Set([
+    CURRENT_DELEGATES_UUID, DERECOGNIZED_UUID, SRC_UUID, FORUM_ACCOUNTS_UUID, BREACH_REGISTRY_UUID,
+  ]);
+  let driftWarnings = 0;
+  for (const d of allDocs) {
+    if (d.type !== "Active Data") continue;
+    if (HANDLED_TABLE_UUIDS.has(d.id) || KNOWN_UNEXTRACTED_TABLES.has(d.id)) continue;
+    const rows = parseMarkdownTable(d.content ?? "").filter((row) =>
+      Object.values(row).some((v) => v && v.trim()),
+    );
+    if (!rows.length) continue;
+    driftWarnings++;
+    console.warn(
+      `  [drift] unextracted Active Data table: ${d.doc_no} "${d.title}" (${d.id}, ${rows.length} rows)`,
+    );
+  }
+  if (driftWarnings) {
+    console.warn(`  [drift] ${driftWarnings} Active Data table(s) contain rows but are not extracted`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2.8: Multisigs, transfer events, integration partners
+//
+// Runs after 2.7 so that forum-account individuals (e.g. VoteWizard, ldr)
+// already exist when multisig signer rosters reference them, and after
+// Phase 2 so bare role references ("Core GovOps") resolve via role edges.
+// ---------------------------------------------------------------------------
+{
+  function addPatternEntity(slug, name, entity_type, subtype, defining_doc_id, meta) {
+    const existing = entityMap.get(slug);
+    if (existing) return existing;
+    const h = crypto.createHash("sha256").update(slug).digest("hex");
+    const ent = {
+      id: `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-${h.slice(16,20)}-${h.slice(20,32)}`,
+      slug,
+      name,
+      entity_type,
+      subtype: subtype ?? null,
+      defining_doc_id: defining_doc_id ?? null,
+      is_active: 1,
+      meta: meta ? JSON.stringify(meta) : null,
+    };
+    entityMap.set(slug, ent);
+    return ent;
+  }
+
+  // --- Integration partners (from ICD params collected in Phase 2.5) ---
+  // Each distinct "Integration Partner Name" value becomes an ecosystem_actor
+  // (st="integration_partner") with one integration_partner_of edge per
+  // instance it partners on.
+  let partnerEdges = 0;
+  const partnerEntities = new Set();
+  for (const { partner, instance, srcDocNo } of ibPartnerLinks) {
+    let ent = entityMap.get(slugify(partner));
+    if (!ent) {
+      ent = addPatternEntity(slugify(partner), partner, "ecosystem_actor", "integration_partner", null, {
+        source: "integration_partner_param",
+        source_doc_no: srcDocNo,
+      });
+    } else if (ent.entity_type === "ecosystem_actor" && !ent.subtype) {
+      ent.subtype = "integration_partner";
+    }
+    partnerEntities.add(ent.id);
+    edges.push({
+      fromId: ent.id, fromType: "entity", toId: instance.id, toType: "entity",
+      edgeType: "integration_partner_of", sourceDocNos: [srcDocNo],
+    });
+    partnerEdges++;
+  }
+  console.log(`  Phase 2.8: ${partnerEntities.size} integration partners (${partnerEdges} edges)`);
+
+  // --- Multisigs (Pattern 17) ---
+  const msStats = extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges).run(addPatternEntity);
+  console.log(
+    `  Phase 2.8: ${msStats.roots} multisigs, ${msStats.signerEdges} signer_of,` +
+    ` ${msStats.modifierEdges} can_modify_signers_of, ${msStats.created} new signer entities` +
+    (msStats.warnings ? `, ${msStats.warnings} WARNINGS` : ""),
+  );
+
+  // --- Transfer/grant events (Pattern 18) ---
+  const txStats = extractTransfers(allDocs, docById, docByDocNo, entityMap, edges, addPatternEntity);
+  console.log(
+    `  Phase 2.8: funds_transfer — ${txStats.grants} grants, ${txStats.genesis} genesis` +
+    ` (${txStats.planned} planned), ${txStats.authorizations} authorizations` +
+    `, ${txStats.allocations} allocations, ${txStats.budgetTransfers} budget transfers` +
+    (txStats.warnings ? `, ${txStats.warnings} WARNINGS` : ""),
+  );
+
+  // --- Bridge validator sets (Pattern 21) ---
+  const brStats = extractBridges(allDocs, docById, docByDocNo, entityMap, edges, addPatternEntity);
+  console.log(
+    `  Phase 2.8: ${brStats.roots} bridges, ${brStats.validatorEdges} validator_of,` +
+    ` ${brStats.created} new validator entities` +
+    (brStats.warnings ? `, ${brStats.warnings} WARNINGS` : ""),
+  );
+
+  // --- Prime Agent omni-doc governance metadata (Pattern 22) ---
+  const omStats = extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges);
+  console.log(
+    `  Phase 2.8: ${omStats.channels} governance_channel, ${omStats.emergencies} emergency_response` +
+    (omStats.warnings ? `, ${omStats.warnings} WARNINGS` : ""),
+  );
+
+  // --- Pending operational transitions (Pattern 23) ---
+  const trStats = extractTransitions(allDocs, docById, docByDocNo, entityMap, edges);
+  console.log(
+    `  Phase 2.8: ${trStats.count} pending_transition` +
+    (trStats.warnings ? `, ${trStats.warnings} WARNINGS` : ""),
   );
 }
 
@@ -655,7 +883,27 @@ console.log("  public/graph.json written");
 //   - Keep ecosystem_actors referenced by load-bearing role/RP edges so their
 //     relationships survive (e.g. BA Labs → Core Council Risk Advisor role).
 const OMIT_ENTITY_TYPES = new Set(["ecosystem_actor"]);
-const KEEP_ACTOR_EDGE_TYPES = new Set(["holds_role_for", "responsible_party_for"]);
+const KEEP_ACTOR_EDGE_TYPES = new Set([
+  "holds_role_for",
+  "responsible_party_for",
+  // multisig + integration-partner + bridge-validator actors stay visible in the UI
+  "signer_of",
+  "can_modify_signers_of",
+  "integration_partner_of",
+  "validator_of",
+]);
+// Edge types that are graph.json-only (chatbot/MCP data, not browser UI):
+// funds_transfer is event data; authorized_rep_for points at forum-handle
+// individuals that would clutter the canvas; pending_transition is chat/MCP
+// handoff data. governance_channel / emergency_response stay in relations.json
+// — they feed the Radar "Contact" section (doc→entity, so they never reach the
+// entity↔entity canvas anyway).
+const OMIT_EDGE_TYPES = new Set([
+  "parent_of",
+  "funds_transfer",
+  "authorized_rep_for",
+  "pending_transition",
+]);
 const pinnedActorIds = new Set(
   edges
     .filter((e) => KEEP_ACTOR_EDGE_TYPES.has(e.edgeType) && e.fromType === "entity")
@@ -668,7 +916,7 @@ const keptEntityIds = new Set(
 );
 
 const relationEdges = edges
-  .filter((e) => e.edgeType !== "parent_of")
+  .filter((e) => !OMIT_EDGE_TYPES.has(e.edgeType))
   .filter((e) => {
     if (e.fromType === "entity" && !keptEntityIds.has(e.fromId)) return false;
     if (e.toType === "entity" && !keptEntityIds.has(e.toId)) return false;

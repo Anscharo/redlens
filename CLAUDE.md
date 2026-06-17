@@ -32,6 +32,7 @@ pnpm build           # frontend pipeline: index → glossary → addresses → s
 REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SHA must be byte-identical
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
+pnpm census:check    # coverage census: warn ([drift]) when uncovered structure clusters appear/grow vs .github/atlas-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 ```
 
 ### Local dev
@@ -79,7 +80,7 @@ Scripts are split: `scripts/required/` holds the build pipeline entry-points wir
 - `public/addresses.json` — on-chain: `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?`. Written by `build-addresses`. Never contains atlas annotation fields.
 - Frontend `loadAddresses()` loads both in parallel, merges per-address, resolves `label = chainlogId ?? entityLabel ?? etherscanName`.
 
-- **`scripts/required/build-graph.mjs`** — pattern-driven relation extraction. **Phase 2.6** (before entity extraction) scans all doc content for addresses and applies structural role/label/token annotation — this replaces what was previously in `build-index`. **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges. **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback. Emits `public/graph.json` and `public/relations.json`. No loopback to build-index. See `.claude/skills/parse-atlas/SKILL.md`. Imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2w), `lib/address-chains.mjs`, `lib/address-annotate.mjs`.
+- **`scripts/required/build-graph.mjs`** — pattern-driven relation extraction. **Phase 2.6** (before entity extraction) scans all doc content for addresses and applies structural role/label/token annotation — this replaces what was previously in `build-index`. **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges. **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback. Emits `public/graph.json` and `public/relations.json`. No loopback to build-index. See `.claude/skills/parse-atlas/SKILL.md`. Imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2w), `lib/graph-multisigs.mjs`, `lib/graph-transfers.mjs`, `lib/graph-bridges.mjs`, `lib/graph-omni.mjs`, `lib/graph-transitions.mjs` (Phase 2.8 patterns 17/18/21/22/23), `lib/address-chains.mjs`, `lib/address-annotate.mjs`.
 - **`scripts/required/build-history.mjs`** — walks git log of the atlas submodule and computes per-node change history with diffs. Two sinks: **default** upserts straight into Postgres `atlas_history` (reads its own incremental cursor via `MAX(commit_seq)`, runs under Bun); **`--out-json`** writes the legacy `public/history/<uuid>.json` files (DB-less, for the canary/artifact tests). Shared DB write path lives in `src/server/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`). Imports `lib/atlas-parser.mjs` for `HEADING_RE`.
 - **`scripts/required/build-manifest.mjs`** — sha256 digest of every shipping artifact.
 - **`scripts/required/build-at.mjs`** — reproducible build at a pinned atlas commit; orchestrates the other `build:*` scripts.
@@ -140,7 +141,7 @@ Entity-focused view at `/radar` (index) and `/radar/:slug` (actor page). Builds 
 
 **Reports (`src/components/reports/`):**
 
-Three reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`) so they're testable without React.
+Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step or worker involvement — it can't serve a stale view).
 
 **Graph snapshots (`graph-snapshots/`):**
 
