@@ -19,18 +19,16 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 pnpm build:index     # parses content/** → public/docs.json + public/search-index.json + public/addresses.atlas.json (chain only; annotation added by build-graph)
 pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
-pnpm build:snapshot  # viem multicall snapshots → public/chain-state.json
+pnpm snap:chainstate  # viem multicall snapshots → public/chain-state.json
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
 pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
 pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json
 pnpm build:at        # reproducible build at a specific atlas commit
 pnpm pull-atlas      # git submodule update --init --recursive (populate submodule after a shallow clone)
-pnpm build:rag       # Workers AI bge-base-en embeddings → .cache/atlas-vectors/{vectors,ids,meta} (hosted MCP server only; NOT in pnpm build)
 pnpm atlas:worker    # full atlas worker cycle: drift check → build → sync all Postgres tables
 pnpm dev             # vite dev server (requires artifacts built first — see Local dev below)
 pnpm preview         # serve the production build locally
 pnpm build           # frontend pipeline: index → glossary → addresses → snapshot → graph → manifest → tsc → vite
-pnpm build:server    # hosted MCP server pipeline: index + graph + rag (run before sync-db sync scripts)
 REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SHA must be byte-identical
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
@@ -70,7 +68,7 @@ The curated process inventory (`public/processes.json` + `public/processes-ignor
 
 Each build pass is its own script. They run in order in `pnpm build`:
 
-Scripts are split: `scripts/required/` holds the build pipeline entry-points wired into `pnpm build:*`; `scripts/lib/` holds shared modules (parsing, regexes, extraction phases) imported by those entry-points; `scripts/aux/` holds offline / one-off / experimental scripts (`build-rag`, `query-rag`, `tva.sh`, etc.) that are not part of the core build chain.
+Scripts are split: `scripts/required/` holds the build pipeline entry-points wired into `pnpm build:*`; `scripts/lib/` holds shared modules (parsing, regexes, extraction phases) imported by those entry-points; `scripts/aux/` holds offline / one-off / experimental scripts (`tva.sh`, etc.) that are not part of the core build chain.
 
 - **`scripts/required/build-index.mjs`** — parses `Sky Atlas.md`, emits `public/docs.json` (`Record<uuid, AtlasNode>`), `public/search-index.json` (serialized MiniSearch index), and a minimal `public/addresses.atlas.json` (`{ addr: { chain } }`). Annotation (roles, labels, tokens) is deferred to `build-graph` Phase 2.6. Imports `lib/atlas-parser.mjs`, `lib/address-chains.mjs`.
 - **`scripts/required/build-glossary.mjs`** — finds all `Definitions` sections, collects direct `[Core]` children as terms, emits `public/glossary.json` keyed by lowercased term.
@@ -185,19 +183,6 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
   - **Exception — spec-defined structural suffix patterns**: `ATLAS_MARKDOWN_SYNTAX.md` explicitly defines these suffixes as invariant parts of the format: `.0.3.X` (Annotation), `.0.4.X` (Action Tenet), `.1.X` (Scenario), `.varX` (Scenario Variation), `.0.6.X` (Active Data), `NR-X` (Needed Research). Regex and `startsWith`/`endsWith` checks against these structural suffixes are stable and correct — the spec guarantees them, they are not editorial doc_nos.
 
 ## Pending work
-
-### Deferred: chunk long nodes for semantic search
-
-`scripts/required/build-rag.mjs` produces one bge-base-en (768d) vector per atlas node, with a 2048-char cap that bge-base's 512-token positional limit forces anyway. ~25 nodes (0.24%) exceed the cap — registries (e.g. `Current Aligned Delegates`), Type Specifications, Reference Implementations, and a few long Cores. Their heads carry the semantic intent, but the tails (enumerated names, code, field lists) become invisible to semantic search.
-
-Lexical (FTS5) and the hybrid `atlas_search` mode already reach this tail content, so this is recall optimization on the *semantic* leg only — not a correctness gap.
-
-If/when this matters:
-- Chunk nodes with `content.length > 2048` into ~1500-char overlapping windows; emit one vector per chunk with a synthetic id (`<uuid>#<chunk-idx>`).
-- Vectorize metadata stays per-node (`docId`, `doc_no`, `type`, `depth`); the worker dedupes back to one row per `docId` before RRF merge.
-- Adds ~70 vectors total — still inside the Vectorize free tier.
-- Build cost is one extra Workers AI call per long node; trivial.
-
 
 ### Deferred: audit follow-ups (2026-06 frontend/dataflow audit)
 

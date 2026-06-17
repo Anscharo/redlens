@@ -81,7 +81,7 @@ Because a redeploy refreshes the whole app, none of this is needed: a storage bu
 
 ## On-chain artifacts are a separate cadence
 
-`build:addresses` (Etherscan) and `build:snapshot` (RPC) need API keys and change independently of atlas commits. They are already committed artifacts loaded at boot and are **not** part of this loop. The freshness redeploy only rebuilds the markdown-derived artifacts (which `build:railway` already does).
+`build:addresses` (Etherscan) and `snap:chainstate` (RPC) need API keys and change independently of atlas commits. They are already committed artifacts loaded at boot and are **not** part of this loop. The freshness redeploy only rebuilds the markdown-derived artifacts (which `build:railway` already does).
 
 ## History is NOT refreshed by this loop (known gap)
 

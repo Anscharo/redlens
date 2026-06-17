@@ -90,14 +90,13 @@ For a condensed variable-name cheat sheet, see [railway-env-vars.md](./railway-e
 
 ```bash
 railway variables --set 'OPENROUTER_API_KEY=sk-or-...' --service redlens-atlas
-railway variables --set 'ATLAS_UPDATE_ENABLED=1'        --service redlens-atlas
 ```
 
 | Variable | Value | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Set in step 2d |
 | `OPENROUTER_API_KEY` | `sk-or-…` | Semantic search embeddings + chat |
-| `ATLAS_UPDATE_ENABLED` | `1` | Enables the in-process DB poller |
+| `ATLAS_UPDATE_ENABLED` | _(unset)_ | In-process DB poller, **on by default**; set `0` only as a kill switch to disable it |
 
 ## 4. Add the atlas worker cron service
 
@@ -178,11 +177,32 @@ c. **Deploy.** Railway redeploys the web service automatically on push or
 a. **Health check:**
    ```bash
    curl https://<your-domain>/api/health
-   # → { "status": "ok", "atlas_sha": "...", "docs": N }
+   # → { "status":"ok", "atlas_sha":"...", "db_sha":"...", "age_seconds":N,
+   #     "schema":"00X_...", "required_schema":"00X_...", "db_reachable":true, "docs":N }
    ```
+   `/api/health` is **liveness** — it always returns HTTP 200 while the process
+   is up (a stale snapshot must not restart-loop a healthy container), and
+   reports the freshness `status` in the body.
 
-b. **Web service boot logs** — look for `db: connected`, `sync:atlas — done`,
-   and `listening on :3000`.
+   For **alerting**, point an uptime monitor at `/api/freshness`, which is
+   status-coded:
+   ```bash
+   curl -i https://<your-domain>/api/freshness
+   # 200 → status "ok" | "syncing"   (healthy: converged, or briefly catching up)
+   # 503 → status "stuck"            (updater hasn't converged past ATLAS_STUCK_SECONDS)
+   #     | "stale"                   (no worker sync in ATLAS_STALE_SECONDS — worker likely dead)
+   #     | "schema_behind"           (DB schema older than this image requires)
+   #     | "degraded"                (DB unreachable)
+   ```
+   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 48h —
+   matches the few-times-a-week atlas cadence), `ATLAS_STUCK_SECONDS` (default
+   30m), `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
+   (default 3).
+
+b. **Web service boot logs** — look for `db: connected`, `migrations: …`,
+   `sync:atlas — done`, and `listening on :3000`. Migrations run at web boot
+   now (advisory-locked, race-safe with the worker), so a redeploy that ships a
+   new migration applies it even on an already-seeded DB.
 
 c. **Worker logs** — after the first cron fires (~12 min), look for
    `atlas-worker: done in Xs`. The `atlas_sha` in `/api/health` will advance.
@@ -311,7 +331,7 @@ which hits Etherscan or an RPC endpoint. On-chain data (`addresses.json`,
 - **Submodule pointer in git** stays current via the hourly atlas-update
   workflow, keeping CI + graph snapshots in sync.
 - **On-chain data** (`addresses.json`, `chain-state.json`) refreshes on its
-  own cadence via `build:addresses` / `build:snapshot` — separate from the
+  own cadence via `build:addresses` / `snap:chainstate` — separate from the
   atlas loop and not automated by default.
 
 ## Troubleshooting
@@ -330,8 +350,10 @@ likely failed to clone the atlas — check the Railway build logs for the
 works. Check the key and your OpenRouter balance.
 
 **Atlas text never updates without a redeploy**
-→ `ATLAS_UPDATE_ENABLED` isn't set to `1` on the web service (step 3b), or
-the worker isn't running (check its Deployments tab and logs).
+→ the in-process poller was disabled via `ATLAS_UPDATE_ENABLED=0` on the web
+service, or the worker isn't running (check its Deployments tab and logs).
+`/api/freshness` will show `stale` (worker down) or `stuck` (poller not
+converging).
 
 **History tab is empty / always empty**
 → The worker hasn't run yet, or `DATABASE_URL` is not set on the worker
