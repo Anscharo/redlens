@@ -4,8 +4,6 @@
 //   GET /:id/events           SSE build-status stream (drives the build)
 //   GET /:sha/diff.json        added/changed doc ids vs current main
 //   GET /:sha/<artifact>.json  allowlisted bundle artifact
-//
-// Disabled unless config.previewEnabled.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -206,7 +204,6 @@ function json(body: unknown, status: number): Response {
 
 /** Dispatch /api/preview/* . pathname includes the leading "/api/preview/". */
 export function handlePreview(req: Request, server: Server<unknown>, pathname: string): Response | Promise<Response> {
-  if (!config.previewEnabled) return json({ error: "not-found" }, 404);
   const rest = pathname.slice("/api/preview/".length);
   const segs = rest.split("/").filter(Boolean);
   // GET /api/preview/list — live previews for the /preview index page.
