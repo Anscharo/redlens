@@ -89,20 +89,6 @@ function printStats(glossary, definitionsSections) {
     }
   }
 
-  // Length distribution
-  const lens = [];
-  for (const k of keys) for (const e of glossary[k]) lens.push(e.content.length);
-  lens.sort((a, b) => a - b);
-  const pct = (p) => lens[Math.floor(lens.length * p)] ?? 0;
-  console.log("\nDefinition length (chars):");
-  console.log(`  min ${lens[0]}  p50 ${pct(0.5)}  p90 ${pct(0.9)}  max ${lens[lens.length - 1]}`);
-
-  // Terms that will collide heavily with prose: single short common words
-  const shortCommon = keys.filter((k) => k.length <= 5 && !k.includes(" "));
-  if (shortCommon.length) {
-    console.log("\nShort single-word terms (may over-match in prose):");
-    for (const k of shortCommon) console.log(`  ${glossary[k][0].term}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
