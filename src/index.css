@@ -15,6 +15,7 @@
   --accent: #c67267; /* browner/pinker — focus, interactive */
   --preview-add: #57ab5a; /* preview redline: new/changed docs (green) */
   --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
+  --warn: #c9a227; /* amber — due-soon / caution accents */
 
   /* ─── Text ─── */
   --gray: #9a8a80; /* bumped from #7a6860 — passes 4.5:1 on --bg */
@@ -63,6 +64,8 @@
   --entity-operational-party: #c09080;
   --entity-ecosystem-actor: #a89090;
   --entity-instance: #7a8a9c;
+  --entity-multisig: #c2a35a;
+  --entity-bridge: #7fb09f;
   --entity-fallback: #888888;
 
   --max-prose-width: 68ch;

@@ -28,6 +28,25 @@ export function sha256(s) {
 export const HEADING_RE =
   /^(#{1,6}) ([\w.-]+) - (.+?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->$/;
 
+// Document types defined by ATLAS_MARKDOWN_SYNTAX.md. A heading whose [Type]
+// is outside this set means the atlas introduced a convention no extraction
+// pattern knows about — warn loudly (stderr feeds the atlas-drift issue) but
+// keep the doc; new types must never silently drop content.
+export const KNOWN_DOC_TYPES = new Set([
+  "Scope",
+  "Article",
+  "Section",
+  "Core",
+  "Type Specification",
+  "Active Data Controller",
+  "Annotation",
+  "Action Tenet",
+  "Scenario",
+  "Scenario Variation",
+  "Active Data",
+  "Needed Research",
+]);
+
 // ---------------------------------------------------------------------------
 // Parse
 // ---------------------------------------------------------------------------
@@ -78,6 +97,20 @@ export function parse(src) {
     current.contentHash = sha256(raw);
     current.content = cleanContent(current._lines);
     delete current._lines;
+  }
+
+  const unknownTypes = new Map(); // type → { count, first doc_no }
+  for (const node of nodes) {
+    if (!KNOWN_DOC_TYPES.has(node.type)) {
+      const u = unknownTypes.get(node.type) ?? { count: 0, first: node.doc_no };
+      u.count++;
+      unknownTypes.set(node.type, u);
+    }
+  }
+  for (const [type, u] of unknownTypes) {
+    console.warn(
+      `[drift] unknown document type "${type}" — ${u.count} doc(s), first at ${u.first}; no extraction pattern handles this type`,
+    );
   }
 
   // ---------------------------------------------------------------------------

@@ -102,6 +102,8 @@ const KNOWN_ENTITY_TYPES = new Set([
   "instance",
   "invocation",
   "primitive",
+  "multisig",
+  "bridge",
 ]);
 
 const KNOWN_EDGE_TYPES = new Set([
@@ -140,6 +142,23 @@ const KNOWN_EDGE_TYPES = new Set([
   "implements",
   // instance → agent
   "invoked_by",
+  // multisigs (Pattern 17)
+  "signer_of",
+  "can_modify_signers_of",
+  // bridge validator sets (Pattern 21)
+  "validator_of",
+  // transfer/grant events (Pattern 18)
+  "funds_transfer",
+  // registries / org relations
+  "authorized_rep_for",
+  "integration_partner_of",
+  "prime_foundation_of",
+  "provides_services_to",
+  // prime omni-doc governance metadata (Pattern 22)
+  "governance_channel",
+  "emergency_response",
+  // pending operational transitions (Pattern 23)
+  "pending_transition",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -497,8 +516,12 @@ describe("Pattern 12 — composite parties", () => {
 describe("auditability", () => {
   it("every role edge carries ≥1 source_doc_no (auditable-edge requirement)", () => {
     // Structural edges (parent_of, defines_entity, has_address, proxies_to) are
-    // exempt — they're derived from id references, not from prose.
-    const STRUCTURAL = new Set(["parent_of", "defines_entity", "has_address", "proxies_to", "listed_in"]);
+    // exempt — they're derived from id references, not from prose. Table-derived
+    // edges (listed_in, authorized_rep_for) are likewise exempt (Pattern 16).
+    const STRUCTURAL = new Set([
+      "parent_of", "defines_entity", "has_address", "proxies_to",
+      "listed_in", "authorized_rep_for",
+    ]);
     const bad: string[] = [];
     for (const e of graph.edges) {
       if (STRUCTURAL.has(e.edge_type)) continue;
@@ -563,9 +586,17 @@ describe("Pattern 11 — role bindings (holds_role_for)", () => {
 describe("relations.json — lean browser payload", () => {
   it("only pinned ecosystem_actors survive (load-bearing role/RP edges)", () => {
     // Most ecosystem_actors are filtered from relations.json. Actors that are the
-    // source of a holds_role_for or responsible_party_for edge are pinned so their
-    // relationship survives (e.g. BA Labs → Core Council Risk Advisor).
-    const PINNED_EDGE_TYPES = new Set(["holds_role_for", "responsible_party_for"]);
+    // source of a load-bearing edge are pinned so their relationship survives
+    // (e.g. BA Labs → Core Council Risk Advisor; multisig signers; integration
+    // partners). Mirrors KEEP_ACTOR_EDGE_TYPES in build-graph.mjs.
+    const PINNED_EDGE_TYPES = new Set([
+      "holds_role_for",
+      "responsible_party_for",
+      "signer_of",
+      "can_modify_signers_of",
+      "integration_partner_of",
+      "validator_of",
+    ]);
     const pinned = new Set(
       relations.edges
         .filter((e) => PINNED_EDGE_TYPES.has(e.e) && e.ft === "entity")
@@ -588,5 +619,173 @@ describe("relations.json — lean browser payload", () => {
       (e) => (e.ft === "entity" && !ids.has(e.f)) || (e.tt === "entity" && !ids.has(e.t)),
     );
     expect(dangling.map((e) => `${e.e}: ${e.f} → ${e.t}`)).toEqual([]);
+  });
+});
+
+describe("Pattern 21 — bridge validator sets", () => {
+  const bridges = graph.entities.filter((e) => e.entity_type === "bridge");
+  const SOLANA_GOV_BRIDGE = "07d43b8c-1230-4de9-959b-8593d69e922a"; // A.1.10.4.1.2.3.3.2
+
+  it("extracts the six SkyLink bridge components", () => {
+    // 3 networks (Solana/Avalanche/Plasma) × Token Bridge + Governance Bridge.
+    // UUID-anchored, not count-exact: new deployments (e.g. the SLL Governance
+    // Bridges from atlas PRs #230/#233) legitimately grow the set — that delta
+    // belongs in the snapshot diff, not a test failure.
+    const SKYLINK_BRIDGE_ROOTS = [
+      "16b49e7d-7360-41bf-ae7a-3c7380972987", // A.1.10.4.1.2.3.3.1 Token Bridge (Solana)
+      "07d43b8c-1230-4de9-959b-8593d69e922a", // A.1.10.4.1.2.3.3.2 Governance Bridge (Solana)
+      "3a3bcbb1-0989-4d62-80c3-7a71de0b022a", // A.1.10.4.1.3.3.3.1 Token Bridge (Avalanche)
+      "6a24fd94-9915-468d-a2a4-14f222ff5980", // A.1.10.4.1.3.3.3.2 Governance Bridge (Avalanche)
+      "658d9408-ecdd-4279-8f88-d1ed9e6bcd45", // A.1.10.4.1.4.3.3.1 Token Bridge (Plasma)
+      "6aea3973-59ed-4f64-ad7f-4d1ad53e4357", // A.1.10.4.1.4.3.3.2 Governance Bridge (Plasma)
+    ];
+    const byId = new Set(bridges.map((b) => b.id));
+    for (const id of SKYLINK_BRIDGE_ROOTS) {
+      expect(byId.has(id), `missing bridge for root doc ${id}`).toBe(true);
+    }
+    for (const b of bridges) {
+      const meta = JSON.parse(b.meta ?? "{}");
+      expect(meta.quorum, b.name).toMatch(/^\d+\/\d+$/);
+      expect(meta.quorum_doc_no, b.name).toBeTruthy();
+      expect(docs[b.id], `${b.name} id must be its root doc UUID`).toBeDefined();
+    }
+  });
+
+  it("Solana Governance Bridge: name, quorum, and full validator roster", () => {
+    const b = entityById.get(SOLANA_GOV_BRIDGE);
+    expect(b?.name).toBe("Governance Bridge (Solana SkyLink Bridge)");
+    expect(JSON.parse(b?.meta ?? "{}").quorum).toBe("4/7");
+    const validators = graph.edges
+      .filter((e) => e.edge_type === "validator_of" && e.to_id === SOLANA_GOV_BRIDGE)
+      .map((e) => entityById.get(e.from_id)?.name)
+      .sort();
+    expect(validators).toEqual(
+      ["Canary", "Deutsche Telekom", "Horizen", "LayerZero", "Luganodes", "Nethermind", "P2P"],
+    );
+  });
+
+  it("validators are deduped across bridges (one LayerZero entity, many edges)", () => {
+    const lz = graph.entities.filter((e) => e.slug === "layerzero");
+    expect(lz.length).toBe(1);
+    expect(lz[0].subtype).toBe("bridge_validator");
+    const lzEdges = graph.edges.filter(
+      (e) => e.edge_type === "validator_of" && e.from_id === lz[0].id,
+    );
+    // Validates all six SkyLink components today; a floor, not an exact count —
+    // new bridges may or may not include LayerZero.
+    expect(lzEdges.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it("Root Edit Primitive 'Quorum Requirement' spec prose is not matched", () => {
+    // A.2.2.6.* quorum docs are primitive spec text with no roster sibling —
+    // the child-pair gate must exclude them.
+    const rootEditBridge = bridges.find((b) =>
+      JSON.parse(b.meta ?? "{}").quorum_doc_no?.startsWith("A.2.2.6."),
+    );
+    expect(rootEditBridge).toBeUndefined();
+  });
+});
+
+describe("Pattern 22 — prime omni-doc governance metadata", () => {
+  const channels = edgesOfType("governance_channel");
+  const emergencies = edgesOfType("emergency_response");
+
+  it("governance_channel + emergency_response are doc → entity(agent) with provenance", () => {
+    for (const e of [...channels, ...emergencies]) {
+      expect(e.from_type, "source is the omni doc").toBe("doc");
+      expect(e.to_type, "target is an entity").toBe("entity");
+      const agent = entityById.get(e.to_id);
+      expect(agent?.entity_type, "target is a prime agent").toBe("agent");
+      expect(agent?.subtype).toBe("prime");
+      expect(parseSources(e).length, "carries source_doc_nos").toBeGreaterThan(0);
+    }
+  });
+
+  it("every Prime Agent has a Sky Forum channel with its '<Agent> Prime' category", () => {
+    // 8 prime agents → 8 forum channels; Discord is optional (Spark + Skybase today).
+    const forums = channels.filter((e) => JSON.parse(e.meta ?? "{}").platform === "forum");
+    expect(forums.length).toBe(8);
+    for (const e of forums) {
+      const meta = JSON.parse(e.meta ?? "{}");
+      expect(meta.category, e.source_doc_nos ?? "").toMatch(/ Prime$/);
+    }
+    // Discord channels carry a URL, no category.
+    const discords = channels.filter((e) => JSON.parse(e.meta ?? "{}").platform === "discord");
+    expect(discords.length).toBeGreaterThanOrEqual(1);
+    for (const e of discords) expect(JSON.parse(e.meta ?? "{}").url).toMatch(/^https?:\/\//);
+  });
+
+  it("emergency_response covers both scopes per agent and flags placeholder status", () => {
+    // 8 agents × {ecosystem, agent_specific} = 16 today, all stubs.
+    expect(emergencies.length).toBe(16);
+    const scopes = emergencies.map((e) => JSON.parse(e.meta ?? "{}").scope).sort();
+    expect(scopes.filter((s) => s === "ecosystem").length).toBe(8);
+    expect(scopes.filter((s) => s === "agent_specific").length).toBe(8);
+    for (const e of emergencies) {
+      expect(["placeholder", "specified"]).toContain(JSON.parse(e.meta ?? "{}").status);
+    }
+  });
+
+  it("omni governance metadata reaches relations.json as doc → entity (for the Radar Contact section)", () => {
+    // Kept in the browser payload so the actor page can render Contact, but
+    // doc → entity so it never enters the entity↔entity canvas (buildEntityEdges
+    // filters ft === "entity" && tt === "entity").
+    const rel = relations.edges.filter(
+      (e) => e.e === "governance_channel" || e.e === "emergency_response",
+    );
+    expect(rel.length).toBeGreaterThan(0);
+    for (const e of rel) {
+      expect(e.ft).toBe("doc");
+      expect(e.tt).toBe("entity");
+    }
+  });
+});
+
+describe("Pattern 23 — pending operational transitions", () => {
+  const transitions = edgesOfType("pending_transition");
+
+  it("pending_transition is doc(subject) → entity(future holder) with provenance", () => {
+    expect(transitions.length).toBeGreaterThanOrEqual(5);
+    for (const e of transitions) {
+      expect(e.from_type).toBe("doc");
+      expect(e.to_type).toBe("entity");
+      const holder = entityById.get(e.to_id);
+      // Future holders are Prime Agents or Sky bootstraps — never an ecosystem_actor.
+      expect(["agent", "operational_party", "governance_body"]).toContain(holder?.entity_type);
+      expect(parseSources(e).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("captures the known Sky Core → agent handoffs (SparkLend→Spark, Lite PSM→Grove)", () => {
+    const byHolder = (name: string) =>
+      transitions
+        .map((e) => ({ doc: docByDocNo.get(parseSources(e)[0]), holder: entityById.get(e.to_id)?.name }))
+        .filter((x) => x.holder === name);
+    const toSpark = byHolder("Spark");
+    const toGrove = byHolder("Grove");
+    expect(toSpark.length).toBeGreaterThanOrEqual(1);
+    expect(toGrove.length).toBeGreaterThanOrEqual(1);
+    // SparkLend control transitions to Spark; Lite PSM / Andromeda to Grove.
+    expect(transitions.some((e) => parseSources(e)[0] === "A.6.1.1.1.3.2.1")).toBe(true);
+  });
+
+  it("the overdue SparkLend-params handoff carries its estimated date in meta", () => {
+    // A.6.1.1.1.2.2.2.2.1.2.4 — "estimated for September 17, 2025".
+    const e = transitions.find((t) => parseSources(t)[0] === "A.6.1.1.1.2.2.2.2.1.2.4");
+    expect(e).toBeDefined();
+    const meta = JSON.parse(e!.meta ?? "{}");
+    expect(meta.est_date).toMatch(/2025/);
+    expect(meta.current_holder).toBe("Sky Core");
+  });
+
+  it("est_date stays a raw string (no build-time overdue flag → deterministic)", () => {
+    for (const e of transitions) {
+      const meta = JSON.parse(e.meta ?? "{}");
+      expect(meta).not.toHaveProperty("overdue");
+    }
+  });
+
+  it("is graph.json-only (chat/MCP, not the canvas)", () => {
+    expect(new Set(relations.edges.map((e) => e.e)).has("pending_transition")).toBe(false);
   });
 });

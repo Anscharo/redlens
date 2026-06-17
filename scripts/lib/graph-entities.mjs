@@ -14,8 +14,10 @@ function slugToId(slug) {
 }
 import {
   slugify,
-  ERG_DOC_NO,
-  ALIGNED_DELEGATES_DOC_NO,
+  ERG_MEMBERSHIP_UUID,
+  ALIGNED_DELEGATES_UUID,
+  RANKED_DELEGATE_UUIDS,
+  SPELL_TEAM_UUID,
   ACTIVE_ECOSYSTEM_ACTORS_UUID,
   CCRA_BINDING_UUID,
   isPrimeAgent,
@@ -170,14 +172,15 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
   }
 
   // --- 1g. ERG members (Pattern 7) ---
-  const ergDoc = docByDocNo.get(ERG_DOC_NO);
+  const ergDoc = docById.get(ERG_MEMBERSHIP_UUID);
+  if (!ergDoc) console.warn(`[graph] ERG membership doc (${ERG_MEMBERSHIP_UUID}) not found`);
   const ergMemberNames = ergDoc ? extractListItems(ergDoc.content) : [];
   for (const name of ergMemberNames) {
     const s = slugify(name);
     if (!entityMap.has(s)) {
       addEntity(s, name, "ecosystem_actor", null, ergDoc?.id ?? null, {
         source: "erg_list",
-        source_doc_no: ERG_DOC_NO,
+        source_doc_no: ergDoc.doc_no,
       });
     }
   }
@@ -199,7 +202,12 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
   }
 
   // --- 1i. Aligned Delegates (Pattern 10) ---
-  const alignedDelegatesDoc = docByDocNo.get(ALIGNED_DELEGATES_DOC_NO);
+  // The doc is a registry table today (parsed in build-graph Phase 2.7, which
+  // also emits aligned_delegate_for edges from the rows); the list/prose paths
+  // below are kept as fallbacks should the atlas revert to a plain list.
+  const alignedDelegatesDoc = docById.get(ALIGNED_DELEGATES_UUID);
+  if (!alignedDelegatesDoc)
+    console.warn(`[graph] Aligned Delegates doc (${ALIGNED_DELEGATES_UUID}) not found`);
   const alignedDelegateNames = [];
   if (alignedDelegatesDoc) {
     // Prefer explicit list items, fall back to prose "Aligned Delegates are X, Y, Z."
@@ -215,7 +223,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
       if (!entityMap.has(s)) {
         addEntity(s, name, "delegate_org", null, alignedDelegatesDoc.id, {
           source: "aligned_delegates_list",
-          source_doc_no: ALIGNED_DELEGATES_DOC_NO,
+          source_doc_no: alignedDelegatesDoc.doc_no,
         });
       }
     }
@@ -224,10 +232,13 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
   // --- 1j. Ranked Delegates (Pattern 10) ---
   // Levels 1 and 2 have current-members docs; level 3 does not (verified in atlas).
   const rankedDelegatesByLevel = new Map(); // level → [{name, docNo}]
-  for (let level = 1; level <= 2; level++) {
-    const docNo = `A.1.5.4.1.${level}.3.1`;
-    const d = docByDocNo.get(docNo);
-    if (!d) continue;
+  for (const [level, uuid] of RANKED_DELEGATE_UUIDS) {
+    const d = docById.get(uuid);
+    if (!d) {
+      console.warn(`[graph] Level ${level} Ranked Delegates doc (${uuid}) not found`);
+      continue;
+    }
+    const docNo = d.doc_no;
     const m = d.content?.match(/Ranked Delegates?\s+(?:are|is)\s+([^.]+)\./i);
     if (!m) continue;
     const names = parseNameList(m[1]);
@@ -275,6 +286,62 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     }
     if (!foundCcra)
       console.warn(`[graph] Expected CCRA binding (${CCRA_BINDING_UUID}) not found — A.1.7.1 may have restructured`);
+  }
+
+  // --- 1k1. Role bindings outside the Active Ecosystem Actors walk ---
+  // The census found "Designated Synome Editor" (A.1.3.2.1.1, Synome scope):
+  // binding docs are not confined to the section 1k walks. Any doc titled
+  // "Designated …" with the binding sentence gets the same treatment; the
+  // role slug comes from the sentence itself ("The Synome Editor role is
+  // held by Archon Tech."). Title gate keeps prose hypotheticals out — a
+  // binding doc without the "Designated" title shows up in the census's
+  // role-held-by cluster instead of being guessed at here.
+  const seenBindingDocs = new Set(roleBindings.map((b) => b.bindingDoc.id));
+  for (const d of allDocs) {
+    if (seenBindingDocs.has(d.id) || !/\bdesignated\b/i.test(d.title)) continue;
+    const m = d.content?.match(/\bThe\s+(.{2,60}?)\s+role is held by\s+([^.\n]+)\./i);
+    if (!m) continue;
+    const name = m[2].trim();
+    if (/^(?:the|a|an|any|another|one|such|that|this|it)\b/i.test(name)) continue;
+    const s = slugify(name);
+    let entity = entityMap.get(s);
+    if (!entity)
+      entity = addEntity(s, name, "ecosystem_actor", null, d.id, {
+        source: "role_binding",
+        source_doc_no: d.doc_no,
+      });
+    roleBindings.push({
+      holder: entity,
+      bindingDoc: d,
+      roleSlug: m[1].trim().toLowerCase().replace(/\s+/g, "_"),
+    });
+  }
+
+  // --- 1k2. Spell Team members (Spell Team Configuration doc) ---
+  // "Currently, Sky has two teams of technical contributors for Spell
+  // development, Dewiz, and Sidestream." Each named team gets a holds_role_for
+  // edge to this doc (emitted in Phase 2 alongside the A.1.7.1 bindings).
+  const spellTeamDoc = docById.get(SPELL_TEAM_UUID);
+  if (spellTeamDoc) {
+    const m = spellTeamDoc.content?.match(
+      /teams? of technical contributors for Spell development,?\s+(.+?)\.(?:\s|$)/i,
+    );
+    if (m) {
+      for (const name of parseNameList(m[1])) {
+        const s = slugify(name);
+        let entity = entityMap.get(s);
+        if (!entity)
+          entity = addEntity(s, name, "ecosystem_actor", null, spellTeamDoc.id, {
+            source: "spell_team",
+            source_doc_no: spellTeamDoc.doc_no,
+          });
+        roleBindings.push({ holder: entity, bindingDoc: spellTeamDoc, roleSlug: "spell_team_member" });
+      }
+    } else {
+      console.warn(`[graph] Spell Team doc (${SPELL_TEAM_UUID}) found but member sentence did not parse`);
+    }
+  } else {
+    console.warn(`[graph] Spell Team doc (${SPELL_TEAM_UUID}) not found`);
   }
 
   // --- 1l. Grant recipients (foundations surface here) ---

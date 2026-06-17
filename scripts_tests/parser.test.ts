@@ -13,7 +13,7 @@ import fs from "fs";
 import path from "path";
 import type { AtlasNode } from "../src/types";
 // @ts-expect-error — .mjs without types; runtime-only import for parser access
-import { parse, parseTree } from "../scripts/lib/atlas-parser.mjs";
+import { parse, parseTree, KNOWN_DOC_TYPES } from "../scripts/lib/atlas-parser.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const CONTENT_DIR = path.join(ROOT, "vendor/next-gen-atlas/content");
@@ -63,6 +63,18 @@ describe("parser invariants", () => {
 
   it("docs.json contains at least 10 000 nodes", () => {
     expect(Object.keys(docs).length).toBeGreaterThanOrEqual(10_000);
+  });
+
+  it("every document type is spec-defined (a new type means extraction review)", () => {
+    // KNOWN_DOC_TYPES mirrors ATLAS_MARKDOWN_SYNTAX.md. A new [Type] in the
+    // atlas reaches no extraction pattern until someone reviews it — the
+    // parser warns at build time; this keeps CI red until the type is either
+    // handled or deliberately added to the known set.
+    const unknown = new Map<string, string>(); // type → first doc_no
+    for (const d of Object.values(docs)) {
+      if (!KNOWN_DOC_TYPES.has(d.type) && !unknown.has(d.type)) unknown.set(d.type, d.doc_no);
+    }
+    expect([...unknown.entries()]).toEqual([]);
   });
 
   it("every node's parentId resolves to a real node", () => {

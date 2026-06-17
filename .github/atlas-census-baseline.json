@@ -1,0 +1,348 @@
+{
+  "fingerprints": {
+    "Action Tenet|plain": {
+      "total": 22,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Action Tenet|uuid-link": {
+      "total": 9,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data Controller|s:resp-party": {
+      "total": 16,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data Controller|s:resp-party,s:role-for-is": {
+      "total": 23,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data Controller|s:resp-party,uuid-link": {
+      "total": 24,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data Controller|uuid-link": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data|addr": {
+      "total": 7,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data|addr,table": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data|plain": {
+      "total": 61,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data|table": {
+      "total": 5,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Active Data|uuid-link": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Annotation|plain": {
+      "total": 57,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Annotation|uuid-link": {
+      "total": 11,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Article|plain": {
+      "total": 47,
+      "uncovered": 43,
+      "samples": [
+        "A.0.1",
+        "A.1.10",
+        "A.1.11",
+        "A.1.12",
+        "A.1.13"
+      ]
+    },
+    "Core|addr": {
+      "total": 327,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,bullet-kv": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:addr-of-is": {
+      "total": 142,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:addr-of-is,s:transfer": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:addr-of-is,s:transfer,uuid-link": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:addr-of-is,uuid-link": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,s:role-held-by": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|addr,uuid-link": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|bullet-kv": {
+      "total": 287,
+      "uncovered": 80,
+      "samples": [
+        "A.3.3.2.7.1.1.2",
+        "A.3.7.1.1.1.1",
+        "A.3.7.1.1.1.2",
+        "A.3.7.1.1.1.3",
+        "A.3.7.1.1.1.4"
+      ]
+    },
+    "Core|bullet-kv,uuid-link": {
+      "total": 7,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|plain": {
+      "total": 7508,
+      "uncovered": 6217,
+      "samples": [
+        "A.0.1.1.1",
+        "A.0.1.1.10",
+        "A.0.1.1.11",
+        "A.0.1.1.12",
+        "A.0.1.1.13"
+      ]
+    },
+    "Core|s:addr-of-is": {
+      "total": 8,
+      "uncovered": 8,
+      "samples": [
+        "A.1.10.2.4.12.3.1.3",
+        "A.4.4.1.4.2.1.3.1",
+        "A.6.1.1.1.2.6.1.2.1.1.1.2.3.1",
+        "A.6.1.1.1.2.6.1.2.1.1.1.2.4.1",
+        "A.6.1.1.1.2.6.1.2.1.1.1.2.5.1"
+      ]
+    },
+    "Core|s:addr-of-is,s:role-for-is,uuid-link": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:addr-of-is,uuid-link": {
+      "total": 19,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:modify-signers": {
+      "total": 21,
+      "uncovered": 1,
+      "samples": [
+        "A.2.3.1.2.2.2.1.5"
+      ]
+    },
+    "Core|s:party-comprises": {
+      "total": 20,
+      "uncovered": 9,
+      "samples": [
+        "A.2.8.2.10.1.1.1",
+        "A.2.8.2.2.1.1.1",
+        "A.2.8.2.3.1.1.1",
+        "A.2.8.2.4.1.1.1",
+        "A.2.8.2.5.1.1.1"
+      ]
+    },
+    "Core|s:resp-party": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:role-for-is": {
+      "total": 42,
+      "uncovered": 25,
+      "samples": [
+        "A.1.10.2.1.9",
+        "A.1.10.2.4.13.5",
+        "A.1.10.2.4.2.3.3",
+        "A.1.10.2.4.6.1",
+        "A.1.9.1.5.1"
+      ]
+    },
+    "Core|s:role-for-is,uuid-link": {
+      "total": 20,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:role-held-by": {
+      "total": 3,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:serves-as": {
+      "total": 11,
+      "uncovered": 10,
+      "samples": [
+        "A.1.10.2.1.3",
+        "A.1.10.2.1.5",
+        "A.1.10.2.2.2",
+        "A.1.10.2.4.12.3.3.2",
+        "A.1.10.2.4.3.1"
+      ]
+    },
+    "Core|s:serves-as,uuid-link": {
+      "total": 4,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:signing-req": {
+      "total": 28,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|s:transfer": {
+      "total": 34,
+      "uncovered": 32,
+      "samples": [
+        "A.1.10.2.4.10.9",
+        "A.1.10.4.1.2.3.2.1",
+        "A.1.10.4.1.3.3.2.1",
+        "A.1.10.4.1.4.3.2.1",
+        "A.1.6.4.4"
+      ]
+    },
+    "Core|s:transfer,uuid-link": {
+      "total": 3,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|table": {
+      "total": 3,
+      "uncovered": 3,
+      "samples": [
+        "A.2.8.2.2.2.1.2.2.2",
+        "A.2.9.1.1.2.1",
+        "A.3.2.2.1.1.1.5.2.3.1"
+      ]
+    },
+    "Core|table,uuid-link": {
+      "total": 3,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Core|uuid-link": {
+      "total": 1379,
+      "uncovered": 1,
+      "samples": [
+        "A.0.1.2.1.2"
+      ]
+    },
+    "Needed Research|plain": {
+      "total": 11,
+      "uncovered": 11,
+      "samples": [
+        "NR-1",
+        "NR-10",
+        "NR-12",
+        "NR-17",
+        "NR-18"
+      ]
+    },
+    "Needed Research|uuid-link": {
+      "total": 1,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Scenario Variation|uuid-link": {
+      "total": 3,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Scenario|plain": {
+      "total": 4,
+      "uncovered": 3,
+      "samples": [
+        "A.1.11.2.1.3.0.4.1.1.1",
+        "A.1.11.2.1.3.0.4.2.1.1",
+        "A.1.5.5.0.4.1.1.4"
+      ]
+    },
+    "Scenario|uuid-link": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Scope|plain": {
+      "total": 7,
+      "uncovered": 6,
+      "samples": [
+        "A.0",
+        "A.2",
+        "A.3",
+        "A.4",
+        "A.5"
+      ]
+    },
+    "Section|plain": {
+      "total": 106,
+      "uncovered": 86,
+      "samples": [
+        "A.0.1.1",
+        "A.0.1.2",
+        "A.1.1.1",
+        "A.1.1.3",
+        "A.1.10.1"
+      ]
+    },
+    "Section|uuid-link": {
+      "total": 11,
+      "uncovered": 0,
+      "samples": []
+    },
+    "Type Specification|plain": {
+      "total": 28,
+      "uncovered": 28,
+      "samples": [
+        "A.1.2.2.2.1",
+        "A.1.2.2.2.10",
+        "A.1.2.2.2.11",
+        "A.1.2.2.2.12",
+        "A.1.2.2.2.13"
+      ]
+    },
+    "Type Specification|uuid-link": {
+      "total": 2,
+      "uncovered": 0,
+      "samples": []
+    }
+  }
+}
