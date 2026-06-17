@@ -282,7 +282,7 @@ test("extractContentArchive: tarball with no content/ is rejected", async () => 
 
 test("previewPaths + artifact allowlist", () => {
   const p = previewPaths("abc", "/tmp/pv");
-  expect(p.atlasDir).toBe("/tmp/pv/abc/atlas");
+  expect(p.srcDir).toBe("/tmp/pv/abc/src");
   expect(p.outDir).toBe("/tmp/pv/abc/out");
   expect(artifactPath("abc", "docs.json", "/tmp/pv")).toBe("/tmp/pv/abc/out/docs.json");
   expect(artifactPath("abc", "meta.json", "/tmp/pv")).toBe("/tmp/pv/abc/meta.json");
@@ -303,7 +303,7 @@ test("bundleReady + evictLru keep newest, drop unfinished", () => {
   for (const s of ["s1", "s2", "s3"]) mkReady(s);
   expect(bundleReady("s1", root)).toBe(true);
   // an unfinished bundle (atlas only, no out/docs.json)
-  fs.mkdirSync(previewPaths("partial", root).atlasDir, { recursive: true });
+  fs.mkdirSync(previewPaths("partial", root).srcDir, { recursive: true });
 
   // bump s3 as most-recent, then keep only 1
   const future = new Date(Date.now() + 10_000);
