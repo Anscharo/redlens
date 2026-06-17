@@ -37,11 +37,16 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;700&display=optional"
         rel="stylesheet"
     /></noscript>
-    <link rel="preload" href="/docs.json" as="fetch" crossorigin />
+    <!-- preload: fetched promptly on the main thread on first render -->
     <link rel="preload" href="/addresses.json" as="fetch" crossorigin />
     <link rel="preload" href="/addresses.atlas.json" as="fetch" crossorigin />
     <link rel="preload" href="/chain-state.json" as="fetch" crossorigin />
-    <link rel="preload" href="/glossary.json" as="fetch" crossorigin />
+    <!-- prefetch: consumed later / conditionally — docs.json is fetched inside a
+         Web Worker (so it lands after the preload window), glossary.json only on
+         atlas views. preload would warn "not used within a few seconds"; prefetch
+         warms the cache at low priority without the warning. -->
+    <link rel="prefetch" href="/docs.json" as="fetch" crossorigin />
+    <link rel="prefetch" href="/glossary.json" as="fetch" crossorigin />
   </head>
   <body>
     <div id="root"></div>
