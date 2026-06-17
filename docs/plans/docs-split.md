@@ -89,9 +89,8 @@ and exposes the merged result. Components above it see no interface change —
 they still receive full `AtlasNode` objects. The only visible difference is that
 the tree appears sooner.
 
-If content hasn't arrived when a node is opened (edge case on very slow
-connections), `NodeContent.tsx` can show a brief skeleton — but this should
-be rare enough to be treated as a fallback, not the common path.
+On very slow connections where content hasn't arrived yet, the existing node
+content loading skeleton handles the wait — no new loading states needed.
 
 ## Worker changes
 
