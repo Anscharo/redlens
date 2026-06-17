@@ -18,9 +18,16 @@ export function loadAtlas(base: string = import.meta.env.BASE_URL): Promise<Atla
   let cached = atlasCache.get(base);
   if (!cached) {
     cached = new Promise<AtlasBundle>((resolve, reject) => {
-      const url = new URL("../workers/atlas.worker.ts", import.meta.url);
-      if (base !== import.meta.env.BASE_URL) url.searchParams.set("base", base);
-      const worker = new Worker(url, { type: "module" });
+      // Keep `new Worker(new URL(...))` inline so Vite statically detects and
+      // COMPILES the worker. Splitting it into `const url = ...` (to mutate
+      // searchParams) defeats that detection — Vite then ships the raw .ts as an
+      // asset, which the browser refuses to load as a module (video/mp2t MIME).
+      // The preview base is threaded via the worker `name` (read as self.name),
+      // not a ?base= query param, precisely to keep this expression inline.
+      const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
+        type: "module",
+        name: base,
+      });
       worker.addEventListener("message", (e) => {
         const msg = e.data;
         if (msg.type === "ready") {

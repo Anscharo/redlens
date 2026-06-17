@@ -1,9 +1,11 @@
 import type { AtlasNode } from "../types";
 import { fetchJson } from "../lib/verify";
 
-// loadAtlas(base) passes a preview's data-source base as a ?base= query param
-// (e.g. /api/preview/<sha>/); default is the live atlas under BASE_URL.
-const BASE = new URLSearchParams(self.location.search).get("base") ?? import.meta.env.BASE_URL;
+// loadAtlas(base) passes a preview's data-source base via the worker `name`
+// option (e.g. /api/preview/<sha>/); default is the live atlas under BASE_URL.
+// (name, not a ?base= query param, so the new Worker(new URL(...)) call stays
+// inline and Vite compiles the worker — see the note in lib/docs.ts.)
+const BASE = self.name || import.meta.env.BASE_URL;
 
 function buildAndSend(docs: Record<string, AtlasNode>, atlasCommit: string | null) {
   const docNoToId = new Map<string, string>();

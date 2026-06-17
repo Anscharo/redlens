@@ -24,9 +24,13 @@ export function useSearch() {
   useEffect(() => {
     readyRef.current = false;
     setReady(false);
-    const url = new URL("../workers/search.worker.ts", import.meta.url);
-    if (base !== import.meta.env.BASE_URL) url.searchParams.set("base", base);
-    const worker = new Worker(url, { type: "module" });
+    // Inline `new Worker(new URL(...))` so Vite compiles the worker; a split
+    // `const url = ...` ships raw .ts (video/mp2t MIME) the browser won't load.
+    // Preview base goes through the worker `name` (self.name), not ?base=.
+    const worker = new Worker(new URL("../workers/search.worker.ts", import.meta.url), {
+      type: "module",
+      name: base,
+    });
 
     worker.addEventListener("error", (e: ErrorEvent) => {
       console.error("Search worker error:", e.message, e);
