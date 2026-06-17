@@ -2,7 +2,7 @@
 import { describe, it, expect } from "bun:test";
 import { deriveFreshnessStatus, freshnessHttpStatus } from "./freshness.ts";
 
-const REQUIRED = "006_history_metrics.sql";
+const REQUIRED = "008_preview_trust.sql";
 const base = {
   liveSha: "abc",
   dbSha: "abc",
@@ -41,7 +41,7 @@ describe("deriveFreshnessStatus", () => {
   });
 
   it("tolerates the DB being ahead of the code (worker-first additive migration)", () => {
-    expect(deriveFreshnessStatus({ ...base, schemaVersion: "007_later.sql" })).toBe("ok");
+    expect(deriveFreshnessStatus({ ...base, schemaVersion: "009_later.sql" })).toBe("ok");
   });
 
   it("degraded when the DB is unreachable, regardless of other fields", () => {

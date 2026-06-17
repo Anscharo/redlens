@@ -56,8 +56,17 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const atlasCommit = (() => {
-  try { return execSync("git rev-parse HEAD", { cwd: path.join(ROOT, "vendor/next-gen-atlas"), encoding: "utf8" }).trim(); }
+
+// Isolation overrides (preview builds) — see build-index.mjs for the rationale.
+// OUT_DIR holds the artifacts this build owns (docs/addresses.atlas in, graph/
+// relations/addresses.atlas out). ONCHAIN_DIR holds inputs reused from main
+// (addresses.json, chain-state.json) which a preview does NOT rebuild — it
+// defaults to OUT_DIR so the main build reads them from public/ as before.
+const ATLAS_SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
+const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
+const ONCHAIN_DIR = process.env.ATLAS_ONCHAIN_DIR ?? OUT_DIR;
+const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
+  try { return execSync("git rev-parse HEAD", { cwd: ATLAS_SRC_DIR, encoding: "utf8" }).trim(); }
   catch { return "unknown"; }
 })();
 
@@ -66,7 +75,7 @@ const atlasCommit = (() => {
 // ---------------------------------------------------------------------------
 
 console.log("Loading docs.json…");
-const rawDocs = JSON.parse(fs.readFileSync(path.join(ROOT, "public/docs.json"), "utf8"));
+const rawDocs = JSON.parse(fs.readFileSync(path.join(OUT_DIR, "docs.json"), "utf8"));
 const allDocs = Object.values(rawDocs.nodes);
 console.log(`  ${allDocs.length} docs`);
 
@@ -78,11 +87,11 @@ const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
 // addresses.json (on-chain data) is never mutated by build-graph.
 console.log("Loading address artifacts…");
 const addressesAtlas = JSON.parse(
-  fs.readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8"),
+  fs.readFileSync(path.join(OUT_DIR, "addresses.atlas.json"), "utf8"),
 ).addresses;
 const addressesOnChain = (() => {
   try {
-    return JSON.parse(fs.readFileSync(path.join(ROOT, "public/addresses.json"), "utf8"));
+    return JSON.parse(fs.readFileSync(path.join(ONCHAIN_DIR, "addresses.json"), "utf8"));
   } catch {
     return {};
   }
@@ -107,7 +116,7 @@ for (const [addr, atlas] of Object.entries(addressesAtlas)) {
 console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addressesOnChain).length} on-chain`);
 
 console.log("Loading chain-state.json…");
-const chainState = JSON.parse(fs.readFileSync(path.join(ROOT, "public/chain-state.json"), "utf8"));
+const chainState = JSON.parse(fs.readFileSync(path.join(ONCHAIN_DIR, "chain-state.json"), "utf8"));
 const chainStateByAddr = {};
 if (chainState.chains) {
   for (const [chain, data] of Object.entries(chainState.chains)) {
@@ -857,7 +866,7 @@ console.log(`  edges:    ${edgeRows.length}`);
 
 // graph.json — full export for local inspection / debugging
 fs.writeFileSync(
-  path.join(ROOT, "public/graph.json"),
+  path.join(OUT_DIR, "graph.json"),
   JSON.stringify({
     meta: {
       atlasCommit,
@@ -951,7 +960,7 @@ const relationEntities = entityRows
   });
 
 fs.writeFileSync(
-  path.join(ROOT, "public/relations.json"),
+  path.join(OUT_DIR, "relations.json"),
   JSON.stringify({
     meta: {
       atlasCommit,
@@ -962,8 +971,8 @@ fs.writeFileSync(
     edges: relationEdges,
   }),
 );
-const relSize = fs.statSync(path.join(ROOT, "public/relations.json")).size;
-console.log(`  public/relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
+const relSize = fs.statSync(path.join(OUT_DIR, "relations.json")).size;
+console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
 
 // ---------------------------------------------------------------------------
 // Phase 4.5: Enrich addresses.atlas.json with graph-derived annotations
@@ -1037,7 +1046,7 @@ console.log(`  public/relations.json written (${(relSize / 1024).toFixed(0)} KB)
     if (fallback) { entry.entityLabel = fallback; chainlogFallback++; }
   }
 
-  fs.writeFileSync(path.join(ROOT, "public/addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesAtlas }));
+  fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesAtlas }));
   console.log(
     `  Atlas enrichment:` +
     ` ${icdUpdated} ICD` +

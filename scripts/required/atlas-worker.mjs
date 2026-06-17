@@ -88,6 +88,17 @@ async function main() {
 
   const db = new SQL(process.env.DATABASE_URL);
 
+  // ── Preview PR-state sweep ────────────────────────────────────────────────
+  // Runs every cron tick (before the atlas early-exit) since PR states change
+  // independently of atlas commits. Best-effort; never blocks the build.
+  try {
+    const { sweepPrStates } = await import("../../src/server/preview/pr-state.ts");
+    const res = await sweepPrStates(db);
+    console.log(`atlas-worker: pr-state sweep — ${res.checked} PR(s) checked, ${res.updated} updated`);
+  } catch (e) {
+    console.warn(`atlas-worker: pr-state sweep skipped — ${e.message}`);
+  }
+
   // ── Lightweight check ─────────────────────────────────────────────────────
   console.log("atlas-worker: checking upstream atlas SHA…");
   const [upstreamSha, syncState, staleCount] = await Promise.all([

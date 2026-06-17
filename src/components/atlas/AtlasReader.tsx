@@ -12,6 +12,7 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
+import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
@@ -75,10 +76,18 @@ export function AtlasReader({
 
   useAtlasScroll(id, data, expandedParents);
 
+  const changedSet = usePreviewChangedSet();
+
   const docList = useMemo(() => {
     const items: ReactElement[] = [];
     for (const entry of data.flatNodes) {
-      if (entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")) continue;
+      // "changed only": show exactly the changed/added docs (flat), bypassing
+      // the depth-6 gate. Otherwise honor the normal depth gating.
+      if (changedSet) {
+        if (!changedSet.has(entry.node.id)) continue;
+      } else if (entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")) {
+        continue;
+      }
       const gatedCount = expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0);
       const parentDocNo = entry.node.parentId
         ? data.atlas.docs[entry.node.parentId]?.doc_no
@@ -96,7 +105,7 @@ export function AtlasReader({
       );
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, expandedParents, hiddenCount, handleExpandParent]);
+  }, [data, selectedId, expandedSet, userToggles, expandedParents, hiddenCount, handleExpandParent, changedSet]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate }}>

@@ -17,6 +17,7 @@ import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
+import { handlePreview } from "./preview/handler.ts";
 import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
 
 const t0 = performance.now();
@@ -104,10 +105,12 @@ const server = Bun.serve({
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
   },
 
-  // Fallback: CORS preflight + MCP endpoint (runtime config path) + static SPA files.
-  async fetch(req: Request) {
+  // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
+  async fetch(req: Request, server) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     const { pathname } = new URL(req.url);
+
+    if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
@@ -136,7 +139,10 @@ const server = Bun.serve({
       const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
     }
-    return new Response(Bun.file(config.distDir + "/index.html"));
+    // SPA fallback. Preview routes get noindex — unreviewed (possibly fork)
+    // content must never be search-indexed under our domain.
+    const spaHeaders = pathname.includes("/preview/") ? { "x-robots-tag": "noindex" } : undefined;
+    return new Response(Bun.file(config.distDir + "/index.html"), { headers: spaHeaders });
   },
 });
 
@@ -197,3 +203,12 @@ startBootEmbeddings();
 
 // In-process atlas freshness updater (on by default; ATLAS_UPDATE_ENABLED=0 disables).
 startUpdater();
+
+// Preview feature: start the background bundle sweeper (blocked-sha takedowns,
+// stale-vs-main eviction after the updater hot-swaps main, LRU/orphan
+// collection). The previews migrations are applied by the always-on boot
+// runMigrations() above — no preview-specific migration call is needed.
+void (async () => {
+  const { startPreviewSweeper } = await import("./preview/sweeper.ts");
+  startPreviewSweeper();
+})();

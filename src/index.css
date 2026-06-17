@@ -13,6 +13,7 @@
   --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
   --red-dim: #753021;
   --accent: #c67267; /* browner/pinker — focus, interactive */
+  --preview-add: #57ab5a; /* preview redline: new/changed docs (green) */
   --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
   --warn: #c9a227; /* amber — due-soon / caution accents */
 
@@ -48,8 +49,8 @@
   /* ─── Diff view ─── */
   --diff-removed-bg: #4a1010;
   --diff-removed-fg: #e8d5d5;
-  --diff-added-bg: #10301a;
-  --diff-added-fg: #7dd39b;
+  --diff-added-bg: #0c2614;
+  --diff-added-fg: #c2ecd0;
 
   /* ─── Entity-type categorical palette ─── */
   --entity-agent: #c67267; /* same hue as --accent */

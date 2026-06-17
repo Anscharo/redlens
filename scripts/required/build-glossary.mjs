@@ -25,8 +25,12 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const DOCS_PATH = path.join(ROOT, "public/docs.json");
-const OUT_PATH = path.join(ROOT, "public/glossary.json");
+// Isolation override (preview builds) — see build-index.mjs. Glossary reads the
+// preview's own docs.json and writes its own glossary.json, both in OUT_DIR, so
+// a preview build never reads main's docs nor clobbers the live glossary.
+const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
+const DOCS_PATH = path.join(OUT_DIR, "docs.json");
+const OUT_PATH = path.join(OUT_DIR, "glossary.json");
 
 function buildGlossary(nodeMap) {
   const nodes = Object.values(nodeMap);

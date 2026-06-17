@@ -5,7 +5,9 @@ import type { GlossaryEntry } from "../../lib/glossary";
 import { RelatedNode } from "../RelatedNode";
 import { AddressCard } from "../AddressCard";
 import { NodeHistory } from "../history/NodeHistory";
+import { PreviewHistory } from "../history/PreviewHistory";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
+import { useDataSource } from "../../lib/dataSource";
 
 type RightTab = "annotations" | "glossary" | "history";
 
@@ -36,6 +38,7 @@ export function RightPanel({
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
 }) {
+  const { preview } = useDataSource();
   const citedBy = graphEdges.inbound.filter((e) => e.e === "cites");
   const outRels = graphEdges.outbound.filter((e) => !HIDE.has(e.e));
   const inRels = graphEdges.inbound.filter((e) => !HIDE.has(e.e));
@@ -217,7 +220,7 @@ export function RightPanel({
         ) : (
           <div className="px-4 py-5">
             <ErrorBoundary resetKey={id} fallback={<InlineError />}>
-              <NodeHistory nodeId={id} />
+              {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
             </ErrorBoundary>
           </div>
         )}

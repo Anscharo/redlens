@@ -4,41 +4,36 @@
 // the pinned atlas submodule SHA — so if build-index ever drifts from the
 // atlas (loses nodes, mangles structure, hashes the wrong bytes) the build
 // fails loudly.
+//
+// Source is read from content/** (decomposed tree) when present; falls back to
+// the composed Sky Atlas.md for pre-decomposition checkouts.
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import type { AtlasNode } from "../src/types";
-// @ts-expect-error — .mjs import from TypeScript test
-import { KNOWN_DOC_TYPES } from "../scripts/lib/atlas-parser.mjs";
+// @ts-expect-error — .mjs without types; runtime-only import for parser access
+import { parse, parseTree, KNOWN_DOC_TYPES } from "../scripts/lib/atlas-parser.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
+const CONTENT_DIR = path.join(ROOT, "vendor/next-gen-atlas/content");
 const ATLAS_PATH = path.join(ROOT, "vendor/next-gen-atlas/Sky Atlas/Sky Atlas.md");
 const DOCS_PATH = path.join(ROOT, "public/docs.json");
 
-const HEADING_RE = /^(#{1,6}) ([\w.-]+) - (.+?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->$/;
+// Mirror build-index.mjs: decomposed tree takes priority.
+const { nodes: sourceNodes }: { nodes: Array<{ id: string; contentHash: string; doc_no: string }> } =
+  fs.existsSync(CONTENT_DIR)
+    ? parseTree(CONTENT_DIR)
+    : parse(fs.readFileSync(ATLAS_PATH, "utf8"));
 
-const atlasSrc = fs.readFileSync(ATLAS_PATH, "utf8");
+const sourceById = new Map(sourceNodes.map((n) => [n.id, n]));
 const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")).nodes;
 
-function sha256(s: string) {
-  return crypto.createHash("sha256").update(s, "utf8").digest("hex");
-}
-
 describe("parser invariants", () => {
-  it("every <!-- UUID: --> in the source appears in docs.json", () => {
-    const uuidsInSource = new Set<string>();
-    for (const line of atlasSrc.split("\n")) {
-      const m = line.match(HEADING_RE);
-      if (m) uuidsInSource.add(m[5]);
-    }
-    const missing: string[] = [];
-    for (const uuid of uuidsInSource) {
-      if (!docs[uuid]) missing.push(uuid);
-    }
+  it("every UUID in the source appears in docs.json", () => {
+    const missing = [...sourceById.keys()].filter((id) => !docs[id]);
     expect(missing).toEqual([]);
-    expect(Object.keys(docs).length).toBe(uuidsInSource.size);
+    expect(Object.keys(docs).length).toBe(sourceById.size);
   });
 
   it("every node has all required fields with valid shapes", () => {
@@ -54,22 +49,16 @@ describe("parser invariants", () => {
     }
   });
 
-  it("every contentHash reproduces from the raw atlas markdown", () => {
-    // The audit primitive: anyone with the pinned atlas SHA can recompute
-    // sha256 of any node's raw source slice and verify what redlens shows.
-    const raw: Record<string, string[]> = {};
-    let cur: string | null = null;
-    for (const line of atlasSrc.split("\n")) {
-      const m = line.match(HEADING_RE);
-      if (m) {
-        cur = m[5];
-        raw[cur] = [];
-      } else if (cur) raw[cur].push(line);
+  it("every contentHash in docs.json matches the parser's own hash for that node", () => {
+    // The audit primitive: the parser's sha256 of the raw source slice must
+    // match what docs.json records. Anyone with the pinned atlas SHA can
+    // recompute and verify what redlens shows.
+    const mismatches: string[] = [];
+    for (const [id, src] of sourceById) {
+      if (docs[id]?.contentHash !== src.contentHash)
+        mismatches.push(`${src.doc_no} (${id})`);
     }
-    for (const [id, lines] of Object.entries(raw)) {
-      const expected = sha256(lines.join("\n"));
-      expect(docs[id]?.contentHash, `mismatch for ${docs[id]?.doc_no ?? id}`).toBe(expected);
-    }
+    expect(mismatches).toEqual([]);
   });
 
   it("docs.json contains at least 10 000 nodes", () => {

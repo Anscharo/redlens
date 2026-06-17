@@ -20,12 +20,16 @@ export interface ConstellationInit {
 }
 
 // Module-level cache for the raw graph data (used by reports/radar).
-let graphCache: Promise<GraphData> | null = null;
+// Cache the raw graph data per data-source base (used by reports/radar). A
+// preview passes its bundle base ("/api/preview/<sha>/") so radar renders the
+// proposed atlas; default is the live atlas under BASE_URL.
+const graphCache = new Map<string, Promise<GraphData>>();
 
-export function loadGraph(): Promise<GraphData> {
-  if (!graphCache) {
-    graphCache = fetchJson<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
-      `${import.meta.env.BASE_URL}relations.json`,
+export function loadGraph(base: string = import.meta.env.BASE_URL): Promise<GraphData> {
+  let cached = graphCache.get(base);
+  if (!cached) {
+    cached = fetchJson<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
+      `${base}relations.json`,
       "relations.json",
     ).then((data) => ({
       participants: data.entities.filter(
@@ -36,11 +40,12 @@ export function loadGraph(): Promise<GraphData> {
       primitives: data.entities.filter((e) => e.et === "primitive"),
       edges: data.edges,
     })).catch((err) => {
-      graphCache = null;
+      graphCache.delete(base);
       throw err;
     });
+    graphCache.set(base, cached);
   }
-  return graphCache;
+  return cached;
 }
 
 export interface EdgeResult {

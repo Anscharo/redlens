@@ -4,6 +4,8 @@ import { segmentDepths, chicletColor } from "../../lib/depth";
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
+import { PreviewMark } from "../preview/PreviewMark";
+import { usePreviewDim } from "../../lib/previewFilter";
 
 export const ROW_HEIGHT = 26;
 const TOGGLE_WIDTH = 12;
@@ -66,6 +68,7 @@ export function TreeRow({
   const title = node?.title ?? "";
   const docNo = node?.doc_no ?? "";
   const treeDepth = item?.treeDepth ?? 0;
+  const dim = usePreviewDim(node?.id ?? "");
 
   const docNoSegments = useMemo(() => {
     if (!docNo) return { parts: [] as string[], depths: [] as number[], width: 0 };
@@ -102,7 +105,7 @@ export function TreeRow({
   return (
     <div
       data-node-id={node.id}
-      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, ["--row-color" as string]: depthVar }}
+      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, opacity: dim ? 0.86 : undefined, ["--row-color" as string]: depthVar }}
       className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
       onClick={(e) => {
         if (e.shiftKey && onShiftNavigate) {
@@ -122,6 +125,7 @@ export function TreeRow({
         {hasChildren ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
       </span>
       <DocNoChiclets parts={docNoSegments.parts} depths={docNoSegments.depths} />
+      <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
       <span
         style={{ ...TITLE_BASE, color: titleColor }}
         title={node.doc_no + " \u2014 " + node.title}

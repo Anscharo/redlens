@@ -5,6 +5,8 @@ import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
+import { PreviewMark } from "../preview/PreviewMark";
+import { usePreviewDim } from "../../lib/previewFilter";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -45,13 +47,15 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     };
   }, [node.doc_no, parentDocNo]);
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
+  // Selected node always full-strength; otherwise dim untouched docs in preview.
+  const dim = usePreviewDim(node.id) && !isSelected;
 
   return (
     <article
       id={idPrefix ? `${idPrefix}-${node.id}` : node.id}
       className={`atlas-node relative${isSelected ? " is-selected" : ""}`}
       data-has-hidden={hiddenCount > 0 ? "true" : undefined}
-      style={{ ["--row-color" as string]: color } as React.CSSProperties}
+      style={{ ["--row-color" as string]: color, opacity: dim ? 0.92 : undefined } as React.CSSProperties}
       aria-label={`${node.doc_no} — ${node.title}`}
       aria-expanded={hasContent ? isExpanded : undefined}
       tabIndex={0}
@@ -98,6 +102,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
+        <PreviewMark nodeId={node.id} className="text-lg" />
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
             {node.title}

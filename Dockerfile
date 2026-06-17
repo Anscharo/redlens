@@ -1,10 +1,10 @@
 # ─── Stage 1: builder ────────────────────────────────────────────────────────
 # Clones the atlas, builds all artifacts and the Vite bundle. Heavy tools
-# (git, python3) stay in this layer and never reach the runtime image.
+# (git) stay in this layer and never reach the runtime image.
 FROM oven/bun:1.3 AS builder
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends git python3 ca-certificates \
+ && apt-get install -y --no-install-recommends git ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -30,7 +30,7 @@ RUN rm -rf vendor/next-gen-atlas \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
-# Lean image — no git, no python3, no atlas source, no build toolchain.
+# Lean image — no git, no atlas source, no build toolchain.
 # Atlas artifacts are baked in from the builder stage so the server has
 # data from the first request. The in-process updater keeps them fresh
 # from Postgres once the atlas worker populates it.

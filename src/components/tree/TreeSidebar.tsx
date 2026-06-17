@@ -4,6 +4,8 @@ import { useAtlasTree } from "../../hooks/useAtlasTree";
 import { useTreeKeyboard } from "../../hooks/useTreeKeyboard";
 import { usePulseDom } from "../../hooks/usePulseDom";
 import { realDepth } from "../../lib/depth";
+import { usePreviewChangedSet } from "../../lib/previewFilter";
+import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
 
 interface Props {
@@ -60,9 +62,19 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     };
   }, []);
 
+  const changedSet = usePreviewChangedSet();
+
   const visibleNodes = useMemo(() => {
     if (!bundle) return [];
-    const { byParent } = bundle;
+    const { byParent, docs } = bundle;
+    // "Changed only": flat list of just the changed/added docs, in document
+    // order — no hierarchy, no ancestors, nothing to expand.
+    if (changedSet) {
+      return Object.values(docs)
+        .filter((n) => changedSet.has(n.id))
+        .sort((a, b) => a.order - b.order)
+        .map((node) => ({ node, hasChildren: false, treeDepth: 1 }));
+    }
     const result: VisibleNode[] = [];
     function walk(parentId: string | null, parentDocNo?: string) {
       for (const node of byParent.get(parentId) ?? []) {
@@ -73,7 +85,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     }
     walk(null);
     return result;
-  }, [bundle, expandedIds]);
+  }, [bundle, expandedIds, changedSet]);
 
   const selectedIndex = useMemo(
     () => (nodeId ? visibleNodes.findIndex((v) => v.node.id === nodeId) : -1),
@@ -154,6 +166,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       role="tree"
       aria-label="Atlas tree"
     >
+      <PreviewTreeToggle />
       <List
         listRef={listRef}
         rowCount={visibleNodes.length}
