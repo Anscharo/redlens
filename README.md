@@ -51,7 +51,7 @@ Address cards show the resolved label, aliases, explorer link, role tags, proxy 
 
 ## Getting started
 
-Requires [pnpm](https://pnpm.io/) and Node 22+.
+Requires [pnpm](https://pnpm.io/), Node 22+, and [Docker](https://docker.com) (for the local Postgres in `pnpm dev`; skippable with `DEV_NO_DB=1`).
 
 ```bash
 git clone --recurse-submodules https://github.com/Anscharo/redlens.git
@@ -75,10 +75,12 @@ The Etherscan cache is committed to the repo — if you're not adding new addres
 ### Build and run
 
 ```bash
-pnpm build   # full pipeline (see below) + tsc + vite build
-pnpm dev     # Vite dev server (run pnpm build first to generate the data files)
+pnpm dev     # one-command local env (see below)
+pnpm build   # full production pipeline (see below) + tsc + vite build
 pnpm preview # serve the production build locally
 ```
+
+`pnpm dev` is self-contained: it installs deps if `pnpm-lock.yaml` changed, ensures the Docker daemon + local Postgres are up, syncs the DB to the checked-out atlas commit, builds the data files if missing, then runs the Bun API server + Vite together. It needs Docker for the local Postgres (launched automatically on macOS). Reader-only, no database: `DEV_NO_DB=1 pnpm dev` (other hatches: `DEV_NO_INSTALL`, `DEV_NO_WORKER`, `DEV_NO_BUILD`).
 
 ## Build pipeline
 
