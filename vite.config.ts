@@ -124,6 +124,8 @@ export default defineConfig(() => {
         // Don't precache large/dynamic data files — they're handled by runtime caching
         globIgnores: [
           "**/docs.json",
+          "**/docs-shallow.json",
+          "**/docs-deep.json",
           "**/search-index.json",
           "**/addresses.json",
           "**/addresses.atlas.json",
@@ -152,7 +154,9 @@ export default defineConfig(() => {
           {
             // Flat, NON-atlas-versioned files (addresses.json, chain-state.json,
             // manifest.json): network-first (fast to fetch, worth having fresh).
-            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|glossary|manifest)\.json$/,
+            // glossary.json is now sha-keyed → caught by the CacheFirst rule above,
+            // so it's deliberately absent here.
+            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "atlas-data-small",

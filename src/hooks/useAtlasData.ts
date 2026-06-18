@@ -58,24 +58,29 @@ export function useAtlasData(): LoadedData | null {
 
     // Phase 2 — FULL: docs-deep merged in (all depths) + enrichments. Replaces the
     // shallow set; `complete: true` lets the reader resolve deep-linked deep nodes.
-    loadAtlas(base).then((atlas) =>
-      Promise.all([safe(loadAddresses(base)), safe(loadChainState()), safe(loadGlossary(base))]).then(
-        ([addresses, chainState, glossary]) => {
-          if (!live) return;
-          if (addresses) setAddressMap(addresses);
-          startTransition(() => {
-            setData({
-              atlas,
-              flatNodes: flattenTree(atlas.byParent),
-              addresses,
-              chainState,
-              glossary,
-              complete: true,
+    loadAtlas(base)
+      .then((atlas) =>
+        Promise.all([safe(loadAddresses(base)), safe(loadChainState()), safe(loadGlossary(base))]).then(
+          ([addresses, chainState, glossary]) => {
+            if (!live) return;
+            if (addresses) setAddressMap(addresses);
+            startTransition(() => {
+              setData({
+                atlas,
+                flatNodes: flattenTree(atlas.byParent),
+                addresses,
+                chainState,
+                glossary,
+                complete: true,
+              });
             });
-          });
-        },
-      ),
-    );
+          },
+        ),
+      )
+      // A stale-sha rejection already triggers a force-forward reload (handledStaleMessage
+      // in the worker error path); any other deep-load failure stays on the shallow-only
+      // view rather than leaking an unhandled rejection and pinning `complete: false`.
+      .catch(() => {});
     return () => {
       live = false;
     };
