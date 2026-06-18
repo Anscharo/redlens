@@ -147,6 +147,7 @@ export default defineConfig(() => {
         // shell = a stale sha; can't have both. The JS/CSS chunks stay precached, so a
         // repeat visit is bundle-instant minus one ~1.6 KB no-cache HTML round-trip.
         // Offline read was a nice-to-have; dropping it is deliberate.
+
         navigateFallback: undefined,
         runtimeCaching: [
           {

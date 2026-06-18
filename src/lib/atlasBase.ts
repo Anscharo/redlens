@@ -13,6 +13,7 @@ import { StaleAtlasError } from "./verify";
 // /api/atlas/{{ATLAS_SHA}}/…, which 404s as a StaleAtlasError and force-forwards
 // on every load → an infinite reload loop. (The SW no longer precaches index.html,
 // so the placeholder shouldn't reach here; this is defense-in-depth.)
+
 const SHA_RE = /^[0-9a-f]{40}$/i;
 
 /** The live atlas base. Invalid/absent sha → flat BASE_URL. */
