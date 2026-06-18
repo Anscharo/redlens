@@ -22,8 +22,10 @@ describe("nrSidebarChiclets", () => {
     const { parts, slots } = nrSidebarChiclets("NR-12", "A.1.6.4.3.2", 6);
     expect(parts).toEqual(["N", "R", "", "1", "2"]);
     expect(slots).toEqual([1, 1, 4, 1, 1]);
-    // grid column where the number begins == parent segment count
-    const numStartCol = slots.slice(0, parts.indexOf("1")).reduce((a, b) => a + b, 0);
+    // grid column where the number begins == parent segment count.
+    // Anchor on the empty-string dash slot, not the first "1" (a lead char could be "1").
+    const dashIdx = parts.indexOf("");
+    const numStartCol = slots.slice(0, dashIdx + 1).reduce((a, b) => a + b, 0);
     expect(numStartCol).toBe(6);
   });
 
