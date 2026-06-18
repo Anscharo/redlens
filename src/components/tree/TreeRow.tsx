@@ -87,7 +87,7 @@ export function TreeRow({
     // the node's siblings.
     if (docNo.startsWith("NR-")) {
       const { parts, depths, slots, gradients } = nrSidebarChiclets(docNo, parentDocNo, treeDepth);
-      const width = parts.reduce((sum, seg, i) => sum + Math.max(13, seg.length * 7 + 6) * slots[i], 0);
+      const width = parts.reduce((sum, seg, i) => sum + Math.max(12, seg.length * 7 + 6) * slots[i], 0);
       return { parts, depths, slots, gradients, width } as Seg;
     }
     const parts = docNo.split(".");
