@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { Link } from "./Link";
-import notesRaw from "../content/patch-notes.md?raw";
+import notesRaw from "../../patch-notes.md?raw";
 import { parsePatchNotes, formatPatchDate } from "../lib/patchNotes";
 
 // Input is static (bundled via Vite ?raw), so parse once at module scope.

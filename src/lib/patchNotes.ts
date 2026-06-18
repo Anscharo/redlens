@@ -1,5 +1,5 @@
 // Patch-notes parsing — turns the grouped markdown in
-// src/content/patch-notes.md into ordered date groups for the homepage.
+// the repo-root patch-notes.md into ordered date groups for the homepage.
 // Pure data logic so it's unit-testable without React (matches the project's
 // convention, e.g. staleDates.ts / activeDataIndex.ts). The markdown is a
 // flat, known shape (## YYYY-MM-DD headings + `- bullet` lines), so no

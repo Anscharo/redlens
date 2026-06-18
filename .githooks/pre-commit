@@ -4,11 +4,11 @@
 
 # Only validate patch-notes.md when it's part of this commit — keeps the hook
 # instant for every other commit.
-if git diff --cached --name-only --diff-filter=ACM | grep -q '^src/content/patch-notes\.md$'; then
-  echo "Checking src/content/patch-notes.md…"
+if git diff --cached --name-only --diff-filter=ACM | grep -q '^patch-notes\.md$'; then
+  echo "Checking patch-notes.md…"
   if ! pnpm run --silent check:patch-notes; then
     echo
-    echo "Commit aborted: fix src/content/patch-notes.md (or 'git commit --no-verify' to skip)."
+    echo "Commit aborted: fix patch-notes.md (or 'git commit --no-verify' to skip)."
     exit 1
   fi
 fi

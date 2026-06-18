@@ -1,4 +1,4 @@
-// Strict validator for src/content/patch-notes.md.
+// Strict validator for patch-notes.md.
 //
 // This is deliberately separate from the frontend parser in
 // src/lib/patchNotes.ts: the parser is LENIENT (it silently ignores anything
