@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>RedLens has moved</title>
+    <link rel="canonical" href="https://atlas.redline.support/" />
+    <!-- Fallback if JS is disabled: send to the live site root. -->
+    <meta http-equiv="refresh" content="0; url=https://atlas.redline.support/" />
+    <script>
+      // Forward the full deep link: strip the GitHub Pages "/redlens" base
+      // prefix, then carry path + query + hash over to the live site.
+      (function () {
+        var live = "https://atlas.redline.support";
+        var path = window.location.pathname.replace(/^\/redlens/, "");
+        if (path === "") path = "/";
+        window.location.replace(live + path + window.location.search + window.location.hash);
+      })();
+    </script>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        background: #160e0d;
+        color: #f3e7ce;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+      a { color: #c67267; }
+    </style>
+  </head>
+  <body>
+    <p>
+      RedLens has moved to
+      <a href="https://atlas.redline.support/">atlas.redline.support</a>.
+      Redirecting…
+    </p>
+  </body>
+</html>
