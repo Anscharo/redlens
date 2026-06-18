@@ -28,7 +28,8 @@ const components: Components = {
 export function PatchNotes() {
   if (groups.length === 0) return null;
   return (
-    <section className="mt-12">
+    <section className="mt-20">
+      <hr className="mb-10 border-t" style={{ borderColor: "var(--hover)" }} />
       <h2 className="text-3xl font-semibold text-tan mb-4">Recent improvements</h2>
       <div className="flex flex-col gap-4">
         {groups.map((g) => (
