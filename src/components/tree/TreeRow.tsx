@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import { type RowComponentProps } from "react-window";
-import { segmentDepths, chicletColor } from "../../lib/depth";
+import { segmentDepths, chicletColor, nrSidebarChiclets } from "../../lib/depth";
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
+import { Tooltip } from "../Tooltip";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 
@@ -15,6 +16,7 @@ export interface VisibleNode {
   node: AtlasNode;
   hasChildren: boolean;
   treeDepth: number;
+  parentDocNo?: string;
 }
 
 export interface TreeRowData {
@@ -68,18 +70,32 @@ export function TreeRow({
   const title = node?.title ?? "";
   const docNo = node?.doc_no ?? "";
   const treeDepth = item?.treeDepth ?? 0;
+  const parentDocNo = item?.parentDocNo;
   const dim = usePreviewDim(node?.id ?? "");
 
   const docNoSegments = useMemo(() => {
-    if (!docNo) return { parts: [] as string[], depths: [] as number[], width: 0 };
+    type Seg = {
+      parts: string[];
+      depths: number[];
+      slots: number[] | undefined;
+      gradients: (string | undefined)[] | undefined;
+      width: number;
+    };
+    if (!docNo) return { parts: [], depths: [], slots: undefined, gradients: undefined, width: 0 } as Seg;
+    // NR-X nodes: "NR" under the parent's first segment, dash stretched (with a
+    // gradient line) so the number sits one column past the parent, aligned with
+    // the node's siblings.
+    if (docNo.startsWith("NR-")) {
+      const { parts, depths, slots, gradients } = nrSidebarChiclets(docNo, parentDocNo, treeDepth);
+      const width = parts.reduce((sum, seg, i) => sum + Math.max(13, seg.length * 7 + 6) * slots[i], 0);
+      return { parts, depths, slots, gradients, width } as Seg;
+    }
     const parts = docNo.split(".");
-    // NR-X nodes have a single opaque token; colour it at the node's actual tree depth
-    // rather than letting segmentDepths fall back to 1.
-    const depths = docNo.startsWith("NR-") ? [treeDepth] : segmentDepths(docNo);
+    const depths = segmentDepths(docNo);
     // chiclet width = ~7 px/char + ~6 px (padding+border) per segment, no dots
     const width = parts.reduce((sum, seg) => sum + Math.max(13, seg.length * 7 + 6), 0);
-    return { parts, depths, width };
-  }, [docNo, treeDepth]);
+    return { parts, depths, slots: undefined, gradients: undefined, width } as Seg;
+  }, [docNo, treeDepth, parentDocNo]);
 
   const availableWidth = sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5;
 
@@ -114,17 +130,30 @@ export function TreeRow({
         } else onNavigate(node.id);
       }}
     >
-      <span
-        className="tree-toggle"
-        style={{
-          ...TOGGLE_BASE,
-          color: hasChildren ? (isExpanded ? titleColor : "var(--tan-3)") : "transparent",
-        }}
-        onClick={hasChildren ? (e) => onToggle(node.id, e) : undefined}
-      >
-        {hasChildren ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
-      </span>
-      <DocNoChiclets parts={docNoSegments.parts} depths={docNoSegments.depths} />
+      {hasChildren ? (
+        <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
+          <span
+            className="tree-toggle"
+            style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
+            onClick={(e) => onToggle(node.id, e)}
+          >
+            {isExpanded ? "\u25BE" : "\u25B8"}
+          </span>
+        </Tooltip>
+      ) : (
+        <span
+          className="tree-toggle tree-toggle-empty"
+          style={{ ...TOGGLE_BASE, color: "transparent" }}
+        >
+          {"\u00B7"}
+        </span>
+      )}
+      <DocNoChiclets
+        parts={docNoSegments.parts}
+        depths={docNoSegments.depths}
+        slots={docNoSegments.slots}
+        gradients={docNoSegments.gradients}
+      />
       <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
       <span
         style={{ ...TITLE_BASE, color: titleColor }}

@@ -89,9 +89,6 @@ export function AtlasReader({
         continue;
       }
       const gatedCount = expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0);
-      const parentDocNo = entry.node.parentId
-        ? data.atlas.docs[entry.node.parentId]?.doc_no
-        : undefined;
       items.push(
         <CollapsibleNode
           key={entry.node.id}
@@ -99,7 +96,6 @@ export function AtlasReader({
           isSelected={entry.node.id === selectedId}
           isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
           hiddenCount={gatedCount}
-          parentDocNo={parentDocNo}
           onExpandChildren={handleExpandParent}
         />,
       );
