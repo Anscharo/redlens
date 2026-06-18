@@ -3,7 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { parsePatchNotes, formatPatchDate } from "./patchNotes";
 // @ts-expect-error — plain .mjs build script, no type declarations.
-import { validatePatchNotes } from "../../scripts/lib/patch-notes-validate.mjs";
+import { validatePatchNotes as validateRaw } from "../../scripts/lib/patch-notes-validate.mjs";
+const validatePatchNotes = validateRaw as (raw: string) => string[];
 
 const SAMPLE = `<!-- a leading comment -->
 
