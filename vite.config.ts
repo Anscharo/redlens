@@ -143,6 +143,11 @@ export default defineConfig(() => {
         // Navigations must reach the Bun server, which serves the SPA shell with the
         // live atlas sha injected (src/server/index.ts). A precache-backed
         // NavigationRoute would shadow that with the stale placeholder HTML and loop.
+        // Tradeoff: no offline shell launch — the sha lives in the HTML, so a cached
+        // shell = a stale sha; can't have both. The JS/CSS chunks stay precached, so a
+        // repeat visit is bundle-instant minus one ~1.6 KB no-cache HTML round-trip.
+        // Offline read was a nice-to-have; dropping it is deliberate.
+
         navigateFallback: undefined,
         runtimeCaching: [
           {

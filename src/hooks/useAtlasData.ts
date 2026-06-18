@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, startTransition } from "react";
-import { loadAtlas, loadAtlasTree } from "../lib/docs";
+import { loadAtlas, loadAtlasShallow } from "../lib/docs";
 import { loadAddresses } from "../lib/addresses";
 import { loadChainState } from "../lib/chainstate";
 import { loadGlossary } from "../lib/glossary";
@@ -37,7 +37,7 @@ export function useAtlasData(): LoadedData | null {
     // heavier docs-deep.json (depth > 5, ~663 KB gz — gated behind "view all
     // descendants", so off the first-paint path). Enrichments are null until phase 2;
     // `complete: false` marks the tree as still-loading. See docs/plans/docs-split.md.
-    loadAtlasTree(base)
+    loadAtlasShallow(base)
       .then((atlas) => {
         if (!live) return;
         startTransition(() => {

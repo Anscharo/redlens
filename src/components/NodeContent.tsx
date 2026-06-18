@@ -8,9 +8,13 @@ interface Props {
   onNavigate?: (id: string) => void;
 }
 
-/** Call once after initial render to warm the chunk before the user needs it. */
+/** Warm the markdown-renderer chunk (the CODE, distinct from the worker's doc
+ *  DATA) before the user opens a node. Deferred to idle so it never competes with
+ *  the critical first-load fetches (entry JS, search index, atlas tree). */
 export function prefetchNodeContent(): void {
-  import("./NodeContentInner");
+  const warm = () => void import("./NodeContentInner");
+  if (typeof requestIdleCallback === "function") requestIdleCallback(warm, { timeout: 3000 });
+  else setTimeout(warm, 1500);
 }
 
 function NodeContentSkeleton() {

@@ -1,15 +1,19 @@
 // Live-atlas data-source plumbing (main-thread). The server injects the current
-// atlas sha into the HTML (window.__ATLAS_SHA__); live artifacts are served from
-// the immutable per-sha path /api/atlas/<sha>/<name>.json so a URL's bytes never
-// change. This is the DEFAULT base for every loader; previews pass their own
-// "/api/preview/<sha>/" base explicitly via the DataSource context.
+// atlas sha into the HTML (window.__ATLAS_SHA__, no-cache so it's always fresh);
+// live artifacts are served from the immutable per-sha path
+// /api/atlas/<sha>/<name>.json so a URL's bytes never change. This is the DEFAULT
+// base for every loader; previews pass their own "/api/preview/<sha>/" base
+// explicitly via the DataSource context.
 import { StaleAtlasError } from "./verify";
 
 // A valid injected sha is a 40-hex git commit. Anything else — empty (cold boot /
-// dev without injection) or the literal "{{ATLAS_SHA}}" placeholder (a SW serving
-// the precached build-time HTML instead of the Bun-injected page) — must fall back
-// to flat BASE_URL. Building /api/atlas/{{ATLAS_SHA}}/ would 404 as a StaleAtlasError
-// and trigger reloadOnce() on every load → an infinite reload loop.
+// dev without injection) or the literal "{{ATLAS_SHA}}" placeholder (a stale,
+// service-worker-cached shell that escaped the Bun injection) — falls back to flat
+// BASE_URL. Without this guard, "{{ATLAS_SHA}}" is truthy and builds
+// /api/atlas/{{ATLAS_SHA}}/…, which 404s as a StaleAtlasError and force-forwards
+// on every load → an infinite reload loop. (The SW no longer precaches index.html,
+// so the placeholder shouldn't reach here; this is defense-in-depth.)
+
 const SHA_RE = /^[0-9a-f]{40}$/i;
 
 /** The live atlas base. Invalid/absent sha → flat BASE_URL. */
