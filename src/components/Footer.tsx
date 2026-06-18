@@ -9,12 +9,12 @@ const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
 const PROVENANCE_HREF = `${BASE}provenance`;
 
-// Clear only the StaleWhileRevalidate atlas cache before reloading — otherwise
-// the SW serves the stale docs.json and the "atlas updated" notice loops forever.
+// Plain reload: artifacts are served from immutable per-sha URLs, so the fresh
+// no-cache HTML carries the new sha and the app fetches new URLs the cache has
+// never seen — no cache-busting dance needed (the old atlas-data-large hack is
+// gone with the StaleWhileRevalidate rule that required it).
 function reloadWithFreshAtlas() {
-  const reload = () => window.location.reload();
-  if (!("caches" in window)) { reload(); return; }
-  caches.delete("atlas-data-large").then(reload, reload);
+  window.location.reload();
 }
 
 export function Footer() {

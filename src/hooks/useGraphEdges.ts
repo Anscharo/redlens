@@ -16,9 +16,14 @@ export function useGraphEdges(id: string): EdgeResult {
     setGraphEdges(EMPTY_EDGES);
     if (!id || preview) return;
     let cancelled = false;
-    getEdges(id).then((r) => {
-      if (!cancelled) setGraphEdges(r);
-    });
+    getEdges(id)
+      .then((r) => {
+        if (!cancelled) setGraphEdges(r);
+      })
+      .catch((err) => {
+        if (!cancelled) setGraphEdges(EMPTY_EDGES);
+        console.warn("graph edges request failed", err);
+      });
     return () => {
       cancelled = true;
     };

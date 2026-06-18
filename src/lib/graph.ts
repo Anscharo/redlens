@@ -5,6 +5,7 @@ import type {
   GraphWorkerOutMessage,
 } from "../types";
 import { fetchJson } from "./verify";
+import { liveAtlasBase, handledStale, handledStaleMessage } from "./atlasBase";
 
 export interface GraphData {
   participants: GraphEntity[];
@@ -25,7 +26,7 @@ export interface ConstellationInit {
 // proposed atlas; default is the live atlas under BASE_URL.
 const graphCache = new Map<string, Promise<GraphData>>();
 
-export function loadGraph(base: string = import.meta.env.BASE_URL): Promise<GraphData> {
+export function loadGraph(base: string = liveAtlasBase()): Promise<GraphData> {
   let cached = graphCache.get(base);
   if (!cached) {
     cached = fetchJson<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
@@ -41,6 +42,9 @@ export function loadGraph(base: string = import.meta.env.BASE_URL): Promise<Grap
       edges: data.edges,
     })).catch((err) => {
       graphCache.delete(base);
+      // Stale pinned sha → force-forward; return a never-resolving promise so no
+      // error UI flashes before the reload swaps in fresh URLs.
+      if (handledStale(err)) return new Promise<GraphData>(() => {});
       throw err;
     });
     graphCache.set(base, cached);
@@ -70,13 +74,47 @@ const edgePending = new Map<string, (r: EdgeResult) => void>();
 const queryPending = new Map<number, (r: { neighborIds: string[]; topId: string | null }) => void>();
 const clusterPending = new Map<string, (ids: string[]) => void>();
 
+// If the worker dies mid-request the response never arrives, leaking the pending
+// callback and hanging the awaiting promise forever. Register every request with
+// a timeout that clears the entry and rejects, so callers can recover.
+const REQUEST_TIMEOUT_MS = 5000;
+
+function registerPending<K, V>(
+  map: Map<K, (v: V) => void>,
+  key: K,
+  resolve: (v: V) => void,
+  reject: (e: Error) => void,
+  label: string,
+): void {
+  const timer = setTimeout(() => {
+    map.delete(key);
+    reject(new Error(`graph worker ${label} request (${String(key)}) timed out`));
+  }, REQUEST_TIMEOUT_MS);
+  map.set(key, (v: V) => {
+    clearTimeout(timer);
+    resolve(v);
+  });
+}
+
 function getWorker(): Worker {
   if (worker) return worker;
 
-  worker = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), { type: "module" });
+  // Thread the live atlas base via the worker `name` (read as self.name) — same
+  // pattern as the atlas/search workers — so the worker fetches the sha-keyed
+  // relations.json. Inline `new Worker(new URL(...))` so Vite compiles it.
+  worker = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), {
+    type: "module",
+    name: liveAtlasBase(),
+  });
 
   worker.addEventListener("message", (e: MessageEvent<GraphWorkerOutMessage>) => {
     const msg = e.data;
+
+    if (msg.type === "error") {
+      // Stale pinned sha (404 on the sha-keyed relations.json) → force-forward.
+      if (!handledStaleMessage(msg.message)) console.error("[graph]", msg.message);
+      return;
+    }
 
     if (msg.type === "ready") {
       constellationInit = { entities: msg.entities, entityEdges: msg.entityEdges };
@@ -128,8 +166,8 @@ export function getConstellationInit(): Promise<ConstellationInit> {
 export async function getEdges(id: string): Promise<EdgeResult> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    edgePending.set(id, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(edgePending, id, resolve, reject, "edges");
     w.postMessage({ type: "edges", id });
   });
 }
@@ -140,8 +178,8 @@ export async function constellationQuery(
 ): Promise<{ neighborIds: string[]; topId: string | null }> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    queryPending.set(id, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(queryPending, id, resolve, reject, "constellation-query");
     w.postMessage({ type: "constellation-query", id, q });
   });
 }
@@ -149,8 +187,8 @@ export async function constellationQuery(
 export async function constellationCluster(agentId: string): Promise<string[]> {
   const w = getWorker();
   await whenReady();
-  return new Promise((resolve) => {
-    clusterPending.set(agentId, resolve);
+  return new Promise((resolve, reject) => {
+    registerPending(clusterPending, agentId, resolve, reject, "constellation-cluster");
     w.postMessage({ type: "constellation-cluster", agentId });
   });
 }

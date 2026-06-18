@@ -26,18 +26,22 @@ export function useConstellationsWorker(query: string, focusAgentId: string | nu
     }
     const id = ++queryIdRef.current;
     const timer = setTimeout(() => {
-      constellationQuery(id, q).then((result) => {
-        if (id !== queryIdRef.current) return;
-        setNeighborIds(new Set(result.neighborIds));
-        setTopId(result.topId);
-      });
+      constellationQuery(id, q)
+        .then((result) => {
+          if (id !== queryIdRef.current) return;
+          setNeighborIds(new Set(result.neighborIds));
+          setTopId(result.topId);
+        })
+        .catch((err) => console.warn("constellation query failed", err));
     }, 150);
     return () => clearTimeout(timer);
   }, [query]);
 
   useEffect(() => {
     if (!focusAgentId) { setClusterIds(null); return; }
-    constellationCluster(focusAgentId).then((ids) => setClusterIds(new Set(ids)));
+    constellationCluster(focusAgentId)
+      .then((ids) => setClusterIds(new Set(ids)))
+      .catch((err) => console.warn("constellation cluster failed", err));
   }, [focusAgentId]);
 
   return { init, neighborIds, topId, clusterIds };

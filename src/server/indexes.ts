@@ -52,9 +52,30 @@ export function docRowToNode(r: DocMetaRow): AtlasNode {
 }
 
 // The docs.json envelope contract ({ atlasCommit, nodes }) read by
-// readArtifactsFromDisk and the frontend. One writer, so the shape can't drift.
+// readArtifactsFromDisk and the server. One writer, so the shape can't drift.
+// docs.json keeps full nodes (content + contentHash) — it's the server/internal
+// artifact and the bundle's diff source.
 export function writeDocsJson(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
   writeFileSync(join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
+}
+
+// Browser-facing split of docs.json (docs/plans/docs-split.md): split by tree DEPTH
+// into docs-shallow.json (depth ≤ 5, the initial visible tree + content) and
+// docs-deep.json (depth > 5, the gated bulk loaded after first paint). Each file
+// holds self-contained full nodes (no positional stitching). `contentHash` stays
+// server-only. MUST stay byte-shape-compatible with build-index.mjs — the runtime
+// updater calls this after rebuilding docs.json from the DB so the per-sha bundle's
+// split files are never stale relative to docs.json.
+const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with build-index.mjs
+export function writeDocsSplit(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
+  const shallow: AtlasNode[] = [];
+  const deep: AtlasNode[] = [];
+  for (const n of Object.values(nodes)) {
+    const { contentHash: _h, ...node } = n;
+    (node.depth <= SHALLOW_MAX_DEPTH ? shallow : deep).push(node);
+  }
+  writeFileSync(join(dir, "docs-shallow.json"), JSON.stringify({ atlasCommit, nodes: shallow }));
+  writeFileSync(join(dir, "docs-deep.json"), JSON.stringify({ atlasCommit, nodes: deep }));
 }
 
 export interface Entity {

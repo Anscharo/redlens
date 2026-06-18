@@ -75,11 +75,22 @@ export function JuniorPane({
     if (!entry)
       return { slice: [] as FlatEntry[], hasMore: false, autoExpanded: new Set<string>() };
     const maxDepth = entry.depth + DEPTH_LIMIT;
-    const docNoPrefix = node.doc_no + "."; // fragile: doc_no prefix — safe within one snapshot, migrate to parent links
+
+    // Collect descendants via parent links (byParent), not doc_no prefix —
+    // doc_nos are editorial and get renumbered, parent ids are stable identity.
+    const descendantIds = new Set<string>();
+    const stack = [splitId];
+    while (stack.length) {
+      for (const child of data.atlas.byParent.get(stack.pop()!) ?? []) {
+        descendantIds.add(child.id);
+        stack.push(child.id);
+      }
+    }
+
     const slice: FlatEntry[] = [entry];
     let hasMore = false;
     for (const e of data.flatNodes) {
-      if (e.node.doc_no.startsWith(docNoPrefix)) {
+      if (descendantIds.has(e.node.id)) {
         if (e.depth <= maxDepth || showMore) slice.push(e);
         else hasMore = true;
       }

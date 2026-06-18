@@ -2,6 +2,8 @@
 /**
  * Parses Sky Atlas.md and emits:
  *   public/docs.json          — id → node (uuid, doc_no, title, type, depth, parentId, content, addressRefs)
+ *   public/docs-shallow.json  — browser first-paint tier: full nodes for depth ≤ 5 (the initial visible tree + content)
+ *   public/docs-deep.json     — browser background tier: full nodes for depth > 5 (on-expand / search / deep-links)
  *   public/search-index.json  — serialized MiniSearch index
  *   public/addresses.atlas.json — address → { chain }  (minimal; build-graph Phase 2.6 adds annotation)
  *
@@ -182,6 +184,46 @@ const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
 fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: chainMap }));
 fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify({ atlasCommit, nodes: docs }));
 if (idx) fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringify(idx));
+
+// Browser-facing split of docs.json (see docs/plans/docs-split.md). Split by TREE
+// DEPTH, not by field — each file holds SELF-CONTAINED full nodes (id-bearing, so
+// there's no positional cross-file stitching to keep aligned). The reader gates
+// depth-6 nodes behind a "view all descendants" affordance, so the initial visible
+// tree is only depth ≤ SHALLOW_MAX_DEPTH (~1095 nodes). Ship those first; defer the
+// depth-6 bulk (~9261 nodes, ~89% of the payload) to a background fetch that fills
+// in on expand / search / deep-links.
+//   docs-shallow.json — depth ≤ N full nodes: the entire initial tree, content
+//                       included, so on-screen nodes need no second fetch.
+//   docs-deep.json    — depth > N full nodes: loaded after first paint.
+// `contentHash` stays server-only; `order` is KEPT (a depth split breaks the
+// array-position-as-order assumption, so buildMaps needs the explicit field).
+// docs.json itself remains the full internal/server artifact (id-keyed, with content).
+const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with writeDocsSplit() in src/server/indexes.ts
+const toBrowserNode = (n) => ({
+  id: n.id,
+  doc_no: n.doc_no,
+  title: n.title,
+  type: n.type,
+  depth: n.depth,
+  parentId: n.parentId,
+  order: n.order,
+  content: n.content,
+  addressRefs: n.addressRefs ?? [],
+});
+const docsShallow = [];
+const docsDeep = [];
+for (const id of Object.keys(docs)) {
+  const n = docs[id];
+  (n.depth <= SHALLOW_MAX_DEPTH ? docsShallow : docsDeep).push(toBrowserNode(n));
+}
+fs.writeFileSync(path.join(OUT_DIR, "docs-shallow.json"), JSON.stringify({ atlasCommit, nodes: docsShallow }));
+fs.writeFileSync(path.join(OUT_DIR, "docs-deep.json"), JSON.stringify({ atlasCommit, nodes: docsDeep }));
+
+const kb = (f) => (fs.statSync(path.join(OUT_DIR, f)).size / 1024).toFixed(1);
+console.log(
+  `\nsplit: docs.json ${kb("docs.json")} KB → docs-shallow.json ${kb("docs-shallow.json")} KB ` +
+    `(${docsShallow.length} nodes) + docs-deep.json ${kb("docs-deep.json")} KB (${docsDeep.length} nodes)`,
+);
 
 const docsSize = (fs.statSync(path.join(OUT_DIR, "docs.json")).size / 1024).toFixed(1);
 const idxNote = idx

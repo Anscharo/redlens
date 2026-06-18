@@ -7,7 +7,8 @@
 // In-memory indexes load once at boot before serving.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
-import { loadIndexes } from "./indexes.ts";
+import { loadIndexes, getIndexes } from "./indexes.ts";
+import { handleAtlasStatic } from "./atlas-static.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
@@ -112,6 +113,9 @@ const server = Bun.serve({
 
     if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
+    // Immutable per-SHA live atlas artifacts (bundle-store.ts).
+    if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
+
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
       const mcp = createMcpServer();
@@ -139,10 +143,22 @@ const server = Bun.serve({
       const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
     }
-    // SPA fallback. Preview routes get noindex — unreviewed (possibly fork)
-    // content must never be search-indexed under our domain.
-    const spaHeaders = pathname.includes("/preview/") ? { "x-robots-tag": "noindex" } : undefined;
-    return new Response(Bun.file(config.distDir + "/index.html"), { headers: spaHeaders });
+    // SPA fallback. Inject the live atlas sha into the HTML so the app's first
+    // artifact fetch hits the immutable /api/atlas/<sha>/ URL with no extra
+    // round-trip. Empty (cold boot / indexes not loaded) → frontend falls back
+    // to flat BASE_URL. HTML is no-cache so the injected sha is always current.
+    // Preview routes also get noindex — unreviewed (possibly fork) content must
+    // never be search-indexed under our domain.
+    let sha = "";
+    try {
+      sha = getIndexes().meta.atlasCommit ?? "";
+    } catch {
+      /* indexes not loaded yet */
+    }
+    const html = (await Bun.file(config.distDir + "/index.html").text()).replace("{{ATLAS_SHA}}", sha);
+    const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
+    if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
+    return new Response(html, { headers });
   },
 });
 

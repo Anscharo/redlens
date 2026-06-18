@@ -17,6 +17,8 @@ dist-ssr
 # Keep: public/addresses.json (Etherscan), public/chain-state.json (RPC),
 #        public/processes*.json (curated), public/favicon.svg etc. (static).
 public/docs.json
+public/docs-shallow.json
+public/docs-deep.json
 public/search-index.json
 public/relations.json
 public/graph.json
@@ -24,6 +26,7 @@ public/glossary.json
 public/addresses.atlas.json
 public/manifest.json
 public/history/
+public/atlas/
 
 
 

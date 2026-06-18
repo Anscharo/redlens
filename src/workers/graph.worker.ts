@@ -29,7 +29,9 @@ const EXECUTOR_ROLE_EDGES = new Set([
 ]);
 
 async function init() {
-  const base = import.meta.env.BASE_URL;
+  // Live atlas base threaded via the worker `name` (sha-keyed /api/atlas/<sha>/);
+  // falls back to flat BASE_URL when no sha was injected (cold boot / dev).
+  const base = self.name || import.meta.env.BASE_URL;
   const data = await fetchJson<{
     entities: GraphEntity[];
     edges: RelationEdge[];

@@ -15,6 +15,7 @@ import type { AtlasNode } from "../indexes.ts";
 import { decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, touch, remove as removeBundle } from "./cache.ts";
+import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -184,19 +185,24 @@ function diffResponse(sha: string): Response {
   return json(diff, 200);
 }
 
-async function artifactResponse(sha: string, name: string): Promise<Response> {
-  const p = artifactPath(sha, name);
-  if (!p || !fs.existsSync(p)) return json({ error: "not-found" }, 404);
-  touch(sha);
+async function artifactResponse(req: Request, sha: string, name: string): Promise<Response> {
   // meta.json: overlay the live pr_state from the DB (the PR-state worker keeps
-  // it current) so banners flip to merged/closed without a rebuild.
+  // it current) so banners flip to merged/closed without a rebuild. Computed,
+  // not served raw — handled here before the shared bundle reader.
   if (name === "meta.json") {
+    const p = artifactPath(sha, name);
+    if (!p || !fs.existsSync(p)) return json({ error: "not-found" }, 404);
+    touch(sha);
     const meta = JSON.parse(fs.readFileSync(p, "utf8"));
     const row = await getPreviewRow(sha).catch(() => null);
     if (row?.pr_state) meta.prState = row.pr_state;
     return json(meta, 200);
   }
-  return new Response(Bun.file(p), { headers: { "Content-Type": "application/json", ...CORS } });
+  // Plain artifacts go through the shared bundle reader (path + gzip + 404).
+  const res = await serveBundleArtifact(PREVIEW_STORE, sha, name, req, CORS);
+  if (!res) return json({ error: "not-found" }, 404);
+  touch(sha);
+  return res;
 }
 
 function json(body: unknown, status: number): Response {
@@ -223,5 +229,5 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
   // artifact + diff endpoints are sha-keyed
   if (!SHA_RE.test(a)) return json({ error: "not-found" }, 404);
   if (b === "diff.json") return diffResponse(a.toLowerCase());
-  return artifactResponse(a.toLowerCase(), b);
+  return artifactResponse(req, a.toLowerCase(), b);
 }

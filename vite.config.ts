@@ -2,7 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { execSync } from "child_process";
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const commitHash = (() => {
   try {
@@ -75,6 +76,24 @@ export default defineConfig(() => {
         });
       },
     },
+    {
+      // Dev only: substitute window.__ATLAS_SHA__ in index.html from the local
+      // public/docs.json atlasCommit (Vite serves index.html in dev, not the Bun
+      // injector). The /api proxy forwards /api/atlas/* to Bun, whose bundle root
+      // is public/atlas — so dev exercises the real per-sha serving path. In build
+      // the placeholder is left intact for the Bun server to replace at serve time.
+      name: "inject-atlas-sha-dev",
+      apply: "serve",
+      transformIndexHtml(html) {
+        let sha = "";
+        try {
+          sha = JSON.parse(readFileSync("public/docs.json", "utf8")).atlasCommit ?? "";
+        } catch {
+          /* artifacts not built yet — empty sha → flat BASE_URL fallback */
+        }
+        return html.replaceAll("{{ATLAS_SHA}}", sha);
+      },
+    },
     tailwindcss(),
     react(),
     VitePWA({
@@ -105,6 +124,8 @@ export default defineConfig(() => {
         // Don't precache large/dynamic data files — they're handled by runtime caching
         globIgnores: [
           "**/docs.json",
+          "**/docs-shallow.json",
+          "**/docs-deep.json",
           "**/search-index.json",
           "**/addresses.json",
           "**/addresses.atlas.json",
@@ -118,19 +139,24 @@ export default defineConfig(() => {
         navigateFallbackDenylist: [/^\/api\//, /^\/mcp$/],
         runtimeCaching: [
           {
-            // Large atlas files: serve cached version immediately, refresh in background.
-            // The SSE "atlas updated ↻" pill tells users when a new version is ready so
-            // being one load cycle behind is acceptable.
-            urlPattern: /\/(docs|search-index|relations)\.json$/,
-            handler: "StaleWhileRevalidate",
+            // Immutable per-sha atlas artifacts (/api/atlas/<sha>/<name>.json):
+            // bytes never change, so CacheFirst — once cached, never re-fetched.
+            // Must precede the small-files rule below (which would otherwise catch
+            // .../addresses.atlas.json + .../glossary.json by suffix). Freshness is
+            // a NEW url, not a revalidate; maxEntries bounds per-sha accumulation.
+            urlPattern: /\/api\/atlas\/[0-9a-f]{40}\/.*\.json$/i,
+            handler: "CacheFirst",
             options: {
-              cacheName: "atlas-data-large",
-              expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheName: "atlas-data-immutable",
+              expiration: { maxEntries: 40, maxAgeSeconds: 7 * 24 * 60 * 60 },
             },
           },
           {
-            // Small atlas files: network-first (fast to fetch, worth having fresh values).
-            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|glossary|manifest)\.json$/,
+            // Flat, NON-atlas-versioned files (addresses.json, chain-state.json,
+            // manifest.json): network-first (fast to fetch, worth having fresh).
+            // glossary.json is now sha-keyed → caught by the CacheFirst rule above,
+            // so it's deliberately absent here.
+            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "atlas-data-small",

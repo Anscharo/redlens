@@ -78,6 +78,16 @@ export const config = {
   publicDir: resolve(ROOT, "public"),
   distDir: resolve(ROOT, "dist"),
   root: ROOT,
+
+  // Per-SHA immutable atlas bundle store (src/server/bundle-store.ts). The live
+  // atlas serves artifacts from <atlasBundleRoot>/<sha>/<name>.json, mirroring
+  // the preview store under one mechanism. Defaults to public/atlas: in prod
+  // `vite build` copies public/→dist/ and the runtime symlinks public→dist, so
+  // build-time and runtime writes + reads all land on the same directory.
+  atlasBundleRoot: resolve(process.env.ATLAS_BUNDLE_ROOT ?? resolve(ROOT, "public/atlas")),
+  // Retention is ONLY a swap-window buffer (loads in flight when a bump lands),
+  // NOT continuity for stale tabs — open tabs are forced forward on drift/404.
+  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 2),
 };
 
 export type Config = typeof config;

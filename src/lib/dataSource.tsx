@@ -1,7 +1,9 @@
 import { createContext, useContext } from "react";
+import { liveAtlasBase } from "./atlasBase";
 
-// The data-source the reader/radar/etc. load from. Default = the live atlas
-// (artifacts under BASE_URL). In preview mode `base` is "/api/preview/<sha>/"
+// The data-source the reader/radar/etc. load from. Default = the live atlas,
+// served from immutable per-sha URLs ("/api/atlas/<sha>/", from the sha the
+// server injected into the HTML). In preview mode `base` is "/api/preview/<sha>/"
 // and `preview` carries the id/sha for the banner. Every loader reads `base`
 // from here, so the SAME components render either source — no separate views.
 export interface PreviewInfo {
@@ -15,7 +17,7 @@ export interface DataSource {
 }
 
 export const DEFAULT_SOURCE: DataSource = {
-  base: import.meta.env.BASE_URL,
+  base: liveAtlasBase(),
   preview: null,
 };
 

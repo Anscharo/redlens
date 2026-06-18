@@ -1,29 +1,18 @@
 name: Deploy to GitHub Pages
 
+# The app now lives at https://atlas.redline.support/ (Railway). GitHub Pages is
+# kept only as a redirect stub so old links to anscharo.github.io/redlens/* still
+# land users on the live site. The build-and-deploy of the full Vite app has been
+# retired in favor of publishing a single redirect page (index.html doubles as the
+# SPA 404.html so deep links forward too).
+
 on:
   push:
     branches: [main]
     paths:
-      # Source code + bundle config
-      - "src/**"
-      - "index.html"
-      - "vite.config.ts"
-      - "tsconfig*.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      # Committed data artifacts (on-chain; curated)
-      - "public/addresses.json"
-      - "public/chain-state.json"
-      - "public/processes.json"
-      - "public/processes-ignored.json"
-      # Atlas content (submodule pointer change)
-      - "vendor/next-gen-atlas"
-      # Build pipeline scripts
-      - "scripts/required/**"
-      - "scripts/lib/**"
+      - "gh-pages-redirect/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
-
 
 permissions:
   contents: read
@@ -35,38 +24,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
-          fetch-depth: 0
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      # Atlas-derived artifacts are no longer committed to git — build them
-      # ephemerally here for the Pages preview bundle. History is served via the
-      # Railway API; the history tab shows empty on Pages (no backend), which the
-      # UI handles gracefully. build:addresses / build:snapshot are on-chain data
-      # with separate cadence and are still committed (committed artifacts load fine
-      # in Pages since they remain in git).
-      - name: Build atlas artifacts
-        run: pnpm build:index && pnpm build:graph && pnpm build:glossary && pnpm build:manifest
-
-      - run: pnpm build:ts && pnpm build:vite
-        env:
-          GITHUB_PAGES: "1"
-
-      - name: SPA fallback (copy index.html → 404.html)
-        run: cp dist/index.html dist/404.html
+      - name: Assemble redirect site
+        run: |
+          mkdir -p dist
+          cp gh-pages-redirect/index.html dist/index.html
+          # SPA fallback: any /redlens/<deep-link> 404s to this, which forwards too.
+          cp gh-pages-redirect/index.html dist/404.html
 
       - uses: actions/configure-pages@v5
 
@@ -74,12 +45,5 @@ jobs:
         with:
           path: dist
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
