@@ -3,6 +3,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { loadAtlas } from "../lib/docs";
+import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
 
 const BASE = import.meta.env.BASE_URL;
@@ -35,11 +36,24 @@ export function Footer() {
       .then((r) => r.json())
       .then((d) => { if (d.block) setBlock(d.block); })
       .catch(() => {});
-    loadAtlas(base).then((b) => {
-      setAtlasCommit(b.atlasCommit);
-      setNodeCount(Object.keys(b.docs).length);
-    }).catch(() => {});
-  }, [base]);
+    if (preview) {
+      // Preview bundle is pinned and already loaded by the reader — reuse it for
+      // the commit + count (no extra fetch).
+      loadAtlas(base).then((b) => {
+        setAtlasCommit(b.atlasCommit);
+        setNodeCount(Object.keys(b.docs).length);
+      }).catch(() => {});
+    } else {
+      // Live atlas: read the sha + count from /api/health (shared with
+      // useAtlasVersion), NOT loadAtlas — which would pull the full deep bundle
+      // (~730 KB gz) just to render a footer line.
+      loadHealth().then((d) => {
+        if (!d) return;
+        if (d.atlas_sha) setAtlasCommit(d.atlas_sha);
+        if (typeof d.docs === "number") setNodeCount(d.docs);
+      }).catch(() => {});
+    }
+  }, [base, preview]);
 
   useEffect(() => {
     if (!preview) { setPreviewRepo(null); return; }

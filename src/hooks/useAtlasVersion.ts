@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { loadHealth } from "../lib/health";
 
 // Two-channel staleness detection:
 //
@@ -20,11 +21,9 @@ export function useAtlasVersion(loadedCommit: string | null) {
       if (sha && sha !== loadedCommit) setNeedsUpdate(true);
     };
 
-    // Mount check: was this page loaded with already-stale data?
-    fetch("/api/health")
-      .then((r) => r.ok ? r.json() : null)
-      .then((d: { atlas_sha?: string } | null) => signal(d?.atlas_sha))
-      .catch(() => {});
+    // Mount check: was this page loaded with already-stale data? Shares the
+    // single /api/health fetch with the Footer (lib/health.ts).
+    loadHealth().then((d) => signal(d?.atlas_sha ?? undefined)).catch(() => {});
 
     // SSE: in-process updater broadcasts after each successful refresh.
     const es = new EventSource("/api/atlas-events");
