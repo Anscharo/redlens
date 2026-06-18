@@ -112,7 +112,7 @@ describe("validatePatchNotes", () => {
 
   it("accepts the committed patch-notes.md file", () => {
     const raw = fs.readFileSync(
-      path.resolve(__dirname, "../content/patch-notes.md"),
+      path.resolve(__dirname, "../../patch-notes.md"),
       "utf8",
     );
     expect(validatePatchNotes(raw)).toEqual([]);
