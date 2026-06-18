@@ -5,10 +5,17 @@
 // "/api/preview/<sha>/" base explicitly via the DataSource context.
 import { StaleAtlasError } from "./verify";
 
-/** The live atlas base. Empty sha (cold boot / dev without injection) → flat BASE_URL. */
+// A valid injected sha is a 40-hex git commit. Anything else — empty (cold boot /
+// dev without injection) or the literal "{{ATLAS_SHA}}" placeholder (a SW serving
+// the precached build-time HTML instead of the Bun-injected page) — must fall back
+// to flat BASE_URL. Building /api/atlas/{{ATLAS_SHA}}/ would 404 as a StaleAtlasError
+// and trigger reloadOnce() on every load → an infinite reload loop.
+const SHA_RE = /^[0-9a-f]{40}$/i;
+
+/** The live atlas base. Invalid/absent sha → flat BASE_URL. */
 export function liveAtlasBase(): string {
   const sha = typeof window !== "undefined" ? window.__ATLAS_SHA__ : undefined;
-  return sha ? `/api/atlas/${sha}/` : import.meta.env.BASE_URL;
+  return sha && SHA_RE.test(sha) ? `/api/atlas/${sha}/` : import.meta.env.BASE_URL;
 }
 
 // Force-forward on a stale sha. A 404 on a sha-keyed URL means the pinned sha was
