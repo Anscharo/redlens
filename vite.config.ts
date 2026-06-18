@@ -121,8 +121,14 @@ export default defineConfig(() => {
         ],
       },
       workbox: {
-        // Don't precache large/dynamic data files — they're handled by runtime caching
+        // Don't precache large/dynamic data files — they're handled by runtime caching.
+        // index.html is ALSO excluded on purpose: the built HTML carries an unreplaced
+        // `window.__ATLAS_SHA__ = "{{ATLAS_SHA}}"` placeholder that the Bun server fills
+        // in per-request (no-cache). If the SW precached it and served it as the
+        // navigation response, every load would see the placeholder sha, 404 on
+        // /api/atlas/{{ATLAS_SHA}}/…, and reloadOnce() into an infinite reload loop.
         globIgnores: [
+          "**/index.html",
           "**/docs.json",
           "**/docs-shallow.json",
           "**/docs-deep.json",
@@ -133,10 +139,11 @@ export default defineConfig(() => {
           "**/chain-state.json",
           "**/history/**",
         ],
-        // Serve index.html for SPA routes, but not for server endpoints — those
-        // must reach the Bun server directly.
-        navigateFallback: `${base}index.html`,
-        navigateFallbackDenylist: [/^\/api\//, /^\/mcp$/],
+        // navigateFallback disabled (vite-plugin-pwa defaults it to "index.html").
+        // Navigations must reach the Bun server, which serves the SPA shell with the
+        // live atlas sha injected (src/server/index.ts). A precache-backed
+        // NavigationRoute would shadow that with the stale placeholder HTML and loop.
+        navigateFallback: undefined,
         runtimeCaching: [
           {
             // Immutable per-sha atlas artifacts (/api/atlas/<sha>/<name>.json):
