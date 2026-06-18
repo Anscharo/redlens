@@ -88,7 +88,10 @@ shallowP
     const docs = toRecord(s.nodes);
     self.postMessage({ type: "shallow", docs, atlasCommit: s.atlasCommit ?? null, ...buildMaps(docs) });
   })
-  .catch((err) => self.postMessage({ type: "error", message: String(err) }));
+  // Swallow a shallow failure here (don't post). Promise.all below sees the same
+  // rejection and owns the single "error" post — catching it here too would post
+  // a duplicate; omitting the catch entirely would leak an unhandled rejection.
+  .catch(() => {});
 
 Promise.all([shallowP, deepP])
   .then(([s, d]) => {
