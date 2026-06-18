@@ -42,6 +42,9 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check patch notes
+        run: pnpm check:patch-notes
+
       - name: Run tests
         run: pnpm test
         env:

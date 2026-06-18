@@ -33,6 +33,8 @@
     "db:down": "docker-compose down",
     "db:migrate": "bun src/server/migrate.ts",
     "lint": "oxlint .",
+    "check:patch-notes": "node scripts/required/check-patch-notes.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
