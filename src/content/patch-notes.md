@@ -12,7 +12,7 @@
 -->
 
 ## 2026-06-17
-- New Stale Dates report
+- New [Stale Dates report](/reports/stale-dates)
 
 ## 2026-06-16
 - Moved history storage into the database
