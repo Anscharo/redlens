@@ -1,4 +1,5 @@
 import { Link } from "./Link";
+import { PatchNotes } from "./PatchNotes";
 import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 
 const SKY_URL = "https://sky.money";
@@ -77,6 +78,7 @@ export function HomePage() {
             );
           })}
         </div>
+        <PatchNotes />
       </div>
     </main>
   );
