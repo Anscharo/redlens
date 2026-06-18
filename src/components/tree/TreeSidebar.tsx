@@ -19,6 +19,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const [sidebarWidth, setSidebarWidth] = useState(242);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const clickedRef = useRef(false);
+  const scrolledForRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -111,12 +112,19 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   useEffect(() => {
     if (clickedRef.current) {
       clickedRef.current = false;
+      scrolledForRef.current = nodeId;
       return;
     }
+    // Only scroll when the *selected node* changes (a real navigation). Expanding
+    // or collapsing another section shifts selectedIndex without changing nodeId —
+    // that must not jerk the view back to the selection (it would fight the user
+    // who is scrolling/expanding elsewhere).
+    if (nodeId === scrolledForRef.current) return;
     if (selectedIndex >= 0 && listRef.current) {
       listRef.current.scrollToRow({ index: selectedIndex, align: "smart" });
+      scrolledForRef.current = nodeId;
     }
-  }, [selectedIndex, listRef]);
+  }, [selectedIndex, nodeId, listRef]);
 
   const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
