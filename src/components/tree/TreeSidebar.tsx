@@ -26,19 +26,22 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
 
   useEffect(() => {
     if (!bundle || !nodeId) return;
-    const { docs, docNoToId } = bundle;
+    const { docs } = bundle;
     const target = docs[nodeId];
     if (!target) return;
-    const parts = target.doc_no.split(".");
     setExpandedIds((prev) => {
       const next = new Set(prev);
       let changed = false;
-      for (let i = 2; i < parts.length; i++) {
-        const aid = docNoToId.get(parts.slice(0, i).join("."));
-        if (aid && !next.has(aid)) {
-          next.add(aid);
+      // Expand every ancestor so the selected node is visible. Walk parent links
+      // rather than doc_no prefixes: NR-X nodes have an opaque doc_no ("NR-12"),
+      // so their real parent chain is only reachable via parentId.
+      let pid = target.parentId;
+      while (pid) {
+        if (!next.has(pid)) {
+          next.add(pid);
           changed = true;
         }
+        pid = docs[pid]?.parentId ?? null;
       }
       return changed ? next : prev;
     });
@@ -79,7 +82,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     function walk(parentId: string | null, parentDocNo?: string) {
       for (const node of byParent.get(parentId) ?? []) {
         const hasChildren = byParent.has(node.id);
-        result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no, parentDocNo) });
+        result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no, parentDocNo), parentDocNo });
         if (hasChildren && expandedIds.has(node.id)) walk(node.id, node.doc_no);
       }
     }

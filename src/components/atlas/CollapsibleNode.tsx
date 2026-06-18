@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef } from "react";
-import { segmentDepths } from "../../lib/depth";
+import { segmentDepths, nrChiclets } from "../../lib/depth";
 import { type FlatEntry } from "../../lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
@@ -17,7 +17,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hiddenCount = 0,
-  parentDocNo,
   onExpandChildren,
   idPrefix,
 }: {
@@ -25,27 +24,27 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected: boolean;
   isExpanded: boolean;
   hiddenCount?: number;
-  parentDocNo?: string;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
 }) {
   const { navigate, toggle, splitNavigate } = useAtlasActions();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
-  // NR-X nodes are leaves attached to regular tree nodes. The doc_no is opaque
-  // ("NR-2"), so derive the chiclet strip from the parent's path plus one
-  // trailing chiclet for the NR itself — that way the chiclets reflect the
-  // actual nesting position rather than the bare "NR-X" token.
+  // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
+  // Render the bare token: the "NR-" prefix is neutral (depth 0), the number takes
+  // the node's true depth colour — the parent context lives in the tree.
   // Memoised so DocNoChiclets (also memo'd) gets stable array references and
   // skips re-render when only isSelected/isExpanded changes on this node.
   const { docNoParts, docNoDepths } = useMemo(() => {
-    const isNR = node.doc_no.startsWith("NR-");
-    const src = isNR && parentDocNo ? `${parentDocNo}.x` : node.doc_no;
+    if (node.doc_no.startsWith("NR-")) {
+      const { parts, depths } = nrChiclets(node.doc_no, depth);
+      return { docNoParts: parts, docNoDepths: depths };
+    }
     return {
-      docNoParts: src.split("."),
-      docNoDepths: src.startsWith("NR-") ? [1] : segmentDepths(src),
+      docNoParts: node.doc_no.split("."),
+      docNoDepths: segmentDepths(node.doc_no),
     };
-  }, [node.doc_no, parentDocNo]);
+  }, [node.doc_no, depth]);
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
