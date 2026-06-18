@@ -9,6 +9,9 @@ import { useDataSource } from "../lib/dataSource";
 const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
 const PROVENANCE_HREF = `${BASE}provenance`;
+// Deep-link to the app's build commit when git gave a real sha; fall back to the
+// repo root for "dev" builds (git unavailable at build time → /commit/dev 404s).
+const APP_COMMIT_HREF = __COMMIT_HASH__ === "dev" ? REPO : `${REPO}/commit/${__COMMIT_HASH__}`;
 
 // Plain reload: artifacts are served from immutable per-sha URLs, so the fresh
 // no-cache HTML carries the new sha and the app fetches new URLs the cache has
@@ -145,13 +148,13 @@ export function Footer() {
       {atlasCommit && <Sep />}
       <FooterItem>
         <a
-          href={`${REPO}/commit/${__COMMIT_HASH__}`}
+          href={APP_COMMIT_HREF}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
           style={{ color: "var(--tan-3)" }}
         >
-          <span className="hidden sm:inline">sky-atlas&nbsp;</span>
+          <span className="hidden sm:inline">redline-atlas&nbsp;</span>
           {__COMMIT_HASH__}
         </a>
       </FooterItem>
