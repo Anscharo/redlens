@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { Components } from "react-markdown";
 import { Link } from "./Link";
 import notesRaw from "../content/patch-notes.md?raw";
 import { parsePatchNotes, formatPatchDate } from "../lib/patchNotes";
@@ -6,34 +8,22 @@ import { parsePatchNotes, formatPatchDate } from "../lib/patchNotes";
 // Input is static (bundled via Vite ?raw), so parse once at module scope.
 const groups = parsePatchNotes(notesRaw);
 
-// Inline `[label](href)` markdown links inside a bullet. Internal paths
-// (starting with "/") navigate in-SPA via <Link>; anything else is treated as
-// an external anchor. Everything outside a link renders as plain text.
-const LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;
-function renderBullet(text: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  let last = 0;
-  let key = 0;
-  for (const m of text.matchAll(LINK_RE)) {
-    const at = m.index ?? 0;
-    if (at > last) out.push(text.slice(last, at));
-    const [, label, href] = m;
-    out.push(
-      href.startsWith("/") ? (
-        <Link key={key++} to={href} className="link-accent">
-          {label}
-        </Link>
-      ) : (
-        <a key={key++} href={href} className="link-accent" target="_blank" rel="noopener noreferrer">
-          {label}
-        </a>
-      ),
-    );
-    last = at + m[0].length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
+// Render a bullet's markdown inline. Internal "/" links navigate in-SPA via
+// <Link> (so they respect the router base and don't full-reload); external
+// links open in a new tab. <p> is unwrapped so the text stays inside the <li>.
+const components: Components = {
+  p: ({ children }) => <>{children}</>,
+  a: ({ href, children }) =>
+    href?.startsWith("/") ? (
+      <Link to={href} className="link-accent">
+        {children}
+      </Link>
+    ) : (
+      <a href={href} className="link-accent" target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    ),
+};
 
 export function PatchNotes() {
   if (groups.length === 0) return null;
@@ -48,7 +38,11 @@ export function PatchNotes() {
             </time>
             <ul className="mt-1 list-disc list-inside text-lg text-tan-2 leading-relaxed">
               {g.items.map((item, i) => (
-                <li key={i}>{renderBullet(item)}</li>
+                <li key={i}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+                    {item}
+                  </ReactMarkdown>
+                </li>
               ))}
             </ul>
           </article>
