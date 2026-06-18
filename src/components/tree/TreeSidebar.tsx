@@ -24,28 +24,41 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   usePulseDom(nodeId, containerRef);
 
+  // child id → parent id in the *rendered* tree. byParent is built in the worker
+  // via resolveParentId (doc_no-aware, incl. the NR-by-id step), so inverting it
+  // gives the exact upward relation the tree renders by. Raw node.parentId is NOT
+  // that relation — it comes from a depth stack capped at 6, so for any node
+  // deeper than 6 levels it collapses onto the depth-6 ancestor and the real
+  // intermediate parents are lost. Walking it would skip those, leaving the
+  // selected node hidden (no sidebar selection). Walk parentOf instead.
+  const parentOf = useMemo(() => {
+    const m = new Map<string, string | null>();
+    if (bundle) {
+      for (const [pid, children] of bundle.byParent) {
+        for (const child of children) m.set(child.id, pid);
+      }
+    }
+    return m;
+  }, [bundle]);
+
   useEffect(() => {
-    if (!bundle || !nodeId) return;
-    const { docs } = bundle;
-    const target = docs[nodeId];
-    if (!target) return;
+    if (!bundle || !nodeId || !parentOf.has(nodeId)) return;
     setExpandedIds((prev) => {
       const next = new Set(prev);
       let changed = false;
-      // Expand every ancestor so the selected node is visible. Walk parent links
-      // rather than doc_no prefixes: NR-X nodes have an opaque doc_no ("NR-12"),
-      // so their real parent chain is only reachable via parentId.
-      let pid = target.parentId;
+      // Expand every ancestor so the selected node is visible, stepping upward
+      // along the same relation the tree is grouped by.
+      let pid = parentOf.get(nodeId) ?? null;
       while (pid) {
         if (!next.has(pid)) {
           next.add(pid);
           changed = true;
         }
-        pid = docs[pid]?.parentId ?? null;
+        pid = parentOf.get(pid) ?? null;
       }
       return changed ? next : prev;
     });
-  }, [bundle, nodeId]);
+  }, [bundle, nodeId, parentOf]);
 
   useEffect(() => {
     const el = containerRef.current;
