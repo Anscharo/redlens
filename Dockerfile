@@ -25,6 +25,7 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:index \
  && bun run build:graph \
  && bun run build:glossary \
+ && bun run build:bundle \
  && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
  && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json

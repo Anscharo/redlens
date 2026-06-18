@@ -16,9 +16,10 @@ import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from
 import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
-import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson } from "./indexes.ts";
+import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./indexes.ts";
 import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
+import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
 import type { AtlasNode, DocMetaRow } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
@@ -166,7 +167,10 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     const docMap: Record<string, AtlasNode> = {};
     for (const r of docRows) docMap[r.id] = docRowToNode(r);
     writeDocsJson(config.publicDir, dbSha, docMap);
-    log(`refresh-from-db: ${docRows.length} docs → public/docs.json`);
+    // Keep the browser-facing split in lockstep with docs.json so the per-sha
+    // bundle never serves a stale tree/content for the new sha.
+    writeDocsSplit(config.publicDir, dbSha, docMap);
+    log(`refresh-from-db: ${docRows.length} docs → public/docs.json (+meta/content split)`);
 
     // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
     const addrAtlas: Record<string, object> = {};
@@ -300,7 +304,17 @@ export function startUpdater(): void {
           updaterState.lastSuccessMs = Date.now();
           updaterState.divergedSinceMs = null;
           log(`updated → live now ${short(builtSha)}`);
-          if (builtSha) broadcastAtlasUpdate(builtSha);
+          if (builtSha) {
+            // Publish the immutable per-SHA bundle (fresh .gz from current
+            // public/*.json — including the search-index.json just rewritten by
+            // refreshInPlaceFromDisk) BEFORE telling clients to fetch it.
+            try {
+              await publishBundle(MAIN_STORE, builtSha, config.publicDir);
+            } catch (e) {
+              log(`publish-bundle error: ${(e as Error).message}`);
+            }
+            broadcastAtlasUpdate(builtSha);
+          }
         } else {
           // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
           updaterState.failingTarget = upstream;

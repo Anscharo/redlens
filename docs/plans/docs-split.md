@@ -1,7 +1,50 @@
-# docs-meta / docs-content split
+# docs-shallow / docs-deep split
 
 Replace the single `docs.json` browser artifact with two smaller files so the
-atlas tree can render before the full content payload arrives.
+atlas tree can render before the full payload arrives.
+
+> **Status: IMPLEMENTED & verified** (tsc, oxlint, vitest + bun server tests,
+> `build:index` split emit). The split axis was **revised twice** — see history at
+> the bottom. The current, shipped design splits by **tree depth**, not by field:
+>
+> - **Split by depth, full self-contained nodes.** The reader gates depth-6 nodes
+>   behind a "view all descendants" affordance, so the initial visible tree is only
+>   depth ≤ 5 (~1095 nodes, ~10% of the 10356 total). The other ~9261 depth-6 nodes
+>   (~89% of the payload) aren't on screen at first paint.
+>   - `docs-shallow.json` — depth ≤ 5 full nodes (`{ id, doc_no, title, type, depth,
+>     parentId, order, content, addressRefs }`), **content included** so on-screen
+>     nodes need no second fetch. **~164 KB gz**, the first-paint critical path.
+>   - `docs-deep.json` — depth > 5 full nodes. **~713 KB gz**, fetched after first
+>     paint; fills in expand-on-demand branches, search, and deep-links.
+>   - Each file is an `{ nodes: [...] }` array of id-bearing nodes — **no positional
+>     cross-file stitching** (the worker merges by id, `[...shallow, ...deep]`).
+>     `order` is kept (a depth split breaks array-position-as-order); `contentHash`
+>     stays server-only.
+> - **First paint 337 KB → 164 KB** vs the previous meta/data split, and visible
+>   nodes arrive content-complete (no separate content wait).
+> - **Single worker, two promises (unchanged contract).** `lib/docs.ts`
+>   `loadAtlasTree(base)` resolves on the worker's `tree` message (shallow → reader
+>   first paint); `loadAtlas(base)` resolves on `ready` (deep merged in). The worker
+>   builds the `Record<id, node>` the app expects from each set.
+> - **Deep-link guard.** A depth-6 node isn't in the shallow set, so `LoadedData`
+>   carries `complete` (false until deep merges). `AtlasView` shows `Loading` (not
+>   "Node not found") for an unresolved id until `complete`.
+> - **Runtime parity:** the in-process updater calls `indexes.ts` `writeDocsSplit`
+>   right after rebuilding `docs.json` from the DB, so the per-sha bundle's split
+>   files never go stale relative to `docs.json`.
+> - Added to MAIN + PREVIEW bundle allowlists and the manifest; `docs.json` stays
+>   bundled as the bundleReady core + preview diff source (browser fetches the split).
+>
+> **History of the split axis** (kept for context — earlier sections below describe
+> the first design):
+> 1. *meta / content (positional):* `docs-meta.json` = all node metadata incl. UUIDs;
+>    `docs-content.json` = positional `content[]`. Landed ~383 KB meta / ~449 KB content.
+> 2. *meta / data, then minimised meta:* moved `addressRefs` + `type` to the data
+>    tier. Hit the floor — `id` + `parentId` UUIDs are ~210 KB gz of irreducible
+>    entropy, so a uuid-bearing meta can't get small. (A uuid-free positional meta
+>    reached ~85 KB but required deferred interactivity; rejected for complexity.)
+> 3. *shallow / deep (current):* abandoned the field axis for the depth axis above —
+>    smaller critical path, content-complete first paint, and self-contained files.
 
 ## Problem
 
@@ -137,13 +180,14 @@ naturally output both new files to the preview `out/` directory.
 
 ## Prerequisite: SHA-keyed serving
 
-This split lands **after** `sha-keyed-serving.md`, which moves live atlas
-artifacts from flat `BASE_URL` paths to immutable, SHA-keyed URLs
-(`/api/atlas/<sha>/<name>.json`). Once that prerequisite is in:
+This split lands **after** `sha-keyed-serving.md` (Model B), which serves live
+atlas artifacts from immutable per-SHA bundle dirs at
+`/api/atlas/<sha>/<name>.json`. Once that prerequisite is in:
 
-- The two new files are added to the artifact allowlist and serve at
-  `/api/atlas/<sha>/docs-meta.json` and `/api/atlas/<sha>/docs-content.json`
-  automatically, with `Cache-Control: immutable`.
+- The two new files are added to the MAIN bundle allowlist; `publishBundle` emits
+  them into the per-SHA dir alongside the others, so they serve at
+  `/api/atlas/<sha>/docs-meta.json` / `…/docs-content.json` with
+  `Cache-Control: immutable`. No new serving code.
 - Consumers fetch `${base}docs-meta.json` where `base` is already sha-keyed
   (`window.__ATLAS_SHA__` injected into the HTML) — the single-owner atlas-worker
   loading design above is unaffected by the URL scheme.
@@ -151,6 +195,16 @@ artifacts from flat `BASE_URL` paths to immutable, SHA-keyed URLs
 If for any reason the split lands first, both files simply serve flat under
 `BASE_URL` like `docs.json` does today; the only change at SHA-keying time is the
 allowlist entry.
+
+**Force-forward covers the late content fetch.** `docs-content.json` is fetched
+*after* `docs-meta.json` (the sidebar renders first), so it is the most likely
+artifact to be requested against a sha that was pruned while a tab sat open. The
+SHA-keyed prerequisite already handles this: a 404 under `/api/atlas/<sha>/`
+throws `StaleAtlasError` (`verify.ts`) and the atlas worker / `loadAtlas` path
+force-forwards (`atlasBase.ts` `handledStale*` → one `location.reload()`), so the
+new sha's content is fetched from fresh HTML rather than surfacing a load error.
+No split-specific handling needed — the content fetch rides the same path as the
+meta fetch.
 
 ## Files to change
 

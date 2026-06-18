@@ -1,3 +1,5 @@
+import { liveAtlasBase } from "./atlasBase";
+
 export interface GlossaryEntry {
   term: string;
   content: string;
@@ -14,7 +16,7 @@ type GlossaryLookup = Record<string, GlossaryEntry[]>;
 // Keyed by data-source base (default = live atlas; a preview passes its bundle base).
 const cache = new Map<string, Promise<Glossary>>();
 
-export function loadGlossary(base: string = import.meta.env.BASE_URL): Promise<Glossary> {
+export function loadGlossary(base: string = liveAtlasBase()): Promise<Glossary> {
   let cached = cache.get(base);
   if (!cached) {
     cached = fetch(`${base}glossary.json`)

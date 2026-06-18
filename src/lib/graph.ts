@@ -5,6 +5,7 @@ import type {
   GraphWorkerOutMessage,
 } from "../types";
 import { fetchJson } from "./verify";
+import { liveAtlasBase, handledStale, handledStaleMessage } from "./atlasBase";
 
 export interface GraphData {
   participants: GraphEntity[];
@@ -25,7 +26,7 @@ export interface ConstellationInit {
 // proposed atlas; default is the live atlas under BASE_URL.
 const graphCache = new Map<string, Promise<GraphData>>();
 
-export function loadGraph(base: string = import.meta.env.BASE_URL): Promise<GraphData> {
+export function loadGraph(base: string = liveAtlasBase()): Promise<GraphData> {
   let cached = graphCache.get(base);
   if (!cached) {
     cached = fetchJson<{ entities: GraphEntity[]; edges: RelationEdge[] }>(
@@ -41,6 +42,9 @@ export function loadGraph(base: string = import.meta.env.BASE_URL): Promise<Grap
       edges: data.edges,
     })).catch((err) => {
       graphCache.delete(base);
+      // Stale pinned sha → force-forward; return a never-resolving promise so no
+      // error UI flashes before the reload swaps in fresh URLs.
+      if (handledStale(err)) return new Promise<GraphData>(() => {});
       throw err;
     });
     graphCache.set(base, cached);
@@ -95,10 +99,22 @@ function registerPending<K, V>(
 function getWorker(): Worker {
   if (worker) return worker;
 
-  worker = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), { type: "module" });
+  // Thread the live atlas base via the worker `name` (read as self.name) — same
+  // pattern as the atlas/search workers — so the worker fetches the sha-keyed
+  // relations.json. Inline `new Worker(new URL(...))` so Vite compiles it.
+  worker = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), {
+    type: "module",
+    name: liveAtlasBase(),
+  });
 
   worker.addEventListener("message", (e: MessageEvent<GraphWorkerOutMessage>) => {
     const msg = e.data;
+
+    if (msg.type === "error") {
+      // Stale pinned sha (404 on the sha-keyed relations.json) → force-forward.
+      if (!handledStaleMessage(msg.message)) console.error("[graph]", msg.message);
+      return;
+    }
 
     if (msg.type === "ready") {
       constellationInit = { entities: msg.entities, entityEdges: msg.entityEdges };

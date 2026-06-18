@@ -1,4 +1,8 @@
-// Preview bundle disk cache.
+// Preview bundle disk cache — now a thin preview-flavored wrapper over the
+// shared per-SHA bundle store (../bundle-store.ts). The generic dir/LRU/serve
+// machinery lives there; this file keeps the preview-specific bits: the
+// src/out/meta layout, PreviewMeta read/write, and the legacy (sha-first,
+// root-overridable) signatures every preview call site + test already use.
 //
 // Bundles live under PREVIEW_DIR/<sha>/ — ephemeral by design (Railway wipes
 // /tmp on every restart/deploy; that's fine, everything regenerates from the
@@ -11,22 +15,21 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import {
+  PREVIEW_DIR,
+  PREVIEW_STORE,
+  type BundleStore,
+  artifactPath as _artifactPath,
+  bundleReady as _bundleReady,
+  touch as _touch,
+  remove as _remove,
+  evictLru as _evictLru,
+} from "../bundle-store.ts";
 
-export const PREVIEW_DIR = process.env.PREVIEW_DIR ?? "/tmp/previews";
-const KEEP = Number(process.env.PREVIEW_CACHE_KEEP ?? 20);
+export { PREVIEW_DIR };
 
-// Artifacts the frontend may fetch in preview mode. addresses.json + chain-state
-// are deliberately NOT here — they're reused from main (per-artifact routing).
-export const ARTIFACT_ALLOWLIST = new Set([
-  "docs.json",
-  "relations.json",
-  "glossary.json",
-  "search-index.json",
-  "addresses.atlas.json",
-  "meta.json",
-  "diff.json",
-  "patches.json",
-]);
+// Re-exported for back-compat; the canonical set now lives on PREVIEW_STORE.
+export const ARTIFACT_ALLOWLIST = PREVIEW_STORE.allowlist;
 
 export interface PreviewMeta {
   sha: string;
@@ -68,10 +71,15 @@ export function previewPaths(sha: string, root = PREVIEW_DIR): PreviewPaths {
   return { dir, srcDir: path.join(dir, "src"), outDir: path.join(dir, "out"), metaPath: path.join(dir, "meta.json") };
 }
 
+// An ephemeral preview store pinned to a test/override root (the steady-state
+// path returns the shared PREVIEW_STORE so its mtime/LRU state is shared).
+function storeAt(root: string, keep: number = PREVIEW_STORE.keep): BundleStore {
+  return root === PREVIEW_DIR && keep === PREVIEW_STORE.keep ? PREVIEW_STORE : { ...PREVIEW_STORE, root, keep };
+}
+
 /** A bundle is ready when its meta + the core artifact exist. */
 export function bundleReady(sha: string, root = PREVIEW_DIR): boolean {
-  const p = previewPaths(sha, root);
-  return fs.existsSync(p.metaPath) && fs.existsSync(path.join(p.outDir, "docs.json"));
+  return _bundleReady(storeAt(root), sha);
 }
 
 export function readMeta(sha: string, root = PREVIEW_DIR): PreviewMeta | null {
@@ -90,65 +98,24 @@ export function writeMeta(sha: string, meta: PreviewMeta, root = PREVIEW_DIR): v
 
 /** Resolve an allowlisted artifact path, or null if the name isn't allowed/known. */
 export function artifactPath(sha: string, name: string, root = PREVIEW_DIR): string | null {
-  if (!ARTIFACT_ALLOWLIST.has(name)) return null;
-  const p = previewPaths(sha, root);
-  return name === "meta.json" ? p.metaPath : path.join(p.outDir, name);
+  return _artifactPath(storeAt(root), sha, name);
 }
 
 /** Mark a bundle as just-accessed (LRU clock). */
 export function touch(sha: string, root = PREVIEW_DIR): void {
-  const dir = previewPaths(sha, root).dir;
-  try {
-    const now = new Date();
-    fs.utimesSync(dir, now, now);
-  } catch {
-    /* missing dir — nothing to touch */
-  }
+  _touch(storeAt(root), sha);
 }
 
 /** Remove a single bundle dir. */
 export function remove(sha: string, root = PREVIEW_DIR): void {
-  fs.rmSync(previewPaths(sha, root).dir, { recursive: true, force: true });
+  _remove(storeAt(root), sha);
 }
 
 /**
- * Evict all but the KEEP most-recently-accessed bundles. Also sweeps dirs with
+ * Evict all but the `keep` most-recently-accessed bundles. Also sweeps dirs with
  * no valid bundle (interrupted builds) regardless of recency. Returns evicted
- * shas. `skip` (in-flight builds) are never touched — a mid-build dir looks
- * exactly like an interrupted one.
+ * shas. `skip` (in-flight builds) are never touched.
  */
-export function evictLru(keep = KEEP, root = PREVIEW_DIR, skip?: Set<string>): string[] {
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(root);
-  } catch {
-    return [];
-  }
-  const dirs = entries
-    .map((name) => {
-      try {
-        if (skip?.has(name)) return null;
-        const full = path.join(root, name);
-        const st = fs.statSync(full);
-        if (!st.isDirectory()) return null;
-        return { sha: name, mtime: st.mtimeMs, ready: bundleReady(name, root) };
-      } catch {
-        return null;
-      }
-    })
-    .filter((d): d is { sha: string; mtime: number; ready: boolean } => d !== null);
-
-  const evicted: string[] = [];
-  // Drop unfinished bundles outright.
-  for (const d of dirs.filter((x) => !x.ready)) {
-    remove(d.sha, root);
-    evicted.push(d.sha);
-  }
-  // Keep the newest `keep` of the ready ones; evict the rest.
-  const ready = dirs.filter((x) => x.ready).sort((a, b) => b.mtime - a.mtime);
-  for (const d of ready.slice(keep)) {
-    remove(d.sha, root);
-    evicted.push(d.sha);
-  }
-  return evicted;
+export function evictLru(keep: number = PREVIEW_STORE.keep, root = PREVIEW_DIR, skip?: Set<string>): string[] {
+  return _evictLru(storeAt(root, keep), skip);
 }

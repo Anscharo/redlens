@@ -35,7 +35,9 @@ const OUT = path.join(PUBLIC, "manifest.json");
 //     Workers AI availability in CI.
 const ARTIFACTS = [
   // Frontend-fetched
-  "docs.json",
+  "docs.json", // internal/server artifact + bundle diff source (not browser-fetched)
+  "docs-shallow.json", // browser: depth ≤ 5 full nodes (initial visible tree + content)
+  "docs-deep.json", // browser: depth > 5 full nodes (background / on-expand)
   "search-index.json",
   "addresses.atlas.json",
   "addresses.json",

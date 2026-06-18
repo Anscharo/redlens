@@ -2,12 +2,15 @@ import type { AtlasNode } from "../types";
 import { fetchJson } from "../lib/verify";
 
 // loadAtlas(base) passes a preview's data-source base via the worker `name`
-// option (e.g. /api/preview/<sha>/); default is the live atlas under BASE_URL.
-// (name, not a ?base= query param, so the new Worker(new URL(...)) call stays
-// inline and Vite compiles the worker — see the note in lib/docs.ts.)
+// option (e.g. /api/preview/<sha>/); default is the live atlas under the sha-keyed
+// base (/api/atlas/<sha>/). See the note in lib/docs.ts on keeping the
+// new Worker(new URL(...)) call inline.
 const BASE = self.name || import.meta.env.BASE_URL;
 
-function buildAndSend(docs: Record<string, AtlasNode>, atlasCommit: string | null) {
+// Build the parent/doc_no lookup maps from whatever node set is passed (shallow on
+// the `tree` message, full on `ready`), so the tree can be posted the instant
+// docs-shallow.json lands. See docs-split.md.
+function buildMaps(docs: Record<string, AtlasNode>) {
   const docNoToId = new Map<string, string>();
   for (const node of Object.values(docs)) {
     docNoToId.set(node.doc_no, node.id);
@@ -58,15 +61,38 @@ function buildAndSend(docs: Record<string, AtlasNode>, atlasCommit: string | nul
   }
   for (const bucket of byParent.values()) bucket.sort((a, b) => a.order - b.order);
 
-  self.postMessage({
-    type: "ready",
-    docs,
-    atlasCommit,
+  return {
     byParentEntries: Array.from(byParent.entries()),
     docNoToIdEntries: Array.from(docNoToId.entries()),
-  });
+  };
 }
 
-fetchJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>(`${BASE}docs.json`, "docs.json")
-  .then((f) => buildAndSend(f.nodes, f.atlasCommit ?? null))
+// Single owner of TWO browser artifacts, split by tree DEPTH (docs/plans/docs-split.md).
+// Both hold SELF-CONTAINED full AtlasNodes (id-bearing) — no positional stitching.
+//   docs-shallow.json — depth ≤ 5: the entire initial visible tree, content included.
+//                       Posted as the `shallow` message the instant it lands → first paint.
+//   docs-deep.json    — depth > 5 (~89% of nodes): gated behind "view all
+//                       descendants", so loaded after first paint and merged on `ready`.
+const shallowP = fetchJson<{ atlasCommit?: string; nodes: AtlasNode[] }>(`${BASE}docs-shallow.json`, "docs-shallow.json");
+const deepP = fetchJson<{ atlasCommit?: string; nodes: AtlasNode[] }>(`${BASE}docs-deep.json`, "docs-deep.json");
+
+// Array of nodes → the Record<id, node> the main thread + rest of the app expect.
+function toRecord(nodes: AtlasNode[]): Record<string, AtlasNode> {
+  const docs: Record<string, AtlasNode> = {};
+  for (const n of nodes) docs[n.id] = n;
+  return docs;
+}
+
+shallowP
+  .then((s) => {
+    const docs = toRecord(s.nodes);
+    self.postMessage({ type: "shallow", docs, atlasCommit: s.atlasCommit ?? null, ...buildMaps(docs) });
+  })
+  .catch((err) => self.postMessage({ type: "error", message: String(err) }));
+
+Promise.all([shallowP, deepP])
+  .then(([s, d]) => {
+    const docs = toRecord([...s.nodes, ...d.nodes]);
+    self.postMessage({ type: "ready", docs, atlasCommit: s.atlasCommit ?? null, ...buildMaps(docs) });
+  })
   .catch((err) => self.postMessage({ type: "error", message: String(err) }));

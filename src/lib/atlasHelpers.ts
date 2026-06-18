@@ -83,6 +83,10 @@ export interface LoadedData {
   addresses: Record<string, AddressInfo> | null;
   chainState: { values: Record<string, Record<string, ChainValue>> } | null;
   glossary: Glossary | null;
+  // false during phase 1 (docs-shallow only — depth ≤ 5); true once docs-deep has
+  // merged in. Lets the reader distinguish "this id isn't loaded yet" from "this id
+  // doesn't exist" so a deep-link to a depth-6 node shows Loading, not Not-found.
+  complete: boolean;
 }
 
 export const ATLAS_GRID_STYLE: React.CSSProperties = { minHeight: 0, overflow: "hidden" };

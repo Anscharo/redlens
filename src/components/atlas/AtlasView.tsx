@@ -42,7 +42,10 @@ export function AtlasView({
   if (!data) {
     return <Loading />;
   }
+  // A depth-6 node isn't in the shallow first-paint set; wait for the deep tier
+  // (complete) before declaring it missing, so a valid deep-link shows Loading.
   if (id && !data.atlas.docs[id]) {
+    if (!data.complete) return <Loading />;
     return (
       <div className="flex items-center justify-center py-24 text-sm text-red">
         Node not found: {id}

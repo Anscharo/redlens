@@ -152,16 +152,30 @@ function ensureArtifacts() {
   }
 }
 
+// ── Per-sha atlas bundle (immutable serving path) ───────────────────────────
+// Dev serves /api/atlas/<sha>/* from public/atlas/<sha>/ (the same path prod
+// uses); build it so the Vite dev plugin's injected sha resolves to real files
+// instead of 404ing. Cheap (copy + gzip the flat artifacts), idempotent.
+function ensureBundle() {
+  if (truthy(process.env.DEV_NO_BUILD) || !existsSync("public/docs.json")) return;
+  log("Publishing per-sha atlas bundle (public/atlas/<sha>/)…");
+  if (run("bun", ["scripts/required/build-bundle.ts"]).status !== 0) {
+    warn("build:bundle didn't finish cleanly — /api/atlas/<sha>/ may 404 until rebuilt.");
+  }
+}
+
 export async function preflight() {
   ensureDeps();
   if (truthy(process.env.DEV_NO_DB)) {
     warn("DEV_NO_DB=1 — skipping Postgres; history/chat/preview need a DB.");
     ensureArtifacts();
+    ensureBundle();
     return;
   }
   await ensureDockerRunning();
   dbUp();
   await waitHealthy();
   if (!runWorker()) ensureArtifacts(); // fallback so the reader always has artifacts
+  ensureBundle();
   log("Ready — starting server + Vite.");
 }
