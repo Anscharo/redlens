@@ -174,6 +174,7 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
 - **Sticky header collisions**: any scroll target needs `scrollMarginTop: "64px"`.
 - **Don't override git user.name/email.** Trust global config.
 - **Show stats before touching the UI** when changing the build pipeline. The user wants to see counts/samples before any visual change consumes new data.
+- **Keep `patch-notes.md` (repo root) current.** It backs the homepage "Recent improvements" log. When a change ships a user-visible feature or fix, add a one-line bullet in the same PR. Group bullets under a `## YYYY-MM-DD` heading dated **the day the PR is opened**; newest date first. Reuse the existing date block if a PR opens on a date already present. Format is enforced by `pnpm check:patch-notes` (pre-commit hook + CI), which requires strict newest-first dates.
 - **Each build pass gets its own script** (`scripts/required/build-<thing>.mjs`) and its own `pnpm build:<thing>`. Don't add new passes to `build-index.mjs`. Shared logic belongs in `scripts/lib/`.
 - **Max 3 components per file** (only if 2 are <8 lines); max ~150 lines per file.
 - **Node stdlib imports use `node:` prefix**: `import fs from "node:fs"`, `import path from "node:path"`, etc. Never bare `"fs"` or `"path"`.
