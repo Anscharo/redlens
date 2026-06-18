@@ -11,16 +11,18 @@ export interface AtlasBundle {
 }
 
 // One atlas worker per data-source base, backing TWO promises from a single
-// fetch of both browser docs artifacts: `tree` resolves early (content-less
-// metadata + lookup maps → sidebar renders) and `ready` resolves slightly later
-// (content merged in → full AtlasNode map). main → preview → main never crosses
-// bundles because everything is keyed by base. The preview base is threaded via
-// the worker `name` (read as self.name), keeping `new Worker(new URL(...))`
-// inline so Vite statically detects and COMPILES the worker — splitting it to
-// mutate a query param defeats that and ships the raw .ts (video/mp2t MIME).
+// fetch of both browser docs artifacts: `shallow` resolves early (depth ≤ 5,
+// content INCLUDED → sidebar + content first paint) and `full` resolves slightly
+// later (all depths merged in → complete AtlasNode map). Consumers that want a
+// progressive render await shallow then full (see useAtlasTree, useAtlasData).
+// main → preview → main never crosses bundles because everything is keyed by
+// base. The preview base is threaded via the worker `name` (read as self.name),
+// keeping `new Worker(new URL(...))` inline so Vite statically detects and
+// COMPILES the worker — splitting it to mutate a query param defeats that and
+// ships the raw .ts (video/mp2t MIME).
 interface WorkerHandles {
-  tree: Promise<AtlasBundle>;
-  ready: Promise<AtlasBundle>;
+  shallow: Promise<AtlasBundle>;
+  full: Promise<AtlasBundle>;
 }
 const workerCache = new Map<string, WorkerHandles>();
 
@@ -39,10 +41,10 @@ function toBundle(msg: {
 }
 
 function spawn(base: string): WorkerHandles {
-  let resolveTree!: (b: AtlasBundle) => void, rejectTree!: (e: Error) => void;
-  let resolveReady!: (b: AtlasBundle) => void, rejectReady!: (e: Error) => void;
-  const tree = new Promise<AtlasBundle>((res, rej) => { resolveTree = res; rejectTree = rej; });
-  const ready = new Promise<AtlasBundle>((res, rej) => { resolveReady = res; rejectReady = rej; });
+  let resolveShallow!: (b: AtlasBundle) => void, rejectShallow!: (e: Error) => void;
+  let resolveFull!: (b: AtlasBundle) => void, rejectFull!: (e: Error) => void;
+  const shallow = new Promise<AtlasBundle>((res, rej) => { resolveShallow = res; rejectShallow = rej; });
+  const full = new Promise<AtlasBundle>((res, rej) => { resolveFull = res; rejectFull = rej; });
 
   const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
     type: "module",
@@ -51,9 +53,9 @@ function spawn(base: string): WorkerHandles {
   worker.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.type === "shallow") {
-      resolveTree(toBundle(msg));
+      resolveShallow(toBundle(msg));
     } else if (msg.type === "ready") {
-      resolveReady(toBundle(msg));
+      resolveFull(toBundle(msg));
       worker.terminate();
     } else if (msg.type === "error") {
       worker.terminate();
@@ -61,11 +63,11 @@ function spawn(base: string): WorkerHandles {
       // instead of surfacing an error; the page is on its way out.
       if (handledStaleMessage(msg.message)) return;
       const err = new Error(msg.message);
-      rejectTree(err);
-      rejectReady(err);
+      rejectShallow(err);
+      rejectFull(err);
     }
   });
-  return { tree, ready };
+  return { shallow, full };
 }
 
 function handles(base: string): WorkerHandles {
@@ -73,20 +75,23 @@ function handles(base: string): WorkerHandles {
   if (!h) {
     h = spawn(base);
     // Drop from cache on failure so the next call re-spawns the worker.
-    h.ready.catch(() => workerCache.delete(base));
+    h.full.catch(() => workerCache.delete(base));
     workerCache.set(base, h);
   }
   return h;
 }
 
-/** Full atlas bundle (content merged in). Same contract as before the split. */
+/** Full atlas bundle — all depths, content merged in. Resolves once both
+ *  docs-shallow.json and docs-deep.json have landed. */
 export function loadAtlas(base: string = liveAtlasBase()): Promise<AtlasBundle> {
-  return handles(base).ready;
+  return handles(base).full;
 }
 
-/** Metadata-only bundle (no content) — resolves early for the atlas tree. */
-export function loadAtlasTree(base: string = liveAtlasBase()): Promise<AtlasBundle> {
-  return handles(base).tree;
+/** Shallow bundle — depth ≤ 5 (the initial visible tree, content included).
+ *  Resolves early (the instant docs-shallow.json lands) for fast first paint;
+ *  callers that also need deep nodes await loadAtlas afterward to upgrade. */
+export function loadAtlasShallow(base: string = liveAtlasBase()): Promise<AtlasBundle> {
+  return handles(base).shallow;
 }
 
 // Cache the derived promise per base so `use(loadDocs())` always sees the same
