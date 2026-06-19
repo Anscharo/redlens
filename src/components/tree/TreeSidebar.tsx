@@ -174,13 +174,13 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   // Done one level per REVEAL_STEP_MS tick (not all at once) so the cascade is
   // legible — each level's pills appear, linger, then fade as they unfold.
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => clearTimeout(revealTimer.current ?? undefined), []);
+  useEffect(() => () => { if (revealTimer.current) clearTimeout(revealTimer.current); }, []);
 
   const revealChanges = useCallback(
     (id: string) => {
       if (!bundle) return;
       const { byParent } = bundle;
-      clearTimeout(revealTimer.current ?? undefined);
+      if (revealTimer.current) clearTimeout(revealTimer.current);
       let frontier = [id];
       const step = () => {
         setExpandedIds((prev) => {

@@ -103,5 +103,7 @@ export function useRevealFlash(
       }, CHANGE_FLASH_DELAY_MS);
       timers.current.add(start);
     }
+    // containerRef is a stable RefObject (identity never changes) — listed only
+    // to satisfy exhaustive-deps; it never actually retriggers this effect.
   }, [flashIds, parentOf, expandedIds, active, containerRef]);
 }
