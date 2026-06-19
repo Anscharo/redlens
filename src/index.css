@@ -8,6 +8,7 @@
   --surface: #221614;
   --hover: #291612;
   --border: #3d2c28;
+  --border-muted: #343434; /* neutral gray, brightness-matched to --border — hidden-section lines */
 
   /* ─── Brand ─── */
   --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
@@ -65,25 +66,25 @@
   --max-prose-width: 90ch;
 
   /* ─── Depth palette ─── */
-  /* 5-color jewel-tone cycle (red, orange, green, blue, purple) starting at depth-1, looping through depth-17.
-     All five pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify with wcag-contrast before changing. */
+  /* 6-color jewel-tone cycle (red, orange, green, blue, purple, magenta) starting at depth-1, looping through depth-17.
+     All six pass WCAG AA (4.5:1+) on --bg, --bg-deep, and --surface — verify with wcag-contrast before changing. */
   --depth-1: #e25549;  /* red */
   --depth-2: #d98e2b;  /* orange */
   --depth-3: #55a653;  /* green */
   --depth-4: #6e8ee8;  /* blue */
   --depth-5: #a878e8;  /* purple */
-  --depth-6: #e25549;  /* red */
-  --depth-7: #d98e2b;  /* orange */
-  --depth-8: #55a653;  /* green */
-  --depth-9: #6e8ee8;  /* blue */
-  --depth-10: #a878e8; /* purple */
-  --depth-11: #e25549; /* red */
-  --depth-12: #d98e2b; /* orange */
-  --depth-13: #55a653; /* green */
-  --depth-14: #6e8ee8; /* blue */
-  --depth-15: #a878e8; /* purple */
-  --depth-16: #e25549; /* red */
-  --depth-17: #d98e2b; /* orange */
+  --depth-6: #d864b8;  /* magenta */
+  --depth-7: #e25549;  /* red */
+  --depth-8: #d98e2b;  /* orange */
+  --depth-9: #55a653;  /* green */
+  --depth-10: #6e8ee8; /* blue */
+  --depth-11: #a878e8; /* purple */
+  --depth-12: #d864b8; /* magenta */
+  --depth-13: #e25549; /* red */
+  --depth-14: #d98e2b; /* orange */
+  --depth-15: #55a653; /* green */
+  --depth-16: #6e8ee8; /* blue */
+  --depth-17: #a878e8; /* purple */
 }
 
 /* Light theme — fill in when the toggle is wired up.
@@ -136,7 +137,7 @@ mark {
   background: var(--bg);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-muted);
   border-radius: 3px;
 }
 
@@ -152,7 +153,7 @@ mark {
 }
 .tree-sidebar ::-webkit-scrollbar-thumb,
 .atlas-scroll::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--border-muted);
   background-clip: content-box;
   border: 4px solid transparent;
   border-radius: 8px;
@@ -294,7 +295,7 @@ mark {
   padding: 4px 2px;
   margin: 0 2px 2px;
   border: none;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-muted);
   border-radius: 2px;
   transition:
     background-color 0.1s,
@@ -316,8 +317,8 @@ mark {
   bottom: 0;
   height: 14px;
   padding: 0 6px;
-  border-top: 1px solid var(--border);
-  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border-muted);
+  border-left: 1px solid var(--border-muted);
   border-top-left-radius: 4px;
   background: var(--surface);
   color: var(--tan-3);
@@ -357,7 +358,7 @@ mark {
 }
 
 .atlas-node[data-has-hidden="true"] {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-muted);
 }
 /* Rows newly revealed by a user-initiated expand animate in.
    data-expanding is set on .atlas-scroll for 250 ms by handleExpandParent
@@ -466,10 +467,12 @@ button.atlas-node-expand-all:focus-visible {
   margin: 2px;
   padding-left: 3px;
   padding-right: 2px;
-  color: var(--tan-2);
+  /* titles take their depth color (like the sidebar); the selected one is a
+     brighter, higher-contrast shade of the same hue */
+  color: var(--row-color, var(--tan-2));
 }
 .atlas-node.is-selected .atlas-node-title {
-  color: var(--tan);
+  color: color-mix(in srgb, var(--row-color, var(--tan)) 45%, var(--tan));
 }
 .atlas-toggle {
   transition: background-color 0.1s;

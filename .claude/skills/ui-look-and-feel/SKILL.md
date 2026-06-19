@@ -52,7 +52,7 @@ metadata:
 | Row overlays | `--row-hover --row-selected --row-focused --atlas-row-selected --row-pulse-flash --row-bar-tint` | translucent whites mixed with per-row `--row-color` via `color-mix()` |
 | Graph chrome | `--edge --edge-label-fg --graph-dots` | constellations / ReactFlow |
 | Entity palette | `--entity-*` (12) | categorical colors keyed by entity type |
-| Depth palette | `--depth-1 … --depth-17` | 5-color jewel cycle (red orange green blue purple) ×3.4 — used by tree chiclets/rows |
+| Depth palette | `--depth-1 … --depth-17` | 6-color jewel cycle (red orange green blue purple magenta) ×2.8 — used by tree chiclets/rows |
 | Layout | `--max-prose-width: 68ch` | atlas prose measure |
 
 Contrast annotations in the comments are load-bearing: `--gray`, `--tan-3`,
