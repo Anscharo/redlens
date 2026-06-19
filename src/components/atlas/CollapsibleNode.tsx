@@ -7,6 +7,7 @@ import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
+import { useDataSource } from "../../lib/dataSource";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -28,6 +29,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   idPrefix?: string;
 }) {
   const { navigate, toggle, splitNavigate } = useAtlasActions();
+  const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
@@ -101,7 +103,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
-        <PreviewMark nodeId={node.id} className="text-lg" />
+        {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
             {node.title}

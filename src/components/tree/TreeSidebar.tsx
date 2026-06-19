@@ -7,6 +7,7 @@ import { useRevealFlash } from "../../hooks/useRevealFlash";
 import { realDepth, segmentDepths } from "../../lib/depth";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
+import { useDataSource } from "../../lib/dataSource";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
 
@@ -85,6 +86,9 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
 
   const changedSet = usePreviewChangedSet();
   const diff = usePreviewDiff();
+  // Only preview mode has a diff; gate the rollup/flash/marks so the live reader
+  // pays nothing for them (no per-row badge mounts, no reveal-flash effect).
+  const isPreview = !!useDataSource().preview;
 
   // id → { count, depth } for the added/changed docs in its subtree. Walk up
   // parentOf from each changed doc, incrementing every ancestor's count and
@@ -97,12 +101,21 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   // hierarchy to roll into).
   const rollup = useMemo(() => {
     const m = new Map<string, { count: number; depth: number }>();
-    if (!bundle || changedSet) return m;
+    if (!bundle || !isPreview || changedSet) return m;
     for (const id of [...diff.added, ...diff.changed]) {
       const node = bundle.docs[id];
       if (!node) continue;
-      const segs = segmentDepths(node.doc_no);
-      const depth = segs[segs.length - 1] ?? 0;
+      // Colour depth must match the chiclet the row shows. NR-X nodes carry no
+      // positional doc_no — segmentDepths short-circuits them to [1] — so derive
+      // their depth from the tree (realDepth needs the parent's doc_no).
+      let depth: number;
+      if (node.doc_no.startsWith("NR-")) {
+        const pid = parentOf.get(id);
+        depth = realDepth(node.doc_no, pid ? bundle.docs[pid]?.doc_no : undefined);
+      } else {
+        const segs = segmentDepths(node.doc_no);
+        depth = segs[segs.length - 1] ?? 0;
+      }
       let pid = parentOf.get(id) ?? null;
       while (pid) {
         const cur = m.get(pid);
@@ -116,12 +129,12 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       }
     }
     return m;
-  }, [bundle, parentOf, diff, changedSet]);
+  }, [bundle, isPreview, parentOf, diff, changedSet]);
 
   // Flash each changed/new doc when it becomes visible because an ancestor was
   // expanded (manual toggle or the staggered reveal) — see useRevealFlash.
   const flashIds = useMemo(() => new Set([...diff.added, ...diff.changed]), [diff]);
-  useRevealFlash(flashIds, parentOf, expandedIds, !!bundle && !changedSet, containerRef);
+  const flashing = useRevealFlash(flashIds, parentOf, expandedIds, isPreview && !!bundle && !changedSet);
 
   const visibleNodes = useMemo(() => {
     if (!bundle) return [];
@@ -239,6 +252,8 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       focusedIndex,
       expandedIds,
       rollup,
+      flashing,
+      isPreview,
       sidebarWidth,
       onNavigate: handleRowClick,
       onToggle: toggleExpand,
@@ -251,6 +266,8 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       focusedIndex,
       expandedIds,
       rollup,
+      flashing,
+      isPreview,
       sidebarWidth,
       handleRowClick,
       toggleExpand,

@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import type { RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Kept in sync with the --change-flash-ms CSS variable; falls back to 600 ms.
 const CHANGE_FLASH_MS = (() => {
@@ -12,6 +11,8 @@ const CHANGE_FLASH_MS = (() => {
 // Hold off this long after a row is revealed before flashing it, so the flash
 // lands once the row has settled into place rather than mid-reveal.
 const CHANGE_FLASH_DELAY_MS = 210;
+
+const EMPTY: ReadonlySet<string> = new Set();
 
 // A changed/new doc is "tree-visible" when every ancestor on its path is expanded.
 function isTreeVisible(
@@ -27,44 +28,63 @@ function isTreeVisible(
   return true;
 }
 
-// Flashes changed/new tree rows the moment they become visible because an
-// ancestor expanded (manual toggle, keyboard, or the staggered pill reveal). NOT
-// triggered by scrolling a virtualized row into view, and it never selects the
-// row — it only toggles `is-change-flash` via direct DOM mutation (same trick as
-// usePulseDom: keeps the pulse out of rowProps so react-window doesn't re-render
-// every row twice). The set of docs visible on first run is the baseline, so the
-// initial load doesn't flash everything.
+// Returns the set of changed/new doc ids that should currently flash because they
+// just became visible (an ancestor expanded — manual toggle, keyboard, or the
+// staggered pill reveal). The caller applies an `is-change-flash` class to those
+// rows. NOT triggered by scrolling a virtualized row into view, and it never
+// selects the row.
 //
-// Pending flash timers live in a ref and are cleared only on unmount — NOT on
-// every expandedIds change. The staggered reveal fires an expandedIds update per
-// generation (~200ms apart); clearing on each change would cancel the prior
-// generation's delayed flash before it lands, so only chevron (single-change)
-// expansions would ever flash.
+// The flash is React state, NOT a direct DOM class mutation: the reveal cascade
+// fires an expandedIds update per generation (~180ms apart), which re-renders
+// rows and lets react-window recycle DOM elements to different nodes. A class
+// poked onto a recycled element would be stripped or land on the wrong row — so
+// the flash must be keyed to the node id in render, not to a DOM element.
+//
+// Baseline: the visible set is re-recorded WITHOUT flashing on first activation
+// and whenever `flashIds` changes (the diff.json fetch resolving after the tree
+// bundle is a data arrival, not a reveal — flashing then would light up every
+// already-visible change at once). Only an expandedIds change with a stable
+// flashIds set produces flashes.
+//
+// Timers: start timers (the reveal delay) live in `timers` for bulk cleanup; end
+// timers (flash duration) are also tracked per-id in `endTimers` so a re-reveal
+// of the same doc cancels the previous end timer instead of being cut short by
+// it. Everything is drained on unmount AND on deactivation.
 export function useRevealFlash(
   flashIds: Set<string>,
   parentOf: Map<string, string | null>,
   expandedIds: Set<string>,
   active: boolean,
-  containerRef: RefObject<HTMLElement | null>,
-): void {
+): ReadonlySet<string> {
+  const [flashing, setFlashing] = useState<ReadonlySet<string>>(EMPTY);
   const prevVisible = useRef<Set<string>>(new Set());
   const primed = useRef(false);
+  const lastFlashIds = useRef<Set<string> | null>(null);
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const endTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
     const pending = timers.current;
+    const ends = endTimers.current;
     return () => {
       for (const t of pending) clearTimeout(t);
       pending.clear();
+      ends.clear();
     };
   }, []);
 
   useEffect(() => {
     if (!active) {
-      // Reset baseline so re-entering the tree (e.g. leaving "changed only"
-      // filter) doesn't flash the whole set at once.
+      // Drain everything and reset the baseline so re-entering the tree (e.g.
+      // leaving the "changed only" filter) neither leaves stray timers running
+      // nor flashes the whole set at once on reactivation.
+      for (const t of timers.current) clearTimeout(t);
+      timers.current.clear();
+      endTimers.current.clear();
       prevVisible.current = new Set();
       primed.current = false;
+      lastFlashIds.current = null;
+      setFlashing((prev) => (prev.size ? EMPTY : prev));
       return;
     }
 
@@ -73,8 +93,11 @@ export function useRevealFlash(
       if (isTreeVisible(id, parentOf, expandedIds)) nowVisible.add(id);
     }
 
-    if (!primed.current) {
+    // Re-baseline (no flash) on first activation or when the change set itself
+    // changes — only a reveal (expandedIds change) with a stable flashIds flashes.
+    if (!primed.current || lastFlashIds.current !== flashIds) {
       primed.current = true;
+      lastFlashIds.current = flashIds;
       prevVisible.current = nowVisible;
       return;
     }
@@ -84,26 +107,39 @@ export function useRevealFlash(
     prevVisible.current = nowVisible;
     if (!newly.length) return;
 
-    const container = containerRef.current;
     for (const id of newly) {
-      // Look the row up at flash time (after the delay) so freshly-inserted rows
-      // are in the DOM by then.
       const start = setTimeout(() => {
         timers.current.delete(start);
-        const el = container?.querySelector<HTMLElement>(`[data-node-id="${id}"]`);
-        if (!el) return; // virtualized off-screen → not "on screen", skip
-        el.classList.remove("is-change-flash");
-        void el.offsetWidth; // restart the animation if it was mid-flash
-        el.classList.add("is-change-flash");
+        // A re-reveal within the flash window: cancel the in-flight end timer so
+        // it can't truncate the restarted flash.
+        const staleEnd = endTimers.current.get(id);
+        if (staleEnd) {
+          clearTimeout(staleEnd);
+          timers.current.delete(staleEnd);
+          endTimers.current.delete(id);
+        }
+        setFlashing((prev) => {
+          if (prev.has(id)) return prev;
+          const next = new Set(prev);
+          next.add(id);
+          return next;
+        });
         const end = setTimeout(() => {
           timers.current.delete(end);
-          el.classList.remove("is-change-flash");
+          endTimers.current.delete(id);
+          setFlashing((prev) => {
+            if (!prev.has(id)) return prev;
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
         }, CHANGE_FLASH_MS);
         timers.current.add(end);
+        endTimers.current.set(id, end);
       }, CHANGE_FLASH_DELAY_MS);
       timers.current.add(start);
     }
-    // containerRef is a stable RefObject (identity never changes) — listed only
-    // to satisfy exhaustive-deps; it never actually retriggers this effect.
-  }, [flashIds, parentOf, expandedIds, active, containerRef]);
+  }, [flashIds, parentOf, expandedIds, active]);
+
+  return active ? flashing : EMPTY;
 }
