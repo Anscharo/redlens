@@ -12,6 +12,10 @@ import { usePreviewDim } from "../../lib/previewFilter";
 export const ROW_HEIGHT = 26;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
+// Approx rendered width of the rollup badge (border + padding + digit + flex gap)
+// — subtracted from the title budget when the badge is visible so the title
+// truncates instead of clipping its last character.
+const ROLLUP_BADGE_WIDTH = 18;
 
 export interface VisibleNode {
   node: AtlasNode;
@@ -102,7 +106,12 @@ export function TreeRow({
     return { parts, depths, slots: undefined, gradients: undefined, width } as Seg;
   }, [docNo, treeDepth, parentDocNo]);
 
-  const availableWidth = sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5;
+  // The rollup badge sits between the mark and the title (collapsed rows only),
+  // so claw back its width from the title budget when it's showing.
+  const rollupEntry = node ? rollup.get(node.id) : undefined;
+  const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
+  const availableWidth =
+    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 - (showRollup ? ROLLUP_BADGE_WIDTH : 0);
 
   const displayTitle = useMemo(
     () => (title ? truncateTitle(title, Math.max(availableWidth, 20)) : ""),
@@ -162,7 +171,7 @@ export function TreeRow({
       <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
       <PreviewRollupBadge
         key={node.id}
-        entry={rollup.get(node.id)}
+        entry={rollupEntry}
         expanded={isExpanded}
         onReveal={() => onReveal(node.id)}
         className="text-[10px]"

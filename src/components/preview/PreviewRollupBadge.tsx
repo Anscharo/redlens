@@ -88,7 +88,11 @@ export function PreviewRollupBadge({
         lineHeight: 1,
         cursor: "pointer",
         opacity: leaving ? 0 : 1,
-        transition: `all ${FADE_MS}ms ease`,
+        // Only the props that actually move on collapse — not `all` (which would
+        // also watch colour/cursor/border-style and animate any future addition).
+        transition: ["width", "min-width", "padding", "margin-left", "border-width", "opacity"]
+          .map((p) => `${p} ${FADE_MS}ms ease`)
+          .join(", "),
       }}
     >
       {count}
