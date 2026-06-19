@@ -6,6 +6,7 @@ import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { Tooltip } from "../Tooltip";
 import { PreviewMark } from "../preview/PreviewMark";
+import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
 
 export const ROW_HEIGHT = 26;
@@ -24,9 +25,11 @@ export interface TreeRowData {
   selectedIndex: number;
   focusedIndex: number;
   expandedIds: Set<string>;
+  rollup: Map<string, { count: number; depth: number }>;
   sidebarWidth: number;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
+  onReveal: (id: string) => void;
   onShiftNavigate?: (id: string) => void;
 }
 
@@ -60,9 +63,11 @@ export function TreeRow({
   selectedIndex,
   focusedIndex,
   expandedIds,
+  rollup,
   sidebarWidth,
   onNavigate,
   onToggle,
+  onReveal,
   onShiftNavigate,
 }: RowComponentProps<TreeRowData>) {
   const item = visibleNodes[index];
@@ -155,6 +160,13 @@ export function TreeRow({
         gradients={docNoSegments.gradients}
       />
       <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
+      <PreviewRollupBadge
+        key={node.id}
+        entry={rollup.get(node.id)}
+        expanded={isExpanded}
+        onReveal={() => onReveal(node.id)}
+        className="text-[10px]"
+      />
       <span
         style={{ ...TITLE_BASE, color: titleColor }}
         title={node.doc_no + " \u2014 " + node.title}

@@ -34,6 +34,8 @@
   --row-pulse-flash: rgba(255, 255, 255, 0.28);
   --row-bar-tint: white; /* mix target for the selected red-bar tint; overridden in light theme */
   --row-pulse-ms: 700ms;
+  --change-flash-ms: 600ms; /* kept in sync with CHANGE_FLASH_MS in useRevealFlash.ts */
+  --change-flash-color: rgba(255, 255, 255, 0.12); /* reveal flash peak — subtler than the selection pulse */
 
   --node-hover: #000000;
 
@@ -202,6 +204,19 @@ mark {
   }
   100% {
     background-color: color-mix(in srgb, var(--row-color) 15%, var(--row-selected));
+  }
+}
+/* Reveal flash: a changed/new row that just became visible because an ancestor
+   expanded. Flashes, then settles to transparent — it is NOT selected. */
+.tree-row.is-change-flash {
+  animation: tree-row-change-flash var(--change-flash-ms) ease-out;
+}
+@keyframes tree-row-change-flash {
+  0% {
+    background-color: var(--change-flash-color);
+  }
+  100% {
+    background-color: transparent;
   }
 }
 .tree-toggle {
