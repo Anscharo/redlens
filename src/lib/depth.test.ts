@@ -40,9 +40,10 @@ describe("nrSidebarChiclets", () => {
     // only the dash carries a gradient
     expect(gradients.filter(Boolean)).toHaveLength(1);
     const dashGrad = gradients.find(Boolean);
-    // parent A.1.6.4.3.2 colours (depths 0-5) then the number colour (depth 6)
+    // parent A.1.6.4.3.2 colours (depths 0-5) then the number colour (depth 6).
+    // Depth-0 is var(--tan-2) since the density+contrast pass (see chicletColor).
     expect(dashGrad).toBe(
-      "linear-gradient(to right, var(--gray), var(--depth-1), var(--depth-2), var(--depth-3), var(--depth-4), var(--depth-5), var(--depth-6))",
+      "linear-gradient(to right, var(--tan-2), var(--depth-1), var(--depth-2), var(--depth-3), var(--depth-4), var(--depth-5), var(--depth-6))",
     );
   });
 
