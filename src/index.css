@@ -14,7 +14,9 @@
   --red: #a63228; /* burn red — decorative: selected-bar, borders, highlights */
   --red-dim: #753021;
   --accent: #c67267; /* browner/pinker — focus, interactive */
+  --preview-add: #57ab5a; /* preview redline: new/changed docs (green) */
   --error-text: #c16861; /* accessible error text alias — 4.5:1+ on --bg and --surface */
+  --warn: #c9a227; /* amber — due-soon / caution accents */
 
   /* ─── Text ─── */
   --gray: #9a8a80; /* bumped from #7a6860 — passes 4.5:1 on --bg */
@@ -33,6 +35,8 @@
   --row-pulse-flash: rgba(255, 255, 255, 0.28);
   --row-bar-tint: white; /* mix target for the selected red-bar tint; overridden in light theme */
   --row-pulse-ms: 700ms;
+  --change-flash-ms: 600ms; /* kept in sync with CHANGE_FLASH_MS in useRevealFlash.ts */
+  --change-flash-color: rgba(255, 255, 255, 0.12); /* reveal flash peak — subtler than the selection pulse */
 
   --node-hover: #000000;
 
@@ -48,6 +52,8 @@
   /* ─── Diff view ─── */
   --diff-removed-bg: #4a1010;
   --diff-removed-fg: #e8d5d5;
+  --diff-added-bg: #0c2614;
+  --diff-added-fg: #c2ecd0;
 
   /* ─── Entity-type categorical palette ─── */
   --entity-agent: #c67267; /* same hue as --accent */
@@ -61,6 +67,8 @@
   --entity-operational-party: #c09080;
   --entity-ecosystem-actor: #a89090;
   --entity-instance: #7a8a9c;
+  --entity-multisig: #c2a35a;
+  --entity-bridge: #7fb09f;
   --entity-fallback: #888888;
 
   --max-prose-width: 90ch;
@@ -200,6 +208,19 @@ mark {
     background-color: color-mix(in srgb, var(--row-color) 15%, var(--row-selected));
   }
 }
+/* Reveal flash: a changed/new row that just became visible because an ancestor
+   expanded. Flashes, then settles to transparent — it is NOT selected. */
+.tree-row.is-change-flash {
+  animation: tree-row-change-flash var(--change-flash-ms) ease-out;
+}
+@keyframes tree-row-change-flash {
+  0% {
+    background-color: var(--change-flash-color);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
 .tree-toggle {
   cursor: pointer;
   line-height: 1;
@@ -207,10 +228,26 @@ mark {
 .tree-toggle:hover {
   color: var(--tan) !important;
 }
+/* Childless rows render a transparent placeholder — keep it invisible and
+   non-interactive so hovering doesn't reveal a stray dot. */
+.tree-toggle-empty {
+  cursor: default;
+}
+.tree-toggle-empty:hover {
+  color: transparent !important;
+}
 
 .tree-row .atlas-chiclet {
   font-size: 10px;
-  width: 12px !important;
+  width: 12px;
+}
+.tree-row .atlas-chiclet-wide {
+  width: auto;
+  min-width: 12px;
+  padding: 0 2px;
+}
+.tree-row .atlas-chiclet-span {
+  width: calc(var(--slots, 1) * 12px);
 }
 
 /* Breadcrumb */
@@ -573,6 +610,26 @@ button.atlas-node-expand-all:focus-visible {
   flex-shrink: 0;
   color: var(--c, var(--gray));
   border-bottom: 3px solid var(--c, var(--gray));
+}
+.atlas-chiclet-spacer {
+  border-bottom-color: transparent;
+}
+.atlas-chiclet-wide {
+  width: auto;
+  min-width: 15px;
+  padding: 0 3px;
+}
+.atlas-chiclet-span {
+  width: calc(var(--slots, 1) * 15px);
+}
+/* NR-X dash: gradient underline (the connecting "line") + gradient glyph. */
+.atlas-chiclet-grad {
+  border-image-source: var(--grad);
+  border-image-slice: 1;
+  background-image: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .atlas-node-body {

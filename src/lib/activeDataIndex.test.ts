@@ -24,7 +24,7 @@ const relations: Relations = JSON.parse(
 );
 const docs: Record<string, AtlasNode> = JSON.parse(
   fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"),
-);
+).nodes;
 
 const participants = relations.entities.filter((e) => e.et !== "instance");
 const graphInput = {

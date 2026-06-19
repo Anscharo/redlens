@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, type ReactElement } from "react";
-import { buildAncestors, type LoadedData } from "../../lib/atlasHelpers";
+import { buildAncestors, type FlatEntry, type LoadedData } from "../../lib/atlasHelpers";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
+import { depthColor, realDepth } from "../../lib/depth";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
   <button
@@ -12,8 +13,6 @@ const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => 
     view all descendants of {docNo}
   </button>
 );
-import { type FlatEntry } from "../../lib/atlasHelpers";
-import { depthColor, realDepth } from "../../lib/depth";
 
 const DEPTH_LIMIT = 6;
 
@@ -76,11 +75,22 @@ export function JuniorPane({
     if (!entry)
       return { slice: [] as FlatEntry[], hasMore: false, autoExpanded: new Set<string>() };
     const maxDepth = entry.depth + DEPTH_LIMIT;
-    const docNoPrefix = node.doc_no + ".";
+
+    // Collect descendants via parent links (byParent), not doc_no prefix —
+    // doc_nos are editorial and get renumbered, parent ids are stable identity.
+    const descendantIds = new Set<string>();
+    const stack = [splitId];
+    while (stack.length) {
+      for (const child of data.atlas.byParent.get(stack.pop()!) ?? []) {
+        descendantIds.add(child.id);
+        stack.push(child.id);
+      }
+    }
+
     const slice: FlatEntry[] = [entry];
     let hasMore = false;
     for (const e of data.flatNodes) {
-      if (e.node.doc_no.startsWith(docNoPrefix)) {
+      if (descendantIds.has(e.node.id)) {
         if (e.depth <= maxDepth || showMore) slice.push(e);
         else hasMore = true;
       }
@@ -147,15 +157,13 @@ export function JuniorPane({
             <span key={a.id}>
               {i > 0 && <span> / </span>}
               <a
-                href={`/atlas?id=${a.id}`}
+                href={`${import.meta.env.BASE_URL}atlas?id=${a.id}`}
                 onClick={(e) => {
                   e.preventDefault();
                   onShiftNavigate(a.id);
                 }}
                 className="hover:text-tan"
-                style={{ 
-                  color:  `var(--tan3)`,
-                }}
+                style={{ color: "var(--tan-3)" }}
               >
                 {a.title}
               </a>

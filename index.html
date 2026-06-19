@@ -2,13 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <style>:root{--bg:#160e0d}html{background-color:var(--bg)}</style>
     <link rel="icon" type="image/png" href="/icon-SMALL.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#160e0d" />
+    <!-- Current live atlas sha, substituted at serve time (Bun in prod, a Vite
+         dev plugin in dev). Drives the immutable /api/atlas/<sha>/ artifact base.
+         Empty (cold boot / no injection) → loaders fall back to flat BASE_URL. -->
+    <script>
+      window.__ATLAS_SHA__ = "{{ATLAS_SHA}}";
+    </script>
     <script>
       (function () {
         try {
-          var raw = localStorage.getItem("redlens:palette-overrides");
+          var raw = localStorage.getItem("redline-sky-atlas:palette-overrides");
           if (!raw) return;
           var p = JSON.parse(raw);
           if (!p || p.v !== 1 || !p.values) return;
@@ -21,7 +28,7 @@
         } catch (e) {}
       })();
     </script>
-    <title>RedLens' Sky Atlas</title>
+    <title>Sky Atlas by Redline</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Non-render-blocking: loads as print then swaps to all on load -->
@@ -36,11 +43,15 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;700&display=optional"
         rel="stylesheet"
     /></noscript>
-    <link rel="preload" href="/docs.json" as="fetch" crossorigin />
+    <!-- preload: fetched promptly on the main thread on first render. Only the
+         flat, NON-atlas-versioned artifacts are hinted here — addresses.json and
+         chain-state.json are on-chain/shared and keep stable URLs. Atlas-versioned
+         artifacts (docs/glossary/addresses.atlas/relations) are now served from
+         the per-sha /api/atlas/<sha>/ base injected at runtime, so they can't be
+         hinted from static HTML; their workers/loaders fetch them immediately on
+         app start regardless. -->
     <link rel="preload" href="/addresses.json" as="fetch" crossorigin />
-    <link rel="preload" href="/addresses.atlas.json" as="fetch" crossorigin />
     <link rel="preload" href="/chain-state.json" as="fetch" crossorigin />
-    <link rel="preload" href="/glossary.json" as="fetch" crossorigin />
   </head>
   <body>
     <div id="root"></div>

@@ -1,5 +1,5 @@
 import type { AtlasNode } from "../types";
-import { fetchJsonVerified } from "./verify";
+import { fetchJson } from "./verify";
 
 // One curated entry from public/processes.json — the hand-validated inventory.
 // Title + doc_no are resolved from docs.json at read time via the entry's uuid.
@@ -31,7 +31,7 @@ let cache: Promise<ProcessEntry[]> | null = null;
 
 export function loadProcesses(): Promise<ProcessEntry[]> {
   if (!cache) {
-    cache = fetchJsonVerified<ProcessEntry[]>(
+    cache = fetchJson<ProcessEntry[]>(
       `${import.meta.env.BASE_URL}processes.json`,
       "processes.json",
     ).catch((err) => {

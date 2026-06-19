@@ -2,7 +2,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 
@@ -34,10 +33,8 @@ jobs:
       - name: Build graph
         run: pnpm build:graph
 
-      # Don't rebuild manifest here — the committed public/manifest.json is
-      # the source of truth. The "Run tests" step below executes
-      # manifest.test.ts which verifies committed hashes match disk
-      # (i.e. fresh deterministic rebuilds match what atlas-update PR'd).
+      # manifest.json is a build artifact (not committed). manifest.test.ts
+      # skips itself when it's absent, so no build:manifest step needed here.
 
       - name: Type check
         run: pnpm build:ts
@@ -55,37 +52,6 @@ jobs:
 
       - name: Bundle
         run: pnpm exec vite build
-
-  worker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Cloudflare runtime types
-        run: npx wrangler types
-        working-directory: redlens-mcp
-
-      - name: Type check worker
-        run: npx tsc --noEmit
-        working-directory: redlens-mcp
-
-      # schema.sql is validated end-to-end in the lint-and-build job's
-      # "Apply schema + sync to local D1" step (which goes further: it also
-      # runs sync-d1.mjs against the resulting local D1).
-
-      - name: Run worker tests
-        run: pnpm test --run --passWithNoTests
-        working-directory: redlens-mcp
 
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
@@ -127,7 +93,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Regenerate the gitignored artifacts the server reads (docs.json, graph.json).
-      # addresses.atlas / chain-state / manifest / history are committed.
+      # addresses.atlas.json and chain-state.json are committed; history is not needed here.
       - name: Build atlas artifacts
         run: pnpm build:index && pnpm build:graph
 
@@ -144,11 +110,18 @@ jobs:
         run: bun run sync:atlas
 
       - name: Health + MCP smoke
+        # Updater is on by default now; disable it in the smoke boot so no
+        # background poll/rebuild races the short-lived health/MCP checks.
+        env:
+          ATLAS_UPDATE_ENABLED: "0"
         run: |
           bun src/server/index.ts &
           SRV=$!
-          for i in $(seq 1 30); do curl -fsS localhost:3000/health >/dev/null 2>&1 && break; sleep 1; done
-          curl -fsS localhost:3000/health | tee /dev/stderr | grep -q '"status":"ok"' \
+          for i in $(seq 1 30); do curl -fsS localhost:3000/api/health >/dev/null 2>&1 && break; sleep 1; done
+          # -f already asserts HTTP 200 (liveness). Assert db_reachable rather
+          # than status: status is a derived enum (ok/syncing/stale/…) that can
+          # legitimately be non-"ok" without the server being broken.
+          curl -fsS localhost:3000/api/health | tee /dev/stderr | grep -q '"db_reachable":true' \
             || { echo "health check failed"; kill $SRV 2>/dev/null; exit 1; }
           RESP=$(curl -fsS -H 'Accept: application/json, text/event-stream' -H 'Content-Type: application/json' \
             -X POST localhost:3000/mcp \

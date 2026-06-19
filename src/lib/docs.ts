@@ -1,4 +1,5 @@
 import type { AtlasNode } from "../types";
+import { liveAtlasBase, handledStaleMessage } from "./atlasBase";
 
 export interface AtlasBundle {
   docs: Record<string, AtlasNode>;
@@ -6,52 +7,109 @@ export interface AtlasBundle {
   byParent: Map<string | null, AtlasNode[]>;
   /** doc_no → node id (for doc_no-based lookups) */
   docNoToId: Map<string, string>;
+  atlasCommit: string | null;
 }
 
-let cached: Promise<AtlasBundle> | null = null;
+// One atlas worker per data-source base, backing TWO promises from a single
+// fetch of both browser docs artifacts: `shallow` resolves early (depth ≤ 5,
+// content INCLUDED → sidebar + content first paint) and `full` resolves slightly
+// later (all depths merged in → complete AtlasNode map). Consumers that want a
+// progressive render await shallow then full (see useAtlasTree, useAtlasData).
+// main → preview → main never crosses bundles because everything is keyed by
+// base. The preview base is threaded via the worker `name` (read as self.name),
+// keeping `new Worker(new URL(...))` inline so Vite statically detects and
+// COMPILES the worker — splitting it to mutate a query param defeats that and
+// ships the raw .ts (video/mp2t MIME).
+interface WorkerHandles {
+  shallow: Promise<AtlasBundle>;
+  full: Promise<AtlasBundle>;
+}
+const workerCache = new Map<string, WorkerHandles>();
 
-export function loadAtlas(): Promise<AtlasBundle> {
-  if (!cached) {
-    cached = new Promise<AtlasBundle>((resolve, reject) => {
-      const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
-        type: "module",
-      });
-      worker.addEventListener("message", (e) => {
-        const msg = e.data;
-        if (msg.type === "ready") {
-          worker.terminate();
-          resolve({
-            docs: msg.docs,
-            byParent: new Map(msg.byParentEntries),
-            docNoToId: new Map(msg.docNoToIdEntries),
-          });
-        } else if (msg.type === "error") {
-          worker.terminate();
-          reject(new Error(msg.message));
-        }
-      });
-    }).catch((err) => {
-      cached = null;
-      throw err;
-    });
+function toBundle(msg: {
+  docs: Record<string, AtlasNode>;
+  atlasCommit?: string | null;
+  byParentEntries: [string | null, AtlasNode[]][];
+  docNoToIdEntries: [string, string][];
+}): AtlasBundle {
+  return {
+    docs: msg.docs,
+    atlasCommit: msg.atlasCommit ?? null,
+    byParent: new Map(msg.byParentEntries),
+    docNoToId: new Map(msg.docNoToIdEntries),
+  };
+}
+
+function spawn(base: string): WorkerHandles {
+  let resolveShallow!: (b: AtlasBundle) => void, rejectShallow!: (e: Error) => void;
+  let resolveFull!: (b: AtlasBundle) => void, rejectFull!: (e: Error) => void;
+  const shallow = new Promise<AtlasBundle>((res, rej) => { resolveShallow = res; rejectShallow = rej; });
+  const full = new Promise<AtlasBundle>((res, rej) => { resolveFull = res; rejectFull = rej; });
+
+  const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
+    type: "module",
+    name: base,
+  });
+  worker.addEventListener("message", (e) => {
+    const msg = e.data;
+    if (msg.type === "shallow") {
+      resolveShallow(toBundle(msg));
+    } else if (msg.type === "ready") {
+      resolveFull(toBundle(msg));
+      worker.terminate();
+    } else if (msg.type === "error") {
+      worker.terminate();
+      // Stale pinned sha (404 on /api/atlas/<sha>/) → force-forward reload
+      // instead of surfacing an error; the page is on its way out.
+      if (handledStaleMessage(msg.message)) return;
+      const err = new Error(msg.message);
+      rejectShallow(err);
+      rejectFull(err);
+    }
+  });
+  return { shallow, full };
+}
+
+function handles(base: string): WorkerHandles {
+  let h = workerCache.get(base);
+  if (!h) {
+    h = spawn(base);
+    // Drop from cache on failure so the next call re-spawns the worker.
+    h.full.catch(() => workerCache.delete(base));
+    workerCache.set(base, h);
   }
-  return cached!;
+  return h;
 }
 
-// Cache the derived promise so `use(loadDocs())` always sees the same identity
-// across renders. Returning a fresh `.then(...)` each call makes React Suspense
-// treat every render as a new suspended fetch, flashing the fallback and
-// resetting scroll position.
-let docsPromise: Promise<Record<string, AtlasNode>> | null = null;
+/** Full atlas bundle — all depths, content merged in. Resolves once both
+ *  docs-shallow.json and docs-deep.json have landed. */
+export function loadAtlas(base: string = liveAtlasBase()): Promise<AtlasBundle> {
+  return handles(base).full;
+}
 
-export function loadDocs(): Promise<Record<string, AtlasNode>> {
+/** Shallow bundle — depth ≤ 5 (the initial visible tree, content included).
+ *  Resolves early (the instant docs-shallow.json lands) for fast first paint;
+ *  callers that also need deep nodes await loadAtlas afterward to upgrade. */
+export function loadAtlasShallow(base: string = liveAtlasBase()): Promise<AtlasBundle> {
+  return handles(base).shallow;
+}
+
+// Cache the derived promise per base so `use(loadDocs())` always sees the same
+// identity across renders. Returning a fresh `.then(...)` each call makes React
+// Suspense treat every render as a new suspended fetch, flashing the fallback
+// and resetting scroll position.
+const docsPromises = new Map<string, Promise<Record<string, AtlasNode>>>();
+
+export function loadDocs(base: string = liveAtlasBase()): Promise<Record<string, AtlasNode>> {
+  let docsPromise = docsPromises.get(base);
   if (!docsPromise) {
-    docsPromise = loadAtlas()
+    docsPromise = loadAtlas(base)
       .then((b) => b.docs)
       .catch((err) => {
-        docsPromise = null;
+        docsPromises.delete(base);
         throw err;
       });
+    docsPromises.set(base, docsPromise);
   }
   return docsPromise;
 }

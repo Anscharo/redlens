@@ -7,7 +7,7 @@ import type {
   WorkerInMessage,
   WorkerOutMessage,
 } from "../types";
-import { fetchJsonVerified, fetchTextVerified } from "../lib/verify";
+import { fetchText } from "../lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
 import { UUID_RE } from "../lib/patterns";
 
@@ -44,18 +44,26 @@ const DOC_NO_RE = /^[A-Z][A-Z0-9]*(?:\.\w+)+$|^NR-\d+$/i;
 // NOTE: the phrase-filter substring check means "USDC" also matches "USDCe" in content.
 const TICKER_RE = /^[a-z]{0,2}[A-Z]{2,}[0-9]*$/;
 
+// Resolved by the "preload" message from the main thread, which forwards
+// already-loaded atlas + address data so this worker doesn't fetch them again.
+let resolvePreload!: (data: { docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> }) => void;
+const preloadPromise = new Promise<{ docs: Record<string, AtlasNode>; addresses: Record<string, AddressInfo> }>(
+  (res) => { resolvePreload = res; },
+);
+
 async function init() {
-  const base = import.meta.env.BASE_URL;
-  const [idxText, docsData, addrsData] = await Promise.all([
-    fetchTextVerified(`${base}search-index.json`, "search-index.json"),
-    fetchJsonVerified<Record<string, AtlasNode>>(`${base}docs.json`, "docs.json"),
-    fetchJsonVerified<Record<string, AddressInfo>>(`${base}addresses.json`, "addresses.json"),
+  // Preview passes its bundle base via the worker `name` (e.g. /api/preview/<sha>/)
+  // so the search index matches the preview docs; default is the live atlas.
+  const base = self.name || import.meta.env.BASE_URL;
+  const [idxText, { docs: preloadedDocs, addresses: preloadedAddrs }] = await Promise.all([
+    fetchText(`${base}search-index.json`, "search-index.json"),
+    preloadPromise,
   ]);
 
   idx = MiniSearch.loadJSON(idxText, MINISEARCH_OPTIONS);
-  docs = docsData;
+  docs = preloadedDocs;
 
-  for (const [addr, info] of Object.entries(addrsData)) {
+  for (const [addr, info] of Object.entries(preloadedAddrs)) {
     if (info.chainlogId) chainlogToAddr.set(info.chainlogId, addr);
   }
 
@@ -375,6 +383,10 @@ function search(q: string): SearchHit[] {
 
 self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
   const msg = e.data;
+  if (msg.type === "preload") {
+    resolvePreload({ docs: msg.docs, addresses: msg.addresses });
+    return;
+  }
   if (msg.type === "ping") {
     post({ type: "ready" });
     return;
@@ -387,5 +399,7 @@ self.addEventListener("message", (e: MessageEvent<WorkerInMessage>) => {
 });
 
 init().catch((err) => {
-  console.error("Search worker init failed:", err);
+  // Surface the failure to the main thread — a silent catch leaves useSearch
+  // in "loading" forever (the graph/atlas workers post the same way).
+  post({ type: "error", message: String(err) });
 });

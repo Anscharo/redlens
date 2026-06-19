@@ -6,7 +6,7 @@ import { type ChainValue } from "../lib/chainstate";
 
 export function useNodeAnnotations(id: string, data: LoadedData | null) {
   const glossaryLookup = useMemo(
-    () => (data ? buildLookup(data.glossary) : {}),
+    () => (data?.glossary ? buildLookup(data.glossary) : {}),
     [data],
   );
 
@@ -27,9 +27,9 @@ export function useNodeAnnotations(id: string, data: LoadedData | null) {
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};
     for (const ref of target.addressRefs ?? []) {
-      const info = data.addresses[ref];
+      const info = data.addresses?.[ref];
       if (info) targetAddresses[ref] = info;
-      const val = data.chainState.values[ref];
+      const val = data.chainState?.values[ref];
       if (val) cv[ref] = val;
     }
     const contentLower = target.content.toLowerCase();

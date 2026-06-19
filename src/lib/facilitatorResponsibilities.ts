@@ -1,5 +1,6 @@
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
+import { stripMarkdownLinks } from "./atlasHelpers";
 
 export interface OFResponsibility {
   docNo: string;
@@ -35,10 +36,7 @@ const ROOT_EDIT_OF_TITLES = new Set([
 ]);
 
 function dutySnippet(content: string): string {
-  const cleaned = content
-    .replace(/\[[^\]]+\]\([^)]+\)/g, (m) => m.match(/\[([^\]]+)\]/)?.[1] ?? "")
-    .replace(/[*_`#]/g, "")
-    .trim();
+  const cleaned = stripMarkdownLinks(content).replace(/[*_`#]/g, "").trim();
   const sentences = cleaned
     .split(/(?<=[.!?])\s+(?=[A-Z])/)
     .map((s) => s.trim())

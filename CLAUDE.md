@@ -1,6 +1,6 @@
 # RedLens' Sky Atlas
 
-A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github.com/sky-ecosystem/next-gen-atlas). The atlas is included as a git submodule at `vendor/next-gen-atlas/`; source documents live at `vendor/next-gen-atlas/content/**` (one `document.md` per node, atomized since PR #236). When the atlas gets a new commit, trigger the **Atlas Update** GitHub Actions workflow (`.github/workflows/atlas-update.yml`) — it pulls the submodule, rebuilds all artifacts, and opens a PR.
+A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github.com/sky-ecosystem/next-gen-atlas). The atlas is included as a git submodule at `vendor/next-gen-atlas/`; source documents live at `vendor/next-gen-atlas/content/**` (one `document.md` per node, atomized since PR #236). Atlas-derived artifacts (`docs.json`, `graph.json`, `relations.json`, `search-index.json`, `glossary.json`, `addresses.atlas.json`, `manifest.json`, `history/`) are **not committed to git** — they are built ephemerally at container startup (by the Dockerfile) or synced into Postgres (doc content + history + embeddings, by the Railway atlas worker service). The in-process updater polls `sync_state.atlas_sha` and rebuilds in-memory indexes from DB rows on drift — no git access needed at runtime.
 
 **Atlas Markdown syntax reference**: `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` — canonical spec for heading format, document numbering, document types, extra fields, and nesting rules. Read this before touching the parser.
 
@@ -19,21 +19,33 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 pnpm build:index     # parses content/** → public/docs.json + public/search-index.json + public/addresses.atlas.json (chain only; annotation added by build-graph)
 pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
-pnpm build:snapshot  # viem multicall snapshots → public/chain-state.json
+pnpm snap:chainstate  # viem multicall snapshots → public/chain-state.json
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
-pnpm build:history   # git log of atlas submodule → public/history/<uuid>.json
+pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
 pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json
 pnpm build:at        # reproducible build at a specific atlas commit
 pnpm pull-atlas      # git submodule update --init --recursive (populate submodule after a shallow clone)
-pnpm build:rag       # Workers AI bge-base-en embeddings → .cache/atlas-vectors/{vectors,ids,meta} (hosted MCP server only; NOT in pnpm build)
-pnpm dev             # vite dev server
+pnpm atlas:worker    # full atlas worker cycle: drift check → build → sync all Postgres tables
+pnpm dev             # vite dev server (requires artifacts built first — see Local dev below)
 pnpm preview         # serve the production build locally
 pnpm build           # frontend pipeline: index → glossary → addresses → snapshot → graph → manifest → tsc → vite
-pnpm build:server    # hosted MCP server pipeline: index + graph + rag (run before sync-db sync scripts)
 REPRO=1 pnpm test    # reproducibility check — two builds at the same atlas SHA must be byte-identical
 pnpm test:snap       # graph snapshot tests — fail if relations.json structure changed (graph-snapshots/)
 pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or build-graph change
+pnpm census:check    # coverage census: warn ([drift]) when uncovered structure clusters appear/grow vs .github/atlas-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 ```
+
+### Local dev
+
+```bash
+pnpm dev
+```
+
+`pnpm dev` is one-command: a preflight (`scripts/aux/dev-preflight.mjs`) runs, in order: `pnpm install` (only when `pnpm-lock.yaml`'s content hash changed — stamped in `node_modules/.dev-deps-hash`, so the steady state pays no install); ensures the Docker daemon is up (launches Docker Desktop on macOS, instructs on Linux); brings the Postgres container up + healthy (`docker compose`); runs the atlas worker in `--no-fetch` mode to sync Postgres to the **checked-out** atlas commit (build index+graph → `sync.ts` → history; embeddings only if an API key is set); and builds the atlas artifacts (`docs.json`, `graph.json`, `relations.json`, `glossary.json`, `search-index.json`, `addresses.atlas.json` — none committed) if they're missing. Then it starts the Bun API server + Vite together.
+
+Local dev builds the **checked-out** submodule commit, NOT `origin/main` — advancing to upstream is the cron worker's job (`pnpm atlas:worker`, no `--no-fetch`). Syncing the DB to the checked-out commit also stops the in-process updater from looping to drag live back to a stale local `sync_state.atlas_sha`.
+
+Escape hatches: `DEV_NO_INSTALL=1` (skip the install check), `DEV_NO_WORKER=1` (DB up but skip the atlas sync; the server migrates at boot), `DEV_NO_DB=1` (skip Docker/Postgres entirely — reader works off disk artifacts; history/chat/preview need a DB), `DEV_NO_BUILD=1` (skip the artifact build). After a shallow clone run `pnpm pull-atlas` first to populate the submodule.
 
 ### Process inventory scripts
 
@@ -46,7 +58,7 @@ The curated process inventory (`public/processes.json` + `public/processes-ignor
 
 **For workflows / CI to call (humans rarely run directly):**
 
-- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Called from `.github/workflows/atlas-update.yml`. Humans only run it manually to refresh the audit cache before triage.
+- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Humans run it manually to refresh the audit cache before triage.
 
 **One-shot / rarely needed:**
 
@@ -58,7 +70,7 @@ The curated process inventory (`public/processes.json` + `public/processes-ignor
 
 Each build pass is its own script. They run in order in `pnpm build`:
 
-Scripts are split: `scripts/required/` holds the build pipeline entry-points wired into `pnpm build:*`; `scripts/lib/` holds shared modules (parsing, regexes, extraction phases) imported by those entry-points; `scripts/aux/` holds offline / one-off / experimental scripts (`build-rag`, `query-rag`, `tva.sh`, etc.) that are not part of the core build chain.
+Scripts are split: `scripts/required/` holds the build pipeline entry-points wired into `pnpm build:*`; `scripts/lib/` holds shared modules (parsing, regexes, extraction phases) imported by those entry-points; `scripts/aux/` holds offline / one-off / experimental scripts (`tva.sh`, etc.) that are not part of the core build chain.
 
 - **`scripts/required/build-index.mjs`** — parses `Sky Atlas.md`, emits `public/docs.json` (`Record<uuid, AtlasNode>`), `public/search-index.json` (serialized MiniSearch index), and a minimal `public/addresses.atlas.json` (`{ addr: { chain } }`). Annotation (roles, labels, tokens) is deferred to `build-graph` Phase 2.6. Imports `lib/atlas-parser.mjs`, `lib/address-chains.mjs`.
 - **`scripts/required/build-glossary.mjs`** — finds all `Definitions` sections, collects direct `[Core]` children as terms, emits `public/glossary.json` keyed by lowercased term.
@@ -69,8 +81,8 @@ Scripts are split: `scripts/required/` holds the build pipeline entry-points wir
 - `public/addresses.json` — on-chain: `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?`. Written by `build-addresses`. Never contains atlas annotation fields.
 - Frontend `loadAddresses()` loads both in parallel, merges per-address, resolves `label = chainlogId ?? entityLabel ?? etherscanName`.
 
-- **`scripts/required/build-graph.mjs`** — pattern-driven relation extraction. **Phase 2.6** (before entity extraction) scans all doc content for addresses and applies structural role/label/token annotation — this replaces what was previously in `build-index`. **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges. **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback. Emits `public/graph.json` and `public/relations.json`. No loopback to build-index. See `.claude/skills/parse-atlas/SKILL.md`. Imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2w), `lib/address-chains.mjs`, `lib/address-annotate.mjs`.
-- **`scripts/required/build-history.mjs`** — walks git log of the atlas submodule, emits `public/history/<uuid>.json` per node. Imports `lib/atlas-parser.mjs` for `HEADING_RE`.
+- **`scripts/required/build-graph.mjs`** — pattern-driven relation extraction. **Phase 2.6** (before entity extraction) scans all doc content for addresses and applies structural role/label/token annotation — this replaces what was previously in `build-index`. **Phase 2.5** scans Instance entities for address-valued ICD params and emits `has_address` edges. **Phase 4.5** (five passes) enriches `public/addresses.atlas.json` with ICD-derived roles and labels, entity-linked labels, doc-title labels, and chainlog fallback. Emits `public/graph.json` and `public/relations.json`. No loopback to build-index. See `.claude/skills/parse-atlas/SKILL.md`. Imports `lib/graph-patterns.mjs`, `lib/graph-instances.mjs`, `lib/graph-entities.mjs` (Phase 1), `lib/graph-doc-edges.mjs` (Phase 2 doc edges 2a–2h), `lib/graph-entity-edges.mjs` (Phase 2 entity/address edges 2i–2w), `lib/graph-multisigs.mjs`, `lib/graph-transfers.mjs`, `lib/graph-bridges.mjs`, `lib/graph-omni.mjs`, `lib/graph-transitions.mjs` (Phase 2.8 patterns 17/18/21/22/23), `lib/address-chains.mjs`, `lib/address-annotate.mjs`.
+- **`scripts/required/build-history.mjs`** — walks git log of the atlas submodule and computes per-node change history with diffs. Two sinks: **default** upserts straight into Postgres `atlas_history` (reads its own incremental cursor via `MAX(commit_seq)`, runs under Bun); **`--out-json`** writes the legacy `public/history/<uuid>.json` files (DB-less, for the canary/artifact tests). Shared DB write path lives in `src/server/history-db.ts` (`eventToRow`, `upsertHistory`, `gitCommitSeq`, `readHistoryCursor`). Imports `lib/atlas-parser.mjs` for `HEADING_RE`.
 - **`scripts/required/build-manifest.mjs`** — sha256 digest of every shipping artifact.
 - **`scripts/required/build-at.mjs`** — reproducible build at a pinned atlas commit; orchestrates the other `build:*` scripts.
 
@@ -130,7 +142,7 @@ Entity-focused view at `/radar` (index) and `/radar/:slug` (actor page). Builds 
 
 **Reports (`src/components/reports/`):**
 
-Three reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`) so they're testable without React.
+Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step or worker involvement — it can't serve a stale view).
 
 **Graph snapshots (`graph-snapshots/`):**
 
@@ -174,17 +186,15 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
 
 ## Pending work
 
-### Deferred: chunk long nodes for semantic search
+### Deferred: audit follow-ups (2026-06 frontend/dataflow audit)
 
-`scripts/required/build-rag.mjs` produces one bge-base-en (768d) vector per atlas node, with a 2048-char cap that bge-base's 512-token positional limit forces anyway. ~25 nodes (0.24%) exceed the cap — registries (e.g. `Current Aligned Delegates`), Type Specifications, Reference Implementations, and a few long Cores. Their heads carry the semantic intent, but the tails (enumerated names, code, field lists) become invisible to semantic search.
+Remaining items from the full-branch audit (the bug fixes landed in the same PR as this note):
 
-Lexical (FTS5) and the hybrid `atlas_search` mode already reach this tail content, so this is recall optimization on the *semantic* leg only — not a correctness gap.
-
-If/when this matters:
-- Chunk nodes with `content.length > 2048` into ~1500-char overlapping windows; emit one vector per chunk with a synthetic id (`<uuid>#<chunk-idx>`).
-- Vectorize metadata stays per-node (`docId`, `doc_no`, `type`, `depth`); the worker dedupes back to one row per `docId` before RRF merge.
-- Adds ~70 vectors total — still inside the Vectorize free tier.
-- Build cost is one extra Workers AI call per long node; trivial.
-
+- **Graph worker pending-callback timeout** — `src/lib/graph.ts` keeps per-request callbacks in module-level maps (`edgePending` et al.) with no timeout. If the worker dies mid-request the callback leaks and the awaiting promise hangs forever. Add a timeout (~5s) that rejects/clears the entry. Low frequency, low effort.
+- **Split oversized component files** — 18 component files exceed the ~150-line convention. Top offenders: `OpFacilitatorsReport.tsx` (395), `ProcessesReport.tsx` (390), `EntityFlow.tsx` (319), `ActiveDataReport.tsx` (300), `ActorHistory.tsx` (289), `ActorInstances.tsx` (264), `ColorPickerModal.tsx` (258), `ConstellationsPage.tsx` (247), plus `Footer.tsx` (211) and `Tooltip.tsx` (198), which are surprisingly large for their roles. Split opportunistically when touching these files — no big-bang refactor.
+- **build-graph redundant address re-merge** — `scripts/required/build-graph.mjs` (~lines 204–213) repeats the merge already done at ~86–100. Harmless; simplify when next editing the file.
+- **JuniorPane descendant slice → parent links** — `src/components/atlas/JuniorPane.tsx` selects descendants by doc_no prefix (now annotated `// fragile: doc_no prefix`). Migrate to parent-link traversal over `flatNodes` when convenient.
+- **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL under the `/redlens/` base.
+- **History metrics backfill** — run `pnpm build:history --full` once migration `006_history_metrics.sql` is applied so existing `atlas_history` rows gain `change_kind` / review counters (new rows get them automatically).
 
 ### Other / background

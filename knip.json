@@ -4,7 +4,6 @@
   "ignoreExportsUsedInFile": true,
   "ignore": [
     "vendor/**",
-    "redlens-mcp/test/env.d.ts",
     "scripts/aux/test-addresses.mjs",
     "scripts/aux/test-mcp.mjs",
     "scripts/aux/unlabeled-addresses.mjs"

@@ -1,11 +1,14 @@
 import { memo, useMemo, useRef } from "react";
-import { segmentDepths } from "../../lib/depth";
+import { segmentDepths, nrChiclets } from "../../lib/depth";
 import { type FlatEntry } from "../../lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
 import { revealStore } from "../../lib/revealStore";
+import { PreviewMark } from "../preview/PreviewMark";
+import { usePreviewDim } from "../../lib/previewFilter";
+import { useDataSource } from "../../lib/dataSource";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -25,7 +28,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   hasChildren = false,
   isSubtreeExpanded = false,
   hiddenCount = 0,
-  parentDocNo,
   onExpandChildren,
   idPrefix,
   cradle,
@@ -37,7 +39,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   hasChildren?: boolean;
   isSubtreeExpanded?: boolean;
   hiddenCount?: number;
-  parentDocNo?: string;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
@@ -45,23 +46,27 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   cradleColor?: string;
 }) {
   const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
+  const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
-  // NR-X nodes are leaves attached to regular tree nodes. The doc_no is opaque
-  // ("NR-2"), so derive the chiclet strip from the parent's path plus one
-  // trailing chiclet for the NR itself — that way the chiclets reflect the
-  // actual nesting position rather than the bare "NR-X" token.
+  // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
+  // Render the bare token: the "NR-" prefix is neutral (depth 0), the number takes
+  // the node's true depth colour — the parent context lives in the tree.
   // Memoised so DocNoChiclets (also memo'd) gets stable array references and
   // skips re-render when only isSelected/isExpanded changes on this node.
   const { docNoParts, docNoDepths } = useMemo(() => {
-    const isNR = node.doc_no.startsWith("NR-");
-    const src = isNR && parentDocNo ? `${parentDocNo}.x` : node.doc_no;
+    if (node.doc_no.startsWith("NR-")) {
+      const { parts, depths } = nrChiclets(node.doc_no, depth);
+      return { docNoParts: parts, docNoDepths: depths };
+    }
     return {
-      docNoParts: src.split("."),
-      docNoDepths: src.startsWith("NR-") ? [1] : segmentDepths(src),
+      docNoParts: node.doc_no.split("."),
+      docNoDepths: segmentDepths(node.doc_no),
     };
-  }, [node.doc_no, parentDocNo]);
+  }, [node.doc_no, depth]);
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
+  // Selected node always full-strength; otherwise dim untouched docs in preview.
+  const dim = usePreviewDim(node.id) && !isSelected;
 
   const showExpandAll = hasChildren && !!expandAll;
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
@@ -81,6 +86,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       style={
         {
           ["--row-color" as string]: color,
+          opacity: dim ? 0.92 : undefined,
           ...(cradleColor ? { ["--cradle-color" as string]: cradleColor } : {}),
         } as React.CSSProperties
       }
@@ -160,6 +166,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             {"»"}
           </span>
         )}
+        {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
             {node.title}

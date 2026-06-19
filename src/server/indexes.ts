@@ -5,7 +5,7 @@
 //   - raw entity/edge arrays + adjacency maps for aggregate queries
 // Doc content lives here (not in Postgres); semantic search returns ids that
 // these maps resolve back to full nodes.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
@@ -22,6 +22,60 @@ export interface AtlasNode {
   content: string;
   contentHash?: string;
   addressRefs?: string[];
+}
+
+// atlas_doc_meta row shape (after column aliasing) — the inverse of sync.ts's
+// AtlasNode→row write. Shared so the in-process updater's DB→docs.json path
+// stays in lockstep with the worker build and never silently drops a field.
+export interface DocMetaRow {
+  id: string;
+  doc_no: string;
+  title: string;
+  type: string;
+  depth: number;
+  parentId: string | null;
+  content: string | null;
+  order: number;
+}
+
+export function docRowToNode(r: DocMetaRow): AtlasNode {
+  return {
+    id: r.id,
+    doc_no: r.doc_no,
+    title: r.title,
+    type: r.type,
+    depth: r.depth,
+    parentId: r.parentId,
+    content: r.content ?? "",
+    order: r.order,
+  };
+}
+
+// The docs.json envelope contract ({ atlasCommit, nodes }) read by
+// readArtifactsFromDisk and the server. One writer, so the shape can't drift.
+// docs.json keeps full nodes (content + contentHash) — it's the server/internal
+// artifact and the bundle's diff source.
+export function writeDocsJson(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
+  writeFileSync(join(dir, "docs.json"), JSON.stringify({ atlasCommit, nodes }));
+}
+
+// Browser-facing split of docs.json (docs/plans/docs-split.md): split by tree DEPTH
+// into docs-shallow.json (depth ≤ 5, the initial visible tree + content) and
+// docs-deep.json (depth > 5, the gated bulk loaded after first paint). Each file
+// holds self-contained full nodes (no positional stitching). `contentHash` stays
+// server-only. MUST stay byte-shape-compatible with build-index.mjs — the runtime
+// updater calls this after rebuilding docs.json from the DB so the per-sha bundle's
+// split files are never stale relative to docs.json.
+const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with build-index.mjs
+export function writeDocsSplit(dir: string, atlasCommit: string, nodes: Record<string, AtlasNode>): void {
+  const shallow: AtlasNode[] = [];
+  const deep: AtlasNode[] = [];
+  for (const n of Object.values(nodes)) {
+    const { contentHash: _h, ...node } = n;
+    (node.depth <= SHALLOW_MAX_DEPTH ? shallow : deep).push(node);
+  }
+  writeFileSync(join(dir, "docs-shallow.json"), JSON.stringify({ atlasCommit, nodes: shallow }));
+  writeFileSync(join(dir, "docs-deep.json"), JSON.stringify({ atlasCommit, nodes: deep }));
 }
 
 export interface Entity {
@@ -96,29 +150,33 @@ export interface Artifacts {
   searchIndexJson: string | null;
 }
 
+const EMPTY_ARTIFACTS: Artifacts = { docs: [], entities: [], edges: [], meta: {}, searchIndexJson: null };
+
 export function readArtifactsFromDisk(): Artifacts {
-  const rawDocs = readJson<Record<string, AtlasNode>>("docs.json");
-  const graphJson = readJson<{ meta?: Record<string, unknown>; entities: Entity[]; edges: Edge[] }>("graph.json");
+  let rawDocs: { atlasCommit?: string; nodes: Record<string, AtlasNode> };
+  let graphJson: { meta?: Record<string, unknown>; entities: Entity[]; edges: Edge[] };
+  try {
+    rawDocs = readJson("docs.json");
+    graphJson = readJson("graph.json");
+  } catch {
+    // Artifacts not yet built — cold start before the worker has populated Postgres.
+    // The in-process updater will detect drift and rebuild from DB within 30s.
+    return EMPTY_ARTIFACTS;
+  }
 
   let searchIndexJson: string | null = null;
   try {
     searchIndexJson = readFileSync(join(config.publicDir, "search-index.json"), "utf8");
   } catch {
-    searchIndexJson = null; // fall back to building from docs
+    searchIndexJson = null;
   }
 
-  let meta: Record<string, string | null> = {};
-  try {
-    const m = readJson<{ atlasCommit?: string; redlensCommit?: string; generatedAt?: string }>("manifest.json");
-    meta = {
-      atlasCommit: m.atlasCommit ?? null,
-      redlensCommit: m.redlensCommit ?? null,
-      generatedAt: m.generatedAt ?? null,
-    };
-  } catch {
-    meta = {};
-  }
-  return { docs: Object.values(rawDocs), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };
+  const meta: Record<string, string | null> = {
+    atlasCommit: (graphJson.meta?.atlasCommit as string | undefined) ?? rawDocs.atlasCommit ?? null,
+    appCommit: null,
+    generatedAt: null,
+  };
+  return { docs: Object.values(rawDocs.nodes), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };
 }
 
 // Pure builder: construct the full in-memory index set from artifact arrays.

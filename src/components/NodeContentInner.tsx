@@ -63,6 +63,13 @@ let remarkPluginsMath: any[] | null = null;
 let rehypePluginsMath: any[] | null = null;
 let katexPromise: Promise<void> | null = null;
 
+// KaTeX renders synchronously, so a wall-clock timeout isn't possible — these
+// bound the work instead: maxExpand kills macro-expansion bombs (\def chains),
+// maxSize caps glyphs at 50em (no viewport-filling rules from hostile previews).
+// Render errors stay inline (errorColor); anything that still throws is caught
+// by NodeContent's per-node ErrorBoundary.
+const KATEX_OPTIONS = { maxExpand: 1000, maxSize: 50, errorColor: "var(--red)" };
+
 function loadKatex(): Promise<void> {
   if (!katexPromise) {
     katexPromise = Promise.all([
@@ -71,7 +78,7 @@ function loadKatex(): Promise<void> {
       import("katex/dist/katex.min.css"),
     ]).then(([rehypeKatexMod, remarkMathMod]) => {
       remarkPluginsMath = [remarkGfm, remarkMathMod.default];
-      rehypePluginsMath = [rehypeKatexMod.default, rehypeEthAddresses()];
+      rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
     });
   }
   return katexPromise;

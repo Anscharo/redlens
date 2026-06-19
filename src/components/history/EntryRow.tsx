@@ -1,12 +1,5 @@
-import type { HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, type HistoryEntry } from "../../lib/history";
 import { DiffView } from "./DiffView";
-
-const CHANGE_COLOR: Record<string, string> = {
-  added: "var(--depth-6)",
-  modified: "var(--tan-3)",
-  removed: "var(--red)",
-  moved: "var(--accent)",
-};
 
 const CHANGE_LABEL: Record<string, string> = {
   added: "added",

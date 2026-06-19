@@ -82,7 +82,7 @@ function inferStatus(steps_note) {
 // ---------------------------------------------------------------------------
 
 const md = fs.readFileSync(RESEARCH, "utf8");
-const docs = JSON.parse(fs.readFileSync(DOCS, "utf8"));
+const docs = JSON.parse(fs.readFileSync(DOCS, "utf8")).nodes;
 
 const rows = parseResearchDoc(md);
 console.log(`Parsed ${rows.length} rows from research doc.`);

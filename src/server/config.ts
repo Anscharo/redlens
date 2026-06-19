@@ -53,10 +53,41 @@ export const config = {
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
 
+  // Preview feature (/api/preview/*): always active server-side; surfaced in
+  // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
+  // tarball downloads (previously only the worker needed GitHub access).
+  githubToken: process.env.GITHUB_TOKEN ?? "",
+  // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
+  // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.
+  // Quota pools, all per UTC day (see preview/trust.ts for tiers):
+  //   canonical branches + PRs against canonical → shared previewDailyQuota
+  //   each trusted-tier fork owner → its OWN previewTrustedForkDailyQuota
+  //   known-tier forks (org-merged, never the atlas) → shared fork pool
+  //   unknown-tier forks (no merged history) → shared small pool
+  previewDailyQuota: Number(process.env.PREVIEW_DAILY_QUOTA ?? 10),
+  previewTrustedForkDailyQuota: Number(process.env.PREVIEW_TRUSTED_FORK_DAILY_QUOTA ?? 10),
+  previewForkDailyQuota: Number(process.env.PREVIEW_FORK_DAILY_QUOTA ?? 7),
+  previewUnknownForkDailyQuota: Number(process.env.PREVIEW_UNKNOWN_FORK_DAILY_QUOTA ?? 2),
+  previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
+  previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
+  // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,
+  // stale-vs-main eviction, LRU cap — all on a timer, not just after builds.
+  previewSweepIntervalMs: Number(process.env.PREVIEW_SWEEP_INTERVAL_MS ?? 600_000),
+
   // Artifact + static-bundle locations.
   publicDir: resolve(ROOT, "public"),
   distDir: resolve(ROOT, "dist"),
   root: ROOT,
+
+  // Per-SHA immutable atlas bundle store (src/server/bundle-store.ts). The live
+  // atlas serves artifacts from <atlasBundleRoot>/<sha>/<name>.json, mirroring
+  // the preview store under one mechanism. Defaults to public/atlas: in prod
+  // `vite build` copies public/→dist/ and the runtime symlinks public→dist, so
+  // build-time and runtime writes + reads all land on the same directory.
+  atlasBundleRoot: resolve(process.env.ATLAS_BUNDLE_ROOT ?? resolve(ROOT, "public/atlas")),
+  // Retention is ONLY a swap-window buffer (loads in flight when a bump lands),
+  // NOT continuity for stale tabs — open tabs are forced forward on drift/404.
+  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 2),
 };
 
 export type Config = typeof config;

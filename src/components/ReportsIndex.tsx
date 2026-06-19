@@ -22,6 +22,12 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
       "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
   },
   {
+    id: "stale-dates",
+    title: "Stale Dates",
+    description:
+      "Future-tense claims checked against today \u2014 dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
+  },
+  {
     id: "processes",
     title: "Atlas Processes",
     description:

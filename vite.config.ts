@@ -2,8 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
-import { execSync } from "child_process";
-import { readFileSync } from "fs";
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const commitHash = (() => {
   try {
@@ -13,47 +13,22 @@ const commitHash = (() => {
   }
 })();
 
-const atlasCommit = (() => {
+const repoUrl = (() => {
   try {
-    return execSync("git -C vendor/next-gen-atlas rev-parse --short HEAD").toString().trim();
+    return execSync("git remote get-url origin")
+      .toString().trim()
+      .replace(/^git@github\.com:/, "https://github.com/")
+      .replace(/\.git$/, "");
   } catch {
-    return "unknown";
+    return "https://github.com/Anscharo/redlens";
   }
 })();
 
 const buildTime = new Date().toISOString();
 
-const nodeCount = (() => {
-  try {
-    return Object.keys(JSON.parse(readFileSync("public/docs.json", "utf-8"))).length;
-  } catch {
-    return 0;
-  }
-})();
 
-// Artifact hashes are read from public/manifest.json (emitted by
-// scripts/build-manifest.mjs). The frontend compares each fetched JSON's
-// sha256 against this map before using it — catches CDN tampering, truncated
-// responses, and stale worker caches.
-const artifactHashes: Record<string, string> = (() => {
-  try {
-    const m = JSON.parse(readFileSync("public/manifest.json", "utf-8"));
-    const out: Record<string, string> = {};
-    for (const [name, info] of Object.entries(m.artifacts ?? {})) {
-      out[name] = (info as { sha256: string }).sha256;
-    }
-    return out;
-  } catch {
-    return {};
-  }
-})();
-
-// CF Pages sets CF_PAGES=1 automatically; Railway sets RAILWAY_ENVIRONMENT.
-// Both deploy to the domain apex so base is "/". GH Pages lives under /redlens/.
-const base =
-  process.env.CF_PAGES === "1" || process.env.RAILWAY_ENVIRONMENT
-    ? "/"
-    : "/redlens/";
+// Default base is "/". Only GitHub Pages lives under /redlens/ — opt in explicitly.
+const base = process.env.GITHUB_PAGES === "1" ? "/redlens/" : "/";
 
 export default defineConfig(() => {
   // The chat widget + auth/profile button need the Bun /api backend, which only
@@ -101,6 +76,24 @@ export default defineConfig(() => {
         });
       },
     },
+    {
+      // Dev only: substitute window.__ATLAS_SHA__ in index.html from the local
+      // public/docs.json atlasCommit (Vite serves index.html in dev, not the Bun
+      // injector). The /api proxy forwards /api/atlas/* to Bun, whose bundle root
+      // is public/atlas — so dev exercises the real per-sha serving path. In build
+      // the placeholder is left intact for the Bun server to replace at serve time.
+      name: "inject-atlas-sha-dev",
+      apply: "serve",
+      transformIndexHtml(html) {
+        let sha = "";
+        try {
+          sha = JSON.parse(readFileSync("public/docs.json", "utf8")).atlasCommit ?? "";
+        } catch {
+          /* artifacts not built yet — empty sha → flat BASE_URL fallback */
+        }
+        return html.replaceAll("{{ATLAS_SHA}}", sha);
+      },
+    },
     tailwindcss(),
     react(),
     VitePWA({
@@ -111,8 +104,8 @@ export default defineConfig(() => {
       // imported module: …/RadarPage-<hash>.js" until the user reloads).
       registerType: "prompt",
       manifest: {
-        name: "RedLens' Sky Atlas",
-        short_name: "RedLens",
+        name: "Sky Atlas by Redline",
+        short_name: "redline-atlas",
         description: "Search-first interface for the Sky ecosystem Atlas",
         start_url: base,
         scope: base,
@@ -128,9 +121,17 @@ export default defineConfig(() => {
         ],
       },
       workbox: {
-        // Don't precache large/dynamic data files — they're handled by runtime caching
+        // Don't precache large/dynamic data files — they're handled by runtime caching.
+        // index.html is ALSO excluded on purpose: the built HTML carries an unreplaced
+        // `window.__ATLAS_SHA__ = "{{ATLAS_SHA}}"` placeholder that the Bun server fills
+        // in per-request (no-cache). If the SW precached it and served it as the
+        // navigation response, every load would see the placeholder sha, 404 on
+        // /api/atlas/{{ATLAS_SHA}}/…, and reloadOnce() into an infinite reload loop.
         globIgnores: [
+          "**/index.html",
           "**/docs.json",
+          "**/docs-shallow.json",
+          "**/docs-deep.json",
           "**/search-index.json",
           "**/addresses.json",
           "**/addresses.atlas.json",
@@ -138,15 +139,39 @@ export default defineConfig(() => {
           "**/chain-state.json",
           "**/history/**",
         ],
-        // Serve index.html for all navigation requests so deep-URL refreshes work offline.
-        navigateFallback: `${base}index.html`,
+        // navigateFallback disabled (vite-plugin-pwa defaults it to "index.html").
+        // Navigations must reach the Bun server, which serves the SPA shell with the
+        // live atlas sha injected (src/server/index.ts). A precache-backed
+        // NavigationRoute would shadow that with the stale placeholder HTML and loop.
+        // Tradeoff: no offline shell launch — the sha lives in the HTML, so a cached
+        // shell = a stale sha; can't have both. The JS/CSS chunks stay precached, so a
+        // repeat visit is bundle-instant minus one ~1.6 KB no-cache HTML round-trip.
+        // Offline read was a nice-to-have; dropping it is deliberate.
+
+        navigateFallback: undefined,
         runtimeCaching: [
           {
-            // Atlas data JSON files — network-first, 3 s timeout before falling to cache
-            urlPattern: /\/(docs|search-index|addresses(?:\.atlas)?|relations|chain-state|glossary|manifest)\.json$/,
+            // Immutable per-sha atlas artifacts (/api/atlas/<sha>/<name>.json):
+            // bytes never change, so CacheFirst — once cached, never re-fetched.
+            // Must precede the small-files rule below (which would otherwise catch
+            // .../addresses.atlas.json + .../glossary.json by suffix). Freshness is
+            // a NEW url, not a revalidate; maxEntries bounds per-sha accumulation.
+            urlPattern: /\/api\/atlas\/[0-9a-f]{40}\/.*\.json$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "atlas-data-immutable",
+              expiration: { maxEntries: 40, maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+          {
+            // Flat, NON-atlas-versioned files (addresses.json, chain-state.json,
+            // manifest.json): network-first (fast to fetch, worth having fresh).
+            // glossary.json is now sha-keyed → caught by the CacheFirst rule above,
+            // so it's deliberately absent here.
+            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
-              cacheName: "atlas-data",
+              cacheName: "atlas-data-small",
               networkTimeoutSeconds: 3,
               expiration: { maxAgeSeconds: 7 * 24 * 60 * 60 },
             },
@@ -172,11 +197,9 @@ export default defineConfig(() => {
   ],
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
-      __ATLAS_COMMIT__: JSON.stringify(atlasCommit),
       __BUILD_TIME__: JSON.stringify(buildTime),
-      __NODE_COUNT__: JSON.stringify(nodeCount),
-      __ARTIFACT_HASHES__: JSON.stringify(artifactHashes),
       __CHAT_ENABLED__: JSON.stringify(chatEnabled),
+      __REPO_URL__: JSON.stringify(repoUrl),
     },
   };
 });

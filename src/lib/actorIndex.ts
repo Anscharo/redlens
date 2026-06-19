@@ -64,6 +64,24 @@ export interface RadarPrimitive {
   // operational instance statuses.
   invocations: RadarInstance[];
 }
+// Contact surface for a Prime Agent — its governance channels (Sky Forum
+// category, Discord URL) and emergency-response docs. Sourced from the
+// Pattern 22 governance_channel / emergency_response edges (doc → entity).
+export interface ContactChannel {
+  platform: "forum" | "discord";
+  category?: string;
+  url?: string;
+  docId: string;
+}
+export interface ContactEmergency {
+  scope: "ecosystem" | "agent_specific";
+  status: string; // "placeholder" (not yet written) | "specified"
+  docId: string;
+}
+export interface ActorContact {
+  channels: ContactChannel[];
+  emergency: ContactEmergency[];
+}
 export interface Recommendation {
   kind: "missing-rp" | "governance-edge" | "no-rewards";
   label: string;
@@ -84,6 +102,7 @@ export interface ActorProfile {
   recommendations: Recommendation[];
   comprisesMembers: { name: string; slug: string | null }[];
   partOfComposite: { name: string; slug: string | null } | null;
+  contact: ActorContact;
 }
 export interface SidebarActor {
   id: string;
@@ -394,6 +413,22 @@ export function buildActorProfile(
       });
   }
 
+  // Contact — Pattern 22 governance_channel / emergency_response edges land on
+  // this entity (doc → entity). Only Prime Agents carry them today.
+  const contact: ActorContact = { channels: [], emergency: [] };
+  for (const e of edgesTo.get(entity.id) ?? []) {
+    if (e.ft !== "doc") continue;
+    if (e.e === "governance_channel") {
+      const m = parseMeta<{ platform: "forum" | "discord"; category?: string; url?: string }>(e.m);
+      if (m?.platform) contact.channels.push({ platform: m.platform, category: m.category, url: m.url, docId: e.f });
+    } else if (e.e === "emergency_response") {
+      const m = parseMeta<{ scope: "ecosystem" | "agent_specific"; status: string }>(e.m);
+      if (m?.scope) contact.emergency.push({ scope: m.scope, status: m.status, docId: e.f });
+    }
+  }
+  contact.channels.sort((a, b) => (a.platform === b.platform ? 0 : a.platform === "forum" ? -1 : 1));
+  contact.emergency.sort((a, b) => (a.scope === b.scope ? 0 : a.scope === "ecosystem" ? -1 : 1));
+
   return {
     entity,
     definingDoc,
@@ -407,5 +442,6 @@ export function buildActorProfile(
     recommendations,
     comprisesMembers,
     partOfComposite,
+    contact,
   };
 }

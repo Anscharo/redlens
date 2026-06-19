@@ -15,7 +15,10 @@ const HISTORY_DIR = path.join(ROOT, "public/history");
 const DOCS_PATH = path.join(ROOT, "public/docs.json");
 const RELS_PATH = path.join(ROOT, "public/relations.json");
 
-const have = fs.existsSync(HISTORY_DIR) && fs.existsSync(DOCS_PATH);
+const have =
+  fs.existsSync(HISTORY_DIR) &&
+  fs.existsSync(DOCS_PATH) &&
+  fs.existsSync(path.join(HISTORY_DIR, "_manifest.json"));
 
 interface HistoryEntry {
   date: string;
@@ -45,7 +48,7 @@ const skipIfNoHistory = have ? describe : describe.skip;
 
 skipIfNoHistory("history canaries", () => {
   // ──────────── load-once shared state ────────────
-  const docs = have ? JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")) : {};
+  const docs = have ? JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")).nodes : {};
   const rels = have ? JSON.parse(fs.readFileSync(RELS_PATH, "utf8")) : { entities: [] };
 
   // doc_no prefix for each prime agent — used to scope per-prime assertions.
@@ -86,11 +89,15 @@ skipIfNoHistory("history canaries", () => {
   // Each of these was a false attribution we identified and fixed during the
   // matcher iteration. Locking in so a future change doesn't regress them.
 
-  it("Launch Agent 7 defining doc is tagged with the LA7 bullet for PR #186", () => {
+  // PR #186's GitHub body is just a forum link (no inline bullets). Bullet
+  // attribution used to come from fetching + parsing that forum page, but that
+  // was removed for being unreliable — so a bullet-less PR must now fall back to
+  // the PR title. This guards that fallback (and that forum parsing stays gone).
+  it("Launch Agent 7 defining doc falls back to the PR #186 title (no forum parse)", () => {
     const la7 = "d0d77316-0b08-447c-b75a-ae7926b07019";
     const entry = loadEntries(la7).find((e) => e.pr === 186);
     expect(entry).toBeDefined();
-    expect(entry!.summary).toBe("Add Launch Agent 7 Artifact");
+    expect(entry!.summary).toBe("2026-02-16 AEW proposal");
   });
 
   it("Launch Agent 7 instance docs are not falsely tagged with the Skybase bullet", () => {

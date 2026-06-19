@@ -35,16 +35,74 @@ export interface HistoryEntry {
   movedTo?: string;
 }
 
+/** Single source of truth for change-type → CSS color, shared by the atlas
+ *  history panel (EntryRow) and the radar actor history (ActorHistory).
+ *  added/removed reuse the diff-view tokens so the label color matches the
+ *  diff body; modified/moved have no diff equivalent. */
+export const CHANGE_COLOR: Record<string, string> = {
+  added: "var(--diff-added-fg)",
+  modified: "var(--tan-3)",
+  removed: "var(--diff-removed-fg)",
+  moved: "var(--accent)",
+};
+
 // Module-level cache: nodeId → promise
 const cache = new Map<string, Promise<HistoryEntry[] | null>>();
 
 export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
   let p = cache.get(nodeId);
   if (!p) {
-    p = fetch(`${import.meta.env.BASE_URL}history/${nodeId}.json`)
-      .then((r) => (r.ok ? r.json() : null))
+    // /api/history/:nodeId — absolute path, same-origin on Railway.
+    // On GitHub Pages (no backend) the 404 resolves to null, which the UI
+    // already handles gracefully.
+    p = fetch(`/api/history/${nodeId}`)
+      .then((r) => (r.ok ? (r.json() as Promise<HistoryEntry[]>) : null))
       .catch(() => null);
     cache.set(nodeId, p);
   }
   return p;
+}
+
+/** Max ids per /api/history/batch request — shared by the server (hard cap on
+ *  a hostile payload) and the client (chunk size). Comfortably above the
+ *  largest real actor doc-set (~1.2k for Spark). */
+export const BATCH_MAX = 2000;
+
+/** Fetch history for many docs in one round-trip via POST /api/history/batch,
+ *  keyed by docId. Used by the radar actor view so it doesn't fan out into
+ *  hundreds of per-doc `/api/history/:id` requests. Docs with no history map to
+ *  `[]`. On a backend-less deploy (GitHub Pages) the fetch fails and every id
+ *  resolves to `[]`, matching `loadHistory`'s graceful-null behaviour.
+ *
+ *  Successful responses also seed the per-doc `cache` so a later single-doc
+ *  `loadHistory` (e.g. the atlas history panel) reuses the result. */
+export async function loadHistoryBatch(nodeIds: string[]): Promise<Map<string, HistoryEntry[]>> {
+  const ids = [...new Set(nodeIds)];
+  const out = new Map<string, HistoryEntry[]>();
+  for (let i = 0; i < ids.length; i += BATCH_MAX) {
+    const chunk = ids.slice(i, i + BATCH_MAX);
+    let data: Record<string, HistoryEntry[]> | null = null;
+    try {
+      const r = await fetch("/api/history/batch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ids: chunk }),
+      });
+      data = r.ok ? ((await r.json()) as Record<string, HistoryEntry[]>) : null;
+    } catch {
+      data = null;
+    }
+    for (const id of chunk) {
+      if (data) {
+        const entries = data[id] ?? [];
+        out.set(id, entries);
+        // Seed the single-doc cache (only on a real response, so a transient
+        // failure doesn't poison it with empties).
+        if (!cache.has(id)) cache.set(id, Promise.resolve(entries.length ? entries : null));
+      } else {
+        out.set(id, []);
+      }
+    }
+  }
+  return out;
 }

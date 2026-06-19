@@ -1,0 +1,26 @@
+# Railway config for the atlas worker cron service.
+# This is a SEPARATE service from the web server (railway.toml).
+# Deploy it as a second service in the same Railway project, pointing at this
+# repo with this config file selected.
+#
+# The worker runs a full atlas build every 12 minutes, syncs all Postgres
+# tables (atlas_doc_meta with content, atlas_addresses, sync_state, history,
+# embeddings). The web service's in-process updater polls sync_state.atlas_sha
+# and rebuilds its in-memory indexes from DB rows when it changes.
+#
+# Required env vars on the cron service (set in Railway dashboard):
+#   DATABASE_URL        — same Postgres as the web service
+#
+# Optional:
+#   GITHUB_TOKEN        — `gh api` calls for PR metadata in build-history
+#   OPENROUTER_API_KEY  — embeddings (skipped gracefully if unset)
+#   ATLAS_WORKER_FULL=1 — force full history rebuild (ignore Postgres cursor)
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.worker"
+
+[deploy]
+# Every 12 minutes. Lightweight check exits immediately if nothing changed.
+cronSchedule = "*/12 * * * *"
+startCommand = "bun scripts/required/atlas-worker.mjs"

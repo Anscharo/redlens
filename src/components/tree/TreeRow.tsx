@@ -1,18 +1,30 @@
 import { useMemo } from "react";
 import { type RowComponentProps } from "react-window";
-import { segmentDepths, chicletColor } from "../../lib/depth";
+import { segmentDepths, chicletColor, nrSidebarChiclets } from "../../lib/depth";
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
+import { Tooltip } from "../Tooltip";
+import { PreviewMark } from "../preview/PreviewMark";
+import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
+import { usePreviewDim } from "../../lib/previewFilter";
 
 export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
+// Approx rendered width of the rollup badge (border + padding + digits + flex
+// gap) — subtracted from the title budget when the badge shows so the title
+// truncates instead of clipping. Scales with digit count so a multi-digit count
+// (12, 300) doesn't over-budget the title.
+function rollupBadgeWidth(count: number): number {
+  return Math.max(14, String(count).length * 7 + 8) + 2; // +2 for the flex gap
+}
 
 export interface VisibleNode {
   node: AtlasNode;
   hasChildren: boolean;
   treeDepth: number;
+  parentDocNo?: string;
 }
 
 export interface TreeRowData {
@@ -20,9 +32,13 @@ export interface TreeRowData {
   selectedIndex: number;
   focusedIndex: number;
   expandedIds: Set<string>;
+  rollup: Map<string, { count: number; depth: number }>;
+  flashing: ReadonlySet<string>;
+  isPreview: boolean;
   sidebarWidth: number;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
+  onReveal: (id: string) => void;
   onShiftNavigate?: (id: string) => void;
 }
 
@@ -56,9 +72,13 @@ export function TreeRow({
   selectedIndex,
   focusedIndex,
   expandedIds,
+  rollup,
+  flashing,
+  isPreview,
   sidebarWidth,
   onNavigate,
   onToggle,
+  onReveal,
   onShiftNavigate,
 }: RowComponentProps<TreeRowData>) {
   const item = visibleNodes[index];
@@ -66,19 +86,40 @@ export function TreeRow({
   const title = node?.title ?? "";
   const docNo = node?.doc_no ?? "";
   const treeDepth = item?.treeDepth ?? 0;
+  const parentDocNo = item?.parentDocNo;
+  const dim = usePreviewDim(node?.id ?? "");
 
   const docNoSegments = useMemo(() => {
-    if (!docNo) return { parts: [] as string[], depths: [] as number[], width: 0 };
+    type Seg = {
+      parts: string[];
+      depths: number[];
+      slots: number[] | undefined;
+      gradients: (string | undefined)[] | undefined;
+      width: number;
+    };
+    if (!docNo) return { parts: [], depths: [], slots: undefined, gradients: undefined, width: 0 } as Seg;
+    // NR-X nodes: "NR" under the parent's first segment, dash stretched (with a
+    // gradient line) so the number sits one column past the parent, aligned with
+    // the node's siblings.
+    if (docNo.startsWith("NR-")) {
+      const { parts, depths, slots, gradients } = nrSidebarChiclets(docNo, parentDocNo, treeDepth);
+      const width = parts.reduce((sum, seg, i) => sum + Math.max(12, seg.length * 7 + 6) * slots[i], 0);
+      return { parts, depths, slots, gradients, width } as Seg;
+    }
     const parts = docNo.split(".");
-    // NR-X nodes have a single opaque token; colour it at the node's actual tree depth
-    // rather than letting segmentDepths fall back to 1.
-    const depths = docNo.startsWith("NR-") ? [treeDepth] : segmentDepths(docNo);
+    const depths = segmentDepths(docNo);
     // chiclet width = ~7 px/char + ~6 px (padding+border) per segment, no dots
     const width = parts.reduce((sum, seg) => sum + Math.max(13, seg.length * 7 + 6), 0);
-    return { parts, depths, width };
-  }, [docNo, treeDepth]);
+    return { parts, depths, slots: undefined, gradients: undefined, width } as Seg;
+  }, [docNo, treeDepth, parentDocNo]);
 
-  const availableWidth = sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5;
+  // The rollup badge sits between the mark and the title (collapsed rows only),
+  // so claw back its width from the title budget when it's showing.
+  const rollupEntry = isPreview && node ? rollup.get(node.id) : undefined;
+  const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
+  const availableWidth =
+    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
+    (showRollup ? rollupBadgeWidth(rollupEntry?.count ?? 0) : 0);
 
   const displayTitle = useMemo(
     () => (title ? truncateTitle(title, Math.max(availableWidth, 20)) : ""),
@@ -102,8 +143,8 @@ export function TreeRow({
   return (
     <div
       data-node-id={node.id}
-      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, ["--row-color" as string]: depthVar }}
-      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
+      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, opacity: dim ? 0.86 : undefined, ["--row-color" as string]: depthVar }}
+      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""}`}
       onClick={(e) => {
         if (e.shiftKey && onShiftNavigate) {
           e.preventDefault();
@@ -111,17 +152,42 @@ export function TreeRow({
         } else onNavigate(node.id);
       }}
     >
-      <span
-        className="tree-toggle"
-        style={{
-          ...TOGGLE_BASE,
-          color: hasChildren ? "var(--tan-2)" : "transparent",
-        }}
-        onClick={hasChildren ? (e) => onToggle(node.id, e) : undefined}
-      >
-        {hasChildren ? (isExpanded ? "\u25BE" : "\u25B8") : "\u00B7"}
-      </span>
-      <DocNoChiclets parts={docNoSegments.parts} depths={docNoSegments.depths} />
+      {hasChildren ? (
+        <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
+          <span
+            className="tree-toggle"
+            style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
+            onClick={(e) => onToggle(node.id, e)}
+          >
+            {isExpanded ? "\u25BE" : "\u25B8"}
+          </span>
+        </Tooltip>
+      ) : (
+        <span
+          className="tree-toggle tree-toggle-empty"
+          style={{ ...TOGGLE_BASE, color: "transparent" }}
+        >
+          {"\u00B7"}
+        </span>
+      )}
+      <DocNoChiclets
+        parts={docNoSegments.parts}
+        depths={docNoSegments.depths}
+        slots={docNoSegments.slots}
+        gradients={docNoSegments.gradients}
+      />
+      {isPreview && (
+        <>
+          <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
+          <PreviewRollupBadge
+            key={node.id}
+            entry={rollupEntry}
+            expanded={isExpanded}
+            onReveal={() => onReveal(node.id)}
+            className="text-[10px]"
+          />
+        </>
+      )}
       <span
         style={{ ...TITLE_BASE, color: titleColor }}
         title={node.doc_no + " \u2014 " + node.title}

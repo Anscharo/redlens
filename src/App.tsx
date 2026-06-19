@@ -17,6 +17,8 @@ import { DevPanel } from "./DevPanel";
 import { Footer } from "./components/Footer";
 import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
 import { ChatWidget } from "./components/chat/ChatWidget";
+import { PreviewBanner } from "./components/preview/PreviewBanner";
+import { useDataSource } from "./lib/dataSource";
 
 // Retries a failed dynamic import once before propagating the error.
 // Silently handles transient "Failed to fetch dynamically imported module"
@@ -39,6 +41,9 @@ const RewardsReport = lazy(() =>
 );
 const ProcessesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/ProcessesReport")).then((m) => ({ default: m.ProcessesReport })),
+);
+const StaleDatesReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/StaleDatesReport")).then((m) => ({ default: m.StaleDatesReport })),
 );
 const ReportsIndex = lazy(() =>
   lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
@@ -105,6 +110,17 @@ export default function App() {
     setTreeOpen(false);
   }, [location]);
 
+  // In preview mode, land on the reader instead of the home/search splash so
+  // pasting /preview/:id drops straight into the proposed atlas. Only the BARE
+  // root redirects — searching navigates to HOME?q=… (results live there), and
+  // bouncing that back to the reader would drop the query + loop.
+  const { preview } = useDataSource();
+  useEffect(() => {
+    if (preview && location === ROUTES.HOME && !searchParams.get("q")) {
+      navigate(ROUTES.ATLAS, { replace: true });
+    }
+  }, [preview, location, searchParams, navigate]);
+
   // Window-scroll mode: routes that don't need the "fixed shell, inner scroll"
   // layout opt in here. The root grows with content (min-h-dvh) and the
   // overflow-hidden wrappers are dropped, so the browser's native
@@ -117,6 +133,7 @@ export default function App() {
       className={`app-shell flex flex-col pb-6 ${windowScroll ? "min-h-dvh" : "h-dvh"}`}
       style={{ background: "var(--bg)" }}
     >
+      <PreviewBanner />
       <SearchBar
         inputRef={inputRef}
         query={query}
@@ -138,7 +155,7 @@ export default function App() {
               resizable
               minWidth={180}
               maxWidth={600}
-              storageKey="redlens:tree-sidebar-width"
+              storageKey="redline-sky-atlas:tree-sidebar-width"
             >
               <TreeSidebar
                 nodeId={nodeId}
@@ -205,6 +222,11 @@ export default function App() {
                 <RewardsReport />
               </Suspense>
             </Route>
+            <Route path={ROUTES.REPORTS_STALE_DATES}>
+              <Suspense fallback={<Loading />}>
+                <StaleDatesReport />
+              </Suspense>
+            </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>
               <Suspense fallback={<Loading />}>
                 <ProcessesReport onNavigate={navigateToNode} />
@@ -253,7 +275,7 @@ export default function App() {
         </div>
       </div>
       <Footer />
-      {__CHAT_ENABLED__ && <ChatWidget />}
+      {__CHAT_ENABLED__ && !preview && <ChatWidget />}
     </div>
   );
 }

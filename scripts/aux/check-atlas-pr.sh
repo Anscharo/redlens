@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-atlas-pr.sh — build + test RedLens at the head commit of a next-gen-atlas PR.
+# check-atlas-pr.sh — build + test Sky Atlas by Redline at the head commit of a next-gen-atlas PR.
 #
 # Usage:
 #   pnpm check:pr <pr-number>
@@ -34,7 +34,7 @@ if [[ -z "$PR" || ! "$PR" =~ ^[0-9]+$ ]]; then
   cat >&2 <<'USAGE'
 Usage: check-atlas-pr <pr-number>
 
-Builds and tests RedLens at the head commit of an open
+Builds and tests Sky Atlas by Redline at the head commit of an open
 sky-ecosystem/next-gen-atlas PR, then reports relationship changes vs main.
 
 Only OPEN PRs are eligible.
@@ -82,7 +82,7 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Hardcoded UUID impact check
-# Greps all UUIDs referenced in RedLens source files, then checks whether this
+# Greps all UUIDs referenced in Sky Atlas by Redline source files, then checks whether this
 # PR's diff touches any of them. Touched = the node was added, removed, or
 # edited; its title/content may no longer match what our code assumes.
 # ---------------------------------------------------------------------------
@@ -111,7 +111,7 @@ done <<< "$_src_uuids"
 if [[ -n "$UUID_IMPACT_LINES" ]]; then
   UUID_IMPACT_SECTION="## ⚠️ Hardcoded UUID impact
 
-The following UUIDs are hardcoded in RedLens source and were touched by this PR.
+The following UUIDs are hardcoded in Sky Atlas by Redline source and were touched by this PR.
 Verify that the node's title/content still matches what the code assumes.
 ${UUID_IMPACT_LINES}"
   echo "⚠️  Hardcoded UUIDs touched by this PR — see report for details."
@@ -178,7 +178,9 @@ MANIFEST_COMMIT=$(MF="$ROOT/public/manifest.json" node -e "
 
 if [[ -n "$MANIFEST_COMMIT" && "$MANIFEST_COMMIT" == "$MERGE_BASE" && -f "$ROOT/public/relations.json" ]]; then
   echo "Baseline: seeding worktree from cached build at merge base (${MERGE_BASE7})"
-  cp -r "$ROOT/public" "$WORKTREE/public"
+  # The worktree already has a public/ (committed assets) — copy contents,
+  # not the directory, or cp nests it as public/public.
+  cp -r "$ROOT/public/." "$WORKTREE/public/"
   cp "$WT_PUBLIC/relations.json" "$BASELINE"
 else
   echo ""
@@ -215,6 +217,11 @@ echo "Recording baseline graph snapshots ..."
   > /dev/null 2>&1 || true
 cp -r "$WORKTREE/graph-snapshots" "$SNAP_BASELINE/"
 
+# Re-baseline the coverage census at the merge base (worktree copy only) so the
+# post-PR census reports drift caused by this PR, not by atlas main drift.
+echo "Recording baseline coverage census ..."
+(cd "$WORKTREE" && pnpm census:check --update) > /dev/null 2>&1 || true
+
 # ---------------------------------------------------------------------------
 # Failure report writer (PR build or test failures only)
 # ---------------------------------------------------------------------------
@@ -227,7 +234,7 @@ write_failure_report() {
     echo "**Atlas SHA:** \`${HEAD_SHA}\`"
     echo "**Failed phase:** \`${phase}\`"
     echo "**Baseline (merge base):** \`${MERGE_BASE}\`"
-    echo "**RedLens branch:** \`${REDLENS_BRANCH}\`"
+    echo "**Sky Atlas by Redline branch:** \`${REDLENS_BRANCH}\`"
     echo ""
     echo ""
     echo "$UUID_IMPACT_SECTION"
@@ -284,6 +291,16 @@ if [[ -s "$SNAP_LOG" ]]; then
 else
   echo "(no snapshot changes)"
 fi
+
+# ---------------------------------------------------------------------------
+# Phase 3.5: coverage census — informational, not a gate
+# Flags docs the PR adds in structure clusters no extraction pattern consumes
+# ("silently dropped" content). Baselined at the merge base above.
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== coverage census (PR vs merge base) ==="
+CENSUS_OUT=$( (cd "$WORKTREE" && pnpm --silent census:check) 2>&1 || true )
+echo "$CENSUS_OUT"
 
 # ---------------------------------------------------------------------------
 # Success: compute relationship delta (PR vs main baseline)
@@ -371,13 +388,22 @@ JS
   echo "**PR:** [#${PR} ${PR_TITLE}](${PR_URL}) \`${PR_STATE}\`"
   echo "**Atlas SHA:** \`${HEAD_SHA}\`"
   echo "**Baseline (merge base):** \`${MERGE_BASE}\`"
-  echo "**RedLens branch:** \`${REDLENS_BRANCH}\`"
+  echo "**Sky Atlas by Redline branch:** \`${REDLENS_BRANCH}\`"
   echo ""
   echo "$UUID_IMPACT_SECTION"
   echo ""
   echo "## Relationship delta (PR vs merge base)"
   echo ""
   echo "$DELTA"
+  echo ""
+  echo "## Coverage census (PR vs merge base)"
+  echo ""
+  echo "Drift lines mean the PR adds docs in structure clusters the graph does"
+  echo "not consume — content that would be silently dropped from the graph."
+  echo ""
+  echo '```'
+  echo "$CENSUS_OUT"
+  echo '```'
   echo ""
   echo "## Graph snapshot diff"
   echo ""

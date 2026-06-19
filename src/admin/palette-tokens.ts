@@ -57,6 +57,7 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   { name: "red-dim", label: "Red Dim", group: "brand", alpha: false },
   { name: "accent", label: "Accent", group: "brand", alpha: false },
   { name: "error-text", label: "Error Text", group: "brand", alpha: false },
+  { name: "warn", label: "Warn", group: "brand", alpha: false },
   { name: "magenta", label: "Magenta", group: "brand", alpha: false },
   { name: "terminal-green", label: "Terminal Green", group: "brand", alpha: false },
   { name: "lily-green", label: "Lily Green", group: "brand", alpha: false },
@@ -97,6 +98,8 @@ export const PALETTE_TOKENS: readonly PaletteToken[] = [
   { name: "entity-operational-party", label: "Operational Party", group: "entity", alpha: false },
   { name: "entity-ecosystem-actor", label: "Ecosystem Actor", group: "entity", alpha: false },
   { name: "entity-instance", label: "Instance", group: "entity", alpha: false },
+  { name: "entity-multisig", label: "Multisig", group: "entity", alpha: false },
+  { name: "entity-bridge", label: "Bridge", group: "entity", alpha: false },
   { name: "entity-fallback", label: "Fallback", group: "entity", alpha: false },
 
   // ─── Depth jewel-tone palette (6-color cycle red→orange→green→blue→purple→magenta starting at depth-1, looping through depth-17) ───

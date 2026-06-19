@@ -4,7 +4,11 @@ import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 const SKY_URL = "https://sky.money";
 const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";
 
-const CARDS: { page: NavPage; name: string; desc: string }[] = [
+// `page` cards route in-SPA (wouter Link); `href` cards leave the router —
+// /preview mounts its own shell, so it needs a plain full-load anchor.
+const PREVIEW_ENABLED = import.meta.env.VITE_PREVIEW_ENABLED === "true";
+
+const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
   {
     page: "atlas",
     name: "Reader",
@@ -15,11 +19,17 @@ const CARDS: { page: NavPage; name: string; desc: string }[] = [
     name: "Radar",
     desc: "View info about Parties in the Sky Ecosystem: Agents, Facilitators, Alignment Conservers and more",
   },
-  {
-    page: "reports",
-    name: "Reports",
-    desc: "Specific reports extracted directly from the Atlas as it updates",
-  },
+  PREVIEW_ENABLED
+    ? {
+        href: `${import.meta.env.BASE_URL}preview`,
+        name: "Preview",
+        desc: "Paste any atlas PR, branch, or fork URL and read it as a live redlined atlas — every changed section marked inline",
+      }
+    : {
+        page: "reports" as NavPage,
+        name: "Reports",
+        desc: "Op Facilitator responsibilities, Active Data index, integrator rewards, and more",
+      },
 ];
 
 export function HomePage() {
@@ -27,7 +37,7 @@ export function HomePage() {
     <main className="flex-1 overflow-y-auto px-6 py-16">
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-5xl font-bold text-tan mb-4">Welcome to Redlens</h1>
+          <h1 className="text-5xl font-bold text-tan mb-4">Sky Atlas by Redline</h1>
           <h2 className="text-2xl text-tan-2 mb-6">
             Views into the Sky
               Atlas
@@ -42,22 +52,30 @@ export function HomePage() {
             <a href={SKY_URL} target="_blank" rel="noopener noreferrer" className="link-accent">
             Sky protocol
             </a>{" "} — thousands of interconnected sections defining roles, rules, and responsibilities across the ecosystem.
-            Redlens makes it fast and approachable: full-text search, inline annotations and
+            Sky Atlas by Redline makes it fast and approachable: full-text search, inline annotations and
             history, a map of how parties relate to each other, and purpose-built reports extracted
             straight from the source.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {CARDS.map((c) => (
-            <Link
-              key={c.page}
-              to={NAV_PAGE_ROUTES[c.page]}
-              className="home-card flex flex-col items-start text-left w-full"
-            >
-              <p className="text-sm font-semibold text-tan mb-2">{c.name}</p>
-              <p className="text-xs text-tan-3 leading-relaxed">{c.desc}</p>
-            </Link>
-          ))}
+          {CARDS.map((c) => {
+            const body = (
+              <>
+                <p className="text-sm font-semibold text-tan mb-2">{c.name}</p>
+                <p className="text-xs text-tan-3 leading-relaxed">{c.desc}</p>
+              </>
+            );
+            const cls = "home-card flex flex-col items-start text-left w-full";
+            return c.page ? (
+              <Link key={c.name} to={NAV_PAGE_ROUTES[c.page]} className={cls}>
+                {body}
+              </Link>
+            ) : (
+              <a key={c.name} href={c.href} className={cls}>
+                {body}
+              </a>
+            );
+          })}
         </div>
       </div>
     </main>

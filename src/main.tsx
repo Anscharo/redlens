@@ -5,6 +5,34 @@ import "./index.css";
 import App from "./App.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthProvider } from "./components/chat/auth";
+import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
+import { PreviewGate } from "./components/preview/PreviewGate";
+import { PreviewHome } from "./components/preview/PreviewHome";
+
+const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// `/preview` (bare) is the index page; `/preview/:id/*` mounts the SAME App
+// under a preview router base + data source (after the gate builds the
+// bundle); anything else is the live atlas.
+function Root() {
+  const { pathname } = window.location;
+  if (pathname === `${baseNoSlash}/preview` || pathname === `${baseNoSlash}/preview/`) {
+    return <PreviewHome />;
+  }
+  const m = pathname.match(new RegExp(`^${baseNoSlash}/preview/([^/]+)`));
+  if (m) {
+    return <PreviewGate id={decodeURIComponent(m[1])} routerBase={`${baseNoSlash}/preview/${m[1]}`} />;
+  }
+  return (
+    <Router base={baseNoSlash}>
+      <DataSourceContext.Provider value={DEFAULT_SOURCE}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </DataSourceContext.Provider>
+    </Router>
+  );
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -17,11 +45,7 @@ createRoot(document.getElementById("root")!).render(
         </div>
       )}
     >
-      <Router base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </Router>
+      <Root />
     </ErrorBoundary>
   </StrictMode>,
 );

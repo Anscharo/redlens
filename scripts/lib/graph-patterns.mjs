@@ -31,8 +31,18 @@ export const isICDLocation = (d) =>
 export const isICD = (d) => /instance configuration document/i.test(d.title) && !isICDLocation(d);
 export const isGlobalActivationStatus = (d) => /global activation status/i.test(d.title);
 
-export const ERG_DOC_NO = "A.1.8.1.2.2.0.6.1";
-export const ALIGNED_DELEGATES_DOC_NO = "A.1.5.1.5.0.6.1";
+// Registry docs are anchored by UUID, never doc_no — atlas renumbering moved
+// these from A.1.5.*/A.1.8.* to A.1.6.*/A.1.9.* (silently breaking the old
+// doc_no constants). Doc_nos for source citations are derived at runtime.
+export const ERG_MEMBERSHIP_UUID = "e9807449-fdc3-4860-8d53-c56181311618"; // A.1.9.1.2.2.0.6.1
+export const ALIGNED_DELEGATES_UUID = "5f584db8-f8d8-4118-988c-b2bc3f68ceb7"; // A.1.6.1.5.0.6.1
+// "Current Level N Ranked Delegates" docs (Pattern 10).
+export const RANKED_DELEGATE_UUIDS = new Map([
+  [1, "46c0f334-4421-4e1a-9130-501e3a246e2a"], // A.1.6.4.1.1.3.1
+  [2, "ebe4da3b-2674-4ee1-b7a8-3d7a4b37fe75"], // A.1.6.4.1.2.3.1
+]);
+// "Spell Team Configuration" — names the rotating spell crafting/reviewing teams.
+export const SPELL_TEAM_UUID = "4862ed4e-097b-42fa-a197-1d407d220a77"; // A.1.10.2.2.2.1
 
 // A.1.7.1 — "Active Ecosystem Actors" section. Each direct child is a role
 // definition doc; its .2 child is the "Designated X" binding doc that names
@@ -50,6 +60,29 @@ export const COMPRISES_RE = /The party ['‘]([^'’]+)['’] comprises\s+(.+?)\
 // (e.g. A.2.8.2.2.1.1.4 Moonbow: "…is the entity owning relevant intellectual
 // property."). The party still signs the accord, it just has no members to list.
 export const ATOMIC_PARTY_RE = /The party ['‘]([^'’]+)['’]\s+is\b/i;
+
+// ---------------------------------------------------------------------------
+// Entity name resolution helpers
+// ---------------------------------------------------------------------------
+
+// Collapse a name to a comparison key: "Soter Labs" / "SoterLabs" / "soter-labs"
+// all → "soterlabs". Used to match registry-table names and prose mentions
+// against existing entities whose casing/punctuation differs.
+export function normalizeKey(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+// Build a normalizeKey → entity lookup over the current entityMap (names and
+// slugs both indexed; first writer wins so Phase-1 entities take precedence).
+export function buildNameIndex(entityMap) {
+  const index = new Map();
+  for (const e of entityMap.values()) {
+    for (const key of [normalizeKey(e.name), normalizeKey(e.slug)]) {
+      if (key && !index.has(key)) index.set(key, e);
+    }
+  }
+  return index;
+}
 
 // ---------------------------------------------------------------------------
 // Content extraction helpers

@@ -13,6 +13,8 @@ export const ENTITY_TYPE_LABEL: Record<string, string> = {
   operational_party: "Operational Party",
   ecosystem_actor: "Ecosystem Actor",
   instance: "Instance",
+  multisig: "Multisig",
+  bridge: "Bridge",
 };
 
 export const SUBTYPE_LABEL: Record<string, string> = {
@@ -21,6 +23,9 @@ export const SUBTYPE_LABEL: Record<string, string> = {
   aligned_delegate: "Aligned Delegate",
   operational: "Operational",
   core: "Core",
+  individual: "Individual",
+  integration_partner: "Integration Partner",
+  bridge_validator: "Bridge Validator",
 };
 
 /** Labels vary by the edge's direction relative to the viewer.
@@ -31,6 +36,10 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   operational_executor_agent_for: {
     forward: "operational executor agent for",
     reverse: "has operational executor agent",
+  },
+  core_executor_agent_for: {
+    forward: "core executor agent for",
+    reverse: "has core executor agent",
   },
   operational_facilitator_for: {
     forward: "operational facilitator for",
@@ -43,11 +52,22 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   ranked_delegate_for: { forward: "ranked delegate for", reverse: "has ranked delegate" },
   holds_role_for: { forward: "holds role for", reverse: "has role-holder" },
   comprises: { forward: "comprises", reverse: "part of" },
+  signer_of: { forward: "signer of", reverse: "has signer" },
+  can_modify_signers_of: { forward: "can modify signers of", reverse: "signers modifiable by" },
+  validator_of: { forward: "validator of", reverse: "has validator" },
+  funds_transfer: { forward: "transferred funds to", reverse: "received funds from" },
+  authorized_rep_for: { forward: "authorized rep for", reverse: "has authorized rep" },
+  integration_partner_of: { forward: "integration partner of", reverse: "has integration partner" },
+  prime_foundation_of: { forward: "prime foundation of", reverse: "has prime foundation" },
+  provides_services_to: { forward: "provides services to", reverse: "served by" },
   // doc ↔ entity
   ecosystem_accord: { forward: "binds", reverse: "party to" },
   defines_entity: { forward: "defines", reverse: "defined by" },
   erg_member_for: { forward: "ERG member of", reverse: "has ERG member" },
   responsible_party_for: { forward: "responsible party for", reverse: "has responsible party" },
+  governance_channel: { forward: "governance channel for", reverse: "has governance channel" },
+  emergency_response: { forward: "emergency response for", reverse: "has emergency response" },
+  pending_transition: { forward: "control transitioning to", reverse: "to gain control of" },
   // address edges
   has_address: { forward: "has address", reverse: "owned by" },
   mentions: { forward: "mentions", reverse: "mentioned in" },
@@ -82,6 +102,8 @@ export const ENTITY_TYPE_COLOR: Record<string, string> = {
   operational_party: "var(--entity-operational-party)",
   ecosystem_actor: "var(--entity-ecosystem-actor)",
   instance: "var(--entity-instance)",
+  multisig: "var(--entity-multisig)",
+  bridge: "var(--entity-bridge)",
 };
 
 export interface EntityNodeData {
@@ -151,6 +173,8 @@ export const CONNECTED_ENTITY_TYPES: ReadonlySet<string> = new Set([
   "operational_party",
   "ecosystem_actor",
   "instance",
+  "multisig",
+  "bridge",
 ]);
 
 /** Entity↔entity edges only, for the ReactFlow graph. */

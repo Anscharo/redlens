@@ -19,7 +19,7 @@ WEB SERVICE (single long-running process)
 
   ┌─ checker (timer or small worker, every N min) ─────────────┐
   │  git ls-remote origin main  vs  in-memory atlas_sha        │
-  │  (same process — no /health HTTP, no cross-service call)   │
+  │  (same process — no api/health HTTP, no cross-service call)   │
   │  drift?  no → sleep                                        │
   │          yes → spawn build subprocess ↓                    │
   └────────────────────────────────────────────────────────────┘
@@ -35,7 +35,7 @@ WEB SERVICE (single long-running process)
                          ▼
   main process: reload in-memory indexes from new on-disk files
                 + sync:atlas (PG rows) + spawn sync:embeddings
-                → /health now reports the new atlas_sha (no restart)
+                → api/health now reports the new atlas_sha (no restart)
 ```
 
 Because nothing restarts, in-flight MCP and chat connections survive — the
@@ -138,7 +138,7 @@ re-detects drift and rebuilds within one interval. No volume needed.
   (the one config change with teeth); give the service **memory headroom**; add
   an updater **interval + on/off env flag**.
 - **Unchanged:** Postgres + pgvector + chat env; **client-side search**;
-  `/health` (still reports the live in-memory sha, now advanced after each
+  `api/health` (still reports the live in-memory sha, now advanced after each
   in-place swap).
 - **Net:** from "two services + token + Railway API" down to **one
   self-updating service, zero new credentials.**

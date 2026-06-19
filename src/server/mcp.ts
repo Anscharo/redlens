@@ -12,7 +12,7 @@ function ok(meta: Record<string, string | null>, payload: ToolResult) {
 }
 
 export function createMcpServer(): McpServer {
-  const server = new McpServer({ name: "redlens-atlas", version: "2.0.0-railway" });
+  const server = new McpServer({ name: "redline-sky-atlas", version: "2.0.0-railway" });
   const ix = getIndexes();
 
   // The SDK's server.tool() is heavily overloaded with recursive generics over

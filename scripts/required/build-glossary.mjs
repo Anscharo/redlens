@@ -25,13 +25,15 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
-const DOCS_PATH = path.join(ROOT, "public/docs.json");
-const OUT_PATH = path.join(ROOT, "public/glossary.json");
+// Isolation override (preview builds) — see build-index.mjs. Glossary reads the
+// preview's own docs.json and writes its own glossary.json, both in OUT_DIR, so
+// a preview build never reads main's docs nor clobbers the live glossary.
+const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
+const DOCS_PATH = path.join(OUT_DIR, "docs.json");
+const OUT_PATH = path.join(OUT_DIR, "glossary.json");
 
-function buildGlossary(docs) {
-  const nodes = Object.values(docs);
-  const nodeMap = docs;
-
+function buildGlossary(nodeMap) {
+  const nodes = Object.values(nodeMap);
   const definitionsSections = nodes.filter((n) => n.title === "Definitions");
 
   const childrenByParent = {};
@@ -91,32 +93,19 @@ function printStats(glossary, definitionsSections) {
     }
   }
 
-  // Length distribution
-  const lens = [];
-  for (const k of keys) for (const e of glossary[k]) lens.push(e.content.length);
-  lens.sort((a, b) => a - b);
-  const pct = (p) => lens[Math.floor(lens.length * p)] ?? 0;
-  console.log("\nDefinition length (chars):");
-  console.log(`  min ${lens[0]}  p50 ${pct(0.5)}  p90 ${pct(0.9)}  max ${lens[lens.length - 1]}`);
-
-  // Terms that will collide heavily with prose: single short common words
-  const shortCommon = keys.filter((k) => k.length <= 5 && !k.includes(" "));
-  if (shortCommon.length) {
-    console.log("\nShort single-word terms (may over-match in prose):");
-    for (const k of shortCommon) console.log(`  ${glossary[k][0].term}`);
-  }
 }
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 console.log(`Reading ${path.relative(ROOT, DOCS_PATH)}…`);
-const docs = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8"));
+const docsFile = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8"));
+const atlasCommit = docsFile.atlasCommit ?? "unknown";
 
-const { glossary, definitionsSections } = buildGlossary(docs);
+const { glossary, definitionsSections } = buildGlossary(docsFile.nodes);
 
 printStats(glossary, definitionsSections);
 
-fs.writeFileSync(OUT_PATH, JSON.stringify(glossary));
+fs.writeFileSync(OUT_PATH, JSON.stringify({ atlasCommit, terms: glossary }));
 const size = (fs.statSync(OUT_PATH).size / 1024).toFixed(1);
 console.log(`\nWrote ${path.relative(ROOT, OUT_PATH)} (${size} KB)`);

@@ -9,7 +9,7 @@ import type {
   GraphWorkerOutMessage,
   SerializedSubgraph,
 } from "../types";
-import { fetchJsonVerified } from "../lib/verify";
+import { fetchJson } from "../lib/verify";
 import { matchParticipants } from "../lib/search";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -29,8 +29,10 @@ const EXECUTOR_ROLE_EDGES = new Set([
 ]);
 
 async function init() {
-  const base = import.meta.env.BASE_URL;
-  const data = await fetchJsonVerified<{
+  // Live atlas base threaded via the worker `name` (sha-keyed /api/atlas/<sha>/);
+  // falls back to flat BASE_URL when no sha was injected (cold boot / dev).
+  const base = self.name || import.meta.env.BASE_URL;
+  const data = await fetchJson<{
     entities: GraphEntity[];
     edges: RelationEdge[];
   }>(`${base}relations.json`, "relations.json");

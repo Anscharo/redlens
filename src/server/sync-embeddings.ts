@@ -58,12 +58,9 @@ async function main() {
     );
   }
 
-  const manifest = JSON.parse(readFileSync(join(config.publicDir, "manifest.json"), "utf8"));
-  const atlasSha: string = manifest.atlasCommit ?? "unknown";
-
-  const docs = Object.values(
-    JSON.parse(readFileSync(join(config.publicDir, "docs.json"), "utf8")) as Record<string, AtlasNode>,
-  );
+  const docsFile = JSON.parse(readFileSync(join(config.publicDir, "docs.json"), "utf8")) as { atlasCommit?: string; nodes: Record<string, AtlasNode> };
+  const atlasSha: string = docsFile.atlasCommit ?? "unknown";
+  const docs = Object.values(docsFile.nodes);
 
   const have = new Map<string, string>(
     (await sql`SELECT doc_id, content_hash FROM atlas_doc_embeddings`).map(
