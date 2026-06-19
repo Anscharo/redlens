@@ -3,10 +3,14 @@ import { List, useListRef } from "react-window";
 import { useAtlasTree } from "../../hooks/useAtlasTree";
 import { useTreeKeyboard } from "../../hooks/useTreeKeyboard";
 import { usePulseDom } from "../../hooks/usePulseDom";
-import { realDepth } from "../../lib/depth";
+import { useRevealFlash } from "../../hooks/useRevealFlash";
+import { realDepth, segmentDepths } from "../../lib/depth";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
+import { usePreviewDiff } from "../../lib/previewDiff";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
+
+const REVEAL_STEP_MS = 180;
 
 interface Props {
   nodeId: string | null;
@@ -80,6 +84,44 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   }, []);
 
   const changedSet = usePreviewChangedSet();
+  const diff = usePreviewDiff();
+
+  // id → { count, depth } for the added/changed docs in its subtree. Walk up
+  // parentOf from each changed doc, incrementing every ancestor's count and
+  // tracking the max segment depth seen (so the badge can be tinted by the
+  // deepest change's depth colour). parentOf is the same doc_no-aware relation
+  // the tree renders by (see note above), so this lines up with what a collapsed
+  // row actually hides. A new doc that itself has children is also an ancestor of
+  // changes (its kids are new), so it gets the same badge/pill/reveal as a changed
+  // doc with children. Skipped entirely in the flat "changed only" view (no
+  // hierarchy to roll into).
+  const rollup = useMemo(() => {
+    const m = new Map<string, { count: number; depth: number }>();
+    if (!bundle || changedSet) return m;
+    for (const id of [...diff.added, ...diff.changed]) {
+      const node = bundle.docs[id];
+      if (!node) continue;
+      const segs = segmentDepths(node.doc_no);
+      const depth = segs[segs.length - 1] ?? 0;
+      let pid = parentOf.get(id) ?? null;
+      while (pid) {
+        const cur = m.get(pid);
+        if (cur) {
+          cur.count++;
+          if (depth > cur.depth) cur.depth = depth;
+        } else {
+          m.set(pid, { count: 1, depth });
+        }
+        pid = parentOf.get(pid) ?? null;
+      }
+    }
+    return m;
+  }, [bundle, parentOf, diff, changedSet]);
+
+  // Flash each changed/new doc when it becomes visible because an ancestor was
+  // expanded (manual toggle or the staggered reveal) — see useRevealFlash.
+  const flashIds = useMemo(() => new Set([...diff.added, ...diff.changed]), [diff]);
+  useRevealFlash(flashIds, parentOf, expandedIds, !!bundle && !changedSet, containerRef);
 
   const visibleNodes = useMemo(() => {
     if (!bundle) return [];
@@ -126,6 +168,40 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     }
   }, [selectedIndex, nodeId, listRef]);
 
+  // Expand from `id` down through every node that has a changed descendant
+  // (rollup keys), revealing the changes without unfolding unrelated subtrees.
+  // Changed leaves become visible once their (rollup-key) parent is expanded.
+  // Done one level per REVEAL_STEP_MS tick (not all at once) so the cascade is
+  // legible — each level's pills appear, linger, then fade as they unfold.
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => clearTimeout(revealTimer.current ?? undefined), []);
+
+  const revealChanges = useCallback(
+    (id: string) => {
+      if (!bundle) return;
+      const { byParent } = bundle;
+      clearTimeout(revealTimer.current ?? undefined);
+      let frontier = [id];
+      const step = () => {
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          for (const cur of frontier) next.add(cur);
+          return next;
+        });
+        const nextFrontier: string[] = [];
+        for (const cur of frontier) {
+          for (const child of byParent.get(cur) ?? []) {
+            if (rollup.has(child.id)) nextFrontier.push(child.id);
+          }
+        }
+        frontier = nextFrontier;
+        revealTimer.current = frontier.length ? setTimeout(step, REVEAL_STEP_MS) : null;
+      };
+      step();
+    },
+    [bundle, rollup],
+  );
+
   const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedIds((prev) => {
@@ -162,9 +238,11 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       selectedIndex,
       focusedIndex,
       expandedIds,
+      rollup,
       sidebarWidth,
       onNavigate: handleRowClick,
       onToggle: toggleExpand,
+      onReveal: revealChanges,
       onShiftNavigate,
     }),
     [
@@ -172,9 +250,11 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       selectedIndex,
       focusedIndex,
       expandedIds,
+      rollup,
       sidebarWidth,
       handleRowClick,
       toggleExpand,
+      revealChanges,
       onShiftNavigate,
     ],
   );
