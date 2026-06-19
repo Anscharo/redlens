@@ -12,10 +12,13 @@ import { usePreviewDim } from "../../lib/previewFilter";
 export const ROW_HEIGHT = 26;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
-// Approx rendered width of the rollup badge (border + padding + digit + flex gap)
-// — subtracted from the title budget when the badge is visible so the title
-// truncates instead of clipping its last character.
-const ROLLUP_BADGE_WIDTH = 18;
+// Approx rendered width of the rollup badge (border + padding + digits + flex
+// gap) — subtracted from the title budget when the badge shows so the title
+// truncates instead of clipping. Scales with digit count so a multi-digit count
+// (12, 300) doesn't over-budget the title.
+function rollupBadgeWidth(count: number): number {
+  return Math.max(14, String(count).length * 7 + 8) + 2; // +2 for the flex gap
+}
 
 export interface VisibleNode {
   node: AtlasNode;
@@ -30,6 +33,8 @@ export interface TreeRowData {
   focusedIndex: number;
   expandedIds: Set<string>;
   rollup: Map<string, { count: number; depth: number }>;
+  flashing: ReadonlySet<string>;
+  isPreview: boolean;
   sidebarWidth: number;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
@@ -68,6 +73,8 @@ export function TreeRow({
   focusedIndex,
   expandedIds,
   rollup,
+  flashing,
+  isPreview,
   sidebarWidth,
   onNavigate,
   onToggle,
@@ -108,10 +115,11 @@ export function TreeRow({
 
   // The rollup badge sits between the mark and the title (collapsed rows only),
   // so claw back its width from the title budget when it's showing.
-  const rollupEntry = node ? rollup.get(node.id) : undefined;
+  const rollupEntry = isPreview && node ? rollup.get(node.id) : undefined;
   const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
   const availableWidth =
-    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 - (showRollup ? ROLLUP_BADGE_WIDTH : 0);
+    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
+    (showRollup ? rollupBadgeWidth(rollupEntry?.count ?? 0) : 0);
 
   const displayTitle = useMemo(
     () => (title ? truncateTitle(title, Math.max(availableWidth, 20)) : ""),
@@ -136,7 +144,7 @@ export function TreeRow({
     <div
       data-node-id={node.id}
       style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, opacity: dim ? 0.86 : undefined, ["--row-color" as string]: depthVar }}
-      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""}`}
+      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""}`}
       onClick={(e) => {
         if (e.shiftKey && onShiftNavigate) {
           e.preventDefault();
@@ -168,14 +176,18 @@ export function TreeRow({
         slots={docNoSegments.slots}
         gradients={docNoSegments.gradients}
       />
-      <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
-      <PreviewRollupBadge
-        key={node.id}
-        entry={rollupEntry}
-        expanded={isExpanded}
-        onReveal={() => onReveal(node.id)}
-        className="text-[10px]"
-      />
+      {isPreview && (
+        <>
+          <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
+          <PreviewRollupBadge
+            key={node.id}
+            entry={rollupEntry}
+            expanded={isExpanded}
+            onReveal={() => onReveal(node.id)}
+            className="text-[10px]"
+          />
+        </>
+      )}
       <span
         style={{ ...TITLE_BASE, color: titleColor }}
         title={node.doc_no + " \u2014 " + node.title}
