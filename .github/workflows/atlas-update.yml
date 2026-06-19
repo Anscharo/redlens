@@ -79,16 +79,51 @@ jobs:
             "${{ steps.atlas.outputs.old_full }}" "${{ steps.atlas.outputs.new_full }}" \
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt || true
 
-      # Push first — atlas updates must land fast and are never gated on the
-      # drift analysis below.
+      # Branch protection requires changes via PR. Push to atlas-update/<sha>
+      # branch; the next step opens a PR and enables auto-merge.
       - name: Commit updated submodule pointer
+        id: commit
         if: steps.atlas.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="atlas-update/${{ steps.atlas.outputs.short }}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # Idempotent: if a PR for this SHA already exists, skip the push.
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number \
+            --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already open for $BRANCH — skipping push"
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ .github/atlas-census-baseline.json
           git commit -m "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}"
-          git push
+          git push -u origin "$BRANCH"
+
+      - name: Open PR and enable auto-merge
+        if: steps.atlas.outputs.proceed == 'true' && steps.commit.outputs.skipped != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create atlas-update --force \
+            --color 0075ca \
+            --description "Automatic atlas submodule update"
+          PR=$(gh pr create \
+            --title "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}" \
+            --body "Automatic submodule update: \`${{ steps.atlas.outputs.old }}\` → \`${{ steps.atlas.outputs.short }}\`" \
+            --base main \
+            --head "${{ steps.commit.outputs.branch }}" \
+            --label atlas-update \
+            --json number --jq '.number')
+          echo "Opened PR #$PR"
+          gh pr merge "$PR" --auto --rebase
+          echo "Auto-merge enabled on PR #$PR"
 
       # Surface drift signals in a GitHub issue for analysis. The @claude
       # mention triggers .github/workflows/claude.yml — but ONLY if the issue
