@@ -159,7 +159,7 @@ Color tokens live as CSS variables in `src/index.css`:
 - `--bg #160e0d` (charcoal w/ red undertone), `--surface`, `--hover #3a1f1a`
 - `--red #a63228`, `--accent #c67267` (links/focus, browner-pinker — _not_ the original error-looking red)
 - `--tan #f3e7ce` / `--tan-2` / `--tan-3` (tans/browns)
-- Fonts: Lora (serif body), Source Code Pro (mono)
+- Fonts: Inter (body), Source Code Pro (mono)
 - KaTeX is overridden to use `--tan` color
 
 Selected-node treatment: red left bar, transparent background, brighter text. Don't add backgrounds to the selected node.
@@ -170,7 +170,7 @@ Selected-node treatment: red left bar, transparent background, brighter text. Do
 - **Don't add hover/click logic in JS when CSS will do it.**
 - **The home button is a plain HTML link** (`<a href="/">`), not an `onClick` handler.
 - **Search quality > bundle size** for the MiniSearch index. Full-content indexing is intentional.
-- **Scroll-to is `behavior: "instant"`**, not smooth — the user found smooth scrolling sluggish.
+- **Scroll-to is a fast fixed-duration glide** (`src/lib/animatedScroll.ts`): 220ms ease-out over the full distance, so duration never grows with distance. Never use native `behavior: "smooth"` — the user found it sluggish. Reduced-motion falls back to instant.
 - **Sticky header collisions**: any scroll target needs `scrollMarginTop: "64px"`.
 - **Don't override git user.name/email.** Trust global config.
 - **Show stats before touching the UI** when changing the build pipeline. The user wants to see counts/samples before any visual change consumes new data.

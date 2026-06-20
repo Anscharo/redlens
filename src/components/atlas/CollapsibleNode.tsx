@@ -5,30 +5,47 @@ import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { useAtlasActions } from "./AtlasActionsContext";
+import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
 
 const DRAG_THRESHOLD_PX = 4;
 
-const TITLE_CLASS = "text-xl font-bold";
+// Body indent so expanded text lines up with where the title text begins:
+// pl-3 (12) + gap-2 (8) + toggle (14) + gap-2 (8) + expand-all (14) + gap-2 (8)
+// + title margin+padding (5), plus 15px per chiclet segment (.atlas-chiclet
+// width — keep in sync with index.css).
+const TITLE_TEXT_OFFSET = 69;
+const CHICLET_W = 15;
+
+const TITLE_CLASS = "text-lg font-bold";
 
 export const CollapsibleNode = memo(function CollapsibleNode({
   entry,
   isSelected,
   isExpanded,
+  hasChildren = false,
+  isSubtreeExpanded = false,
   hiddenCount = 0,
   onExpandChildren,
   idPrefix,
+  cradle,
+  cradleColor,
 }: {
   entry: FlatEntry;
   isSelected: boolean;
   isExpanded: boolean;
+  hasChildren?: boolean;
+  isSubtreeExpanded?: boolean;
   hiddenCount?: number;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
+  /** Row is part of the selected node's descendant rail; "foot" closes it. */
+  cradle?: "line" | "foot";
+  cradleColor?: string;
 }) {
-  const { navigate, toggle, splitNavigate } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -51,12 +68,28 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
+  const showExpandAll = hasChildren && !!expandAll;
+  // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
+  const doToggle = () => {
+    if (!isExpanded) revealStore.reveal([node.id]);
+    toggle(node.id);
+  };
+  const doExpandAll = () => expandAll?.(node.id, !isSubtreeExpanded);
+
   return (
     <article
       id={idPrefix ? `${idPrefix}-${node.id}` : node.id}
-      className={`atlas-node relative${isSelected ? " is-selected" : ""}`}
+      className={`atlas-node relative${isSelected ? " is-selected" : ""}${
+        cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
+      }`}
       data-has-hidden={hiddenCount > 0 ? "true" : undefined}
-      style={{ ["--row-color" as string]: color, opacity: dim ? 0.92 : undefined } as React.CSSProperties}
+      style={
+        {
+          ["--row-color" as string]: color,
+          opacity: dim ? 0.92 : undefined,
+          ...(cradleColor ? { ["--cradle-color" as string]: cradleColor } : {}),
+        } as React.CSSProperties
+      }
       aria-label={`${node.doc_no} — ${node.title}`}
       aria-expanded={hasContent ? isExpanded : undefined}
       tabIndex={0}
@@ -87,13 +120,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           return;
         }
         // Already selected: only title-bar clicks toggle the body. Body clicks do nothing.
-        if (inRowBar && hasContent) toggle(node.id);
+        if (inRowBar && hasContent) doToggle();
       }}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           if (isSelected && hasContent) {
-            toggle(node.id);
+            doToggle();
           } else {
             navigate(node.id);
           }
@@ -103,6 +136,36 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
+        {hasContent ? (
+          <button
+            type="button"
+            className={`atlas-node-toggle${isExpanded ? " is-open" : ""}`}
+            aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.doc_no}`}
+            title={showExpandAll ? "alt-click: expand/collapse all beneath" : undefined}
+            onClick={(e) => (e.altKey && showExpandAll ? doExpandAll() : doToggle())}
+          >
+            ›
+          </button>
+        ) : (
+          <span className="atlas-node-toggle" style={{ visibility: "hidden" }} aria-hidden="true">
+            {"›"}
+          </span>
+        )}
+        {showExpandAll ? (
+          <button
+            type="button"
+            className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
+            aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
+            title={isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"}
+            onClick={doExpandAll}
+          >
+            »
+          </button>
+        ) : (
+          <span className="atlas-node-toggle" style={{ visibility: "hidden" }} aria-hidden="true">
+            {"»"}
+          </span>
+        )}
         {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
@@ -136,7 +199,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         </button>
       )}
       {isExpanded && hasContent && (
-        <div className="atlas-node-body">
+        <div
+          className="atlas-node-body"
+          style={{ marginLeft: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length }}
+        >
           <NodeContent content={node.content} onNavigate={navigate} />
         </div>
       )}

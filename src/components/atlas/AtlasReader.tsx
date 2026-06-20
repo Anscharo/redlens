@@ -7,6 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { AtlasActionsContext, useAtlasActions } from "./AtlasActionsContext";
+import { useExpandAll } from "./useExpandAll";
 import { useDepth6Expand } from "./useDepth6Expand";
 import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
@@ -63,6 +64,8 @@ export function AtlasReader({
     return new Set(seenExpanded.current);
   }, [data, id]);
 
+  const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
+
   const { expandedParents, hiddenCount, expandParent } = useDepth6Expand(
     data.flatNodes,
     id,
@@ -79,32 +82,60 @@ export function AtlasReader({
   const changedSet = usePreviewChangedSet();
 
   const docList = useMemo(() => {
-    const items: ReactElement[] = [];
-    for (const entry of data.flatNodes) {
+    const visible = data.flatNodes.filter((entry) => {
       // "changed only": show exactly the changed/added docs (flat), bypassing
       // the depth-6 gate. Otherwise honor the normal depth gating.
-      if (changedSet) {
-        if (!changedSet.has(entry.node.id)) continue;
-      } else if (entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")) {
-        continue;
+      if (changedSet) return changedSet.has(entry.node.id);
+      return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
+    });
+    // Cradle: the selected node's visible descendants are the contiguous run
+    // of deeper entries right after it (flatNodes is DFS document order).
+    // They get a left rail in the selected node's color, closed under the
+    // last one by a curved foot. Disabled in "changed only" preview mode,
+    // where the visible list is a flat, non-contiguous subset.
+    let cradleStart = -1;
+    let cradleEnd = -1;
+    let cradleColor: string | undefined;
+    const selIdx =
+      !changedSet && selectedId ? visible.findIndex((e) => e.node.id === selectedId) : -1;
+    if (selIdx >= 0) {
+      const selDepth = visible[selIdx].depth;
+      let i = selIdx + 1;
+      while (i < visible.length && visible[i].depth > selDepth) i++;
+      if (i > selIdx + 1) {
+        cradleStart = selIdx + 1;
+        cradleEnd = i - 1;
+        cradleColor = visible[selIdx].color;
       }
+    }
+    const items: ReactElement[] = visible.map((entry, idx) => {
       const gatedCount = expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0);
-      items.push(
+      const cradle =
+        cradleStart >= 0 && idx >= cradleStart && idx <= cradleEnd
+          ? idx === cradleEnd
+            ? ("foot" as const)
+            : ("line" as const)
+          : undefined;
+      return (
         <CollapsibleNode
           key={entry.node.id}
           entry={entry}
           isSelected={entry.node.id === selectedId}
           isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
+          hasChildren={data.atlas.byParent.has(entry.node.id)}
+          isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
           hiddenCount={gatedCount}
           onExpandChildren={handleExpandParent}
-        />,
+          cradle={cradle}
+          cradleColor={cradle ? cradleColor : undefined}
+        />
       );
-    }
+    });
     return items;
-  }, [data, selectedId, expandedSet, userToggles, expandedParents, hiddenCount, handleExpandParent, changedSet]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, changedSet]);
 
   return (
-    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate }}>
+    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll }}>
       <div
         className="relative flex flex-col overflow-hidden flex-1 min-w-0"
         style={{ ...ATLAS_LEFT_PANE_STYLE, minHeight: 0 }}

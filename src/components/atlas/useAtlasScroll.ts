@@ -1,5 +1,7 @@
 import { useRef, useEffect } from "react";
 import { type LoadedData } from "../../lib/atlasHelpers";
+import { scrollRequestStore } from "../../lib/scrollRequestStore";
+import { scrollIfOutOfView } from "../../lib/animatedScroll";
 
 export function useAtlasScroll(
   id: string,
@@ -18,26 +20,19 @@ export function useAtlasScroll(
     requestAnimationFrame(() => {
       const el = document.getElementById(id);
       if (!el || scrolledRef.current === id) return;
-      const container = el.closest(".atlas-scroll");
-      const clip = container?.getBoundingClientRect() ?? { top: 64, bottom: window.innerHeight };
-      const clipH = clip.bottom - clip.top;
-      const { top, height } = el.getBoundingClientRect();
-      const bottom = top + height;
-
-      if (top < clip.top) {
-        // Title is hidden above the clip edge — scroll it back into view.
-        // Smooth if close (partially visible or within one viewport away), instant if far.
-        const dist = clip.top - bottom; // negative when partially visible
-        el.scrollIntoView({ behavior: dist < clipH ? "smooth" : "instant", block: "start" });
-      } else {
-        // Below: scroll only when less than 50px is showing.
-        const visiblePx = Math.min(bottom, clip.bottom) - top;
-        if (visiblePx < 50) {
-          const dist = top - clip.bottom; // negative when partially visible
-          el.scrollIntoView({ behavior: dist < clipH ? "smooth" : "instant", block: "start" });
-        }
-      }
+      scrollIfOutOfView(el);
       scrolledRef.current = id;
     });
   }, [id, data, expandedParents]);
+
+  // Sidebar clicks always request a scroll, even when the clicked row is
+  // already the selection (the id-change effect above won't re-fire then).
+  useEffect(() => {
+    return scrollRequestStore.subscribe((targetId) => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(targetId);
+        if (el) scrollIfOutOfView(el);
+      });
+    });
+  }, []);
 }

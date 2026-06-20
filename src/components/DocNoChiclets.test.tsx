@@ -18,9 +18,9 @@ describe("DocNoChiclets", () => {
     expect((chiclets[2] as HTMLElement).style.getPropertyValue("--c")).toBe("var(--depth-3)");
   });
 
-  it("uses var(--gray) for depth 0", () => {
+  it("uses var(--tan-2) for depth 0 (matches reader title color)", () => {
     const { container } = render(<DocNoChiclets parts={["A"]} depths={[0]} />);
     const chiclet = container.querySelector(".atlas-chiclet") as HTMLElement;
-    expect(chiclet.style.getPropertyValue("--c")).toBe("var(--gray)");
+    expect(chiclet.style.getPropertyValue("--c")).toBe("var(--tan-2)");
   });
 });

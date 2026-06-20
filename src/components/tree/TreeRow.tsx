@@ -9,7 +9,7 @@ import { PreviewMark } from "../preview/PreviewMark";
 import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
 
-export const ROW_HEIGHT = 26;
+export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
 // Approx rendered width of the rollup badge (border + padding + digits + flex

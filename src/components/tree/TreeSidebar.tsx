@@ -5,11 +5,33 @@ import { useTreeKeyboard } from "../../hooks/useTreeKeyboard";
 import { usePulseDom } from "../../hooks/usePulseDom";
 import { useRevealFlash } from "../../hooks/useRevealFlash";
 import { realDepth, segmentDepths } from "../../lib/depth";
+import { revealStore } from "../../lib/revealStore";
+import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
 import { useDataSource } from "../../lib/dataSource";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
+
+// Expand every ancestor of `doc_no` so the node's row is visible. Returns
+// whether `next` changed. (fragile: doc_no prefix — same walk the selection
+// effect has always used.)
+function addAncestors(
+  docNoToId: Map<string, string>,
+  doc_no: string,
+  next: Set<string>,
+): boolean {
+  const parts = doc_no.split(".");
+  let changed = false;
+  for (let i = 2; i < parts.length; i++) {
+    const aid = docNoToId.get(parts.slice(0, i).join("."));
+    if (aid && !next.has(aid)) {
+      next.add(aid);
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 const REVEAL_STEP_MS = 180;
 
@@ -65,6 +87,24 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       return changed ? next : prev;
     });
   }, [bundle, nodeId, parentOf]);
+
+  // Reader-side expansions (single or expand-all) ask us to make those rows
+  // visible by expanding their ancestors, without changing the selection.
+  useEffect(() => {
+    if (!bundle) return;
+    const { docs, docNoToId } = bundle;
+    return revealStore.subscribe((ids) => {
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        let changed = false;
+        for (const id of ids) {
+          const doc = docs[id];
+          if (doc) changed = addAncestors(docNoToId, doc.doc_no, next) || changed;
+        }
+        return changed ? next : prev;
+      });
+    });
+  }, [bundle]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -215,15 +255,32 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     [bundle, rollup],
   );
 
-  const toggleExpand = useCallback((id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
+  const toggleExpand = useCallback(
+    (id: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        // alt-click: expand/collapse the entire subtree (Finder convention)
+        if (e.altKey && bundle) {
+          const expand = !prev.has(id);
+          const stack = [id];
+          while (stack.length) {
+            const cur = stack.pop()!;
+            const kids = bundle.byParent.get(cur);
+            if (!kids?.length) continue;
+            if (expand) next.add(cur);
+            else next.delete(cur);
+            for (const k of kids) stack.push(k.id);
+          }
+          return next;
+        }
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    },
+    [bundle],
+  );
 
   const handleKeyDown = useTreeKeyboard({
     visibleNodes,
@@ -241,6 +298,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       clickedRef.current = true;
       setFocusedIndex(-1);
       onNavigate(id);
+      scrollRequestStore.request(id);
     },
     [onNavigate],
   );
