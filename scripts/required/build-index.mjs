@@ -64,7 +64,10 @@ function extractAddresses(content) {
 
 // ---------------------------------------------------------------------------
 // Build MiniSearch index
-// KEEP IN SYNC WITH src/workers/search.worker.ts (same processTerm config)
+// This file produces search-index.json, which the worker + server deserialize
+// via MiniSearch.loadJSON — so these options MUST stay byte-identical to the
+// canonical copy in src/lib/searchOptions.ts (this .mjs runs under node and
+// can't import that .ts, hence the duplicated literal). Mirror any change there.
 // ---------------------------------------------------------------------------
 function buildIndex(nodes) {
   const ms = new MiniSearch({

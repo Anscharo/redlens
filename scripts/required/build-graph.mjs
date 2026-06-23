@@ -53,6 +53,7 @@ import {
   extractEntityLabel,
   extractExpectedTokens,
 } from "../lib/address-annotate.mjs";
+import { normalizeChainLabel } from "../lib/chains.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -276,21 +277,7 @@ function icdParamRole(key) {
   return null;
 }
 
-function normalizeChain(raw) {
-  if (!raw) return "ethereum";
-  const s = raw.toLowerCase();
-  if (s.includes("base")) return "base";
-  if (s.includes("arbitrum")) return "arbitrum";
-  if (s.includes("optimism")) return "optimism";
-  if (s.includes("solana")) return "solana";
-  if (s.includes("avalanche") || s.includes("avax")) return "avalanche";
-  if (s.includes("polygon")) return "polygon";
-  if (s.includes("gnosis")) return "gnosis";
-  if (s.includes("monad") || s.includes("plume") || s.includes("plasma")) return "ethereum"; // testnets/future — map to eth for now
-  if (s.includes("ethereum") || s.includes("mainnet")) return "ethereum";
-  console.warn(`  icd-chain: unrecognized chain string "${raw}", defaulting to ethereum`);
-  return "ethereum";
-}
+const normalizeChain = (raw) => normalizeChainLabel(raw, "icd-chain");
 
 function icdParamChain(key, params) {
   if (key.startsWith("Token Address (")) {

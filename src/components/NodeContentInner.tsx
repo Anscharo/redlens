@@ -5,6 +5,7 @@ import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
 import { UUID_RE } from "../lib/patterns";
+import { atlasHref } from "../lib/routes";
 
 interface Props {
   content: string;
@@ -27,7 +28,7 @@ function MarkdownLink({
   if (href && UUID_RE.test(href) && onNavigate) {
     return (
       <a
-        href={`/atlas?id=${href}`}
+        href={atlasHref(href)}
         onClick={(e) => {
           e.preventDefault();
           onNavigate(href);

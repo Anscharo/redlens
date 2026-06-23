@@ -1,5 +1,6 @@
 import { Link } from "../Link";
 import { actorHref } from "../../lib/routes";
+import { explorerUrl } from "../../lib/explorer";
 import type { AddressInfo } from "../../types";
 import type { EntityRef } from "../../lib/rewardsIndex";
 
@@ -12,21 +13,6 @@ export function EntityChip({ e }: { e: EntityRef }) {
       {e.name}
     </Link>
   );
-}
-
-function explorerFor(
-  addr: string,
-  chain: string | undefined,
-  addrMap: Record<string, AddressInfo>,
-): string {
-  const known = addrMap[addr.toLowerCase()] ?? addrMap[addr];
-  if (known?.explorerUrl) return known.explorerUrl;
-  const c = (chain ?? "").toLowerCase();
-  if (c.includes("solana")) return `https://solscan.io/account/${addr}`;
-  if (c.includes("base")) return `https://basescan.org/address/${addr}`;
-  if (c.includes("arbitrum")) return `https://arbiscan.io/address/${addr}`;
-  if (c.includes("optimism")) return `https://optimistic.etherscan.io/address/${addr}`;
-  return `https://etherscan.io/address/${addr}`;
 }
 
 // InProgress is an Invocation status (not an Instance status) per atlas
@@ -61,7 +47,7 @@ export function AddressLink({
   const label = info?.label ?? null;
   return (
     <a
-      href={explorerFor(addr, chain, addrMap)}
+      href={explorerUrl(addr, { chain, addrMap })}
       target="_blank"
       rel="noopener"
       className="mono text-[11px] text-accent hover:underline"

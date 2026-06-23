@@ -10,6 +10,7 @@ import { join } from "node:path";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
 import { config } from "./config.ts";
+import { MINISEARCH_OPTIONS } from "../lib/searchOptions.ts";
 
 export interface AtlasNode {
   id: string;
@@ -108,19 +109,6 @@ export interface Ancestor {
   type: string;
   depth: number;
 }
-
-// KEEP IN SYNC with src/workers/search.worker.ts AND scripts/required/build-index.mjs
-// MINISEARCH_OPTIONS: the server deserializes the prebuilt search-index.json via
-// loadJSON, which requires options identical to the build. No storeFields —
-// lexical search reads only id+score (search.ts) and resolves docs via docMap.
-const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
-  fields: ["title", "doc_no", "type", "content"],
-  idField: "id",
-  processTerm: (term) => {
-    const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-    return lower.length >= 2 ? lower : null;
-  },
-};
 
 export interface Indexes {
   docMap: Map<string, AtlasNode>;

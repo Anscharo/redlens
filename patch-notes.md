@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-06-23
+- Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
+
 ## 2026-06-19
 - Added an expand-children toggle to the reader
 - Added a "cradle" visual indicator for a section's children

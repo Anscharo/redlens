@@ -24,6 +24,7 @@
  */
 
 import { slugify, normalizeKey, buildNameIndex, parseNameList } from "./graph-patterns.mjs";
+import { normalizeChainLabel } from "./chains.mjs";
 
 const THRESHOLD_RE = /The (.+?) (?:currently )?has a (\d+)\/(\d+) signing requirement/;
 const ADDRESS_RE = /`([A-Za-z0-9]{32,64})`/;
@@ -48,14 +49,6 @@ function childSuffix(title) {
   if (/usage standards$/i.test(t)) return "usage";
   if (/(?:signer )?modifications?$/i.test(t)) return "modification";
   return null;
-}
-
-function normalizeChainName(raw) {
-  if (!raw) return "ethereum";
-  const s = raw.toLowerCase();
-  for (const c of ["solana", "avalanche", "plasma", "base", "arbitrum", "optimism", "polygon", "gnosis"])
-    if (s.includes(c)) return c;
-  return "ethereum";
 }
 
 export function parseSignerGroups(content) {
@@ -160,7 +153,7 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
           if (am) {
             address = am[1].startsWith("0x") ? am[1].toLowerCase() : am[1];
             chain = am[1].startsWith("0x")
-              ? normalizeChainName((slot.address.content ?? "").match(ADDRESS_CHAIN_RE)?.[1])
+              ? normalizeChainLabel((slot.address.content ?? "").match(ADDRESS_CHAIN_RE)?.[1])
               : "solana";
           } else warn(`address did not parse: ${slot.address.doc_no}`);
         }

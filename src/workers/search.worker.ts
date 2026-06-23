@@ -10,20 +10,9 @@ import type {
 import { fetchText } from "../lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
 import { UUID_RE } from "../lib/patterns";
+import { MINISEARCH_OPTIONS } from "../lib/searchOptions";
 
 declare const self: DedicatedWorkerGlobalScope;
-
-// KEEP IN SYNC WITH scripts/required/build-index.mjs (same processTerm config)
-const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
-  fields: ["title", "doc_no", "type", "content"],
-  idField: "id",
-  processTerm: (term) => {
-    // Strip leading/trailing non-alphanumeric chars so backtick-wrapped tokens
-    // like `delegatedSigners` index as "delegatedsigners" not "`delegatedsigners`".
-    const lower = term.replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "").toLowerCase();
-    return lower.length >= 2 ? lower : null;
-  },
-};
 
 let idx: MiniSearch | null = null;
 let docs: Record<string, AtlasNode> = {};

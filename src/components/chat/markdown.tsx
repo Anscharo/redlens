@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { atlasHref } from "../../lib/routes";
 
 // Agent citations are markdown links of the form [Title](/atlas/<uuid>)
 // (system-prompt.ts forces UUID hrefs). We intercept those, SPA-navigate via
@@ -44,7 +45,7 @@ export function AtlasMarkdown({ content, onAtlas }: { content: string; onAtlas: 
           const uuid = m[1].toLowerCase();
           return (
             <a
-              href={`/atlas?id=${uuid}`}
+              href={atlasHref(uuid)}
               onClick={(e) => {
                 e.preventDefault();
                 onAtlas(uuid);
