@@ -21,13 +21,12 @@
  *   public/relations.json    — lean browser payload
  */
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { slugify, normalizeKey, buildNameIndex } from "../lib/graph-patterns.mjs";
+import { slugify, normalizeKey, buildNameIndex, makeEntity } from "../lib/graph-patterns.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
@@ -430,25 +429,14 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   }
   const entityById = new Map([...entityMap.values()].map((e) => [e.id, e]));
 
-  function slugToId(slug) {
-    const h = crypto.createHash("sha256").update(slug).digest("hex");
-    return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
-  }
-
   function addTableEntity(slug, name, et, isActive, defDocId, meta) {
-    const id = slugToId(slug);
-    const entity = {
-      id,
-      slug,
-      name,
-      entity_type: et,
-      subtype: null,
+    const entity = makeEntity(slug, name, et, {
       defining_doc_id: defDocId,
       is_active: isActive,
-      meta: JSON.stringify(meta),
-    };
+      meta,
+    });
     entityMap.set(slug, entity);
-    entityById.set(id, entity);
+    entityById.set(entity.id, entity);
     return entity;
   }
 
@@ -701,17 +689,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   function addPatternEntity(slug, name, entity_type, subtype, defining_doc_id, meta) {
     const existing = entityMap.get(slug);
     if (existing) return existing;
-    const h = crypto.createHash("sha256").update(slug).digest("hex");
-    const ent = {
-      id: `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-${h.slice(16,20)}-${h.slice(20,32)}`,
-      slug,
-      name,
-      entity_type,
-      subtype: subtype ?? null,
-      defining_doc_id: defining_doc_id ?? null,
-      is_active: 1,
-      meta: meta ? JSON.stringify(meta) : null,
-    };
+    const ent = makeEntity(slug, name, entity_type, { subtype, defining_doc_id, meta });
     entityMap.set(slug, ent);
     return ent;
   }
