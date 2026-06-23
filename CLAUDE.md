@@ -150,7 +150,9 @@ Vitest snapshot tests that record the current state of `relations.json`. Run `pn
 
 ### Base path
 
-`vite.config.ts` sets `base: '/redlens/'`. Any runtime string used as a URL (not an import Vite transforms) MUST be prefixed with `import.meta.env.BASE_URL`. This applies to `fetch(...)` in workers, icon `<img src>`, all `pushState`/`href` links, etc. Hardcoded `"/"` paths will 404 in dev.
+`vite.config.ts` sets `base: '/'` — the app is served from the domain root on Railway. GitHub Pages is only a redirect stub (`gh-pages-redirect/`, the one place `/redlens/` survives), not a deployment target, so there is no non-root base variant anymore.
+
+`import.meta.env.BASE_URL` is therefore always `"/"`. Existing references still work (they evaluate to `"/"`) and don't need stripping, but new code can use root-relative paths directly. Note the distinct **data-source base** abstraction (`src/lib/atlasBase.ts` `liveAtlasBase()`, `src/lib/dataSource.tsx`): atlas-versioned artifacts are served under `/api/atlas/<sha>/` (or a preview base) and fall back to `import.meta.env.BASE_URL` — that base parameter is unrelated to `/redlens/` and is load-bearing for sha-keyed/preview serving.
 
 ### Styling
 
@@ -195,7 +197,7 @@ Remaining items from the full-branch audit (the bug fixes landed in the same PR 
 - **Split oversized component files** — 18 component files exceed the ~150-line convention. Top offenders: `OpFacilitatorsReport.tsx` (395), `ProcessesReport.tsx` (390), `EntityFlow.tsx` (319), `ActiveDataReport.tsx` (300), `ActorHistory.tsx` (289), `ActorInstances.tsx` (264), `ColorPickerModal.tsx` (258), `ConstellationsPage.tsx` (247), plus `Footer.tsx` (211) and `Tooltip.tsx` (198), which are surprisingly large for their roles. Split opportunistically when touching these files — no big-bang refactor.
 - **build-graph redundant address re-merge** — `scripts/required/build-graph.mjs` (~lines 204–213) repeats the merge already done at ~86–100. Harmless; simplify when next editing the file.
 - **JuniorPane descendant slice → parent links** — `src/components/atlas/JuniorPane.tsx` selects descendants by doc_no prefix (now annotated `// fragile: doc_no prefix`). Migrate to parent-link traversal over `flatNodes` when convenient.
-- **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL under the `/redlens/` base.
+- **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL.
 - **History metrics backfill** — run `pnpm build:history --full` once migration `006_history_metrics.sql` is applied so existing `atlas_history` rows gain `change_kind` / review counters (new rows get them automatically).
 
 ### Other / background

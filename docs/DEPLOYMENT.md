@@ -369,10 +369,9 @@ instance in the same Railway project.
 `ATLAS_BOT_*` secrets are missing (step 9).
 
 **Blank page / "module script MIME type" errors**
-→ Bundle built with the wrong base path. The Dockerfile sets
-`RAILWAY_ENVIRONMENT=production` so Vite picks `/`; verify with
-`curl https://<your-domain>/ | grep assets` (must show `/assets/…`, not
-`/redlens/assets/…`).
+→ Assets not resolving from the domain root. Vite's base is hardcoded to `/`
+(`vite.config.ts`); verify with `curl https://<your-domain>/ | grep assets`
+(must show `/assets/…`).
 
 **OAuth fails with a redirect-URI mismatch**
 → The callback URL registered with the provider must exactly match
