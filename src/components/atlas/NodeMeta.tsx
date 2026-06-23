@@ -1,24 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { type AtlasNode } from "../../types";
 import { fitPill } from "../../lib/fitPill";
-
-// Text measurement is wrong until the web font loads; flip once to recompute.
-let fontsReady = typeof document === "undefined" || !document.fonts;
-function useFontsReady(): boolean {
-  const [ready, setReady] = useState(fontsReady);
-  useEffect(() => {
-    if (ready) return;
-    let alive = true;
-    void document.fonts.ready.then(() => {
-      fontsReady = true;
-      if (alive) setReady(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [ready]);
-  return ready;
-}
 
 // Gutter chrome outside the pill text: gutter pl-3 (12) + meta right-pad (8)
 // + pill h-padding (16) + border (2). Keep in sync with .atlas-type-pill css.
@@ -31,16 +13,14 @@ const PILL_CHROME_PX = GUTTER_CHROME_PX + PILL_BOX_PX;
  * stacked vertically in the space left of the body. The copy-permalink button
  * (NodeCopyLink) and the Sky Atlas link-out (NodeAtlasLink) live in the title row.
  *
- * `gutterWidth` is the column width (px); the type label's font is scaled down
- * to fit it, wrapping only when it's still too long at the minimum size.
+ * `gutterWidth` is the column width (px); the type label's font is scaled to fit
+ * it and the pill is sized to hug its longest line (fitPill / pretext).
  */
 export function NodeMeta({ node, gutterWidth }: { node: AtlasNode; gutterWidth: number }) {
-  const fontsReady = useFontsReady();
   const { fontSize, pillWidth } = useMemo(() => {
     const { fontSize, textWidth } = fitPill(node.type, gutterWidth - PILL_CHROME_PX);
     return { fontSize, pillWidth: textWidth + PILL_BOX_PX };
-    // fontsReady gates a recompute once the web font's true metrics are available.
-  }, [node.type, gutterWidth, fontsReady]);
+  }, [node.type, gutterWidth]);
   return (
     <div className="atlas-node-meta" style={{ maxWidth: gutterWidth }}>
       {/* TODO: doc-no copy button temporarily hidden

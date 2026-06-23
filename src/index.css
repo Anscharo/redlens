@@ -554,6 +554,7 @@ button.atlas-node-expand-all:focus-visible {
   border-radius: 4px;
   padding: 2px 8px;
   line-height: 1.4;
+  text-align: center;
   /* Font + explicit width are computed in NodeMeta (fitPill): the width hugs the
      longest line of the (possibly wrapped) label so it never fills the gutter
      nor spills into the body. Wraps only at spaces — never mid-word. */
