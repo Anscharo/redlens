@@ -28,9 +28,6 @@ import {
 
 export { PREVIEW_DIR };
 
-// Re-exported for back-compat; the canonical set now lives on PREVIEW_STORE.
-export const ARTIFACT_ALLOWLIST = PREVIEW_STORE.allowlist;
-
 export interface PreviewMeta {
   sha: string;
   repo: string;

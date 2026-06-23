@@ -32,12 +32,6 @@ const COMPOSE_SCRIPT = path.join(ROOT, "vendor/next-gen-atlas/sync/compose.py");
 
 const FIELDS = ["id", "doc_no", "title", "type", "depth", "parentId", "order", "content", "contentHash"];
 
-function project(node) {
-  const o = {};
-  for (const f of FIELDS) o[f] = node[f];
-  return o;
-}
-
 if (!fs.existsSync(CONTENT_DIR)) {
   console.error(`No content/ tree at ${CONTENT_DIR} — nothing to check.`);
   process.exit(2);

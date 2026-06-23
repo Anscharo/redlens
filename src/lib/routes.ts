@@ -35,7 +35,6 @@ export const SCOPE_CONFIG: Record<SearchScope, { label: string; placeholder: str
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
 // restores the exact destination URL.
 export const atlasHref = (id: string) => `${ROUTES.ATLAS}?id=${id}`;
-export const entityHref = (id: string) => `${ROUTES.CONSTELLATIONS}?id=${id}`;
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;
