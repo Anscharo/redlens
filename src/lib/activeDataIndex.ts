@@ -93,6 +93,8 @@ export interface ActiveDataRow {
 }
 
 export function agentFromDocNo(docNo: string, agents: AgentRef[]): string | null {
+  // fragile: doc_no prefix — agent membership by prefix of the agent's (runtime-
+  // computed) defining doc_no; migrate to parent_of/UUID ancestor traversal.
   for (const a of agents) if (docNo.startsWith(a.docNoPrefix)) return a.name;
   return null;
 }
