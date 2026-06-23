@@ -1,6 +1,7 @@
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { ROUTES } from "./routes";
 import { parseMeta } from "./meta";
+import { CHAIN_EDGES, EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 import type { GraphData } from "./graph";
 import type { InstanceMeta, InvocationMeta, RewardsAgent } from "./rewardsTypes";
 import type { ActiveDataRow } from "./activeDataIndex";
@@ -117,17 +118,6 @@ export interface SidebarGroup {
   actors: SidebarActor[];
 }
 
-const CHAIN_EDGES = new Set([
-  "operational_executor_agent_for",
-  "core_executor_agent_for",
-  "operational_facilitator_for",
-  "core_facilitator_for",
-  "operational_govops_for",
-  "core_govops_for",
-]);
-const EXEC_EDGES = new Set(["operational_executor_agent_for", "core_executor_agent_for"]);
-const FAC_EDGES = new Set(["operational_facilitator_for", "core_facilitator_for"]);
-const GOV_EDGES = new Set(["operational_govops_for", "core_govops_for"]);
 const EXCLUDED_INSTANCE_TYPES = new Set(["root-edit"]);
 
 // Params whose values are purely forward references to other docs — no displayable content.

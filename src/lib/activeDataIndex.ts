@@ -4,6 +4,7 @@
 
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { parseMeta } from "./meta";
+import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 
 export interface AgentRef {
   name: string;
@@ -113,15 +114,9 @@ export function buildChainMap(
   const entityById = new Map(participants.map((e) => [e.id, e]));
   const primes = participants.filter((e) => e.et === "agent" && e.st === "prime");
 
-  const execEdges = edges.filter(
-    (e) => e.e === "operational_executor_agent_for" || e.e === "core_executor_agent_for",
-  );
-  const facEdges = edges.filter(
-    (e) => e.e === "operational_facilitator_for" || e.e === "core_facilitator_for",
-  );
-  const govEdges = edges.filter(
-    (e) => e.e === "operational_govops_for" || e.e === "core_govops_for",
-  );
+  const execEdges = edges.filter((e) => EXEC_EDGES.has(e.e));
+  const facEdges = edges.filter((e) => FAC_EDGES.has(e.e));
+  const govEdges = edges.filter((e) => GOV_EDGES.has(e.e));
 
   const map = new Map<string, AgentChain>();
   for (const prime of primes) {
