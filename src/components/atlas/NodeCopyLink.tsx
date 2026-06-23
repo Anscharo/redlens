@@ -16,7 +16,7 @@ export function NodeCopyLink({ node }: { node: AtlasNode }) {
       type="button"
       onClick={handleCopyUrl}
       title={urlCopy.copied ? "Copied!" : `Copy link · ${node.id}`}
-      className="atlas-copy-btn atlas-copy-link-inline"
+      className="atlas-copy-btn shrink-0"
       data-copied={urlCopy.copied ? "true" : undefined}
     >
       <svg

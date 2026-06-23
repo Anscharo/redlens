@@ -202,10 +202,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
           <HeadingTag className={TITLE_CLASS}>
             {node.title}
-            {isSelected && <NodeCopyLink node={node} />}
           </HeadingTag>
         </div>
-        {isSelected && <NodeAtlasLink node={node} />}
+        {isSelected && (
+          <div className="atlas-node-corner">
+            <NodeCopyLink node={node} />
+            <NodeAtlasLink node={node} />
+          </div>
+        )}
       </div>
 
       {hiddenCount > 0 && onExpandChildren && (

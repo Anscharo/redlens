@@ -464,16 +464,17 @@ mark {
   padding: 4px 8px 0 0;
 }
 /* Copy-permalink button rendered inline at the end of the title text. */
-.atlas-copy-link-inline {
-  margin-left: 10px;
-  vertical-align: middle;
-}
 /* Transient "copied" label on the icon-only doc-no copy button. */
 .atlas-copy-done {
   margin-left: 4px;
 }
-/* Sky Atlas link-out: third column of the title row, pinned top-right. */
-.atlas-node-outlink {
+/* Top-right corner of the selected node's title row: copy-link + Sky Atlas
+   link-out, pinned to the top. */
+.atlas-node-corner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
   align-self: flex-start;
   margin-top: 8px;
   padding-right: 4px;

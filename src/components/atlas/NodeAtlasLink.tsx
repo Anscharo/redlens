@@ -12,7 +12,7 @@ export function NodeAtlasLink({ node }: { node: AtlasNode }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Open on Sky Atlas"
-      className="atlas-external-link atlas-node-outlink inline-flex items-center gap-1 shrink-0"
+      className="atlas-external-link inline-flex items-center gap-1 shrink-0"
       onClick={(e) => e.stopPropagation()}
     >
       <svg
