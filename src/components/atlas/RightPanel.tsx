@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { EdgeResult } from "../../lib/graph";
@@ -39,14 +40,24 @@ export function RightPanel({
   onTabChange: (t: RightTab) => void;
 }) {
   const { preview } = useDataSource();
-  const citedBy = graphEdges.inbound.filter((e) => e.e === "cites");
-  const outRels = graphEdges.outbound.filter((e) => !HIDE.has(e.e));
-  const inRels = graphEdges.inbound.filter((e) => !HIDE.has(e.e));
-  const isSelfNav = (e: (typeof outRels)[0], isOut: boolean) => {
+  // Tag each relation with its direction once (instead of an O(n²) includes
+  // scan in render) and memoize so a tab switch doesn't refilter the edges.
+  const { citedBy, graphRels } = useMemo(() => {
+    const out = graphEdges.outbound
+      .filter((e) => !HIDE.has(e.e))
+      .map((edge) => ({ edge, isOut: true }));
+    const inb = graphEdges.inbound
+      .filter((e) => !HIDE.has(e.e))
+      .map((edge) => ({ edge, isOut: false }));
+    return {
+      citedBy: graphEdges.inbound.filter((e) => e.e === "cites"),
+      graphRels: [...out, ...inb],
+    };
+  }, [graphEdges]);
+  const isSelfNav = (e: EdgeResult["outbound"][number], isOut: boolean) => {
     const did = isOut ? e.to_did : e.from_did;
     return did === id || (isOut ? e.t : e.f) === id;
   };
-  const graphRels = [...outRels, ...inRels];
 
   return (
     <>
@@ -116,8 +127,7 @@ export function RightPanel({
               <div className="mt-8">
                 <p className="text-xs mono mb-3 text-tan-3">relations · {graphRels.length}</p>
                 <div className="space-y-2">
-                  {graphRels.filter((e) => !isSelfNav(e, outRels.includes(e))).map((e, i) => {
-                    const isOut = outRels.includes(e);
+                  {graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut)).map(({ edge: e, isOut }, i) => {
                     const otherId = (isOut ? e.t : e.f) ?? "";
                     const otherType = isOut ? e.tt : e.ft;
                     const otherLabel = isOut
