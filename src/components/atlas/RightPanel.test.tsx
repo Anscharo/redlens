@@ -60,7 +60,7 @@ describe("RightPanel tablist", () => {
 
   it("shows the annotation count badge when there are linked docs", () => {
     setup({ linkedNodes: [makeNode(), makeNode()], annotationCount: 2 });
-    expect(screen.getByText(/2 linked documents/)).toBeTruthy();
+    expect(screen.getByText(/2 linked documents/)).toBeInTheDocument();
   });
 });
 
@@ -70,21 +70,21 @@ describe("RightPanel tab content", () => {
       tab: "annotations",
       targetAddresses: { "0xabc": makeAddressInfo({ label: "MCD_VAT" }) },
     });
-    expect(screen.getByText(/addresses · 1/)).toBeTruthy();
+    expect(screen.getByText(/addresses · 1/)).toBeInTheDocument();
   });
 
   it("shows the empty-state message on an empty glossary tab", () => {
     setup({ tab: "glossary", glossaryTerms: [] });
-    expect(screen.getByText("No glossary terms in this section.")).toBeTruthy();
+    expect(screen.getByText("No glossary terms in this section.")).toBeInTheDocument();
   });
 
   it("groups glossary terms on the glossary tab", () => {
     setup({ tab: "glossary", glossaryTerms: [[makeGlossaryEntry({ term: "Accord" })]] });
-    expect(screen.getByRole("button", { name: "Accord" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Accord" })).toBeInTheDocument();
   });
 
   it("renders live NodeHistory on the history tab when not in preview", () => {
     setup({ tab: "history" });
-    expect(screen.getByTestId("node-history")).toBeTruthy();
+    expect(screen.getByTestId("node-history")).toBeInTheDocument();
   });
 });

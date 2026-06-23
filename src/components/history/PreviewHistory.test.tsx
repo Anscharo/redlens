@@ -43,7 +43,7 @@ const PR_META = {
 };
 
 function mockMeta(meta: Record<string, unknown> = PR_META) {
-  vi.spyOn(globalThis, "fetch").mockResolvedValue({ json: () => Promise.resolve(meta) } as Response);
+  vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: () => Promise.resolve(meta) } as Response);
 }
 
 beforeEach(() => {

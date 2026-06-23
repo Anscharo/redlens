@@ -11,6 +11,7 @@ import { DataSourceContext, type DataSource } from "../../lib/dataSource";
 
 function mockMeta(meta: Record<string, unknown> | null) {
   vi.spyOn(globalThis, "fetch").mockResolvedValue({
+    ok: true,
     json: () => Promise.resolve(meta),
   } as Response);
 }
