@@ -55,16 +55,16 @@ describe("JuniorPane breadcrumb", () => {
 
 describe("JuniorPane descendant slice", () => {
   it("renders the selected doc and its descendants", () => {
-    const { container } = setup();
-    expect(container.querySelector("#junior-split")).not.toBeNull();
-    expect(container.querySelector("#junior-child")).not.toBeNull();
-    expect(screen.getByText("Child Title")).toBeInTheDocument();
+    setup();
+    // Both render as headings in the slice (the split title also appears in the
+    // breadcrumb as a span, so scope to the heading role to stay unambiguous).
+    expect(screen.getByRole("heading", { name: "Split Title" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Child Title" })).toBeInTheDocument();
   });
 
   it("re-targets the pane when a descendant row is Shift-clicked", () => {
-    const { container, onShiftNavigate } = setup();
-    const childTitle = container.querySelector("#junior-child .atlas-node-title")!;
-    fireEvent.click(childTitle, { shiftKey: true });
+    const { onShiftNavigate } = setup();
+    fireEvent.click(screen.getByRole("heading", { name: "Child Title" }), { shiftKey: true });
     expect(onShiftNavigate).toHaveBeenCalledWith("child");
   });
 });

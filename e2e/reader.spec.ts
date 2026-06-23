@@ -26,7 +26,8 @@ test.describe("reader navigation", () => {
     await expect(page.locator("article.atlas-node").first()).toBeVisible({ timeout: READY });
 
     // A "N hidden" affordance marks a node that gates depth-6+ descendants.
-    const affordance = page.locator(".view-children-affordance").first();
+    // Located by its stable aria-label ("View N hidden sections") rather than class.
+    const affordance = page.getByRole("button", { name: /hidden sections/ }).first();
     await expect(affordance).toBeVisible({ timeout: READY });
 
     // The gating ancestor is the article that contains the affordance.

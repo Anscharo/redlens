@@ -3,30 +3,12 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
-import { type FlatEntry } from "../../lib/atlasHelpers";
-import { type AtlasNode } from "../../types";
+import { makeNode, makeFlatEntry } from "../../test/fixtures";
 
 afterEach(cleanup);
 
-const baseNode: AtlasNode = {
-  id: "uuid-test",
-  doc_no: "A.1.2",
-  title: "Test Node",
-  type: "Core",
-  depth: 3,
-  parentId: null,
-  content: "Body content",
-  contentHash: "",
-  order: 0,
-  addressRefs: [],
-};
-
-const baseEntry: FlatEntry = {
-  node: baseNode,
-  depth: 3,
-  color: "var(--depth-3)",
-  hasContent: true,
-};
+const baseNode = makeNode({ id: "uuid-test" });
+const baseEntry = makeFlatEntry({ node: baseNode });
 
 interface Overrides {
   isSelected?: boolean;

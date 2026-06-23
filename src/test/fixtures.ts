@@ -9,6 +9,8 @@ import type { EdgeResult } from "../lib/graph";
 import type { GlossaryEntry } from "../lib/glossary";
 import type { FlatEntry, LoadedData } from "../lib/atlasHelpers";
 
+// Not reset between tests on purpose: generated UUIDs are only ever compared to
+// themselves (a node's own id), never to a hardcoded value, so monotonic is fine.
 let uuidSeq = 0;
 // Deterministic, valid-shaped UUID so address/uuid regexes in the renderer match.
 export function fakeUuid(): string {
