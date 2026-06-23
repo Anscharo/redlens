@@ -59,6 +59,9 @@ jobs:
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
+          # Lets the preview spec query the GitHub API (open PRs + changed files)
+          # without hitting the 60/hr unauthenticated limit.
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

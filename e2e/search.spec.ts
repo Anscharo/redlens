@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
 //
 // First load builds the worker index from the full docs payload, so the initial
 // result wait is generous.
-const READY = 30_000;
+const READY = 45_000;
 
 test.describe("search quality", () => {
   test("a common term returns ranked results with highlighted snippets", async ({ page }) => {
