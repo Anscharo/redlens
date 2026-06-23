@@ -1,6 +1,7 @@
 import type { AddressInfo } from "../types";
 import type { ChainValue } from "../lib/chainstate";
 import { explorerUrl } from "../lib/explorer";
+import { shortAddr } from "../lib/format";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -54,7 +55,7 @@ export function AddressCard({
               className="badge badge-accent mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
               title={`implementation ${info.implementation}`}
             >
-              proxy → {info.implementation.slice(0, 6)}…{info.implementation.slice(-4)}
+              proxy → {shortAddr(info.implementation)}
             </span>
           )}
           {info.roles.map((role) => (

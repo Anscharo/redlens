@@ -1,6 +1,7 @@
 import { Link } from "../Link";
 import { actorHref } from "../../lib/routes";
 import { explorerUrl } from "../../lib/explorer";
+import { shortAddr } from "../../lib/format";
 import type { AddressInfo } from "../../types";
 import type { EntityRef } from "../../lib/rewardsIndex";
 
@@ -42,7 +43,7 @@ export function AddressLink({
   chain?: string;
   addrMap: Record<string, AddressInfo>;
 }) {
-  const short = `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  const short = shortAddr(addr);
   const info = addrMap[addr.toLowerCase()] ?? addrMap[addr];
   const label = info?.label ?? null;
   return (
