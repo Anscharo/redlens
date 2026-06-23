@@ -1,24 +1,46 @@
 name: E2E
 
-# Railway emits a GitHub `deployment_status` event when a per-PR environment
-# finishes deploying. Keying off `state == success` removes the "tests started
-# before the deploy was ready" race. We further scope to PR envs via the
-# deterministic hostname (redlens-redlens-pr-<N>.up.railway.app) so production
-# deploys don't trigger the suite.
-#
-# NOTE: `deployment_status` (like all non-PR triggers) only fires for the
-# workflow file on the default branch — this won't run until merged to main.
+# Two ways in:
+#  1. deployment_status — Railway emits this when a per-PR environment finishes
+#     deploying. Keying off `state == success` removes the "tests started before
+#     the deploy was ready" race; we further scope to PR envs via the
+#     deterministic hostname (redlens-redlens-pr-<N>.up.railway.app) so
+#     production deploys don't trigger the suite.
+#  2. workflow_dispatch — manual run against any PR number, deriving the same
+#     deterministic URL. Useful to smoke the workflow before it's on main (a
+#     deployment_status workflow only fires once its file is on the default
+#     branch) or to re-run E2E on demand.
 on:
-  deployment_status
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to target (https://redlens-redlens-pr-<N>.up.railway.app)"
+        required: true
+        type: string
 
 jobs:
   e2e:
+    # Manual dispatch always runs; deployment_status only for successful PR envs.
     if: >-
-      github.event.deployment_status.state == 'success' &&
-      contains(github.event.deployment_status.environment_url, 'pr-')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.environment_url, 'pr-'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Resolve target URL
+        id: target
+        env:
+          DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+          PR_INPUT: ${{ github.event.inputs.pr }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "url=https://redlens-redlens-pr-${PR_INPUT}.up.railway.app" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: pnpm/action-setup@v6
 
@@ -36,8 +58,7 @@ jobs:
       - name: Run E2E
         run: pnpm test:e2e
         env:
-          # The live PR-env URL Railway reports for this deploy.
-          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          BASE_URL: ${{ steps.target.outputs.url }}
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
