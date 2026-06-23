@@ -189,7 +189,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
 // ---------------------------------------------------------------------------
 // Fetch implementation ABIs for proxy contracts
 //
-// fetch-snapshots.mjs reads contracts as proxies using their implementation's
+// fetch-chain-state.mjs reads contracts as proxies using their implementation's
 // ABI. Those impl addresses are never in the Atlas itself, so they won't have
 // been fetched above. Do a second pass here so the cache is complete before
 // the snapshot step runs.
