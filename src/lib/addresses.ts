@@ -1,17 +1,7 @@
 import type { AddressInfo } from "../types";
 import { fetchJson } from "./verify";
 import { liveAtlasBase, handledStale } from "./atlasBase";
-
-const EXPLORER: Record<string, string> = {
-  ethereum: "https://etherscan.io/address/",
-  base: "https://basescan.org/address/",
-  arbitrum: "https://arbiscan.io/address/",
-  optimism: "https://optimistic.etherscan.io/address/",
-  polygon: "https://polygonscan.com/address/",
-  avalanche: "https://snowtrace.io/address/",
-  gnosis: "https://gnosisscan.io/address/",
-  solana: "https://solscan.io/account/",
-};
+import { EXPLORER } from "./explorer";
 
 type AtlasAddr = {
   chain: string;

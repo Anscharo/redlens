@@ -1,5 +1,6 @@
 import type { AddressInfo } from "../types";
 import type { ChainValue } from "../lib/chainstate";
+import { explorerUrl } from "../lib/explorer";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -79,7 +80,7 @@ export function AddressCard({
                   <span className="chain-key mono text-[10px] shrink-0">{key}</span>
                   {isAddr ? (
                     <a
-                      href={`https://etherscan.io/address/${val}`}
+                      href={explorerUrl(display)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="link-accent mono text-[10px] break-all"
