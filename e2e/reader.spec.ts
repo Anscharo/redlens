@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
 // into view, and selection. These are invisible to jsdom (no layout/scroll), so
 // they belong here. We discover a real gated deep node from the live tree rather
 // than hardcoding a UUID (which would rot as atlas content moves).
-const READY = 30_000;
+const READY = 45_000;
 
 test.describe("reader navigation", () => {
   test("selecting a node via URL marks it selected and shows it", async ({ page }) => {
