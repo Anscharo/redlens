@@ -1,0 +1,83 @@
+// @vitest-environment jsdom
+// PreviewHome lists "my recent previews" as the INTERSECTION of this browser's
+// localStorage opens and what's still live in the DB (AND-semantics), and parses
+// pasted input into a preview id to gate the Preview button. fetch + localStorage
+// are driven directly; parsePreviewInput runs for real.
+
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+import { PreviewHome } from "./PreviewHome";
+
+function dbRow(over: Record<string, unknown>) {
+  return {
+    sha: "aaa", repo: "sky-ecosystem/next-gen-atlas", ref: "x", kind: "pr",
+    pr_number: 1, pr_title: null, pr_author: null, pr_state: "open",
+    doc_count: 0, last_access: "", ...over,
+  };
+}
+
+function mockList(rows: unknown[]) {
+  vi.spyOn(globalThis, "fetch").mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve(rows),
+  } as Response);
+}
+
+beforeEach(() => {
+  localStorage.clear();
+  mockList([]);
+});
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
+
+describe("PreviewHome recent list (AND-semantics)", () => {
+  it("shows only previews present in BOTH localStorage and the DB", async () => {
+    localStorage.setItem(
+      "preview-history",
+      JSON.stringify([
+        { id: "pull-1", sha: "aaa", at: 100 },
+        { id: "pull-2", sha: "bbb", at: 200 }, // not live in DB → hidden
+      ]),
+    );
+    mockList([dbRow({ sha: "aaa", pr_title: "First PR", pr_author: "alice", doc_count: 5 })]);
+
+    render(<PreviewHome />);
+
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    expect(screen.getByText("pull-1")).toBeInTheDocument();
+    expect(screen.queryByText("pull-2")).toBeNull();
+    expect(screen.getByText("First PR")).toBeInTheDocument();
+    expect(screen.getByText("by alice · 5 docs")).toBeInTheDocument();
+  });
+
+  it("renders no recent-previews section when there's no intersection", async () => {
+    localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-9", sha: "zzz", at: 1 }]));
+    mockList([dbRow({ sha: "aaa" })]);
+    render(<PreviewHome />);
+    // Let the fetch resolve, then assert the section never appears.
+    await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
+    expect(screen.queryByText(/my recent previews/)).toBeNull();
+  });
+});
+
+describe("PreviewHome input parsing", () => {
+  it("disables the Preview button until the input parses to an id", () => {
+    render(<PreviewHome />);
+    const button = screen.getByRole("button", { name: "Preview" });
+    expect(button).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText(/Paste/), { target: { value: "pull-256" } });
+    expect(button).not.toBeDisabled();
+  });
+
+  it("shows a parse-error hint for unparseable input", () => {
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText(/Paste/), { target: { value: "not a valid ref" } });
+    expect(screen.getByText(/Can't parse that/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview" })).toBeDisabled();
+  });
+});
