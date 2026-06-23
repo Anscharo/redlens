@@ -101,18 +101,9 @@ function resolveLabel(atlas, onChain) {
   return onChain.chainlogId ?? atlas.entityLabel ?? onChain.etherscanName ?? null;
 }
 
+// Populated by the Phase 2.6 annotation pass below (which overwrites every key
+// before Phase 1 entity extraction reads it). No pre-population needed here.
 const addressesRaw = {};
-for (const [addr, atlas] of Object.entries(addressesAtlas)) {
-  const onChain = addressesOnChain[addr] ?? {};
-  const label = resolveLabel(atlas, onChain);
-  const aliasCandidates = [onChain.chainlogId, atlas.entityLabel, onChain.etherscanName].filter(
-    (l) => l && l !== label,
-  );
-  const aliases = [
-    ...new Set([...(atlas.aliases ?? []), ...aliasCandidates]),
-  ].sort();
-  addressesRaw[addr] = { ...atlas, ...onChain, label, aliases };
-}
 console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addressesOnChain).length} on-chain`);
 
 console.log("Loading chain-state.json…");
