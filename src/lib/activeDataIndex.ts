@@ -110,8 +110,8 @@ export function buildChainMap(
   participants: GraphEntity[],
   edges: RelationEdge[],
   docs?: Record<string, AtlasNode>,
+  entityById: Map<string, GraphEntity> = new Map(participants.map((e) => [e.id, e])),
 ): Map<string, AgentChain> {
-  const entityById = new Map(participants.map((e) => [e.id, e]));
   const primes = participants.filter((e) => e.et === "agent" && e.st === "prime");
 
   const execEdges = edges.filter((e) => EXEC_EDGES.has(e.e));
@@ -169,7 +169,7 @@ export function buildActiveDataRows(
   const entities = graph.participants;
   const { edges } = graph;
   const entityById = new Map(entities.map((e) => [e.id, e]));
-  const chainMap = buildChainMap(entities, edges, docs);
+  const chainMap = buildChainMap(entities, edges, docs, entityById);
   const agents = agentsFromGraph(entities, docs);
 
   // doc_no → doc, used to resolve evidence doc_nos back to navigable UUIDs.

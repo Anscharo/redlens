@@ -4,7 +4,7 @@ import { useUrlState, urlString } from "../../hooks/useUrlState";
 import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
-import { loadHistory } from "../../lib/history";
+import { loadHistoryBatch } from "../../lib/history";
 import { useLoaded } from "../../hooks/useAtlasData";
 import {
   buildActiveDataRows,
@@ -82,13 +82,12 @@ export function ActiveDataReport() {
   useEffect(() => {
     if (!rows.length) return;
     let cancelled = false;
-    Promise.all(
-      rows.map((r) => loadHistory(r.activeDataId).then((h) => [r.activeDataId, h] as const)),
-    ).then((pairs) => {
+    loadHistoryBatch(rows.map((r) => r.activeDataId)).then((byDoc) => {
       if (cancelled) return;
       const m = new Map<string, string>();
-      for (const [id, entries] of pairs) {
-        if (entries?.length) m.set(id, entries[entries.length - 1].date);
+      for (const r of rows) {
+        const entries = byDoc.get(r.activeDataId);
+        if (entries?.length) m.set(r.activeDataId, entries[entries.length - 1].date);
       }
       setLastEditDates(m);
     });

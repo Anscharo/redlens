@@ -13,6 +13,7 @@
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
+- Sped up the Active Data report load by fetching edit history in one request instead of one per row
 
 ## 2026-06-19
 - Added an expand-children toggle to the reader
