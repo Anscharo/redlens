@@ -1,5 +1,6 @@
 import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
 import { agentsFromGraph, type AgentRef } from "./activeDataIndex";
+import { parseMeta } from "./meta";
 import type { GraphData } from "./graph";
 import type {
   AgentPrimitive,
@@ -68,36 +69,28 @@ function buildGraphCtx(byDocNo: Map<string, AtlasNode>, graph?: GraphData): Grap
   const instanceEntities: GraphEntity[] = [];
   const instanceMetaById = new Map<string, InstanceMeta>();
   for (const ent of graph?.instances ?? []) {
-    if (!ent.m) continue;
-    try {
-      const m = JSON.parse(ent.m) as InstanceMeta;
-      instanceEntities.push(ent);
-      instanceMetaById.set(ent.id, {
-        agent_doc_id: m.agent_doc_id ?? null,
-        primitive_category_doc_id: m.primitive_category_doc_id ?? null,
-        status: m.status ?? null,
-        params: m.params ?? {},
-      });
-    } catch {
-      /* ignore */
-    }
+    const m = parseMeta<InstanceMeta>(ent.m);
+    if (!m) continue;
+    instanceEntities.push(ent);
+    instanceMetaById.set(ent.id, {
+      agent_doc_id: m.agent_doc_id ?? null,
+      primitive_category_doc_id: m.primitive_category_doc_id ?? null,
+      status: m.status ?? null,
+      params: m.params ?? {},
+    });
   }
   const invocationEntities: GraphEntity[] = [];
   const invocationMetaById = new Map<string, InvocationMeta>();
   for (const ent of graph?.invocations ?? []) {
-    if (!ent.m) continue;
-    try {
-      const m = JSON.parse(ent.m) as InvocationMeta;
-      invocationEntities.push(ent);
-      invocationMetaById.set(ent.id, {
-        agent_doc_id: m.agent_doc_id ?? null,
-        primitive_category_doc_id: m.primitive_category_doc_id ?? null,
-        status: m.status ?? null,
-        params: m.params ?? {},
-      });
-    } catch {
-      /* ignore */
-    }
+    const m = parseMeta<InvocationMeta>(ent.m);
+    if (!m) continue;
+    invocationEntities.push(ent);
+    invocationMetaById.set(ent.id, {
+      agent_doc_id: m.agent_doc_id ?? null,
+      primitive_category_doc_id: m.primitive_category_doc_id ?? null,
+      status: m.status ?? null,
+      params: m.params ?? {},
+    });
   }
   return {
     paymentControllerByInstance,
