@@ -19,13 +19,27 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    environment: CI
+    # This environment holds ETHERSCAN_API_KEY (for the address refresh below)
+    # and the ATLAS_BOT GitHub App credentials. The App token is what lets the
+    # bump push to a branch + open a PR whose events trigger downstream
+    # workflows (CI on the PR, the @claude mention on the drift issue) — events
+    # from the default GITHUB_TOKEN never trigger other workflows.
+    environment: atlas-update-main-bypass
     steps:
+      # Mint a short-lived installation token from the ATLAS_BOT App so all
+      # git/gh operations below act as the App, not github-actions[bot].
+      - name: Generate ATLAS_BOT app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLAS_BOT_APP_ID }}
+          private-key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
-          token: ${{ secrets.ATLAS_BOT_PAT || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Check for atlas update
         id: atlas
@@ -115,7 +129,7 @@ jobs:
       - name: Open or update atlas-update PR
         if: steps.atlas.outputs.proceed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           SHORT="${{ steps.atlas.outputs.short }}"
           OLD="${{ steps.atlas.outputs.old }}"
@@ -141,15 +155,14 @@ jobs:
           fi
 
       # Surface drift signals in a GitHub issue for analysis. The @claude
-      # mention triggers .github/workflows/claude.yml — but ONLY if the issue
-      # is created with a PAT (events from the default GITHUB_TOKEN never
-      # trigger other workflows). Configure the ATLAS_BOT_PAT secret (classic
-      # PAT, repo scope) to make the analysis fully automatic; without it the
-      # issue still opens and a human comment containing "@claude" starts it.
+      # mention triggers .github/workflows/claude.yml — but ONLY because the
+      # issue is created with the ATLAS_BOT App token (events from the default
+      # GITHUB_TOKEN never trigger other workflows). The App credentials live in
+      # the atlas-update-main-bypass environment, so this is fully automatic.
       - name: Open or update atlas-drift issue
         if: steps.atlas.outputs.proceed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.ATLAS_BOT_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           WARN=/tmp/atlas-warnings.log SPEC=/tmp/spec-diff.txt SNAP=/tmp/snapshot-diff.txt
           NEW=/tmp/new-warnings.txt
