@@ -71,6 +71,19 @@ jobs:
           pnpm test:snap:update
           git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
+      # Refresh the committed, Etherscan-enriched addresses.json so on-chain
+      # addresses introduced by the bump are present — otherwise docs.json gains
+      # refs that addresses.json lacks and CI's docs↔addresses sync check drifts.
+      # Degrades gracefully: build:addresses no-ops without ETHERSCAN_API_KEY,
+      # and continue-on-error keeps a flaky Etherscan/RPC call from blocking the
+      # bump (the sync test tolerates the residual lag).
+      - name: Refresh on-chain address metadata
+        if: steps.atlas.outputs.proceed == 'true'
+        continue-on-error: true
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        run: pnpm build:addresses 2> >(tee -a /tmp/atlas-warnings.log >&2)
+
       # The syntax spec changing is the leading indicator of a new structural
       # convention — flag it even when the build is warning-free.
       - name: Detect syntax spec changes
@@ -89,7 +102,12 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B "$BRANCH"
-          git add vendor/next-gen-atlas graph-snapshots/__snapshots__ .github/atlas-census-baseline.json
+          # public/addresses.json + .cache/etherscan are refreshed by the
+          # address step above (no-op when ETHERSCAN_API_KEY is absent, so the
+          # add is harmless then). Keeping them in the bump commit prevents
+          # addresses.json from drifting out of sync with docs.json over time.
+          git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
+            .github/atlas-census-baseline.json public/addresses.json .cache/etherscan
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
