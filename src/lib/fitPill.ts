@@ -1,7 +1,7 @@
 import { prepareWithSegments, measureNaturalWidth, measureLineStats } from "@chenglou/pretext";
 
 export const PILL_MAX_PX = 10;
-export const PILL_MIN_PX = 7;
+export const PILL_MIN_PX = 8;
 
 // Mirrors .atlas-type-pill: weight 600, Source Code Pro, letter-spacing 0.06em.
 const PILL_WEIGHT = 600;
