@@ -1,0 +1,48 @@
+name: E2E
+
+# Railway emits a GitHub `deployment_status` event when a per-PR environment
+# finishes deploying. Keying off `state == success` removes the "tests started
+# before the deploy was ready" race. We further scope to PR envs via the
+# deterministic hostname (redlens-redlens-pr-<N>.up.railway.app) so production
+# deploys don't trigger the suite.
+#
+# NOTE: `deployment_status` (like all non-PR triggers) only fires for the
+# workflow file on the default branch — this won't run until merged to main.
+on:
+  deployment_status
+
+jobs:
+  e2e:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      contains(github.event.deployment_status.environment_url, 'pr-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E
+        run: pnpm test:e2e
+        env:
+          # The live PR-env URL Railway reports for this deploy.
+          BASE_URL: ${{ github.event.deployment_status.environment_url }}
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
