@@ -44,7 +44,11 @@ Edge cases:
 
 ## Storage (one migration)
 
-`migrations/008_history_slot.sql`:
+> NOTE (2026-06-24): migration slot 008 is now taken (`008_preview_trust.sql`).
+> Use **`009_history_slot.sql`**. See `docs/plans/html-era-history.md` §8 — that
+> plan folds this one in (shared content-pairing helper, one EntryRow UI pass).
+
+`migrations/009_history_slot.sql`:
 
 ```sql
 ALTER TABLE atlas_history ADD COLUMN IF NOT EXISTS slot JSONB;
