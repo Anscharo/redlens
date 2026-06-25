@@ -14,6 +14,17 @@
 const PH_INGEST = "https://us.i.posthog.com";
 const PH_ASSETS = "https://us-assets.i.posthog.com";
 const MOUNT = "/z";
+const UPSTREAM_TIMEOUT_MS = 10_000;
+
+// Allowlist of known PostHog endpoint roots (first path segment after /z). The
+// upstream host is hardcoded so this can't SSRF, but anything not below is junk
+// we shouldn't forward — reject it locally instead of round-tripping a 404.
+const ALLOWED_ROOTS = new Set([
+  "/e", "/i", "/batch", "/capture", "/engage", // capture / ingestion
+  "/decide", "/flags", "/array", // remote config / flags
+  "/s", // session recording
+  "/static", // array.js, web-vitals, exception-autocapture, recorder
+]);
 
 // Headers that can carry the originating client IP / geo — never forwarded upstream.
 const IP_HEADERS = new Set([
@@ -35,6 +46,11 @@ const DROP_HEADERS = new Set(["host", "connection", "content-length"]);
 export async function handlePosthogProxy(req: Request, pathname: string): Promise<Response> {
   // Strip the "/z" mount: "/z/static/array.js" → "/static/array.js"; "/z" → "/".
   const rest = pathname.slice(MOUNT.length) || "/";
+
+  // Only forward known PostHog endpoint roots (defense in depth; the host is fixed).
+  const root = "/" + (rest.split("/")[1] ?? "");
+  if (!ALLOWED_ROOTS.has(root)) return new Response("not found", { status: 404 });
+
   const upstreamBase = rest.startsWith("/static/") ? PH_ASSETS : PH_INGEST;
   const { search } = new URL(req.url);
   const target = `${upstreamBase}${rest}${search}`;
@@ -48,14 +64,25 @@ export async function handlePosthogProxy(req: Request, pathname: string): Promis
   // PostHog's edge routes/TLS-SNIs by Host — it must match the chosen upstream.
   headers.set("host", new URL(upstreamBase).host);
 
-  const upstream = await fetch(target, {
-    method: req.method,
-    headers,
-    body: req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
-    // Bun streams request bodies with half-duplex; required when forwarding `req.body`.
-    duplex: "half",
-    redirect: "manual",
-  } as RequestInit);
+  // Fast-fail instead of hanging the request if PostHog is unreachable/slow.
+  let upstream: Response;
+  const ac = new AbortController();
+  const tid = setTimeout(() => ac.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    upstream = await fetch(target, {
+      method: req.method,
+      headers,
+      body: req.method === "GET" || req.method === "HEAD" ? undefined : req.body,
+      // Bun streams request bodies with half-duplex; required when forwarding `req.body`.
+      duplex: "half",
+      redirect: "manual",
+      signal: ac.signal,
+    } as RequestInit);
+  } catch {
+    return new Response("analytics proxy unavailable", { status: 502 });
+  } finally {
+    clearTimeout(tid);
+  }
 
   // Bun's fetch transparently decompresses the upstream body, so the inherited
   // content-encoding/length would make the browser double-decode — strip both.

@@ -51,4 +51,11 @@ describe("handlePosthogProxy", () => {
     expect(calls[0].url).toBe("https://us-assets.i.posthog.com/static/array.js");
     expect(calls[0].headers.get("host")).toBe("us-assets.i.posthog.com");
   });
+
+  it("rejects non-allowlisted paths without calling upstream", async () => {
+    const req = new Request("http://app.example/z/wp-admin", { method: "GET" });
+    const res = await handlePosthogProxy(req, "/z/wp-admin");
+    expect(res.status).toBe(404);
+    expect(calls).toHaveLength(0);
+  });
 });
