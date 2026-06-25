@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
+import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
 // below, "my recent previews" — strictly the INTERSECTION of what this browser
@@ -55,6 +56,14 @@ export function PreviewHome() {
   const [rows, setRows] = useState<DbRow[]>([]);
   const id = useMemo(() => parsePreviewInput(input), [input]);
 
+  // PreviewHome renders outside App/Router, so usePageAnalytics never runs here —
+  // initialise analytics and tag this surface as the "preview" product ourselves.
+  useEffect(() => {
+    initAnalytics();
+    register({ product: "preview" });
+    pageview(window.location.pathname + window.location.search);
+  }, []);
+
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}api/preview/list`)
       .then((r) => (r.ok ? r.json() : []))
@@ -85,6 +94,9 @@ export function PreviewHome() {
         className="flex gap-2 w-full max-w-xl"
         onSubmit={(e) => {
           e.preventDefault();
+          // Capture what was entered — including inputs that fail to parse, which
+          // reveal what people expect the box to accept. product is set above.
+          track("preview_submit", { product: "preview", input, parsed_id: id, parsed: !!id });
           if (id) window.location.href = href(id);
         }}
       >

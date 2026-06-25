@@ -6,6 +6,7 @@ import type { AnchorHTMLAttributes } from "react";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
 import { UUID_RE } from "../lib/patterns";
 import { atlasHref } from "../lib/routes";
+import { track } from "../lib/analytics";
 
 interface Props {
   content: string;
@@ -31,6 +32,7 @@ function MarkdownLink({
         href={atlasHref(href)}
         onClick={(e) => {
           e.preventDefault();
+          track("reader_content_link", { target_id: href });
           onNavigate(href);
         }}
         {...props}

@@ -1,4 +1,5 @@
 import { useCopyState } from "../../hooks/useCopyState";
+import { track } from "../../lib/analytics";
 import { type AtlasNode } from "../../types";
 
 export function NodeMeta({ node }: { node: AtlasNode }) {
@@ -7,12 +8,14 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
 
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
+    track("reader_copy_link", { node_id: node.id });
     const url = `${window.location.origin}${import.meta.env.BASE_URL}atlas?id=${node.id}`;
     urlCopy.copy(url);
   };
 
   const handleCopyDocNo = (e: React.MouseEvent) => {
     e.stopPropagation();
+    track("reader_copy_doc_no", { node_id: node.id, doc_no: node.doc_no });
     docNoCopy.copy(node.doc_no);
   };
 
@@ -77,7 +80,10 @@ export function NodeMeta({ node }: { node: AtlasNode }) {
         rel="noopener noreferrer"
         aria-label="Open on Sky Atlas"
         className="atlas-external-link shrink-0 inline-flex items-center"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          track("reader_atlas_link_out", { node_id: node.id });
+        }}
       >
         <img
           src={`${import.meta.env.BASE_URL}sky.png`}

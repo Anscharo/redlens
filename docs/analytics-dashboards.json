@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "title": "RedLens Sky Atlas — PostHog dashboard spec",
+  "generatedFor": "PostHog dashboard agent",
+  "global": {
+    "region": "us",
+    "notes": [
+      "Cookieless: persistence=sessionStorage, person_profiles=never → PostHog has NO Person records.",
+      "Treat 'unique users' as unique SESSIONS: use math 'unique_session' ($session_id), not 'dau'.",
+      "No IP / no geo: $geoip_* and $ip are never present; do not build geo tiles.",
+      "$current_url is a relative path (e.g. /atlas?id=...). Domain is the 'host' super property.",
+      "Every event carries super properties: product, host, environment, app_commit, atlas_commit."
+    ],
+    "defaultFilters": [
+      { "property": "environment", "operator": "exact", "value": "prod", "type": "event" }
+    ],
+    "superProperties": {
+      "product": "reader | search | radar | reports | preview | chat | other",
+      "host": "window.location.hostname",
+      "environment": "dev | prod",
+      "app_commit": "frontend repo commit short sha",
+      "atlas_commit": "live atlas sha at event time"
+    }
+  },
+  "events": {
+    "$pageview": { "props": { "$current_url": "relative path", "$pathname": "path only" } },
+    "$pageleave": { "props": {} },
+    "$web_vitals": { "props": { "$web_vitals_LCP_value": "number", "$web_vitals_INP_value": "number", "$web_vitals_CLS_value": "number", "$web_vitals_FCP_value": "number" } },
+    "$exception": { "props": { "mechanism": "window.onerror | unhandledrejection | ErrorBoundary | search.worker | graph.worker", "$exception_message": "string" } },
+    "doc_view": { "props": {
+      "node_id": "uuid", "doc_no": "string", "title": "string", "doc_type": "string",
+      "depth": "number", "scope_id": "uuid|null", "scope_title": "string|null",
+      "ancestor_ids": "uuid[]", "entity_slug": "string?", "entity_type": "string?",
+      "scope_total_docs": "number|null (docs in this scope)",
+      "doc_type_total": "number (atlas-wide docs of this doc_type)",
+      "atlas_total_docs": "number (all scoped docs)"
+    } },
+    "reader_title_click": { "props": { "node_id": "uuid" } },
+    "reader_node_toggle": { "props": { "node_id": "uuid", "action": "expand | collapse" } },
+    "reader_expand_all": { "props": { "node_id": "uuid", "action": "expand | collapse" } },
+    "reader_reveal_hidden": { "props": { "node_id": "uuid", "hidden_count": "number" } },
+    "reader_sidebar_nav": { "props": { "node_id": "uuid" } },
+    "reader_sidebar_toggle": { "props": { "node_id": "uuid", "action": "expand | collapse", "all": "bool (alt-click)" } },
+    "reader_copy_doc_no": { "props": { "node_id": "uuid", "doc_no": "string" } },
+    "reader_copy_link": { "props": { "node_id": "uuid" } },
+    "reader_atlas_link_out": { "props": { "node_id": "uuid" } },
+    "reader_content_link": { "props": { "target_id": "uuid" } },
+    "reader_annotation_nav": { "props": { "kind": "linked_doc | cited_by | relation | relation_source | glossary | glossary_source", "node_id": "uuid?", "doc_no": "string?" } },
+    "reader_breadcrumb_nav": { "props": { "node_id": "uuid" } },
+    "reader_address_explorer_out": { "props": { "address": "string", "chain": "string" } },
+    "atlas_view_tab": { "props": { "node_id": "uuid", "view": "annotations | glossary | history" } },
+    "atlas_split_open": { "props": { "node_id": "uuid", "split_id": "uuid" } },
+    "reader_split_close": { "props": { "node_id": "uuid", "split_id": "uuid" } },
+    "atlas_search": { "props": { "query": "string", "mode": "broad | phrase | strict", "result_count": "number" } },
+    "search_result_click": { "props": {
+      "result_kind": "doc | entity", "query": "string", "rank": "number (1-based)",
+      "in_top_5": "bool", "ms_to_click": "number", "result_count": "number",
+      "node_id": "uuid? (doc)", "doc_type": "string? (doc)",
+      "entity_id": "uuid? (entity)", "entity_slug": "string? (entity)", "entity_type": "string? (entity)"
+    } },
+    "report_open": { "props": { "report_id": "string" } },
+    "report_filter": { "props": { "report": "of-responsibilities | active-data | processes", "filter_kind": "string?", "filter_type": "string?", "slug": "string?", "value": "string?|null", "active": "bool" } },
+    "radar_history_toggle": { "props": { "agent_slug": "string", "agent_name": "string", "commit": "string", "pr": "number|null", "date": "string", "open": "bool" } },
+    "chat_open": { "props": { "product": "chat" } },
+    "chat_message_sent": { "props": { "product": "chat", "node_id": "uuid?", "path": "string" } },
+    "preview_submit": { "props": { "input": "string", "parsed_id": "string|null", "parsed": "bool" } },
+    "preview_view_toggle": { "props": { "view": "all | changed_only", "changed_count": "number" } }
+  },
+  "mathVocabulary": {
+    "total": "event count",
+    "unique_session": "unique $session_id (use instead of dau/unique users)",
+    "sum|avg|median|p75|p90|p95": "aggregate over math_property",
+    "funnel": "ordered steps; set funnelAggregateBy=$session_id",
+    "sql": "HogQL query string in tile.query"
+  },
+  "dashboards": [
+    {
+      "name": "Product Overview",
+      "description": "Top-level traffic, health, and release impact.",
+      "tiles": [
+        { "name": "Pageviews over time", "type": "trends", "viz": "line", "series": [{ "event": "$pageview", "math": "total" }], "interval": "day" },
+        { "name": "Sessions over time", "type": "trends", "viz": "line", "series": [{ "event": "$pageview", "math": "unique_session" }], "interval": "day" },
+        { "name": "Traffic by product", "type": "trends", "viz": "area", "series": [{ "event": "$pageview", "math": "total" }], "breakdown": { "property": "product", "type": "event" } },
+        { "name": "Sessions by host", "type": "trends", "viz": "table", "series": [{ "event": "$pageview", "math": "unique_session" }], "breakdown": { "property": "host", "type": "event" } },
+        { "name": "Web Vitals p75", "type": "trends", "viz": "line", "series": [
+          { "event": "$web_vitals", "math": "p75", "math_property": "$web_vitals_LCP_value", "label": "LCP p75" },
+          { "event": "$web_vitals", "math": "p75", "math_property": "$web_vitals_INP_value", "label": "INP p75" },
+          { "event": "$web_vitals", "math": "p75", "math_property": "$web_vitals_CLS_value", "label": "CLS p75" }
+        ] },
+        { "name": "Errors by mechanism", "type": "trends", "viz": "line", "series": [{ "event": "$exception", "math": "total" }], "breakdown": { "property": "mechanism", "type": "event" } }
+      ]
+    },
+    {
+      "name": "Atlas Content Insights (normalized)",
+      "description": "What's popular, corrected for the fact that scopes differ drastically in size.",
+      "tiles": [
+        { "name": "Top scopes — raw views", "type": "trends", "viz": "bar", "series": [{ "event": "doc_view", "math": "total" }], "breakdown": { "property": "scope_title", "type": "event" } },
+        { "name": "Scope popularity — views per doc (normalized)", "type": "sql", "viz": "bar",
+          "question": "Average views per doc in each scope; corrects for scope size.",
+          "query": "SELECT properties.scope_title AS scope, count() AS views, any(toFloat(properties.scope_total_docs)) AS docs, round(count() / any(toFloat(properties.scope_total_docs)), 2) AS views_per_doc FROM events WHERE event = 'doc_view' AND properties.environment = 'prod' AND properties.scope_id IS NOT NULL AND {filters} GROUP BY scope HAVING docs > 0 ORDER BY views_per_doc DESC" },
+        { "name": "Over/under-represented scopes (view-share vs doc-share)", "type": "sql", "viz": "table",
+          "question": "ratio > 1 ⇒ scope draws more attention than its share of docs.",
+          "query": "WITH totals AS (SELECT count() AS total_views, any(toFloat(properties.atlas_total_docs)) AS total_docs FROM events WHERE event='doc_view' AND properties.environment='prod' AND properties.scope_id IS NOT NULL) SELECT properties.scope_title AS scope, count() AS views, any(toFloat(properties.scope_total_docs)) AS docs, round((count() / (SELECT total_views FROM totals)) / (any(toFloat(properties.scope_total_docs)) / (SELECT total_docs FROM totals)), 2) AS disproportion FROM events WHERE event='doc_view' AND properties.environment='prod' AND properties.scope_id IS NOT NULL GROUP BY scope ORDER BY disproportion DESC" },
+        { "name": "Top agents/entities", "type": "trends", "viz": "bar", "series": [{ "event": "doc_view", "math": "total" }], "breakdown": { "property": "entity_slug", "type": "event" }, "filters": [{ "property": "entity_slug", "operator": "is_set", "type": "event" }] },
+        { "name": "Top documents", "type": "trends", "viz": "table", "series": [{ "event": "doc_view", "math": "total" }], "breakdown": { "property": "title", "type": "event" }, "breakdown_limit": 25 },
+        { "name": "Doc-type appetite (normalized)", "type": "sql", "viz": "bar",
+          "question": "Views per existing doc, by document type.",
+          "query": "SELECT properties.doc_type AS doc_type, count() AS views, any(toFloat(properties.doc_type_total)) AS docs, round(count() / any(toFloat(properties.doc_type_total)), 2) AS views_per_doc FROM events WHERE event='doc_view' AND properties.environment='prod' GROUP BY doc_type ORDER BY views_per_doc DESC" },
+        { "name": "View depth distribution", "type": "trends", "viz": "bar", "series": [{ "event": "doc_view", "math": "total" }], "breakdown": { "property": "depth", "type": "event" } },
+        { "name": "Co-viewed scopes per session", "type": "sql", "viz": "table",
+          "question": "Which scopes get explored together within one session.",
+          "query": "SELECT scope_a, scope_b, count() AS sessions FROM (SELECT $session_id, arrayJoin(arrayDistinct(groupArray(properties.scope_title))) AS scope_a, arrayJoin(arrayDistinct(groupArray(properties.scope_title))) AS scope_b FROM events WHERE event='doc_view' AND properties.environment='prod' GROUP BY $session_id) WHERE scope_a < scope_b GROUP BY scope_a, scope_b ORDER BY sessions DESC LIMIT 25" }
+      ]
+    },
+    {
+      "name": "Reader Engagement",
+      "description": "How people interact with the reader.",
+      "tiles": [
+        { "name": "Interaction breakdown", "type": "trends", "viz": "bar", "series": [
+          { "event": "reader_title_click", "math": "total" }, { "event": "reader_node_toggle", "math": "total" },
+          { "event": "reader_expand_all", "math": "total" }, { "event": "reader_reveal_hidden", "math": "total" },
+          { "event": "reader_sidebar_nav", "math": "total" }, { "event": "reader_sidebar_toggle", "math": "total" }
+        ] },
+        { "name": "Navigation source mix", "type": "trends", "viz": "bar", "series": [
+          { "event": "reader_sidebar_nav", "math": "total", "label": "sidebar" },
+          { "event": "reader_title_click", "math": "total", "label": "reader row" },
+          { "event": "reader_content_link", "math": "total", "label": "in-doc link" },
+          { "event": "reader_breadcrumb_nav", "math": "total", "label": "breadcrumb" },
+          { "event": "reader_annotation_nav", "math": "total", "label": "annotation panel" }
+        ] },
+        { "name": "Annotation panel usage by kind", "type": "trends", "viz": "bar", "series": [{ "event": "reader_annotation_nav", "math": "total" }], "breakdown": { "property": "kind", "type": "event" } },
+        { "name": "View-mode tab usage", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_view_tab", "math": "total" }], "breakdown": { "property": "view", "type": "event" } },
+        { "name": "Take-away actions", "type": "trends", "viz": "bar", "series": [
+          { "event": "reader_copy_link", "math": "total" }, { "event": "reader_copy_doc_no", "math": "total" },
+          { "event": "reader_atlas_link_out", "math": "total" }, { "event": "reader_address_explorer_out", "math": "total" }
+        ] },
+        { "name": "Address explorer out by chain", "type": "trends", "viz": "table", "series": [{ "event": "reader_address_explorer_out", "math": "total" }], "breakdown": { "property": "chain", "type": "event" } },
+        { "name": "Compare pane open vs close", "type": "trends", "viz": "line", "series": [{ "event": "atlas_split_open", "math": "total" }, { "event": "reader_split_close", "math": "total" }] }
+      ]
+    },
+    {
+      "name": "Search Quality",
+      "description": "Search usage, result relevance, and click behavior.",
+      "tiles": [
+        { "name": "Search volume", "type": "trends", "viz": "line", "series": [{ "event": "atlas_search", "math": "total" }, { "event": "atlas_search", "math": "unique_session" }] },
+        { "name": "Zero-result searches", "type": "trends", "viz": "line", "series": [{ "event": "atlas_search", "math": "total" }], "filters": [{ "property": "result_count", "operator": "exact", "value": 0, "type": "event" }] },
+        { "name": "Top queries", "type": "sql", "viz": "table", "query": "SELECT properties.query AS query, count() AS searches FROM events WHERE event='atlas_search' AND properties.environment='prod' GROUP BY query ORDER BY searches DESC LIMIT 50" },
+        { "name": "Top failing queries (0 results)", "type": "sql", "viz": "table", "query": "SELECT properties.query AS query, count() AS searches FROM events WHERE event='atlas_search' AND properties.environment='prod' AND toInt(properties.result_count) = 0 GROUP BY query ORDER BY searches DESC LIMIT 50" },
+        { "name": "Search → click CTR", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "atlas_search" }, { "event": "search_result_click" }] },
+        { "name": "Click rank distribution", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "rank", "type": "event" } },
+        { "name": "% clicks in top 5", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "in_top_5", "type": "event" } },
+        { "name": "Time-to-click (ms)", "type": "trends", "viz": "line", "series": [{ "event": "search_result_click", "math": "median", "math_property": "ms_to_click", "label": "p50" }, { "event": "search_result_click", "math": "p90", "math_property": "ms_to_click", "label": "p90" }] },
+        { "name": "Doc vs entity clicks", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "result_kind", "type": "event" } },
+        { "name": "Search mode usage", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_search", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } }
+      ]
+    },
+    {
+      "name": "Reports Usage",
+      "description": "Report popularity and filter engagement.",
+      "tiles": [
+        { "name": "Report popularity", "type": "trends", "viz": "bar", "series": [{ "event": "report_open", "math": "total" }], "breakdown": { "property": "report_id", "type": "event" } },
+        { "name": "Filters applied (by type)", "type": "trends", "viz": "bar", "series": [{ "event": "report_filter", "math": "total" }], "filters": [{ "property": "active", "operator": "exact", "value": true, "type": "event" }], "breakdown": { "property": "filter_type", "type": "event" } },
+        { "name": "Most-used filter values", "type": "sql", "viz": "table", "query": "SELECT properties.report AS report, coalesce(properties.value, properties.slug) AS value, count() AS uses FROM events WHERE event='report_filter' AND properties.environment='prod' AND properties.active = true GROUP BY report, value ORDER BY uses DESC LIMIT 50" },
+        { "name": "Open → filter funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "report_open" }, { "event": "report_filter" }] }
+      ]
+    },
+    {
+      "name": "Radar Usage",
+      "description": "Actor pages and change-history engagement.",
+      "tiles": [
+        { "name": "Radar pageviews", "type": "trends", "viz": "line", "series": [{ "event": "$pageview", "math": "total" }], "filters": [{ "property": "product", "operator": "exact", "value": "radar", "type": "event" }] },
+        { "name": "History opens by agent", "type": "trends", "viz": "bar", "series": [{ "event": "radar_history_toggle", "math": "total" }], "filters": [{ "property": "open", "operator": "exact", "value": true, "type": "event" }], "breakdown": { "property": "agent_slug", "type": "event" } },
+        { "name": "Most-explored history commits", "type": "sql", "viz": "table", "query": "SELECT properties.agent_slug AS agent, properties.pr AS pr, properties.commit AS commit, count() AS opens FROM events WHERE event='radar_history_toggle' AND properties.environment='prod' AND properties.open = true GROUP BY agent, pr, commit ORDER BY opens DESC LIMIT 50" }
+      ]
+    },
+    {
+      "name": "Preview / Review Funnel",
+      "description": "Fork-review usage, including what people type into the preview box.",
+      "tiles": [
+        { "name": "Preview submissions (parsed vs not)", "type": "trends", "viz": "bar", "series": [{ "event": "preview_submit", "math": "total" }], "breakdown": { "property": "parsed", "type": "event" } },
+        { "name": "Unparsed inputs (parser backlog)", "type": "sql", "viz": "table", "query": "SELECT properties.input AS input, count() AS attempts FROM events WHERE event='preview_submit' AND properties.environment='prod' AND properties.parsed = false GROUP BY input ORDER BY attempts DESC LIMIT 50" },
+        { "name": "Preview funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [
+          { "event": "preview_submit", "filters": [{ "property": "parsed", "operator": "exact", "value": true, "type": "event" }] },
+          { "event": "$pageview", "filters": [{ "property": "product", "operator": "exact", "value": "preview", "type": "event" }] },
+          { "event": "doc_view", "filters": [{ "property": "product", "operator": "exact", "value": "preview", "type": "event" }] }
+        ] },
+        { "name": "Changed-only adoption", "type": "trends", "viz": "bar", "series": [{ "event": "preview_view_toggle", "math": "total" }], "breakdown": { "property": "view", "type": "event" } },
+        { "name": "Preview change size (changed_count)", "type": "trends", "viz": "line", "series": [{ "event": "preview_view_toggle", "math": "median", "math_property": "changed_count" }] }
+      ]
+    },
+    {
+      "name": "Chat Usage",
+      "description": "Atlas agent engagement.",
+      "tiles": [
+        { "name": "Opens & messages", "type": "trends", "viz": "line", "series": [{ "event": "chat_open", "math": "total" }, { "event": "chat_message_sent", "math": "total" }] },
+        { "name": "Open → message funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "chat_open" }, { "event": "chat_message_sent" }] },
+        { "name": "Where chat is used", "type": "sql", "viz": "table", "query": "SELECT properties.path AS path, count() AS messages FROM events WHERE event='chat_message_sent' AND properties.environment='prod' GROUP BY path ORDER BY messages DESC LIMIT 50" }
+      ]
+    },
+    {
+      "name": "Reliability & Performance",
+      "description": "Errors and Core Web Vitals.",
+      "tiles": [
+        { "name": "Exceptions by mechanism", "type": "trends", "viz": "line", "series": [{ "event": "$exception", "math": "total" }], "breakdown": { "property": "mechanism", "type": "event" } },
+        { "name": "Top exception messages", "type": "sql", "viz": "table", "query": "SELECT properties.$exception_message AS message, count() AS count FROM events WHERE event='$exception' AND properties.environment='prod' GROUP BY message ORDER BY count DESC LIMIT 50" },
+        { "name": "Web Vitals p75 by product", "type": "trends", "viz": "bar", "series": [{ "event": "$web_vitals", "math": "p75", "math_property": "$web_vitals_LCP_value" }], "breakdown": { "property": "product", "type": "event" } }
+      ]
+    }
+  ]
+}

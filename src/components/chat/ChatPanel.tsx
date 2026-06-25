@@ -6,6 +6,7 @@ import { useChatStream } from "./useChatStream";
 import { useUsage } from "./useUsage";
 import { usePrefs } from "./usePrefs";
 import { useAuth } from "./auth";
+import { track } from "../../lib/analytics";
 import type { PageContextView } from "./pageContext";
 import type { Placement } from "./ChatWidget";
 
@@ -58,6 +59,8 @@ export function ChatPanel({
   const doSend = async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    // Message content is never sent — only the event + page context.
+    track("chat_message_sent", { product: "chat", node_id: context.nodeId, path: context.path });
     setDraft("");
     localStorage.removeItem(DRAFT_KEY);
     const { rateLimited: rl } = await send(trimmed, {

@@ -5,6 +5,7 @@ import type {
   GraphWorkerOutMessage,
 } from "../types";
 import { fetchJson } from "./verify";
+import { captureException } from "./analytics";
 import { liveAtlasBase, handledStale, handledStaleMessage } from "./atlasBase";
 
 export interface GraphData {
@@ -112,7 +113,10 @@ function getWorker(): Worker {
 
     if (msg.type === "error") {
       // Stale pinned sha (404 on the sha-keyed relations.json) → force-forward.
-      if (!handledStaleMessage(msg.message)) console.error("[graph]", msg.message);
+      if (!handledStaleMessage(msg.message)) {
+        console.error("[graph]", msg.message);
+        captureException(new Error(msg.message), { mechanism: "graph.worker" });
+      }
       return;
     }
 
