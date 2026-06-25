@@ -16,6 +16,8 @@ export const HISTORY_COLS = [
   "doc_id", "commit_sha", "committed_at", "commit_seq", "pr_number", "pr_title", "pr_url",
   "pr_author", "summary", "description", "moved_from", "moved_to", "change_type", "diff",
   "change_kind", "review_count", "approval_count", "comment_count",
+  // HTML-era additive columns (migration 009 / plan §7); null for the markdown era.
+  "era", "seam", "extracted_from", "merged_into", "move_kind",
 ] as const;
 
 /** A single history entry as emitted by build-history.mjs (also the on-disk
@@ -37,6 +39,12 @@ export interface HistoryEvent {
   reviewCount?: number;
   approvalCount?: number;
   commentCount?: number;
+  // HTML-era additive fields (plan §7); absent for markdown-era events.
+  era?: string;
+  seam?: string;
+  extractedFrom?: string;
+  mergedInto?: string;
+  moveKind?: string;
 }
 
 /** One row to upsert into atlas_history. */
@@ -59,6 +67,11 @@ export interface HistoryInsert {
   review_count: number | null;
   approval_count: number | null;
   comment_count: number | null;
+  era: string | null;
+  seam: string | null;
+  extracted_from: string | null;
+  merged_into: string | null;
+  move_kind: string | null;
 }
 
 /** Topological commit order (oldest = 1) of the atlas submodule, keyed by the
@@ -106,7 +119,29 @@ export function eventToRow(
     review_count: e.reviewCount ?? null,
     approval_count: e.approvalCount ?? null,
     comment_count: e.commentCount ?? null,
+    era: e.era ?? null,
+    seam: e.seam ?? null,
+    extracted_from: e.extractedFrom ?? null,
+    merged_into: e.mergedInto ?? null,
+    move_kind: e.moveKind ?? null,
   };
+}
+
+/** Map the frozen HTML-era artifact (public/history-html-era.json) to upsertable
+ *  rows (plan §5/§7.1). Each event already carries the HistoryEvent shape + a
+ *  `docId`; commit_seq is reconciled by SHA via `seqByCommit` (gitCommitSeq), so
+ *  the baked artifact seq is never trusted. Null events (missing natural key) are
+ *  dropped. The rows go straight into `upsertHistory`. */
+export function htmlEraRows(
+  artifact: { events: Array<HistoryEvent & { docId: string }> },
+  seqByCommit: Map<string, number>,
+): HistoryInsert[] {
+  const rows: HistoryInsert[] = [];
+  for (const e of artifact.events) {
+    const row = eventToRow(e.docId, e, seqByCommit);
+    if (row) rows.push(row);
+  }
+  return rows;
 }
 
 const SET_CLAUSE = HISTORY_COLS.filter((c) => c !== "doc_id" && c !== "commit_sha" && c !== "change_type")

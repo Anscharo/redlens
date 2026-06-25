@@ -38,9 +38,9 @@ between them.
 ## 1. Source — Discourse tag feed (enumeration BUILT)
 
 The enumeration is implemented and the work-list is checked in:
-- **Script:** `scripts/aux/enumerate-atlas-proposals.mjs` (offline; not in
-  `pnpm build`). Run: `node scripts/aux/enumerate-atlas-proposals.mjs`.
-- **Manifest:** `docs/plans/atlas-edit-proposals.json` — one entry per proposal
+- **Script:** `scripts/aux/atlas-history/enumerate-atlas-proposals.mjs` (offline; not in
+  `pnpm build`). Run: `node scripts/aux/atlas-history/enumerate-atlas-proposals.mjs`.
+- **Manifest:** `scripts/aux/atlas-history/atlas-edit-proposals.json` — one entry per proposal
   with `{id, date, title, kind, is_cycle_proposal, window, posts_count, tags,
   url, raw_url, repo_file?, ratified?}`, plus a `repo_aep_files[]` block.
 

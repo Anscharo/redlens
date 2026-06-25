@@ -68,6 +68,8 @@ playwright/.cache/
 .cache/atlas-rag/meta.json
 .cache/atlas-rag/vectors.bin
 .cache/processes-audit.json
+.cache/audit-html-cases.json
+.cache/audit-html-report.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
 .claude/scheduled_tasks.lock

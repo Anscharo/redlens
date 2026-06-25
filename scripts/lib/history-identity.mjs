@@ -114,8 +114,26 @@ export function matchNodes(older, newer, opts = {}) {
         take(oG[0], nG[0], 2); // unique key, modified content
       } else if (oG.length === nG.length) {
         for (let i = 0; i < oG.length; i++) take(oG[i], nG[i], 2.5); // stable bucket → order
+      } else {
+        // tier 2.7: unequal bucket (a sibling was inserted/removed — the
+        // near-identical Agent Scope DB instance docs). Order-preserving
+        // alignment: pair confident in-order matches, detect insert/delete via a
+        // 1-step lookahead, and FLAG (never guess) a genuinely-uncertain slot.
+        const sh = (x) => shingleSet(x, cache);
+        let i = 0, j = 0;
+        while (i < oG.length && j < nG.length) {
+          const o = oG[i], n = nG[j];
+          if (isShort(o) && isShort(n)) { take(o, n, 2.7); i++; j++; continue; } // tiny rows: order is the only signal
+          const s = jaccard(sh(o), sh(n));
+          if (s >= fuzzyHi) { take(o, n, 2.7); i++; j++; continue; }           // clearly the same doc, edited
+          const sIns = j + 1 < nG.length ? jaccard(sh(o), sh(nG[j + 1])) : 0;  // o matches a later newer → n was inserted
+          const sDel = i + 1 < oG.length ? jaccard(sh(oG[i + 1]), sh(n)) : 0;  // n matches a later older → o was deleted
+          if (sIns >= fuzzyHi && sIns >= sDel) { j++; }                         // n = birth, leave unmatched
+          else if (sDel >= fuzzyHi) { i++; }                                    // o = death, leave unmatched
+          else if (s >= fuzzyLo) { take(o, n, 2.7); i++; j++; }                 // in-place edit, best in-order option
+          else { ambiguous.push({ older: o, candidates: [n], reason: "bucket-edit", score: +s.toFixed(3) }); oUsed.add(o); i++; j++; } // genuinely uncertain → flag
+        }
       }
-      // unequal-size bucket: leave for fuzzy (a genuine insert/delete inside it)
     }
   }
 

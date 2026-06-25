@@ -6,7 +6,7 @@
 // week's Atlas edits; the pre-truncation ones (< 2025-05-28) are the only public
 // record of the HTML history that was garbage-collected from GitHub.
 //
-// Not part of `pnpm build`. Run on demand:  node scripts/aux/enumerate-atlas-proposals.mjs
+// Not part of `pnpm build`. Run on demand:  node scripts/aux/atlas-history/enumerate-atlas-proposals.mjs
 // Hits the live Discourse JSON API (forum.skyeco.com); writes a checked-in JSON manifest.
 
 import fs from "node:fs";
@@ -27,8 +27,8 @@ const TRUNCATION_DATE = "2025-05-28"; // sky-ecosystem/next-gen-atlas "first com
 const FORUM_FLOOR = "2024-09-13"; // earliest weekly proposal observed
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const OUT = path.resolve(__dirname, "../../docs/plans/atlas-edit-proposals.json");
-const AEP_DIR = path.resolve(__dirname, "../../vendor/next-gen-atlas/Atlas Edit Proposals");
+const OUT = path.resolve(__dirname, "atlas-edit-proposals.json"); // co-located with this script
+const AEP_DIR = path.resolve(__dirname, "../../../vendor/next-gen-atlas/Atlas Edit Proposals");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

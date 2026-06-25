@@ -13,6 +13,7 @@
     "build:graph": "node scripts/required/build-graph.mjs",
     "build:history": "bun scripts/required/build-history.mjs",
     "freeze:html-history": "bun scripts/aux/freeze-html-history.mjs",
+    "audit:html-history": "bun scripts/aux/audit-html-history.mjs",
     "atlas:worker": "bun scripts/required/atlas-worker.mjs",
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "build:bundle": "bun scripts/required/build-bundle.ts",

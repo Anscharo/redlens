@@ -620,6 +620,17 @@ migration marker with its content diff suppressed (§5.3, §6).
    appropriate seam/era tag (§7), so `atlas_history.doc_id` stays satisfied and
    the chat/timescale consumer can reach absorbed and dead content. Log the
    counts separately (`N merged-into-successor`, `M deleted-mid-era`).
+
+   > **Implemented + TDD-covered (2026-06-25).** Migration `009_html_era.sql` adds
+   > the five additive nullable columns (`era`/`seam`/`extracted_from`/`merged_into`/
+   > `move_kind`); `history-db.ts` extends `HISTORY_COLS` + `HistoryEvent`/
+   > `HistoryInsert` + `eventToRow` (all `?? null`, so the markdown era is
+   > untouched), and adds `htmlEraRows(artifact, seqByCommit)` → `HistoryInsert[]`
+   > (commit_seq reconciled by SHA). Specced test-first in
+   > `src/server/history-db.test.ts` (13 tests, incl. a markdown-era regression
+   > guard); all green, and the full `bun test src/server` (121) stays green.
+   > **Remaining:** wire `build-history` to call `htmlEraRows` + `upsertHistory`
+   > against a live DB (the only DB-dependent piece).
 3. The migration commit (#117): with HTML-era history now present, the
    `isMdMigration` blanket re-tag (`added`→`moved`) becomes the **identity
    bridge** instead. Surviving docs already have their HTML history; at #117 we
@@ -1177,6 +1188,17 @@ New:
   Also hosts the §10.4 LLM **decision-proposer** (auto-seeds `decided_by:"llm:auto"`
   verdicts for the ambiguous queue) and **validates** `history-threading-decisions.json`
   (no contradictions, no stale/auto-invalidated keys).
+  > **Implemented (2026-06-25): the *measured-confidence* audit.** `pnpm
+  > audit:html-history` collects the real decision pool tagged by batch (seed
+  > close-calls 2,610 / seed-decisive 4,059 control / tier-2.5 297 / tier-2.7 33 /
+  > tier-3 114 / ambiguous 260), deterministically stratified-samples it
+  > (content-hash sort, no RNG), and — with `--live` + `OPENROUTER_API_KEY` (the
+  > existing `src/server/llm.ts` client → any model via `getModel()`) — asks the
+  > LLM "is this identity choice correct?" per case, reporting a **per-batch error
+  > rate + 95% Wilson interval** + sample misses to `.cache/audit-html-report.json`.
+  > Dry mode (no key) writes the exact sampled cases to `.cache/audit-html-cases.json`.
+  > This is what converts the estimated ~85–92% identity confidence into a
+  > *measured* number per batch — the gate for the zero-tolerance bar.
 - `public/history-html-era.json` — frozen artifact (identity map + per-UUID
   events + diffs + per-commit intent records: PR title/link, forum-thread URL +
   snapshot, §10.3), checked in (§7.1).
