@@ -25,6 +25,7 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
   // best-overlap md doc per html row + which md bodies are contained in some row
   const rowBest = new Map();      // row -> { mi, cov }
   const containedMd = new Set();  // md docs whose body sits inside a row (split candidates)
+  const rowContains = new Map();  // row -> Set(mi) it contains (for extracted_from)
   for (const row of htmlNodes) {
     const rSh = shArr(row.content);
     if (!rSh.length) continue;
@@ -35,7 +36,7 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
     for (const [mi, c] of tally) {
       const cov = c / Math.min(rSh.length, mdSh[mi].size);
       if (cov > best) { best = cov; bestMi = mi; }
-      if (c / mdSh[mi].size >= 0.8) containedMd.add(mi);
+      if (c / mdSh[mi].size >= 0.8) { containedMd.add(mi); let rc = rowContains.get(row); if (!rc) rowContains.set(row, (rc = new Set())); rc.add(mi); }
     }
     if (bestMi >= 0 && best >= minOverlap) rowBest.set(row, { mi: bestMi, cov: best });
   }
@@ -51,11 +52,24 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
   const mergedInto = new Map();  // row -> successor (md) uuid it was absorbed into
   for (const [row, { mi }] of rowBest) if (!uuidByRow.has(row)) mergedInto.set(row, mdNodes[mi].uuid);
 
+  // extracted_from: a split md child → the md uuid of the (kept) parent row whose
+  // content cell contained it (plan §4.2 tier 4 / §4.1).
+  const extractedFrom = new Map(); // split md uuid -> parent md uuid
+  for (const mi of containedMd) {
+    if (primaryByMd.has(mi)) continue; // kept, not a split child
+    const childUuid = mdNodes[mi].uuid;
+    for (const [row, set] of rowContains) {
+      const parentUuid = uuidByRow.get(row);
+      // guard self-reference from the one duplicated #117 uuid (7682 vs 7681, §2.2)
+      if (parentUuid && parentUuid !== childUuid && set.has(mi)) { extractedFrom.set(childUuid, parentUuid); break; }
+    }
+  }
+
   const seam = new Map(); // plan §4.1
   mdNodes.forEach((m, i) => seam.set(m.uuid, primaryByMd.has(i) ? "kept" : containedMd.has(i) ? "split" : "created"));
   const splitCount = [...containedMd].filter((mi) => !primaryByMd.has(mi)).length;
   return {
-    uuidByRow, mergedInto, seam,
+    uuidByRow, mergedInto, extractedFrom, seam,
     stats: { rows: htmlNodes.length, seeded: uuidByRow.size, merged: mergedInto.size, kept: primaryByMd.size, split: splitCount, created: mdNodes.length - new Set([...primaryByMd.keys(), ...containedMd]).size },
   };
 }

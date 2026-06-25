@@ -718,6 +718,18 @@ Reader/radar follow `extracted_from` to show continuity for `split` children and
 correctness. All of these go in **migration 009** (008 is already
 `008_preview_trust.sql` — the slot-reuse plan's "008" is stale, see §8).
 
+> **Implemented in the artifact (2026-06-25).** `seedFromMd` computes the full
+> per-doc seam map (kept 4631 / split 1736 / merged 1355 / created 1314) plus
+> `extracted_from` (1702/1736 split children resolve a parent) and `merged_into`;
+> the freeze runner bakes it into `artifact.docMeta` (uuid → `{seam, extractedFrom?,
+> merged_into?}`) and stamps `seam`/pointers onto each doc's **`added` event** as
+> additive fields. **Split children are md-only** (no HTML-era event of their own),
+> so their lineage lives in `docMeta`, queried directly — exactly the radar/chat
+> path above. **Dedup guard:** the one duplicated #117 uuid (7682 vs 7681, §2.2)
+> made a split child's `extracted_from` resolve to its own twin; `seedFromMd` now
+> drops self-references (`extracted_from === uuid`). A fuller de-dup at seed time
+> (§2.2) is still pending.
+
 Mid-era graveyard (created **and** deleted *within* the HTML era, never reaching
 #117, §4.1) is the one place `seam` doesn't apply — those rows get `era='html'`,
 a synthetic v5 UUID, and a `removed` event at their last commit, with no seam

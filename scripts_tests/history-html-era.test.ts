@@ -5,7 +5,7 @@ import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
 import { syntheticUuid, isSynthetic } from "../scripts/lib/history-identity.mjs";
 // @ts-expect-error — .mjs without types
-import { threadBackward, buildEvents } from "../scripts/lib/history-html-era.mjs";
+import { threadBackward, buildEvents, seedFromMd } from "../scripts/lib/history-html-era.mjs";
 
 type Node = any;
 const node = (id: string, o: Partial<Node> & { order: number }): Node => ({
@@ -34,6 +34,28 @@ describe("synthetic v5 uuids", () => {
   });
   it("a real v4 uuid is not flagged synthetic", () => {
     expect(isSynthetic("4f6fda1e-7450-4065-8095-e93cb10b3a2a")).toBe(false);
+  });
+});
+
+describe("seedFromMd — #117 seam classification", () => {
+  const A = "alpha beta gamma delta epsilon zeta eta theta iota kappa"; // 10 words
+  const B = "lambda mu nu xi omicron pi rho sigma tau upsilon";
+  const md = [{ uuid: "uuid-A", content: A }, { uuid: "uuid-B", content: B }];
+  // P (parent) contains both A and B; Q duplicates A's content (a merge)
+  const P = { content: `${A} ${B}` }, Q = { content: A };
+  const seed = seedFromMd(md, [P, Q]);
+
+  it("a 1:1 row → kept; its row carries the real uuid", () => {
+    expect(seed.seam.get("uuid-A")).toBe("kept");
+    expect(seed.uuidByRow.get(P)).toBe("uuid-A");
+  });
+  it("an md body carved out of a parent row → split, with extracted_from", () => {
+    expect(seed.seam.get("uuid-B")).toBe("split");
+    expect(seed.extractedFrom.get("uuid-B")).toBe("uuid-A");
+  });
+  it("a duplicate row absorbed into a successor → merged_into", () => {
+    expect(seed.uuidByRow.has(Q)).toBe(false);
+    expect(seed.mergedInto.get(Q)).toBe("uuid-A");
   });
 });
 

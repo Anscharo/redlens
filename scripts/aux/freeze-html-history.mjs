@@ -15,7 +15,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { seedFromMd, threadBackward, buildEvents } from "../lib/history-html-era.mjs";
-import { isSynthetic } from "../lib/history-identity.mjs";
+import { isSynthetic, syntheticUuid } from "../lib/history-identity.mjs";
 import { classifyDiff } from "../lib/history-classify.mjs";
 import { lineDiff } from "../../src/lib/diffCore.ts";
 
@@ -64,11 +64,18 @@ const commits = shas.map((full) => {
 });
 console.error(`loaded ${commits.length} html commits + ${md.length} md docs in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
+const lastSha = commits[commits.length - 1].sha;
 const seed = seedFromMd(md, commits[commits.length - 1].nodes);
 const thread = threadBackward(commits, { seed: seed.uuidByRow });
 const rawEvents = buildEvents(commits, { lineDiff });
 
-// map pass events → the eventToRow HistoryEvent shape (+ additive era/synthetic)
+// per-doc seam metadata (plan §4.1/§7): kept/split/merged/created + the
+// extracted_from / merged_into pointers, keyed by uuid.
+const docMeta = new Map();
+for (const [uuid, s] of seed.seam) docMeta.set(uuid, seed.extractedFrom.has(uuid) ? { seam: s, extractedFrom: seed.extractedFrom.get(uuid) } : { seam: s });
+for (const [row, successor] of seed.mergedInto) docMeta.set(syntheticUuid(row, lastSha), { seam: "merged", mergedInto: successor });
+
+// map pass events → the eventToRow HistoryEvent shape (+ additive era/synthetic/seam)
 const events = rawEvents.map((e) => {
   const meta = commitMeta.get(e.sha) || {};
   const ev = { docId: e.uuid, commitHash: e.sha, changeType: e.type, date: meta.date ?? null, pr: meta.pr ?? null, era: e.era };
@@ -77,17 +84,23 @@ const events = rawEvents.map((e) => {
   if (e.type === "moved") { ev.movedFrom = e.movedFrom; ev.movedTo = e.movedTo; ev.moveKind = e.moveKind; }
   if (e.diff) { ev.diff = e.diff; const k = classifyDiff(e.diff); if (k) ev.changeKind = k; }
   if (e.synthetic) ev.synthetic = true;
+  // seam + lineage land on the doc's birth (added) event (additive fields)
+  const dm = e.type === "added" && docMeta.get(e.uuid);
+  if (dm) { ev.seam = dm.seam; if (dm.extractedFrom) ev.extractedFrom = dm.extractedFrom; if (dm.mergedInto) ev.mergedInto = dm.mergedInto; }
   return ev;
 });
 
 const byType = {};
 for (const e of events) byType[e.changeType] = (byType[e.changeType] || 0) + 1;
+const seamCounts = {};
+for (const m of docMeta.values()) seamCounts[m.seam] = (seamCounts[m.seam] || 0) + 1;
 const distinct = new Set(events.map((e) => e.docId));
 const synthCount = [...distinct].filter(isSynthetic).length;
 
 const summary = {
   htmlCommits: commits.length,
   seed: seed.stats,
+  seam: seamCounts,
   decisions: thread.decisions.length,
   syntheticTombstones: thread.synthetics.length,
   distinctUuids: distinct.size,
@@ -105,7 +118,7 @@ if (MEASURE) {
   const artifact = {
     meta: { kind: "html-era-history", migrationCommit: MD117, lastHtmlCommit: SEED_HTML, ...summary },
     commits: commits.map((c) => ({ sha: c.sha, seq: c.seq, pr: commitMeta.get(c.sha)?.pr ?? null })),
-    seam: Object.fromEntries(seed.seam),
+    docMeta: Object.fromEntries(docMeta), // uuid → { seam, extractedFrom?, mergedInto? } (§4.1)
     events,
     decisions: thread.decisions,
   };
