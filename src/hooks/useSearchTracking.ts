@@ -3,8 +3,8 @@ import type { SearchState } from "./useSearch";
 import type { SearchMode } from "./useSearchInput";
 import { track } from "../lib/analytics";
 
-// Fires a single `atlas_search` event once the user pauses typing for 900ms (so
-// "governance" logs once, not g→go→gov→…), or immediately on unmount when they
+// Fires a single `atlas_search` event once the user pauses typing for DEBOUNCE_MS
+// (so "governance" logs once, not g→go→gov→…), or immediately on unmount when they
 // act on a result and navigate away. Deduped by query+mode. `query` is the
 // deliberate capture of search text — the input is excluded from autocapture.
 const DEBOUNCE_MS = 500;
