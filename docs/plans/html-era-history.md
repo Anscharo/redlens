@@ -153,7 +153,7 @@ Anchor commits:
   handling — the turndown recommendation stands, and the determinism bar is real
   (nested tables + 3k code spans are the hazard).
 
-**(c) Identity is positional, and the migration bridge is lossy.**
+**(c) Identity is positional; the migration bridge is many-to-many, not lossy.**
 
 - At `7b43d159` there are **8822 document rows**. Only **3571 (40%)** begin with
   a parseable doc-no (`A.0.1`, `4.6`, `NR-1`, …). The header column is literally
@@ -169,17 +169,25 @@ Anchor commits:
   contentHash, with renumber/rename detection by content (§4).
 - The atlas **roughly doubled** across the era: **4676 rows at the first commit →
   8822 at the last.** Per-commit churn is large; expect heavy add traffic.
-- **The migration is not 1:1.** `7b43d159` has 8822 HTML rows; `22cc27b5`'s
-  markdown has **7682 UUID-bearing docs**. ~1140 rows do not survive as distinct
-  UUID'd docs (merges/drops at migration). The §4 bridge ("exact doc_no match
-  first; content/title fallback") must tolerate a **lossy, ~87% many-to-one**
-  mapping, and §5.2's "dropped, log the count" path is load-bearing, not an edge
-  case.
+- **The node counts differ, but no content is lost — #117 regranulates, it
+  doesn't delete.** `7b43d159` has 8822 HTML rows; `22cc27b5`'s markdown has
+  **7682 UUID-bearing docs**. The counts differ because the migration **reshapes
+  granularity**: it *splits* some HTML rows into several finer md docs and
+  *merges* others into a shared md doc — but the prose is carried across, not
+  dropped. Measured both directions (§4.1): **~89% of HTML prose survives into
+  the md**, and genuinely-new / genuinely-deleted content at the seam is **≈0**.
+  So the §4 bridge is a **many-to-many content map**, not a lossy projection. The
+  ~1140 "extra" HTML rows are **`merged`** (content absorbed into a surviving md
+  doc — recorded with a `merged_into` pointer and kept fully queryable), and
+  ~280 md docs are **`split`** children carved out of an HTML parent (recorded
+  with `extracted_from`). §5.2 therefore **keeps every row** (synthetic UUID +
+  seam tag); nothing is silently dropped, and "deletion at #117" is the rare,
+  surfaceable exception, not the bulk story.
 
 So: §3 parses table cells (not headings), §1/§4 identity is positional, and §4's
 content-fallback matcher is the common case rather than the exception. The
-converter targets a single stable schema; the identity/bridge step carries the
-real risk.
+converter targets a single stable schema; the identity/bridge step — mapping
+many HTML rows to many md docs *without losing content* — carries the real risk.
 
 ### 2.1 Structural consistency across the era
 
@@ -327,8 +335,8 @@ The only ground-truth identity in the whole era — the real `uuid4`s — lives 
 the **newest** end (minted at #117, §2.2). So thread *from* the anchor:
 
 - **Forward** (the naive direction) would thread positional identity from commit
-  1 and only learn each doc's UUID at the very end via a lossy bridge; every
-  mis-thread compounds *toward* the anchor.
+  1 and only learn each doc's UUID at the very end via an error-prone
+  identity-match step; every mis-thread compounds *toward* the anchor.
 - **Backward** starts *on* the anchor and carries real UUIDs back in time, so
   errors decay *away* from ground truth. It also **dissolves the forward bridge**
   entirely: at #117 every surviving doc already *is* its UUID, so there is no
@@ -336,10 +344,11 @@ the **newest** end (minted at #117, §2.2). So thread *from* the anchor:
 
 The cost doesn't vanish — it concentrates in **one** step: the first backward
 hop, #117 markdown (7682 UUID'd docs) → `7b43d159` HTML (8822 rows). That is the
-*only* step that crosses the md↔html format boundary **and** is many-to-one
-(~1140 rows drop, §2c). Every *other* backward hop is HTML→HTML through the same
-converter, where §1's artifact-cancellation holds and **exact contentHash
-matches dominate**.
+*only* step that crosses the md↔html format boundary **and** is many-to-many
+(~1140 HTML rows `merge` into surviving md docs, ~280 md docs `split` out of
+HTML parents — content-conserving, §2c/§4.1; nothing dropped). Every *other*
+backward hop is HTML→HTML through the same converter, where §1's
+artifact-cancellation holds and **exact contentHash matches dominate**.
 
 ### 4.1 Pass A — backward identity threading
 
@@ -571,14 +580,18 @@ migration marker with its content diff suppressed (§5.3, §6).
    `added`. "After bridging, true `added` at #117 ≈ 0 (≤ ~40)" is the headline
    §10 integration assertion.
 4. `commit_seq`: no change — `gitCommitSeq()` already numbers HTML-era commits.
-5. PR metadata: **measured — all 80 HTML-era commit subjects carry `(#NNN)`**
+5. PR metadata: **measured — all 78 HTML-era PRs carry a `(#NNN)` + title**
    (100% coverage, not sparse as an earlier draft feared). So `fetchPr` enriches
    every HTML-era entry exactly as it does the markdown era; the "render with
    just date + commit link" fallback (EntryRow already handles it) will rarely if
    ever fire. The only real risk is `gh` API rate limits / cache misses against
    `sky-ecosystem/next-gen-atlas`, which already degrade gracefully — and because
    the artifact is frozen (§7.1), PR enrichment is fetched once at freeze time and
-   baked in, never re-fetched per build.
+   baked in, never re-fetched per build. `fetchPr` is also where the
+   **originating forum-thread URL** is extracted (it sits in the PR body) and
+   baked into the artifact — see §10.3. The body is uneven (~half link a forum
+   proposal, ~21% empty), but the forum URL and PR title degrade independently,
+   and title-only is fine for the small cleanup commits that lack a body.
 
 ## 6. Why NOT byte-match the migration boundary
 
@@ -753,12 +766,20 @@ class, cheap lookup rather than forcing the chat layer to replay diffs ad hoc:
   **in scope** for chat — answering "what used to be there" and "where did this
   go" is its whole value — so chat does **not** apply the reader/radar
   dead-lineage filter; it queries synthetic v5 rows too.
+- **Originating-proposal context (§10.3).** Each commit's PR title/link and
+  forum-thread URL (+ snapshot) live in the artifact, so chat can answer *why* a
+  change happened ("the 2025-11-17 weekly proposal renamed Accessibility Reward to
+  Distribution Reward and added the Keel Allocation System docs"), not just *what*
+  changed — the forum thread is the human-authored rationale the diff alone can't
+  give.
 
 ## 10. Verification
 
 - Unit (`history-html-era.test.mjs`): renumber pairing (pure renumber;
   renumber-and-edit same commit; add vs delete that are NOT a pair; same-doc_no
-  edit). Bridge resolution (exact doc_no; content-fallback; unresolved→dropped).
+  edit). Bridge resolution (exact doc_no; content-fallback; `merged`→`merged_into`;
+  `split`→`extracted_from`; genuinely-unresolved → synthetic UUID + seam tag,
+  **never silently dropped**).
 - Golden (`atlas-html.test.mjs`): fixed HTML snippet → expected markdown;
   convert-twice determinism; two near-identical HTML inputs → minimal line diff
   (proves artifacts cancel).
@@ -843,16 +864,17 @@ stability. The boundary:
   origin; an HTML row that vanishes with no successor). Orphan *detection* is
   mechanical and already required (it's what gates synthetic UUIDs / tombstones).
   Emitting it is free; it is the audit's input.
-- **`scripts/aux/audit-html-history.mjs` (NEW, offline) runs an LLM over orphans +
-  flagged anomalies and writes a *review report*, not artifact data.** Per commit
-  it triages:
+- **`scripts/aux/audit-html-history.mjs` (NEW, offline) runs an LLM over orphans,
+  flagged anomalies, and per-commit intent records (§10.3) and writes a *review
+  report*, not artifact data.** Per commit it triages:
   - **orphan classification** — *expected* (e.g. `#14` derecognition, volatile
     data-churn §4.1) vs *suspicious* (looks like a real doc the matcher failed to
     thread → likely a bug/threshold miss);
   - **low-margin pairings** — tier-3/tier-4 matches just over threshold: "are
     these two really the same doc?";
   - **big-diff commits** — classify each as renumber / rewrite / split / genuine
-    deletion (cross-check against the deterministic seam tag);
+    deletion (cross-check against the deterministic seam tag **and the originating
+    forum proposal's itemized changes, §10.3**);
   - **graveyard validation** — for each shingle-flagged "gone for good" sentence,
     "truly removed" vs "reworded — the matcher should have caught this."
 - **Human-gated loop:** a person reads the report; a real mis-thread is fixed by
@@ -867,15 +889,92 @@ LLM prompted to ask "what threaded wrong, what orphan looks mis-classified, what
 seam tag disagrees with the prose?" — whose findings become the next threshold
 tweak before the artifact is finally frozen and reviewed.
 
+### 10.3 Per-commit intent records — PR body + forum proposal (audit oracle, not identity)
+
+Measured 2026-06-25: every HTML-era commit carries a PR, and the human *intent*
+behind each is recoverable — but unevenly, in a way that happens to line up with
+where the matcher needs the most help.
+
+- **PR title — 100% coverage.** All 78 HTML-era PRs have a title, and for the
+  small cleanup/fix commits the title *is* the intent ("Derecognize ADs that
+  failed to migrate", "Correct tags", "Fix Ecosystem Entity Grants document
+  type"). Those commits also have small, unambiguous diffs, so title-only is
+  plenty.
+- **Forum proposal thread — ~half of PRs, concentrated on the bulk edits.** The
+  weekly / Spark / SAEP PR bodies link a forum thread (`forum.sky.money` → 301 →
+  `forum.skyeco.com`, **public Discourse — append `.json` for structured data**,
+  verified fetchable without login). The thread enumerates each change with **high
+  granularity** — verbatim example from #115: seven named items ("Add SubProxy
+  Account For Launch Agent 4", "Add Allocation System Primitive Documents For
+  Keel", "Update Remaining References To Accessibility Reward", …), several citing
+  exact doc-nos (`A.2.6`, `A.2.3.9.1.1.1.1.4`), on-chain addresses, and
+  cross-linked PRs. These are exactly the **bulk-edit commits that collapse tier-1
+  matching** (#1/#103/#115, §10.1) — so the richest intent record exists precisely
+  where threading ambiguity is highest.
+- **Empty PR body ≠ no intent — reverse lookup recovers it by date.** ~21% of PR
+  bodies are empty, but the thread can be found *from the commit* instead of from
+  the body. Discourse `search.json` is public, and weekly threads are slugged
+  `atlas-edit-weekly-cycle-proposal-week-of-YYYY-MM-DD`, so the **commit date
+  resolves the thread directly** (**verified**: #78 "October 13 edit" has an empty
+  body, yet maps to thread `27311`, which itemizes its seven changes — "Introduce
+  Launch Agent 4", "Update RRC Percentage For Pendle PTs", …). Two recovery paths:
+  **(a) date-slug** fetch; **(b) full-text** `search.json?q=<commit title/date>`
+  (both hit `27311` independently). Caveat: the thread usually links the *repo*
+  ("update the Atlas GitHub repository"), **not the specific PR**, so the join key
+  is the **weekly cycle / date, not an explicit backlink** — a *fuzzy* match,
+  confirmed by overlap between the thread's itemized changes and the commit's diff
+  (a natural §10.2 audit check) and **never trusted as identity**. (URL-path
+  search `q=…/pull/78` does *not* work — Discourse tokenizes URLs.)
+- **The real title-only residue is internal, non-proposal commits** —
+  derecognitions, tag/type fixes, lints (#14 "Derecognize ADs that failed to
+  migrate", #12 "governance scope cleanup", #97 "Correct tags"). These have **no
+  forum thread in either direction** (verified: searching #14's text returns
+  nothing relevant), so the PR title *is* the whole intent. Acceptable — they are
+  also the smallest, most self-describing diffs. The genuinely hard fixtures are
+  the rare **large** commits with no proposal anywhere; those lean on the §10.0
+  sentence-survival oracle + the §10.2 LLM audit.
+
+**How intent is used — display + audit, never identity.** Same hard boundary as
+the LLM (§10.2): intent is external, unversioned, and **must not enter the
+deterministic identity/diff path** (it would break reproducibility and frozen-diff
+stability, and doc-nos cited in a proposal are editorial, not stable keys —
+CLAUDE.md doc_no rule). Two safe uses:
+
+1. **Display / chat.** Bake the PR title, PR link, and originating-forum-thread
+   URL into the frozen artifact per commit (stable refs, fetched once at freeze —
+   §5 item 5). The reader's history row and the chat "why did this change" answer
+   both gain the human rationale for free. Discourse content itself is **snapshot
+   at freeze** (URL + fetched-at + content hash), so the artifact never depends on
+   a live fetch and can't drift when the forum is edited or a thread disappears.
+2. **Audit context (§10.2).** Feed the forum's itemized change list to the
+   freeze-time auditor so it classifies a bulk commit *change-by-change* against
+   stated intent — e.g. #115's "Update Remaining References To Accessibility
+   Reward" (a rename to "Distribution Reward") tells the auditor that a doc which
+   looks deleted+added is a **rename the matcher should have paired**; "Add …
+   Documents For Keel" *predicts* a burst of genuine `added` rows, so their lack
+   of an HTML predecessor is expected, not an orphan bug. The auditor cross-checks
+   the deterministic seam tags / orphans against the proposal and flags
+   disagreements for the human gate.
+
+Caveats: the **forward** forum→PR link is recovered from the PR body
+(deterministic); the **reverse** commit→thread link is a **fuzzy date join**
+(display + audit only, above), to be verified by itemized-change overlap before
+its URL is baked; only internal non-proposal commits stay title-only; and
+`gh pr list` only returns the most recent ~250 PRs, so the ~12 oldest HTML-era
+PRs — including **#1, whose body is a rich change *checklist*** — must be fetched
+individually (`gh api …/pulls/N`) at freeze time.
+
 ## 11. Effort & files
 
 Revised estimate **~5–7 days** (the original "2–3 days" undercounts). The
 deterministic converter is the main unknown but it is not the only hard part: the
 tiered fuzzy matcher + backward threading (§4), the freeze tooling (§7.1), the
 `009` migration with `seam`/`era`/`extracted_from`/`merged_into`/`move_kind`
-(§7), the freeze-time LLM audit (§10.2), and three frontend consumers (§9) each
-carry real work. Budget ~2–3 days for converter + matcher alone and ~2–3 more for
-wiring, migration, the audit harness, UI, and the §10 fixtures.
+(§7), the freeze-time LLM audit (§10.2), the per-commit PR + forum intent fetch/snapshot
+(§10.3), and three frontend consumers (§9) each carry real work. Budget ~2–3 days
+for converter + matcher alone and ~2–3 more for wiring, migration, the audit
+harness (incl. ~½ day for the §10.3 intent fetch + snapshot), UI, and the §10
+fixtures.
 
 New:
 - `scripts/lib/atlas-html.mjs` — HTML read + deterministic md conversion + parse.
@@ -887,11 +986,13 @@ New:
 - `scripts/aux/freeze-html-history.mjs` — one-shot offline runner that computes
   §4 and writes the frozen artifact; rerun only as a deliberate, reviewed act.
   `--measure` mode emits the §10.0 seam + §4.1 graveyard numbers without writing
-  the artifact.
+  the artifact. Also fetches per-commit PR metadata + the originating forum thread
+  (§10.3) and snapshots them (URL + fetched-at + content hash) into the artifact.
 - `scripts/aux/audit-html-history.mjs` — offline LLM auditor over orphans +
   anomalies → human-readable review report; never writes artifact data (§10.2).
 - `public/history-html-era.json` — frozen artifact (identity map + per-UUID
-  events + diffs), checked in (§7.1).
+  events + diffs + per-commit intent records: PR title/link, forum-thread URL +
+  snapshot, §10.3), checked in (§7.1).
 - `src/server/migrations/009_history_slot.sql` (+ `seam`, `era`, `extracted_from`,
   `merged_into`, `move_kind` columns — §7; combine slot-reuse + HTML-era cols
   into the one 009).
@@ -944,3 +1045,14 @@ Changed:
    indirection, audit only flagged orphans/low-margin pairings (not all 79
    commits blindly), advisory-by-default with a human gate before commit. Hard
    invariant: LLM output is review-only and never enters the frozen artifact.
+9. **Intent records (§10.3):** how much to bake — PR title/link + forum URL only
+   (minimal, always-valid refs) vs also snapshotting the forum thread *text*
+   (richer chat/audit context, but freezes external content into the repo).
+   Recommend: bake refs for every commit; snapshot the forum thread *text* only
+   for the bulk-edit fixtures (#1/#103/#115 + any large empty-body cleanup), keyed
+   by content hash, where audit value is highest. For empty-body commits, resolve
+   the thread by **reverse lookup** (date-slug / full-text, §10.3); since that
+   join is by date — not an explicit PR link — verify thread↔commit correspondence
+   (itemized-change overlap) before baking the URL, and tag it `date-matched` so
+   chat/UI can hedge. Hard invariant (mirrors §10.2): intent is display + audit
+   only — **never** an input to identity/diff.
