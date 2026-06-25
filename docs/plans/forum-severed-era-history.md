@@ -29,7 +29,11 @@ continuing through today. Each proposal post contains, per cycle:
 - occasional **Notion** page IDs (drafting source).
 
 So the severed era's change history is publicly reconstructable even though its
-git objects are gone.
+git objects are gone — and it is now **bracketed by two exact HTML snapshots**: the
+**2024-09-02 genesis** (≈1,068 docs, recovered from the IPFS CID in poll #25010 —
+see `atlas-prehistory-mips.md`) at the start, and the first git commit `4e931dfd`
+(2025-05-28, ≈4,676 docs) at the end. The forum cycles narrate the ≈4.4× growth
+between them.
 
 ## 1. Source — Discourse tag feed (enumeration BUILT)
 
@@ -110,6 +114,12 @@ gone. Tag every emitted event `provenance='forum'`.
   already carries identity forward to the #117 `uuid4`. **So forum→`4e931dfd` is
   the only new bridge; everything downstream is reused.** (We do *not* bridge
   forum directly to #117.)
+- **Second content anchor at the *start*.** The **2024-09-02 genesis HTML** is now
+  in hand, so the window has a known doc set at *both* ends. Match forum cycles
+  against genesis (start) as well as `4e931dfd` (end): genesis fixes which docs
+  predate the severed era vs. are born during it, and gives graveyard docs that
+  existed at genesis but died before 2025-05-28 a real content snapshot to hash —
+  sharper synthetic UUIDs than prose-only.
 - Docs that died before 2025-05-28 → deterministic **synthetic v5 UUID** (same
   scheme as `html-era-history.md` §4.3), tagged graveyard.
 
@@ -138,8 +148,19 @@ gone. Tag every emitted event `provenance='forum'`.
   prose **and** git diffs (2025-05-28 → present), run the parser and compare its
   output against the real git diffs. This is a free accuracy harness — tune the
   parser there before trusting it on the severed-only window.
-- **Reconcile counts.** Doc numbers/titles referenced in the last pre-truncation
-  proposals should reconcile against the `4e931dfd` snapshot.
+- **Reconcile counts at both ends.** Doc numbers/titles in the *first* cycles
+  (Sept 2024) should reconcile against the **genesis snapshot** (≈1,068 docs); the
+  *last* pre-truncation cycles against the `4e931dfd` snapshot (≈4,676 docs).
+  Replaying the forum edits from genesis forward should roughly reproduce the
+  growth curve between the two.
+- **Anchor on-chain.** Sky governance votes emit a permanent on-chain **`Voted`
+  log** (pollId + per-voter choice + timestamp) on the `PollingEmitter`
+  (`0xD3A9FE…`; see `atlas-prehistory-mips.md`). Use it to (a) get authoritative
+  cycle *dates* and ordering — resolving the pre-git `commit_seq` question (§8 Q1) —
+  and (b) separate *ratified* from merely *proposed* edits via the tally. Poll
+  *content* is portal/IPFS-side (map `pollId → poll doc` via the vote portal), so
+  the anchor is permanent and public, but the edit text still comes from the poll
+  doc / forum proposal.
 
 ## 7. Effort / risk
 
@@ -157,10 +178,11 @@ gone. Tag every emitted event `provenance='forum'`.
    history vs exact git diffs.
 3. **Overlap prose** — do we also ingest post-2025-05-28 proposal prose as
    human summaries on git events (nice-to-have), or skip it?
-4. **Backfill before 2024-09-13** — the weekly series starts 2024-09-13; the
-   Powerhouse render existed by 2024-08-29 and MIP101 ran to 2024-08-12. A
-   ~1-month seam (Aug→Sep 2024) and the MIPs era (Tier 3) remain out of forum
-   scope. Likely accept 2024-09-13 as the forum floor.
+4. **Backfill before the forum floor** — the weekly series starts 2024-09-13, just
+   ~11 days after the **2024-09-02 genesis** (now recovered), so the seam at the
+   *start* of the HTML era is effectively closed. Earlier strata (the 2023 GAIT
+   design era; MIP101 to 2024-08-12) are design/MIP history, not HTML edit cycles —
+   out of forum-reconstruction scope (Tier 3). Accept 2024-09-02 as the era floor.
 
 This path is independent of recovering the literal git objects; if a contact
 later supplies the pre-truncation repo or a Powerhouse op-log

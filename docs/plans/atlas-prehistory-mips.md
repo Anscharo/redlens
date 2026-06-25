@@ -1,19 +1,29 @@
 # Atlas pre-history: MIPs → Powerhouse → next-gen-atlas
 
-Status: RESEARCH (2026-06-24; recovery + identity probes 2026-06-25). Companion
-to `html-era-history.md`. Question investigated: the `Sky Atlas.html` "first
-commit" is not the true beginning of the Atlas — what came before, and should we
-extend document history further back than the HTML era?
+Status: RESEARCH (2026-06-24; recovery + identity probes 2026-06-25; genesis HTML
+recovered + MIP→v2 governance seam dated 2026-06-25). Companion to
+`html-era-history.md`. Question investigated: the `Sky Atlas.html` "first commit"
+is not the true beginning of the Atlas — what came before, and should we extend
+document history further back than the HTML era?
 
-**Answer: yes, there is a real pre-history in at least three earlier strata — but
-two follow-up questions are now settled by measurement:**
-- **The severed HTML pre-history is large (≥127 commits by Dec 2024).** The raw
-  git objects/HTML are unrecoverable publicly (GC'd from GitHub, no pre-truncation
-  fork, not in Wayback, live portal mirrors the current repo) — recovering the
-  *source* needs a cooperative dump. **However, the severed era's change history
-  is publicly reconstructable** from the **forum Atlas Edit Weekly Cycle
-  proposals**, which run continuously back to **2024-09-13** with narrated,
-  UUID-tagged per-cycle edits — likely good enough for the reader/chat consumers.
+**Answer: yes, there is a real pre-history in at least three earlier strata — and
+the key follow-up questions are now settled by measurement:**
+- **The MIP→HTML switch is a dated governance act with a recovered genesis.** The
+  **Atlas v2 Upgrade Poll (#25010, 2024-09-02, Atlas Axis)** kicked the Atlas off
+  the MIP system onto the single HTML file, and pinned that *originally uploaded*
+  `Sky Atlas.html` to **IPFS** (CID
+  `bafkreih7mbj4npqhxeprzk7sahpqjrajmxursaenzqgxdw5uo7sz554os4`, on Sky's own
+  pinata gateway). It still resolves — **693 KB, ≈1,068 docs**: the exact Atlas v2
+  genesis, ~9 months before the git root. So the severed era now has a hard content
+  anchor at *both* ends: genesis (2024-09-02, ≈1,068 docs) → first git commit
+  (2025-05-28, ≈4,676 docs), a ~4.4× expansion the forum cycles narrate.
+- **The severed *git* history is gone — a repo re-init, not a force-push.** The
+  current repo's GitHub `created_at` is **2025-05-28** (same day as `4e931dfd`), so
+  the 2024-09 `makerdao/next-gen-atlas` (127 commits by Dec 2024) was re-created
+  fresh that day; its objects are unrecoverable publicly (no pre-truncation fork,
+  raw HTML not in Wayback). **But** the era's change history is reconstructable from
+  the **forum Atlas Edit Weekly Cycle proposals** (continuous back to **2024-09-13**),
+  now bracketed by the two exact HTML snapshots above.
 - **Powerhouse UUIDs ≠ #117 UUIDs**: early-Powerhouse had its own (now dead) UUID
   namespace; the live portal today mirrors the repo's #117 space exactly (10 370 /
   10 370). So **#117 stays the canonical anchor** for `html-era-history.md` — no
@@ -26,7 +36,7 @@ Details and a tiered recommendation below.
 | Era | What | Where | Format | Identity | Dates |
 |---|---|---|---|---|---|
 | **1. Atlas-as-MIP** | The Atlas *was* **MIP101** ("Maker Atlas Immutable Alignment Artifact"); scopes were sibling MIPs (MIP102–MIP113) | `makerdao/mips` (now `sky-ecosystem/mips`) | MIP-style **markdown** | MIP no. + section no. (top-level `0`–`6`), **no UUIDs** | MIP101 edited **2023-02-09 → 2024-08-12** (54 commits); mips repo frozen 2024-09-05 |
-| **2. Atlas v2 / "Next-Gen Atlas"** | "a single file containing all Atlas Documents as a nested tree" (MIP101's own description of its successor) — the HTML file. Rendered on the Powerhouse portal | `makerdao/next-gen-atlas` + `sky-atlas.powerhouse.io` | **HTML** single file; Powerhouse DB | doc_no `A.x`; **Powerhouse UUIDs** (e.g. `fcd23442-…`) already present | live & edited by early 2025 (AEP-1 ratified 2025-02-24) |
+| **2. Atlas v2 / "Next-Gen Atlas"** | "a single file containing all Atlas Documents as a nested tree" (MIP101's own description of its successor) — the HTML file. Rendered on the Powerhouse portal | `makerdao/next-gen-atlas` + `sky-atlas.powerhouse.io` | **HTML** single file; Powerhouse DB | HTML: doc_no `A.x`, **no UUIDs**; Portal: **algorithmic UUIDs** (e.g. `fcd23442-…`) | **v2 upgrade poll #25010 (2024-09-02)**; genesis HTML on IPFS; AEP-1 2025-02-24 |
 | **3a. HTML era (severed)** | earlier HTML history of the same file | `makerdao/next-gen-atlas` pre-truncation | HTML | doc_no `A.x` | before 2025-05-28 — **discarded** |
 | **3b. HTML era (recoverable)** | the 79 commits we can see | `sky-ecosystem/next-gen-atlas` | HTML | doc_no `A.x` | 2025-05-28 → 2025-11-20 |
 | **4. Markdown era** | #117 migration onward | same repo | `Sky Atlas.md` | **uuid4** minted at #117 | 2025-11-21 → |
@@ -71,17 +81,100 @@ Details and a tiered recommendation below.
   the Powerhouse portal already had the atlas rendered **with UUIDs** in early
   2025, well before the #117 uuid4 minting.
 
+### The MIP → v2 switch is a dated governance act (#25010, 2024-09-02)
+
+The handoff is not inferred — it is a single forum post. **"Atlas v2 Upgrade -
+Poll Request" (#25010, 2024-09-02, Atlas Axis / Le_Bateleur)** requests the
+Governance Facilitators to run the poll that ratifies Atlas v2, and is the primary
+source for the whole transition:
+
+- **The v1→v2 structural change, in the authors' words:** Atlas v1 was *the Atlas
+  Immutable Alignment Artifact + five separate Bounded Mutable Alignment Artifacts
+  (one per Scope)* — six artifacts. Atlas v2 **unifies all six into one file**; the
+  five Scopes become sets of Articles, each with Sections, Primary Documents, and
+  the new modular **Supporting Documents**.
+- **The two canonical genesis forms:** (1) the static HTML on
+  `github.com/makerdao/next-gen-atlas`, "optimized for verifiability … will not
+  change during the review period," and (2) the `sky-atlas.powerhouse.io` Portal.
+  The post states the **content is identical** between them; only the **document
+  identifiers differ** — the GitHub repo uses "Atlas Axis' temporary, pared-down
+  document numbering scheme" (the `A.x` doc_nos, no UUIDs — verified 0 in the
+  genesis HTML), while the Portal IDs are "algorithmically generated." This is
+  primary-source confirmation of the **three distinct identity spaces**: repo
+  doc_no → Portal algorithmic UUID → #117 uuid4.
+- **What changed from v1 (the MIP content delta):** the post enumerates provisions
+  *amended or removed* in three buckets — **placeholder logic** (DAO Toolkit,
+  Budgets/Milestones standardization, Star provisions, Facilitator
+  Scope-Assignment…), **early-stage logic** (NewChain, FacilitatorDAOs, Core AI
+  System…), and **obsolete logic** (Core Unit MIPs, Special Purpose Fund, the Core
+  Units framework). This is the authors' own summary of the final-MIP → first-atlas
+  difference.
+- **Per-document MIP provenance lived in the Portal, not the file.** The post
+  describes `View Provenance` links mapping each v2 doc back to its v1/MIP source —
+  but those are a **Powerhouse Portal** feature; the static HTML carries **zero**
+  `View Provenance` links (verified in both the genesis and first-commit HTML). So
+  the document-level MIP→v2 map is a Powerhouse-export ask (Tier 2 / data request),
+  not recoverable from the HTML.
+
+### Genesis recovered — the true Atlas v2 "version 0" (2024-09-02)
+
+The IPFS CID from #25010
+(`bafkreih7mbj4npqhxeprzk7sahpqjrajmxursaenzqgxdw5uo7sz554os4`) resolves to the
+**original `Sky Atlas.html`** (693 KB, `<title>Sky Atlas</title>`). Measured against
+the git root:
+
+| | genesis (2024-09-02, IPFS) | first commit `4e931dfd` (2025-05-28) |
+|---|---|---|
+| `<h1>` sections | 10 | 11 |
+| `<dfn>` doc rows | ≈1,068 | ≈4,676 |
+| bytes | 693 K | 2.07 M |
+
+Same format, same `A.x` doc_no scheme, no UUIDs — so it splices onto era 3b with
+the *existing* HTML converter. Its sections (*Scopes, Articles, Sections & Primary
+Docs, Type Specifications, Annotations, Tenets, Scenarios, Scenario Variations,
+Needed Research, Active Data*) already carry the supporting-document taxonomy
+designed on the forum in late 2023 (see "Design genesis"). The severed era is the
+~4.4× growth between these two snapshots. **This partly self-serves data-request
+item #3** — the genesis snapshot is now in hand; only the *intermediate* commits
+still need a cooperative dump.
+
+### Design genesis (2023 GAIT era) — where the document types came from
+
+The v2 taxonomy was not invented at launch; it was designed in the open on the
+forum a year earlier, during the **GAIT** ("Governance AI Tools") working-group
+phase led by **Atlas Axis / Endgame Edge**. The key thread, **"Proposal for
+Structuring the Atlas & GAIT Data Creation" (#22895, 2023-11-23)**, proposes the
+supporting-document types the live atlas still uses, with renames that land exactly
+in the genesis sections above:
+
+- proposed **`Function`** → shipped as **Type Specification**
+- proposed **`FacilitatorDAO Action Tenets`** → genesis **Tenets** → today **Action Tenet**
+- proposed **`Annotations`** → **Annotation**; **Scenarios / Scenario Variations** survived as-is
+- proposed **`Chapter`** (a Section container) → **never shipped**
+- it retires the older **`Element Analysis`** / **`Action Example`** types (gone)
+
+This stratum is **design rationale, not document history** — there are no per-doc
+diffs to recover. Its value is provenance (why the types exist) and context for the
+chat consumer. Enumerate it via the Atlas Axis author timeline, not a tag (the
+`governance-ai-tools` tag holds only 6 threads): `#22569` Data Flywheel, `#22596`,
+`#22733` Synthesis, `#22895`, `#23125` "Atomized Sections & the Immutability
+Problem", `#23001` "Crafting the Atlas" are the core design series.
+
 ### Our "first commit" is a truncation, and the pre-history is gone from GitHub
 
 - `git rev-list --max-parents=0 HEAD` → `4e931dfd` is a **true root** (no
   parents), message literally `"first commit"`, 2025-05-28.
 - Commit `1c32644a` (referenced by AEP-1) is **absent locally** and returns
   **HTTP 422 "No commit found"** from the GitHub API even authenticated (`gh
-  api repos/sky-ecosystem/next-gen-atlas/commits/1c32644a…`). The
-  `makerdao → sky-ecosystem` org rename is a transparent redirect to the *same*
-  repo, so this is not an org-move artifact — the pre-2025-05-28 history was
-  **force-discarded / re-initialized** and garbage-collected. It is not
-  recoverable through normal GitHub repo access.
+  api repos/sky-ecosystem/next-gen-atlas/commits/1c32644a…`). The repo's GitHub
+  **`created_at` is 2025-05-28T19:33:58Z** — the same day as `4e931dfd`. So the
+  current repo *object* was **created fresh that day**: the 2024-09
+  `makerdao/next-gen-atlas` (which #25010 links to, and which Wayback shows at 127
+  commits by Dec 2024) was deleted and re-created, **not** force-pushed in place (a
+  force-push would not move `created_at`); it was later renamed/transferred to
+  `sky-ecosystem` (the `makerdao → sky-ecosystem` redirect). The pre-2025-05-28
+  history died with the prior object — hence the 422, and no fork predates the root.
+  Not recoverable through normal GitHub access.
 - **The severed history is large.** The Wayback snapshot of the
   `makerdao/next-gen-atlas` landing page on **2024-12-25 shows "127 Commits"**;
   the Powerhouse render `sky-atlas.powerhouse.io` was archived as early as
@@ -110,8 +203,9 @@ We tried every public route to recover era 3a / verify identity:
   client-rendered mirror of the *current* repo (see identity result below).
 - **No public Powerhouse data API surfaced.** The portal inlines its data in the
   page payload (~6 MB RSC); no `switchboard`/`graphql`/`reactor` host is
-  referenced. IPFS gateways (`ipfs.io`, `gateway.pinata.cloud`) appear only as
-  content links, not as an atlas-snapshot CID.
+  referenced. *(Superseded re: IPFS — the **genesis HTML CID is public in #25010**
+  and resolves; see "Genesis recovered." The portal's per-doc content is still
+  client-rendered and not separately archived.)*
 
 ⇒ **Era-3a recovery now requires cooperation, not scraping.** The only remaining
 routes: ask **Sky / Powerhouse / Atlas-Axis** for the pre-truncation repo or a
@@ -175,6 +269,43 @@ narrated, UUID-tagged log going back to Sep 2024. For the reader/chat use cases
 (which want human-language history, not byte diffs) this may be *good enough* on
 its own, without recovering the git objects at all.
 
+### On-chain governance records (2026-06-25) — a permanent, content-addressed index
+
+Every Atlas Edit cycle and AEP was **ratified by an on-chain governance vote**, and
+Sky governance **content-addresses what is voted on** — so the cycle history is
+indexed on a substrate that *cannot* be garbage-collected like the GitHub repo was.
+
+- **Polls (where Atlas Edit cycles are ratified).** The on-chain **`PollingEmitter`
+  = `0xD3A9FE267852281a1e6307a1C37CDfD76d39b133`** (mainnet; ContractName verified
+  via Etherscan; prior emitter `0xF9be8F0945…`; ABIs at
+  `skybase-foundation/governance-portal-v2/modules/contracts`). Its ABI defines both
+  `PollCreated(…, string multiHash, string url)` **and** `Voted(voter, pollId,
+  optionId)`. **Empirically (Nov-2024, Feb-2025, and 2025-26 windows checked) the
+  Sky era emits only `Voted` — 0 `PollCreated`** (e.g. 410 recent logs = 407 Voted +
+  3 Withdrawn + 0 Created). So poll *creation/content* is now defined off-chain in
+  the governance portal, while the chain carries a permanent **`Voted` log = every
+  `pollId` + per-voter choice + timestamp**.
+- **Poll content is portal/IPFS-side, not on-chain.** What each `pollId` voted on is
+  referenced via `vote.makerdao.com/polling/<id>` and **IPFS-pinned** — AEP-1's
+  `Ratification Poll URL … /QmeTDMys` (a `Qm…` hash; resolves HTTP 200); the docs are
+  in **no git repo** (`makerdao/community` → 0 Atlas matches), as durable as the
+  genesis CID. Match `pollId → Atlas cycle` via the portal + the forum/AEP records.
+- **Executive enactment (the binding vote).** The Chief is where spells — including
+  the Atlas v2 upgrade and spell-borne edits — are approved: chainlog **`MCD_ADM =
+  0x929d9A14…`** (current), with the **classic Chief `0x0a3f6849…`** in the portal
+  config (a Chief migration occurred — confirm which was live for a given
+  severed-era date). #25010 notes the v2 HTML hash is enforced "by Sky Governance …
+  similar to the controls that exist around the MIP process."
+
+**Recovery chain:** on-chain `Voted` events (permanent: every `pollId` + per-voter
+choice + timestamp) → the portal maps `pollId → IPFS poll doc` → the doc describing
+that cycle's edits → cross-reference the forum proposal + AEP for the same cycle.
+This **timestamps, orders, and ratify-filters** the forum reconstruction with an
+authoritative, un-GC-able anchor, and is **self-serve / public** (no contact
+needed). Caveat: the chain records *which polls ran + the tally*, not the literal
+file diff — and the poll *content* is portal/IPFS-side, not emitted on-chain — so
+the prose detail still comes from the IPFS poll doc / forum proposal.
+
 ## Should we extend history before the HTML era? — tiered take
 
 The "true beginning" is **not** `4e931dfd`. Three strata exist before era 3b;
@@ -183,19 +314,26 @@ plan. Each is a fresh **repo + format + identity** boundary, so each needs its
 own seed match — but the backward-threading + content-matching machinery in
 `html-era-history.md` (§4) generalizes to all of them.
 
-**Tier 1 — recover the severed HTML pre-history (era 3a). Highest value, now
-blocked on cooperation.** Same format (HTML, same single file, same `A.x`
-numbering) and same authoring cadence (AEP-1..11 ⇒ ~monthly edits back to ~Jan
-2025), so it would splice onto era 3b with the *existing* HTML converter and **no
-new boundary type** — just more commits (≥127 by Dec 2024). The raw git
-objects/HTML files are unrecoverable from public sources (GC'd from GitHub, no
-pre-truncation fork, not in Wayback as file content, not on the live portal).
-**But** the era's *change history* is reconstructable from the **forum Atlas Edit
-Weekly Cycle proposals** (continuous back to 2024-09-13 — see "Forum recovery
-source"): public, dated, narrated, UUID-tagged. For reader/chat (human-language
-history, not byte diffs) that may suffice without the git objects. To recover the
-literal source, the only route is **asking Sky / Powerhouse / Atlas-Axis** for the
-pre-truncation repo / a Powerhouse export.
+**Tier 0 — on-chain `Voted` index + IPFS poll docs. Most durable, and public.**
+Independent of the GC'd git repo: the `PollingEmitter` `Voted` log is a permanent,
+dated index (every `pollId` + per-voter choice + timestamp) of all Sky governance
+polls, and the poll documents are IPFS-pinned (see "On-chain governance records").
+Best used to **timestamp, corroborate, and ratify-filter** the forum reconstruction
+rather than as a standalone prose source. Self-serve; no contact needed.
+
+**Tier 1 — reconstruct the severed HTML era (era 3a). Highest value, now partly
+recovered.** Same format (HTML, same single file, same `A.x` numbering) and same
+authoring cadence, so it splices onto era 3b with the *existing* HTML converter and
+**no new boundary type**. We now hold **both content endpoints**: the **genesis
+HTML (2024-09-02, ≈1,068 docs)** recovered from the #25010 IPFS CID, and the first
+git commit (2025-05-28, ≈4,676 docs). The intermediate per-commit git objects are
+still unrecoverable publicly (repo re-created 2025-05-28, no pre-truncation fork,
+raw HTML not in Wayback), **but** the era's *change history* is reconstructable
+from the **forum Atlas Edit Weekly Cycle proposals** (continuous back to 2024-09-13
+— see "Forum recovery source"), now bracketed and calibratable against the two
+exact snapshots. For reader/chat (human-language history) that likely suffices.
+Recovering the literal intermediate commits still needs the pre-truncation repo / a
+Powerhouse export from **Sky / Powerhouse / Atlas-Axis**.
 
 **Tier 2 — Powerhouse operation-log export. The real prize if a contact exists.**
 The earlier "is Powerhouse the identity anchor?" question is **resolved: no** —
@@ -218,9 +356,11 @@ High effort, 2023-era depth. Only worth it if there's explicit appetite for
 
 ## Open questions to resolve before any pre-HTML build
 
-1. ~~**Recoverability of era 3a** via Wayback/IPFS/forks~~ — **resolved: no.**
-   GC'd from GitHub, no pre-truncation fork, raw HTML not in Wayback. Only a
-   cooperative dump from Sky/Powerhouse/Atlas-Axis remains.
+1. ~~**Recoverability of era 3a** via Wayback/IPFS/forks~~ — **partly resolved.**
+   The **2024-09-02 genesis HTML is recovered** (IPFS CID in #25010) and the git
+   root is in hand; only the *intermediate* commits remain unrecoverable (repo
+   re-init, no pre-truncation fork, raw HTML not in Wayback) and need a cooperative
+   dump from Sky/Powerhouse/Atlas-Axis.
 2. ~~**UUID provenance** — Powerhouse vs #117~~ — **resolved: different spaces.**
    #117 is the canonical anchor; the early-Powerhouse UUIDs are dead. No change to
    the html-era plan's anchor.
