@@ -5,6 +5,7 @@ import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
 import { loadHistoryBatch } from "../../lib/history";
+import { track } from "../../lib/analytics";
 import { useLoaded } from "../../hooks/useAtlasData";
 import {
   buildActiveDataRows,
@@ -159,7 +160,11 @@ export function ActiveDataReport() {
           {agents.map((a) => (
             <button
               key={a}
-              onClick={() => setAgentFilter(agentFilter === a ? null : a)}
+              onClick={() => {
+                const active = agentFilter !== a;
+                track("report_filter", { report: "active-data", filter_type: "agent", value: active ? a : null, active });
+                setAgentFilter(agentFilter === a ? null : a);
+              }}
               data-active={agentFilter === a ? "true" : undefined}
               className="scope-pill mono text-xs px-2 py-0.5 rounded"
             >
@@ -173,7 +178,11 @@ export function ActiveDataReport() {
           {entityNames.map((e) => (
             <button
               key={e}
-              onClick={() => setEntityFilter(entityFilter === e ? null : e)}
+              onClick={() => {
+                const active = entityFilter !== e;
+                track("report_filter", { report: "active-data", filter_type: "entity", value: active ? e : null, active });
+                setEntityFilter(entityFilter === e ? null : e);
+              }}
               data-active={entityFilter === e ? "true" : undefined}
               className="scope-pill mono text-xs px-2 py-0.5 rounded"
             >

@@ -102,7 +102,9 @@ export function SearchBar({
               onChange={onChange}
               placeholder={cfg.placeholder}
               autoFocus
-              className="search-input flex-1 min-w-0 px-2 py-2 text-sm"
+              // ph-no-capture: keep typed query text out of PostHog autocapture;
+              // search is tracked explicitly via the atlas_search event instead.
+              className="search-input ph-no-capture flex-1 min-w-0 px-2 py-2 text-sm"
             />
 
             <button

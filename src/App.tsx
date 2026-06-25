@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useLocation, useSearchParams, Switch, Route } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
+import { usePageAnalytics } from "./hooks/usePageAnalytics";
+import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, type NavPage, type SearchScope } from "./lib/routes";
 import { SearchBar } from "./components/SearchBar";
@@ -96,6 +98,34 @@ export default function App() {
     nodeId,
   });
 
+  // Analytics: init + per-route $pageview tagged with the product super property.
+  usePageAnalytics(location);
+
+  // Track opening a comparison pane (null → uuid transition only).
+  const handleSplitChange = useCallback(
+    (sid: string | null) => {
+      if (sid && sid !== splitId) track("atlas_split_open", { node_id: nodeId, split_id: sid });
+      else if (!sid && splitId) track("reader_split_close", { node_id: nodeId, split_id: splitId });
+      setSplitId(sid);
+    },
+    [setSplitId, splitId, nodeId],
+  );
+
+  // Track opening a specific report (not the /reports index), deduped per report.
+  const lastReport = useRef<string | null>(null);
+  useEffect(() => {
+    const prefix = `${ROUTES.REPORTS}/`;
+    if (location.startsWith(prefix)) {
+      const reportId = location.slice(prefix.length);
+      if (reportId && lastReport.current !== reportId) {
+        lastReport.current = reportId;
+        track("report_open", { report_id: reportId });
+      }
+    } else {
+      lastReport.current = null;
+    }
+  }, [location]);
+
   const showTree =
     location === ROUTES.HOME || location === ROUTES.ATLAS || location === ROUTES.SEARCH_HINTS;
   const handleTreeNavigate = useCallback(
@@ -160,7 +190,7 @@ export default function App() {
               <TreeSidebar
                 nodeId={nodeId}
                 onNavigate={handleTreeNavigate}
-                onShiftNavigate={setSplitId}
+                onShiftNavigate={handleSplitChange}
               />
             </Drawer>
           </ErrorBoundary>
@@ -198,7 +228,7 @@ export default function App() {
                 view={atlasView}
                 onViewChange={handleViewChange}
                 splitId={splitId}
-                onSplitChange={setSplitId}
+                onSplitChange={handleSplitChange}
                 onOpenTree={() => setTreeOpen(true)}
               />
             </Route>

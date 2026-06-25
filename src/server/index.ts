@@ -111,6 +111,14 @@ const server = Bun.serve({
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     const { pathname } = new URL(req.url);
 
+    // First-party PostHog reverse proxy (strips IP headers; see posthog-proxy.ts).
+    // No config gate: when VITE_POSTHOG_KEY is unset the client never inits, so this
+    // path simply receives no traffic. Lazy-imported to stay off the static hot path.
+    if (pathname === "/z" || pathname.startsWith("/z/")) {
+      const { handlePosthogProxy } = await import("./posthog-proxy.ts");
+      return handlePosthogProxy(req, pathname);
+    }
+
     if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
     // Immutable per-SHA live atlas artifacts (bundle-store.ts).

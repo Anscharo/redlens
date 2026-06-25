@@ -7,9 +7,11 @@ import type { SearchHit } from "../types";
 
 interface Props {
   hit: SearchHit;
+  rank: number; // 0-based position in the result list
+  onResultClick: (hit: SearchHit, rank: number) => void;
 }
 
-export const SearchResult = memo(function SearchResult({ hit }: Props) {
+export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
   const color = depthColor(realDepth(hit.doc_no));
   const shortAddress = hit.chainlogAddress ? shortAddr(hit.chainlogAddress) : "";
 
@@ -35,6 +37,7 @@ export const SearchResult = memo(function SearchResult({ hit }: Props) {
       <AtlasLink
         to={atlasHref(hit.id)}
         className="search-result-link px-4 py-3"
+        onClick={() => onResultClick(hit, rank)}
       >
         <h3
           className="text-sm font-semibold mb-1 text-tan"

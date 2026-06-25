@@ -1,6 +1,7 @@
 import { useDataSource } from "../../lib/dataSource";
 import { usePreviewView } from "../../lib/previewView";
 import { usePreviewDiff } from "../../lib/previewDiff";
+import { track } from "../../lib/analytics";
 
 // Sits above the tree in preview mode: "All" ⇄ "Changed only". The toggle is
 // shared state, so it filters both this sidebar AND the reader area.
@@ -22,10 +23,24 @@ export function PreviewTreeToggle() {
       className="flex items-center gap-1 px-2 py-1.5 text-[11px] mono shrink-0"
       style={{ borderBottom: "1px solid var(--border)" }}
     >
-      <button className="px-2 py-0.5 rounded" style={btn(!onlyChanged, "var(--tan)")} onClick={() => setOnlyChanged(false)}>
+      <button
+        className="px-2 py-0.5 rounded"
+        style={btn(!onlyChanged, "var(--tan)")}
+        onClick={() => {
+          track("preview_view_toggle", { view: "all", changed_count: count });
+          setOnlyChanged(false);
+        }}
+      >
         All
       </button>
-      <button className="px-2 py-0.5 rounded" style={btn(onlyChanged, "#fff")} onClick={() => setOnlyChanged(true)}>
+      <button
+        className="px-2 py-0.5 rounded"
+        style={btn(onlyChanged, "#fff")}
+        onClick={() => {
+          track("preview_view_toggle", { view: "changed_only", changed_count: count });
+          setOnlyChanged(true);
+        }}
+      >
         Changed only{count ? ` · ${count}` : ""}
       </button>
     </div>

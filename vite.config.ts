@@ -57,6 +57,12 @@ export default defineConfig(() => {
           target: `http://localhost:${process.env.API_PORT ?? 3000}`,
           changeOrigin: true,
         },
+        // PostHog analytics proxy — route /z to the Bun server so dev exercises the
+        // real IP-stripping path (src/server/posthog-proxy.ts), same as prod.
+        "/z": {
+          target: `http://localhost:${process.env.API_PORT ?? 3000}`,
+          changeOrigin: true,
+        },
       },
       // Don't watch the atlas submodule, caches, or generated history — they
       // churn on builds and would trigger noisy dev reloads.
