@@ -153,14 +153,14 @@ gone. Tag every emitted event `provenance='forum'`.
   *last* pre-truncation cycles against the `4e931dfd` snapshot (≈4,676 docs).
   Replaying the forum edits from genesis forward should roughly reproduce the
   growth curve between the two.
-- **Anchor on-chain.** Sky governance votes emit a permanent on-chain **`Voted`
-  log** (pollId + per-voter choice + timestamp) on the `PollingEmitter`
-  (`0xD3A9FE…`; see `atlas-prehistory-mips.md`). Use it to (a) get authoritative
-  cycle *dates* and ordering — resolving the pre-git `commit_seq` question (§8 Q1) —
-  and (b) separate *ratified* from merely *proposed* edits via the tally. Poll
-  *content* is portal/IPFS-side (map `pollId → poll doc` via the vote portal), so
-  the anchor is permanent and public, but the edit text still comes from the poll
-  doc / forum proposal.
+- **Anchor on-chain.** Severed-era Atlas Edit polls are recorded on-chain via
+  `createPoll` (emitter `0xF9be…`; see `atlas-prehistory-mips.md`): 21 in
+  2024-09→2025-05, each carrying the poll's **IPFS hash + `makerdao/community` URL**,
+  with vote tallies on `0xD3A9FE…`. Use it to (a) get authoritative cycle *dates* +
+  ordering (resolves the pre-git `commit_seq` question, §8 Q1), (b) ratify-filter via
+  the tally, and (c) pull the poll markdown (IPFS/GitHub), which links to the edited
+  atlas docs + the forum thread. Permanent and public; the literal HTML diff still
+  comes from the genesis/forum reconstruction.
 
 ## 7. Effort / risk
 

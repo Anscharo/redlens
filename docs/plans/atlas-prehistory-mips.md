@@ -275,21 +275,24 @@ Every Atlas Edit cycle and AEP was **ratified by an on-chain governance vote**, 
 Sky governance **content-addresses what is voted on** — so the cycle history is
 indexed on a substrate that *cannot* be garbage-collected like the GitHub repo was.
 
-- **Polls (where Atlas Edit cycles are ratified).** The on-chain **`PollingEmitter`
-  = `0xD3A9FE267852281a1e6307a1C37CDfD76d39b133`** (mainnet; ContractName verified
-  via Etherscan; prior emitter `0xF9be8F0945…`; ABIs at
-  `skybase-foundation/governance-portal-v2/modules/contracts`). Its ABI defines both
-  `PollCreated(…, string multiHash, string url)` **and** `Voted(voter, pollId,
-  optionId)`. **Empirically (Nov-2024, Feb-2025, and 2025-26 windows checked) the
-  Sky era emits only `Voted` — 0 `PollCreated`** (e.g. 410 recent logs = 407 Voted +
-  3 Withdrawn + 0 Created). So poll *creation/content* is now defined off-chain in
-  the governance portal, while the chain carries a permanent **`Voted` log = every
-  `pollId` + per-voter choice + timestamp**.
-- **Poll content is portal/IPFS-side, not on-chain.** What each `pollId` voted on is
-  referenced via `vote.makerdao.com/polling/<id>` and **IPFS-pinned** — AEP-1's
-  `Ratification Poll URL … /QmeTDMys` (a `Qm…` hash; resolves HTTP 200); the docs are
-  in **no git repo** (`makerdao/community` → 0 Atlas matches), as durable as the
-  genesis CID. Match `pollId → Atlas cycle` via the portal + the forum/AEP records.
+- **Poll *creation* carries the content, on-chain.** The creation emitter
+  **`0xF9be8F0945acDdeeDaA64DFCA5Fe9629D0CF8E5D`** takes
+  `createPoll(start, end, string multiHash, string url)` (selector `0xd54a8176`).
+  **In the severed era it has 120 such txs — each with an IPFS `multiHash` + a GitHub
+  raw URL — of which 21 are Atlas Edit polls** (weekly Sep–Nov 2024, the monthly AEP
+  experiment Feb–Apr 2025, weekly again to 2025-05-12). Verified end-to-end: the
+  2025-02-10 tx carries `QmeTDMyssxJJF6vYE3DcD8KFoNdBTwfPSvuvcyM5Ci2Ws9` + the URL to
+  `…/makerdao/community/…/polls/Atlas Edit Monthly Cycle Proposal (AEP-1)….md` —
+  matching AEP-1.md's `…/polling/QmeTDMys…`. The poll markdown holds `title`,
+  `summary`, `discussion_link` (forum), `start/end_date`, vote options, and body
+  links to the edited atlas docs **with Powerhouse UUIDs** (e.g. `A.1.10.2-430185a5-…`).
+- **Vote tallies sit on a second emitter.** `Voted(voter, pollId, optionId)` events
+  land on **`0xD3A9FE267852281a1e6307a1C37CDfD76d39b133`** (verified ContractName
+  `PollingEmitter`) — the permanent per-voter tally + timing.
+- **Content is dual-hosted + durable.** Poll docs live in
+  `makerdao/community/governance/polls/*.md` (a non-truncated public repo — an
+  earlier code-search "0 matches" was a false-negative) **and** are IPFS-pinned by
+  the `multiHash`; either resolves the exact text.
 - **Executive enactment (the binding vote).** The Chief is where spells — including
   the Atlas v2 upgrade and spell-borne edits — are approved: chainlog **`MCD_ADM =
   0x929d9A14…`** (current), with the **classic Chief `0x0a3f6849…`** in the portal
@@ -297,14 +300,14 @@ indexed on a substrate that *cannot* be garbage-collected like the GitHub repo w
   severed-era date). #25010 notes the v2 HTML hash is enforced "by Sky Governance …
   similar to the controls that exist around the MIP process."
 
-**Recovery chain:** on-chain `Voted` events (permanent: every `pollId` + per-voter
-choice + timestamp) → the portal maps `pollId → IPFS poll doc` → the doc describing
-that cycle's edits → cross-reference the forum proposal + AEP for the same cycle.
-This **timestamps, orders, and ratify-filters** the forum reconstruction with an
-authoritative, un-GC-able anchor, and is **self-serve / public** (no contact
-needed). Caveat: the chain records *which polls ran + the tally*, not the literal
-file diff — and the poll *content* is portal/IPFS-side, not emitted on-chain — so
-the prose detail still comes from the IPFS poll doc / forum proposal.
+**Recovery chain (verified end-to-end):** on-chain `createPoll` calldata on
+`0xF9be…` → `{date, IPFS multiHash, makerdao/community URL}` per poll → fetch the
+poll markdown (IPFS or GitHub) → its `title` / `discussion_link` / atlas-doc links
+(+ Powerhouse UUIDs) → cross-reference the forum proposal + AEP. This is a
+**permanent, dated, content-addressed, public** index of the severed-era Atlas Edit
+cycles — **self-serve, no contact needed**. It records *which* edits were ratified,
+*when*, and *links to the doc + forum prose*; the literal HTML diff still comes from
+the genesis/forum reconstruction (or the recovered genesis snapshot).
 
 ## Should we extend history before the HTML era? — tiered take
 
@@ -314,12 +317,13 @@ plan. Each is a fresh **repo + format + identity** boundary, so each needs its
 own seed match — but the backward-threading + content-matching machinery in
 `html-era-history.md` (§4) generalizes to all of them.
 
-**Tier 0 — on-chain `Voted` index + IPFS poll docs. Most durable, and public.**
-Independent of the GC'd git repo: the `PollingEmitter` `Voted` log is a permanent,
-dated index (every `pollId` + per-voter choice + timestamp) of all Sky governance
-polls, and the poll documents are IPFS-pinned (see "On-chain governance records").
-Best used to **timestamp, corroborate, and ratify-filter** the forum reconstruction
-rather than as a standalone prose source. Self-serve; no contact needed.
+**Tier 0 — on-chain poll index + IPFS/GitHub poll docs. Most durable, and public.**
+Independent of the GC'd git repo: severed-era `createPoll` txs (emitter `0xF9be…`)
+give per poll `{date, IPFS multiHash, makerdao/community URL}` — 21 Atlas Edit polls
+across 2024-09→2025-05 — and the poll docs are dual-hosted (IPFS + GitHub), each
+linking to the edited atlas docs + forum thread (see "On-chain governance
+records"). Best used to **timestamp, corroborate, ratify-filter, and forum-link**
+the reconstruction. Self-serve; no contact needed.
 
 **Tier 1 — reconstruct the severed HTML era (era 3a). Highest value, now partly
 recovered.** Same format (HTML, same single file, same `A.x` numbering) and same
