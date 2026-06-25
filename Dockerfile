@@ -19,6 +19,12 @@ COPY . .
 # Chat + auth ship DISABLED by default; rebuild with --build-arg
 # VITE_CHAT_ENABLED=1 (and set CHAT_ENABLED=1 at runtime) to enable.
 ARG VITE_CHAT_ENABLED=0
+# PostHog analytics key. VITE_* vars are inlined by Vite AT BUILD TIME, not read
+# at runtime — so the key must be present in this build environment, not just as a
+# runtime service variable. Railway forwards the matching service variable as a
+# --build-arg when this ARG is declared. Empty by default → analytics stays a
+# no-op (analyticsEnabled=false in src/lib/analytics.ts).
+ARG VITE_POSTHOG_KEY=""
 RUN rm -rf vendor/next-gen-atlas \
  && git clone --depth 1 --single-branch --branch main \
       https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas \
@@ -27,7 +33,7 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:glossary \
  && bun run build:bundle \
  && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
- && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:vite \
+ && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
