@@ -19,11 +19,11 @@ export const analyticsEnabled = Boolean(KEY);
 
 let started = false;
 
-// localhost / LAN / *.local → dev; anything else (Railway domain) → prod.
+// Only the canonical production domain is "prod"; every other deployment
+// (localhost, Railway preview URLs, PR environments, …) is "dev".
+const PROD_HOST = "atlas.redline.support";
 function deriveEnvironment(host: string): "dev" | "prod" {
-  if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") return "dev";
-  if (host.endsWith(".local") || host.startsWith("192.168.") || host.startsWith("10.")) return "dev";
-  return "prod";
+  return host === PROD_HOST ? "prod" : "dev";
 }
 
 // The only PostHog-internal ($-prefixed) properties we keep. Everything else
