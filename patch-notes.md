@@ -12,7 +12,7 @@
 -->
 
 ## 2026-06-25
-- Cross-references that linked out to sky-atlas.io now open the section inside RedLens instead
+- Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
