@@ -49,6 +49,8 @@ const KEEP_DOLLAR = new Set([
 // Runs on every event before send: disable geoip, then strip all non-allowlisted
 // built-in properties (which also removes any $ip) to keep the payload minimal.
 // $web_vitals_* metric props are exempted so the $web_vitals event keeps its values.
+// PostHog hands us a fresh props object per-event (not reused post-hook), so
+// mutating in place is safe.
 function sanitizeProps(props: Record<string, unknown>): Record<string, unknown> {
   props.$geoip_disable = true;
   // Guarantee `host` on EVERY event (pageview, web-vitals, exception, custom),
