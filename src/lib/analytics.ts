@@ -95,10 +95,13 @@ export function initAnalytics(): void {
     capture_pageleave: true, // session-duration only; no PII
     autocapture: false, // no incidental DOM capture — only our curated events + pageviews
     disable_session_recording: true, // never record DOM/inputs
-    capture_performance: { web_vitals: true }, // web-vitals ($web_vitals event) on; resource/network timing off
+    capture_performance: { web_vitals: true }, // web-vitals ($web_vitals event); resource/network timing off
+    capture_exceptions: true, // error tracking: autocaptures unhandled errors/rejections + enables captureException()
     disable_surveys: true, // no surveys feature/assets
-    disable_external_dependency_loading: true, // don't fetch toolbar/recorder/survey scripts
     advanced_disable_flags: true, // no /flags round-trip (we use no feature flags)
+    // NOTE: external dependency loading stays ENABLED — the web-vitals collector and
+    // the exception-autocapture extension load as external chunks (via the /z/static
+    // proxy). Disabling it silently breaks both $web_vitals and $exception parsing.
     sanitize_properties: sanitizeProps,
   });
 
@@ -112,16 +115,9 @@ export function initAnalytics(): void {
     // country/city/lat-lon). Also enforced per-event in sanitizeProps.
     $geoip_disable: true,
   });
-
-  // Catch-all: report uncaught errors and unhandled promise rejections that no
-  // try/catch or ErrorBoundary handled. (React render errors don't reach
-  // window.onerror — those are reported explicitly from ErrorBoundary.)
-  window.addEventListener("error", (e) =>
-    captureException(e.error ?? e.message, { mechanism: "window.onerror" }),
-  );
-  window.addEventListener("unhandledrejection", (e) =>
-    captureException(e.reason, { mechanism: "unhandledrejection" }),
-  );
+  // Uncaught errors + unhandled promise rejections are autocaptured by
+  // capture_exceptions above. We still call captureException() explicitly for
+  // *handled* errors (ErrorBoundary, worker onerror) that never go uncaught.
 }
 
 /** Set a super property that auto-attaches to all subsequent events. */

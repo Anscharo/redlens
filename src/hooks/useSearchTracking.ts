@@ -7,7 +7,7 @@ import { track } from "../lib/analytics";
 // "governance" logs once, not g→go→gov→…), or immediately on unmount when they
 // act on a result and navigate away. Deduped by query+mode. `query` is the
 // deliberate capture of search text — the input is excluded from autocapture.
-const DEBOUNCE_MS = 900;
+const DEBOUNCE_MS = 500;
 
 export function useSearchTracking(state: SearchState, mode: SearchMode): void {
   const lastSent = useRef("");
