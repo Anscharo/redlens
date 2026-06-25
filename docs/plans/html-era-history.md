@@ -589,6 +589,18 @@ Same diff bytes and significance classes as the markdown era, so HTML-era rows
 render identically in `EntryRow`. The #117 boundary event itself is a labelled
 migration marker with its content diff suppressed (§5.3, §6).
 
+> **Implemented + a load-bearing gotcha (2026-06-25).** `buildEvents` lives in
+> `scripts/lib/history-html-era.mjs`; the orchestrator is `scripts/aux/freeze-
+> html-history.mjs` (`pnpm freeze:html-history [--measure]`), which uses the real
+> `diffCore.lineDiff` + `classifyDiff` and emits events in the exact `eventToRow`
+> shape (`commitHash`/`changeType`/`movedFrom`/`movedTo`/`diff`/`changeKind`) plus
+> the additive `era`. **Adjacency invariant:** `added`/`removed` run-boundaries
+> must be decided by a UUID's position in the *HTML-commit list* (a contiguous
+> index), **not** the absolute `commit_seq` — HTML commits are **not consecutive
+> in the full submodule log** (non-HTML commits interleave), so `seq+1` arithmetic
+> sees a phantom gap at every hop and explodes `added`/`removed` ~3×. `commit_seq`
+> (from `gitCommitSeq`, reconcile-by-SHA, §7.1) is carried only for DB ordering.
+
 ## 5. Wiring into `build-history.mjs`
 
 1. **Two read paths, kept disjoint — resolve the apparent overlap up front.**

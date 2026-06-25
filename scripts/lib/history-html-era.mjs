@@ -93,21 +93,25 @@ export function threadBackward(commits, { seed = new Map() } = {}) {
 // model so HTML-era rows render identically in EntryRow (plan §4.4). Handles
 // disappear→reappear gaps as removed+added (slot-reuse safety).
 export function buildEvents(commits, { lineDiff, era = "html" } = {}) {
+  // `commits` is oldest→newest and CONTIGUOUS; run-adjacency is decided by the
+  // position in THIS list (idx), NOT the absolute commit_seq — HTML commits are
+  // not consecutive in the full submodule log (non-HTML commits interleave), so
+  // seq+1 arithmetic would see a gap at every hop. seq is kept only for reference.
   const byUuid = new Map();
-  for (const c of commits) for (const n of c.nodes) {
+  commits.forEach((c, idx) => { for (const n of c.nodes) {
     let arr = byUuid.get(n.uuid); if (!arr) byUuid.set(n.uuid, (arr = []));
-    arr.push({ seq: c.seq, sha: c.sha, node: n });
-  }
-  const lastSeq = commits[commits.length - 1].seq;
+    arr.push({ idx, seq: c.seq, sha: c.sha, node: n });
+  } });
+  const lastIdx = commits.length - 1;
   const events = [];
   // `era` is an ADDITIVE field for EntryRow (plan §9): downstream can show a
   // pre-markdown / converter-derived warning without altering existing fields.
   const push = (e) => events.push({ era, ...e });
   for (const [uuid, occAll] of byUuid) {
     // one occurrence per commit (defensive: a uuid should be unique per commit)
-    const occ = occAll.sort((a, b) => a.seq - b.seq).filter((o, i, arr) => i === 0 || o.seq !== arr[i - 1].seq);
+    const occ = occAll.sort((a, b) => a.idx - b.idx).filter((o, i, arr) => i === 0 || o.idx !== arr[i - 1].idx);
     for (let i = 0; i < occ.length; i++) {
-      const newRun = i === 0 || occ[i].seq !== occ[i - 1].seq + 1;
+      const newRun = i === 0 || occ[i].idx !== occ[i - 1].idx + 1; // gap in the html-commit run
       if (newRun) {
         if (i > 0) push({ uuid, type: "removed", sha: occ[i - 1].sha, seq: occ[i - 1].seq });
         push({ uuid, type: "added", sha: occ[i].sha, seq: occ[i].seq, doc_no: occ[i].node.doc_no, title: occ[i].node.title, synthetic: isSynthetic(uuid) });
@@ -123,7 +127,7 @@ export function buildEvents(commits, { lineDiff, era = "html" } = {}) {
       if (pathChanged) push({ uuid, type: "moved", sha: occ[i].sha, seq: occ[i].seq, movedFrom: p.doc_no, movedTo: c.doc_no, moveKind: "doc_no" });
     }
     const last = occ[occ.length - 1];
-    if (last.seq < lastSeq) push({ uuid, type: "removed", sha: last.sha, seq: last.seq }); // disappeared before the era's end
+    if (last.idx < lastIdx) push({ uuid, type: "removed", sha: last.sha, seq: last.seq }); // disappeared before the era's end
   }
   return events;
 }

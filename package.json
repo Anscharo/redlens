@@ -12,6 +12,7 @@
     "snap:chainstate": "node --env-file-if-exists=.env.local scripts/required/fetch-chain-state.mjs",
     "build:graph": "node scripts/required/build-graph.mjs",
     "build:history": "bun scripts/required/build-history.mjs",
+    "freeze:html-history": "bun scripts/aux/freeze-html-history.mjs",
     "atlas:worker": "bun scripts/required/atlas-worker.mjs",
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "build:bundle": "bun scripts/required/build-bundle.ts",
