@@ -20,12 +20,34 @@ on:
         type: string
 
 jobs:
+  # Always runs on deployment_status so we can see exactly what Railway emits
+  # (state, environment, environment_url, …) even when the e2e job is skipped.
+  # Remove once the e2e gate below is confirmed firing on PR envs.
+  debug-deployment:
+    if: github.event_name == 'deployment_status'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump deployment_status payload
+        env:
+          DEPLOYMENT_STATUS: ${{ toJSON(github.event.deployment_status) }}
+          DEPLOYMENT: ${{ toJSON(github.event.deployment) }}
+        run: |
+          echo "state=${{ github.event.deployment_status.state }}"
+          echo "environment=${{ github.event.deployment_status.environment }}"
+          echo "environment_url=${{ github.event.deployment_status.environment_url }}"
+          echo "::group::deployment_status"; echo "$DEPLOYMENT_STATUS"; echo "::endgroup::"
+          echo "::group::deployment"; echo "$DEPLOYMENT"; echo "::endgroup::"
+
   e2e:
-    # Manual dispatch always runs; deployment_status only for successful PR envs.
+    # Manual dispatch always runs. For deployment_status, gate on a successful
+    # deploy whose URL is a Railway preview host — loosened from a brittle 'pr-'
+    # substring (the real hostname may not contain it). contains() on a null URL
+    # is false, so a missing environment_url safely skips. Tighten once the
+    # debug-deployment job above confirms the real payload shape.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
-       contains(github.event.deployment_status.environment_url, 'pr-'))
+       contains(github.event.deployment_status.environment_url, 'up.railway.app'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
