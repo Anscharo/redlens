@@ -40,14 +40,14 @@ jobs:
 
   e2e:
     # Manual dispatch always runs. For deployment_status, gate on a successful
-    # deploy whose URL is a Railway preview host — loosened from a brittle 'pr-'
-    # substring (the real hostname may not contain it). contains() on a null URL
-    # is false, so a missing environment_url safely skips. Tighten once the
-    # debug-deployment job above confirms the real payload shape.
+    # PR-environment deploy. Railway's `environment` is like
+    # "Redline Atlas / redlens-pr-103" (the PR number lives here), while
+    # `environment_url` is the Railway *console* link, not the app — so we gate on
+    # `environment` containing 'pr-' (prod envs don't) and derive the app URL below.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
-       contains(github.event.deployment_status.environment_url, 'up.railway.app'))
+       contains(github.event.deployment_status.environment, 'pr-'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -55,14 +55,21 @@ jobs:
       - name: Resolve target URL
         id: target
         env:
-          DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+          ENV_NAME: ${{ github.event.deployment_status.environment }}
           PR_INPUT: ${{ github.event.inputs.pr }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "url=https://redlens-redlens-pr-${PR_INPUT}.up.railway.app" >> "$GITHUB_OUTPUT"
+            PR="${PR_INPUT}"
           else
-            echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+            # environment_url is the Railway console (not the deploy), so derive the
+            # deterministic public hostname from the PR number in the env name.
+            PR="$(printf '%s' "$ENV_NAME" | grep -oE 'pr-[0-9]+' | grep -oE '[0-9]+' | head -1)"
           fi
+          if [ -z "$PR" ]; then
+            echo "could not parse a PR number from environment '${ENV_NAME}'" >&2
+            exit 1
+          fi
+          echo "url=https://redlens-redlens-pr-${PR}.up.railway.app" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v6
 
