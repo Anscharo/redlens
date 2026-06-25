@@ -24,6 +24,7 @@ import type { EntityNodeData, EntityEdgeData, EntityRelation } from "../../lib/e
 import { edgeLabel, ENTITY_TYPE_LABEL, SUBTYPE_LABEL } from "../../lib/entityGraph";
 import { getEdges, type EdgeResult } from "../../lib/graph";
 import { atlasHref } from "../../lib/routes";
+import { track } from "../../lib/analytics";
 import type { GraphEntity } from "../../types";
 
 const stopPropagation = (e: React.MouseEvent) => e.stopPropagation();
@@ -312,7 +313,10 @@ function EntityFlowInner({
   useEffect(() => { setEdges(rfEdges); }, [rfEdges, setEdges]);
 
   const handleNodeClick = useCallback<NodeMouseHandler<CardNode>>(
-    (_, node) => onSelect(node.id),
+    (_, node) => {
+      track("constellation_select", { entity_id: node.id });
+      onSelect(node.id);
+    },
     [onSelect],
   );
 

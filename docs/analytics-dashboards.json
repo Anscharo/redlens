@@ -64,7 +64,15 @@
     "chat_open": { "props": { "product": "chat" } },
     "chat_message_sent": { "props": { "product": "chat", "node_id": "uuid?", "path": "string" } },
     "preview_submit": { "props": { "input": "string", "parsed_id": "string|null", "parsed": "bool" } },
-    "preview_view_toggle": { "props": { "view": "all | changed_only", "changed_count": "number" } }
+    "preview_view_toggle": { "props": { "view": "all | changed_only", "changed_count": "number" } },
+    "search_mode_change": { "props": { "mode": "broad | phrase | strict" } },
+    "constellation_select": { "props": { "entity_id": "uuid (graph entity)" } },
+    "report_export": { "props": { "report": "active-data | processes", "format": "csv | json", "method": "download | copy (json only)" } },
+    "chat_starter_click": { "props": { "product": "chat", "starter": "number (starter index 0-2)" } },
+    "chat_signin_click": { "props": { "product": "chat", "provider": "github | google" } },
+    "chat_citation_click": { "props": { "product": "chat", "node_id": "uuid" } },
+    "preview_interstitial": { "props": { "product": "preview", "action": "proceed | cancel", "sha": "string" } },
+    "preview_recent_click": { "props": { "product": "preview", "preview_id": "string" } }
   },
   "mathVocabulary": {
     "total": "event count",
@@ -151,7 +159,8 @@
         { "name": "% clicks in top 5", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "in_top_5", "type": "event" } },
         { "name": "Time-to-click (ms)", "type": "trends", "viz": "line", "series": [{ "event": "search_result_click", "math": "median", "math_property": "ms_to_click", "label": "p50" }, { "event": "search_result_click", "math": "p90", "math_property": "ms_to_click", "label": "p90" }] },
         { "name": "Doc vs entity clicks", "type": "trends", "viz": "bar", "series": [{ "event": "search_result_click", "math": "total" }], "breakdown": { "property": "result_kind", "type": "event" } },
-        { "name": "Search mode usage", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_search", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } }
+        { "name": "Search mode usage (at search time)", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_search", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } },
+        { "name": "Search mode pill clicks", "type": "trends", "viz": "bar", "question": "How often users explicitly switch broad/phrase/strict via the pills (vs. typing quotes).", "series": [{ "event": "search_mode_change", "math": "total" }], "breakdown": { "property": "mode", "type": "event" } }
       ]
     },
     {
@@ -161,7 +170,8 @@
         { "name": "Report popularity", "type": "trends", "viz": "bar", "series": [{ "event": "report_open", "math": "total" }], "breakdown": { "property": "report_id", "type": "event" } },
         { "name": "Filters applied (by type)", "type": "trends", "viz": "bar", "series": [{ "event": "report_filter", "math": "total" }], "filters": [{ "property": "active", "operator": "exact", "value": true, "type": "event" }], "breakdown": { "property": "filter_type", "type": "event" } },
         { "name": "Most-used filter values", "type": "sql", "viz": "table", "query": "SELECT properties.report AS report, coalesce(properties.value, properties.slug) AS value, count() AS uses FROM events WHERE event='report_filter' AND properties.environment='prod' AND properties.active = true GROUP BY report, value ORDER BY uses DESC LIMIT 50" },
-        { "name": "Open → filter funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "report_open" }, { "event": "report_filter" }] }
+        { "name": "Open → filter funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "report_open" }, { "event": "report_filter" }] },
+        { "name": "Report exports", "type": "trends", "viz": "bar", "question": "Who downloads the data — a strong 'this report is useful' signal.", "series": [{ "event": "report_export", "math": "total" }], "breakdown": { "property": "report", "type": "event" } }
       ]
     },
     {
@@ -170,7 +180,8 @@
       "tiles": [
         { "name": "Radar pageviews", "type": "trends", "viz": "line", "series": [{ "event": "$pageview", "math": "total" }], "filters": [{ "property": "product", "operator": "exact", "value": "radar", "type": "event" }] },
         { "name": "History opens by agent", "type": "trends", "viz": "bar", "series": [{ "event": "radar_history_toggle", "math": "total" }], "filters": [{ "property": "open", "operator": "exact", "value": true, "type": "event" }], "breakdown": { "property": "agent_slug", "type": "event" } },
-        { "name": "Most-explored history commits", "type": "sql", "viz": "table", "query": "SELECT properties.agent_slug AS agent, properties.pr AS pr, properties.commit AS commit, count() AS opens FROM events WHERE event='radar_history_toggle' AND properties.environment='prod' AND properties.open = true GROUP BY agent, pr, commit ORDER BY opens DESC LIMIT 50" }
+        { "name": "Most-explored history commits", "type": "sql", "viz": "table", "query": "SELECT properties.agent_slug AS agent, properties.pr AS pr, properties.commit AS commit, count() AS opens FROM events WHERE event='radar_history_toggle' AND properties.environment='prod' AND properties.open = true GROUP BY agent, pr, commit ORDER BY opens DESC LIMIT 50" },
+        { "name": "Constellations engagement (removal candidate)", "type": "trends", "viz": "line", "question": "Does anyone actually use the constellations graph (single node-select probe)? Feeds the keep/remove decision.", "series": [{ "event": "constellation_select", "math": "total", "label": "selects" }, { "event": "constellation_select", "math": "unique_session", "label": "sessions" }] }
       ]
     },
     {
@@ -185,7 +196,10 @@
           { "event": "doc_view", "filters": [{ "property": "product", "operator": "exact", "value": "preview", "type": "event" }] }
         ] },
         { "name": "Changed-only adoption", "type": "trends", "viz": "bar", "series": [{ "event": "preview_view_toggle", "math": "total" }], "breakdown": { "property": "view", "type": "event" } },
-        { "name": "Preview change size (changed_count)", "type": "trends", "viz": "line", "series": [{ "event": "preview_view_toggle", "math": "median", "math_property": "changed_count" }] }
+        { "name": "Preview change size (changed_count)", "type": "trends", "viz": "line", "series": [{ "event": "preview_view_toggle", "math": "median", "math_property": "changed_count" }] },
+        { "name": "Trust-gate outcome", "type": "trends", "viz": "bar", "question": "On the unreviewed-fork interstitial, do people proceed or back out?", "series": [{ "event": "preview_interstitial", "math": "total" }], "breakdown": { "property": "action", "type": "event" } },
+        { "name": "Trust-gate proceed rate", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "preview_interstitial" }, { "event": "preview_interstitial", "filters": [{ "property": "action", "operator": "exact", "value": "proceed", "type": "event" }] }] },
+        { "name": "Reuse vs fresh entry", "type": "trends", "viz": "bar", "question": "Do people re-open a recent preview or submit a new one.", "series": [{ "event": "preview_recent_click", "math": "total", "label": "reuse recent" }, { "event": "preview_submit", "math": "total", "label": "fresh submit" }] }
       ]
     },
     {
@@ -194,7 +208,11 @@
       "tiles": [
         { "name": "Opens & messages", "type": "trends", "viz": "line", "series": [{ "event": "chat_open", "math": "total" }, { "event": "chat_message_sent", "math": "total" }] },
         { "name": "Open → message funnel", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "steps": [{ "event": "chat_open" }, { "event": "chat_message_sent" }] },
-        { "name": "Where chat is used", "type": "sql", "viz": "table", "query": "SELECT properties.path AS path, count() AS messages FROM events WHERE event='chat_message_sent' AND properties.environment='prod' GROUP BY path ORDER BY messages DESC LIMIT 50" }
+        { "name": "Where chat is used", "type": "sql", "viz": "table", "query": "SELECT properties.path AS path, count() AS messages FROM events WHERE event='chat_message_sent' AND properties.environment='prod' GROUP BY path ORDER BY messages DESC LIMIT 50" },
+        { "name": "Starter prompt usage", "type": "trends", "viz": "bar", "question": "Do the canned starters get used, and which ones.", "series": [{ "event": "chat_starter_click", "math": "total" }], "breakdown": { "property": "starter", "type": "event" } },
+        { "name": "Sign-in conversion", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "question": "Of sessions that open chat, how many click sign-in (then send).", "steps": [{ "event": "chat_open" }, { "event": "chat_signin_click" }, { "event": "chat_message_sent" }] },
+        { "name": "Sign-in provider split", "type": "trends", "viz": "bar", "series": [{ "event": "chat_signin_click", "math": "total" }], "breakdown": { "property": "provider", "type": "event" } },
+        { "name": "Citation clicks", "type": "trends", "viz": "line", "question": "Do users click through the atlas citations the agent returns.", "series": [{ "event": "chat_citation_click", "math": "total" }, { "event": "chat_citation_click", "math": "unique_session" }] }
       ]
     },
     {

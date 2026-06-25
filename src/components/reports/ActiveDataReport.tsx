@@ -194,7 +194,10 @@ export function ActiveDataReport() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{filtered.length} sections</p>
           <button
-            onClick={() => exportCSV(filtered, lastEditDates)}
+            onClick={() => {
+              track("report_export", { report: "active-data", format: "csv" });
+              exportCSV(filtered, lastEditDates);
+            }}
             className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
           >
             Download CSV
