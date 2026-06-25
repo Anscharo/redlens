@@ -492,14 +492,31 @@ Tiered, cheapest-first, to avoid an O(n²) edit-distance blow-up:
    confirmed to dominate HTML→HTML hops: 99.6% of all pairs** (2026-06-25) — so
    per-hop threading is cheap, exactly as the §4.0 cost argument assumes.
 2. **Structural key** = `section` + **full ancestor title-path** (the whole
-   `<dfn>` " - " chain, near-unique — *not* the leaf doc_no/temp-name, which
-   collides hundreds of times, §2c). **This tier is load-bearing, not a fallback**
-   (§2c, prototype 2026-06-25): short rows (< ~8 words) carry no shingles and so
-   tier 3 *cannot* match them — the structural key is their **only** handle. A
-   weak structural key is what turned ~half the prototype's deletions and most of
-   its ambiguous queue into boilerplate noise; a strong one (full ancestor
-   title-path, not the colliding leaf) is the difference between a curatable
-   queue and an un-curatable one.
+   `<dfn>` " - " chain) + the **owner / Agent column** (the §2b Name cell) + leaf
+   title — *not* the leaf doc_no/temp-name alone, which collides hundreds of
+   times (§2c). **This tier is load-bearing, not a fallback** (§2c): short rows
+   (< ~8 words) carry no shingles, so tier 3 *cannot* match them — the structural
+   key is their **only** handle. The owner column matters: the §3 converter
+   measured it (2026-06-25) cuts raw seed-commit key-collisions **69% → 52%** by
+   de-colliding bare temp-name rows (every "Spark" row no longer shares one key).
+2.5. **Positional alignment within a key-bucket.** Even the strong key leaves a
+   measured **~45% of seed rows in a distinct-content collision** — almost all of
+   it the **Agent Scope DB deep hierarchy**, e.g. `…spark…parameters` ×48 (one
+   "Parameters" doc per primitive an agent runs), whose true disambiguator (which
+   primitive/instance) lives in **row order**, not the dfn, columns, or nesting
+   (only ~12 nested tables era-wide). **Do not reconstruct that ancestry in the
+   parser** (§3 deliberately doesn't). Instead, when a key maps a *bucket* of N
+   older rows to N newer rows, **align them by `order`** (k-th older ↔ k-th newer):
+   the atlas preserves row order, so a stable bucket threads deterministically
+   without a unique key. This extends tier-1's position tie-break to tier-2 buckets
+   and dissolves the bulk of the apparent collision; only when a bucket's size
+   *changes* (a row inserted/removed/reordered inside it) is the residual genuinely
+   ambiguous → tier 3 / §10.4. **This is the mechanism that turns the raw 45%
+   collision into a small real decision queue** — the converter measurement above
+   is exactly why this step exists. **Validated end-to-end (2026-06-25):** the
+   real converter + matcher leave **0 ambiguous on the prototype's worst hop
+   (`73a607a4`, was 661)** and only ~1–22 on bulk-edit commits (28 across four
+   sampled hops); tier 1 alone carries >99% of pairs.
 3. **Fuzzy, residual only** — generate candidates within the same section whose
    title is similar OR whose doc_no is adjacent, then score by the **shared-line
    ratio from `diffCore`** (NOT character-level Levenshtein — too costly on
@@ -769,6 +786,13 @@ of the slot-reuse plan (HISTORY_COLS wiring, `slot`/`taken_by` jsonb, read path,
   affordance if desired.
 - If §7's `era` column lands, tint or tag HTML-era rows so users know the diff
   is converter-derived, not a literal source diff.
+- **`EntryRow` fields are additive-only — never modify existing ones** (user
+  directive, 2026-06-25). The HTML-era events already carry an additive `era`
+  field (`buildEvents`, §4.4) so the row can show a "pre-markdown · converted from
+  the HTML atlas" note / converter-derived-diff warning **without touching the
+  existing `HistoryEntry` shape**. Any further HTML-era signal (e.g. `synthetic`,
+  `seam`) is added as a new optional field the markdown era simply leaves unset;
+  existing field meanings and rendering stay byte-for-byte unchanged.
 
 `patch-notes.md`: add a user-facing bullet on the deploy date, e.g.
 "Added document history for the pre-markdown (HTML) era of the atlas."

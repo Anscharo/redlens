@@ -93,6 +93,8 @@
     "knip": "6.6.0",
     "oxlint": "1.62.0",
     "tailwindcss": "4.2.2",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2",
     "typescript": "6.0.2",
     "viem": "2.48.2",
     "vite": "8.0.7",

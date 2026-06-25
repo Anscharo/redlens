@@ -1,0 +1,98 @@
+// HTML-era threading passes (plan §4): synthetic v5 ids, backward identity
+// threading, forward event emission. Pure-function fixtures.
+
+import { describe, it, expect } from "vitest";
+// @ts-expect-error — .mjs without types
+import { syntheticUuid, isSynthetic } from "../scripts/lib/history-identity.mjs";
+// @ts-expect-error — .mjs without types
+import { threadBackward, buildEvents } from "../scripts/lib/history-html-era.mjs";
+
+type Node = any;
+const node = (id: string, o: Partial<Node> & { order: number }): Node => ({
+  contentHash: o.contentHash ?? `h:${o.content ?? id}`,
+  structuralKey: o.structuralKey ?? `k:${id}`,
+  content: o.content ?? id,
+  section: "S",
+  doc_no: o.doc_no ?? null,
+  title: o.title ?? id,
+  ancestors: o.ancestors ?? [],
+  order: o.order,
+});
+
+describe("synthetic v5 uuids", () => {
+  it("is deterministic and version-5 (distinguishable from real v4)", () => {
+    const n = node("X", { order: 0, content: "body", contentHash: "abc" });
+    const a = syntheticUuid(n, "sha1");
+    const b = syntheticUuid(n, "sha1");
+    expect(a).toBe(b);
+    expect(a[14]).toBe("5");
+    expect(isSynthetic(a)).toBe(true);
+  });
+  it("keys to a contiguous life via firstSeenSha", () => {
+    const n = node("X", { order: 0, content: "body", contentHash: "abc" });
+    expect(syntheticUuid(n, "sha1")).not.toBe(syntheticUuid(n, "sha2"));
+  });
+  it("a real v4 uuid is not flagged synthetic", () => {
+    expect(isSynthetic("4f6fda1e-7450-4065-8095-e93cb10b3a2a")).toBe(false);
+  });
+});
+
+describe("threadBackward — Pass A", () => {
+  // seq 0: [A,B]   seq 1: [A,B,C]   seq 2: [A, B'] (C died, B modified)
+  const c0 = { sha: "s0", seq: 0, nodes: [node("A", { order: 0, doc_no: "A.1" }), node("B", { order: 1 })] };
+  const c1 = { sha: "s1", seq: 1, nodes: [node("A", { order: 0, doc_no: "A.1" }), node("B", { order: 1 }), node("C", { order: 2 })] };
+  const aTop = node("A", { order: 0, doc_no: "A.2" });            // A renumbered, content unchanged
+  const bTop = node("B", { order: 1, content: "B2", contentHash: "h:B2" }); // B modified, same key k:B
+  const c2 = { sha: "s2", seq: 2, nodes: [aTop, bTop] };
+  const commits = [c0, c1, c2];
+  const seed = new Map<any, string>([[aTop, "uuid-A"], [bTop, "uuid-B"]]);
+
+  const res = threadBackward(commits, { seed });
+
+  it("threads real uuids all the way back to the oldest commit", () => {
+    expect(c0.nodes[0].uuid).toBe("uuid-A"); // A at seq 0
+    expect(c0.nodes[1].uuid).toBe("uuid-B"); // B at seq 0
+  });
+  it("mints a synthetic v5 id for a mid-era death (C)", () => {
+    const cNode = c1.nodes[2];
+    expect(isSynthetic(cNode.uuid)).toBe(true);
+    expect(res.synthetics.some((s: any) => s.uuid === cNode.uuid && s.kind === "death")).toBe(true);
+  });
+  it("records an orphan entry (death/birth) per hop", () => {
+    expect(res.orphansByCommit.length).toBe(2); // two backward hops
+  });
+});
+
+describe("buildEvents — Pass B", () => {
+  const c0 = { sha: "s0", seq: 0, nodes: [node("A", { order: 0, doc_no: "A.1" }), node("B", { order: 1 })] };
+  const c1 = { sha: "s1", seq: 1, nodes: [node("A", { order: 0, doc_no: "A.1" }), node("B", { order: 1 }), node("C", { order: 2 })] };
+  const aTop = node("A", { order: 0, doc_no: "A.2" });
+  const bTop = node("B", { order: 1, content: "B2", contentHash: "h:B2" });
+  const c2 = { sha: "s2", seq: 2, nodes: [aTop, bTop] };
+  const commits = [c0, c1, c2];
+  threadBackward(commits, { seed: new Map([[aTop, "uuid-A"], [bTop, "uuid-B"]]) });
+  const events = buildEvents(commits, { lineDiff: (a: string, b: string) => `${a}→${b}` });
+  const of = (uuid: string) => events.filter((e: any) => e.uuid === uuid);
+
+  it("stamps the additive `era` field on every event", () => {
+    expect(events.every((e: any) => e.era === "html")).toBe(true);
+  });
+  it("emits added once, at first appearance", () => {
+    expect(of("uuid-A").filter((e: any) => e.type === "added").length).toBe(1);
+  });
+  it("emits modified with a diff when content changes", () => {
+    const mod = of("uuid-B").find((e: any) => e.type === "modified");
+    expect(mod).toBeTruthy();
+    expect(mod.diff).toBe("B→B2");
+  });
+  it("emits moved (doc_no change) as movedFrom→movedTo with moveKind", () => {
+    const mv = of("uuid-A").find((e: any) => e.type === "moved");
+    expect(mv).toMatchObject({ movedFrom: "A.1", movedTo: "A.2", moveKind: "doc_no" });
+  });
+  it("a mid-era death gets added + removed; its added is flagged synthetic", () => {
+    const cNode = c1.nodes[2];
+    const evs = of(cNode.uuid);
+    expect(evs.find((e: any) => e.type === "added").synthetic).toBe(true);
+    expect(evs.some((e: any) => e.type === "removed")).toBe(true);
+  });
+});
