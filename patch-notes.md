@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-06-25
+- Cross-references that linked out to sky-atlas.io now open the section inside RedLens instead
+
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
 - Sped up the Active Data report load by fetching edit history in one request instead of one per row

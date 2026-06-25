@@ -32,12 +32,33 @@ function toBundle(msg: {
   byParentEntries: [string | null, AtlasNode[]][];
   docNoToIdEntries: [string, string][];
 }): AtlasBundle {
-  return {
+  const bundle: AtlasBundle = {
     docs: msg.docs,
     atlasCommit: msg.atlasCommit ?? null,
     byParent: new Map(msg.byParentEntries),
     docNoToId: new Map(msg.docNoToIdEntries),
   };
+  registerRefs(bundle);
+  return bundle;
+}
+
+// Synchronous reference index, fed by every resolved bundle. Lets the markdown
+// renderer turn an atlas reference fragment (a bare UUID or a doc_no, e.g. the
+// `#…` of a sky-atlas.io deep-link embedded in atlas prose) into an internal
+// node id without prop-drilling the whole bundle into NodeContent.
+const knownNodeIds = new Set<string>();
+const docNoIndex = new Map<string, string>();
+
+function registerRefs(b: AtlasBundle): void {
+  for (const id in b.docs) knownNodeIds.add(id);
+  for (const [docNo, id] of b.docNoToId) docNoIndex.set(docNo, id);
+}
+
+/** Resolve an atlas reference fragment (UUID or doc_no) to an internal node id,
+ *  or undefined when it isn't a node we host (caller should keep it external). */
+export function resolveAtlasRef(fragment: string): string | undefined {
+  if (knownNodeIds.has(fragment)) return fragment;
+  return docNoIndex.get(fragment);
 }
 
 function spawn(base: string): WorkerHandles {

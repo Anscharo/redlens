@@ -12,6 +12,14 @@ import { setAddressMap } from "../lib/addressMap";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const UUID = "1ce24b08-84ff-4524-9710-49bba429c6ef";
+const DOC_NO = "A.3.7.1.2.2";
+
+// resolveAtlasRef is fed by loaded atlas bundles at runtime; stub it so the
+// renderer sees UUID/doc_no -> internal-id only for nodes we "host".
+vi.mock("../lib/docs", () => ({
+  resolveAtlasRef: (fragment: string) =>
+    fragment === UUID || fragment === DOC_NO ? UUID : undefined,
+}));
 
 beforeEach(() => setAddressMap({}));
 afterEach(cleanup);
@@ -50,6 +58,46 @@ describe("UUID link rendering", () => {
   it("renders a UUID link as external when no onNavigate is provided", async () => {
     render(<NodeContentInner content={`[Go to node](${UUID})`} />);
     const link = await screen.findByRole("link", { name: "Go to node" });
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+});
+
+describe("sky-atlas.io deep-link internalisation", () => {
+  it("internalises a sky-atlas.io UUID deep-link to an SPA navigation", async () => {
+    const onNavigate = vi.fn();
+    render(
+      <NodeContentInner
+        content={`[See section](https://sky-atlas.io/#${UUID})`}
+        onNavigate={onNavigate}
+      />,
+    );
+    const link = await screen.findByRole("link", { name: "See section" });
+    expect(link).toHaveAttribute("href", `/atlas?id=${UUID}`);
+    expect(link).not.toHaveAttribute("target", "_blank");
+    await userEvent.click(link);
+    expect(onNavigate).toHaveBeenCalledWith(UUID);
+  });
+
+  it("internalises a sky-atlas.io doc_no deep-link by resolving to the node id", async () => {
+    const onNavigate = vi.fn();
+    render(
+      <NodeContentInner
+        content={`[Update Process](https://sky-atlas.io/#${DOC_NO})`}
+        onNavigate={onNavigate}
+      />,
+    );
+    const link = await screen.findByRole("link", { name: "Update Process" });
+    expect(link).toHaveAttribute("href", `/atlas?id=${UUID}`);
+    await userEvent.click(link);
+    expect(onNavigate).toHaveBeenCalledWith(UUID);
+  });
+
+  it("keeps a sky-atlas.io link external when the node isn't hosted internally", async () => {
+    const onNavigate = vi.fn();
+    const href = "https://sky-atlas.io/#Z.9.9.9";
+    render(<NodeContentInner content={`[Elsewhere](${href})`} onNavigate={onNavigate} />);
+    const link = await screen.findByRole("link", { name: "Elsewhere" });
+    expect(link).toHaveAttribute("href", href);
     expect(link).toHaveAttribute("target", "_blank");
   });
 });
