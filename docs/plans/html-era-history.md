@@ -167,6 +167,15 @@ Anchor commits:
   temp name (collides hundreds of times) is a usable key on its own. Identity
   must be **positional**: (section, ancestor title-path, row order) +
   contentHash, with renumber/rename detection by content (§4).
+- **Short and non-unique rows are *the* dominant matcher hazard — measured by the
+  threading prototype (2026-06-25), not a footnote.** Rows under ~8 words carry no
+  shingles (can't fuzzy-match) and collide by temp-name (above), so a matcher that
+  leans on content alone shunts them into false `removed`/ambiguous: the prototype
+  over-reported deaths **10 922 vs the real ~852** and produced an **18 k** raw
+  ambiguous queue, almost all of it boilerplate collision, *not* genuine prose
+  ambiguity. The **only** thing that carries these rows is the **tier-2 structural
+  key** (§4.2) — it is **load-bearing, not residual**. Getting it right is the
+  single highest-leverage part of the matcher.
 - The atlas **roughly doubled** across the era: **4676 rows at the first commit →
   8822 at the last.** Per-commit churn is large; expect heavy add traffic.
 - **The node counts differ, but no content is lost — #117 regranulates, it
@@ -350,6 +359,15 @@ HTML parents — content-conserving, §2c/§4.1; nothing dropped). Every *other*
 backward hop is HTML→HTML through the same converter, where §1's
 artifact-cancellation holds and **exact contentHash matches dominate**.
 
+> **Prototype-validated (2026-06-25).** A throwaway backward-threader (real seed
+> via cross-format containment + tier-1/2/3 backward) confirmed the shape end to
+> end: tier-1 exact-content carried **99.6%** of all HTML→HTML pairs, and UUIDs
+> seeded at #117 threaded **all the way back to the May-2025 genesis commit** for
+> the bulk of docs. The seed hop is indeed the one hard step — exact/section
+> matching scored ~0 across the format boundary; only inverted-index *containment*
+> seeded it. The residual risk is short/non-unique rows (§2c, §4.2 tier 2), not
+> the threading mechanism.
+
 ### 4.1 Pass A — backward identity threading
 
 ```
@@ -470,10 +488,18 @@ Tiered, cheapest-first, to avoid an O(n²) edit-distance blow-up:
 
 1. **Exact `contentHash`** — covers *both* "unchanged in place" and
    "moved-but-unchanged" in one tier; no position needed. Position is only a
-   tie-breaker when one hash occurs twice (duplicated boilerplate).
+   tie-breaker when one hash occurs twice (duplicated boilerplate). **Prototype-
+   confirmed to dominate HTML→HTML hops: 99.6% of all pairs** (2026-06-25) — so
+   per-hop threading is cheap, exactly as the §4.0 cost argument assumes.
 2. **Structural key** = `section` + **full ancestor title-path** (the whole
    `<dfn>` " - " chain, near-unique — *not* the leaf doc_no/temp-name, which
-   collides hundreds of times, §2c).
+   collides hundreds of times, §2c). **This tier is load-bearing, not a fallback**
+   (§2c, prototype 2026-06-25): short rows (< ~8 words) carry no shingles and so
+   tier 3 *cannot* match them — the structural key is their **only** handle. A
+   weak structural key is what turned ~half the prototype's deletions and most of
+   its ambiguous queue into boilerplate noise; a strong one (full ancestor
+   title-path, not the colliding leaf) is the difference between a curatable
+   queue and an un-curatable one.
 3. **Fuzzy, residual only** — generate candidates within the same section whose
    title is similar OR whose doc_no is adjacent, then score by the **shared-line
    ratio from `diffCore`** (NOT character-level Levenshtein — too costly on
@@ -805,7 +831,12 @@ numbers; promote them to a committed `freeze-html-history --measure` mode):
 
 - **Forward (md → did it exist in HTML):** of the ~284 title-"born" #117 docs,
   confirm ≈0 are genuinely new (measured: 159/284 = 100% verbatim, residue ~39
-  all reworded carry-over). Drives the `created` count.
+  all reworded carry-over). Drives the `created` count. **Measure at the *blob*
+  level — against the whole HTML prose — not per-row.** The threading prototype
+  showed per-row/single-parent containment over-reports `created` ~50× (it called
+  ~2050 docs "new" when the true figure is ~39), because short docs and content
+  split across several rows fail a single-row containment test. `created` is a
+  blob-survival question, not a row-pairing one.
 - **Backward (HTML → did it survive into md):** of all distinct HTML sentences
   (sans `<dfn>` breadcrumbs), confirm ~82% survive verbatim / ~89% with
   rewording, residue dominated by path strings. Drives the **seam** `deleted`
@@ -1047,10 +1078,19 @@ reviews/overrides the filtered subset that matters (low-confidence, contended,
 high-fan-out) rather than deciding all from scratch. A re-freeze with a complete
 file runs fully non-interactively (CI-safe).
 
-**Queue size is itself a gate.** Thousands of ambiguous cases ⇒ the converter or
-the tier-3 floor is wrong (fix that first, don't curate around it); a healthy
-queue is dozens-to-low-hundreds, concentrated in the bulk-edit commits
-(#1/#22/#66/#103). Emit the queue size in `--measure`.
+**Queue size is itself a gate — and the gate counts *genuine-prose* ambiguity,
+not structural-collision noise.** The threading prototype (2026-06-25) produced an
+**18 k** raw ambiguous queue, but almost all of it was short/duplicated boilerplate
+rows colliding by content (§2c) — **not** cases a human should ever see. The human
+queue is only the **tier-3 prose gray-zone** (genuinely-similar bodies above the
+floor, below the ceiling); dup-content / dup-key collisions belong to the
+structural layer and must be resolved by a stronger tier-2 key (§4.2), not by
+curation. So: a large *raw* queue ⇒ the converter or tier-2 key is wrong (fix that
+first, don't curate around it); a healthy *genuine-prose* queue is
+dozens-to-low-hundreds, concentrated in the bulk-edit commits (#1/#22/#66/#103).
+Emit **both** numbers in `--measure` (raw vs prose-gray-zone) so the distinction is
+visible — a raw queue that dwarfs the prose queue is the signal to fix keys, not to
+staff a curation marathon.
 
 **Relation to §10.2.** §10.2 *audits* what was decided (post-hoc); §10.4 *captures*
 the decision (at decision time). Same LLM-assist + human-gate infrastructure. The
