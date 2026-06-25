@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useDeferredValue } from "react";
 import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
 import { ROUTES, type SearchScope } from "../lib/routes";
+import { track } from "../lib/analytics";
 
 const queryCodec = urlString(null);
 
@@ -133,6 +134,7 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // Clicking a mode pill wraps/unwraps the free text in the input and positions
   // the cursor before the closing quote so typing extends the phrase naturally.
   const wrapModeClick = useCallback((newMode: SearchMode) => {
+    track("search_mode_change", { mode: newMode });
     const currEffMode = effectiveMode(query);
     const mixed = isMixedQuotes(query);
     const currMode = !mixed && currEffMode !== "broad" ? currEffMode : mode;

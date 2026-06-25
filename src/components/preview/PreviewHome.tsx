@@ -131,7 +131,11 @@ export function PreviewHome() {
           <ul>
             {entries.map((e) => (
               <li key={e.id} className="border-b" style={{ borderColor: "var(--border)" }}>
-                <a href={href(e.id)} className="flex items-baseline gap-3 py-2 px-1 hover:bg-hover rounded">
+                <a
+                  href={href(e.id)}
+                  className="flex items-baseline gap-3 py-2 px-1 hover:bg-hover rounded"
+                  onClick={() => track("preview_recent_click", { product: "preview", preview_id: e.id })}
+                >
                   <span className="mono text-sm shrink-0" style={{ color: "var(--accent)" }}>{e.id}</span>
                   {e.title && <span className="text-sm truncate" style={{ color: "var(--tan)" }}>{e.title}</span>}
                   <span className="mono text-[10px] ml-auto shrink-0" style={{ color: "var(--tan-3)" }}>{e.detail}</span>

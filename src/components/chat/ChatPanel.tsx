@@ -132,8 +132,15 @@ export function ChatPanel({
               open inline.
             </p>
             <div className="flex flex-col gap-[7px]">
-              {STARTERS.map((s) => (
-                <button key={s} className="rlc-starter" onClick={() => void doSend(s)}>
+              {STARTERS.map((s, i) => (
+                <button
+                  key={s}
+                  className="rlc-starter"
+                  onClick={() => {
+                    track("chat_starter_click", { product: "chat", starter: i });
+                    void doSend(s);
+                  }}
+                >
                   {s}
                 </button>
               ))}
@@ -154,10 +161,22 @@ export function ChatPanel({
 
       {!authed ? (
         <div className="rlc-composer flex flex-col gap-[7px]">
-          <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => openAuth("github")}>
+          <button
+            className="rlc-signin w-full justify-center p-[11px]"
+            onClick={() => {
+              track("chat_signin_click", { product: "chat", provider: "github" });
+              openAuth("github");
+            }}
+          >
             <GitHubMark /> sign in with github to ask
           </button>
-          <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => openAuth("google")}>
+          <button
+            className="rlc-signin w-full justify-center p-[11px]"
+            onClick={() => {
+              track("chat_signin_click", { product: "chat", provider: "google" });
+              openAuth("google");
+            }}
+          >
             <GoogleMark /> sign in with google to ask
           </button>
         </div>

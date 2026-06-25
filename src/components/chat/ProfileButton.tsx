@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { GitHubMark, GoogleMark } from "./glyphs";
 import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
+import { track } from "../../lib/analytics";
 
 // NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
 // provider choice (GitHub / Google), both routing through the shared openAuth.
@@ -35,11 +36,23 @@ export function ProfileButton() {
         </button>
         {open && (
           <div className="rlc-menu" role="menu">
-            <button className="rlc-menu-item justify-start" onClick={() => openAuth("github")}>
+            <button
+              className="rlc-menu-item justify-start"
+              onClick={() => {
+                track("chat_signin_click", { product: "chat", provider: "github" });
+                openAuth("github");
+              }}
+            >
               <GitHubMark /> <span>Continue with GitHub</span>
             </button>
             <div className="border-t border-border" />
-            <button className="rlc-menu-item justify-start" onClick={() => openAuth("google")}>
+            <button
+              className="rlc-menu-item justify-start"
+              onClick={() => {
+                track("chat_signin_click", { product: "chat", provider: "google" });
+                openAuth("google");
+              }}
+            >
               <GoogleMark /> <span>Continue with Google</span>
             </button>
           </div>
