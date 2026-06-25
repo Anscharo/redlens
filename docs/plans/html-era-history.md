@@ -436,29 +436,31 @@ above (~280 split, ~1140 merged) are upper bounds from node-counting; the §10
 seam measurement re-derives them by content and should drive any survivor near
 zero into `created`/`deleted` only on real evidence.
 
-> **Measured, and real — `deleted≈0` is a SEAM property only.** Content
-> conservation holds *across #117*, but **not within the HTML era**. *Mid-era
-> graveyard* — content created **and** deleted strictly *between two HTML
-> commits*, never reaching the final state — is genuine deletion and is sizeable:
-> of **11 277** distinct deleted prose sentences across the 79 commits, **1 497
-> (13.3%) never resurface** (shingle oracle vs final state, 2026-06-25). So the
-> synthetic-UUID **tombstone + `removed` path is load-bearing, not a dead
-> branch.** Two refinements from the data:
-> - **Concentration:** graveyard clusters in *cleanup* and *derecognition*
->   commits — `#12` "governance scope cleanup" (142), `#17` "cleanup multiple
->   scopes" (101), `#78` (110, a 49% graveyard *rate*), and the cleanest example
->   `#14` "Derecognize ADs that failed to migrate" (**40/40 = 100%** — every
->   deletion permanent, exactly what derecognition means). The single biggest
->   raw count, `#1` (739), is **initial draft-thrash** (the 2nd commit ever,
->   restructuring a nascent atlas) — discount it; steady-state graveyard is
->   ~760 sentences in semantically-meaningful removals.
-> - **Doc-death vs data-churn — do not conflate (matters for chat).** Some
->   "graveyard" sentences are *volatile data* whose host doc lives on (e.g. a
->   superseded budget figure or target-exposure number). For orphan/doc-death
->   detection that's noise; for the chat point-in-time consumer it is *valuable*
->   ("what was the budget in June 2025"). Tombstone at the right granularity: a
->   `removed` event on a whole node only when the *node* dies, while still
->   preserving superseded data inside a surviving node's diff chain.
+> **Measured — two distinct deletion populations with two sinks; do NOT conflate
+> them (corrected by the prototype, 2026-06-25).** `deleted≈0` is a SEAM property
+> only; *within* the HTML era deletion is real, but it splits two ways:
+> - **Data-churn (sentence-level) — the big population, stays in surviving
+>   nodes.** Of **11 277** distinct deleted prose sentences across the 79 commits,
+>   **1 497 (13.3%) never resurface** (shingle oracle vs final state). This is
+>   dominated by content trimmed *inside docs that live on*, so it clusters in
+>   *cleanup / derecognition* commits — `#12` "governance scope cleanup" (142
+>   sentences, yet **doc-death = 1**), `#17` (101, **death = 0**), `#14`
+>   "Derecognize ADs that failed to migrate" (**40/40 sentences gone but 0 docs
+>   die** — it strips 78 AD-recognition `<a>` links from *surviving* docs), `#78`
+>   (110). The correct sink is a **`modified` event on the surviving node** — its
+>   diff chain retains the old text, which is *valuable* for the chat "what was
+>   the budget in June 2025" consumer — **not** a tombstone.
+> - **Doc-death (row-level) — the small population, needs tombstones.** Whole
+>   `<dfn>` docs that vanish with content not re-keyed elsewhere total **~852
+>   era-wide** (structural row-key scan), **~600 excluding `#1`'s draft-thrash**
+>   (253; the 2nd commit ever, restructuring a nascent atlas). These cluster in
+>   the big *weekly restructures*, **not** the cleanups: `#22` (~225), `#66`
+>   (~115), `#103` (~52), `#78` (~48). Each genuine death gets one synthetic-UUID
+>   **tombstone + `removed`**; counts are an upper bound until the real fuzzy
+>   matcher reclassifies renumber-with-edit rows as `moved`. **This** — not the
+>   13.3% — is the tombstone population: load-bearing but modest. Conflating the
+>   two (as an earlier draft did, pinning "graveyard" on the cleanups) would
+>   over-tombstone surviving docs and lose their data-churn diff chain.
 
 ### 4.2 The matcher — `matchNodes(older, newer)`
 
@@ -475,10 +477,14 @@ Tiered, cheapest-first, to avoid an O(n²) edit-distance blow-up:
 3. **Fuzzy, residual only** — generate candidates within the same section whose
    title is similar OR whose doc_no is adjacent, then score by the **shared-line
    ratio from `diffCore`** (NOT character-level Levenshtein — too costly on
-   multi-paragraph bodies), blended with a positional-proximity prior. Assign
-   **greedily above a threshold with a deterministic tie-break** (sort by
-   `(score, section, title-path, contentHash)`), exactly like git's
-   rename-detection similarity index + locality.
+   multi-paragraph bodies), blended with a positional-proximity prior. When the
+   top candidate is **confident and uncontended**, assign greedily with a
+   deterministic tie-break (sort by `(score, section, title-path, contentHash)`),
+   exactly like git's rename-detection similarity index + locality. **When it is
+   gray-zone, has multiple plausible predecessors, or is contended, do NOT commit
+   the greedy guess — emit the ranked candidate set to the §10.4 decision queue**
+   and take the resolved (recorded) choice. A frozen, immutable history must not
+   silently bake a guessed parent.
 4. **Containment / sub-node (seed hop only).** For a `newer` doc still unmatched
    after tiers 1–3, test whether its **normalized body is a contiguous
    subsequence** of some `older` parent's content cell (same section, parent on
@@ -804,12 +810,14 @@ numbers; promote them to a committed `freeze-html-history --measure` mode):
   (sans `<dfn>` breadcrumbs), confirm ~82% survive verbatim / ~89% with
   rewording, residue dominated by path strings. Drives the **seam** `deleted`
   count → ≈0. **Scope note: this is a #117-*seam* property only.**
-- **Intra-era graveyard (separate, and real):** sentence-survival of every
-  commit's *deletions* against the final state shows **13.3% (1 497 sentences)
-  never resurface** — genuine mid-era deletion, concentrated in cleanup /
-  derecognition commits (§4.1). This is **not** ≈0 and is the evidence the
-  tombstone path must exist. Re-run it as a committed `--measure` mode so the
-  number is tracked, and split doc-death from data-churn before tombstoning.
+- **Intra-era deletion — two scans, two populations (§4.1):** (i) a *sentence*-
+  survival scan shows **13.3% (1 497) never resurface**, but this is mostly
+  **data-churn inside surviving docs** → `modified`, *not* tombstones; (ii) a
+  *row-key* structural scan shows **~852 whole docs die** era-wide (~600 ex-`#1`),
+  the actual **tombstone** population, clustered in big weekly restructures
+  (`#22`/`#66`/`#103`/`#78`), *not* the cleanups (`#12`/`#14`/`#17` ≈0 doc-death).
+  Both are real and **not** ≈0; ship both as committed `--measure` outputs and
+  keep doc-death (tombstone) strictly separate from data-churn (diff-chain).
 - **Gate:** if the *seam* residue is materially larger than measured (say >2–3%
   real prose), stop — the regranulation model is wrong for the boundary and
   `seam` needs rethinking. (The intra-era 13% is expected, not a gate failure.)
@@ -827,9 +835,10 @@ them, not synthetic toy diffs. Ranked by `Sky Atlas.html` line churn:
 |---|---|---|---|---|
 | `79abe87fbb4195642faa10722f40b069c230eb56` | #1 | 2025-05-26 | +15149/−7291 | Largest single edit in the era — the initial population wave. Backward-threading's *oldest* hop; forward = a huge `added` burst. Tests that bulk creation doesn't false-pair against unrelated boilerplate. |
 | `66dcdb78ebc7a5f728d189fb9dc63667253c72a0` | #103 | 2025-11-02 | +6582/−3695 | Largest *mid-era* rewrite. Many rows edited-in-place + renumbered in one commit → the renumber-and-edit case (§4.2 tier 3) at scale. |
-| `3c501b9d1e8b32df46f6f3a1ab139b2d98a0545f` | #12 | (gov cleanup) | +1268/−3814 | Net **deletion**-heavy ("governance scope cleanup") → exercises the *intra-HTML* vanish path (§4.1): a row that disappears mid-era must be sentence-tested for survival in a later commit (reorganized elsewhere?) before being called a true deletion; only genuine deletions get a synthetic v5 UUID + `removed`. |
+| `3c501b9d1e8b32df46f6f3a1ab139b2d98a0545f` | #12 | (gov cleanup) | +1268/−3814 | Net **deletion**-heavy but **data-churn, not doc-death** (prototype: died=1, rows stable at 2675): the −3814 lines are content removed from *surviving* rows. Exercises the data-churn path — heavy in-place removal emits `modified` on surviving nodes (kept in their diff chain for chat), and the §10.0 sentence-survival oracle confirms the content truly vanished vs reorganized elsewhere, **without** spawning whole-doc tombstones. |
 | `34cdf3d23ef945b392e6851fb6c5c8752df2a328` | #17 | (cleanup) | +1550/−2091 | Balanced add+delete "cleanup multiple scopes" → worst case for greedy many-to-one assignment; tests deterministic tie-break. |
-| `7efd3a80…` | #14 | "Derecognize ADs that failed to migrate" | — | **Canonical clean deletion: 40/40 deleted sentences never resurface (§4.1).** The mid-era graveyard fixture — every removed AD doc must get a synthetic v5 tombstone + one `removed` event, none mis-threaded as `modified`/`moved`. |
+| `7efd3a80…` | #14 | "Derecognize ADs that failed to migrate" | 0/−78 | **Canonical DATA-CHURN, not doc-death (corrected by prototype 2026-06-25).** Despite the name, **0 whole docs die** — rows 4841→4841; it strips 78 `<a>` AD-recognition links from *surviving* docs. Tests that in-place content deletion emits `modified` on the surviving node (preserved in its diff chain for chat), **never** a tombstone. Also a live §10.3 fuzzy-join test: its commit date mis-matches the *unrelated* 2025-06-09 weekly thread (26608) — itemized-overlap verification must reject it. |
+| `4dbd365e…` | #22 | Weekly Cycle Atlas Edit 2025-06-30 | — | **Canonical doc-DEATH / tombstone fixture (prototype 2026-06-25): ~225 whole rows vanish** with content not re-keyed (upper bound; the real fuzzy matcher reclassifies renumber-with-edit rows as `moved`). The genuine deaths each need one synthetic v5 tombstone + `removed`. This is where tombstoning is actually exercised — **not** the #12/#14/#17 cleanups (doc-death ≈0 there). |
 | `02a3eb13eb8d060007b8655729a1a94d08fe59b0` | #78 | October 13 edit | +3582/−647 | **49% graveyard rate** (110/223 deletions permanent) despite being add-heavy → tests that the survival oracle separates real removal from reword inside the *same* commit. |
 | `7b43d159e098b30e67c4be6a7594a237a340fa58` | #115 | 2025-11-17 | +4258/−81 | **The backward-seed's older side.** Large change immediately before #117 — the converted-md of this commit is what the 7682 md docs seed-match onto. The single most important pairing in the whole pass. |
 | `d531de16…` ("Exposure Type"/"Reference" cols) | #63 | 2025-10-02 | — | The *only* `<th>`-set change in the era (§2.1), inside one doc's nested content table. Golden-converter fixture: nested-table column add must render as ordinary prose-cell diff, **not** a structural event. |
@@ -842,20 +851,26 @@ Fixture assertions to lock in:
   distinct) is de-duped defensively (§2.2) and doesn't crash the seed.
 - **Bulk renumber (#103):** a doc whose body is unchanged but doc_no moved emits
   exactly one `moved` (`doc_no → doc_no`), **not** removed+added.
-- **Intra-HTML vanish (#12):** a row that disappears is `merged`/reorganized
-  (sentence survives in a later commit) unless proven gone; only genuine
-  deletions emit one `removed` + synthetic v5 UUID. Both counts logged.
+- **Data-churn (#12/#14):** content removed from a *surviving* row emits
+  `modified` on that node (its diff chain retains the old text for chat); it does
+  **not** create a tombstone. Assert doc-death ≈0 here (prototype: died ≤1).
+- **Doc-death (#22):** a whole row that vanishes with content not re-keyed
+  elsewhere (sentence-survival oracle negative) emits exactly one `removed` +
+  synthetic v5 UUID; a renumber-with-edit instead resolves to `moved`, not a
+  death. Log both counts.
 - **No giant noise diff** at the #117 row for any surviving doc (boundary diff
   suppressed, §6).
 
 ### 10.2 LLM-backed freeze-time audit — orphans & anomalies (offline only)
 
 The deterministic matcher will mis-thread *some* docs across 79 commits no fixed
-threshold catches. An LLM is the right safety net — but it must be a **freeze-time
-auditor, never in the identity path**, because this repo's builds are
-deterministic and the artifact is frozen (`REPRO=1`, no `randomUUID`, §7.1).
-An LLM deciding identity would break both reproducibility and frozen-diff
-stability. The boundary:
+threshold catches. An LLM is the right safety net — but it must never run **in the
+build-time identity path**, because this repo's builds are deterministic and the
+artifact is frozen (`REPRO=1`, no `randomUUID`, §7.1). A *live* LLM deciding
+identity during a build would break both reproducibility and frozen-diff
+stability. It has **two offline roles** instead, both feeding committed files the
+build replays deterministically: a **freeze-time auditor** (this section) and a
+**decision proposer** for the ambiguous subset (§10.4). The boundary:
 
 - **Deterministic core decides everything that lands in the artifact** — all
   threading, UUIDs, diffs, seam tags. Reproducible, frozen, LLM-free.
@@ -964,6 +979,84 @@ its URL is baked; only internal non-proposal commits stay title-only; and
 PRs — including **#1, whose body is a rich change *checklist*** — must be fetched
 individually (`gh api …/pulls/N`) at freeze time.
 
+### 10.4 Interactive, recorded threading decisions (the ambiguous subset)
+
+Tiers 1–2 (exact content / structural key) are unambiguous and auto-thread the
+bulk. The residual fuzzy tier 3 and the split/merge tier 4 (§4.2) are where the
+matcher *guesses* — and a silent greedy pick is exactly where a frozen, immutable
+history would bake in a **wrong parent**. Rather than trust a global threshold,
+**resolve the ambiguous subset as recorded, content-addressed decisions** — the
+pattern this repo already ships for the process inventory
+(`pnpm processes:apply-decisions <decisions.json>`, the `/reports/processes`
+curation UI that exports exactly that shape).
+
+**When a case is surfaced (not auto-threaded):**
+- **Gray-zone score** — the best tier-3 candidate clears the "plausible" floor but
+  not the "confident" ceiling.
+- **Multiple plausible predecessors** — ≥2 `older` candidates clear the floor for
+  one `newer` doc; pick which is the parent.
+- **Contention (the back-and-forward check)** — one `older` doc is the best match
+  for ≥2 `newer` docs (or vice versa). Resolve these **as a cluster**, not one at
+  a time: assigning one side changes the other's options (a small bipartite
+  assignment, not N independent picks).
+- **Split-vs-`created` / merged-vs-`deleted`** ambiguity at tier 4 / the seam.
+
+Everything confident and uncontended auto-threads and is never shown.
+
+**What the step shows** (CLI prompt for MVP; optionally a curation page mirroring
+`/reports/processes`): the `newer` doc (title, doc_no, content preview); the
+ranked `older` candidates with shared-line score, a side-by-side diff preview,
+**and who else is competing for each** (contention is visible); an **LLM-proposed
+recommendation + rationale** per candidate (this is the "LLM helps" role — it
+ranks and explains, it does not commit); and the choices: pick a predecessor ·
+"genuinely new (`created`)" · "split from parent X (`extracted_from`)" · "merged
+into Y (`merged_into`)" · defer.
+
+**What is recorded — content-addressed, so it is reproducible AND stable:**
+
+```
+public/history-threading-decisions.json:
+[{ commit_sha,
+   subject_hash: v5key(newer.contentHash | section | titlePath),  // doc being placed
+   verdict:      "match" | "created" | "split" | "merged",
+   target_hash?: v5key(older.contentHash | …),                    // chosen predecessor/parent
+   among:        [candidate_hash…],        // full plausible set shown, for audit
+   decided_by:   "human" | "llm:auto", model?, rationale }]
+```
+
+- **Keyed on content hashes, never doc_no/row-order** (editorial / unstable —
+  CLAUDE.md doc_no rule). If the underlying content changes, the key no longer
+  matches → the decision **auto-invalidates and re-surfaces** (stale-decision
+  detection) instead of silently mis-applying to different prose.
+- The file is **committed and reviewed**, exactly like the frozen artifact.
+
+**This PRESERVES `REPRO=1`, it doesn't weaken it.** The build is
+`f(atlas_sha, converter_code, decisions.json)` — all three fixed and committed, so
+two builds are byte-identical. The LLM/human run **once, offline, beforehand** to
+*author* `decisions.json`; nothing nondeterministic runs during the build. This is
+the precise version of §10.2's "deterministic identity path": the path consumes a
+**frozen decisions file**, and judgment is captured *in* that file rather than
+avoided. It also retires the fragile "tweak a global tier-3 threshold" loop —
+per-case overrides are local and never ripple onto other docs.
+
+**Completeness gate + non-interactive fallback.** The freeze runner refuses to
+write the artifact while any ambiguous case is **undecided** (strict mode), so no
+guessed parent is ever silently baked. To bootstrap, the LLM **auto-seeds** a
+proposed verdict for every ambiguous case (`decided_by:"llm:auto"`); a human then
+reviews/overrides the filtered subset that matters (low-confidence, contended,
+high-fan-out) rather than deciding all from scratch. A re-freeze with a complete
+file runs fully non-interactively (CI-safe).
+
+**Queue size is itself a gate.** Thousands of ambiguous cases ⇒ the converter or
+the tier-3 floor is wrong (fix that first, don't curate around it); a healthy
+queue is dozens-to-low-hundreds, concentrated in the bulk-edit commits
+(#1/#22/#66/#103). Emit the queue size in `--measure`.
+
+**Relation to §10.2.** §10.2 *audits* what was decided (post-hoc); §10.4 *captures*
+the decision (at decision time). Same LLM-assist + human-gate infrastructure. The
+auditor additionally validates `decisions.json` — no contradictions, no stale
+keys, no contended cluster left internally inconsistent.
+
 ## 11. Effort & files
 
 Revised estimate **~5–7 days** (the original "2–3 days" undercounts). The
@@ -985,14 +1078,23 @@ New:
   (also used by slot-reuse).
 - `scripts/aux/freeze-html-history.mjs` — one-shot offline runner that computes
   §4 and writes the frozen artifact; rerun only as a deliberate, reviewed act.
-  `--measure` mode emits the §10.0 seam + §4.1 graveyard numbers without writing
-  the artifact. Also fetches per-commit PR metadata + the originating forum thread
-  (§10.3) and snapshots them (URL + fetched-at + content hash) into the artifact.
+  `--measure` mode emits the §10.0 seam + §4.1 graveyard + §10.4 decision-queue
+  sizes without writing the artifact. `--decide` runs the §10.4 interactive
+  resolution and writes/updates `history-threading-decisions.json`. The default
+  run consumes that file and **errors on any undecided ambiguous case** (strict
+  completeness gate). Also fetches per-commit PR metadata + the originating forum
+  thread (§10.3) and snapshots them (URL + fetched-at + content hash).
 - `scripts/aux/audit-html-history.mjs` — offline LLM auditor over orphans +
   anomalies → human-readable review report; never writes artifact data (§10.2).
+  Also hosts the §10.4 LLM **decision-proposer** (auto-seeds `decided_by:"llm:auto"`
+  verdicts for the ambiguous queue) and **validates** `history-threading-decisions.json`
+  (no contradictions, no stale/auto-invalidated keys).
 - `public/history-html-era.json` — frozen artifact (identity map + per-UUID
   events + diffs + per-commit intent records: PR title/link, forum-thread URL +
   snapshot, §10.3), checked in (§7.1).
+- `public/history-threading-decisions.json` — committed, content-addressed record
+  of every ambiguous tier-3/4 threading decision (§10.4); a reproducible build
+  **input** alongside the atlas sha + converter code.
 - `src/server/migrations/009_history_slot.sql` (+ `seam`, `era`, `extracted_from`,
   `merged_into`, `move_kind` columns — §7; combine slot-reuse + HTML-era cols
   into the one 009).
@@ -1026,11 +1128,13 @@ Changed:
    (seam-`created`/seam-`deleted` measured ≈0 *at the #117 boundary*). Open
    sub-question: (a) do reader/radar ever surface a "merged/absorbed" or "deleted"
    view, or only hide them? Chat always includes everything. **Resolved (b):**
-   *mid-era* graveyard (intra-HTML deletions) is **real — 13.3% of deletions
-   never resurface** (§4.1), concentrated in cleanup/derecognition commits, so
-   tombstoning is required. Remaining sub-question (c): the doc-death vs
-   data-churn granularity split (§4.1) — tombstone whole nodes only, keep
-   superseded data in the surviving node's diff chain.
+   intra-HTML deletion is **real and splits two ways** (§4.1) — *data-churn*
+   (13.3% of deleted sentences, inside surviving docs → `modified`, concentrated
+   in cleanup/derecognition) and *doc-death* (~852 whole docs era-wide →
+   tombstones, concentrated in big weekly restructures). Tombstoning is required
+   but **only for doc-death**, not the 13.3%. **Resolved (c):** the granularity
+   split — tombstone whole nodes only (doc-death), keep superseded data in the
+   surviving node's diff chain (data-churn).
 5. ~~**PR enrichment for HTML era**~~ — **RESOLVED 2026-06-25**: all 80 HTML-era
    commit subjects carry `(#NNN)` (100% coverage). Summaries are as rich as the
    markdown era; the no-PR fallback rarely fires. See §5 item 5.
@@ -1044,7 +1148,8 @@ Changed:
    or only advises. Recommend OpenRouter via the existing provider-agnostic LLM
    indirection, audit only flagged orphans/low-margin pairings (not all 79
    commits blindly), advisory-by-default with a human gate before commit. Hard
-   invariant: LLM output is review-only and never enters the frozen artifact.
+   invariant: LLM output is review-only and never enters the **build-time**
+   identity path (it may author the committed §10.4 decisions file offline).
 9. **Intent records (§10.3):** how much to bake — PR title/link + forum URL only
    (minimal, always-valid refs) vs also snapshotting the forum thread *text*
    (richer chat/audit context, but freezes external content into the repo).
@@ -1056,3 +1161,13 @@ Changed:
    (itemized-change overlap) before baking the URL, and tag it `date-matched` so
    chat/UI can hedge. Hard invariant (mirrors §10.2): intent is display + audit
    only — **never** an input to identity/diff.
+10. **Interactive threading decisions (§10.4):** surface ambiguous tier-3/4
+    matches (gray-zone, multi-candidate, contended) for an LLM-assisted human
+    choice recorded in `history-threading-decisions.json`. Open: (a) CLI prompt
+    vs a `/reports`-style curation UI for the review surface; (b) LLM auto-seed
+    every ambiguous case then human-review-the-subset (recommended) vs human
+    decides all from scratch; (c) strict completeness gate (freeze errors on any
+    undecided case — recommended) vs deterministic-default fallback. Hard
+    invariant (mirrors §10.2): only the **committed, content-addressed** decision
+    is a build input; nothing nondeterministic runs during the build, so `REPRO=1`
+    holds. Same machinery serves the §8 slot-reuse pairing.
