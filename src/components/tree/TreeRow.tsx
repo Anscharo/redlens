@@ -36,6 +36,7 @@ export interface TreeRowData {
   flashing: ReadonlySet<string>;
   isPreview: boolean;
   sidebarWidth: number;
+  cradle: { start: number; end: number; color: string } | null;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
   onReveal: (id: string) => void;
@@ -76,6 +77,7 @@ export function TreeRow({
   flashing,
   isPreview,
   sidebarWidth,
+  cradle,
   onNavigate,
   onToggle,
   onReveal,
@@ -139,12 +141,21 @@ export function TreeRow({
     : isFocused
       ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px var(--row-hover)`
       : undefined;
+  const inCradle = !!cradle && index >= cradle.start && index <= cradle.end;
+  const cradleClass = inCradle ? (index === cradle!.end ? "in-cradle cradle-foot" : "in-cradle") : "";
 
   return (
     <div
       data-node-id={node.id}
-      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, opacity: dim ? 0.86 : undefined, ["--row-color" as string]: depthVar }}
-      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""}`}
+      style={{
+        ...style,
+        ...ROW_LAYOUT_STYLE,
+        boxShadow,
+        opacity: dim ? 0.86 : undefined,
+        ["--row-color" as string]: depthVar,
+        ...(inCradle ? { ["--cradle-color" as string]: cradle!.color } : {}),
+      }}
+      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""} ${cradleClass}`}
       onClick={(e) => {
         if (e.shiftKey && onShiftNavigate) {
           e.preventDefault();
