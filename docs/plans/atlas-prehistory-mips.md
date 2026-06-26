@@ -293,6 +293,16 @@ indexed on a substrate that *cannot* be garbage-collected like the GitHub repo w
   `makerdao/community/governance/polls/*.md` (a non-truncated public repo — an
   earlier code-search "0 matches" was a false-negative) **and** are IPFS-pinned by
   the `multiHash`; either resolves the exact text.
+- **IPFS pinning here is a standing archival practice** (forum #21513), not ad-hoc:
+  the poll-doc CIDs trace a continuum — **`hernandoagf/ipfs-sync`** (GovAlpha-era; a
+  1,743-file CID→filename manifest mirroring `makerdao/community` polls to Pinata,
+  last synced **2024-01-12**) → a **Powerhouse-maintained IPNS aggregator** of forum
+  IPFS content (`k51qzi5uqu5dglo9i1zzz5t08z8s0dg5ollqti74tpjtkeqwdg1y704n83lbof`,
+  Powerhouse Pinata — the Atlas/Powerhouse-era successor) → the on-chain `createPoll`
+  CIDs above. The genesis HTML CID rides the same Powerhouse-Pinata pinning. That
+  IPNS record is now **expired** (unresolvable; not in Wayback) → a Powerhouse-Pinata
+  contact-ask (see data request), but it confirms the poll docs are redundantly
+  archived beyond `makerdao/community`.
 - **Executive enactment (the binding vote).** The Chief is where spells — including
   the Atlas v2 upgrade and spell-borne edits — are approved: chainlog **`MCD_ADM =
   0x929d9A14…`** (current), with the **classic Chief `0x0a3f6849…`** in the portal

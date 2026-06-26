@@ -29,7 +29,12 @@ May 2025.)
 2. **A Powerhouse export of the Atlas document's edit history** — if the Atlas
    document model on Powerhouse keeps an operation/revision log, an export of
    that log would be even better than git, and may reach back further (into the
-   2024 Powerhouse era).
+   2024 Powerhouse era). **Also:** the Powerhouse team used to maintain an IPFS
+   archive of governance content in its Pinata account, published at the IPNS
+   address `k51qzi5uqu5dglo9i1zzz5t08z8s0dg5ollqti74tpjtkeqwdg1y704n83lbof`. That
+   link no longer resolves — **re-publishing it, or just sharing the directory's
+   current root CID, would recover the Sept 2024–May 2025 poll documents** that
+   describe each Atlas edit.
 
 3. **Saved snapshots of the old `Sky Atlas.html` from *between* Sept 2024 and 28
    May 2025.** We already recovered the **original launch version** (it was pinned
