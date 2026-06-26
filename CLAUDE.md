@@ -1,4 +1,4 @@
-# RedLens' Sky Atlas
+# Redline Atlas
 
 A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github.com/sky-ecosystem/next-gen-atlas). The atlas is included as a git submodule at `vendor/next-gen-atlas/`; source documents live at `vendor/next-gen-atlas/content/**` (one `document.md` per node, atomized since PR #236). Atlas-derived artifacts (`docs.json`, `graph.json`, `relations.json`, `search-index.json`, `glossary.json`, `addresses.atlas.json`, `manifest.json`, `history/`) are **not committed to git** — they are built ephemerally at container startup (by the Dockerfile) or synced into Postgres (doc content + history + embeddings, by the Railway atlas worker service). The in-process updater polls `sync_state.atlas_sha` and rebuilds in-memory indexes from DB rows on drift — no git access needed at runtime.
 

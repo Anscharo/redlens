@@ -16,8 +16,25 @@ const SH = 8;
 // both sides to bare prose tokens so shingles are comparable across the boundary.
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const shArr = (content) => { const w = norm(content).split(" ").filter(Boolean), o = []; for (let i = 0; i + SH <= w.length; i++) o.push(w.slice(i, i + SH).join(" ")); return o; };
+const titleTokens = (title) => new Set(norm(title).split(" ").filter(Boolean));
+// Jaccard similarity of two token SETS: |intersection| / |union|, where
+// |union| = |A| + |B| − |intersection|. 0 = no shared words, 1 = identical token sets.
+const jaccard = (a, b) => {
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection++;
+  return intersection / (a.size + b.size - intersection);
+};
+// Structural tiebreak window (plan §4.2): when several md docs cover a row within
+// TITLE_TIE_WINDOW coverage, content shingles alone can't separate near-identical
+// siblings that differ only by chain/instance (boilerplate prose: "Base USDC Deposit
+// Maximum" vs "Unichain USDC Deposit Maximum"). Prefer the candidate whose TITLE
+// matches the row's title; override the content pick only past TITLE_TIE_MARGIN so an
+// already-exact content match is never regressed. Titles barely change across the hop.
+const TITLE_TIE_WINDOW = 0.1, TITLE_TIE_MARGIN = 0.34;
 
 export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
+  const mdTitleTokens = mdNodes.map((m) => titleTokens(m.title));
   const inv = new Map(); // shingle -> [mdIndex]
   const mdSh = mdNodes.map((m) => new Set(shArr(m.content)));
   mdNodes.forEach((_, i) => { for (const s of mdSh[i]) { let a = inv.get(s); if (!a) inv.set(s, (a = [])); a.push(i); } });
@@ -38,7 +55,22 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
       if (cov > best) { best = cov; bestMi = mi; }
       if (c / mdSh[mi].size >= 0.8) { containedMd.add(mi); let rc = rowContains.get(row); if (!rc) rowContains.set(row, (rc = new Set())); rc.add(mi); }
     }
-    if (bestMi >= 0 && best >= minOverlap) rowBest.set(row, { mi: bestMi, cov: best });
+    if (bestMi >= 0 && best >= minOverlap) {
+      // title tiebreak among content-tied candidates (see TITLE_TIE_WINDOW/MARGIN above)
+      const rowTitleTokens = mdTitleTokens.length && titleTokens(row.title);
+      if (rowTitleTokens && rowTitleTokens.size) {
+        const baseTitleScore = jaccard(rowTitleTokens, mdTitleTokens[bestMi]);
+        let altMi = bestMi, altTitleScore = baseTitleScore;
+        for (const [mi, count] of tally) {
+          if (best - count / Math.min(rSh.length, mdSh[mi].size) > TITLE_TIE_WINDOW) continue;
+          const titleScore = jaccard(rowTitleTokens, mdTitleTokens[mi]);
+          if (titleScore > altTitleScore + 1e-9) { altTitleScore = titleScore; altMi = mi; }
+        }
+        if (altMi !== bestMi && altTitleScore - baseTitleScore >= TITLE_TIE_MARGIN) bestMi = altMi;
+      }
+      const chosenCov = tally.get(bestMi) / Math.min(rSh.length, mdSh[bestMi].size);
+      rowBest.set(row, { mi: bestMi, cov: chosenCov });
+    }
   }
 
   // INVARIANT: one real uuid → exactly one (primary) row. Each md doc's uuid goes
