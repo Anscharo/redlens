@@ -13,6 +13,7 @@
 
 ## 2026-06-26
 - Browser tab now shows what you're viewing — atlas doc, report, radar actor, or search query — instead of always "Sky Atlas by Redline"
+- Search now finds a document by a partial UUID — paste just the first segment (e.g. a491d7d0) instead of the full id
 
 ## 2026-06-25
 - Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead

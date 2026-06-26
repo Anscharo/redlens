@@ -10,6 +10,7 @@ import type {
 import { fetchText } from "../lib/verify";
 import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighlight";
 import { UUID_RE } from "../lib/patterns";
+import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { MINISEARCH_OPTIONS } from "../lib/searchOptions";
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -108,6 +109,20 @@ function search(q: string): SearchHit[] {
   if (UUID_RE.test(trimmed)) {
     const doc = docs[trimmed.toLowerCase()];
     return doc ? [docToHit(doc)] : [];
+  }
+
+  // Partial UUID prefix lookup — paste a UUID fragment (e.g. the 8-hex first
+  // segment) and jump to the doc. The id field isn't in the MiniSearch index,
+  // so scan ids directly. Falls through to full-text when nothing matches, so a
+  // hex-ish word that isn't a real UUID prefix still searches content.
+  if (isUuidPrefix(trimmed)) {
+    const ids = matchUuidPrefix(trimmed, Object.keys(docs));
+    if (ids.length) {
+      return ids
+        .map((id) => docs[id])
+        .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }))
+        .map((d) => docToHit(d, 9, undefined, [], "uuid prefix"));
+    }
   }
 
   // Exact doc_no fast-path — e.g. "A.1.2" or "NR-12"
