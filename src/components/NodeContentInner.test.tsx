@@ -92,6 +92,18 @@ describe("sky-atlas.io deep-link internalisation", () => {
     expect(onNavigate).toHaveBeenCalledWith(UUID);
   });
 
+  it("decodes a percent-encoded fragment before resolving it", async () => {
+    const onNavigate = vi.fn();
+    // "A%2E3%2E7%2E1%2E2%2E2" decodes to DOC_NO ("A.3.7.1.2.2"), which the mock
+    // resolver hosts — exercises the decodeURIComponent branch in internalTargetId.
+    const href = "https://sky-atlas.io/#A%2E3%2E7%2E1%2E2%2E2";
+    render(<NodeContentInner content={`[Update Process](${href})`} onNavigate={onNavigate} />);
+    const link = await screen.findByRole("link", { name: "Update Process" });
+    expect(link).toHaveAttribute("href", `/atlas?id=${UUID}`);
+    await userEvent.click(link);
+    expect(onNavigate).toHaveBeenCalledWith(UUID);
+  });
+
   it("keeps a sky-atlas.io link external when the node isn't hosted internally", async () => {
     const onNavigate = vi.fn();
     const href = "https://sky-atlas.io/#Z.9.9.9";
