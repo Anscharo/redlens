@@ -6,6 +6,7 @@ import type { AnchorHTMLAttributes } from "react";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
 import { UUID_RE } from "../lib/patterns";
 import { atlasHref } from "../lib/routes";
+import { resolveAtlasRef } from "../lib/docs";
 import { track } from "../lib/analytics";
 
 interface Props {
@@ -18,6 +19,30 @@ function useNavigateContext() {
   return useContext(NavigateContext);
 }
 
+// A sky-atlas.io reader deep-link (hash route, e.g. https://sky-atlas.io/#<uuid>
+// or .../#A.3.7.1.2.2). Atlas prose sometimes points back to the external reader
+// when referring to other sections; we internalise those. The `#` is required —
+// only deep-links to a specific node, not the bare site, are candidates.
+const SKY_ATLAS_REF_RE = /^https?:\/\/(?:www\.)?sky-atlas\.io\/?#(.+)$/i;
+
+// Resolve a content link to an internal node id, or null to keep it external.
+// Bare UUID hrefs (`[text](uuid)`, the atlas's native cross-ref form) navigate
+// internally regardless. sky-atlas.io deep-links are internalised only when the
+// referenced node (by UUID or doc_no) is one we host — otherwise we leave the
+// outlink intact.
+function internalTargetId(href: string): string | null {
+  if (UUID_RE.test(href)) return href;
+  const m = SKY_ATLAS_REF_RE.exec(href);
+  if (!m) return null;
+  let fragment: string;
+  try {
+    fragment = decodeURIComponent(m[1]);
+  } catch {
+    fragment = m[1];
+  }
+  return resolveAtlasRef(fragment) ?? null;
+}
+
 // UUID and eth-address links — styling via .atlas-md a in CSS
 function MarkdownLink({
   href,
@@ -26,14 +51,15 @@ function MarkdownLink({
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: unknown }) {
   const onNavigate = useNavigateContext();
-  if (href && UUID_RE.test(href) && onNavigate) {
+  const targetId = href ? internalTargetId(href) : null;
+  if (targetId && onNavigate) {
     return (
       <a
-        href={atlasHref(href)}
+        href={atlasHref(targetId)}
         onClick={(e) => {
           e.preventDefault();
-          track("reader_content_link", { target_id: href });
-          onNavigate(href);
+          track("reader_content_link", { target_id: targetId });
+          onNavigate(targetId);
         }}
         {...props}
       >

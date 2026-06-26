@@ -13,6 +13,9 @@
 
 ## 2026-06-26
 - Added a warning marker in preview mode when a branch reassigns a document's identity — a ⚠ flags when a UUID now points to a completely different document, or when a document's content has moved to a new UUID, with details on hover
+- Browser tab now shows what you're viewing — atlas doc, report, radar actor, or search query — instead of always "Sky Atlas by Redline"
+- Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
+
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer

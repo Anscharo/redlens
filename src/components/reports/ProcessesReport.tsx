@@ -5,6 +5,7 @@ import { ROUTES, atlasHref } from "../../lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { useUrlState, urlBool, urlEnum, urlString } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadAtlas } from "../../lib/docs";
 import {
   loadProcesses,
@@ -204,6 +205,7 @@ function Row({
 }
 
 export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
+  useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
 
