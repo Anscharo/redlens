@@ -29,7 +29,7 @@ const mockDiff = vi.mocked(usePreviewDiff);
 const mockPatch = vi.mocked(usePreviewPatch);
 
 function setDiff(over: Partial<PreviewDiff>) {
-  mockDiff.mockReturnValue({ added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, ...over });
+  mockDiff.mockReturnValue({ added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {}, ...over });
 }
 
 const PR_META = {

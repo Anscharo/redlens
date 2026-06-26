@@ -20,6 +20,8 @@ function setDiff(over: Partial<PreviewDiff>) {
     changed: new Set(),
     renumbered: {},
     reusedSlot: {},
+    identitySwap: {},
+    formerUuid: {},
     ...over,
   });
 }
@@ -51,5 +53,30 @@ describe("PreviewMark", () => {
     render(<PreviewMark nodeId="x" />);
     expect(screen.getByLabelText("new in this preview")).toHaveTextContent("+");
     expect(screen.queryByLabelText("changed in this preview")).toBeNull();
+  });
+
+  it("renders ⚠ for a repurposed UUID, overriding the Δ", () => {
+    setDiff({
+      changed: new Set(["x"]),
+      identitySwap: { x: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives", movedTo: { id: "y", doc_no: "A.6.1.2.2.2.1", title: "Soter Labs -" } } },
+    });
+    render(<PreviewMark nodeId="x" />);
+    const mark = screen.getByLabelText("identity reassigned in this preview");
+    expect(mark).toHaveTextContent("⚠");
+    expect(mark).toHaveAttribute("title", expect.stringContaining("now holds a different document"));
+    expect(mark).toHaveAttribute("title", expect.stringContaining("A.6.1.2.2.2.1"));
+    expect(screen.queryByLabelText("changed in this preview")).toBeNull();
+  });
+
+  it("renders ⚠ for a doc whose content came from a former UUID, overriding the +", () => {
+    setDiff({
+      added: new Set(["y"]),
+      formerUuid: { y: { previousId: "x", previousTitle: "Operational GovOps", previousDocNo: "A.6.1.2.2.2" } },
+    });
+    render(<PreviewMark nodeId="y" />);
+    const mark = screen.getByLabelText("identity reassigned in this preview");
+    expect(mark).toHaveTextContent("⚠");
+    expect(mark).toHaveAttribute("title", expect.stringContaining("previously appeared under a different UUID"));
+    expect(screen.queryByLabelText("new in this preview")).toBeNull();
   });
 });

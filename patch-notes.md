@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-06-26
+- Added a warning marker in preview mode when a branch reassigns a document's identity — a ⚠ flags when a UUID now points to a completely different document, or when a document's content has moved to a new UUID, with details on hover
+
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
 - Sped up the Active Data report load by fetching edit history in one request instead of one per row
