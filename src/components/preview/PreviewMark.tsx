@@ -1,4 +1,7 @@
 import { usePreviewDiff } from "../../lib/previewDiff";
+import { Tooltip } from "../Tooltip";
+import { AtlasLink } from "../AtlasLink";
+import { atlasHref } from "../../lib/routes";
 
 // Preview redline marker, placed between the doc number and the title so it's
 // unambiguous which doc it refers to:
@@ -6,29 +9,61 @@ import { usePreviewDiff } from "../../lib/previewDiff";
 //   "Δ" = changed in this preview
 //   "⚠" = identity reassigned — a stable UUID that now holds a *different*
 //         document, or content that moved in under a UUID it never had before.
-// The ⚠ takes precedence over +/Δ (a swapped doc is also "changed"; a doc that
-// received relocated content is also "added"). Renders nothing outside preview
-// (empty diff). Used in the reader (CollapsibleNode) and the minitree (TreeRow).
+// The ⚠ uses the custom Tooltip (not a native title) so its hover card can link
+// to the doc on the other side of the swap. It takes precedence over +/Δ (a
+// swapped doc is also "changed"; a doc that received relocated content is also
+// "added"). Renders nothing outside preview (empty diff). Used in the reader
+// (CollapsibleNode) and the minitree (TreeRow).
+
+function DocLink({ id, label }: { id: string; label: string }) {
+  return (
+    <AtlasLink to={atlasHref(id)} className="hover:underline" style={{ color: "var(--accent)" }}>
+      {label}
+    </AtlasLink>
+  );
+}
+
 export function PreviewMark({ nodeId, className }: { nodeId: string; className?: string }) {
   const diff = usePreviewDiff();
   const swap = diff.identitySwap[nodeId];
   const former = diff.formerUuid[nodeId];
+
   if (swap || former) {
-    const title = swap
-      ? `Identity changed in this preview — UUID ${nodeId} now holds a different document: “${swap.oldTitle}” → “${swap.newTitle}”.` +
-        (swap.movedTo ? ` The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”).` : " The previous content is not present in this preview.")
-      : `This content previously appeared under a different UUID (${former!.previousId} — “${former!.previousTitle}” at ${former!.previousDocNo}); it is shown here as a new document.`;
-    return (
-      <span
-        className={className}
-        title={title}
-        aria-label="identity reassigned in this preview"
-        style={{ color: "var(--warn)", fontWeight: 700, flexShrink: 0 }}
-      >
-        ⚠
+    const content = swap ? (
+      <span>
+        Identity changed in this preview — UUID <span className="mono">{nodeId}</span> now holds a
+        different document: “{swap.oldTitle}” → “{swap.newTitle}”.{" "}
+        {swap.movedTo ? (
+          <>
+            The previous content moved to{" "}
+            <DocLink id={swap.movedTo.id} label={`${swap.movedTo.doc_no} “${swap.movedTo.title}”`} />.
+          </>
+        ) : (
+          "The previous content is not present in this preview."
+        )}
+      </span>
+    ) : (
+      <span>
+        This content previously appeared under a different UUID —{" "}
+        <DocLink id={former!.previousId} label={`${former!.previousDocNo} “${former!.previousTitle}”`} /> (
+        <span className="mono">{former!.previousId}</span>), which now holds a different document in
+        this preview.
       </span>
     );
+
+    return (
+      <Tooltip content={content} delay={300}>
+        <span
+          className={className}
+          aria-label="identity reassigned in this preview"
+          style={{ color: "var(--warn)", fontWeight: 700, flexShrink: 0, cursor: "help" }}
+        >
+          ⚠
+        </span>
+      </Tooltip>
+    );
   }
+
   const added = diff.added.has(nodeId);
   const changed = !added && diff.changed.has(nodeId);
   if (!added && !changed) return null;

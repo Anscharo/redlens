@@ -3,7 +3,7 @@
 // nothing otherwise. The diff comes from usePreviewDiff (mocked here).
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("../../lib/previewDiff", () => ({ usePreviewDiff: vi.fn() }));
@@ -63,8 +63,8 @@ describe("PreviewMark", () => {
     render(<PreviewMark nodeId="x" />);
     const mark = screen.getByLabelText("identity reassigned in this preview");
     expect(mark).toHaveTextContent("⚠");
-    expect(mark).toHaveAttribute("title", expect.stringContaining("now holds a different document"));
-    expect(mark).toHaveAttribute("title", expect.stringContaining("A.6.1.2.2.2.1"));
+    // The rich content now lives in the custom Tooltip (not a native title attr).
+    expect(mark).not.toHaveAttribute("title");
     expect(screen.queryByLabelText("changed in this preview")).toBeNull();
   });
 
@@ -76,7 +76,29 @@ describe("PreviewMark", () => {
     render(<PreviewMark nodeId="y" />);
     const mark = screen.getByLabelText("identity reassigned in this preview");
     expect(mark).toHaveTextContent("⚠");
-    expect(mark).toHaveAttribute("title", expect.stringContaining("previously appeared under a different UUID"));
+    expect(mark).not.toHaveAttribute("title");
     expect(screen.queryByLabelText("new in this preview")).toBeNull();
+  });
+
+  it("hovering the ⚠ shows a Tooltip linking to the relocated doc", () => {
+    vi.useFakeTimers();
+    try {
+      setDiff({
+        changed: new Set(["x"]),
+        identitySwap: { x: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives", movedTo: { id: "384d29b0-aaaa-bbbb-cccc-ddddeeeeffff", doc_no: "A.6.1.2.2.2.1", title: "Soter Labs -" } } },
+      });
+      render(<PreviewMark nodeId="x" />);
+      const mark = screen.getByLabelText("identity reassigned in this preview");
+      fireEvent.mouseEnter(mark);
+      act(() => {
+        vi.advanceTimersByTime(400); // past the 300ms tooltip delay
+      });
+      const tip = screen.getByRole("tooltip");
+      expect(tip).toHaveTextContent("now holds a different document");
+      const link = screen.getByRole("link", { name: /Soter Labs/ });
+      expect(link).toHaveAttribute("href", expect.stringContaining("384d29b0-aaaa-bbbb-cccc-ddddeeeeffff"));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
