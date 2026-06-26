@@ -12,7 +12,7 @@
 -->
 
 ## 2026-06-26
-- Browser tab now shows the title of the atlas document you're viewing
+- Browser tab now shows the title of the atlas document, report, or radar actor you're viewing
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer

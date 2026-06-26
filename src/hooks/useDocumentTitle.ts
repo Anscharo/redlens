@@ -3,14 +3,15 @@ import { useEffect } from "react";
 const DEFAULT_TITLE = "Sky Atlas by Redline";
 
 /**
- * Sets `document.title` to the given page title while mounted, restoring the
- * default site title on unmount. Pass `null`/empty to fall back to the default.
+ * Sets `document.title` to the given full title string while mounted, restoring
+ * the default site title (`Sky Atlas by Redline`) on unmount. Pass
+ * `null`/empty to fall back to the default.
  *
- * Format: `<title> — Sky Atlas by Redline`.
+ * Callers compose the full title (e.g. `<doc> — Sky Atlas by Redline`).
  */
 export function useDocumentTitle(title: string | null | undefined) {
   useEffect(() => {
-    document.title = title ? `${title} — ${DEFAULT_TITLE}` : DEFAULT_TITLE;
+    document.title = title || DEFAULT_TITLE;
     return () => {
       document.title = DEFAULT_TITLE;
     };

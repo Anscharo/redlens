@@ -42,7 +42,8 @@ export function AtlasView({
   useDocViewTracking(data?.atlas ?? null, id, graph);
 
   // Reflect the selected doc's title in the browser tab / window title.
-  useDocumentTitle(id ? data?.atlas.docs[id]?.title : null);
+  const docTitle = id ? data?.atlas.docs[id]?.title : null;
+  useDocumentTitle(docTitle ? `${docTitle} — Sky Atlas by Redline` : null);
 
   const ancestors = useMemo(() => {
     if (!data || !id) return [];

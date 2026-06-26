@@ -7,6 +7,7 @@ import { loadGraph } from "../../lib/graph";
 import { loadHistoryBatch } from "../../lib/history";
 import { track } from "../../lib/analytics";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   buildActiveDataRows,
   activeDataRowsToCSV,
@@ -70,6 +71,7 @@ function EvidenceCell({ r }: { r: Row }) {
 }
 
 export function ActiveDataReport() {
+  useDocumentTitle("Active Data Index: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
   const rows = useMemo(
