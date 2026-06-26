@@ -12,7 +12,7 @@
 -->
 
 ## 2026-06-26
-- Browser tab now shows the title of the atlas document, report, or radar actor you're viewing
+- Browser tab now shows what you're viewing — atlas doc, report, radar actor, or search query — instead of always "Sky Atlas by Redline"
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer

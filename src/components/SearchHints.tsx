@@ -1,3 +1,5 @@
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+
 const HINTS: { label: string; query: string; description: string }[] = [
   {
     label: "broad",
@@ -67,6 +69,7 @@ const SLASH: { cmd: string; description: string }[] = [
 ];
 
 export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
+  useDocumentTitle("Search Hints: Sky Atlas by Redline");
   return (
     <main className="flex-1 overflow-y-auto">
       <SearchHints onSearch={onHintClick} />
