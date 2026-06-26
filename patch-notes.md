@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-06-26
+- Browser tab now shows what you're viewing — atlas doc, report, radar actor, or search query — instead of always "Sky Atlas by Redline"
+
 ## 2026-06-25
 - Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
 
