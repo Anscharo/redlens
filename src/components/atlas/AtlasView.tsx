@@ -9,6 +9,7 @@ import { useAtlasData, useLoaded } from "../../hooks/useAtlasData";
 import { useAtlasSelection } from "../../hooks/useAtlasSelection";
 import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
 import { useDocViewTracking } from "../../hooks/useDocViewTracking";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadGraph } from "../../lib/graph";
 import {
   buildAncestorsWithSelf,
@@ -39,6 +40,9 @@ export function AtlasView({
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
+
+  // Reflect the selected doc's title in the browser tab / window title.
+  useDocumentTitle(id ? data?.atlas.docs[id]?.title : null);
 
   const ancestors = useMemo(() => {
     if (!data || !id) return [];
