@@ -5,6 +5,7 @@ import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -98,6 +99,7 @@ function Section({ title, hint, claims, tone, textTone }: { title: string; hint:
 }
 
 export function StaleDatesReport() {
+  useDocumentTitle("Stale Dates: Sky Atlas by Redline");
   const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);

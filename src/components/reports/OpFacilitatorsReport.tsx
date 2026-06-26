@@ -7,6 +7,7 @@ import { useUrlState, type UrlCodec } from "../../hooks/useUrlState";
 import { atlasHref } from "../../lib/routes";
 import { toAnchorId } from "../../lib/anchorId";
 import { track } from "../../lib/analytics";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import type { GraphEntity } from "../../types";
 import {
   CATEGORY_LABELS,
@@ -136,6 +137,7 @@ function Row({ r, chains }: { r: OFResponsibility; chains: Map<string, AgentChai
 }
 
 export function OFReport() {
+  useDocumentTitle("Operational Facilitator Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
   const [filter, setFilter] = useUrlState("filter", filterCodec);
