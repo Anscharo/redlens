@@ -33,7 +33,7 @@ export const SearchResults = memo(function SearchResults({
   onHintClick,
   onBroadSearch,
 }: Props) {
-  useDocumentTitle(query ? `${query} — Results for Sky Atlas by Redline` : null);
+  useDocumentTitle(query ? `${query} — Sky Atlas by Redline` : null);
   const hits = state.status === "done" ? state.hits : empty;
   const [visible, setVisible] = useUrlState("n", visibleCodec);
   // Reset pagination only when the query actually changes. On mount with a restored
