@@ -43,14 +43,76 @@ export interface SwapNode {
 // below this). A high bar by design — we flag true document replacements, never
 // ordinary big edits that keep the same title.
 export const REPLACE_MAX_OVERLAP = 0.15;
-// Relocation match: how much of the OLD doc's distinct words must reappear in a
-// candidate new doc to call it the displaced content's new home. Word
-// containment (not line overlap) so the match survives the content being
-// expanded/edited when it moved.
-export const RELOCATION_MIN_CONTAINMENT = 0.7;
-// Skip relocation matching for trivially short docs — too few words to match
-// confidently (every "X is Soter Labs." would otherwise collide).
-const RELOCATION_MIN_WORDS = 5;
+// Relocation match: the displaced content should reappear inside the new home —
+// in order, and (nearly) in full — tolerating subword typo fixes and extra text
+// the move tacked on. We measure it as ordered word containment (an LCS over
+// words with fuzzy word equality), NOT a bag-of-words overlap: order + a high
+// threshold are what keep unrelated docs from matching (a loose word-overlap
+// heuristic gave a ~22% false-positive rate over the live atlas, matching shared
+// boilerplate like "Completed Instances Directory" / "Failed Invocations").
+export const RELOCATION_MIN_CHARS = 25; // old content must be this distinctive
+export const RELOCATION_MIN_WORDS = 4; // …and carry at least this many words
+export const RELOCATION_MIN_RATIO = 0.95; // …this fraction of them found, in order
+// 0.95 (not 0.9) so a real word substitution between near-duplicate template
+// docs ("Fluid" vs "Securitize") drops below the bar, while a subword typo —
+// which still fuzzy-EQUALS its word via wordEq — stays counted.
+
+function norm(t: string | undefined): string {
+  return (t ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function words(t: string | undefined): string[] {
+  return (t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? [];
+}
+
+/** Are `a` and `b` within `tol` single-character edits? Bounded Levenshtein with
+ *  an early exit once a whole row exceeds the budget. */
+function withinEdits(a: string, b: string, tol: number): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > tol) return false;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost);
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > tol) return false; // no cell in this row is recoverable
+    prev = cur;
+  }
+  return prev[b.length] <= tol;
+}
+
+/** Two words count as equal if identical or a small typo apart — longer words
+ *  tolerate more; short words must be exact (too easy to collide otherwise). */
+function wordEq(a: string, b: string): boolean {
+  if (a === b) return true;
+  const tol = a.length <= 4 ? 0 : a.length <= 8 ? 1 : 2;
+  return tol > 0 && withinEdits(a, b, tol);
+}
+
+/** Fraction of `oldText`'s words that appear, IN ORDER (LCS), inside `candText`
+ *  — words matched fuzzily so subword typos don't break the alignment, and
+ *  `candText` may carry extra words (the LCS skips them). 1.0 = the whole old
+ *  body is present (possibly expanded); ~0 = unrelated. */
+export function orderedWordContainment(oldText: string | undefined, candText: string | undefined): number {
+  const a = words(oldText);
+  const b = words(candText);
+  if (a.length < RELOCATION_MIN_WORDS) return 0;
+  if (a.length * b.length > 400_000) return norm(candText).includes(norm(oldText)) ? 1 : 0; // cost cap → exact fallback
+  const dp = new Array<number>(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = 0;
+    for (let j = 1; j <= b.length; j++) {
+      const up = dp[j];
+      dp[j] = wordEq(a[i - 1], b[j - 1]) ? diag + 1 : Math.max(dp[j], dp[j - 1]);
+      diag = up;
+    }
+  }
+  return dp[b.length] / a.length;
+}
 
 function normTitle(t: string | undefined): string {
   return (t ?? "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -73,10 +135,6 @@ function lines(t: string | undefined): string[] {
     .filter(Boolean);
 }
 
-function words(t: string | undefined): string[] {
-  return ((t ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((w) => w.length > 1);
-}
-
 /** Fraction of lines shared between two texts (0 = disjoint … 1 = identical). */
 export function lineOverlap(a: string | undefined, b: string | undefined): number {
   const la = lines(a);
@@ -87,30 +145,40 @@ export function lineOverlap(a: string | undefined, b: string | undefined): numbe
   return shared / Math.max(la.length, lb.length);
 }
 
-/** Fraction of the OLD doc's distinct words that appear in `cand` — robust to
- *  the content being expanded/edited when it moved. Returns 0 for docs with too
- *  few words to match confidently. */
-export function wordContainment(oldText: string | undefined, cand: string | undefined): number {
-  const o = [...new Set(words(oldText))];
-  if (o.length < RELOCATION_MIN_WORDS) return 0;
-  const c = new Set(words(cand));
-  let hit = 0;
-  for (const w of o) if (c.has(w)) hit++;
-  return hit / o.length;
-}
-
-/** Find, among the added docs, the one whose body best contains the old doc's
- *  words — the displaced content's likely new home. Null when none clears the
- *  containment bar. */
-function bestRelocation(oldContent: string | undefined, addedIds: string[], previewById: Map<string, SwapNode>): SwapNode | null {
-  let best: { node: SwapNode; score: number } | null = null;
+/** Find where the displaced (old) content went. Conservative by design — a wrong
+ *  match puts a misleading "moved to" link on the swap AND a false ⚠ on an
+ *  innocent new doc, so we only claim a relocation when the evidence is strong:
+ *    1. the old content is distinctive (>= RELOCATION_MIN_CHARS / _MIN_WORDS);
+ *    2. it is NOT boilerplate — it appears in only the one live doc being swapped,
+ *       not repeated across the atlas (no single "moved to" otherwise);
+ *    3. (nearly) all of it reappears, in order, in EXACTLY ONE added doc
+ *       (>= RELOCATION_MIN_RATIO, typo-tolerant); two or more matches is
+ *       ambiguous, so we decline.
+ *  Returns null (swap still flagged, just without a movedTo link) when unsure. */
+export function relocationTarget(
+  oldContent: string | undefined,
+  mainById: Map<string, SwapNode>,
+  addedIds: string[],
+  previewById: Map<string, SwapNode>,
+): SwapNode | null {
+  const o = norm(oldContent);
+  if (o.length < RELOCATION_MIN_CHARS || words(oldContent).length < RELOCATION_MIN_WORDS) return null;
+  // Boilerplate guard: if the old content also appears verbatim in another live
+  // doc, it's shared template text with no single destination.
+  let mainHits = 0;
+  for (const m of mainById.values()) {
+    if (norm(m.content).includes(o) && ++mainHits > 1) return null;
+  }
+  // (Nearly) all of the old content, in order, in exactly one added doc.
+  let match: SwapNode | null = null;
   for (const aid of addedIds) {
     const cand = previewById.get(aid);
-    if (!cand) continue;
-    const score = wordContainment(oldContent, cand.content);
-    if (score >= RELOCATION_MIN_CONTAINMENT && (!best || score > best.score)) best = { node: cand, score };
+    if (cand && orderedWordContainment(oldContent, cand.content) >= RELOCATION_MIN_RATIO) {
+      if (match) return null; // ambiguous — more than one home
+      match = cand;
+    }
   }
-  return best?.node ?? null;
+  return match;
 }
 
 /** Classify identity swaps in a computed diff. `changed`/`added` are the UUID
@@ -131,10 +199,13 @@ export function detectIdentitySwaps(args: {
     const main = mainById.get(id);
     const prev = previewById.get(id);
     if (!main || !prev) continue;
+    // A swap replaces one real document with another. If either side is empty,
+    // it's a stub being filled in or a doc being blanked — not an identity swap.
+    if (!norm(main.content) || !norm(prev.content)) continue;
     if (normTitle(main.title) === normTitle(prev.title)) continue; // same title → ordinary edit
     if (lineOverlap(main.content, prev.content) > REPLACE_MAX_OVERLAP) continue; // body largely preserved → edit
 
-    const moved = bestRelocation(main.content, addedIds, previewById);
+    const moved = relocationTarget(main.content, mainById, addedIds, previewById);
     // A title that's a specialization/rename of the old (one contains the other,
     // e.g. "…Agent" → "…Agent Ozone") is a refinement, not a swap — UNLESS the
     // old content demonstrably relocated to a new doc, which means the uuid
