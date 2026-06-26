@@ -50,7 +50,7 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
   useDocumentTitle(
     actorSlug
       ? profile
-        ? `${profile.name} Radar: Sky Atlas by Redline`
+        ? `${profile.entity.name} Radar: Sky Atlas by Redline`
         : null
       : "Redline Radar for Sky Atlas",
   );
