@@ -78,3 +78,6 @@ playwright/.cache/
 # Personal docs (not checked in)
 docs/ds/
 
+
+# local-only HTML-era curation tool input (built by build-history-curation.mjs)
+public/history-curation.json

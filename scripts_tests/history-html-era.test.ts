@@ -59,6 +59,41 @@ describe("seedFromMd — #117 seam classification", () => {
   });
 });
 
+describe("seedFromMd — human overrides (plan §10.4)", () => {
+  const A = "alpha beta gamma delta epsilon zeta eta theta iota kappa";
+  const B = "lambda mu nu xi omicron pi rho sigma tau upsilon";
+  const md = [{ uuid: "uuid-A", content: A, title: "Doc A" }, { uuid: "uuid-B", content: B, title: "Doc B" }];
+  const P = { content: `${A} ${B}`, title: "P" }, Q = { content: A, title: "Q" };
+
+  it("forces a md uuid onto the chosen row, overriding the auto seed", () => {
+    const seed = seedFromMd(md, [P, Q], { overrides: new Map([["uuid-B", Q]]) });
+    expect(seed.uuidByRow.get(Q)).toBe("uuid-B"); // Q auto-merged into uuid-A; the override wins
+    expect(seed.seam.get("uuid-B")).toBe("kept");
+    expect(seed.overrideCount).toBe(1);
+  });
+
+  it("marks a md doc 'created' when the human picks none", () => {
+    const seed = seedFromMd(md, [P, Q], { overrides: new Map([["uuid-A", null]]) });
+    expect([...seed.uuidByRow.values()]).not.toContain("uuid-A");
+    expect(seed.seam.get("uuid-A")).toBe("created");
+  });
+});
+
+describe("threadBackward — human overrides (plan §10.4)", () => {
+  it("forces the chosen older row to inherit the newer identity", () => {
+    const N1 = node("N1", { order: 0, content: "n1 body" });
+    const N2 = node("N2", { order: 1, content: "n2 body" });
+    const O1 = node("O1", { order: 0, content: "n1 body" }); // would auto-match N1
+    const O2 = node("O2", { order: 1, content: "n2 body" }); // would auto-match N2
+    const commits = [{ sha: "s0", seq: 0, nodes: [O1, O2] }, { sha: "s1", seq: 1, nodes: [N1, N2] }];
+    const seed = new Map<any, string>([[N1, "uuid-1"], [N2, "uuid-2"]]);
+    const res = threadBackward(commits, { seed, overrides: new Map([[N2, O1]]) });
+    expect(O1.uuid).toBe("uuid-2"); // overridden: O1 is N2's previous version, not N1's
+    expect(isSynthetic(O2.uuid)).toBe(true); // its auto pairing was suppressed → death
+    expect(res.appliedOverrides).toBe(1);
+  });
+});
+
 describe("threadBackward — Pass A", () => {
   // seq 0: [A,B]   seq 1: [A,B,C]   seq 2: [A, B'] (C died, B modified)
   const c0 = { sha: "s0", seq: 0, nodes: [node("A", { order: 0, doc_no: "A.1" }), node("B", { order: 1 })] };

@@ -33,7 +33,12 @@ const jaccard = (a, b) => {
 // already-exact content match is never regressed. Titles barely change across the hop.
 const TITLE_TIE_WINDOW = 0.1, TITLE_TIE_MARGIN = 0.34;
 
-export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
+// `overrides` (plan §10.4) is a human-confirmed Map<mdUuid, htmlRowNode|null> from
+// the curation tool. It WINS over the automatic seed: the md doc's uuid is forced
+// onto the chosen row (its previous version), or — when the chosen value is null —
+// the md doc is marked `created` at #117 (no HTML predecessor). The automatic seed
+// still runs first; overrides are a correction pass so unspecified docs are untouched.
+export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = null } = {}) {
   const mdTitleTokens = mdNodes.map((m) => titleTokens(m.title));
   const inv = new Map(); // shingle -> [mdIndex]
   const mdSh = mdNodes.map((m) => new Set(shArr(m.content)));
@@ -100,8 +105,32 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
   const seam = new Map(); // plan §4.1
   mdNodes.forEach((m, i) => seam.set(m.uuid, primaryByMd.has(i) ? "kept" : containedMd.has(i) ? "split" : "created"));
   const splitCount = [...containedMd].filter((mi) => !primaryByMd.has(mi)).length;
+
+  // human-confirmed seed corrections (plan §10.4). Applied last so they win.
+  let overrideCount = 0;
+  if (overrides && overrides.size) {
+    const rowByUuid = new Map();
+    for (const [row, uuid] of uuidByRow) rowByUuid.set(uuid, row);
+    for (const [mdUuid, chosenRow] of overrides) {
+      const prevRow = rowByUuid.get(mdUuid);
+      if (prevRow && prevRow !== chosenRow) uuidByRow.delete(prevRow); // free this uuid from its auto row
+      if (chosenRow) {
+        const displaced = uuidByRow.get(chosenRow); // a uuid the chosen row had auto-claimed
+        if (displaced && displaced !== mdUuid) { rowByUuid.delete(displaced); seam.set(displaced, "created"); }
+        uuidByRow.set(chosenRow, mdUuid);
+        rowByUuid.set(mdUuid, chosenRow);
+        mergedInto.delete(chosenRow);
+        seam.set(mdUuid, "kept");
+      } else {
+        rowByUuid.delete(mdUuid); // "none" → md doc created at #117, no html predecessor
+        seam.set(mdUuid, "created");
+      }
+      overrideCount++;
+    }
+  }
+
   return {
-    uuidByRow, mergedInto, extractedFrom, seam,
+    uuidByRow, mergedInto, extractedFrom, seam, overrideCount,
     stats: { rows: htmlNodes.length, seeded: uuidByRow.size, merged: mergedInto.size, kept: primaryByMd.size, split: splitCount, created: mdNodes.length - new Set([...primaryByMd.keys(), ...containedMd]).size },
   };
 }
@@ -109,29 +138,61 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5 } = {}) {
 // ---- Pass A: backward identity threading ------------------------------------
 // commits oldest→newest, each { sha, seq, nodes }. Mutates node.uuid. Mid-era
 // deaths + unresolved-ambiguous rows get deterministic synthetic v5 uuids.
-export function threadBackward(commits, { seed = new Map() } = {}) {
+//
+// `overrides` (plan §10.4) is a human-confirmed Map<newerNode, olderNode|null> from
+// the curation tool: it forces the chosen older node to inherit the newer node's
+// identity (older IS the newer's previous version), or — when the value is null —
+// declares the newer node has no predecessor in the older commit (a real birth). An
+// overridden pairing WINS over the automatic matcher and suppresses any conflicting
+// auto-pair, so the unspecified rows thread exactly as before.
+export function threadBackward(commits, { seed = new Map(), overrides = null } = {}) {
   const order = commits.slice().reverse(); // newest→oldest
   for (const n of order[0].nodes) n.uuid = seed.get(n) || syntheticUuid(n, order[0].sha);
 
   const decisions = [], synthetics = [], orphansByCommit = [];
+  let appliedOverrides = 0;
   let curr = order[0].nodes;
   for (let i = 1; i < order.length; i++) {
     const older = order[i].nodes;
     const r = matchNodes(older, curr);
-    for (const p of r.pairs) p.older.uuid = p.newer.uuid; // carry real/synthetic id back
+
+    // apply human overrides FIRST (they win): force chosen older → newer identity,
+    // and remember which newer/older nodes to skip in the automatic pass.
+    const pinnedOlder = new Set();   // older nodes claimed by an override
+    const overriddenNewer = new Set(); // newer nodes whose auto-pairing is replaced
+    if (overrides && overrides.size) {
+      for (const newer of curr) {
+        if (!overrides.has(newer)) continue;
+        overriddenNewer.add(newer);
+        const chosen = overrides.get(newer);
+        if (chosen) { chosen.uuid = newer.uuid; pinnedOlder.add(chosen); } // older = newer's previous version
+        appliedOverrides++; // null → newer is a birth here (no predecessor pinned)
+      }
+    }
+
+    for (const p of r.pairs) {
+      if (overriddenNewer.has(p.newer) || pinnedOlder.has(p.older)) continue; // overridden
+      p.older.uuid = p.newer.uuid; // carry real/synthetic id back
+    }
     for (const a of r.ambiguous) {
       decisions.push({ sha: order[i].sha, reason: a.reason, score: a.score, order: a.older?.order });
       if (a.older && !a.older.uuid) a.older.uuid = syntheticUuid(a.older, order[i].sha); // surfaced for §10.4
     }
-    for (const o of r.olderUnmatched) {
-      o.uuid = syntheticUuid(o, order[i].sha); // died at the newer commit (going forward)
+    // Any older row still without an id died here (going forward). With no overrides
+    // this is exactly r.olderUnmatched; with overrides it also covers rows whose
+    // auto-pairing was suppressed and not re-pinned.
+    let deaths = 0;
+    for (const o of older) {
+      if (o.uuid) continue;
+      o.uuid = syntheticUuid(o, order[i].sha);
       synthetics.push({ uuid: o.uuid, sha: order[i].sha, kind: "death" });
+      deaths++;
     }
     // §10.2 orphan set: deaths here + births (newer rows with no older origin)
-    orphansByCommit.push({ sha: order[i].sha, deaths: r.olderUnmatched.length, births: r.newerUnmatched.length });
+    orphansByCommit.push({ sha: order[i].sha, deaths, births: r.newerUnmatched.length });
     curr = older;
   }
-  return { decisions, synthetics, orphansByCommit };
+  return { decisions, synthetics, orphansByCommit, appliedOverrides };
 }
 
 // ---- Pass B: forward event/diff emission ------------------------------------

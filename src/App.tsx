@@ -48,6 +48,9 @@ const StaleDatesReport = lazy(() =>
 const ReportsIndex = lazy(() =>
   lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
 );
+const HistoryCurateReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/HistoryCurateReport")).then((m) => ({ default: m.HistoryCurateReport })),
+);
 const ProvenancePage = lazy(() =>
   lazyRetry(() => import("./components/ProvenancePage")).then((m) => ({ default: m.ProvenancePage })),
 );
@@ -230,6 +233,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_PROCESSES}>
               <Suspense fallback={<Loading />}>
                 <ProcessesReport onNavigate={navigateToNode} />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_HISTORY_CURATE}>
+              <Suspense fallback={<Loading />}>
+                <HistoryCurateReport />
               </Suspense>
             </Route>
             <Route path={ROUTES.CONSTELLATIONS}>

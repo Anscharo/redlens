@@ -12,6 +12,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { seedFromMd, threadBackward, buildEvents } from "../lib/history-html-era.mjs";
@@ -25,6 +26,9 @@ const OUT = path.join(ROOT, "public/history-html-era.json");
 const HTML = "Sky Atlas/Sky Atlas.html", MD = "Sky Atlas/Sky Atlas.md";
 const SEED_HTML = "7b43d159", MD117 = "22cc27b5";
 const MEASURE = process.argv.includes("--measure");
+// `--decisions <file>` applies the human-confirmed curation choices (plan §10.4).
+const DECISIONS_PATH = ((i) => (i >= 0 ? process.argv[i + 1] : null))(process.argv.indexOf("--decisions"));
+const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
 const git = (a) => execSync(`git -C "${REPO}" ${a}`, { maxBuffer: 1 << 30 }).toString();
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
@@ -64,9 +68,51 @@ const commits = shas.map((full) => {
 });
 console.error(`loaded ${commits.length} html commits + ${md.length} md docs in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 
+// Resolve human-confirmed decisions (plan §10.4) into override maps the pipeline
+// consumes. Decisions are content-addressed (`${sha8}:${md5(content)}`) so they bind
+// to the same documents even across a renumber — we never key on doc_no. Seed
+// decisions (newer = the #117 migration) override seedFromMd; the rest override the
+// backward hops. Once recorded, the same decisions reproduce the same artifact.
+let seedOverrides = null, hopOverrides = null, applied = null;
+if (DECISIONS_PATH) {
+  const file = JSON.parse(fs.readFileSync(DECISIONS_PATH, "utf8"));
+  // md5(raw #117 body) → uuid, matching build-history-curation.mjs's content-address
+  const rawUuid = new Map();
+  { const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
+    let cur = null, body = [];
+    for (const line of git(`show ${MD117}:'${MD}'`).split("\n")) {
+      const m = line.match(HRE);
+      if (m) { if (cur) rawUuid.set(md5(body.join("\n").trim()), cur); cur = m[5]; body = []; }
+      else if (cur) body.push(line);
+    }
+    if (cur) rawUuid.set(md5(body.join("\n").trim()), cur);
+  }
+  // content-address index over every html node (8-char sha, matching the curation file)
+  const nodeIndex = new Map();
+  shas.forEach((full, idx) => { const sha8 = full.slice(0, 8); for (const n of commits[idx].nodes) nodeIndex.set(`${sha8}:${n.contentHash}`, n); });
+
+  seedOverrides = new Map(); hopOverrides = new Map();
+  let unresolved = 0;
+  for (const d of file.decisions || []) {
+    const chosen = d.chosenKey === "none" ? null : nodeIndex.get(d.chosenKey);
+    if (d.chosenKey !== "none" && !chosen) { unresolved++; continue; } // chosen doc not found this build
+    if (d.newerSha === MD117) {               // seed decision: subject is an #117 md doc
+      const mdUuid = rawUuid.get(String(d.subjectKey).split(":")[1]);
+      if (!mdUuid) { unresolved++; continue; }
+      seedOverrides.set(mdUuid, chosen);
+    } else {                                   // backward-hop decision: subject is a newer html node
+      const newer = nodeIndex.get(d.subjectKey);
+      if (!newer) { unresolved++; continue; }
+      hopOverrides.set(newer, chosen);
+    }
+  }
+  applied = { total: (file.decisions || []).length, seed: seedOverrides.size, hop: hopOverrides.size, unresolved };
+  console.error(`decisions: applied ${applied.seed} seed + ${applied.hop} hop, ${unresolved} unresolved (of ${applied.total})`);
+}
+
 const lastSha = commits[commits.length - 1].sha;
-const seed = seedFromMd(md, commits[commits.length - 1].nodes);
-const thread = threadBackward(commits, { seed: seed.uuidByRow });
+const seed = seedFromMd(md, commits[commits.length - 1].nodes, seedOverrides ? { overrides: seedOverrides } : {});
+const thread = threadBackward(commits, { seed: seed.uuidByRow, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
 const rawEvents = buildEvents(commits, { lineDiff });
 
 // per-doc seam metadata (plan §4.1/§7): kept/split/merged/created + the
@@ -108,6 +154,7 @@ const summary = {
   events: events.length,
   eventsByType: byType,
   prCoverage: `${[...commitMeta.values()].filter((c) => c.pr).length}/${commitMeta.size}`,
+  appliedDecisions: applied, // null unless --decisions was passed (plan §10.4 provenance)
 };
 console.error("\n=== freeze summary ===");
 console.error(JSON.stringify(summary, null, 2));
