@@ -3611,14 +3611,14 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Supersta
 ]
 `;
 
-exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenized Treasury JTRSY 1`] = `
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenized Treasury BUIDL 1`] = `
 [
   {
     "content": "\`Pending\`",
     "title": "RRC Framework Full Implementation Coverage",
   },
   {
-    "content": "The documents herein define the parameters of the Tokenized Treasury JTRSY Instance of the Allocation System Primitive.",
+    "content": "The documents herein define the parameters of the Tokenized Treasury BUIDL Instance of the Allocation System Primitive.",
     "title": "Parameters",
   },
   {
@@ -3630,7 +3630,7 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Network",
   },
   {
-    "content": "Tokenized Treasury",
+    "content": "Securitize",
     "title": "Target Protocol",
   },
   {
@@ -3638,7 +3638,7 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Asset Supplied By Grove Liquidity Layer",
   },
   {
-    "content": "JTRSY",
+    "content": "BUIDL",
     "title": "Token",
   },
   {
@@ -3646,58 +3646,69 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Contract Addresses",
   },
   {
-    "content": "\`0x8c213ee79581Ff4984583C6a801e5263418C4b86\`",
+    "content": "\`0x7712c34205737192402172409a8F7ccef8aA2AEc\`",
     "title": "Token Address",
   },
   {
-    "content": "\`0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A\`",
-    "title": "Centrifuge ERC-7540 Vault Address",
+    "content": "\`0x8780Dd016171B91E4Df47075dA0a947959C34200\`",
+    "title": "Securitize Redemption Wallet Address",
   },
   {
-    "content": "\`0x7FB719Fc99A737bA15D676a09491805cD9623A8f\`",
-    "title": "JTRSY Rate Provider Address",
+    "content": "\`0x69a171853575FFD41574EA80Abfc6337AcbC4d43\`",
+    "title": "BUIDL Rate Provider Address",
   },
   {
-    "content": "\`0x30860b17f984D0f909B71Ab8D7b0C2e01C650479\`",
+    "content": "\`0x39548FeF138370Db06e172eF0739894b2a613DF9\`",
     "title": "Pocket Contract Address",
   },
   {
-    "content": "\`0x471C4D7B1F38009061e7c545A08732d82Bd54B15\`",
+    "content": "\`0x73414528187A4986E2Af5D551fD14871b723E506\`",
     "title": "Token Redeemer Contract Address",
   },
   {
-    "content": "\`0xfB805f2f88e862e687bEBdF120306ef39380F3bf\`",
+    "content": "\`0xdB8C7c814E9780659B23478EF4Bda9032CC9Ff34\`",
     "title": "Owner Timelock Contract Address",
   },
   {
-    "content": "\`0x34B7385D87793bAc8b94d95d8eF75200787A61F7\`",
-    "title": "RWA Instance Contract Address",
+    "content": "\`0xCBa428fB052B365557DAf52b744DFfF20d5FbEdD\`",
+    "title": "Basin Contract Address",
   },
   {
     "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
     "title": "Rate Limit IDs",
   },
   {
-    "content": "The current \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are defined in the subdocuments herein.",
+    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein.",
     "title": "Rate Limits",
   },
   {
     "content": "The inflow rate limits are:
 
-- \`maxAmount\`: 0 USDS
-- \`slope\`: 0 USDS per day",
+- \`maxAmount\`: 5,000,000 USDS
+- \`slope\`: 5,000,000 USDS per day",
     "title": "Inflow Rate Limits",
   },
   {
     "content": "The outflow rate limits are:
 
-- \`maxAmount\`: 0 USDS
-- \`slope\`: 0 USDS per day",
+- \`maxAmount\`: Unlimited",
     "title": "Outflow Rate Limits",
   },
   {
     "content": "The documents herein contain specific off-chain parameters for this Instance.",
     "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "This Instance is currently defined as an Interim Deployment (see [A.1.10.2.3.2.2.2 - Interim Deployments](9b3edbbf-89d1-42da-a9c3-18f858f8471f)) and as such has CRR of 100%. The testing parameters of this Interim Deployment are specified in the documents herein.",
+    "title": "Interim Deployment",
+  },
+  {
+    "content": "The maximum allocation for the Tokenized Treasury Basin Interim Deployments is $5 million, combined across the JTRSY and BUIDL Instances.",
+    "title": "Maximum Allocation",
+  },
+  {
+    "content": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.14.2.2.4 - Rate Limits](8e7f9afb-d4c6-49ac-a956-1a65817d709f).",
+    "title": "Rate Limits",
   },
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
@@ -3723,7 +3734,144 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Issuer-Specific Role Holders",
   },
   {
-    "content": "The \`OWNER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.6.1 - Tokenized Treasury Owner Role](41a7e6fb-59e1-40e8-a05a-68c1520fb361), is held by Anemoy via an OpenZeppelin \`TimelockController\` at the address specified in [A.6.1.1.2.2.6.1.3.1.14.1.2.2.6 - Owner Timelock Contract Address](d2069cde-3b55-487a-9b1d-919bd3f76197).",
+    "content": "The \`OWNER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.1.2.1 - Tokenized Treasury Owner Role](41a7e6fb-59e1-40e8-a05a-68c1520fb361), is held by Securitize via an OpenZeppelin \`TimelockController\` at the address specified in [A.6.1.1.2.2.6.1.3.1.14.2.2.2.6 - Owner Timelock Contract Address](b691c3af-39ce-4e62-b6f9-e7f3f493ae25).",
+    "title": "Owner Role Holder",
+  },
+  {
+    "content": "The \`PROPOSER_ROLE\` of the Owner Timelock is held by Securitize at \`0x453A28B31fdc31858C35B02bc3A42BCD8bfbAd3a\`.",
+    "title": "Proposer Role Holder",
+  },
+  {
+    "content": "The \`REDEEMER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.1.2.5 - Tokenized Treasury Redeemer Role](fbeb1921-37eb-465b-97fa-004c8e0925b1), is held by Securitize at \`0x488F27168a19472c51f003fbC5b75B1ACc3B7b4c\`.",
+    "title": "Redeemer Role Holder",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenized Treasury JTRSY 1`] = `
+[
+  {
+    "content": "\`Pending\`",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the Tokenized Treasury JTRSY Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Centrifuge",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDS",
+    "title": "Asset Supplied By Grove Liquidity Layer",
+  },
+  {
+    "content": "JTRSY",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance-specific contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x8c213ee79581Ff4984583C6a801e5263418C4b86\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A\`",
+    "title": "Centrifuge ERC-7540 Vault Address",
+  },
+  {
+    "content": "\`0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5\`",
+    "title": "JTRSY Rate Provider Address",
+  },
+  {
+    "content": "\`0x2Cd296095788A2741e72056D66B3Ae1fAeE23ea2\`",
+    "title": "Pocket Contract Address",
+  },
+  {
+    "content": "\`0x7c5Ce1a1D50a6cb3Da97C9e202B3E7CD8e5b5b6c\`",
+    "title": "Token Redeemer Contract Address",
+  },
+  {
+    "content": "\`0xA52dC9876aB4A9DB6dAfbb83410554086054d140\`",
+    "title": "Owner Timelock Contract Address",
+  },
+  {
+    "content": "\`0xf08943f817e1F902dEbC884c7B19Ea5764594Ac9\`",
+    "title": "Basin Contract Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The inflow and outflow rate limit configuration for this conduit is specified in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The inflow rate limits are:
+
+- \`maxAmount\`: 5,000,000 USDS
+- \`slope\`: 5,000,000 USDS per day",
+    "title": "Inflow Rate Limits",
+  },
+  {
+    "content": "The outflow rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "This Instance is currently defined as an Interim Deployment (see [A.1.10.2.3.2.2.2 - Interim Deployments](9b3edbbf-89d1-42da-a9c3-18f858f8471f)) and as such has CRR of 100%. The testing parameters of this Interim Deployment are specified in the documents herein.",
+    "title": "Interim Deployment",
+  },
+  {
+    "content": "The maximum allocation for the Tokenized Treasury Basin Interim Deployments is $5 million, combined across the JTRSY and BUIDL Instances.",
+    "title": "Maximum Allocation",
+  },
+  {
+    "content": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.14.1.2.4 - Rate Limits](abc0b1fc-4922-40f1-8ea9-60fba89f0e5f).",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "The configuration parameters for this Instance are as follows:
+
+- Max Swap Size: 50,000,000 USD
+- Staleness Threshold: seven (7) days
+- Fees: 0
+- Credit Token Deposits: Disabled
+- Credit Token Withdrawals: Disabled
+- Stablecoin Swaps: Disabled",
+    "title": "Instance Configuration Parameters",
+  },
+  {
+    "content": "The documents herein define the role holders that are specific to this Instance's credit token issuer.",
+    "title": "Issuer-Specific Role Holders",
+  },
+  {
+    "content": "The \`OWNER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.1.2.1 - Tokenized Treasury Owner Role](41a7e6fb-59e1-40e8-a05a-68c1520fb361), is held by Anemoy via an OpenZeppelin \`TimelockController\` at the address specified in [A.6.1.1.2.2.6.1.3.1.14.1.2.2.6 - Owner Timelock Contract Address](d2069cde-3b55-487a-9b1d-919bd3f76197).",
     "title": "Owner Role Holder",
   },
   {
@@ -3731,7 +3879,7 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
     "title": "Proposer Role Holder",
   },
   {
-    "content": "The \`REDEEMER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.6.5 - Tokenized Treasury Redeemer Role](fbeb1921-37eb-465b-97fa-004c8e0925b1), is controlled by Anemoy; the holder address will be specified in a future iteration of the Atlas.",
+    "content": "The \`REDEEMER_ROLE\`, as defined in [A.6.1.1.2.2.6.1.2.2.1.1.2.5 - Tokenized Treasury Redeemer Role](fbeb1921-37eb-465b-97fa-004c8e0925b1), is held by Anemoy at \`0xb6e8D3E47c4FC5606E6C24D097Dd1791885Ce05a\`.",
     "title": "Redeemer Role Holder",
   },
 ]
@@ -9929,26 +10077,26 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 27,
-  "cites": 1886,
+  "cites": 1920,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 392,
+  "defines_entity": 393,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 8,
   "governance_channel": 10,
-  "has_address": 260,
+  "has_address": 261,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 188,
+  "instance_of": 189,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 192,
+  "invoked_by": 193,
   "listed_in": 46,
-  "located_at": 186,
-  "mentions": 547,
+  "located_at": 187,
+  "mentions": 567,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -9988,7 +10136,7 @@ exports[`entities > composite parties and their members 1`] = `
   },
   {
     "members": [
-      "Elodin",
+      "Development Company",
       "Keel",
       "Keel Foundation",
     ],
@@ -12452,24 +12600,50 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
+    "name": "Ethereum Mainnet - Tokenized Treasury BUIDL",
+    "params": {
+      "Asset Supplied By Grove Liquidity Layer": "USDS",
+      "BUIDL Rate Provider Address": "0x69a171853575FFD41574EA80Abfc6337AcbC4d43",
+      "Basin Contract Address": "0xCBa428fB052B365557DAf52b744DFfF20d5FbEdD",
+      "Inflow Rate Limits / maxAmount": "5,000,000 USDS",
+      "Inflow Rate Limits / slope": "5,000,000 USDS per day",
+      "Maximum Allocation": "The maximum allocation for the Tokenized Treasury Basin Interim Deployments is $5 million, combined across the JTRSY and BUIDL Instances.",
+      "Network": "Ethereum Mainnet",
+      "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Owner Timelock Contract Address": "0xdB8C7c814E9780659B23478EF4Bda9032CC9Ff34",
+      "Pocket Contract Address": "0x39548FeF138370Db06e172eF0739894b2a613DF9",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
+      "Rate Limits": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.14.2.2.4 - Rate Limits](8e7f9afb-d4c6-49ac-a956-1a65817d709f).",
+      "Securitize Redemption Wallet Address": "0x8780Dd016171B91E4Df47075dA0a947959C34200",
+      "Target Protocol": "Securitize",
+      "Token": "BUIDL",
+      "Token Address": "0x7712c34205737192402172409a8F7ccef8aA2AEc",
+      "Token Redeemer Contract Address": "0x73414528187A4986E2Af5D551fD14871b723E506",
+    },
+    "slug": "grove-allocation-system-ethereum-mainnet-tokenized-treasury-buidl",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Tokenized Treasury JTRSY",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDS",
+      "Basin Contract Address": "0xf08943f817e1F902dEbC884c7B19Ea5764594Ac9",
       "Centrifuge ERC-7540 Vault Address": "0xFE6920eB6C421f1179cA8c8d4170530CDBdfd77A",
-      "Inflow Rate Limits / maxAmount": "0 USDS",
-      "Inflow Rate Limits / slope": "0 USDS per day",
-      "JTRSY Rate Provider Address": "0x7FB719Fc99A737bA15D676a09491805cD9623A8f",
+      "Inflow Rate Limits / maxAmount": "5,000,000 USDS",
+      "Inflow Rate Limits / slope": "5,000,000 USDS per day",
+      "JTRSY Rate Provider Address": "0x29209ceCFeFa6f675E6f1f829320D67cE2b025E5",
+      "Maximum Allocation": "The maximum allocation for the Tokenized Treasury Basin Interim Deployments is $5 million, combined across the JTRSY and BUIDL Instances.",
       "Network": "Ethereum Mainnet",
-      "Outflow Rate Limits / maxAmount": "0 USDS",
-      "Outflow Rate Limits / slope": "0 USDS per day",
-      "Owner Timelock Contract Address": "0xfB805f2f88e862e687bEBdF120306ef39380F3bf",
-      "Pocket Contract Address": "0x30860b17f984D0f909B71Ab8D7b0C2e01C650479",
-      "RWA Instance Contract Address": "0x34B7385D87793bAc8b94d95d8eF75200787A61F7",
+      "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Owner Timelock Contract Address": "0xA52dC9876aB4A9DB6dAfbb83410554086054d140",
+      "Pocket Contract Address": "0x2Cd296095788A2741e72056D66B3Ae1fAeE23ea2",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Atlas.",
-      "Target Protocol": "Tokenized Treasury",
+      "Rate Limits": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.14.1.2.4 - Rate Limits](abc0b1fc-4922-40f1-8ea9-60fba89f0e5f).",
+      "Target Protocol": "Centrifuge",
       "Token": "JTRSY",
       "Token Address": "0x8c213ee79581Ff4984583C6a801e5263418C4b86",
-      "Token Redeemer Contract Address": "0x471C4D7B1F38009061e7c545A08732d82Bd54B15",
+      "Token Redeemer Contract Address": "0x7c5Ce1a1D50a6cb3Da97C9e202B3E7CD8e5b5b6c",
     },
     "slug": "grove-allocation-system-ethereum-mainnet-tokenized-treasury-jtrsy",
     "status": "Active",
@@ -13023,7 +13197,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 105,
+  "allocation-system": 106,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,
