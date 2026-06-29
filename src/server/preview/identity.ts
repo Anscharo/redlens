@@ -101,7 +101,11 @@ export function orderedWordContainment(oldText: string | undefined, candText: st
   const a = words(oldText);
   const b = words(candText);
   if (a.length < RELOCATION_MIN_WORDS) return 0;
-  if (a.length * b.length > 400_000) return norm(candText).includes(norm(oldText)) ? 1 : 0; // cost cap → exact fallback
+  // Cost cap (only fires when both bodies exceed ~632 words): skip the O(a·b) DP
+  // and fall back to an exact normalized substring test. Deliberately binary —
+  // a relocated-but-reformatted giant doc returns 0 (declines the relocation
+  // link) rather than risk a slow or wrong fuzzy match; the swap is still flagged.
+  if (a.length * b.length > 400_000) return norm(candText).includes(norm(oldText)) ? 1 : 0;
   const dp = new Array<number>(b.length + 1).fill(0);
   for (let i = 1; i <= a.length; i++) {
     let diag = 0;
@@ -135,14 +139,21 @@ function lines(t: string | undefined): string[] {
     .filter(Boolean);
 }
 
-/** Fraction of lines shared between two texts (0 = disjoint … 1 = identical). */
+/** Fraction of the FIRST text's lines preserved (in order, via LCS) in the
+ *  SECOND — how much of `a` survives into `b`. Directional on purpose: the swap
+ *  gate calls it lineOverlap(oldBody, newBody) to ask "how much of the OLD body
+ *  is still here?". Normalizing by `la.length` (the old side), not the longer
+ *  side, means a short old body fully retained inside a much larger new body
+ *  scores ~1 (preserved) instead of ~0 — so a stub that gets expanded under a
+ *  new title is NOT misread as a wholesale replacement. (0 = none of `a`
+ *  survives … 1 = all of it does.) */
 export function lineOverlap(a: string | undefined, b: string | undefined): number {
   const la = lines(a);
   const lb = lines(b);
   if (la.length === 0 && lb.length === 0) return 1;
   if (la.length === 0 || lb.length === 0) return 0;
   const shared = lcsOps(la, lb).filter(([op]) => op === "=").length;
-  return shared / Math.max(la.length, lb.length);
+  return shared / la.length;
 }
 
 /** Find where the displaced (old) content went. Conservative by design — a wrong

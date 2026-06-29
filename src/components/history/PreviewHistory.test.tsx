@@ -100,6 +100,36 @@ describe("PreviewHistory preview entry", () => {
     expect(screen.getByText(/takes over an existing doc number/)).toBeInTheDocument();
     expect(screen.getByText(/moved to A\.9 in this preview/)).toBeInTheDocument();
   });
+
+  it("shows the ⚠ identity-swap warning with old/new title and relocation target", () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      identitySwap: {
+        n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives", movedTo: { id: "y", doc_no: "A.9", title: "Archive" } },
+      },
+    });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText(/Identity changed/)).toBeInTheDocument();
+    expect(screen.getByText(/moved to A\.9/)).toBeInTheDocument();
+  });
+
+  it("notes when a swapped UUID's previous content is not present in the preview", () => {
+    setDiff({
+      changed: new Set(["n1"]),
+      identitySwap: { n1: { oldTitle: "Operational GovOps", newTitle: "Sky Primitives" } },
+    });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(screen.getByText(/previous content is not present in this preview/)).toBeInTheDocument();
+  });
+
+  it("shows the ⚠ former-UUID warning on a doc that received relocated content", () => {
+    setDiff({
+      added: new Set(["n2"]),
+      formerUuid: { n2: { previousId: "x", previousTitle: "Operational GovOps", previousDocNo: "A.6.1.2.2.2" } },
+    });
+    render(<PreviewHistory nodeId="n2" />);
+    expect(screen.getByText(/previously appeared under a different UUID/)).toBeInTheDocument();
+  });
 });
 
 describe("PreviewHistory live section", () => {

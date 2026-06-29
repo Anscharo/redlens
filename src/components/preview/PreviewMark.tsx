@@ -42,14 +42,14 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
           "The previous content is not present in this preview."
         )}
       </span>
-    ) : (
+    ) : former ? (
       <span>
         This content previously appeared under a different UUID —{" "}
-        <DocLink id={former!.previousId} label={`${former!.previousDocNo} “${former!.previousTitle}”`} /> (
-        <span className="mono">{former!.previousId}</span>), which now holds a different document in
+        <DocLink id={former.previousId} label={`${former.previousDocNo} “${former.previousTitle}”`} /> (
+        <span className="mono">{former.previousId}</span>), which now holds a different document in
         this preview.
       </span>
-    );
+    ) : null;
 
     return (
       <Tooltip content={content} delay={300}>
