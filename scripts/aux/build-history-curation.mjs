@@ -185,7 +185,9 @@ markdownDocs.forEach((mdDoc, mi) => {
   }
   const subjectKey = attachContext(MIGRATION_SHA, markdownDocs, mi);
   const candidates = dedupeCandidates(ranked.slice(0, CANDIDATES_PER_CASE).map(([ri, cov]) => ({ key: attachContext(LAST_HTML_SHA, lastHtmlNodes, ri), score: +cov.toFixed(3) })));
-  addCase({ key: subjectKey, kind: "seed-close", newerSha: MIGRATION_SHA, olderSha: LAST_HTML_SHA, subjectKey, autoKey: attachContext(LAST_HTML_SHA, lastHtmlNodes, autoRow), candidates });
+  // subjectOrder = the #117 document order (md array index) so the UI groups this
+  // commit's changes in document order.
+  addCase({ key: subjectKey, kind: "seed-close", newerSha: MIGRATION_SHA, olderSha: LAST_HTML_SHA, subjectKey, subjectOrder: mi, autoKey: attachContext(LAST_HTML_SHA, lastHtmlNodes, autoRow), candidates });
 });
 
 // === BACKWARD hops: for each newer commit, which older row is each doc's previous? ===
@@ -215,6 +217,7 @@ for (let hop = 1; hop < newestFirst.length; hop++) {
       key: keyOf(newerCommit.sha, subject.content), kind: `tier-${tier}`,
       newerSha: newerCommit.sha, olderSha: olderCommit.sha,
       subjectKey: attachContext(newerCommit.sha, newerCommit.nodes, subject.order),
+      subjectOrder: subject.order,
       autoKey: attachContext(olderCommit.sha, olderCommit.nodes, pair.older.order), candidates,
     });
   }
@@ -230,6 +233,7 @@ for (let hop = 1; hop < newestFirst.length; hop++) {
       key: keyOf(newerCommit.sha, subject.content), kind: "ambiguous", reason: flag.reason,
       newerSha: newerCommit.sha, olderSha: olderCommit.sha,
       subjectKey: attachContext(newerCommit.sha, newerCommit.nodes, subject.order),
+      subjectOrder: subject.order,
       autoKey: null, candidates,
     });
   }

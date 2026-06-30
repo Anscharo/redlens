@@ -16,6 +16,8 @@
     "history:apply-decisions": "bun scripts/aux/freeze-html-history.mjs --decisions",
     "build:history-curation": "bun scripts/aux/build-history-curation.mjs",
     "audit:html-history": "bun scripts/aux/audit-html-history.mjs",
+    "trace:forward-history": "bun scripts/aux/forward-trace-html-history.mjs",
+    "curate:auto": "bun scripts/aux/auto-curate-html-history.mjs",
     "atlas:worker": "bun scripts/required/atlas-worker.mjs",
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "build:bundle": "bun scripts/required/build-bundle.ts",

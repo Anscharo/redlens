@@ -13,10 +13,50 @@ const SYSTEM =
 
 const clip = (text: string, max = 1200) => (text || "").slice(0, max);
 
+export interface ProposeSubject {
+  title: string;
+  content: string;
+}
+export interface ProposeCandidate {
+  key: string;
+  title: string;
+  content: string;
+}
+export interface ProposeResult {
+  chosenKey: string;
+  why: string;
+}
+
+// The LLM proposal core, shared by the HTTP endpoint (human-in-the-loop UI) and the
+// offline batch auto-curator (scripts/aux/auto-curate-html-history.mjs) so the prompt
+// lives in exactly one place. Returns the model's chosen candidate key (constrained to
+// the supplied keys, else "none") + a short rationale. The model only PROPOSES — a
+// human confirms in the UI, or the batch script only locks a case when the LLM agrees
+// with an already-confident matcher pick — so this never touches build determinism.
+export async function proposePredecessor(subject: ProposeSubject, candidates: ProposeCandidate[]): Promise<ProposeResult> {
+  const user =
+    `NEWER document:\n[${subject.title}] ${clip(subject.content)}\n\n` +
+    `OLDER candidates (pick the one that is its previous version, or "none"):\n` +
+    candidates.map((c) => `key=${c.key}\n[${c.title}] ${clip(c.content)}`).join("\n\n");
+
+  const response = await getClient().chat.completions.create(
+    {
+      model: getModel(),
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
+    },
+    { timeout: 30000, maxRetries: 1 },
+  );
+  const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}");
+  const chosenKey = parsed.chosenKey === "none" || candidates.some((c) => c.key === parsed.chosenKey) ? parsed.chosenKey : "none";
+  return { chosenKey: chosenKey ?? "none", why: typeof parsed.why === "string" ? parsed.why : "" };
+}
+
 export async function handleCuratePropose(req: Request): Promise<Response> {
   if (!config.openrouterApiKey) return Response.json({ error: "no OpenRouter key configured" }, { status: 404 });
 
-  type Body = { subject?: { title: string; content: string }; candidates?: { key: string; title: string; content: string }[] };
+  type Body = { subject?: ProposeSubject; candidates?: ProposeCandidate[] };
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -28,24 +68,8 @@ export async function handleCuratePropose(req: Request): Promise<Response> {
     return Response.json({ error: "missing subject/candidates" }, { status: 400 });
   }
 
-  const user =
-    `NEWER document:\n[${subject.title}] ${clip(subject.content)}\n\n` +
-    `OLDER candidates (pick the one that is its previous version, or "none"):\n` +
-    candidates.map((c) => `key=${c.key}\n[${c.title}] ${clip(c.content)}`).join("\n\n");
-
   try {
-    const response = await getClient().chat.completions.create(
-      {
-        model: getModel(),
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [{ role: "system", content: SYSTEM }, { role: "user", content: user }],
-      },
-      { timeout: 30000, maxRetries: 1 },
-    );
-    const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}");
-    const chosenKey = parsed.chosenKey === "none" || candidates.some((c) => c.key === parsed.chosenKey) ? parsed.chosenKey : "none";
-    return Response.json({ chosenKey: chosenKey ?? "none", why: typeof parsed.why === "string" ? parsed.why : "" });
+    return Response.json(await proposePredecessor(subject, candidates));
   } catch (error) {
     return Response.json({ error: String((error as Error)?.message || error) }, { status: 502 });
   }

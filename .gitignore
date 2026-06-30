@@ -70,6 +70,7 @@ playwright/.cache/
 .cache/processes-audit.json
 .cache/audit-html-cases.json
 .cache/audit-html-report.json
+.cache/forward-reverse-diff.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
 .claude/scheduled_tasks.lock
@@ -81,3 +82,5 @@ docs/ds/
 
 # local-only HTML-era curation tool input (built by build-history-curation.mjs)
 public/history-curation.json
+# local-only auto-resolved curation baseline (built by auto-curate-html-history.mjs)
+public/history-auto-decisions.json

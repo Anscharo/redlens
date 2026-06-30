@@ -25,6 +25,7 @@ export interface CurationCase {
   newerSha: string;
   olderSha: string;
   subjectKey: string;
+  subjectOrder?: number; // the subject doc's position within its commit (document order)
   autoKey: string | null; // what the matcher chose (null for flagged-ambiguous)
   candidates: CurationCandidate[];
 }
@@ -91,6 +92,29 @@ export function downloadDecisions(data: CurationData, picks: Record<string, Pick
   a.download = "history-decisions.json";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// --- auto-resolved baseline (offline, scripts/aux/auto-curate-html-history.mjs) ---
+// Optional pre-filled decisions for the cases two independent signals already agree on
+// (forward∩reverse, or LLM∩matcher ≥90%). Fetched best-effort: the file is gitignored
+// and may not exist, in which case the human simply curates the whole queue. `auto`
+// records which mechanism resolved each case (for the UI badge), never overriding a
+// decision the human already made.
+export interface AutoDecision {
+  chosenKey: Pick;
+  auto: string;
+}
+export async function loadAutoDecisions(): Promise<Record<string, AutoDecision>> {
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}history-auto-decisions.json`);
+    if (!r.ok) return {};
+    const file = await r.json();
+    const out: Record<string, AutoDecision> = {};
+    for (const d of file.decisions || []) out[d.caseKey] = { chosenKey: d.chosenKey, auto: d.auto || "auto" };
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 // --- LLM pre-proposal (server endpoint /api/history-curate/propose) --------------

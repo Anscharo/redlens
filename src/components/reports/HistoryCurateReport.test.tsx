@@ -4,7 +4,9 @@
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { sampleData, savePicks, proposeSpy } = vi.hoisted(() => ({
+const { sampleData, savePicks, proposeSpy, auto } = vi.hoisted(() => ({
+  // mutable holder for the offline auto-resolved baseline (default: none)
+  auto: { current: {} as Record<string, { chosenKey: string; auto: string }> },
   sampleData: {
     meta: { migrationSha: "aaaaaaa", lastHtmlSha: "bbbbbbb", casesByKind: { ambiguous: 1 } },
     commits: [],
@@ -27,6 +29,7 @@ vi.mock("../../lib/historyCuration", () => ({
   loadCuration: () => Promise.resolve(sampleData),
   loadPicks: () => ({}),
   savePicks,
+  loadAutoDecisions: () => Promise.resolve(auto.current),
   downloadDecisions: vi.fn(),
   proposePredecessor: proposeSpy,
 }));
@@ -34,7 +37,7 @@ vi.mock("../../lib/historyCuration", () => ({
 import { HistoryCurateReport } from "./HistoryCurateReport";
 
 describe("HistoryCurateReport", () => {
-  beforeEach(() => { savePicks.mockClear(); proposeSpy.mockClear(); });
+  beforeEach(() => { savePicks.mockClear(); proposeSpy.mockClear(); auto.current = {}; });
   afterEach(() => cleanup());
 
   it("renders the first case with its candidates", async () => {
@@ -83,5 +86,13 @@ describe("HistoryCurateReport", () => {
     fireEvent.click(screen.getByText("Unrelated Doc")); // pick the older candidate (which has no neighbors)
     // the subject's nearby entries don't exist in the older window → marked added
     expect(screen.getAllByText("+").length).toBeGreaterThan(0);
+  });
+
+  it("pre-fills the offline auto-resolved baseline and labels its mechanism", async () => {
+    auto.current = { case1: { chosenKey: "o:1", auto: "forward-reverse" } };
+    render(<HistoryCurateReport />);
+    await screen.findByText(/Pick its previous version/i);
+    expect(screen.getByText(/1 auto-resolved/)).toBeTruthy(); // header badge
+    expect(screen.getByText(/forward \+ reverse agree/i)).toBeTruthy(); // Confirm button provenance
   });
 });
