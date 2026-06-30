@@ -279,6 +279,26 @@ describe("SearchBar recent searches dropdown", () => {
     expect(onRecentSelect).not.toHaveBeenCalled();
   });
 
+  it("Enter hands off to onSubmit when no recent is highlighted", () => {
+    const onSubmit = vi.fn(() => true);
+    setupRecent({ onSubmit });
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input); // dropdown open, nothing highlighted
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("Enter selects a highlighted recent instead of calling onSubmit", () => {
+    const onSubmit = vi.fn(() => true);
+    const { onRecentSelect } = setupRecent({ onSubmit });
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    fireEvent.keyDown(input, { key: "Tab" }); // highlight the first recent
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onRecentSelect).toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("Escape closes the dropdown", () => {
     setupRecent();
     const input = screen.getByRole("combobox");

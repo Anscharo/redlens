@@ -31,6 +31,9 @@ interface Props extends NavBarProps {
   scope: SearchScope;
   recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
+  // Pressing Enter on a typed query (not while picking a recent) calls this;
+  // return true if it was handled (e.g. focus jumped to the first result).
+  onSubmit?: () => boolean;
 }
 
 export function SearchBar({
@@ -45,6 +48,7 @@ export function SearchBar({
   scope,
   recentSearches = [],
   onRecentSelect,
+  onSubmit,
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
 
@@ -147,7 +151,13 @@ export function SearchBar({
               // Delay so a mousedown→click on a suggestion still registers before
               // the dropdown unmounts (the option's own onMouseDown also guards).
               onBlur={dd.handlers.onBlur}
-              onKeyDown={dd.handlers.onKeyDown}
+              onKeyDown={(e) => {
+                dd.handlers.onKeyDown(e);
+                // Enter on a typed query the dropdown didn't consume (no recent
+                // highlighted) = "I like this search": hand off to onSubmit,
+                // which jumps focus to the first result.
+                if (e.key === "Enter" && !e.defaultPrevented && onSubmit?.()) e.preventDefault();
+              }}
               placeholder={cfg.placeholder}
               autoFocus
               // ph-no-capture: keep typed query text out of PostHog autocapture;

@@ -101,6 +101,16 @@ export default function App() {
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
 
+  // Enter in the search box jumps focus to the first result (entity hit or doc).
+  // Returns whether a result was actually focused, so SearchBar only swallows
+  // the keystroke when there was somewhere to go.
+  const focusFirstResult = useCallback(() => {
+    const first = document.querySelector<HTMLElement>(".search-result-link");
+    if (!first) return false;
+    first.focus();
+    return true;
+  }, []);
+
   // Track opening a comparison pane (null → uuid transition only).
   const handleSplitChange = useCallback(
     (sid: string | null) => {
@@ -176,6 +186,7 @@ export default function App() {
         scope={scope}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
+        onSubmit={focusFirstResult}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (
