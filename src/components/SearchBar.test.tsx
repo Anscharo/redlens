@@ -88,7 +88,7 @@ describe("SearchBar input controls", () => {
 describe("SearchBar recent searches dropdown", () => {
   function setupRecent(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
     const onRecentSelect = vi.fn();
-    const view = render(
+    render(
       <SearchBar
         inputRef={createRef<HTMLInputElement>()}
         query=""
@@ -104,7 +104,7 @@ describe("SearchBar recent searches dropdown", () => {
         {...over}
       />,
     );
-    return { onRecentSelect, rerender: view.rerender };
+    return { onRecentSelect };
   }
 
   it("stays closed on the mount autofocus and opens on interaction", () => {
@@ -137,27 +137,19 @@ describe("SearchBar recent searches dropdown", () => {
     expect(screen.queryByText("dai")).toBeNull();
   });
 
-  it("keeps the list frozen while the recents change underneath it", () => {
-    const { rerender } = setupRecent();
+  it("stays hidden while the field has a real query", () => {
+    setupRecent({ query: "amat" });
     fireEvent.pointerDown(screen.getByRole("searchbox"));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "jug", "pot"]);
-    // A new search lands while the dropdown is open — the open list must not shuffle.
-    rerender(
-      <SearchBar
-        inputRef={createRef<HTMLInputElement>()}
-        query=""
-        mode="broad"
-        isMixed={false}
-        onChange={vi.fn()}
-        onClear={vi.fn()}
-        onSetMode={vi.fn()}
-        activePage="atlas"
-        scope={"atlas" as SearchScope}
-        recentSearches={["amat", "vat", "jug", "pot", "dai"]}
-        onRecentSelect={vi.fn()}
-      />,
-    );
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "jug", "pot"]);
+    expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+  });
+
+  it("treats the bare phrase/strict quote markers as empty", () => {
+    for (const q of ['""', "''"]) {
+      setupRecent({ query: q });
+      fireEvent.pointerDown(screen.getByRole("searchbox"));
+      expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+      cleanup();
+    }
   });
 
   it("calls onRecentSelect with the chosen query and its rank", () => {

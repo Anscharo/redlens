@@ -46,21 +46,22 @@ export function SearchBar({
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
   const [focused, setFocused] = useState(false);
-  // Snapshot the list when the dropdown opens. Recording happens on every
-  // settled keystroke, so reading the live list would make rows shuffle in and
-  // out as you type a new query; the frozen snapshot stays put until reopened.
-  const [frozen, setFrozen] = useState<string[]>([]);
   // The input is autoFocus'd on load; swallow that one mount focus so the
   // dropdown never opens on first paint — only a deliberate focus/click does.
   const skipMountFocus = useRef(true);
 
   const openRecent = () => {
-    refreshRecent(); // prune anything past the TTL before snapshotting
-    setFrozen(recentSearches.slice(0, 3));
+    refreshRecent(); // prune anything past the TTL
     setFocused(true);
   };
 
-  const showRecent = focused && !!onRecentSelect && frozen.length > 0;
+  // Trying it out: only surface recents when the field is effectively empty —
+  // including the bare quote markers the phrase/strict pills leave behind. As
+  // soon as the user types a real term the dropdown gets out of the way.
+  const trimmed = query.trim();
+  const fieldEmpty = trimmed === "" || trimmed === '""' || trimmed === "''";
+  const suggestions = recentSearches.slice(0, 3);
+  const showRecent = focused && fieldEmpty && !!onRecentSelect && suggestions.length > 0;
 
   return (
     <header
@@ -155,7 +156,7 @@ export function SearchBar({
 
           {showRecent && (
             <RecentSearches
-              queries={frozen}
+              queries={suggestions}
               onSelect={(q, rank) => {
                 setFocused(false);
                 onRecentSelect!(q, rank);
