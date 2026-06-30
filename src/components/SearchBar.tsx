@@ -49,8 +49,12 @@ export function SearchBar({
   // The input is autoFocus'd on load; swallow that one mount focus so the
   // dropdown never opens on first paint — only a deliberate focus/click does.
   const skipMountFocus = useRef(true);
+  // Blur hides on a delay; if the input refocuses within it, cancel the hide so
+  // a transient blur (e.g. a re-render stealing focus) can't strand `focused`.
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openRecent = () => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
     refreshRecent(); // prune anything past the TTL
     setFocused(true);
   };
@@ -134,8 +138,14 @@ export function SearchBar({
               onPointerDown={openRecent}
               // Delay so a mousedown→click on a suggestion still registers before
               // the dropdown unmounts (the option's own onMouseDown also guards).
-              onBlur={() => setTimeout(() => setFocused(false), 120)}
-              onKeyDown={(e) => { if (e.key === "Escape") setFocused(false); }}
+              onBlur={() => { blurTimer.current = setTimeout(() => setFocused(false), 120); }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") { setFocused(false); return; }
+                // The dropdown is dismissed once you type. Pressing Backspace/Delete
+                // on an already-empty field re-summons it without re-clicking (and
+                // re-syncs `focused` if a stray blur turned it off).
+                if ((e.key === "Backspace" || e.key === "Delete") && trimmed === "") openRecent();
+              }}
               placeholder={cfg.placeholder}
               autoFocus
               // ph-no-capture: keep typed query text out of PostHog autocapture;

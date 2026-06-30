@@ -152,6 +152,32 @@ describe("SearchBar recent searches dropdown", () => {
     }
   });
 
+  it("re-summons the dropdown when Backspace is pressed on an empty field", () => {
+    vi.useFakeTimers();
+    try {
+      setupRecent(); // query is ""
+      const input = screen.getByRole("searchbox");
+      fireEvent.pointerDown(input);
+      expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+      // Simulate a stray blur that stranded `focused` off while typing.
+      fireEvent.blur(input);
+      act(() => vi.runAllTimers());
+      expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+      // Backspace on the empty field brings it back without a re-click.
+      fireEvent.keyDown(input, { key: "Backspace" });
+      expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not re-summon on Backspace when the field has text", () => {
+    setupRecent({ query: "amat" });
+    const input = screen.getByRole("searchbox");
+    fireEvent.keyDown(input, { key: "Backspace" });
+    expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+  });
+
   it("calls onRecentSelect with the chosen query and its rank", () => {
     const { onRecentSelect } = setupRecent();
     fireEvent.pointerDown(screen.getByRole("searchbox"));
