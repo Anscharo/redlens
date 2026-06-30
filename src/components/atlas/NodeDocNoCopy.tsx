@@ -2,16 +2,20 @@ import { useCopyState } from "../../hooks/useCopyState";
 import { track } from "../../lib/analytics";
 import { type AtlasNode } from "../../types";
 
+const HEAD_LEVELS = 2;
+const TAIL_LEVELS = 3;
+
 /**
- * Abbreviated doc-no for the corner affordance: doc numbers deeper than four
- * levels collapse to `scope..lastThree` (e.g. `A.6.1.1.10.1` → `A.6..1.10.1`)
- * so the corner stays compact. Four or fewer levels (and NR-X tokens, which
- * don't split on ".") render in full.
+ * Abbreviated doc-no for the corner affordance: doc numbers that omit inner
+ * levels collapse to `head…tail` (e.g. `A.6.1.1.10.1` → `A.6.….1.10.1`) with a
+ * single ellipsis segment standing in for the skipped middle. Numbers short
+ * enough that nothing would be skipped (≤ HEAD+TAIL levels) — and NR-X tokens,
+ * which don't split on "." — render in full with no ellipsis.
  */
 function abbreviateDocNo(docNo: string): string {
   const parts = docNo.split(".");
-  if (parts.length <= 4) return docNo;
-  return `${parts.slice(0, 2).join(".")}..${parts.slice(-3).join(".")}`;
+  if (parts.length <= HEAD_LEVELS + TAIL_LEVELS) return docNo;
+  return [...parts.slice(0, HEAD_LEVELS), "…", ...parts.slice(-TAIL_LEVELS)].join(".");
 }
 
 /**
