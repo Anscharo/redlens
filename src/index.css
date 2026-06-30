@@ -633,7 +633,10 @@ button.atlas-node-expand-all:focus-visible {
 }
 
 .atlas-node-body {
-  padding-bottom: 12.6px;
+  /* Expanded body only renders when a node is open, so this extra bottom
+     padding (+20px over the base 12.6px) gives expanded docs more breathing
+     room beneath their content. */
+  padding-bottom: 32.6px;
   margin-top: 4.5px;
   margin-left: 12px;
 }
