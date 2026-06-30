@@ -137,10 +137,22 @@ describe("SearchBar recent searches dropdown", () => {
     expect(screen.queryByText("dai")).toBeNull();
   });
 
-  it("stays hidden while the field has a real query", () => {
-    setupRecent({ query: "amat" });
+  it("hides when the typed term is a prefix of no recent", () => {
+    setupRecent({ query: "amat" }); // none of vat/jug/pot/dai start with "amat"
     fireEvent.pointerDown(screen.getByRole("searchbox"));
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+  });
+
+  it("narrows to recents that start with the typed term", () => {
+    setupRecent({ query: "j", recentSearches: ["jug", "jar", "vat", "pot"] });
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["jug", "jar"]);
+  });
+
+  it("matches the prefix case-insensitively and excludes the exact term", () => {
+    setupRecent({ query: "VA", recentSearches: ["vat", "value", "jug"] });
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "value"]);
   });
 
   it("treats the bare phrase/strict quote markers as empty", () => {

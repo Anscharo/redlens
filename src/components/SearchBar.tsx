@@ -59,13 +59,16 @@ export function SearchBar({
     setFocused(true);
   };
 
-  // Trying it out: only surface recents when the field is effectively empty —
-  // including the bare quote markers the phrase/strict pills leave behind. As
-  // soon as the user types a real term the dropdown gets out of the way.
+  // Surface recents when the field is empty (incl. the bare quote markers the
+  // phrase/strict pills leave behind) OR when what's typed is a prefix of a
+  // saved search — then narrow to just the matching ones, typeahead-style.
   const trimmed = query.trim();
   const fieldEmpty = trimmed === "" || trimmed === '""' || trimmed === "''";
-  const suggestions = recentSearches.slice(0, 3);
-  const showRecent = focused && fieldEmpty && !!onRecentSelect && suggestions.length > 0;
+  const prefix = (fieldEmpty ? "" : trimmed).toLowerCase();
+  const suggestions = recentSearches
+    .filter((q) => q !== trimmed && q.toLowerCase().startsWith(prefix))
+    .slice(0, 3);
+  const showRecent = focused && !!onRecentSelect && suggestions.length > 0;
 
   return (
     <header
