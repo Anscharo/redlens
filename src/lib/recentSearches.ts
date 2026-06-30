@@ -5,8 +5,8 @@ import type { SearchState } from "../hooks/useSearch";
 // localStorage), so it lives only for the tab/session and never leaks across
 // visits, and each entry is timestamped and forgotten after an hour. Synced
 // across components (the recording site in useSearchInput, the dropdown in
-// SearchBar) via a custom event + the cross-tab `storage` event — same pattern
-// as usePrefs.
+// SearchBar) via a same-tab custom event — sessionStorage is per-tab, so the
+// cross-tab `storage` event never applies here.
 //
 // What counts as a "recent query"? Searching on every keystroke means a naive
 // "save every worker call" would store the whole g→go→gov→…→governance chain.
@@ -101,12 +101,10 @@ function subscribe(cb: () => void): () => void {
     snapshot = read();
     cb();
   };
+  // Same-tab sync only: sessionStorage is per-tab and never emits the cross-tab
+  // `storage` event, so the custom EVENT is the sole notification channel.
   window.addEventListener(EVENT, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(EVENT, handler);
-    window.removeEventListener("storage", handler);
-  };
+  return () => window.removeEventListener(EVENT, handler);
 }
 
 // The UI only needs the query strings; map after the store read so getSnapshot

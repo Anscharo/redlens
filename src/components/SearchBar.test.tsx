@@ -155,6 +155,13 @@ describe("SearchBar recent searches dropdown", () => {
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "value"]);
   });
 
+  it("excludes the exact term case-insensitively", () => {
+    setupRecent({ query: "VAT", recentSearches: ["vat", "vatican"] });
+    fireEvent.pointerDown(screen.getByRole("combobox"));
+    // "vat" is the same search as "VAT" so it's dropped; "vatican" still matches.
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vatican"]);
+  });
+
   it("treats the bare phrase/strict quote markers as empty", () => {
     for (const q of ['""', "''"]) {
       setupRecent({ query: q });

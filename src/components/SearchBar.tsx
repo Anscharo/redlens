@@ -50,10 +50,16 @@ export function SearchBar({
   // phrase/strict pills leave behind) OR when what's typed is a prefix of a
   // saved search — then narrow to just the matching ones, typeahead-style.
   const trimmed = query.trim();
+  const trimmedLower = trimmed.toLowerCase();
   const fieldEmpty = trimmed === "" || trimmed === '""' || trimmed === "''";
-  const prefix = (fieldEmpty ? "" : trimmed).toLowerCase();
+  const prefix = fieldEmpty ? "" : trimmedLower;
+  // Exact-match exclusion is case-insensitive, to match the prefix check — typing
+  // "VAT" shouldn't suggest a saved "vat" (it'd run the same search).
   const suggestions = recentSearches
-    .filter((q) => q !== trimmed && q.toLowerCase().startsWith(prefix))
+    .filter((q) => {
+      const ql = q.toLowerCase();
+      return ql !== trimmedLower && ql.startsWith(prefix);
+    })
     .slice(0, 3);
 
   const dd = useRecentDropdown({ suggestions, query, onSelect: onRecentSelect });
