@@ -93,10 +93,16 @@ export function useRecentDropdown({ suggestions, query, onSelect }: Args) {
     [visible, query, suggestions.length, active, close, openDropdown, select],
   );
 
+  // Mouse hover writes the same `active` index the keyboard uses, so the two
+  // can never both highlight a row — whichever moved last wins. setActive bails
+  // on an unchanged value, so firing this on every mousemove is cheap.
+  const onOptionHover = useCallback((i: number) => setActive(i), []);
+
   return {
     visible,
     active,
     select,
+    onOptionHover,
     handlers: { onFocus, onPointerDown: openDropdown, onBlur, onKeyDown },
   };
 }

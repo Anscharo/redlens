@@ -172,6 +172,7 @@ export function SearchBar({
               items={suggestions}
               activeIndex={dd.active}
               onSelect={(_q, rank) => dd.select(rank)}
+              onHover={dd.onOptionHover}
             />
           )}
           </div>

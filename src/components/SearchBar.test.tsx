@@ -287,4 +287,33 @@ describe("SearchBar recent searches dropdown", () => {
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
+
+  const selectedCount = () =>
+    screen.getAllByRole("option").filter((o) => o.getAttribute("aria-selected") === "true").length;
+
+  it("hovering a row makes it the only highlighted one", () => {
+    setupRecent();
+    fireEvent.pointerDown(screen.getByRole("combobox"));
+    const opts = screen.getAllByRole("option");
+    fireEvent.mouseMove(opts[2]);
+    expect(opts[2]).toHaveAttribute("aria-selected", "true");
+    expect(selectedCount()).toBe(1);
+  });
+
+  it("the most recent of keyboard / mouse wins the single highlight", () => {
+    setupRecent({ recentSearches: R("a", "b", "c", "d", "e", "f") });
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // keyboard → index 0
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.mouseMove(screen.getAllByRole("option")[3]); // hover wins → index 3
+    expect(screen.getAllByRole("option")[3]).toHaveAttribute("aria-selected", "true");
+    expect(selectedCount()).toBe(1);
+
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // keyboard wins, continues → index 4
+    expect(screen.getAllByRole("option")[4]).toHaveAttribute("aria-selected", "true");
+    expect(selectedCount()).toBe(1);
+  });
 });

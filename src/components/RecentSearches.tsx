@@ -12,9 +12,10 @@ interface Props {
   items: RecentSuggestion[];
   activeIndex: number;
   onSelect: (query: string, rank: number) => void;
+  onHover: (rank: number) => void;
 }
 
-export function RecentSearches({ id, items, activeIndex, onSelect }: Props) {
+export function RecentSearches({ id, items, activeIndex, onSelect, onHover }: Props) {
   return (
     <div className="recent-searches absolute left-0 right-0 top-full mt-1 z-30 rounded border overflow-hidden shadow-lg">
       {/* aria-hidden: the listbox already carries an accessible name, so this
@@ -36,6 +37,8 @@ export function RecentSearches({ id, items, activeIndex, onSelect }: Props) {
             aria-selected={i === activeIndex}
             aria-label={n === undefined ? q : `${q}, ${n} result${n === 1 ? "" : "s"}`}
             onMouseDown={(e) => e.preventDefault()}
+            // Hovering makes this the single active row (beats keyboard if later).
+            onMouseMove={() => onHover(i)}
             onClick={() => onSelect(q, i)}
             className={`recent-row w-full text-left flex items-center gap-2 px-3 py-2 text-sm${
               i === activeIndex ? " recent-row-active" : ""
