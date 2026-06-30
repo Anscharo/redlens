@@ -88,6 +88,34 @@ describe("PreviewHome open-atlas-prs tab", () => {
     // Linked into the preview gate as pull-256.
     expect(screen.getByText("Atomize docs").closest("a")?.getAttribute("href")).toContain("preview/pull-256");
   });
+
+  it("recovers via Retry after an open-prs fetch failure", async () => {
+    let openPrsCalls = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (!url.includes("open-prs")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      openPrsCalls++;
+      // First load fails; the retry succeeds.
+      return openPrsCalls === 1
+        ? Promise.resolve({ ok: false, json: () => Promise.resolve({}) } as Response)
+        : Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([{ number: 9, title: "Recovered PR", author: "amy", draft: false, updatedAt: "" }]),
+          } as Response);
+    });
+
+    render(<PreviewHome />);
+    fireEvent.click(await screen.findByText("open atlas prs"));
+
+    // Error state with a working Retry affordance (not a latched empty list).
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    fireEvent.click(retry);
+
+    expect(await screen.findByText("Recovered PR")).toBeInTheDocument();
+    expect(openPrsCalls).toBe(2);
+  });
 });
 
 describe("PreviewHome input parsing", () => {
