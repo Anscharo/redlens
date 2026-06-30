@@ -7,15 +7,15 @@ const TAIL_LEVELS = 3;
 
 /**
  * Abbreviated doc-no for the corner affordance: doc numbers that omit inner
- * levels collapse to `head…tail` (e.g. `A.6.1.1.10.1` → `A.6.….1.10.1`) with a
- * single ellipsis segment standing in for the skipped middle. Numbers short
- * enough that nothing would be skipped (≤ HEAD+TAIL levels) — and NR-X tokens,
- * which don't split on "." — render in full with no ellipsis.
+ * levels collapse to `head…tail` (e.g. `A.6.1.1.10.1` → `A.6…1.10.1`) with a
+ * single ellipsis standing in for the skipped middle (no dots around it).
+ * Numbers short enough that nothing would be skipped (≤ HEAD+TAIL levels) — and
+ * NR-X tokens, which don't split on "." — render in full with no ellipsis.
  */
 function abbreviateDocNo(docNo: string): string {
   const parts = docNo.split(".");
   if (parts.length <= HEAD_LEVELS + TAIL_LEVELS) return docNo;
-  return [...parts.slice(0, HEAD_LEVELS), "…", ...parts.slice(-TAIL_LEVELS)].join(".");
+  return `${parts.slice(0, HEAD_LEVELS).join(".")}…${parts.slice(-TAIL_LEVELS).join(".")}`;
 }
 
 /**
