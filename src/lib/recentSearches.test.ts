@@ -34,16 +34,12 @@ describe("mergeRecent", () => {
     ]);
   });
 
-  it("collapses a prefix chain — extension replaces the prefix it grew from", () => {
-    // typing g→go→gov→governance never stacks; only the settled form survives
-    let list: RecentEntry[] = [];
-    let t = 0;
-    for (const q of ["g", "go", "gov", "governance"]) list = mergeRecent(list, q, ++t);
-    expect(qs(list)).toEqual(["governance"]);
-  });
-
-  it("collapses when the new query is a prefix of an existing one", () => {
-    expect(qs(mergeRecent([{ q: "facilitator", t: 1 }], "facil", 2))).toEqual(["facil"]);
+  it("keeps a prefix and its extension as distinct entries (no collapse)", () => {
+    // Regression: searching "amatsu" then "amat" must keep both — "amat" being a
+    // prefix of "amatsu" used to silently delete "amatsu".
+    let list = mergeRecent([], "amatsu", 1);
+    list = mergeRecent(list, "amat", 2);
+    expect(qs(list)).toEqual(["amat", "amatsu"]);
   });
 
   it("keeps genuinely different queries", () => {

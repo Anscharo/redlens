@@ -88,7 +88,7 @@ describe("SearchBar input controls", () => {
 describe("SearchBar recent searches dropdown", () => {
   function setupRecent(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
     const onRecentSelect = vi.fn();
-    render(
+    const view = render(
       <SearchBar
         inputRef={createRef<HTMLInputElement>()}
         query=""
@@ -104,7 +104,7 @@ describe("SearchBar recent searches dropdown", () => {
         {...over}
       />,
     );
-    return { onRecentSelect };
+    return { onRecentSelect, rerender: view.rerender };
   }
 
   it("stays closed on the mount autofocus and opens on interaction", () => {
@@ -137,11 +137,27 @@ describe("SearchBar recent searches dropdown", () => {
     expect(screen.queryByText("dai")).toBeNull();
   });
 
-  it("omits a recent identical to the current query", () => {
-    setupRecent({ query: "vat" });
+  it("keeps the list frozen while the recents change underneath it", () => {
+    const { rerender } = setupRecent();
     fireEvent.pointerDown(screen.getByRole("searchbox"));
-    expect(screen.queryByText("vat")).toBeNull();
-    expect(screen.getAllByRole("option")).toHaveLength(3); // jug, pot, dai
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "jug", "pot"]);
+    // A new search lands while the dropdown is open — the open list must not shuffle.
+    rerender(
+      <SearchBar
+        inputRef={createRef<HTMLInputElement>()}
+        query=""
+        mode="broad"
+        isMixed={false}
+        onChange={vi.fn()}
+        onClear={vi.fn()}
+        onSetMode={vi.fn()}
+        activePage="atlas"
+        scope={"atlas" as SearchScope}
+        recentSearches={["amat", "vat", "jug", "pot", "dai"]}
+        onRecentSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "jug", "pot"]);
   });
 
   it("calls onRecentSelect with the chosen query and its rank", () => {

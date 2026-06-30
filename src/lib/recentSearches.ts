@@ -10,11 +10,12 @@ import type { SearchState } from "../hooks/useSearch";
 //
 // What counts as a "recent query"? Searching on every keystroke means a naive
 // "save every worker call" would store the whole g→go→gov→…→governance chain.
-// Instead of distance/result-set thresholds, we lean on the fact that
-// incremental typing produces a chain of *prefixes*: collapsing any prefix/
-// extension pair keeps only the final settled form. Combined with a typing-pause
-// debounce and a "must have produced results" gate, the stored list ends up
-// being the handful of distinct, productive searches the user actually ran.
+// The 500ms typing-pause debounce plus a "must have produced results" gate does
+// the heavy lifting: typing a word in one burst records it once, not per key.
+// We deliberately do NOT prefix-collapse the stored list — an earlier version
+// did, and it wrongly deleted a genuinely distinct earlier search when the next
+// one happened to be a prefix of it (search "amatsu", then "amat", and "amatsu"
+// vanished). Exact dedupe only; distinct searches each get their own row.
 
 export interface RecentEntry {
   q: string; // the raw query text, stored verbatim
@@ -52,17 +53,14 @@ function read(): RecentEntry[] {
 // useSyncExternalStore infinite-loop when JSON.parse yields a fresh array).
 let snapshot: RecentEntry[] = read();
 
-// Pure merge used by recordRecent (and unit-tested directly): dedupe + prefix-
-// collapse, newest first. An exact dupe or a prefix-chain neighbour of the new
-// query is dropped before prepending, so "facilitator" replaces the "f"/"fa"/…
-// it grew out of instead of stacking 12 partial rows. `t` is passed in (not read
-// from the clock) so the policy stays pure and deterministic to test.
+// Pure merge used by recordRecent (and unit-tested directly): exact dedupe,
+// newest first, capped at MAX. An existing identical query is moved to the
+// front with a fresh timestamp. `t` is passed in (not read from the clock) so
+// the policy stays pure and deterministic to test.
 export function mergeRecent(list: RecentEntry[], raw: string, t: number): RecentEntry[] {
   const q = raw.trim();
   if (!q) return list;
-  const kept = list.filter(
-    (e) => e.q !== q && !q.startsWith(e.q) && !e.q.startsWith(q),
-  );
+  const kept = list.filter((e) => e.q !== q);
   return [{ q, t }, ...kept].slice(0, MAX);
 }
 
