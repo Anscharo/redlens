@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Link } from "./Link";
 import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
+import { RecentSearches } from "./RecentSearches";
 import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RefObject } from "react";
@@ -24,6 +26,8 @@ interface Props extends NavBarProps {
   onClear: () => void;
   onSetMode: (mode: SearchMode) => void;
   scope: SearchScope;
+  recentSearches?: string[];
+  onRecentSelect?: (query: string) => void;
 }
 
 export function SearchBar({
@@ -36,8 +40,18 @@ export function SearchBar({
   onSetMode,
   activePage,
   scope,
+  recentSearches = [],
+  onRecentSelect,
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
+  const [focused, setFocused] = useState(false);
+
+  // Drop searches identical to what's already typed — re-picking those is a
+  // no-op. The dropdown opens on focus and shows the three most recent.
+  const suggestions = recentSearches
+    .filter((q) => q !== query.trim())
+    .slice(0, 3);
+  const showRecent = focused && !!onRecentSelect && suggestions.length > 0;
 
   return (
     <header
@@ -71,8 +85,9 @@ export function SearchBar({
         <NavBar activePage={activePage} />
 
         <div className="order-3 sm:order-2 w-full sm:flex-1 sm:max-w-[680px] flex items-stretch gap-2 min-w-0">
+          <div className="relative flex-1 min-w-0">
           <div
-            className="search-input-wrap flex-1 flex items-center rounded border min-w-0"
+            className="search-input-wrap w-full flex items-center rounded border min-w-0"
             data-scope={scope}
           >
             <svg
@@ -100,6 +115,11 @@ export function SearchBar({
               aria-label={`Filter ${cfg.label}`}
               value={query}
               onChange={onChange}
+              onFocus={() => setFocused(true)}
+              // Delay so a mousedown→click on a suggestion still registers before
+              // the dropdown unmounts (the option's own onMouseDown also guards).
+              onBlur={() => setTimeout(() => setFocused(false), 120)}
+              onKeyDown={(e) => { if (e.key === "Escape") setFocused(false); }}
               placeholder={cfg.placeholder}
               autoFocus
               // ph-no-capture: keep typed query text out of PostHog autocapture;
@@ -116,6 +136,17 @@ export function SearchBar({
             >
               ×
             </button>
+          </div>
+
+          {showRecent && (
+            <RecentSearches
+              queries={suggestions}
+              onSelect={(q) => {
+                setFocused(false);
+                onRecentSelect!(q);
+              }}
+            />
+          )}
           </div>
 
           {scope === "atlas" && (

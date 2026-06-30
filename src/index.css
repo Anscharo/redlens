@@ -702,6 +702,21 @@ button.atlas-node-expand-all:focus-visible {
   display: none;
 }
 
+/* ─── Recent searches dropdown ─── */
+.recent-searches {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.recent-row {
+  background: transparent;
+  color: var(--tan);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.recent-row:hover {
+  background: var(--hover);
+}
+
 /* ─── Scope chip (passive page-context label inside search) ─── */
 .scope-chip {
   display: inline-flex;

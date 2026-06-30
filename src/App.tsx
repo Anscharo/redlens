@@ -91,7 +91,7 @@ export default function App() {
 
   const scope: SearchScope = activeNavPage ?? "atlas";
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
@@ -174,6 +174,8 @@ export default function App() {
         onSetMode={wrapModeClick}
         activePage={activeNavPage}
         scope={scope}
+        recentSearches={recentSearches}
+        onRecentSelect={selectRecent}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (

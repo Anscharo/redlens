@@ -4,7 +4,7 @@
 // stubbed so the test stays focused on SearchBar's own controls.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { createRef } from "react";
 import { SearchBar } from "./SearchBar";
@@ -82,5 +82,70 @@ describe("SearchBar input controls", () => {
   it("shows the scope chip for non-atlas scopes", () => {
     setup({ scope: "reports" as SearchScope });
     expect(screen.getByText("reports")).toBeTruthy();
+  });
+});
+
+describe("SearchBar recent searches dropdown", () => {
+  function setupRecent(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
+    const onRecentSelect = vi.fn();
+    render(
+      <SearchBar
+        inputRef={createRef<HTMLInputElement>()}
+        query=""
+        mode="broad"
+        isMixed={false}
+        onChange={vi.fn()}
+        onClear={vi.fn()}
+        onSetMode={vi.fn()}
+        activePage="atlas"
+        scope={"atlas" as SearchScope}
+        recentSearches={["vat", "jug", "pot", "dai"]}
+        onRecentSelect={onRecentSelect}
+        {...over}
+      />,
+    );
+    return { onRecentSelect };
+  }
+
+  it("shows on focus and hides shortly after blur", () => {
+    vi.useFakeTimers();
+    try {
+      setupRecent();
+      const input = screen.getByRole("searchbox");
+      fireEvent.focus(input);
+      expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+      fireEvent.blur(input);
+      act(() => vi.runAllTimers()); // blur hides after a short delay (lets clicks land first)
+      expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows only the three most recent on focus", () => {
+    setupRecent();
+    fireEvent.focus(screen.getByRole("searchbox"));
+    expect(screen.getAllByRole("option")).toHaveLength(3);
+    expect(screen.queryByText("dai")).toBeNull();
+  });
+
+  it("omits a recent identical to the current query", () => {
+    setupRecent({ query: "vat" });
+    fireEvent.focus(screen.getByRole("searchbox"));
+    expect(screen.queryByText("vat")).toBeNull();
+    expect(screen.getAllByRole("option")).toHaveLength(3); // jug, pot, dai
+  });
+
+  it("calls onRecentSelect with the chosen query", () => {
+    const { onRecentSelect } = setupRecent();
+    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.click(screen.getByText("jug"));
+    expect(onRecentSelect).toHaveBeenCalledWith("jug");
+  });
+
+  it("renders nothing when there are no recents", () => {
+    setupRecent({ recentSearches: [] });
+    fireEvent.focus(screen.getByRole("searchbox"));
+    expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
 });

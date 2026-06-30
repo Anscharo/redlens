@@ -12,6 +12,7 @@
 -->
 
 ## 2026-06-30
+- Focusing the search box now shows your three most recent searches in a dropdown — pick one to run it again and tweak it without retyping
 - Added a warning marker in preview mode when a branch reassigns a document's identity — a ⚠ flags when a UUID now points to a completely different document, or when a document's content has moved to a new UUID, with details on hover
 
 ## 2026-06-26

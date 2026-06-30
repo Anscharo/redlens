@@ -3,6 +3,7 @@ import { useSearch } from "./useSearch";
 import { useUrlState, urlString, urlEnum } from "./useUrlState";
 import { ROUTES, type SearchScope } from "../lib/routes";
 import { track } from "../lib/analytics";
+import { useRecentSearches, useRecordRecentSearch } from "../lib/recentSearches";
 
 const queryCodec = urlString(null);
 
@@ -79,6 +80,10 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // Active mode: prefer what's visible in the query; fall back to URL param.
   const activeMode: SearchMode = !isMixed && effMode !== "broad" ? effMode : mode;
 
+  // Recent-search history: record the current settled search, expose the list.
+  useRecordRecentSearch(state, query);
+  const recentSearches = useRecentSearches();
+
   useEffect(() => {
     if (location === ROUTES.HOME) inputRef.current?.focus();
   }, [location]);
@@ -131,6 +136,19 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     setQueryParam(q || null);
   }, [setMode, setQueryParam]);
 
+  // Picking a recent search re-runs it on the results page (works from any
+  // route — e.g. focusing the bar on /radar), then refocuses the input so the
+  // restored query can be edited straight away.
+  const selectRecent = useCallback((q: string) => {
+    track("search_recent_select", { query: q });
+    const np = new URLSearchParams();
+    np.set("q", q);
+    const split = new URLSearchParams(window.location.search).get("split");
+    if (split) np.set("split", split);
+    navigate(`${ROUTES.HOME}?${np.toString()}`);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [navigate]);
+
   // Clicking a mode pill wraps/unwraps the free text in the input and positions
   // the cursor before the closing quote so typing extends the phrase naturally.
   const wrapModeClick = useCallback((newMode: SearchMode) => {
@@ -175,5 +193,6 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
     inputRef, handleChange, clearQuery,
     wrapModeClick, broadSearch,
     state, ready, handleHintClick,
+    recentSearches, selectRecent,
   };
 }
