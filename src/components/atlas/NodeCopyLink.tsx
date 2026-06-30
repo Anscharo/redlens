@@ -36,7 +36,7 @@ export function NodeCopyLink({ node }: { node: AtlasNode }) {
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
       </svg>
       <span className="atlas-copy-flip" data-flipped={urlCopy.copied ? "true" : undefined}>
-        <span className="label">{`${node.id.slice(0, 3)}…${node.id.slice(-3)}`}</span>
+        <span className="label">{`${node.id.slice(0, 4)}…${node.id.slice(-4)}`}</span>
         <span className="flipped">copied</span>
       </span>
     </button>
