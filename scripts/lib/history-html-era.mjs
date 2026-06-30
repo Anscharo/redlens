@@ -1,7 +1,7 @@
 // HTML-era history passes (plan §4). Pure + testable; composes the §3 converter
 // nodes and the §4.2 matcher into a backward identity thread (Pass A) and a
 // forward event/diff emission (Pass B). No git/IO here — the orchestrator
-// (freeze-html-history.mjs) loads commits via atlas-html and injects lineDiff.
+// (prepare-html-history.mjs) loads commits via atlas-html and injects lineDiff.
 //
 // A "commit" is { sha, seq, nodes } where nodes are §3 atlas-html nodes.
 

@@ -56,7 +56,7 @@ export function HistoryCurateReport() {
     if (!data) return;
     setSaveMsg("saving…");
     try {
-      const n = await saveDecisions(data, picks);
+      const n = await saveDecisions(data, picks, autoResolved);
       setSaveMsg(`saved ${n} → git commit public/history-decisions.json`);
     } catch (e) {
       setSaveMsg(`save failed (${String((e as Error)?.message || e)}) — use ⤓ export instead`);
@@ -126,7 +126,7 @@ export function HistoryCurateReport() {
             style={{ background: "var(--accent)", color: "var(--bg)", border: "1px solid var(--accent)" }}>
             ⤒ save to repo
           </button>
-          <button onClick={() => downloadDecisions(data, picks)}
+          <button onClick={() => downloadDecisions(data, picks, autoResolved)}
             className="text-[12px] px-2 py-0.5 rounded"
             style={{ background: "var(--surface)", color: "var(--accent)", border: "1px solid var(--accent)" }}>
             ⤓ export decisions.json

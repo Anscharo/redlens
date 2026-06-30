@@ -2,12 +2,47 @@ import { Fragment, useEffect, useState } from "react";
 import { loadHistory, type HistoryEntry } from "../../lib/history";
 import { EntryRow } from "./EntryRow";
 
-// Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML
-// file with no per-doc identities. Surface the prior history as a one-line
-// footer under the migration entry on docs that have it.
+// Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML file
+// with no per-doc identities. Two cases:
+//  · reconstructed — the pre-#117 per-doc history is now threaded into atlas_history
+//    (era="html"); surface a disclaimer before those entries (the diffs are translated
+//    + lineage-traced, so approximate).
+//  · not reconstructed — a doc created AT the migration (no era="html" entries); keep
+//    the legacy one-line footer pointing at the raw vendor-repo compare.
 const PRE_MD_PR = 117;
 const PRE_MD_COMPARE_URL =
   "https://github.com/sky-ecosystem/next-gen-atlas/compare/4e931dfd...22cc27b5";
+
+// The provenance disclaimer for reconstructed HTML-era entries. Names the methods we
+// used to trace each document's lineage across the 79 pre-#117 HTML commits.
+function HtmlEraDisclaimer() {
+  return (
+    <div
+      className="mono text-[10px] px-2 py-2.5 leading-snug my-1"
+      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
+    >
+      <strong style={{ color: "var(--tan-2)" }}>Pre-#117 history is reconstructed.</strong>{" "}
+      Before the “Migrate To Markdown File” migration (Nov 2025) the atlas was a single HTML
+      file with no per-document identities. The entries below were automatically translated
+      from the original HTML tables to markdown, and each document’s lineage was traced by{" "}
+      <span style={{ color: "var(--tan-2)" }}>deterministic matching</span> (content + structure
+      fingerprints; two independent algorithms must agree),{" "}
+      <span style={{ color: "var(--tan-2)" }}>AI cross-checks</span> (an AI model on the
+      ambiguous cases, only when it agrees with an algorithm), and{" "}
+      <span style={{ color: "var(--tan-2)" }}>human review</span> for the rest — so these diffs
+      are approximate.{" "}
+      <a
+        href={PRE_MD_COMPARE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="hover:underline focus-visible:underline"
+        style={{ color: "var(--accent)" }}
+      >
+        view original HTML →
+      </a>
+    </div>
+  );
+}
 
 function PreMdFooter() {
   return (
@@ -59,13 +94,18 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
   }
 
   const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
+  // Reconstructed HTML-era entries sort to the bottom (oldest); show the disclaimer
+  // once, right before the first of them, so it introduces that section. Fall back to
+  // the legacy footer only when nothing was reconstructed (docs created at the migration).
+  const firstHtmlEra = sorted.findIndex((e) => e.era === "html");
 
   return (
     <div>
       {sorted.map((entry, i) => (
         <Fragment key={i}>
+          {i === firstHtmlEra && <HtmlEraDisclaimer />}
           <EntryRow entry={entry} />
-          {entry.pr === PRE_MD_PR && <PreMdFooter />}
+          {firstHtmlEra < 0 && entry.pr === PRE_MD_PR && <PreMdFooter />}
         </Fragment>
       ))}
     </div>

@@ -4,8 +4,8 @@
 // Runs under bun (imports the .ts diffCore). Rerun only as a deliberate, reviewed
 // act — historical diffs must not silently change (plan §7.1).
 //
-//   bun scripts/aux/freeze-html-history.mjs            # write the artifact
-//   bun scripts/aux/freeze-html-history.mjs --measure  # print stats, write nothing
+//   bun scripts/aux/prepare-html-history.mjs            # write the artifact
+//   bun scripts/aux/prepare-html-history.mjs --measure  # print stats, write nothing
 //
 // commit_seq is reconciled by SHA at load time (plan §7.1, decision 6); the
 // artifact stores 7-char shas + a baked seq for reference only.
@@ -19,6 +19,7 @@ import { seedFromMd, threadBackward, buildEvents } from "../lib/history-html-era
 import { isSynthetic, syntheticUuid } from "../lib/history-identity.mjs";
 import { detectLineage } from "../lib/history-lineage.mjs";
 import { classifyDiff } from "../lib/history-classify.mjs";
+import { mechanismToMethod } from "../lib/auto-curate.mjs";
 import { lineDiff } from "../../src/lib/diffCore.ts";
 
 const ROOT = process.cwd();
@@ -87,6 +88,10 @@ console.error(`loaded ${commits.length} html commits + ${md.length} md docs in $
 // decisions (newer = the #117 migration) override seedFromMd; the rest override the
 // backward hops. Once recorded, the same decisions reproduce the same artifact.
 let seedOverrides = null, hopOverrides = null, applied = null;
+// ai/human decisions to tag for per-change provenance (plan §10.4). Collected here (before
+// threading) and resolved to `${uuid}:${sha}` once nodes carry uuids; deterministic links
+// are the unbadged default, so only ai/human are pinned.
+const methodPins = [];
 if (DECISIONS_PATH) {
   console.error(`decisions: applying ${path.relative(ROOT, DECISIONS_PATH)}`);
   const file = JSON.parse(fs.readFileSync(DECISIONS_PATH, "utf8"));
@@ -110,14 +115,19 @@ if (DECISIONS_PATH) {
   for (const d of file.decisions || []) {
     const chosen = d.chosenKey === "none" ? null : nodeIndex.get(d.chosenKey);
     if (d.chosenKey !== "none" && !chosen) { unresolved++; continue; } // chosen doc not found this build
+    // provenance: prefer the committed `method`; fall back to deriving it from a raw baseline
+    // file's `auto` mechanism. Only ai/human are surfaced as badges.
+    const method = d.method ?? mechanismToMethod(d.auto);
     if (d.newerSha === MD117) {               // seed decision: subject is an #117 md doc
       const mdUuid = rawUuid.get(String(d.subjectKey).split(":")[1]);
       if (!mdUuid) { unresolved++; continue; }
       seedOverrides.set(mdUuid, chosen);
+      if (method === "ai" || method === "human") methodPins.push({ kind: "seed", mdUuid, method });
     } else {                                   // backward-hop decision: subject is a newer html node
       const newer = nodeIndex.get(d.subjectKey);
       if (!newer) { unresolved++; continue; }
       hopOverrides.set(newer, chosen);
+      if (method === "ai" || method === "human") methodPins.push({ kind: "hop", newer, newerSha: d.newerSha, method });
     }
   }
   applied = { total: (file.decisions || []).length, seed: seedOverrides.size, hop: hopOverrides.size, unresolved };
@@ -128,6 +138,15 @@ const lastSha = commits[commits.length - 1].sha;
 const seed = seedFromMd(md, commits[commits.length - 1].nodes, seedOverrides ? { overrides: seedOverrides } : {});
 const thread = threadBackward(commits, { seed: seed.uuidByRow, recover: RECOVER, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
 const rawEvents = buildEvents(commits, { lineDiff });
+
+// resolve the ai/human method pins to `${uuid}:${sha}` now that threading assigned uuids.
+// hop decisions land on the change-event at the decided (newer) commit; seed (cross-format)
+// decisions land on the doc's last-HTML event (the boundary occurrence).
+const methodByDocCommit = new Map();
+for (const p of methodPins) {
+  if (p.kind === "hop") { if (p.newer.uuid) methodByDocCommit.set(`${p.newer.uuid}:${p.newerSha}`, p.method); }
+  else methodByDocCommit.set(`${p.mdUuid}:${lastSha}`, p.method);
+}
 
 // per-doc seam metadata (plan §4.1/§7): kept/split/merged/created + the
 // extracted_from / merged_into pointers, keyed by uuid.
@@ -163,6 +182,9 @@ const events = rawEvents.map((e) => {
   if (e.type === "moved") { ev.movedFrom = e.movedFrom; ev.movedTo = e.movedTo; ev.moveKind = e.moveKind; }
   if (e.diff) { ev.diff = e.diff; const k = classifyDiff(e.diff); if (k) ev.changeKind = k; }
   if (e.synthetic) ev.synthetic = true;
+  // per-change provenance: only ai/human links are tagged; everything else is deterministic.
+  const method = methodByDocCommit.get(`${e.uuid}:${e.sha}`);
+  if (method) ev.method = method;
   // seam + lineage land on the doc's birth (added) event (additive fields)
   const dm = e.type === "added" && docMeta.get(e.uuid);
   if (dm) { ev.seam = dm.seam; if (dm.extractedFrom) ev.extractedFrom = dm.extractedFrom; if (dm.mergedInto) ev.mergedInto = dm.mergedInto; }

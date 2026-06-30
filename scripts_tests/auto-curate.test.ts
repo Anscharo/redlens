@@ -2,7 +2,7 @@
 // two-independent-signals logic that decides whether a case can skip a human.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase, frontierTriggers, frontierCorroborator } from "../scripts/lib/auto-curate.mjs";
+import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase, frontierTriggers, frontierCorroborator, mechanismToMethod } from "../scripts/lib/auto-curate.mjs";
 
 const kase = (over: Record<string, unknown> = {}) => ({
   key: "n", kind: "tier-3", newerSha: "s", olderSha: "o", subjectKey: "n",
@@ -88,4 +88,17 @@ describe("frontierCorroborator (pass 3 lock gate)", () => {
     expect(frontierCorroborator("o9", { autoKey: "o1", fwdKey: "o2", containKey: "o3" })).toBeNull());
   it("returns null for a 'none' verdict", () =>
     expect(frontierCorroborator("none", { autoKey: "none" })).toBeNull());
+});
+
+describe("mechanismToMethod (history-view provenance)", () => {
+  it("maps LLM + frontier locks to 'ai'", () => {
+    expect(mechanismToMethod("llm-90")).toBe("ai");
+    expect(mechanismToMethod("llm-95")).toBe("ai");
+    expect(mechanismToMethod("frontier")).toBe("ai");
+  });
+  it("maps the deterministic passes (and anything unknown/absent) to 'deterministic'", () => {
+    expect(mechanismToMethod("forward-reverse")).toBe("deterministic");
+    expect(mechanismToMethod("containment")).toBe("deterministic");
+    expect(mechanismToMethod(undefined)).toBe("deterministic");
+  });
 });

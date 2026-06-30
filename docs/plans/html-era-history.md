@@ -590,7 +590,7 @@ render identically in `EntryRow`. The #117 boundary event itself is a labelled
 migration marker with its content diff suppressed (§5.3, §6).
 
 > **Implemented + a load-bearing gotcha (2026-06-25).** `buildEvents` lives in
-> `scripts/lib/history-html-era.mjs`; the orchestrator is `scripts/aux/freeze-
+> `scripts/lib/history-html-era.mjs`; the orchestrator is `scripts/aux/prepare-
 > html-history.mjs` (`pnpm htmlhist:prepare [--measure]`), which uses the real
 > `diffCore.lineDiff` + `classifyDiff` and emits events in the exact `eventToRow`
 > shape (`commitHash`/`changeType`/`movedFrom`/`movedTo`/`diff`/`changeKind`) plus
@@ -605,7 +605,7 @@ migration marker with its content diff suppressed (§5.3, §6).
 
 1. **Two read paths, kept disjoint — resolve the apparent overlap up front.**
    The `loadHtmlAt` / HTML-parse branch lives **only inside the offline
-   `freeze-html-history.mjs` runner** (§7.1), which is the one place that walks
+   `prepare-html-history.mjs` runner** (§7.1), which is the one place that walks
    HTML commits and runs §4. The steady-state `build-history` does **not** get
    an `"html"` branch in its `getCommits()`/`loadSnapshot()` loop and never
    re-derives HTML events — for the HTML era it short-circuits to "load frozen
@@ -1175,7 +1175,7 @@ New:
   `orphans` emission (§10.2 input).
 - `scripts/lib/history-identity.mjs` — shared `matchNodes` content-pairing helper
   (also used by slot-reuse).
-- `scripts/aux/freeze-html-history.mjs` — one-shot offline runner that computes
+- `scripts/aux/prepare-html-history.mjs` — one-shot offline runner that computes
   §4 and writes the frozen artifact; rerun only as a deliberate, reviewed act.
   `--measure` mode emits the §10.0 seam + §4.1 graveyard + §10.4 decision-queue
   sizes without writing the artifact. `--decide` runs the §10.4 interactive

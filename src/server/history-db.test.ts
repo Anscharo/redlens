@@ -6,7 +6,7 @@
 //   2. HISTORY_COLS + eventToRow carry those fields (null for markdown-era events)
 //   3. htmlEraRows(artifact, seqByCommit) maps public/history-html-era.json → rows
 //
-// These map directly onto scripts/aux/freeze-html-history.mjs's output shape:
+// These map directly onto scripts/aux/prepare-html-history.mjs's output shape:
 // events already carry { era, seam, extractedFrom, mergedInto, moveKind } and a
 // 7-char commitHash; the artifact has { commits, docMeta, events }.
 
@@ -71,8 +71,28 @@ describe("§5: eventToRow maps HTML-era additive fields", () => {
     expect(r.extracted_from).toBeNull();
     expect(r.merged_into).toBeNull();
     expect(r.move_kind).toBeNull();
+    expect(r.method).toBeNull();
     expect(r.change_type).toBe("content"); // existing behaviour intact
   });
+
+  it("an html-era event carries the per-change method (010 / §10.4); deterministic stays null", () => {
+    const ai = eventToRow(UUID, { commitHash: "02a3eb1", changeType: "modified", era: "html", method: "ai" } as any, seq) as any;
+    expect(ai.method).toBe("ai");
+    const det = eventToRow(UUID, { commitHash: "02a3eb1", changeType: "modified", era: "html" } as any, seq) as any;
+    expect(det.method).toBeNull();
+  });
+});
+
+describe("§10.4: migration 010 + method column", () => {
+  it("a 010 migration ALTERs atlas_history with method", () => {
+    const dir = new URL("./migrations/", import.meta.url);
+    const file = readdirSync(dir).find((n) => n.startsWith("010") && n.endsWith(".sql"));
+    expect(file).toBeTruthy();
+    const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
+    expect(sql).toContain("atlas_history");
+    expect(sql).toContain("method");
+  });
+  it("HISTORY_COLS includes method", () => expect(HISTORY_COLS as readonly string[]).toContain("method"));
 });
 
 describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () => {

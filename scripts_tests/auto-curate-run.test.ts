@@ -203,4 +203,62 @@ describe("runAutoCurate — pass 3 (frontier escalation)", () => {
     expect(summary.resolvedByFrontier).toBe(1);
     expect(decisions.find((x: { auto: string; corroborator?: string }) => x.auto === "frontier")?.corroborator).toBe("matcher");
   });
+
+  it("reuses cached cheap + frontier results without re-asking (resume)", async () => {
+    const calls: string[] = [];
+    const propose = async (_s: unknown, _c: unknown, opts?: { model?: string }) => {
+      calls.push(opts?.model ?? "cheap");
+      return { chosenKey: "x", why: "" };
+    };
+    const cache = new Map<string, { chosenKey: string; why: string; model: string }>([
+      ["cheap|new00000:zzzz", { chosenKey: "none", why: "c", model: "test-cheap" }],
+      ["frontier|new00000:zzzz", { chosenKey: goodKey, why: "f", model: "test-frontier" }],
+    ]);
+    const { summary, decisions } = await runAutoCurate({
+      data: baseData(), commits, haveKey: true, frontier: true,
+      frontierModel: "test-frontier", cheapModel: "test-cheap", cache, propose,
+    });
+    expect(calls).toHaveLength(0); // both passes served from cache — nothing re-asked
+    expect(summary.llmCached).toBe(1);
+    expect(summary.frontierCached).toBe(1);
+    expect(summary.resolvedByFrontier).toBe(1);
+    expect(decisions.find((d: { auto: string; corroborator?: string }) => d.auto === "frontier")?.corroborator).toBe("matcher");
+  });
+
+  it("a capped run caches its asks; a second run continues where it left off (accumulate)", async () => {
+    const d = baseData();
+    d.nodes["new00000:yyyy"] = { title: "subj2", content: subjC + " and a second variant for shingles" };
+    d.nodes["old00000:bbbb2222"] = { title: "cand2", content: "another wholly unrelated older candidate body" };
+    d.cases.push({
+      key: "new00000:yyyy", kind: "tier-3", newerSha: "new00000", olderSha: "old00000",
+      subjectKey: "new00000:yyyy", autoKey: "old00000:bbbb2222", candidates: [{ key: "old00000:bbbb2222", score: 0.92 }],
+    });
+    const cache = new Map();
+    const mkRun = () => {
+      const calls: string[] = [];
+      const propose = async (_s: unknown, _c: unknown, opts?: { model?: string }) => {
+        calls.push(opts?.model ?? "cheap");
+        return opts?.model ? { chosenKey: goodKey, why: "f" } : { chosenKey: "none", why: "c" };
+      };
+      return { propose, calls };
+    };
+    const r1 = mkRun();
+    const s1 = (await runAutoCurate({
+      data: d, commits, haveKey: true, frontier: true, frontierLimit: 1,
+      frontierModel: "test-frontier", cheapModel: "test-cheap", cache, propose: r1.propose,
+    })).summary;
+    expect(r1.calls.filter((m) => m === "cheap")).toHaveLength(2); // both cheap asked first run
+    expect(s1.frontier.considered).toBe(1); // one new frontier ask (capped)
+    expect(s1.frontier.limited).toBe(1); // one frontier case left for next time
+
+    const r2 = mkRun();
+    const s2 = (await runAutoCurate({
+      data: d, commits, haveKey: true, frontier: true, frontierLimit: 1,
+      frontierModel: "test-frontier", cheapModel: "test-cheap", cache, propose: r2.propose,
+    })).summary;
+    expect(r2.calls.filter((m) => m === "cheap")).toHaveLength(0); // cheap fully cached → no re-spend
+    expect(s2.frontier.cached).toBe(1); // first frontier case reused from the cache
+    expect(s2.frontier.considered).toBe(1); // the SECOND case asked this run
+    expect(r2.calls.filter((m) => m === "test-frontier")).toHaveLength(1);
+  });
 });

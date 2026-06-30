@@ -18,6 +18,8 @@ export const HISTORY_COLS = [
   "change_kind", "review_count", "approval_count", "comment_count",
   // HTML-era additive columns (migration 009 / plan §7); null for the markdown era.
   "era", "seam", "extracted_from", "merged_into", "move_kind",
+  // Per-change provenance (migration 010 / plan §10.4); null unless an ai/human link.
+  "method",
 ] as const;
 
 /** A single history entry as emitted by build-history.mjs (also the on-disk
@@ -45,6 +47,8 @@ export interface HistoryEvent {
   extractedFrom?: string;
   mergedInto?: string;
   moveKind?: string;
+  // Per-change provenance (plan §10.4): "ai" | "human" on a reconstructed link; else absent.
+  method?: string;
 }
 
 /** One row to upsert into atlas_history. */
@@ -72,6 +76,7 @@ export interface HistoryInsert {
   extracted_from: string | null;
   merged_into: string | null;
   move_kind: string | null;
+  method: string | null;
 }
 
 /** Topological commit order (oldest = 1) of the atlas submodule, keyed by the
@@ -124,6 +129,7 @@ export function eventToRow(
     extracted_from: e.extractedFrom ?? null,
     merged_into: e.mergedInto ?? null,
     move_kind: e.moveKind ?? null,
+    method: e.method ?? null,
   };
 }
 

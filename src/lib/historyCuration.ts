@@ -66,23 +66,36 @@ export function savePicks(picks: Record<string, Pick>): void {
 
 // The exported file the apply step consumes. Keyed by content-address so a recorded
 // decision survives an atlas renumber (we never key on doc_no).
-export function buildDecisionsFile(data: CurationData, picks: Record<string, Pick>) {
+export function buildDecisionsFile(data: CurationData, picks: Record<string, Pick>, autoResolved?: Map<string, string>) {
   const decided = data.cases.filter((c) => picks[c.key] !== undefined);
   return {
     kind: "html-era-history-decisions",
     builtFrom: { migrationSha: data.meta.migrationSha, lastHtmlSha: data.meta.lastHtmlSha },
     count: decided.length,
-    decisions: decided.map((c) => ({
-      caseKey: c.key,
-      kind: c.kind,
-      subjectKey: c.subjectKey,
-      newerSha: c.newerSha,
-      olderSha: c.olderSha,
-      chosenKey: picks[c.key], // older-doc content-address, or "none"
-      agreedWithAuto: picks[c.key] === c.autoKey,
-    })),
+    decisions: decided.map((c) => {
+      const d = {
+        caseKey: c.key,
+        kind: c.kind,
+        subjectKey: c.subjectKey,
+        newerSha: c.newerSha,
+        olderSha: c.olderSha,
+        chosenKey: picks[c.key], // older-doc content-address, or "none"
+        agreedWithAuto: picks[c.key] === c.autoKey,
+      };
+      // method = how this link was traced: an accepted auto-pick keeps its mechanism's
+      // method (ai / deterministic); anything the human decided is "human". Drives the
+      // per-change provenance badge in the history view (only ai/human are surfaced).
+      if (!autoResolved) return d;
+      return { ...d, method: autoResolved.has(c.key) ? methodOfMechanism(autoResolved.get(c.key)) : "human" };
+    }),
   };
 }
+
+// Mechanism (a baseline decision's `auto`) → provenance method. LLM + frontier locks are
+// "ai"; the deterministic passes are "deterministic". Mirrors the freeze-side
+// mechanismToMethod (scripts/lib/auto-curate.mjs) so the page and the bake agree.
+const methodOfMechanism = (via?: string): "deterministic" | "ai" =>
+  via === "llm-90" || via === "llm-95" || via === "frontier" ? "ai" : "deterministic";
 
 // --- committed human decisions (public/history-decisions.json) --------------------
 // The human's saved choices, COMMITTED to git (written by the dev save endpoint below
@@ -104,8 +117,8 @@ export async function loadDecisions(): Promise<Record<string, Pick>> {
 // Persist the human's choices to the committed file via the DEV-ONLY save endpoint, so the
 // next `pnpm htmlhist:apply` bakes them and any checkout reloads them. Throws when the
 // endpoint is disabled (prod) or unreachable — the caller falls back to the download export.
-export async function saveDecisions(data: CurationData, picks: Record<string, Pick>): Promise<number> {
-  const file = buildDecisionsFile(data, picks);
+export async function saveDecisions(data: CurationData, picks: Record<string, Pick>, autoResolved?: Map<string, string>): Promise<number> {
+  const file = buildDecisionsFile(data, picks, autoResolved);
   const r = await fetch("/api/history-curate/save", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -120,8 +133,8 @@ export async function saveDecisions(data: CurationData, picks: Record<string, Pi
   return body.count ?? file.count;
 }
 
-export function downloadDecisions(data: CurationData, picks: Record<string, Pick>): void {
-  const blob = new Blob([JSON.stringify(buildDecisionsFile(data, picks), null, 2)], { type: "application/json" });
+export function downloadDecisions(data: CurationData, picks: Record<string, Pick>, autoResolved?: Map<string, string>): void {
+  const blob = new Blob([JSON.stringify(buildDecisionsFile(data, picks, autoResolved), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

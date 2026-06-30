@@ -33,6 +33,16 @@ export interface HistoryEntry {
   movedFrom?: string;
   /** Destination path for `changeType: "moved"` */
   movedTo?: string;
+  /** Reconstruction era. "html" = a pre-#117 entry auto-translated from the
+   *  original HTML tables, with lineage traced (deterministic matching + AI
+   *  cross-check + human review) — so the diff is approximate. Absent for the
+   *  native markdown era. Drives the reconstruction disclaimer in the history panel. */
+  era?: string;
+  /** Per-change provenance for an HTML-era entry: how this document's lineage link
+   *  was traced. Only the exceptions are recorded — "ai" (an LLM/frontier auto-lock)
+   *  or "human" (a person's confirmed pick); deterministically-matched links are absent
+   *  ("deterministic" implied). Drives the AI / human badge on the entry. */
+  method?: "deterministic" | "ai" | "human";
 }
 
 /** Single source of truth for change-type → CSS color, shared by the atlas

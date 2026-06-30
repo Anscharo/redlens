@@ -18,6 +18,21 @@ export function EntryRow({ entry }: { entry: HistoryEntry }) {
         <span style={{ color: "var(--tan-3)" }}>{entry.date}</span>
         <span style={{ color }}>{CHANGE_LABEL[entry.changeType]}</span>
 
+        {/* per-change provenance for HTML-era entries: only the exceptions (AI / human)
+            are badged — deterministically-matched links carry no badge (the default). */}
+        {entry.era === "html" && (entry.method === "ai" || entry.method === "human") && (
+          <span
+            title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
+            className="shrink-0 px-1 rounded text-[9px] uppercase tracking-wide"
+            style={{
+              background: entry.method === "ai" ? "var(--accent)" : "var(--hover)",
+              color: entry.method === "ai" ? "var(--bg)" : "var(--tan-2)",
+            }}
+          >
+            {entry.method === "ai" ? "AI" : "human"}
+          </span>
+        )}
+
         {entry.summary ? (
           <span className="font-medium" style={{ color: "var(--tan)", fontFamily: "inherit" }}>
             {entry.summary}

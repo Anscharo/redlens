@@ -37,7 +37,7 @@ import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { matchNodes } from "../lib/history-identity.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
-import { reportAutoCuration, writeAutoDecisions, writeProposals } from "../lib/auto-curate-io.mjs";
+import { reportAutoCuration, writeAutoDecisions, writeProposals, loadLlmCache, writeLlmCache } from "../lib/auto-curate-io.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
@@ -48,6 +48,8 @@ const AUTO = process.argv.includes("--auto"); // also auto-resolve, reusing the 
 const RECOVER = !process.argv.includes("--no-recover"); // tier-3.5 content recovery (trusted, not curated)
 const AUTO_OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
 const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
+const CACHE_OUT = path.resolve(ROOT, arg("--cache") || "public/history-curation-llm-cache.json"); // resume cache
+const NO_CACHE = process.argv.includes("--no-cache"); // ignore + don't persist the cache (force re-ask)
 const FRONTIER_MODEL_ARG = arg("--frontier-model"); // default resolved from config below
 const autoOpts = {
   noLlm: process.argv.includes("--no-llm"),
@@ -316,10 +318,11 @@ if (AUTO) {
   const { proposePredecessor } = await import("../../src/server/history-curate.ts");
   const { config } = await import("../../src/server/config.ts");
   const frontierModel = FRONTIER_MODEL_ARG || config.curationFrontierModel;
-  log(`\nauto-curation (forward∩reverse + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})…`);
-  const { decisions, proposals, summary } = await runAutoCurate({
+  const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
+  log(`\nauto-curation (forward∩reverse + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})${cache.size ? `  ·  resuming from ${cache.size} cached asks` : ""}…`);
+  const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({
     data: artifact, commits: htmlCommits, propose: proposePredecessor,
-    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, log,
+    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, cache, cheapModel: config.chatModel, log,
   });
   reportAutoCuration(artifact, decisions, summary);
   writeAutoDecisions(AUTO_OUT, artifact, decisions, summary, autoOpts.concurrency);
@@ -328,5 +331,6 @@ if (AUTO) {
     writeProposals(PROPOSALS_OUT, frontierModel, proposals);
     log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
   }
+  if (!NO_CACHE) { writeLlmCache(CACHE_OUT, outCache); log(`wrote ${path.relative(ROOT, CACHE_OUT)}  (${outCache.size} cached asks)`); }
   console.error(`\nnext: review the ${summary.residual} residual cases at /reports/history-curate (auto-resolved are pre-filled), then bake with:  pnpm htmlhist:apply ${path.relative(ROOT, AUTO_OUT)}`);
 }

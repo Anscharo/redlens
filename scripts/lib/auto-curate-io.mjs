@@ -21,13 +21,13 @@ export function reportAutoCuration(data, decisions, summary) {
     `\nhand-review queue: ${summary.totalCases} → ${summary.residual}  ` +
     `(${summary.reductionPct}% auto-resolved: ${summary.resolvedByForwardReverse} forward∩reverse + ` +
     `${summary.resolvedByContainment ?? 0} reverse∩containment + ${summary.resolvedByLlm} LLM∩matcher` +
-    `${summary.frontierCalls ? ` + ${summary.resolvedByFrontier} frontier∩signal` : ""})`,
+    `${(summary.frontierCalls || summary.frontierCached) ? ` + ${summary.resolvedByFrontier} frontier∩signal` : ""})`,
   );
-  if (summary.frontierCalls) {
+  if (summary.frontierCalls || summary.frontierCached) {
     console.error(
-      `frontier (${summary.frontierModel}): ${summary.frontierCalls} calls → ` +
+      `frontier (${summary.frontierModel}): ${summary.frontierCalls} new + ${summary.frontierCached ?? 0} cached → ` +
       `${summary.resolvedByFrontier} locked + ${summary.frontierHints} hints` +
-      `${summary.frontier?.limited ? ` · ${summary.frontier.limited} over the cap (left for a human)` : ""}`,
+      `${summary.frontier?.limited ? ` · ${summary.frontier.limited} still uncached (re-run --frontier to continue)` : ""}`,
     );
   }
 }
@@ -57,6 +57,25 @@ export function writeProposals(outPath, model, proposals) {
   const map = {};
   for (const p of proposals) map[p.caseKey] = { chosenKey: p.chosenKey, why: p.why };
   const file = { kind: "html-era-curation-proposals", source: "frontier", model, count: proposals.length, proposals: map };
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
+}
+
+// Resume cache: a prior run's LLM/frontier asks, keyed `${pass}|${caseKey}` → {chosenKey, why,
+// model}. Loading it lets a capped run REUSE earlier results (no re-spend) and spend the cap on
+// new cases only, so the frontier can be completed in batches across sessions/deploys. Stable
+// because caseKeys are content-addressed; a model swap re-asks just that pass (per-entry model).
+export function loadLlmCache(inPath) {
+  try {
+    const file = JSON.parse(fs.readFileSync(inPath, "utf8"));
+    return new Map(Object.entries(file.entries || {}));
+  } catch {
+    return new Map();
+  }
+}
+
+export function writeLlmCache(outPath, cache) {
+  const file = { kind: "html-era-curation-llm-cache", count: cache.size, entries: Object.fromEntries(cache) };
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
 }

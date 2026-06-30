@@ -611,7 +611,7 @@ async function main() {
 
     // ── HTML-era (pre-#117) frozen history ───────────────────────────────────
     // The committed artifact (public/history-html-era.json) carries the human/auto
-    // curation decisions baked in (scripts/aux/freeze-html-history.mjs). Upsert it
+    // curation decisions baked in (scripts/aux/prepare-html-history.mjs). Upsert it
     // idempotently on every sync — same (doc_id, commit_sha, change_type) conflict key —
     // so BOTH dev (preflight) and Railway (atlas worker) serve the applied reconstruction
     // from atlas_history. commit_seq is reconciled by sha via seqByCommit, never trusted

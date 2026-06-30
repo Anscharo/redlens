@@ -103,3 +103,11 @@ export function frontierCorroborator(chosenKey, { autoKey, fwdKey, containKey } 
   if (containKey && chosenKey === containKey) return "containment";
   return null;
 }
+
+// Map an auto-resolution mechanism (a decision's `auto`/`via`) to a history-view provenance
+// method: the LLM + frontier locks → "ai"; every deterministic pass (matcher, forward∩reverse,
+// containment) → "deterministic". A "human" method is decided by the caller (absence of an auto
+// mechanism), not here. Used by the freeze to tag HTML-era events with how each link was traced.
+export function mechanismToMethod(via) {
+  return via === "llm-90" || via === "llm-95" || via === "frontier" ? "ai" : "deterministic";
+}

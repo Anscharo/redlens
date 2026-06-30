@@ -17,7 +17,8 @@ Lifecycle order. `prepare` produces a baseline artifact; `curate` decides the am
 | Command | Does | Reads → Writes |
 | --- | --- | --- |
 | `pnpm htmlhist:prepare` | Build the frozen pre-#117 history artifact (no curation). Deliberate, reviewed reruns only. | 79 HTML commits + #117 seed → `public/history-html-era.json` |
-| `pnpm htmlhist:curate` | **Build the decision queue AND auto-resolve it** in one shot — forward∩reverse + reverse∩containment (free, deterministic) + LLM∩matcher (≥90%). Add `--frontier` to escalate the uncertain residual to a frontier model (locks on an independent 2nd signal, else writes a hint). | git history → `public/history-curation.json` (queue) + `public/history-auto-decisions.json` (auto baseline the UI pre-fills) + `public/history-curation-proposals.json` (frontier hints, with `--frontier`) |
+| `pnpm htmlhist:curate` | **Build the decision queue AND auto-resolve it** in one shot — forward∩reverse + reverse∩containment (free, deterministic) + LLM∩matcher (≥90%). Add `--frontier` to escalate the uncertain residual to a frontier model (locks on an independent 2nd signal, else writes a hint). | git history → `public/history-curation.json` (queue) + `public/history-auto-decisions.json` (auto baseline the UI pre-fills) + `public/history-curation-proposals.json` (frontier hints, with `--frontier`) + `public/history-curation-llm-cache.json` (resume cache) |
+| `pnpm htmlhist:resume` | **Continue the frontier in batches** — reuses the existing queue + the resume cache (every prior LLM/frontier ask), so a capped run never re-spends; the `--frontier-limit` is spent only on NOT-yet-asked cases. Run repeatedly to finish the frontier a chunk at a time. | existing queue + cache → grows `history-auto-decisions.json` + `-proposals.json` + the cache |
 | *(web UI `/reports/history-curate`)* | Review the residual cases by hand (auto-resolved ones are pre-filled ✓, frontier suggestions shown), then **⤒ save to repo** (dev-only, one click → writes the committed decisions file; ⤓ export downloads as a fallback). | queue + baseline + proposals + committed decisions → `public/history-decisions.json` |
 | `pnpm htmlhist:apply [decisions.json]` | Bake the human/auto decisions into the frozen artifact. No arg ⇒ applies the committed `public/history-decisions.json`. **Partial-safe**: undecided cases fall back to the automatic threading. | decisions → re-freezes `public/history-html-era.json` |
 | `pnpm htmlhist:audit` | Measure threading accuracy (stratified-samples + LLM-grades). Review report only — never artifact data. | → `.cache/audit-html-report.json` |
@@ -37,6 +38,34 @@ git commit public/history-html-era.json
 Partial is fine: decide a subset, save, apply, commit — undecided cases keep the automatic
 threading and you can come back later. Both the curation inputs and the applied output are
 committed, so the page works on any checkout and the reconstruction reproduces from git.
+
+### Incremental, resumable, deployable in chunks
+
+The whole pipeline is additive — you can do a few commits' worth, deploy, see them on Railway, and
+continue, **without ever redoing work**:
+
+```bash
+pnpm htmlhist:curate --frontier --frontier-limit 100   # first batch (caches every LLM/frontier ask)
+pnpm htmlhist:apply public/history-auto-decisions.json # bake the auto-resolved-so-far (partial-safe)
+git add public/history-*.json && git commit && git push # deploy → Railway build:history syncs it
+#  … see the new pre-#117 history on Railway …
+pnpm htmlhist:resume --frontier-limit 100              # next 100 — cache skips the first 100 (no re-spend)
+pnpm htmlhist:apply public/history-auto-decisions.json  # re-bake (now covers 200)
+git add public/history-*.json && git commit && git push # deploy again
+#  … repeat until the frontier report shows 0 "still uncached" …
+```
+
+Why it's safe to stop/resume anywhere:
+- **Resume cache** (`history-curation-llm-cache.json`, committed): every LLM/frontier ask is keyed by the
+  content-addressed `caseKey`, so a re-run reuses them and spends the `--frontier-limit` only on new cases.
+  Errors aren't cached, so they're retried next run. A `--frontier-model` change re-asks just that pass.
+- **Apply is partial-safe**: undecided cases fall back to the deterministic thread, so a half-curated
+  artifact is still complete + deployable; later batches refine it.
+- **Sync is idempotent**: `build:history` upserts the frozen artifact on every deploy, so redeploying with
+  a more-complete artifact just updates the rows. `--no-cache` forces a full re-ask (e.g. after a model swap).
+
+The human-in-the-loop path is the same shape: curate a few commits on the page → ⤒ save → `pnpm htmlhist:apply`
+(uses the committed `history-decisions.json`) → commit + deploy → continue. Auto and human decisions compose.
 
 ### Useful flags on `htmlhist:curate`
 

@@ -65,9 +65,35 @@ describe("NodeHistory states", () => {
     expect(newer.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it("appends the pre-markdown footer under the migration PR", async () => {
+  it("appends the pre-markdown footer under the migration PR (no reconstructed entries)", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File" })]);
     render(<NodeHistory nodeId="n6" />);
     expect(await screen.findByText("view HTML-era diff →")).toBeInTheDocument();
+  });
+
+  it("shows the reconstruction disclaimer before HTML-era entries and hides the legacy footer", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2025-11-21", pr: 117, prTitle: "Migrate To Markdown File", summary: "migration" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n7" />);
+    expect(await screen.findByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
+    expect(screen.getByText("view original HTML →")).toBeInTheDocument();
+    // the legacy "no per-doc identities" footer is suppressed once we have real reconstructed entries
+    expect(screen.queryByText("view HTML-era diff →")).not.toBeInTheDocument();
+  });
+
+  it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2025-09-03", commitHash: "h1", era: "html", method: "ai", summary: "ai-resolved" }),
+      entry({ date: "2025-09-02", commitHash: "h2", era: "html", method: "human", summary: "human-resolved" }),
+      entry({ date: "2025-09-01", commitHash: "h3", era: "html", summary: "deterministic (no method)" }),
+    ]);
+    render(<NodeHistory nodeId="n8" />);
+    await screen.findByText("ai-resolved");
+    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("human")).toBeInTheDocument();
+    // exactly one AI badge + one human badge — the deterministic entry adds none
+    expect(screen.getAllByText(/^(AI|human)$/)).toHaveLength(2);
   });
 });

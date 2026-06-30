@@ -27,11 +27,20 @@ export async function runAutoCurate({
   noLlm = false, limit = Infinity, threshold = LLM_CONFIRM_THRESHOLD, concurrency = 5,
   containment = true, containThreshold = 0.7, containMargin = 0.15,
   frontier = false, frontierModel = null, frontierLimit = Infinity, frontierConcurrency = 3,
+  cache = new Map(), cheapModel = null,
   log = () => {},
 }) {
   const cases = data.cases || [];
   const links = forwardLinks(commits);
   const decisions = [];
+  // resume cache (plan §10.4): prior LLM/frontier asks keyed `${pass}|${caseKey}` → {chosenKey,
+  // why, model}. A capped run REUSES earlier results (no re-spend) and spends the cap only on
+  // NEW cases, so the frontier can be completed in batches across sessions/deploys. Mutated in
+  // place + returned for the caller to persist. Per-entry model → a model change re-asks; the
+  // caseKey is content-addressed, so the cache stays valid as long as the queue is unchanged.
+  const ckey = (pass, caseKey) => `${pass}|${caseKey}`;
+  const cacheGet = (pass, caseKey, model) => { const c = cache.get(ckey(pass, caseKey)); return c && c.model === model ? c : null; };
+  const cacheSet = (pass, caseKey, chosenKey, why, model) => cache.set(ckey(pass, caseKey), { chosenKey, why, model });
   const record = (kase, chosenKey, via, why, extra) => decisions.push({
     caseKey: kase.key, kind: kase.kind, subjectKey: kase.subjectKey,
     newerSha: kase.newerSha, olderSha: kase.olderSha,
@@ -72,7 +81,13 @@ export async function runAutoCurate({
 
   // pass 2 — LLM second opinion on the eligible cases; lock the ones it independently
   // agrees with. Skipped (left for a human) when --no-llm or no key is configured.
-  const llm = { eligible: llmQueue.length, considered: 0, confirmed: 0, disagreed: 0, limited: 0, errors: 0, threshold };
+  const llm = { eligible: llmQueue.length, considered: 0, cached: 0, confirmed: 0, disagreed: 0, limited: 0, errors: 0, threshold };
+  // applying a cheap result: remember the pick for pass 3's T3, and lock on agreement.
+  const applyCheap = (kase, chosenKey, why) => {
+    cheapPicks.set(kase.key, chosenKey);
+    if (llmConfirms(kase, chosenKey)) { record(kase, kase.autoKey, "llm-90", why); llm.confirmed++; }
+    else llm.disagreed++;
+  };
   if (noLlm) {
     log(`pass 2 skipped (--no-llm) — ${llmQueue.length} LLM-eligible cases left for a human`);
     llm.limited = llmQueue.length;
@@ -80,9 +95,15 @@ export async function runAutoCurate({
     log("pass 2 skipped — no OpenRouter key configured (set OPENROUTER_API_KEY to run the LLM cross-check)");
     llm.limited = llmQueue.length;
   } else {
-    const toAsk = llmQueue.slice(0, Number.isFinite(limit) ? limit : llmQueue.length);
-    llm.limited = llmQueue.length - toAsk.length;
-    log(`pass 2 (LLM∩matcher): asking ${toAsk.length}/${llmQueue.length} eligible cases (concurrency ${concurrency})…`);
+    // reuse cached cheap results first; ask only the uncached, up to `limit`.
+    const uncached = [];
+    for (const kase of llmQueue) {
+      const c = cacheGet("cheap", kase.key, cheapModel);
+      if (c) { applyCheap(kase, c.chosenKey, c.why); llm.cached++; } else uncached.push(kase);
+    }
+    const toAsk = uncached.slice(0, Number.isFinite(limit) ? limit : uncached.length);
+    llm.limited = uncached.length - toAsk.length;
+    log(`pass 2 (LLM∩matcher): ${llm.cached} cached · asking ${toAsk.length}/${uncached.length} new (concurrency ${concurrency})…`);
     let done = 0;
     await mapPool(toAsk, concurrency, async (kase) => {
       const subject = data.nodes[kase.subjectKey];
@@ -94,16 +115,15 @@ export async function runAutoCurate({
       llm.considered++;
       try {
         const { chosenKey, why } = await propose({ title: subject.title, content: subject.content }, candidates);
-        cheapPicks.set(kase.key, chosenKey); // remembered for pass 3's T3 (cheap≠matcher)
-        if (llmConfirms(kase, chosenKey)) { record(kase, kase.autoKey, "llm-90", why); llm.confirmed++; }
-        else llm.disagreed++;
+        cacheSet("cheap", kase.key, chosenKey, why, cheapModel);
+        applyCheap(kase, chosenKey, why);
       } catch (e) {
         llm.errors++;
         if (llm.errors <= 3) log(`  llm error on ${kase.key}: ${String(e?.message || e).slice(0, 120)}`);
       }
       if (++done % 25 === 0) log(`  …${done}/${toAsk.length} asked (${llm.confirmed} confirmed)`);
     });
-    log(`pass 2 (LLM∩matcher): ${llm.confirmed} locked · ${llm.disagreed} LLM disagreed · ${llm.errors} errors`);
+    log(`pass 2 (LLM∩matcher): ${llm.confirmed} locked · ${llm.disagreed} disagreed · ${llm.cached} cached · ${llm.errors} errors`);
   }
 
   // pass 3 — frontier-model escalation on the UNCERTAIN residual (opt-in via `frontier`).
@@ -111,7 +131,13 @@ export async function runAutoCurate({
   // agreement with an independent signal (matcher/forward/containment), else record a HINT
   // the curation UI surfaces to the human. Never locks on the cheap LLM alone (not independent).
   const proposals = [];
-  const front = { eligible: 0, considered: 0, locked: 0, hints: 0, errors: 0, limited: 0, model: frontier ? frontierModel : null };
+  const front = { eligible: 0, considered: 0, cached: 0, locked: 0, hints: 0, errors: 0, limited: 0, model: frontier ? frontierModel : null };
+  // applying a frontier result: lock on an independent corroborator, else record a hint.
+  const applyFrontier = (kase, fwdKey, containKey, chosenKey, why) => {
+    const corroborator = frontierCorroborator(chosenKey, { autoKey: kase.autoKey, fwdKey, containKey });
+    if (corroborator) { record(kase, chosenKey, "frontier", why, { corroborator }); front.locked++; }
+    else { proposals.push({ caseKey: kase.key, chosenKey, why }); front.hints++; }
+  };
   if (frontier && !noLlm && haveKey && propose) {
     const done2 = new Set(decisions.map((d) => d.caseKey));
     const eligible = [];
@@ -123,15 +149,21 @@ export async function runAutoCurate({
       if (triggers.size) eligible.push({ kase, fwdKey, containKey });
     }
     front.eligible = eligible.length;
+    // reuse cached frontier results first (no re-spend); ask only the uncached.
+    const uncached = [];
+    for (const e of eligible) {
+      const c = cacheGet("frontier", e.kase.key, frontierModel);
+      if (c) { applyFrontier(e.kase, e.fwdKey, e.containKey, c.chosenKey, c.why); front.cached++; } else uncached.push(e);
+    }
     // hardest-first: the #117 seed seam, then newest commit first (matches the queue order),
-    // so a --frontier-limit spends on the trickiest cases first.
+    // so a --frontier-limit spends on the trickiest UNCACHED cases first.
     const rank = new Map(commits.map((c, i) => [c.sha, i]));
-    eligible.sort((a, b) =>
+    uncached.sort((a, b) =>
       (a.kase.kind === "seed-close" ? 0 : 1) - (b.kase.kind === "seed-close" ? 0 : 1) ||
       (rank.get(b.kase.newerSha) ?? -1) - (rank.get(a.kase.newerSha) ?? -1));
-    const toAsk = eligible.slice(0, Number.isFinite(frontierLimit) ? frontierLimit : eligible.length);
-    front.limited = eligible.length - toAsk.length;
-    log(`pass 3 (frontier ${frontierModel}): asking ${toAsk.length}/${eligible.length} uncertain residual cases (concurrency ${frontierConcurrency})…`);
+    const toAsk = uncached.slice(0, Number.isFinite(frontierLimit) ? frontierLimit : uncached.length);
+    front.limited = uncached.length - toAsk.length;
+    log(`pass 3 (frontier ${frontierModel}): ${front.cached} cached · asking ${toAsk.length}/${uncached.length} new (concurrency ${frontierConcurrency})…`);
     let done = 0;
     await mapPool(toAsk, frontierConcurrency, async ({ kase, fwdKey, containKey }) => {
       const subject = data.nodes[kase.subjectKey];
@@ -143,16 +175,15 @@ export async function runAutoCurate({
       front.considered++;
       try {
         const { chosenKey, why } = await propose({ title: subject.title, content: subject.content }, candidates, { model: frontierModel });
-        const corroborator = frontierCorroborator(chosenKey, { autoKey: kase.autoKey, fwdKey, containKey });
-        if (corroborator) { record(kase, chosenKey, "frontier", why, { corroborator }); front.locked++; }
-        else { proposals.push({ caseKey: kase.key, chosenKey, why }); front.hints++; }
+        cacheSet("frontier", kase.key, chosenKey, why, frontierModel);
+        applyFrontier(kase, fwdKey, containKey, chosenKey, why);
       } catch (e) {
         front.errors++;
         if (front.errors <= 3) log(`  frontier error on ${kase.key}: ${String(e?.message || e).slice(0, 120)}`);
       }
       if (++done % 25 === 0) log(`  …${done}/${toAsk.length} asked (${front.locked} locked, ${front.hints} hints)`);
     });
-    log(`pass 3 (frontier): ${front.locked} locked · ${front.hints} hints · ${front.errors} errors`);
+    log(`pass 3 (frontier): ${front.locked} locked · ${front.hints} hints · ${front.cached} cached · ${front.errors} errors`);
   }
 
   const resolvedKeys = new Set(decisions.map((d) => d.caseKey));
@@ -166,13 +197,15 @@ export async function runAutoCurate({
     resolvedByFrontier: front.locked,
     frontierHints: front.hints,
     frontierCalls: front.considered,
+    frontierCached: front.cached,
+    llmCached: llm.cached,
     frontierModel: front.model,
     residual: residual.length,
     reductionPct: +((decisions.length / Math.max(1, cases.length)) * 100).toFixed(1),
     llm,
     frontier: front,
   };
-  return { decisions, proposals, summary, residual };
+  return { decisions, proposals, summary, residual, cache };
 }
 
 // bounded-concurrency async map (no deps): keeps at most `n` promises in flight.

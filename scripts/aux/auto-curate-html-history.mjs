@@ -23,7 +23,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
-import { writeAutoDecisions, reportAutoCuration, writeProposals } from "../lib/auto-curate-io.mjs";
+import { writeAutoDecisions, reportAutoCuration, writeProposals, loadLlmCache, writeLlmCache } from "../lib/auto-curate-io.mjs";
 import { proposePredecessor } from "../../src/server/history-curate.ts";
 import { config } from "../../src/server/config.ts";
 
@@ -33,6 +33,8 @@ const CURATION = path.join(ROOT, "public/history-curation.json");
 const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
 const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
+const CACHE_OUT = path.resolve(ROOT, arg("--cache") || "public/history-curation-llm-cache.json");
+const NO_CACHE = process.argv.includes("--no-cache");
 const MEASURE = process.argv.includes("--measure");
 const FRONTIER_MODEL = arg("--frontier-model") || config.curationFrontierModel;
 const opts = {
@@ -67,7 +69,9 @@ const commits = shas.map((full, i) => {
   return { sha: full.slice(0, 8), nodes: loadHtmlAt(full, REPO) };
 });
 
-const { decisions, proposals, summary } = await runAutoCurate({ data, commits, propose: proposePredecessor, haveKey: !!config.openrouterApiKey, ...opts, log });
+const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
+if (cache.size) log(`resuming from ${cache.size} cached asks`);
+const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({ data, commits, propose: proposePredecessor, haveKey: !!config.openrouterApiKey, ...opts, cache, cheapModel: config.chatModel, log });
 reportAutoCuration(data, decisions, summary);
 if (MEASURE) console.error("\n--measure: decisions NOT written.");
 else {
@@ -77,5 +81,6 @@ else {
     writeProposals(PROPOSALS_OUT, FRONTIER_MODEL, proposals);
     log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
   }
+  if (!NO_CACHE) { writeLlmCache(CACHE_OUT, outCache); log(`wrote ${path.relative(ROOT, CACHE_OUT)}  (${outCache.size} cached asks)`); }
 }
 log("done");
