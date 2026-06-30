@@ -37,6 +37,11 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   // moved). The label gets an asterisk; the disclaimer below the live-history
   // heading explains it.
   const reused = status === "Added" ? diff.reusedSlot[nodeId] : undefined;
+  // UUID-identity reassignment — surfaced prominently: this UUID's document was
+  // replaced (swap), or this doc holds content that used to live under another
+  // UUID (former).
+  const swap = diff.identitySwap[nodeId];
+  const former = diff.formerUuid[nodeId];
   const srcUrl = meta
     ? meta.kind === "pr" && meta.prNumber
       ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
@@ -56,6 +61,19 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
             {label}
             {meta?.prAuthor ? ` · by ${meta.prAuthor}` : ""}
           </div>
+          {swap && (
+            <div className="mt-2 leading-snug" style={{ color: "var(--warn)" }}>
+              ⚠ Identity changed — this UUID now holds a different document: “{swap.oldTitle}” → “{swap.newTitle}”.{" "}
+              {swap.movedTo
+                ? `The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`
+                : "The previous content is not present in this preview."}
+            </div>
+          )}
+          {former && (
+            <div className="mt-2 leading-snug" style={{ color: "var(--warn)" }}>
+              ⚠ This content previously appeared under a different UUID — {former.previousId} (“{former.previousTitle}” at {former.previousDocNo}).
+            </div>
+          )}
           {renumber && (
             <div className="mt-1" style={{ color: "var(--accent)" }}>
               renumbered {renumber[0]} → {renumber[1]}
