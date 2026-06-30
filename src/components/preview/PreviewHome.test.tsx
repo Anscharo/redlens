@@ -47,7 +47,7 @@ describe("PreviewHome recent list (AND-semantics)", () => {
 
     render(<PreviewHome />);
 
-    expect(await screen.findByText("my recent prs · 1")).toBeInTheDocument();
+    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
     expect(screen.getByText("pull-1")).toBeInTheDocument();
     expect(screen.queryByText("pull-2")).toBeNull();
     expect(screen.getByText("First PR")).toBeInTheDocument();
@@ -60,8 +60,8 @@ describe("PreviewHome recent list (AND-semantics)", () => {
     render(<PreviewHome />);
     await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
     // The tab is always present, but unbadged and with an empty-state message.
-    expect(screen.getByText("my recent prs")).toBeInTheDocument();
-    expect(screen.queryByText(/my recent prs · /)).toBeNull();
+    expect(screen.getByText("my recent previews")).toBeInTheDocument();
+    expect(screen.queryByText(/my recent previews · /)).toBeNull();
     expect(screen.getByText(/No previews opened in this browser yet/)).toBeInTheDocument();
   });
 });
