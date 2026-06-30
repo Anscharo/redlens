@@ -1,3 +1,4 @@
+import { useRouter } from "wouter";
 import { useCopyState } from "../../hooks/useCopyState";
 import { track } from "../../lib/analytics";
 import { type AtlasNode } from "../../types";
@@ -5,11 +6,14 @@ import { type AtlasNode } from "../../types";
 export function NodeMeta({ node }: { node: AtlasNode }) {
   const urlCopy = useCopyState();
   const docNoCopy = useCopyState();
+  // Router base is "" on the live atlas and "/preview/<id>" in preview mode, so
+  // the copied link stays within the same source the user is viewing.
+  const { base } = useRouter();
 
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
     track("reader_copy_link", { node_id: node.id });
-    const url = `${window.location.origin}${import.meta.env.BASE_URL}atlas?id=${node.id}`;
+    const url = `${window.location.origin}${base}/atlas?id=${node.id}`;
     urlCopy.copy(url);
   };
 
