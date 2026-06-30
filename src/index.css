@@ -702,6 +702,28 @@ button.atlas-node-expand-all:focus-visible {
   display: none;
 }
 
+/* ─── Recent searches dropdown ─── */
+.recent-searches {
+  background: var(--surface);
+  border-color: var(--border);
+}
+.recent-row {
+  background: transparent;
+  color: var(--tan);
+  cursor: pointer;
+  /* inset ring (no layout shift) used for the active highlight */
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background 0.1s, box-shadow 0.1s;
+}
+/* The single highlighted row — driven by whichever of keyboard nav or mouse
+   hover happened last (see useRecentDropdown). A light ring so it reads
+   clearly, not just a faint background tint. Mouse :hover is intentionally NOT
+   styled separately, so only one row is ever highlighted. */
+.recent-row-active {
+  background: var(--hover);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 /* ─── Scope chip (passive page-context label inside search) ─── */
 .scope-chip {
   display: inline-flex;
