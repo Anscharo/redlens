@@ -138,11 +138,11 @@ describe("SearchBar recent searches dropdown", () => {
     }
   });
 
-  it("shows only the three most recent", () => {
-    setupRecent();
+  it("shows at most six recents", () => {
+    setupRecent({ recentSearches: R("a", "b", "c", "d", "e", "f", "g") });
     fireEvent.pointerDown(screen.getByRole("combobox"));
-    expect(screen.getAllByRole("option")).toHaveLength(3);
-    expect(screen.queryByText("dai")).toBeNull();
+    expect(screen.getAllByRole("option")).toHaveLength(6);
+    expect(screen.queryByText("g")).toBeNull(); // the 7th is dropped
   });
 
   it("shows each recent's result count (and names it for assistive tech)", () => {
@@ -253,11 +253,12 @@ describe("SearchBar recent searches dropdown", () => {
   });
 
   it("ArrowDown stops at the last option", () => {
-    setupRecent();
+    setupRecent(); // 4 recents → 4 options
     const input = screen.getByRole("combobox");
     fireEvent.pointerDown(input);
-    for (let i = 0; i < 6; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
-    expect(screen.getAllByRole("option")[2]).toHaveAttribute("aria-selected", "true");
+    for (let i = 0; i < 10; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
+    const opts = screen.getAllByRole("option");
+    expect(opts[opts.length - 1]).toHaveAttribute("aria-selected", "true");
   });
 
   it("Enter runs the highlighted suggestion", () => {

@@ -10,6 +10,7 @@ import type { RefObject } from "react";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
 const RECENT_LISTBOX_ID = "recent-search-listbox";
+const MAX_SUGGESTIONS = 6;
 
 const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
   broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
@@ -49,7 +50,8 @@ export function SearchBar({
 
   // Surface recents when the field is empty (incl. the bare quote markers the
   // phrase/strict pills leave behind) OR when what's typed is a prefix of a
-  // saved search — then narrow to just the matching ones, typeahead-style.
+  // saved search — then narrow to just the matching ones, typeahead-style. Up
+  // to MAX_SUGGESTIONS rows are shown.
   const trimmed = query.trim();
   const trimmedLower = trimmed.toLowerCase();
   const fieldEmpty = trimmed === "" || trimmed === '""' || trimmed === "''";
@@ -61,7 +63,7 @@ export function SearchBar({
       const ql = q.toLowerCase();
       return ql !== trimmedLower && ql.startsWith(prefix);
     })
-    .slice(0, 3);
+    .slice(0, MAX_SUGGESTIONS);
 
   const dd = useRecentDropdown({
     suggestions: suggestions.map((s) => s.q),
