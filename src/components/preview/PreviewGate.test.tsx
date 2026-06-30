@@ -35,8 +35,8 @@ describe("PreviewGate phase rendering", () => {
   });
 
   it("shows the resolving interstitial before any event arrives", () => {
-    render(<PreviewGate id="pr-88" routerBase="/preview/pr-88" />);
-    expect(screen.getByText("Preparing preview Sky Atlas…")).toBeTruthy();
+    render(<PreviewGate id="pull-88" routerBase="/preview/pull-88" />);
+    expect(screen.getByText("Preparing preview Sky Atlas for PR #88…")).toBeTruthy();
     expect(screen.getByText("Resolving…")).toBeTruthy();
   });
 
