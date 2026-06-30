@@ -25,6 +25,11 @@ const HINTS: { label: string; query: string; description: string }[] = [
   },
   { label: "doc number", query: "A.1.2", description: "Jump directly to a section by number" },
   {
+    label: "uuid",
+    query: "a491d7d0",
+    description: "Jump to a doc by UUID — the full id, or a partial prefix (8+ hex)",
+  },
+  {
     label: "field: title",
     query: "title:facilitator",
     description: "Search only in the title field",

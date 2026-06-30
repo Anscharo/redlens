@@ -11,9 +11,14 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
-## 2026-06-26
+## 2026-06-30
 - Added a warning marker in preview mode when a branch reassigns a document's identity — a ⚠ flags when a UUID now points to a completely different document, or when a document's content has moved to a new UUID, with details on hover
+
+## 2026-06-26
 - Browser tab now shows what you're viewing — atlas doc, report, radar actor, or search query — instead of always "Sky Atlas by Redline"
+- Search now finds a document by a partial UUID — paste just the first segment (e.g. a491d7d0) instead of the full id
+
+## 2026-06-25
 - Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
 
 
