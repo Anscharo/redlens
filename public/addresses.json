@@ -261,11 +261,11 @@
     "implementation": "0x3f8650250df9a3ef830c72720b5bb30b425b92b0"
   },
   "0x10e6593cdda8c58a1d0f14c5164b376352a55f2f": {
-    "chain": "arbitrum",
-    "etherscanName": "L2GovernanceRelay",
+    "chain": "ethereum",
+    "chainlogId": "OPTIMISM_DAI_BRIDGE",
+    "etherscanName": "L1DAITokenBridge",
     "isContract": true,
-    "isProxy": true,
-    "implementation": "0x3d4357c3944f7a5b6a0b5b67b36588ba45d3f49d"
+    "isProxy": false
   },
   "0xdd0bcc201c9e47c6f6ee68e4db05b652bb6ac255": {
     "chain": "base",

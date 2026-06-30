@@ -91,7 +91,7 @@ export default function App() {
 
   const scope: SearchScope = activeNavPage ?? "atlas";
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
@@ -100,6 +100,16 @@ export default function App() {
 
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
+
+  // Enter in the search box jumps focus to the first result (entity hit or doc).
+  // Returns whether a result was actually focused, so SearchBar only swallows
+  // the keystroke when there was somewhere to go.
+  const focusFirstResult = useCallback(() => {
+    const first = document.querySelector<HTMLElement>(".search-result-link");
+    if (!first) return false;
+    first.focus();
+    return true;
+  }, []);
 
   // Track opening a comparison pane (null → uuid transition only).
   const handleSplitChange = useCallback(
@@ -174,6 +184,9 @@ export default function App() {
         onSetMode={wrapModeClick}
         activePage={activeNavPage}
         scope={scope}
+        recentSearches={recentSearches}
+        onRecentSelect={selectRecent}
+        onSubmit={focusFirstResult}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (

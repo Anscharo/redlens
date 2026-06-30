@@ -13,8 +13,7 @@
 
 ## 2026-06-30
 - Reorganized the selected document's info bar so the doc number, type pill, copy-link and Sky Atlas link-out each sit where they read most naturally
-- Added a copy-doc-number button to the top-right of the selected document; deeply nested numbers show a shortened form like A.6…1.10.1
-- The copy-link affordance now previews the start and end of the document id and its hover text shows the exact link it copies
+- add recent searches feature
 - Added an "open atlas prs" tab on the preview page that lists every pull request currently open against next-gen-atlas, so you can preview one without hunting for its number — plus a quick link to the PRs page on GitHub
 - The preview loading screen now names what it's preparing (e.g. "Preparing preview Sky Atlas for PR #256…")
 - Added a warning marker in preview mode when a branch reassigns a document's identity — a ⚠ flags when a UUID now points to a completely different document, or when a document's content has moved to a new UUID, with details on hover

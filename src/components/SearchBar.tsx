@@ -1,11 +1,16 @@
 import { Link } from "./Link";
 import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
+import { RecentSearches } from "./RecentSearches";
+import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
+import type { RecentSuggestion } from "../lib/recentSearches";
 import type { RefObject } from "react";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
+const RECENT_LISTBOX_ID = "recent-search-listbox";
+const MAX_SUGGESTIONS = 6;
 
 const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
   broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
@@ -24,6 +29,11 @@ interface Props extends NavBarProps {
   onClear: () => void;
   onSetMode: (mode: SearchMode) => void;
   scope: SearchScope;
+  recentSearches?: RecentSuggestion[];
+  onRecentSelect?: (query: string, rank: number) => void;
+  // Pressing Enter on a typed query (not while picking a recent) calls this;
+  // return true if it was handled (e.g. focus jumped to the first result).
+  onSubmit?: () => boolean;
 }
 
 export function SearchBar({
@@ -36,8 +46,37 @@ export function SearchBar({
   onSetMode,
   activePage,
   scope,
+  recentSearches = [],
+  onRecentSelect,
+  onSubmit,
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
+
+  // Surface recents when the field is empty (incl. the bare quote markers the
+  // phrase/strict pills leave behind) OR when what's typed is a prefix of a
+  // saved search — then narrow to just the matching ones, typeahead-style. Up
+  // to MAX_SUGGESTIONS rows are shown.
+  const trimmed = query.trim();
+  const trimmedLower = trimmed.toLowerCase();
+  const fieldEmpty = trimmed === "" || trimmed === '""' || trimmed === "''";
+  const prefix = fieldEmpty ? "" : trimmedLower;
+  // Exact-match exclusion is case-insensitive, to match the prefix check — typing
+  // "VAT" shouldn't suggest a saved "vat" (it'd run the same search).
+  const suggestions = recentSearches
+    .filter(({ q }) => {
+      const ql = q.toLowerCase();
+      return ql !== trimmedLower && ql.startsWith(prefix);
+    })
+    .slice(0, MAX_SUGGESTIONS);
+
+  const dd = useRecentDropdown({
+    suggestions: suggestions.map((s) => s.q),
+    query,
+    onSelect: onRecentSelect,
+  });
+  const showRecent = dd.visible && !!onRecentSelect;
+  const activeOptionId =
+    showRecent && dd.active >= 0 ? `${RECENT_LISTBOX_ID}-opt-${dd.active}` : undefined;
 
   return (
     <header
@@ -71,8 +110,9 @@ export function SearchBar({
         <NavBar activePage={activePage} />
 
         <div className="order-3 sm:order-2 w-full sm:flex-1 sm:max-w-[680px] flex items-stretch gap-2 min-w-0">
+          <div className="relative flex-1 min-w-0">
           <div
-            className="search-input-wrap flex-1 flex items-center rounded border min-w-0"
+            className="search-input-wrap w-full flex items-center rounded border min-w-0"
             data-scope={scope}
           >
             <svg
@@ -97,9 +137,27 @@ export function SearchBar({
             <input
               ref={inputRef}
               type="search"
+              role="combobox"
               aria-label={`Filter ${cfg.label}`}
+              aria-expanded={showRecent}
+              aria-controls={showRecent ? RECENT_LISTBOX_ID : undefined}
+              aria-activedescendant={activeOptionId}
+              aria-autocomplete="list"
               value={query}
               onChange={onChange}
+              onFocus={dd.handlers.onFocus}
+              // Also open when clicking an already-focused input (no focus event fires then).
+              onPointerDown={dd.handlers.onPointerDown}
+              // Delay so a mousedown→click on a suggestion still registers before
+              // the dropdown unmounts (the option's own onMouseDown also guards).
+              onBlur={dd.handlers.onBlur}
+              onKeyDown={(e) => {
+                dd.handlers.onKeyDown(e);
+                // Enter on a typed query the dropdown didn't consume (no recent
+                // highlighted) = "I like this search": hand off to onSubmit,
+                // which jumps focus to the first result.
+                if (e.key === "Enter" && !e.defaultPrevented && onSubmit?.()) e.preventDefault();
+              }}
               placeholder={cfg.placeholder}
               autoFocus
               // ph-no-capture: keep typed query text out of PostHog autocapture;
@@ -116,6 +174,17 @@ export function SearchBar({
             >
               ×
             </button>
+          </div>
+
+          {showRecent && (
+            <RecentSearches
+              id={RECENT_LISTBOX_ID}
+              items={suggestions}
+              activeIndex={dd.active}
+              onSelect={(_q, rank) => dd.select(rank)}
+              onHover={dd.onOptionHover}
+            />
+          )}
           </div>
 
           {scope === "atlas" && (
