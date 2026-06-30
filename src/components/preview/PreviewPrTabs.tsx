@@ -52,7 +52,7 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
     <section className="w-full max-w-xl mt-10">
       <div className="flex items-center gap-4 mb-3 border-b" style={{ borderColor: "var(--border)" }}>
         <TabButton active={tab === "recent"} onClick={() => select("recent")}>
-          my recent prs{entries.length ? ` · ${entries.length}` : ""}
+          my recent previews{entries.length ? ` · ${entries.length}` : ""}
         </TabButton>
         <TabButton active={tab === "open"} onClick={() => select("open")}>
           open atlas prs{openPrs ? ` · ${openPrs.length}` : ""}
