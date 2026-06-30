@@ -111,7 +111,7 @@ describe("SearchBar recent searches dropdown", () => {
     setupRecent();
     // autoFocus fires once on mount — the dropdown must not open from it.
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
   });
 
@@ -119,7 +119,7 @@ describe("SearchBar recent searches dropdown", () => {
     vi.useFakeTimers();
     try {
       setupRecent();
-      const input = screen.getByRole("searchbox");
+      const input = screen.getByRole("combobox");
       fireEvent.pointerDown(input);
       expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
       fireEvent.blur(input);
@@ -132,33 +132,33 @@ describe("SearchBar recent searches dropdown", () => {
 
   it("shows only the three most recent", () => {
     setupRecent();
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     expect(screen.getAllByRole("option")).toHaveLength(3);
     expect(screen.queryByText("dai")).toBeNull();
   });
 
   it("hides when the typed term is a prefix of no recent", () => {
     setupRecent({ query: "amat" }); // none of vat/jug/pot/dai start with "amat"
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
 
   it("narrows to recents that start with the typed term", () => {
     setupRecent({ query: "j", recentSearches: ["jug", "jar", "vat", "pot"] });
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["jug", "jar"]);
   });
 
   it("matches the prefix case-insensitively and excludes the exact term", () => {
     setupRecent({ query: "VA", recentSearches: ["vat", "value", "jug"] });
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "value"]);
   });
 
   it("treats the bare phrase/strict quote markers as empty", () => {
     for (const q of ['""', "''"]) {
       setupRecent({ query: q });
-      fireEvent.pointerDown(screen.getByRole("searchbox"));
+      fireEvent.pointerDown(screen.getByRole("combobox"));
       expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
       cleanup();
     }
@@ -168,7 +168,7 @@ describe("SearchBar recent searches dropdown", () => {
     vi.useFakeTimers();
     try {
       setupRecent(); // query is ""
-      const input = screen.getByRole("searchbox");
+      const input = screen.getByRole("combobox");
       fireEvent.pointerDown(input);
       expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
       // Simulate a stray blur that stranded `focused` off while typing.
@@ -185,21 +185,81 @@ describe("SearchBar recent searches dropdown", () => {
 
   it("does not re-summon on Backspace when the field has text", () => {
     setupRecent({ query: "amat" });
-    const input = screen.getByRole("searchbox");
+    const input = screen.getByRole("combobox");
     fireEvent.keyDown(input, { key: "Backspace" });
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
 
   it("calls onRecentSelect with the chosen query and its rank", () => {
     const { onRecentSelect } = setupRecent();
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
     fireEvent.click(screen.getByText("jug"));
     expect(onRecentSelect).toHaveBeenCalledWith("jug", 1); // 0-based index in [vat, jug, pot]
   });
 
   it("renders nothing when there are no recents", () => {
     setupRecent({ recentSearches: [] });
-    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("combobox"));
+    expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+  });
+
+  it("Tab highlights the first option and keeps the dropdown open", () => {
+    setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    fireEvent.keyDown(input, { key: "Tab" });
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
+    // Focus stays on the input; the highlight is tracked via aria-activedescendant.
+    expect(input).toHaveAttribute("aria-activedescendant", "recent-search-listbox-opt-0");
+    expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+  });
+
+  it("ArrowDown / ArrowUp move the highlight, and Up off the top clears it", () => {
+    setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // none -> first
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // first -> second
+    expect(screen.getAllByRole("option")[1]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(input, { key: "ArrowUp" }); // second -> first
+    expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
+    fireEvent.keyDown(input, { key: "ArrowUp" }); // first -> none
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  it("ArrowDown stops at the last option", () => {
+    setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    for (let i = 0; i < 6; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option")[2]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Enter runs the highlighted suggestion", () => {
+    const { onRecentSelect } = setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    fireEvent.keyDown(input, { key: "Tab" }); // highlight vat (rank 0)
+    fireEvent.keyDown(input, { key: "ArrowDown" }); // -> jug (rank 1)
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onRecentSelect).toHaveBeenCalledWith("jug", 1);
+  });
+
+  it("Enter with nothing highlighted does not select", () => {
+    const { onRecentSelect } = setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onRecentSelect).not.toHaveBeenCalled();
+  });
+
+  it("Escape closes the dropdown", () => {
+    setupRecent();
+    const input = screen.getByRole("combobox");
+    fireEvent.pointerDown(input);
+    expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+    fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
 });

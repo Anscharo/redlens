@@ -713,7 +713,8 @@ button.atlas-node-expand-all:focus-visible {
   cursor: pointer;
   transition: background 0.1s;
 }
-.recent-row:hover {
+.recent-row:hover,
+.recent-row-active {
   background: var(--hover);
 }
 

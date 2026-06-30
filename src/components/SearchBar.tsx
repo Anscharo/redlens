@@ -1,14 +1,14 @@
-import { useRef, useState } from "react";
 import { Link } from "./Link";
 import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
 import { RecentSearches } from "./RecentSearches";
-import { refreshRecent } from "../lib/recentSearches";
+import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RefObject } from "react";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
+const RECENT_LISTBOX_ID = "recent-search-listbox";
 
 const MODE_CONFIG: Record<SearchMode, { symbol: string; title: string }> = {
   broad:  { symbol: "a*",  title: "Broad — prefix match on each word, case-insensitive" },
@@ -45,19 +45,6 @@ export function SearchBar({
   onRecentSelect,
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
-  const [focused, setFocused] = useState(false);
-  // The input is autoFocus'd on load; swallow that one mount focus so the
-  // dropdown never opens on first paint — only a deliberate focus/click does.
-  const skipMountFocus = useRef(true);
-  // Blur hides on a delay; if the input refocuses within it, cancel the hide so
-  // a transient blur (e.g. a re-render stealing focus) can't strand `focused`.
-  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const openRecent = () => {
-    if (blurTimer.current) clearTimeout(blurTimer.current);
-    refreshRecent(); // prune anything past the TTL
-    setFocused(true);
-  };
 
   // Surface recents when the field is empty (incl. the bare quote markers the
   // phrase/strict pills leave behind) OR when what's typed is a prefix of a
@@ -68,7 +55,11 @@ export function SearchBar({
   const suggestions = recentSearches
     .filter((q) => q !== trimmed && q.toLowerCase().startsWith(prefix))
     .slice(0, 3);
-  const showRecent = focused && !!onRecentSelect && suggestions.length > 0;
+
+  const dd = useRecentDropdown({ suggestions, query, onSelect: onRecentSelect });
+  const showRecent = dd.visible && !!onRecentSelect;
+  const activeOptionId =
+    showRecent && dd.active >= 0 ? `${RECENT_LISTBOX_ID}-opt-${dd.active}` : undefined;
 
   return (
     <header
@@ -129,26 +120,21 @@ export function SearchBar({
             <input
               ref={inputRef}
               type="search"
+              role="combobox"
               aria-label={`Filter ${cfg.label}`}
+              aria-expanded={showRecent}
+              aria-controls={showRecent ? RECENT_LISTBOX_ID : undefined}
+              aria-activedescendant={activeOptionId}
+              aria-autocomplete="list"
               value={query}
               onChange={onChange}
-              onFocus={() => {
-                // Ignore the autoFocus that fires once on mount.
-                if (skipMountFocus.current) { skipMountFocus.current = false; return; }
-                openRecent();
-              }}
+              onFocus={dd.handlers.onFocus}
               // Also open when clicking an already-focused input (no focus event fires then).
-              onPointerDown={openRecent}
+              onPointerDown={dd.handlers.onPointerDown}
               // Delay so a mousedown→click on a suggestion still registers before
               // the dropdown unmounts (the option's own onMouseDown also guards).
-              onBlur={() => { blurTimer.current = setTimeout(() => setFocused(false), 120); }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") { setFocused(false); return; }
-                // The dropdown is dismissed once you type. Pressing Backspace/Delete
-                // on an already-empty field re-summons it without re-clicking (and
-                // re-syncs `focused` if a stray blur turned it off).
-                if ((e.key === "Backspace" || e.key === "Delete") && trimmed === "") openRecent();
-              }}
+              onBlur={dd.handlers.onBlur}
+              onKeyDown={dd.handlers.onKeyDown}
               placeholder={cfg.placeholder}
               autoFocus
               // ph-no-capture: keep typed query text out of PostHog autocapture;
@@ -169,11 +155,10 @@ export function SearchBar({
 
           {showRecent && (
             <RecentSearches
+              id={RECENT_LISTBOX_ID}
               queries={suggestions}
-              onSelect={(q, rank) => {
-                setFocused(false);
-                onRecentSelect!(q, rank);
-              }}
+              activeIndex={dd.active}
+              onSelect={(_q, rank) => dd.select(rank)}
             />
           )}
           </div>
