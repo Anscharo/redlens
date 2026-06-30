@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
+import { PreviewPrTabs } from "./PreviewPrTabs";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
 // below, "my recent previews" — strictly the INTERSECTION of what this browser
@@ -21,7 +22,7 @@ interface DbRow {
   last_access: string;
 }
 
-interface Entry {
+export interface Entry {
   id: string;
   title?: string;
   detail: string;
@@ -72,7 +73,6 @@ export function PreviewHome() {
   }, []);
 
   const entries = useMemo(() => mergeEntries(rows), [rows]);
-  const href = (pid: string) => `${import.meta.env.BASE_URL}preview/${encodeURIComponent(pid)}`;
 
   return (
     <div className="min-h-dvh flex flex-col items-center px-6 pt-[18vh] relative" style={{ background: "var(--bg)" }}>
@@ -97,7 +97,7 @@ export function PreviewHome() {
           // Capture what was entered — including inputs that fail to parse, which
           // reveal what people expect the box to accept. product is set above.
           track("preview_submit", { product: "preview", input, parsed_id: id, parsed: !!id });
-          if (id) window.location.href = href(id);
+          if (id) window.location.href = `${import.meta.env.BASE_URL}preview/${encodeURIComponent(id)}`;
         }}
       >
         <input
@@ -123,28 +123,7 @@ export function PreviewHome() {
         </p>
       )}
 
-      {entries.length > 0 && (
-        <section className="w-full max-w-xl mt-10">
-          <h2 className="mono text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-            my recent previews · {entries.length}
-          </h2>
-          <ul>
-            {entries.map((e) => (
-              <li key={e.id} className="border-b" style={{ borderColor: "var(--border)" }}>
-                <a
-                  href={href(e.id)}
-                  className="flex items-baseline gap-3 py-2 px-1 hover:bg-hover rounded"
-                  onClick={() => track("preview_recent_click", { product: "preview", preview_id: e.id })}
-                >
-                  <span className="mono text-sm shrink-0" style={{ color: "var(--accent)" }}>{e.id}</span>
-                  {e.title && <span className="text-sm truncate" style={{ color: "var(--tan)" }}>{e.title}</span>}
-                  <span className="mono text-[10px] ml-auto shrink-0" style={{ color: "var(--tan-3)" }}>{e.detail}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <PreviewPrTabs entries={entries} />
       <a href={import.meta.env.BASE_URL} className="mono text-xs mt-10" style={{ color: "var(--tan-3)" }}>
         ← live atlas
       </a>

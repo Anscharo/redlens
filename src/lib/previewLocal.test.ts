@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePreviewInput } from "./previewLocal";
+import { parsePreviewInput, previewLabel } from "./previewLocal";
 
 describe("parsePreviewInput", () => {
   it("parses GitHub URLs (PR / tree / commit, canonical + fork)", () => {
@@ -38,5 +38,27 @@ describe("parsePreviewInput", () => {
     expect(parsePreviewInput("feat/x")).toBe("feat~x");
     expect(parsePreviewInput("")).toBeNull();
     expect(parsePreviewInput("   ")).toBeNull();
+  });
+});
+
+describe("previewLabel", () => {
+  it("uses the PR number for pull ids", () => {
+    expect(previewLabel("pull-256")).toBe("PR #256");
+    expect(previewLabel("  pull-1 ")).toBe("PR #1");
+  });
+
+  it("shortens a pinned sha", () => {
+    expect(previewLabel("a".repeat(40))).toBe("aaaaaaa");
+    expect(previewLabel("A".repeat(40))).toBe("AAAAAAA"); // not normalized — display only
+  });
+
+  it("uses owner/repo for fork ids", () => {
+    expect(previewLabel("blimpa:my-atlas:spark")).toBe("blimpa/my-atlas");
+    expect(previewLabel("blimpa:spark")).toBe("blimpa/next-gen-atlas"); // repo defaults to the atlas
+  });
+
+  it("falls back to the canonical repo for a bare branch", () => {
+    expect(previewLabel("my-branch")).toBe("sky-ecosystem/next-gen-atlas");
+    expect(previewLabel("feat~parser-fix")).toBe("sky-ecosystem/next-gen-atlas");
   });
 });
