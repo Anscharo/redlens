@@ -79,10 +79,43 @@ export function autoSelectKey(kase: CurationCase, proposal: Proposal | null | un
   return cand && cand.score > AUTO_SELECT_THRESHOLD ? cand.key : null;
 }
 
+// One x-axis column for the curation timeline chart: a commit (or the #117 seed seam)
+// with its decision count broken down by kind. Columns are chronological — every HTML
+// commit oldest→newest, then the migration seam (where all seed-close cases live) at the
+// far right (newest). Commits with no decisions are kept so the clustering is visible.
+export interface CommitColumn {
+  sha: string;
+  date: string | null;
+  pr: number | null;
+  counts: Record<string, number>;
+  total: number;
+  isSeam: boolean;
+}
+export function commitColumns(data: CurationData): CommitColumn[] {
+  const byCommit = new Map<string, Record<string, number>>();
+  for (const c of data.cases) {
+    const m = byCommit.get(c.newerSha) ?? {};
+    m[c.kind] = (m[c.kind] ?? 0) + 1;
+    byCommit.set(c.newerSha, m);
+  }
+  const seam = data.meta.migrationSha as string | undefined;
+  const shas = [...data.commits.map((c) => c.sha), ...(seam ? [seam] : [])];
+  return shas.map((sha) => {
+    const counts = byCommit.get(sha) ?? {};
+    const meta = data.commits.find((c) => c.sha === sha);
+    return {
+      sha, date: meta?.date ?? null, pr: meta?.pr ?? null, counts,
+      total: Object.values(counts).reduce((a, b) => a + b, 0),
+      isSeam: sha === seam,
+    };
+  });
+}
+
 // Human-readable badge for HOW a case was auto-resolved (offline baseline or in-session
 // LLM+95 agreement) — surfaced on the Confirm button so nothing is silently decided.
 export function autoLabel(via: string | undefined): string {
   if (via === "forward-reverse") return "Auto-resolved (forward + reverse agree)";
+  if (via === "containment") return "Auto-resolved (reverse + containment agree)";
   if (via === "llm-90") return "Auto-resolved (LLM + 90% matcher agree)";
   if (via === "llm-95") return "Auto-resolved (LLM + 95% agree)";
   return "Auto-resolved";

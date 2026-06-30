@@ -33,7 +33,7 @@
 
   Threading identity backward through near‑identical sibling documents (one "Reward Payments" doc per instance) is inherently ambiguous. We do not paper over this.
   - What changed at each commit is ~99% confident — content is provably accounted for.
-  - Which document owns each change is **measured at 98.7% (change‑aware) / 95.6% (strict identity)** weighted across all ~7,400 decisions — not estimated. The audit (`pnpm audit:html-history --live`) stratified‑samples each
+  - Which document owns each change is **measured at 98.7% (change‑aware) / 95.6% (strict identity)** weighted across all ~7,400 decisions — not estimated. The audit (`pnpm htmlhist:audit --live`) stratified‑samples each
   decision type, has an LLM judge each on the same evidence the matcher used, and reports per‑batch accuracy with a 95% Wilson interval. The two headline numbers differ only in how they treat swaps between **byte‑identical**
   documents (the same boilerplate stub under two instances): the strict number counts them as identity errors, the change‑aware number does not — because swapping identical content yields identical change‑history, so it
   cannot produce a wrong or missing change. The big pools (the seed: ~6,700 decisions) measure ~100%; the residual concentrates in a small flagged‑ambiguous tail (~300 decisions, ~80% correct).

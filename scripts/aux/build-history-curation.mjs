@@ -2,6 +2,13 @@
 //
 //   bun scripts/aux/build-history-curation.mjs            # build + write the case file
 //   bun scripts/aux/build-history-curation.mjs --stats    # just print counts + samples
+//   bun scripts/aux/build-history-curation.mjs --auto     # build queue AND auto-resolve
+//                                                         #   (forward∩reverse + LLM∩matcher,
+//                                                         #    reusing the loaded commits)
+//   ... --auto --no-llm | --limit N | --concurrency N | --threshold X   # tune the auto pass
+//
+// `--auto` is what `pnpm htmlhist:curate` runs: it writes BOTH public/history-curation.json
+// (the queue) and public/history-auto-decisions.json (the pre-filled baseline) in one shot.
 //
 // It replays the real seed + backward thread and collects every NON-EXACT identity
 // decision — the ones a human should confirm: seed close-calls, fuzzy/bucket sibling
@@ -25,11 +32,24 @@ import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { matchNodes } from "../lib/history-identity.mjs";
+import { runAutoCurate } from "../lib/auto-curate-run.mjs";
+import { reportAutoCuration, writeAutoDecisions } from "../lib/auto-curate-io.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const OUT = path.join(ROOT, "public/history-curation.json");
+const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };
 const STATS_ONLY = process.argv.includes("--stats");
+const AUTO = process.argv.includes("--auto"); // also auto-resolve, reusing the loaded commits
+const RECOVER = !process.argv.includes("--no-recover"); // tier-3.5 content recovery (trusted, not curated)
+const AUTO_OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
+const autoOpts = {
+  noLlm: process.argv.includes("--no-llm"),
+  containment: !process.argv.includes("--no-containment"),
+  limit: arg("--limit") ? Number(arg("--limit")) : Infinity,
+  threshold: arg("--threshold") ? Number(arg("--threshold")) : undefined,
+  concurrency: arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 5,
+};
 const MIGRATION_SHA = "22cc27b5", LAST_HTML_SHA = "7b43d159";
 const CANDIDATES_PER_CASE = 6;
 
@@ -199,7 +219,7 @@ let newerShingleByNode = new Map(newerCommit.nodes.map((n) => [n, shingleSet(n.c
 for (let hop = 1; hop < newestFirst.length; hop++) {
   const olderCommit = newestFirst[hop];
   const olderShingles = olderCommit.nodes.map((n) => shingleSet(n.content));
-  const result = matchNodes(olderCommit.nodes, newerCommit.nodes);
+  const result = matchNodes(olderCommit.nodes, newerCommit.nodes, { recoverByContent: RECOVER });
 
   // map newer node -> the older node the matcher paired it with, plus the tier
   const autoOlderByNewer = new Map();
@@ -270,10 +290,28 @@ for (const kind of Object.keys(countByKind)) {
   }
 }
 
+const artifact = { meta, commits, nodes: nodeDict, cases: uniqueCases };
 if (STATS_ONLY) {
   log("\n--stats: file NOT written.");
 } else {
-  const artifact = { meta, commits, nodes: nodeDict, cases: uniqueCases };
   fs.writeFileSync(OUT, JSON.stringify(artifact));
   log(`\nwrote ${path.relative(ROOT, OUT)}  (${(fs.statSync(OUT).size / 1e6).toFixed(1)} MB)`);
+}
+
+// --auto: auto-resolve the queue we just built, REUSING htmlCommits (oldest→newest,
+// nodes carry contentHash — exactly forwardLinks' shape) so the slow turndown isn't
+// repeated. The LLM proposer + key are pulled in only here (dynamic import) so a plain
+// queue build stays free of any server dependency. Writes the gitignored baseline.
+if (AUTO) {
+  const { proposePredecessor } = await import("../../src/server/history-curate.ts");
+  const { config } = await import("../../src/server/config.ts");
+  log("\nauto-curation (forward∩reverse + LLM∩matcher)…");
+  const { decisions, summary } = await runAutoCurate({
+    data: artifact, commits: htmlCommits, propose: proposePredecessor,
+    haveKey: !!config.openrouterApiKey, ...autoOpts, log,
+  });
+  reportAutoCuration(artifact, decisions, summary);
+  writeAutoDecisions(AUTO_OUT, artifact, decisions, summary, autoOpts.concurrency);
+  log(`wrote ${path.relative(ROOT, AUTO_OUT)}  (${decisions.length} auto-decisions)`);
+  console.error(`\nnext: review the ${summary.residual} residual cases at /reports/history-curate (auto-resolved are pre-filled), then bake with:  pnpm htmlhist:apply ${path.relative(ROOT, AUTO_OUT)}`);
 }

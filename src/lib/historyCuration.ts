@@ -44,7 +44,7 @@ let cache: Promise<CurationData> | null = null;
 export function loadCuration(): Promise<CurationData> {
   if (!cache) {
     cache = fetch(`${import.meta.env.BASE_URL}history-curation.json`).then((r) => {
-      if (!r.ok) throw new Error("history-curation.json not found — run `bun scripts/aux/build-history-curation.mjs`");
+      if (!r.ok) throw new Error("history-curation.json not found — run `pnpm htmlhist:curate`");
       return r.json();
     });
   }

@@ -1,6 +1,6 @@
 // Pure ordering / grouping / auto-select logic for the curation tool.
 import { describe, it, expect } from "vitest";
-import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoSelectKey, autoLabel } from "./curationOrder";
+import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoSelectKey, autoLabel, commitColumns } from "./curationOrder";
 import type { CurationCase, CurationData } from "./historyCuration";
 
 const kase = (key: string, newerSha: string, subjectOrder: number, extra: Partial<CurationCase> = {}): CurationCase => ({
@@ -10,7 +10,7 @@ const kase = (key: string, newerSha: string, subjectOrder: number, extra: Partia
 // commits are oldest→newest: a, b, c (so newest-first rank is c < b < a; the seed
 // commit "mig" is not an HTML commit → ranks before all of them)
 const data: CurationData = {
-  meta: {},
+  meta: { migrationSha: "mig" },
   commits: [
     { sha: "a", date: "2025-05-01", pr: 1 },
     { sha: "b", date: "2025-05-02", pr: 2 },
@@ -70,6 +70,19 @@ describe("autoSelectKey", () => {
   it("returns null for 'none' or a missing proposal", () => {
     expect(autoSelectKey(c, { chosenKey: "none", why: "" })).toBeNull();
     expect(autoSelectKey(c, null)).toBeNull();
+  });
+});
+
+describe("commitColumns", () => {
+  it("returns chronological columns with per-kind counts, the #117 seam last", () => {
+    const cols = commitColumns(data);
+    expect(cols.map((c) => c.sha)).toEqual(["a", "b", "c", "mig"]); // HTML oldest→newest, seam appended
+    expect(cols.find((c) => c.sha === "c")!.counts).toEqual({ "tier-3": 2 }); // kC1 + kC2
+    expect(cols.find((c) => c.sha === "c")!.total).toBe(2);
+    const seam = cols.find((c) => c.sha === "mig")!;
+    expect(seam.isSeam).toBe(true);
+    expect(seam.counts).toEqual({ "seed-close": 1 });
+    expect(cols.find((c) => c.sha === "a")!.total).toBe(1); // empty commits would be 0; "a" has kA
   });
 });
 

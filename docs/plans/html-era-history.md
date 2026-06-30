@@ -591,7 +591,7 @@ migration marker with its content diff suppressed (§5.3, §6).
 
 > **Implemented + a load-bearing gotcha (2026-06-25).** `buildEvents` lives in
 > `scripts/lib/history-html-era.mjs`; the orchestrator is `scripts/aux/freeze-
-> html-history.mjs` (`pnpm freeze:html-history [--measure]`), which uses the real
+> html-history.mjs` (`pnpm htmlhist:prepare [--measure]`), which uses the real
 > `diffCore.lineDiff` + `classifyDiff` and emits events in the exact `eventToRow`
 > shape (`commitHash`/`changeType`/`movedFrom`/`movedTo`/`diff`/`changeKind`) plus
 > the additive `era`. **Adjacency invariant:** `added`/`removed` run-boundaries
@@ -1189,7 +1189,7 @@ New:
   verdicts for the ambiguous queue) and **validates** `history-threading-decisions.json`
   (no contradictions, no stale/auto-invalidated keys).
   > **Implemented (2026-06-25): the *measured-confidence* audit.** `pnpm
-  > audit:html-history` collects the real decision pool tagged by batch (seed
+  > htmlhist:audit` collects the real decision pool tagged by batch (seed
   > close-calls 2,610 / seed-decisive 4,059 control / tier-2.5 297 / tier-2.7 33 /
   > tier-3 114 / ambiguous 260), deterministically stratified-samples it
   > (content-hash sort, no RNG), and — with `--live` + `OPENROUTER_API_KEY` (the

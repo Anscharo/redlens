@@ -45,7 +45,7 @@ log(`loaded ${commits.length} commits`);
 
 // forward pass (independent quasi-ids) + the cross-check
 const fwd = forwardTrace(commits);
-const { tally, divergences } = diffPasses(commits);
+const { tally, divergences } = diffPasses(commits, { recover: !process.argv.includes("--no-recover") });
 log(`forward quasi-ids: ${fwd.quasiCount}  ·  divergences: ${divergences.length}`);
 
 // join to the curation queue: which divergent newer docs are already a human case?
@@ -55,7 +55,7 @@ if (fs.existsSync(CURATION)) {
   curationKeys = new Set((cur.cases || []).map((c) => c.key));
   log(`curation queue: ${curationKeys.size} cases (joining)`);
 } else {
-  log("curation queue not built — skipping join (run build-history-curation.mjs for the 'inCuration' annotation)");
+  log("curation queue not built — skipping join (run `pnpm htmlhist:curate` for the 'inCuration' annotation)");
 }
 for (const d of divergences) d.inCuration = curationKeys.has(d.newerKey);
 

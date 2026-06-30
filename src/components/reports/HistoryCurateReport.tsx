@@ -13,6 +13,7 @@ import {
 import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoSelectKey, autoLabel } from "../../lib/curationOrder";
 import { CurationCase } from "./CurationCase";
 import { CurationCommitStrip } from "./CurationCommitStrip";
+import { CurationTimeline } from "./CurationTimeline";
 import { useCurationKeys } from "./useCurationKeys";
 
 type PState = "idle" | "loading" | "error";
@@ -27,6 +28,7 @@ export function HistoryCurateReport() {
   const [pState, setPState] = useState<Record<string, PState>>({});
   const [pError, setPError] = useState<Record<string, string>>({});
   const [autoAdvance, setAutoAdvance] = useState(true);
+  const [showChart, setShowChart] = useState(false);
   // case key -> mechanism that auto-resolved it ("forward-reverse" | "llm-90" | "llm-95")
   const [autoResolved, setAutoResolved] = useState<Map<string, string>>(new Map());
   const requested = useRef<Set<string>>(new Set());
@@ -85,6 +87,7 @@ export function HistoryCurateReport() {
   const moveWithin = (dir: -1 | 1) => setIndex((i) => Math.max(bounds.start, Math.min(bounds.end - 1, i + dir)));
   const moveCommit = (dir: -1 | 1) => { const at = adjacentCommit(queue, index, dir); if (at != null) setIndex(at); };
   const jumpTo = (key: string) => { const at = queue.findIndex((c) => c.key === key); if (at >= 0) setIndex(at); };
+  const jumpToCommit = (sha: string) => { const at = queue.findIndex((c) => c.newerSha === sha); if (at >= 0) setIndex(at); };
   const nextUndecided = () => { const at = queue.findIndex((c, i) => i > index && picks[c.key] === undefined); if (at >= 0) setIndex(at); };
   // confirm = commit the current decision and advance; if nothing was selected, accept the LLM's proposal.
   const confirm = () => {
@@ -126,6 +129,11 @@ export function HistoryCurateReport() {
             <input type="checkbox" checked={autoAdvance} onChange={(e) => setAutoAdvance(e.target.checked)} />
             ⚡ auto-advance on LLM + 95% agreement
           </label>
+          <button onClick={() => setShowChart((s) => !s)}
+            className="text-[12px] px-2 py-0.5 rounded"
+            style={{ background: "var(--surface)", color: "var(--tan-2)", border: "1px solid var(--border)" }}>
+            {showChart ? "▾ hide chart" : "▸ decisions per commit"}
+          </button>
           <button onClick={() => downloadDecisions(data, picks)}
             className="text-[12px] px-2 py-0.5 rounded"
             style={{ background: "var(--surface)", color: "var(--accent)", border: "1px solid var(--accent)" }}>
@@ -133,6 +141,8 @@ export function HistoryCurateReport() {
           </button>
         </div>
       </header>
+
+      {showChart && <CurationTimeline data={data} onJump={jumpToCommit} />}
 
       {current ? (
         <>
