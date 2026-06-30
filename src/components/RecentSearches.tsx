@@ -1,17 +1,20 @@
+import type { RecentSuggestion } from "../lib/recentSearches";
+
 // Floating dropdown of recent searches, anchored under the search input. Shown
 // while the input is focused (see SearchBar). Focus stays on the input (ARIA
 // combobox + aria-activedescendant), so options are highlighted via activeIndex
 // rather than DOM focus. onMouseDown is preventDefault'd so clicking a row
-// doesn't blur the input before the click lands.
+// doesn't blur the input before the click lands. Each row shows the query and
+// the result count it last produced.
 
 interface Props {
   id: string;
-  queries: string[];
+  items: RecentSuggestion[];
   activeIndex: number;
   onSelect: (query: string, rank: number) => void;
 }
 
-export function RecentSearches({ id, queries, activeIndex, onSelect }: Props) {
+export function RecentSearches({ id, items, activeIndex, onSelect }: Props) {
   return (
     <div className="recent-searches absolute left-0 right-0 top-full mt-1 z-30 rounded border overflow-hidden shadow-lg">
       {/* aria-hidden: the listbox already carries an accessible name, so this
@@ -21,7 +24,7 @@ export function RecentSearches({ id, queries, activeIndex, onSelect }: Props) {
       </p>
       {/* role="listbox" owns only role="option" children (no ul/li wrappers). */}
       <div id={id} role="listbox" aria-label="Recent searches">
-        {queries.map((q, i) => (
+        {items.map(({ q, n }, i) => (
           <button
             key={q}
             type="button"
@@ -31,6 +34,7 @@ export function RecentSearches({ id, queries, activeIndex, onSelect }: Props) {
             // out of the tab order so Tab doesn't land on them.
             tabIndex={-1}
             aria-selected={i === activeIndex}
+            aria-label={n === undefined ? q : `${q}, ${n} result${n === 1 ? "" : "s"}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => onSelect(q, i)}
             className={`recent-row w-full text-left flex items-center gap-2 px-3 py-2 text-sm${
@@ -50,6 +54,11 @@ export function RecentSearches({ id, queries, activeIndex, onSelect }: Props) {
               <path d="M12 7v5l3 2" />
             </svg>
             <span className="truncate">{q}</span>
+            {n !== undefined && (
+              <span className="ml-auto shrink-0 mono text-[11px] text-tan-3" aria-hidden="true">
+                {n.toLocaleString()}
+              </span>
+            )}
           </button>
         ))}
       </div>

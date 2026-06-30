@@ -86,6 +86,14 @@ describe("SearchBar input controls", () => {
 });
 
 describe("SearchBar recent searches dropdown", () => {
+  // Recent suggestions are { q, n } objects; this helper attaches an arbitrary
+  // result count to each query so tests can pass plain strings.
+  const R = (...queries: string[]) => queries.map((q, i) => ({ q, n: (i + 1) * 10 }));
+  // The visible query text of each rendered option (first <span>; the count is a
+  // separate aria-hidden <span>).
+  const optionQueries = () =>
+    screen.getAllByRole("option").map((o) => o.querySelector("span")?.textContent);
+
   function setupRecent(over: Partial<Parameters<typeof SearchBar>[0]> = {}) {
     const onRecentSelect = vi.fn();
     render(
@@ -99,7 +107,7 @@ describe("SearchBar recent searches dropdown", () => {
         onSetMode={vi.fn()}
         activePage="atlas"
         scope={"atlas" as SearchScope}
-        recentSearches={["vat", "jug", "pot", "dai"]}
+        recentSearches={R("vat", "jug", "pot", "dai")}
         onRecentSelect={onRecentSelect}
         {...over}
       />,
@@ -137,6 +145,15 @@ describe("SearchBar recent searches dropdown", () => {
     expect(screen.queryByText("dai")).toBeNull();
   });
 
+  it("shows each recent's result count (and names it for assistive tech)", () => {
+    setupRecent({ recentSearches: [{ q: "vat", n: 42 }, { q: "jug", n: 1 }] });
+    fireEvent.pointerDown(screen.getByRole("combobox"));
+    expect(screen.getByText("42")).toBeTruthy();
+    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.getByRole("option", { name: "vat, 42 results" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "jug, 1 result" })).toBeTruthy();
+  });
+
   it("hides when the typed term is a prefix of no recent", () => {
     setupRecent({ query: "amat" }); // none of vat/jug/pot/dai start with "amat"
     fireEvent.pointerDown(screen.getByRole("combobox"));
@@ -144,22 +161,22 @@ describe("SearchBar recent searches dropdown", () => {
   });
 
   it("narrows to recents that start with the typed term", () => {
-    setupRecent({ query: "j", recentSearches: ["jug", "jar", "vat", "pot"] });
+    setupRecent({ query: "j", recentSearches: R("jug", "jar", "vat", "pot") });
     fireEvent.pointerDown(screen.getByRole("combobox"));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["jug", "jar"]);
+    expect(optionQueries()).toEqual(["jug", "jar"]);
   });
 
   it("matches the prefix case-insensitively and excludes the exact term", () => {
-    setupRecent({ query: "VA", recentSearches: ["vat", "value", "jug"] });
+    setupRecent({ query: "VA", recentSearches: R("vat", "value", "jug") });
     fireEvent.pointerDown(screen.getByRole("combobox"));
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vat", "value"]);
+    expect(optionQueries()).toEqual(["vat", "value"]);
   });
 
   it("excludes the exact term case-insensitively", () => {
-    setupRecent({ query: "VAT", recentSearches: ["vat", "vatican"] });
+    setupRecent({ query: "VAT", recentSearches: R("vat", "vatican") });
     fireEvent.pointerDown(screen.getByRole("combobox"));
     // "vat" is the same search as "VAT" so it's dropped; "vatican" still matches.
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["vatican"]);
+    expect(optionQueries()).toEqual(["vatican"]);
   });
 
   it("treats the bare phrase/strict quote markers as empty", () => {

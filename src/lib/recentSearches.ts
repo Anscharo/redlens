@@ -20,7 +20,11 @@ import type { SearchState } from "../hooks/useSearch";
 export interface RecentEntry {
   q: string; // the raw query text, stored verbatim
   t: number; // epoch ms when last searched
+  n?: number; // result count at record time (absent on legacy entries)
 }
+
+// What the dropdown needs per row: the query and its last result count.
+export type RecentSuggestion = Pick<RecentEntry, "q" | "n">;
 
 const KEY = "redline-sky-atlas:recent-searches";
 const EVENT = "redline-recent-searches-change";
@@ -43,6 +47,7 @@ function read(): RecentEntry[] {
           typeof (e as RecentEntry).t === "number" &&
           (e as RecentEntry).t >= cutoff,
       )
+      .map((e) => (typeof e.n === "number" ? { q: e.q, t: e.t, n: e.n } : { q: e.q, t: e.t }))
       .slice(0, MAX);
   } catch {
     return [];
@@ -55,13 +60,13 @@ let snapshot: RecentEntry[] = read();
 
 // Pure merge used by recordRecent (and unit-tested directly): exact dedupe,
 // newest first, capped at MAX. An existing identical query is moved to the
-// front with a fresh timestamp. `t` is passed in (not read from the clock) so
-// the policy stays pure and deterministic to test.
-export function mergeRecent(list: RecentEntry[], raw: string, t: number): RecentEntry[] {
+// front with a fresh timestamp and result count. `t`/`n` are passed in (not read
+// from the clock / state) so the policy stays pure and deterministic to test.
+export function mergeRecent(list: RecentEntry[], raw: string, t: number, n: number): RecentEntry[] {
   const q = raw.trim();
   if (!q) return list;
   const kept = list.filter((e) => e.q !== q);
-  return [{ q, t }, ...kept].slice(0, MAX);
+  return [{ q, t, n }, ...kept].slice(0, MAX);
 }
 
 function sameQueries(a: RecentEntry[], b: RecentEntry[]): boolean {
@@ -78,9 +83,9 @@ function commit(next: RecentEntry[]): void {
   window.dispatchEvent(new Event(EVENT));
 }
 
-export function recordRecent(raw: string): void {
+export function recordRecent(raw: string, n: number): void {
   if (!raw.trim()) return;
-  commit(mergeRecent(read(), raw, Date.now()));
+  commit(mergeRecent(read(), raw, Date.now(), n));
 }
 
 export function clearRecent(): void {
@@ -107,11 +112,11 @@ function subscribe(cb: () => void): () => void {
   return () => window.removeEventListener(EVENT, handler);
 }
 
-// The UI only needs the query strings; map after the store read so getSnapshot
-// keeps returning the stable RecentEntry[] reference.
-export function useRecentSearches(): string[] {
+// The UI needs the query + its result count; map after the store read so
+// getSnapshot keeps returning the stable RecentEntry[] reference.
+export function useRecentSearches(): RecentSuggestion[] {
   const entries = useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
-  return entries.map((e) => e.q);
+  return entries.map((e) => ({ q: e.q, n: e.n }));
 }
 
 // Records the current search into history once it settles. Fires only on a
@@ -125,8 +130,9 @@ export function useRecordRecentSearch(state: SearchState, raw: string): void {
     const q = raw.trim();
     const productive = state.status === "done" && state.hits.length > 0;
     if (!productive || !q || q.startsWith("/")) return;
+    const n = state.hits.length;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => recordRecent(q), DEBOUNCE_MS);
+    timer.current = setTimeout(() => recordRecent(q, n), DEBOUNCE_MS);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };

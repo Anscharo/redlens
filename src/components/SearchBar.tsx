@@ -5,6 +5,7 @@ import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
 import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
+import type { RecentSuggestion } from "../lib/recentSearches";
 import type { RefObject } from "react";
 
 const MODES: SearchMode[] = ["broad", "phrase", "strict"];
@@ -27,7 +28,7 @@ interface Props extends NavBarProps {
   onClear: () => void;
   onSetMode: (mode: SearchMode) => void;
   scope: SearchScope;
-  recentSearches?: string[];
+  recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
 }
 
@@ -56,13 +57,17 @@ export function SearchBar({
   // Exact-match exclusion is case-insensitive, to match the prefix check — typing
   // "VAT" shouldn't suggest a saved "vat" (it'd run the same search).
   const suggestions = recentSearches
-    .filter((q) => {
+    .filter(({ q }) => {
       const ql = q.toLowerCase();
       return ql !== trimmedLower && ql.startsWith(prefix);
     })
     .slice(0, 3);
 
-  const dd = useRecentDropdown({ suggestions, query, onSelect: onRecentSelect });
+  const dd = useRecentDropdown({
+    suggestions: suggestions.map((s) => s.q),
+    query,
+    onSelect: onRecentSelect,
+  });
   const showRecent = dd.visible && !!onRecentSelect;
   const activeOptionId =
     showRecent && dd.active >= 0 ? `${RECENT_LISTBOX_ID}-opt-${dd.active}` : undefined;
@@ -162,7 +167,7 @@ export function SearchBar({
           {showRecent && (
             <RecentSearches
               id={RECENT_LISTBOX_ID}
-              queries={suggestions}
+              items={suggestions}
               activeIndex={dd.active}
               onSelect={(_q, rank) => dd.select(rank)}
             />
