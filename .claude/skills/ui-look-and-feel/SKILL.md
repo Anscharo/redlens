@@ -62,7 +62,7 @@ Contrast annotations in the comments are load-bearing: `--gray`, `--tan-3`,
 
 ## The /admin/palette page
 
-`/redlens/admin/palette` (source: `src/admin/`). Click a swatch → color picker →
+`/admin/palette` (source: `src/admin/`). Click a swatch → color picker →
 apply (persists per-browser via localStorage) → "copy as css" for the permanent
 `index.css` snippet. Includes a **contrast audit table** and a live
 **palette preview**. Token registry: `src/admin/palette-tokens.ts` — **a new
@@ -76,7 +76,7 @@ token in index.css should also be registered there** so it's editable/audited.
 - Scroll is `behavior: "instant"`; scroll targets need
   `scroll-margin-top: 64px` (`HEADER_OFFSET` in `src/lib/layout.ts` — the
   `.atlas-node` rule in index.css must stay in sync).
-- Any runtime URL string needs `import.meta.env.BASE_URL` (base is `/redlens/`).
+- Base is `/` (served from the domain root); `import.meta.env.BASE_URL` is `"/"`. Root-relative URL strings work directly.
 - `prefers-reduced-motion` is respected for the expand animation and row pulse —
   extend that block when adding motion.
 - Max ~150 lines/file, max 3 components/file. Shared visual primitives go in
@@ -96,17 +96,17 @@ Header = `SearchBar.tsx`, status footer = `Footer.tsx`.
 ```bash
 # pnpm dev needs bun (chat API server); chat is off by default, so Vite alone is fine:
 (pnpm exec vite > /tmp/redlens-vite.log 2>&1 & echo $! > /tmp/redlens-dev.pid)
-timeout 45 bash -c 'until curl -sf -o /dev/null http://localhost:5173/redlens/; do sleep 1; done'
+timeout 45 bash -c 'until curl -sf -o /dev/null http://localhost:5173/; do sleep 1; done'
 
 # chromium-cli is NOT installed; headless Chrome is, and works:
 google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
   --window-size=1440,900 --virtual-time-budget=30000 \
-  --screenshot=/tmp/shot.png "http://localhost:5173/redlens/"
+  --screenshot=/tmp/shot.png "http://localhost:5173/"
 
 kill $(cat /tmp/redlens-dev.pid)   # cleanup
 ```
 
-- Base path is **`/redlens/`** — `http://localhost:5173/` 404s.
+- Base path is **`/`** — the app is served from the domain root.
 - Use `--virtual-time-budget=30000` (60000 right after a cold Vite start —
   on-demand compilation eats the budget). Radar's graph worker takes >12 s of
   virtual time; 12000 captures only the "searching the stars" loading state.
@@ -115,9 +115,9 @@ kill $(cat /tmp/redlens-dev.pid)   # cleanup
   `--virtual-time-budget=120000`; tsc/vite-log are clean, it's the harness.
 - For close inspection of small elements (chiclets, pills), add
   `--force-device-scale-factor=2` with a narrower `--window-size` (e.g. 900,700).
-- Routes worth screenshotting: `/redlens/` (home), `/redlens/atlas` (reader),
-  `/redlens/atlas?id=<uuid>` (selected node + right panel),
-  `/redlens/radar`, `/redlens/reports`, `/redlens/admin/palette`.
+- Routes worth screenshotting: `/` (home), `/atlas` (reader),
+  `/atlas?id=<uuid>` (selected node + right panel),
+  `/radar`, `/reports`, `/admin/palette`.
   Pick a content-rich uuid from `public/docs.json`, e.g.
   `86a93dab-2f12-4c3f-9285-bcc4520c851b` (A.1.1 Spirit of the Atlas).
 - **If Vite overlays "Failed to resolve import"**, run `pnpm install` — stale

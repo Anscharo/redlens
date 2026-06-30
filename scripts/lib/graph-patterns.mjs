@@ -3,11 +3,38 @@
  * pattern-driven graph extraction.
  */
 
+import crypto from "node:crypto";
+
 export function slugify(name) {
   return name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+// Deterministic, v4-shaped UUID derived from an entity slug. The same slug
+// always yields the same id, so entities created in different build phases
+// reconcile to one node. This is the entity-identity primitive for the whole
+// graph — keep it the single definition.
+export function slugToId(slug) {
+  const h = crypto.createHash("sha256").update(slug).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
+// Build an entity record with the canonical field shape. Callers own their own
+// get-or-create guard and registry bookkeeping (entityMap / entityById); this
+// only constructs the object so the shape can't drift between phases.
+export function makeEntity(slug, name, entity_type, { subtype, defining_doc_id, is_active = 1, meta } = {}) {
+  return {
+    id: slugToId(slug),
+    slug,
+    name,
+    entity_type,
+    subtype: subtype ?? null,
+    defining_doc_id: defining_doc_id ?? null,
+    is_active,
+    meta: meta ? JSON.stringify(meta) : null,
+  };
 }
 
 // ---------------------------------------------------------------------------

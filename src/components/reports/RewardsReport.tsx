@@ -6,6 +6,7 @@ import { loadGraph } from "../../lib/graph";
 import { atlasHref } from "../../lib/routes";
 import type { AddressInfo } from "../../types";
 import { buildRewardsIndex, type RewardsIndex, type RewardsAgent } from "../../lib/rewardsIndex";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 
@@ -99,6 +100,7 @@ function AgentSection({
 }
 
 export function RewardsReport() {
+  useDocumentTitle("Integrator Reward Relationships: Sky Atlas by Redline");
   const [idx, setIdx] = useState<RewardsIndex | null>(null);
   const [addrMap, setAddrMap] = useState<Record<string, AddressInfo>>({});
   const [error, setError] = useState<string | null>(null);

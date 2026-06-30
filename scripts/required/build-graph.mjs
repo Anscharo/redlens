@@ -21,13 +21,12 @@
  *   public/relations.json    — lean browser payload
  */
 
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { slugify, normalizeKey, buildNameIndex } from "../lib/graph-patterns.mjs";
+import { slugify, normalizeKey, buildNameIndex, makeEntity } from "../lib/graph-patterns.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
@@ -53,6 +52,7 @@ import {
   extractEntityLabel,
   extractExpectedTokens,
 } from "../lib/address-annotate.mjs";
+import { normalizeChainLabel } from "../lib/chains.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -101,18 +101,9 @@ function resolveLabel(atlas, onChain) {
   return onChain.chainlogId ?? atlas.entityLabel ?? onChain.etherscanName ?? null;
 }
 
+// Populated by the Phase 2.6 annotation pass below (which overwrites every key
+// before Phase 1 entity extraction reads it). No pre-population needed here.
 const addressesRaw = {};
-for (const [addr, atlas] of Object.entries(addressesAtlas)) {
-  const onChain = addressesOnChain[addr] ?? {};
-  const label = resolveLabel(atlas, onChain);
-  const aliasCandidates = [onChain.chainlogId, atlas.entityLabel, onChain.etherscanName].filter(
-    (l) => l && l !== label,
-  );
-  const aliases = [
-    ...new Set([...(atlas.aliases ?? []), ...aliasCandidates]),
-  ].sort();
-  addressesRaw[addr] = { ...atlas, ...onChain, label, aliases };
-}
 console.log(`  ${Object.keys(addressesAtlas).length} atlas, ${Object.keys(addressesOnChain).length} on-chain`);
 
 console.log("Loading chain-state.json…");
@@ -276,21 +267,7 @@ function icdParamRole(key) {
   return null;
 }
 
-function normalizeChain(raw) {
-  if (!raw) return "ethereum";
-  const s = raw.toLowerCase();
-  if (s.includes("base")) return "base";
-  if (s.includes("arbitrum")) return "arbitrum";
-  if (s.includes("optimism")) return "optimism";
-  if (s.includes("solana")) return "solana";
-  if (s.includes("avalanche") || s.includes("avax")) return "avalanche";
-  if (s.includes("polygon")) return "polygon";
-  if (s.includes("gnosis")) return "gnosis";
-  if (s.includes("monad") || s.includes("plume") || s.includes("plasma")) return "ethereum"; // testnets/future — map to eth for now
-  if (s.includes("ethereum") || s.includes("mainnet")) return "ethereum";
-  console.warn(`  icd-chain: unrecognized chain string "${raw}", defaulting to ethereum`);
-  return "ethereum";
-}
+const normalizeChain = (raw) => normalizeChainLabel(raw, "icd-chain");
 
 function icdParamChain(key, params) {
   if (key.startsWith("Token Address (")) {
@@ -443,25 +420,14 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   }
   const entityById = new Map([...entityMap.values()].map((e) => [e.id, e]));
 
-  function slugToId(slug) {
-    const h = crypto.createHash("sha256").update(slug).digest("hex");
-    return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-${h.slice(16,20)}-${h.slice(20,32)}`;
-  }
-
   function addTableEntity(slug, name, et, isActive, defDocId, meta) {
-    const id = slugToId(slug);
-    const entity = {
-      id,
-      slug,
-      name,
-      entity_type: et,
-      subtype: null,
+    const entity = makeEntity(slug, name, et, {
       defining_doc_id: defDocId,
       is_active: isActive,
-      meta: JSON.stringify(meta),
-    };
+      meta,
+    });
     entityMap.set(slug, entity);
-    entityById.set(id, entity);
+    entityById.set(entity.id, entity);
     return entity;
   }
 
@@ -714,17 +680,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   function addPatternEntity(slug, name, entity_type, subtype, defining_doc_id, meta) {
     const existing = entityMap.get(slug);
     if (existing) return existing;
-    const h = crypto.createHash("sha256").update(slug).digest("hex");
-    const ent = {
-      id: `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-${h.slice(16,20)}-${h.slice(20,32)}`,
-      slug,
-      name,
-      entity_type,
-      subtype: subtype ?? null,
-      defining_doc_id: defining_doc_id ?? null,
-      is_active: 1,
-      meta: meta ? JSON.stringify(meta) : null,
-    };
+    const ent = makeEntity(slug, name, entity_type, { subtype, defining_doc_id, meta });
     entityMap.set(slug, ent);
     return ent;
   }

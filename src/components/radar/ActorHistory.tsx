@@ -9,6 +9,7 @@ import { useRadar } from "./RadarContext";
 import { loadAtlas } from "../../lib/docs";
 import { descendantIds } from "../../lib/instanceDescendants";
 import { shortenTitle } from "../../lib/shortenTitle";
+import { track } from "../../lib/analytics";
 import { ROW_COLORS, BORDER } from "./primitiveTable";
 
 type Category = "definition" | "instance" | "param" | "primitive" | "reward" | "config";
@@ -178,7 +179,12 @@ export function ActorHistory({ profile }: Props) {
   return (
     <div>
       {entries.map((e) => (
-        <Entry key={e.commitHash} entry={e} />
+        <Entry
+          key={e.commitHash}
+          entry={e}
+          agentSlug={profile.entity.slug}
+          agentName={profile.entity.name}
+        />
       ))}
     </div>
   );
@@ -188,7 +194,15 @@ function docHref(docId: string): string {
   return `${ROUTES.ATLAS}?id=${docId}&view=history`;
 }
 
-function Entry({ entry }: { entry: MergedEntry }) {
+function Entry({
+  entry,
+  agentSlug,
+  agentName,
+}: {
+  entry: MergedEntry;
+  agentSlug: string;
+  agentName: string;
+}) {
   const [open, setOpen] = useState(false);
   const prSuffix = entry.pr ? ` — #${entry.pr}` : "";
   const changeTypes = [...new Set(entry.docs.map((d) => d.changeType))];
@@ -196,7 +210,17 @@ function Entry({ entry }: { entry: MergedEntry }) {
     <div className="border-b py-2" style={{ borderColor: "var(--border)" }}>
       <button
         className="w-full text-left flex items-start gap-1.5"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          track("radar_history_toggle", {
+            agent_slug: agentSlug,
+            agent_name: agentName,
+            commit: entry.commitHash,
+            pr: entry.pr ?? null,
+            date: entry.date,
+            open: !open,
+          });
+          setOpen((o) => !o);
+        }}
         aria-expanded={open}
       >
         <span className="mono text-[10px] mt-0.5 shrink-0" style={{ color: "var(--tan-3)" }}>

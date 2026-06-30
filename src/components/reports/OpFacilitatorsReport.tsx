@@ -6,6 +6,8 @@ import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, type UrlCodec } from "../../hooks/useUrlState";
 import { atlasHref } from "../../lib/routes";
 import { toAnchorId } from "../../lib/anchorId";
+import { track } from "../../lib/analytics";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import type { GraphEntity } from "../../types";
 import {
   CATEGORY_LABELS,
@@ -135,6 +137,7 @@ function Row({ r, chains }: { r: OFResponsibility; chains: Map<string, AgentChai
 }
 
 export function OFReport() {
+  useDocumentTitle("Operational Facilitator Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
   const [filter, setFilter] = useUrlState("filter", filterCodec);
@@ -203,8 +206,16 @@ export function OFReport() {
     return edge ? (graphData.participants.find((p) => p.id === edge.f) ?? null) : null;
   }, [graphData]);
 
-  const toggle = (next: ActiveFilter) =>
+  const toggle = (next: ActiveFilter) => {
+    const cleared = filterEqual(filter, next);
+    track("report_filter", {
+      report: "of-responsibilities",
+      filter_kind: next?.kind ?? null,
+      slug: next && "slug" in next ? next.slug : null,
+      active: !cleared,
+    });
     setFilter((cur) => (filterEqual(cur, next) ? null : next));
+  };
 
   const filtered = responsibilities.flatMap((r) => {
     const expanded: OFResponsibility[] = r.agents

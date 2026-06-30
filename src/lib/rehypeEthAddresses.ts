@@ -1,6 +1,7 @@
 import { visit } from "unist-util-visit";
 import type { Root, Text, Element, ElementContent } from "hast";
 import { getAddressMap } from "./addressMap";
+import { explorerUrl } from "./explorer";
 
 const ETH_ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
 const SOL_ADDRESS_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
@@ -100,10 +101,7 @@ export function rehypeEthAddresses() {
           if (part.type === "text") {
             const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
               const addr = m[0];
-              const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-              const url =
-                addresses[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
-              return { linkText: addr, url };
+              return { linkText: addr, url: explorerUrl(addr, { addrMap: addresses }) };
             });
             if (addrParts) finalParts.push(...addrParts);
             else finalParts.push(part);
@@ -117,10 +115,7 @@ export function rehypeEthAddresses() {
 
       const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
         const addr = m[0];
-        const lookupKey = addr.startsWith("0x") ? addr.toLowerCase() : addr;
-        const url =
-          getAddressMap()[lookupKey]?.explorerUrl ?? `https://etherscan.io/address/${addr}`;
-        return { linkText: addr, url };
+        return { linkText: addr, url: explorerUrl(addr, { addrMap: getAddressMap() }) };
       });
       if (addrParts) {
         replacements.push({ parent: parent as Element, index, nodes: addrParts });

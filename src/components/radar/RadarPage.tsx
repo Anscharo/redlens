@@ -13,6 +13,7 @@ import { PrimitiveDashboard } from "./PrimitiveDashboard";
 import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 interface Props {
   query: string;
@@ -45,6 +46,14 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
     if (!actorSlug) return null;
     return buildActorProfile(actorSlug, graph, docs, rewardsIndex, allActiveDataRows);
   }, [actorSlug, graph, docs, rewardsIndex, allActiveDataRows]);
+
+  useDocumentTitle(
+    actorSlug
+      ? profile
+        ? `${profile.entity.name} Radar: Sky Atlas by Redline`
+        : null
+      : "Redline Radar for Sky Atlas",
+  );
 
   return (
     <RadarProvider value={{ docs }}>

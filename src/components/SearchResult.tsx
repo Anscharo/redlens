@@ -2,17 +2,18 @@ import { memo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { realDepth, depthColor } from "../lib/depth";
 import { atlasHref } from "../lib/routes";
+import { shortAddr } from "../lib/format";
 import type { SearchHit } from "../types";
 
 interface Props {
   hit: SearchHit;
+  rank: number; // 0-based position in the result list
+  onResultClick: (hit: SearchHit, rank: number) => void;
 }
 
-export const SearchResult = memo(function SearchResult({ hit }: Props) {
+export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
   const color = depthColor(realDepth(hit.doc_no));
-  const shortAddr = hit.chainlogAddress
-    ? `${hit.chainlogAddress.slice(0, 6)}…${hit.chainlogAddress.slice(-4)}`
-    : "";
+  const shortAddress = hit.chainlogAddress ? shortAddr(hit.chainlogAddress) : "";
 
   const reason = hit.chainlogId ? hit.matchReason.replace(/^chainlog \+ /, "") : hit.matchReason;
 
@@ -24,7 +25,7 @@ export const SearchResult = memo(function SearchResult({ hit }: Props) {
           <>
             <span className="text-[9px] text-tan-3">via chainlog</span>
             <span className="text-[10px] font-medium text-accent">{hit.chainlogId}</span>
-            <span className="text-[9px] text-tan-3">{shortAddr}</span>
+            <span className="text-[9px] text-tan-3">{shortAddress}</span>
           </>
         ) : (
           <>
@@ -36,6 +37,7 @@ export const SearchResult = memo(function SearchResult({ hit }: Props) {
       <AtlasLink
         to={atlasHref(hit.id)}
         className="search-result-link px-4 py-3"
+        onClick={() => onResultClick(hit, rank)}
       >
         <h3
           className="text-sm font-semibold mb-1 text-tan"

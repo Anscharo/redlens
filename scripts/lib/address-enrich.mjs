@@ -3,9 +3,10 @@
  * read-through disk cache.
  */
 
-import fs from "fs/promises";
-import path from "path";
-import { fileURLToPath } from "url";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { CHAIN_ID } from "./chains.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -13,16 +14,6 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
-
-const CHAIN_ID = {
-  ethereum: 1,
-  base: 8453,
-  arbitrum: 42161,
-  optimism: 10,
-  polygon: 137,
-  avalanche: 43114,
-  gnosis: 100,
-};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -198,7 +189,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
 // ---------------------------------------------------------------------------
 // Fetch implementation ABIs for proxy contracts
 //
-// fetch-snapshots.mjs reads contracts as proxies using their implementation's
+// fetch-chain-state.mjs reads contracts as proxies using their implementation's
 // ABI. Those impl addresses are never in the Atlas itself, so they won't have
 // been fetched above. Do a second pass here so the cache is complete before
 // the snapshot step runs.

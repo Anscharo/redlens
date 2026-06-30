@@ -14,6 +14,7 @@ import {
 import { EntityFlow } from "./constellations/EntityFlow";
 import { Loading } from "./Loading";
 import { ErrorBoundary, PanelError } from "./ErrorBoundary";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import type { GraphEntity } from "../types";
 
 const DEFAULT_HIDDEN_TYPES = new Set(["govops_org", "facilitator_org", "delegate_org"]);
@@ -22,6 +23,7 @@ const focusCodec = urlString(null);
 const filtersOpenCodec = urlBool(true);
 
 export function ConstellationsPage({ query }: { query: string }) {
+  useDocumentTitle("Constellations: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const docNoToId = atlas?.docNoToId ?? null;
   const [searchParams, setSearchParams] = useSearchParams();

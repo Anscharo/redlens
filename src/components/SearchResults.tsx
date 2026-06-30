@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "./Link";
 import { SearchResult } from "./SearchResult";
 import { SearchHints } from "./SearchHints";
@@ -8,6 +8,9 @@ import type { SearchMode } from "../hooks/useSearchInput";
 import { useUrlState, urlInt } from "../hooks/useUrlState";
 import { useScrollRestore } from "../hooks/useScrollRestore";
 import { loadGraph } from "../lib/graph";
+import { useSearchTracking } from "../hooks/useSearchTracking";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { track } from "../lib/analytics";
 import { matchParticipants, buildParticipantLinks } from "../lib/search";
 import { ENTITY_TYPE_LABEL, ENTITY_TYPE_COLOR, SUBTYPE_LABEL } from "../lib/entityGraph";
 
@@ -30,6 +33,7 @@ export const SearchResults = memo(function SearchResults({
   onHintClick,
   onBroadSearch,
 }: Props) {
+  useDocumentTitle(query ? `${query} — Sky Atlas by Redline` : null);
   const hits = state.status === "done" ? state.hits : empty;
   const [visible, setVisible] = useUrlState("n", visibleCodec);
   // Reset pagination only when the query actually changes. On mount with a restored
@@ -41,6 +45,37 @@ export const SearchResults = memo(function SearchResults({
       setVisible(PAGE_SIZE);
     }
   }, [query, setVisible]);
+
+  // Debounced atlas_search (fires after a typing pause; see hook).
+  useSearchTracking(state, mode);
+
+  // Track clicking a result: which query, its rank, whether top-5, and how long
+  // after the results were shown. shownAt marks when the current result set
+  // rendered (reset whenever a new query settles).
+  const shownAt = useRef(0);
+  const shownQuery = useRef("");
+  useEffect(() => {
+    if (state.status === "done") {
+      shownAt.current = performance.now();
+      shownQuery.current = state.query;
+    }
+  }, [state]);
+  const onResultClick = useCallback(
+    (hit: SearchHit, rank: number) => {
+      track("search_result_click", {
+        product: "search",
+        result_kind: "doc",
+        query: shownQuery.current,
+        rank: rank + 1, // 1-based
+        in_top_5: rank < 5,
+        ms_to_click: Math.round(performance.now() - shownAt.current),
+        result_count: hits.length,
+        node_id: hit.id,
+        doc_type: hit.type,
+      });
+    },
+    [hits.length],
+  );
 
   const [graph, setGraph] = useState<{ participants: GraphEntity[]; edges: import("../types").RelationEdge[] } | null>(null);
   useEffect(() => {
@@ -91,11 +126,25 @@ export const SearchResults = memo(function SearchResults({
               Agents · Alignment Conservers · Goverance Operators {entityHits.length}
             </div>
             <ul>
-              {entityHits.map(({ participant }) => (
+              {entityHits.map(({ participant }, i) => (
                 <li key={participant.id}>
                   <Link
                     to={participantLinks.get(participant.id)!}
                     className="search-result-link px-4 py-3 flex items-center gap-3"
+                    onClick={() =>
+                      track("search_result_click", {
+                        product: "search",
+                        result_kind: "entity",
+                        query: shownQuery.current,
+                        rank: i + 1, // 1-based, within the entity list
+                        in_top_5: i < 5,
+                        ms_to_click: Math.round(performance.now() - shownAt.current),
+                        result_count: entityHits.length,
+                        entity_id: participant.id,
+                        entity_slug: participant.slug,
+                        entity_type: participant.et,
+                      })
+                    }
                   >
                     <span
                       className="inline-block w-2.5 h-2.5 rounded-full shrink-0 mr-3"
@@ -145,9 +194,9 @@ export const SearchResults = memo(function SearchResults({
         )}
         {displayed.length > 0 && (
           <ul>
-            {displayed.map((hit) => (
+            {displayed.map((hit, i) => (
               <li key={hit.id}>
-                <SearchResult hit={hit} />
+                <SearchResult hit={hit} rank={i} onResultClick={onResultClick} />
               </li>
             ))}
           </ul>

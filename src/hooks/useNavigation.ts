@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { ROUTES } from "../lib/routes";
+import { track } from "../lib/analytics";
 
 // Read a param from the live URL at click time so it rides along on every
 // atlas-internal navigation (split stays open, active tab stays active).
@@ -30,6 +31,7 @@ export function useNavigation({
 
   const handleViewChange = useCallback(
     (v: "annotations" | "glossary" | "history") => {
+      track("atlas_view_tab", { node_id: nodeId, view: v });
       const params = new URLSearchParams();
       if (nodeId) params.set("id", nodeId);
       if (v !== "annotations") params.set("view", v);

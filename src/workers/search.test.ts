@@ -13,6 +13,8 @@ import { describe, it, expect, beforeAll } from "vitest";
 import MiniSearch from "minisearch";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { UUID_PREFIX_RE } from "../lib/patterns";
+import { matchUuidPrefix } from "../lib/uuidSearch";
 
 // KEEP IN SYNC WITH src/workers/search.worker.ts + scripts/required/build-index.mjs
 const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
@@ -144,6 +146,27 @@ describe("hint: A.1.2 — doc number jumps directly to a section", () => {
     for (const doc of Object.values(docs)) {
       expect(byDocNo.get(doc.doc_no)).toBeDefined();
     }
+  });
+});
+
+describe("hint: a491d7d0 — partial UUID prefix jumps to the doc", () => {
+  it("UUID_PREFIX_RE accepts an 8-hex fragment, rejects shorter hex-ish words", () => {
+    expect(UUID_PREFIX_RE.test("a491d7d0")).toBe(true);
+    expect(UUID_PREFIX_RE.test("facade")).toBe(false);
+  });
+
+  it("the 8-hex prefix resolves to a live doc whose full id starts with it", () => {
+    const ids = matchUuidPrefix("a491d7d0", Object.keys(docs));
+    expect(ids.length).toBeGreaterThanOrEqual(1);
+    for (const id of ids) expect(id.startsWith("a491d7d0")).toBe(true);
+  });
+
+  it("the id-scan is needed: the bare fragment is not a full-text index hit for its own doc", () => {
+    // The id field isn't in the MiniSearch index, so a fragment can't surface
+    // its own doc through full-text search — only the id scan finds it.
+    const target = matchUuidPrefix("a491d7d0", Object.keys(docs))[0];
+    const viaIndex = ms.search("a491d7d0", SEARCH_OPTS);
+    expect(viaIndex.some((r) => r.id === target)).toBe(false);
   });
 });
 

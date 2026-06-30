@@ -89,5 +89,3 @@ export const config = {
   // NOT continuity for stale tabs — open tabs are forced forward on drift/404.
   atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 2),
 };
-
-export type Config = typeof config;

@@ -16,14 +16,8 @@ import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import MiniSearch from "minisearch";
 
-import { sha256, HEADING_RE, parse, parseTree, cleanContent } from "../lib/atlas-parser.mjs";
+import { parse, parseTree } from "../lib/atlas-parser.mjs";
 import { ETH_ADDR_RE, SOL_ADDR_RE, normalizeAddress, detectChain } from "../lib/address-chains.mjs";
-
-// Avoid unused-import noise — keep these here so the file documents the full
-// surface of atlas-parser even though parse() is the only caller.
-void HEADING_RE;
-void cleanContent;
-void sha256;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -64,7 +58,10 @@ function extractAddresses(content) {
 
 // ---------------------------------------------------------------------------
 // Build MiniSearch index
-// KEEP IN SYNC WITH src/workers/search.worker.ts (same processTerm config)
+// This file produces search-index.json, which the worker + server deserialize
+// via MiniSearch.loadJSON — so these options MUST stay byte-identical to the
+// canonical copy in src/lib/searchOptions.ts (this .mjs runs under node and
+// can't import that .ts, hence the duplicated literal). Mirror any change there.
 // ---------------------------------------------------------------------------
 function buildIndex(nodes) {
   const ms = new MiniSearch({

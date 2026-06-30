@@ -1,5 +1,8 @@
 import type { AddressInfo } from "../types";
 import type { ChainValue } from "../lib/chainstate";
+import { explorerUrl } from "../lib/explorer";
+import { shortAddr } from "../lib/format";
+import { track } from "../lib/analytics";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -42,6 +45,7 @@ export function AddressCard({
         target="_blank"
         rel="noopener noreferrer"
         className="link-accent mono text-xs block mb-2 break-all"
+        onClick={() => track("reader_address_explorer_out", { address, chain: info.chain })}
       >
         {address}
       </a>
@@ -53,7 +57,7 @@ export function AddressCard({
               className="badge badge-accent mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
               title={`implementation ${info.implementation}`}
             >
-              proxy → {info.implementation.slice(0, 6)}…{info.implementation.slice(-4)}
+              proxy → {shortAddr(info.implementation)}
             </span>
           )}
           {info.roles.map((role) => (
@@ -79,7 +83,7 @@ export function AddressCard({
                   <span className="chain-key mono text-[10px] shrink-0">{key}</span>
                   {isAddr ? (
                     <a
-                      href={`https://etherscan.io/address/${val}`}
+                      href={explorerUrl(display)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="link-accent mono text-[10px] break-all"

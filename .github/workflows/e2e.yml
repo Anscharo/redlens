@@ -1,0 +1,101 @@
+name: E2E
+
+# Two ways in:
+#  1. deployment_status — Railway emits this when a per-PR environment finishes
+#     deploying. Keying off `state == success` removes the "tests started before
+#     the deploy was ready" race; we further scope to PR envs via the
+#     deterministic hostname (redlens-redlens-pr-<N>.up.railway.app) so
+#     production deploys don't trigger the suite.
+#  2. workflow_dispatch — manual run against any PR number, deriving the same
+#     deterministic URL. Useful to smoke the workflow before it's on main (a
+#     deployment_status workflow only fires once its file is on the default
+#     branch) or to re-run E2E on demand.
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to target (https://redlens-redlens-pr-<N>.up.railway.app)"
+        required: true
+        type: string
+
+jobs:
+  # Always runs on deployment_status so we can see exactly what Railway emits
+  # (state, environment, environment_url, …) even when the e2e job is skipped.
+  # Remove once the e2e gate below is confirmed firing on PR envs.
+  debug-deployment:
+    if: github.event_name == 'deployment_status'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump deployment_status payload
+        env:
+          DEPLOYMENT_STATUS: ${{ toJSON(github.event.deployment_status) }}
+          DEPLOYMENT: ${{ toJSON(github.event.deployment) }}
+        run: |
+          echo "state=${{ github.event.deployment_status.state }}"
+          echo "environment=${{ github.event.deployment_status.environment }}"
+          echo "environment_url=${{ github.event.deployment_status.environment_url }}"
+          echo "::group::deployment_status"; echo "$DEPLOYMENT_STATUS"; echo "::endgroup::"
+          echo "::group::deployment"; echo "$DEPLOYMENT"; echo "::endgroup::"
+
+  e2e:
+    # Manual dispatch always runs. For deployment_status, gate on a successful
+    # PR-environment deploy. Railway's `environment` is like
+    # "Redline Atlas / redlens-pr-103" (the PR number lives here), while
+    # `environment_url` is the Railway *console* link, not the app — so we gate on
+    # `environment` containing 'pr-' (prod envs don't) and derive the app URL below.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.environment, 'pr-'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve target URL
+        id: target
+        env:
+          ENV_NAME: ${{ github.event.deployment_status.environment }}
+          PR_INPUT: ${{ github.event.inputs.pr }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PR="${PR_INPUT}"
+          else
+            # environment_url is the Railway console (not the deploy), so derive the
+            # deterministic public hostname from the PR number in the env name.
+            PR="$(printf '%s' "$ENV_NAME" | grep -oE 'pr-[0-9]+' | grep -oE '[0-9]+' | head -1)"
+          fi
+          if [ -z "$PR" ]; then
+            echo "could not parse a PR number from environment '${ENV_NAME}'" >&2
+            exit 1
+          fi
+          echo "url=https://redlens-redlens-pr-${PR}.up.railway.app" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E
+        run: pnpm test:e2e
+        env:
+          BASE_URL: ${{ steps.target.outputs.url }}
+          # Lets the preview spec query the GitHub API (open PRs + changed files)
+          # without hitting the 60/hr unauthenticated limit.
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

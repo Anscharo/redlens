@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toDecisionsJson, type LocalIgnore } from "../../lib/curationStore";
+import { track } from "../../lib/analytics";
 
 const BTN =
   "px-2 py-1 rounded bg-[var(--hover)] text-tan text-xs hover:bg-[color-mix(in_srgb,var(--accent)_25%,var(--hover))]";
@@ -21,6 +22,7 @@ export function ProcessCurationBar({
   const json = toDecisionsJson(marks);
 
   const download = () => {
+    track("report_export", { report: "processes", format: "json", method: "download" });
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -31,6 +33,7 @@ export function ProcessCurationBar({
   };
 
   const copy = async () => {
+    track("report_export", { report: "processes", format: "json", method: "copy" });
     try {
       await navigator.clipboard.writeText(json);
       setCopied(true);

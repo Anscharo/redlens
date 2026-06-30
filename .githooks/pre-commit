@@ -1,0 +1,14 @@
+#!/bin/sh
+# Project git hooks live in .githooks/ and are activated by the "prepare"
+# npm script (git config core.hooksPath .githooks), which runs on pnpm install.
+
+# Only validate patch-notes.md when it's part of this commit — keeps the hook
+# instant for every other commit.
+if git diff --cached --name-only --diff-filter=ACM | grep -q '^patch-notes\.md$'; then
+  echo "Checking patch-notes.md…"
+  if ! pnpm run --silent check:patch-notes; then
+    echo
+    echo "Commit aborted: fix patch-notes.md (or 'git commit --no-verify' to skip)."
+    exit 1
+  fi
+fi
