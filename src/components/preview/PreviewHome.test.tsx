@@ -47,20 +47,46 @@ describe("PreviewHome recent list (AND-semantics)", () => {
 
     render(<PreviewHome />);
 
-    expect(await screen.findByText("my recent previews · 1")).toBeInTheDocument();
+    expect(await screen.findByText("my recent prs · 1")).toBeInTheDocument();
     expect(screen.getByText("pull-1")).toBeInTheDocument();
     expect(screen.queryByText("pull-2")).toBeNull();
     expect(screen.getByText("First PR")).toBeInTheDocument();
     expect(screen.getByText("by alice · 5 docs")).toBeInTheDocument();
   });
 
-  it("renders no recent-previews section when there's no intersection", async () => {
+  it("shows an empty recent tab (no count) when there's no intersection", async () => {
     localStorage.setItem("preview-history", JSON.stringify([{ id: "pull-9", sha: "zzz", at: 1 }]));
     mockList([dbRow({ sha: "aaa" })]);
     render(<PreviewHome />);
-    // Let the fetch resolve, then assert the section never appears.
     await screen.findByPlaceholderText(/Paste a next-gen-atlas/);
-    expect(screen.queryByText(/my recent previews/)).toBeNull();
+    // The tab is always present, but unbadged and with an empty-state message.
+    expect(screen.getByText("my recent prs")).toBeInTheDocument();
+    expect(screen.queryByText(/my recent prs · /)).toBeNull();
+    expect(screen.getByText(/No previews opened in this browser yet/)).toBeInTheDocument();
+  });
+});
+
+describe("PreviewHome open-atlas-prs tab", () => {
+  it("lazily loads and lists open PRs when the tab is selected", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      const body = url.includes("open-prs")
+        ? [{ number: 256, title: "Atomize docs", author: "bob", draft: false, updatedAt: "" }]
+        : [];
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
+    });
+
+    render(<PreviewHome />);
+    // The open-prs fetch must not fire until the tab is selected.
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(expect.stringContaining("open-prs"));
+
+    fireEvent.click(await screen.findByText("open atlas prs"));
+
+    expect(await screen.findByText("Atomize docs")).toBeInTheDocument();
+    expect(screen.getByText("#256")).toBeInTheDocument();
+    expect(screen.getByText("by bob")).toBeInTheDocument();
+    // Linked into the preview gate as pull-256.
+    expect(screen.getByText("Atomize docs").closest("a")?.getAttribute("href")).toContain("preview/pull-256");
   });
 });
 
