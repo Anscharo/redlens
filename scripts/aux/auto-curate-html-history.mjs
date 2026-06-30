@@ -9,6 +9,8 @@
 //   bun scripts/aux/auto-curate-html-history.mjs --measure    # print stats, write nothing
 //   bun scripts/aux/auto-curate-html-history.mjs --limit 25   # cap LLM calls (trial run)
 //   bun scripts/aux/auto-curate-html-history.mjs --concurrency 12 --out FILE
+//   bun scripts/aux/auto-curate-html-history.mjs --frontier [--frontier-limit N] [--frontier-model M]
+//                                                            # pass 3: escalate uncertain residual
 //
 // Like the audit + forward trace, this is OFFLINE review tooling: it writes a decisions
 // file (gitignored), never artifact data on the build path, so determinism is untouched.
@@ -21,7 +23,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
-import { writeAutoDecisions, reportAutoCuration } from "../lib/auto-curate-io.mjs";
+import { writeAutoDecisions, reportAutoCuration, writeProposals } from "../lib/auto-curate-io.mjs";
 import { proposePredecessor } from "../../src/server/history-curate.ts";
 import { config } from "../../src/server/config.ts";
 
@@ -30,13 +32,19 @@ const REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const CURATION = path.join(ROOT, "public/history-curation.json");
 const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };
 const OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
+const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
 const MEASURE = process.argv.includes("--measure");
+const FRONTIER_MODEL = arg("--frontier-model") || config.curationFrontierModel;
 const opts = {
   noLlm: process.argv.includes("--no-llm"),
   containment: !process.argv.includes("--no-containment"),
   limit: arg("--limit") ? Number(arg("--limit")) : Infinity,
   threshold: arg("--threshold") ? Number(arg("--threshold")) : undefined,
   concurrency: arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 5,
+  frontier: process.argv.includes("--frontier"),
+  frontierModel: FRONTIER_MODEL,
+  frontierLimit: arg("--frontier-limit") ? Number(arg("--frontier-limit")) : Infinity,
+  frontierConcurrency: arg("--frontier-concurrency") ? Math.max(1, Number(arg("--frontier-concurrency"))) : 3,
 };
 const LAST_HTML_SHA = "7b43d159";
 const HTML = "Sky Atlas/Sky Atlas.html";
@@ -59,8 +67,15 @@ const commits = shas.map((full, i) => {
   return { sha: full.slice(0, 8), nodes: loadHtmlAt(full, REPO) };
 });
 
-const { decisions, summary } = await runAutoCurate({ data, commits, propose: proposePredecessor, haveKey: !!config.openrouterApiKey, ...opts, log });
+const { decisions, proposals, summary } = await runAutoCurate({ data, commits, propose: proposePredecessor, haveKey: !!config.openrouterApiKey, ...opts, log });
 reportAutoCuration(data, decisions, summary);
 if (MEASURE) console.error("\n--measure: decisions NOT written.");
-else { writeAutoDecisions(OUT, data, decisions, summary, opts.concurrency); log(`wrote ${path.relative(ROOT, OUT)}  (${decisions.length} auto-decisions)`); }
+else {
+  writeAutoDecisions(OUT, data, decisions, summary, opts.concurrency);
+  log(`wrote ${path.relative(ROOT, OUT)}  (${decisions.length} auto-decisions)`);
+  if (opts.frontier) {
+    writeProposals(PROPOSALS_OUT, FRONTIER_MODEL, proposals);
+    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
+  }
+}
 log("done");

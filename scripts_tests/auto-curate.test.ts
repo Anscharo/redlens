@@ -2,7 +2,7 @@
 // two-independent-signals logic that decides whether a case can skip a human.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase } from "../scripts/lib/auto-curate.mjs";
+import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase, frontierTriggers, frontierCorroborator } from "../scripts/lib/auto-curate.mjs";
 
 const kase = (over: Record<string, unknown> = {}) => ({
   key: "n", kind: "tier-3", newerSha: "s", olderSha: "o", subjectKey: "n",
@@ -50,4 +50,42 @@ describe("resolveCase", () => {
     expect(resolveCase(kase(), "o2", "o2")).toBeNull(); // both name a DIFFERENT older
     expect(resolveCase(kase(), null, undefined)).toBeNull(); // forward birth, LLM not consulted
   });
+});
+
+describe("frontierTriggers (pass 3 eligibility)", () => {
+  // a confident, uncontested pick that nothing disagrees with → NOT eligible
+  const confident = kase({ candidates: [{ key: "o1", score: 0.98 }, { key: "o2", score: 0.3 }] });
+  it("fires on nothing for a confident, uncontested, corroborated pick", () =>
+    expect([...frontierTriggers(confident, { fwdKey: "o1", containKey: "o1", cheapKey: "o1" })]).toEqual([]));
+
+  it("T1 low-confidence: matcher score below 0.95", () =>
+    expect(frontierTriggers(kase(), {}).has("low-confidence")).toBe(true)); // 0.92
+
+  it("T1 also catches flagged-ambiguous cases (autoKey null → confidence 0)", () =>
+    expect(frontierTriggers(kase({ autoKey: null }), {}).has("low-confidence")).toBe(true));
+
+  it("T2 contested-rival: a confident pick shadowed by a near-tie runner-up", () => {
+    const tie = kase({ candidates: [{ key: "o1", score: 0.97 }, { key: "o2", score: 0.95 }] });
+    expect(frontierTriggers(tie, { fwdKey: "o1", containKey: "o1" }).has("contested-rival")).toBe(true);
+  });
+
+  it("T3 llm-disagrees: the cheap LLM named a different predecessor", () =>
+    expect(frontierTriggers(confident, { fwdKey: "o1", containKey: "o1", cheapKey: "o2" }).has("llm-disagrees")).toBe(true));
+
+  it("T4 matchers-disagree: forward or containment named a different predecessor", () => {
+    expect(frontierTriggers(confident, { fwdKey: "o2", containKey: "o1" }).has("forward-disagrees")).toBe(true);
+    expect(frontierTriggers(confident, { fwdKey: "o1", containKey: "o2" }).has("containment-disagrees")).toBe(true);
+  });
+});
+
+describe("frontierCorroborator (pass 3 lock gate)", () => {
+  it("matches the matcher / forward / containment signal", () => {
+    expect(frontierCorroborator("o1", { autoKey: "o1", fwdKey: "x", containKey: "y" })).toBe("matcher");
+    expect(frontierCorroborator("o1", { autoKey: "z", fwdKey: "o1", containKey: "y" })).toBe("forward");
+    expect(frontierCorroborator("o1", { autoKey: "z", fwdKey: "x", containKey: "o1" })).toBe("containment");
+  });
+  it("returns null when the frontier pick stands alone (→ hint, not lock)", () =>
+    expect(frontierCorroborator("o9", { autoKey: "o1", fwdKey: "o2", containKey: "o3" })).toBeNull());
+  it("returns null for a 'none' verdict", () =>
+    expect(frontierCorroborator("none", { autoKey: "none" })).toBeNull());
 });

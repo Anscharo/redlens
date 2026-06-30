@@ -118,5 +118,6 @@ export function autoLabel(via: string | undefined): string {
   if (via === "containment") return "Auto-resolved (reverse + containment agree)";
   if (via === "llm-90") return "Auto-resolved (LLM + 90% matcher agree)";
   if (via === "llm-95") return "Auto-resolved (LLM + 95% agree)";
+  if (via === "frontier") return "Auto-resolved (frontier model + an independent signal agree)";
   return "Auto-resolved";
 }

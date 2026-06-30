@@ -4,6 +4,9 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const port = Number(process.env.PORT ?? 3000);
+const appUrl =
+  process.env.APP_URL ??
+  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
 
 export const config = {
   port,
@@ -17,9 +20,12 @@ export const config = {
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
-  appUrl:
-    process.env.APP_URL ??
-    (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`),
+  appUrl,
+
+  // HTML-era curation save endpoint (POST /api/history-curate/save) writes the committed
+  // public/history-decisions.json. Curation is a LOCAL/dev activity, so this is enabled only
+  // on localhost (or explicit CURATION_SAVE=1) and 404s in prod — the served page is read-only.
+  curationSaveEnabled: process.env.CURATION_SAVE === "1" || appUrl.startsWith("http://localhost"),
 
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
@@ -41,6 +47,10 @@ export const config = {
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
+  // Frontier model the OFFLINE HTML-era auto-curator escalates UNCERTAIN cases to
+  // (pass 3, opt-in via --frontier). Pricier than chatModel; only the contested residual
+  // is routed here. Never used by the runtime chat/curation page — offline tooling only.
+  curationFrontierModel: process.env.CURATION_FRONTIER_MODEL ?? "openai/gpt-5.5",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
 

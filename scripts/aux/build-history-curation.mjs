@@ -6,6 +6,10 @@
 //                                                         #   (forward∩reverse + LLM∩matcher,
 //                                                         #    reusing the loaded commits)
 //   ... --auto --no-llm | --limit N | --concurrency N | --threshold X   # tune the auto pass
+//   ... --auto --frontier [--frontier-limit N] [--frontier-model M]     # pass 3: escalate the
+//                                                         #   uncertain residual to a frontier model
+//                                                         #   (locks on agreement w/ an independent
+//                                                         #    signal, else writes a UI hint)
 //
 // `--auto` is what `pnpm htmlhist:curate` runs: it writes BOTH public/history-curation.json
 // (the queue) and public/history-auto-decisions.json (the pre-filled baseline) in one shot.
@@ -33,7 +37,7 @@ import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { matchNodes } from "../lib/history-identity.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
-import { reportAutoCuration, writeAutoDecisions } from "../lib/auto-curate-io.mjs";
+import { reportAutoCuration, writeAutoDecisions, writeProposals } from "../lib/auto-curate-io.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
@@ -43,12 +47,18 @@ const STATS_ONLY = process.argv.includes("--stats");
 const AUTO = process.argv.includes("--auto"); // also auto-resolve, reusing the loaded commits
 const RECOVER = !process.argv.includes("--no-recover"); // tier-3.5 content recovery (trusted, not curated)
 const AUTO_OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
+const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
+const FRONTIER_MODEL_ARG = arg("--frontier-model"); // default resolved from config below
 const autoOpts = {
   noLlm: process.argv.includes("--no-llm"),
   containment: !process.argv.includes("--no-containment"),
   limit: arg("--limit") ? Number(arg("--limit")) : Infinity,
   threshold: arg("--threshold") ? Number(arg("--threshold")) : undefined,
   concurrency: arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 5,
+  // pass 3 (frontier escalation): off unless --frontier; --frontier-limit caps spend
+  frontier: process.argv.includes("--frontier"),
+  frontierLimit: arg("--frontier-limit") ? Number(arg("--frontier-limit")) : Infinity,
+  frontierConcurrency: arg("--frontier-concurrency") ? Math.max(1, Number(arg("--frontier-concurrency"))) : 3,
 };
 const MIGRATION_SHA = "22cc27b5", LAST_HTML_SHA = "7b43d159";
 const CANDIDATES_PER_CASE = 6;
@@ -305,13 +315,18 @@ if (STATS_ONLY) {
 if (AUTO) {
   const { proposePredecessor } = await import("../../src/server/history-curate.ts");
   const { config } = await import("../../src/server/config.ts");
-  log("\nauto-curation (forward∩reverse + LLM∩matcher)…");
-  const { decisions, summary } = await runAutoCurate({
+  const frontierModel = FRONTIER_MODEL_ARG || config.curationFrontierModel;
+  log(`\nauto-curation (forward∩reverse + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})…`);
+  const { decisions, proposals, summary } = await runAutoCurate({
     data: artifact, commits: htmlCommits, propose: proposePredecessor,
-    haveKey: !!config.openrouterApiKey, ...autoOpts, log,
+    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, log,
   });
   reportAutoCuration(artifact, decisions, summary);
   writeAutoDecisions(AUTO_OUT, artifact, decisions, summary, autoOpts.concurrency);
   log(`wrote ${path.relative(ROOT, AUTO_OUT)}  (${decisions.length} auto-decisions)`);
+  if (autoOpts.frontier) {
+    writeProposals(PROPOSALS_OUT, frontierModel, proposals);
+    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
+  }
   console.error(`\nnext: review the ${summary.residual} residual cases at /reports/history-curate (auto-resolved are pre-filled), then bake with:  pnpm htmlhist:apply ${path.relative(ROOT, AUTO_OUT)}`);
 }

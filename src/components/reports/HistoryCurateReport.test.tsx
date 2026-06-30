@@ -1,12 +1,16 @@
 // @vitest-environment jsdom
-// Smoke + interaction test for the HTML-era history curation page. Mocks the data
-// layer (offline case file + LLM proposal) so it runs headless in jsdom.
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+// Smoke + interaction test for the HTML-era history curation page. Mocks the data layer
+// (offline case file + auto-resolved baseline + frontier hints) so it runs headless in
+// jsdom. The page makes NO live LLM calls — suggestions come from the static proposals file.
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const { sampleData, savePicks, proposeSpy, auto } = vi.hoisted(() => ({
-  // mutable holder for the offline auto-resolved baseline (default: none)
+const { sampleData, savePicks, auto, proposals, committed, saveSpy } = vi.hoisted(() => ({
+  // mutable holders for the offline baseline + frontier hints + committed human decisions
   auto: { current: {} as Record<string, { chosenKey: string; auto: string }> },
+  proposals: { current: {} as Record<string, { chosenKey: string; why: string }> },
+  committed: { current: {} as Record<string, string> },
+  saveSpy: vi.fn(() => Promise.resolve(1)),
   sampleData: {
     meta: { migrationSha: "aaaaaaa", lastHtmlSha: "bbbbbbb", casesByKind: { ambiguous: 1 } },
     commits: [],
@@ -22,7 +26,6 @@ const { sampleData, savePicks, proposeSpy, auto } = vi.hoisted(() => ({
     ],
   },
   savePicks: vi.fn(),
-  proposeSpy: vi.fn(() => Promise.resolve({ chosenKey: "o:1", why: "same doc, DAI→USDC edit" })),
 }));
 
 vi.mock("../../lib/historyCuration", () => ({
@@ -30,14 +33,16 @@ vi.mock("../../lib/historyCuration", () => ({
   loadPicks: () => ({}),
   savePicks,
   loadAutoDecisions: () => Promise.resolve(auto.current),
+  loadProposals: () => Promise.resolve(proposals.current),
+  loadDecisions: () => Promise.resolve(committed.current),
+  saveDecisions: saveSpy,
   downloadDecisions: vi.fn(),
-  proposePredecessor: proposeSpy,
 }));
 
 import { HistoryCurateReport } from "./HistoryCurateReport";
 
 describe("HistoryCurateReport", () => {
-  beforeEach(() => { savePicks.mockClear(); proposeSpy.mockClear(); auto.current = {}; });
+  beforeEach(() => { savePicks.mockClear(); saveSpy.mockClear(); auto.current = {}; proposals.current = {}; committed.current = {}; });
   afterEach(() => cleanup());
 
   it("renders the first case with its candidates", async () => {
@@ -48,10 +53,10 @@ describe("HistoryCurateReport", () => {
     expect(screen.getByText("90%")).toBeTruthy(); // candidate score
   });
 
-  it("shows the LLM proposal once it resolves", async () => {
+  it("shows a frontier suggestion sourced from the static proposals file", async () => {
+    proposals.current = { case1: { chosenKey: "o:1", why: "same doc, DAI→USDC edit" } };
     render(<HistoryCurateReport />);
-    await waitFor(() => expect(screen.getByText(/LLM suggests/i)).toBeTruthy());
-    expect(proposeSpy).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/LLM suggests/i)).toBeTruthy();
     expect(screen.getByText(/same doc, DAI→USDC edit/)).toBeTruthy();
   });
 
@@ -94,5 +99,22 @@ describe("HistoryCurateReport", () => {
     await screen.findByText(/Pick its previous version/i);
     expect(screen.getByText(/1 auto-resolved/)).toBeTruthy(); // header badge
     expect(screen.getByText(/forward \+ reverse agree/i)).toBeTruthy(); // Confirm button provenance
+  });
+
+  it("a committed human decision overrides the baseline and drops the auto badge", async () => {
+    auto.current = { case1: { chosenKey: "o:2", auto: "llm-90" } }; // baseline said o:2
+    committed.current = { case1: "o:1" }; // human committed o:1 instead
+    render(<HistoryCurateReport />);
+    await screen.findByText(/Pick its previous version/i);
+    expect(screen.getByText(/1 \/ 1 decided/)).toBeTruthy(); // committed pick counts as decided
+    expect(screen.queryByText(/auto-resolved/i)).toBeNull(); // human overrode → no auto badge
+  });
+
+  it("Save to repo writes the committed decisions via saveDecisions", async () => {
+    render(<HistoryCurateReport />);
+    await screen.findByText(/Pick its previous version/i);
+    fireEvent.click(screen.getByText(/save to repo/i));
+    expect(saveSpy).toHaveBeenCalledOnce();
+    expect(await screen.findByText(/git commit public\/history-decisions\.json/i)).toBeTruthy();
   });
 });

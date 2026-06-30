@@ -30,8 +30,17 @@ const MEASURE = process.argv.includes("--measure");
 // Content-recovery tier (plan §4.2 follow-up): recover bulk-rename continuations the
 // structural-key tiers drop to death+birth. ON by default; `--no-recover` reverts.
 const RECOVER = !process.argv.includes("--no-recover");
-// `--decisions <file>` applies the human-confirmed curation choices (plan §10.4).
-const DECISIONS_PATH = ((i) => (i >= 0 ? process.argv[i + 1] : null))(process.argv.indexOf("--decisions"));
+// `--decisions [file]` applies the human-confirmed curation choices (plan §10.4). With no
+// path (the bare `pnpm htmlhist:apply`), it defaults to the COMMITTED decisions file so the
+// applied freeze reproduces from git on any checkout. `--decisions` absent = plain prepare.
+const DEFAULT_DECISIONS = path.join(ROOT, "public/history-decisions.json");
+const DECISIONS_PATH = (() => {
+  const i = process.argv.indexOf("--decisions");
+  if (i < 0) return null; // no curation overrides → plain auto-threaded freeze
+  const next = process.argv[i + 1];
+  if (next && !next.startsWith("--")) return next; // explicit path
+  return fs.existsSync(DEFAULT_DECISIONS) ? DEFAULT_DECISIONS : null; // committed default
+})();
 const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
 const git = (a) => execSync(`git -C "${REPO}" ${a}`, { maxBuffer: 1 << 30 }).toString();
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -79,6 +88,7 @@ console.error(`loaded ${commits.length} html commits + ${md.length} md docs in $
 // backward hops. Once recorded, the same decisions reproduce the same artifact.
 let seedOverrides = null, hopOverrides = null, applied = null;
 if (DECISIONS_PATH) {
+  console.error(`decisions: applying ${path.relative(ROOT, DECISIONS_PATH)}`);
   const file = JSON.parse(fs.readFileSync(DECISIONS_PATH, "utf8"));
   // md5(raw #117 body) → uuid, matching build-history-curation.mjs's content-address
   const rawUuid = new Map();

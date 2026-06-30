@@ -1,9 +1,9 @@
-// Client logic for the HTML-era history CURATION tool (plan §10.4). Loads the
-// offline case file (public/history-curation.json, built by
-// scripts/aux/build-history-curation.mjs), persists the human's picks in
-// localStorage, asks the server LLM to pre-propose a predecessor, and exports a
-// content-addressed decisions.json the build can apply. Pure-ish: only loadCuration
-// and proposePredecessor touch the network.
+// Client logic for the HTML-era history CURATION tool (plan §10.4). Loads three static,
+// offline-built JSONs — the case file (public/history-curation.json), the auto-resolved
+// baseline (history-auto-decisions.json), and the frontier hints (history-curation-
+// proposals.json) — persists the human's picks in localStorage, and exports a content-
+// addressed decisions.json the build can apply. No runtime LLM calls: the cheap + frontier
+// opinions are pre-computed in the prepare phase, so the page is a pure static consumer.
 
 export interface CurationNode {
   sha: string;
@@ -84,6 +84,42 @@ export function buildDecisionsFile(data: CurationData, picks: Record<string, Pic
   };
 }
 
+// --- committed human decisions (public/history-decisions.json) --------------------
+// The human's saved choices, COMMITTED to git (written by the dev save endpoint below
+// or by hand). Loaded so curation state persists across machines / checkouts, not just
+// one browser's localStorage. Best-effort: absent → no committed layer yet.
+export async function loadDecisions(): Promise<Record<string, Pick>> {
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}history-decisions.json`);
+    if (!r.ok) return {};
+    const file = await r.json();
+    const out: Record<string, Pick> = {};
+    for (const d of file.decisions || []) out[d.caseKey] = d.chosenKey;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+// Persist the human's choices to the committed file via the DEV-ONLY save endpoint, so the
+// next `pnpm htmlhist:apply` bakes them and any checkout reloads them. Throws when the
+// endpoint is disabled (prod) or unreachable — the caller falls back to the download export.
+export async function saveDecisions(data: CurationData, picks: Record<string, Pick>): Promise<number> {
+  const file = buildDecisionsFile(data, picks);
+  const r = await fetch("/api/history-curate/save", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(file),
+  });
+  // Bun doesn't hot-reload routes: a stale server falls through to the SPA HTML.
+  if (!(r.headers.get("content-type") || "").includes("application/json")) {
+    throw new Error("save endpoint not found — restart the dev server (Bun routes don't hot-reload)");
+  }
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || `save failed: ${r.status}`);
+  return body.count ?? file.count;
+}
+
 export function downloadDecisions(data: CurationData, picks: Record<string, Pick>): void {
   const blob = new Blob([JSON.stringify(buildDecisionsFile(data, picks), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -117,30 +153,23 @@ export async function loadAutoDecisions(): Promise<Record<string, AutoDecision>>
   }
 }
 
-// --- LLM pre-proposal (server endpoint /api/history-curate/propose) --------------
+// --- frontier hints (offline, pass 3 of the auto-curator) -------------------------
+// A frontier-model suggested predecessor + reasoning for an UNCERTAIN residual case the
+// model couldn't corroborate into a lock. Pre-computed in the prepare phase (along with
+// the cheap-LLM pass), so the page makes NO LLM calls at runtime — it just displays these.
+// This is what replaced the old live /api/history-curate/propose request, making the page
+// a static, key-free consumer of three JSONs (queue + decisions + proposals).
 export interface Proposal {
   chosenKey: string | "none";
   why: string;
 }
-export async function proposePredecessor(subject: CurationNode, candidates: { key: string; node: CurationNode }[]): Promise<Proposal> {
-  const r = await fetch("/api/history-curate/propose", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      subject: { title: subject.title, content: subject.content },
-      candidates: candidates.map((c) => ({ key: c.key, title: c.node.title, content: c.node.content })),
-    }),
-  });
-  // The Bun server doesn't hot-reload routes: if it was started before this endpoint
-  // existed, the request falls through to the SPA fallback and returns HTML. Detect
-  // that and say so, instead of an opaque JSON-parse error.
-  const contentType = r.headers.get("content-type") || "";
-  if (!contentType.includes("application/json")) {
-    throw new Error("propose endpoint not found — restart the dev server (Bun routes don't hot-reload)");
+export async function loadProposals(): Promise<Record<string, Proposal>> {
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}history-curation-proposals.json`);
+    if (!r.ok) return {}; // gitignored / not generated → no suggestions, human curates unaided
+    const file = await r.json();
+    return (file.proposals as Record<string, Proposal>) || {};
+  } catch {
+    return {};
   }
-  if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body.error || `propose failed: ${r.status}`);
-  }
-  return r.json();
 }

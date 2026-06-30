@@ -20,8 +20,16 @@ export function reportAutoCuration(data, decisions, summary) {
   console.error(
     `\nhand-review queue: ${summary.totalCases} → ${summary.residual}  ` +
     `(${summary.reductionPct}% auto-resolved: ${summary.resolvedByForwardReverse} forward∩reverse + ` +
-    `${summary.resolvedByContainment ?? 0} reverse∩containment + ${summary.resolvedByLlm} LLM∩matcher)`,
+    `${summary.resolvedByContainment ?? 0} reverse∩containment + ${summary.resolvedByLlm} LLM∩matcher` +
+    `${summary.frontierCalls ? ` + ${summary.resolvedByFrontier} frontier∩signal` : ""})`,
   );
+  if (summary.frontierCalls) {
+    console.error(
+      `frontier (${summary.frontierModel}): ${summary.frontierCalls} calls → ` +
+      `${summary.resolvedByFrontier} locked + ${summary.frontierHints} hints` +
+      `${summary.frontier?.limited ? ` · ${summary.frontier.limited} over the cap (left for a human)` : ""}`,
+    );
+  }
 }
 
 export function writeAutoDecisions(outPath, data, decisions, summary, concurrency) {
@@ -29,10 +37,26 @@ export function writeAutoDecisions(outPath, data, decisions, summary, concurrenc
     kind: "html-era-history-decisions",
     source: "auto-curate",
     builtFrom: { migrationSha: data.meta?.migrationSha, lastHtmlSha: data.meta?.lastHtmlSha },
-    auto: { forwardReverse: summary.resolvedByForwardReverse, ...summary.llm, concurrency },
+    auto: {
+      forwardReverse: summary.resolvedByForwardReverse,
+      containment: summary.resolvedByContainment,
+      ...summary.llm, concurrency,
+      ...(summary.frontierCalls ? { frontier: summary.frontier } : {}),
+    },
     count: decisions.length,
     decisions,
   };
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
+}
+
+// Frontier HINTS (uncorroborated frontier picks) — surfaced in the curation UI as a
+// suggested predecessor + reasoning the human confirms. Static, gitignored, never on the
+// build path; lets the page drop its live LLM call (everything is pre-computed offline).
+export function writeProposals(outPath, model, proposals) {
+  const map = {};
+  for (const p of proposals) map[p.caseKey] = { chosenKey: p.chosenKey, why: p.why };
+  const file = { kind: "html-era-curation-proposals", source: "frontier", model, count: proposals.length, proposals: map };
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
 }

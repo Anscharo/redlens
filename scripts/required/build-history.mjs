@@ -37,6 +37,7 @@ import { lineDiff } from "../../src/lib/diffCore.ts";
 import {
   eventToRow,
   gitCommitSeq,
+  htmlEraRows,
   readHistoryCursor,
   upsertHistory,
 } from "../../src/server/history-db.ts";
@@ -607,9 +608,27 @@ async function main() {
       }
     }
     await upsertHistory(sql, rows);
+
+    // ── HTML-era (pre-#117) frozen history ───────────────────────────────────
+    // The committed artifact (public/history-html-era.json) carries the human/auto
+    // curation decisions baked in (scripts/aux/freeze-html-history.mjs). Upsert it
+    // idempotently on every sync — same (doc_id, commit_sha, change_type) conflict key —
+    // so BOTH dev (preflight) and Railway (atlas worker) serve the applied reconstruction
+    // from atlas_history. commit_seq is reconciled by sha via seqByCommit, never trusted
+    // from the baked artifact. Absent (un-applied) → skipped, markdown era unaffected.
+    let htmlEraCount = 0;
+    const htmlEraPath = path.join(ROOT, "public/history-html-era.json");
+    if (fs.existsSync(htmlEraPath)) {
+      const artifact = JSON.parse(fs.readFileSync(htmlEraPath, "utf8"));
+      const htmlRows = htmlEraRows(artifact, seqByCommit);
+      await upsertHistory(sql, htmlRows);
+      htmlEraCount = htmlRows.length;
+    }
+
     await sql.end();
     console.error(
-      `\ndone: upserted ${rows.length} change entries across ${newHistory.size} nodes into atlas_history`,
+      `\ndone: upserted ${rows.length} markdown-era change entries across ${newHistory.size} nodes` +
+      `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""} into atlas_history`,
     );
     return;
   }

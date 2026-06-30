@@ -111,3 +111,96 @@ describe("runAutoCurate", () => {
     expect(summary.llm.limited).toBe(1); // 1 eligible, none asked
   });
 });
+
+describe("runAutoCurate — pass 3 (frontier escalation)", () => {
+  // a residual, frontier-eligible case: its subject isn't a node in `commits` (so the
+  // forward pass abstains), its lone candidate is unrelated prose (containment can't lock),
+  // and the matcher pick is 0.92-confident (<0.95 → T1 low-confidence fires).
+  const subjC = "some moderately wordy subject paragraph that exists only to be curated here";
+  const goodKey = "old00000:aaaa1111";
+  const baseData = () => ({
+    meta: {},
+    nodes: {
+      "new00000:zzzz": { title: "subj", content: subjC },
+      [goodKey]: { title: "cand", content: "an entirely unrelated older candidate body text now" },
+    },
+    cases: [{
+      key: "new00000:zzzz", kind: "tier-3", newerSha: "new00000", olderSha: "old00000",
+      subjectKey: "new00000:zzzz", autoKey: goodKey, candidates: [{ key: goodKey, score: 0.92 }],
+    }],
+  });
+  // stub: the cheap pass (no opts.model) DECLINES so the case stays residual; the frontier
+  // pass (opts.model set) answers `frontierPick`. Records every model it was called with.
+  const proposer = (frontierPick: string) => {
+    const calls: string[] = [];
+    const propose = async (_s: unknown, _c: unknown, opts?: { model?: string }) => {
+      calls.push(opts?.model ?? "cheap");
+      return opts?.model ? { chosenKey: frontierPick, why: "frontier" } : { chosenKey: "none", why: "cheap declines" };
+    };
+    return { propose, calls };
+  };
+
+  it("locks a residual case when the frontier agrees with an independent signal (matcher)", async () => {
+    const { propose, calls } = proposer(goodKey);
+    const { decisions, proposals, summary } = await runAutoCurate({
+      data: baseData(), commits, haveKey: true, frontier: true, frontierModel: "test-frontier", propose,
+    });
+    expect(calls).toContain("test-frontier"); // the frontier model was actually used
+    expect(summary.resolvedByFrontier).toBe(1);
+    expect(proposals).toHaveLength(0);
+    expect(decisions.find((d: { auto: string }) => d.auto === "frontier")).toMatchObject({ chosenKey: goodKey, corroborator: "matcher" });
+  });
+
+  it("records a HINT (no lock) when the frontier pick has no independent corroborator", async () => {
+    const { propose } = proposer("none"); // frontier abstains → nothing to corroborate
+    const { decisions, proposals, summary } = await runAutoCurate({
+      data: baseData(), commits, haveKey: true, frontier: true, frontierModel: "test-frontier", propose,
+    });
+    expect(summary.resolvedByFrontier).toBe(0);
+    expect(summary.frontierHints).toBe(1);
+    expect(decisions.some((d: { auto: string }) => d.auto === "frontier")).toBe(false);
+    expect(proposals[0]).toMatchObject({ caseKey: "new00000:zzzz", chosenKey: "none" });
+  });
+
+  it("does NOT call the frontier model when --frontier is off (default)", async () => {
+    const { propose, calls } = proposer(goodKey);
+    const { summary, proposals } = await runAutoCurate({ data: baseData(), commits, haveKey: true, propose });
+    expect(calls).not.toContain("test-frontier");
+    expect(summary.resolvedByFrontier).toBe(0);
+    expect(proposals).toHaveLength(0);
+  });
+
+  it("honours --frontier-limit, leaving the overflow for a human", async () => {
+    const d = baseData();
+    d.nodes["new00000:yyyy"] = { title: "subj2", content: subjC + " and a second variant for shingles" };
+    d.nodes["old00000:bbbb2222"] = { title: "cand2", content: "another wholly unrelated older candidate body" };
+    d.cases.push({
+      key: "new00000:yyyy", kind: "tier-3", newerSha: "new00000", olderSha: "old00000",
+      subjectKey: "new00000:yyyy", autoKey: "old00000:bbbb2222", candidates: [{ key: "old00000:bbbb2222", score: 0.92 }],
+    });
+    const { propose, calls } = proposer(goodKey);
+    const { summary } = await runAutoCurate({
+      data: d, commits, haveKey: true, frontier: true, frontierLimit: 1, frontierModel: "test-frontier", propose,
+    });
+    expect(calls.filter((m) => m === "test-frontier")).toHaveLength(1); // capped at 1
+    expect(summary.frontier.eligible).toBe(2);
+    expect(summary.frontier.limited).toBe(1);
+  });
+
+  it("routes a >0.95-confident case to the frontier when the cheap LLM disagreed (T3)", async () => {
+    const d = baseData();
+    d.cases[0].candidates = [{ key: goodKey, score: 0.98 }]; // T1 (conf<0.95) does NOT fire
+    const calls: string[] = [];
+    // cheap returns a phantom (≠ autoKey, ≠ none) → T3 makes it eligible; frontier picks autoKey
+    const propose = async (_s: unknown, _c: unknown, opts?: { model?: string }) => {
+      calls.push(opts?.model ?? "cheap");
+      return opts?.model ? { chosenKey: goodKey, why: "f" } : { chosenKey: "ghost00:dead", why: "cheap disagrees" };
+    };
+    const { summary, decisions } = await runAutoCurate({
+      data: d, commits, haveKey: true, frontier: true, frontierModel: "test-frontier", propose,
+    });
+    expect(calls).toContain("test-frontier"); // T3 routed it despite 0.98 confidence
+    expect(summary.resolvedByFrontier).toBe(1);
+    expect(decisions.find((x: { auto: string; corroborator?: string }) => x.auto === "frontier")?.corroborator).toBe("matcher");
+  });
+});

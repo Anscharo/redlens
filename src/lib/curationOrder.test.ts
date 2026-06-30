@@ -91,6 +91,7 @@ describe("autoLabel", () => {
     expect(autoLabel("forward-reverse")).toMatch(/forward \+ reverse/);
     expect(autoLabel("llm-90")).toMatch(/90%/);
     expect(autoLabel("llm-95")).toMatch(/95%/);
+    expect(autoLabel("frontier")).toMatch(/frontier/i);
     expect(autoLabel(undefined)).toBe("Auto-resolved");
   });
 });

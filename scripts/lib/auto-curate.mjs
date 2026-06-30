@@ -57,3 +57,49 @@ export function resolveCase(kase, fwdOlderKey, llmChosenKey) {
   if (llmChosenKey !== undefined && llmConfirms(kase, llmChosenKey)) return { chosenKey: kase.autoKey, via: "llm-90" };
   return null;
 }
+
+// --- pass 3: frontier-model escalation on UNCERTAIN residual cases -----------------
+// The cheap passes above resolve the confident, corroborated cases; the residual is the
+// hard tail (the #117 seam + bulk-rename hops). A frontier model is spent ONLY on the
+// uncertain ones, and — keeping the two-independent-signals invariant — its verdict only
+// LOCKS a case when it agrees with an existing independent signal; otherwise it's a HINT.
+
+// A confident pick (≥0.9) but a near-tie runner-up means two docs are both plausible.
+export const FRONTIER_HI_CONF = 0.95;
+export const FRONTIER_RIVAL_MARGIN = 0.05;
+
+// margin between the top two candidate scores (candidates are pre-sorted desc).
+function topMargin(kase) {
+  const cs = kase.candidates || [];
+  return cs.length < 2 ? Infinity : cs[0].score - cs[1].score;
+}
+
+// Which uncertainty triggers fire for a residual case (empty set = not frontier-eligible).
+// All inputs come from signals the orchestrator already has: matcher score (autoConfidence),
+// the forward link, the containment best, and the cheap-LLM pick from pass 2.
+export function frontierTriggers(kase, { fwdKey, containKey, cheapKey, hiConf = FRONTIER_HI_CONF, rivalMargin = FRONTIER_RIVAL_MARGIN } = {}) {
+  const fired = new Set();
+  const conf = autoConfidence(kase);
+  // T1 low confidence (also catches flagged-ambiguous: autoKey null → conf 0)
+  if (conf < hiConf) fired.add("low-confidence");
+  // T2 contested rival: a confident pick shadowed by a near-tie runner-up (catches the
+  // >0.95 cases T1 misses — "confident but another doc is also plausible")
+  if (kase.autoKey && conf >= 0.9 && topMargin(kase) < rivalMargin) fired.add("contested-rival");
+  // T3 the cheap LLM named a DIFFERENT predecessor than the matcher
+  if (kase.autoKey && cheapKey && cheapKey !== "none" && cheapKey !== kase.autoKey) fired.add("llm-disagrees");
+  // T4 an independent matcher (forward / containment) disagreed with the reverse auto-pick
+  if (kase.autoKey && fwdKey && fwdKey !== kase.autoKey) fired.add("forward-disagrees");
+  if (kase.autoKey && containKey && containKey !== kase.autoKey) fired.add("containment-disagrees");
+  return fired;
+}
+
+// Does the frontier's pick line up with an INDEPENDENT existing signal? Only then may the
+// case auto-lock (the two-independent-signals invariant). The cheap LLM is deliberately
+// NOT a corroborator — two LLMs share failure modes, so that's one signal, not two.
+export function frontierCorroborator(chosenKey, { autoKey, fwdKey, containKey } = {}) {
+  if (!chosenKey || chosenKey === "none") return null;
+  if (autoKey && chosenKey === autoKey) return "matcher";
+  if (fwdKey && chosenKey === fwdKey) return "forward";
+  if (containKey && chosenKey === containKey) return "containment";
+  return null;
+}
