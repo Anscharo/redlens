@@ -11,7 +11,7 @@ import {
   loadCuration, loadPicks, savePicks, loadAutoDecisions, loadProposals, loadDecisions,
   downloadDecisions, saveDecisions, type CurationData, type Pick, type Proposal,
 } from "../../lib/historyCuration";
-import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoLabel } from "../../lib/curationOrder";
+import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoLabel, caseCategory, CASE_FILTERS, type CaseFilter } from "../../lib/curationOrder";
 import { CurationCase } from "./CurationCase";
 import { CurationCommitStrip } from "./CurationCommitStrip";
 import { CurationTimeline } from "./CurationTimeline";
@@ -21,13 +21,15 @@ export function HistoryCurateReport() {
   const [data, setData] = useState<CurationData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, Pick>>({});
-  const [kind, setKind] = useState<string>("all");
+  const [filter, setFilter] = useState<CaseFilter>("all");
   const [index, setIndex] = useState(0);
   const [proposals, setProposals] = useState<Record<string, Proposal>>({});
   const [showChart, setShowChart] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   // case key -> mechanism that auto-resolved it (forward-reverse | containment | llm-90 | frontier)
   const [autoResolved, setAutoResolved] = useState<Map<string, string>>(new Map());
+  // RAW baseline mechanism per case (not human-filtered) — drives the workflow filters.
+  const [baselineMech, setBaselineMech] = useState<Map<string, string>>(new Map());
 
   // load the queue, the auto-resolved baseline, the frontier hints, and the COMMITTED human
   // decisions in parallel. Pick precedence: baseline < committed (in git) < localStorage scratch
@@ -38,6 +40,7 @@ export function HistoryCurateReport() {
       .then(([d, auto, hints, committed]) => {
         setData(d);
         setProposals(hints);
+        setBaselineMech(new Map(Object.entries(auto).map(([k, dec]) => [k, dec.auto])));
         const stored = loadPicks();
         const baseline: Record<string, Pick> = {};
         for (const [k, dec] of Object.entries(auto)) baseline[k] = dec.chosenKey;
@@ -63,7 +66,17 @@ export function HistoryCurateReport() {
     }
   };
 
-  const queue = useMemo(() => (data ? orderedCases(data, kind) : []), [data, kind]);
+  // workflow category per case (auto mechanism, or attention±hint) — for the filters + counts.
+  const categoryOf = useMemo(() => {
+    const hints = new Set(Object.keys(proposals));
+    return (key: string): CaseFilter => caseCategory(key, baselineMech, hints.has(key));
+  }, [baselineMech, proposals]);
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: data?.cases.length ?? 0 };
+    if (data) for (const k of data.cases) { const cat = categoryOf(k.key); c[cat] = (c[cat] ?? 0) + 1; }
+    return c;
+  }, [data, categoryOf]);
+  const queue = useMemo(() => (data ? orderedCases(data, filter, categoryOf) : []), [data, filter, categoryOf]);
   const current = queue[index];
   const bounds = useMemo(() => commitBounds(queue, index), [queue, index]);
   const siblings = useMemo(() => queue.slice(bounds.start, bounds.end), [queue, bounds]);
@@ -95,7 +108,6 @@ export function HistoryCurateReport() {
   if (error) return <div className="p-6" style={{ color: "var(--red)" }}>{error}</div>;
   if (!data) return <div className="p-6" style={{ color: "var(--tan-3)" }}>Loading curation cases…</div>;
 
-  const kinds = ["all", ...Object.keys((data.meta.casesByKind as Record<string, number>) || {})];
   const isAuto = current && autoResolved.has(current.key);
 
   return (
@@ -109,11 +121,11 @@ export function HistoryCurateReport() {
           </span>
         </div>
         <div className="mt-2 flex gap-1.5 flex-wrap items-center">
-          {kinds.map((k) => (
-            <button key={k} onClick={() => { setKind(k); setIndex(0); }}
+          {CASE_FILTERS.map(({ id, label }) => (
+            <button key={id} onClick={() => { setFilter(id); setIndex(0); }}
               className="text-[12px] px-2 py-0.5 rounded"
-              style={{ background: kind === k ? "var(--accent)" : "var(--surface)", color: kind === k ? "var(--bg)" : "var(--tan-2)", border: "1px solid var(--border)" }}>
-              {k}
+              style={{ background: filter === id ? "var(--accent)" : "var(--surface)", color: filter === id ? "var(--bg)" : "var(--tan-2)", border: "1px solid var(--border)" }}>
+              {label} {counts[id] ?? 0}
             </button>
           ))}
           <button onClick={() => setShowChart((s) => !s)}

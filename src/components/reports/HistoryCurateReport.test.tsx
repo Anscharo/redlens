@@ -110,6 +110,16 @@ describe("HistoryCurateReport", () => {
     expect(screen.queryByText(/auto-resolved/i)).toBeNull(); // human overrode → no auto badge
   });
 
+  it("filters the queue by workflow category", async () => {
+    render(<HistoryCurateReport />);
+    await screen.findByText(/Pick its previous version/i);
+    // case1 has no baseline mechanism + no hint → it lives under "Needs attention (no hint)"
+    fireEvent.click(screen.getByText(/Auto \(frontier\)/i));
+    expect(screen.getByText(/No cases for this filter/i)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Needs attention \(no hint\)/i));
+    expect(screen.getByText(/Pick its previous version/i)).toBeTruthy();
+  });
+
   it("Save to repo writes the committed decisions via saveDecisions", async () => {
     render(<HistoryCurateReport />);
     await screen.findByText(/Pick its previous version/i);

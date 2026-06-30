@@ -23,14 +23,41 @@ export function commitRanker(data: CurationData): (sha: string) => number {
   };
 }
 
-// Cases ordered commit-major (newest commit first), then by document order within
-// a commit. Stable on the original array index so older artifacts without
-// subjectOrder still sort deterministically. `kind` filters but preserves order.
-export function orderedCases(data: CurationData, kind = "all"): CurationCase[] {
+// Workflow filters for the queue — by HOW a case was auto-resolved, or what attention it still
+// needs. Replaces the old matcher-tier filter (seed-close/tier-2.x), which didn't map to the
+// review workflow: the human cares about "already handled, by what" vs "still on me, with/without
+// an AI hint", not the internal matcher tier.
+export type CaseFilter = "all" | "auto-matcher" | "auto-llm" | "auto-frontier" | "attention-hint" | "attention-no-hint";
+
+export const CASE_FILTERS: { id: CaseFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "auto-matcher", label: "Auto (deterministic)" },
+  { id: "auto-llm", label: "Auto (LLM + matcher)" },
+  { id: "auto-frontier", label: "Auto (frontier)" },
+  { id: "attention-hint", label: "Needs attention (hint)" },
+  { id: "attention-no-hint", label: "Needs attention (no hint)" },
+];
+
+// Categorize a case for the workflow filters: by its auto-resolution mechanism (the baseline's
+// `auto`) — deterministic matcher (forward∩reverse / containment), LLM∩matcher, or frontier —
+// else, for a residual case, by whether a frontier hint is available to speed the human review.
+export function caseCategory(key: string, mechanism: Map<string, string>, hasHint: boolean): Exclude<CaseFilter, "all"> {
+  const m = mechanism.get(key);
+  if (m === "forward-reverse" || m === "containment") return "auto-matcher";
+  if (m === "llm-90" || m === "llm-95") return "auto-llm";
+  if (m === "frontier") return "auto-frontier";
+  return hasHint ? "attention-hint" : "attention-no-hint";
+}
+
+// Cases ordered commit-major (newest commit first), then by document order within a commit.
+// Stable on the original array index so older artifacts without subjectOrder still sort
+// deterministically. `filter` selects a workflow category via `categoryOf` (key → category);
+// "all" shows everything (and needs no categoryOf).
+export function orderedCases(data: CurationData, filter: CaseFilter = "all", categoryOf?: (key: string) => CaseFilter): CurationCase[] {
   const rank = commitRanker(data);
   const stable = new Map(data.cases.map((c, i) => [c, i] as const));
   return data.cases
-    .filter((c) => kind === "all" || c.kind === kind)
+    .filter((c) => filter === "all" || (categoryOf ? categoryOf(c.key) === filter : false))
     .slice()
     .sort((a, b) => {
       const r = rank(a.newerSha) - rank(b.newerSha);

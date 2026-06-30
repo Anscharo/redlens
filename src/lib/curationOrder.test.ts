@@ -1,6 +1,6 @@
 // Pure ordering / grouping / auto-select logic for the curation tool.
 import { describe, it, expect } from "vitest";
-import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoSelectKey, autoLabel, commitColumns } from "./curationOrder";
+import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoSelectKey, autoLabel, commitColumns, caseCategory } from "./curationOrder";
 import type { CurationCase, CurationData } from "./historyCuration";
 
 const kase = (key: string, newerSha: string, subjectOrder: number, extra: Partial<CurationCase> = {}): CurationCase => ({
@@ -31,8 +31,27 @@ describe("orderedCases", () => {
     const keys = orderedCases(data).map((c) => c.key);
     expect(keys).toEqual(["kSeed", "kC2", "kC1", "kB", "kA"]);
   });
-  it("filters by kind while preserving the order", () => {
-    expect(orderedCases(data, "seed-close").map((c) => c.key)).toEqual(["kSeed"]);
+  it("filters by workflow category (via categoryOf) while preserving the order", () => {
+    const mech = new Map([["kSeed", "frontier"]]); // kSeed → auto-frontier; the rest → residual no-hint
+    const categoryOf = (key: string) => caseCategory(key, mech, false);
+    expect(orderedCases(data, "auto-frontier", categoryOf).map((c) => c.key)).toEqual(["kSeed"]);
+    expect(orderedCases(data, "attention-no-hint", categoryOf).map((c) => c.key)).toEqual(["kC2", "kC1", "kB", "kA"]);
+  });
+});
+
+describe("caseCategory", () => {
+  const mech = new Map([["kFwd", "forward-reverse"], ["kCon", "containment"], ["kLlm", "llm-90"], ["kFro", "frontier"]]);
+  it("maps deterministic mechanisms to auto-matcher", () => {
+    expect(caseCategory("kFwd", mech, false)).toBe("auto-matcher");
+    expect(caseCategory("kCon", mech, false)).toBe("auto-matcher");
+  });
+  it("maps the LLM and frontier mechanisms to their own buckets", () => {
+    expect(caseCategory("kLlm", mech, false)).toBe("auto-llm");
+    expect(caseCategory("kFro", mech, false)).toBe("auto-frontier");
+  });
+  it("splits residual cases by hint availability", () => {
+    expect(caseCategory("kNew", mech, true)).toBe("attention-hint");
+    expect(caseCategory("kNew", mech, false)).toBe("attention-no-hint");
   });
 });
 
