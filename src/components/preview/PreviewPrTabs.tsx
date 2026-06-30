@@ -24,19 +24,24 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
   const [tab, setTab] = useState<Tab>("recent");
   const [openPrs, setOpenPrs] = useState<OpenPr[] | null>(null); // null = not loaded yet
   const [openErr, setOpenErr] = useState(false);
+  const [attempt, setAttempt] = useState(0); // bumped by the retry button to re-run the load
 
   // Load the open-PR list the first time that tab is shown — not on mount, so
   // visitors who only want their recent previews never trigger a GitHub call.
+  // On error openPrs stays null (not []), so the load re-runs on a later tab
+  // activation or a Retry click instead of latching the failure forever.
   useEffect(() => {
     if (tab !== "open" || openPrs !== null) return;
+    let live = true;
+    setOpenErr(false);
     fetch(`${import.meta.env.BASE_URL}api/preview/open-prs`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad status"))))
-      .then((d) => setOpenPrs(Array.isArray(d) ? d : []))
-      .catch(() => {
-        setOpenPrs([]);
-        setOpenErr(true);
-      });
-  }, [tab, openPrs]);
+      .then((d) => live && setOpenPrs(Array.isArray(d) ? d : []))
+      .catch(() => live && setOpenErr(true));
+    return () => {
+      live = false;
+    };
+  }, [tab, openPrs, attempt]);
 
   const select = (t: Tab) => {
     setTab(t);
@@ -85,10 +90,20 @@ export function PreviewPrTabs({ entries }: { entries: Entry[] }) {
             ))}
           </ul>
         )
+      ) : openErr ? (
+        <p className="mono text-xs py-2" style={{ color: "var(--red)" }}>
+          Couldn't load open atlas PRs.{" "}
+          <button
+            type="button"
+            className="underline"
+            style={{ color: "var(--accent)" }}
+            onClick={() => setAttempt((a) => a + 1)}
+          >
+            Retry
+          </button>
+        </p>
       ) : openPrs === null ? (
         <p className="mono text-xs py-2" style={{ color: "var(--tan-3)" }}>Loading open atlas PRs…</p>
-      ) : openErr ? (
-        <p className="mono text-xs py-2" style={{ color: "var(--red)" }}>Couldn't load open atlas PRs — try again shortly.</p>
       ) : openPrs.length === 0 ? (
         <p className="mono text-xs py-2" style={{ color: "var(--tan-3)" }}>No open PRs against next-gen-atlas right now.</p>
       ) : (
