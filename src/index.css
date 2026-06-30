@@ -616,42 +616,6 @@ button.atlas-node-expand-all:focus-visible {
   user-select: none;
 }
 
-/* Doc-number copy button: clicking the multi-coloured number copies the doc_no
-   (toggle/navigate live on the chevron + title). On hover the first chiclet's
-   glyph fades out and a copy icon takes its slot — the depth-coloured underline
-   stays put. */
-.atlas-docno-copy {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-.atlas-docno-copy-icon {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 2px;
-  color: var(--tan-2);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.1s;
-}
-.atlas-docno-copy:hover .atlas-chiclet:first-child,
-.atlas-docno-copy[data-copied="true"] .atlas-chiclet:first-child {
-  color: transparent;
-}
-.atlas-docno-copy:hover .atlas-docno-copy-icon,
-.atlas-docno-copy[data-copied="true"] .atlas-docno-copy-icon {
-  opacity: 1;
-}
-.atlas-docno-copy[data-copied="true"] .atlas-docno-copy-icon {
-  color: var(--accent);
-}
 .atlas-chiclet {
   display: inline-flex;
   align-items: center;

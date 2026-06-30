@@ -1,3 +1,4 @@
+import { track } from "../../lib/analytics";
 import { type AtlasNode } from "../../types";
 
 /**
@@ -13,7 +14,10 @@ export function NodeAtlasLink({ node }: { node: AtlasNode }) {
       rel="noopener noreferrer"
       aria-label="Open on Sky Atlas"
       className="atlas-external-link inline-flex items-center gap-1 shrink-0"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        track("reader_atlas_link_out", { node_id: node.id });
+      }}
     >
       <svg
         width="11"

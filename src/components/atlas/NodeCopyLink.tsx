@@ -1,4 +1,5 @@
 import { useCopyState } from "../../hooks/useCopyState";
+import { track } from "../../lib/analytics";
 import { type AtlasNode } from "../../types";
 
 /** Copy-permalink button. Rendered inline to the right of the node title. */
@@ -7,6 +8,7 @@ export function NodeCopyLink({ node }: { node: AtlasNode }) {
 
   const handleCopyUrl = (e: React.MouseEvent) => {
     e.stopPropagation();
+    track("reader_copy_link", { node_id: node.id });
     const url = `${window.location.origin}${import.meta.env.BASE_URL}atlas?id=${node.id}`;
     urlCopy.copy(url);
   };
@@ -15,7 +17,7 @@ export function NodeCopyLink({ node }: { node: AtlasNode }) {
     <button
       type="button"
       onClick={handleCopyUrl}
-      title={urlCopy.copied ? "Copied!" : `Copy link · ${node.id}`}
+      title={urlCopy.copied ? "Copied!" : `copy link to atlas?id=${node.id}`}
       className="atlas-copy-btn shrink-0"
       data-copied={urlCopy.copied ? "true" : undefined}
     >
@@ -34,7 +36,7 @@ export function NodeCopyLink({ node }: { node: AtlasNode }) {
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
       </svg>
       <span className="atlas-copy-flip" data-flipped={urlCopy.copied ? "true" : undefined}>
-        <span className="label">{`…${node.id.slice(-4)}`}</span>
+        <span className="label">{`${node.id.slice(0, 3)}…${node.id.slice(-3)}`}</span>
         <span className="flipped">copied</span>
       </span>
     </button>

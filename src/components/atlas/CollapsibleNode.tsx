@@ -5,9 +5,9 @@ import { DocNoChiclets } from "../DocNoChiclets";
 import { NodeContent } from "../NodeContent";
 import { NodeMeta } from "./NodeMeta";
 import { NodeCopyLink } from "./NodeCopyLink";
+import { NodeDocNoCopy } from "./NodeDocNoCopy";
 import { NodeAtlasLink } from "./NodeAtlasLink";
 import { useAtlasActions } from "./AtlasActionsContext";
-import { useCopyState } from "../../hooks/useCopyState";
 import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
@@ -68,7 +68,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       docNoDepths: segmentDepths(node.doc_no),
     };
   }, [node.doc_no, depth]);
-  const docNoCopy = useCopyState();
   const mouseDownRef = useRef<{ x: number; y: number } | null>(null);
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
@@ -145,35 +144,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     >
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
-        <button
-          type="button"
-          className="atlas-docno-copy"
-          data-copied={docNoCopy.copied ? "true" : undefined}
-          title={docNoCopy.copied ? "Copied!" : `Copy ${node.doc_no}`}
-          aria-label={`Copy doc number ${node.doc_no}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            docNoCopy.copy(node.doc_no);
-          }}
-        >
-          <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
-          {/* Swaps in over the first chiclet on hover (CSS) — see .atlas-docno-copy. */}
-          <svg
-            className="atlas-docno-copy-icon"
-            width="11"
-            height="11"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <rect x="4" y="4" width="7" height="7" rx="1" />
-            <path d="M1 8V2C1 1.45 1.45 1 2 1H8" />
-          </svg>
-        </button>
+        {/* Doc-no is plain (not a copy affordance) so clicking it falls through
+            to the row toggle. Copying the doc_no lives in the corner (NodeDocNoCopy). */}
+        <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
         {hasContent ? (
           <button
             type="button"
@@ -212,6 +185,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         </div>
         {isSelected && (
           <div className="atlas-node-corner">
+            <NodeDocNoCopy node={node} />
             <NodeCopyLink node={node} />
             <NodeAtlasLink node={node} />
           </div>
