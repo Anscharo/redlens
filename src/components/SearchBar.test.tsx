@@ -107,12 +107,20 @@ describe("SearchBar recent searches dropdown", () => {
     return { onRecentSelect };
   }
 
-  it("shows on focus and hides shortly after blur", () => {
+  it("stays closed on the mount autofocus and opens on interaction", () => {
+    setupRecent();
+    // autoFocus fires once on mount — the dropdown must not open from it.
+    expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
+    expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
+  });
+
+  it("hides shortly after blur", () => {
     vi.useFakeTimers();
     try {
       setupRecent();
       const input = screen.getByRole("searchbox");
-      fireEvent.focus(input);
+      fireEvent.pointerDown(input);
       expect(screen.getByRole("listbox", { name: "Recent searches" })).toBeTruthy();
       fireEvent.blur(input);
       act(() => vi.runAllTimers()); // blur hides after a short delay (lets clicks land first)
@@ -122,30 +130,30 @@ describe("SearchBar recent searches dropdown", () => {
     }
   });
 
-  it("shows only the three most recent on focus", () => {
+  it("shows only the three most recent", () => {
     setupRecent();
-    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
     expect(screen.getAllByRole("option")).toHaveLength(3);
     expect(screen.queryByText("dai")).toBeNull();
   });
 
   it("omits a recent identical to the current query", () => {
     setupRecent({ query: "vat" });
-    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
     expect(screen.queryByText("vat")).toBeNull();
     expect(screen.getAllByRole("option")).toHaveLength(3); // jug, pot, dai
   });
 
-  it("calls onRecentSelect with the chosen query", () => {
+  it("calls onRecentSelect with the chosen query and its rank", () => {
     const { onRecentSelect } = setupRecent();
-    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
     fireEvent.click(screen.getByText("jug"));
-    expect(onRecentSelect).toHaveBeenCalledWith("jug");
+    expect(onRecentSelect).toHaveBeenCalledWith("jug", 1); // 0-based index in [vat, jug, pot]
   });
 
   it("renders nothing when there are no recents", () => {
     setupRecent({ recentSearches: [] });
-    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("searchbox"));
     expect(screen.queryByRole("listbox", { name: "Recent searches" })).toBeNull();
   });
 });

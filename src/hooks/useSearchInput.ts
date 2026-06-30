@@ -139,8 +139,8 @@ export function useSearchInput(location: string, navigate: (to: string) => void,
   // Picking a recent search re-runs it on the results page (works from any
   // route — e.g. focusing the bar on /radar), then refocuses the input so the
   // restored query can be edited straight away.
-  const selectRecent = useCallback((q: string) => {
-    track("search_recent_select", { query: q });
+  const selectRecent = useCallback((q: string, rank: number) => {
+    track("search_recent_select", { product: "search", query: q, rank: rank + 1 });
     const np = new URLSearchParams();
     np.set("q", q);
     const split = new URLSearchParams(window.location.search).get("split");

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import type { SearchState } from "../hooks/useSearch";
 
-// Recent search history, persisted per-browser in localStorage and synced across
-// components (the recording site in useSearchInput, the dropdown in SearchBar)
-// via a custom event + the cross-tab `storage` event — same pattern as usePrefs.
+// Recent search history — deliberately ephemeral. Stored in sessionStorage (not
+// localStorage), so it lives only for the tab/session and never leaks across
+// visits, and each entry is timestamped and forgotten after an hour. Synced
+// across components (the recording site in useSearchInput, the dropdown in
+// SearchBar) via a custom event + the cross-tab `storage` event — same pattern
+// as usePrefs.
 //
 // What counts as a "recent query"? Searching on every keystroke means a naive
 // "save every worker call" would store the whole g→go→gov→…→governance chain.
@@ -13,18 +16,33 @@ import type { SearchState } from "../hooks/useSearch";
 // debounce and a "must have produced results" gate, the stored list ends up
 // being the handful of distinct, productive searches the user actually ran.
 
+export interface RecentEntry {
+  q: string; // the raw query text, stored verbatim
+  t: number; // epoch ms when last searched
+}
+
 const KEY = "redline-sky-atlas:recent-searches";
 const EVENT = "redline-recent-searches-change";
 const MAX = 10; // how many we persist (the dropdown shows the top few)
+const TTL_MS = 60 * 60 * 1000; // forget anything older than an hour
 const DEBOUNCE_MS = 500; // match analytics: record only once typing settles
 
-function read(): string[] {
+function read(): RecentEntry[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = sessionStorage.getItem(KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((q): q is string => typeof q === "string").slice(0, MAX);
+    const cutoff = Date.now() - TTL_MS;
+    return parsed
+      .filter(
+        (e): e is RecentEntry =>
+          !!e &&
+          typeof (e as RecentEntry).q === "string" &&
+          typeof (e as RecentEntry).t === "number" &&
+          (e as RecentEntry).t >= cutoff,
+      )
+      .slice(0, MAX);
   } catch {
     return [];
   }
@@ -32,24 +50,29 @@ function read(): string[] {
 
 // Cache the parsed value so getSnapshot returns a stable reference (avoids the
 // useSyncExternalStore infinite-loop when JSON.parse yields a fresh array).
-let snapshot: string[] = read();
+let snapshot: RecentEntry[] = read();
 
 // Pure merge used by recordRecent (and unit-tested directly): dedupe + prefix-
 // collapse, newest first. An exact dupe or a prefix-chain neighbour of the new
 // query is dropped before prepending, so "facilitator" replaces the "f"/"fa"/…
-// it grew out of instead of stacking 12 partial rows.
-export function mergeRecent(list: string[], raw: string): string[] {
+// it grew out of instead of stacking 12 partial rows. `t` is passed in (not read
+// from the clock) so the policy stays pure and deterministic to test.
+export function mergeRecent(list: RecentEntry[], raw: string, t: number): RecentEntry[] {
   const q = raw.trim();
   if (!q) return list;
   const kept = list.filter(
-    (prev) => prev !== q && !q.startsWith(prev) && !prev.startsWith(q),
+    (e) => e.q !== q && !q.startsWith(e.q) && !e.q.startsWith(q),
   );
-  return [q, ...kept].slice(0, MAX);
+  return [{ q, t }, ...kept].slice(0, MAX);
 }
 
-function commit(next: string[]): void {
+function sameQueries(a: RecentEntry[], b: RecentEntry[]): boolean {
+  return a.length === b.length && a.every((e, i) => e.q === b[i].q);
+}
+
+function commit(next: RecentEntry[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    sessionStorage.setItem(KEY, JSON.stringify(next));
   } catch {
     return;
   }
@@ -59,11 +82,20 @@ function commit(next: string[]): void {
 
 export function recordRecent(raw: string): void {
   if (!raw.trim()) return;
-  commit(mergeRecent(read(), raw));
+  commit(mergeRecent(read(), raw, Date.now()));
 }
 
 export function clearRecent(): void {
   commit([]);
+}
+
+// Re-reads storage (which prunes anything past the TTL) and republishes if the
+// visible list changed. Called when the dropdown is about to open so a query
+// that aged out without any new search still disappears.
+export function refreshRecent(): void {
+  const fresh = read();
+  if (sameQueries(fresh, snapshot)) return;
+  commit(fresh);
 }
 
 function subscribe(cb: () => void): () => void {
@@ -79,8 +111,11 @@ function subscribe(cb: () => void): () => void {
   };
 }
 
+// The UI only needs the query strings; map after the store read so getSnapshot
+// keeps returning the stable RecentEntry[] reference.
 export function useRecentSearches(): string[] {
-  return useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
+  const entries = useSyncExternalStore(subscribe, () => snapshot, () => snapshot);
+  return entries.map((e) => e.q);
 }
 
 // Records the current search into history once it settles. Fires only on a

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link } from "./Link";
 import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
 import { RecentSearches } from "./RecentSearches";
+import { refreshRecent } from "../lib/recentSearches";
 import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RefObject } from "react";
@@ -27,7 +28,7 @@ interface Props extends NavBarProps {
   onSetMode: (mode: SearchMode) => void;
   scope: SearchScope;
   recentSearches?: string[];
-  onRecentSelect?: (query: string) => void;
+  onRecentSelect?: (query: string, rank: number) => void;
 }
 
 export function SearchBar({
@@ -45,6 +46,14 @@ export function SearchBar({
 }: Props) {
   const cfg = SCOPE_CONFIG[scope];
   const [focused, setFocused] = useState(false);
+  // The input is autoFocus'd on load; swallow that one mount focus so the
+  // dropdown never opens on first paint — only a deliberate focus/click does.
+  const skipMountFocus = useRef(true);
+
+  const openRecent = () => {
+    refreshRecent(); // prune anything past the TTL before showing
+    setFocused(true);
+  };
 
   // Drop searches identical to what's already typed — re-picking those is a
   // no-op. The dropdown opens on focus and shows the three most recent.
@@ -115,7 +124,13 @@ export function SearchBar({
               aria-label={`Filter ${cfg.label}`}
               value={query}
               onChange={onChange}
-              onFocus={() => setFocused(true)}
+              onFocus={() => {
+                // Ignore the autoFocus that fires once on mount.
+                if (skipMountFocus.current) { skipMountFocus.current = false; return; }
+                openRecent();
+              }}
+              // Also open when clicking an already-focused input (no focus event fires then).
+              onPointerDown={openRecent}
               // Delay so a mousedown→click on a suggestion still registers before
               // the dropdown unmounts (the option's own onMouseDown also guards).
               onBlur={() => setTimeout(() => setFocused(false), 120)}
@@ -141,9 +156,9 @@ export function SearchBar({
           {showRecent && (
             <RecentSearches
               queries={suggestions}
-              onSelect={(q) => {
+              onSelect={(q, rank) => {
                 setFocused(false);
-                onRecentSelect!(q);
+                onRecentSelect!(q, rank);
               }}
             />
           )}

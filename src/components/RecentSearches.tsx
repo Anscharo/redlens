@@ -5,7 +5,7 @@
 
 interface Props {
   queries: string[];
-  onSelect: (query: string) => void;
+  onSelect: (query: string, rank: number) => void;
 }
 
 export function RecentSearches({ queries, onSelect }: Props) {
@@ -17,14 +17,14 @@ export function RecentSearches({ queries, onSelect }: Props) {
     >
       <p className="px-3 pt-2 pb-1 text-[10px] mono text-tan-3">recent searches</p>
       <ul>
-        {queries.map((q) => (
+        {queries.map((q, i) => (
           <li key={q}>
             <button
               type="button"
               role="option"
               aria-selected={false}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => onSelect(q)}
+              onClick={() => onSelect(q, i)}
               className="recent-row w-full text-left flex items-center gap-2 px-3 py-2 text-sm"
             >
               <svg
