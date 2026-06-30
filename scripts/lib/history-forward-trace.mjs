@@ -134,14 +134,15 @@ export function forwardLinks(commits, { floor } = {}) {
 //   reverseOnly reverse paired it (often a greedy tier-2.7/3 guess), forward abstained
 // Keys are content-addressed `${sha8}:${contentHash}` so the orchestrator can join
 // divergences to the curation queue. Pure: returns { tally, divergences }.
-export function diffPasses(commits, { floor } = {}) {
+export function diffPasses(commits, { floor, recover = false } = {}) {
   const key = (sha, node) => `${sha}:${node.contentHash}`;
   const divergences = [];
   const tally = { hops: 0, newerNodes: 0, agree: 0, conflict: 0, forwardOnly: 0, reverseOnly: 0, bothBirth: 0 };
   for (let i = 1; i < commits.length; i++) {
     const olderC = commits[i - 1], newerC = commits[i];
     const f = forwardMatch(olderC.nodes, newerC.nodes, { floor });
-    const r = matchNodes(olderC.nodes, newerC.nodes);
+    // reverse mirrors PRODUCTION (recovery on); forward stays the independent method.
+    const r = matchNodes(olderC.nodes, newerC.nodes, { recoverByContent: recover });
     const fByNewer = new Map(f.pairs.map((p) => [p.newer, p.older]));
     const rByNewer = new Map();
     for (const p of r.pairs) rByNewer.set(p.newer, { older: p.older, tier: p.tier });

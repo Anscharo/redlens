@@ -113,6 +113,26 @@ describe("tier 3 — fuzzy + contention", () => {
   });
 });
 
+describe("tier 3.5 — content recovery (opt-in)", () => {
+  // a key-changed rename with a mid-body insert: the insert shreds every 8-gram
+  // (shingle-Jaccard ≈ 0, so tier-3 misses) but word order is intact (sameDocScore ≈ 1).
+  const older = [mk({ order: 0, structuralKey: "kOld", contentHash: "h1", content: W })];
+  const newer = [mk({ order: 0, structuralKey: "kNew", contentHash: "h2", content: "the quick brown fox jumps over inserted the lazy dog and then again" })];
+
+  it("leaves the rename unmatched by default (death + birth)", () => {
+    const r = matchNodes(older, newer);
+    expect(r.pairs.length).toBe(0);
+    expect(r.olderUnmatched.length).toBe(1);
+    expect(r.newerUnmatched.length).toBe(1);
+  });
+  it("recovers it as a tier-3.5 pair when recoverByContent is on", () => {
+    const r = matchNodes(older, newer, { recoverByContent: true });
+    expect(r.pairs.length).toBe(1);
+    expect(r.pairs[0].tier).toBe(3.5);
+    expect(r.olderUnmatched.length).toBe(0);
+  });
+});
+
 describe("tier 4 — containment (seedHop)", () => {
   it("a newer body contained in an older parent → split link, not a pairing", () => {
     const parent = mk({ order: 0, content: W + " plus child sentence here", structuralKey: "P", contentHash: "hp" });

@@ -17,6 +17,7 @@ import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { seedFromMd, threadBackward, buildEvents } from "../lib/history-html-era.mjs";
 import { isSynthetic, syntheticUuid } from "../lib/history-identity.mjs";
+import { detectLineage } from "../lib/history-lineage.mjs";
 import { classifyDiff } from "../lib/history-classify.mjs";
 import { lineDiff } from "../../src/lib/diffCore.ts";
 
@@ -26,6 +27,9 @@ const OUT = path.join(ROOT, "public/history-html-era.json");
 const HTML = "Sky Atlas/Sky Atlas.html", MD = "Sky Atlas/Sky Atlas.md";
 const SEED_HTML = "7b43d159", MD117 = "22cc27b5";
 const MEASURE = process.argv.includes("--measure");
+// Content-recovery tier (plan §4.2 follow-up): recover bulk-rename continuations the
+// structural-key tiers drop to death+birth. ON by default; `--no-recover` reverts.
+const RECOVER = !process.argv.includes("--no-recover");
 // `--decisions <file>` applies the human-confirmed curation choices (plan §10.4).
 const DECISIONS_PATH = ((i) => (i >= 0 ? process.argv[i + 1] : null))(process.argv.indexOf("--decisions"));
 const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
@@ -112,7 +116,7 @@ if (DECISIONS_PATH) {
 
 const lastSha = commits[commits.length - 1].sha;
 const seed = seedFromMd(md, commits[commits.length - 1].nodes, seedOverrides ? { overrides: seedOverrides } : {});
-const thread = threadBackward(commits, { seed: seed.uuidByRow, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
+const thread = threadBackward(commits, { seed: seed.uuidByRow, recover: RECOVER, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
 const rawEvents = buildEvents(commits, { lineDiff });
 
 // per-doc seam metadata (plan §4.1/§7): kept/split/merged/created + the
@@ -120,6 +124,25 @@ const rawEvents = buildEvents(commits, { lineDiff });
 const docMeta = new Map();
 for (const [uuid, s] of seed.seam) docMeta.set(uuid, seed.extractedFrom.has(uuid) ? { seam: s, extractedFrom: seed.extractedFrom.get(uuid) } : { seam: s });
 for (const [row, successor] of seed.mergedInto) docMeta.set(syntheticUuid(row, lastSha), { seam: "merged", mergedInto: successor });
+
+// intra-era split/merge lineage (plan §4.1, prototype B): generalise the seam's
+// extracted_from / merged_into to every HTML hop. Runs after threadBackward (nodes carry
+// uuids); deterministic; ADDITIVE — never overwrites a seed-recorded relationship. The
+// findContainer scan is the slow part, so `--no-lineage` skips it.
+let lineageStats = null;
+if (!process.argv.includes("--no-lineage")) {
+  const lineage = detectLineage(commits, { recover: RECOVER });
+  for (const [childUuid, parentUuid] of lineage.extractedFrom) {
+    const dm = docMeta.get(childUuid) || {};
+    if (!dm.extractedFrom) { dm.extractedFrom = parentUuid; dm.seam = dm.seam || "split"; docMeta.set(childUuid, dm); }
+  }
+  for (const [goneUuid, succUuid] of lineage.mergedInto) {
+    const dm = docMeta.get(goneUuid) || {};
+    if (!dm.mergedInto) { dm.mergedInto = succUuid; dm.seam = dm.seam || "merged"; docMeta.set(goneUuid, dm); }
+  }
+  lineageStats = { extractedFrom: lineage.extractedFrom.size, mergedInto: lineage.mergedInto.size };
+  console.error(`intra-era lineage: ${lineageStats.extractedFrom} extracted_from + ${lineageStats.mergedInto} merged_into`);
+}
 
 // map pass events → the eventToRow HistoryEvent shape (+ additive era/synthetic/seam)
 const events = rawEvents.map((e) => {
@@ -155,6 +178,7 @@ const summary = {
   eventsByType: byType,
   prCoverage: `${[...commitMeta.values()].filter((c) => c.pr).length}/${commitMeta.size}`,
   appliedDecisions: applied, // null unless --decisions was passed (plan §10.4 provenance)
+  intraEraLineage: lineageStats, // null with --no-lineage (plan §4.1, prototype B)
 };
 console.error("\n=== freeze summary ===");
 console.error(JSON.stringify(summary, null, 2));

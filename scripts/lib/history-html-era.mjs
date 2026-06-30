@@ -145,7 +145,7 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = n
 // declares the newer node has no predecessor in the older commit (a real birth). An
 // overridden pairing WINS over the automatic matcher and suppresses any conflicting
 // auto-pair, so the unspecified rows thread exactly as before.
-export function threadBackward(commits, { seed = new Map(), overrides = null } = {}) {
+export function threadBackward(commits, { seed = new Map(), overrides = null, recover = false } = {}) {
   const order = commits.slice().reverse(); // newest→oldest
   for (const n of order[0].nodes) n.uuid = seed.get(n) || syntheticUuid(n, order[0].sha);
 
@@ -154,7 +154,9 @@ export function threadBackward(commits, { seed = new Map(), overrides = null } =
   let curr = order[0].nodes;
   for (let i = 1; i < order.length; i++) {
     const older = order[i].nodes;
-    const r = matchNodes(older, curr);
+    // `recover` (plan §4.2 follow-up) enables matchNodes tier 3.5: content-based recovery
+    // of bulk-rename continuations the structural-key tiers miss. Caller opt-in.
+    const r = matchNodes(older, curr, { recoverByContent: recover });
 
     // apply human overrides FIRST (they win): force chosen older → newer identity,
     // and remember which newer/older nodes to skip in the automatic pass.

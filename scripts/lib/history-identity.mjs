@@ -20,6 +20,7 @@
 //   contained: [{ newer, parent, coverage }]       (seedHop only)
 
 import crypto from "node:crypto";
+import { sameDocScore } from "./ordered-containment.mjs";
 
 const SH = 8; // shingle width (words)
 
@@ -80,7 +81,7 @@ const byField = (rows, field) => {
 const byOrder = (a, b) => a.order - b.order;
 
 export function matchNodes(older, newer, opts = {}) {
-  const { fuzzyHi = 0.6, fuzzyLo = 0.3, fuzzyMargin = 0.15, seedHop = false } = opts;
+  const { fuzzyHi = 0.6, fuzzyLo = 0.3, fuzzyMargin = 0.15, seedHop = false, recoverByContent = false, recoverHi = 0.85 } = opts;
   const pairs = [], ambiguous = [], contained = [];
   const oUsed = new Set(), nUsed = new Set();
   const cache = new Map();
@@ -163,6 +164,26 @@ export function matchNodes(older, newer, opts = {}) {
         oUsed.add(p.o); // surfaced for §10.4; not auto-paired
       }
     }
+  }
+
+  // ---- tier 3.5 (opt-in): content recovery for renames/restructures (matcher-recall).
+  // A BULK rename changes titles/structural-keys en masse, so tiers 2/2.5 miss and tier-3's
+  // contention guard refuses to guess among the many simultaneously-shifting siblings —
+  // dropping real continuations to death+birth (measured: 267, 0% kept their key, 95%
+  // same-section). Ordered containment (sameDocScore) is key/title-blind, so a MUTUAL-BEST
+  // pair ≥ recoverHi within a section recovers them. OFF by default: it changes historical
+  // identity, so callers opt in (and re-flow the thread) deliberately.
+  if (recoverByContent) {
+    const ro = freeO().filter((o) => !isShort(o)), rn = freeN().filter((n) => !isShort(n));
+    const rnBySec = byField(rn, "section"), roBySec = byField(ro, "section");
+    const bestIn = (node, pool) => {
+      let b = null, bs = 0;
+      for (const x of pool) { const s = sameDocScore(node.content, x.content); if (s > bs) { bs = s; b = x; } }
+      return b && bs >= recoverHi ? b : null;
+    };
+    const bestNewer = new Map(); for (const o of ro) { const n = bestIn(o, rnBySec.get(o.section) || []); if (n) bestNewer.set(o, n); }
+    const bestOlder = new Map(); for (const n of rn) { const o = bestIn(n, roBySec.get(n.section) || []); if (o) bestOlder.set(n, o); }
+    for (const [o, n] of bestNewer) if (bestOlder.get(n) === o && !oUsed.has(o) && !nUsed.has(n)) take(o, n, 3.5);
   }
 
   // ---- tier 4: containment / sub-node (seed hop only) — split detection

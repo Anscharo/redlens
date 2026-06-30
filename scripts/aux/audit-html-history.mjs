@@ -188,7 +188,7 @@ function collect() {
   const tier25 = [], tier27 = [], tier3 = [], ambiguous = [];
   let newer = newestFirst[0].nodes;
   for (let i = 1; i < newestFirst.length; i++) {
-    const result = matchNodes(newestFirst[i].nodes, newer);
+    const result = matchNodes(newestFirst[i].nodes, newer, { recoverByContent: !process.argv.includes("--no-recover") });
     const htmlEvidence = (node) => ({ doc_no: node.doc_no, title: node.title, type: node.type, text: clip(node.content) });
     for (const pair of result.pairs) {
       pair.older.uuid = pair.newer.uuid; // carry identity backward
