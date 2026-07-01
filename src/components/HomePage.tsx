@@ -48,7 +48,7 @@ export function HomePage() {
             Views into the Sky
               Atlas
           </h2>
-          <p className="text-base leading-relaxed text-tan-2" style={{ maxWidth: "60ch" }}>
+          <p className="text-base leading-relaxed text-tan-2" style={{ maxWidth: "68ch" }}>
             The{' '}
             <a href={ATLAS_URL} target="_blank" rel="noopener noreferrer" className="link-accent">
             Sky Atlas

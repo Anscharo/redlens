@@ -31,13 +31,13 @@ export function PatchNotes() {
     <section className="mt-20">
       <hr className="mb-10 border-t" style={{ borderColor: "var(--hover)" }} />
       <h2 className="text-3xl font-semibold text-tan mb-4">Recent improvements</h2>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4" style={{ maxWidth: "74ch" }}>
         {groups.map((g) => (
           <article key={g.date}>
             <time dateTime={g.date} className="text-lg text-tan-3">
               {formatPatchDate(g.date)}
             </time>
-            <ul className="mt-1 list-disc list-inside text-base text-tan-2 leading-relaxed" style={{ maxWidth: "70ch" }}>
+            <ul className="mt-1 list-disc list-inside text-base text-tan-2 leading-relaxed">
               {g.items.map((item, i) => (
                 <li key={i}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
