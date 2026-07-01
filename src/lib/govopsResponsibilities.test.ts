@@ -33,8 +33,11 @@ for (const n of [
   node({ id: "duty-core", doc_no: "A.2.2.1.1.13", title: "Core GovOps Validates Executor Accord Primitive Inputs", content: "Core GovOps reviews the inputs to the Executor Accord Primitive to ensure validity." }),
   // Assignment doc (excluded from duty scan by its structural doc_no).
   node({ id: "assign-doc", doc_no: "A.6.1.2.1.2", title: "Operational GovOps", content: "Operational GovOps for Operational Executor Agent Amatsu is Soter Labs." }),
-  // Active Data controller whose Responsible Party is a GovOps org.
-  node({ id: "adc-doc", doc_no: "A.2.2.4.1.2.1.1", type: "Active Data Controller", title: "Integrator Program Applications", content: "Responsible Party: Operational GovOps." }),
+  // Active Data controller whose Responsible Party is declared as GovOps.
+  node({ id: "adc-doc", doc_no: "A.2.2.4.1.2.1.1", type: "Active Data Controller", title: "Integrator Program Applications", content: "The Responsible Party is Operational GovOps." }),
+  // Active Data controller where Soter Labs is RP in a NON-GovOps capacity
+  // (named directly) — must be EXCLUDED from GovOps responsibilities.
+  node({ id: "adc-nongov", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Soter Labs." }),
   // Noise: a doc merely cross-referencing GovOps (no obligation verb) — excluded.
   node({ id: "noise", doc_no: "A.9.9", title: "Some Section", content: "The Operational Facilitator and Operational GovOps for Ozone are specified in A.6.1.2.2." }),
 ]) docs[n.id] = n;
@@ -50,7 +53,9 @@ const participants: GraphEntity[] = [
 const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "exec", tt: "entity", e: "operational_govops_for", s: ["A.6.1.2.1.2"] },
   { f: "exec", ft: "entity", t: "prime", tt: "entity", e: "operational_executor_agent_for", s: ["A.6.1.1.1"] },
-  { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"] },
+  { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
+  // Soter Labs named directly (non-GovOps capacity) — excluded.
+  { f: "soter", ft: "entity", t: "adc-nongov", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Soter Labs", resolution: "direct" }) },
 ];
 
 const graph: GraphData = { participants, instances: [], invocations: [], primitives: [], edges };
@@ -86,10 +91,9 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(asn[0].uuid).toBe("assign-doc");
   });
 
-  it("emits active-data rows for GovOps responsible-party edges, attributed to the agent", () => {
+  it("includes RP duties declared as GovOps but excludes non-GovOps capacities", () => {
     const ad = byCat("active-data");
-    expect(ad).toHaveLength(1);
-    expect(ad[0].uuid).toBe("adc-doc");
+    expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nongov excluded
     expect(ad[0].govops).toBe("Soter Labs");
     expect(ad[0].agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
   });

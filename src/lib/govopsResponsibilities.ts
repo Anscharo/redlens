@@ -11,6 +11,7 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
 
@@ -175,12 +176,15 @@ export function deriveGovOpsResponsibilities(
     results.push({ ...row, agents: _agents.size ? [..._agents] : undefined });
   }
 
-  // 4. Active Data — every doc for which a GovOps org is the Responsible Party.
-  const govopsEntityIds = new Set(
-    participants.filter((e) => e.et === "govops_org").map((e) => e.id),
-  );
+  // 4. Active Data — docs whose Responsible Party is declared as GovOps.
+  //    Keyed on the edge's declared role, NOT the entity type: a GovOps org
+  //    (e.g. Soter Labs) also holds Responsible-Party duties in other capacities
+  //    (named directly, resolution="direct"), and those are NOT GovOps duties.
+  //    Only edges whose ADC declaration names the GovOps role belong here.
   for (const e of edges) {
-    if (e.e !== "responsible_party_for" || !govopsEntityIds.has(e.f) || e.tt !== "doc") continue;
+    if (e.e !== "responsible_party_for" || e.tt !== "doc") continue;
+    const declared = parseMeta<{ role_declared?: string }>(e.m)?.role_declared ?? "";
+    if (!ANY_GOVOPS_RE.test(declared)) continue;
     const n = docs[e.t];
     if (!n) continue;
     results.push({
@@ -189,7 +193,7 @@ export function deriveGovOpsResponsibilities(
       title: n.title,
       duty: dutySnippet(n.content),
       category: "active-data",
-      govops: entityById.get(e.f)?.name,
+      govops: entityById.get(e.f)?.name ?? declared,
       agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
   }
