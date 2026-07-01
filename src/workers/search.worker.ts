@@ -3,6 +3,7 @@ import MiniSearch from "minisearch";
 import type {
   AtlasNode,
   AddressInfo,
+  HitLabel,
   SearchHit,
   WorkerInMessage,
   WorkerOutMessage,
@@ -73,6 +74,46 @@ function post(msg: WorkerOutMessage) {
   self.postMessage(msg);
 }
 
+// Provenance clues rendered in the search-result left gutter.
+//   - Prime Agent nodes (scope 6) live at A.6.1.1.<n>; everything beneath one
+//     belongs to that agent (Skybase, Grove, …).
+//   - Scopes are the two-segment nodes A.1 … A.6; their title is the scope name.
+//   - ICDs are titled "<Name> Instance Configuration Document" (the "… Location"
+//     pointer stubs end in "Location", so the end-anchor excludes them).
+const AGENT_DOCNO_RE = /^A\.6\.1\.1\.\d+$/;
+const SCOPE_DOCNO_RE = /^[A-Za-z]\.\d+$/;
+const ICD_TITLE_RE = /^(.+?)\s+Instance Configuration Document$/i;
+
+// Self + ancestors, reconstructed from doc_no prefixes rather than parentId.
+// The heading-depth cap (6) makes parentId unreliable for deep nodes, but ICDs
+// nest far deeper than that (e.g. A.6.1.1.3.2.5.2.3.1), so prefix lookup via
+// byDocNo is the reliable way to walk the chain.
+function computeLabels(doc: AtlasNode): HitLabel[] {
+  const chain: AtlasNode[] = [doc];
+  const parts = doc.doc_no.split(".");
+  for (let i = parts.length - 1; i >= 1; i--) {
+    const anc = byDocNo.get(parts.slice(0, i).join("."));
+    if (anc && anc.id !== doc.id) chain.push(anc);
+  }
+
+  const labels: HitLabel[] = [];
+  const agent = chain.find((n) => AGENT_DOCNO_RE.test(n.doc_no));
+  if (agent) {
+    labels.push({ kind: "agent", text: agent.title });
+  } else {
+    const scope = chain.find((n) => SCOPE_DOCNO_RE.test(n.doc_no));
+    if (scope) labels.push({ kind: "scope", text: scope.title });
+  }
+
+  const icd = chain.find((n) => ICD_TITLE_RE.test(n.title));
+  if (icd) {
+    const name = icd.title.match(ICD_TITLE_RE)?.[1].trim();
+    if (name) labels.push({ kind: "icd", text: name });
+  }
+
+  return labels;
+}
+
 function docToHit(
   doc: AtlasNode,
   score = 1,
@@ -96,6 +137,7 @@ function docToHit(
     type: doc.type,
     depth: doc.depth,
     parentId: doc.parentId,
+    labels: computeLabels(doc),
     snippet: snippet ?? doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
   };
 }
@@ -322,7 +364,7 @@ function search(q: string): SearchHit[] {
   const contentHighlightTerms = [...(fieldScopedTerms.get("content") ?? []), ...freeWords];
 
   const hits = results
-    .map((r) => {
+    .map((r): SearchHit | null => {
       const doc = docs[r.id as string];
       if (!doc) return null;
 
@@ -349,8 +391,9 @@ function search(q: string): SearchHit[] {
         type: doc.type,
         depth: doc.depth,
         parentId: doc.parentId,
+        labels: computeLabels(doc),
         snippet: buildSnippet(doc.content, contentHighlightTerms, phrases, casePhrases),
-      } satisfies SearchHit;
+      };
     })
     .filter((h): h is SearchHit => h !== null);
 

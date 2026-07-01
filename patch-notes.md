@@ -12,6 +12,7 @@
 -->
 
 ## 2026-07-01
+- Added scope, agent, and ICD labels beside each search result so you can tell at a glance which agent (e.g. Skybase, Grove) or Instance Configuration Document a hit lives under
 - Added a Connect page with instructions for connecting an AI assistant to the atlas over MCP
 - Improved the Atlas MCP tools — better search ranking, look up an actor by plain name, and leaner, more reliable responses
 
