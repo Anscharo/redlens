@@ -203,7 +203,16 @@ export function buildIndexes(
 
   const { graph, entityBySlug, entityById } = buildGraph(docs, entities, edges);
 
-  return { docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, meta };
+  // Stamp response provenance: appCommit (which build) + generatedAt (when this
+  // in-memory index set was built — boot or in-process rebuild). Honor an
+  // artifact-supplied value if one is ever present; otherwise fill it here.
+  const stampedMeta: Record<string, string | null> = {
+    ...meta,
+    appCommit: meta.appCommit ?? (config.appCommit || null),
+    generatedAt: meta.generatedAt ?? new Date().toISOString(),
+  };
+
+  return { docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, meta: stampedMeta };
 }
 
 // graphology + entity lookup maps from the entity/edge arrays. Extracted so the

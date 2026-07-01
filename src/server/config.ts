@@ -61,6 +61,12 @@ export const config = {
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
 
+  // This app's git commit, surfaced in tool response _meta for provenance
+  // ("which build answered"). Railway injects RAILWAY_GIT_COMMIT_SHA at deploy;
+  // fall back to generic CI vars. Empty (normalized to null) when unset locally.
+  appCommit:
+    process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_COMMIT ?? process.env.GIT_COMMIT ?? process.env.SOURCE_COMMIT ?? "",
+
   // Preview feature (/api/preview/*): always active server-side; surfaced in
   // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
   // tarball downloads (previously only the worker needed GitHub access).

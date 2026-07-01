@@ -99,6 +99,16 @@ describe("patchDocs", () => {
     expect(ix.byDocNo.get("A.9")?.id).toBe("a");
     expect(ix.byDocNo.has("A.1")).toBe(false);
   });
+
+  it("stamps response provenance (generatedAt + appCommit) while preserving atlasCommit", () => {
+    const ix = buildIndexes([doc("a")], [], [], { atlasCommit: "abc123" });
+    expect(ix.meta.atlasCommit).toBe("abc123");
+    // generatedAt is filled with a parseable ISO timestamp at build time.
+    expect(typeof ix.meta.generatedAt).toBe("string");
+    expect(Number.isNaN(Date.parse(ix.meta.generatedAt as string))).toBe(false);
+    // appCommit key is always present (null when no git env is set).
+    expect("appCommit" in ix.meta).toBe(true);
+  });
 });
 
 describe("applyInPlaceUpdate", () => {

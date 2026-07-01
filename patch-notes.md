@@ -18,6 +18,7 @@
 - Tightened Atlas search ranking so weakly-related results no longer crowd out the best matches
 - Added an entity finder to the Atlas MCP so you can look an actor up by plain name (e.g. "Spark Protocol") instead of an exact slug
 - Large Atlas MCP responses are now capped so they can't overflow a connected assistant's context
+- Atlas MCP responses now report which app build answered and when the data was generated
 
 ## 2026-06-30
 - add recent searches feature
