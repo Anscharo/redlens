@@ -1,51 +1,6 @@
 import { useState } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-
-const ENDPOINT = "https://atlas.redline.support/mcp";
-
-// Setup snippets, one per common MCP client. `code` is copyable verbatim.
-const CLIENTS: { name: string; note: React.ReactNode; code: string }[] = [
-  {
-    name: "Claude Code (CLI)",
-    note: "One command adds it as an HTTP server. Check it with `claude mcp list`.",
-    code: `claude mcp add --transport http redline-atlas ${ENDPOINT}`,
-  },
-  {
-    name: "Claude Desktop / claude.ai",
-    note: "Settings → Connectors → Add custom connector. Paste the endpoint URL; leave auth blank — the server is public and read-only.",
-    code: ENDPOINT,
-  },
-  {
-    name: "Project config (.mcp.json, Cursor, Windsurf, …)",
-    note: "Drop this into your client's MCP config. Most editors read the same shape.",
-    code: `{
-  "mcpServers": {
-    "redline-atlas": {
-      "type": "http",
-      "url": "${ENDPOINT}"
-    }
-  }
-}`,
-  },
-];
-
-// The atlas tool set, mirrored from src/server/tool-registry.ts (ATLAS_TOOLS).
-const TOOLS: { name: string; desc: string }[] = [
-  { name: "atlas_search", desc: "Lexical / semantic / hybrid search over the whole atlas." },
-  { name: "atlas_get", desc: "Fetch nodes by UUID or doc_no, each with its full ancestor chain." },
-  { name: "atlas_describe", desc: "Live schema: doc-type and edge-type vocabularies, entity types, atlas commit pin." },
-  { name: "atlas_get_address", desc: "Look up an on-chain address — merged atlas + chain metadata, linked entity, referencing docs." },
-  { name: "atlas_neighbors", desc: "Hierarchical context around a node: parent, siblings, children." },
-  { name: "atlas_traverse", desc: "Follow typed edges up to N hops from a node." },
-  { name: "atlas_entity", desc: "Everything tied to a named entity (agent, role, actor)." },
-  { name: "atlas_filter", desc: "Filter docs by type, entity subtree, ancestor, doc_no pattern, or depth." },
-  { name: "atlas_entity_params", desc: "Read an instance's Core children as a parameter map." },
-  { name: "atlas_history", desc: "Change log for one doc, newest first, with PR metadata and optional diffs." },
-  { name: "atlas_recent_changes", desc: "Recent changes across the atlas, filterable by type / entity." },
-  { name: "atlas_pr", desc: "Every doc touched by a single next-gen-atlas PR." },
-  { name: "atlas_changed_between", desc: "Docs added/modified/moved/removed between two atlas commits." },
-  { name: "atlas_query", desc: "One-call multi-dimensional query — search × graph × type × history × scope, intersected." },
-];
+import { ENDPOINT, CLIENTS, TOOLS, USAGE_EXAMPLES } from "./connectData";
 
 function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -112,6 +67,30 @@ export function ConnectPage() {
             <CodeBlock code={c.code} />
           </section>
         ))}
+
+        <h2 className="text-base font-semibold mt-8 mb-3" style={{ color: "var(--tan)" }}>
+          Using it
+        </h2>
+        <p className="text-sm mb-4" style={{ color: "var(--tan-2)" }}>
+          You don't call the tools by hand. Ask your assistant governance questions in plain language and it
+          picks the right atlas tools on its own — starting broad (search) and drilling down (get, neighbors,
+          traverse). Every result carries UUIDs, doc numbers, and ancestor chains, so you can always ask it to{" "}
+          <em>cite the exact sections</em> and get verifiable references instead of a paraphrase.
+        </p>
+        <ul className="space-y-2 mb-8">
+          {USAGE_EXAMPLES.map((e) => (
+            <li key={e.ask} className="text-xs" style={{ color: "var(--tan-2)" }}>
+              <span style={{ color: "var(--tan)" }}>“{e.ask}”</span>{" "}
+              <span className="text-tan-3">
+                → {e.tools.map((t) => (
+                  <span key={t} className="mono" style={{ color: "var(--accent)" }}>
+                    {t}{" "}
+                  </span>
+                ))}
+              </span>
+            </li>
+          ))}
+        </ul>
 
         <h2 className="text-base font-semibold mt-8 mb-3" style={{ color: "var(--tan)" }}>
           Verify the connection

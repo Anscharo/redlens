@@ -13,6 +13,7 @@
 
 ## 2026-07-01
 - Added a Connect page with instructions for hooking an AI assistant up to the atlas over MCP
+- Added a "Using it" section to the Connect page with example questions to ask an MCP-connected assistant
 
 ## 2026-06-30
 - add recent searches feature
