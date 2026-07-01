@@ -163,6 +163,10 @@ test("atlas_search: lexical results carry sources + snippet; phrase post-filter"
   expect(lex.results[0].sources).toContain("lexical");
   expect(typeof lex.results[0].snippet).toBe("string");
 
+  // Lexical type filter is a docMap post-filter (index stores no fields).
+  const typed = (await call("atlas_search", { query: "zebraword", type: "Core", k: 10, mode: "lexical" })) as { results: any[] };
+  expect(typed.results.map((r) => r.doc_no)).toEqual(["A.1.1.1"]); // Section A.1.1 filtered out
+
   // Quoted phrase requires an exact substring — only the Core has "voting zebraword".
   const phrase = (await call("atlas_search", { query: '"voting zebraword"', k: 10, mode: "hybrid" })) as { results: any[]; phrase_filter: string[] };
   expect(phrase.phrase_filter).toContain("voting zebraword");
@@ -170,16 +174,16 @@ test("atlas_search: lexical results carry sources + snippet; phrase post-filter"
 });
 
 // ── query: search / target_type / ancestor / entity_broad / type_list / chain ─
-test("atlas_query: search is lean by default and finds both matches", async () => {
+test("atlas_query: search is lean by default and intersects target_type", async () => {
   const s = (await call("atlas_query", { q: "zebraword", k: 10, enrich: false })) as Record<string, any>;
   expect(s.mode).toBe("search");
   expect(s.results[0].content).toBeUndefined(); // lean rows
   expect(s.results[0].snippet).toBeDefined();
   expect(s.results.map((r: any) => r.doc_no).sort()).toEqual(["A.1.1", "A.1.1.1"]);
-  // NB: target_type intersection on a text query relies on the search legs'
-  // type filter. The lexical leg filters via MiniSearch stored fields and the
-  // semantic leg via SQL — neither is exercisable in a keyless, DB-less unit
-  // test, so type filtering is covered here via type_list (docMap) instead.
+
+  // target_type flows into the lexical leg's docMap post-filter → Section drops out.
+  const typed = (await call("atlas_query", { q: "zebraword", target_type: "Core", k: 10, enrich: false })) as { results: any[] };
+  expect(typed.results.map((r) => r.doc_no)).toEqual(["A.1.1.1"]);
 });
 
 test("atlas_query: ancestor scope narrows results", async () => {

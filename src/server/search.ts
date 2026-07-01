@@ -26,13 +26,17 @@ export interface MergedHit {
 // fuzzy OFF by default (it dilutes exact term/ID/address lookups — the strength
 // of lexical mode), same boosts and OR combine.
 export function runLexical(ix: Indexes, query: string, type: string | undefined, k: number): Hit[] {
-  const results = ix.mini.search(query, {
+  let results = ix.mini.search(query, {
     boost: { title: 10, doc_no: 5, type: 2 },
     prefix: true,
     fuzzy: false,
     combineWith: "OR",
-    filter: type ? (r) => (r as { type?: string }).type === type : undefined,
   });
+  // Type is a POST-filter against docMap, not a MiniSearch `filter`: the index
+  // stores no per-result fields (kept out to shrink the artifact), so results
+  // carry no `type`. Resolve it by id — same approach as the frontend worker.
+  // Filter before slicing to k so the cap counts only type-matching hits.
+  if (type) results = results.filter((r) => ix.docMap.get(r.id as string)?.type === type);
   return results.slice(0, k).map((r, i) => ({ id: r.id as string, rank: i, score: r.score, source: "lexical" }));
 }
 
