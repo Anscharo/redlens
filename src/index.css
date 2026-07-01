@@ -232,12 +232,12 @@ mark {
   top: 0;
   bottom: 0;
   width: 12px;
-  border-left: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   pointer-events: none;
 }
 .tree-row.cradle-foot::before {
   bottom: 4px;
-  border-bottom: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  border-bottom: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   border-bottom-left-radius: 8px;
 }
 .tree-toggle {
@@ -459,12 +459,12 @@ mark {
   top: 0;
   bottom: 0;
   width: 12px;
-  border-left: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   pointer-events: none;
 }
 .atlas-node.cradle-foot::before {
   bottom: 4px;
-  border-bottom: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 45%, transparent);
+  border-bottom: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   border-bottom-left-radius: 8px;
 }
 .atlas-node:not(.is-selected):hover,
