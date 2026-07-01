@@ -176,7 +176,7 @@ test("atlas_describe keeps entity_type_graph + type_specifications opt-in", () =
     (e) => e.entity_type === "instance",
   );
   expect(inst).toBeDefined();
-  expect(["distribution-reward", "allocation-system"]).toContain(inst!.subtype);
+  expect(["distribution-reward", "allocation-system"]).toContain(inst!.subtype ?? "");
 
   const all = atlasDescribe(ix, ["all"]) as Record<string, unknown>;
   expect("entity_type_graph" in all).toBe(true);
