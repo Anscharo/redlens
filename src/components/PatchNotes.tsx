@@ -37,7 +37,7 @@ export function PatchNotes() {
             <time dateTime={g.date} className="text-lg text-tan-3">
               {formatPatchDate(g.date)}
             </time>
-            <ul className="mt-1 list-disc list-inside text-base text-tan-2 leading-relaxed">
+            <ul className="mt-1 list-disc list-inside text-base text-tan-2 leading-relaxed" style={{ maxWidth: "70ch" }}>
               {g.items.map((item, i) => (
                 <li key={i}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
