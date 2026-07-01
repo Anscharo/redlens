@@ -8,7 +8,7 @@
     sentence, simpler in tone than a commit message.
   - Update this file in the same PR as the change it describes.
 
-  Only the 7 most recent bullets across all dates are shown.
+  Only the 10 most recent bullets across all dates are shown.
 -->
 
 ## 2026-07-01
