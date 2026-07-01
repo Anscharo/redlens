@@ -81,6 +81,11 @@ function post(msg: WorkerOutMessage) {
 //   - Scopes are the two-segment nodes A.1 … A.6; their title is the scope name.
 //   - ICDs are titled "<Name> Instance Configuration Document" (the "… Location"
 //     pointer stubs end in "Location", so the end-anchor excludes them).
+// fragile: doc_no prefix — A.6.1.1/A.6.1.2 are editorial paths, not spec-defined
+// structural suffixes, so an Agents-scope renumber (cf. PR #235) silently drops
+// agent labels. Mirrors build-time isPrimeAgent/isExecutorAgent in
+// scripts/lib/graph-patterns.mjs; keep the two in sync until migrated to
+// parent_of-edge ancestry.
 const AGENT_DOCNO_RE = /^A\.6\.1\.[12]\.\d+$/;
 const SCOPE_DOCNO_RE = /^[A-Za-z]\.\d+$/;
 const ICD_TITLE_RE = /^(.+?)\s+Instance Configuration Document$/i;
