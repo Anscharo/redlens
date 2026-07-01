@@ -49,10 +49,13 @@ const DEFINITION_UUIDS = [
 // discovery (they name the role but impose no duty).
 const ASSIGNMENT_DOCNO_RE = /^A\.6\.1\.2\.\d+\.2$/;
 
-// "Operational GovOps" / "CoreGovOps" / "Core GovOps" as the subject of an
-// obligation — used to discover duty docs by content when the title is silent.
+// GovOps as the subject of an obligation — used to discover duty docs by content
+// when the title is silent. The "Operational"/"Core" qualifier is optional so a
+// bare "GovOps must …" / "GovOps carries out …" is still caught. The verb list is
+// what keeps definitions ("GovOps actors are …") and cross-references ("… GovOps
+// for Ozone are specified in …") out — neither "are" nor "specified" appears here.
 const ROLE_ACTION_RE =
-  /(?:Operational|Core)\s*GovOps\b[^.]*?\b(?:must|shall|will|reviews?|validates?|calculates?|executes?|performs?|is responsible|are responsible|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?)\b/i;
+  /(?:(?:Operational|Core)\s+)?GovOps\b[^.]*?\b(?:must|shall|will|reviews?|validates?|calculates?|executes?|performs?|is responsible|are responsible|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?|manages?|oversees?|conducts?|handles?|assesses?)\b/i;
 
 const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
 const OP_ROLE_RE = /\bOperational\s*GovOps\b/i;
@@ -181,6 +184,16 @@ export function deriveGovOpsResponsibilities(
   //    (e.g. Soter Labs) also holds Responsible-Party duties in other capacities
   //    (named directly, resolution="direct"), and those are NOT GovOps duties.
   //    Only edges whose ADC declaration names the GovOps role belong here.
+  //
+  //    Known limitation (deliberate): responsible_party_for edges are emitted by
+  //    build-graph ONLY for `Active Data Controller` docs. Process-step "Update"
+  //    docs (type=Core, under A.2.2.9.* process definitions) also carry a bulleted
+  //    "Responsible Party: Operational GovOps" field, but get no edge — so they
+  //    are not listed here. That is intentional: those steps are the execution of
+  //    duties already counted at the ADC level (e.g. an "Onboarding Integrators
+  //    Active Data Update" step realises the "Onboarding Integrators" ADC duty
+  //    Soter Labs already holds), so surfacing them would add redundant per-step
+  //    granularity rather than new responsibilities.
   for (const e of edges) {
     if (e.e !== "responsible_party_for" || e.tt !== "doc") continue;
     const declared = parseMeta<{ role_declared?: string }>(e.m)?.role_declared ?? "";

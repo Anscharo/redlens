@@ -38,6 +38,9 @@ for (const n of [
   // Active Data controller where Soter Labs is RP in a NON-GovOps capacity
   // (named directly) — must be EXCLUDED from GovOps responsibilities.
   node({ id: "adc-nongov", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Soter Labs." }),
+  // Bare "GovOps" (no Operational/Core qualifier) as an actor, title silent —
+  // must still be discovered via the content scan.
+  node({ id: "duty-bare", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "GovOps actors carry out operational activities on behalf of Executor Agents." }),
   // Noise: a doc merely cross-referencing GovOps (no obligation verb) — excluded.
   node({ id: "noise", doc_no: "A.9.9", title: "Some Section", content: "The Operational Facilitator and Operational GovOps for Ozone are specified in A.6.1.2.2." }),
 ]) docs[n.id] = n;
@@ -96,6 +99,11 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nongov excluded
     expect(ad[0].govops).toBe("Soter Labs");
     expect(ad[0].agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
+  });
+
+  it("discovers bare 'GovOps <verb>' duties even when the title is silent", () => {
+    const dutyIds = [...byCat("op-duty"), ...byCat("core-duty")].map((r) => r.uuid);
+    expect(dutyIds).toContain("duty-bare");
   });
 
   it("excludes bare cross-references and assignment docs from duty discovery", () => {
