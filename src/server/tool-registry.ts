@@ -84,7 +84,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     description:
       "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
       "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
-      "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it.",
+      "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it. Results 2+ hops away " +
+      "also include `path`: the ordered chain of steps (edge + node) from the start node to that result.",
     shape: {
       id: z.string().describe("Starting node UUID or doc_no."),
       edge_type: z.string().optional().describe("Edge type filter (e.g. 'cites', 'responsible_party_for')."),

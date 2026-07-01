@@ -43,12 +43,13 @@ export function atlasTraverse(
   const start = resolveNode(ix, id);
   if (!start) return { error: "Not found" };
 
-  // id → how it was first reached: hop distance from the start node, plus the
-  // edge type and direction of the edge that discovered it. `hops` is the BFS
-  // distance (NOT the node's atlas depth — docRow still carries that as `depth`).
-  type Reach = { hops: number; edge_type: string | null; direction: "out" | "in" | null };
+  // id → how it was first reached: hop distance from the start node, the edge
+  // type + direction of the discovering edge, and `from` (the predecessor node)
+  // so a multi-hop route can be reconstructed. `hops` is BFS distance (NOT the
+  // node's atlas depth — docRow still carries that as `depth`).
+  type Reach = { hops: number; edge_type: string | null; direction: "out" | "in" | null; from: string | null };
   const visited = new Map<string, Reach>();
-  visited.set(start.id, { hops: 0, edge_type: null, direction: null });
+  visited.set(start.id, { hops: 0, edge_type: null, direction: null, from: null });
   const queue: Array<{ id: string; hops: number }> = [{ id: start.id, hops: 0 }];
 
   while (queue.length) {
@@ -66,11 +67,27 @@ export function atlasTraverse(
         dir = "in";
       }
       if (neighbor && !visited.has(neighbor)) {
-        visited.set(neighbor, { hops: hops + 1, edge_type: e.edge_type, direction: dir });
+        visited.set(neighbor, { hops: hops + 1, edge_type: e.edge_type, direction: dir, from: cur });
         queue.push({ id: neighbor, hops: hops + 1 });
       }
     }
   }
+
+  // Reconstruct the route start→node as steps (each = the edge stepped through +
+  // the node it led to), for multi-hop results where the discovering edge alone
+  // doesn't reveal how the node was reached.
+  const stepLabel = (nid: string) => {
+    const d = ix.docMap.get(nid);
+    return d ? { id: nid, doc_no: d.doc_no } : { id: nid, slug: ix.entityById.get(nid)?.slug ?? null };
+  };
+  const pathTo = (nid: string) => {
+    const steps: Array<Record<string, unknown>> = [];
+    for (let cur: string | null = nid; cur && cur !== start.id; cur = visited.get(cur)!.from) {
+      const r = visited.get(cur)!;
+      steps.push({ ...stepLabel(cur), edge_type: r.edge_type, direction: r.direction });
+    }
+    return steps.reverse();
+  };
 
   const results: Array<Record<string, unknown>> = [];
   for (const [nid, r] of visited) {
@@ -78,7 +95,11 @@ export function atlasTraverse(
     const doc = ix.docMap.get(nid);
     const ent = doc ? null : ix.entityById.get(nid);
     const base = doc ? docRow(doc) : ent ? entityRow(ent) : null;
-    if (base) results.push({ ...base, hops: r.hops, edge_type: r.edge_type, direction: r.direction });
+    if (base) {
+      const row: Record<string, unknown> = { ...base, hops: r.hops, edge_type: r.edge_type, direction: r.direction };
+      if (r.hops >= 2) row.path = pathTo(nid); // single-hop route is just the node itself
+      results.push(row);
+    }
   }
   results.sort(
     (a, b) =>

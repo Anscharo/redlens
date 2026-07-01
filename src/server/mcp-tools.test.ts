@@ -119,6 +119,16 @@ test("atlas_traverse: edge_type filter + hops/edge_type/direction on results", (
   expect(up.results[0]).toMatchObject({ doc_no: "A.1.1", direction: "in" });
 });
 
+test("atlas_traverse: multi-hop results include the full path; 1-hop don't", () => {
+  const r = call("atlas_traverse", { id: "A", edge_type: "parent_of", hops: 2, direction: "out" }) as { results: any[] };
+  const oneHop = r.results.find((x) => x.doc_no === "A.1");
+  expect(oneHop.path).toBeUndefined(); // single hop needs no path
+  const twoHop = r.results.find((x) => x.doc_no === "A.1.1");
+  expect(twoHop.hops).toBe(2);
+  expect(twoHop.path.map((s: any) => s.doc_no)).toEqual(["A.1", "A.1.1"]); // A → A.1 → A.1.1
+  expect(twoHop.path.every((s: any) => s.edge_type === "parent_of" && s.direction === "out")).toBe(true);
+});
+
 // ── entity + entities + entity_params ────────────────────────────────────────
 test("atlas_entity: resolves NL name, paginates, filters by type", () => {
   const r = call("atlas_entity", { name: "Spark Protocol", limit: 50, offset: 0, include_content: false }) as Record<string, any>;
