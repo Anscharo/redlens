@@ -34,7 +34,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "Fetch one or many Atlas nodes by UUID or doc_no. Each result includes the full ancestor chain (parent → root). " +
       "Pass a string for one node or an array for bulk.",
     shape: {
-      id: z.union([z.string(), z.array(z.string()).min(1).max(100)]).describe("UUID or doc_no, or an array of them."),
+      id: z.union([z.string(), z.array(z.string()).min(1).max(50)]).describe("UUID or doc_no, or an array of up to 50."),
     },
     handler: (ix, a) => atlasGet(ix, a.id as string | string[]),
   },
@@ -142,7 +142,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       doc_no_pattern: z.string().optional().describe("LIKE pattern over doc_no (use % wildcards)."),
       depth_min: z.number().int().min(0).max(20).optional(),
       depth_max: z.number().int().min(0).max(20).optional(),
-      limit: z.number().int().min(1).max(500).default(200),
+      limit: z.number().int().min(1).max(200).default(50),
       include_content: z.boolean().default(true).describe("Include full content. Set false for lighter listing responses."),
     },
     handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),

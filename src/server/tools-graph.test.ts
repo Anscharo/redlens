@@ -3,6 +3,7 @@
 // in-memory (no SQL), so a hand-built Indexes fixture is enough.
 import { test, expect } from "bun:test";
 import { atlasTraverse, atlasEntity, atlasEntities, atlasEntityParams } from "./tools-graph.ts";
+import { atlasGet } from "./tools.ts";
 import { matchEntities } from "./entity-resolve.ts";
 import { fitToBudget } from "./output-budget.ts";
 import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
@@ -13,7 +14,7 @@ import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
 //                        └─ D2 (instance: allocation-system, Active Data) ─ P3
 // Plus a cites edge D1 → DX (out of subtree), and E ─defines_entity→ D0.
 function node(id: string, doc_no: string, type: string, depth: number, parentId: string | null): AtlasNode {
-  return { id, doc_no, title: id, type, depth, parentId, order: 0, content: `content ${id}`, addressRefs: [] } as AtlasNode;
+  return { id, doc_no, title: id, type, depth, parentId, order: 0, content: `content ${id}`, contentHash: `hash-${id}`, addressRefs: [] } as AtlasNode;
 }
 function edge(id: number, from_id: string, to_id: string, edge_type: string): Edge {
   return { id, from_id, from_type: "doc", to_id, to_type: "doc", edge_type, source_doc_nos: null, weight: 1, meta: null };
@@ -150,6 +151,15 @@ test("atlas_entities searches by name and filters by type", () => {
   const instances = atlasEntities(ix, { entity_type: "instance", limit: 50, offset: 0 }) as { total: number; results: Array<{ slug: string }> };
   expect(instances.total).toBe(2);
   expect(instances.results.map((r) => r.slug).sort()).toEqual(["ent-allocation-system", "ent-distribution-reward"]);
+});
+
+// ── atlas_get: lean payload ──────────────────────────────────────────────────
+test("atlas_get drops contentHash but keeps content + ancestors", () => {
+  const ix = makeIx();
+  const one = atlasGet(ix, "D1") as Record<string, unknown>;
+  expect(one.contentHash).toBeUndefined();
+  expect(one.content).toBe("content D1");
+  expect((one.ancestors as Array<{ id: string }>).map((a) => a.id)).toEqual(["D0"]);
 });
 
 // ── output budget ────────────────────────────────────────────────────────────

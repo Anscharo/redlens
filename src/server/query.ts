@@ -270,8 +270,14 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   const results = hits.map((h) => {
     const n = ix.docMap.get(h.id)!;
     // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
-    // single-source ones — the former are the more trustworthy matches.
-    return { ...enrichNode(ix, n, a.enrich, !!a.include_params), snippet: buildSnippet(n.content, a.q ?? ""), score: h.rrf_score || h.score, sources: h.sources };
+    // single-source ones — the former are the more trustworthy matches. Skip the
+    // snippet when enrich already returned full content (it'd just duplicate it).
+    return {
+      ...enrichNode(ix, n, a.enrich, !!a.include_params),
+      ...(a.enrich ? {} : { snippet: buildSnippet(n.content, a.q ?? "") }),
+      score: h.rrf_score || h.score,
+      sources: h.sources,
+    };
   });
   return withBudget(results, resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity, mode } : { mode });
 }
