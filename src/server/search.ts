@@ -4,6 +4,7 @@ import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral } from "./db.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "./config.ts";
+import { compactProse } from "../lib/shortenTitle.ts";
 
 const RRF_K = 60;
 
@@ -93,10 +94,17 @@ export function buildSnippet(content: string, query: string, len = 240): string 
     const i = lc.indexOf(t);
     if (i >= 0 && (at < 0 || i < at)) at = i;
   }
-  if (at < 0) return content.slice(0, len).trim() + (content.length > len ? "…" : "");
-  const start = Math.max(0, at - len / 4);
-  const slice = content.slice(start, start + len).trim();
-  return (start > 0 ? "…" : "") + slice + (start + len < content.length ? "…" : "");
+  // Pull a WIDER raw window, then compact it (drop articles, abbreviate known
+  // words) so the returned snippet carries more content per `len` bytes than a
+  // hard char-truncation would. Compaction happens after slicing so the match
+  // position stays accurate.
+  const raw = Math.round(len * 1.6);
+  const start = at < 0 ? 0 : Math.max(0, at - raw / 4);
+  let text = compactProse(content.slice(start, start + raw).trim());
+  if (text.length > len) text = text.slice(0, len).trimEnd();
+  const lead = start > 0;
+  const trail = start + raw < content.length;
+  return (lead ? "…" : "") + text + (trail ? "…" : "");
 }
 
 // Phrase parsing is shared with the frontend reader (one source of truth):

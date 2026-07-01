@@ -136,11 +136,35 @@ function chainEntityIds(ix: Indexes, entityId: string, viaType: string, edgeType
   return [...ids];
 }
 
+// Collect the unique ancestor objects referenced by rows' `ancestor_ids` into a
+// single id→{doc_no,title,type,depth} map, so a k=10 enriched query doesn't
+// repeat the same scope/article chain ten times. Null when no row is enriched.
+function collectAncestors(ix: Indexes, rows: unknown[]): Record<string, unknown> | null {
+  const map: Record<string, { doc_no: string; title: string; type: string; depth: number }> = {};
+  let any = false;
+  for (const r of rows) {
+    const ids = (r as { ancestor_ids?: unknown }).ancestor_ids;
+    if (!Array.isArray(ids)) continue;
+    for (const id of ids as string[]) {
+      if (map[id]) continue;
+      const n = ix.docMap.get(id);
+      if (n) {
+        map[id] = { doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth };
+        any = true;
+      }
+    }
+  }
+  return any ? map : null;
+}
+
 function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: boolean) {
   const base: Record<string, unknown> = {
     id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth, parent_id: n.parentId,
   };
-  if (enrich) { base.content = n.content; base.ancestors = ancestorChain(ix, n.id); }
+  // Emit ancestor IDS only; the full ancestor objects are deduped into one
+  // top-level `ancestors` map per response (collectAncestors) so shared chains
+  // aren't repeated across every result.
+  if (enrich) { base.content = n.content; base.ancestor_ids = ancestorChain(ix, n.id).map((a) => a.id); }
   if (includeParams) {
     base.params = (ix.childrenIndex.get(n.id) ?? []).map((c) => ({
       id: c.id, doc_no: c.doc_no, name: c.title, type: c.type, value: c.content,
@@ -181,7 +205,14 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   // can't overflow the caller's context; `truncated` tells them to page/narrow.
   const withBudget = (rows: unknown[], rest: Record<string, unknown>): ToolResult => {
     const { kept, truncated } = fitToBudget(rows);
-    return { ...rest, count: kept.length, ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
+    const ancestors = collectAncestors(ix, kept);
+    return {
+      ...rest,
+      count: kept.length,
+      ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(ancestors ? { ancestors } : {}),
+      results: kept,
+    };
   };
   const dir: Dir = a.direction ?? "both";
 
@@ -212,11 +243,13 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     const { kept, truncated } = fitToBudget(flat);
     const by_relationship: Record<string, unknown[]> = {};
     for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
+    const ancestors = collectAncestors(ix, kept.map(([, row]) => row));
     return {
       entity: a.entity,
       resolved_entity: resolvedEntity,
       mode: "entity_broad",
       ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(ancestors ? { ancestors } : {}),
       by_relationship,
     };
   }

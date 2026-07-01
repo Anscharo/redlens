@@ -3,6 +3,7 @@
 import { describe, it, expect } from "bun:test";
 import { buildIndexes, type AtlasNode, type Edge } from "./indexes.ts";
 import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate } from "./atlas-refresh.ts";
+import { atlasQuery } from "./query.ts";
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -98,6 +99,32 @@ describe("patchDocs", () => {
     patchDocs(ix, diffDocs(ix.docMap, [doc("a", { doc_no: "A.9", content: "alpha v2" })]));
     expect(ix.byDocNo.get("A.9")?.id).toBe("a");
     expect(ix.byDocNo.has("A.1")).toBe(false);
+  });
+
+  it("atlas_query is lean by default and inlines deduped ancestors when enriched", async () => {
+    const ix = buildIndexes(
+      [
+        doc("root", { doc_no: "A", title: "Root", content: "zebraword" }),
+        doc("child", { doc_no: "A.1", parentId: "root", content: "zebraword alpha" }),
+      ],
+      [],
+      [],
+      {},
+    );
+
+    const lean = (await atlasQuery(ix, { q: "zebraword", k: 10, enrich: false })) as Record<string, any>;
+    expect(lean.mode).toBe("search");
+    expect(lean.results.length).toBeGreaterThan(0);
+    expect(lean.results[0].content).toBeUndefined(); // lean: no full content
+    expect(lean.results[0].snippet).toBeDefined(); // but a snippet
+    expect(lean.ancestors).toBeUndefined(); // no ancestor map when not enriched
+
+    const rich = (await atlasQuery(ix, { q: "zebraword", k: 10, enrich: true })) as Record<string, any>;
+    expect(rich.results[0].content).toBeDefined();
+    expect(rich.results[0].snippet).toBeUndefined(); // no redundant snippet alongside content
+    const childRow = rich.results.find((r: any) => r.id === "child");
+    expect(childRow.ancestor_ids).toEqual(["root"]); // ids only per-row
+    expect(rich.ancestors.root).toMatchObject({ doc_no: "A", title: "Root" }); // deduped into top-level map
   });
 
   it("stamps response provenance (generatedAt + appCommit) while preserving atlasCommit", () => {

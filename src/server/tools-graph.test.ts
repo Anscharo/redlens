@@ -3,7 +3,7 @@
 // in-memory (no SQL), so a hand-built Indexes fixture is enough.
 import { test, expect } from "bun:test";
 import { atlasTraverse, atlasEntity, atlasEntities, atlasEntityParams } from "./tools-graph.ts";
-import { atlasGet } from "./tools.ts";
+import { atlasGet, atlasDescribe } from "./tools.ts";
 import { matchEntities } from "./entity-resolve.ts";
 import { fitToBudget } from "./output-budget.ts";
 import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
@@ -160,6 +160,24 @@ test("atlas_get drops contentHash but keeps content + ancestors", () => {
   expect(one.contentHash).toBeUndefined();
   expect(one.content).toBe("content D1");
   expect((one.ancestors as Array<{ id: string }>).map((a) => a.id)).toEqual(["D0"]);
+});
+
+// ── atlas_describe: heavy sections opt-in ────────────────────────────────────
+test("atlas_describe keeps entity_type_graph + type_specifications opt-in", () => {
+  const ix = makeIx();
+  const def = atlasDescribe(ix) as Record<string, unknown>;
+  expect(def.doc_types).toBeDefined(); // light vocab always present
+  expect("entity_type_graph" in def).toBe(false);
+  expect("type_specifications" in def).toBe(false);
+
+  const all = atlasDescribe(ix, ["all"]) as Record<string, unknown>;
+  expect("entity_type_graph" in all).toBe(true);
+  expect("type_specifications" in all).toBe(true);
+
+  const one = atlasDescribe(ix, ["type_specifications"]) as Record<string, unknown>;
+  expect("type_specifications" in one).toBe(true);
+  expect("entity_type_graph" in one).toBe(false);
+  expect(one.doc_types).toBeDefined(); // light sections stay even when sections is set
 });
 
 // ── output budget ────────────────────────────────────────────────────────────

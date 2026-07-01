@@ -22,11 +22,17 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_describe",
     description:
-      "Self-describing schema. Returns live doc-type taxonomy with counts, edge-type vocabulary with counts, " +
-      "entity types and slugs, entity_type_graph (how entity types connect via graph edges — use this to " +
-      "understand traversal chains like facilitator → executor → prime), Type Specifications, and the atlas commit pin.",
-    shape: {},
-    handler: (ix) => atlasDescribe(ix),
+      "Self-describing schema. By default returns doc-type + edge-type + entity-type vocabularies (with counts) and " +
+      "doc/entity totals. The heavier entity_type_graph (how entity types connect — traversal chains like " +
+      "facilitator → executor → prime) and type_specifications are opt-in: pass `sections` with those names (or " +
+      "'all'). Use atlas_entities to look up individual entities.",
+    shape: {
+      sections: z
+        .array(z.string())
+        .optional()
+        .describe("Extra sections to include: 'entity_type_graph', 'type_specifications', or 'all'. Omit for the default vocab."),
+    },
+    handler: (ix, a) => atlasDescribe(ix, a.sections as string[] | undefined),
   },
   {
     name: "atlas_get",
@@ -221,7 +227,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +
-      "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions.",
+      "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
+      "Retrieve-then-read: results are lean by default (title, doc_no, snippet, sources) — set enrich=true for " +
+      "full content + ancestor ids (deduped into a top-level `ancestors` map), or fetch specific ids with atlas_get.",
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
