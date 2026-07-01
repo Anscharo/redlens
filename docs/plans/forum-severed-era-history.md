@@ -1,8 +1,10 @@
 # Reconstructing the severed-era Atlas history from forum proposals (Option 1)
 
 Status: PLANNED (2026-06-24); **enumeration step BUILT 2026-06-25** (§1 — script
-+ checked-in manifest). Depends on findings in `atlas-prehistory-mips.md`.
-Sibling to `html-era-history.md` (the git-based HTML-era pipeline).
++ checked-in manifest); facilitator context folded in 2026-07-01 (see
+`atlas-prehistory-mips.md`, "Facilitator accounts"). Depends on findings in
+`atlas-prehistory-mips.md`. Sibling to `html-era-history.md` (the git-based
+HTML-era pipeline).
 
 **Goal.** Recover per-document change history for the **severed HTML era**
 (≈2024-09 → 2025-05-28 — the pre-truncation `next-gen-atlas` window that is
@@ -184,7 +186,11 @@ gone. Tag every emitted event `provenance='forum'`.
    design era; MIP101 to 2024-08-12) are design/MIP history, not HTML edit cycles —
    out of forum-reconstruction scope (Tier 3). Accept 2024-09-02 as the era floor.
 
-This path is independent of recovering the literal git objects; if a contact
-later supplies the pre-truncation repo or a Powerhouse op-log
-(`atlas-prehistory-mips.md` Tiers 1–2 / the data request), that *exact* source
-supersedes this reconstruction for the same window.
+This path is independent of recovering the literal git objects. A facilitator
+account (`atlas-prehistory-mips.md`, "Facilitator accounts", 2026-07-01)
+suggests the pre-truncation repo itself is now low-value to chase — it was
+reportedly made private over a sensitive-info leak, with the replacement
+expected to carry everything else — so this reconstruction is likely the
+*ceiling* for the severed window, not a placeholder for a fuller recovery. A
+Powerhouse op-log export (Tier 2) remains the one source that could still
+supersede it, if a contact surfaces one.

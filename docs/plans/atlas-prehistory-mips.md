@@ -1,10 +1,11 @@
 # Atlas pre-history: MIPs → Powerhouse → next-gen-atlas
 
 Status: RESEARCH (2026-06-24; recovery + identity probes 2026-06-25; genesis HTML
-recovered + MIP→v2 governance seam dated 2026-06-25). Companion to
-`html-era-history.md`. Question investigated: the `Sky Atlas.html` "first commit"
-is not the true beginning of the Atlas — what came before, and should we extend
-document history further back than the HTML era?
+recovered + MIP→v2 governance seam dated 2026-06-25; facilitator accounts folded
+in 2026-07-01). Companion to `html-era-history.md`. Question investigated: the
+`Sky Atlas.html` "first commit" is not the true beginning of the Atlas — what
+came before, and should we extend document history further back than the HTML
+era?
 
 **Answer: yes, there is a real pre-history in at least three earlier strata — and
 the key follow-up questions are now settled by measurement:**
@@ -68,6 +69,57 @@ Details and a tiered recommendation below.
   functionality fully replaced by Atlas v2."* That single-file nested tree is
   exactly the `Sky Atlas.html` we parse — so the HTML atlas **is** Atlas v2, and
   the MIPs are its explicitly-deprecated predecessor.
+
+### Facilitator accounts (2026-07-01) — MIP consolidation, portal breadcrumbs, repo-privacy explanation
+
+Two governance facilitators (Retro, plus a second unnamed contact) supplied
+context that refines and partly resolves open items above:
+
+- **MIP count had an intermediate compression step.** Retro recalls the
+  MIP-era Atlas as **~12 scope MIPs (his own "(?)")**, which matches
+  MIP102–MIP113 (verified present, above), later **compressed to 5 or 6 MIPs**
+  before the final 2024-09-02 unification into the single Atlas v2 HTML file.
+  This middle step isn't in our evidence yet — we've only confirmed
+  MIP102–MIP113 exist as files, not whether/when some were merged into others
+  before the v2 cutover. **Needs verification:** diff `makerdao/mips` history
+  for MIP102–113 for a merge event in the 2024 window, and reconcile the
+  resulting count (5, matching the five Scopes, or 6, matching five Scopes +
+  MIP101) against Retro's recollection.
+- **Possible orphaned "still active" legacy MIPs.** Retro flagged an
+  unresolved cleanup: some legacy MIPs may still be formally marked
+  active/accepted in the MIPs system despite being superseded by Atlas v2 — a
+  housekeeping gap, not a content gap. Relevant if Tier 3 is pursued: don't
+  assume a MIP's on-repo presence means its governance status was ever closed
+  out — check each one directly.
+- **The MIP portal already breadcrumbs sources.** Per Retro, the MIP portal
+  (the MIPs-era analog of today's atlas reader) links each MIP back to its
+  GitHub file, forum thread(s), and voting/polling record. If Tier 3 is
+  pursued, this removes most of the by-hand enumeration work the HTML era
+  needed (`forum-severed-era-history.md` §1) — the MIP portal is a ready-made
+  per-MIP index of `{repo, forum, poll}`.
+- **A named human source for era 1.** Retro named **Blimpa (Endgame)** as "the
+  last MIP editor still around from early Core Unit days with full hands-on
+  context" — the strongest lead yet for Tier 3 (and possibly Tier 2) outreach;
+  see open question 5.
+- **The severed-repo re-init has a mundane explanation.** A second facilitator
+  said the pre-truncation `next-gen-atlas` repo was made private after
+  **sensitive info leaked into it**, and that its replacement "should have all
+  the same stuff minus sensitive info" — i.e. **no atlas-content loss is
+  expected**, only the deliberately-removed sensitive material. This lines up
+  with our independent finding that the repo was re-created (not
+  force-pushed) exactly on 2025-05-28 (`created_at` same day as `4e931dfd`).
+  **This downgrades the expected value of Tier 1's "recover the
+  pre-truncation repo" ask** — per this account there's likely nothing
+  atlas-relevant in it beyond what the genesis snapshot + forum reconstruction
+  already give us, only content someone deliberately chose to withhold. It
+  does not affect the Powerhouse op-log ask (Tier 2), a different,
+  presumably-clean source. `atlas-data-request.md` updated accordingly.
+- **IPFS usage is otherwise rare in this ecosystem.** A facilitator noted the
+  only other IPFS usage he's aware of is **"LFW's Random Handover Stuff."**
+  Worth a quick look in case it holds relevant historical/handover context,
+  but treat as a minor lead, not a load-bearing one — our own IPFS recovery
+  (genesis HTML, poll docs) already stands on its own on-chain-verified
+  footing.
 
 ### Atlas v2 predates our repo, with UUIDs already in place (era 2 / 3a)
 
@@ -347,7 +399,13 @@ from the **forum Atlas Edit Weekly Cycle proposals** (continuous back to 2024-09
 — see "Forum recovery source"), now bracketed and calibratable against the two
 exact snapshots. For reader/chat (human-language history) that likely suffices.
 Recovering the literal intermediate commits still needs the pre-truncation repo / a
-Powerhouse export from **Sky / Powerhouse / Atlas-Axis**.
+Powerhouse export from **Sky / Powerhouse / Atlas-Axis**. **Updated take
+(2026-07-01):** per a facilitator account (see "Facilitator accounts" above),
+the pre-truncation repo was reportedly made private over a sensitive-info leak
+and its replacement should carry everything else — so that specific ask is
+now low-value; treat the forum+genesis reconstruction as the likely *ceiling*
+for this window, not a stand-in for a fuller recovery, and lean on the
+Powerhouse op-log ask (Tier 2) instead if more depth is wanted.
 
 **Tier 2 — Powerhouse operation-log export. The real prize if a contact exists.**
 The earlier "is Powerhouse the identity anchor?" question is **resolved: no** —
@@ -366,15 +424,22 @@ as separate MIP files) and **different identity** (MIP/section numbers, no
 UUIDs). Splicing it is a second cross-format, cross-repo bridge whose structural
 gap (separate MIP docs → unified HTML tables) is *larger* than the HTML→md gap.
 High effort, 2023-era depth. Only worth it if there's explicit appetite for
-"what did the Atlas say when it was first ratified."
+"what did the Atlas say when it was first ratified." **Two facilitator leads
+lower the effort if pursued** (see "Facilitator accounts" above): the **MIP
+portal** already breadcrumbs each MIP to its GitHub file/forum thread/poll —
+no enumeration script needed, unlike the HTML-era forum work — and **Blimpa
+(Endgame)** is a named contact with full hands-on context from the Core Unit
+era. The MIP count itself needs re-verification first (12 → 5/6 → 1
+compression, possible orphaned "still active" legacy MIPs).
 
 ## Open questions to resolve before any pre-HTML build
 
 1. ~~**Recoverability of era 3a** via Wayback/IPFS/forks~~ — **partly resolved.**
    The **2024-09-02 genesis HTML is recovered** (IPFS CID in #25010) and the git
    root is in hand; only the *intermediate* commits remain unrecoverable (repo
-   re-init, no pre-truncation fork, raw HTML not in Wayback) and need a cooperative
-   dump from Sky/Powerhouse/Atlas-Axis.
+   re-init, no pre-truncation fork, raw HTML not in Wayback) — and, per a
+   facilitator account (2026-07-01), likely low-value even if recovered (see
+   Tier 1, "Updated take").
 2. ~~**UUID provenance** — Powerhouse vs #117~~ — **resolved: different spaces.**
    #117 is the canonical anchor; the early-Powerhouse UUIDs are dead. No change to
    the html-era plan's anchor.
@@ -384,5 +449,19 @@ High effort, 2023-era depth. Only worth it if there's explicit appetite for
 4. **Is a Powerhouse operation-log export obtainable** (Tier 2)? The single
    highest-leverage follow-up — it could supersede the git-based history entirely,
    but needs a Sky/Powerhouse contact.
-5. **One outreach decision**: do we ask the Sky/Powerhouse/Atlas-Axis team for the
-   pre-truncation repo + the Powerhouse op-log, or accept era 3b as the floor?
+5. **One outreach decision — now with a named contact.** Per the facilitator
+   account (2026-07-01), asking for the **pre-truncation repo** itself is
+   lower-value than previously thought (expected to add nothing but the
+   sensitive info that was deliberately removed) — deprioritize that ask. The
+   **Powerhouse op-log** export remains the high-value ask (Tier 2, a
+   different/clean source). **Blimpa (Endgame)** is the concrete lead for
+   era-1 (Tier 3) outreach; still need a separate Sky/Powerhouse contact for
+   the op-log ask.
+6. **Verify the MIP consolidation step** Retro described (12 scope MIPs → 5 or
+   6 → the single Atlas v2). Diff `makerdao/mips` for a merge event in the
+   2024 window; reconcile against the 12 MIP102–113 files already confirmed
+   to exist.
+7. **Check for orphaned "still active" legacy MIPs** — Retro flagged a cleanup
+   that may never have happened. If Tier 3 is pursued, verify each of
+   MIP102–113's formal status directly rather than assuming file-presence
+   means superseded-vs-active is tracked correctly.

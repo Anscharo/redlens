@@ -21,12 +21,7 @@ May 2025.)
 
 **What would help, in order of usefulness:**
 
-1. **A copy of the old `next-gen-atlas` repository from before 28 May 2025** —
-   ideally a full git clone or bundle (or just having the old commit history
-   restored). Anyone who cloned it in late 2024 / early 2025 likely still has it
-   locally.
-
-2. **A Powerhouse export of the Atlas document's edit history** — if the Atlas
+1. **A Powerhouse export of the Atlas document's edit history** — if the Atlas
    document model on Powerhouse keeps an operation/revision log, an export of
    that log would be even better than git, and may reach back further (into the
    2024 Powerhouse era). **Also:** the Powerhouse team used to maintain an IPFS
@@ -36,11 +31,18 @@ May 2025.)
    current root CID, would recover the Sept 2024–May 2025 poll documents** that
    describe each Atlas edit.
 
-3. **Saved snapshots of the old `Sky Atlas.html` from *between* Sept 2024 and 28
+2. **Saved snapshots of the old `Sky Atlas.html` from *between* Sept 2024 and 28
    May 2025.** We already recovered the **original launch version** (it was pinned
    to IPFS for the Sept 2024 governance vote), so we don't need that one — what's
    missing is the *intermediate* versions across that window. Any saved file
    copies, or IPFS links/CIDs, from that period would help.
+
+3. **A copy of the old `next-gen-atlas` repository from before 28 May 2025** —
+   we've heard it was made private after sensitive info leaked into it, and
+   that the replacement repo should carry everything else. If that's right, a
+   full copy may not be necessary or appropriate to ask for — a redacted
+   export, a diff/changelog, or just confirmation that nothing Atlas-content-
+   related is missing would cover it just as well.
 
 **Why it matters.** With any one of these we can show readers a continuous,
 accurate document history through the HTML→Markdown migration, instead of it
