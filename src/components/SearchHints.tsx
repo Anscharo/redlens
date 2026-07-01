@@ -1,3 +1,5 @@
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+
 const HINTS: { label: string; query: string; description: string }[] = [
   {
     label: "broad",
@@ -22,6 +24,11 @@ const HINTS: { label: string; query: string; description: string }[] = [
     description: "All nodes referencing a Sky chainlog contract",
   },
   { label: "doc number", query: "A.1.2", description: "Jump directly to a section by number" },
+  {
+    label: "uuid",
+    query: "a491d7d0",
+    description: "Jump to a doc by UUID — the full id, or a partial prefix (8+ hex)",
+  },
   {
     label: "field: title",
     query: "title:facilitator",
@@ -67,6 +74,7 @@ const SLASH: { cmd: string; description: string }[] = [
 ];
 
 export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
+  useDocumentTitle("Search Hints: Sky Atlas by Redline");
   return (
     <main className="flex-1 overflow-y-auto">
       <SearchHints onSearch={onHintClick} />

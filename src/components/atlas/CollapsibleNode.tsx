@@ -9,6 +9,7 @@ import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
+import { track } from "../../lib/analytics";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -71,10 +72,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const showExpandAll = hasChildren && !!expandAll;
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
   const doToggle = () => {
+    track("reader_node_toggle", { node_id: node.id, action: isExpanded ? "collapse" : "expand" });
     if (!isExpanded) revealStore.reveal([node.id]);
     toggle(node.id);
   };
-  const doExpandAll = () => expandAll?.(node.id, !isSubtreeExpanded);
+  const doExpandAll = () => {
+    track("reader_expand_all", { node_id: node.id, action: isSubtreeExpanded ? "collapse" : "expand" });
+    expandAll?.(node.id, !isSubtreeExpanded);
+  };
 
   return (
     <article
@@ -116,6 +121,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
         if (!isSelected) {
           // Click anywhere on the row (title or body) selects it.
+          track("reader_title_click", { node_id: node.id });
           navigate(node.id);
           return;
         }
@@ -180,6 +186,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            track("reader_reveal_hidden", { node_id: node.id, hidden_count: hiddenCount });
             onExpandChildren(node.id);
           }}
           title={`View ${hiddenCount} hidden ${hiddenCount === 1 ? "section" : "sections"} under ${node.doc_no}`}

@@ -1,10 +1,7 @@
 // Same-origin API helper. The Bun server mounts the API at the origin ROOT
-// (it matches `pathname === "/api/chat"` etc.), so API calls must hit "/api/…"
-// regardless of the app's base path — NOT BASE_URL + "api/…". In prod base is
-// "/" so the two coincide; on GH-Pages (base "/redlens/") there is no backend
-// anyway; in dev, vite proxies "/api" → the Bun server (:3000). Note: this is
-// the one place the "prefix everything through BASE_URL" rule does NOT apply,
-// because the API isn't an asset served under the deployed base.
+// (it matches `pathname === "/api/chat"` etc.), so API calls hit "/api/…".
+// The app's base is "/" (Railway serves from the domain root), and in dev vite
+// proxies "/api" → the Bun server (:3000).
 export function apiUrl(path: string): string {
   return `/api/${path.replace(/^\/+/, "")}`;
 }

@@ -27,8 +27,10 @@ const repoUrl = (() => {
 const buildTime = new Date().toISOString();
 
 
-// Default base is "/". Only GitHub Pages lives under /redlens/ — opt in explicitly.
-const base = process.env.GITHUB_PAGES === "1" ? "/redlens/" : "/";
+// The app is served from the domain root ("/") on Railway. GitHub Pages is now
+// only a redirect stub (gh-pages-redirect/), so there is no longer a base-path
+// variant to opt into.
+const base = "/";
 
 export default defineConfig(() => {
   // The chat widget + auth/profile button need the Bun /api backend, which only
@@ -55,6 +57,12 @@ export default defineConfig(() => {
           target: `http://localhost:${process.env.API_PORT ?? 3000}`,
           changeOrigin: true,
         },
+        // PostHog analytics proxy — route /z to the Bun server so dev exercises the
+        // real IP-stripping path (src/server/posthog-proxy.ts), same as prod.
+        "/z": {
+          target: `http://localhost:${process.env.API_PORT ?? 3000}`,
+          changeOrigin: true,
+        },
       },
       // Don't watch the atlas submodule, caches, or generated history — they
       // churn on builds and would trigger noisy dev reloads.
@@ -63,19 +71,6 @@ export default defineConfig(() => {
       },
     },
   plugins: [
-    {
-      name: "redirect-root",
-      configureServer(server) {
-        server.middlewares.use((req, res, next) => {
-          if (base !== "/" && (req.url === "/" || req.url === base.slice(0, -1))) {
-            res.writeHead(307, { Location: base });
-            res.end();
-            return;
-          }
-          next();
-        });
-      },
-    },
     {
       // Dev only: substitute window.__ATLAS_SHA__ in index.html from the local
       // public/docs.json atlasCommit (Vite serves index.html in dev, not the Bun

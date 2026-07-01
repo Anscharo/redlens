@@ -4,11 +4,10 @@
   "ignoreExportsUsedInFile": true,
   "ignore": [
     "vendor/**",
+    "scripts/aux/ab-parse-check.mjs",
     "scripts/aux/test-addresses.mjs",
-    "scripts/aux/test-mcp.mjs",
     "scripts/aux/unlabeled-addresses.mjs"
   ],
-  "ignoreDependencies": ["zod"],
   "workspaces": {
     ".": {}
   }

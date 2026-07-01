@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { EdgeResult } from "../../lib/graph";
@@ -8,6 +9,7 @@ import { NodeHistory } from "../history/NodeHistory";
 import { PreviewHistory } from "../history/PreviewHistory";
 import { ErrorBoundary, InlineError } from "../ErrorBoundary";
 import { useDataSource } from "../../lib/dataSource";
+import { track } from "../../lib/analytics";
 
 type RightTab = "annotations" | "glossary" | "history";
 
@@ -39,14 +41,41 @@ export function RightPanel({
   onTabChange: (t: RightTab) => void;
 }) {
   const { preview } = useDataSource();
-  const citedBy = graphEdges.inbound.filter((e) => e.e === "cites");
-  const outRels = graphEdges.outbound.filter((e) => !HIDE.has(e.e));
-  const inRels = graphEdges.inbound.filter((e) => !HIDE.has(e.e));
-  const isSelfNav = (e: (typeof outRels)[0], isOut: boolean) => {
+
+  // Navigation from the annotations/glossary panel, tagged with what was clicked.
+  const annNav = useCallback(
+    (kind: string, nid: string) => {
+      track("reader_annotation_nav", { kind, node_id: nid });
+      onNavigate(nid);
+    },
+    [onNavigate],
+  );
+  const annNavDoc = useCallback(
+    (kind: string, docNo: string) => {
+      track("reader_annotation_nav", { kind, doc_no: docNo });
+      onNavigateByDocNo(docNo);
+    },
+    [onNavigateByDocNo],
+  );
+
+  // Tag each relation with its direction once (instead of an O(n²) includes
+  // scan in render) and memoize so a tab switch doesn't refilter the edges.
+  const { citedBy, graphRels } = useMemo(() => {
+    const out = graphEdges.outbound
+      .filter((e) => !HIDE.has(e.e))
+      .map((edge) => ({ edge, isOut: true }));
+    const inb = graphEdges.inbound
+      .filter((e) => !HIDE.has(e.e))
+      .map((edge) => ({ edge, isOut: false }));
+    return {
+      citedBy: graphEdges.inbound.filter((e) => e.e === "cites"),
+      graphRels: [...out, ...inb],
+    };
+  }, [graphEdges]);
+  const isSelfNav = (e: EdgeResult["outbound"][number], isOut: boolean) => {
     const did = isOut ? e.to_did : e.from_did;
     return did === id || (isOut ? e.t : e.f) === id;
   };
-  const graphRels = [...outRels, ...inRels];
 
   return (
     <>
@@ -90,7 +119,7 @@ export function RightPanel({
                   {linkedNodes.length} linked document{linkedNodes.length !== 1 ? "s" : ""}
                 </p>
                 {linkedNodes.map((node) => (
-                  <RelatedNode key={node.id} node={node} onNavigate={onNavigate} />
+                  <RelatedNode key={node.id} node={node} onNavigate={(nid) => annNav("linked_doc", nid)} />
                 ))}
               </>
             ) : null}
@@ -103,7 +132,7 @@ export function RightPanel({
                     <button
                       key={i}
                       className="w-full text-left px-2 py-1.5 rounded text-xs mono hover:bg-hover transition-colors text-tan-2"
-                      onClick={() => onNavigate(e.f)}
+                      onClick={() => annNav("cited_by", e.f)}
                     >
                       {e.s?.[0] ?? e.f.slice(0, 8)}
                     </button>
@@ -116,8 +145,7 @@ export function RightPanel({
               <div className="mt-8">
                 <p className="text-xs mono mb-3 text-tan-3">relations · {graphRels.length}</p>
                 <div className="space-y-2">
-                  {graphRels.filter((e) => !isSelfNav(e, outRels.includes(e))).map((e, i) => {
-                    const isOut = outRels.includes(e);
+                  {graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut)).map(({ edge: e, isOut }, i) => {
                     const otherId = (isOut ? e.t : e.f) ?? "";
                     const otherType = isOut ? e.tt : e.ft;
                     const otherLabel = isOut
@@ -136,7 +164,7 @@ export function RightPanel({
                           {otherNavId ? (
                             <button
                               className="mono hover:underline text-left text-tan-2"
-                              onClick={() => onNavigate(otherNavId)}
+                              onClick={() => annNav("relation", otherNavId)}
                             >
                               {otherLabel}
                             </button>
@@ -151,7 +179,7 @@ export function RightPanel({
                               <span key={docNo}>
                                 {j > 0 && ", "}
                                 <button
-                                  onClick={() => onNavigateByDocNo(docNo)}
+                                  onClick={() => annNavDoc("relation_source", docNo)}
                                   className="hover:underline text-accent"
                                 >
                                   {docNo}
@@ -194,7 +222,7 @@ export function RightPanel({
                 {glossaryTerms.map((entries) => (
                   <div key={entries[0].nodeId} className="border-b border-border pb-4">
                     <button
-                      onClick={() => onNavigate(entries[0].nodeId)}
+                      onClick={() => annNav("glossary", entries[0].nodeId)}
                       className="text-xs font-semibold mono mb-1 text-accent hover:underline cursor-pointer text-left"
                     >
                       {entries[0].term}
@@ -203,7 +231,7 @@ export function RightPanel({
                       <div key={i} className={i > 0 ? "mt-2 pt-2 border-t border-border" : ""}>
                         {entries.length > 1 && e.sourceContext && (
                           <button
-                            onClick={() => onNavigate(e.nodeId)}
+                            onClick={() => annNav("glossary_source", e.nodeId)}
                             className="text-[10px] mono mb-0.5 text-tan-3 hover:text-accent cursor-pointer text-left block"
                           >
                             {e.sourceContext}

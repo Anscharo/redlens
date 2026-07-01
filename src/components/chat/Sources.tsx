@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadAtlas } from "../../lib/docs";
+import { atlasHref } from "../../lib/routes";
+import { track } from "../../lib/analytics";
 import type { Source } from "./markdown";
 
 // Sources cluster: one chip per cited atlas doc. The agent only emits title +
@@ -36,9 +38,10 @@ export function Sources({ sources, onAtlas }: { sources: Source[]; onAtlas: (uui
           <a
             key={s.uuid}
             className="rlc-cite"
-            href={`/atlas?id=${s.uuid}`}
+            href={atlasHref(s.uuid)}
             onClick={(e) => {
               e.preventDefault();
+              track("chat_citation_click", { product: "chat", node_id: s.uuid });
               onAtlas(s.uuid);
             }}
           >

@@ -223,7 +223,7 @@ Cite loaded entries as [External: source] inline in answers.
 
 # Citation format
 
-Atlas doc: `[Title · doc_no](https://redlens.anscharo.dev/redlens/#UUID)`
+Atlas doc: `[Title · doc_no](https://redlens.anscharo.dev/#UUID)`
 External:  `[External: source name]`
 
 Cite every claim. If multiple documents support a claim, list all.

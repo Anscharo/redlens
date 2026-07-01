@@ -1,5 +1,6 @@
 import { Link } from "./Link";
 import { reportHref } from "../lib/routes";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import type { ReportId } from "../types";
 
 const REPORTS: { id: ReportId; title: string; description: string }[] = [
@@ -36,6 +37,7 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
 ];
 
 export function ReportsIndex({ query }: { query: string }) {
+  useDocumentTitle("Sky Atlas Reports");
   const q = query.trim().toLowerCase();
   const visible = q
     ? REPORTS.filter(

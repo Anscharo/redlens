@@ -4,6 +4,8 @@ import { prepareWithSegments, measureNaturalWidth } from "@chenglou/pretext";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
 import { toAnchorId } from "../../lib/anchorId";
 import { atlasHref } from "../../lib/routes";
+import { explorerUrl } from "../../lib/explorer";
+import { shortAddr } from "../../lib/format";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
 
@@ -21,14 +23,9 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-function explorerUrl(val: string): string {
-  if (SOL_RE.test(val)) return `https://solscan.io/account/${val}`;
-  return `https://etherscan.io/address/${val}`;
-}
-
 function renderValue(value: string): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
-    const short = `${value.slice(0, 6)}…${value.slice(-4)}`;
+    const short = shortAddr(value);
     return <a href={explorerUrl(value)} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
   }
   if (RATE_LIMIT_HASH_RE.test(value.trim())) {

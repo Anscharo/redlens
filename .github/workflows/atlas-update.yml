@@ -19,15 +19,27 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    environment: CI
+    # This environment holds ETHERSCAN_API_KEY (for the address refresh below)
+    # and the ATLAS_BOT GitHub App credentials. The App token is what lets the
+    # bump push to a branch + open a PR whose events trigger downstream
+    # workflows (CI on the PR, the @claude mention on the drift issue) — events
+    # from the default GITHUB_TOKEN never trigger other workflows.
+    environment: atlas-update-main-bypass
     steps:
+      # Mint a short-lived installation token from the ATLAS_BOT App so all
+      # git/gh operations below act as the App, not github-actions[bot].
+      - name: Generate ATLAS_BOT app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLAS_BOT_APP_ID }}
+          private-key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
+
       - uses: actions/checkout@v5
         with:
           submodules: recursive
           fetch-depth: 0
-          # Use the bot PAT so the push is authored by the atlas-updater bot,
-          # which is exempt from the branch-protection push restriction on main.
-          token: ${{ secrets.ATLAS_BOT_PAT || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Check for atlas update
         id: atlas
@@ -64,10 +76,37 @@ jobs:
       # All build warnings ([drift], anchor-not-found, did-not-parse, unknown
       # document type, …) go through console.warn → stderr. Capture stderr
       # wholesale so any future warning is surfaced without a grep allowlist.
-      - name: Rebuild artifacts and update snapshots
+      - name: Build index
+        if: steps.atlas.outputs.proceed == 'true'
+        run: pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
+
+      # Refresh the committed, Etherscan-enriched addresses.json so on-chain
+      # addresses introduced by the bump are present — otherwise docs.json gains
+      # refs that addresses.json lacks and CI's docs↔addresses sync check drifts.
+      #
+      # ORDER IS LOAD-BEARING: this runs BEFORE build:graph + test:snap:update.
+      # Address-derived edges (e.g. proxies_to) read public/addresses.json, so
+      # the snapshot must be generated from the SAME addresses.json this commit
+      # ships. Running it afterwards left the committed snapshot stale vs the
+      # committed addresses.json, failing CI's snapshot check on every later PR.
+      # Needs docs.json from build:index to pick up addresses the bump introduced.
+      #
+      # Degrades gracefully: build:addresses no-ops without ETHERSCAN_API_KEY,
+      # and continue-on-error keeps a flaky Etherscan/RPC call from blocking the
+      # bump — build:graph then just reuses the existing addresses.json, which is
+      # still internally consistent with the snapshot built from it.
+      - name: Refresh on-chain address metadata
+        if: steps.atlas.outputs.proceed == 'true'
+        continue-on-error: true
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        run: pnpm build:addresses 2> >(tee -a /tmp/atlas-warnings.log >&2)
+
+      # Build the graph and refresh the snapshot LAST, so it reflects the
+      # addresses.json refreshed above.
+      - name: Rebuild graph and update snapshots
         if: steps.atlas.outputs.proceed == 'true'
         run: |
-          pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm build:graph 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm test:snap:update
@@ -82,28 +121,62 @@ jobs:
             "${{ steps.atlas.outputs.old_full }}" "${{ steps.atlas.outputs.new_full }}" \
             -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt || true
 
-      # Push first — atlas updates must land fast and are never gated on the
-      # drift analysis below. The bot token (ATLAS_BOT_PAT) is exempt from the
-      # branch-protection push restriction; the checkout above persists it.
-      - name: Commit updated submodule pointer
+      - name: Commit and push to atlas-update branch
         if: steps.atlas.outputs.proceed == 'true'
+        id: push
         run: |
+          SHORT="${{ steps.atlas.outputs.short }}"
+          BRANCH="atlas-update/${SHORT}"
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vendor/next-gen-atlas graph-snapshots/__snapshots__ .github/atlas-census-baseline.json
-          git commit -m "chore: bump atlas submodule → ${{ steps.atlas.outputs.short }}"
-          git push
+          git checkout -B "$BRANCH"
+          # public/addresses.json + .cache/etherscan are refreshed by the
+          # address step above (no-op when ETHERSCAN_API_KEY is absent, so the
+          # add is harmless then). Keeping them in the bump commit prevents
+          # addresses.json from drifting out of sync with docs.json over time.
+          git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
+            .github/atlas-census-baseline.json public/addresses.json .cache/etherscan
+          git commit -m "chore: bump atlas submodule → ${SHORT}"
+          git push origin "$BRANCH" --force
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update atlas-update PR
+        if: steps.atlas.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          SHORT="${{ steps.atlas.outputs.short }}"
+          OLD="${{ steps.atlas.outputs.old }}"
+          BRANCH="${{ steps.push.outputs.branch }}"
+
+          gh label create atlas-update --force \
+            --color 0075CA \
+            --description "Automated atlas submodule bump"
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already open for $BRANCH — nothing to do."
+          else
+            gh pr create \
+              --title "chore: bump atlas submodule → ${SHORT}" \
+              --body "Automated atlas submodule bump \`${OLD}\` → \`${SHORT}\`." \
+              --label "atlas-update" \
+              --base main \
+              --head "$BRANCH"
+            PR_NUM=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+            gh pr merge "$PR_NUM" --auto --rebase
+            echo "Opened PR #${PR_NUM} with auto-merge (rebase) enabled."
+          fi
 
       # Surface drift signals in a GitHub issue for analysis. The @claude
-      # mention triggers .github/workflows/claude.yml — but ONLY if the issue
-      # is created with a PAT (events from the default GITHUB_TOKEN never
-      # trigger other workflows). Configure the ATLAS_BOT_PAT secret (classic
-      # PAT, repo scope) to make the analysis fully automatic; without it the
-      # issue still opens and a human comment containing "@claude" starts it.
+      # mention triggers .github/workflows/claude.yml — but ONLY because the
+      # issue is created with the ATLAS_BOT App token (events from the default
+      # GITHUB_TOKEN never trigger other workflows). The App credentials live in
+      # the atlas-update-main-bypass environment, so this is fully automatic.
       - name: Open or update atlas-drift issue
         if: steps.atlas.outputs.proceed == 'true'
         env:
-          GH_TOKEN: ${{ secrets.ATLAS_BOT_PAT || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           WARN=/tmp/atlas-warnings.log SPEC=/tmp/spec-diff.txt SNAP=/tmp/snapshot-diff.txt
           NEW=/tmp/new-warnings.txt

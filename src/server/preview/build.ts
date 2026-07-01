@@ -16,6 +16,7 @@ import { getIndexes } from "../indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
 import { contentDiff } from "./patch-diff.ts";
+import { detectIdentitySwaps } from "./identity.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import { upsertPreview, isKnownSha, isBlockedSha, previewsTodayCount, previewsTodayCountForOwner } from "./db.ts";
 import { isFork, repoOwner, makeGhClient, type Resolved } from "./resolve.ts";
@@ -305,7 +306,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         if (filesR.ok) {
           const nodes = Object.values(
             JSON.parse(fs.readFileSync(path.join(paths.outDir, "docs.json"), "utf8")).nodes,
-          ) as { doc_no: string; id: string; content?: string }[];
+          ) as { doc_no: string; id: string; title?: string; content?: string }[];
           const byId = new Map(nodes.map((n) => [n.id, n]));
           const docNoToId = new Map(nodes.map((n) => [n.doc_no, n.id]));
           // Identity-aware added/changed split: a doc uuid absent from the live
@@ -353,7 +354,15 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
               else delete patches[id];
             }
           }
-          fs.writeFileSync(path.join(paths.outDir, "diff.json"), JSON.stringify({ added, changed, renumbered, reusedSlot }));
+          // UUID-identity reassignment: a stable uuid whose underlying document
+          // was wholly replaced (title changed + body rewritten), and — best
+          // effort — where the displaced old content moved to. Treated as a
+          // distinct WARNING in the UI, not an ordinary +/Δ.
+          const { identitySwap, formerUuid } = detectIdentitySwaps({ changed, added, mainById: mainDocs, previewById: byId });
+          fs.writeFileSync(
+            path.join(paths.outDir, "diff.json"),
+            JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
+          );
           fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
           if (noPatch > 0) console.warn(`[preview] ${sha.slice(0, 8)}: ${noPatch} changed doc(s) had no patch (binary/truncated/rename)`);
         }

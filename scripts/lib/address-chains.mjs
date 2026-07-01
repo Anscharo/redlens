@@ -18,6 +18,11 @@ export function normalizeAddress(addr) {
 }
 const WINDOW = 300; // chars before the address to scan for chain hints
 
+// Prose chain-hint patterns for detectChain. Deliberately separate from the
+// canonical chains.mjs registry / normalizeChainLabel: this scans free prose
+// with word-boundary regexes (so "base" inside "database" doesn't match) and
+// orders ethereum FIRST (an "ethereum mainnet" context should win), the opposite
+// of label normalization. Keep the two in step when adding a chain.
 // Ordered by specificity — more specific patterns first within each entry
 const CHAIN_HINTS = [
   { chain: "ethereum", patterns: [/\bethereum\b/i, /\bmainnet\b/i] },

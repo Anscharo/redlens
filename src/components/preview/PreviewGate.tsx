@@ -6,7 +6,7 @@ import { DataSourceContext } from "../../lib/dataSource";
 import { PreviewDiffProvider } from "../../lib/previewDiff";
 import { PreviewViewProvider } from "../../lib/previewView";
 import { PreviewInterstitial } from "./PreviewInterstitial";
-import { recordLocalPreview } from "../../lib/previewLocal";
+import { recordLocalPreview, previewLabel } from "../../lib/previewLocal";
 import { BuildErrorDetail } from "./BuildErrorDetail";
 
 // Preview is NOT a separate view: the gate builds the bundle (SSE), then mounts
@@ -86,7 +86,7 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
     return (
       <Centered>
         <div className="text-lg" style={{ color: "var(--tan)" }}>
-          Preparing preview Sky Atlas…
+          Preparing preview Sky Atlas for {previewLabel(id)}…
         </div>
         <div className="text-sm" style={{ color: "var(--tan-3)" }}>
           {PHASE_TEXT[phase as keyof typeof PHASE_TEXT]}

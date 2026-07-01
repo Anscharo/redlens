@@ -4,6 +4,7 @@
 
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { parseMeta } from "./meta";
+import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 
 export interface AgentRef {
   name: string;
@@ -92,6 +93,8 @@ export interface ActiveDataRow {
 }
 
 export function agentFromDocNo(docNo: string, agents: AgentRef[]): string | null {
+  // fragile: doc_no prefix — agent membership by prefix of the agent's (runtime-
+  // computed) defining doc_no; migrate to parent_of/UUID ancestor traversal.
   for (const a of agents) if (docNo.startsWith(a.docNoPrefix)) return a.name;
   return null;
 }
@@ -109,19 +112,13 @@ export function buildChainMap(
   participants: GraphEntity[],
   edges: RelationEdge[],
   docs?: Record<string, AtlasNode>,
+  entityById: Map<string, GraphEntity> = new Map(participants.map((e) => [e.id, e])),
 ): Map<string, AgentChain> {
-  const entityById = new Map(participants.map((e) => [e.id, e]));
   const primes = participants.filter((e) => e.et === "agent" && e.st === "prime");
 
-  const execEdges = edges.filter(
-    (e) => e.e === "operational_executor_agent_for" || e.e === "core_executor_agent_for",
-  );
-  const facEdges = edges.filter(
-    (e) => e.e === "operational_facilitator_for" || e.e === "core_facilitator_for",
-  );
-  const govEdges = edges.filter(
-    (e) => e.e === "operational_govops_for" || e.e === "core_govops_for",
-  );
+  const execEdges = edges.filter((e) => EXEC_EDGES.has(e.e));
+  const facEdges = edges.filter((e) => FAC_EDGES.has(e.e));
+  const govEdges = edges.filter((e) => GOV_EDGES.has(e.e));
 
   const map = new Map<string, AgentChain>();
   for (const prime of primes) {
@@ -174,7 +171,7 @@ export function buildActiveDataRows(
   const entities = graph.participants;
   const { edges } = graph;
   const entityById = new Map(entities.map((e) => [e.id, e]));
-  const chainMap = buildChainMap(entities, edges, docs);
+  const chainMap = buildChainMap(entities, edges, docs, entityById);
   const agents = agentsFromGraph(entities, docs);
 
   // doc_no → doc, used to resolve evidence doc_nos back to navigable UUIDs.

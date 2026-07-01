@@ -11,6 +11,7 @@ import type {
 } from "../types";
 import { fetchJson } from "../lib/verify";
 import { matchParticipants } from "../lib/search";
+import { FAC_EDGES, GOV_EDGES } from "../lib/roleEdges";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -19,11 +20,11 @@ const entityBySlug = new Map<string, GraphEntity>();
 const entityById = new Map<string, GraphEntity>();
 const agentClusters = new Map<string, Set<string>>();
 
+// One extra hop from an executor: its facilitator/govops plus role-holders and
+// ERG members (chain fac/gov sets + the two role-membership edges).
 const EXECUTOR_ROLE_EDGES = new Set([
-  "operational_facilitator_for",
-  "operational_govops_for",
-  "core_facilitator_for",
-  "core_govops_for",
+  ...FAC_EDGES,
+  ...GOV_EDGES,
   "holds_role_for",
   "erg_member_for",
 ]);

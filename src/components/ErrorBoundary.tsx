@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { captureException } from "../lib/analytics";
 
 interface Props {
   children: ReactNode;
@@ -22,6 +23,7 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack });
     this.props.onError?.(error, info);
   }
 

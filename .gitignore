@@ -49,6 +49,11 @@ public/addresses.merged.json
 *.sw?
 note.md
 
+# Playwright E2E artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
 # Lighthouse reports
 .lighthouse-report*
 

@@ -55,6 +55,19 @@ export function parsePreviewInput(raw: string): string | null {
   return null;
 }
 
+/** Human label for the "Preparing preview…" line: the PR number when the id is
+ *  a PR, otherwise the owner/repo it points at (short sha as a last resort). */
+export function previewLabel(id: string): string {
+  const s = id.trim();
+  const pull = s.match(/^pull-(\d+)$/);
+  if (pull) return `PR #${pull[1]}`;
+  if (SHA_RE.test(s)) return s.slice(0, 7);
+  const parts = s.split(":"); // owner:repo:ref | owner:ref | bare ref (canonical branch)
+  if (parts.length >= 3) return `${parts[0]}/${parts[1]}`;
+  if (parts.length === 2) return `${parts[0]}/${ATLAS_REPO_NAME}`;
+  return `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
+}
+
 export interface LocalPreview {
   id: string;
   sha: string;

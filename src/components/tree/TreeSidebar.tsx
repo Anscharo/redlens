@@ -10,6 +10,7 @@ import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
 import { useDataSource } from "../../lib/dataSource";
+import { track } from "../../lib/analytics";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
 
@@ -282,6 +283,11 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const toggleExpand = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      track("reader_sidebar_toggle", {
+        node_id: id,
+        action: expandedIds.has(id) ? "collapse" : "expand",
+        all: e.altKey,
+      });
       setExpandedIds((prev) => {
         const next = new Set(prev);
         // alt-click: expand/collapse the entire subtree (Finder convention)
@@ -303,7 +309,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         return next;
       });
     },
-    [bundle],
+    [bundle, expandedIds],
   );
 
   const handleKeyDown = useTreeKeyboard({
@@ -319,6 +325,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
 
   const handleRowClick = useCallback(
     (id: string) => {
+      track("reader_sidebar_nav", { node_id: id });
       clickedRef.current = true;
       setFocusedIndex(-1);
       onNavigate(id);
