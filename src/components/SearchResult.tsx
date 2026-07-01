@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type CSSProperties } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { realDepth, depthColor } from "../lib/depth";
 import { atlasHref } from "../lib/routes";
@@ -17,19 +17,24 @@ const LABEL_TAG: Record<HitLabel["kind"], string | null> = {
   agent: "AGENT",
   icd: "ICD",
 };
-const LABEL_COLOR: Record<HitLabel["kind"], string> = {
-  scope: "var(--tan-3)",
-  agent: "var(--accent)",
-  icd: "var(--tan-2)",
+// Scope/ICD are muted outline chips; the agent chip gets a light cream fill with
+// dark text so the key clue is legible (accent-on-dark read poorly).
+const LABEL_STYLE: Record<HitLabel["kind"], CSSProperties> = {
+  scope: { color: "var(--tan-3)", border: "1px solid color-mix(in srgb, var(--tan-3) 35%, transparent)" },
+  icd: { color: "var(--tan-2)", border: "1px solid color-mix(in srgb, var(--tan-2) 35%, transparent)" },
+  agent: {
+    color: "var(--bg)",
+    background: "var(--tan)",
+    border: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)",
+  },
 };
 
 function GutterLabel({ label }: { label: HitLabel }) {
-  const color = LABEL_COLOR[label.kind];
   const tag = LABEL_TAG[label.kind];
   return (
     <span
       className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words"
-      style={{ color, border: `1px solid color-mix(in srgb, ${color} 35%, transparent)` }}
+      style={LABEL_STYLE[label.kind]}
       title={tag ? `${tag}: ${label.text}` : label.text}
     >
       {tag && <span className="opacity-60 mr-1">{tag}</span>}
@@ -46,8 +51,16 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
 
   return (
     <div className="relative">
-      {/* Match info — floats left on wide screens, inline on narrow */}
-      <div className="lg:absolute lg:right-full lg:mr-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
+      {/* Provenance labels — float left on wide screens, inline on narrow */}
+      {hit.labels && hit.labels.length > 0 && (
+        <div className="lg:absolute lg:right-full lg:mr-3 lg:top-3 lg:w-[140px] lg:p-0 px-4 pt-2 mono flex flex-wrap lg:flex-col items-start lg:items-stretch justify-start gap-1">
+          {hit.labels.map((label) => (
+            <GutterLabel key={label.kind + label.text} label={label} />
+          ))}
+        </div>
+      )}
+      {/* Match info — floats right on wide screens, inline on narrow */}
+      <div className="lg:absolute lg:left-full lg:ml-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
         {hit.chainlogId ? (
           <>
             <span className="text-[9px] text-tan-3">via chainlog</span>
@@ -61,14 +74,6 @@ export const SearchResult = memo(function SearchResult({ hit, rank, onResultClic
           </>
         )}
       </div>
-      {/* Provenance labels — float right on wide screens, inline on narrow */}
-      {hit.labels && hit.labels.length > 0 && (
-        <div className="lg:absolute lg:left-full lg:ml-3 lg:top-3 lg:w-[108px] lg:p-0 px-4 pt-2 mono flex flex-wrap lg:flex-col items-end lg:items-stretch justify-end lg:justify-start gap-1">
-          {hit.labels.map((label) => (
-            <GutterLabel key={label.kind + label.text} label={label} />
-          ))}
-        </div>
-      )}
       <AtlasLink
         to={atlasHref(hit.id)}
         className="search-result-link px-4 py-3"
