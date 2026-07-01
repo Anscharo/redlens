@@ -8,7 +8,7 @@ import { type Indexes } from "./indexes.ts";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult, type SearchArgs } from "./tools.ts";
 import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
-import { atlasNeighbors, atlasTraverse, atlasEntity, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
+import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 
 export interface AtlasTool {
@@ -88,14 +88,37 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     handler: (ix, a) => atlasTraverse(ix, a.id as string, a.edge_type as string | undefined, (a.hops as number | undefined) ?? 2, (a.direction as "out" | "in" | "both" | undefined) ?? "out"),
   },
   {
+    name: "atlas_entities",
+    description:
+      "Find entities by free-text name and/or structural filters — the tool to call FIRST to turn a name like " +
+      "'Spark Protocol' into a slug (atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching " +
+      "(ranked, with a score), and/or filter by `entity_type` / `subtype`. Paginated.",
+    shape: {
+      q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
+      entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
+      subtype: z.string().optional().describe("Filter by subtype, case-insensitive substring (e.g. 'reward', 'prime')."),
+      limit: z.number().int().min(1).max(500).default(50),
+      offset: z.number().int().min(0).default(0),
+    },
+    handler: (ix, a) =>
+      atlasEntities(ix, {
+        q: a.q as string | undefined,
+        entity_type: a.entity_type as string | undefined,
+        subtype: a.subtype as string | undefined,
+        limit: (a.limit as number | undefined) ?? 50,
+        offset: (a.offset as number | undefined) ?? 0,
+      }),
+  },
+  {
     name: "atlas_entity",
     description:
-      "Get Atlas sections related to a named entity (agent, role, or actor). Returns paginated `nodes` (edge-linked " +
-      "docs + defining-doc subtree), `node_count` + `node_types` (a type histogram over the full set — use it to pick " +
-      "a `type` filter), `responsibilities`, and Active Data sections it controls. Prime Agents have 2000+ nodes, so " +
-      "page with `limit`/`offset` and narrow with `type` rather than pulling everything at once.",
+      "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
+      "name ('Spark Protocol') — resolved server-side; the response echoes `resolved` + `alternatives`. Returns " +
+      "paginated `nodes` (edge-linked docs + defining-doc subtree), `node_count` + `node_types` (a type histogram " +
+      "over the full set — use it to pick a `type` filter), `responsibilities`, and Active Data it controls. Prime " +
+      "Agents have 2000+ nodes, so page with `limit`/`offset` and narrow with `type`.",
     shape: {
-      name: z.string().describe("Entity slug (e.g. 'spark', 'operational-facilitator')."),
+      name: z.string().describe("Entity slug OR natural-language name (e.g. 'spark', 'Spark Protocol', 'grove foundation')."),
       type: z.string().optional().describe("Restrict `nodes` to one atlas doc type (see `node_types` in the response)."),
       limit: z.number().int().min(1).max(200).default(50).describe("Max nodes per page."),
       offset: z.number().int().min(0).default(0).describe("Node pagination offset; use with `has_more`."),

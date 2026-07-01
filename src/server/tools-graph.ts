@@ -2,6 +2,8 @@
 // No DB access — all data comes from the Indexes (docs, entities, edges).
 import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity } from "./indexes.ts";
 import { type ToolResult } from "./tools.ts";
+import { fitToBudget, TRUNCATION_HINT } from "./output-budget.ts";
+import { matchEntities, resolveEntity } from "./entity-resolve.ts";
 
 // Slim node row for tool responses.
 function docRow(n: AtlasNode) {
@@ -93,8 +95,12 @@ export function atlasEntity(
   opts: { type?: string; limit: number; offset: number; include_content: boolean },
 ): ToolResult {
   const { type, limit, offset, include_content } = opts;
-  const entity = ix.entityBySlug.get(name.toLowerCase());
-  if (!entity) return { error: `Entity '${name}' not found` };
+  // Accept natural-language names ("Spark Protocol") — resolution happens here,
+  // exact slugs still win. `resolved`/`alternatives` make the mapping visible.
+  const matches = matchEntities(ix, name, 6);
+  if (matches.length === 0) return { error: `No entity matches '${name}'. Use atlas_entities to search by name/type.` };
+  const entity = matches[0].entity;
+  const alternatives = matches.slice(1).map((m) => entityRow(m.entity));
   const entityId = entity.id;
   const rootId = entity.defining_doc_id;
 
@@ -119,7 +125,8 @@ export function atlasEntity(
 
   const filtered = type ? collect.filter((n) => n.type === type) : collect;
   const page = filtered.slice(offset, offset + limit);
-  const nodes = page.map((n) => (include_content ? { ...docRow(n), content: n.content } : docRow(n)));
+  const rows = page.map((n) => (include_content ? { ...docRow(n), content: n.content } : docRow(n)));
+  const { kept: nodes, truncated } = fitToBudget(rows);
 
   const responsibilities = ix.edges
     .filter((e) => e.from_id === entityId && e.edge_type === "responsible_party_for")
@@ -141,16 +148,48 @@ export function atlasEntity(
 
   return {
     entity: name,
+    resolved: { slug: entity.slug, name: entity.name, entity_type: entity.entity_type, subtype: entity.subtype },
+    alternatives,
     entityId,
     node_count: filtered.length,
     node_types,
     offset,
     returned: nodes.length,
     has_more: offset + nodes.length < filtered.length,
+    ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
     nodes,
     responsibilities,
     activeData,
   };
+}
+
+// ── atlas_entities (discovery / resolution) ──────────────────────────────────
+// Find entities by free-text name and/or structural filters. This is the tool
+// an assistant reaches for FIRST to turn "Spark" into a slug — atlas_describe no
+// longer dumps the full slug list.
+export function atlasEntities(
+  ix: Indexes,
+  opts: { q?: string; entity_type?: string; subtype?: string; limit: number; offset: number },
+): ToolResult {
+  const { q, entity_type, subtype, limit, offset } = opts;
+  const sub = subtype?.toLowerCase();
+  const scored: { entity: Entity; score?: number }[] = q
+    ? matchEntities(ix, q, 1000)
+    : ix.entities.map((entity) => ({ entity }));
+  let filtered = scored.filter(
+    ({ entity }) =>
+      (!entity_type || entity.entity_type === entity_type) &&
+      (!sub || (entity.subtype ?? "").toLowerCase().includes(sub)),
+  );
+  if (!q) filtered = filtered.sort((a, b) => a.entity.slug.localeCompare(b.entity.slug));
+
+  const total = filtered.length;
+  const results = filtered.slice(offset, offset + limit).map(({ entity, score }) => ({
+    ...entityRow(entity),
+    defining_doc_id: entity.defining_doc_id,
+    ...(score != null ? { score } : {}),
+  }));
+  return { total, offset, count: results.length, has_more: offset + results.length < total, results };
 }
 
 // ── atlas_filter ───────────────────────────────────────────────────────────
@@ -207,7 +246,8 @@ export function atlasFilter(
     if (results.length >= limit) break;
   }
   results.sort((a, b) => String(a.doc_no).localeCompare(String(b.doc_no)));
-  return { count: results.length, results };
+  const { kept, truncated } = fitToBudget(results);
+  return { count: kept.length, ...(truncated ? { total: results.length, truncated: true, hint: TRUNCATION_HINT } : {}), results: kept };
 }
 
 // ── atlas_entity_params ────────────────────────────────────────────────────
@@ -228,8 +268,8 @@ export function atlasEntityParams(
     if (!node) return { error: "Not found" };
     instanceIds = [node.id];
   } else if (entity) {
-    const ent = ix.entityBySlug.get(entity.toLowerCase());
-    if (!ent?.defining_doc_id) return { error: `Entity '${entity}' not found` };
+    const ent = resolveEntity(ix, entity);
+    if (!ent?.defining_doc_id) return { error: `No entity matches '${entity}'. Use atlas_entities to search by name/type.` };
     // Instance docs under this entity = defining docs of `instance` entities
     // whose defining doc falls within the entity's subtree. This is what the
     // tool means by "instance docs" — not every doc in the subtree.
@@ -260,5 +300,7 @@ export function atlasEntityParams(
     return { id: inst.id, doc_no: inst.doc_no, title: inst.title, type: inst.type, params };
   }).filter(Boolean);
 
-  return entity ? { instances, available_subtypes } : { instances };
+  const { kept, truncated } = fitToBudget(instances);
+  const trunc = truncated ? { truncated: true, hint: TRUNCATION_HINT } : {};
+  return entity ? { instances: kept, available_subtypes, ...trunc } : { instances: kept, ...trunc };
 }

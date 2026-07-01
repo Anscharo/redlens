@@ -16,6 +16,8 @@
 - Added a "Using it" section to the Connect page with example questions to ask an MCP-connected assistant
 - Improved the Atlas MCP tools: graph traversal now reports hop distance and the connecting relationship, and entity lookups are paginated and filterable
 - Tightened Atlas search ranking so weakly-related results no longer crowd out the best matches
+- Added an entity finder to the Atlas MCP so you can look an actor up by plain name (e.g. "Spark Protocol") instead of an exact slug
+- Large Atlas MCP responses are now capped so they can't overflow a connected assistant's context
 
 ## 2026-06-30
 - add recent searches feature

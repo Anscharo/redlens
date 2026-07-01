@@ -2,7 +2,9 @@
 // vitest) — src/server is excluded from vitest. These functions are fully
 // in-memory (no SQL), so a hand-built Indexes fixture is enough.
 import { test, expect } from "bun:test";
-import { atlasTraverse, atlasEntity, atlasEntityParams } from "./tools-graph.ts";
+import { atlasTraverse, atlasEntity, atlasEntities, atlasEntityParams } from "./tools-graph.ts";
+import { matchEntities } from "./entity-resolve.ts";
+import { fitToBudget } from "./output-budget.ts";
 import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
 
 // ── Fixture ──────────────────────────────────────────────────────────────
@@ -117,4 +119,50 @@ test("atlas_entity_params(entity) selects instance docs and filters by subtype",
   const byId = atlasEntityParams(ix, { id: "D2", limit: 50 }) as { instances: Array<{ id: string }>; available_subtypes?: string[] };
   expect(byId.instances.map((i) => i.id)).toEqual(["D2"]);
   expect(byId.available_subtypes).toBeUndefined();
+});
+
+// ── entity resolution: free text → entity ────────────────────────────────────
+test("matchEntities resolves exact slug and disambiguates multi-token names", () => {
+  const ix = makeIx();
+  // Bare "ent" → the prime entity (exact slug wins big).
+  expect(matchEntities(ix, "ent")[0].entity.slug).toBe("ent");
+  // Extra query words are ignored, so a plain name still resolves.
+  expect(matchEntities(ix, "ent protocol")[0].entity.slug).toBe("ent");
+  // A more specific multi-token name beats the shorter prime entity.
+  expect(matchEntities(ix, "ent distribution reward")[0].entity.slug).toBe("ent-distribution-reward");
+  // No token overlap → no match.
+  expect(matchEntities(ix, "nonexistent")).toEqual([]);
+});
+
+test("atlas_entity accepts a natural-language name and echoes what it resolved", () => {
+  const ix = makeIx();
+  const res = atlasEntity(ix, "ent protocol", { limit: 50, offset: 0, include_content: false }) as Record<string, unknown>;
+  expect((res.resolved as { slug: string }).slug).toBe("ent");
+  expect(res.node_count).toBe(6);
+});
+
+// ── atlas_entities: discovery / filtering ────────────────────────────────────
+test("atlas_entities searches by name and filters by type", () => {
+  const ix = makeIx();
+  const byName = atlasEntities(ix, { q: "ent distribution reward", limit: 50, offset: 0 }) as { results: Array<{ slug: string }> };
+  expect(byName.results[0].slug).toBe("ent-distribution-reward");
+
+  const instances = atlasEntities(ix, { entity_type: "instance", limit: 50, offset: 0 }) as { total: number; results: Array<{ slug: string }> };
+  expect(instances.total).toBe(2);
+  expect(instances.results.map((r) => r.slug).sort()).toEqual(["ent-allocation-system", "ent-distribution-reward"]);
+});
+
+// ── output budget ────────────────────────────────────────────────────────────
+test("fitToBudget keeps items under budget and flags truncation", () => {
+  const items = ["aaaa", "bbbb", "cccc"]; // each ~7 chars serialized
+  const tight = fitToBudget(items, 12);
+  expect(tight.kept).toEqual(["aaaa"]);
+  expect(tight.truncated).toBe(true);
+
+  const loose = fitToBudget(items, 9999);
+  expect(loose.kept.length).toBe(3);
+  expect(loose.truncated).toBe(false);
+
+  // Always keeps at least one item, even if it alone exceeds the budget.
+  expect(fitToBudget(["huge"], 1).kept.length).toBe(1);
 });
