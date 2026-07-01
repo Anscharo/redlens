@@ -8,6 +8,9 @@ import type MiniSearch from "minisearch";
 // node and can't import this .ts; mirror any change there).
 export const MINISEARCH_OPTIONS: ConstructorParameters<typeof MiniSearch>[0] = {
   fields: ["title", "doc_no", "type", "content"],
+  // No storeFields — the index intentionally stores nothing per result to keep
+  // the artifact small. Consumers that need doc fields (type, etc.) resolve them
+  // from the docs map by id (see search.worker.ts docFilter + search.ts runLexical).
   idField: "id",
   processTerm: (term) => {
     // Strip leading/trailing non-alphanumeric chars so backtick-wrapped tokens

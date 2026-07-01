@@ -53,10 +53,10 @@ describe("parsePatchNotes", () => {
     ]);
   });
 
-  it("defaults to a limit of 7", () => {
+  it("defaults to a limit of 10", () => {
     const groups = parsePatchNotes(SAMPLE);
     const total = groups.reduce((n, g) => n + g.items.length, 0);
-    expect(total).toBe(6); // sample has only 6 bullets, all fit under 7
+    expect(total).toBe(6); // sample has only 6 bullets, all fit under 10
   });
 
   it("returns [] for empty input", () => {

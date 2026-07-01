@@ -148,13 +148,17 @@ The agent retrieves answers from the [hosted MCP server](#hosted-mcp-server--wor
 
 External knowledge is saved to `.claude/agents/ask-atlas/EXTERNAL.md` and survives across sessions.
 
-### Hosted MCP server + Worker
+### Hosted MCP server
 
-`redlens-mcp/` is a Cloudflare Worker that hosts a public MCP endpoint and REST API, backed by a D1 graph database containing all atlas nodes, the typed edge graph, named entities, and on-chain address data.
+The live MCP server runs as part of the Railway app (`src/server/`) — a stateless streamable-HTTP transport mounted at `/mcp`, backed by the in-memory atlas indexes + Postgres, exposing the full atlas tool set (`atlas_search`, `atlas_get`, `atlas_describe`, `atlas_entities`, `atlas_get_address`, `atlas_neighbors`, `atlas_traverse`, `atlas_entity`, `atlas_filter`, `atlas_entity_params`, `atlas_history`, `atlas_recent_changes`, `atlas_pr`, `atlas_changed_between`, `atlas_query`). It's public and read-only — no API key or auth. The same tool registry (`src/server/tool-registry.ts`) backs both MCP clients and the `/api/chat` agentic loop, so they never drift.
 
-**Endpoint:** `https://redlens-mcp.anscharo.workers.dev/mcp`
+**Endpoint:** `https://atlas.redline.support/mcp` (see `.mcp.json`)
 
-See [`redlens-mcp/AGENTS.md`](redlens-mcp/AGENTS.md) for the full tool reference, REST API, database schema, and deployment instructions.
+Setup instructions for common clients live on the in-app **`/connect`** page. The tool registry is the source of truth for the tool reference.
+
+> API note: `atlas_query` is lean by default (`enrich=false` → title/doc_no/snippet/sources); pass `enrich=true` for full document content + ancestor ids, or fetch specific docs with `atlas_get`.
+
+> The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection RedLens uses.
 
 ### Auxiliary scripts
 

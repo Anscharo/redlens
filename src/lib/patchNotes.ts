@@ -17,7 +17,7 @@ const BULLET_RE = /^\s*-\s+(.+)$/;
 // newest-first), then truncate to the first `limit` bullets total. Groups are
 // preserved; a partially-consumed group keeps only its surviving bullets;
 // emptied groups are dropped.
-export function parsePatchNotes(raw: string, limit = 7): PatchNoteGroup[] {
+export function parsePatchNotes(raw: string, limit = 10): PatchNoteGroup[] {
   const groups: PatchNoteGroup[] = [];
   let current: PatchNoteGroup | null = null;
   let total = 0;

@@ -2,7 +2,14 @@
 // import Bun's `SQL`, which doesn't exist in node-vitest. vitest.config.ts
 // excludes src/server for that reason.
 import { test, expect } from "bun:test";
-import { rrfMerge, matchesPhrases, type Hit } from "./search.ts";
+import { rrfMerge, matchesPhrases, buildSnippet, type Hit } from "./search.ts";
+
+test("buildSnippet compacts prose — strips articles and abbreviates known words", () => {
+  const s = buildSnippet("The governance of the parameters is defined for the ecosystem.", "governance");
+  expect(s).toContain("Gov."); // governance → Gov.
+  expect(s).toContain("Params."); // parameters → Params.
+  expect(s).not.toMatch(/(^|\s)the(\s|$)/i); // articles dropped
+});
 
 test("rrfMerge fuses ranks, dedups by id, and records both sources", () => {
   const lex: Hit[] = [
