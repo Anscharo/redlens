@@ -262,8 +262,13 @@ export function OGReport() {
                         <>
                           <th className="py-1 px-3 font-normal">Section</th>
                           <th className="py-1 px-3 font-normal">Duty</th>
-                          {cat === "active-data" && <th className="py-1 px-3 font-normal w-36">GovOps</th>}
-                          {(cat === "op-duty" || cat === "core-duty" || cat === "active-data") && (
+                          {(cat === "active-data" || cat === "process-step") && (
+                            <th className="py-1 px-3 font-normal w-36">GovOps</th>
+                          )}
+                          {(cat === "op-duty" ||
+                            cat === "core-duty" ||
+                            cat === "active-data" ||
+                            cat === "process-step") && (
                             <th className="py-1 px-3 font-normal w-36">Prime</th>
                           )}
                         </>
@@ -291,7 +296,7 @@ export function OGReport() {
                           <>
                             <td className="py-2 px-3 align-top text-sm text-tan">{r.title}</td>
                             <td className="py-2 px-3 align-top text-sm text-tan-2">{r.duty}</td>
-                            {cat === "active-data" && (
+                            {(cat === "active-data" || cat === "process-step") && (
                               <td className="py-2 px-3 align-top text-sm text-accent">{r.govops ?? "—"}</td>
                             )}
                             {(cat === "op-duty" || cat === "core-duty") && (
@@ -299,7 +304,7 @@ export function OGReport() {
                                 <AgentChips agents={r.agents ?? []} chains={chains} />
                               </td>
                             )}
-                            {cat === "active-data" && (
+                            {(cat === "active-data" || cat === "process-step") && (
                               <td className="py-2 px-3 align-top">
                                 <AgentChips agents={r.agent ? [r.agent] : []} chains={chains} />
                               </td>

@@ -20,12 +20,18 @@ export interface OGResponsibility {
   uuid: string;
   title: string;
   duty: string;
-  category: "definition" | "op-duty" | "core-duty" | "assignment" | "active-data";
+  category:
+    | "definition"
+    | "op-duty"
+    | "core-duty"
+    | "assignment"
+    | "active-data"
+    | "process-step";
   agent?: string;
   agents?: string[];
-  govops?: string; // GovOps entity name (assignment / active-data rows)
+  govops?: string; // GovOps entity name (assignment / active-data / process-step)
   executor?: string; // Executor Agent name (assignment rows)
-  role?: "Operational" | "Core"; // assignment role
+  role?: "Operational" | "Core"; // assignment / process-step role
 }
 
 export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
@@ -34,6 +40,7 @@ export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
   "core-duty": "Core GovOps Duties",
   assignment: "GovOps Assignments (per Executor Agent)",
   "active-data": "Active Data Maintenance — GovOps as Responsible Party",
+  "process-step": "Process-Step Responsibilities (Active Data update steps)",
 };
 
 // Stable Preamble definitions of the GovOps role. Keyed by UUID; doc_nos are
@@ -61,6 +68,13 @@ const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
 const OP_ROLE_RE = /\bOperational\s*GovOps\b/i;
 const ANY_GOVOPS_RE = /gov\s*ops/i;
 
+// Process-step "Responsible Party" field (shape #3). These live in process-step
+// "Update" docs (type=Core, mostly under A.2.2.9.*) as a bulleted field —
+// "- Responsible Party: Operational GovOps" (casing/indentation vary; a trailing
+// "[automated]" is common; a doc may carry several). Global + multiline so every
+// step in a doc is seen. See the TODO(graph) note in deriveGovOpsResponsibilities.
+const STEP_RP_RE = /Responsible\s+Part(?:y|ies)\s*:\s*([^\n]+)/gi;
+
 function dutySnippet(content: string): string {
   const cleaned = stripMarkdownLinks(content).replace(/[*_`#]/g, "").trim();
   const sentences = cleaned
@@ -74,6 +88,17 @@ function dutySnippet(content: string): string {
   if (i === -1) i = 0;
   const last = sentences.length - 1;
   return (i > 0 ? "…" : "") + sentences[i] + (i < last ? "…" : "");
+}
+
+// First meaningful line of a doc — used as the "duty" description for process-step
+// rows, whose content is a bulleted update spec rather than prose sentences.
+function firstLine(content: string): string {
+  const line = stripMarkdownLinks(content)
+    .replace(/[*_`#]/g, "")
+    .split("\n")
+    .map((s) => s.trim())
+    .find(Boolean);
+  return (line ?? "").slice(0, 160);
 }
 
 // Operational vs Core, decided from the title first (authoritative), then the
@@ -99,10 +124,22 @@ export function deriveGovOpsResponsibilities(
   const docByDocNo = new Map<string, string>(); // doc_no → uuid
   for (const d of Object.values(docs)) docByDocNo.set(d.doc_no, d.id);
 
+  // Docs already surfaced in an earlier (higher-priority) category — so a doc that
+  // is both a prose duty and carries a process-step RP field isn't double-listed.
+  const seenDocIds = new Set<string>();
+
+  // Resolve the GovOps role → entity so process-step RP fields (which name only
+  // the role) can show the responsible org. Operational GovOps is a single entity
+  // across the atlas today; Core GovOps likewise.
+  const opGovName =
+    entityById.get(edges.find((e) => e.e === "operational_govops_for")?.f ?? "")?.name ?? null;
+  const coreGovName =
+    entityById.get(edges.find((e) => e.e === "core_govops_for")?.f ?? "")?.name ?? null;
+
   // 1. Role definitions (curated, stable Preamble docs).
   for (const uuid of DEFINITION_UUIDS) {
     const n = docs[uuid];
-    if (n)
+    if (n) {
       results.push({
         docNo: n.doc_no,
         uuid: n.id,
@@ -110,6 +147,8 @@ export function deriveGovOpsResponsibilities(
         duty: dutySnippet(n.content),
         category: "definition",
       });
+      seenDocIds.add(n.id);
+    }
   }
 
   // 2. GovOps assignments — one per {operational,core}_govops_for edge.
@@ -138,6 +177,7 @@ export function deriveGovOpsResponsibilities(
       role: ge.e === "core_govops_for" ? "Core" : "Operational",
       agents: primes,
     });
+    if (uuid) seenDocIds.add(uuid);
   }
 
   // 3. Duties — discovered by scanning every doc for GovOps as an actor.
@@ -151,6 +191,7 @@ export function deriveGovOpsResponsibilities(
     if (ASSIGNMENT_DOCNO_RE.test(n.doc_no)) continue; // assignment docs
     const titleHit = ANY_GOVOPS_RE.test(n.title);
     if (!titleHit && !ROLE_ACTION_RE.test(n.content)) continue;
+    seenDocIds.add(n.id);
 
     const key = n.title.trim().toLowerCase();
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
@@ -184,16 +225,7 @@ export function deriveGovOpsResponsibilities(
   //    (e.g. Soter Labs) also holds Responsible-Party duties in other capacities
   //    (named directly, resolution="direct"), and those are NOT GovOps duties.
   //    Only edges whose ADC declaration names the GovOps role belong here.
-  //
-  //    Known limitation (deliberate): responsible_party_for edges are emitted by
-  //    build-graph ONLY for `Active Data Controller` docs. Process-step "Update"
-  //    docs (type=Core, under A.2.2.9.* process definitions) also carry a bulleted
-  //    "Responsible Party: Operational GovOps" field, but get no edge — so they
-  //    are not listed here. That is intentional: those steps are the execution of
-  //    duties already counted at the ADC level (e.g. an "Onboarding Integrators
-  //    Active Data Update" step realises the "Onboarding Integrators" ADC duty
-  //    Soter Labs already holds), so surfacing them would add redundant per-step
-  //    granularity rather than new responsibilities.
+  //    (Governance-level data ownership. Process-step execution RP is section 5.)
   for (const e of edges) {
     if (e.e !== "responsible_party_for" || e.tt !== "doc") continue;
     const declared = parseMeta<{ role_declared?: string }>(e.m)?.role_declared ?? "";
@@ -209,6 +241,44 @@ export function deriveGovOpsResponsibilities(
       govops: entityById.get(e.f)?.name ?? declared,
       agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
+    seenDocIds.add(n.id);
+  }
+
+  // 5. Process-step responsibilities — process-step "Update" docs whose bulleted
+  //    "Responsible Party" field names GovOps. build-graph's responsible_party_for
+  //    extraction runs ONLY on `Active Data Controller` docs, so these process-step
+  //    docs (type=Core) get no edge; we discover them here by content scan.
+  //    TODO(graph): promote this to a dedicated `process_step_responsible_party_for`
+  //    edge in scripts/lib/graph-entity-edges.mjs (distinct from the governance ADC
+  //    responsible_party_for) once the pipeline can be built + snapshots regenerated;
+  //    then this frontend scan becomes an edge query like the other categories.
+  //    Deduped per (doc, role): a doc with several GovOps steps yields one row.
+  for (const n of Object.values(docs)) {
+    if (seenDocIds.has(n.id)) continue; // already a duty / active-data / assignment
+    if (!n.content) continue;
+    let hasOp = false;
+    let hasCore = false;
+    for (const m of n.content.matchAll(STEP_RP_RE)) {
+      const val = m[1];
+      if (!ANY_GOVOPS_RE.test(val)) continue;
+      if (CORE_ROLE_RE.test(val)) hasCore = true;
+      else hasOp = true;
+    }
+    if (!hasOp && !hasCore) continue;
+    const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
+    for (const isCore of [false, true]) {
+      if (isCore ? !hasCore : !hasOp) continue;
+      results.push({
+        docNo: n.doc_no,
+        uuid: n.id,
+        title: n.title,
+        duty: firstLine(n.content),
+        category: "process-step",
+        role: isCore ? "Core" : "Operational",
+        govops: (isCore ? coreGovName : opGovName) ?? `${isCore ? "Core" : "Operational"} GovOps`,
+        agent,
+      });
+    }
   }
 
   return results;

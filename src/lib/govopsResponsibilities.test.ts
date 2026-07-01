@@ -41,6 +41,12 @@ for (const n of [
   // Bare "GovOps" (no Operational/Core qualifier) as an actor, title silent —
   // must still be discovered via the content scan.
   node({ id: "duty-bare", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "GovOps actors carry out operational activities on behalf of Executor Agents." }),
+  // Shape #3 — process-step "Update" docs with a bulleted Responsible Party field.
+  node({ id: "step-op", doc_no: "A.2.2.9.2.2.3.3.4.2.1", title: "Primitive Hub Document Update", content: "The Document in the Agent Artifact is updated as follows:\n\n- Responsible Party: Operational GovOps\n- Triggers: none." }),
+  // Two op steps in one doc (lowercase 'party', [automated]) → must collapse to one row.
+  node({ id: "step-multi", doc_no: "A.2.2.9.1.2.3.1.4.2", title: "Agent Artifact Updates", content: "- Responsible party: Operational GovOps [automated]\n- more\n- Responsible party: Operational GovOps [automated]" }),
+  // One doc with both an op step and a core step → two rows.
+  node({ id: "step-both", doc_no: "A.2.2.9.9.9", title: "Combined Update", content: "- Responsible Party: Operational GovOps\n- Responsible Party: Core GovOps" }),
   // Noise: a doc merely cross-referencing GovOps (no obligation verb) — excluded.
   node({ id: "noise", doc_no: "A.9.9", title: "Some Section", content: "The Operational Facilitator and Operational GovOps for Ozone are specified in A.6.1.2.2." }),
 ]) docs[n.id] = n;
@@ -49,12 +55,15 @@ const atlas: AtlasBundle = { docs, byParent: new Map(), docNoToId: new Map(), at
 
 const participants: GraphEntity[] = [
   { id: "soter", slug: "soter-labs", name: "Soter Labs", et: "govops_org", st: null, did: null },
+  { id: "atlas-axis", slug: "atlas-axis", name: "Atlas Axis", et: "govops_org", st: null, did: null },
   { id: "exec", slug: "amatsu", name: "Operational Executor Agent Amatsu", et: "agent", st: "operational_executor", did: null },
+  { id: "core-exec", slug: "cc-exec-1", name: "Core Council Executor Agent 1", et: "agent", st: "core_executor", did: null },
   { id: "prime", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "prime-doc" },
 ];
 
 const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "exec", tt: "entity", e: "operational_govops_for", s: ["A.6.1.2.1.2"] },
+  { f: "atlas-axis", ft: "entity", t: "core-exec", tt: "entity", e: "core_govops_for", s: ["A.6.1.2.3.2"] },
   { f: "exec", ft: "entity", t: "prime", tt: "entity", e: "operational_executor_agent_for", s: ["A.6.1.1.1"] },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
   // Soter Labs named directly (non-GovOps capacity) — excluded.
@@ -87,11 +96,13 @@ describe("deriveGovOpsResponsibilities", () => {
 
   it("emits one assignment per govops edge with executor + govops entity", () => {
     const asn = byCat("assignment");
-    expect(asn).toHaveLength(1);
-    expect(asn[0].govops).toBe("Soter Labs");
-    expect(asn[0].executor).toBe("Operational Executor Agent Amatsu");
-    expect(asn[0].agents).toContain("Spark");
-    expect(asn[0].uuid).toBe("assign-doc");
+    expect(asn).toHaveLength(2); // one operational, one core
+    const op = asn.find((r) => r.role === "Operational");
+    expect(op?.govops).toBe("Soter Labs");
+    expect(op?.executor).toBe("Operational Executor Agent Amatsu");
+    expect(op?.agents).toContain("Spark");
+    expect(op?.uuid).toBe("assign-doc");
+    expect(asn.find((r) => r.role === "Core")?.govops).toBe("Atlas Axis");
   });
 
   it("includes RP duties declared as GovOps but excludes non-GovOps capacities", () => {
@@ -99,6 +110,30 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nongov excluded
     expect(ad[0].govops).toBe("Soter Labs");
     expect(ad[0].agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
+  });
+
+  it("surfaces process-step Responsible Party fields, resolving the GovOps role to its entity", () => {
+    const ps = byCat("process-step");
+    const op = ps.find((r) => r.uuid === "step-op");
+    expect(op?.role).toBe("Operational");
+    expect(op?.govops).toBe("Soter Labs");
+  });
+
+  it("collapses multiple same-role process-step fields in one doc to a single row", () => {
+    const multi = byCat("process-step").filter((r) => r.uuid === "step-multi");
+    expect(multi).toHaveLength(1);
+    expect(multi[0].role).toBe("Operational");
+  });
+
+  it("splits a doc with both operational and core process-step fields into two rows", () => {
+    const both = byCat("process-step").filter((r) => r.uuid === "step-both");
+    expect(both.map((r) => r.role).sort()).toEqual(["Core", "Operational"]);
+    expect(both.find((r) => r.role === "Core")?.govops).toBe("Atlas Axis");
+  });
+
+  it("does not list a process-step doc that is also a prose duty twice", () => {
+    // duty-bare is a duty (bare GovOps verb) and has no RP field → stays a duty only.
+    expect(byCat("process-step").some((r) => r.uuid === "duty-bare")).toBe(false);
   });
 
   it("discovers bare 'GovOps <verb>' duties even when the title is silent", () => {
