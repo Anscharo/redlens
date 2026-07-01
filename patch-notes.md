@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-01
+- Added an Operational GovOps Responsibilities report — every Atlas section that mandates action from a GovOps actor, with per-executor assignments and the Active Data they maintain
+
 ## 2026-06-30
 - add recent searches feature
 - Added an "open atlas prs" tab on the preview page that lists every pull request currently open against next-gen-atlas, so you can preview one without hunting for its number — plus a quick link to the PRs page on GitHub

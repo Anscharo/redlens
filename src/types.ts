@@ -1,5 +1,6 @@
 export type ReportId =
   | "of-responsibilities"
+  | "gov-ops-responsibilities"
   | "active-data"
   | "rewards"
   | "processes"

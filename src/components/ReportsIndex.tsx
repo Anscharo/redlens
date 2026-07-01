@@ -11,6 +11,12 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
       "Every Atlas section mandating action from an Operational Facilitator, grouped by duty type with per-agent filtering.",
   },
   {
+    id: "gov-ops-responsibilities",
+    title: "Operational GovOps Responsibilities",
+    description:
+      "Every Atlas section mandating action from an Operational or Core GovOps — role definitions, per-executor assignments, scattered duties, and Active Data they maintain as Responsible Party.",
+  },
+  {
     id: "active-data",
     title: "Active Data Index",
     description:

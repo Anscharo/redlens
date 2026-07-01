@@ -35,6 +35,9 @@ const ConstellationsPage = lazy(() =>
 const OpFacilitatorsReport = lazy(() =>
   lazyRetry(() => import("./components/reports/OpFacilitatorsReport")).then((m) => ({ default: m.OFReport })),
 );
+const OpGovOpsReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/OpGovOpsReport")).then((m) => ({ default: m.OGReport })),
+);
 const ActiveDataReport = lazy(() =>
   lazyRetry(() => import("./components/reports/ActiveDataReport")).then((m) => ({ default: m.ActiveDataReport })),
 );
@@ -253,6 +256,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_OF_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
                 <OpFacilitatorsReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
+              <Suspense fallback={<Loading />}>
+                <OpGovOpsReport />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_ACTIVE_DATA}>

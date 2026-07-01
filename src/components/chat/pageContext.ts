@@ -23,6 +23,7 @@ export interface PageContextView extends PageContext {
 
 const REPORT_NAMES: Record<string, string> = {
   [ROUTES.REPORTS_OF_RESPONSIBILITIES]: "Op Facilitator Responsibilities",
+  [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: "Operational GovOps Responsibilities",
   [ROUTES.REPORTS_ACTIVE_DATA]: "Active Data Index",
   [ROUTES.REPORTS_REWARDS]: "Integrator Reward Relationships",
   [ROUTES.REPORTS_PROCESSES]: "Process Inventory",
