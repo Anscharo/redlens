@@ -75,14 +75,20 @@ function post(msg: WorkerOutMessage) {
 }
 
 // Provenance clues rendered in the search-result left gutter.
-//   - Prime Agent nodes (scope 6) live at A.6.1.1.<n>; everything beneath one
-//     belongs to that agent (Skybase, Grove, …).
+//   - Agent nodes (scope 6) live at A.6.1.1.<n> (Prime Agents: Skybase, Grove, …)
+//     and A.6.1.2.<n> (Executor Agents: Ozone, Core Council …); everything
+//     beneath one belongs to that agent.
 //   - Scopes are the two-segment nodes A.1 … A.6; their title is the scope name.
 //   - ICDs are titled "<Name> Instance Configuration Document" (the "… Location"
 //     pointer stubs end in "Location", so the end-anchor excludes them).
-const AGENT_DOCNO_RE = /^A\.6\.1\.1\.\d+$/;
+const AGENT_DOCNO_RE = /^A\.6\.1\.[12]\.\d+$/;
 const SCOPE_DOCNO_RE = /^[A-Za-z]\.\d+$/;
 const ICD_TITLE_RE = /^(.+?)\s+Instance Configuration Document$/i;
+// Executor Agent titles carry an "Operational Executor Agent " prefix that is
+// redundant next to the AGENT tag; strip it to the semantic short name. Core
+// Council titles keep their number suffix (it is their identity) and don't
+// match this prefix, so they pass through unchanged.
+const EXEC_PREFIX_RE = /^Operational Executor Agent\s+/i;
 
 // Self + ancestors, reconstructed from doc_no prefixes rather than parentId.
 // The heading-depth cap (6) makes parentId unreliable for deep nodes, but ICDs
@@ -99,7 +105,7 @@ function computeLabels(doc: AtlasNode): HitLabel[] {
   const labels: HitLabel[] = [];
   const agent = chain.find((n) => AGENT_DOCNO_RE.test(n.doc_no));
   if (agent) {
-    labels.push({ kind: "agent", text: agent.title });
+    labels.push({ kind: "agent", text: agent.title.replace(EXEC_PREFIX_RE, "").trim() });
   } else {
     const scope = chain.find((n) => SCOPE_DOCNO_RE.test(n.doc_no));
     if (scope) labels.push({ kind: "scope", text: scope.title });
