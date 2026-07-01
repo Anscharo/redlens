@@ -12,15 +12,8 @@
 -->
 
 ## 2026-07-01
-- Added a Connect page with instructions for hooking an AI assistant up to the atlas over MCP
-- Added a "Using it" section to the Connect page with example questions to ask an MCP-connected assistant
-- Improved the Atlas MCP tools: graph traversal now reports hop distance and the connecting relationship, and entity lookups are paginated and filterable
-- Tightened Atlas search ranking so weakly-related results no longer crowd out the best matches
-- Added an entity finder to the Atlas MCP so you can look an actor up by plain name (e.g. "Spark Protocol") instead of an exact slug
-- Large Atlas MCP responses are now capped so they can't overflow a connected assistant's context
-- Atlas MCP responses now report which app build answered and when the data was generated
-- Slimmed Atlas MCP responses — dropped internal digest fields and duplicated snippets, and tightened batch/listing caps so answers carry more signal per byte
-- Atlas MCP search returns lean results by default (titles + snippets; fetch full text on demand), with denser snippets and de-duplicated document breadcrumbs
+- Added a Connect page with instructions for connecting an AI assistant to the atlas over MCP
+- Improved the Atlas MCP tools — better search ranking, look up an actor by plain name, and leaner, more reliable responses
 
 ## 2026-06-30
 - add recent searches feature
