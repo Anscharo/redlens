@@ -54,6 +54,9 @@ export async function runSemantic(
 
   const out: Hit[] = [];
   for (const r of rows) {
+    // Rows are ordered by ascending distance (descending cosine), so once one
+    // falls below the relevance floor, every later row does too — stop.
+    if (r.score < config.semanticMinScore) break;
     if (type && r.type !== type) continue;
     out.push({ id: r.id, rank: out.length, score: r.score, source: "semantic" });
     if (out.length >= k) break;

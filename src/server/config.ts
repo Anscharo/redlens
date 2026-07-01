@@ -39,6 +39,14 @@ export const config = {
   openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
 
+  // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
+  // the k nearest docs regardless of absolute similarity, so a query with few
+  // true matches drags in unrelated neighbors that then occupy top slots after
+  // RRF. Dropping hits below this floor tightens ranking for both atlas_search
+  // and atlas_query. Conservative default — good matches sit well above it;
+  // raise it (env) to be stricter, lower it if paraphrase recall suffers.
+  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
+
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).

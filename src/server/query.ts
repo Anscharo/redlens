@@ -212,7 +212,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── search ───────────────────────────────────────────────────────────────────
-  let searchHits: { id: string; rrf_score: number; score: number; snippet?: string }[] = [];
+  let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string }[] = [];
   if (a.q) {
     const { phrases, casePhrases } = extractPhrases(a.q);
     const fetchK = Math.min(a.k * 4, 200);
@@ -229,7 +229,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
         return n ? matchesPhrases(n.title, n.content, phrases, casePhrases) : false;
       });
     }
-    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score }));
+    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score, sources: m.sources }));
   }
 
   // ── intersect / narrow ────────────────────────────────────────────────────────
@@ -245,7 +245,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   const mode = a.q && entityDocIds ? "hybrid_graph" : "search";
   const results = hits.map((h) => {
     const n = ix.docMap.get(h.id)!;
-    return { ...enrichNode(ix, n, a.enrich, !!a.include_params), snippet: buildSnippet(n.content, a.q ?? ""), score: h.rrf_score || h.score };
+    // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
+    // single-source ones — the former are the more trustworthy matches.
+    return { ...enrichNode(ix, n, a.enrich, !!a.include_params), snippet: buildSnippet(n.content, a.q ?? ""), score: h.rrf_score || h.score, sources: h.sources };
   });
   return { mode, count: results.length, results };
 }

@@ -15,6 +15,7 @@
 - Added a Connect page with instructions for hooking an AI assistant up to the atlas over MCP
 - Added a "Using it" section to the Connect page with example questions to ask an MCP-connected assistant
 - Improved the Atlas MCP tools: graph traversal now reports hop distance and the connecting relationship, and entity lookups are paginated and filterable
+- Tightened Atlas search ranking so weakly-related results no longer crowd out the best matches
 
 ## 2026-06-30
 - add recent searches feature
