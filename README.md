@@ -156,6 +156,8 @@ The live MCP server runs as part of the Railway app (`src/server/`) — a statel
 
 Setup instructions for common clients live on the in-app **`/connect`** page. The tool registry is the source of truth for the tool reference.
 
+> API note: `atlas_query` is lean by default (`enrich=false` → title/doc_no/snippet/sources); pass `enrich=true` for full document content + ancestor ids, or fetch specific docs with `atlas_get`.
+
 > The earlier Cloudflare Worker (`redlens-mcp/`, `https://redlens-mcp.anscharo.workers.dev/mcp`) predates the Railway move and is no longer the connection RedLens uses.
 
 ### Auxiliary scripts

@@ -4,6 +4,7 @@
 import { test, expect } from "bun:test";
 import { atlasTraverse, atlasEntity, atlasEntities, atlasEntityParams } from "./tools-graph.ts";
 import { atlasGet, atlasDescribe } from "./tools.ts";
+import { buildSystemPrompt } from "./system-prompt.ts";
 import { matchEntities } from "./entity-resolve.ts";
 import { fitToBudget } from "./output-budget.ts";
 import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
@@ -169,6 +170,13 @@ test("atlas_describe keeps entity_type_graph + type_specifications opt-in", () =
   expect(def.doc_types).toBeDefined(); // light vocab always present
   expect("entity_type_graph" in def).toBe(false);
   expect("type_specifications" in def).toBe(false);
+  // entity_types keys are `${type} ${subtype}` split on a real space. A NUL byte
+  // (or any non-space) between them would cram the whole key into entity_type.
+  const inst = (def.entity_types as Array<{ entity_type: string; subtype: string | null }>).find(
+    (e) => e.entity_type === "instance",
+  );
+  expect(inst).toBeDefined();
+  expect(["distribution-reward", "allocation-system"]).toContain(inst!.subtype);
 
   const all = atlasDescribe(ix, ["all"]) as Record<string, unknown>;
   expect("entity_type_graph" in all).toBe(true);
@@ -178,6 +186,13 @@ test("atlas_describe keeps entity_type_graph + type_specifications opt-in", () =
   expect("type_specifications" in one).toBe(true);
   expect("entity_type_graph" in one).toBe(false);
   expect(one.doc_types).toBeDefined(); // light sections stay even when sections is set
+});
+
+// ── system prompt: describe section dependency ───────────────────────────────
+test("buildSystemPrompt does not throw (entity_type_graph must be requested)", () => {
+  const ix = makeIx();
+  expect(() => buildSystemPrompt(ix)).not.toThrow();
+  expect(buildSystemPrompt(ix)).toContain("Sky Atlas by Redline");
 });
 
 // ── output budget ────────────────────────────────────────────────────────────
