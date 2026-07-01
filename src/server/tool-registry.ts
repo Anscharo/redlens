@@ -75,7 +75,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_traverse",
-    description: "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes.",
+    description:
+      "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
+      "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
+      "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it.",
     shape: {
       id: z.string().describe("Starting node UUID or doc_no."),
       edge_type: z.string().optional().describe("Edge type filter (e.g. 'cites', 'responsible_party_for')."),
@@ -86,11 +89,25 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity",
-    description: "Get all Atlas sections related to a named entity (agent, role, or actor). Returns nodes, inbound references, and Active Data sections they control.",
+    description:
+      "Get Atlas sections related to a named entity (agent, role, or actor). Returns paginated `nodes` (edge-linked " +
+      "docs + defining-doc subtree), `node_count` + `node_types` (a type histogram over the full set — use it to pick " +
+      "a `type` filter), `responsibilities`, and Active Data sections it controls. Prime Agents have 2000+ nodes, so " +
+      "page with `limit`/`offset` and narrow with `type` rather than pulling everything at once.",
     shape: {
       name: z.string().describe("Entity slug (e.g. 'spark', 'operational-facilitator')."),
+      type: z.string().optional().describe("Restrict `nodes` to one atlas doc type (see `node_types` in the response)."),
+      limit: z.number().int().min(1).max(200).default(50).describe("Max nodes per page."),
+      offset: z.number().int().min(0).default(0).describe("Node pagination offset; use with `has_more`."),
+      include_content: z.boolean().default(false).describe("Include full node content (heavier). Default false = slim rows."),
     },
-    handler: (ix, a) => atlasEntity(ix, a.name as string),
+    handler: (ix, a) =>
+      atlasEntity(ix, a.name as string, {
+        type: a.type as string | undefined,
+        limit: (a.limit as number | undefined) ?? 50,
+        offset: (a.offset as number | undefined) ?? 0,
+        include_content: (a.include_content as boolean | undefined) ?? false,
+      }),
   },
   {
     name: "atlas_filter",
@@ -109,11 +126,20 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity_params",
-    description: "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded as child Cores.",
+    description:
+      "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded " +
+      "as child Cores. With `id`, returns that one doc's params. With `entity`, returns params for every INSTANCE doc " +
+      "under the entity (not the whole subtree); the response also lists `available_subtypes` so you can refine.",
     shape: {
       id: z.string().optional().describe("Doc UUID or doc_no (typically an instance doc)."),
       entity: z.string().optional().describe("Entity slug — fetch params for all instance docs under entity."),
-      type_hint: z.string().optional().describe("Filter instance docs by type (e.g. 'Reward'). Only applies with entity."),
+      type_hint: z
+        .string()
+        .optional()
+        .describe(
+          "Filter instance docs by their SUBTYPE, case-insensitive substring (e.g. 'reward' matches " +
+            "'distribution-reward' and 'core-governance-reward'). Only applies with `entity`; see `available_subtypes`.",
+        ),
       limit: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1]),

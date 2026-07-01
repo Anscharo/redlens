@@ -35,89 +35,122 @@ export function atlasTraverse(
   ix: Indexes,
   id: string,
   edgeType: string | undefined,
-  hops: number,
+  maxHops: number,
   direction: "out" | "in" | "both",
 ): ToolResult {
   const start = resolveNode(ix, id);
   if (!start) return { error: "Not found" };
 
-  const visited = new Map<string, number>(); // id → depth
-  visited.set(start.id, 0);
-  const queue: Array<{ id: string; depth: number }> = [{ id: start.id, depth: 0 }];
+  // id → how it was first reached: hop distance from the start node, plus the
+  // edge type and direction of the edge that discovered it. `hops` is the BFS
+  // distance (NOT the node's atlas depth — docRow still carries that as `depth`).
+  type Reach = { hops: number; edge_type: string | null; direction: "out" | "in" | null };
+  const visited = new Map<string, Reach>();
+  visited.set(start.id, { hops: 0, edge_type: null, direction: null });
+  const queue: Array<{ id: string; hops: number }> = [{ id: start.id, hops: 0 }];
 
   while (queue.length) {
-    const { id: cur, depth } = queue.shift()!;
-    if (depth >= hops) continue;
+    const { id: cur, hops } = queue.shift()!;
+    if (hops >= maxHops) continue;
     for (const e of ix.edges) {
       if (edgeType && e.edge_type !== edgeType) continue;
       let neighbor: string | null = null;
-      if ((direction === "out" || direction === "both") && e.from_id === cur) neighbor = e.to_id;
-      else if ((direction === "in" || direction === "both") && e.to_id === cur) neighbor = e.from_id;
+      let dir: "out" | "in" | null = null;
+      if ((direction === "out" || direction === "both") && e.from_id === cur) {
+        neighbor = e.to_id;
+        dir = "out";
+      } else if ((direction === "in" || direction === "both") && e.to_id === cur) {
+        neighbor = e.from_id;
+        dir = "in";
+      }
       if (neighbor && !visited.has(neighbor)) {
-        visited.set(neighbor, depth + 1);
-        queue.push({ id: neighbor, depth: depth + 1 });
+        visited.set(neighbor, { hops: hops + 1, edge_type: e.edge_type, direction: dir });
+        queue.push({ id: neighbor, hops: hops + 1 });
       }
     }
   }
 
   const results: Array<Record<string, unknown>> = [];
-  for (const [nid, depth] of visited) {
+  for (const [nid, r] of visited) {
     if (nid === start.id) continue;
     const doc = ix.docMap.get(nid);
     const ent = doc ? null : ix.entityById.get(nid);
-    if (doc) results.push({ ...docRow(doc), depth });
-    else if (ent) results.push({ ...entityRow(ent), depth });
+    const base = doc ? docRow(doc) : ent ? entityRow(ent) : null;
+    if (base) results.push({ ...base, hops: r.hops, edge_type: r.edge_type, direction: r.direction });
   }
-  results.sort((a, b) => (a.depth as number) - (b.depth as number) || String(a.doc_no ?? a.slug ?? "").localeCompare(String(b.doc_no ?? b.slug ?? "")));
+  results.sort(
+    (a, b) =>
+      (a.hops as number) - (b.hops as number) ||
+      String(a.doc_no ?? a.slug ?? "").localeCompare(String(b.doc_no ?? b.slug ?? "")),
+  );
   return { count: results.length, results };
 }
 
 // ── atlas_entity ───────────────────────────────────────────────────────────
-export function atlasEntity(ix: Indexes, name: string): ToolResult {
+export function atlasEntity(
+  ix: Indexes,
+  name: string,
+  opts: { type?: string; limit: number; offset: number; include_content: boolean },
+): ToolResult {
+  const { type, limit, offset, include_content } = opts;
   const entity = ix.entityBySlug.get(name.toLowerCase());
-  const entityId = entity?.id ?? null;
-  const rootId = entity?.defining_doc_id ?? null;
+  if (!entity) return { error: `Entity '${name}' not found` };
+  const entityId = entity.id;
+  const rootId = entity.defining_doc_id;
 
-  // Nodes reachable from entity via outbound edges.
-  const byEdge = entityId
-    ? ix.edges
-        .filter((e) => e.from_id === entityId && e.to_type === "doc")
-        .map((e) => ix.docMap.get(e.to_id))
-        .filter((n): n is AtlasNode => !!n)
-        .map(docRow)
-    : [];
+  // The entity's node set = (a) docs linked from the entity via outbound edges
+  // ∪ (b) the entity's defining-doc subtree. Deduped by id, edge-linked first.
+  // For a Prime Agent this subtree is huge (2000+ nodes), so it MUST be paged.
+  const seen = new Set<string>();
+  const collect: AtlasNode[] = [];
+  const push = (n: AtlasNode | undefined) => {
+    if (n && !seen.has(n.id)) {
+      seen.add(n.id);
+      collect.push(n);
+    }
+  };
+  for (const e of ix.edges) if (e.from_id === entityId && e.to_type === "doc") push(ix.docMap.get(e.to_id));
+  if (rootId) for (const did of descendantIds(ix, rootId)) push(ix.docMap.get(did));
 
-  // Nodes in the entity's defining doc subtree.
-  const byDocNo = rootId
-    ? [...descendantIds(ix, rootId)]
-        .map((id) => ix.docMap.get(id))
-        .filter((n): n is AtlasNode => !!n)
-        .map(docRow)
-    : [];
+  // Type histogram over the FULL set so the caller can pick a `type` filter to
+  // narrow the next call, even when this page only shows a slice.
+  const node_types: Record<string, number> = {};
+  for (const n of collect) node_types[n.type] = (node_types[n.type] ?? 0) + 1;
 
-  const responsibilities = entityId
-    ? ix.edges
-        .filter((e) => e.from_id === entityId && e.edge_type === "responsible_party_for")
-        .map((e) => ix.docMap.get(e.to_id))
-        .filter((n): n is AtlasNode => !!n)
-        .map(docRow)
-    : [];
+  const filtered = type ? collect.filter((n) => n.type === type) : collect;
+  const page = filtered.slice(offset, offset + limit);
+  const nodes = page.map((n) => (include_content ? { ...docRow(n), content: n.content } : docRow(n)));
 
-  const activeData = entityId
-    ? ix.edges
-        .filter(
-          (e) =>
-            e.from_id === entityId &&
-            ["Active Data Controller", "Active Data"].includes(ix.docMap.get(e.to_id)?.type ?? ""),
-        )
-        .map((e) => {
-          const n = ix.docMap.get(e.to_id);
-          return n ? { ...docRow(n), edge_type: e.edge_type } : null;
-        })
-        .filter(Boolean)
-    : [];
+  const responsibilities = ix.edges
+    .filter((e) => e.from_id === entityId && e.edge_type === "responsible_party_for")
+    .map((e) => ix.docMap.get(e.to_id))
+    .filter((n): n is AtlasNode => !!n)
+    .map(docRow);
 
-  return { entity: name, entityId, nodes: [...byEdge, ...byDocNo], responsibilities, activeData };
+  const activeData = ix.edges
+    .filter(
+      (e) =>
+        e.from_id === entityId &&
+        ["Active Data Controller", "Active Data"].includes(ix.docMap.get(e.to_id)?.type ?? ""),
+    )
+    .map((e) => {
+      const n = ix.docMap.get(e.to_id);
+      return n ? { ...docRow(n), edge_type: e.edge_type } : null;
+    })
+    .filter(Boolean);
+
+  return {
+    entity: name,
+    entityId,
+    node_count: filtered.length,
+    node_types,
+    offset,
+    returned: nodes.length,
+    has_more: offset + nodes.length < filtered.length,
+    nodes,
+    responsibilities,
+    activeData,
+  };
 }
 
 // ── atlas_filter ───────────────────────────────────────────────────────────
@@ -186,6 +219,10 @@ export function atlasEntityParams(
   if (!id && !entity) return { error: "Provide id or entity" };
 
   let instanceIds: string[] = [];
+  // When resolving by entity, expose the instance subtypes present so the
+  // caller can refine `type_hint` (which matches the instance SUBTYPE, e.g.
+  // "distribution-reward", NOT the atlas doc type).
+  let available_subtypes: string[] | undefined;
   if (id) {
     const node = resolveNode(ix, id);
     if (!node) return { error: "Not found" };
@@ -193,13 +230,22 @@ export function atlasEntityParams(
   } else if (entity) {
     const ent = ix.entityBySlug.get(entity.toLowerCase());
     if (!ent?.defining_doc_id) return { error: `Entity '${entity}' not found` };
-    instanceIds = [...descendantIds(ix, ent.defining_doc_id)]
-      .map((nid) => ix.docMap.get(nid))
-      .filter((n): n is AtlasNode => !!n && (!type_hint || n.type === type_hint))
-      .slice(0, limit)
-      .map((n) => n.id);
+    // Instance docs under this entity = defining docs of `instance` entities
+    // whose defining doc falls within the entity's subtree. This is what the
+    // tool means by "instance docs" — not every doc in the subtree.
+    const subtree = descendantIds(ix, ent.defining_doc_id);
+    const instEntities = ix.entities.filter(
+      (e) => e.entity_type === "instance" && e.defining_doc_id && subtree.has(e.defining_doc_id),
+    );
+    available_subtypes = [...new Set(instEntities.map((e) => e.subtype).filter((s): s is string => !!s))].sort();
+    const hint = type_hint?.toLowerCase();
+    const matched = hint
+      ? instEntities.filter((e) => (e.subtype ?? "").toLowerCase().includes(hint))
+      : instEntities;
+    // Dedupe defining docs (an instance may back multiple entity rows), cap at limit.
+    instanceIds = [...new Set(matched.map((e) => e.defining_doc_id as string))].slice(0, limit);
   }
-  if (instanceIds.length === 0) return { instances: [] };
+  if (instanceIds.length === 0) return entity ? { instances: [], available_subtypes } : { instances: [] };
 
   const instances = instanceIds.map((iid) => {
     const inst = ix.docMap.get(iid);
@@ -214,5 +260,5 @@ export function atlasEntityParams(
     return { id: inst.id, doc_no: inst.doc_no, title: inst.title, type: inst.type, params };
   }).filter(Boolean);
 
-  return { instances };
+  return entity ? { instances, available_subtypes } : { instances };
 }
