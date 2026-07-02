@@ -192,6 +192,10 @@ describe("findRoleDuty — facilitator", () => {
     // A.6.1.1.* Independent Governance path shape.
     expect(findFac("Under the Independent Governance path, the Operational Facilitator prepares and submits the Agent Artifact Edit Proposal."))
       .toMatchObject({ role_declared: "Operational Facilitator", match: "active" });
+    // A.6.1.1.<n>.….4 "Root Edit Token Holder Vote": "triggers" is the only
+    // actor verb in the agents-2–8 copies (agent 1 also has a discretion phrase).
+    expect(findFac("Where their review results in a finding of alignment, the Operational Facilitator next triggers a Snapshot poll."))
+      .toMatchObject({ role_declared: "Operational Facilitator", match: "active" });
   });
 
   it("keeps bare plural 'Facilitators' as the universal role, not Operational", () => {

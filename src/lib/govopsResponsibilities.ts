@@ -12,6 +12,7 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -55,37 +56,7 @@ const DEFINITION_UUIDS = [
 const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
 const ANY_GOVOPS_RE = /gov\s*ops/i;
 
-function dutySnippet(content: string): string {
-  const cleaned = stripMarkdownLinks(content).replace(/[*_`#]/g, "").trim();
-  // Units are single lines (bullets stay whole), further split at sentence
-  // boundaries — a sentence-only split let unpunctuated bullet lists glue into
-  // one giant "sentence" that opened with the wrong actor's text.
-  const units = cleaned
-    .split("\n")
-    .flatMap((line) => line.split(/(?<=[.!?])\s+(?=[A-Z])/))
-    .map((s) => s.replace(/^[-\s]+/, "").trim())
-    .filter(Boolean);
-  if (!units.length) return cleaned.slice(0, 160);
-  // Prefer the unit naming GovOps — but not a bare Responsible Party declaration
-  // (that fact already lives in the row's GovOps column).
-  let i = units.findIndex(
-    (s) => ANY_GOVOPS_RE.test(s) && !/^The Responsible Party/i.test(s),
-  );
-  if (i === -1) i = 0;
-  const last = units.length - 1;
-  return (i > 0 ? "…" : "") + units[i] + (i < last ? "…" : "");
-}
-
-// First meaningful line of a doc — used as the "duty" description for process-step
-// rows, whose content is a bulleted update spec rather than prose sentences.
-function firstLine(content: string): string {
-  const line = stripMarkdownLinks(content)
-    .replace(/[*_`#]/g, "")
-    .split("\n")
-    .map((s) => s.trim())
-    .find(Boolean);
-  return (line ?? "").slice(0, 160);
-}
+const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 
 export function deriveGovOpsResponsibilities(
   { docs }: AtlasBundle,

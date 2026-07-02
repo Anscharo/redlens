@@ -10,7 +10,7 @@ export function FilterPills({
 }: {
   label: string;
   items: Pill[];
-  kind: "govops" | "executor";
+  kind: "govops" | "facilitator" | "executor";
   filter: ActiveFilter;
   onToggle: (next: ActiveFilter) => void;
 }) {

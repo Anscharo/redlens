@@ -1,144 +1,199 @@
+// Pure data-shaping logic for the Operational Facilitator Responsibilities
+// report. Edge-backed, mirroring govopsResponsibilities.ts: duty discovery
+// (vocabulary, actor-attribution guards, org-name scanning) lives in
+// build-graph (scripts/lib/graph-duties.mjs), which emits one duty_for edge
+// per (doc, role-holder) with the matched quote as provenance. A duty that
+// binds every holder (bare "Facilitators must…", A.1.7 universal duties) fans
+// out to one edge per holder — those collapse back to one row here, with the
+// holders accumulated for the filter pills.
+
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
+import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
+import { parseMeta } from "./meta";
+import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
+import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
 
 export interface OFResponsibility {
   docNo: string;
   uuid: string;
   title: string;
   duty: string;
-  category: "universal" | "core-facilitator" | "root-edit" | "artifact-edit" | "active-data";
+  category:
+    | "universal"
+    | "core-facilitator"
+    | "op-duty"
+    | "assignment"
+    | "active-data"
+    | "process-step";
   agent?: string;
   agents?: string[];
+  facilitator?: string; // single attribution (assignment / active-data / process-step)
+  facilitators?: string[]; // duty rows — every holder the duty fanned out to
+  executor?: string; // Executor Agent name (assignment rows)
+  role?: "Operational" | "Core"; // assignment / process-step role
 }
 
 export const CATEGORY_LABELS: Record<OFResponsibility["category"], string> = {
   universal: "Universal — all Facilitators",
   "core-facilitator": "Core Facilitator Duties",
-  "root-edit": "Root Edit Proposal Review & Vote (per agent)",
-  "artifact-edit": "Artifact Edit Restrictions Enforcement (per agent)",
-  "active-data": "Active Data Maintenance — OF as Responsible Party (per agent)",
+  "op-duty": "Operational Facilitator Duties",
+  assignment: "Facilitator Assignments (per Executor Agent)",
+  "active-data": "Active Data Maintenance — Facilitator as Responsible Party",
+  "process-step": "Process-Step Responsibilities (Active Data update steps)",
 };
 
-// These 4 nodes impose universal OF duties but no graph edge connects them to
-// the OF role — they are scattered across the atlas. Keyed by UUID; doc_nos
-// are listed in comments for human reference only (doc_nos are not stable).
-const SCATTERED_UNIVERSAL_UUIDS = [
-  "ecce1a73-dac3-4fe5-a9d6-8b445bbc591a", // A.1.12.1.3.1
-  "193f43fc-f26f-4fa0-b3cf-f50c68177906", // A.1.9.2.4.13.5
-  "823cad54-4438-4ec3-9e13-d2624795fabd", // A.2.2.5.2.1.2.2
-  "aee1d848-eee8-4590-a596-1884efcb474a", // A.2.2.9.1.1.3.3.1.3
-] as const;
+const CORE_FAC_RE = /\bCore\s+Facilitator\b/i;
+const OP_FAC_RE = /\bOperational\s+Facilitator\b/i;
+const ANY_FAC_RE = /facilitator/i;
 
-const ROOT_EDIT_OF_TITLES = new Set([
-  "root edit proposal review by operational facilitator",
-  "root edit token holder vote",
-]);
+const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_FAC_RE);
 
-function dutySnippet(content: string): string {
-  const cleaned = stripMarkdownLinks(content).replace(/[*_`#]/g, "").trim();
-  const sentences = cleaned
-    .split(/(?<=[.!?])\s+(?=[A-Z])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (sentences.length <= 1) return sentences[0] ?? cleaned.slice(0, 140);
-  // Prefer a sentence where Facilitator is the grammatical subject —
-  // i.e. "Facilitator" appears before a governing verb in the same sentence.
-  const asSubject = /\bFacilitators?\b[^.!?]*?\b(must|may|shall|will|is\b|are\b|agrees?|ensures?|reviews?|documents?)/i;
-  let i = sentences.findIndex((s) => asSubject.test(s));
-  if (i === -1) i = sentences.findIndex((s) => /facilitator/i.test(s));
-  if (i === -1) i = 0;
-  const last = sentences.length - 1;
-  return (i > 0 ? "…" : "") + sentences[i] + (i < last ? "…" : "");
-}
-
-export function deriveResponsibilities(
-  { docs, byParent }: AtlasBundle,
-  { edges }: GraphData,
+export function deriveFacilitatorResponsibilities(
+  { docs }: AtlasBundle,
+  { edges, participants }: GraphData,
 ): OFResponsibility[] {
   const results: OFResponsibility[] = [];
+  const entityById = new Map<string, GraphEntity>(participants.map((e) => [e.id, e]));
+  const agents = agentsFromGraph(participants, docs);
+  const docByDocNo = new Map<string, string>(); // doc_no → uuid
+  for (const d of Object.values(docs)) docByDocNo.set(d.doc_no, d.id);
 
-  // Build agent name lookup: "A.6.1.1.X" → agent title
-  // UUID 9fb7f1cc = A.6.1.1 (Agent Artifacts parent scope)
-  const agentByPrefix = new Map<string, string>();
-  for (const n of byParent.get("9fb7f1cc-f60b-4195-892d-5e540f969973") ?? []) {
-    agentByPrefix.set(n.doc_no, n.title);
-  }
-  const getAgent = (docNo: string) => {
-    const p = docNo.split(".");
-    return p.length >= 5 ? agentByPrefix.get(p.slice(0, 5).join(".")) : undefined;
-  };
+  // Docs already surfaced in an earlier (higher-priority) category.
+  const seenDocIds = new Set<string>();
 
-  // 1. Children of A.1.6 (Facilitator Duties) — classify by subject of the opening sentence.
-  //    Sections that open with "The Core Facilitator…" are Core Facilitator duties, not universal OF duties.
-  //    Sections about "Core Executor Agent" (A.1.6.2) are Core Executor context, not OF duties.
-  // UUID 1ce24b08 = A.1.6
-  for (const n of byParent.get("1ce24b08-84ff-4524-9710-49bba429c6ef") ?? []) {
-    const trimmed = n.content.trimStart();
-    const isCoreFacilitatorDuty =
-      /^The Core Facilitator\b/i.test(trimmed) || /^Every Core Executor Agent\b/i.test(trimmed);
+  // 1. Facilitator assignments — one per {operational,core}_facilitator_for edge.
+  //    Edge: f = Facilitator entity, t = Executor Agent entity, s[0] = assignment doc.
+  const execEdges = edges.filter((e) => EXEC_EDGES.has(e.e));
+  for (const fe of edges) {
+    if (!FAC_EDGES.has(fe.e)) continue;
+    const fac = entityById.get(fe.f);
+    const exec = entityById.get(fe.t);
+    const srcDocNo = fe.s?.[0];
+    const uuid = srcDocNo ? (docByDocNo.get(srcDocNo) ?? "") : "";
+    const doc = uuid ? docs[uuid] : null;
+    // executor→prime edges: f = executor, t = prime.
+    const primes = execEdges
+      .filter((e) => exec && e.f === exec.id)
+      .map((e) => entityById.get(e.t)?.name)
+      .filter((n): n is string => !!n);
     results.push({
+      docNo: doc?.doc_no ?? srcDocNo ?? "",
+      uuid,
+      title: exec ? `Facilitator for ${exec.name}` : (doc?.title ?? "Facilitator assignment"),
+      duty: doc ? dutySnippet(doc.content) : "",
+      category: "assignment",
+      facilitator: fac?.name,
+      executor: exec?.name,
+      role: fe.e === "core_facilitator_for" ? "Core" : "Operational",
+      agents: primes,
+    });
+    if (uuid) seenDocIds.add(uuid);
+  }
+
+  // 2. Duties — duty_for edges declared for the Facilitator role. Category from
+  //    the declared role: Core / Operational / bare ("Facilitator" — A.1.7-style
+  //    universal duties that bind every holder). Same-title rows under the
+  //    per-agent-artifact subtree collapse with agents accumulated (see
+  //    govopsResponsibilities.ts for why bare-title collapse is only safe
+  //    there); fan-out edges for one doc collapse with holders accumulated.
+  const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+  type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string> };
+  const dutyByKey = new Map<string, DutyRow>();
+  for (const e of edges) {
+    if (e.e !== "duty_for" || e.tt !== "doc") continue;
+    const n = docs[e.t];
+    if (!n || seenDocIds.has(n.id)) continue; // seen = assignment docs at this point
+    const meta = parseMeta<{ role_declared?: string; quote?: string | null }>(e.m);
+    const declared = meta?.role_declared ?? "";
+    // duty_for covers every acting role — this report wants Facilitator-declared.
+    if (!ANY_FAC_RE.test(declared)) continue;
+
+    const category: OFResponsibility["category"] = CORE_FAC_RE.test(declared)
+      ? "core-facilitator"
+      : OP_FAC_RE.test(declared)
+        ? "op-duty"
+        : "universal";
+    const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
+    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
+    const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
+    const facName = entityById.get(e.f)?.name;
+    const existing = dutyByKey.get(key);
+    if (existing) {
+      // Keep the lowest doc_no as the representative row.
+      if (n.doc_no.localeCompare(existing.docNo, undefined, { numeric: true }) < 0) {
+        existing.docNo = n.doc_no;
+        existing.uuid = n.id;
+        existing.duty = duty;
+      }
+      if (agent) existing._agents.add(agent);
+      if (facName) existing._facs.add(facName);
+      continue;
+    }
+    dutyByKey.set(key, {
       docNo: n.doc_no,
       uuid: n.id,
       title: n.title,
-      duty: dutySnippet(n.content),
-      category: isCoreFacilitatorDuty ? "core-facilitator" : "universal",
+      duty,
+      category,
+      _facs: new Set(facName ? [facName] : []),
+      _agents: new Set(agent ? [agent] : []),
     });
   }
-
-  // 2. Scattered universals — no graph edge marks them as OF duties
-  for (const uuid of SCATTERED_UNIVERSAL_UUIDS) {
-    const n = docs[uuid];
-    if (n)
-      results.push({
-        docNo: n.doc_no,
-        uuid: n.id,
-        title: n.title,
-        duty: dutySnippet(n.content),
-        category: "universal",
-      });
+  for (const { _facs, _agents, ...row } of dutyByKey.values()) {
+    results.push({
+      ...row,
+      facilitators: _facs.size ? [..._facs] : undefined,
+      agents: _agents.size ? [..._agents] : undefined,
+    });
+    seenDocIds.add(row.uuid);
   }
 
-  // 3. Root-edit duties and artifact-edit duties under A.6.1.1
-  for (const n of Object.values(docs)) {
-    if (!n.doc_no.startsWith("A.6.1.1.")) continue; // fragile: doc_no prefix — migrate to UUID ancestor check
-    const tl = n.title.toLowerCase();
-    if (ROOT_EDIT_OF_TITLES.has(tl)) {
-      results.push({
-        docNo: n.doc_no,
-        uuid: n.id,
-        title: n.title,
-        duty: dutySnippet(n.content),
-        category: "root-edit",
-        agent: getAgent(n.doc_no),
-      });
-    } else if (tl === "artifact edit restrictions") {
-      results.push({
-        docNo: n.doc_no,
-        uuid: n.id,
-        title: n.title,
-        duty: dutySnippet(n.content),
-        category: "artifact-edit",
-        agent: getAgent(n.doc_no),
-      });
-    }
-  }
-
-  // 4. Active-data: responsible_party_for edges from OF facilitators
-  const ofFacIds = new Set(
-    edges.filter((e) => e.e === "operational_facilitator_for").map((e) => e.f),
-  );
-  for (const edge of edges) {
-    if (edge.e !== "responsible_party_for" || !ofFacIds.has(edge.f) || edge.tt !== "doc") continue;
-    const n = docs[edge.t];
-    if (!n?.doc_no.startsWith("A.6.1.1.")) continue; // fragile: doc_no prefix — migrate to UUID ancestor check
+  // 3. Active Data — docs whose Responsible Party is declared as a Facilitator.
+  //    Keyed on the edge's declared role, NOT the entity type: a facilitator org
+  //    also holds Responsible-Party duties in other capacities (named directly),
+  //    and those are NOT facilitator duties.
+  for (const e of edges) {
+    if (e.e !== "responsible_party_for" || e.tt !== "doc") continue;
+    const declared = parseMeta<{ role_declared?: string }>(e.m)?.role_declared ?? "";
+    if (!ANY_FAC_RE.test(declared)) continue;
+    const n = docs[e.t];
+    if (!n) continue;
     results.push({
       docNo: n.doc_no,
       uuid: n.id,
       title: n.title,
       duty: dutySnippet(n.content),
       category: "active-data",
-      agent: getAgent(n.doc_no),
+      facilitator: entityById.get(e.f)?.name ?? declared,
+      agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
+    });
+    seenDocIds.add(n.id);
+  }
+
+  // 4. Process-step responsibilities — per-step execution RP on process-step
+  //    "Update" docs. Empty today: build-graph leaves facilitator declarations
+  //    without an agent-artifact context unresolved (two orgs hold the role, so
+  //    there is no unconditional fallback the way there is for GovOps) — the
+  //    section appears as soon as resolvable declarations exist.
+  for (const e of edges) {
+    if (e.e !== "process_step_responsible_party_for" || e.tt !== "doc") continue;
+    if (seenDocIds.has(e.t)) continue; // already a duty / active-data / assignment
+    const declared = parseMeta<{ role_declared?: string }>(e.m)?.role_declared ?? "";
+    if (!ANY_FAC_RE.test(declared)) continue;
+    const n = docs[e.t];
+    if (!n) continue;
+    results.push({
+      docNo: n.doc_no,
+      uuid: n.id,
+      title: n.title,
+      duty: firstLine(n.content),
+      category: "process-step",
+      role: CORE_FAC_RE.test(declared) ? "Core" : "Operational",
+      facilitator: entityById.get(e.f)?.name ?? declared,
+      agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
   }
 
