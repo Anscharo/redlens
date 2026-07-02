@@ -75,8 +75,8 @@ for (const e of relations.edges) {
   if (GOV_EDGES.has(e.e)) {
     const d = e.s?.[0] ? docByDocNo.get(e.s[0]) : null; // assignment doc
     if (d) rowDocs.add(d.id);
-  } else if (e.e === "duty_for" && e.tt === "doc") {
-    rowDocs.add(e.t); // all duty_for edges are GovOps by construction
+  } else if (e.e === "duty_for" && e.tt === "doc" && ANY_GOVOPS_RE.test(meta(e).role_declared ?? "")) {
+    rowDocs.add(e.t); // duty_for spans all acting roles — count only GovOps-declared
   } else if (
     (e.e === "responsible_party_for" || e.e === "process_step_responsible_party_for") &&
     e.tt === "doc" &&

@@ -56,6 +56,9 @@ for (const n of [
   // structural title, so they must NOT collapse into a single row.
   node({ id: "flow-a", doc_no: "A.2.2.9.1.2.3.1.2", title: "Process Flow", content: "Operational GovOps calculates the eligible balances using method A." }),
   node({ id: "flow-b", doc_no: "A.2.2.9.2.2.3.1.2", title: "Process Flow", content: "Operational GovOps calculates the eligible balances using method B." }),
+  // duty_for spans all acting roles since the OEA generalization — a
+  // Facilitator-declared duty must NOT surface in the GovOps report.
+  node({ id: "duty-fac", doc_no: "A.1.1.2.1", title: "General Principles", content: "The Core Facilitator is authorized to conduct Atlas Interpretations." }),
 ]) docs[n.id] = n;
 
 const atlas: AtlasBundle = { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null };
@@ -84,6 +87,8 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "flow-a", tt: "doc", e: "duty_for", s: ["A.2.2.9.1.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method A.") },
   { f: "soter", ft: "entity", t: "flow-b", tt: "doc", e: "duty_for", s: ["A.2.2.9.2.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method B.") },
   { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "duty_for", s: ["A.2.8.8"], m: dutyMeta("Operational GovOps", "Operational GovOps reviews the update.") },
+  // Facilitator-declared duty edge (from the OEA role generalization) — filtered out.
+  { f: "jansky", ft: "entity", t: "duty-fac", tt: "doc", e: "duty_for", s: ["A.1.1.2.1"], m: dutyMeta("Core Facilitator", "The Core Facilitator is authorized to conduct Atlas Interpretations.") },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
   // Soter Labs named directly (non-GovOps capacity) — excluded.
   { f: "soter", ft: "entity", t: "adc-nongov", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Soter Labs", resolution: "direct" }) },
@@ -162,6 +167,10 @@ describe("deriveGovOpsResponsibilities", () => {
     const both = byCat("process-step").filter((r) => r.uuid === "step-both");
     expect(both.map((r) => r.role).sort()).toEqual(["Core", "Operational"]);
     expect(both.find((r) => r.role === "Core")?.govops).toBe("Atlas Axis");
+  });
+
+  it("ignores duty_for edges declared for non-GovOps acting roles", () => {
+    expect(results.find((r) => r.uuid === "duty-fac")).toBeUndefined();
   });
 
   it("surfaces a doc carrying both a duty_for and a process-step edge exactly once, as a duty", () => {

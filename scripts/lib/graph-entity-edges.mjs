@@ -20,7 +20,7 @@ import {
   rpRoleAndName,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
-import { findGovOpsDuty } from "./graph-duties.mjs";
+import { DUTY_ROLES, findRoleDuty } from "./graph-duties.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
   const {
@@ -278,10 +278,21 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // Core Facilitator / GovOps resolve to a single entity across the atlas.
   const coreFacId = edges.find((e) => e.edgeType === "core_facilitator_for")?.fromId ?? null;
   const coreGovId = edges.find((e) => e.edgeType === "core_govops_for")?.fromId ?? null;
-  // Unique operational_govops entity — fallback for A.2.* ADCs that declare
-  // "Operational GovOps" without a Prime Agent context (e.g. Support Scope primitives).
+  // Unique operational role-holders — fallback for docs that declare a role
+  // without a Prime Agent context (e.g. Support Scope primitives). Only valid
+  // when exactly ONE org holds the role atlas-wide: true for Operational GovOps
+  // (Soter Labs) today, false for Operational Facilitators (Endgame Edge +
+  // Redline Facilitation Group) and Operational Executor Agents (Amatsu +
+  // Ozone) — those stay unresolved rather than guessed.
   const uniqueOpGovIds = [...new Set(opGovByExec.values())];
   const uniqueOpGovId = uniqueOpGovIds.length === 1 ? uniqueOpGovIds[0] : null;
+  const uniqueOpFacIds = [...new Set(opFacByExec.values())];
+  const uniqueOpFacId = uniqueOpFacIds.length === 1 ? uniqueOpFacIds[0] : null;
+  const uniqueOpExecIds = [...new Set(opExecByPrime.values())];
+  const uniqueOpExecId = uniqueOpExecIds.length === 1 ? uniqueOpExecIds[0] : null;
+  // The core executor has no executor edge of its own today — it is the target
+  // of the core_govops_for edge.
+  const coreExecId = edges.find((e) => e.edgeType === "core_govops_for")?.toId ?? null;
 
   // Resolve a raw "Responsible Party" declaration to its entity, given the doc it
   // was declared on (for Prime-Agent-context chain resolution). Shared by 2s (ADC
@@ -329,6 +340,8 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
         else if (role === "core_govops") entity = entityById.get(coreGovId);
         else if (role === "operational_govops" && uniqueOpGovId)
           entity = entityById.get(uniqueOpGovId);
+        else if (role === "operational_facilitator" && uniqueOpFacId)
+          entity = entityById.get(uniqueOpFacId);
         else if (role === "support_facilitators") entity = supportFacilitators;
       }
       if (entity) resolution = "chain";
@@ -415,70 +428,140 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     `  process_step_responsible_party_for: ${stepRpEdges} edges across ${stepRpDocs} docs, ${stepRpUnresolved} unresolved`,
   );
 
-  // --- 2s-ter. duty_for (GovOps duty discovery) ---
-  // GovOps has no dedicated "Duties" scope the way Facilitators do (A.1.7) — its
-  // duties are scattered across primitive, process, and agent-artifact docs. Scan
-  // every doc for GovOps as an obligated/empowered subject (see graph-duties.mjs
-  // for the pattern taxonomy) and emit one duty_for edge per doc, resolved to the
-  // GovOps org entity. Skips, mirroring the report's semantics:
+  // --- 2s-ter. duty_for (acting-role duty discovery) ---
+  // Neither GovOps nor the Executor Agent has a dedicated "Duties" scope the way
+  // Facilitators do (A.1.7) — duties are scattered across primitive, process,
+  // and agent-artifact docs. Scan every doc for each acting role (GovOps /
+  // Facilitator / Executor Agent — see graph-duties.mjs for the pattern
+  // taxonomy) and emit one duty_for edge per (doc, role), resolved to the org
+  // entity holding the role. Shared skips:
   //   - Preamble (A.0.*): role definitions, not duties.       // fragile: doc_no prefix
-  //   - Assignment docs (A.6.1.2.<n>.2): covered by the        // fragile: doc_no prefix
-  //     {operational,core}_govops_for edges.
+  //   - Role-assignment docs (the source docs of the gov/fac/exec role edges):
+  //     they name the role-holder, they impose no duty.
   //   - ADCs: governance-level RP is responsible_party_for (2s).
+  //   - Type Specifications (A.1.2.2.*): they define document types and name
+  //     roles pervasively ("The Facilitator Action Tenet Type") but task no one.
   //   - Process-step RP docs (2s-bis targets): the structural edge wins over a
   //     fuzzy content match.
-  const ASSIGNMENT_DOCNO_RE = /^A\.6\.1\.2\.\d+\.2$/;
-  const govOrgs = [];
-  const govOrgIdByName = new Map();
-  for (const id of uniqueOpGovIds) {
-    const e = entityById.get(id);
-    if (e) {
-      govOrgs.push({ name: e.name, role_declared: "Operational GovOps" });
-      govOrgIdByName.set(e.name, e.id);
-    }
-  }
-  const coreGovEntity = entityById.get(coreGovId);
-  if (coreGovEntity) {
-    govOrgs.push({ name: coreGovEntity.name, role_declared: "Core GovOps" });
-    govOrgIdByName.set(coreGovEntity.name, coreGovEntity.id);
+  const ROLE_ASSIGNMENT_EDGE_TYPES = new Set([
+    "operational_govops_for",
+    "core_govops_for",
+    "operational_facilitator_for",
+    "core_facilitator_for",
+    "operational_executor_agent_for",
+    "core_executor_agent_for",
+  ]);
+  const roleAssignmentDocIds = new Set();
+  for (const e of edges) {
+    if (!ROLE_ASSIGNMENT_EDGE_TYPES.has(e.edgeType)) continue;
+    const d = e.sourceDocNos?.[0] ? docByDocNo.get(e.sourceDocNos[0]) : null;
+    if (d) roleAssignmentDocIds.add(d.id);
   }
 
-  let dutyEdges = 0,
-    dutyUnresolved = 0;
-  const dutyByMatch = new Map();
+  // Per-role: org list for name-attributed duties, and a resolver from a
+  // declared role label (+ doc context) to the holding entity. Operational
+  // roles resolve via the doc's agent-artifact chain, then the unique-holder
+  // fallback (null when several orgs hold the role — counted, never guessed).
+  const artifactExecId = (d) => {
+    const m = d.doc_no.match(/^A\.6\.1\.1\.(\d+)\./);
+    if (!m) return null;
+    const primeEntity = entityByDocId.get(docByDocNo.get(`A.6.1.1.${m[1]}`)?.id);
+    return primeEntity ? (opExecByPrime.get(primeEntity.id) ?? null) : null;
+  };
+  const dutyRoleContext = {
+    govops: {
+      coreId: coreGovId,
+      opByExec: opGovByExec,
+      uniqueOpId: uniqueOpGovId,
+      opIds: uniqueOpGovIds,
+    },
+    facilitator: {
+      coreId: coreFacId,
+      opByExec: opFacByExec,
+      uniqueOpId: uniqueOpFacId,
+      opIds: uniqueOpFacIds,
+    },
+    executor: {
+      coreId: coreExecId,
+      opByExec: null, // the chain target IS the executor
+      uniqueOpId: uniqueOpExecId,
+      opIds: uniqueOpExecIds,
+    },
+  };
+  const orgIdByName = new Map();
+  const orgsByRole = new Map();
+  for (const role of DUTY_ROLES) {
+    const ctx = dutyRoleContext[role.key];
+    const orgs = [];
+    for (const id of ctx.opIds) {
+      const e = entityById.get(id);
+      if (e) {
+        orgs.push({ name: e.name, role_declared: role.op.label });
+        orgIdByName.set(e.name, e.id);
+      }
+    }
+    const coreEntity = entityById.get(ctx.coreId);
+    if (coreEntity) {
+      orgs.push({ name: coreEntity.name, role_declared: role.core.label });
+      orgIdByName.set(coreEntity.name, coreEntity.id);
+    }
+    orgsByRole.set(role.key, orgs);
+  }
+  // A duty that cannot be pinned to ONE holder binds EVERY holder — "Operational
+  // Facilitator must X" outside an agent-artifact context is a duty of both
+  // operational facilitator orgs in their own contexts, and a bare-label duty
+  // ("Facilitators must document…", A.1.6 universal duties) binds the core org
+  // too. Fan out one edge per holder rather than dropping the duty.
+  const resolveDutyEntities = (role, d, duty) => {
+    const ctx = dutyRoleContext[role.key];
+    const byIds = (ids) => ids.map((id) => entityById.get(id)).filter(Boolean);
+    if (duty.orgName) return byIds([orgIdByName.get(duty.orgName)]);
+    if (duty.role_declared === role.core.label) return byIds([ctx.coreId]);
+    const execId = artifactExecId(d);
+    if (execId) return byIds([ctx.opByExec ? ctx.opByExec.get(execId) : execId]);
+    if (duty.role_declared === role.op.label) return byIds(ctx.opIds);
+    return byIds([...ctx.opIds, ctx.coreId]); // bare label — universal duty
+  };
+
+  const dutyStats = new Map(DUTY_ROLES.map((r) => [r.key, { edges: 0, unresolved: 0, byMatch: new Map() }]));
   for (const d of allDocs) {
     if (d.doc_no.startsWith("A.0.")) continue;
-    if (ASSIGNMENT_DOCNO_RE.test(d.doc_no)) continue;
+    if (roleAssignmentDocIds.has(d.id)) continue;
     if (d.type === "Active Data Controller") continue;
+    if (d.type === "Type Specification") continue;
     if (stepRpTargetIds.has(d.id)) continue;
-    const duty = findGovOpsDuty(d.title, d.content, govOrgs);
-    if (!duty) continue;
-    const entity = duty.orgName
-      ? entityById.get(govOrgIdByName.get(duty.orgName))
-      : duty.role_declared === "Core GovOps"
-        ? entityById.get(coreGovId)
-        : entityById.get(uniqueOpGovId);
-    if (!entity) {
-      dutyUnresolved++;
-      continue;
+    for (const role of DUTY_ROLES) {
+      const duty = findRoleDuty(role, d.title, d.content, orgsByRole.get(role.key));
+      if (!duty) continue;
+      const stats = dutyStats.get(role.key);
+      const entities = resolveDutyEntities(role, d, duty);
+      if (!entities.length) {
+        stats.unresolved++;
+        continue;
+      }
+      for (const entity of entities) {
+        addEdge(
+          entity.id,
+          "entity",
+          d.id,
+          "doc",
+          "duty_for",
+          [d.doc_no],
+          JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
+        );
+        stats.edges++;
+      }
+      stats.byMatch.set(duty.match, (stats.byMatch.get(duty.match) ?? 0) + 1);
     }
-    addEdge(
-      entity.id,
-      "entity",
-      d.id,
-      "doc",
-      "duty_for",
-      [d.doc_no],
-      JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
-    );
-    dutyEdges++;
-    dutyByMatch.set(duty.match, (dutyByMatch.get(duty.match) ?? 0) + 1);
   }
-  console.log(
-    `  duty_for: ${dutyEdges} edges (${["title", "active", "passive", "phrase", "org"]
-      .map((k) => `${dutyByMatch.get(k) ?? 0} ${k}`)
-      .join(", ")}), ${dutyUnresolved} unresolved`,
-  );
+  for (const role of DUTY_ROLES) {
+    const s = dutyStats.get(role.key);
+    console.log(
+      `  duty_for[${role.key}]: ${s.edges} edges (${["title", "active", "passive", "phrase", "org"]
+        .map((k) => `${s.byMatch.get(k) ?? 0} ${k}`)
+        .join(", ")}), ${s.unresolved} unresolved`,
+    );
+  }
 
   // --- 2t. defines_entity (doc → entity it defines) ---
   for (const e of entityMap.values()) {

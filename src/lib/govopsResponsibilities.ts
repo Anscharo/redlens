@@ -169,6 +169,9 @@ export function deriveGovOpsResponsibilities(
     const n = docs[e.t];
     if (!n || seenDocIds.has(n.id)) continue;
     const meta = parseMeta<{ role_declared?: string; quote?: string | null }>(e.m);
+    // duty_for covers every acting role (GovOps / Facilitator / Executor Agent)
+    // — this report only wants the GovOps-declared ones.
+    if (!ANY_GOVOPS_RE.test(meta?.role_declared ?? "")) continue;
     seenDocIds.add(n.id);
 
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
