@@ -12,15 +12,17 @@ export function CategoryPills<T extends string>({
   categories,
   active,
   onToggle,
+  label = "Category",
 }: {
   categories: readonly T[];
   active: T | null;
   onToggle: (next: T) => void;
+  label?: string;
 }) {
   if (categories.length < 2) return null;
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
-      <span className="text-xs text-tan-3 mr-1">Category:</span>
+      <span className="text-xs text-tan-3 mr-1">{label}:</span>
       {categories.map((c) => (
         <button
           key={c}

@@ -14,6 +14,7 @@ export const ROUTES = {
   REPORTS_REWARDS: "/reports/rewards",
   REPORTS_PROCESSES: "/reports/processes",
   REPORTS_STALE_DATES: "/reports/stale-dates",
+  REPORTS_OEA_ASSESSMENT: "/reports/oea-assessment",
 } as const;
 
 export type NavPage = "atlas" | "constellations" | "radar" | "reports";
