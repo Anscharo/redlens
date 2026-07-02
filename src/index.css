@@ -236,7 +236,7 @@ mark {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 12px;
+  width: 8px;
   border-left: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   pointer-events: none;
 }
@@ -469,20 +469,28 @@ mark {
    selected node's depth color, closing with a curved foot under the last
    one. Sits at the same x as the selection bar so it reads as hanging from
    the selected row. */
+/* Cradle: rail down the left of the selected node's descendants, in the
+   selected node's depth color, closing with a curved foot under the last one. */
 .atlas-node.in-cradle::before {
   content: "";
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  width: 12px;
+  width: 8px;
   border-left: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
   pointer-events: none;
 }
+/* Foot: the same ::before rail, but on the last row it also draws a bottom
+   border spanning the full width and rounds the bottom-left corner — so the
+   vertical rail curves as it transitions into a line that runs all the way
+   across, closing the descendants section. The border tapers 3px→2px around the
+   bend, keeping the horizontal line light. */
 .atlas-node.cradle-foot::before {
-  bottom: 4px;
-  border-bottom: 3px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
-  border-bottom-left-radius: 8px;
+  width: auto;
+  right: 0;
+  border-bottom: 2px solid color-mix(in srgb, var(--cradle-color, var(--tan-3)) 65%, transparent);
+  border-bottom-left-radius: 9px;
 }
 .atlas-node:not(.is-selected):hover,
 .atlas-node:not(.is-selected):focus-visible {
