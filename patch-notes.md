@@ -12,6 +12,7 @@
 -->
 
 ## 2026-07-02
+- Entity pages and constellations now show the duties the Atlas assigns to Facilitators and Executor Agents, using the same duty detection that powers the GovOps report
 - Made the GovOps Responsibilities report catch powers, not just chores — discretionary authority (conservatorship, parameter changes, multisig control) and duties written under the org names Atlas Axis and Soter Labs now appear, and mistaken "GovOps meeting" entries (which belong to the Governance Point) are gone
 - Duty rows in the GovOps report now show the exact Atlas sentence that assigns the duty
 

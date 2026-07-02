@@ -1,11 +1,20 @@
-// Unit tests for the GovOps duty extractor (scripts/lib/graph-duties.mjs).
+// Unit tests for the acting-role duty extractor (scripts/lib/graph-duties.mjs).
 // Pure pattern tests — no build artifacts needed. Every case is a real shape
 // from the atlas (doc_nos in comments), so a regression here means a known
 // duty disappears or a known false positive returns.
 
 import { describe, it, expect } from "vitest";
-// @ts-expect-error untyped .mjs build-script module
-import { findGovOpsDuty, classifyGovOpsRole } from "../scripts/lib/graph-duties.mjs";
+import {
+  findGovOpsDuty,
+  classifyGovOpsRole,
+  findRoleDuty,
+  classifyRole,
+  DUTY_ROLES,
+  // @ts-expect-error untyped .mjs build-script module
+} from "../scripts/lib/graph-duties.mjs";
+
+const FACILITATOR = DUTY_ROLES.find((r: { key: string }) => r.key === "facilitator");
+const EXECUTOR = DUTY_ROLES.find((r: { key: string }) => r.key === "executor");
 
 const ORGS = [
   { name: "Soter Labs", role_declared: "Operational GovOps" },
@@ -162,5 +171,119 @@ describe("classifyGovOpsRole", () => {
     expect(classifyGovOpsRole("Core GovOps Validates Inputs", "")).toBe("Core GovOps");
     expect(classifyGovOpsRole("Validation", "Operational GovOps validates the inputs.")).toBe("Operational GovOps");
     expect(classifyGovOpsRole("Validation", "GovOps must act.")).toBe("Operational GovOps");
+  });
+});
+
+const FAC_ORGS = [
+  { name: "Endgame Edge", role_declared: "Operational Facilitator" },
+  { name: "JanSky", role_declared: "Core Facilitator" },
+];
+const findFac = (content: string, title = "Some Section") =>
+  findRoleDuty(FACILITATOR, title, content, FAC_ORGS);
+
+describe("findRoleDuty — facilitator", () => {
+  it("matches the Core Facilitator as an empowered subject", () => {
+    // A.1.1.2.1: Atlas Interpretations authority.
+    expect(findFac("The Core Facilitator is authorized to conduct Atlas Interpretations to resolve ambiguities."))
+      .toMatchObject({ role_declared: "Core Facilitator", match: "active" });
+  });
+
+  it("matches the Operational Facilitator in process steps", () => {
+    // A.6.1.1.* Independent Governance path shape.
+    expect(findFac("Under the Independent Governance path, the Operational Facilitator prepares and submits the Agent Artifact Edit Proposal."))
+      .toMatchObject({ role_declared: "Operational Facilitator", match: "active" });
+  });
+
+  it("keeps bare plural 'Facilitators' as the universal role, not Operational", () => {
+    // A.1.6 universal duties bind every Facilitator; labeling them
+    // operational would be invented precision.
+    const d = findFac("Facilitators must document their interpretations as Action Tenets.");
+    expect(d).toMatchObject({ role_declared: "Facilitator", match: "active" });
+  });
+
+  it("matches by-anchored passives ('modified by Facilitators')", () => {
+    // A.1.2.2.2.17 shape (the doc itself is excluded as a Type Specification,
+    // but the pattern also carries A.2.* active-data prose).
+    expect(findFac("This section contains variable state that can be directly modified by Facilitators."))
+      .toMatchObject({ role_declared: "Facilitator", match: "passive" });
+  });
+
+  it("matches discretion phrases", () => {
+    // A.1.9.1.1: emergency-situation discretion.
+    expect(findFac("The Core Facilitator has broad discretion to apply the emergency-situation processes."))
+      .toMatchObject({ role_declared: "Core Facilitator", match: "phrase" });
+  });
+
+  it("matches duty-container titles", () => {
+    // A.1.6 "Facilitator Duties".
+    expect(findRoleDuty(FACILITATOR, "Facilitator Duties", "The sections below describe them.", FAC_ORGS))
+      .toMatchObject({ role_declared: "Facilitator", match: "title", quote: null });
+  });
+
+  it("ignores the Facilitator as the consulted party", () => {
+    expect(findFac("The Governance Point, in consultation with the Core Facilitator, will publish the schedule."))
+      .toBeNull();
+  });
+
+  it("rejects a new subject introduced after the Facilitator", () => {
+    // Mirror of the GovOps ', the <Actor> <verb>' guard.
+    expect(findFac("Following the assessment of the Core Facilitator, the Aligned Delegates must approve the change."))
+      .toBeNull();
+  });
+
+  it("finds duties attributed by facilitator org name", () => {
+    expect(findFac("Endgame Edge submits the compiled report to the forum."))
+      .toMatchObject({ role_declared: "Operational Facilitator", match: "org", orgName: "Endgame Edge" });
+  });
+});
+
+const EXEC_ORGS = [
+  { name: "Amatsu", role_declared: "Operational Executor Agent" },
+  { name: "Ozone", role_declared: "Operational Executor Agent" },
+];
+const findExec = (content: string, title = "Some Section") =>
+  findRoleDuty(EXECUTOR, title, content, EXEC_ORGS);
+
+describe("findRoleDuty — executor agent", () => {
+  it("matches the Operational Executor Agent as an obligated subject", () => {
+    // A.1.14.4.* shape.
+    expect(findExec("Every Operational Executor Agent must have a Facilitator."))
+      .toMatchObject({ role_declared: "Operational Executor Agent", match: "active" });
+  });
+
+  it("recognizes the 'Core Council Executor Agent' qualifier as Core", () => {
+    // A.2.8.* Core Council authority shape.
+    expect(findExec("The Core Council Executor Agents maintain operational authority over the Core Council Operational Multisig."))
+      .toMatchObject({ role_declared: "Core Executor Agent", match: "active" });
+  });
+
+  it("does not title-match — executor title hits are structural stubs, not duties", () => {
+    expect(findRoleDuty(EXECUTOR, "Operational Executor Agent", "Definitional stub content only.", EXEC_ORGS))
+      .toBeNull();
+  });
+
+  it("finds duties attributed by executor org name", () => {
+    // A.2.8.2.8.2.2: Amatsu transfer authorization.
+    expect(findExec("Amatsu is authorized to transfer funds from its Genesis Capital Allocation."))
+      .toMatchObject({ role_declared: "Operational Executor Agent", match: "org", orgName: "Amatsu" });
+  });
+
+  it("ignores the Executor Agent as the consulted party", () => {
+    expect(findExec("The Prime Agent, in consultation with the Operational Executor Agent, will set the parameters."))
+      .toBeNull();
+  });
+});
+
+describe("classifyRole — bare labels per role", () => {
+  it("keeps the bare label for facilitator and executor (universal duties)", () => {
+    expect(classifyRole(FACILITATOR, "Duties", "Facilitators must document their actions.")).toBe("Facilitator");
+    expect(classifyRole(EXECUTOR, "Duties", "The Executor Agent executes the transfer.")).toBe("Executor Agent");
+  });
+
+  it("prefers the title qualifier, then the earliest in content", () => {
+    expect(classifyRole(FACILITATOR, "Core Facilitator Duties", "")).toBe("Core Facilitator");
+    expect(classifyRole(EXECUTOR, "Transfers", "The Operational Executor Agent executes the transfer.")).toBe(
+      "Operational Executor Agent",
+    );
   });
 });

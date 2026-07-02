@@ -1,98 +1,144 @@
 /**
- * GovOps duty discovery for build-graph section 2s-ter (duty_for edges).
+ * Acting-role duty discovery for build-graph section 2s-ter (duty_for edges).
  *
- * Scans doc titles + content for GovOps acting as an obligated or empowered
- * subject. Four match kinds, in priority order:
- *   title   — the doc title names GovOps (role containers like "Operational
+ * Generalized over the actor roles the atlas tasks with work — GovOps,
+ * Facilitator, Executor Agent — with shared vocabulary, guards, and quote
+ * provenance. Match kinds per (doc, role), in priority order:
+ *   title   — the doc title names the role (duty containers like "Operational
  *             GovOps Review"); no quote, the frontend derives a snippet.
- *   active  — GovOps is the grammatical subject of an obligation/power verb.
- *   passive — GovOps is the agent of a passive ("must be approved by Core GovOps").
- *   phrase  — power idioms that carry no listed verb ("at the discretion of",
+ *   active  — the role is the grammatical subject of an obligation/power verb.
+ *   passive — the role is the agent of a passive ("approved by Core GovOps").
+ *   phrase  — power idioms with no listed verb ("at the discretion of",
  *             "has the ability to", "is controlled by").
- *   org     — same active/passive scan keyed on a GovOps org's NAME (Atlas Axis
- *             drafts …); org names are resolved from the graph, never hardcoded.
+ *   org     — same active/passive scan keyed on an org/entity NAME holding the
+ *             role ("Atlas Axis drafts …", "Amatsu prepares …"); names are
+ *             resolved from the graph, never hardcoded.
  */
 
-// "GovOps" as an actor. Guards, in order:
-//  - not the consulted party ("in consultation with Core GovOps" — the subject
-//    is whoever consults);
-//  - not the noun compounds "GovOps meeting" / "govops channel" (Executive
-//    Process venue names — the mandated actor there is the Governance Point).
-const GOVOPS_SUBJ = String.raw`(?<!consultation\s+with\s+(?:the\s+)?(?:(?:Operational|Core)\s+)?)(?:(?:Operational|Core)\s+)?GovOps\b(?!\s+(?:meeting|channel)s?\b)`;
-
 // Modals count as obligation markers, but not when they introduce a passive in
-// which GovOps is the patient, not the actor: "items … during the GovOps
-// meeting must be added", "Atlas Axis will be embedded". "will be able to" is
-// not a passive — keep it.
+// which the role is the patient, not the actor: "items … must be added",
+// "Atlas Axis will be embedded". "will be able to" is not a passive — keep it.
 const MODAL = String.raw`(?:must|shall|will|may|can|should)(?!\s+(?:not\s+)?be\s+\w+(?:ed|en)\b)`;
 
-// Obligation/power verbs with GovOps as subject. "specified" is deliberately
+// Obligation/power verbs with the role as subject. "specified" is deliberately
 // absent (cross-references read "… GovOps for Ozone are specified in A.6.1.2.2"
 // — a doc pointer); its passive form lives in PASSIVE_VERBS where the "by"
-// anchor guarantees an actor.
-// The copula power forms allow one intervening adverb that isn't a negation:
-// "is then empowered", "are jointly responsible" — but never "is not empowered".
-const ACTIVE_VERBS = String.raw`reviews?|validates?|calculates?|executes?|performs?|(?:is|are)\s+(?:(?!not\b)\w+\s+)?(?:responsible|empowered|permitted|granted|authorized)|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?|manages?|oversees?|conducts?|handles?|assesses?|updates?|receives?|verif(?:y|ies)|makes?|creates?|records?|determines?|decides?|designates?|communicates?|notif(?:y|ies)|informs?|gives?|posts?|resolves?|arranges?|compiles?|mints?|shares?|drafts?|incorporates?|seizes?|imposes?|proposes?|escalates?|distributes?|disburses?|evaluates?`;
+// anchor guarantees an actor. The copula power forms allow one intervening
+// adverb that isn't a negation: "is then empowered", never "is not empowered".
+const ACTIVE_VERBS = String.raw`reviews?|validates?|calculates?|executes?|performs?|(?:is|are)\s+(?:(?!not\b)\w+\s+)?(?:responsible|empowered|permitted|granted|authorized)|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?|manages?|oversees?|conducts?|handles?|assesses?|updates?|receives?|verif(?:y|ies)|makes?|creates?|records?|determines?|decides?|designates?|communicates?|notif(?:y|ies)|informs?|gives?|posts?|resolves?|arranges?|compiles?|mints?|shares?|drafts?|incorporates?|seizes?|imposes?|proposes?|escalates?|distributes?|disburses?|evaluates?|interprets?|instructs?|agrees?|documents?`;
 
 // Passive participles mirroring ACTIVE_VERBS plus by-anchored power forms
 // (adjudicated/permitted/held/modified by GovOps). "controlled" is NOT here —
 // bare "addresses controlled by GovOps" would pull in every multisig signer
-// roster; the copula form below catches control of the multisig itself.
-const PASSIVE_VERBS = String.raw`reviewed|validated|calculated|executed|performed|coordinated|provided|carried\s+out|taken\s+over|confirmed|submitted|maintained|monitored|approved|prepared|published|ensured|managed|overseen|conducted|handled|assessed|updated|received|verified|made|created|recorded|determined|decided|designated|communicated|notified|informed|given|posted|resolved|arranged|compiled|minted|shared|drafted|incorporated|seized|imposed|proposed|escalated|distributed|disbursed|evaluated|adjudicated|permitted|populated|modified|specified|initiated|held|granted|appointed|authorized|selected|chosen`;
+// roster; the copula phrase below catches control of the multisig itself.
+const PASSIVE_VERBS = String.raw`reviewed|validated|calculated|executed|performed|coordinated|provided|carried\s+out|taken\s+over|confirmed|submitted|maintained|monitored|approved|prepared|published|ensured|managed|overseen|conducted|handled|assessed|updated|received|verified|made|created|recorded|determined|decided|designated|communicated|notified|informed|given|posted|resolved|arranged|compiled|minted|shared|drafted|incorporated|seized|imposed|proposed|escalated|distributed|disbursed|evaluated|interpreted|instructed|agreed|documented|adjudicated|permitted|populated|modified|specified|initiated|held|granted|appointed|authorized|selected|chosen`;
 
-export const ROLE_ACTION_RE = new RegExp(
-  `${GOVOPS_SUBJ}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`,
-  "i",
-);
-
-export const PASSIVE_ROLE_ACTION_RE = new RegExp(
-  `\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?(?:(?:Operational|Core)\\s+)?GovOps\\b(?!\\s+(?:meeting|channel)s?\\b)`,
-  "i",
-);
-
-// Power idioms with no obligation verb.
-export const PHRASE_RES = [
-  // "may change at the discretion of Core GovOps"
-  /\b(?:at|in)\s+(?:the|their|its)\s+(?:sole\s+)?discretion\s+of\s+(?:the\s+)?(?:(?:Operational|Core)\s+)?GovOps\b/i,
-  // "Core GovOps … has the ability to modify / have full discretion to determine"
-  new RegExp(`${GOVOPS_SUBJ}[^.\\n]*?\\b(?:has|have)\\b[^.\\n]*?\\b(?:discretion|authority|the\\s+ability)\\b`, "i"),
-  // "The Operator Multisig is (jointly) controlled by Core GovOps"
-  /\b(?:is|are)\s+(?:jointly\s+)?controlled\s+by\s+(?:the\s+)?(?:(?:Operational|Core)\s+)?GovOps\b/i,
-];
-
-// Title names GovOps as a topic-owner — but not the "GovOps Meeting" family,
-// which describes an Executive Process venue run by the Governance Point.
-export const TITLE_RE = /gov\s*ops(?!\s+(?:meeting|channel))/i;
-
-const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
-const OP_ROLE_RE = /\bOperational\s*GovOps\b/i;
-
-// The atlas occasionally spells the role without a space ("CoreGovOps reviews").
-export function normalizeGovOpsSpelling(text) {
-  return text.replace(/\b(Operational|Core)(GovOps)\b/g, "$1 $2");
-}
-
-// Operational vs Core, title first (authoritative), then the earliest acting
-// role in content. Defaults to Operational — the bulk of GovOps duties sit with
-// the Operational Executor GovOps.
-export function classifyGovOpsRole(title, content) {
-  if (CORE_ROLE_RE.test(title)) return "Core GovOps";
-  if (OP_ROLE_RE.test(title)) return "Operational GovOps";
-  const coreIdx = content.search(CORE_ROLE_RE);
-  const opIdx = content.search(OP_ROLE_RE);
-  if (coreIdx !== -1 && (opIdx === -1 || coreIdx < opIdx)) return "Core GovOps";
-  return "Operational GovOps";
-}
-
-const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-// Active-match false-positive shape: the subject changes after GovOps via an
+// Active-match false-positive shape: the subject changes after the role via an
 // appositive-free ", the <Actor> <verb>" clause — "the findings of Core GovOps,
 // the Core Facilitator resolves the dispute" (the Facilitator acts, not GovOps).
 // A joint-subject LIST survives because its ", the <Actor>" segment is followed
 // by another comma ("Core GovOps, the Core Facilitator, and the Aligned
 // Delegates must review").
 const NEW_SUBJECT_RE = /,\s+the\s+[A-Z][^,]*$/;
+
+/**
+ * Role configs. `subject` and `qualifier` are regex sources; `compounds` are
+ * noun-compound guards ("GovOps meeting" is a venue, not an actor). `bareLabel`
+ * is the role_declared for a subject with no qualifier anywhere: GovOps keeps
+ * the legacy "Operational GovOps" default (the bulk of bare-GovOps duties sit
+ * with the operational side); Facilitator/Executor keep the bare label because
+ * unqualified duties there are UNIVERSAL (A.1.6 binds every Facilitator) and
+ * labeling them operational would be invented precision. `titleScan: false`
+ * for Executor Agent — its title-hits are structural cross-reference docs
+ * ("Operational Executor Agent" stubs under each agent artifact), not duties.
+ */
+export const DUTY_ROLES = [
+  {
+    key: "govops",
+    subject: String.raw`GovOps`,
+    qualifier: String.raw`Operational|Core`,
+    compounds: ["meeting", "channel"],
+    core: { re: /\bCore\s*GovOps\b/i, label: "Core GovOps" },
+    op: { re: /\bOperational\s*GovOps\b/i, label: "Operational GovOps" },
+    bareLabel: "Operational GovOps",
+    titleScan: true,
+    // Looser than the subject regex: titles also spell it "Gov Ops"/"gov-ops".
+    titleRe: /gov[\s-]*ops(?!\s+(?:meeting|channel)s?\b)/i,
+    // The atlas occasionally spells the role without a space ("CoreGovOps reviews").
+    normalize: (t) => t.replace(/\b(Operational|Core)(GovOps)\b/g, "$1 $2"),
+  },
+  {
+    key: "facilitator",
+    subject: String.raw`Facilitators?`,
+    qualifier: String.raw`Operational|Core`,
+    compounds: [],
+    core: { re: /\bCore\s+Facilitators?\b/i, label: "Core Facilitator" },
+    op: { re: /\bOperational\s+Facilitators?\b/i, label: "Operational Facilitator" },
+    bareLabel: "Facilitator",
+    titleScan: true,
+    normalize: (t) => t,
+  },
+  {
+    key: "executor",
+    subject: String.raw`Executor\s+Agents?`,
+    qualifier: String.raw`Operational|Core(?:\s+Council)?`,
+    compounds: [],
+    core: { re: /\bCore(?:\s+Council)?\s+Executor\s+Agents?\b/i, label: "Core Executor Agent" },
+    op: { re: /\bOperational\s+Executor\s+Agents?\b/i, label: "Operational Executor Agent" },
+    bareLabel: "Executor Agent",
+    titleScan: false,
+    normalize: (t) => t,
+  },
+];
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Compiled matchers per role, built once.
+const matchersByKey = new Map();
+function matchers(role) {
+  let m = matchersByKey.get(role.key);
+  if (m) return m;
+  const guard = role.compounds.length ? `(?!\\s+(?:${role.compounds.join("|")})s?\\b)` : "";
+  // The role as an actor. Guards: not the consulted party ("in consultation
+  // with Core GovOps" — the subject is whoever consults); not a noun compound.
+  const subj = `(?<!consultation\\s+with\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?)(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`;
+  m = {
+    title: role.titleRe ?? new RegExp(`${role.subject}${guard}`, "i"),
+    active: new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i"),
+    passive: new RegExp(
+      `\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
+      "i",
+    ),
+    phrases: [
+      // "may change at the discretion of Core GovOps"
+      new RegExp(
+        `\\b(?:at|in)\\s+(?:the|their|its)\\s+(?:sole\\s+)?discretion\\s+of\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
+        "i",
+      ),
+      // "Core GovOps … has the ability to modify / have full discretion …"
+      new RegExp(`${subj}[^.\\n]*?\\b(?:has|have)\\b[^.\\n]*?\\b(?:discretion|authority|the\\s+ability)\\b`, "i"),
+      // "The Operator Multisig is (jointly) controlled by Core GovOps"
+      new RegExp(
+        `\\b(?:is|are)\\s+(?:jointly\\s+)?controlled\\s+by\\s+(?:the\\s+)?(?:(?:${role.qualifier})\\s+)?${role.subject}\\b${guard}`,
+        "i",
+      ),
+    ],
+  };
+  matchersByKey.set(role.key, m);
+  return m;
+}
+
+// Operational vs Core, title first (authoritative), then the earliest acting
+// qualifier in content, falling back to the role's bare label.
+export function classifyRole(role, title, content) {
+  if (role.core.re.test(title)) return role.core.label;
+  if (role.op.re.test(title)) return role.op.label;
+  const coreIdx = content.search(role.core.re);
+  const opIdx = content.search(role.op.re);
+  if (coreIdx !== -1 && (opIdx === -1 || coreIdx < opIdx)) return role.core.label;
+  if (opIdx !== -1) return role.op.label;
+  return role.bareLabel;
+}
 
 // First match of `re` whose matched text passes `valid` (used to skip the
 // new-subject FP shape and keep scanning the rest of the doc).
@@ -116,27 +162,28 @@ function quoteAt(text, index) {
 }
 
 /**
- * Find a GovOps duty in one doc. `orgs` is [{ name, role_declared }] for the
- * GovOps org entities (resolved from {operational,core}_govops_for edges), so
- * duties attributed by org name ("Atlas Axis drafts …") are found even when the
- * word GovOps never appears. Returns { role_declared, match, quote } or null;
+ * Find a duty for one role in one doc. `orgs` is [{ name, role_declared }] for
+ * entities holding the role (resolved from graph edges), so duties attributed
+ * by name ("Atlas Axis drafts …", "Amatsu prepares …") are found even when the
+ * role word never appears. Returns { role_declared, match, quote } or null;
  * org matches additionally carry `orgName` so the caller can resolve the exact
  * entity instead of falling back to the role chain.
  */
-export function findGovOpsDuty(title, content, orgs = []) {
-  const text = normalizeGovOpsSpelling(content ?? "");
-  if (TITLE_RE.test(normalizeGovOpsSpelling(title ?? ""))) {
-    return { role_declared: classifyGovOpsRole(title, text), match: "title", quote: null };
+export function findRoleDuty(role, title, content, orgs = []) {
+  const m = matchers(role);
+  const text = role.normalize(content ?? "");
+  if (role.titleScan && m.title.test(role.normalize(title ?? ""))) {
+    return { role_declared: classifyRole(role, title, text), match: "title", quote: null };
   }
   const rolePatterns = [
-    ["active", ROLE_ACTION_RE],
-    ["passive", PASSIVE_ROLE_ACTION_RE],
-    ...PHRASE_RES.map((re) => ["phrase", re]),
+    ["active", m.active],
+    ["passive", m.passive],
+    ...m.phrases.map((re) => ["phrase", re]),
   ];
   for (const [match, re] of rolePatterns) {
-    const m = firstValidMatch(re, text, (s) => match !== "active" || !NEW_SUBJECT_RE.test(s));
-    if (m) {
-      return { role_declared: classifyGovOpsRole(title, text), match, quote: quoteAt(text, m.index) };
+    const hit = firstValidMatch(re, text, (s) => match !== "active" || !NEW_SUBJECT_RE.test(s));
+    if (hit) {
+      return { role_declared: classifyRole(role, title, text), match, quote: quoteAt(text, hit.index) };
     }
   }
   for (const { name, role_declared } of orgs) {
@@ -150,9 +197,20 @@ export function findGovOpsDuty(title, content, orgs = []) {
       ["active", orgActive],
       ["passive", orgPassive],
     ]) {
-      const m = firstValidMatch(re, text, (s) => kind !== "active" || !NEW_SUBJECT_RE.test(s));
-      if (m) return { role_declared, match: "org", quote: quoteAt(text, m.index), orgName: name };
+      const hit = firstValidMatch(re, text, (s) => kind !== "active" || !NEW_SUBJECT_RE.test(s));
+      if (hit) return { role_declared, match: "org", quote: quoteAt(text, hit.index), orgName: name };
     }
   }
   return null;
+}
+
+// ── back-compat GovOps API (tests + existing call sites) ───────────────────
+const GOVOPS = DUTY_ROLES.find((r) => r.key === "govops");
+
+export function findGovOpsDuty(title, content, orgs = []) {
+  return findRoleDuty(GOVOPS, title, content, orgs);
+}
+
+export function classifyGovOpsRole(title, content) {
+  return classifyRole(GOVOPS, title, GOVOPS.normalize(content ?? ""));
 }
