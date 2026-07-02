@@ -126,7 +126,11 @@ const server = Bun.serve({
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
-      const mcp = createMcpServer();
+      const mcp = createMcpServer({
+        host: new URL(req.url).hostname,
+        userAgent: req.headers.get("user-agent"),
+        protocolVersion: req.headers.get("mcp-protocol-version"),
+      });
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       await mcp.connect(transport);
       return withCors(await transport.handleRequest(req));

@@ -6,12 +6,36 @@ import type { ZodRawShape } from "zod";
 import { getIndexes } from "./indexes.ts";
 import type { ToolResult } from "./tools.ts";
 import { ATLAS_TOOLS } from "./tool-registry.ts";
+import { captureServerEvent } from "./posthog-capture.ts";
+import { config } from "./config.ts";
 
 function ok(meta: Record<string, string | null>, payload: ToolResult) {
   return { content: [{ type: "text" as const, text: JSON.stringify({ _meta: meta, ...payload }) }] };
 }
 
-export function createMcpServer(): McpServer {
+// PostHog properties JSON is generous, but args are meant to be a handful of
+// short fields (ids, queries, addresses) — cap what we forward as a safety net
+// against a future tool accepting a large payload, not a normal-case limit.
+const MAX_PARAMS_JSON = 2000;
+function safeParams(args: Record<string, unknown>): Record<string, unknown> {
+  const json = JSON.stringify(args);
+  if (json.length <= MAX_PARAMS_JSON) return args;
+  return { _truncated: true, preview: json.slice(0, MAX_PARAMS_JSON) };
+}
+
+// Only the canonical production domain is "prod" (mirrors src/lib/analytics.ts);
+// every other host (localhost, Railway preview URLs, PR environments, …) is "dev".
+const PROD_HOST = "atlas.redline.support";
+
+/** Per-request context available to the MCP transport but not to tool.handler —
+ *  threaded down from index.ts so analytics events can carry it. */
+export interface McpRequestContext {
+  host: string;
+  userAgent: string | null;
+  protocolVersion: string | null;
+}
+
+export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
   const server = new McpServer({ name: "redline-sky-atlas", version: "2.0.0-railway" });
   const ix = getIndexes();
 
@@ -29,7 +53,43 @@ export function createMcpServer(): McpServer {
   const register = server.tool.bind(server) as unknown as RegisterTool;
 
   for (const t of ATLAS_TOOLS) {
-    register(t.name, t.description, t.shape, async (args) => ok(ix.meta, await t.handler(ix, args)));
+    register(t.name, t.description, t.shape, async (args) => {
+      const t0 = performance.now();
+      let resultText = "";
+      let toolOk = true;
+      let errorMessage: string | undefined;
+      try {
+        const res = ok(ix.meta, await t.handler(ix, args));
+        resultText = res.content[0].text;
+        return res;
+      } catch (e) {
+        toolOk = false;
+        errorMessage = (e as Error).message?.slice(0, 300);
+        throw e;
+      } finally {
+        // Every MCP tool call funnels through here regardless of which of the
+        // 15 tools was invoked — the one hook point for "what people are using
+        // the MCP for" (tool) and "what they're trying to find" (params).
+        const client = server.server.getClientVersion();
+        captureServerEvent("mcp_tool_call", crypto.randomUUID(), {
+          product: "mcp",
+          tool: t.name,
+          params: safeParams(args),
+          ok: toolOk,
+          error: errorMessage,
+          duration_ms: Math.round(performance.now() - t0),
+          result_bytes: resultText.length || undefined,
+          client_name: client?.name,
+          client_version: client?.version,
+          protocol_version: reqCtx?.protocolVersion ?? undefined,
+          user_agent: reqCtx?.userAgent?.slice(0, 200) ?? undefined,
+          host: reqCtx?.host ?? undefined,
+          environment: reqCtx?.host === PROD_HOST ? "prod" : "dev",
+          app_commit: config.appCommit || null,
+          atlas_commit: ix.meta.atlasCommit ?? null,
+        });
+      }
+    });
   }
 
   return server;
