@@ -15,6 +15,8 @@ import {
   isEcosystemAccord,
   extractAssignment,
   extractRP,
+  extractAllRP,
+  extractAutomation,
   rpRoleAndName,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
@@ -280,18 +282,12 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   const uniqueOpGovIds = [...new Set(opGovByExec.values())];
   const uniqueOpGovId = uniqueOpGovIds.length === 1 ? uniqueOpGovIds[0] : null;
 
-  let rpDirect = 0,
-    rpChain = 0,
-    rpRole = 0,
-    rpUnresolved = 0;
-  for (const d of allDocs.filter((d) => d.type === "Active Data Controller")) {
-    const raw = extractRP(d.content);
-    if (!raw) {
-      rpUnresolved++;
-      continue;
-    }
+  // Resolve a raw "Responsible Party" declaration to its entity, given the doc it
+  // was declared on (for Prime-Agent-context chain resolution). Shared by 2s (ADC
+  // governance-level RP) and 2s-bis (process-step execution RP, below) — same
+  // declaration shapes, same resolution priority.
+  function resolveResponsibleParty(d, raw) {
     const { role, name } = rpRoleAndName(raw);
-
     let entity = null;
     let resolution = null;
 
@@ -337,6 +333,21 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
       if (entity) resolution = "chain";
     }
 
+    return { entity, resolution, role };
+  }
+
+  let rpDirect = 0,
+    rpChain = 0,
+    rpRole = 0,
+    rpUnresolved = 0;
+  for (const d of allDocs.filter((d) => d.type === "Active Data Controller")) {
+    const raw = extractRP(d.content);
+    if (!raw) {
+      rpUnresolved++;
+      continue;
+    }
+    const { entity, resolution } = resolveResponsibleParty(d, raw);
+
     if (entity) {
       addEdge(
         entity.id,
@@ -356,6 +367,49 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   }
   console.log(
     `  responsible_party_for: ${rpDirect} direct, ${rpChain} via chain, ${rpRole} via role-binding, ${rpUnresolved} unresolved`,
+  );
+
+  // --- 2s-bis. process_step_responsible_party_for (Pattern 6, process-step) ---
+  // Process-step "Update" docs (type=Core, mostly A.2.2.9.*) carry the same
+  // bulleted "Responsible Party:" field as ADCs, but for PER-STEP EXECUTION, not
+  // governance data-ownership — a distinct edge type so it never conflates with
+  // responsible_party_for (Pattern 6 / A.1.12.1.2). Scoped to non-ADC docs to
+  // avoid duplicating 2s. A doc may carry several steps; dedupe per (doc,
+  // resolved entity, declared role) — same role repeated collapses to one edge,
+  // but a doc with both an Operational and a Core declaration keeps both even if
+  // they happen to resolve to the same entity.
+  let stepRpEdges = 0,
+    stepRpDocs = 0,
+    stepRpUnresolved = 0;
+  for (const d of allDocs.filter((d) => d.type !== "Active Data Controller")) {
+    const declarations = extractAllRP(d.content);
+    if (!declarations.length) continue;
+    stepRpDocs++;
+    const emitted = new Set();
+    for (const raw of declarations) {
+      const { clean, automated } = extractAutomation(raw);
+      const { entity, resolution, role } = resolveResponsibleParty(d, clean);
+      if (!entity) {
+        stepRpUnresolved++;
+        continue;
+      }
+      const key = `${entity.id}:${role ?? ""}`;
+      if (emitted.has(key)) continue;
+      emitted.add(key);
+      addEdge(
+        entity.id,
+        "entity",
+        d.id,
+        "doc",
+        "process_step_responsible_party_for",
+        [d.doc_no],
+        JSON.stringify({ role_declared: raw, resolution, automated }),
+      );
+      stepRpEdges++;
+    }
+  }
+  console.log(
+    `  process_step_responsible_party_for: ${stepRpEdges} edges across ${stepRpDocs} docs, ${stepRpUnresolved} unresolved`,
   );
 
   // --- 2t. defines_entity (doc → entity it defines) ---

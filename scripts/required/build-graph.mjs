@@ -851,6 +851,7 @@ const OMIT_ENTITY_TYPES = new Set(["ecosystem_actor"]);
 const KEEP_ACTOR_EDGE_TYPES = new Set([
   "holds_role_for",
   "responsible_party_for",
+  "process_step_responsible_party_for",
   // multisig + integration-partner + bridge-validator actors stay visible in the UI
   "signer_of",
   "can_modify_signers_of",

@@ -143,11 +143,50 @@ export function extractRP(content) {
   return (content.match(RP_RE_IS)?.[1] ?? content.match(RP_RE_COLON)?.[1] ?? "").trim() || null;
 }
 
-export function rpRoleAndName(raw) {
-  for (const r of RP_ROLES) {
-    if (r.re.test(raw)) return { role: r.key, name: raw.replace(r.re, "").trim() };
+// Process-step "Update" docs (type=Core, mostly A.2.2.9.*) carry the same
+// "Responsible Party:" bulleted field as ADCs, but a doc may carry SEVERAL
+// steps each with their own declaration — unlike extractRP (one declaration
+// per ADC), every occurrence must be seen.
+const STEP_RP_RE = /Responsible\s+Part(?:y|ies)\s*:\s*([^\n]+)/gi;
+
+export function extractAllRP(content) {
+  if (!content) return [];
+  const out = [];
+  for (const m of content.matchAll(STEP_RP_RE)) {
+    const raw = m[1].replace(/\.\s*$/, "").trim();
+    if (raw) out.push(raw);
   }
-  return { role: null, name: raw };
+  return out;
+}
+
+// Process-step RP declarations often carry an automation annotation —
+// "[automated]", "[if not automated]" (negated — NOT automated), inconsistent
+// internal spacing, and not necessarily at the end of the string. Detect
+// (negation-aware) and strip it in one pass before role/name resolution; the
+// caller keeps the raw, unstripped value for meta/provenance.
+const AUTOMATION_BRACKET_RE = /\[([^\]]*)\]/g;
+
+export function extractAutomation(raw) {
+  let automated = false;
+  const clean = raw
+    .replace(AUTOMATION_BRACKET_RE, (whole, inner) => {
+      if (!/automated/i.test(inner)) return whole;
+      if (!/\bnot\b/i.test(inner)) automated = true;
+      return "";
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+  return { clean, automated };
+}
+
+export function rpRoleAndName(raw) {
+  // Defensive: the role is occasionally spelled without a space in prose
+  // ("CoreGovOps"); normalize before matching so it isn't misread as a name.
+  const normalized = raw.replace(/^(Operational|Core)(GovOps)\b/i, "$1 $2");
+  for (const r of RP_ROLES) {
+    if (r.re.test(normalized)) return { role: r.key, name: normalized.replace(r.re, "").trim() };
+  }
+  return { role: null, name: normalized };
 }
 
 // Parse a comma/and-separated list, stripping leading "the " / "and ".

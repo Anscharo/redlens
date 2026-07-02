@@ -117,12 +117,12 @@ REPRO=1 pnpm test                     # reproducibility (two builds byte-identic
 pnpm dev                              # eyeball /reports/gov-ops-responsibilities
 ```
 
-Also add an artifact-reading test (mirror `src/lib/facilitatorResponsibilities.test.ts`) so the report is checked against real `docs.json`/`relations.json`, not just synthetic fixtures — I couldn't add that meaningfully without a build.
+Added `src/lib/govopsResponsibilities.artifact.test.ts` (mirrors `facilitatorResponsibilities.test.ts`) so the report is checked against real `docs.json`/`relations.json`, not just synthetic fixtures.
 
-## 5. Open questions for you
-- Edge scope: GovOps-only, or all roles (facilitators too) for reuse?
-- Should `op-duty`/`core-duty` (prose duties, also not graph-modeled) eventually become an edge? Fuzzier NLP; lower priority — noted, not done.
-- Row granularity for process-step: one row per doc per role (current), or per individual step?
+## 5. Open questions — resolved
+- **Edge scope**: extraction is role-agnostic (`resolveResponsibleParty` is shared with 2s and resolves whatever role/entity it can), but only GovOps declarations currently have an unconditional no-prime-context fallback (`uniqueOpGovId`/`coreGovId`) — 19/51 raw declarations are unresolved (`Operational Facilitator`, `Prime Agent(Team)`, `Agent`), all non-GovOps. Facilitator edges will start emitting for free once that chain gets a fallback for `operational_facilitator` (out of scope here).
+- **op-duty/core-duty as an edge**: still not done — noted, lower priority.
+- **Row granularity**: one row per (doc, entity, declared role) — a doc with several identical-role steps collapses to one edge; a doc with both an Operational and a Core step keeps both even if they resolve to the same entity.
 
-## 6. Status
-Typecheck + oxlint clean; `govopsResponsibilities.test.ts` 12/12. Not yet verified against real artifacts (no build in cloud env). No PR opened yet.
+## 6. Status — migration complete
+Shape #3 is now a graph edge (`process_step_responsible_party_for`, section 2s-bis in `graph-entity-edges.mjs`), and `govopsResponsibilities.ts` section 5 queries it instead of scanning content. Verified against the real atlas build (`2558632e09c0`): 32 edges across 41 non-ADC docs (19 unresolved, all non-GovOps roles), and the final report's GovOps process-step row count is **unchanged at 22** — byte-identical to the pre-migration content-scan, confirmed via a real-artifact test run. Full pipeline verified: `pnpm build:index && pnpm build:graph`, `pnpm test` (642 passed), `pnpm test:snap` (accepted, one new edge type in the snapshot), `REPRO=1 pnpm test`, `tsc --noEmit`, `oxlint`, and a production `vite build`. A self-review pass (8-angle code review) caught and fixed three real issues before landing: an automation-annotation bug (`[if not automated]` was read as `automated: true`, inverted), a dedup key too coarse to survive a future same-entity-different-role collision, and two MCP server tools (`tools-graph.ts`, `tools-history.ts`) that hardcoded the old edge-type list and would have missed the new edge. No PR opened yet.

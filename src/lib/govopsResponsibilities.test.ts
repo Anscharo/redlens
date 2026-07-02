@@ -41,14 +41,24 @@ for (const n of [
   // Bare "GovOps" (no Operational/Core qualifier) as an actor, title silent —
   // must still be discovered via the content scan.
   node({ id: "duty-bare", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "GovOps actors carry out operational activities on behalf of Executor Agents." }),
-  // Shape #3 — process-step "Update" docs with a bulleted Responsible Party field.
+  // Shape #3 — process-step "Update" docs. The bulleted Responsible Party field
+  // is now a process_step_responsible_party_for edge (build-graph section
+  // 2s-bis); content stays realistic since firstLine(content) still builds `duty`.
   node({ id: "step-op", doc_no: "A.2.2.9.2.2.3.3.4.2.1", title: "Primitive Hub Document Update", content: "The Document in the Agent Artifact is updated as follows:\n\n- Responsible Party: Operational GovOps\n- Triggers: none." }),
-  // Two op steps in one doc (lowercase 'party', [automated]) → must collapse to one row.
-  node({ id: "step-multi", doc_no: "A.2.2.9.1.2.3.1.4.2", title: "Agent Artifact Updates", content: "- Responsible party: Operational GovOps [automated]\n- more\n- Responsible party: Operational GovOps [automated]" }),
-  // One doc with both an op step and a core step → two rows.
+  // One doc with both an op step and a core step → two edges, two rows.
   node({ id: "step-both", doc_no: "A.2.2.9.9.9", title: "Combined Update", content: "- Responsible Party: Operational GovOps\n- Responsible Party: Core GovOps" }),
   // Noise: a doc merely cross-referencing GovOps (no obligation verb) — excluded.
   node({ id: "noise", doc_no: "A.9.9", title: "Some Section", content: "The Operational Facilitator and Operational GovOps for Ozone are specified in A.6.1.2.2." }),
+  // Passive voice: GovOps is the object of "by", not the subject before the verb —
+  // title silent, must still be discovered via the passive-voice content scan.
+  node({ id: "duty-passive", doc_no: "A.1.9.1.2.4", title: "Aligned Delegate Membership In Emergency Response Group", content: "Aligned Delegate membership in the Emergency Response Group is not automatic. An Aligned Delegate seeking to participate must be reviewed and approved by Core GovOps prior to joining." }),
+  // Multisig signer modification — a narrow phrase, not a bare "change" verb.
+  node({ id: "multisig-mod", doc_no: "A.2.99.1.5", title: "Some Multisig Modification", content: "Core GovOps can change the signers of the Some Multisig at any time, so long as there are at least three (3) signers." }),
+  // Same generic title, outside the per-agent-artifact subtree (A.6.1.1.<n>.*) —
+  // these are genuinely different process-step docs that happen to share a
+  // structural title, so they must NOT collapse into a single row.
+  node({ id: "flow-a", doc_no: "A.2.2.9.1.2.3.1.2", title: "Process Flow", content: "Operational GovOps calculates the eligible balances using method A." }),
+  node({ id: "flow-b", doc_no: "A.2.2.9.2.2.3.1.2", title: "Process Flow", content: "Operational GovOps calculates the eligible balances using method B." }),
 ]) docs[n.id] = n;
 
 const atlas: AtlasBundle = { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null };
@@ -68,6 +78,10 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
   // Soter Labs named directly (non-GovOps capacity) — excluded.
   { f: "soter", ft: "entity", t: "adc-nongov", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Soter Labs", resolution: "direct" }) },
+  // Shape #3 — process-step RP edges (already deduped per (doc, entity) upstream).
+  { f: "soter", ft: "entity", t: "step-op", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.2.2.3.3.4.2.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
+  { f: "soter", ft: "entity", t: "step-both", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.9.9"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
+  { f: "atlas-axis", ft: "entity", t: "step-both", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.9.9"], m: JSON.stringify({ role_declared: "Core GovOps", resolution: "chain", automated: false }) },
 ];
 
 const graph: GraphData = { participants, instances: [], invocations: [], primitives: [], edges };
@@ -112,20 +126,14 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(ad[0].agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
   });
 
-  it("surfaces process-step Responsible Party fields, resolving the GovOps role to its entity", () => {
+  it("surfaces process_step_responsible_party_for edges, resolving the GovOps role to its entity", () => {
     const ps = byCat("process-step");
     const op = ps.find((r) => r.uuid === "step-op");
     expect(op?.role).toBe("Operational");
     expect(op?.govops).toBe("Soter Labs");
   });
 
-  it("collapses multiple same-role process-step fields in one doc to a single row", () => {
-    const multi = byCat("process-step").filter((r) => r.uuid === "step-multi");
-    expect(multi).toHaveLength(1);
-    expect(multi[0].role).toBe("Operational");
-  });
-
-  it("splits a doc with both operational and core process-step fields into two rows", () => {
+  it("splits a doc with both operational and core process-step edges into two rows", () => {
     const both = byCat("process-step").filter((r) => r.uuid === "step-both");
     expect(both.map((r) => r.role).sort()).toEqual(["Core", "Operational"]);
     expect(both.find((r) => r.role === "Core")?.govops).toBe("Atlas Axis");
@@ -145,6 +153,24 @@ describe("deriveGovOpsResponsibilities", () => {
     const dutyIds = [...byCat("op-duty"), ...byCat("core-duty")].map((r) => r.uuid);
     expect(dutyIds).not.toContain("noise");
     expect(dutyIds).not.toContain("assign-doc");
+  });
+
+  it("captures multisig signer-modification duties via the narrow 'change the signers' phrase", () => {
+    const row = results.find((r) => r.uuid === "multisig-mod");
+    expect(row?.category).toBe("core-duty");
+  });
+
+  it("does not collapse a shared generic title outside the per-agent-artifact subtree", () => {
+    const flowIds = [...byCat("op-duty"), ...byCat("core-duty")]
+      .filter((r) => r.title === "Process Flow")
+      .map((r) => r.uuid);
+    expect(flowIds.sort()).toEqual(["flow-a", "flow-b"]);
+  });
+
+  it("discovers passive-voice duties ('… must be reviewed and approved by Core GovOps')", () => {
+    const passive = byCat("core-duty").find((r) => r.uuid === "duty-passive");
+    expect(passive).toBeDefined();
+    expect(passive?.duty).toMatch(/reviewed and approved by Core GovOps/);
   });
 
   it("never emits an empty duty snippet or title", () => {

@@ -10102,6 +10102,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "operational_govops_for": 2,
   "prime_agent_for": 8,
   "prime_foundation_of": 5,
+  "process_step_responsible_party_for": 32,
   "provides_services_to": 2,
   "proxies_to": 64,
   "ranked_delegate_for": 3,

@@ -84,7 +84,7 @@ export async function atlasRecentChanges(
   if (entityId) {
     // Collect doc IDs linked to this entity
     const linkedDocIds = ix.edges
-      .filter((e) => e.from_id === entityId && ["responsible_party_for", "active_data_for"].includes(e.edge_type))
+      .filter((e) => e.from_id === entityId && ["responsible_party_for", "active_data_for", "process_step_responsible_party_for"].includes(e.edge_type))
       .map((e) => e.to_id);
     if (linkedDocIds.length === 0) return { since, count: 0, events: [] };
     const placeholders = linkedDocIds.map((_, i) => `$${params.push(linkedDocIds[i])}`).join(",");
@@ -168,7 +168,7 @@ export async function atlasChangedBetween(
     const ent = ix.entityBySlug.get(opts.entity.toLowerCase());
     if (!ent) return { error: `Entity '${opts.entity}' not found` };
     linkedDocIds = ix.edges
-      .filter((e) => e.from_id === ent.id && ["responsible_party_for", "active_data_for"].includes(e.edge_type))
+      .filter((e) => e.from_id === ent.id && ["responsible_party_for", "active_data_for", "process_step_responsible_party_for"].includes(e.edge_type))
       .map((e) => e.to_id);
     if (linkedDocIds.length === 0) return { commit_a: sha_a, commit_b: sha_b, seq_lo, seq_hi, doc_count: 0, docs: [] };
   }

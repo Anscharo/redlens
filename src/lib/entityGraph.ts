@@ -65,6 +65,10 @@ const EDGE_TYPE_LABELS: Record<string, { forward: string; reverse: string }> = {
   defines_entity: { forward: "defines", reverse: "defined by" },
   erg_member_for: { forward: "ERG member of", reverse: "has ERG member" },
   responsible_party_for: { forward: "responsible party for", reverse: "has responsible party" },
+  process_step_responsible_party_for: {
+    forward: "process-step responsible party for",
+    reverse: "has process-step responsible party",
+  },
   governance_channel: { forward: "governance channel for", reverse: "has governance channel" },
   emergency_response: { forward: "emergency response for", reverse: "has emergency response" },
   pending_transition: { forward: "control transitioning to", reverse: "to gain control of" },
