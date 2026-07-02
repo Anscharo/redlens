@@ -21,8 +21,11 @@ import {
   type OGResponsibility,
   deriveGovOpsResponsibilities,
 } from "../../lib/govopsResponsibilities";
-import { FilterPills } from "./FilterPills";
+import { FilterPills, PrimePills } from "./FilterPills";
+import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable } from "./OGCategoryTable";
+
+const catCodec = categoryCodec(CATEGORY_LABELS);
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -43,6 +46,7 @@ export function OGReport() {
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
   const [filter, setFilter] = useUrlState("filter", filterCodec);
+  const [cat, setCat] = useUrlState("cat", catCodec);
 
   const chains = useMemo(() => (graphData ? buildChains(graphData) : new Map<string, Chain>()), [graphData]);
 
@@ -69,6 +73,16 @@ export function OGReport() {
       active: !cleared,
     });
     setFilter((cur) => (filterEqual(cur, next) ? null : next));
+  };
+
+  const toggleCat = (next: OGResponsibility["category"]) => {
+    track("report_filter", {
+      report: "gov-ops-responsibilities",
+      filter_kind: "category",
+      slug: next,
+      active: cat !== next,
+    });
+    setCat((cur) => (cur === next ? null : next));
   };
 
   // Which primes does a row cover? assignment/duty rows carry `agents`;
@@ -98,9 +112,19 @@ export function OGReport() {
     );
   };
 
-  // Definitions have no actor attribution — only show them with no active filter.
-  const filtered = responsibilities.filter((r) =>
-    r.category === "definition" ? filter === null : matches(r),
+  // Definitions have no actor attribution — only show them with no active entity filter.
+  const filtered = responsibilities.filter(
+    (r) =>
+      (cat === null || r.category === cat) &&
+      (r.category === "definition" ? filter === null : matches(r)),
+  );
+
+  const presentCats = useMemo(
+    () =>
+      (Object.keys(CATEGORY_LABELS) as OGResponsibility["category"][]).filter((c) =>
+        responsibilities.some((r) => r.category === c),
+      ),
+    [responsibilities],
   );
 
   const byCategory = Object.groupBy(filtered, (r) => r.category) as Record<
@@ -128,22 +152,8 @@ export function OGReport() {
         <div className="flex flex-wrap gap-4 mb-6">
           <FilterPills label="GovOps" items={pills.holders} kind="govops" filter={filter} onToggle={toggle} />
           <FilterPills label="Executor" items={pills.executors} kind="executor" filter={filter} onToggle={toggle} />
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-xs text-tan-3 mr-1">Prime:</span>
-            {allAgents.map((a) => {
-              const slug = toAnchorId(a);
-              return (
-                <button
-                  key={a}
-                  onClick={() => toggle({ kind: "agent", slug })}
-                  data-active={filter?.kind === "agent" && filter.slug === slug ? "true" : undefined}
-                  className="scope-pill mono text-xs px-2 py-0.5 rounded"
-                >
-                  {a}
-                </button>
-              );
-            })}
-          </div>
+          <PrimePills agents={allAgents} filter={filter} onToggle={toggle} />
+          <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
         {(Object.entries(CATEGORY_LABELS) as [OGResponsibility["category"], string][]).map(
