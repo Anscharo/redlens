@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { AtlasLink } from "../AtlasLink";
-import { loadGraph, type GraphData } from "../../lib/graph";
+import { loadGraph } from "../../lib/graph";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, type UrlCodec } from "../../hooks/useUrlState";
@@ -8,20 +8,21 @@ import { atlasHref } from "../../lib/routes";
 import { toAnchorId } from "../../lib/anchorId";
 import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import type { GraphEntity } from "../../types";
+import {
+  buildChains,
+  rolePills,
+  filterEqual,
+  stripExecutorPrefix,
+  type ActiveFilter,
+  type Chain,
+} from "../../lib/reportChains";
 import {
   CATEGORY_LABELS,
   type OGResponsibility,
   deriveGovOpsResponsibilities,
 } from "../../lib/govopsResponsibilities";
-
-// slug = toAnchorId(name) — URL-safe. Names are slugified at compare-time so raw
-// names never enter the URL.
-type ActiveFilter =
-  | { kind: "govops"; slug: string }
-  | { kind: "executor"; slug: string }
-  | { kind: "agent"; slug: string }
-  | null;
+import { FilterPills } from "./FilterPills";
+import { OGCategoryTable } from "./OGCategoryTable";
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -37,75 +38,6 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-function filterEqual(a: ActiveFilter, b: ActiveFilter): boolean {
-  if (a === null || b === null) return a === b;
-  return a.kind === b.kind && a.slug === b.slug;
-}
-
-interface Chain {
-  agentId: string;
-  executorName: string;
-  executorId: string;
-  govopsName: string;
-  govopsId: string;
-}
-
-// Prime name → its executor + govops, resolved via the role-as-edge chain.
-function buildChains(graph: GraphData): Map<string, Chain> {
-  const entityById = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
-  const execEdges = graph.edges.filter((e) => e.e === "operational_executor_agent_for");
-  const govEdges = graph.edges.filter((e) => e.e === "operational_govops_for" || e.e === "core_govops_for");
-  const primes = graph.participants.filter((e) => e.et === "agent" && e.st === "prime");
-  const map = new Map<string, Chain>();
-  for (const prime of primes) {
-    const execEdge = execEdges.find((e) => e.t === prime.id);
-    const executor = execEdge ? entityById.get(execEdge.f) : null;
-    if (!executor) continue;
-    const govEdge = govEdges.find((e) => e.t === executor.id);
-    const gov = govEdge ? entityById.get(govEdge.f) : null;
-    map.set(prime.name, {
-      agentId: prime.id,
-      executorName: executor.name.replace(/^(Operational|Core Council) Executor Agent\s+/i, ""),
-      executorId: executor.id,
-      govopsName: gov?.name ?? "",
-      govopsId: gov?.id ?? "",
-    });
-  }
-  return map;
-}
-
-function AgentChips({ agents, chains }: { agents: string[]; chains: Map<string, Chain> }) {
-  if (!agents.length) return null;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {agents.map((a) => {
-        const c = chains.get(a);
-        return c ? (
-          <AtlasLink
-            key={a}
-            to={atlasHref(c.agentId)}
-            className="mono text-xs px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
-          >
-            {a}
-          </AtlasLink>
-        ) : (
-          <span key={a} className="mono text-xs px-1.5 py-0.5 text-tan-3">{a}</span>
-        );
-      })}
-    </div>
-  );
-}
-
-function DocCell({ r }: { r: OGResponsibility }) {
-  return r.uuid ? (
-    <AtlasLink to={atlasHref(r.uuid)} className="mono text-xs text-accent hover:underline text-left">
-      {r.docNo}
-    </AtlasLink>
-  ) : (
-    <span className="mono text-xs text-tan-3 text-left">{r.docNo}</span>
-  );
-}
-
 export function OGReport() {
   useDocumentTitle("Operational GovOps Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
@@ -119,17 +51,12 @@ export function OGReport() {
     [atlas, graphData],
   );
 
-  const govopsOrgs = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const c of chains.values()) if (c.govopsId && !seen.has(c.govopsId)) seen.set(c.govopsId, c.govopsName);
-    return [...seen.entries()].map(([id, name]) => ({ id, name }));
-  }, [chains]);
-
-  const executors = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const c of chains.values()) if (!seen.has(c.executorId)) seen.set(c.executorId, c.executorName);
-    return [...seen.entries()].map(([id, name]) => ({ id, name }));
-  }, [chains]);
+  // Pill lists come from the gov edges (not the prime chains) so the Core side
+  // — Atlas Axis, Core Council Executor Agent 1 — is filterable too.
+  const pills = useMemo(
+    () => (graphData ? rolePills(graphData) : { govops: [], executors: [] }),
+    [graphData],
+  );
 
   const allAgents = useMemo(() => [...chains.keys()], [chains]);
 
@@ -155,7 +82,7 @@ export function OGReport() {
     if (filter.kind === "agent") return agents.some((a) => toAnchorId(a) === filter.slug);
     if (filter.kind === "executor")
       return (
-        (r.executor != null && toAnchorId(r.executor.replace(/^(Operational|Core Council) Executor Agent\s+/i, "")) === filter.slug) ||
+        (r.executor != null && toAnchorId(stripExecutorPrefix(r.executor)) === filter.slug) ||
         agents.some((a) => {
           const n = chains.get(a)?.executorName;
           return n != null && toAnchorId(n) === filter.slug;
@@ -181,26 +108,6 @@ export function OGReport() {
     OGResponsibility[]
   >;
 
-  const Pills = ({ label, items, kind }: { label: string; items: { id: string; name: string }[]; kind: "govops" | "executor" }) =>
-    items.length > 0 ? (
-      <div className="flex flex-wrap gap-1.5 items-center">
-        <span className="text-xs text-tan-3 mr-1">{label}:</span>
-        {items.map((f) => {
-          const slug = toAnchorId(f.name);
-          return (
-            <button
-              key={f.id}
-              onClick={() => toggle({ kind, slug })}
-              data-active={filter?.kind === kind && filter.slug === slug ? "true" : undefined}
-              className="scope-pill text-xs px-2 py-0.5 rounded"
-            >
-              {f.name}
-            </button>
-          );
-        })}
-      </div>
-    ) : null;
-
   return (
     <div className="px-6 py-6">
       <div className="max-w-5xl mx-auto">
@@ -219,8 +126,8 @@ export function OGReport() {
         </p>
 
         <div className="flex flex-wrap gap-4 mb-6">
-          <Pills label="GovOps" items={govopsOrgs} kind="govops" />
-          <Pills label="Executor" items={executors} kind="executor" />
+          <FilterPills label="GovOps" items={pills.govops} kind="govops" filter={filter} onToggle={toggle} />
+          <FilterPills label="Executor" items={pills.executors} kind="executor" filter={filter} onToggle={toggle} />
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="text-xs text-tan-3 mr-1">Prime:</span>
             {allAgents.map((a) => {
@@ -243,80 +150,7 @@ export function OGReport() {
           ([cat, label]) => {
             const rows = byCategory[cat];
             if (!rows?.length) return null;
-            return (
-              <div key={cat} className="mb-8">
-                <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
-                  {label} <span className="text-tan-3/60">({rows.length})</span>
-                </h2>
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-xs mono text-tan-3">
-                      <th className="py-1 px-3 font-normal w-44">Doc</th>
-                      {cat === "assignment" ? (
-                        <>
-                          <th className="py-1 px-3 font-normal">Executor Agent</th>
-                          <th className="py-1 px-3 font-normal w-40">GovOps</th>
-                          <th className="py-1 px-3 font-normal">Prime Agents</th>
-                        </>
-                      ) : (
-                        <>
-                          <th className="py-1 px-3 font-normal">Section</th>
-                          <th className="py-1 px-3 font-normal">Duty</th>
-                          {(cat === "active-data" || cat === "process-step") && (
-                            <th className="py-1 px-3 font-normal w-36">GovOps</th>
-                          )}
-                          {(cat === "op-duty" ||
-                            cat === "core-duty" ||
-                            cat === "active-data" ||
-                            cat === "process-step") && (
-                            <th className="py-1 px-3 font-normal w-36">Prime</th>
-                          )}
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((r) => (
-                      <tr
-                        key={`${cat}:${r.uuid || r.docNo}:${r.govops ?? ""}`}
-                        className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
-                      >
-                        <td className="py-2 px-3 align-top"><DocCell r={r} /></td>
-                        {cat === "assignment" ? (
-                          <>
-                            <td className="py-2 px-3 align-top text-sm text-tan">
-                              {r.executor?.replace(/^(Operational|Core Council) Executor Agent\s+/i, "") ?? "—"}
-                            </td>
-                            <td className="py-2 px-3 align-top text-sm text-accent">{r.govops ?? "—"}</td>
-                            <td className="py-2 px-3 align-top">
-                              <AgentChips agents={r.agents ?? []} chains={chains} />
-                            </td>
-                          </>
-                        ) : (
-                          <>
-                            <td className="py-2 px-3 align-top text-sm text-tan">{r.title}</td>
-                            <td className="py-2 px-3 align-top text-sm text-tan-2">{r.duty}</td>
-                            {(cat === "active-data" || cat === "process-step") && (
-                              <td className="py-2 px-3 align-top text-sm text-accent">{r.govops ?? "—"}</td>
-                            )}
-                            {(cat === "op-duty" || cat === "core-duty") && (
-                              <td className="py-2 px-3 align-top">
-                                <AgentChips agents={r.agents ?? []} chains={chains} />
-                              </td>
-                            )}
-                            {(cat === "active-data" || cat === "process-step") && (
-                              <td className="py-2 px-3 align-top">
-                                <AgentChips agents={r.agent ? [r.agent] : []} chains={chains} />
-                              </td>
-                            )}
-                          </>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
+            return <OGCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} />;
           },
         )}
       </div>
