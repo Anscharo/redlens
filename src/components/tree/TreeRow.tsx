@@ -12,6 +12,10 @@ import { usePreviewDim } from "../../lib/previewFilter";
 export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
+// Sidebar scrollbar width — keep in sync with the 8px ::-webkit-scrollbar in
+// index.css. Reserved from the title budget so long titles and their ellipsis
+// don't render under the scrollbar.
+const SCROLLBAR_W = 8;
 // Approx rendered width of the rollup badge (border + padding + digits + flex
 // gap) — subtracted from the title budget when the badge shows so the title
 // truncates instead of clipping. Scales with digit count so a multi-digit count
@@ -120,7 +124,7 @@ export function TreeRow({
   const rollupEntry = isPreview && node ? rollup.get(node.id) : undefined;
   const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
   const availableWidth =
-    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
+    sidebarWidth - SCROLLBAR_W - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
     (showRollup ? rollupBadgeWidth(rollupEntry?.count ?? 0) : 0);
 
   const displayTitle = useMemo(

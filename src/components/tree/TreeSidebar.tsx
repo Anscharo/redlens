@@ -386,7 +386,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         rowComponent={TreeRow}
         rowProps={rowProps}
         overscanCount={20}
-        style={{ flex: 1 }}
+        // scrollbar-gutter: stable permanently reserves the 8px scrollbar lane
+        // so rows never render under it — the JS title budget (SCROLLBAR_W) then
+        // adds a small extra gap on top. Prevents titles kissing the scrollbar.
+        style={{ flex: 1, scrollbarGutter: "stable" }}
       />
     </div>
   );

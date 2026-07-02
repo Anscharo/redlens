@@ -149,22 +149,23 @@ mark {
   border-radius: 3px;
 }
 
-/* Wider scrollbar hit target without a visually wider bar.
-   Track is 14px so it's easy to grab, but transparent borders shrink the
-   visible thumb back to 6px sitting 4–10 px from the edge — clear of
-   adjacent 3px resize-handle overlap.
-   Applied to the left sidebar AND the atlas reader (whose right edge is
-   adjacent to the right-panel resize handle). */
+/* Sidebar + reader scrollbars: a rounded pill thumb that fills a slim track, so
+   it reads as a smooth pill AND sits flush against its divider (sidebar/main on
+   the left; main/right-panel on the right). Filling the track is what makes it
+   flush — the earlier content-box+border trick sliced the pill's far side flat.
+   The track matches the deep panel bg so no lighter strip shows above/below. */
 .tree-sidebar ::-webkit-scrollbar,
 .atlas-scroll::-webkit-scrollbar {
-  width: 14px;
+  width: 8px;
 }
 .tree-sidebar ::-webkit-scrollbar-thumb,
 .atlas-scroll::-webkit-scrollbar-thumb {
   background: var(--border-muted);
-  background-clip: content-box;
-  border: 4px solid transparent;
-  border-radius: 8px;
+  border-radius: 4px;
+}
+.tree-sidebar ::-webkit-scrollbar-track,
+.atlas-scroll::-webkit-scrollbar-track {
+  background: var(--bg-deep);
 }
 
 /* webkit search chrome stripped per-input — see .search-input below */
