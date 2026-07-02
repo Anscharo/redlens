@@ -29,6 +29,12 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
       "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
   },
   {
+    id: "oea-assessment",
+    title: "OEA Task Assessment",
+    description:
+      "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
+  },
+  {
     id: "stale-dates",
     title: "Stale Dates",
     description:
