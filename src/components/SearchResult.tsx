@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from "react";
+import { memo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { realDepth, depthColor } from "../lib/depth";
 import { atlasHref } from "../lib/routes";
@@ -11,33 +11,36 @@ interface Props {
   onResultClick: (hit: SearchHit, rank: number) => void;
 }
 
-// AGENT / ICD get a dim prefix tag; a bare scope label carries no prefix.
+// AGENT / ICD get a colored kind tag; a bare scope label carries no prefix.
 const LABEL_TAG: Record<HitLabel["kind"], string | null> = {
   scope: null,
   agent: "AGENT",
   icd: "ICD",
 };
-// Scope/ICD are muted outline chips; the agent chip gets a light cream fill with
-// dark text so the key clue is legible (accent-on-dark read poorly).
-const LABEL_STYLE: Record<HitLabel["kind"], CSSProperties> = {
-  scope: { color: "var(--tan-3)", border: "1px solid color-mix(in srgb, var(--tan-3) 35%, transparent)" },
-  icd: { color: "var(--tan-2)", border: "1px solid color-mix(in srgb, var(--tan-2) 35%, transparent)" },
-  agent: {
-    color: "var(--bg)",
-    background: "var(--tan)",
-    border: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)",
-  },
+// One chip shape for all pills (differentiated only by accent color, so they
+// read as a set): a faint accent-tinted dark fill, an accent border, an
+// accent-colored kind tag, and a bright name. Deliberately quieter than the
+// results themselves. Scope/ICD reuse the muted text tokens; agent uses
+// --entity-agent (the shared agent-entity color).
+const LABEL_ACCENT: Record<HitLabel["kind"], string> = {
+  scope: "var(--tan-3)",
+  icd: "var(--tan-2)",
+  agent: "var(--entity-agent)",
 };
 
 function GutterLabel({ label }: { label: HitLabel }) {
+  const accent = LABEL_ACCENT[label.kind];
   const tag = LABEL_TAG[label.kind];
   return (
     <span
-      className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words"
-      style={LABEL_STYLE[label.kind]}
+      className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words text-tan"
+      style={{
+        background: `color-mix(in srgb, ${accent} 15%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
+      }}
       title={tag ? `${tag}: ${label.text}` : label.text}
     >
-      {tag && <span className="opacity-60 mr-1">{tag}</span>}
+      {tag && <span className="mr-1" style={{ color: accent }}>{tag}</span>}
       {label.text}
     </span>
   );
