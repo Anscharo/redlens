@@ -92,6 +92,9 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Let preview deploy settle
+        run: sleep 60
+
       - name: Run E2E
         run: pnpm test:e2e
         env:
