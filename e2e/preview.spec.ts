@@ -1,14 +1,11 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 
-// Atlas-preview redline, validated against REAL state without a pinned canary
-// (real PRs open/close constantly). The test:
-//   1. finds an open next-gen-atlas PR that modifies content docs (GitHub API),
-//   2. derives the expected node UUIDs straight from the PR's changed files,
-//   3. builds that preview on the live deploy (/preview/pull-<N>), and
-//   4. asserts our computed diff.json covers exactly those docs + a redline mark
-//      actually renders in the reader.
-// Ground truth is re-derived each run, so nothing rots. Skips cleanly when no
-// doc-modifying PR is open.
+// Atlas-preview redline canary, validated against a pinned REAL PR. This is
+// intentionally opt-in: open atlas PRs move/close constantly, so normal PR-gate
+// e2e should not pick live external state at runtime. To run it, provide both:
+//   ATLAS_PREVIEW_CANARY_PR=<number>
+//   ATLAS_PREVIEW_CANARY_SHA=<current head sha>
+// The test skips cleanly if the canary moved, closed, or no longer edits docs.
 
 const CANONICAL = "sky-ecosystem/next-gen-atlas";
 const GH = "https://api.github.com";
@@ -26,54 +23,68 @@ function ghHeaders(): Record<string, string> {
 
 interface Candidate {
   number: number;
+  headSha: string;
   docs: { id: string; status: "added" | "modified" }[];
 }
 
-// Find an open PR touching content docs. Prefer same-repo PRs (always trusted /
-// buildable) over forks (which may be trust-gated).
-async function findDocPr(request: APIRequestContext): Promise<Candidate | null> {
-  const res = await request.get(
-    `${GH}/repos/${CANONICAL}/pulls?state=open&per_page=50&sort=updated&direction=desc`,
-    { headers: ghHeaders() },
-  );
-  if (!res.ok()) return null;
-  const prs = (await res.json()) as Array<{ number: number; head: { sha: string; repo: { full_name: string } | null } }>;
-  const sameRepoFirst = [...prs].sort(
-    (a, b) =>
-      Number(b.head?.repo?.full_name === CANONICAL) - Number(a.head?.repo?.full_name === CANONICAL),
-  );
+async function loadPinnedDocPr(
+  request: APIRequestContext,
+  number: number,
+  expectedSha: string,
+): Promise<{ candidate: Candidate | null; reason?: string }> {
+  const prRes = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}`, { headers: ghHeaders() });
+  if (!prRes.ok()) return { candidate: null, reason: `could not load atlas PR #${number}` };
 
-  for (const pr of sameRepoFirst) {
-    const filesRes = await request.get(`${GH}/repos/${CANONICAL}/pulls/${pr.number}/files?per_page=100`, {
-      headers: ghHeaders(),
-    });
-    if (!filesRes.ok()) continue;
-    const files = (await filesRes.json()) as Array<{ filename: string; status: string }>;
-    const docFiles = files.filter(
-      (f) => DOC_RE.test(f.filename) && (f.status === "added" || f.status === "modified"),
-    );
-    if (!docFiles.length) continue;
-
-    const headRepo = pr.head?.repo?.full_name ?? CANONICAL;
-    const headSha = pr.head?.sha;
-    const docs: Candidate["docs"] = [];
-    for (const f of docFiles.slice(0, 10)) {
-      const raw = await request.get(`https://raw.githubusercontent.com/${headRepo}/${headSha}/${f.filename}`);
-      if (!raw.ok()) continue;
-      const m = (await raw.text()).match(UUID_RE);
-      if (m) docs.push({ id: m[1].toLowerCase(), status: f.status as "added" | "modified" });
-    }
-    if (docs.length) return { number: pr.number, docs };
+  const pr = (await prRes.json()) as {
+    state: string;
+    head: { sha: string; repo: { full_name: string } | null };
+  };
+  if (pr.state !== "open") return { candidate: null, reason: `atlas PR #${number} is ${pr.state}` };
+  if (pr.head?.sha !== expectedSha) {
+    return { candidate: null, reason: `atlas PR #${number} moved from ${expectedSha} to ${pr.head?.sha}` };
   }
-  return null;
+  const headRepo = pr.head?.repo?.full_name;
+  if (headRepo !== CANONICAL) {
+    return { candidate: null, reason: `atlas PR #${number} is from ${headRepo ?? "unknown fork"}` };
+  }
+
+  const filesRes = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}/files?per_page=100`, {
+    headers: ghHeaders(),
+  });
+  if (!filesRes.ok()) return { candidate: null, reason: `could not load files for atlas PR #${number}` };
+  const files = (await filesRes.json()) as Array<{ filename: string; status: string }>;
+  const docFiles = files.filter((f) => DOC_RE.test(f.filename) && (f.status === "added" || f.status === "modified"));
+  if (!docFiles.length) return { candidate: null, reason: `atlas PR #${number} no longer modifies content docs` };
+
+  const docs: Candidate["docs"] = [];
+  for (const f of docFiles.slice(0, 10)) {
+    const raw = await request.get(`https://raw.githubusercontent.com/${headRepo}/${expectedSha}/${f.filename}`);
+    if (!raw.ok()) continue;
+    const m = (await raw.text()).match(UUID_RE);
+    if (m) docs.push({ id: m[1].toLowerCase(), status: f.status as "added" | "modified" });
+  }
+  if (!docs.length) return { candidate: null, reason: `atlas PR #${number} docs had no node ids` };
+
+  return { candidate: { number, headSha: expectedSha, docs } };
 }
 
-test("previews a real open atlas PR and redlines exactly the docs it changed", async ({ page, request }) => {
+async function currentHeadSha(request: APIRequestContext, number: number): Promise<string | null> {
+  const res = await request.get(`${GH}/repos/${CANONICAL}/pulls/${number}`, { headers: ghHeaders() });
+  if (!res.ok()) return null;
+  const pr = (await res.json()) as { head: { sha: string } };
+  return pr.head?.sha ?? null;
+}
+
+test("previews the pinned atlas PR canary and redlines exactly the docs it changed", async ({ page, request }) => {
   test.setTimeout(BUILD_TIMEOUT + 60_000);
 
-  const candidate = await findDocPr(request);
-  test.skip(!candidate, "no open next-gen-atlas PR currently modifies content docs");
-  const { number, docs } = candidate!;
+  const canaryPr = Number(process.env.ATLAS_PREVIEW_CANARY_PR ?? "");
+  const canarySha = process.env.ATLAS_PREVIEW_CANARY_SHA;
+  test.skip(!canaryPr || !canarySha, "set ATLAS_PREVIEW_CANARY_PR and ATLAS_PREVIEW_CANARY_SHA to run preview canary");
+
+  const { candidate, reason } = await loadPinnedDocPr(request, canaryPr, canarySha!);
+  test.skip(!candidate, reason ?? "preview canary is not currently runnable");
+  const { number, headSha, docs } = candidate!;
   const expectedIds = docs.map((d) => d.id);
 
   // Capture the preview bundle's diff.json (fetched once the build is ready).
@@ -88,6 +99,9 @@ test("previews a real open atlas PR and redlines exactly the docs it changed", a
     renumbered?: Record<string, unknown>;
   };
 
+  const headAfterBuild = await currentHeadSha(request, number);
+  test.skip(headAfterBuild !== headSha, `atlas PR #${number} moved during preview build`);
+
   const marked = new Set<string>([
     ...(diff.added ?? []),
     ...(diff.changed ?? []),
@@ -96,7 +110,7 @@ test("previews a real open atlas PR and redlines exactly the docs it changed", a
 
   // Every doc the PR added/modified must appear in our computed diff.
   const missing = expectedIds.filter((id) => !marked.has(id));
-  expect(missing, `PR #${number}: these changed docs were missing from the preview diff`).toEqual([]);
+  expect(missing, `PR #${number} at ${headSha}: these changed docs were missing from the preview diff`).toEqual([]);
 
   // And the render path actually marks one of them in the reader.
   await page.goto(`/preview/pull-${number}/atlas?id=${expectedIds[0]}`);

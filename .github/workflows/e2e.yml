@@ -18,6 +18,14 @@ on:
         description: "PR number to target (https://redlens-redlens-pr-<N>.up.railway.app)"
         required: true
         type: string
+      atlas_preview_canary_pr:
+        description: "Optional next-gen-atlas PR number for the pinned preview canary"
+        required: false
+        type: string
+      atlas_preview_canary_sha:
+        description: "Required with atlas_preview_canary_pr: exact current head SHA to test"
+        required: false
+        type: string
 
 jobs:
   # Always runs on deployment_status so we can see exactly what Railway emits
@@ -88,9 +96,11 @@ jobs:
         run: pnpm test:e2e
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
-          # Lets the preview spec query the GitHub API (open PRs + changed files)
-          # without hitting the 60/hr unauthenticated limit.
+          # Lets the opt-in preview canary query the GitHub API without hitting
+          # the 60/hr unauthenticated limit. Normal PR deploy runs skip it.
           GITHUB_TOKEN: ${{ github.token }}
+          ATLAS_PREVIEW_CANARY_PR: ${{ github.event.inputs.atlas_preview_canary_pr }}
+          ATLAS_PREVIEW_CANARY_SHA: ${{ github.event.inputs.atlas_preview_canary_sha }}
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
