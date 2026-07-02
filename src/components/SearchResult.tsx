@@ -17,15 +17,22 @@ const LABEL_TAG: Record<HitLabel["kind"], string | null> = {
   agent: "AGENT",
   icd: "ICD",
 };
-// One chip shape for all pills (differentiated only by accent color, so they
-// read as a set): a faint accent-tinted dark fill, an accent border, an
-// accent-colored kind tag, and a bright name. Deliberately quieter than the
-// results themselves. Scope/ICD reuse the muted text tokens; agent uses
-// --entity-agent (the shared agent-entity color).
+// One chip shape for all pills (differentiated by accent color, so they read as
+// a set): a faint accent-tinted dark fill, an accent border, an accent-colored
+// kind tag, and a name. Deliberately quieter than the results themselves.
+// Distinct hues per kind — agent warm (--entity-agent), ICD cool
+// (--entity-instance, since an ICD defines an instance), scope neutral tan — so
+// scope and ICD don't blur together. Only the agent name is bright; scope/ICD
+// names sit at --tan-2, dimmer than the adjacent result title.
 const LABEL_ACCENT: Record<HitLabel["kind"], string> = {
   scope: "var(--tan-3)",
-  icd: "var(--tan-2)",
+  icd: "var(--entity-instance)",
   agent: "var(--entity-agent)",
+};
+const LABEL_NAME: Record<HitLabel["kind"], string> = {
+  scope: "var(--tan-2)",
+  icd: "var(--tan-2)",
+  agent: "var(--tan)",
 };
 
 function GutterLabel({ label }: { label: HitLabel }) {
@@ -33,8 +40,9 @@ function GutterLabel({ label }: { label: HitLabel }) {
   const tag = LABEL_TAG[label.kind];
   return (
     <span
-      className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words text-tan"
+      className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words"
       style={{
+        color: LABEL_NAME[label.kind],
         background: `color-mix(in srgb, ${accent} 15%, transparent)`,
         border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
       }}
