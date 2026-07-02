@@ -397,20 +397,30 @@ mark {
 }
 
 /* Atlas tree view */
+/* Atlas reading area: deep bg matching the tree sidebar so the center and the
+   left rail read as one continuous surface. */
+.atlas-scroll {
+  background-color: var(--bg-deep);
+}
 .atlas-node {
   /* content-visibility: auto + contain-intrinsic-size caches off-screen sizes;
      the cached size can go stale as nodes expand/collapse during navigation,
      causing layout to shift unexpectedly when clicking — re-enable only with a
      proper virtualizer if scroll perf becomes a problem. */
   padding: 1.6px 4px 3.4px 10px;
-  margin-left: 4px;
+  /* No left margin: the selected node's left bar (and the cradle rail) sit flush
+     against the sidebar/main divider, matching the flush scrollbar on the
+     sidebar side of that same line. padding-left still keeps text off it. */
+  margin-left: 0;
   border-radius: 4px;
   scroll-margin-top: 64px; /* HEADER_OFFSET in src/lib/layout.ts — keep in sync */
   cursor: pointer;
   transition: background-color 0.1s;
 }
+/* Zebra striping removed: the reader is now a single uniform --bg-deep surface
+   like the sidebar. (The old reddish --bg-alt stripe clashed with the deep bg.) */
 .atlas-node:nth-child(even) {
-  background-color: var(--bg-alt);
+  background-color: transparent;
 }
 
 .atlas-node[data-has-hidden="true"] {
@@ -444,7 +454,9 @@ mark {
 }
 
 .atlas-node.is-selected {
-  background-color: var(--atlas-row-selected);
+  /* Subtle muted-red tint (the former center bg) against the deep reader — reads
+     as a soft block, not the old gray fill. Red left bar kept for the anchor. */
+  background-color: var(--bg);
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row-color) 80%, var(--row-bar-tint));
 }
 
@@ -469,7 +481,7 @@ mark {
 }
 .atlas-node:not(.is-selected):hover,
 .atlas-node:not(.is-selected):focus-visible {
-  background-color: color-mix(in srgb, var(--bg-alt) 22%, var(--atlas-row-selected));
+  background-color: color-mix(in srgb, var(--bg-deep) 84%, var(--surface));
   outline: none;
   box-shadow: inset 3px 1px 0px var(--bg);
 }
@@ -487,7 +499,7 @@ mark {
   align-items: center;
 }
 .atlas-node.is-selected .atlas-node-meta {
-  background-color: var(--atlas-row-selected);
+  background-color: var(--bg);
 }
 .atlas-node-toggle {
   width: 14px;
