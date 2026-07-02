@@ -33,6 +33,10 @@ export interface McpRequestContext {
   host: string;
   userAgent: string | null;
   protocolVersion: string | null;
+  // Our own lightweight correlation id (echoed Mcp-Session-Id header, or a fresh
+  // one) — NOT the SDK's session concept (sessionIdGenerator stays undefined).
+  // Clusters repeat calls from one agent run without tracking IP; see index.ts.
+  sessionId: string;
 }
 
 export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
@@ -71,7 +75,12 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
         // 15 tools was invoked — the one hook point for "what people are using
         // the MCP for" (tool) and "what they're trying to find" (params).
         const client = server.server.getClientVersion();
-        captureServerEvent("mcp_tool_call", crypto.randomUUID(), {
+        // distinct_id groups calls in PostHog. reqCtx.sessionId is the echoed/minted
+        // Mcp-Session-Id (see index.ts) — same value for every call in one agent
+        // run, for clients that honor it; falls back to a one-off id otherwise, no
+        // worse than before. Also sent as a property (mcp_session) so HogQL can
+        // filter/group on it without relying on distinct_id semantics.
+        captureServerEvent("mcp_tool_call", reqCtx?.sessionId ?? crypto.randomUUID(), {
           product: "mcp",
           tool: t.name,
           params: safeParams(args),
@@ -87,6 +96,7 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
           environment: reqCtx?.host === PROD_HOST ? "prod" : "dev",
           app_commit: config.appCommit || null,
           atlas_commit: ix.meta.atlasCommit ?? null,
+          mcp_session: reqCtx?.sessionId ?? null,
         });
       }
     });
