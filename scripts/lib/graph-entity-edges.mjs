@@ -20,6 +20,7 @@ import {
   rpRoleAndName,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
+import { findGovOpsDuty } from "./graph-duties.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
   const {
@@ -381,6 +382,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   let stepRpEdges = 0,
     stepRpDocs = 0,
     stepRpUnresolved = 0;
+  const stepRpTargetIds = new Set(); // consumed by 2s-ter — structural RP beats fuzzy duty scan
   for (const d of allDocs.filter((d) => d.type !== "Active Data Controller")) {
     const declarations = extractAllRP(d.content);
     if (!declarations.length) continue;
@@ -405,11 +407,77 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
         [d.doc_no],
         JSON.stringify({ role_declared: raw, resolution, automated }),
       );
+      stepRpTargetIds.add(d.id);
       stepRpEdges++;
     }
   }
   console.log(
     `  process_step_responsible_party_for: ${stepRpEdges} edges across ${stepRpDocs} docs, ${stepRpUnresolved} unresolved`,
+  );
+
+  // --- 2s-ter. duty_for (GovOps duty discovery) ---
+  // GovOps has no dedicated "Duties" scope the way Facilitators do (A.1.7) — its
+  // duties are scattered across primitive, process, and agent-artifact docs. Scan
+  // every doc for GovOps as an obligated/empowered subject (see graph-duties.mjs
+  // for the pattern taxonomy) and emit one duty_for edge per doc, resolved to the
+  // GovOps org entity. Skips, mirroring the report's semantics:
+  //   - Preamble (A.0.*): role definitions, not duties.       // fragile: doc_no prefix
+  //   - Assignment docs (A.6.1.2.<n>.2): covered by the        // fragile: doc_no prefix
+  //     {operational,core}_govops_for edges.
+  //   - ADCs: governance-level RP is responsible_party_for (2s).
+  //   - Process-step RP docs (2s-bis targets): the structural edge wins over a
+  //     fuzzy content match.
+  const ASSIGNMENT_DOCNO_RE = /^A\.6\.1\.2\.\d+\.2$/;
+  const govOrgs = [];
+  const govOrgIdByName = new Map();
+  for (const id of uniqueOpGovIds) {
+    const e = entityById.get(id);
+    if (e) {
+      govOrgs.push({ name: e.name, role_declared: "Operational GovOps" });
+      govOrgIdByName.set(e.name, e.id);
+    }
+  }
+  const coreGovEntity = entityById.get(coreGovId);
+  if (coreGovEntity) {
+    govOrgs.push({ name: coreGovEntity.name, role_declared: "Core GovOps" });
+    govOrgIdByName.set(coreGovEntity.name, coreGovEntity.id);
+  }
+
+  let dutyEdges = 0,
+    dutyUnresolved = 0;
+  const dutyByMatch = new Map();
+  for (const d of allDocs) {
+    if (d.doc_no.startsWith("A.0.")) continue;
+    if (ASSIGNMENT_DOCNO_RE.test(d.doc_no)) continue;
+    if (d.type === "Active Data Controller") continue;
+    if (stepRpTargetIds.has(d.id)) continue;
+    const duty = findGovOpsDuty(d.title, d.content, govOrgs);
+    if (!duty) continue;
+    const entity = duty.orgName
+      ? entityById.get(govOrgIdByName.get(duty.orgName))
+      : duty.role_declared === "Core GovOps"
+        ? entityById.get(coreGovId)
+        : entityById.get(uniqueOpGovId);
+    if (!entity) {
+      dutyUnresolved++;
+      continue;
+    }
+    addEdge(
+      entity.id,
+      "entity",
+      d.id,
+      "doc",
+      "duty_for",
+      [d.doc_no],
+      JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
+    );
+    dutyEdges++;
+    dutyByMatch.set(duty.match, (dutyByMatch.get(duty.match) ?? 0) + 1);
+  }
+  console.log(
+    `  duty_for: ${dutyEdges} edges (${["title", "active", "passive", "phrase", "org"]
+      .map((k) => `${dutyByMatch.get(k) ?? 0} ${k}`)
+      .join(", ")}), ${dutyUnresolved} unresolved`,
   );
 
   // --- 2t. defines_entity (doc → entity it defines) ---

@@ -1,6 +1,8 @@
 // Deterministic tests for deriveGovOpsResponsibilities using synthetic fixtures.
 // Unlike the artifact-reading report tests, these construct a minimal docs +
-// graph so the discovery/classification/dedup logic is exercised without a build.
+// graph so the row-shaping/classification/dedup logic is exercised without a
+// build. Duty DISCOVERY (vocabulary, guards) lives in build-graph and is tested
+// in scripts_tests/graph-duties.test.ts — here duties arrive as duty_for edges.
 
 import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
@@ -29,31 +31,26 @@ for (const n of [
   // Two copies of the same duty under two different agent artifacts — must collapse.
   node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Spark's calculation of the rebate before executing." }),
   node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Grove's calculation of the rebate before executing." }),
-  // Core duty discovered from content (title has GovOps too).
   node({ id: "duty-core", doc_no: "A.2.2.1.1.13", title: "Core GovOps Validates Executor Accord Primitive Inputs", content: "Core GovOps reviews the inputs to the Executor Accord Primitive to ensure validity." }),
-  // Assignment doc (excluded from duty scan by its structural doc_no).
+  // Assignment doc (no duty_for edge — build-graph excludes the structural doc_no).
   node({ id: "assign-doc", doc_no: "A.6.1.2.1.2", title: "Operational GovOps", content: "Operational GovOps for Operational Executor Agent Amatsu is Soter Labs." }),
   // Active Data controller whose Responsible Party is declared as GovOps.
   node({ id: "adc-doc", doc_no: "A.2.2.4.1.2.1.1", type: "Active Data Controller", title: "Integrator Program Applications", content: "The Responsible Party is Operational GovOps." }),
   // Active Data controller where Soter Labs is RP in a NON-GovOps capacity
   // (named directly) — must be EXCLUDED from GovOps responsibilities.
   node({ id: "adc-nongov", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Soter Labs." }),
-  // Bare "GovOps" (no Operational/Core qualifier) as an actor, title silent —
-  // must still be discovered via the content scan.
-  node({ id: "duty-bare", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "GovOps actors carry out operational activities on behalf of Executor Agents." }),
-  // Shape #3 — process-step "Update" docs. The bulleted Responsible Party field
-  // is now a process_step_responsible_party_for edge (build-graph section
-  // 2s-bis); content stays realistic since firstLine(content) still builds `duty`.
+  // Content-discovered duty: the edge carries the matched quote as provenance.
+  node({ id: "duty-quoted", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "Some preamble sentence. GovOps actors carry out operational activities on behalf of Executor Agents." }),
+  // Title-discovered duty (quote null) whose content is an unpunctuated bullet
+  // list — the snippet must pick the GovOps bullet, not glue the whole list.
+  node({ id: "duty-title-bullets", doc_no: "A.2.7.7", title: "GovOps Settlement Review", content: "The process flow is defined herein:\n\n- The Agent submits the calculation data\n- Core GovOps reviews the calculations for accuracy\n- The Facilitator publishes the outcome" }),
+  // Shape #3 — process-step "Update" docs (process_step_responsible_party_for).
   node({ id: "step-op", doc_no: "A.2.2.9.2.2.3.3.4.2.1", title: "Primitive Hub Document Update", content: "The Document in the Agent Artifact is updated as follows:\n\n- Responsible Party: Operational GovOps\n- Triggers: none." }),
   // One doc with both an op step and a core step → two edges, two rows.
   node({ id: "step-both", doc_no: "A.2.2.9.9.9", title: "Combined Update", content: "- Responsible Party: Operational GovOps\n- Responsible Party: Core GovOps" }),
-  // Noise: a doc merely cross-referencing GovOps (no obligation verb) — excluded.
-  node({ id: "noise", doc_no: "A.9.9", title: "Some Section", content: "The Operational Facilitator and Operational GovOps for Ozone are specified in A.6.1.2.2." }),
-  // Passive voice: GovOps is the object of "by", not the subject before the verb —
-  // title silent, must still be discovered via the passive-voice content scan.
-  node({ id: "duty-passive", doc_no: "A.1.9.1.2.4", title: "Aligned Delegate Membership In Emergency Response Group", content: "Aligned Delegate membership in the Emergency Response Group is not automatic. An Aligned Delegate seeking to participate must be reviewed and approved by Core GovOps prior to joining." }),
-  // Multisig signer modification — a narrow phrase, not a bare "change" verb.
-  node({ id: "multisig-mod", doc_no: "A.2.99.1.5", title: "Some Multisig Modification", content: "Core GovOps can change the signers of the Some Multisig at any time, so long as there are at least three (3) signers." }),
+  // Defensive: a rogue doc with BOTH a duty_for and a process-step edge must
+  // surface once (duty wins — sections run in priority order).
+  node({ id: "dual", doc_no: "A.2.8.8", title: "Dual Signal", content: "Operational GovOps reviews the update.\n\n- Responsible Party: Operational GovOps" }),
   // Same generic title, outside the per-agent-artifact subtree (A.6.1.1.<n>.*) —
   // these are genuinely different process-step docs that happen to share a
   // structural title, so they must NOT collapse into a single row.
@@ -71,10 +68,22 @@ const participants: GraphEntity[] = [
   { id: "prime", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "prime-doc" },
 ];
 
+const dutyMeta = (role: string, quote: string | null, match = quote ? "active" : "title") =>
+  JSON.stringify({ role_declared: role, match, quote });
+
 const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "exec", tt: "entity", e: "operational_govops_for", s: ["A.6.1.2.1.2"] },
   { f: "atlas-axis", ft: "entity", t: "core-exec", tt: "entity", e: "core_govops_for", s: ["A.6.1.2.3.2"] },
   { f: "exec", ft: "entity", t: "prime", tt: "entity", e: "operational_executor_agent_for", s: ["A.6.1.1.1"] },
+  // Duties — duty_for edges as build-graph section 2s-ter emits them.
+  { f: "soter", ft: "entity", t: "duty-op-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.2.3"], m: dutyMeta("Operational GovOps", null) },
+  { f: "soter", ft: "entity", t: "duty-op-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.2.3"], m: dutyMeta("Operational GovOps", null) },
+  { f: "atlas-axis", ft: "entity", t: "duty-core", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", null) },
+  { f: "soter", ft: "entity", t: "duty-quoted", tt: "doc", e: "duty_for", s: ["A.1.14.4.6.1.1"], m: dutyMeta("Operational GovOps", "GovOps actors [carry out](someuuid) operational activities on behalf of Executor Agents.") },
+  { f: "atlas-axis", ft: "entity", t: "duty-title-bullets", tt: "doc", e: "duty_for", s: ["A.2.7.7"], m: dutyMeta("Core GovOps", null) },
+  { f: "soter", ft: "entity", t: "flow-a", tt: "doc", e: "duty_for", s: ["A.2.2.9.1.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method A.") },
+  { f: "soter", ft: "entity", t: "flow-b", tt: "doc", e: "duty_for", s: ["A.2.2.9.2.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method B.") },
+  { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "duty_for", s: ["A.2.8.8"], m: dutyMeta("Operational GovOps", "Operational GovOps reviews the update.") },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
   // Soter Labs named directly (non-GovOps capacity) — excluded.
   { f: "soter", ft: "entity", t: "adc-nongov", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Soter Labs", resolution: "direct" }) },
@@ -82,6 +91,7 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "step-op", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.2.2.3.3.4.2.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
   { f: "soter", ft: "entity", t: "step-both", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.9.9"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
   { f: "atlas-axis", ft: "entity", t: "step-both", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.9.9"], m: JSON.stringify({ role_declared: "Core GovOps", resolution: "chain", automated: false }) },
+  { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.8.8"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
 ];
 
 const graph: GraphData = { participants, instances: [], invocations: [], primitives: [], edges };
@@ -103,9 +113,24 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark"]));
   });
 
-  it("classifies Core GovOps duties separately", () => {
+  it("classifies duties op vs core from the edge's declared role", () => {
     expect(byCat("core-duty").some((r) => r.uuid === "duty-core")).toBe(true);
     expect(byCat("op-duty").some((r) => r.uuid === "duty-core")).toBe(false);
+  });
+
+  it("attributes duty rows to the GovOps entity for the org filter pills", () => {
+    expect(byCat("core-duty").find((r) => r.uuid === "duty-core")?.govops).toBe("Atlas Axis");
+    expect(byCat("op-duty").find((r) => r.uuid === "duty-quoted")?.govops).toBe("Soter Labs");
+  });
+
+  it("uses the edge's matched quote (link-stripped) as the duty text", () => {
+    const row = byCat("op-duty").find((r) => r.uuid === "duty-quoted");
+    expect(row?.duty).toBe("GovOps actors carry out operational activities on behalf of Executor Agents.");
+  });
+
+  it("falls back to a content snippet for title matches, picking the GovOps bullet", () => {
+    const row = byCat("core-duty").find((r) => r.uuid === "duty-title-bullets");
+    expect(row?.duty).toBe("…Core GovOps reviews the calculations for accuracy…");
   });
 
   it("emits one assignment per govops edge with executor + govops entity", () => {
@@ -139,25 +164,10 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(both.find((r) => r.role === "Core")?.govops).toBe("Atlas Axis");
   });
 
-  it("does not list a process-step doc that is also a prose duty twice", () => {
-    // duty-bare is a duty (bare GovOps verb) and has no RP field → stays a duty only.
-    expect(byCat("process-step").some((r) => r.uuid === "duty-bare")).toBe(false);
-  });
-
-  it("discovers bare 'GovOps <verb>' duties even when the title is silent", () => {
-    const dutyIds = [...byCat("op-duty"), ...byCat("core-duty")].map((r) => r.uuid);
-    expect(dutyIds).toContain("duty-bare");
-  });
-
-  it("excludes bare cross-references and assignment docs from duty discovery", () => {
-    const dutyIds = [...byCat("op-duty"), ...byCat("core-duty")].map((r) => r.uuid);
-    expect(dutyIds).not.toContain("noise");
-    expect(dutyIds).not.toContain("assign-doc");
-  });
-
-  it("captures multisig signer-modification duties via the narrow 'change the signers' phrase", () => {
-    const row = results.find((r) => r.uuid === "multisig-mod");
-    expect(row?.category).toBe("core-duty");
+  it("surfaces a doc carrying both a duty_for and a process-step edge exactly once, as a duty", () => {
+    const rows = results.filter((r) => r.uuid === "dual");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].category).toBe("op-duty");
   });
 
   it("does not collapse a shared generic title outside the per-agent-artifact subtree", () => {
@@ -165,12 +175,6 @@ describe("deriveGovOpsResponsibilities", () => {
       .filter((r) => r.title === "Process Flow")
       .map((r) => r.uuid);
     expect(flowIds.sort()).toEqual(["flow-a", "flow-b"]);
-  });
-
-  it("discovers passive-voice duties ('… must be reviewed and approved by Core GovOps')", () => {
-    const passive = byCat("core-duty").find((r) => r.uuid === "duty-passive");
-    expect(passive).toBeDefined();
-    expect(passive?.duty).toMatch(/reviewed and approved by Core GovOps/);
   });
 
   it("never emits an empty duty snippet or title", () => {

@@ -100,7 +100,7 @@ export function atlasEntity(ix: Indexes, name: string): ToolResult {
         .filter(
           (e) =>
             e.from_id === entityId &&
-            ["responsible_party_for", "process_step_responsible_party_for"].includes(e.edge_type),
+            ["responsible_party_for", "process_step_responsible_party_for", "duty_for"].includes(e.edge_type),
         )
         .map((e) => ix.docMap.get(e.to_id))
         .filter((n): n is AtlasNode => !!n)

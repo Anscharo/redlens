@@ -122,6 +122,7 @@ const KNOWN_EDGE_TYPES = new Set([
   "erg_member_for",
   "responsible_party_for",
   "process_step_responsible_party_for",
+  "duty_for",
   "holds_role_for",
   // accord / definition
   "ecosystem_accord",
@@ -622,6 +623,7 @@ describe("relations.json — lean browser payload", () => {
       "holds_role_for",
       "responsible_party_for",
       "process_step_responsible_party_for",
+      "duty_for",
       "signer_of",
       "can_modify_signers_of",
       "integration_partner_of",

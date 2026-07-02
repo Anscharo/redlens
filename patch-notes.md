@@ -11,6 +11,10 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-02
+- Made the GovOps Responsibilities report catch powers, not just chores — discretionary authority (conservatorship, parameter changes, multisig control) and duties written under the org names Atlas Axis and Soter Labs now appear, and mistaken "GovOps meeting" entries (which belong to the Governance Point) are gone
+- Duty rows in the GovOps report now show the exact Atlas sentence that assigns the duty
+
 ## 2026-07-01
 - Added an Operational GovOps Responsibilities report — every Atlas section that mandates action from a GovOps actor, with per-executor assignments and the Active Data they maintain
 
