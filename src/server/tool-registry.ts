@@ -8,7 +8,7 @@ import { type Indexes } from "./indexes.ts";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult, type SearchArgs } from "./tools.ts";
 import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
-import { atlasNeighbors, atlasTraverse, atlasEntity, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
+import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 
 export interface AtlasTool {
@@ -22,11 +22,17 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_describe",
     description:
-      "Self-describing schema. Returns live doc-type taxonomy with counts, edge-type vocabulary with counts, " +
-      "entity types and slugs, entity_type_graph (how entity types connect via graph edges — use this to " +
-      "understand traversal chains like facilitator → executor → prime), Type Specifications, and the atlas commit pin.",
-    shape: {},
-    handler: (ix) => atlasDescribe(ix),
+      "Self-describing schema. By default returns doc-type + edge-type + entity-type vocabularies (with counts) and " +
+      "doc/entity totals. The heavier entity_type_graph (how entity types connect — traversal chains like " +
+      "facilitator → executor → prime) and type_specifications are opt-in: pass `sections` with those names (or " +
+      "'all'). Use atlas_entities to look up individual entities.",
+    shape: {
+      sections: z
+        .array(z.string())
+        .optional()
+        .describe("Extra sections to include: 'entity_type_graph', 'type_specifications', or 'all'. Omit for the default vocab."),
+    },
+    handler: (ix, a) => atlasDescribe(ix, a.sections as string[] | undefined),
   },
   {
     name: "atlas_get",
@@ -34,7 +40,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "Fetch one or many Atlas nodes by UUID or doc_no. Each result includes the full ancestor chain (parent → root). " +
       "Pass a string for one node or an array for bulk.",
     shape: {
-      id: z.union([z.string(), z.array(z.string()).min(1).max(100)]).describe("UUID or doc_no, or an array of them."),
+      id: z.union([z.string(), z.array(z.string()).min(1).max(50)]).describe("UUID or doc_no, or an array of up to 50."),
     },
     handler: (ix, a) => atlasGet(ix, a.id as string | string[]),
   },
@@ -75,7 +81,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_traverse",
-    description: "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes.",
+    description:
+      "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
+      "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
+      "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it. Results 2+ hops away " +
+      "also include `path`: the ordered chain of steps (edge + node) from the start node to that result.",
     shape: {
       id: z.string().describe("Starting node UUID or doc_no."),
       edge_type: z.string().optional().describe("Edge type filter (e.g. 'cites', 'responsible_party_for')."),
@@ -85,12 +95,49 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     handler: (ix, a) => atlasTraverse(ix, a.id as string, a.edge_type as string | undefined, (a.hops as number | undefined) ?? 2, (a.direction as "out" | "in" | "both" | undefined) ?? "out"),
   },
   {
-    name: "atlas_entity",
-    description: "Get all Atlas sections related to a named entity (agent, role, or actor). Returns nodes, inbound references, and Active Data sections they control.",
+    name: "atlas_entities",
+    description:
+      "Find entities by free-text name and/or structural filters — the tool to call FIRST to turn a name like " +
+      "'Spark Protocol' into a slug (atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching " +
+      "(ranked, with a score), and/or filter by `entity_type` / `subtype`. Paginated.",
     shape: {
-      name: z.string().describe("Entity slug (e.g. 'spark', 'operational-facilitator')."),
+      q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
+      entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
+      subtype: z.string().optional().describe("Filter by subtype, case-insensitive substring (e.g. 'reward', 'prime')."),
+      limit: z.number().int().min(1).max(500).default(50),
+      offset: z.number().int().min(0).default(0),
     },
-    handler: (ix, a) => atlasEntity(ix, a.name as string),
+    handler: (ix, a) =>
+      atlasEntities(ix, {
+        q: a.q as string | undefined,
+        entity_type: a.entity_type as string | undefined,
+        subtype: a.subtype as string | undefined,
+        limit: (a.limit as number | undefined) ?? 50,
+        offset: (a.offset as number | undefined) ?? 0,
+      }),
+  },
+  {
+    name: "atlas_entity",
+    description:
+      "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
+      "name ('Spark Protocol') — resolved server-side; the response echoes `resolved` + `alternatives`. Returns " +
+      "paginated `nodes` (edge-linked docs + defining-doc subtree), `node_count` + `node_types` (a type histogram " +
+      "over the full set — use it to pick a `type` filter), `responsibilities`, and Active Data it controls. Prime " +
+      "Agents have 2000+ nodes, so page with `limit`/`offset` and narrow with `type`.",
+    shape: {
+      name: z.string().describe("Entity slug OR natural-language name (e.g. 'spark', 'Spark Protocol', 'grove foundation')."),
+      type: z.string().optional().describe("Restrict `nodes` to one atlas doc type (see `node_types` in the response)."),
+      limit: z.number().int().min(1).max(200).default(50).describe("Max nodes per page."),
+      offset: z.number().int().min(0).default(0).describe("Node pagination offset; use with `has_more`."),
+      include_content: z.boolean().default(false).describe("Include full node content (heavier). Default false = slim rows."),
+    },
+    handler: (ix, a) =>
+      atlasEntity(ix, a.name as string, {
+        type: a.type as string | undefined,
+        limit: (a.limit as number | undefined) ?? 50,
+        offset: (a.offset as number | undefined) ?? 0,
+        include_content: (a.include_content as boolean | undefined) ?? false,
+      }),
   },
   {
     name: "atlas_filter",
@@ -102,18 +149,27 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       doc_no_pattern: z.string().optional().describe("LIKE pattern over doc_no (use % wildcards)."),
       depth_min: z.number().int().min(0).max(20).optional(),
       depth_max: z.number().int().min(0).max(20).optional(),
-      limit: z.number().int().min(1).max(500).default(200),
+      limit: z.number().int().min(1).max(200).default(50),
       include_content: z.boolean().default(true).describe("Include full content. Set false for lighter listing responses."),
     },
     handler: (ix, a) => atlasFilter(ix, a as Parameters<typeof atlasFilter>[1]),
   },
   {
     name: "atlas_entity_params",
-    description: "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded as child Cores.",
+    description:
+      "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded " +
+      "as child Cores. With `id`, returns that one doc's params. With `entity`, returns params for every INSTANCE doc " +
+      "under the entity (not the whole subtree); the response also lists `available_subtypes` so you can refine.",
     shape: {
       id: z.string().optional().describe("Doc UUID or doc_no (typically an instance doc)."),
       entity: z.string().optional().describe("Entity slug — fetch params for all instance docs under entity."),
-      type_hint: z.string().optional().describe("Filter instance docs by type (e.g. 'Reward'). Only applies with entity."),
+      type_hint: z
+        .string()
+        .optional()
+        .describe(
+          "Filter instance docs by their SUBTYPE, case-insensitive substring (e.g. 'reward' matches " +
+            "'distribution-reward' and 'core-governance-reward'). Only applies with `entity`; see `available_subtypes`.",
+        ),
       limit: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1]),
@@ -172,7 +228,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +
-      "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions.",
+      "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
+      "Retrieve-then-read: results are lean by default (title, doc_no, snippet, sources) — set enrich=true for " +
+      "full content + ancestor ids (deduped into a top-level `ancestors` map), or fetch specific ids with atlas_get.",
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },

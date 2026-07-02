@@ -56,6 +56,9 @@ const ReportsIndex = lazy(() =>
 const ProvenancePage = lazy(() =>
   lazyRetry(() => import("./components/ProvenancePage")).then((m) => ({ default: m.ProvenancePage })),
 );
+const ConnectPage = lazy(() =>
+  lazyRetry(() => import("./components/ConnectPage")).then((m) => ({ default: m.ConnectPage })),
+);
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
@@ -314,6 +317,11 @@ export default function App() {
             <Route path={ROUTES.PROVENANCE}>
               <Suspense fallback={<Loading />}>
                 <ProvenancePage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.CONNECT}>
+              <Suspense fallback={<Loading />}>
+                <ConnectPage />
               </Suspense>
             </Route>
             <Route path="/admin/:rest*">

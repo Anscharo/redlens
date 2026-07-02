@@ -6,6 +6,7 @@ export const ROUTES = {
   CONSTELLATIONS: "/constellations",
   SEARCH_HINTS: "/search-hints",
   PROVENANCE: "/provenance",
+  CONNECT: "/connect",
   REPORTS: "/reports",
   REPORTS_OF_RESPONSIBILITIES: "/reports/of-responsibilities",
   REPORTS_GOVOPS_RESPONSIBILITIES: "/reports/gov-ops-responsibilities",
