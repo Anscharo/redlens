@@ -12,6 +12,7 @@
 -->
 
 ## 2026-07-02
+- Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills
 - Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
 - Entity pages and constellations now show the duties the Atlas assigns to Facilitators and Executor Agents, using the same duty detection that powers the GovOps report
 - Made the GovOps Responsibilities report catch powers, not just chores — discretionary authority (conservatorship, parameter changes, multisig control) and duties written under the org names Atlas Axis and Soter Labs now appear, and mistaken "GovOps meeting" entries (which belong to the Governance Point) are gone
