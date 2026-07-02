@@ -109,6 +109,7 @@ jobs:
         run: |
           pnpm build:graph 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:govops --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm test:snap:update
           git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
@@ -135,7 +136,8 @@ jobs:
           # add is harmless then). Keeping them in the bump commit prevents
           # addresses.json from drifting out of sync with docs.json over time.
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
-            .github/atlas-census-baseline.json public/addresses.json .cache/etherscan
+            .github/atlas-census-baseline.json .github/govops-census-baseline.json \
+            public/addresses.json .cache/etherscan
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"

@@ -16,6 +16,7 @@
     "build:manifest": "node scripts/required/build-manifest.mjs",
     "build:bundle": "bun scripts/required/build-bundle.ts",
     "census:check": "node scripts/required/check-atlas-census.mjs",
+    "census:govops": "node scripts/required/check-govops-census.mjs",
     "processes:check": "node scripts/required/check-processes-dirty.mjs",
     "processes:triage": "bash scripts/aux/processes-triage.sh",
     "processes:apply-decisions": "node scripts/aux/processes-apply-decisions.mjs",
