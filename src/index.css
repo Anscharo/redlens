@@ -463,6 +463,17 @@ mark {
      as a soft block, not the old gray fill. Red left bar kept for the anchor. */
   background-color: var(--bg);
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row-color) 80%, var(--row-bar-tint));
+  /* Pin the selected node to the top of the reader as its descendants scroll
+     under it. AtlasReader wraps the selected node + its cradle descendants in a
+     .selection-group, which is this sticky element's containing block — so it
+     stays stuck at top:0 while any of the selection is on screen, then releases
+     and scrolls off once the group's bottom (the cradle foot) clears the top,
+     instead of staying pinned down the rest of the list. The solid --bg fill
+     occludes rows passing beneath; z-index lifts it above them (the split-pane
+     button sits higher at z-10, so it stays clickable). */
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 /* Cradle: rail down the left of the selected node's descendants, in the

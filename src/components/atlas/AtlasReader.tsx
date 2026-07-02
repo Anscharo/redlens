@@ -131,6 +131,22 @@ export function AtlasReader({
         />
       );
     });
+    // Wrap the selected node + its cradle descendants in one group so the
+    // selected node's position:sticky is bounded to that group. It stays pinned
+    // to the top while any of the selection is on screen, then scrolls off with
+    // it once the lowest descendant (the cradle foot) clears the top — rather
+    // than staying stuck all the way down the rest of the list. With no visible
+    // descendants the group is just the selected node, so it scrolls normally.
+    if (selIdx >= 0) {
+      const groupEnd = cradleStart >= 0 ? cradleEnd : selIdx;
+      return [
+        ...items.slice(0, selIdx),
+        <div key="__selection-group" className="selection-group">
+          {items.slice(selIdx, groupEnd + 1)}
+        </div>,
+        ...items.slice(groupEnd + 1),
+      ];
+    }
     return items;
   }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, changedSet]);
 
