@@ -54,7 +54,7 @@ export function OGReport() {
   // Pill lists come from the gov edges (not the prime chains) so the Core side
   // — Atlas Axis, Core Council Executor Agent 1 — is filterable too.
   const pills = useMemo(
-    () => (graphData ? rolePills(graphData) : { govops: [], executors: [] }),
+    () => (graphData ? rolePills(graphData) : { holders: [], executors: [] }),
     [graphData],
   );
 
@@ -126,7 +126,7 @@ export function OGReport() {
         </p>
 
         <div className="flex flex-wrap gap-4 mb-6">
-          <FilterPills label="GovOps" items={pills.govops} kind="govops" filter={filter} onToggle={toggle} />
+          <FilterPills label="GovOps" items={pills.holders} kind="govops" filter={filter} onToggle={toggle} />
           <FilterPills label="Executor" items={pills.executors} kind="executor" filter={filter} onToggle={toggle} />
           <div className="flex flex-wrap gap-1.5 items-center">
             <span className="text-xs text-tan-3 mr-1">Prime:</span>

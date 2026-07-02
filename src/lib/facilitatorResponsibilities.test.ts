@@ -1,110 +1,149 @@
-// Tests for deriveResponsibilities against the real built artifacts.
-// Run `pnpm build:index && pnpm build:graph` first if public/ is stale.
+// Deterministic tests for deriveFacilitatorResponsibilities using synthetic
+// fixtures. Duty DISCOVERY (vocabulary, guards) lives in build-graph and is
+// tested in scripts_tests/graph-duties.test.ts — here duties arrive as duty_for
+// edges, including the fan-out shape (one edge per role holder for duties that
+// bind more than one facilitator org).
 
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
-import { deriveResponsibilities, CATEGORY_LABELS } from "./facilitatorResponsibilities";
+import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
+import type { AtlasBundle } from "./docs";
+import type { GraphData } from "./graph";
+import { deriveFacilitatorResponsibilities } from "./facilitatorResponsibilities";
 
-const ROOT = path.resolve(__dirname, "../..");
-const PUBLIC = path.join(ROOT, "public");
-
-const docs: Record<string, AtlasNode> = JSON.parse(
-  fs.readFileSync(path.join(PUBLIC, "docs.json"), "utf8"),
-).nodes;
-const relations: { entities: GraphEntity[]; edges: RelationEdge[] } = JSON.parse(
-  fs.readFileSync(path.join(PUBLIC, "relations.json"), "utf8"),
-);
-
-const byParent = new Map<string, AtlasNode[]>();
-const docNoToId = new Map<string, string>();
-for (const node of Object.values(docs)) {
-  docNoToId.set(node.doc_no, node.id);
-  if (node.parentId) {
-    if (!byParent.has(node.parentId)) byParent.set(node.parentId, []);
-    byParent.get(node.parentId)!.push(node);
-  }
+function node(p: Partial<AtlasNode> & Pick<AtlasNode, "id" | "doc_no" | "title">): AtlasNode {
+  return {
+    type: "Core",
+    depth: 4,
+    parentId: null,
+    content: "",
+    order: 0,
+    addressRefs: [],
+    ...p,
+  } as AtlasNode;
 }
 
-const participants = relations.entities.filter(
-  (e) => e.et !== "instance" && e.et !== "invocation" && e.et !== "primitive",
-);
-const instances = relations.entities.filter((e) => e.et === "instance");
-const invocations = relations.entities.filter((e) => e.et === "invocation");
-const primitives = relations.entities.filter((e) => e.et === "primitive");
+const docs: Record<string, AtlasNode> = {};
+for (const n of [
+  node({ id: "prime-doc", doc_no: "A.6.1.1.1", title: "Prime Agent Spark" }),
+  // Universal duty — fanned out to all three holders by build-graph.
+  node({ id: "duty-universal", doc_no: "A.1.7.9", title: "Governance Process And Interaction Documentation", content: "Facilitators must document their interpretations as Action Tenets." }),
+  // Core Facilitator duty.
+  node({ id: "duty-core", doc_no: "A.1.2.3", title: "Conflict Resolution", content: "The Core Facilitator is responsible for evaluating and resolving community appeals." }),
+  // Operational duty replicated under two agent artifacts — must collapse.
+  node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.2", title: "Root Edit Proposal Review By Operational Facilitator", content: "The Operational Facilitator reviews the proposal." }),
+  node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.2", title: "Root Edit Proposal Review By Operational Facilitator", content: "The Operational Facilitator reviews the proposal." }),
+  // Operational duty outside an artifact context — fans out to BOTH op orgs.
+  node({ id: "duty-op-shared", doc_no: "A.3.7.1.9", title: "Signer Change Authority", content: "The Operational Facilitator can change the signers of the multisig." }),
+  // Assignment doc (excluded from duty discovery by build-graph).
+  node({ id: "assign-doc", doc_no: "A.6.1.2.1.3", title: "Operational Facilitator", content: "The Operational Facilitator for Operational Executor Agent Amatsu is Endgame Edge." }),
+  // ADC whose Responsible Party is declared as a Facilitator role.
+  node({ id: "adc-doc", doc_no: "A.6.1.1.1.3.9.1", type: "Active Data Controller", title: "Delegate Roster", content: "The Responsible Party is the Operational Facilitator." }),
+  // ADC where a facilitator org is RP in a NON-facilitator capacity — excluded.
+  node({ id: "adc-nonfac", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Endgame Edge." }),
+  // Process-step update doc with a facilitator RP.
+  node({ id: "step-op", doc_no: "A.2.2.9.7.7", title: "Roster Update", content: "The Document is updated as follows:\n\n- Responsible Party: Operational Facilitator" }),
+  // GovOps-declared duty — a different acting role, must NOT appear here.
+  node({ id: "duty-gov", doc_no: "A.2.2.1.1.13", title: "Core GovOps Validates Inputs", content: "Core GovOps reviews the inputs." }),
+]) docs[n.id] = n;
 
-const results = deriveResponsibilities(
-  { docs, byParent, docNoToId, atlasCommit: null },
-  { participants, instances, invocations, primitives, edges: relations.edges },
-);
+const atlas: AtlasBundle = { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null };
 
-const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_LABELS));
+const participants: GraphEntity[] = [
+  { id: "endgame", slug: "endgame-edge", name: "Endgame Edge", et: "facilitator_org", st: null, did: null },
+  { id: "redline", slug: "redline-facilitation-group", name: "Redline Facilitation Group", et: "facilitator_org", st: null, did: null },
+  { id: "jansky", slug: "jansky", name: "JanSky", et: "facilitator_org", st: null, did: null },
+  { id: "soter", slug: "soter-labs", name: "Soter Labs", et: "govops_org", st: null, did: null },
+  { id: "exec", slug: "amatsu", name: "Operational Executor Agent Amatsu", et: "agent", st: "operational_executor", did: null },
+  { id: "prime", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "prime-doc" },
+];
 
-describe("deriveResponsibilities", () => {
-  it("returns at least one result", () => {
-    expect(results.length).toBeGreaterThan(0);
+const dutyMeta = (role: string, quote: string | null, match = quote ? "active" : "title") =>
+  JSON.stringify({ role_declared: role, match, quote });
+
+const edges: RelationEdge[] = [
+  { f: "endgame", ft: "entity", t: "exec", tt: "entity", e: "operational_facilitator_for", s: ["A.6.1.2.1.3"] },
+  { f: "exec", ft: "entity", t: "prime", tt: "entity", e: "operational_executor_agent_for", s: ["A.6.1.1.1"] },
+  // Universal duty — one edge per holder (build-graph fan-out).
+  { f: "endgame", ft: "entity", t: "duty-universal", tt: "doc", e: "duty_for", s: ["A.1.7.9"], m: dutyMeta("Facilitator", "Facilitators must document their interpretations as Action Tenets.") },
+  { f: "redline", ft: "entity", t: "duty-universal", tt: "doc", e: "duty_for", s: ["A.1.7.9"], m: dutyMeta("Facilitator", "Facilitators must document their interpretations as Action Tenets.") },
+  { f: "jansky", ft: "entity", t: "duty-universal", tt: "doc", e: "duty_for", s: ["A.1.7.9"], m: dutyMeta("Facilitator", "Facilitators must document their interpretations as Action Tenets.") },
+  // Core duty — single holder.
+  { f: "jansky", ft: "entity", t: "duty-core", tt: "doc", e: "duty_for", s: ["A.1.2.3"], m: dutyMeta("Core Facilitator", "The Core Facilitator is responsible for evaluating and resolving community appeals.") },
+  // Per-agent-artifact op duty, two copies (chain-resolved to one org each).
+  { f: "endgame", ft: "entity", t: "duty-op-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.2.2"], m: dutyMeta("Operational Facilitator", null) },
+  { f: "endgame", ft: "entity", t: "duty-op-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.2.2"], m: dutyMeta("Operational Facilitator", null) },
+  // Contextless op duty — fanned out to both operational orgs.
+  { f: "endgame", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
+  { f: "redline", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
+  // GovOps-declared duty — filtered out by role.
+  { f: "soter", ft: "entity", t: "duty-gov", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", "Core GovOps reviews the inputs.") },
+  // Active data: declared-as-facilitator vs named-directly.
+  { f: "endgame", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.6.1.1.1.3.9.1"], m: JSON.stringify({ role_declared: "Operational Facilitator", resolution: "chain" }) },
+  { f: "endgame", ft: "entity", t: "adc-nonfac", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Endgame Edge", resolution: "direct" }) },
+  // Process-step RP edge.
+  { f: "endgame", ft: "entity", t: "step-op", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.7.7"], m: JSON.stringify({ role_declared: "Operational Facilitator", resolution: "chain", automated: false }) },
+];
+
+const graph: GraphData = { participants, instances: [], invocations: [], primitives: [], edges };
+
+const results = deriveFacilitatorResponsibilities(atlas, graph);
+const byCat = (c: string) => results.filter((r) => r.category === c);
+
+describe("deriveFacilitatorResponsibilities", () => {
+  it("collapses a fanned-out universal duty to one row carrying every holder", () => {
+    const rows = byCat("universal").filter((r) => r.uuid === "duty-universal");
+    expect(rows).toHaveLength(1);
+    expect(new Set(rows[0].facilitators)).toEqual(new Set(["Endgame Edge", "Redline Facilitation Group", "JanSky"]));
   });
 
-  it("every result uuid exists in docs.json", () => {
-    const missing = results.filter((r) => !docs[r.uuid]);
-    expect(missing).toEqual([]);
+  it("classifies duties by the declared role, not the holding entity", () => {
+    expect(byCat("core-facilitator").some((r) => r.uuid === "duty-core")).toBe(true);
+    expect(byCat("op-duty").some((r) => r.uuid === "duty-core")).toBe(false);
   });
 
-  it("every result has a valid category", () => {
-    const invalid = results.filter((r) => !VALID_CATEGORIES.has(r.category));
-    expect(invalid).toEqual([]);
+  it("collapses per-agent-artifact duplicates by title, accumulating agents", () => {
+    const rows = byCat("op-duty").filter((r) => /root edit proposal review/i.test(r.title));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].docNo).toBe("A.6.1.1.1.2.2"); // lowest doc_no is representative
+    expect(rows[0].agents).toEqual(["Spark"]);
   });
 
-  it("every result has a non-empty duty snippet", () => {
-    const empty = results.filter((r) => !r.duty?.trim());
-    expect(empty).toEqual([]);
+  it("collapses a contextless op duty fanned to both orgs into one row", () => {
+    const rows = byCat("op-duty").filter((r) => r.uuid === "duty-op-shared");
+    expect(rows).toHaveLength(1);
+    expect(new Set(rows[0].facilitators)).toEqual(new Set(["Endgame Edge", "Redline Facilitation Group"]));
   });
 
-  it("every result has a non-empty title", () => {
-    const empty = results.filter((r) => !r.title?.trim());
-    expect(empty).toEqual([]);
+  it("ignores duty_for edges declared for non-Facilitator acting roles", () => {
+    expect(results.find((r) => r.uuid === "duty-gov")).toBeUndefined();
   });
 
-  it("includes at least one universal duty", () => {
-    expect(results.some((r) => r.category === "universal")).toBe(true);
+  it("emits one assignment per facilitator edge with executor + facilitator entity", () => {
+    const asn = byCat("assignment");
+    expect(asn).toHaveLength(1);
+    expect(asn[0].facilitator).toBe("Endgame Edge");
+    expect(asn[0].executor).toBe("Operational Executor Agent Amatsu");
+    expect(asn[0].role).toBe("Operational");
+    expect(asn[0].agents).toContain("Spark");
+    expect(asn[0].uuid).toBe("assign-doc");
   });
 
-  it("includes at least one core-facilitator duty", () => {
-    expect(results.some((r) => r.category === "core-facilitator")).toBe(true);
+  it("includes RP duties declared as Facilitator but excludes non-facilitator capacities", () => {
+    const ad = byCat("active-data");
+    expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nonfac excluded
+    expect(ad[0].facilitator).toBe("Endgame Edge");
+    expect(ad[0].agent).toBe("Spark");
   });
 
-  it("includes at least one root-edit duty", () => {
-    expect(results.some((r) => r.category === "root-edit")).toBe(true);
+  it("surfaces facilitator process-step edges with the resolved entity", () => {
+    const ps = byCat("process-step");
+    expect(ps.map((r) => r.uuid)).toEqual(["step-op"]);
+    expect(ps[0].role).toBe("Operational");
+    expect(ps[0].facilitator).toBe("Endgame Edge");
   });
 
-  it("includes at least one artifact-edit duty", () => {
-    expect(results.some((r) => r.category === "artifact-edit")).toBe(true);
-  });
-
-  it("no duplicate uuids in results", () => {
-    const seen = new Set<string>();
-    const dupes = results.filter((r) => {
-      if (seen.has(r.uuid)) return true;
-      seen.add(r.uuid);
-      return false;
-    });
-    expect(dupes).toEqual([]);
-  });
-
-  it("root-edit and artifact-edit results each have an agent field", () => {
-    const withoutAgent = results.filter(
-      (r) =>
-        (r.category === "root-edit" || r.category === "artifact-edit") &&
-        !r.agent,
-    );
-    expect(withoutAgent).toEqual([]);
-  });
-
-  it("active-data results all link to A.6.1.1 subtree", () => {
-    const bad = results.filter(
-      (r) => r.category === "active-data" && !r.docNo.startsWith("A.6.1.1."),
-    );
-    expect(bad).toEqual([]);
+  it("never emits an empty duty snippet or title", () => {
+    expect(results.filter((r) => !r.title?.trim())).toEqual([]);
+    expect(results.filter((r) => !r.duty?.trim() && r.category !== "assignment")).toEqual([]);
   });
 });

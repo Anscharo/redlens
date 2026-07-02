@@ -1,6 +1,5 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
-import type { OGResponsibility } from "../../lib/govopsResponsibilities";
 import type { Chain } from "../../lib/reportChains";
 
 export function AgentChips({ agents, chains }: { agents: string[]; chains: Map<string, Chain> }) {
@@ -25,7 +24,7 @@ export function AgentChips({ agents, chains }: { agents: string[]; chains: Map<s
   );
 }
 
-export function DocCell({ r }: { r: OGResponsibility }) {
+export function DocCell({ r }: { r: { uuid: string; docNo: string } }) {
   return r.uuid ? (
     <AtlasLink to={atlasHref(r.uuid)} className="mono text-xs text-accent hover:underline text-left">
       {r.docNo}

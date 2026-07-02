@@ -1,9 +1,10 @@
-// Prime → executor → GovOps chain resolution + filter-pill lists for the
-// GovOps report. Pure module (no React) so it's testable without a DOM.
+// Prime → executor → GovOps/Facilitator chain resolution + filter-pill lists
+// for the role-responsibility reports. Pure module (no React) so it's testable
+// without a DOM.
 
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
-import { EXEC_EDGES, GOV_EDGES } from "./roleEdges";
+import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 
 export interface Chain {
   agentId: string;
@@ -11,6 +12,8 @@ export interface Chain {
   executorId: string;
   govopsName: string;
   govopsId: string;
+  facilitatorName: string;
+  facilitatorId: string;
 }
 
 // "Operational Executor Agent Amatsu" → "Amatsu". Numbered executors keep the
@@ -20,11 +23,13 @@ export const stripExecutorPrefix = (name: string) => {
   return /[A-Za-z]/.test(stripped) ? stripped : name;
 };
 
-// Prime name → its executor + govops, resolved via the role-as-edge chain.
+// Prime name → its executor + govops + facilitator, resolved via the
+// role-as-edge chain.
 export function buildChains(graph: GraphData): Map<string, Chain> {
   const entityById = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
   const execEdges = graph.edges.filter((e) => EXEC_EDGES.has(e.e));
   const govEdges = graph.edges.filter((e) => GOV_EDGES.has(e.e));
+  const facEdges = graph.edges.filter((e) => FAC_EDGES.has(e.e));
   const primes = graph.participants.filter((e) => e.et === "agent" && e.st === "prime");
   const map = new Map<string, Chain>();
   for (const prime of primes) {
@@ -33,12 +38,16 @@ export function buildChains(graph: GraphData): Map<string, Chain> {
     if (!executor) continue;
     const govEdge = govEdges.find((e) => e.t === executor.id);
     const gov = govEdge ? entityById.get(govEdge.f) : null;
+    const facEdge = facEdges.find((e) => e.t === executor.id);
+    const fac = facEdge ? entityById.get(facEdge.f) : null;
     map.set(prime.name, {
       agentId: prime.id,
       executorName: stripExecutorPrefix(executor.name),
       executorId: executor.id,
       govopsName: gov?.name ?? "",
       govopsId: gov?.id ?? "",
+      facilitatorName: fac?.name ?? "",
+      facilitatorId: fac?.id ?? "",
     });
   }
   return map;
@@ -49,29 +58,34 @@ export interface Pill {
   name: string;
 }
 
-// Filter-pill lists straight from the gov edges, NOT from the prime chains:
+// Filter-pill lists straight from the role edges, NOT from the prime chains:
 // the Core chain has no primes (Core Council Executor Agent 1 serves Sky Core),
-// so chain-derived lists silently dropped Atlas Axis and the core executor —
-// leaving the report's core-duty rows unfilterable.
-export function rolePills(graph: GraphData): { govops: Pill[]; executors: Pill[] } {
+// so chain-derived lists silently dropped the core org and the core executor —
+// leaving the report's core-duty rows unfilterable. `edgeSet` picks the role
+// (GOV_EDGES for the GovOps report, FAC_EDGES for the Facilitator one).
+export function rolePills(
+  graph: GraphData,
+  edgeSet: Set<string> = GOV_EDGES,
+): { holders: Pill[]; executors: Pill[] } {
   const entityById = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
-  const govops = new Map<string, string>();
+  const holders = new Map<string, string>();
   const executors = new Map<string, string>();
   for (const e of graph.edges) {
-    if (!GOV_EDGES.has(e.e)) continue;
-    const gov = entityById.get(e.f);
+    if (!edgeSet.has(e.e)) continue;
+    const holder = entityById.get(e.f);
     const exec = entityById.get(e.t);
-    if (gov && !govops.has(gov.id)) govops.set(gov.id, gov.name);
+    if (holder && !holders.has(holder.id)) holders.set(holder.id, holder.name);
     if (exec && !executors.has(exec.id)) executors.set(exec.id, stripExecutorPrefix(exec.name));
   }
   const toPills = (m: Map<string, string>) => [...m.entries()].map(([id, name]) => ({ id, name }));
-  return { govops: toPills(govops), executors: toPills(executors) };
+  return { holders: toPills(holders), executors: toPills(executors) };
 }
 
 // URL-synced filter state. slug = toAnchorId(name) — URL-safe; raw names never
 // enter the URL.
 export type ActiveFilter =
   | { kind: "govops"; slug: string }
+  | { kind: "facilitator"; slug: string }
   | { kind: "executor"; slug: string }
   | { kind: "agent"; slug: string }
   | null;
