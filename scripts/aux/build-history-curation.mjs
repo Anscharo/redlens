@@ -52,7 +52,7 @@ const RECOVER = !process.argv.includes("--no-recover"); // tier-3.5 content reco
 const DIFF = !process.argv.includes("--no-diff"); // tier-1.7 changed-lines threading (history-diff.mjs) — must match prepare-html-history
 const PR_CONTEXT = !process.argv.includes("--no-pr-context"); // fetch per-commit PR/forum change descriptions (cached; needs gh+network on first run)
 const ATLAS_REPO = "sky-ecosystem/next-gen-atlas";
-const PR_CACHE = path.join(ROOT, ".cache/atlas-prs");
+const PR_CACHE = path.join(ROOT, ".cache/github-prs"); // shared, committed PR-metadata cache (pre- + post-markdown)
 const AUTO_OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
 const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
 const CACHE_OUT = path.resolve(ROOT, arg("--cache") || "public/history-curation-llm-cache.json"); // resume cache
@@ -427,7 +427,7 @@ const uniqueCases = cases.filter((c) => (seen.has(c.key) ? false : (seen.add(c.k
 
 // Enrich each commit with its PR title + the linked forum thread's edit-list ("Update X", "Add Y")
 // — the editorial intent behind the transition, a strong threading signal the LLM/human sees per
-// case. Cached on disk (.cache/atlas-prs); first run fetches, later runs are instant.
+// case. Cached on disk (.cache/github-prs, shared with build-history); first run fetches, later runs are instant.
 if (PR_CONTEXT) log("curation: fetching PR/forum change descriptions (cached)…");
 const commits = htmlCommits.map((c) => {
   const pr = commitMeta.get(c.sha)?.pr ?? null;

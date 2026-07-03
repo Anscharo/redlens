@@ -1,0 +1,11 @@
+{
+  "number": 79,
+  "title": "Oct 16th Spell updates",
+  "body": "",
+  "author": null,
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/79",
+  "commentCount": 0,
+  "reviewCount": 0,
+  "approvalCount": 0,
+  "summary": "adds ALLOCATOR-OBEX-A along with legacy values that were never added Spark changes are incorporated in pending edit from last week's poll Grove change incorporated in edit from this week's poll"
+}

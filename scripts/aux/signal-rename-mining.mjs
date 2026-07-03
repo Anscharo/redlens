@@ -1,6 +1,6 @@
 // SIGNAL PROTOTYPE (read-only): rename-announcement mining.
 //
-// Scans every cached PR/forum text (.cache/atlas-prs/*.json) for explicit rename /
+// Scans every cached PR/forum text (.cache/github-prs/*.json) for explicit rename /
 // introduce / replace phrasing and builds a ledger of { oldName, newName, pr }. Then,
 // for a case whose SUBJECT title contains a newName, it prefers the CANDIDATE whose
 // title contains the corresponding oldName (an old→new rename means the older-side doc
@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loadSignalData, crossValidate, measureResidual, writeOut } from "./residual-signal-lib.mjs";
 
-const PR_DIR = path.join(process.cwd(), ".cache/atlas-prs");
+const PR_DIR = path.join(process.cwd(), ".cache/github-prs");
 
 // Rename phrasings, most explicit first. Each returns [oldName, newName] from its match.
 // Names are Title-Case-ish spans that stop at sentence/bullet punctuation.
@@ -37,8 +37,8 @@ function mineLedger() {
   if (!fs.existsSync(PR_DIR)) return ledger;
   for (const f of fs.readdirSync(PR_DIR).filter((x) => x.endsWith(".json"))) {
     const j = JSON.parse(fs.readFileSync(path.join(PR_DIR, f), "utf8"));
-    const pr = j.pr ?? Number(path.basename(f, ".json"));
-    const txt = quote(`${j.title || ""}. ${j.summary || ""}`);
+    const pr = j.number ?? j.pr ?? Number(path.basename(f, ".json"));
+    const txt = quote(`${j.title || ""}. ${j.summary || j.body || ""}`);
     RENAME_PATTERNS.forEach((re, idx) => {
       re.lastIndex = 0;
       let m;
