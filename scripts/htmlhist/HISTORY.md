@@ -24,6 +24,7 @@ Lifecycle order. `prepare` produces a baseline artifact; `curate` decides the am
 | `pnpm htmlhist:audit` | **Pass 1 of the post-curation audit** — independently re-pick the predecessor for **every applied decision** (deterministic, AI, and human) with a cheap second model (`google/gemma-4-31b-it`) and flag every case where it disagrees with the recorded pick. Resumable (caches each ask) + partial-safe (`--limit N`). Then **pass 2** = a reviewer (Claude/human) adjudicates each flagged disagreement and records why. Review report only — never artifact data. | `public/history-decisions.json` + queue → `.cache/audit-html-disagreements.{json,md}` + `.cache/audit-html-decisions.json` (ledger) |
 | `pnpm htmlhist:audit:accuracy` | Measure threading **accuracy** (stratified-samples + LLM-grades → a single headline %). The older statistical audit; complements the per-decision one above. Review report only. | → `.cache/audit-html-report.json` |
 | `pnpm htmlhist:trace` | Independent forward pass vs the reverse threading — agreement / conflicts cross-check. Review report only. | → `.cache/forward-reverse-diff.json` |
+| `bun scripts/htmlhist/check-cross-agent.mjs` | **Cross-agent claim guard** — verifies no seed decision threads a subject in one agent's section to another agent's occurrence (the rotation-error class the 2026-07-03 audit found in 50 decisions). Exits 1 on findings; expect 0. Run after any curation round. | decisions + queue → stdout |
 
 ### Typical pass
 

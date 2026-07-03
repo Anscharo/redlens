@@ -4,7 +4,7 @@
     "migrationSha": "22cc27b5",
     "lastHtmlSha": "7b43d159"
   },
-  "count": 2954,
+  "count": 2989,
   "decisions": [
     {
       "caseKey": "22cc27b5:2e15db4f-09cb-40e5-aaf2-172ac8da08a9",
@@ -602,9 +602,10 @@
       "subjectKey": "22cc27b5:b63e78d1-112d-4d48-a647-a1e3fc2f54a5",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:a5c19e50f2d6b9c0d8c267f3204804ac#1107",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:964b6de516fcd58af8fc9741688fc54d#1156",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit: subject content ends ', if any.' — recorded pick lacked it and was double-booked (#1107); exact-content occurrence #1156 was unclaimed (auditor pick)"
     },
     {
       "caseKey": "22cc27b5:dfdf873a-c24a-4856-a3e9-717ea09dd9bb",
@@ -1042,9 +1043,10 @@
       "subjectKey": "22cc27b5:22166d2b-40bc-4094-a3d8-fce46699a905",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:1e784c69d7af820621f400aef4de2cb4#1133",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:98b5465e-add9-4ae0-a02e-1c5be6006410",
@@ -1132,9 +1134,10 @@
       "subjectKey": "22cc27b5:c7436489-4aac-47cb-be2d-31774bd7ee99",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:a5c19e50f2d6b9c0d8c267f3204804ac#1119",
+      "chosenKey": "7b43d159:964b6de516fcd58af8fc9741688fc54d#1316",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit: subject content ends ', if any.' (parent Integration Boost) — recorded #1119 double-booked + wrong content; exact-content occurrence #1316 unclaimed (auditor pick, position-matched)"
     },
     {
       "caseKey": "22cc27b5:d7e64cf2-9f1a-4057-8395-fc1eca5c3059",
@@ -1382,9 +1385,10 @@
       "subjectKey": "22cc27b5:1f50ce0e-76f8-4436-820f-363bcf8fc017",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:66d84934d5af75d51542c9726489c90a#1377",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:43aedc35-e90a-48ca-a0fc-346ced2bea0b",
@@ -1412,9 +1416,10 @@
       "subjectKey": "22cc27b5:9478c3d6-ce1d-4c73-a479-9127b5c245e1",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:66d84934d5af75d51542c9726489c90a#1389",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:0ab76a83-ca8d-4ebf-83c1-b7e7dced0970",
@@ -2762,9 +2767,10 @@
       "subjectKey": "22cc27b5:6a9b3956-c4f0-4f59-bc7d-2028a642fc19",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:359c4b80276a2009f6f31f8d46918568",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:0079dcf69aed6c192b9e44bf9bb60126",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Spark-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:535cd1c9-1d4d-42e3-bb44-6c128690dd2d",
@@ -4432,9 +4438,10 @@
       "subjectKey": "22cc27b5:d6bcfcf6-851d-48b4-9a29-4f85be428475",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
-      "agreedWithAuto": false,
-      "method": "ai"
+      "chosenKey": "7b43d159:0e5fba7b957c6c7c68d768beb430ba42",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit: exact-content (s=1) predecessor was double-claimed by the mis-threaded Pool case c358ae91; freed by its correction — 'none'+split replaced by the true thread"
     },
     {
       "caseKey": "22cc27b5:8f1288a8-bf03-4190-a44b-b63aa31428c1",
@@ -4752,9 +4759,10 @@
       "subjectKey": "22cc27b5:1c6ea8a1-71a7-4d56-ba74-68de7ed59f2b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:9974228569013960f745659ede362f20#5086",
-      "agreedWithAuto": true,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:28841fc29cbf2a528ab1c7a857d2ab4a",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Spark-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:6e08ac53-a63b-4c23-8a52-7644f25cb8cf",
@@ -5212,9 +5220,10 @@
       "subjectKey": "22cc27b5:80c322c2-586d-46be-9421-acdb69cbc622",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:4c7ced68e8af5837fa6b3f1b1d3c9697#5088",
+      "chosenKey": "7b43d159:8ee6b0920aa4d9494ff9990fe8a4c49c",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Spark-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:1bf12913-0a08-4c83-9b05-7fa576ff8cd6",
@@ -5222,9 +5231,10 @@
       "subjectKey": "22cc27b5:1bf12913-0a08-4c83-9b05-7fa576ff8cd6",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:53254bb6afe384c46fe17d5a396817b6#5090",
+      "chosenKey": "7b43d159:2fc6571d2b693725613a38d98b701a4d",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Spark-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:89577062-a38b-4cf7-a1ae-33c0bcff1cca",
@@ -5592,9 +5602,10 @@
       "subjectKey": "22cc27b5:70bf8d47-0bb2-4650-8830-1d5856eef740",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5351",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:da9c1c0d40c79cd56eec775a617cdf54#3712",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit: Spark subject was threaded to a GROVE occurrence (#5351, cross-agent fabrication); #3712 is the sole Spark occurrence (normalized-equal content; apostrophe variant explains the stem shift)"
     },
     {
       "caseKey": "22cc27b5:3ef61462-8f74-4b84-ac42-8b847714b9e8",
@@ -5652,9 +5663,10 @@
       "subjectKey": "22cc27b5:c358ae91-bc20-4c39-9a31-7f867fab56e4",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:0e5fba7b957c6c7c68d768beb430ba42",
-      "agreedWithAuto": false,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:a38055442d94e453456d62628c7d4fb7#3732",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit: Pool boilerplate subject was threaded to the content-rich 'Minimum Maintained Balance Of USDC On Arbitrum' doc; correct predecessor is the Pool boilerplate occurrence (auditor position-verified: Contract Addresses»Token Address»UAA sequence)"
     },
     {
       "caseKey": "22cc27b5:7e6afc3c-5c09-4ca4-9c2c-05aa9ed85e67",
@@ -6172,9 +6184,10 @@
       "subjectKey": "22cc27b5:e72457e9-cfd1-4a67-a694-4b487d38d3c0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
-      "agreedWithAuto": false,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:a38055442d94e453456d62628c7d4fb7#3880",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:cc7955d0-0214-48cf-bc2b-7fc0692ef755",
@@ -7632,9 +7645,10 @@
       "subjectKey": "22cc27b5:510aabe8-5660-4b5d-b647-cd4ff022a620",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a38055442d94e453456d62628c7d4fb7#4253",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none'+split — 3 #117 Pool stubs ↔ 3 unclaimed content-identical HTML Pool occurrences (1:1); threaded order-preserving (occurrence choice is content-equivalent)"
     },
     {
       "caseKey": "22cc27b5:bdb8e938-6930-4307-8d26-1e6e0e29f5d5",
@@ -7812,9 +7826,10 @@
       "subjectKey": "22cc27b5:aaf8a23e-ca02-4a8a-a75e-9431119b25bb",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a38055442d94e453456d62628c7d4fb7#4291",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none'+split — 3 #117 Pool stubs ↔ 3 unclaimed content-identical HTML Pool occurrences (1:1); threaded order-preserving (occurrence choice is content-equivalent)"
     },
     {
       "caseKey": "22cc27b5:b89d0921-1a1f-4b1e-a074-4027c7ab19ea",
@@ -8582,9 +8597,10 @@
       "subjectKey": "22cc27b5:81c5fa7b-856b-44fe-a361-2bbce3fbac56",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#2958",
-      "agreedWithAuto": true,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#4666",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:2549581e-c635-4389-bb57-0780bb24c37e",
@@ -9182,9 +9198,10 @@
       "subjectKey": "22cc27b5:163e4dcb-8614-434b-884e-3a20eef260f1",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:dd32320a3d256aaf35911c81d6eb3314#6647",
+      "chosenKey": "7b43d159:df90bac9e146a67d3806b78a6c22f91f",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "audit: recorded pick was the LA3-section occurrence for a GROVE subject (cross-agent); the sole Grove Executor-Accord IPI directory is claimed by its duplicate twin 66568c73 (identical neighborhoods) — this copy is a split birth ‖ audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:dd89d92c-6aef-4dc6-a218-fe498d4f1756",
@@ -10592,9 +10609,10 @@
       "subjectKey": "22cc27b5:e6fe9576-9677-4bed-b779-cd2a52e4fdc0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:263f722516b7bcca7a834a690e16c88d",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:2f175df9-3b8c-4c2c-a700-52f741abf501",
@@ -11182,9 +11200,10 @@
       "subjectKey": "22cc27b5:cdc104ee-6c78-404e-95bd-362dcec206bb",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:9974228569013960f745659ede362f20#7534",
-      "agreedWithAuto": false,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:9974228569013960f745659ede362f20#5086",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:c4c09a75-ef25-4aa7-825a-73d386cbc87f",
@@ -11762,9 +11781,10 @@
       "subjectKey": "22cc27b5:44eccfe2-b96a-4b76-bd9d-9a28aee10fb7",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#4312",
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#5529",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:9af18990-c582-46f9-a78e-0c4e4ce233fc",
@@ -11852,9 +11872,10 @@
       "subjectKey": "22cc27b5:d408bd88-f680-4696-912a-5918bb08cc83",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#4358",
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#5550",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:f8705bd9-bc30-49c5-89fa-b529ebaee123",
@@ -11912,9 +11933,10 @@
       "subjectKey": "22cc27b5:6aeaafb3-c78d-4a20-9da7-2d88adb2f7d9",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#4376",
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#5571",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:0b80d875-47a9-4863-8cf9-7a564e49d7ff",
@@ -12382,9 +12404,10 @@
       "subjectKey": "22cc27b5:d33504c7-812f-43fb-b825-fc23aa177a3e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:c928db8926f21e5bf6f5ca2e4857c452#3648",
+      "chosenKey": "7b43d159:7477e1b2b1360a67b02cb8ab1e807458#5277",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:12935140-ad9b-42b4-a2e2-b84573e8ec0b",
@@ -12572,9 +12595,10 @@
       "subjectKey": "22cc27b5:93e8e5e9-2e38-45ff-b325-7ff52f73017d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:da9c1c0d40c79cd56eec775a617cdf54#3712",
-      "agreedWithAuto": true,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5370",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit: Grove subject was claiming the Spark occurrence #3712 (released to 70bf8d47); assigned first unclaimed Grove occurrence — all 6 unclaimed Grove occurrences are content-identical (equivalence class), order-preserving"
     },
     {
       "caseKey": "22cc27b5:c13e1a1b-4104-4964-a901-4c7bcb19c868",
@@ -12922,9 +12946,10 @@
       "subjectKey": "22cc27b5:15c531fe-68c8-4fe6-8beb-d18fb7174da9",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5388",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none' — 6 Grove #117 Rate Limit IDs subjects lacked claims while 6 content-identical Grove occurrences sat unclaimed (1:1); threaded order-preserving (content-equivalent class)"
     },
     {
       "caseKey": "22cc27b5:220946bd-aa72-4690-a423-e728019bda4d",
@@ -13072,9 +13097,10 @@
       "subjectKey": "22cc27b5:09b73b1b-969c-485a-822b-9b61840494bc",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:1a1a35078cdbc9e089a719ae483b0fbe",
+      "chosenKey": "7b43d159:3c05f608ecbca56005920af1bf2f30e5#5512",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Grove-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:ca62ee2b-3ced-4798-9c39-8687f3f11bef",
@@ -13142,9 +13168,10 @@
       "subjectKey": "22cc27b5:35269818-4f06-49a8-8675-f7da3f616976",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5407",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none' — 6 Grove #117 Rate Limit IDs subjects lacked claims while 6 content-identical Grove occurrences sat unclaimed (1:1); threaded order-preserving (content-equivalent class)"
     },
     {
       "caseKey": "22cc27b5:a907ce48-a651-4cc9-a382-82e989f3ee50",
@@ -13192,9 +13219,10 @@
       "subjectKey": "22cc27b5:dd63b171-c94f-4082-8719-24870cb173c1",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5450",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none' — 6 Grove #117 Rate Limit IDs subjects lacked claims while 6 content-identical Grove occurrences sat unclaimed (1:1); threaded order-preserving (content-equivalent class)"
     },
     {
       "caseKey": "22cc27b5:fd676948-7b31-4f11-b4b0-933226a193e7",
@@ -13452,9 +13480,10 @@
       "subjectKey": "22cc27b5:f8e73145-23c5-48f6-b48b-62e4f7b8af0d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5470",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none' — 6 Grove #117 Rate Limit IDs subjects lacked claims while 6 content-identical Grove occurrences sat unclaimed (1:1); threaded order-preserving (content-equivalent class)"
     },
     {
       "caseKey": "22cc27b5:d394483b-e739-4346-948b-488fb942a48f",
@@ -13492,9 +13521,10 @@
       "subjectKey": "22cc27b5:3c791810-2663-432b-9f8a-7276c721c3d2",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:ea6a77b42eb3d52664037077fbb5161f#6307",
+      "chosenKey": "none",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: Grove subject held a Keel-section occurrence; every Grove-section candidate is legitimately claimed by another Grove subject — set none (split copy) rather than fabricated cross-agent lineage"
     },
     {
       "caseKey": "22cc27b5:49ae5000-35bb-497f-a545-2369859b651a",
@@ -13502,9 +13532,10 @@
       "subjectKey": "22cc27b5:49ae5000-35bb-497f-a545-2369859b651a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd9a78519f33cb82bedc6f802675064c#5490",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit follow-up: was 'none' — 6 Grove #117 Rate Limit IDs subjects lacked claims while 6 content-identical Grove occurrences sat unclaimed (1:1); threaded order-preserving (content-equivalent class)"
     },
     {
       "caseKey": "22cc27b5:9c8fc963-4a61-4157-a665-bd1ff47f0ae0",
@@ -13522,9 +13553,10 @@
       "subjectKey": "22cc27b5:dfc74dd9-8390-4428-96e4-9b09c1ce0955",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3d139d306ce5a35a16a7cd68f4aa7af5#6315",
+      "chosenKey": "none",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: Grove subject held a Keel-section occurrence; every Grove-section candidate is legitimately claimed by another Grove subject — set none (split copy) rather than fabricated cross-agent lineage"
     },
     {
       "caseKey": "22cc27b5:5ad3319c-8c5a-4ba3-8578-29ab5bd51830",
@@ -13912,9 +13944,10 @@
       "subjectKey": "22cc27b5:a8c87f52-ad5a-43ad-a9e8-7b087193d8d4",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#4666",
+      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#5664",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:e67cd345-759d-4bd3-b264-a81971bf1921",
@@ -14512,9 +14545,10 @@
       "subjectKey": "22cc27b5:66568c73-c92f-4bac-8b7d-bd653782b39e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:df90bac9e146a67d3806b78a6c22f91f",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:128e47249339aef64a5487882866aa52",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:55586d0c-04d0-47dc-8ea1-3296a877f3e0",
@@ -14792,9 +14826,10 @@
       "subjectKey": "22cc27b5:5caf90a5-60dc-4698-9ef7-70aba1c38efe",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f6daa4810d9c2faae012e1fda29a1625#4791",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:f49b5a240a0af664a8584a12182b5c74#5787",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:293c49b9-48f4-433c-820f-4915696f742f",
@@ -15092,9 +15127,10 @@
       "subjectKey": "22cc27b5:3ef3d779-a66e-44f3-9192-6c3a5a5ca971",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f96dbad936c1af86acda060f5c679505",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:2976c47b67d7dc0faa282e09c96d52e3",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:f9ff9c94-1a3d-4bc6-b2a4-40f9af76b0ac",
@@ -15232,9 +15268,10 @@
       "subjectKey": "22cc27b5:27f7f243-59e6-4bcc-9c1b-6841eb68f855",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:ffb5e79022715825b0952ba448afb57a#6744",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:dcc547391025859641b9c83e1dcd3176",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:62ae3afe-10af-433e-a296-1a0f2c9056ea",
@@ -15532,9 +15569,10 @@
       "subjectKey": "22cc27b5:e5f55c8d-f3f6-4f59-b49c-18b4085df50e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:90abed122a98d1ef9b5bac1789cc4cba#6785",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:fc5a606a2d2c785f23f14abba52a33b1",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:99d73511-9bec-4479-a451-8196ce3ea877",
@@ -15812,9 +15850,10 @@
       "subjectKey": "22cc27b5:3872c2ee-5465-4ce1-8c34-3800e61fd674",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d7deb984d5f1017a44089dde0157f0e2#3221",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:e403038d7e6d2dfdf820ce2562d7d7aa#5978",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:0886e43d-3f0e-4fbc-bb39-b21934477638",
@@ -15872,9 +15911,10 @@
       "subjectKey": "22cc27b5:072498cd-35c7-4e12-a2f7-3c6462257ed3",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d7deb984d5f1017a44089dde0157f0e2#6825",
+      "chosenKey": "7b43d159:e403038d7e6d2dfdf820ce2562d7d7aa#5998",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:cb8de39f-11d4-462d-80e4-12bd793697f1",
@@ -15932,9 +15972,10 @@
       "subjectKey": "22cc27b5:e5ffb0b8-fd9d-4932-b8fa-1ebcc2cbb0d2",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d7deb984d5f1017a44089dde0157f0e2#6840",
+      "chosenKey": "7b43d159:e403038d7e6d2dfdf820ce2562d7d7aa#6019",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:d1d06d85-c679-4a6f-ab24-cd10e4de1361",
@@ -15982,9 +16023,10 @@
       "subjectKey": "22cc27b5:94bc2f19-0cbd-4afe-8c5d-d909092fb31d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:527e5b06ab5afd4a68b72930df634690#3250",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:527e5b06ab5afd4a68b72930df634690#6014",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:917307b6-ec3f-4b5f-b517-3f561c2cfe9a",
@@ -16132,9 +16174,10 @@
       "subjectKey": "22cc27b5:6b836e0a-37cd-4e54-9479-1cf54ee4088c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:6ac9fb0d462df249e4419d167247cbca#7092",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:f2a972273cea7bee4f82076f4cf51a71",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:e32e87d5-bbaf-4bde-9bbd-332e2465a44a",
@@ -16272,9 +16315,10 @@
       "subjectKey": "22cc27b5:7bf3b5c6-6cc5-46fe-b4a8-08b9a0108bec",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:a2fdca7dedae55e5ceb01e4366dbe7e7#7462",
+      "chosenKey": "7b43d159:7ef1d2197e898f8f6d50e839a5d97696#6063",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:54f36966-b656-4f51-9272-ac60fd90e1cc",
@@ -17962,9 +18006,10 @@
       "subjectKey": "22cc27b5:217ebbef-bf36-4636-b61c-3751b2d56065",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:ea6a77b42eb3d52664037077fbb5161f#7603",
+      "chosenKey": "7b43d159:ea6a77b42eb3d52664037077fbb5161f#6307",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:715c3865-bf52-41cd-84e3-d57508c27b5f",
@@ -17992,9 +18037,10 @@
       "subjectKey": "22cc27b5:474e5b21-e27b-466d-b337-3a4b205d1f96",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3d139d306ce5a35a16a7cd68f4aa7af5#7612",
+      "chosenKey": "7b43d159:3d139d306ce5a35a16a7cd68f4aa7af5#6315",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:96fa3806-12eb-4ca5-99ff-b930bac8ee7e",
@@ -18072,9 +18118,10 @@
       "subjectKey": "22cc27b5:23138f00-8867-4b18-81fa-713007909f8f",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:aaeffa7047066a094f822ea0b79192ec#7120",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:2bd5090670830a8827877b334862ef71",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:74b8a03c-e123-4517-9c60-f445fc958174",
@@ -18172,9 +18219,10 @@
       "subjectKey": "22cc27b5:d0c0850d-9f45-4d6c-bc22-b191a41d1e2a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:9e0477ca4fdbae43bb0870e8281d4f9e#7133",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:c381bcf98c53fa914dd8384401c0afd4",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:ce1d1572-7f0f-45d2-9f08-2eaae70c7b61",
@@ -18272,9 +18320,10 @@
       "subjectKey": "22cc27b5:66c63d9c-6bb6-44b7-a754-29a15475e4c0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d4af1166c468d5ee36b697df98cbfb0f#7147",
-      "agreedWithAuto": false,
-      "method": "human"
+      "chosenKey": "7b43d159:9c2deabb5551ed31a1eb664d430f1284",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Keel-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:3ab2001f-f1eb-4249-852c-96604a85e987",
@@ -18412,9 +18461,10 @@
       "subjectKey": "22cc27b5:aa957ab8-fa9a-4ce0-bb47-e34350f16027",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#5664",
+      "chosenKey": "7b43d159:f04e61792962c0eab2d26cb5f63edf4a#6561",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:0334421f-a3a0-4016-94fd-5cb0fc026b25",
@@ -19012,9 +19062,10 @@
       "subjectKey": "22cc27b5:9b42623e-e6fb-4c18-a291-d5ed18634e39",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:128e47249339aef64a5487882866aa52",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:dd32320a3d256aaf35911c81d6eb3314#6647",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:c2daebbe-e96d-4201-a5df-725b9ef64780",
@@ -19292,9 +19343,10 @@
       "subjectKey": "22cc27b5:76b51e97-ff82-4f52-8c24-7b75d629bb4a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f6daa4810d9c2faae012e1fda29a1625#7300",
+      "chosenKey": "7b43d159:f49b5a240a0af664a8584a12182b5c74#6684",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:b91f0f85-680d-4eeb-9a2e-7e0e245e4c6d",
@@ -19412,9 +19464,10 @@
       "subjectKey": "22cc27b5:8f764154-a5d2-4cd6-ba54-537dbe785f6c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d13aab8a79a903fe3b63572eb112643d#7319",
+      "chosenKey": "7b43d159:d13aab8a79a903fe3b63572eb112643d#6703",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:7561a59b-425a-405d-ba35-1892a282dd2b",
@@ -19722,9 +19775,10 @@
       "subjectKey": "22cc27b5:edea3177-ecd8-4724-8a52-12f59230a88c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:ffb5e79022715825b0952ba448afb57a#7360",
+      "chosenKey": "7b43d159:ffb5e79022715825b0952ba448afb57a#6744",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:a12c0c41-0ab3-4374-ba6f-080ea1674372",
@@ -20022,9 +20076,10 @@
       "subjectKey": "22cc27b5:75c0efb2-0428-4764-9bfd-fdccca850048",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:90abed122a98d1ef9b5bac1789cc4cba#7401",
+      "chosenKey": "7b43d159:90abed122a98d1ef9b5bac1789cc4cba#6785",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:1707675b-308e-4ac1-8e29-129b76ed430d",
@@ -21352,9 +21407,10 @@
       "subjectKey": "22cc27b5:5dde47de-0f14-4cba-aae8-89c5f16a2303",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:6ac9fb0d462df249e4419d167247cbca#7441",
+      "chosenKey": "7b43d159:6ac9fb0d462df249e4419d167247cbca#7092",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:352eb7b1-b4bf-405d-970c-d937ffb65ae3",
@@ -21432,9 +21488,10 @@
       "subjectKey": "22cc27b5:05bc1cbc-57a1-462e-8618-b401636ac835",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:ce1ad76417ad11ecfc4da95557612377#7453",
+      "chosenKey": "7b43d159:d3fdbf88905ca6743118e95c5bf72188",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:04c05a8f-cb70-4cb3-85e7-ceaa94c75c34",
@@ -21442,9 +21499,10 @@
       "subjectKey": "22cc27b5:04c05a8f-cb70-4cb3-85e7-ceaa94c75c34",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:17d50f0541dff0e2cb7268a9391f3e0a#7457",
+      "chosenKey": "7b43d159:4fad4241941afcba486e9687fb87ec01",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:b74ad51a-a372-4706-9084-d22c00318955",
@@ -21502,9 +21560,10 @@
       "subjectKey": "22cc27b5:953249d4-609a-4e03-b069-bbbcd2d1c88e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:5b85679e1d0deed2caa1694a780984bf#6497",
-      "agreedWithAuto": true,
-      "method": "ai"
+      "chosenKey": "7b43d159:5b85679e1d0deed2caa1694a780984bf#7113",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:c95c1adc-dd0a-4ddb-b992-3948f1e000c2",
@@ -21542,9 +21601,10 @@
       "subjectKey": "22cc27b5:f0296ab8-bf0c-465a-955e-2566580cc810",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:aaeffa7047066a094f822ea0b79192ec#7624",
+      "chosenKey": "7b43d159:aaeffa7047066a094f822ea0b79192ec#7120",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:f3e94987-31d6-47c9-8809-fc90d1f401cd",
@@ -21642,9 +21702,10 @@
       "subjectKey": "22cc27b5:92a1b7cd-9f42-4238-b388-d09d2eab1b61",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:9e0477ca4fdbae43bb0870e8281d4f9e#7637",
+      "chosenKey": "7b43d159:9e0477ca4fdbae43bb0870e8281d4f9e#7133",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:ca4d7aa2-daae-4806-aeb8-fa2ff48d5a1c",
@@ -21742,9 +21803,10 @@
       "subjectKey": "22cc27b5:30c32b90-6471-49f7-ab7b-956ece318a8e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d4af1166c468d5ee36b697df98cbfb0f#7651",
+      "chosenKey": "7b43d159:d4af1166c468d5ee36b697df98cbfb0f#7147",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 3-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:766df1ab-660b-4066-982a-7e99c21c93ec",
@@ -21822,9 +21884,10 @@
       "subjectKey": "22cc27b5:6229b346-ecd5-474a-bfd4-e22066a365f0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:8da52b2a4cc667912e6b3f4555bfdcfb",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:7c3e364b-84e7-4b47-9b5a-54978a127f97",
@@ -21892,9 +21955,10 @@
       "subjectKey": "22cc27b5:5f6b104e-2310-45d4-ba62-92d3a9a5ed0b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:495976ad012c1d8c9d3af19a34280092",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:31bafd0d-b417-4759-88af-7589f9a32518",
@@ -21902,9 +21966,10 @@
       "subjectKey": "22cc27b5:31bafd0d-b417-4759-88af-7589f9a32518",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:964e24e74d1cc712b7226e20b3241a96",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:9d67690d-87df-4fcf-bac0-0b2bcf75bf12",
@@ -22002,9 +22067,10 @@
       "subjectKey": "22cc27b5:e4e7adc0-7c85-464c-a60c-87dafb800e48",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:e96cfc36114170b615adfe2d78cdabfd",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1ad29165-0b55-4b7d-a908-c8e097a9d053",
@@ -22012,9 +22078,10 @@
       "subjectKey": "22cc27b5:1ad29165-0b55-4b7d-a908-c8e097a9d053",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:14e5ea8790a4f3460d12521a8d6ba1ed",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:79851842-32b3-4e42-bbbc-2e4240a7b875",
@@ -22062,9 +22129,10 @@
       "subjectKey": "22cc27b5:6b3b64ef-26b1-45ee-8596-7c78c243f1ae",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:62542e1430b18ade984bc914c8ef2549",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:e54ec47c-4526-4cc2-9722-43ed3cee7768",
@@ -22072,9 +22140,10 @@
       "subjectKey": "22cc27b5:e54ec47c-4526-4cc2-9722-43ed3cee7768",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:6a6af3bf6957f061c9eb87415384b6a8",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1a8ffef1-7997-452c-9f58-6b8d9af23c04",
@@ -22082,9 +22151,10 @@
       "subjectKey": "22cc27b5:1a8ffef1-7997-452c-9f58-6b8d9af23c04",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a5e8f2f8240e76ac1d0fac1cfb8efa9d",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:2fd59b03-9278-4371-a3f1-fe9514ab322b",
@@ -22182,9 +22252,10 @@
       "subjectKey": "22cc27b5:5f9f5d64-6e5b-466e-a4c0-a194ec24161f",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:204cb86961241f904624f5ffaa6b84fd",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:8f2c269a-20d6-4d3c-82e8-1a98123d663b",
@@ -22192,9 +22263,10 @@
       "subjectKey": "22cc27b5:8f2c269a-20d6-4d3c-82e8-1a98123d663b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:569444333d0166c0043cb1d30c048881",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1a4b9edf-b153-4f7f-be3a-27a87ef58185",
@@ -22242,9 +22314,10 @@
       "subjectKey": "22cc27b5:87d42440-89ee-4d33-8f3e-8a9cf56b0fc6",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:d800590f4c9d03e3d312287e72b49cc1",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:697d6019-9769-49cb-8394-c74c9c2240f3",
@@ -22252,9 +22325,10 @@
       "subjectKey": "22cc27b5:697d6019-9769-49cb-8394-c74c9c2240f3",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:5b59b7e53bed47688139a538581bccba",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:0dfb0a6f-af53-45d5-badb-0383c76f2515",
@@ -22282,9 +22356,10 @@
       "subjectKey": "22cc27b5:6a9df4c5-fe51-4bfa-b661-69e313df475c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:396cec160e66041fef341708dd95d020",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:7e49543e-ee1f-4a60-9b80-e290e961931d",
@@ -22292,9 +22367,10 @@
       "subjectKey": "22cc27b5:7e49543e-ee1f-4a60-9b80-e290e961931d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:88d7c11f155dd2f3aa8633fc64a2233d",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:5d1fa3e0-cafc-4667-951e-0ea439d13a95",
@@ -22342,9 +22418,10 @@
       "subjectKey": "22cc27b5:7b49d757-66c0-4a34-b715-729a64801fca",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:c329cb1edb7ea0339323b740613fc362",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:df170b7f-303a-4029-8f10-7548dab07f8a",
@@ -22352,9 +22429,10 @@
       "subjectKey": "22cc27b5:df170b7f-303a-4029-8f10-7548dab07f8a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:15d4d562ed8f55691e7a47cf5ae053fb",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:81d78b70-e460-4588-8e37-d2cf7ec87d32",
@@ -22442,9 +22520,10 @@
       "subjectKey": "22cc27b5:c0ee9726-7ae8-4176-a3f3-01152a53f0d1",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:6484be841897d16e0a2543518d530f67",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:ec1f15fa-3059-4fd3-9467-7a796d7050a5",
@@ -22522,9 +22601,10 @@
       "subjectKey": "22cc27b5:4a6fc07c-c28c-499d-93c4-bd469e8b2012",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:653f065f526dea0655b7dc2223a58ba3",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:2fd90ea2-b604-4a06-8c73-888c08365dba",
@@ -22562,9 +22642,10 @@
       "subjectKey": "22cc27b5:33eff493-0a21-4bb0-899e-f3fab9ef6f27",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:f73210eddf5a64441e3cb4198de1fcb4",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:dfca9a54-ab85-476a-ab49-345ec43a1294",
@@ -22592,9 +22673,10 @@
       "subjectKey": "22cc27b5:67ec15f0-3610-42e3-bbd4-1d35c5944aa6",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:49097f040c8a78f0fb2b3b49bd25e2b1",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:155d502c-8c81-47dc-aaa5-0944a565cd8c",
@@ -22642,9 +22724,10 @@
       "subjectKey": "22cc27b5:75008710-7942-45ef-87ee-f342f0a571f4",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:75fd8cde2a19dda7e5e6f3e2f231f4e4",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:2bc00f12-93cd-4431-8d6c-6a1170ca474c",
@@ -22652,9 +22735,10 @@
       "subjectKey": "22cc27b5:2bc00f12-93cd-4431-8d6c-6a1170ca474c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:d6eba41a2e7c8754cddb992af1efc39c",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:f5cb7958-d3a3-4179-9541-8a603745a5f1",
@@ -22772,9 +22856,10 @@
       "subjectKey": "22cc27b5:4d6ec316-b444-4550-a591-006a6b8080cd",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fa83d359e55ff8df30463bfc1a798fc0",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:77be1f27-3cd0-4e3f-a05d-8ce0880f37a7",
@@ -22802,9 +22887,10 @@
       "subjectKey": "22cc27b5:88717821-a8d4-480e-91c6-ba996685746c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:d59c695862690b881255fe5279008c79",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:c38da3e3-0dbc-4deb-833f-0a124d55f0f7",
@@ -22812,9 +22898,10 @@
       "subjectKey": "22cc27b5:c38da3e3-0dbc-4deb-833f-0a124d55f0f7",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d13aab8a79a903fe3b63572eb112643d#6703",
+      "chosenKey": "7b43d159:d13aab8a79a903fe3b63572eb112643d#7319",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:19e005fe-f719-407f-b788-5bc13f3ffb11",
@@ -22852,9 +22939,10 @@
       "subjectKey": "22cc27b5:d9955aca-f64d-41a3-9c5c-16ad98f98956",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:df7f2f8b9016bcb7b7aafc3639ac7d7b",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:d7b02050-890e-4b86-9bbf-2d4183a97f44",
@@ -22862,9 +22950,10 @@
       "subjectKey": "22cc27b5:d7b02050-890e-4b86-9bbf-2d4183a97f44",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:0fe9ecdf64d3090ba5a5fb55aeaf1bcf",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:5ef59d24-d4c8-445c-8385-08801b24be3a",
@@ -22872,9 +22961,10 @@
       "subjectKey": "22cc27b5:5ef59d24-d4c8-445c-8385-08801b24be3a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:527fcd9a05c9b28d20327f8dd16846fe",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:041daa3a-41b4-47fd-8e2b-bb288fd8342b",
@@ -22892,9 +22982,10 @@
       "subjectKey": "22cc27b5:590456d2-baea-411e-bd00-dccbd12387c0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:3bbd23531c3013dc710e32295cd8f695",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1d7ff736-dd46-4b6f-b5c1-c52e50f34846",
@@ -22902,9 +22993,10 @@
       "subjectKey": "22cc27b5:1d7ff736-dd46-4b6f-b5c1-c52e50f34846",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:e29d3ea0a518446d7ee2be4367eb66c4",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:14a2006a-764a-4526-8d9f-ff3dfc4591fe",
@@ -22952,9 +23044,10 @@
       "subjectKey": "22cc27b5:a300b6cf-1826-4b4a-b49a-b9fe4f75ccda",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:1c390a8002ac0eecd9a3a15607f14982",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:a27eeee1-ce9a-4b26-9bef-57199b921eda",
@@ -22962,9 +23055,10 @@
       "subjectKey": "22cc27b5:a27eeee1-ce9a-4b26-9bef-57199b921eda",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:be06a399784767ba8c9789ef9f6526fc",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:7ef7b4b1-d8c1-4f9d-bf00-c1cf292b0c02",
@@ -23082,9 +23176,10 @@
       "subjectKey": "22cc27b5:beeba9d9-39bb-4f36-9447-9456966975eb",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fb0150b89b9b6125b9c00736ec85d19f",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:3c7049bc-3c9f-4088-94bc-0fc242dca76a",
@@ -23102,9 +23197,10 @@
       "subjectKey": "22cc27b5:6548ed03-6cf2-482e-ab15-0d39f5c2f767",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:44b7995da7008107a6333e41273035ee",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:a3b9358d-d4eb-45ba-8ef2-bd8fc7280ccc",
@@ -23112,9 +23208,10 @@
       "subjectKey": "22cc27b5:a3b9358d-d4eb-45ba-8ef2-bd8fc7280ccc",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:1e4cc7ab1927a9a6fc42f94ee3fec101",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1778b3fa-c238-4094-9143-e949a28532fc",
@@ -23122,9 +23219,10 @@
       "subjectKey": "22cc27b5:1778b3fa-c238-4094-9143-e949a28532fc",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:dcc547391025859641b9c83e1dcd3176",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:ffb5e79022715825b0952ba448afb57a#7360",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:79d81288-94aa-44e9-85d2-2f5108b5d789",
@@ -23162,9 +23260,10 @@
       "subjectKey": "22cc27b5:89f2d35e-d04b-47cc-8f75-cba401195668",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ac7007cd7478a6565b17c093a2d45f1b",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:4cf784c4-9a59-4b24-88bc-d10b5991cdf4",
@@ -23172,9 +23271,10 @@
       "subjectKey": "22cc27b5:4cf784c4-9a59-4b24-88bc-d10b5991cdf4",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a25540919c829f4b45e379720b5c098c",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:f8a814a0-8c61-4aee-af6d-919e6aa5aa1e",
@@ -23182,9 +23282,10 @@
       "subjectKey": "22cc27b5:f8a814a0-8c61-4aee-af6d-919e6aa5aa1e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:c3ed9ea6063856064887fb2fcf605eb4",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:3bad0aba-a4be-4107-809c-b41d364d5278",
@@ -23202,9 +23303,10 @@
       "subjectKey": "22cc27b5:47f2fe76-ba5f-437e-8110-799c1e3fe7f5",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:f72074168e973e093fc9878f6ab365fc",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:41b96ba1-f506-498a-803f-d4067053b6ed",
@@ -23212,9 +23314,10 @@
       "subjectKey": "22cc27b5:41b96ba1-f506-498a-803f-d4067053b6ed",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:e8b218cf29ff48a0b8d589334ea2867f",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:8850b00e-dd0a-44d7-b64a-7e4ef5cf7d37",
@@ -23262,9 +23365,10 @@
       "subjectKey": "22cc27b5:28085731-4ac7-4016-807c-652fe1447bb8",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:84d6cbdce508cb903297d27e97dfdfeb",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:c4e5deff-2cf9-492c-af8c-cfbd33327686",
@@ -23272,9 +23376,10 @@
       "subjectKey": "22cc27b5:c4e5deff-2cf9-492c-af8c-cfbd33327686",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:64158f9fe4d7318a8f3ee0256187dc70",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:8a327b83-b508-480b-8e97-038c6e35c64f",
@@ -23382,9 +23487,10 @@
       "subjectKey": "22cc27b5:0723c247-7b2d-48aa-a1f1-1166aad05319",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:5f2958b95273fec562e10da8f0dd1753",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:4e8268eb-b8f4-4d45-bf11-a6c03f262275",
@@ -23402,9 +23508,10 @@
       "subjectKey": "22cc27b5:5c2fbcb7-e90b-44a5-854b-1616d9ad45a9",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:6baa298c200f1319ae22d5dd6bb39e93",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:a4ca44ca-4663-4d7d-8640-f173dfad1054",
@@ -23412,9 +23519,10 @@
       "subjectKey": "22cc27b5:a4ca44ca-4663-4d7d-8640-f173dfad1054",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:6a65982cf3871d881ca67581f418a6fe",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:3fd9d534-7c71-411b-84ed-afbe997589d0",
@@ -23422,9 +23530,10 @@
       "subjectKey": "22cc27b5:3fd9d534-7c71-411b-84ed-afbe997589d0",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:fc5a606a2d2c785f23f14abba52a33b1",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:90abed122a98d1ef9b5bac1789cc4cba#7401",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:930899b8-232d-4015-a594-317b682ca460",
@@ -23462,9 +23571,10 @@
       "subjectKey": "22cc27b5:aea6d389-e1d1-4cd1-bd96-24a29c1b3ecc",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:4f1dac0dd8f6c75c49a95e3bef8c631b",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:e8a2afff-b4b0-4b47-8b7a-32119eca9091",
@@ -23472,9 +23582,10 @@
       "subjectKey": "22cc27b5:e8a2afff-b4b0-4b47-8b7a-32119eca9091",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a9b18fac9246ba510964f371bf3e6f78",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:b08f8e0b-5cc8-4b0a-b148-4ef44fa7ae03",
@@ -23482,9 +23593,10 @@
       "subjectKey": "22cc27b5:b08f8e0b-5cc8-4b0a-b148-4ef44fa7ae03",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:baab8ab604c1ff34e724c81b140d0a60",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:01dcfdbb-70a4-4986-bf38-28db96dba4c4",
@@ -23502,9 +23614,10 @@
       "subjectKey": "22cc27b5:6d07d8e0-e37e-47f0-8534-e0c67effd267",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:af4869e158e56511ce40ff27faf8e8f3",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:f3d16b8f-4ac2-41b8-8744-13beb396588e",
@@ -23512,9 +23625,10 @@
       "subjectKey": "22cc27b5:f3d16b8f-4ac2-41b8-8744-13beb396588e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:44199ceedd40e0095278bfe1dec30a5e",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:e1234baf-b923-4837-a279-96a76208f78d",
@@ -23562,9 +23676,10 @@
       "subjectKey": "22cc27b5:ce59ab47-8c7a-4893-a3f2-c9eeafac5168",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:c276ef6aab681d0055023d94816ef95b",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:bbe5be33-f895-48a4-a8de-7d65d83d4321",
@@ -23572,9 +23687,10 @@
       "subjectKey": "22cc27b5:bbe5be33-f895-48a4-a8de-7d65d83d4321",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:7efde480d137ca0403d081bc7f738ad9",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:51861e24-08e4-4828-a5ea-0f0ac08f67db",
@@ -23582,9 +23698,10 @@
       "subjectKey": "22cc27b5:51861e24-08e4-4828-a5ea-0f0ac08f67db",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:5601adb5acfba7a66a875e3a7ba27c78",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:12cf9640-3b5b-4255-b7d9-e84baa973d9f",
@@ -23602,9 +23719,10 @@
       "subjectKey": "22cc27b5:bf82c8f9-c7d4-42ac-b590-f28982863ef5",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:bdece1020cb29d760c0703f9a575fb49",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:c206ac89-c13e-4fae-886e-3014d0640b05",
@@ -23612,9 +23730,10 @@
       "subjectKey": "22cc27b5:c206ac89-c13e-4fae-886e-3014d0640b05",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:c1fffc487d3ede84b70a4ec9402f53e5",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:daad121e-7835-4c61-90fb-eb15f987329e",
@@ -23662,9 +23781,10 @@
       "subjectKey": "22cc27b5:d229d7d4-efdf-413c-9d9d-d4af3b43164b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fca14111828a548998d85eca8336d8ba",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:0607bde3-cffa-4597-8ad9-fdb38272a843",
@@ -23722,9 +23842,10 @@
       "subjectKey": "22cc27b5:e9e9cbf4-87cb-4e48-bf7c-f1a4caa934fa",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:f2a972273cea7bee4f82076f4cf51a71",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:6ac9fb0d462df249e4419d167247cbca#7441",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:be430718-d9f5-4104-bdd0-26e333bd0a13",
@@ -23762,9 +23883,10 @@
       "subjectKey": "22cc27b5:20face9e-9216-44e9-b195-7d5fcb4c8465",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fbceab04957499e5f501d08c5bb19d87",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:4fd3fe8d-e5d8-49ce-95b5-15e14e165abf",
@@ -23772,9 +23894,10 @@
       "subjectKey": "22cc27b5:4fd3fe8d-e5d8-49ce-95b5-15e14e165abf",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:31b5478d7c61279b28206a9d7abebd2a",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:504497a1-14b9-4119-b520-bdcf4bedc4f9",
@@ -23782,9 +23905,10 @@
       "subjectKey": "22cc27b5:504497a1-14b9-4119-b520-bdcf4bedc4f9",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:cd89761fed0c790b269728a7d48629f3",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:cafab30a-9a0e-46ba-8eb9-889d85a57bb0",
@@ -23802,9 +23926,10 @@
       "subjectKey": "22cc27b5:b8d74925-677a-48e8-be42-b9e2614c9e0f",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ce1ad76417ad11ecfc4da95557612377#7453",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 3: same-agent equal-content occurrence freed by the rotation fixes — threaded (agent-guarded)"
     },
     {
       "caseKey": "22cc27b5:59ef3080-82eb-4c0f-96cf-5d973128e4ef",
@@ -23812,9 +23937,10 @@
       "subjectKey": "22cc27b5:59ef3080-82eb-4c0f-96cf-5d973128e4ef",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fdd500162ecad2327742c7767e62160b",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:f98d5f67-2cf0-4691-b13b-23e11caad05b",
@@ -23822,9 +23948,10 @@
       "subjectKey": "22cc27b5:f98d5f67-2cf0-4691-b13b-23e11caad05b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:17d50f0541dff0e2cb7268a9391f3e0a#7457",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 3: same-agent equal-content occurrence freed by the rotation fixes — threaded (agent-guarded)"
     },
     {
       "caseKey": "22cc27b5:492c60d5-d5eb-4fab-b8eb-a4858c7b6033",
@@ -23872,9 +23999,10 @@
       "subjectKey": "22cc27b5:a685b24a-59a8-49e4-94d5-20db465f316e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a2fdca7dedae55e5ceb01e4366dbe7e7#7462",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 3: same-agent equal-content occurrence freed by the rotation fixes — threaded (agent-guarded)"
     },
     {
       "caseKey": "22cc27b5:4cd1c7c9-f246-40b1-a31c-4512638f7fd3",
@@ -24492,9 +24620,10 @@
       "subjectKey": "22cc27b5:81a36b20-bf42-40eb-b47f-c5859529a77c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ea6a77b42eb3d52664037077fbb5161f#7603",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 3: same-agent equal-content occurrence freed by the rotation fixes — threaded (agent-guarded)"
     },
     {
       "caseKey": "22cc27b5:b7dff5a9-125e-4ee1-9977-4698b5442b26",
@@ -24502,9 +24631,10 @@
       "subjectKey": "22cc27b5:b7dff5a9-125e-4ee1-9977-4698b5442b26",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:3d139d306ce5a35a16a7cd68f4aa7af5#7612",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 3: same-agent equal-content occurrence freed by the rotation fixes — threaded (agent-guarded)"
     },
     {
       "caseKey": "22cc27b5:ca2c0cd1-73e3-49f1-b415-65e5f200b097",
@@ -24522,9 +24652,10 @@
       "subjectKey": "22cc27b5:5f9e7e17-d7c4-4c72-9d0f-a2b58de3bbe6",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fba8a3c4be416904cc54f94c326f5a39",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:51f16355-24cf-463f-9603-154da3fcb1b3",
@@ -24532,9 +24663,10 @@
       "subjectKey": "22cc27b5:51f16355-24cf-463f-9603-154da3fcb1b3",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:da0bc8863f4f176ed0588cddf761ce1d",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:b60d8075-b908-4086-9bb0-0d8a609b1dd6",
@@ -24542,9 +24674,10 @@
       "subjectKey": "22cc27b5:b60d8075-b908-4086-9bb0-0d8a609b1dd6",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:2bd5090670830a8827877b334862ef71",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:aaeffa7047066a094f822ea0b79192ec#7624",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:a5fea5f5-f6b2-47e4-9ef5-bb23ba08921d",
@@ -24582,9 +24715,10 @@
       "subjectKey": "22cc27b5:fd2cdc13-4035-4c91-b17c-7d1d1d5c5b7b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:8408223d3ab0a632482d21cba417b363",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:b894cf0e-5a3d-4fe2-bb43-668a1f973857",
@@ -24592,9 +24726,10 @@
       "subjectKey": "22cc27b5:b894cf0e-5a3d-4fe2-bb43-668a1f973857",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:44988a0c580d1fd69c78067164dcbd9c",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:4b2e42f3-064c-4cb8-87a8-96512a581841",
@@ -24602,9 +24737,10 @@
       "subjectKey": "22cc27b5:4b2e42f3-064c-4cb8-87a8-96512a581841",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:933f968d1f5ba18087e00626fb497ddf",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:b83be319-7f7e-4cf5-ad70-ac59302422e4",
@@ -24622,9 +24758,10 @@
       "subjectKey": "22cc27b5:10f33907-8a83-41ea-8e9c-c4a73882ce79",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:d54edc87e126fbff7d1c1cf07ae7464a",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:6759bef4-337e-4e21-8dfe-4152b5618f0d",
@@ -24632,9 +24769,10 @@
       "subjectKey": "22cc27b5:6759bef4-337e-4e21-8dfe-4152b5618f0d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:bfc714b37acac3ba115f0553102de697",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:70f39980-940c-4f32-9365-a196fcca7858",
@@ -24642,9 +24780,10 @@
       "subjectKey": "22cc27b5:70f39980-940c-4f32-9365-a196fcca7858",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:c381bcf98c53fa914dd8384401c0afd4",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:9e0477ca4fdbae43bb0870e8281d4f9e#7637",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:c4856110-03a4-4f52-b13b-f3e99b8aba4f",
@@ -24682,9 +24821,10 @@
       "subjectKey": "22cc27b5:06e80d6f-d630-4fab-99db-cb71211c8f56",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:1ee0185af073b43cadadc737d9c6f418",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:b1667bfc-be11-4b02-ab99-d39b3f5e510d",
@@ -24692,9 +24832,10 @@
       "subjectKey": "22cc27b5:b1667bfc-be11-4b02-ab99-d39b3f5e510d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:b4f31e81a7f5de12f9953ace09e15854",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:9ce2e9b8-8033-4fae-bd6f-9f7b7590ba1b",
@@ -24702,9 +24843,10 @@
       "subjectKey": "22cc27b5:9ce2e9b8-8033-4fae-bd6f-9f7b7590ba1b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:27de66a9ff56d666e45b0884ad27349f",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:3c1a4517-7097-4964-a687-5dc1de1b00ee",
@@ -24722,9 +24864,10 @@
       "subjectKey": "22cc27b5:03941fc1-96ff-454d-aa4d-0658057f7b4c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:348f5f712d9c3295c5a6c3bf183acb52",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:05d4383b-1140-49f9-857b-00eec596f248",
@@ -24732,9 +24875,10 @@
       "subjectKey": "22cc27b5:05d4383b-1140-49f9-857b-00eec596f248",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a1a5db8938e05603a531e627aa0a7f85",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:77ff1220-f6e0-4b35-ad1c-0224aa5098df",
@@ -24742,9 +24886,10 @@
       "subjectKey": "22cc27b5:77ff1220-f6e0-4b35-ad1c-0224aa5098df",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:9c2deabb5551ed31a1eb664d430f1284",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:d4af1166c468d5ee36b697df98cbfb0f#7651",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "audit round 2: cross-agent rotation fix -> Launch Agent 4-section occurrence (same content family)"
     },
     {
       "caseKey": "22cc27b5:6f24ea77-43d3-4c4f-84a0-9341114569c9",
@@ -24782,9 +24927,10 @@
       "subjectKey": "22cc27b5:8cf31f6c-e9cc-4d01-97a3-afd2dae271c8",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a45764d4cc9fef6101cc5034afcb0fd4",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:1627c920-e582-446c-b6a0-39f7a528f28a",
@@ -24792,9 +24938,10 @@
       "subjectKey": "22cc27b5:1627c920-e582-446c-b6a0-39f7a528f28a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:e5d8788f84f1f0a40a5dcfd4a5bed788",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:e14a0186-9557-4b1f-b4c1-eddeb88e7e34",
@@ -24802,9 +24949,10 @@
       "subjectKey": "22cc27b5:e14a0186-9557-4b1f-b4c1-eddeb88e7e34",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:0c28d27f72b69c51ec89eb1aec5589a5",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "audit round 2: orphan-recovery — 'none' replaced with an unclaimed occurrence whose normalized content+title EXACTLY equal the subject's, agent-section verified (A.6.1.1.<n> map), order-preserving within its content class"
     },
     {
       "caseKey": "22cc27b5:18f93603-5951-4d2e-9527-f88d81c408a3",
@@ -24852,9 +25000,10 @@
       "subjectKey": "7b43d159:ce1ad76417ad11ecfc4da95557612377",
       "newerSha": "7b43d159",
       "olderSha": "154b4d27",
-      "chosenKey": "154b4d27:d3fdbf88905ca6743118e95c5bf72188",
+      "chosenKey": "154b4d27:ce1ad76417ad11ecfc4da95557612377#7005",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "audit round 3: legacy stale chosenKey (unresolvable in rebuild) replaced by the auditor exact-content (1.0) candidate"
     },
     {
       "caseKey": "7b43d159:76eac278dcc0aecb59f77fefb05c76f8",
@@ -29545,6 +29694,391 @@
       "chosenKey": "baf25904:441736eb5922bd87b187d9089f3a6a0f",
       "agreedWithAuto": false,
       "method": "ai"
+    },
+    {
+      "caseKey": "22cc27b5:f8f8cbf6-75e0-4dbb-b617-f44bc8cc9d8d",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:f8f8cbf6-75e0-4dbb-b617-f44bc8cc9d8d",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:edfd53efc6e8537fad4ebedcece2c326",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "P1 parent=Keel; Keel occ firstSeen=PR66 (LA2→Keel rename); reintroduction family; counterpart agents seed-threaded to own sections"
+    },
+    {
+      "caseKey": "22cc27b5:06cd14d5-0f55-4ac0-8d9d-f9060e0fcc1b",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:06cd14d5-0f55-4ac0-8d9d-f9060e0fcc1b",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:7622591f70028b505f25eb67b4fb0c13",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "reintroductions ledger entry (hand-authored PR66 forensics) + P1 parent=Keel + positional"
+    },
+    {
+      "caseKey": "22cc27b5:77ad2a49-8fa6-499b-bd26-b9fdef57fded",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:77ad2a49-8fa6-499b-bd26-b9fdef57fded",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:76d2f9007efa2824f492f8fc17398dc5",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "P1 parent=Keel; Keel occ firstSeen=PR66; LA2-content-under-Keel reintroduction pattern"
+    },
+    {
+      "caseKey": "22cc27b5:bafbbf28-95dc-41a4-9c55-f3befde4e991",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:bafbbf28-95dc-41a4-9c55-f3befde4e991",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:4f7c22cb3d5fb739221c1edce1eb44fe",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "P1 parent=Keel + firstSeen=PR66; frontier's LA4 pick refuted (LA4 added at PR78, never renamed)"
+    },
+    {
+      "caseKey": "22cc27b5:63fec69d-a4df-42c3-bb5f-b959e711df56",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:63fec69d-a4df-42c3-bb5f-b959e711df56",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:8f2f39cb077b1935ebb4d116597335fe",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "P1 parent=Keel + firstSeen=PR66 + positional margin 0.821"
+    },
+    {
+      "caseKey": "22cc27b5:0ab58c7d-7bb4-4d33-bd7a-2eca8e80b62a",
+      "kind": "seed-close",
+      "subjectKey": "22cc27b5:0ab58c7d-7bb4-4d33-bd7a-2eca8e80b62a",
+      "newerSha": "22cc27b5",
+      "olderSha": "7b43d159",
+      "chosenKey": "7b43d159:e460cf5e1749678b40f0783f3ea0cb4e",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "EXACT content equality + P1 anc=LA4 + prev/next stems match + sole unclaimed of 171 (elimination)"
+    },
+    {
+      "caseKey": "955f3f4d:4f7c22cb3d5fb739221c1edce1eb44fe",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:4f7c22cb3d5fb739221c1edce1eb44fe",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:5718288e572b46b6dc648d2dfb859aa2",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:7622591f70028b505f25eb67b4fb0c13",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:7622591f70028b505f25eb67b4fb0c13",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:8ff15a91e44bc2cf5852fe1894c3ad60",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:50534f2212264e5fc95e35bfa5162d98",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:50534f2212264e5fc95e35bfa5162d98",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:46b308003bcb07392a8ca2cf3e52d56e",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:b8553517f49f8b9eae3691638e798824",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:b8553517f49f8b9eae3691638e798824",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:1168d3ad765c36658b72a0c42e968aa6",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:76d2f9007efa2824f492f8fc17398dc5",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:76d2f9007efa2824f492f8fc17398dc5",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:c0ffaeaee3ef01a178808a6026248276",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:9f7f657f42b601ce11279679a9c6022a",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:9f7f657f42b601ce11279679a9c6022a",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:36eb58aaf74d0f8855cb10175964a3b2",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:083bc8363363cdc2a7f9cfd3cfd8a927",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:083bc8363363cdc2a7f9cfd3cfd8a927",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:17d39964062b8d487fafb86a113055fd",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:53ad07b73b6a27d14860031e7930b5a1",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:53ad07b73b6a27d14860031e7930b5a1",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:dd1d12b0d2bf8affd9f03e710ad39852",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 LA2→Keel (LA2 562→0/Keel 0→562) + subject section=Keel (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "955f3f4d:e403038d7e6d2dfdf820ce2562d7d7aa",
+      "kind": "ambiguous",
+      "subjectKey": "955f3f4d:e403038d7e6d2dfdf820ce2562d7d7aa",
+      "newerSha": "955f3f4d",
+      "olderSha": "d531de16",
+      "chosenKey": "d531de16:5eba05fe7bc655d3f60c8baef07d24b7#4973",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR66 + 5 LA2 occs ↔ 5 Keel occs (1:1, s=0.902 top) + order-preserving first↔first"
+    },
+    {
+      "caseKey": "4dbd365e:eeb0018328b9842a8a62baf8ebeaeddc",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:eeb0018328b9842a8a62baf8ebeaeddc",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:77d2804084fb6cf15ee308e0009823ad",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:5db90d86cb8cfa77f6c603c52af2adcc",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:5db90d86cb8cfa77f6c603c52af2adcc",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:2f461a907b5952df282961f0c830fa52",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:67130da78150496dd92795627e01feb6",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:67130da78150496dd92795627e01feb6",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:c8cb77fb47b96e23f9fc601d37b932ea",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:ede3fdd66cd4aeffbeedd0d5bd9a5d59",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:ede3fdd66cd4aeffbeedd0d5bd9a5d59",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:5821e7020a80dbd7a5163c0b6feaf172",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:0160383e134a9708959bcfe6416d8414",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:0160383e134a9708959bcfe6416d8414",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:77107f258b76fb19d16998d4162b2789",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:a82738da7c7d69582978a1a915ed9ccd",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:a82738da7c7d69582978a1a915ed9ccd",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:fa04d423fbd819e8e1c693975a158693",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:46d54dd27846585b1d6de70ef89c2f54",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:46d54dd27846585b1d6de70ef89c2f54",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:dc3c297abb6dd045b232afeade97e94d",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 LA1→Grove (LA1 803→0/Grove 0→885) + subject section=Grove (HTML) + frontier hint agrees"
+    },
+    {
+      "caseKey": "4dbd365e:19b48e80f2a42d4cd8e4c0cec5f157c1",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:19b48e80f2a42d4cd8e4c0cec5f157c1",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:73463f3011c719d79da16b97f3172e32#3872",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "PR22: LA1's sole instance Centrifuge USDC → Grove's Centrifuge JTRSY (asset swap, same slot; @3872 verified LA1-section; no USDC config remains at 4dbd365e) + frontier + positional"
+    },
+    {
+      "caseKey": "4dbd365e:cdcd38348d091b77d589054c6b5b5fce",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:cdcd38348d091b77d589054c6b5b5fce",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:95654d94f9c1e092fbf4047c9121f5f4",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 + section=Grove → LA1 candidate; frontier's Spark pick refuted by section"
+    },
+    {
+      "caseKey": "4dbd365e:001191d9b14ebe85b67567b92fbc2e74",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:001191d9b14ebe85b67567b92fbc2e74",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:a95aba49466e59c9099b40cd6238f0ee",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 + section=Grove → LA1 candidate; frontier's Spark pick refuted by section"
+    },
+    {
+      "caseKey": "4dbd365e:b892bb7c85e2c5e672c3fb87adbb13f1",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:b892bb7c85e2c5e672c3fb87adbb13f1",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:024604dcb564c21d6d0b8e12228e9f8d",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 + section=Grove; title transform 'LA1 Development Company'→'Grove Labs' mirrors seam; P2 0.5>0.2"
+    },
+    {
+      "caseKey": "4dbd365e:c47a45498a4a5ab2ea0203c25f65f9b6",
+      "kind": "ambiguous",
+      "subjectKey": "4dbd365e:c47a45498a4a5ab2ea0203c25f65f9b6",
+      "newerSha": "4dbd365e",
+      "olderSha": "73a607a4",
+      "chosenKey": "73a607a4:52ca72f8d60809bbae1d3943c2d0ef5a",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "rename seam PR22 + Grove occ1=JTRSY instance = continuation of LA1's sole Centrifuge USDC instance; unique LA1 candidate"
+    },
+    {
+      "caseKey": "c43b5e3e:f0b3f47413403f350b8406ab67700d1c",
+      "kind": "ambiguous",
+      "subjectKey": "c43b5e3e:f0b3f47413403f350b8406ab67700d1c",
+      "newerSha": "c43b5e3e",
+      "olderSha": "940c4fad",
+      "chosenKey": "940c4fad:8bb92bfcb320fe19a306299c4a2dd389#3818",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "instance identity: subject occ1 under Blackrock USDC ↔ #3818 under Blackrock USDC (940c4fad) + frontier hint agrees"
+    },
+    {
+      "caseKey": "dd131566:8b0f3359395bb415f63aebe02b4cf002",
+      "kind": "ambiguous",
+      "subjectKey": "dd131566:8b0f3359395bb415f63aebe02b4cf002",
+      "newerSha": "dd131566",
+      "olderSha": "1f993596",
+      "chosenKey": "1f993596:f1c6cdc575ce4b4b28a59890398b8c35#4034",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "instance identity: subject occ1 under Centrifuge JTRSY ↔ #4034 under JTRSY (1f993596) + frontier; Avalanche occ is new"
+    },
+    {
+      "caseKey": "616a4b50:d96dad110cdb782cba795a9b693d3ccc",
+      "kind": "tier-2.5",
+      "subjectKey": "616a4b50:d96dad110cdb782cba795a9b693d3ccc",
+      "newerSha": "616a4b50",
+      "olderSha": "4ef56cd7",
+      "chosenKey": "4ef56cd7:81912ca9e6da4b3e69467c8ae51ad01c#3888",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "autoKey (content-recovery tier) + positional p2=1/nb=5 + title+len equal — address-value swap explains matcher 0"
+    },
+    {
+      "caseKey": "66dcdb78:a54f116f38c008bfa00bb67130de101c",
+      "kind": "tier-2.5",
+      "subjectKey": "66dcdb78:a54f116f38c008bfa00bb67130de101c",
+      "newerSha": "66dcdb78",
+      "olderSha": "a3b60814",
+      "chosenKey": "a3b60814:9c87edec59ca8252e7f496e14ff2c058#6810",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "autoKey + subject section=LA4 (HTML) + nb=3 neighbor-stem match (only cand with matching prev+next context)"
+    },
+    {
+      "caseKey": "34cdf3d2:bff59acd306dccb1980ec7fe7e8d0f8f",
+      "kind": "tier-2.5",
+      "subjectKey": "34cdf3d2:bff59acd306dccb1980ec7fe7e8d0f8f",
+      "newerSha": "34cdf3d2",
+      "olderSha": "75d49db2",
+      "chosenKey": "75d49db2:9735ea80ee8de74e500b73980d4df2b3",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "autoKey + positional top=1.0 margin=1.0 (p2=1, nb=4) + unique title both sides — payment-address change explains matcher 0"
+    },
+    {
+      "caseKey": "704f0378:26bb89ccbb8d9062cb619e58a141f6a7",
+      "kind": "ambiguous",
+      "subjectKey": "704f0378:26bb89ccbb8d9062cb619e58a141f6a7",
+      "newerSha": "704f0378",
+      "olderSha": "237129ca",
+      "chosenKey": "237129ca:e27b09e01a90b6fafa30559619ad44be",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "title rename: 'Actively Stabilizing Collateral Calculations' (×1 at 237129ca) → 'Resting …' (exact old title ×0 at 704f0378); content diff = 'Resting ' prefix only; PR38 introduced Resting/Latent ASC split"
+    },
+    {
+      "caseKey": "79abe87f:12a5429075fc87e71242324539f040bb",
+      "kind": "tier-2.5",
+      "subjectKey": "79abe87f:12a5429075fc87e71242324539f040bb",
+      "newerSha": "79abe87f",
+      "olderSha": "baf25904",
+      "chosenKey": "baf25904:ea7ecbaf97b62403dcf1e9657ae92a6c",
+      "agreedWithAuto": true,
+      "method": "ai",
+      "why": "split-restructure at PR1: old 'Burn USDS' procedure body decomposed into child step-docs; subject is the retitled stub in the same Spark relayer-functions position (after Mint USDS chain); autoKey content-recovery tier + old content survives ×0"
+    },
+    {
+      "caseKey": "79abe87f:a5f00f946a9ec8676516e0c4758fbef9",
+      "kind": "ambiguous",
+      "subjectKey": "79abe87f:a5f00f946a9ec8676516e0c4758fbef9",
+      "newerSha": "79abe87f",
+      "olderSha": "baf25904",
+      "chosenKey": "none",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "birth at PR1: entire instance-config structure new ('RRC Framework Full Implementation' 0→18, 'Instance Identifiers' 0→19, parent 'SparkLend USDS Instance Configuration Document' 0→1); no candidate mentions the Allocation System instance; frontier's SLL-generic pick is a different doc that itself vanished"
     }
   ]
 }
