@@ -19,7 +19,7 @@
 //      We measure and say so rather than assume.
 //
 // Writes .cache/signal-type-priors.json only.
-//   node scripts/aux/signal-type-priors.mjs
+//   node scripts/htmlhist/signal-type-priors.mjs
 
 import { loadSignalData, pickByScore, crossValidate, measureResidual, writeOut } from "./residual-signal-lib.mjs";
 

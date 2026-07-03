@@ -10,7 +10,7 @@
 // Two independent families + a similarity floor = strong enough to auto-decide. Recorded as a frontier
 // lock (auto:"frontier") with corroborator:"qwen" so provenance stays "ai" and reuses every mapping.
 //
-//   bun scripts/aux/confirm-residual-qwen.mjs [--model qwen/qwen3.7-plus] [--score 0.7] [--apply]
+//   bun scripts/htmlhist/confirm-residual-qwen.mjs [--model qwen/qwen3.7-plus] [--score 0.7] [--apply]
 //   (default is DRY — reports the agreement breakdown and writes nothing; --apply appends the promotions)
 import fs from "node:fs";
 import path from "node:path";

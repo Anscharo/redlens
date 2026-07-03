@@ -25,6 +25,8 @@ Lifecycle order. `prepare` produces a baseline artifact; `curate` decides the am
 | `pnpm htmlhist:audit:accuracy` | Measure threading **accuracy** (stratified-samples + LLM-grades → a single headline %). The older statistical audit; complements the per-decision one above. Review report only. | → `.cache/audit-html-report.json` |
 | `pnpm htmlhist:trace` | Independent forward pass vs the reverse threading — agreement / conflicts cross-check. Review report only. | → `.cache/forward-reverse-diff.json` |
 | `bun scripts/htmlhist/check-cross-agent.mjs` | **Cross-agent claim guard** — verifies no seed decision threads a subject in one agent's section to another agent's occurrence (the rotation-error class the 2026-07-03 audit found in 50 decisions). Exits 1 on findings; expect 0. Run after any curation round. | decisions + queue → stdout |
+| `bun scripts/htmlhist/render-decisions.mjs` | **Readable render of the decisions file** — joins `history-decisions.json` against the queue: per-commit groups, titles + agent sections, method, recorded `why` evidence. `--why-only` for just the evidence-trailed subset. | decisions + queue → `.cache/decisions-review.md` |
+| `bun scripts/htmlhist/export-decisions-judge.mjs` | **Judge-ready JSONL export** — one self-contained record per decision: the decision, FULL content of both sides (newer subject + chosen older), and the top-scored alternatives it was chosen against. Built for pointing an AI at the corpus to second-guess our calls. Flags: `--sha`, `--why-only`, `--sample N`. | decisions + queue → `.cache/decisions-judge.jsonl` |
 
 ### Typical pass
 

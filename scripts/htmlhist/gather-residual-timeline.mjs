@@ -14,10 +14,10 @@
 // no shared cache exists yet, matching auto-curate-html-history.mjs / forward-trace-
 // html-history.mjs).
 //
-//   bun scripts/aux/gather-residual-timeline.mjs                # residual only
-//   bun scripts/aux/gather-residual-timeline.mjs --all          # every case in the queue
-//   bun scripts/aux/gather-residual-timeline.mjs --no-db        # skip the post-migration DB read
-//   bun scripts/aux/gather-residual-timeline.mjs --limit 25     # cap cases (trial run)
+//   bun scripts/htmlhist/gather-residual-timeline.mjs                # residual only
+//   bun scripts/htmlhist/gather-residual-timeline.mjs --all          # every case in the queue
+//   bun scripts/htmlhist/gather-residual-timeline.mjs --no-db        # skip the post-migration DB read
+//   bun scripts/htmlhist/gather-residual-timeline.mjs --limit 25     # cap cases (trial run)
 //
 // Output: public/history-curation-timeline.json — a sidecar the curation UI / a new
 // propose-with-timeline prompt can join by caseKey without recomputing any of this.

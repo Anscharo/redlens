@@ -4,12 +4,12 @@
 // The combined `pnpm htmlhist:curate` builds the queue AND auto-resolves in one shot
 // (see build-history-curation.mjs --auto); reach for this one only to re-resolve.
 //
-//   bun scripts/aux/auto-curate-html-history.mjs              # both passes, write decisions
-//   bun scripts/aux/auto-curate-html-history.mjs --no-llm     # mechanism 1 only (no API calls)
-//   bun scripts/aux/auto-curate-html-history.mjs --measure    # print stats, write nothing
-//   bun scripts/aux/auto-curate-html-history.mjs --limit 25   # cap LLM calls (trial run)
-//   bun scripts/aux/auto-curate-html-history.mjs --concurrency 12 --out FILE
-//   bun scripts/aux/auto-curate-html-history.mjs --frontier [--frontier-limit N] [--frontier-model M]
+//   bun scripts/htmlhist/auto-curate-html-history.mjs              # both passes, write decisions
+//   bun scripts/htmlhist/auto-curate-html-history.mjs --no-llm     # mechanism 1 only (no API calls)
+//   bun scripts/htmlhist/auto-curate-html-history.mjs --measure    # print stats, write nothing
+//   bun scripts/htmlhist/auto-curate-html-history.mjs --limit 25   # cap LLM calls (trial run)
+//   bun scripts/htmlhist/auto-curate-html-history.mjs --concurrency 12 --out FILE
+//   bun scripts/htmlhist/auto-curate-html-history.mjs --frontier [--frontier-limit N] [--frontier-model M]
 //                                                            # pass 3: escalate uncertain residual
 //
 // Like the audit + forward trace, this is OFFLINE review tooling: it writes a decisions

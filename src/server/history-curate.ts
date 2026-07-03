@@ -114,9 +114,10 @@ export async function proposePredecessor(
     },
     { timeout: 30000, maxRetries: 1 },
   );
-  const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}");
-  const chosenKey = parsed.chosenKey === "none" || candidates.some((c) => c.key === parsed.chosenKey) ? parsed.chosenKey : "none";
-  return { chosenKey: chosenKey ?? "none", why: typeof parsed.why === "string" ? parsed.why : "" };
+  const parsed = looseJsonParse(response.choices[0]?.message?.content ?? "{}");
+  const raw = typeof parsed.chosenKey === "string" ? parsed.chosenKey : "none";
+  const chosenKey = raw === "none" || candidates.some((c) => c.key === raw) ? raw : "none";
+  return { chosenKey, why: typeof parsed.why === "string" ? parsed.why : "" };
 }
 
 // --- MATRIX pass: joint assignment over a cluster (plan §10.4 cluster enrichment) ----------

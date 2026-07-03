@@ -11,11 +11,11 @@
 // Resumable: every auditor ask is cached by content-addressed caseKey + model, so a capped run
 // never re-spends and a later run finishes the rest (mirrors the curate/resume loop).
 //
-//   bun scripts/aux/audit-html-decisions.mjs                  # audit public/history-decisions.json
-//   bun scripts/aux/audit-html-decisions.mjs --limit 100      # cap NEW asks (resume later for the rest)
-//   bun scripts/aux/audit-html-decisions.mjs --model M        # override the auditor model
-//   bun scripts/aux/audit-html-decisions.mjs --decisions FILE # audit a different decisions file
-//   bun scripts/aux/audit-html-decisions.mjs --no-cache       # ignore the resume cache (re-ask all)
+//   bun scripts/htmlhist/audit-html-decisions.mjs                  # audit public/history-decisions.json
+//   bun scripts/htmlhist/audit-html-decisions.mjs --limit 100      # cap NEW asks (resume later for the rest)
+//   bun scripts/htmlhist/audit-html-decisions.mjs --model M        # override the auditor model
+//   bun scripts/htmlhist/audit-html-decisions.mjs --decisions FILE # audit a different decisions file
+//   bun scripts/htmlhist/audit-html-decisions.mjs --no-cache       # ignore the resume cache (re-ask all)
 
 import fs from "node:fs";
 import path from "node:path";

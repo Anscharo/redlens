@@ -4,13 +4,13 @@
 //   - the timeline sidecar (public/history-curation-timeline.json, from
 //     gather-residual-timeline.mjs): candidate INTRODUCED/LAST HTML EDIT + subject
 //     POST-MIGRATION history
-// into the final-escalation prompt (scripts/lib/curate-prompt-expanded.mjs) for each
+// into the final-escalation prompt (scripts/htmlhist/curate-prompt-expanded.mjs) for each
 // residual case, and writes one system/user pair per case — hand the batch to
 // whatever agent/tool you like (this script makes no API calls of its own).
 //
-//   bun scripts/aux/assemble-residual-prompts.mjs
-//   bun scripts/aux/assemble-residual-prompts.mjs --all       # every case, not just residual
-//   bun scripts/aux/assemble-residual-prompts.mjs --limit 5   # cap (trial run)
+//   bun scripts/htmlhist/assemble-residual-prompts.mjs
+//   bun scripts/htmlhist/assemble-residual-prompts.mjs --all       # every case, not just residual
+//   bun scripts/htmlhist/assemble-residual-prompts.mjs --limit 5   # cap (trial run)
 //
 // Output: .cache/residual-prompts.json (structured, one entry per case) +
 //         .cache/residual-prompts.md   (human-readable, for literal copy-paste)
@@ -36,7 +36,7 @@ if (!fs.existsSync(CURATION)) {
   process.exit(1);
 }
 if (!fs.existsSync(TIMELINE)) {
-  console.error(`timeline sidecar not found: ${path.relative(ROOT, TIMELINE)}\n  run: bun scripts/aux/gather-residual-timeline.mjs`);
+  console.error(`timeline sidecar not found: ${path.relative(ROOT, TIMELINE)}\n  run: bun scripts/htmlhist/gather-residual-timeline.mjs`);
   process.exit(1);
 }
 const data = JSON.parse(fs.readFileSync(CURATION, "utf8"));

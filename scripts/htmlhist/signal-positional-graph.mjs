@@ -19,7 +19,7 @@
 // ambiguous cases (disagreement = a confident pick that contradicts the confirmed
 // pairing = a red flag ON THE SIGNAL). Writes .cache/signal-positional-graph.json only.
 //
-//   node scripts/aux/signal-positional-graph.mjs
+//   node scripts/htmlhist/signal-positional-graph.mjs
 
 import { loadSignalData, pickByScore, crossValidate, measureResidual, writeOut } from "./residual-signal-lib.mjs";
 

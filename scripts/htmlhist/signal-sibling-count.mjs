@@ -22,7 +22,7 @@
 //      ambiguous), so section rarely separates them. We measure and say so.
 //
 // Writes .cache/signal-sibling-count.json only.
-//   node scripts/aux/signal-sibling-count.mjs
+//   node scripts/htmlhist/signal-sibling-count.mjs
 
 import { loadSignalData, pickByScore, crossValidate, measureResidual, writeOut } from "./residual-signal-lib.mjs";
 

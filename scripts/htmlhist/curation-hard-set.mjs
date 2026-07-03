@@ -4,7 +4,7 @@
 // heuristic guess + confidence. A human then verifies/edits `gold` (this is the "hand-labeled"
 // step). caseKeys are content-addressed subjects, so labels survive a queue rebuild.
 //
-//   bun scripts/aux/curation-hard-set.mjs [--per 10]
+//   bun scripts/htmlhist/curation-hard-set.mjs [--per 10]
 import fs from "node:fs";
 import path from "node:path";
 import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";

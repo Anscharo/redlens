@@ -4,7 +4,7 @@
 // chain. This is the verification mirror of the PR #108 UUID-swap detector, run on
 // consecutive versions of each threaded uuid instead of a fork-vs-live diff.
 //
-//   bun scripts/aux/verify-thread-swaps.mjs
+//   bun scripts/htmlhist/verify-thread-swaps.mjs
 //
 // For every `modified` transition (same uuid, adjacent commits, content changed) it
 // measures same-document similarity (ordered containment); a near-zero score means the

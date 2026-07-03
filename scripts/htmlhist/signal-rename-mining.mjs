@@ -10,7 +10,7 @@
 // Measured with the shared harness: residual newly-disambiguated + disagreement rate
 // against resolved ambiguous cases. Writes .cache/signal-rename-mining.json only.
 //
-//   node scripts/aux/signal-rename-mining.mjs
+//   node scripts/htmlhist/signal-rename-mining.mjs
 
 import fs from "node:fs";
 import path from "node:path";

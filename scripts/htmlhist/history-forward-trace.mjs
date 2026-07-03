@@ -1,6 +1,6 @@
 // Independent FORWARD identity tracer + forward/reverse cross-check (the plan's
 // §10.4 "back-and-forward check", generalised across the whole HTML era). Pure +
-// testable; no git/IO (the orchestrator scripts/aux/forward-trace-html-history.mjs
+// testable; no git/IO (the orchestrator scripts/htmlhist/forward-trace-html-history.mjs
 // loads commits and writes the report).
 //
 // WHY a *different* matcher. The production thread is BACKWARD (plan §4.0): it seeds

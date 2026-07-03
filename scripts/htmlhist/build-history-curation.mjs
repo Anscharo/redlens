@@ -1,8 +1,8 @@
 // Offline builder for the HTML-era history CURATION tool (plan §10.4).
 //
-//   bun scripts/aux/build-history-curation.mjs            # build + write the case file
-//   bun scripts/aux/build-history-curation.mjs --stats    # just print counts + samples
-//   bun scripts/aux/build-history-curation.mjs --auto     # build queue AND auto-resolve
+//   bun scripts/htmlhist/build-history-curation.mjs            # build + write the case file
+//   bun scripts/htmlhist/build-history-curation.mjs --stats    # just print counts + samples
+//   bun scripts/htmlhist/build-history-curation.mjs --auto     # build queue AND auto-resolve
 //                                                         #   (forward∩reverse + LLM∩matcher,
 //                                                         #    reusing the loaded commits)
 //   ... --auto --no-llm | --limit N | --concurrency N | --threshold X   # tune the auto pass

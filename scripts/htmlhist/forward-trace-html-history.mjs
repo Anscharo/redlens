@@ -3,8 +3,8 @@
 // like the audit, it writes a REVIEW report to .cache/, never artifact data, so
 // determinism/reproducibility are untouched.
 //
-//   bun scripts/aux/forward-trace-html-history.mjs            # trace + diff, write report
-//   bun scripts/aux/forward-trace-html-history.mjs --measure  # print summary, write nothing
+//   bun scripts/htmlhist/forward-trace-html-history.mjs            # trace + diff, write report
+//   bun scripts/htmlhist/forward-trace-html-history.mjs --measure  # print summary, write nothing
 //
 // What it does:
 //   1. load the 79 HTML commits oldest→newest (same converter as production).

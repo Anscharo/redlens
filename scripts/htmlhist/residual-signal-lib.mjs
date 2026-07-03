@@ -1,5 +1,5 @@
 // Shared, READ-ONLY scaffolding for the residual-signal discovery prototypes
-// (scripts/aux/signal-*.mjs). Loads the curation queue + the two decision files,
+// (scripts/htmlhist/signal-*.mjs). Loads the curation queue + the two decision files,
 // derives the 35 residual cases and the resolved ground-truth, and offers a common
 // cross-validation harness so every candidate signal is measured the same way:
 //

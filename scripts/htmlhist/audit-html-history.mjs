@@ -2,8 +2,8 @@
 // into "98.7% ± 2%, measured." Runs OFFLINE, never in the build path; the output is
 // a review report, never artifact data (so determinism/reproducibility are intact).
 //
-//   bun scripts/aux/audit-html-history.mjs            # dry: sample + show prompts, no LLM
-//   OPENROUTER_API_KEY=… bun scripts/aux/audit-html-history.mjs --live   # measure
+//   bun scripts/htmlhist/audit-html-history.mjs            # dry: sample + show prompts, no LLM
+//   OPENROUTER_API_KEY=… bun scripts/htmlhist/audit-html-history.mjs --live   # measure
 //
 // What it does, end to end:
 //   1. collect()  — replay the real seed + backward-thread decisions and bucket each
@@ -110,7 +110,7 @@ function collect() {
   // --- SEED: map each last-HTML row to the markdown doc it became at #117 --------
   // Build a shingle → [markdownDocIndex] inverted index, so a row can find every md
   // doc it shares prose with in one pass. This MIRRORS seedFromMd in
-  // scripts/lib/history-html-era.mjs, including the title tiebreak below — keep in sync.
+  // scripts/htmlhist/history-html-era.mjs, including the title tiebreak below — keep in sync.
   const markdownShingles = markdownDocs.map((doc) => new Set(shingles(doc.content)));
   const markdownTitleTokens = markdownDocs.map((doc) => new Set(normalize(doc.title).split(" ").filter(Boolean)));
   const shingleIndex = new Map();

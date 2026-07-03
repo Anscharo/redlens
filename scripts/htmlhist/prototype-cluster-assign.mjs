@@ -6,7 +6,7 @@
 // set" win), cross-model agreement, latency, and an approx $/cluster. Writes a readable dump of a
 // few full clusters (both models side-by-side) for eyeballing.
 //
-//   bun scripts/aux/prototype-cluster-assign.mjs [--models a,b] [--clusters 16] [--concurrency 4]
+//   bun scripts/htmlhist/prototype-cluster-assign.mjs [--models a,b] [--clusters 16] [--concurrency 4]
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";

@@ -3,7 +3,7 @@
 // containment (an INDEPENDENT, order-sensitive, typo-tolerant similarity) independently
 // pick the SAME predecessor the reverse matcher did (autoKey), with a clear margin?
 //
-//   bun scripts/aux/measure-containment-corroboration.mjs
+//   bun scripts/htmlhist/measure-containment-corroboration.mjs
 //
 // It then cross-validates against the decisions we ALREADY trust (public/history-auto-
 // decisions.json): containment should AGREE with the forward∩reverse locks and the

@@ -13,7 +13,7 @@
 // .cache/signal-embedding-sim.json. Nothing else is written.
 //
 // RUN WITH BUN so .env.local + the .ts embed client load:
-//   bun scripts/aux/signal-embedding-sim.mjs
+//   bun scripts/htmlhist/signal-embedding-sim.mjs
 
 import fs from "node:fs";
 import path from "node:path";

@@ -4,8 +4,8 @@
 // Runs under bun (imports the .ts diffCore). Rerun only as a deliberate, reviewed
 // act — historical diffs must not silently change (plan §7.1).
 //
-//   bun scripts/aux/prepare-html-history.mjs            # write the artifact
-//   bun scripts/aux/prepare-html-history.mjs --measure  # print stats, write nothing
+//   bun scripts/htmlhist/prepare-html-history.mjs            # write the artifact
+//   bun scripts/htmlhist/prepare-html-history.mjs --measure  # print stats, write nothing
 //
 // commit_seq is reconciled by SHA at load time (plan §7.1, decision 6); the
 // artifact stores 7-char shas + a baked seq for reference only.
@@ -221,7 +221,7 @@ if (!process.argv.includes("--no-lineage")) {
 // ALREADY retired (e.g. "Launch Agent 2" → "Keel" at PR #66, revived at #117, re-fixed at #172). Their
 // true predecessor lives under the NEW name and is degenerate among identical-body siblings, so the
 // seed can't thread them and they'd ship as a bare seam:"created" ("introduced here"). This committed,
-// hand-authored ledger (git-history forensics — see scripts/aux/HISTORY.md) re-tags each listed uuid
+// hand-authored ledger (git-history forensics — see scripts/htmlhist/HISTORY.md) re-tags each listed uuid
 // seam:"reintroduced" and attaches a `reintroducedFrom` backlink (retirement commit + true predecessor
 // + canonical name), so the reconstruction records "revived, not born". ADDITIVE; only the listed uuids.
 let reintroStats = null;

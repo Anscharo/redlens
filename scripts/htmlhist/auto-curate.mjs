@@ -1,7 +1,7 @@
 // Pure decision logic for the offline auto-curation passes (plan §10.4) — the rules
 // that decide whether a curation case can be resolved WITHOUT a human, and how. Kept
 // pure (no IO/LLM/git) so it is unit-testable; the orchestrator
-// scripts/aux/auto-curate-html-history.mjs supplies the forward links + LLM votes.
+// scripts/htmlhist/auto-curate-html-history.mjs supplies the forward links + LLM votes.
 //
 // The whole point is to shrink the hand-review queue SAFELY, so every auto-rule needs
 // TWO INDEPENDENT signals to agree before it locks a case — never a single method's

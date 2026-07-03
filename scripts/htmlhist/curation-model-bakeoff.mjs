@@ -9,7 +9,7 @@
 // production prompt (proposePredecessor) + context (curate-context + the per-commit change), so the
 // numbers reflect what the real pipeline would do.
 //
-//   bun scripts/aux/curation-model-bakeoff.mjs [--easy 120] [--hard .cache/curation-hard-gold.json]
+//   bun scripts/htmlhist/curation-model-bakeoff.mjs [--easy 120] [--hard .cache/curation-hard-gold.json]
 //        [--models a,b,c] [--concurrency 4]
 import fs from "node:fs";
 import path from "node:path";

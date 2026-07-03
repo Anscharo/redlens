@@ -7,8 +7,8 @@
 // proper-container guards) at EVERY HTML hop — today only the #117 seam gets this (matchNodes
 // tier-4 containment). Offline; writes nothing (a measurement, like the audit + trace).
 //
-//   bun scripts/aux/measure-lineage.mjs               # same-section search (fast, local)
-//   bun scripts/aux/measure-lineage.mjs --any-section # widen the container search
+//   bun scripts/htmlhist/measure-lineage.mjs               # same-section search (fast, local)
+//   bun scripts/htmlhist/measure-lineage.mjs --any-section # widen the container search
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1,5 +1,6 @@
 {
   "kind": "html-era-history-decisions",
+  "note": "Human-confirmed + AI-curated threading decisions for the pre-#117 HTML-era history reconstruction (plan §10.4). Each decision answers: this newer doc (subjectKey, content-addressed sha8:md5|uuid) descends from which older doc (chosenKey; 'none' = born here / duplication-split copy)? method: deterministic|ai|human; why (where present) records the evidence. NOT human-readable by design — run `bun scripts/htmlhist/render-decisions.mjs` for a readable render, browse at /reports/history-curate, or see scripts/htmlhist/HISTORY.md. Applied to public/history-html-era.json by `pnpm htmlhist:apply`.",
   "builtFrom": {
     "migrationSha": "22cc27b5",
     "lastHtmlSha": "7b43d159"

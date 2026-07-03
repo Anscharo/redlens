@@ -46,7 +46,7 @@ export const CASE_FILTERS: { id: CaseFilter; label: string }[] = [
 // hint is available to speed the human review.
 export function caseCategory(key: string, mechanism: Map<string, string>, hasHint: boolean): Exclude<CaseFilter, "all"> {
   const m = mechanism.get(key);
-  if (m === "forward-reverse" || m === "containment" || m === "bijection" || m === "split") return "auto-matcher";
+  if (m === "forward-reverse" || m === "containment" || m === "bijection" || m === "split" || m === "positional") return "auto-matcher";
   if (m === "llm-90" || m === "llm-95") return "auto-llm";
   if (m === "cluster") return "auto-cluster";
   if (m === "frontier") return "auto-frontier";
@@ -153,6 +153,7 @@ export function autoLabel(via: string | undefined): string {
   if (via === "split") return "Auto-resolved (split copy — created at #117, more md docs than html rows)";
   if (via === "forward-reverse") return "Auto-resolved (forward + reverse agree)";
   if (via === "containment") return "Auto-resolved (reverse + containment agree)";
+  if (via === "positional") return "Auto-resolved (positional structure + an independent signal agree)";
   if (via === "llm-90") return "Auto-resolved (LLM + 90% matcher agree)";
   if (via === "llm-95") return "Auto-resolved (LLM + 95% agree)";
   if (via === "cluster") return "Auto-resolved (two model families agree on the cluster, conflict-free)";

@@ -6,7 +6,7 @@
 // the independent measure) and explains WHY the matcher missed them, so we can see the
 // recall gap's shape before touching the (load-bearing) matcher.
 //
-//   bun scripts/aux/measure-matcher-recall.mjs            # report the gap + causes
+//   bun scripts/htmlhist/measure-matcher-recall.mjs            # report the gap + causes
 //
 // Offline; writes nothing.
 
