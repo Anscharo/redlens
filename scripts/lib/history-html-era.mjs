@@ -6,6 +6,7 @@
 // A "commit" is { sha, seq, nodes } where nodes are §3 atlas-html nodes.
 
 import { matchNodes, syntheticUuid, isSynthetic } from "./history-identity.mjs";
+import { diffEditsMap } from "./history-diff.mjs";
 
 // ---- seed: assign #117 md uuids onto the last HTML commit's rows -------------
 // The one hard, cross-format hop (plan §4.0). Inverted shingle index → each HTML
@@ -145,7 +146,7 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = n
 // declares the newer node has no predecessor in the older commit (a real birth). An
 // overridden pairing WINS over the automatic matcher and suppresses any conflicting
 // auto-pair, so the unspecified rows thread exactly as before.
-export function threadBackward(commits, { seed = new Map(), overrides = null, recover = false } = {}) {
+export function threadBackward(commits, { seed = new Map(), overrides = null, recover = false, diff = false } = {}) {
   const order = commits.slice().reverse(); // newest→oldest
   for (const n of order[0].nodes) n.uuid = seed.get(n) || syntheticUuid(n, order[0].sha);
 
@@ -156,7 +157,11 @@ export function threadBackward(commits, { seed = new Map(), overrides = null, re
     const older = order[i].nodes;
     // `recover` (plan §4.2 follow-up) enables matchNodes tier 3.5: content-based recovery
     // of bulk-rename continuations the structural-key tiers miss. Caller opt-in.
-    const r = matchNodes(older, curr, { recoverByContent: recover });
+    // `diff` (2026-07) enables the tier-1.7 changed-lines signal: the section-scoped LCS
+    // (history-diff.mjs) pairs a doc's edit older↔newer by its unchanged neighbors, fixing
+    // near-identical-sibling mispairings and pre-resolving cases that would else be ambiguous.
+    // Like `recover` it changes historical identity, so callers opt in deliberately.
+    const r = matchNodes(older, curr, { recoverByContent: recover, diffEdits: diff ? diffEditsMap(older, curr) : null });
 
     // apply human overrides FIRST (they win): force chosen older → newer identity,
     // and remember which newer/older nodes to skip in the automatic pass.

@@ -20,9 +20,23 @@ export function reportAutoCuration(data, decisions, summary) {
   console.error(
     `\nhand-review queue: ${summary.totalCases} → ${summary.residual}  ` +
     `(${summary.reductionPct}% auto-resolved: ${summary.resolvedByForwardReverse} forward∩reverse + ` +
-    `${summary.resolvedByContainment ?? 0} reverse∩containment + ${summary.resolvedByLlm} LLM∩matcher` +
-    `${(summary.frontierCalls || summary.frontierCached) ? ` + ${summary.resolvedByFrontier} frontier∩signal` : ""})`,
+    `${summary.resolvedByContainment ?? 0} reverse∩containment + ` +
+    `${summary.resolvedByPositional ? `${summary.resolvedByPositional} positional∩signal + ` : ""}` +
+    `${summary.resolvedByCluster ? `${summary.resolvedByCluster} cluster∩families + ` : ""}${summary.resolvedByLlm} LLM∩matcher` +
+    `${(summary.frontierCalls || summary.frontierCached) ? ` + ${summary.resolvedByFrontier} frontier∩signal` : ""})` +
+    `${summary.positionalHints ? `  ·  ${summary.positionalHints} positional hints (advisory)` : ""}`,
   );
+  if (summary.conflictsDemoted) {
+    console.error(`conflict sweep: ${summary.conflictsDemoted} double-booked claim(s) demoted to residual (kept the strongest per older occurrence)`);
+  }
+  if (summary.cluster?.multiClusters) {
+    const c = summary.cluster;
+    console.error(
+      `cluster (${(c.models || []).join(" ∩ ")}): ${c.multiClusters} multi-clusters → ` +
+      `${c.locked} locked + ${c.lockedNone} created-here · ${c.disagreed} residual/disagreed · ${c.conflicts} conflicts` +
+      `${c.windowed ? ` · ${c.windowed} oversized handled via windowed decomposition` : ""}`,
+    );
+  }
   if (summary.frontierCalls || summary.frontierCached) {
     console.error(
       `frontier (${summary.frontierModel}): ${summary.frontierCalls} new + ${summary.frontierCached ?? 0} cached → ` +
@@ -40,6 +54,10 @@ export function writeAutoDecisions(outPath, data, decisions, summary, concurrenc
     auto: {
       forwardReverse: summary.resolvedByForwardReverse,
       containment: summary.resolvedByContainment,
+      ...(summary.resolvedByPositional ? { positional: summary.resolvedByPositional } : {}),
+      ...(summary.positionalHints ? { positionalHints: summary.positionalHints } : {}),
+      ...(summary.conflictsDemoted ? { conflictsDemoted: summary.conflictsDemoted } : {}),
+      ...(summary.cluster?.multiClusters ? { cluster: summary.cluster } : {}),
       ...summary.llm, concurrency,
       ...(summary.frontierCalls ? { frontier: summary.frontier } : {}),
     },
@@ -50,13 +68,15 @@ export function writeAutoDecisions(outPath, data, decisions, summary, concurrenc
   fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
 }
 
-// Frontier HINTS (uncorroborated frontier picks) — surfaced in the curation UI as a
-// suggested predecessor + reasoning the human confirms. Static, gitignored, never on the
-// build path; lets the page drop its live LLM call (everything is pre-computed offline).
+// HINTS — uncorroborated suggested predecessors surfaced in the curation UI as a suggested
+// predecessor + reasoning the human confirms. Two sources share this file: the opt-in
+// frontier model (pass 3) and the deterministic positional pass (self-corroborated picks on
+// matcher-null residual). Each entry keeps its `via` so the UI can show provenance. Static,
+// gitignored, never on the build path; lets the page drop its live LLM call.
 export function writeProposals(outPath, model, proposals) {
   const map = {};
-  for (const p of proposals) map[p.caseKey] = { chosenKey: p.chosenKey, why: p.why };
-  const file = { kind: "html-era-curation-proposals", source: "frontier", model, count: proposals.length, proposals: map };
+  for (const p of proposals) map[p.caseKey] = { chosenKey: p.chosenKey, why: p.why, via: p.via || "frontier" };
+  const file = { kind: "html-era-curation-proposals", source: "frontier+positional", model, count: proposals.length, proposals: map };
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
 }
@@ -74,8 +94,12 @@ export function loadLlmCache(inPath) {
   }
 }
 
+// Atomic write (temp + rename) so a crash/interrupt mid-write can't truncate the cache — a
+// half-written cache would silently lose every prior ask on the next resume.
 export function writeLlmCache(outPath, cache) {
   const file = { kind: "html-era-curation-llm-cache", count: cache.size, entries: Object.fromEntries(cache) };
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify(file, null, 2));
+  const tmp = `${outPath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(file, null, 2));
+  fs.renameSync(tmp, outPath);
 }

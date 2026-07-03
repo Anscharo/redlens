@@ -32,12 +32,39 @@ const td = new TurndownService({
 });
 td.use(turndownGfm.gfm); // GFM tables + strikethrough for nested content tables
 
+// Some HTML-era cells encode lists NOT as <ul>/<li> but as inline bullet CHARACTERS run together in
+// one text node — "intro:• item one• item two ◦ sub-item• item three" (• = level 1, ◦ = level 2; no
+// <br>, no <li>). Turndown has no list structure to work with, so it emits one wall-of-text line and
+// the list — and its nesting — is lost in the content AND in every diff. 106 cells in the last HTML do
+// this (792 •, 274 ◦). Recover the intended list from the bullet chars: split a bulleted line into
+// items, map • → top level and ◦ → one nesting level, and emit turndown's OWN list shape ("-   " /
+// "    -   ") so a doc later reformatted from inline bullets to a real <ul> diffs as a NO-OP (byte-
+// identical markdown), and a doc that keeps inline bullets threads/renders as a proper list.
+const BULLET_RE = /[•◦]/;
+export function recoverInlineBullets(md) {
+  if (!BULLET_RE.test(md)) return md;
+  return md
+    .split("\n")
+    .map((line) => {
+      const first = line.search(BULLET_RE);
+      if (first < 0) return line;
+      const lead = line.slice(0, first).trim();
+      const items = [];
+      for (const m of line.slice(first).matchAll(/([•◦])[ \t]*([^•◦]*)/g)) {
+        const text = m[2].trim();
+        if (text) items.push(`${m[1] === "◦" ? "    " : ""}-   ${text}`);
+      }
+      if (!items.length) return line;
+      return (lead ? `${lead}\n\n` : "") + items.join("\n");
+    })
+    .join("\n");
+}
+
 /** Convert one content-cell's inner HTML to markdown. Deterministic + trimmed. */
 export function htmlCellToMarkdown(innerHtml) {
   if (!innerHtml || !innerHtml.trim()) return "";
-  return td
-    .turndown(innerHtml)
-    .replace(/[ \t]+$/gm, "") // no trailing whitespace (diff noise)
+  const md = td.turndown(innerHtml).replace(/[ \t]+$/gm, ""); // no trailing whitespace (diff noise)
+  return recoverInlineBullets(md)
     .replace(/\n{3,}/g, "\n\n") // collapse blank runs
     .trim();
 }
@@ -115,6 +142,18 @@ export function parseHtmlToNodes(html) {
       structuralKey: norm([section, ...ancestors, owner, title].join(" | ")),
       order: i,
     });
+  }
+
+  // Owning parent by POSITION (plan §2c). The HTML encodes hierarchy by order, not by field:
+  // a process's template children ("Required Primitive Inputs", "Process Flow", …) carry an EMPTY
+  // breadcrumb and a shared coarse doc_no, so their owner is recoverable only as the nearest
+  // preceding SAME-SECTION row that DOES carry a breadcrumb — the process/element doc above the
+  // block. This is the sole disambiguator for the fully-identical stub groups (measured: separates
+  // 69 groups that title+ancestors+content leave indistinguishable).
+  let lastParent = null, lastParentSection = null;
+  for (const n of nodes) {
+    n.parentTitle = lastParentSection === n.section ? lastParent : null;
+    if (n.ancestors.length) { lastParent = n.title; lastParentSection = n.section; }
   }
   return nodes;
 }

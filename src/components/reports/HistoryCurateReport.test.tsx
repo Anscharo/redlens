@@ -35,8 +35,18 @@ vi.mock("../../lib/historyCuration", () => ({
   loadAutoDecisions: () => Promise.resolve(auto.current),
   loadProposals: () => Promise.resolve(proposals.current),
   loadDecisions: () => Promise.resolve(committed.current),
+  loadHardSet: () => Promise.resolve(new Set()),
+  nodeLabel: (n: { title?: string }) => n?.title || "(untitled)",
+  docParent: () => null,
   saveDecisions: saveSpy,
   downloadDecisions: vi.fn(),
+  buildClaimIndex: (cases: { key: string; candidates?: { key: string }[] }[]) => {
+    const idx = new Map<string, string[]>();
+    for (const c of cases) for (const cand of c.candidates || []) {
+      const arr = idx.get(cand.key); if (arr) arr.push(c.key); else idx.set(cand.key, [c.key]);
+    }
+    return idx;
+  },
 }));
 
 import { HistoryCurateReport } from "./HistoryCurateReport";

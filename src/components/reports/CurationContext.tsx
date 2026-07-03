@@ -4,7 +4,7 @@
 // near-identical siblings are told apart. When the two sides are compared, each
 // neighbor is flagged + (added), Δ (changed) or − (removed) vs the other commit.
 import { useState } from "react";
-import type { CurationNode } from "../../lib/historyCuration";
+import { nodeLabel, type CurationNode } from "../../lib/historyCuration";
 
 type Marker = { sym: string; color: string } | null;
 
@@ -30,7 +30,7 @@ function NeighborRow({ node, marker }: { node?: CurationNode; marker: Marker }) 
       <button onClick={() => setOpen((o) => !o)} className="w-full text-left flex gap-2 text-[12px]" style={{ color: "var(--tan-3)" }}>
         <span className="shrink-0 w-3 text-center mono" style={{ color: marker ? marker.color : "transparent" }}>{marker?.sym ?? "·"}</span>
         <span className="mono shrink-0">{node.doc_no || "—"}</span>
-        <span className="flex-1 truncate">{node.title || "(untitled)"}</span>
+        <span className="flex-1 truncate">{nodeLabel(node)}</span>
         <span className="shrink-0">{open ? "▾" : "▸"}</span>
       </button>
       {open && (
@@ -65,7 +65,7 @@ export function ContextColumn({
         <div className="rounded p-2" style={{ border: "1px solid var(--accent)", background: "var(--surface)" }}>
           <div className="flex gap-2 text-[12px] mb-1" style={{ color: "var(--tan)" }}>
             <span className="mono shrink-0">{node.doc_no || "—"}</span>
-            <span className="flex-1">{node.title || "(untitled)"}{node.type ? ` <${node.type}>` : ""}</span>
+            <span className="flex-1">{nodeLabel(node)}{node.type ? ` <${node.type}>` : ""}</span>
           </div>
           <pre className="max-h-[24rem] overflow-auto text-[12px] whitespace-pre-wrap break-words mono" style={{ color: "var(--tan-2)" }}>
             {node.content || "(no prose)"}

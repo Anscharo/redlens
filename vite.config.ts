@@ -59,9 +59,11 @@ export default defineConfig(() => {
         },
       },
       // Don't watch the atlas submodule, caches, or generated history — they
-      // churn on builds and would trigger noisy dev reloads.
+      // churn on builds and would trigger noisy dev reloads. `public/history-*.json`
+      // is included because the curation page WRITES history-decisions.json on ⤒ save;
+      // otherwise Vite full-reloads the page mid-curation and drops the decided state.
       watch: {
-        ignored: ["**/vendor/next-gen-atlas/**", "**/.cache/**", "**/public/history/**"],
+        ignored: ["**/vendor/next-gen-atlas/**", "**/.cache/**", "**/public/history/**", "**/public/history-*.json"],
       },
     },
   plugins: [

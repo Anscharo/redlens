@@ -45,6 +45,25 @@ describe("htmlCellToMarkdown — deterministic cell conversion", () => {
     expect(htmlCellToMarkdown("")).toBe("");
     expect(htmlCellToMarkdown("   ")).toBe("");
   });
+
+  it("recovers inline • / ◦ bullet lists into markdown (with nesting)", () => {
+    const md = htmlCellToMarkdown(
+      "Intro:• <strong>Create</strong> Document ◦ Sub-item one• New Value: Activated",
+    );
+    expect(md).toBe(
+      "Intro:\n\n-   **Create** Document\n    -   Sub-item one\n-   New Value: Activated",
+    );
+  });
+
+  it("inline-bullet list and equivalent <ul> convert to IDENTICAL markdown (diff cancels at a reformat)", () => {
+    const inline = htmlCellToMarkdown("Scopes:• The Governance Scope.• The Support Scope.");
+    const ul = htmlCellToMarkdown("Scopes:<ul><li>The Governance Scope.</li><li>The Support Scope.</li></ul>");
+    expect(inline).toBe(ul);
+  });
+
+  it("leaves prose without bullet characters untouched", () => {
+    expect(htmlCellToMarkdown("A plain sentence, no bullets.")).toBe("A plain sentence, no bullets.");
+  });
 });
 
 describe("parseHtmlToNodes — per-section column mapping", () => {

@@ -86,5 +86,6 @@ docs/ds/
 #   history-curation-proposals.json  frontier hints (gpt-5.5 suggestions for uncertain cases)
 #   history-decisions.json           human choices  (saved from the curation page; apply input)
 #   history-curation-llm-cache.json  resume cache   (prior LLM/frontier asks; lets capped runs continue)
+#   history-reintroductions.json     reintro ledger (hand-authored; #117 revived-name docs → seam:reintroduced)
 #   history-html-era.json            applied freeze (synced to atlas_history by build:history)
 # Regenerated deliberately (reviewed reruns), then committed. The audit/trace write to .cache/.

@@ -7,7 +7,9 @@ import type { CurationCase, CurationNode, Pick } from "../../lib/historyCuration
 
 const short = (sha: string) => sha.slice(0, 7);
 
-function CommitLabel({ commit }: { commit: { sha: string; date: string | null; pr: number | null; isSeed: boolean } }) {
+type Commit = { sha: string; date: string | null; pr: number | null; isSeed: boolean; prTitle?: string; changeSummary?: string };
+
+function CommitLabel({ commit }: { commit: Commit }) {
   return (
     <span className="text-[12px] mono" style={{ color: "var(--tan-3)" }}>
       {commit.isSeed ? "#117 migration seam" : `commit ${short(commit.sha)}`}
@@ -17,10 +19,26 @@ function CommitLabel({ commit }: { commit: { sha: string; date: string | null; p
   );
 }
 
+// The editorial description of this commit's change (PR title + linked forum edit-list) — names what
+// was Updated (a continuation) vs Added (a birth), the context for every decision in the commit.
+function ChangeNote({ commit }: { commit: Commit }) {
+  if (!commit.prTitle && !commit.changeSummary) return null;
+  return (
+    <details className="mt-1 text-[12px]" style={{ color: "var(--tan-2)" }}>
+      <summary className="cursor-pointer" style={{ color: "var(--accent)" }}>
+        change: {commit.prTitle || `PR #${commit.pr}`}
+      </summary>
+      {commit.changeSummary && (
+        <p className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap" style={{ color: "var(--tan-3)" }}>{commit.changeSummary}</p>
+      )}
+    </details>
+  );
+}
+
 export function CurationCommitStrip({
   commit, siblings, currentKey, picks, nodes, onJump,
 }: {
-  commit: { sha: string; date: string | null; pr: number | null; isSeed: boolean };
+  commit: Commit;
   siblings: CurationCase[];
   currentKey: string;
   picks: Record<string, Pick>;
@@ -36,6 +54,7 @@ export function CurationCommitStrip({
           {siblings.length} change{siblings.length === 1 ? "" : "s"} in this commit · {decided} decided · <span className="mono">↑/↓</span> to move
         </span>
       </div>
+      <ChangeNote commit={commit} />
       <div className="flex gap-1 overflow-x-auto pb-1">
         {siblings.map((s, i) => {
           const isCurrent = s.key === currentKey;

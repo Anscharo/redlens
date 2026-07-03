@@ -24,7 +24,7 @@ import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
 import { writeAutoDecisions, reportAutoCuration, writeProposals, loadLlmCache, writeLlmCache } from "../lib/auto-curate-io.mjs";
-import { proposePredecessor } from "../../src/server/history-curate.ts";
+import { proposePredecessor, proposeClusterAssignment } from "../../src/server/history-curate.ts";
 import { config } from "../../src/server/config.ts";
 
 const ROOT = process.cwd();
@@ -40,9 +40,13 @@ const FRONTIER_MODEL = arg("--frontier-model") || config.curationFrontierModel;
 const opts = {
   noLlm: process.argv.includes("--no-llm"),
   containment: !process.argv.includes("--no-containment"),
+  positional: !process.argv.includes("--no-positional"),
   limit: arg("--limit") ? Number(arg("--limit")) : Infinity,
   threshold: arg("--threshold") ? Number(arg("--threshold")) : undefined,
   concurrency: arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 5,
+  cluster: !process.argv.includes("--no-cluster"),
+  clusterConcurrency: arg("--cluster-concurrency") ? Math.max(1, Number(arg("--cluster-concurrency"))) : 4,
+  clusterMaxSize: arg("--cluster-max") ? Math.max(2, Number(arg("--cluster-max"))) : 12,
   frontier: process.argv.includes("--frontier"),
   frontierModel: FRONTIER_MODEL,
   frontierLimit: arg("--frontier-limit") ? Number(arg("--frontier-limit")) : Infinity,
@@ -71,15 +75,16 @@ const commits = shas.map((full, i) => {
 
 const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
 if (cache.size) log(`resuming from ${cache.size} cached asks`);
-const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({ data, commits, propose: proposePredecessor, haveKey: !!config.openrouterApiKey, ...opts, cache, cheapModel: config.chatModel, log });
+const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({ data, commits, propose: proposePredecessor, proposeCluster: proposeClusterAssignment, clusterModels: config.curationClusterModels, haveKey: !!config.openrouterApiKey, ...opts, cache, cheapModel: config.curationSelectorModel, log });
 reportAutoCuration(data, decisions, summary);
 if (MEASURE) console.error("\n--measure: decisions NOT written.");
 else {
   writeAutoDecisions(OUT, data, decisions, summary, opts.concurrency);
   log(`wrote ${path.relative(ROOT, OUT)}  (${decisions.length} auto-decisions)`);
-  if (opts.frontier) {
+  if (proposals.length) {
     writeProposals(PROPOSALS_OUT, FRONTIER_MODEL, proposals);
-    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
+    const posN = proposals.filter((p) => p.via === "positional").length;
+    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} hints: ${proposals.length - posN} frontier + ${posN} positional)`);
   }
   if (!NO_CACHE) { writeLlmCache(CACHE_OUT, outCache); log(`wrote ${path.relative(ROOT, CACHE_OUT)}  (${outCache.size} cached asks)`); }
 }

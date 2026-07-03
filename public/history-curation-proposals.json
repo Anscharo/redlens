@@ -1,0 +1,280 @@
+{
+  "kind": "html-era-curation-proposals",
+  "source": "frontier",
+  "model": "deepseek/deepseek-v4-pro",
+  "count": 68,
+  "proposals": {
+    "22cc27b5:6af6cd24-9513-42a7-be91-3f16845ebadf": {
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1109",
+      "why": "The body text is a near-identical match, differing only in the reference number (A.2.4 vs A.2.3.8.1.2.2.3 with link) – a small, coherent edit. The position path (Required Primitive Inputs → Required Outputs → Sky Core Atlas Updates → THIS → Instance Invocation Protocol → Process Definition For Initial Opportunity Identification And Planning → Process Initiation Logic) is identical except for the section number renumbering, indicating the same document lineage. The under process (Sky Core Distribution Reward Reimbursement) is consistent with the Support scope and the document's position in the process hierarchy."
+    },
+    "22cc27b5:f3ba519f-0d2f-4565-80be-3c095fc49b75": {
+      "chosenKey": "7b43d159:f16dad85a0033e65da70d29f5c040f4f#1197",
+      "why": "The newer document has body '... The requirements specified [A.2.3.8.1.2.4.1.1.3 - Required Primitive Inputs] ...' while candidate f16dad...1197 has '... A.2.4 - Required Primitive Inputs ...'. The reference change from A.2.3.8.1.2.4.1.1.3 to A.2.4 is a small, coherent edit. Furthermore, both share scope 'Support', same general position relative to 'Required Primitive Inputs » Required Outputs » Sky Core Atlas Updates » THIS » Process Definition For Reward Issuance...', and candidate is under Sky Core Distribution Reward Reimbursement which aligns with the newer doc's process context. Other candidates differ more in body, title, or minor position details."
+    },
+    "22cc27b5:3ef3d779-a66e-44f3-9192-6c3a5a5ca971": {
+      "chosenKey": "none",
+      "why": "Newer document is about 'Launch Agent 2', while all candidates are about different agents (Spark, Grove, Keel, Launch Agent 3, Launch Agent 4). No candidate has the same agent name, and the documents are separate instances of a boilerplate parameter for distinct agents. A rename is possible but no evidence ties any candidate to the new name; with no change description and identical scope, the new document appears genuinely new."
+    },
+    "22cc27b5:f8f8cbf6-75e0-4dbb-b617-f44bc8cc9d8d": {
+      "chosenKey": "none",
+      "why": "The newer document references Launch Agent 2, while all candidates reference different agents (Launch Agent 3, 4, Spark, Grove, Keel). This is not a simple rename edit but a change in the subject entity. Without a candidate for Launch Agent 2, the newer document is genuinely new in this context."
+    },
+    "22cc27b5:06cd14d5-0f55-4ac0-8d9d-f9060e0fcc1b": {
+      "chosenKey": "none",
+      "why": "The newer document 'Launch Agent 2 Holds Tokens...' is a new stub within the 'Launch Agent 2' branch, not a renamed version of 'Spark', 'Grove', 'Keel', 'Launch Agent 3', or 'Launch Agent 4'. Its position explicitly places it under 'Launch Agent 2 Deducts Rebate...' which is a different process than the candidates’ respective owner processes. The body text is identical boilerplate but the owning process (the 'under' or position context) differs; no candidate shares the 'Launch Agent 2' process context."
+    },
+    "22cc27b5:77ad2a49-8fa6-499b-bd26-b9fdef57fded": {
+      "chosenKey": "none",
+      "why": "The newer document references 'Launch Agent 2', while all candidates reference different agents (Spark, Grove, Keel, Launch Agent 3, Launch Agent 4). The scope of the newer document is 'Agent Scope Database > Launch Agent 2', but no candidate matches this agent. The position and path of the candidates differ from the newer document's position (which explicitly includes 'Launch Agent 2'). The change appears to be a rename or reassignment from a different agent to Launch Agent 2, but since no candidate exists for Launch Agent 2, the document is genuinely new."
+    },
+    "22cc27b5:bf81a7dd-9483-48e4-b489-cb3cb2e61b37": {
+      "chosenKey": "7b43d159:d4c0fd24678294a48c0bcdda4461b3ac",
+      "why": "Scope matches (both under Keel), path prefix matches exactly (Bridge USDC … SkyBridge … Token Bridge), and diff is a small coherent edit (added backticks, lowercased 'ratelimits'). No other candidate shares the process ownership (Keel + SkyBridge path)."
+    },
+    "22cc27b5:6f7becc7-2e70-44e5-8662-25ba7dd1a5f8": {
+      "chosenKey": "7b43d159:8109a9150fcc5027ed04a3890359feee",
+      "why": "The newer document's scope is Agent and its position is under 'Role Hierarchy And Permissions'. Candidate 7b43d159:8109... matches exactly in scope (Agent, Keel) and position ('Role Hierarchy And Permissions' instead of 'ALM Controller Role'), and their bodies are identical. The other candidates have a different position ('ALM Controller Role') and slightly different wording (FREEZER_ROLE in all caps), indicating they are for a different controller sub-hierarchy."
+    },
+    "22cc27b5:bafbbf28-95dc-41a4-9c55-f3befde4e991": {
+      "chosenKey": "7b43d159:b130d07459684c329cc6996baf39c40e",
+      "why": "The newer document is 'Launch Agent 2' under Agent scope. Among candidates, 'Launch Agent 4' is most likely a previous version that was renamed/numbered down to 2, as the structure is identical and it's the closest match within the same Agent scope and position chain. The diff would show a minor title edit. Other candidates belong to different agents or mismatched scopes (Spark, Grove, Keel, Discord)."
+    },
+    "22cc27b5:63fec69d-a4df-42c3-bb5f-b959e711df56": {
+      "chosenKey": "none",
+      "why": "No candidate matches the newer document's agent (Launch Agent 2) or its exact position under Use Of Idle Funds. The closest agents (Launch Agent 3 and 4) are different documents with different positions."
+    },
+    "22cc27b5:0ab58c7d-7bb4-4d33-bd7a-2eca8e80b62a": {
+      "chosenKey": "none",
+      "why": "All candidates are identically-named boilerplate stubs under different owning processes (Spark, Grove, Keel, Launch Agent 3, Launch Agent 4) but none share the newer document's specific scope/path. The newer doc sits under 'Operational Process Definition' but the path is incomplete—its owning process is not shown. Even the candidates also under 'Operational Process Definition' (e.g., 7b43d159:90656a2b7d3a804dfc80db3dfffb1774#3066) are at 'Completed Instances » In Progress Invocations', while the newer is at 'Completed Instances » In Progress Invocations' (seemingly identical), but the newer doc's full position includes 'Data Repository » Initial Planning » ‹THIS› » Artifact Edit Proposal » Completed Instances » In Progress Invocations', which exactly matches several candidates. However, all candidates are flagged as 'also a candidate for 170 other document(s)', indicating these are repeated boilerplate templates. Without a diff or change description, the identical bodies and positions mean any candidate is equally valid, but the systemic ambiguity and lack of a clear predecessor signal makes 'none' the safest choice."
+    },
+    "22cc27b5:d6cbd2a4-e0cb-4339-8354-5c11f6a72c93": {
+      "chosenKey": "7b43d159:4f76852ba4d38433f4dd3c704ab23f93#7492",
+      "why": "Position and enclosing process match exactly — both sit between 'USDS For USDC Swap Maximum' and 'Ethereum Mainnet sUSDS Deposit Maximum' under 'Agent Scope Database' (newer under Agent scope, same as Launch Agent 4). The other candidate has a different position with 'USDS To Solana via SkyBridge/OFT' intervening, and a different owning process (Keel), making it an unrelated stub despite identical body."
+    },
+    "7b43d159:ce1ad76417ad11ecfc4da95557612377": {
+      "chosenKey": "154b4d27:ce1ad76417ad11ecfc4da95557612377#7005",
+      "why": "Scope (Launch Agent 4) and path position (Maple USDC) match exactly. Body is identical. Despite no diff shown, the context (newer doc added for Launch Agent 4) and perfect positional alignment make this the clear predecessor."
+    },
+    "66dcdb78:a54f116f38c008bfa00bb67130de101c": {
+      "chosenKey": "none",
+      "why": "Newer doc is Launch Agent 4 Liquidity Layer; all OLDER candidates are for Executor Accord, Light Agent, Token SkyLink, Accessibility Reward, Integration Boost, Pioneer Chain, Allocation System, or Market Cap Fee primitives. The change description 'Add Allocation System Primitive Documents For Launch Agent 4' with 'Add New Active Instances For Grove' suggests new docs, not an update to an existing primitive's In Progress Invocations. Diff from any candidate would be a large rename, not a small coherent edit, and the scope tree implies a new primitive added."
+    },
+    "c43b5e3e:f0b3f47413403f350b8406ab67700d1c": {
+      "chosenKey": "940c4fad:8bb92bfcb320fe19a306299c4a2dd389#3818",
+      "why": "Same title, scope, and path; diff shows only a small update to maxAmount (placeholder→0), not a rename or restructuring."
+    },
+    "955f3f4d:e403038d7e6d2dfdf820ce2562d7d7aa": {
+      "chosenKey": "none",
+      "why": "The newer document is for Keel (path: Agent Scope Database › Keel). The change description says 'Introduce Keel - Updates references from Launch Agent 2 to Keel now that Keel has publicly launched', i.e., a new agent. The only candidate with a matching scope is #4973 (Launch Agent 2), but that is the old agent being replaced, not a predecessor; the diff is a rename, but the scope changed from Launch Agent 2 to Keel. The newer document is genuinely new for the Keel scope."
+    },
+    "955f3f4d:4f7c22cb3d5fb739221c1edce1eb44fe": {
+      "chosenKey": "d531de16:5718288e572b46b6dc648d2dfb859aa2",
+      "why": "The change description explicitly states 'Updates references from Launch Agent 2 to Keel'. The candidate with key d531de16:5718288e... is the Launch Agent 2 document, and its diff shows only the name change from 'Launch Agent 2' to 'Keel', matching the edit. Its path and position align with the newer document's scope and position."
+    },
+    "955f3f4d:7622591f70028b505f25eb67b4fb0c13": {
+      "chosenKey": "d531de16:8ff15a91e44bc2cf5852fe1894c3ad60",
+      "why": "The edit description explicitly says 'Updates references from Launch Agent 2 to Keel', and this candidate's diff shows exactly that rename from Launch Agent 2 to Keel, with matching scope and path."
+    },
+    "955f3f4d:50534f2212264e5fc95e35bfa5162d98": {
+      "chosenKey": "d531de16:46b308003bcb07392a8ca2cf3e52d56e",
+      "why": "The PR explicitly mentions 'Introduce Keel - Updates references from Launch Agent 2 to Keel now that Keel has publicly launched'. Candidate d531de16:46b... is the 'Launch Agent 2' version (scope Launch Agent 2, renamed to Grove), its diff shows a single-word change 'Launch Agent 2' → 'Keel' matching the PR, and it shares the same document structure (Token Admin stub). This is the direct rename described."
+    },
+    "955f3f4d:b8553517f49f8b9eae3691638e798824": {
+      "chosenKey": "d531de16:1168d3ad765c36658b72a0c42e968aa6",
+      "why": "PR #66 introduces Keel by updating references from Launch Agent 2. This candidate's position matches the newer document exactly (Omni Documents > Sky Forum > Agent-Specific Emergency Response > Use Of Idle Funds > Ecosystem Accords) and the diff shows a simple rename from Launch Agent 2 to Keel."
+    },
+    "955f3f4d:76d2f9007efa2824f492f8fc17398dc5": {
+      "chosenKey": "d531de16:c0ffaeaee3ef01a178808a6026248276",
+      "why": "The PR explicitly updates references from Launch Agent 2 to Keel. The diff is a small, coherent rename with 'Launch Agent 2' replaced by 'Keel', matching the change description. The older document's scope is Agent Scope Database › Launch Agent 2, consistent with the newer's scope under Keel."
+    },
+    "955f3f4d:9f7f657f42b601ce11279679a9c6022a": {
+      "chosenKey": "d531de16:36eb58aaf74d0f8855cb10175964a3b2",
+      "why": "The change (PR #66) explicitly updates references from Launch Agent 2 to Keel. The newer document's path is under Keel. Candidate d531de16:36eb58aaf74d0f8855cb10175964a3b2 is the Launch Agent 2 version, with the exact diff matching that rename. Its position sequence is identical to the newer document's (Root Edit Proposal Submission » Root Edit Proposal Submission Requirements Exception » Short-Term Transitionary Measures » THIS » ... » Root Edit Artifact Update), unlike the Grove candidate which has a different preceding element and final element. This confirms it as the direct predecessor."
+    },
+    "955f3f4d:083bc8363363cdc2a7f9cfd3cfd8a927": {
+      "chosenKey": "d531de16:17d39964062b8d487fafb86a113055fd",
+      "why": "The diff shows a simple replacement of 'Launch Agent 2' with 'Keel', matching the PR's 'Introduce Keel' edit. The candidate's path 'Agent Scope Database › Launch Agent 2' aligns with the newer 'Agent Scope Database › Keel' after the rename, and positions are identical."
+    },
+    "955f3f4d:53ad07b73b6a27d14860031e7930b5a1": {
+      "chosenKey": "d531de16:dd1d12b0d2bf8affd9f03e710ad39852",
+      "why": "PR #66 explicitly introduces Keel by updating references from Launch Agent 2. The candidate's scope (Agent Scope Database › Launch Agent 2) and position (Root Edit Proposal Submission Requirements Exception) match the newer document's structure, and the diff shows a small, coherent rename from AGENT2 to KEEL, consistent with a simple edit of a predecessor."
+    },
+    "dd131566:8b0f3359395bb415f63aebe02b4cf002": {
+      "chosenKey": "1f993596:f1c6cdc575ce4b4b28a59890398b8c35#4034",
+      "why": "Scope matches (Grove), diff is small and coherent (adding USDC units), and position matches exactly."
+    },
+    "704f0378:26bb89ccbb8d9062cb619e58a141f6a7": {
+      "chosenKey": "none",
+      "why": "Small, coherent diff: title change to 'Resting' and removal of item 6, matching the update that defines Resting vs Latent."
+    },
+    "616a4b50:d96dad110cdb782cba795a9b693d3ccc": {
+      "chosenKey": "none",
+      "why": "The diff shows only the token address changed, which is a small, coherent edit. The path and position match exactly. The PR description indicates an update, not a new addition."
+    },
+    "4dbd365e:c47a45498a4a5ab2ea0203c25f65f9b6": {
+      "chosenKey": "none",
+      "why": "The newer document is in the Grove scope, but all candidates are in Spark or Launch Agent 1 scopes. The change description says 'Updated', but the scope mismatch and the fact that the newer document's path is under Grove while all candidates are under other agents indicate this is a new document in the Grove artifact, not an edit of an existing one."
+    },
+    "4dbd365e:cdcd38348d091b77d589054c6b5b5fce": {
+      "chosenKey": "73a607a4:3c60e6ce8d4d655e5ad13b2ec58fa395#2895",
+      "why": "The newer document is under 'Agent Scope Database › Grove' and positioned after 'Off-chain Operational Parameters' and before 'Centrifuge JAAA Instance Configuration Document'. Candidate #2895 is under 'Agent Scope Database › Spark' but its position matches exactly: 'Inflow Rate Limits » Outflow Rate Limits » Off-chain Operational Parameters » THIS› » ...'. All candidates have identical diffs (only 'SLL' → 'Grove Liquidity Layer' change), so position is the key. #2895 is the only one with the same immediate predecessor 'Off-chain Operational Parameters' and the same relative slot before an instance config doc. The scope mismatch (Spark vs Grove) is likely a rename or move, consistent with the PR being an edit cycle."
+    },
+    "4dbd365e:eeb0018328b9842a8a62baf8ebeaeddc": {
+      "chosenKey": "73a607a4:77d2804084fb6cf15ee308e0009823ad",
+      "why": "The newer document is Grove under Agent Scope Database. Candidate 77d28040 is Launch Agent 1, which has the same position path ending in 'Sky Ecosystem Emergency Response' as the newer document, and its diff shows only a rename from 'Launch Agent 1' to 'Grove' — a small, coherent change. The other candidates have different position endings or scopes, making them less likely predecessors."
+    },
+    "4dbd365e:5db90d86cb8cfa77f6c603c52af2adcc": {
+      "chosenKey": "73a607a4:2f461a907b5952df282961f0c830fa52",
+      "why": "The diff shows a single-word change from 'Launch Agent 1' to 'Grove', which is a small, coherent edit. The newer document's path is under 'Agent Scope Database › Grove', and this candidate is under 'Agent Scope Database › Launch Agent 1' — a rename of the agent scope matches the edit. Position also aligns: both are in 'Redeem All Mainnet Positions » ERC-4626 Withdrawal Action » USDC to USDS Swap Action » ‹THIS› » Allocation Strategy » Active Instances » Ethereum Mainnet Instances'. The other candidate with a similar small diff (Spark→Grove) has a mismatched position (missing 'Redeem All Mainnet Positions' and different preceding items)."
+    },
+    "4dbd365e:67130da78150496dd92795627e01feb6": {
+      "chosenKey": "73a607a4:c8cb77fb47b96e23f9fc601d37b932ea",
+      "why": "Exact position match (same preceding/following docs) and small, coherent diff (only tag and reference updated) confirm it is the direct predecessor; scope changed from Launch Agent 1 to Grove."
+    },
+    "4dbd365e:ede3fdd66cd4aeffbeedd0d5bd9a5d59": {
+      "chosenKey": "73a607a4:5821e7020a80dbd7a5163c0b6feaf172",
+      "why": "The newer document is under 'Grove' and its position matches the candidate under 'Launch Agent 1' exactly (same neighbors). The diff shows a single-word change from 'Launch Agent 1' to 'Grove', which is a small, coherent edit consistent with a rename or scope update. The other candidate under 'Spark' has a different position (different preceding documents), making it less likely to be the direct predecessor."
+    },
+    "4dbd365e:0160383e134a9708959bcfe6416d8414": {
+      "chosenKey": "73a607a4:77107f258b76fb19d16998d4162b2789",
+      "why": "Minimal diff changing agent name from 'Launch Agent 1' to 'Grove'; position and body otherwise identical, indicating a rename."
+    },
+    "4dbd365e:19b48e80f2a42d4cd8e4c0cec5f157c1": {
+      "chosenKey": "73a607a4:73463f3011c719d79da16b97f3172e32#3872",
+      "why": "Scope and position match: both are under Agent Scope Database › Ethereum Mainnet, Active Instances » Ethereum Mainnet Instances » Centrifuge. The diff shows a small, coherent rename from Centrifuge USDC to Centrifuge JTRSY, consistent with a normal edit. Other candidates have mismatched scopes (SparkLend, Maple, Ethena) or different positions within Centrifuge."
+    },
+    "4dbd365e:441ca248a0a43636745c3aa3b6b478db": {
+      "chosenKey": "none",
+      "why": "The newer document is in scope 'Grove' under 'Grove Labs', while both candidates are in different scopes (Spark/SLL and Launch Agent 1). The change description says 'Updated' but the diff shows only a rename from a different liquidity layer to Grove, and the scopes do not match. No candidate shares the newer document's scope, so it is genuinely new."
+    },
+    "4dbd365e:a82738da7c7d69582978a1a915ed9ccd": {
+      "chosenKey": "73a607a4:fa04d423fbd819e8e1c693975a158693",
+      "why": "Position matches the newer document exactly (Omni Documents » Governance Information Unrelated To Root Edit Primitive » Sky Forum » ‹THIS› » Agent-Specific Emergency Response » Strategic Intent » Collateralized Loan Obligation Strategy), and the diff shows only the agent name changed from 'Launch Agent 1' to 'Grove', indicating a simple edit/rename. All other candidates have different positions or titles."
+    },
+    "4dbd365e:001191d9b14ebe85b67567b92fbc2e74": {
+      "chosenKey": "73a607a4:f4fbd7056602111461d8afea81c616a5",
+      "why": "The newer document's scope is 'Agent Scope Database › Grove'. Candidate 73a607a4:f4fbd7056602111461d8afea81c616a5 has scope 'Agent Scope Database › Spark', which is the closest match (both are top-level agent scopes, and the change from SPK to GROVE is a coherent rename/edit). The diff shows a small, coherent change (token name and forum tag/category). Other candidates have different scopes (Launch Agent 1/2/3) and slightly different position paths, making them less likely predecessors."
+    },
+    "4dbd365e:b892bb7c85e2c5e672c3fb87adbb13f1": {
+      "chosenKey": "none",
+      "why": "Scope mismatch: newer doc under Grove, candidates under Spark and Launch Agent 1. The identical bodies and small diff suggest a template copy for a new agent rather than an update of an existing document."
+    },
+    "4dbd365e:64809ddde5b732dff99a2db1d8b2a05f": {
+      "chosenKey": "none",
+      "why": "The newer document is for Grove, but all candidates are for Spark or Launch Agents. The change description says 'Updated', but the diffs show a complete replacement of the agent name and tag, and the scope/path differ (Grove vs Spark/Launch Agents). This is a new document for a new agent, not an edit of an existing one."
+    },
+    "4dbd365e:8f6d0079b980aede8e7fda109187d131": {
+      "chosenKey": "none",
+      "why": "The newer document's owning process is Grove, while candidates are for Spark and Launch Agent 1. For identical boilerplate documents, the owning process is the decisive signal. No candidate matches the Grove process."
+    },
+    "4dbd365e:22a80be5af724b2c3dadad9efa039528": {
+      "chosenKey": "none",
+      "why": "Neither candidate's scope matches the newer document's scope (under: Grove). The candidates are for agents Spark and Launch Agent 1, while the newer document is for Grove. Despite the small coherent diffs, the lack of scope match and the fact that both candidates are marked for deletion indicate the Grove document is newly added rather than an edit of an existing one."
+    },
+    "4dbd365e:46d54dd27846585b1d6de70ef89c2f54": {
+      "chosenKey": "73a607a4:dc3c297abb6dd045b232afeade97e94d",
+      "why": "The newer document is for Grove under Agent Scope Database › Grove, with Centrifuge as the next sibling. Candidate dc3c29 is for Launch Agent 1 but has the same sibling Centrifuge and a small, coherent diff (only the agent name changed from Launch Agent 1 to Grove). The other candidates have mismatched scopes (Spark, Base, Arbitrum) or different sibling structures, and their diffs are larger or less coherent. The change description indicates an edit, so a predecessor exists."
+    },
+    "34cdf3d2:bff59acd306dccb1980ec7fe7e8d0f8f": {
+      "chosenKey": "none",
+      "why": "Diff is tiny (only added backticks around the address), scope/path match exactly, and the change PR is a cleanup that would make this kind of formatting edit. No other candidates provided."
+    },
+    "75d49db2:ce1ad76417ad11ecfc4da95557612377": {
+      "chosenKey": "19930849:d3fdbf88905ca6743118e95c5bf72188#3701",
+      "why": "Scope matches (Launch Agent 1). Diff is tiny and coherent: only backticks added around Active. Position is close (Active Instances Directory in both). Other candidates have wrong scope, wrong primitive, or wrong status."
+    },
+    "79abe87f:12a5429075fc87e71242324539f040bb": {
+      "chosenKey": "none",
+      "why": "Same title and scope; diff shows a coherent simplification; PR indicates updated Spark Liquidity Layer documentation, likely including restructuring and rewriting of Burn USDS document, with position change as part of the update."
+    },
+    "79abe87f:a5f00f946a9ec8676516e0c4758fbef9": {
+      "chosenKey": "baf25904:9371b658f24ae065af9c84e2a041f5f7",
+      "why": "Single line change from 'Spark Liquidity Layer' to 'SparkLend USDS Instance of the Allocation System Primitive' matches the PR's update of Spark Liquidity Layer documentation to Allocation System Primitive; title matches and scope is Spark."
+    },
+    "22cc27b5:2da58ba2-a172-43bd-b7e7-d3d8e69233bf": {
+      "chosenKey": "none",
+      "why": "Scope mismatch: newer doc is under Immutable Documents/Standard of Proof, while both candidates are under Research Track/Needed Research with no positional overlap."
+    },
+    "22cc27b5:279f417e-2fec-473d-ab7c-eaf5b371c598": {
+      "chosenKey": "7b43d159:851054327f940951821821bbf666cd42#2879",
+      "why": "Document almost identical except added hyperlink; moved from Research Track to NR-8 scope. Candidate #2879 is the clean previous version in old Research Track location (no duplicate naming) and represents the same document before edit and move."
+    },
+    "22cc27b5:11161730-6568-445f-a250-ba5c67857390": {
+      "chosenKey": "7b43d159:efa984105d75bfa811b51ed9e80c8aba",
+      "why": "Position matches exactly under 'Onboarding Integrators Active Data Update » ‹THIS› » Process Definition For Operational GovOps Review » Process Initiation Logic » Triggers' except the top-level number changed from A.2.4 to A.2.3.8.1.2.3.1.4.2. Content is near-identical with a coherent edit: the referenced input doc changed from 'A.2.4 - Required Primitive Inputs' to '[A.2.3.8.1.2.3.1.3 - Required Primitive Inputs]' and a link was added. No other candidate shares this position and exact wording."
+    },
+    "22cc27b5:bee5a2d9-1e98-4918-a77d-3e3607b51f0f": {
+      "chosenKey": "7b43d159:71f51bcae74ee2e4ef02f06f631b8496#1152",
+      "why": "Matches same unique trigger reference (Primitive Hub/In Progress Invocations Directory/Instance Name Update) with only a path refinement change, and position moved from Time-Based Triggers to Document Update Triggers, indicating a coherent edit. The #1152 version is the latest predecessor before the newer document."
+    },
+    "22cc27b5:9cb3ab72-37f5-4501-8661-a204d0747dd8": {
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1158",
+      "why": "Position structure (Required Primitive Inputs → Required Outputs → Sky Core Atlas Updates → THIS → Process Definition For Offchain Vote → Process Initiation Logic → Triggers) matches the newer document exactly, despite the root section changing from A.2.4 to A.2.3.8. Body is identical except the updated reference to Required Primitive Inputs, which is a normal edit between versions."
+    },
+    "22cc27b5:1efa0fc5-5377-428f-a203-8c3c10dcc153": {
+      "chosenKey": "7b43d159:7a11a65aa3393cc7b4ce52ff9443a6d8",
+      "why": "Body text nearly identical, including mutual exclusivity clause and specific edit steps for Proposal Passes/Fails, with only the trigger process ID changing from A.2.4 to A.2.3.8.1.2.3.6 — a coherent small edit. Position is also a close match (Triggers under Process Definition For Artifact Update) and the owning scope is the same Support domain."
+    },
+    "22cc27b5:b593ff77-2c46-418d-a7b3-9730437ce804": {
+      "chosenKey": "none",
+      "why": "Position number and owning process mismatch; no candidate clearly matches the new document's context, suggesting a new boilerplate instance."
+    },
+    "22cc27b5:cca17fe9-3dc9-48ce-be26-39a1625b3690": {
+      "chosenKey": "7b43d159:b0fdcd76f46fa2dc5e2badb2c537ead6",
+      "why": "Content nearly identical, same scope and under process, likely just an ID update from A.2.4 to long form."
+    },
+    "22cc27b5:ede7410d-a632-4209-ae79-7e3ba730cef1": {
+      "chosenKey": "7b43d159:d14f0cf8b061b101d767f86e2fb0c5d0#1208",
+      "why": "Path matches 'Required Primitive Inputs » Required Outputs » Sky Core Atlas Updates » Process Definition For Settlement Cycle And Core GovOps Review » Process Initiation Logic » Triggers', body is identical except for updated reference to A.2.4 → A.2.3.8.1.2.4.1.2.3."
+    },
+    "22cc27b5:35c38264-03ec-4485-9de6-2ff368981066": {
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1109",
+      "why": "The newer document is a small update of the older candidate: the title and body match perfectly except the reference changed from 'A.2.4 - Required Primitive Inputs' to a linked 'A.2.3.8.2.2.2.3 - Required Primitive Inputs', reflecting a renumbering. The position path (Instance Invocation Protocol > Process Definition For Initial Opportunity Identification And Planning > Process Initiation Logic) is identical, indicating it is the same document in a prior version. The 'under' likely changed during restructuring, but the matching content and position strongly signal this candidate as the direct predecessor."
+    },
+    "22cc27b5:7f991abf-3395-4f92-82e1-88e991ebd97a": {
+      "chosenKey": "none",
+      "why": "No OLDER candidate matches the NEWER document's position (A.2.3.8.2.2.3.4.3 vs A.2.4) or owning process; all candidates reside under different 'under' processes and their positions differ, indicating they are separate documents rather than a previous version."
+    },
+    "22cc27b5:d86e5f9f-7b1c-4605-9253-4281a6bdbc13": {
+      "chosenKey": "7b43d159:4f62256f27f00fcc7447241cc754e76a",
+      "why": "The newer document retains 'which latter is defined in', matching the wording of candidate 4f62... while candidate efa98... dropped that phrase. The position paths are identical, and the content update is small and coherent."
+    },
+    "22cc27b5:d3641a4d-6104-4dc9-90ff-d4c7d1766917": {
+      "chosenKey": "none",
+      "why": "No candidate position matches the newer document's path order (Underlying Asset Address » Token Address ...). All candidates have either Token Address first or different preceding elements, and the scope mismatch (Agent vs. specific Agent like Spark/Grove) suggests a new document."
+    },
+    "22cc27b5:dfab21ad-13a4-48dd-8398-0c3d7dbc8996": {
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#5529",
+      "why": "Same hash and body, location re-ordered (Token→Underlying → Underlying→Token) in the latest Grove version, indicating a path restructure within the Agent scope."
+    },
+    "22cc27b5:3872c2ee-5465-4ce1-8c34-3800e61fd674": {
+      "chosenKey": "none",
+      "why": "No candidate's path matches the newer document's agent instance (Launch Agent 2); the newer doc is likely a new addition."
+    },
+    "22cc27b5:2e51243e-6f14-4c72-97c4-e873f449bdc9": {
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#4376",
+      "why": "Position and body text match the newer document exactly, and this candidate has the highest numeric suffix among Spark candidates with matching position, suggesting it is the most recent prior version."
+    },
+    "22cc27b5:072498cd-35c7-4e12-a2f7-3c6462257ed3": {
+      "chosenKey": "none",
+      "why": "Newer document is for Launch Agent 2, while all candidates belong to other agents (Spark, Launch Agent 3, Keel) with no matching path; no previous version exists."
+    },
+    "22cc27b5:e5ffb0b8-fd9d-4932-b8fa-1ebcc2cbb0d2": {
+      "chosenKey": "none",
+      "why": "No candidate matches the owning scope 'Launch Agent 2'; all candidates belong to different agent instances (Launch Agent 3, Spark, Keel), so this is a new document."
+    },
+    "22cc27b5:3a9acb95-b227-4473-aa26-95b7f25cfd8a": {
+      "chosenKey": "7b43d159:60195d7e86c137d8a26b9e2b486f635c#4376",
+      "why": "Position and content match exactly with newer document; among matching candidates in Spark scope, #4376 is the latest version likely preceding this newer update."
+    },
+    "955f3f4d:65e1551d07c2827d965750cd7d6da228": {
+      "chosenKey": "d531de16:9a12f6c873d3816f1dea83a5832c31ad",
+      "why": "PR introduces Keel by renaming Launch Agent 2; diff shows only name change from Launch Agent 2 to Keel, scope and position match."
+    },
+    "22cc27b5:e471ce78-e775-4aff-a331-7e581a4606e6": {
+      "chosenKey": "none",
+      "why": "Candidates have different positions (Required Number Of Signers vs State Address under Core Operator Relayer Multisig), indicating distinct documents, while title edit is small but position mismatch means not the same document."
+    }
+  }
+}

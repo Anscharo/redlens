@@ -20,6 +20,7 @@ import { isSynthetic, syntheticUuid } from "../lib/history-identity.mjs";
 import { detectLineage } from "../lib/history-lineage.mjs";
 import { classifyDiff } from "../lib/history-classify.mjs";
 import { mechanismToMethod } from "../lib/auto-curate.mjs";
+import { contentDupCounts, occKey } from "../lib/history-occkey.mjs";
 import { lineDiff } from "../../src/lib/diffCore.ts";
 
 const ROOT = process.cwd();
@@ -31,6 +32,7 @@ const MEASURE = process.argv.includes("--measure");
 // Content-recovery tier (plan §4.2 follow-up): recover bulk-rename continuations the
 // structural-key tiers drop to death+birth. ON by default; `--no-recover` reverts.
 const RECOVER = !process.argv.includes("--no-recover");
+const DIFF = !process.argv.includes("--no-diff"); // tier-1.7 changed-lines threading (history-diff.mjs)
 // `--decisions [file]` applies the human-confirmed curation choices (plan §10.4). With no
 // path (the bare `pnpm htmlhist:apply`), it defaults to the COMMITTED decisions file so the
 // applied freeze reproduces from git on any checkout. `--decisions` absent = plain prepare.
@@ -88,6 +90,7 @@ console.error(`loaded ${commits.length} html commits + ${md.length} md docs in $
 // decisions (newer = the #117 migration) override seedFromMd; the rest override the
 // backward hops. Once recorded, the same decisions reproduce the same artifact.
 let seedOverrides = null, hopOverrides = null, applied = null;
+const splitOf = new Map(); // duplication-split copy uuid -> its #117 source (a kept identical sibling)
 // ai/human decisions to tag for per-change provenance (plan §10.4). Collected here (before
 // threading) and resolved to `${uuid}:${sha}` once nodes carry uuids; deterministic links
 // are the unbadged default, so only ai/human are pinned.
@@ -95,20 +98,34 @@ const methodPins = [];
 if (DECISIONS_PATH) {
   console.error(`decisions: applying ${path.relative(ROOT, DECISIONS_PATH)}`);
   const file = JSON.parse(fs.readFileSync(DECISIONS_PATH, "utf8"));
-  // md5(raw #117 body) → uuid, matching build-history-curation.mjs's content-address
+  // md5(raw #117 body) → uuid, matching build-history-curation.mjs's content-address; and uuid →
+  // body (to detect duplication-splits: identical md docs where some got an html predecessor and the
+  // rest are copies #117 created).
   const rawUuid = new Map();
+  const mdContentByUuid = new Map();
   { const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
     let cur = null, body = [];
+    const flush = () => { if (cur) { const b = body.join("\n").trim(); rawUuid.set(md5(b), cur); mdContentByUuid.set(cur, b); } };
     for (const line of git(`show ${MD117}:'${MD}'`).split("\n")) {
       const m = line.match(HRE);
-      if (m) { if (cur) rawUuid.set(md5(body.join("\n").trim()), cur); cur = m[5]; body = []; }
+      if (m) { flush(); cur = m[5]; body = []; }
       else if (cur) body.push(line);
     }
-    if (cur) rawUuid.set(md5(body.join("\n").trim()), cur);
+    flush();
   }
-  // content-address index over every html node (8-char sha, matching the curation file)
+  // content-address index over every html node (8-char sha, matching the curation file). Index
+  // BOTH the plain key (subject keys, unique-content candidates; last-wins on dups as before) and
+  // the occurrence-precise key (identical stubs → `${sha}:${hash}#${order}`), so a decision that
+  // picked a specific stub resolves to THAT node, not just any row with the same content.
   const nodeIndex = new Map();
-  shas.forEach((full, idx) => { const sha8 = full.slice(0, 8); for (const n of commits[idx].nodes) nodeIndex.set(`${sha8}:${n.contentHash}`, n); });
+  shas.forEach((full, idx) => {
+    const sha8 = full.slice(0, 8);
+    const dupCounts = contentDupCounts(commits[idx].nodes);
+    for (const n of commits[idx].nodes) {
+      nodeIndex.set(`${sha8}:${n.contentHash}`, n);
+      nodeIndex.set(occKey(sha8, n, dupCounts), n);
+    }
+  });
 
   seedOverrides = new Map(); hopOverrides = new Map();
   let unresolved = 0;
@@ -119,7 +136,10 @@ if (DECISIONS_PATH) {
     // file's `auto` mechanism. Only ai/human are surfaced as badges.
     const method = d.method ?? mechanismToMethod(d.auto);
     if (d.newerSha === MD117) {               // seed decision: subject is an #117 md doc
-      const mdUuid = rawUuid.get(String(d.subjectKey).split(":")[1]);
+      // subjectKey is now `${sha}:${uuid}` (uuid-keyed, so identical-content md docs stay distinct);
+      // fall back to the old content-address form (`${sha}:${md5}` → rawUuid) for legacy decisions.
+      const part = String(d.subjectKey).split(":")[1];
+      const mdUuid = /^[0-9a-f-]{36}$/.test(part) ? part : rawUuid.get(part);
       if (!mdUuid) { unresolved++; continue; }
       seedOverrides.set(mdUuid, chosen);
       if (method === "ai" || method === "human") methodPins.push({ kind: "seed", mdUuid, method });
@@ -132,11 +152,33 @@ if (DECISIONS_PATH) {
   }
   applied = { total: (file.decisions || []).length, seed: seedOverrides.size, hop: hopOverrides.size, unresolved };
   console.error(`decisions: applied ${applied.seed} seed + ${applied.hop} hop, ${unresolved} unresolved (of ${applied.total})`);
+
+  // duplication-split provenance: among identical-content md docs, some got a real html predecessor
+  // ("kept") and the rest resolved to "none" — #117 duplicated the doc into more copies than existed
+  // in html. Point each "none" copy extracted_from a kept sibling (deterministic: the first by uuid),
+  // so the artifact records the split lineage instead of a bare "created". Derived from the decisions
+  // themselves, so it works for both the auto baseline and human-saved files.
+  const uuidOf = (sk) => { const p = String(sk).split(":")[1]; return /^[0-9a-f-]{36}$/.test(p) ? p : rawUuid.get(p); };
+  const byContent = new Map(); // md content -> { kept:[uuid], none:[uuid] }
+  for (const d of file.decisions || []) {
+    if (d.newerSha !== MD117) continue;
+    const uuid = uuidOf(d.subjectKey);
+    const content = uuid && mdContentByUuid.get(uuid);
+    if (content == null) continue;
+    let g = byContent.get(content); if (!g) byContent.set(content, (g = { kept: [], none: [] }));
+    (d.chosenKey === "none" ? g.none : g.kept).push(uuid);
+  }
+  for (const { kept, none } of byContent.values()) {
+    if (!kept.length || !none.length) continue;
+    const source = kept.slice().sort()[0];
+    for (const u of none) splitOf.set(u, source);
+  }
+  if (splitOf.size) console.error(`decisions: ${splitOf.size} split copies pointed extracted_from their #117 source`);
 }
 
 const lastSha = commits[commits.length - 1].sha;
 const seed = seedFromMd(md, commits[commits.length - 1].nodes, seedOverrides ? { overrides: seedOverrides } : {});
-const thread = threadBackward(commits, { seed: seed.uuidByRow, recover: RECOVER, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
+const thread = threadBackward(commits, { seed: seed.uuidByRow, recover: RECOVER, diff: DIFF, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
 const rawEvents = buildEvents(commits, { lineDiff });
 
 // resolve the ai/human method pins to `${uuid}:${sha}` now that threading assigned uuids.
@@ -153,6 +195,8 @@ for (const p of methodPins) {
 const docMeta = new Map();
 for (const [uuid, s] of seed.seam) docMeta.set(uuid, seed.extractedFrom.has(uuid) ? { seam: s, extractedFrom: seed.extractedFrom.get(uuid) } : { seam: s });
 for (const [row, successor] of seed.mergedInto) docMeta.set(syntheticUuid(row, lastSha), { seam: "merged", mergedInto: successor });
+// duplication-split copies (from the decisions): mark seam "split" + point at the #117 source.
+for (const [splitUuid, sourceUuid] of splitOf) docMeta.set(splitUuid, { seam: "split", extractedFrom: sourceUuid });
 
 // intra-era split/merge lineage (plan §4.1, prototype B): generalise the seam's
 // extracted_from / merged_into to every HTML hop. Runs after threadBackward (nodes carry
@@ -173,6 +217,34 @@ if (!process.argv.includes("--no-lineage")) {
   console.error(`intra-era lineage: ${lineageStats.extractedFrom} extracted_from + ${lineageStats.mergedInto} merged_into`);
 }
 
+// Re-introductions (plan §4.1 extension): docs whose #117 migration REVIVED a name the live HTML had
+// ALREADY retired (e.g. "Launch Agent 2" → "Keel" at PR #66, revived at #117, re-fixed at #172). Their
+// true predecessor lives under the NEW name and is degenerate among identical-body siblings, so the
+// seed can't thread them and they'd ship as a bare seam:"created" ("introduced here"). This committed,
+// hand-authored ledger (git-history forensics — see scripts/aux/HISTORY.md) re-tags each listed uuid
+// seam:"reintroduced" and attaches a `reintroducedFrom` backlink (retirement commit + true predecessor
+// + canonical name), so the reconstruction records "revived, not born". ADDITIVE; only the listed uuids.
+let reintroStats = null;
+try {
+  const ledger = JSON.parse(fs.readFileSync(path.join(ROOT, "public/history-reintroductions.json"), "utf8"));
+  let n = 0;
+  for (const e of ledger.entries || []) {
+    if (!e.uuid) continue;
+    const dm = docMeta.get(e.uuid) || {};
+    dm.seam = "reintroduced";
+    dm.reintroducedFrom = {
+      canonicalName: e.canonicalName, revivedName: e.revivedName, predecessorKey: e.predecessorKey,
+      renamedAwayAt: e.renamedAwayAt, reintroducedAt: e.reintroducedAt, refixedAt: e.refixedAt,
+    };
+    docMeta.set(e.uuid, dm);
+    n++;
+  }
+  reintroStats = n;
+  if (n) console.error(`re-introductions: ${n} doc(s) re-tagged seam:"reintroduced" from public/history-reintroductions.json`);
+} catch (err) {
+  if (err.code !== "ENOENT") console.error(`re-introductions ledger skipped: ${err.message}`);
+}
+
 // map pass events → the eventToRow HistoryEvent shape (+ additive era/synthetic/seam)
 const events = rawEvents.map((e) => {
   const meta = commitMeta.get(e.sha) || {};
@@ -187,7 +259,7 @@ const events = rawEvents.map((e) => {
   if (method) ev.method = method;
   // seam + lineage land on the doc's birth (added) event (additive fields)
   const dm = e.type === "added" && docMeta.get(e.uuid);
-  if (dm) { ev.seam = dm.seam; if (dm.extractedFrom) ev.extractedFrom = dm.extractedFrom; if (dm.mergedInto) ev.mergedInto = dm.mergedInto; }
+  if (dm) { ev.seam = dm.seam; if (dm.extractedFrom) ev.extractedFrom = dm.extractedFrom; if (dm.mergedInto) ev.mergedInto = dm.mergedInto; if (dm.reintroducedFrom) ev.reintroducedFrom = dm.reintroducedFrom; }
   return ev;
 });
 
@@ -211,6 +283,7 @@ const summary = {
   prCoverage: `${[...commitMeta.values()].filter((c) => c.pr).length}/${commitMeta.size}`,
   appliedDecisions: applied, // null unless --decisions was passed (plan §10.4 provenance)
   intraEraLineage: lineageStats, // null with --no-lineage (plan §4.1, prototype B)
+  reintroductions: reintroStats, // null if the ledger is absent (public/history-reintroductions.json)
 };
 console.error("\n=== freeze summary ===");
 console.error(JSON.stringify(summary, null, 2));
@@ -221,7 +294,7 @@ if (MEASURE) {
   const artifact = {
     meta: { kind: "html-era-history", migrationCommit: MD117, lastHtmlCommit: SEED_HTML, ...summary },
     commits: commits.map((c) => ({ sha: c.sha, seq: c.seq, pr: commitMeta.get(c.sha)?.pr ?? null })),
-    docMeta: Object.fromEntries(docMeta), // uuid → { seam, extractedFrom?, mergedInto? } (§4.1)
+    docMeta: Object.fromEntries(docMeta), // uuid → { seam, extractedFrom?, mergedInto?, reintroducedFrom? } (§4.1)
     events,
     decisions: thread.decisions,
   };

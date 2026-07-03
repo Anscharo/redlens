@@ -18,6 +18,7 @@
 // assigns its own quasi-ids (Q1, Q2, …) at the first commit, carried forward.
 
 import { matchNodes, _internal } from "./history-identity.mjs";
+import { contentDupCounts, occKey } from "./history-occkey.mjs";
 
 const { shingleSet, jaccard, isShort } = _internal;
 const FLOOR = 0.6; // confident mutual-best bar (matches the reverse matcher's fuzzyHi)
@@ -112,7 +113,12 @@ export function forwardTrace(commits, opts = {}) {
 // match is compared at the content-address level (the unit a recorded decision binds
 // to) rather than node identity — exactly what the apply step resolves against.
 export function forwardLinks(commits, { floor } = {}) {
-  const key = (sha, node) => `${sha}:${node.contentHash}`;
+  // Subject (newer) side stays plain — it is the caseKey the orchestrator joins on. The
+  // PREDECESSOR (older) side uses the occurrence-precise key so it lines up with the curation
+  // autoKey for near-identical stubs (occKey collapses to the plain key for unique content).
+  const subjKey = (sha, node) => `${sha}:${node.contentHash}`;
+  const dupCache = new Map();
+  const dupFor = (c) => { let d = dupCache.get(c.sha); if (!d) dupCache.set(c.sha, (d = contentDupCounts(c.nodes))); return d; };
   const out = new Map();
   for (let i = 1; i < commits.length; i++) {
     const olderC = commits[i - 1], newerC = commits[i];
@@ -120,7 +126,7 @@ export function forwardLinks(commits, { floor } = {}) {
     const byNewer = new Map(pairs.map((p) => [p.newer, p.older]));
     for (const n of newerC.nodes) {
       const o = byNewer.get(n) || null;
-      out.set(key(newerC.sha, n), o ? key(olderC.sha, o) : null);
+      out.set(subjKey(newerC.sha, n), o ? occKey(olderC.sha, o, dupFor(olderC)) : null);
     }
   }
   return out;

@@ -105,9 +105,10 @@ export function frontierCorroborator(chosenKey, { autoKey, fwdKey, containKey } 
 }
 
 // Map an auto-resolution mechanism (a decision's `auto`/`via`) to a history-view provenance
-// method: the LLM + frontier locks → "ai"; every deterministic pass (matcher, forward∩reverse,
-// containment) → "deterministic". A "human" method is decided by the caller (absence of an auto
-// mechanism), not here. Used by the freeze to tag HTML-era events with how each link was traced.
+// method: the LLM locks (per-doc llm-90/95, cluster family-agreement, frontier) → "ai"; every
+// deterministic pass (matcher, forward∩reverse, containment, bijection, split) → "deterministic".
+// A "human" method is decided by the caller (absence of an auto mechanism), not here. Used by the
+// freeze to tag HTML-era events with how each link was traced.
 export function mechanismToMethod(via) {
-  return via === "llm-90" || via === "llm-95" || via === "frontier" ? "ai" : "deterministic";
+  return via === "llm-90" || via === "llm-95" || via === "cluster" || via === "frontier" ? "ai" : "deterministic";
 }

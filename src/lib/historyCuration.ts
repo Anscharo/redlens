@@ -13,10 +13,15 @@ export interface CurationNode {
   content: string;
   prev?: string[]; // nearby-entry keys (preceding docs in the same commit, nearest-first)
   next?: string[]; // nearby-entry keys (following docs in the same commit, nearest-first)
+  ancestors?: string[]; // breadcrumb path (parent docs) — disambiguates identical-title stubs
+  section?: string; // top-level section this doc lives under
+  scope?: string; // top-level scope (Governance | Support | …) from the doc_no prefix
+  parentTitle?: string; // owning process/element (nearest preceding breadcrumb doc) — for template children
 }
 export interface CurationCandidate {
   key: string;
   score: number;
+  diff?: string; // changed lines from this candidate → the subject (hop cases only)
 }
 export interface CurationCase {
   key: string; // content-address of the subject (newer) doc — the decision's stable id
@@ -31,7 +36,7 @@ export interface CurationCase {
 }
 export interface CurationData {
   meta: Record<string, unknown>;
-  commits: { sha: string; date: string | null; pr: number | null }[];
+  commits: { sha: string; date: string | null; pr: number | null; prTitle?: string; changeSummary?: string }[];
   nodes: Record<string, CurationNode>;
   cases: CurationCase[];
 }
@@ -39,6 +44,47 @@ export interface CurationData {
 // A pick is the chosen older-doc key, the sentinel "none" (created here / no
 // predecessor), or undefined (not yet decided).
 export type Pick = string | "none";
+
+// Display label for a node. Generic titles ("Element Annotation", "Required Primitive Inputs")
+// repeat across the atlas — the distinguishing part is the ELEMENT/parent (node.ancestors), which
+// the HTML title cell drops. Prepend it (as the markdown side does: "Ambiguity - Element
+// Annotation") so adjacent-but-different docs don't read as identical. Skip when the title already
+// carries it, to avoid redundancy.
+export function nodeLabel(node: { title?: string; ancestors?: string[] }): string {
+  const title = node.title || "(untitled)";
+  const el = node.ancestors?.length ? node.ancestors[node.ancestors.length - 1] : "";
+  return el && !title.includes(el) ? `${el} - ${title}` : title;
+}
+
+// The owning parent of a doc, for the "· under …" context. HTML candidates carry it directly
+// (parentTitle, from the position back-scan). #117 md subjects don't — but their doc_no encodes the
+// hierarchy and the parent immediately precedes them in document order, so the nearest prev neighbour
+// whose doc_no is a prefix is the parent. Lets you match a subject's process to a candidate's.
+export function docParent(node: CurationNode, nodes: Record<string, CurationNode>): string | null {
+  if (node.parentTitle) return node.parentTitle;
+  if (!node.doc_no || !node.prev) return null;
+  for (const k of node.prev) {
+    const p = nodes[k];
+    if (p?.doc_no && node.doc_no.startsWith(`${p.doc_no}.`)) return nodeLabel(p);
+  }
+  return null;
+}
+
+// candidateKey -> the case keys (subjects) that list it as a candidate. Since candidates are
+// occurrence-keyed, a candidate shared by two cases is a real CONTENTION — the same older row
+// can be the predecessor of at most one of them. Powers the "also a candidate for N docs" badge
+// and the floating peek that opens those competing docs.
+export function buildClaimIndex(cases: CurationCase[]): Map<string, string[]> {
+  const idx = new Map<string, string[]>();
+  for (const c of cases) {
+    for (const cand of c.candidates) {
+      const arr = idx.get(cand.key);
+      if (arr) arr.push(c.key);
+      else idx.set(cand.key, [c.key]);
+    }
+  }
+  return idx;
+}
 
 let cache: Promise<CurationData> | null = null;
 export function loadCuration(): Promise<CurationData> {
@@ -49,6 +95,20 @@ export function loadCuration(): Promise<CurationData> {
     });
   }
   return cache;
+}
+
+// --- hard set (model-bakeoff labeling) -------------------------------------------
+// The case keys curation-hard-set.mjs picked. The page's "Hard set" filter isolates them so you
+// label just those 40 with the full UI; your ⤒ saved picks become the bakeoff's gold. Best-effort:
+// absent (not generated) → empty set → the filter simply shows nothing.
+export async function loadHardSet(): Promise<Set<string>> {
+  try {
+    const r = await fetch(`${import.meta.env.BASE_URL}history-hard-set.json`);
+    if (!r.ok) return new Set();
+    return new Set<string>(((await r.json()).caseKeys as string[]) || []);
+  } catch {
+    return new Set();
+  }
 }
 
 // --- decisions persistence (localStorage, survives reloads) ----------------------
@@ -95,7 +155,7 @@ export function buildDecisionsFile(data: CurationData, picks: Record<string, Pic
 // "ai"; the deterministic passes are "deterministic". Mirrors the freeze-side
 // mechanismToMethod (scripts/lib/auto-curate.mjs) so the page and the bake agree.
 const methodOfMechanism = (via?: string): "deterministic" | "ai" =>
-  via === "llm-90" || via === "llm-95" || via === "frontier" ? "ai" : "deterministic";
+  via === "llm-90" || via === "llm-95" || via === "cluster" || via === "frontier" ? "ai" : "deterministic";
 
 // --- committed human decisions (public/history-decisions.json) --------------------
 // The human's saved choices, COMMITTED to git (written by the dev save endpoint below

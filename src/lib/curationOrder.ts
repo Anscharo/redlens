@@ -27,24 +27,28 @@ export function commitRanker(data: CurationData): (sha: string) => number {
 // needs. Replaces the old matcher-tier filter (seed-close/tier-2.x), which didn't map to the
 // review workflow: the human cares about "already handled, by what" vs "still on me, with/without
 // an AI hint", not the internal matcher tier.
-export type CaseFilter = "all" | "auto-matcher" | "auto-llm" | "auto-frontier" | "attention-hint" | "attention-no-hint";
+export type CaseFilter = "all" | "hard-set" | "auto-matcher" | "auto-llm" | "auto-cluster" | "auto-frontier" | "attention-hint" | "attention-no-hint";
 
 export const CASE_FILTERS: { id: CaseFilter; label: string }[] = [
   { id: "all", label: "All" },
+  { id: "hard-set", label: "Hard set (bakeoff)" }, // the curation-hard-set.mjs cases — label these to gold the model bakeoff
   { id: "auto-matcher", label: "Auto (deterministic)" },
   { id: "auto-llm", label: "Auto (LLM + matcher)" },
+  { id: "auto-cluster", label: "Auto (cluster)" }, // joint assignment locked by two-family agreement
   { id: "auto-frontier", label: "Auto (frontier)" },
   { id: "attention-hint", label: "Needs attention (hint)" },
   { id: "attention-no-hint", label: "Needs attention (no hint)" },
 ];
 
 // Categorize a case for the workflow filters: by its auto-resolution mechanism (the baseline's
-// `auto`) — deterministic matcher (forward∩reverse / containment), LLM∩matcher, or frontier —
-// else, for a residual case, by whether a frontier hint is available to speed the human review.
+// `auto`) — deterministic matcher (forward∩reverse / containment / bijection), LLM∩matcher, cluster
+// (two-family joint assignment), or frontier — else, for a residual case, by whether a frontier
+// hint is available to speed the human review.
 export function caseCategory(key: string, mechanism: Map<string, string>, hasHint: boolean): Exclude<CaseFilter, "all"> {
   const m = mechanism.get(key);
-  if (m === "forward-reverse" || m === "containment") return "auto-matcher";
+  if (m === "forward-reverse" || m === "containment" || m === "bijection" || m === "split") return "auto-matcher";
   if (m === "llm-90" || m === "llm-95") return "auto-llm";
+  if (m === "cluster") return "auto-cluster";
   if (m === "frontier") return "auto-frontier";
   return hasHint ? "attention-hint" : "attention-no-hint";
 }
@@ -53,11 +57,15 @@ export function caseCategory(key: string, mechanism: Map<string, string>, hasHin
 // Stable on the original array index so older artifacts without subjectOrder still sort
 // deterministically. `filter` selects a workflow category via `categoryOf` (key → category);
 // "all" shows everything (and needs no categoryOf).
-export function orderedCases(data: CurationData, filter: CaseFilter = "all", categoryOf?: (key: string) => CaseFilter): CurationCase[] {
+// `hardSet` (the bakeoff case keys) drives the orthogonal "hard-set" filter — membership, not a
+// workflow category (a hard case still has its normal auto/attention category too).
+export function orderedCases(data: CurationData, filter: CaseFilter = "all", categoryOf?: (key: string) => CaseFilter, hardSet?: Set<string>): CurationCase[] {
   const rank = commitRanker(data);
   const stable = new Map(data.cases.map((c, i) => [c, i] as const));
   return data.cases
-    .filter((c) => filter === "all" || (categoryOf ? categoryOf(c.key) === filter : false))
+    .filter((c) => filter === "all" ? true
+      : filter === "hard-set" ? (hardSet?.has(c.key) ?? false)
+      : (categoryOf ? categoryOf(c.key) === filter : false))
     .slice()
     .sort((a, b) => {
       const r = rank(a.newerSha) - rank(b.newerSha);
@@ -91,10 +99,10 @@ export function adjacentCommit(queue: CurationCase[], index: number, dir: -1 | 1
 }
 
 // Human-readable commit label for the strip header.
-export function commitInfo(data: CurationData, sha: string): { sha: string; date: string | null; pr: number | null; isSeed: boolean } {
+export function commitInfo(data: CurationData, sha: string): { sha: string; date: string | null; pr: number | null; isSeed: boolean; prTitle?: string; changeSummary?: string } {
   const c = data.commits.find((x) => x.sha === sha);
   const isSeed = !c; // not an HTML commit → the #117 markdown migration boundary
-  return { sha, date: c?.date ?? null, pr: c?.pr ?? null, isSeed };
+  return { sha, date: c?.date ?? null, pr: c?.pr ?? null, isSeed, prTitle: c?.prTitle, changeSummary: c?.changeSummary };
 }
 
 // The older-doc key to auto-select, or null. Fires only when the LLM's pick is a
@@ -141,10 +149,13 @@ export function commitColumns(data: CurationData): CommitColumn[] {
 // Human-readable badge for HOW a case was auto-resolved (offline baseline or in-session
 // LLM+95 agreement) — surfaced on the Confirm button so nothing is silently decided.
 export function autoLabel(via: string | undefined): string {
+  if (via === "bijection") return "Auto-resolved (identical docs assigned one-to-one)";
+  if (via === "split") return "Auto-resolved (split copy — created at #117, more md docs than html rows)";
   if (via === "forward-reverse") return "Auto-resolved (forward + reverse agree)";
   if (via === "containment") return "Auto-resolved (reverse + containment agree)";
   if (via === "llm-90") return "Auto-resolved (LLM + 90% matcher agree)";
   if (via === "llm-95") return "Auto-resolved (LLM + 95% agree)";
+  if (via === "cluster") return "Auto-resolved (two model families agree on the cluster, conflict-free)";
   if (via === "frontier") return "Auto-resolved (frontier model + an independent signal agree)";
   return "Auto-resolved";
 }

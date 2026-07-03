@@ -41,9 +41,18 @@ export function uuidv5(name, namespace = NS_ATLAS_HTML) {
   return bytesToUuid(b);
 }
 
-/** Deterministic identity for a row with no real #117 uuid (plan §4.3). */
+/** Deterministic identity for a row with no real #117 uuid (plan §4.3).
+ *  A doc with an EMPTY breadcrumb (a template child like "Required Primitive Inputs") otherwise
+ *  collides with the same-titled, same-content child of EVERY other process — 39% of HTML rows are
+ *  content-duplicates, including 60+-word boilerplate paragraphs, so title+content+section is not a
+ *  unique identity. Its only stable distinguisher is the owning parent recovered by position
+ *  (node.parentTitle, from atlas-html.mjs) — NOT the row's line/order, which shifts every commit and
+ *  would re-mint the id on every edit. Substitute the parent into the ancestry slot for orphans only;
+ *  docs that carry their own breadcrumb keep the exact same id as before. */
 export function syntheticUuid(node, firstSeenSha) {
-  return uuidv5(`${node.section}|${(node.ancestors || []).join(">")}|${node.title}|${node.contentHash}|${firstSeenSha}`);
+  const ancestors = node.ancestors || [];
+  const ancestry = ancestors.length ? ancestors.join(">") : (node.parentTitle || "");
+  return uuidv5(`${node.section}|${ancestry}|${node.title}|${node.contentHash}|${firstSeenSha}`);
 }
 
 /** True for the synthetic v5 ids (vs real v4 from #117). */
@@ -81,13 +90,25 @@ const byField = (rows, field) => {
 const byOrder = (a, b) => a.order - b.order;
 
 export function matchNodes(older, newer, opts = {}) {
-  const { fuzzyHi = 0.6, fuzzyLo = 0.3, fuzzyMargin = 0.15, seedHop = false, recoverByContent = false, recoverHi = 0.85 } = opts;
+  const { fuzzyHi = 0.6, fuzzyLo = 0.3, fuzzyMargin = 0.15, seedHop = false, recoverByContent = false, recoverHi = 0.85, diffEdits = null } = opts;
   const pairs = [], ambiguous = [], contained = [];
   const oUsed = new Set(), nUsed = new Set();
   const cache = new Map();
   const freeO = () => older.filter((o) => !oUsed.has(o));
   const freeN = () => newer.filter((n) => !nUsed.has(n));
   const take = (o, n, tier) => { oUsed.add(o); nUsed.add(n); pairs.push({ older: o, newer: n, tier }); };
+
+  // ---- tier 1.7 (opt-in): diff-confirmed edits, applied FIRST. A CONTENT CHANGE that the
+  // section-scoped LCS anchored to a single older↔newer pair (diffEdits, from history-diff.mjs)
+  // is a high-confidence edit: the unchanged neighbors pin its position and a structural-key /
+  // content-overlap gate proves identity — even for near-identical Agent Scope DB siblings that
+  // tier-1's positional bucket mispairs. Claiming these BEFORE tier 1 removes them from the
+  // identical-hash pool, so they can't be mis-aligned. Measured (2026-07, 78 hops): resolves 40
+  // matcher-ambiguous cases + fixes 6 mispairings, never worse than the matcher. Off unless the
+  // caller passes diffEdits — so every other matchNodes() caller is unchanged.
+  if (diffEdits && diffEdits.size) {
+    for (const [o, n] of diffEdits) if (!oUsed.has(o) && !nUsed.has(n)) take(o, n, 1.7);
+  }
 
   // ---- tier 1: exact content, positional alignment within identical-hash bucket
   {

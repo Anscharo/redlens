@@ -8,13 +8,14 @@
 // static JSONs. Picks persist in localStorage. Data: public/history-curation.json.
 import { useEffect, useMemo, useState } from "react";
 import {
-  loadCuration, loadPicks, savePicks, loadAutoDecisions, loadProposals, loadDecisions,
-  downloadDecisions, saveDecisions, type CurationData, type Pick, type Proposal,
+  loadCuration, loadPicks, savePicks, loadAutoDecisions, loadProposals, loadDecisions, loadHardSet,
+  downloadDecisions, saveDecisions, buildClaimIndex, type CurationData, type Pick, type Proposal,
 } from "../../lib/historyCuration";
 import { orderedCases, commitBounds, adjacentCommit, commitInfo, autoLabel, caseCategory, CASE_FILTERS, type CaseFilter } from "../../lib/curationOrder";
 import { CurationCase } from "./CurationCase";
 import { CurationCommitStrip } from "./CurationCommitStrip";
 import { CurationTimeline } from "./CurationTimeline";
+import { CandidatePeek } from "./CandidatePeek";
 import { useCurationKeys } from "./useCurationKeys";
 
 export function HistoryCurateReport() {
@@ -26,6 +27,8 @@ export function HistoryCurateReport() {
   const [proposals, setProposals] = useState<Record<string, Proposal>>({});
   const [showChart, setShowChart] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [peek, setPeek] = useState<string | null>(null); // candidate key whose competing docs are floating open
+  const [hardSet, setHardSet] = useState<Set<string>>(new Set()); // bakeoff cases for the "Hard set" filter
   // case key -> mechanism that auto-resolved it (forward-reverse | containment | llm-90 | frontier)
   const [autoResolved, setAutoResolved] = useState<Map<string, string>>(new Map());
   // RAW baseline mechanism per case (not human-filtered) — drives the workflow filters.
@@ -36,10 +39,11 @@ export function HistoryCurateReport() {
   // (the live, unsaved session). The "auto-resolved" badge shows only where no human pick has
   // overridden the auto one — so the queue the human walks is just the residual.
   useEffect(() => {
-    Promise.all([loadCuration(), loadAutoDecisions(), loadProposals(), loadDecisions()])
-      .then(([d, auto, hints, committed]) => {
+    Promise.all([loadCuration(), loadAutoDecisions(), loadProposals(), loadDecisions(), loadHardSet()])
+      .then(([d, auto, hints, committed, hard]) => {
         setData(d);
         setProposals(hints);
+        setHardSet(hard);
         setBaselineMech(new Map(Object.entries(auto).map(([k, dec]) => [k, dec.auto])));
         const stored = loadPicks();
         const baseline: Record<string, Pick> = {};
@@ -72,12 +76,25 @@ export function HistoryCurateReport() {
     return (key: string): CaseFilter => caseCategory(key, baselineMech, hints.has(key));
   }, [baselineMech, proposals]);
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: data?.cases.length ?? 0 };
-    if (data) for (const k of data.cases) { const cat = categoryOf(k.key); c[cat] = (c[cat] ?? 0) + 1; }
+    const c: Record<string, number> = { all: data?.cases.length ?? 0, "hard-set": 0 };
+    if (data) for (const k of data.cases) {
+      const cat = categoryOf(k.key); c[cat] = (c[cat] ?? 0) + 1;
+      if (hardSet.has(k.key)) c["hard-set"] += 1;
+    }
     return c;
-  }, [data, categoryOf]);
-  const queue = useMemo(() => (data ? orderedCases(data, filter, categoryOf) : []), [data, filter, categoryOf]);
+  }, [data, categoryOf, hardSet]);
+  const queue = useMemo(() => (data ? orderedCases(data, filter, categoryOf, hardSet) : []), [data, filter, categoryOf, hardSet]);
+  // candidateKey → cases that list it, for the "also a candidate for another doc" badge + peek.
+  const claims = useMemo(() => (data ? buildClaimIndex(data.cases) : new Map<string, string[]>()), [data]);
   const current = queue[index];
+  // close the floating peek whenever we move to a different case (its candidates changed).
+  useEffect(() => setPeek(null), [current?.key]);
+  // open a competing doc: switch to the full queue (it may be filtered out here) and jump to it.
+  const openCase = (key: string) => {
+    if (!data) return;
+    const at = orderedCases(data, "all", categoryOf).findIndex((c) => c.key === key);
+    if (at >= 0) { setFilter("all"); setIndex(at); setPeek(null); }
+  };
   const bounds = useMemo(() => commitBounds(queue, index), [queue, index]);
   const siblings = useMemo(() => queue.slice(bounds.start, bounds.end), [queue, bounds]);
   const decided = useMemo(() => (data ? data.cases.filter((c) => picks[c.key] !== undefined).length : 0), [data, picks]);
@@ -167,9 +184,9 @@ export function HistoryCurateReport() {
             Confirm{picks[current.key] === undefined && proposals[current.key] ? " (accept suggestion)" : picks[current.key] !== undefined ? " selection" : ""} &amp; next →
           </button>
           <CurationCase
-            kase={current} nodes={data.nodes} pick={picks[current.key]}
+            kase={current} nodes={data.nodes} pick={picks[current.key]} picks={picks} claims={claims}
             proposal={proposals[current.key] ?? null} proposalState="idle"
-            onPick={(v) => setPick(current.key, v)}
+            onPick={(v) => setPick(current.key, v)} onPeek={setPeek}
           />
           <p className="mt-3 text-[11px]" style={{ color: "var(--tan-3)" }}>
             keys: <strong>↑/↓</strong> change in this commit · <strong>←/→</strong> commit · <strong>1–{Math.max(1, current.candidates.length)}</strong> select · <strong>0</strong> none · <strong>Enter</strong> confirm + next
@@ -177,6 +194,14 @@ export function HistoryCurateReport() {
         </>
       ) : (
         <p style={{ color: "var(--tan-3)" }}>No cases for this filter.</p>
+      )}
+
+      {peek && (
+        <CandidatePeek
+          candKey={peek}
+          caseKeys={(claims.get(peek) || []).filter((k) => k !== current?.key)}
+          data={data} picks={picks} onOpen={openCase} onClose={() => setPeek(null)}
+        />
       )}
     </div>
   );

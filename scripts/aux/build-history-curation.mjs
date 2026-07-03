@@ -36,6 +36,9 @@ import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "../lib/atlas-html.mjs";
 import { matchNodes } from "../lib/history-identity.mjs";
+import { diffEditsMap, diffText } from "../lib/history-diff.mjs";
+import { contentDupCounts, occKey } from "../lib/history-occkey.mjs";
+import { fetchPrContext } from "../lib/atlas-pr-context.mjs";
 import { runAutoCurate } from "../lib/auto-curate-run.mjs";
 import { reportAutoCuration, writeAutoDecisions, writeProposals, loadLlmCache, writeLlmCache } from "../lib/auto-curate-io.mjs";
 
@@ -46,6 +49,10 @@ const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? pr
 const STATS_ONLY = process.argv.includes("--stats");
 const AUTO = process.argv.includes("--auto"); // also auto-resolve, reusing the loaded commits
 const RECOVER = !process.argv.includes("--no-recover"); // tier-3.5 content recovery (trusted, not curated)
+const DIFF = !process.argv.includes("--no-diff"); // tier-1.7 changed-lines threading (history-diff.mjs) — must match prepare-html-history
+const PR_CONTEXT = !process.argv.includes("--no-pr-context"); // fetch per-commit PR/forum change descriptions (cached; needs gh+network on first run)
+const ATLAS_REPO = "sky-ecosystem/next-gen-atlas";
+const PR_CACHE = path.join(ROOT, ".cache/atlas-prs");
 const AUTO_OUT = path.resolve(ROOT, arg("--out") || "public/history-auto-decisions.json");
 const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/history-curation-proposals.json");
 const CACHE_OUT = path.resolve(ROOT, arg("--cache") || "public/history-curation-llm-cache.json"); // resume cache
@@ -54,16 +61,22 @@ const FRONTIER_MODEL_ARG = arg("--frontier-model"); // default resolved from con
 const autoOpts = {
   noLlm: process.argv.includes("--no-llm"),
   containment: !process.argv.includes("--no-containment"),
+  positional: !process.argv.includes("--no-positional"),
   limit: arg("--limit") ? Number(arg("--limit")) : Infinity,
   threshold: arg("--threshold") ? Number(arg("--threshold")) : undefined,
   concurrency: arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 5,
+  // pass 1.7 (cluster/matrix joint assignment): ON by default; --no-cluster disables. Models +
+  // proposer are injected below (dynamic import), so cluster only runs when a key is configured.
+  cluster: !process.argv.includes("--no-cluster"),
+  clusterConcurrency: arg("--cluster-concurrency") ? Math.max(1, Number(arg("--cluster-concurrency"))) : 4,
+  clusterMaxSize: arg("--cluster-max") ? Math.max(2, Number(arg("--cluster-max"))) : 12,
   // pass 3 (frontier escalation): off unless --frontier; --frontier-limit caps spend
   frontier: process.argv.includes("--frontier"),
   frontierLimit: arg("--frontier-limit") ? Number(arg("--frontier-limit")) : Infinity,
   frontierConcurrency: arg("--frontier-concurrency") ? Math.max(1, Number(arg("--frontier-concurrency"))) : 3,
 };
 const MIGRATION_SHA = "22cc27b5", LAST_HTML_SHA = "7b43d159";
-const CANDIDATES_PER_CASE = 6;
+const CANDIDATES_PER_CASE = 8; // DISTINCT-content candidates; identical stubs are then expanded on top
 
 const git = (args) => execSync(`git -C "${REPO}" ${args}`, { maxBuffer: 1 << 30 }).toString();
 const md5 = (text) => crypto.createHash("md5").update(text).digest("hex");
@@ -88,13 +101,51 @@ const titleTokens = (title) => new Set(normalize(title).split(" ").filter(Boolea
 
 const log = (message) => console.error(message);
 
-// collapse candidates that resolve to the same content-address (identical-content
-// sibling rows — e.g. a dozen identical "…Directory" stubs), keeping the best score
-const dedupeCandidates = (list) => {
-  const best = new Map();
-  for (const c of list) { const prev = best.get(c.key); if (!prev || c.score > prev.score) best.set(c.key, c); }
-  return [...best.values()].sort((a, b) => b.score - a.score);
-};
+// Take up to CANDIDATES_PER_CASE DISTINCT content-addresses from `entries` (best-first), but
+// emit EVERY occurrence of each — identical "…Directory" stubs become separate, neighbor-
+// disambiguated options instead of silently collapsing to one (which hid the real choice from
+// the LLM/human and let a doc thread into the wrong stub). `addrOf(e)` → the plain content-
+// address (grouping key); `make(e)` → the {key,…} candidate (occurrence-precise key). `keep`
+// addrs (the matcher's auto-pick) are always included, even past the distinct cap.
+function expandCandidates(entries, addrOf, make, keep = null) {
+  const groups = new Map(), order = [];
+  for (const e of entries) {
+    const addr = addrOf(e);
+    if (!groups.has(addr)) {
+      if (!(keep && keep.has(addr)) && order.length >= CANDIDATES_PER_CASE) continue;
+      groups.set(addr, []); order.push(addr);
+    }
+    groups.get(addr).push(e);
+  }
+  return order.flatMap((addr) => groups.get(addr).map(make));
+}
+
+// The owning PROCESS/element for each #117 md doc — the "· under X" context the curation UI shows.
+// HTML candidates carry it (parentTitle, from the positional breadcrumb back-scan); md docs don't,
+// but the doc_no encodes the full hierarchy. Walk each doc's ancestor chain (the doc_nos that are
+// exact dotted-segment truncations) and take the SHALLOWEST content-typed ancestor — i.e. skip the
+// structural containers (Scope/Article/Section) and take the first real doc below them (the
+// primitive/process/element). That level is what discriminates near-identical template stubs
+// ("Atlas Updates" under "Distribution Reward Primitive" vs "Integration Boost Primitive"), so the
+// subject shows the same disambiguating detail as its candidates instead of a shared generic parent
+// ("Required Outputs"). Falls back to the immediate parent when the whole chain is containers.
+const MD_CONTAINER_TYPES = new Set(["Scope", "Article", "Section"]);
+function attachMarkdownParents(nodes) {
+  const byDocNo = new Map();
+  for (const n of nodes) if (n.doc_no) byDocNo.set(n.doc_no, n);
+  for (const node of nodes) {
+    if (!node.doc_no) continue;
+    const segs = node.doc_no.split(".");
+    const chain = []; // existing ancestors, root→parent
+    for (let i = 1; i < segs.length; i++) {
+      const anc = byDocNo.get(segs.slice(0, i).join("."));
+      if (anc) chain.push(anc);
+    }
+    if (!chain.length) continue;
+    const process = chain.find((a) => !MD_CONTAINER_TYPES.has(a.type)) || chain[chain.length - 1];
+    if (process) node.parentTitle = process.title;
+  }
+}
 
 // #117 markdown monolith → nodes carrying the real migration UUID. Content is kept
 // RAW (original case + line breaks) for readable display/diffs; all matching goes
@@ -115,15 +166,33 @@ function parseMarkdownDocs(blob) {
   }
   if (current) current.content = current._body.join("\n").trim();
   for (const node of nodes) delete node._body;
+  attachMarkdownParents(nodes);
   return nodes;
 }
 
 // --- shared node dictionary (content stored once, referenced by content-address) ---
 const nodeDict = {};
 const keyOf = (sha, content) => `${sha}:${md5(content)}`;
+// `ancestors`/`section` (the breadcrumb path) are the ONLY disambiguator for identical-content
+// stubs whose title also matches — measured 398 such groups at last-HTML (e.g. two "Tau Current
+// Value" docs, one under "Measures For Endgame Transition", one under "SKY Staking Mechanism").
+// Stored only when present (html nodes have them; #117 md subjects don't).
+// Scope (Governance | Support | Stability | Protocol | Accessibility | Agent) from the doc_no's
+// A.N prefix — the atlas's top-level partition. Reliable for docs that carry a doc_no (every md
+// SUBJECT does), so a candidate in the SAME scope as the newer doc is a strong fit signal. The
+// A.N → name map is built from the Scopes section (populated once nodes load, below).
+const scopeMap = new Map();
+const scopeOf = (docNo) => { const m = docNo && String(docNo).match(/^A\.\d+/); return m ? (scopeMap.get(m[0]) || null) : null; };
+const pathFields = (node) => ({
+  ...(node.ancestors?.length ? { ancestors: node.ancestors } : {}),
+  ...(node.section ? { section: node.section } : {}),
+  ...(scopeOf(node.doc_no) ? { scope: scopeOf(node.doc_no) } : {}),
+  // owning parent by position — the disambiguator for orphaned template children (empty ancestors)
+  ...(!node.ancestors?.length && node.parentTitle ? { parentTitle: node.parentTitle } : {}),
+});
 function registerNode(sha, node) {
   const key = keyOf(sha, node.content);
-  if (!nodeDict[key]) nodeDict[key] = { sha, title: node.title || "", doc_no: node.doc_no || null, type: node.type || "", content: node.content || "" };
+  if (!nodeDict[key]) nodeDict[key] = { sha, title: node.title || "", doc_no: node.doc_no || null, type: node.type || "", content: node.content || "", ...pathFields(node) };
   return key;
 }
 
@@ -146,19 +215,74 @@ function attachContext(commitSha, commitNodes, index) {
   return key;
 }
 
+// Occurrence-aware registration for CANDIDATES (older side). Identical-content stub rows in the
+// SAME commit share a content-address, so key them by document order (occKey) instead — and give
+// each its OWN neighbors, since attachContext stores neighbors once per content-address (the
+// first occurrence wins), which is exactly wrong for stubs. Subjects stay on attachContext (plain
+// key: they are the caseKey / rawUuid join). The shared occKey keeps this in step with the
+// forward pass and apply.
+const dupCache = new Map();
+const dupFor = (sha, commitNodes) => { let d = dupCache.get(sha); if (!d) dupCache.set(sha, (d = contentDupCounts(commitNodes))); return d; };
+function registerOcc(sha, commitNodes, index) {
+  const node = commitNodes[index];
+  const key = occKey(sha, node, dupFor(sha, commitNodes));
+  if (!nodeDict[key]) nodeDict[key] = { sha, title: node.title || "", doc_no: node.doc_no || null, type: node.type || "", content: node.content || "", ...pathFields(node) };
+  return key;
+}
+function attachOcc(sha, commitNodes, index) {
+  const key = registerOcc(sha, commitNodes, index);
+  const entry = nodeDict[key];
+  if (!entry.prev) {
+    entry.prev = []; entry.next = [];
+    for (let d = 1; d <= NEIGHBOR_RADIUS; d++) {
+      if (index - d >= 0) entry.prev.push(registerOcc(sha, commitNodes, index - d));
+      if (index + d < commitNodes.length) entry.next.push(registerOcc(sha, commitNodes, index + d));
+    }
+  }
+  return key;
+}
+
+// Register a #117 md SUBJECT under its real UUID (not content-address). Two md docs that share
+// content — the same annotation in two scopes (Governance + Support "Ambiguity") — otherwise
+// collapse to one case AND one identity, dropping the second doc's history entirely. Keying the
+// subject by uuid keeps them distinct so both thread (bijection pass assigns them 1:1). Neighbors
+// are the surrounding md docs (content-addressed, display-only).
+function attachSubjectByUuid(sha, commitNodes, index) {
+  const node = commitNodes[index];
+  const key = `${sha}:${node.uuid}`;
+  if (!nodeDict[key]) {
+    nodeDict[key] = { sha, title: node.title || "", doc_no: node.doc_no || null, type: node.type || "", content: node.content || "", ...pathFields(node) };
+    const entry = nodeDict[key];
+    entry.prev = []; entry.next = [];
+    for (let d = 1; d <= NEIGHBOR_RADIUS; d++) {
+      if (index - d >= 0) entry.prev.push(registerNode(sha, commitNodes[index - d]));
+      if (index + d < commitNodes.length) entry.next.push(registerNode(sha, commitNodes[index + d]));
+    }
+  }
+  return key;
+}
+
 // Rank the `pool` of older nodes by shingle similarity to `subject`, return the top K
 // as {key, score}. `mustInclude` (the matcher's auto-pick) is force-included so the
 // human always sees what the pipeline chose, even if it scores below the cutoff.
 function rankCandidates(subject, subjectShingles, olderSha, pool, poolShingles, mustIncludeNode) {
-  const scored = pool.map((node, i) => ({ node, score: jaccard(subjectShingles, poolShingles[i]) }))
+  const scored = pool.map((node, i) => ({ node, i, score: jaccard(subjectShingles, poolShingles[i]) }))
     .filter((c) => c.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, CANDIDATES_PER_CASE);
+    .sort((a, b) => b.score - a.score);
   if (mustIncludeNode && !scored.some((c) => c.node === mustIncludeNode)) {
     const i = pool.indexOf(mustIncludeNode);
-    if (i >= 0) scored.push({ node: mustIncludeNode, score: jaccard(subjectShingles, poolShingles[i]) });
+    if (i >= 0) scored.push({ node: mustIncludeNode, i, score: jaccard(subjectShingles, poolShingles[i]) });
   }
-  return dedupeCandidates(scored.map(({ node, score }) => ({ key: attachContext(olderSha, pool, pool.indexOf(node)), score: +score.toFixed(3) })));
+  const keep = mustIncludeNode ? new Set([keyOf(olderSha, mustIncludeNode.content)]) : null;
+  // `diff` = the changed lines from this candidate (older) to the subject (newer): the true
+  // predecessor shows a small/coherent edit, a wrong candidate a large incoherent one — sharper
+  // than whole-body similarity. Identical stubs stay as separate, neighbor-disambiguated options.
+  return expandCandidates(
+    scored,
+    (c) => keyOf(olderSha, c.node.content),
+    (c) => ({ key: attachOcc(olderSha, pool, c.i), score: +c.score.toFixed(3), diff: diffText(c.node, subject) }),
+    keep,
+  );
 }
 
 // ---------------------------------------------------------------------------------
@@ -178,7 +302,13 @@ const htmlCommits = htmlCommitShas.map((full, i) => {
 });
 const newestFirst = htmlCommits.slice().reverse();
 const lastHtmlNodes = htmlCommits[htmlCommits.length - 1].nodes;
-log(`curation: ${markdownDocs.length} md docs, ${htmlCommits.length} html commits`);
+// populate the scope map (A.N → scope name) from the Scopes section, e.g. "A.1" → "Governance".
+for (const n of lastHtmlNodes) {
+  if (n.section !== "Scopes" || !n.doc_no) continue;
+  const m = n.doc_no.match(/^A\.\d+/);
+  if (m) scopeMap.set(m[0], (n.title || "").replace(/^The\s+/i, "").replace(/\s+Scope$/i, "").trim() || n.title);
+}
+log(`curation: ${markdownDocs.length} md docs, ${htmlCommits.length} html commits, ${scopeMap.size} scopes`);
 
 const cases = [];
 const countByKind = {};
@@ -215,11 +345,21 @@ markdownDocs.forEach((mdDoc, mi) => {
     const ts = jaccard(markdownTitleTokens[mi], titleTokens(lastHtmlNodes[ri].title));
     if (ts > autoTitleScore + 1e-9) { autoTitleScore = ts; autoRow = ri; }
   }
-  const subjectKey = attachContext(MIGRATION_SHA, markdownDocs, mi);
-  const candidates = dedupeCandidates(ranked.slice(0, CANDIDATES_PER_CASE).map(([ri, cov]) => ({ key: attachContext(LAST_HTML_SHA, lastHtmlNodes, ri), score: +cov.toFixed(3) })));
+  const subjectKey = attachSubjectByUuid(MIGRATION_SHA, markdownDocs, mi);
+  // Identical last-HTML stubs are the dominant seed ambiguity (~38% of these cases have all-
+  // identical candidate titles): keep every one as a distinct, neighbor-disambiguated option and
+  // key it by occurrence so the recorded pick threads into the RIGHT stub. Occurrence keys must
+  // match autoKey, so the auto-pick uses attachOcc too.
+  const keepAddr = new Set([keyOf(LAST_HTML_SHA, lastHtmlNodes[autoRow].content)]);
+  const candidates = expandCandidates(
+    ranked,
+    ([ri]) => keyOf(LAST_HTML_SHA, lastHtmlNodes[ri].content),
+    ([ri, cov]) => ({ key: attachOcc(LAST_HTML_SHA, lastHtmlNodes, ri), score: +cov.toFixed(3) }),
+    keepAddr,
+  );
   // subjectOrder = the #117 document order (md array index) so the UI groups this
   // commit's changes in document order.
-  addCase({ key: subjectKey, kind: "seed-close", newerSha: MIGRATION_SHA, olderSha: LAST_HTML_SHA, subjectKey, subjectOrder: mi, autoKey: attachContext(LAST_HTML_SHA, lastHtmlNodes, autoRow), candidates });
+  addCase({ key: subjectKey, kind: "seed-close", newerSha: MIGRATION_SHA, olderSha: LAST_HTML_SHA, subjectKey, subjectOrder: mi, autoKey: attachOcc(LAST_HTML_SHA, lastHtmlNodes, autoRow), candidates });
 });
 
 // === BACKWARD hops: for each newer commit, which older row is each doc's previous? ===
@@ -231,7 +371,13 @@ let newerShingleByNode = new Map(newerCommit.nodes.map((n) => [n, shingleSet(n.c
 for (let hop = 1; hop < newestFirst.length; hop++) {
   const olderCommit = newestFirst[hop];
   const olderShingles = olderCommit.nodes.map((n) => shingleSet(n.content));
-  const result = matchNodes(olderCommit.nodes, newerCommit.nodes, { recoverByContent: RECOVER });
+  // tier-1.7: the changed-lines signal must match prepare-html-history exactly (same threading
+  // ⇒ decisions map). It pre-resolves near-identical-sibling edits that would else surface as
+  // tier-2.5/2.7/3 or ambiguous cases here — shrinking the queue to the genuinely hard calls.
+  const result = matchNodes(olderCommit.nodes, newerCommit.nodes, {
+    recoverByContent: RECOVER,
+    diffEdits: DIFF ? diffEditsMap(olderCommit.nodes, newerCommit.nodes) : null,
+  });
 
   // map newer node -> the older node the matcher paired it with, plus the tier
   const autoOlderByNewer = new Map();
@@ -250,7 +396,7 @@ for (let hop = 1; hop < newestFirst.length; hop++) {
       newerSha: newerCommit.sha, olderSha: olderCommit.sha,
       subjectKey: attachContext(newerCommit.sha, newerCommit.nodes, subject.order),
       subjectOrder: subject.order,
-      autoKey: attachContext(olderCommit.sha, olderCommit.nodes, pair.older.order), candidates,
+      autoKey: attachOcc(olderCommit.sha, olderCommit.nodes, pair.older.order), candidates,
     });
   }
 
@@ -279,7 +425,19 @@ for (let hop = 1; hop < newestFirst.length; hop++) {
 const seen = new Set();
 const uniqueCases = cases.filter((c) => (seen.has(c.key) ? false : (seen.add(c.key), true)));
 
-const commits = htmlCommits.map((c) => ({ sha: c.sha, date: commitMeta.get(c.sha)?.date ?? null, pr: commitMeta.get(c.sha)?.pr ?? null }));
+// Enrich each commit with its PR title + the linked forum thread's edit-list ("Update X", "Add Y")
+// — the editorial intent behind the transition, a strong threading signal the LLM/human sees per
+// case. Cached on disk (.cache/atlas-prs); first run fetches, later runs are instant.
+if (PR_CONTEXT) log("curation: fetching PR/forum change descriptions (cached)…");
+const commits = htmlCommits.map((c) => {
+  const pr = commitMeta.get(c.sha)?.pr ?? null;
+  const ctx = PR_CONTEXT && pr ? fetchPrContext(pr, ATLAS_REPO, PR_CACHE) : null;
+  return {
+    sha: c.sha, date: commitMeta.get(c.sha)?.date ?? null, pr,
+    ...(ctx?.title ? { prTitle: ctx.title } : {}),
+    ...(ctx?.summary ? { changeSummary: ctx.summary } : {}),
+  };
+});
 const meta = {
   kind: "html-era-curation", migrationSha: MIGRATION_SHA, lastHtmlSha: LAST_HTML_SHA,
   htmlCommits: htmlCommits.length, totalCases: uniqueCases.length, casesByKind: countByKind,
@@ -315,21 +473,25 @@ if (STATS_ONLY) {
 // repeated. The LLM proposer + key are pulled in only here (dynamic import) so a plain
 // queue build stays free of any server dependency. Writes the gitignored baseline.
 if (AUTO) {
-  const { proposePredecessor } = await import("../../src/server/history-curate.ts");
+  const { proposePredecessor, proposeClusterAssignment } = await import("../../src/server/history-curate.ts");
   const { config } = await import("../../src/server/config.ts");
   const frontierModel = FRONTIER_MODEL_ARG || config.curationFrontierModel;
+  const clusterModels = config.curationClusterModels;
   const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
-  log(`\nauto-curation (forward∩reverse + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})${cache.size ? `  ·  resuming from ${cache.size} cached asks` : ""}…`);
+  const clusterOn = autoOpts.cluster && clusterModels.length >= 2;
+  log(`\nauto-curation (forward∩reverse${clusterOn ? ` + cluster ${clusterModels.join("∩")}` : ""} + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})${cache.size ? `  ·  resuming from ${cache.size} cached asks` : ""}…`);
   const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({
     data: artifact, commits: htmlCommits, propose: proposePredecessor,
-    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, cache, cheapModel: config.chatModel, log,
+    proposeCluster: proposeClusterAssignment, clusterModels,
+    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, cache, cheapModel: config.curationSelectorModel, log,
   });
   reportAutoCuration(artifact, decisions, summary);
   writeAutoDecisions(AUTO_OUT, artifact, decisions, summary, autoOpts.concurrency);
   log(`wrote ${path.relative(ROOT, AUTO_OUT)}  (${decisions.length} auto-decisions)`);
-  if (autoOpts.frontier) {
+  if (proposals.length) {
     writeProposals(PROPOSALS_OUT, frontierModel, proposals);
-    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} frontier hints)`);
+    const posN = proposals.filter((p) => p.via === "positional").length;
+    log(`wrote ${path.relative(ROOT, PROPOSALS_OUT)}  (${proposals.length} hints: ${proposals.length - posN} frontier + ${posN} positional)`);
   }
   if (!NO_CACHE) { writeLlmCache(CACHE_OUT, outCache); log(`wrote ${path.relative(ROOT, CACHE_OUT)}  (${outCache.size} cached asks)`); }
   console.error(`\nnext: review the ${summary.residual} residual cases at /reports/history-curate (auto-resolved are pre-filled), then bake with:  pnpm htmlhist:apply ${path.relative(ROOT, AUTO_OUT)}`);

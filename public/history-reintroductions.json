@@ -1,0 +1,30 @@
+{
+  "kind": "html-era-reintroductions",
+  "note": "Docs whose #117 markdown migration REVIVED a name the live HTML had ALREADY renamed away — a migration regression, not new content. The seed can't thread them (their true predecessor lives under the NEW name and is degenerate among identical-body siblings), so with the base architecture they ship as a bare seam:'created' ('introduced here'). This hand-authored ledger (found via git-history forensics) re-tags each #117 md doc, by UUID, as seam:'reintroduced' and links back to the HTML commit where the prior name was retired + the true predecessor occurrence — so the reconstruction records 'revived, not born'. Consumed by scripts/aux/prepare-html-history.mjs (additive; only the listed UUIDs). See scripts/aux/HISTORY.md § Re-introductions.",
+  "entries": [
+    {
+      "uuid": "06cd14d5-0f55-4ac0-8d9d-f9060e0fcc1b",
+      "revivedTitle": "Launch Agent 2 Holds Tokens Of Other Agents In Its SubProxy Account",
+      "canonicalTitle": "Keel Holds Tokens Of Other Agents In Its SubProxy Account",
+      "revivedName": "Launch Agent 2",
+      "canonicalName": "Keel",
+      "predecessorKey": "7b43d159:7622591f70028b505f25eb67b4fb0c13",
+      "renamedAwayAt": { "sha": "955f3f4d", "pr": 66, "date": "2025-10-09", "title": "2025-10-06 Weekly Edit Proposal", "from": "Launch Agent 2", "to": "Keel" },
+      "reintroducedAt": { "sha": "22cc27b5", "pr": 117, "date": "2025-11-21", "title": "Migrate To Markdown File" },
+      "refixedAt": { "sha": "00cf8b8f", "pr": 172, "date": "2026-01-29", "title": "Jan 26 Edit", "to": "Keel" },
+      "evidence": "HTML 'Launch Agent 2' 562->0 while 'Keel' 0->562 at 955f3f4d (#66). #117 (22cc27b5) md revived 30 'Launch Agent 2' mentions across 2 heading docs, inconsistently alongside 210 kept as 'Keel'. #172 (00cf8b8f) renamed all 30 back to Keel. Seed candidates Spark/Grove/Keel all score 83% (name-only body diff); the matcher auto-picked Spark — the true predecessor is Keel."
+    },
+    {
+      "uuid": "20ccbfff-9058-47e5-a2d5-893d5bf783b6",
+      "revivedTitle": "Launch Agent 2 Deducts Rebate From Ecosystem Upkeep Fees",
+      "canonicalTitle": "Keel Deducts Rebate From Ecosystem Upkeep Fees",
+      "revivedName": "Launch Agent 2",
+      "canonicalName": "Keel",
+      "predecessorKey": "7b43d159:8ae2a63cbf5d6ae476fd49476501e0b8",
+      "renamedAwayAt": { "sha": "955f3f4d", "pr": 66, "date": "2025-10-09", "title": "2025-10-06 Weekly Edit Proposal", "from": "Launch Agent 2", "to": "Keel" },
+      "reintroducedAt": { "sha": "22cc27b5", "pr": 117, "date": "2025-11-21", "title": "Migrate To Markdown File" },
+      "refixedAt": { "sha": "00cf8b8f", "pr": 172, "date": "2026-01-29", "title": "Jan 26 Edit", "to": "Keel" },
+      "evidence": "Same migration regression as its sibling 06cd14d5 (Keel 'Holds Tokens…'). Renamed Launch Agent 2 → Keel in the HTML at 955f3f4d (#66), revived by the #117 migration, re-fixed at #172. Not surfaced as a curation close-call (shipped a bare seam:'created'); true predecessor is the last-HTML 'Keel Deducts Rebate…' row."
+    }
+  ]
+}
