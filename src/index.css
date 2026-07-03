@@ -895,7 +895,7 @@ button.atlas-node-expand-all:focus-visible {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 1.25rem;
+  padding: 0.85rem;
   cursor: pointer;
   transition:
     border-color 0.15s,

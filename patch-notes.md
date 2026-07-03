@@ -8,8 +8,15 @@
     sentence, simpler in tone than a commit message.
   - Update this file in the same PR as the change it describes.
 
-  Only the 7 most recent bullets across all dates are shown.
+  Only the 10 most recent bullets across all dates are shown.
 -->
+
+## 2026-07-02
+- Added labels beside each search result showing which scope, agent (e.g. Skybase, Grove), or Instance Configuration Document a hit lives under, so you can place a result at a glance
+
+## 2026-07-01
+- Added a Connect page with instructions for connecting an AI assistant to the atlas over MCP
+- Improved the Atlas MCP tools — better search ranking, look up an actor by plain name, and leaner, more reliable responses
 
 ## 2026-06-30
 - add recent searches feature

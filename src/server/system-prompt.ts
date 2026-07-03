@@ -30,9 +30,12 @@ export function pageContextLine(ctx?: PageContext): string | null {
 }
 
 export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
-  const d = atlasDescribe(ix) as unknown as Describe;
+  // entity_type_graph is opt-in on atlas_describe (see DEFAULT_SECTIONS in
+  // tools.ts) — request it explicitly, and guard defensively so a future
+  // schema change can never NPE the whole /api/chat system prompt.
+  const d = atlasDescribe(ix, ["entity_type_graph"]) as unknown as Describe;
   const docTypes = d.doc_types.map((t) => `${t.type} (${t.count})`).join(", ");
-  const chains = d.entity_type_graph
+  const chains = (d.entity_type_graph ?? [])
     .slice(0, 18)
     .map((c) => `${c.from_type} —${c.edge_type}→ ${c.to_type}`)
     .join("\n");

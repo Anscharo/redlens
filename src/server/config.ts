@@ -39,6 +39,14 @@ export const config = {
   openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
 
+  // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
+  // the k nearest docs regardless of absolute similarity, so a query with few
+  // true matches drags in unrelated neighbors that then occupy top slots after
+  // RRF. Dropping hits below this floor tightens ranking for both atlas_search
+  // and atlas_query. Conservative default — good matches sit well above it;
+  // raise it (env) to be stricter, lower it if paraphrase recall suffers.
+  semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
+
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
@@ -52,6 +60,12 @@ export const config = {
 
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
+
+  // This app's git commit, surfaced in tool response _meta for provenance
+  // ("which build answered"). Railway injects RAILWAY_GIT_COMMIT_SHA at deploy;
+  // fall back to generic CI vars. Empty (normalized to null) when unset locally.
+  appCommit:
+    process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_COMMIT ?? process.env.GIT_COMMIT ?? process.env.SOURCE_COMMIT ?? "",
 
   // Preview feature (/api/preview/*): always active server-side; surfaced in
   // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
