@@ -1,11 +1,11 @@
 {
   "number": 4,
   "title": "add 2025-05-29 spell changes",
-  "body": "",
-  "author": null,
+  "body": "Adds changes from 2025-05-29 executive vote.",
+  "author": "0xldr",
   "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/4",
-  "commentCount": 0,
-  "reviewCount": 0,
-  "approvalCount": 0,
+  "commentCount": 1,
+  "reviewCount": 3,
+  "approvalCount": 1,
   "summary": "Adds changes from 2025-05-29 executive vote."
 }

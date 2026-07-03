@@ -1,11 +1,11 @@
 {
   "number": 49,
   "title": "add Spark bootstrapping delegates",
-  "body": "",
-  "author": null,
+  "body": "adds Spark bootstrapping delegates from this thread: https://forum.sky.money/t/spark-delegates-bootstrapping-phase/27090",
+  "author": "0xldr",
   "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/49",
   "commentCount": 0,
-  "reviewCount": 0,
-  "approvalCount": 0,
+  "reviewCount": 3,
+  "approvalCount": 1,
   "summary": "As part of the new Delegation Framework, Spark now has its first two Delegates. Delegates are trusted representatives who vote on behalf of SPK holders. To facilitate the bootstrapping of governance, two Delegates have been appointed by the Foundation and the Operational Facilitator following due diligence: - NeoNode , 0x71faa03c0cebcbb53236763b6b118ad906d9f6d3 - Remi , 0xdc5d4228a42880f5bbd577a184035503bd55799a SPK holders can now delegate to these Delegates via the Spark App or Snapshot, or continue voting directly. Full details are in the Spark Artifact. Spark Foundation"
 }
