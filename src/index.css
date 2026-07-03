@@ -543,10 +543,11 @@ mark {
 button.atlas-node-toggle:hover {
   color: var(--tan);
 }
-/* Expand-all (»/«) stays invisible until the row is hovered or focused,
-   keeping rows quiet; still keyboard-reachable via focus-visible. */
+/* Expand-all (»/«) stays visible on every parent row, just a notch dimmer than
+   the primary › toggle so rows stay calm; brightens to full on hover/focus.
+   Keyboard-reachable via focus-visible. */
 button.atlas-node-expand-all {
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 0.1s;
 }
 .atlas-node:hover button.atlas-node-expand-all,
