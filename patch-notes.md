@@ -12,6 +12,9 @@
     change: "Lightened the reader text", not "Lightened the text for easier
     reading".
   - Update this file in the same PR as the change it describes.
+  - Mirror the new bullets into that PR's description too — add a "Patch notes"
+    section listing them verbatim, alongside the fuller technical description
+    that's already there.
 
   Only the 10 most recent bullets across all dates are shown.
 -->
