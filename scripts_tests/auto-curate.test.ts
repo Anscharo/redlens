@@ -2,7 +2,7 @@
 // two-independent-signals logic that decides whether a case can skip a human.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase, frontierTriggers, frontierCorroborator, mechanismToMethod } from "../scripts/lib/auto-curate.mjs";
+import { autoConfidence, forwardAgrees, llmEligible, llmConfirms, resolveCase, frontierTriggers, frontierCorroborator, mechanismToMethod } from "../scripts/htmlhist/auto-curate.mjs";
 
 const kase = (over: Record<string, unknown> = {}) => ({
   key: "n", kind: "tier-3", newerSha: "s", olderSha: "o", subjectKey: "n",

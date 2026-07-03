@@ -2,7 +2,7 @@
 // hashes → confident 1:1 edits (anchored), births, deaths, N:M ambiguous segments.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { diffThread, diffEditsMap, editConfidence, diffText } from "../scripts/lib/history-diff.mjs";
+import { diffThread, diffEditsMap, editConfidence, diffText } from "../scripts/htmlhist/history-diff.mjs";
 
 let ord = 0;
 const mk = (section: string, structuralKey: string, content: string, title = structuralKey) =>

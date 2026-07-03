@@ -3,9 +3,9 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
 // @ts-expect-error — .mjs without types
-import { buildTimelineIndex, timelineFor, commitInfoIndex, enrichTimeline } from "../scripts/lib/history-timeline.mjs";
+import { buildTimelineIndex, timelineFor, commitInfoIndex, enrichTimeline } from "../scripts/htmlhist/history-timeline.mjs";
 // @ts-expect-error — .mjs without types
-import { occKey, contentDupCounts } from "../scripts/lib/history-occkey.mjs";
+import { occKey, contentDupCounts } from "../scripts/htmlhist/history-occkey.mjs";
 
 type Node = any;
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");

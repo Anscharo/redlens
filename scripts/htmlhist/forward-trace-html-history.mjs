@@ -20,8 +20,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { loadHtmlAt } from "../lib/atlas-html.mjs";
-import { forwardTrace, diffPasses, divergencePriority } from "../lib/history-forward-trace.mjs";
+import { loadHtmlAt } from "./atlas-html.mjs";
+import { forwardTrace, diffPasses, divergencePriority } from "./history-forward-trace.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");

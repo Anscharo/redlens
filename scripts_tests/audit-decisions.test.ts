@@ -2,7 +2,7 @@
 // classifying agreement vs an independent auditor pick, and summarizing the conflicts.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { decisionMethod, buildAuditItems, summarizeAudit, buildDisagreement } from "../scripts/lib/audit-decisions.mjs";
+import { decisionMethod, buildAuditItems, summarizeAudit, buildDisagreement } from "../scripts/htmlhist/audit-decisions.mjs";
 
 // A tiny queue: one node per key, two cases each with two candidates.
 const data = {

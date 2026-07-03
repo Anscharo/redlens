@@ -25,8 +25,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { loadHtmlAt } from "../lib/atlas-html.mjs";
-import { buildTimelineIndex, timelineFor, commitInfoIndex, enrichTimeline } from "../lib/history-timeline.mjs";
+import { loadHtmlAt } from "./atlas-html.mjs";
+import { buildTimelineIndex, timelineFor, commitInfoIndex, enrichTimeline } from "./history-timeline.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");

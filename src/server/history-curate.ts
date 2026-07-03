@@ -74,7 +74,7 @@ export interface ProposeResult {
 }
 
 // The LLM proposal core, shared by the HTTP endpoint (human-in-the-loop UI) and the
-// offline batch auto-curator (scripts/aux/auto-curate-html-history.mjs) so the prompt
+// offline batch auto-curator (scripts/htmlhist/auto-curate-html-history.mjs) so the prompt
 // lives in exactly one place. Returns the model's chosen candidate key (constrained to
 // the supplied keys, else "none") + a short rationale. The model only PROPOSES — a
 // human confirms in the UI, or the batch script only locks a case when the LLM agrees

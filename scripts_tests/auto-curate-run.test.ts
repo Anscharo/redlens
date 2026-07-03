@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
 // @ts-expect-error — .mjs without types
-import { runAutoCurate } from "../scripts/lib/auto-curate-run.mjs";
+import { runAutoCurate } from "../scripts/htmlhist/auto-curate-run.mjs";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 const node = (content: string, structuralKey: string, order: number) => ({
@@ -464,8 +464,10 @@ describe("runAutoCurate — pass 1.6 (positional∩signal)", () => {
   });
 
   it("emits an advisory HINT (no lock) for a matcher-null case when P1 and P2 self-corroborate", async () => {
+    // containment off so there is genuinely NO content signal to corroborate against — the
+    // only path left is the self-corroborated advisory hint (P1 ancestor + P2 neighbour agree).
     const { decisions, proposals, summary } = await runAutoCurate({
-      data: positionalData(null), commits, haveKey: true, noLlm: true, propose: async () => ({ chosenKey: "x", why: "" }),
+      data: positionalData(null), commits, haveKey: true, noLlm: true, containment: false, propose: async () => ({ chosenKey: "x", why: "" }),
     });
     expect(summary.resolvedByPositional).toBe(0); // no matcher pick to corroborate → not locked
     expect(summary.resolved).toBe(0);

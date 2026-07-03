@@ -76,7 +76,7 @@ The human-in-the-loop path is the same shape: curate a few commits on the page �
 - `--limit N` / `--concurrency N` / `--threshold X` — cap/parallelize/tune the LLM cross-check.
 - `--stats` — print queue counts only, write nothing.
 
-To **re-run the auto-resolution over an existing queue** without rebuilding the 6 MB queue (e.g. after changing `--threshold`), call the standalone tool directly: `bun scripts/aux/auto-curate-html-history.mjs`.
+To **re-run the auto-resolution over an existing queue** without rebuilding the 6 MB queue (e.g. after changing `--threshold`), call the standalone tool directly: `bun scripts/htmlhist/auto-curate-html-history.mjs`.
 
 ### Re-introductions (`history-reintroductions.json`)
 

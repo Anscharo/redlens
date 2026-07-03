@@ -153,7 +153,7 @@ export function buildDecisionsFile(data: CurationData, picks: Record<string, Pic
 
 // Mechanism (a baseline decision's `auto`) → provenance method. LLM + frontier locks are
 // "ai"; the deterministic passes are "deterministic". Mirrors the freeze-side
-// mechanismToMethod (scripts/lib/auto-curate.mjs) so the page and the bake agree.
+// mechanismToMethod (scripts/htmlhist/auto-curate.mjs) so the page and the bake agree.
 const methodOfMechanism = (via?: string): "deterministic" | "ai" =>
   via === "llm-90" || via === "llm-95" || via === "cluster" || via === "frontier" ? "ai" : "deterministic";
 
@@ -203,7 +203,7 @@ export function downloadDecisions(data: CurationData, picks: Record<string, Pick
   URL.revokeObjectURL(url);
 }
 
-// --- auto-resolved baseline (offline, scripts/aux/auto-curate-html-history.mjs) ---
+// --- auto-resolved baseline (offline, scripts/htmlhist/auto-curate-html-history.mjs) ---
 // Optional pre-filled decisions for the cases two independent signals already agree on
 // (forward∩reverse, or LLM∩matcher ≥90%). Fetched best-effort: the file is gitignored
 // and may not exist, in which case the human simply curates the whole queue. `auto`

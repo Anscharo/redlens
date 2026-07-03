@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
 // @ts-expect-error — .mjs without types
-import { forwardMatch, forwardTrace, diffPasses, forwardLinks } from "../scripts/lib/history-forward-trace.mjs";
+import { forwardMatch, forwardTrace, diffPasses, forwardLinks } from "../scripts/htmlhist/history-forward-trace.mjs";
 
 type Node = any;
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");

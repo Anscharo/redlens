@@ -2,7 +2,7 @@
 // string templating (curate-prompt-expanded.mjs) — no LLM call to test, just shape.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { SYSTEM_EXPANDED, buildExpandedUser } from "../scripts/lib/curate-prompt-expanded.mjs";
+import { SYSTEM_EXPANDED, buildExpandedUser } from "../scripts/htmlhist/curate-prompt-expanded.mjs";
 
 describe("SYSTEM_EXPANDED", () => {
   it("defines the three-way verdict and forbids forcing a match or defaulting to born", () => {

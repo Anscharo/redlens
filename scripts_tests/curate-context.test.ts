@@ -1,7 +1,7 @@
 // Structural + cross-case enrichment for the curation LLM (curate-context.mjs). Pure.
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { nodeContext, buildClaimIndex, enrichSubject, enrichCandidates } from "../scripts/lib/curate-context.mjs";
+import { nodeContext, buildClaimIndex, enrichSubject, enrichCandidates } from "../scripts/htmlhist/curate-context.mjs";
 
 const nodes = {
   subj: { title: "Target", content: "body", doc_no: "A.1", prev: ["p1", "p2"], next: ["n1"], section: "Defs", ancestors: ["Module X", "Sub Y"], scope: "Governance" },

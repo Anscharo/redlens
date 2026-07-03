@@ -291,7 +291,7 @@ adamfraser on behalf of @atlas-axis, 2025-11-21, the same author/date as commit
 engineer — the §3 converter is the first deterministic one, and we own it
 entirely. It targets a single, stable HTML schema (§2.1).
 
-## 3. HTML reader + converter — `scripts/lib/atlas-html.mjs` (NEW)
+## 3. HTML reader + converter — `scripts/htmlhist/atlas-html.mjs` (NEW)
 
 The single repo-structure-dependent module. Mirrors the contract of
 `parseMonolithic` / `loadAtomizedAt` in `build-history.mjs`: given a commit
@@ -332,7 +332,7 @@ Determinism checklist for the converter (each non-determinism = diff noise):
 > converter (no dep, but we own every edge case). Recommend **turndown pinned**
 > — it's a build-only dependency, never shipped to the client.
 
-## 4. HTML-era history pass — `scripts/lib/history-html-era.mjs` (NEW)
+## 4. HTML-era history pass — `scripts/htmlhist/history-html-era.mjs` (NEW)
 
 Pure, testable. **Two passes: A) thread identity *backward* from #117; B) emit
 diffs *forward* from the first commit.** Kept separate from the UUID-keyed
@@ -483,7 +483,7 @@ zero into `created`/`deleted` only on real evidence.
 ### 4.2 The matcher — `matchNodes(older, newer)`
 
 Reused at every backward hop **and** at the seed boundary; it is also the
-slot-reuse pairing of §8 (factor into `scripts/lib/history-identity.mjs`).
+slot-reuse pairing of §8 (factor into `scripts/htmlhist/history-identity.mjs`).
 Tiered, cheapest-first, to avoid an O(n²) edit-distance blow-up:
 
 1. **Exact `contentHash`** — covers *both* "unchanged in place" and
@@ -590,7 +590,7 @@ render identically in `EntryRow`. The #117 boundary event itself is a labelled
 migration marker with its content diff suppressed (§5.3, §6).
 
 > **Implemented + a load-bearing gotcha (2026-06-25).** `buildEvents` lives in
-> `scripts/lib/history-html-era.mjs`; the orchestrator is `scripts/aux/prepare-
+> `scripts/htmlhist/history-html-era.mjs`; the orchestrator is `scripts/aux/prepare-
 > html-history.mjs` (`pnpm htmlhist:prepare [--measure]`), which uses the real
 > `diffCore.lineDiff` + `classifyDiff` and emits events in the exact `eventToRow`
 > shape (`commitHash`/`changeType`/`movedFrom`/`movedTo`/`diff`/`changeKind`) plus
@@ -798,7 +798,7 @@ detection: when a *new* doc (with a fresh UUID) takes over a doc_no that a
 with `takenBy`. Implement it together with this plan because:
 - Both need the same "match a doc to where its content/number went" helper —
   factor it once (`matchNodes` for the HTML era, §4.2; the uuid-occupant check
-  for the UUID era) in a shared `scripts/lib/history-identity.mjs`.
+  for the UUID era) in a shared `scripts/htmlhist/history-identity.mjs`.
 - Both extend `EntryRow` with renumber/slot cross-reference copy — one UI pass.
 
 **Correction to that plan**: it specifies `migrations/008_history_slot.sql`, but
@@ -969,7 +969,7 @@ build replays deterministically: a **freeze-time auditor** (this section) and a
   origin; an HTML row that vanishes with no successor). Orphan *detection* is
   mechanical and already required (it's what gates synthetic UUIDs / tombstones).
   Emitting it is free; it is the audit's input.
-- **`scripts/aux/audit-html-history.mjs` (NEW, offline) runs an LLM over orphans,
+- **`scripts/htmlhist/audit-html-history.mjs` (NEW, offline) runs an LLM over orphans,
   flagged anomalies, and per-commit intent records (§10.3) and writes a *review
   report*, not artifact data.** Per commit it triages:
   - **orphan classification** — *expected* (e.g. `#14` derecognition, volatile
@@ -1169,13 +1169,13 @@ harness (incl. ~½ day for the §10.3 intent fetch + snapshot), UI, and the §10
 fixtures.
 
 New:
-- `scripts/lib/atlas-html.mjs` — HTML read + deterministic md conversion + parse.
-- `scripts/lib/history-html-era.mjs` — backward identity threading (Pass A) +
+- `scripts/htmlhist/atlas-html.mjs` — HTML read + deterministic md conversion + parse.
+- `scripts/htmlhist/history-html-era.mjs` — backward identity threading (Pass A) +
   forward diffing (Pass B), synthetic v5 UUIDs, deterministic per-commit
   `orphans` emission (§10.2 input).
-- `scripts/lib/history-identity.mjs` — shared `matchNodes` content-pairing helper
+- `scripts/htmlhist/history-identity.mjs` — shared `matchNodes` content-pairing helper
   (also used by slot-reuse).
-- `scripts/aux/prepare-html-history.mjs` — one-shot offline runner that computes
+- `scripts/htmlhist/prepare-html-history.mjs` — one-shot offline runner that computes
   §4 and writes the frozen artifact; rerun only as a deliberate, reviewed act.
   `--measure` mode emits the §10.0 seam + §4.1 graveyard + §10.4 decision-queue
   sizes without writing the artifact. `--decide` runs the §10.4 interactive
@@ -1183,7 +1183,7 @@ New:
   run consumes that file and **errors on any undecided ambiguous case** (strict
   completeness gate). Also fetches per-commit PR metadata + the originating forum
   thread (§10.3) and snapshots them (URL + fetched-at + content hash).
-- `scripts/aux/audit-html-history.mjs` — offline LLM auditor over orphans +
+- `scripts/htmlhist/audit-html-history.mjs` — offline LLM auditor over orphans +
   anomalies → human-readable review report; never writes artifact data (§10.2).
   Also hosts the §10.4 LLM **decision-proposer** (auto-seeds `decided_by:"llm:auto"`
   verdicts for the ambiguous queue) and **validates** `history-threading-decisions.json`

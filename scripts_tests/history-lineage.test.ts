@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
 // @ts-expect-error — .mjs without types
-import { detectLineage } from "../scripts/lib/history-lineage.mjs";
+import { detectLineage } from "../scripts/htmlhist/history-lineage.mjs";
 
 const md5 = (s: string) => crypto.createHash("md5").update(s).digest("hex");
 const node = (uuid: string, title: string, content: string, key: string, order: number) => ({

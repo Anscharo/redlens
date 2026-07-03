@@ -7,7 +7,7 @@
 //   bun scripts/aux/curation-hard-set.mjs [--per 10]
 import fs from "node:fs";
 import path from "node:path";
-import { buildClaimIndex, enrichSubject, enrichCandidates } from "../lib/curate-context.mjs";
+import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
 
 const ROOT = process.cwd();
 const arg = (f, d) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : d; };

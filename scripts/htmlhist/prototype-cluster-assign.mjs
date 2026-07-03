@@ -12,8 +12,8 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { proposeClusterAssignment } from "../../src/server/history-curate.ts";
 import { config } from "../../src/server/config.ts";
-import { buildClusters } from "../lib/curate-clusters.mjs";
-import { buildClaimIndex, enrichSubject, enrichCandidates } from "../lib/curate-context.mjs";
+import { buildClusters } from "./curate-clusters.mjs";
+import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
 
 const ROOT = process.cwd();
 const arg = (f, d) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : d; };

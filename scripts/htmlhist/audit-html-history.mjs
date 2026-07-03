@@ -21,8 +21,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { execSync } from "node:child_process";
-import { loadHtmlAt } from "../lib/atlas-html.mjs";
-import { matchNodes } from "../lib/history-identity.mjs";
+import { loadHtmlAt } from "./atlas-html.mjs";
+import { matchNodes } from "./history-identity.mjs";
 import { getClient, getModel } from "../../src/server/llm.ts";
 
 const ROOT = process.cwd();

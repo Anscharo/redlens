@@ -15,10 +15,10 @@
 
 import path from "node:path";
 import { execSync } from "node:child_process";
-import { loadHtmlAt } from "../lib/atlas-html.mjs";
-import { seedFromMd, threadBackward } from "../lib/history-html-era.mjs";
-import { isSynthetic } from "../lib/history-identity.mjs";
-import { sameDocScore, findContainer } from "../lib/ordered-containment.mjs";
+import { loadHtmlAt } from "./atlas-html.mjs";
+import { seedFromMd, threadBackward } from "./history-html-era.mjs";
+import { isSynthetic } from "./history-identity.mjs";
+import { sameDocScore, findContainer } from "./ordered-containment.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");

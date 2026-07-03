@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import
-import { parseHtmlToNodes, htmlCellToMarkdown } from "../scripts/lib/atlas-html.mjs";
+import { parseHtmlToNodes, htmlCellToMarkdown } from "../scripts/htmlhist/atlas-html.mjs";
 
 const FIXTURE = `
 <h1>Articles</h1>

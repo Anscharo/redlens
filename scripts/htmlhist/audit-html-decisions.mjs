@@ -21,9 +21,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { proposePredecessor } from "../../src/server/history-curate.ts";
 import { config } from "../../src/server/config.ts";
-import { loadLlmCache, writeLlmCache } from "../lib/auto-curate-io.mjs";
-import { buildAuditItems, summarizeAudit } from "../lib/audit-decisions.mjs";
-import { buildClaimIndex, enrichSubject, enrichCandidates } from "../lib/curate-context.mjs";
+import { loadLlmCache, writeLlmCache } from "./auto-curate-io.mjs";
+import { buildAuditItems, summarizeAudit } from "./audit-decisions.mjs";
+import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
 
 const ROOT = process.cwd();
 const arg = (flag) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : null; };

@@ -50,7 +50,7 @@ export const config = {
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
-  // the model bakeoff (scripts/aux/curation-model-bakeoff.mjs): mistral-nemo had the best
+  // the model bakeoff (scripts/htmlhist/curation-model-bakeoff.mjs): mistral-nemo had the best
   // hard-case accuracy (97%) at the lowest cost. Decoupled from chatModel so live chat and
   // the curation selector swap independently. Offline tooling only.
   curationSelectorModel: process.env.CURATION_SELECTOR_MODEL ?? "mistralai/mistral-nemo",
@@ -68,7 +68,7 @@ export const config = {
   // is routed here. deepseek-v4-pro won the bakeoff's frontier slot (94% hard-acc, 0 JSON
   // failures). Never used by the runtime chat/curation page — offline tooling only.
   curationFrontierModel: process.env.CURATION_FRONTIER_MODEL ?? "deepseek/deepseek-v4-pro",
-  // Cheap second model the OFFLINE decision audit (scripts/aux/audit-html-decisions.mjs) uses to
+  // Cheap second model the OFFLINE decision audit (scripts/htmlhist/audit-html-decisions.mjs) uses to
   // independently re-pick each curation predecessor; disagreements with the recorded decision are
   // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",

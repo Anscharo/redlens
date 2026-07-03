@@ -13,7 +13,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { bestByContainment } from "../lib/ordered-containment.mjs";
+import { bestByContainment } from "./ordered-containment.mjs";
 
 const ROOT = process.cwd();
 const CURATION = path.join(ROOT, "public/history-curation.json");

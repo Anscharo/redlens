@@ -3,9 +3,9 @@
 
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { syntheticUuid, isSynthetic } from "../scripts/lib/history-identity.mjs";
+import { syntheticUuid, isSynthetic } from "../scripts/htmlhist/history-identity.mjs";
 // @ts-expect-error — .mjs without types
-import { threadBackward, buildEvents, seedFromMd } from "../scripts/lib/history-html-era.mjs";
+import { threadBackward, buildEvents, seedFromMd } from "../scripts/htmlhist/history-html-era.mjs";
 
 type Node = any;
 const node = (id: string, o: Partial<Node> & { order: number }): Node => ({

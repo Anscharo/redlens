@@ -17,8 +17,8 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { buildClaimIndex, enrichSubject, enrichCandidates } from "../lib/curate-context.mjs";
-import { SYSTEM_EXPANDED, buildExpandedUser } from "../lib/curate-prompt-expanded.mjs";
+import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
+import { SYSTEM_EXPANDED, buildExpandedUser } from "./curate-prompt-expanded.mjs";
 
 const ROOT = process.cwd();
 const CURATION = path.join(ROOT, "public/history-curation.json");
