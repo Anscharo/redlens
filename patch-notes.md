@@ -6,10 +6,22 @@
   - Each date is a `## YYYY-MM-DD` heading.
   - Each line under a date is one improvement: a single plain-language
     sentence, simpler in tone than a commit message.
+  - Keep each bullet a short, plain highlight of WHAT CHANGED. Don't be verbose
+    and don't add judgment / marketing language or a "so you can…" rationale
+    (avoid "calmer", "easier", "at a glance", "keep your place"). Just state the
+    change: "Lightened the reader text", not "Lightened the text for easier
+    reading".
   - Update this file in the same PR as the change it describes.
 
   Only the 10 most recent bullets across all dates are shown.
 -->
+
+## 2026-07-03
+- The selected section now stays pinned to the top of the reader while you scroll through its subsections
+- Improved the expand-all control for sections with large or hidden subsection hierarchies
+- Added a colored rail down the left of a selected section's subsections
+- Lightened the reader text and matched the reading surface to the sidebar
+- Slimmed the sidebar and reader scrollbars and kept long titles from slipping underneath them
 
 ## 2026-07-02
 - Added labels beside each search result showing which scope, agent (e.g. Skybase, Grove), or Instance Configuration Document a hit lives under, so you can place a result at a glance
