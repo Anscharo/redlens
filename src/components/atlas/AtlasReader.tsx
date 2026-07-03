@@ -7,7 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { AtlasActionsContext, useAtlasActions } from "./AtlasActionsContext";
-import { useExpandAll } from "./useExpandAll";
+import { useExpandAll, collectSubtree } from "./useExpandAll";
 import { useDepth6Expand } from "./useDepth6Expand";
 import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
@@ -66,7 +66,7 @@ export function AtlasReader({
 
   const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
 
-  const { expandedParents, hiddenCount, expandParent } = useDepth6Expand(
+  const { expandedParents, hiddenCount, expandParent, setParentsExpanded } = useDepth6Expand(
     data.flatNodes,
     id,
   );
@@ -76,6 +76,15 @@ export function AtlasReader({
     expandParent(nodeId);
     triggerExpandingAnim();
   }, [expandParent, triggerExpandingAnim]);
+
+  // Expand-all (double chevron) must also un-gate hidden depth-6+ descendants:
+  // expandAll only flips content-toggle state, but gated children stay filtered
+  // out of docList until their parent is in expandedParents. Reveal the whole
+  // subtree on expand, re-gate it on collapse, so » truly opens everything.
+  const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
+    expandAll(rootId, expand);
+    setParentsExpanded(collectSubtree(data.atlas.byParent, rootId), expand);
+  }, [expandAll, setParentsExpanded, data]);
 
   useAtlasScroll(id, data, expandedParents);
 
@@ -151,7 +160,7 @@ export function AtlasReader({
   }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, changedSet]);
 
   return (
-    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll }}>
+    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll }}>
       <div
         className="relative flex flex-col overflow-hidden flex-1 min-w-0"
         style={{ ...ATLAS_LEFT_PANE_STYLE, minHeight: 0 }}

@@ -56,5 +56,23 @@ export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
     });
   }, []);
 
-  return { expandedParents, hiddenCount, expandParent };
+  // Bulk reveal/re-gate for expand-all («/»): add every id in the subtree so
+  // its gated depth-6+ children show (reveal=true), or drop them to re-hide
+  // (reveal=false). Passing whole-subtree ids is a harmless superset — only the
+  // ids that are parents of depth-6+ nodes actually gate anything.
+  const setParentsExpanded = useCallback((ids: string[], reveal: boolean) => {
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const nid of ids) {
+        if (reveal ? next.has(nid) : !next.has(nid)) continue;
+        if (reveal) next.add(nid);
+        else next.delete(nid);
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
+  return { expandedParents, hiddenCount, expandParent, setParentsExpanded };
 }
