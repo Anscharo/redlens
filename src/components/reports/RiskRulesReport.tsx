@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
@@ -19,6 +19,9 @@ const statusCodec = categoryCodec<RiskRowStatus>({ fresh: "fresh", stale: "stale
 const expandedCodec = urlString(null);
 const RATINGS = ["weak", "mid", "strong"] as const;
 const STATUSES = ["fresh", "stale", "unassessed"] as const;
+// Allocation risk and smart contract security carry far more rows than peg
+// maintenance — show them first.
+const SECTION_ORDER: RiskDomain[] = ["alloc", "sc", "peg"];
 
 function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   const s = summarizeRisk(join.rows);
@@ -48,20 +51,31 @@ export function RiskRulesReport() {
     return joinRisk(enumerateRiskCandidates(atlas).candidates, artifact);
   }, [atlas, artifact]);
 
+  const [, startTransition] = useTransition();
   const toggle = <T extends string>(kind: string, set: (fn: (cur: T | null) => T | null) => void) =>
     (next: T) => {
       track("report_filter", { report: "risk-rules", filter_kind: kind, slug: next, active: true });
-      set((cur) => (cur === next ? null : next));
+      startTransition(() => set((cur) => (cur === next ? null : next)));
     };
 
-  const filtered = join.rows.filter(
-    (r) =>
-      (domain === null || r.triage.domains.includes(domain)) &&
-      (status === null || r.status === status) &&
-      (score === null || String(r.entry?.preciseness) === score) &&
-      (enforce === null || r.entry?.enforcement === enforce),
+  // Memoized so the row list only recomputes when a filter actually changes
+  // (not on unrelated re-renders, e.g. expanding a row) — RiskTable's
+  // pagination relies on `rows` keeping a stable identity across those.
+  const filtered = useMemo(
+    () =>
+      join.rows.filter(
+        (r) =>
+          (domain === null || r.triage.domains.includes(domain)) &&
+          (status === null || r.status === status) &&
+          (score === null || String(r.entry?.preciseness) === score) &&
+          (enforce === null || r.entry?.enforcement === enforce),
+      ),
+    [join, domain, status, score, enforce],
   );
-  const byDomain = Object.groupBy(filtered, (r) => r.triage.domains[0] ?? r.candidate.domains[0]);
+  const byDomain = useMemo(
+    () => Object.groupBy(filtered, (r) => r.triage.domains[0] ?? r.candidate.domains[0]),
+    [filtered],
+  );
 
   return (
     <div className="px-6 py-6">
@@ -88,7 +102,8 @@ export function RiskRulesReport() {
           <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", setStatus)} />
         </div>
 
-        {atlas && (Object.entries(RISK_DOMAIN_LABELS) as [RiskDomain, string][]).map(([d, label]) => {
+        {atlas && SECTION_ORDER.map((d) => {
+          const label = RISK_DOMAIN_LABELS[d];
           const rows = byDomain[d];
           if (!rows?.length) return null;
           return (
