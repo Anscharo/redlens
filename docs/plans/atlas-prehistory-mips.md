@@ -1,11 +1,12 @@
 # Atlas pre-history: MIPs → Powerhouse → next-gen-atlas
 
-Status: RESEARCH (2026-06-24; recovery + identity probes 2026-06-25; genesis HTML
-recovered + MIP→v2 governance seam dated 2026-06-25; facilitator accounts folded
-in 2026-07-01). Companion to `html-era-history.md`. Question investigated: the
-`Sky Atlas.html` "first commit" is not the true beginning of the Atlas — what
-came before, and should we extend document history further back than the HTML
-era?
+Status: RESEARCH → MEASURED (2026-06-24; recovery + identity probes 2026-06-25;
+genesis HTML recovered + MIP→v2 governance seam dated 2026-06-25; facilitator
+accounts folded in 2026-07-01; **MIP→genesis→current lineage measured end-to-end
+2026-07-06 — see `pre-git-history.md`, now the implementation plan**). Companion
+to `html-era-history.md`. Question investigated: the `Sky Atlas.html` "first
+commit" is not the true beginning of the Atlas — what came before, and should we
+extend document history further back than the HTML era?
 
 **Answer: yes, there is a real pre-history in at least three earlier strata — and
 the key follow-up questions are now settled by measurement:**
@@ -31,6 +32,33 @@ the key follow-up questions are now settled by measurement:**
   change needed there.
 
 Details and a tiered recommendation below.
+
+## Lineage measured (2026-07-06) — Tier 3 is cheap and it works
+
+The genesis HTML was fetched (693,903 B, parses with the *unchanged* htmlhist
+converter: 890 nodes, 10 sections, scopes `A.0`–`A.5`), `sky-ecosystem/mips` was
+cloned, and the full MIP → genesis → `4e931dfd` → current-uuid chain was measured
+(prototypes + data: `scripts/aux/atlas-history/{recovered,prototypes}/`):
+
+- **Scope map**: A.0←MIP101, A.1←MIP113, A.2←MIP106, A.3←MIP104, A.4←MIP107,
+  A.5←MIP108. The v1→v2 renumbering is **not** mechanical ("2.x → A.2.x" was
+  wrong): scope order changed, content moved across artifacts (GSM Pause Delay:
+  MIP113 §10.1 → A.1.9). **Content matching (8-word shingle containment) is the
+  bridge**, and it produces clean §-level citations (many at containment 1.0).
+- **Of today's 10,370 docs: 613 predate genesis; 179 trace to MIP text**
+  (containment ≥0.25; +79 title-hit-only curation candidates). Genesis→root
+  bridges 756/890 (85%) with the existing `matchNodes`; 134 genesis docs died in
+  the severed era (29 MIP-traceable — a datable graveyard).
+- **Per-section MIP dates are recoverable**: `git log --reverse -S<title>` dated
+  160/160 matched sections, 2023-02 → 2024-08 — "Proposed in MIP" events get
+  real dates, not one blanket ratification date.
+- **Era-1 change history exists if ever wanted**: 626 commits across the six
+  artifacts (MIP113 alone 313, 2023-02-09 → 2024-09-05; repo froze 3 days after
+  genesis).
+
+⇒ The old "Tier 3: defer, high effort" rating is obsolete — the cross-format
+bridge that made it look expensive is validated and cheap. The **origin feature**
+("Proposed in MIP N" / "Present at genesis") is specced in `pre-git-history.md`.
 
 ## TL;DR lineage
 
@@ -417,20 +445,18 @@ history source than git for **all** eras — richer granularity, native doc
 identity, and likely reaching back to the 2024 Powerhouse era. Access-gated, so
 pursue only via a contact; do not block the html-era plan on it.
 
-**Tier 3 — MIPs-era markdown (era 1). Defer; treat as its own era if pursued.**
-`makerdao/mips` is fully available (no recovery needed), but it's a **different
-repo, different format** (MIP-style markdown, top-level `0`–`6` numbering, scopes
-as separate MIP files) and **different identity** (MIP/section numbers, no
-UUIDs). Splicing it is a second cross-format, cross-repo bridge whose structural
-gap (separate MIP docs → unified HTML tables) is *larger* than the HTML→md gap.
-High effort, 2023-era depth. Only worth it if there's explicit appetite for
-"what did the Atlas say when it was first ratified." **Two facilitator leads
-lower the effort if pursued** (see "Facilitator accounts" above): the **MIP
-portal** already breadcrumbs each MIP to its GitHub file/forum thread/poll —
-no enumeration script needed, unlike the HTML-era forum work — and **Blimpa
-(Endgame)** is a named contact with full hands-on context from the Core Unit
-era. The MIP count itself needs re-verification first (12 → 5/6 → 1
-compression, possible orphaned "still active" legacy MIPs).
+**Tier 3 — MIPs-era markdown (era 1). ~~Defer~~ → MEASURED VIABLE (2026-07-06);
+origin events are cheap, full era-1 change history remains optional.**
+`makerdao/mips` is fully available (no recovery needed). The feared cross-format
+bridge (separate MIP docs → unified HTML tables) is **validated**: shingle
+containment attributes 179 of today's docs to specific MIP sections with §-level
+citations, and `git log -S` dates every matched section (see "Lineage measured"
+above). The *origin* slice ("Proposed in MIP N") is now Phase A of
+`pre-git-history.md`. What stays deferred is the *full* era-1 change history
+(replaying the 626 commits into per-doc events) — real depth (2023-02 →
+2024-09), same machinery, but only worth building if the origin feature creates
+appetite. The facilitator leads (**MIP portal** breadcrumbs; **Blimpa** as
+era-1 human context) remain relevant only for that deeper slice.
 
 ## Open questions to resolve before any pre-HTML build
 
@@ -457,11 +483,19 @@ compression, possible orphaned "still active" legacy MIPs).
    different/clean source). **Blimpa (Endgame)** is the concrete lead for
    era-1 (Tier 3) outreach; still need a separate Sky/Powerhouse contact for
    the op-log ask.
-6. **Verify the MIP consolidation step** Retro described (12 scope MIPs → 5 or
-   6 → the single Atlas v2). Diff `makerdao/mips` for a merge event in the
-   2024 window; reconcile against the 12 MIP102–113 files already confirmed
-   to exist.
-7. **Check for orphaned "still active" legacy MIPs** — Retro flagged a cleanup
-   that may never have happened. If Tier 3 is pursued, verify each of
-   MIP102–113's formal status directly rather than assuming file-presence
-   means superseded-vs-active is tracked correctly.
+6. ~~**Verify the MIP consolidation step** Retro described~~ — **resolved
+   (2026-07-06) from the MIP preambles.** The twelve MIP102–113 files split
+   cleanly: **six Scope *Frameworks* are `Status: Obsolete`** (MIP103 Stability
+   & Liquidity, MIP105 RWA Collateral, MIP109 Physical Resilience, MIP110
+   Interface, MIP111 Infrastructure, MIP112 Finance) and **five Scope *BMAAs*
+   + MIP101 are `Status: Accepted`** (MIP104 Stability, MIP106 Support, MIP107
+   Protocol, MIP108 Accessibility, MIP113 Governance) — exactly the "six
+   artifacts" poll #25010 says v2 unified, and exactly Retro's "12 → 5 or 6"
+   (all twelve proposed the same day, 2023-02-06; the framework set was
+   obsoleted in favor of the five BMAAs). No mid-2024 merge event needed.
+7. ~~**Check for orphaned "still active" legacy MIPs**~~ — **confirmed
+   (2026-07-06): the housekeeping gap is real.** All six v1 artifacts
+   (MIP101/104/106/107/108/113) still read `Status: Accepted` in the frozen
+   repo — none was marked Obsolete/Superseded at the v2 cutover. Treat MIP
+   `Status:` fields as unreliable for supersession; the v2 poll (#25010,
+   2024-09-02) is the authoritative close-out event.

@@ -2,7 +2,9 @@
 
 Status: PLANNED (2026-06-24); **enumeration step BUILT 2026-06-25** (§1 — script
 + checked-in manifest); facilitator context folded in 2026-07-01 (see
-`atlas-prehistory-mips.md`, "Facilitator accounts"). Depends on findings in
+`atlas-prehistory-mips.md`, "Facilitator accounts"); **corpus fetched + parser
+feasibility measured 2026-07-06 (§1.5 below) — implementation now specced as
+stage 3 of `pre-git-history.md`**. Depends on findings in
 `atlas-prehistory-mips.md`. Sibling to `html-era-history.md` (the git-based
 HTML-era pipeline).
 
@@ -76,6 +78,46 @@ The 29 severed cycles are the concrete reconstruction work-list.
   transition. The monthly AEPs fill early-2025; the Dec-2024 and 2024-09-30/10-07
   gaps are worth a manual spot-check during reconstruction.
 
+## 1.5 Measured reality check (2026-07-06) — corpus in hand, model revised
+
+All 29 severed-window proposals were fetched (392 KB total, sizes 1.2–90 KB;
+raws checked into `scripts/aux/atlas-history/severed-proposals/`) and run
+through a first-pass parser (`scripts/aux/atlas-history/prototypes/
+parse-forum-coverage.mjs`, stats in `recovered/forum-coverage.json`). Findings
+that change this plan:
+
+- **Three format generations, not one.** (1) *Sep–Nov 2024*: `**Add Document:
+  A.x - Title**` headers with `%%…%%` fenced content, no edit-set `###`
+  sections; (2) *Nov 2024–Feb 2025*: the `###` edit-set + `**Verb**` + prose
+  shape §2 modeled; (3) *Mar–May 2025*: edit sets whose bodies are **full
+  nested document trees** (`- **Title** *(Type)* - content`, with `*(Core)*` /
+  `(*Core*)` marker variants) — near-complete per-doc content inline; the
+  first-pass regex already extracts **453 doc bullets**. The parser needs all
+  three; generation 3 is *richer* than "human-language diffs" — it's the
+  documents themselves.
+- **Multi-post continuations exist.** `#26262` (90 KB) says "split into two
+  posts" — the manifest's `raw_url` (`/raw/<id>/1`) misses the tail; fetch
+  `/raw/<id>/2..n` when post 1 signals continuation.
+- **Powerhouse UUIDs are too sparse to be the identity key.** Only **32**
+  distinct phUuids across all 29 proposals, vs 189 distinct doc_nos and 418
+  bullet titles. §4's "key by phUuid when present" stays true but is the
+  exception; `(docNo-prefix, normalized title)` is the spine.
+- **The weekly cycles are NOT the whole severed-era story.** Of the 2,530
+  severed-born docs alive today, **1,649 (65%) are Agent Scope Database rows** —
+  operational data added by Agent launches (the 11th `<h1>` section, absent
+  from genesis), never proposed through edit cycles. Of the remaining **881
+  core docs**, ~1/3 are covered by the primitive parser (104 bullet-title hits
+  + 184 loose mentions); the largest uncovered cluster is the **A.2
+  Primitives/Agent-framework buildout** (~419 docs), narrated in design posts
+  (`#26047` "Sky Primitives: The building blocks of the Sky Agent Framework",
+  2025-02-25; `#25031` Launch Season, 2024-09-06) and the giant Apr–May 2025
+  cycles rather than doc-by-doc. Consequence: **forum snippets are a partial
+  overlay** — every severed-born doc gets an honest interval-birth event, and
+  snippets attach where coverage exists; Agent Scope DB rows get era-level
+  provenance (launch-operations label + design-post links), not per-doc prose.
+- **On-chain dating is already solved** — `atlas-onchain-polls.json` (21 polls,
+  IPFS CIDs, dates) covers ratification ordering for exactly this window.
+
 ## 2. Per-proposal data model
 
 ```
@@ -127,6 +169,17 @@ gone. Tag every emitted event `provenance='forum'`.
 
 ## 5. Output & integration
 
+> **Superseded (2026-07-06).** Decision: forum-derived data does **not** merge
+> into `atlas_history` / the frozen history artifact at all — proposals are
+> pre-ratification text and don't map 1:1 to state changes, so emitting them as
+> events would fabricate change types/dates that downstream consumers (chat
+> included) would repeat as fact. It lands in its own `forum_doc_context` table,
+> surfaced via a per-doc **`/forum-era/:id`** page linked from the history
+> panel's severed-era birth entry ("N governance proposals … appear to reference
+> this doc"). The only forum→history path is a **curated** birth-date upgrade.
+> See `pre-git-history.md` stage 3. The bullets below record the pre-revision
+> design for context.
+
 - Emit the **same event shape** as the html-era artifact (per-UUID
   `added`/`modified`/`removed`/`moved`, with date, summary prose, source forum
   URL, and `phUuid`), `era='forum-severed'`, `provenance='forum'`.
@@ -174,10 +227,13 @@ gone. Tag every emitted event `provenance='forum'`.
 
 ## 8. Open questions
 
-1. **Pre-git `commit_seq` ordering** — how to order forum cycles below the first
-   git commit (date-ordered integer block reserved below the minimum git seq?).
-2. **UI treatment** — how reader/chat signal "approximate, proposal-derived"
-   history vs exact git diffs.
+1. ~~**Pre-git `commit_seq` ordering**~~ — **resolved in `pre-git-history.md`**:
+   reserved negative seq blocks per era for the (non-forum) pre-git events;
+   forum rows don't enter `atlas_history` at all, so they need no seq.
+2. ~~**UI treatment**~~ — **resolved (2026-07-06)**: forum material renders on a
+   dedicated `/forum-era/:id` page (snippets + links to originals + match-basis
+   badges); the history panel carries only a suspicion-tier pointer line on the
+   severed-era birth entry.
 3. **Overlap prose** — do we also ingest post-2025-05-28 proposal prose as
    human summaries on git events (nice-to-have), or skip it?
 4. **Backfill before the forum floor** — the weekly series starts 2024-09-13, just
