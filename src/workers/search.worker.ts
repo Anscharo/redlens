@@ -12,6 +12,7 @@ import { buildSnippet, highlightTerms, extractPhrases } from "../lib/searchHighl
 import { UUID_RE } from "../lib/patterns";
 import { isUuidPrefix, matchUuidPrefix } from "../lib/uuidSearch";
 import { MINISEARCH_OPTIONS } from "../lib/searchOptions";
+import { computeLabels } from "../lib/hitLabels";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -96,6 +97,7 @@ function docToHit(
     type: doc.type,
     depth: doc.depth,
     parentId: doc.parentId,
+    labels: computeLabels(doc, byDocNo),
     snippet: snippet ?? doc.content.slice(0, 160) + (doc.content.length > 160 ? "…" : ""),
   };
 }
@@ -322,7 +324,7 @@ function search(q: string): SearchHit[] {
   const contentHighlightTerms = [...(fieldScopedTerms.get("content") ?? []), ...freeWords];
 
   const hits = results
-    .map((r) => {
+    .map((r): SearchHit | null => {
       const doc = docs[r.id as string];
       if (!doc) return null;
 
@@ -349,8 +351,9 @@ function search(q: string): SearchHit[] {
         type: doc.type,
         depth: doc.depth,
         parentId: doc.parentId,
+        labels: computeLabels(doc, byDocNo),
         snippet: buildSnippet(doc.content, contentHighlightTerms, phrases, casePhrases),
-      } satisfies SearchHit;
+      };
     })
     .filter((h): h is SearchHit => h !== null);
 

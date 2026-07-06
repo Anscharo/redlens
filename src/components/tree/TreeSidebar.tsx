@@ -4,7 +4,7 @@ import { useAtlasTree } from "../../hooks/useAtlasTree";
 import { useTreeKeyboard } from "../../hooks/useTreeKeyboard";
 import { usePulseDom } from "../../hooks/usePulseDom";
 import { useRevealFlash } from "../../hooks/useRevealFlash";
-import { realDepth, segmentDepths } from "../../lib/depth";
+import { realDepth, segmentDepths, depthColor } from "../../lib/depth";
 import { revealStore } from "../../lib/revealStore";
 import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
@@ -84,6 +84,14 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
           changed = true;
         }
         pid = parentOf.get(pid) ?? null;
+      }
+      // Also expand the selected node itself so its direct children show — this
+      // is what the reader does on selection, and it's what makes the cradle
+      // appear in the sidebar (a rail around the now-visible children), mirroring
+      // the middle pane.
+      if (bundle.byParent.has(nodeId) && !next.has(nodeId)) {
+        next.add(nodeId);
+        changed = true;
       }
       return changed ? next : prev;
     });
@@ -205,6 +213,22 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     [visibleNodes, nodeId],
   );
 
+  // Cradle: a left rail in the selected node's depth colour hanging down the
+  // selected node's visible/expanded descendants, closed by a curved foot under
+  // the last one — the sidebar twin of the reader's cradle (AtlasReader). Because
+  // visibleNodes is DFS document order, those descendants are the contiguous run
+  // of deeper-treeDepth rows right after the selection; expanding more of them
+  // (manual toggle or expand-all reveal) grows the run, so the cradle extends
+  // automatically. No descendants visible → no cradle.
+  const cradle = useMemo(() => {
+    const sel = selectedIndex >= 0 ? visibleNodes[selectedIndex] : undefined;
+    if (!sel) return null;
+    let i = selectedIndex + 1;
+    while (i < visibleNodes.length && visibleNodes[i].treeDepth > sel.treeDepth) i++;
+    if (i <= selectedIndex + 1) return null;
+    return { start: selectedIndex + 1, end: i - 1, color: depthColor(sel.treeDepth) };
+  }, [visibleNodes, selectedIndex]);
+
   useEffect(() => {
     if (clickedRef.current) {
       clickedRef.current = false;
@@ -320,6 +344,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       flashing,
       isPreview,
       sidebarWidth,
+      cradle,
       onNavigate: handleRowClick,
       onToggle: toggleExpand,
       onReveal: revealChanges,
@@ -334,6 +359,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       flashing,
       isPreview,
       sidebarWidth,
+      cradle,
       handleRowClick,
       toggleExpand,
       revealChanges,
@@ -360,7 +386,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         rowComponent={TreeRow}
         rowProps={rowProps}
         overscanCount={20}
-        style={{ flex: 1 }}
+        // scrollbar-gutter: stable permanently reserves the 8px scrollbar lane
+        // so rows never render under it — the JS title budget (SCROLLBAR_W) then
+        // adds a small extra gap on top. Prevents titles kissing the scrollbar.
+        style={{ flex: 1, scrollbarGutter: "stable" }}
       />
     </div>
   );

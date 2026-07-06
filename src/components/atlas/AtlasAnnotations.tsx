@@ -56,7 +56,7 @@ export function AtlasAnnotations({
   return (
     <div
       className="relative hidden min-[750px]:flex flex-col"
-      style={{ width: rightWidth, flexShrink: 0, minHeight: 0 }}
+      style={{ width: rightWidth, flexShrink: 0, minHeight: 0, borderLeft: "1px solid var(--border)" }}
     >
       <div
         onMouseDown={startResizeRight}

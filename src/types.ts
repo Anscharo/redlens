@@ -39,6 +39,14 @@ export interface AddressInfo {
   expectedTokens: string[]; // token symbols from atlas annotation
 }
 
+// Provenance clue shown to the left of a search result: which top-level scope,
+// which Prime Agent (scope 6), and/or which Instance Configuration Document the
+// hit lives under. Computed from the ancestor chain in the search worker.
+export interface HitLabel {
+  kind: "scope" | "agent" | "icd";
+  text: string;
+}
+
 export interface SearchHit {
   id: string;
   score: number;
@@ -50,6 +58,7 @@ export interface SearchHit {
   snippet: string; // highlighted HTML snippet from content
   titleHtml: string; // highlighted HTML title
   matchReason: string; // why this result was included, e.g. "title + content"
+  labels?: HitLabel[]; // scope / agent / ICD provenance clues (left gutter)
   chainlogId?: string; // set when result was found via chainlog reverse-lookup
   chainlogAddress?: string; // the resolved address for chainlog matches
 }

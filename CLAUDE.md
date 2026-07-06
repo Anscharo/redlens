@@ -166,7 +166,7 @@ Color tokens live as CSS variables in `src/index.css`:
 - Fonts: Inter (body), Source Code Pro (mono)
 - KaTeX is overridden to use `--tan` color
 
-Selected-node treatment: red left bar, transparent background, brighter text. Don't add backgrounds to the selected node.
+Selected-node treatment: red left bar, brighter text, plus a subtle muted-red fill (`--bg`) that sits against the deeper reader/sidebar bg (`--bg-deep`). (Earlier guidance said "never add a background to the selected node" — that was reversed intentionally once the reader adopted the deep bg; the soft `--bg` tint is now the selected marker alongside the bar.)
 
 ## Conventions / preferences
 

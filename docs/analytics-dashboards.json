@@ -9,13 +9,19 @@
       "Treat 'unique users' as unique SESSIONS: use math 'unique_session' ($session_id), not 'dau'.",
       "No IP / no geo: $geoip_* and $ip are never present; do not build geo tiles.",
       "$current_url is a relative path (e.g. /atlas?id=...). Domain is the 'host' super property.",
-      "Every event carries super properties: product, host, environment, app_commit, atlas_commit."
+      "Every event carries super properties: product, host, environment, app_commit, atlas_commit.",
+      "mcp_tool_call is captured server-side (src/server/posthog-capture.ts), not by posthog-js. distinct_id AND the",
+      "mcp_session property are the echoed/minted Mcp-Session-Id header (src/server/index.ts) — same value for every",
+      "call in one agent run, for MCP clients that honor the header (most do; the official SDK client does).",
+      "Clients that don't get a fresh id per call, indistinguishable from a real one-call session. Never use",
+      "'dau'/person-based math (person_profiles is disabled for this event too); 'unique_session' math on",
+      "distinct_id approximates unique agent runs but undercounts true unique callers when the header isn't honored."
     ],
     "defaultFilters": [
       { "property": "environment", "operator": "exact", "value": "prod", "type": "event" }
     ],
     "superProperties": {
-      "product": "reader | search | radar | reports | preview | chat | other",
+      "product": "reader | search | radar | reports | preview | chat | mcp | other",
       "host": "window.location.hostname",
       "environment": "dev | prod",
       "app_commit": "frontend repo commit short sha",
@@ -72,7 +78,18 @@
     "chat_signin_click": { "props": { "product": "chat", "provider": "github | google" } },
     "chat_citation_click": { "props": { "product": "chat", "node_id": "uuid" } },
     "preview_interstitial": { "props": { "product": "preview", "action": "proceed | cancel", "sha": "string" } },
-    "preview_recent_click": { "props": { "product": "preview", "preview_id": "string" } }
+    "preview_recent_click": { "props": { "product": "preview", "preview_id": "string" } },
+    "mcp_tool_call": { "props": {
+      "product": "mcp", "tool": "string (e.g. atlas_search, atlas_get, atlas_query)",
+      "params": "object — the exact tool call arguments (query, id, address, filters, …); truncated past 2000 chars of JSON",
+      "ok": "bool", "error": "string? (first 300 chars, only when ok=false)",
+      "duration_ms": "number", "result_bytes": "number? (JSON response size)",
+      "client_name": "string? (from the MCP initialize handshake, e.g. 'claude-ai', 'ask-atlas')",
+      "client_version": "string?", "protocol_version": "string? (mcp-protocol-version header)",
+      "user_agent": "string? (first 200 chars)", "host": "string?",
+      "app_commit": "string|null", "atlas_commit": "string|null",
+      "mcp_session": "string|null (echoed/minted Mcp-Session-Id; same value across one agent run for compliant clients)"
+    } }
   },
   "mathVocabulary": {
     "total": "event count",
@@ -213,6 +230,26 @@
         { "name": "Sign-in conversion", "type": "funnel", "viz": "funnel", "funnelAggregateBy": "$session_id", "question": "Of sessions that open chat, how many click sign-in (then send).", "steps": [{ "event": "chat_open" }, { "event": "chat_signin_click" }, { "event": "chat_message_sent" }] },
         { "name": "Sign-in provider split", "type": "trends", "viz": "bar", "series": [{ "event": "chat_signin_click", "math": "total" }], "breakdown": { "property": "provider", "type": "event" } },
         { "name": "Citation clicks", "type": "trends", "viz": "line", "question": "Do users click through the atlas citations the agent returns.", "series": [{ "event": "chat_citation_click", "math": "total" }, { "event": "chat_citation_click", "math": "unique_session" }] }
+      ]
+    },
+    {
+      "name": "MCP Usage",
+      "description": "What MCP clients call, what they ask for, and whether it works — server-captured (src/server/posthog-capture.ts), no session/user identity.",
+      "tiles": [
+        { "name": "Tool calls over time", "type": "trends", "viz": "line", "series": [{ "event": "mcp_tool_call", "math": "total" }], "interval": "day" },
+        { "name": "Tool popularity", "type": "trends", "viz": "bar", "series": [{ "event": "mcp_tool_call", "math": "total" }], "breakdown": { "property": "tool", "type": "event" } },
+        { "name": "Calls by client", "type": "trends", "viz": "table", "question": "Which MCP clients (Claude Desktop, ask-atlas, custom integrations, …) are actually using this.", "series": [{ "event": "mcp_tool_call", "math": "total" }], "breakdown": { "property": "client_name", "type": "event" } },
+        { "name": "Error rate by tool", "type": "sql", "viz": "table", "query": "SELECT properties.tool AS tool, countIf(properties.ok = false) AS errors, count() AS calls, round(countIf(properties.ok = false) / count(), 3) AS error_rate FROM events WHERE event='mcp_tool_call' GROUP BY tool ORDER BY error_rate DESC" },
+        { "name": "Latency by tool (p50/p90)", "type": "trends", "viz": "line", "series": [
+          { "event": "mcp_tool_call", "math": "median", "math_property": "duration_ms", "label": "p50" },
+          { "event": "mcp_tool_call", "math": "p90", "math_property": "duration_ms", "label": "p90" }
+        ], "breakdown": { "property": "tool", "type": "event" } },
+        { "name": "Top atlas_search queries", "type": "sql", "viz": "table", "question": "What people are actually trying to find — the direct signal for refining atlas content and search/MCP tooling.", "query": "SELECT properties.params.query AS query, count() AS calls FROM events WHERE event='mcp_tool_call' AND properties.tool='atlas_search' GROUP BY query ORDER BY calls DESC LIMIT 50" },
+        { "name": "Top atlas_get lookups", "type": "sql", "viz": "table", "query": "SELECT properties.params.id AS id, count() AS calls FROM events WHERE event='mcp_tool_call' AND properties.tool='atlas_get' GROUP BY id ORDER BY calls DESC LIMIT 50" },
+        { "name": "Recent errors", "type": "sql", "viz": "table", "query": "SELECT timestamp, properties.tool AS tool, properties.error AS error, properties.params AS params FROM events WHERE event='mcp_tool_call' AND properties.ok = false ORDER BY timestamp DESC LIMIT 50" },
+        { "name": "Result size by tool (median bytes)", "type": "trends", "viz": "bar", "question": "Are any tools returning payloads big enough to be worth trimming.", "series": [{ "event": "mcp_tool_call", "math": "median", "math_property": "result_bytes" }], "breakdown": { "property": "tool", "type": "event" } },
+        { "name": "Calls per agent run", "type": "sql", "viz": "table", "question": "How many tool calls a single agent session makes and which tool sequences are common — depends on the MCP client honoring Mcp-Session-Id.", "query": "SELECT properties.mcp_session AS session, count() AS calls, groupArray(properties.tool) AS tools FROM events WHERE event='mcp_tool_call' AND properties.mcp_session IS NOT NULL GROUP BY session ORDER BY calls DESC LIMIT 50" },
+        { "name": "Agent runs over time", "type": "sql", "viz": "line", "question": "Unique agent sessions per day, via uniq(distinct_id) — undercounts if a client doesn't echo the session header (person_profiles is off, so trends 'unique_session'/'dau' math don't apply here).", "query": "SELECT toDate(timestamp) AS day, uniq(distinct_id) AS sessions FROM events WHERE event='mcp_tool_call' GROUP BY day ORDER BY day" }
       ]
     },
     {

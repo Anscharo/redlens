@@ -2546,18 +2546,6 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Galaxy W
     "title": "Off-chain Operational Parameters",
   },
   {
-    "content": "This Instance is currently defined as an Interim Deployment (see [A.1.10.2.3.2.2.2 - Interim Deployments](9b3edbbf-89d1-42da-a9c3-18f858f8471f)) and as such has CRR of 100%. The testing parameters of this Interim Deployment are specified in the documents herein.",
-    "title": "Interim Deployment",
-  },
-  {
-    "content": "The maximum allocation for Interim Deployments in Galaxy Warehouse is $20 million.",
-    "title": "Maximum Allocation",
-  },
-  {
-    "content": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.9.2.2.4 - Rate Limits](306c8538-fda8-4d3f-bf1d-ec249e4292e9).",
-    "title": "Rate Limits",
-  },
-  {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
     "title": "Instance-specific Operational Processes",
   },
@@ -10077,7 +10065,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 27,
-  "cites": 1920,
+  "cites": 1933,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
@@ -12348,10 +12336,8 @@ exports[`instances > allocation-system instances 1`] = `
       "Deposit Rate Limits / maxAmount": "50,000,000 USDC",
       "Deposit Rate Limits / slope": "50,000,000 USDC per day",
       "Inflow RateLimitID": "0x110ff25f20e1f05ba3e82592752f6cd7e0ca645023d71d143b970e3689efc9f9",
-      "Maximum Allocation": "The maximum allocation for Interim Deployments in Galaxy Warehouse is $20 million.",
       "Network": "Ethereum Mainnet",
       "Outflow RateLimitID": "N/A",
-      "Rate Limits": "The Rate Limits for this Interim Deployment are defined in [A.6.1.1.2.2.6.1.3.1.9.2.2.4 - Rate Limits](306c8538-fda8-4d3f-bf1d-ec249e4292e9).",
       "Target Protocol": "Galaxy",
       "Token": "N/A",
       "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",

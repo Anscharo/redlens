@@ -12,6 +12,10 @@ import { usePreviewDim } from "../../lib/previewFilter";
 export const ROW_HEIGHT = 29;
 const TOGGLE_WIDTH = 12;
 const PAD_X = 3;
+// Sidebar scrollbar width — keep in sync with the 8px ::-webkit-scrollbar in
+// index.css. Reserved from the title budget so long titles and their ellipsis
+// don't render under the scrollbar.
+const SCROLLBAR_W = 8;
 // Approx rendered width of the rollup badge (border + padding + digits + flex
 // gap) — subtracted from the title budget when the badge shows so the title
 // truncates instead of clipping. Scales with digit count so a multi-digit count
@@ -36,6 +40,7 @@ export interface TreeRowData {
   flashing: ReadonlySet<string>;
   isPreview: boolean;
   sidebarWidth: number;
+  cradle: { start: number; end: number; color: string } | null;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
   onReveal: (id: string) => void;
@@ -76,6 +81,7 @@ export function TreeRow({
   flashing,
   isPreview,
   sidebarWidth,
+  cradle,
   onNavigate,
   onToggle,
   onReveal,
@@ -118,7 +124,7 @@ export function TreeRow({
   const rollupEntry = isPreview && node ? rollup.get(node.id) : undefined;
   const showRollup = !!node && !expandedIds.has(node.id) && (rollupEntry?.count ?? 0) > 0;
   const availableWidth =
-    sidebarWidth - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
+    sidebarWidth - SCROLLBAR_W - 5 - docNoSegments.width - TOGGLE_WIDTH - PAD_X - 6 - 5 -
     (showRollup ? rollupBadgeWidth(rollupEntry?.count ?? 0) : 0);
 
   const displayTitle = useMemo(
@@ -139,12 +145,21 @@ export function TreeRow({
     : isFocused
       ? `inset 2px 0 0 var(--tan-3), inset 0 0 0 1px var(--row-hover)`
       : undefined;
+  const inCradle = !!cradle && index >= cradle.start && index <= cradle.end;
+  const cradleClass = inCradle ? (index === cradle!.end ? "in-cradle cradle-foot" : "in-cradle") : "";
 
   return (
     <div
       data-node-id={node.id}
-      style={{ ...style, ...ROW_LAYOUT_STYLE, boxShadow, opacity: dim ? 0.86 : undefined, ["--row-color" as string]: depthVar }}
-      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""}`}
+      style={{
+        ...style,
+        ...ROW_LAYOUT_STYLE,
+        boxShadow,
+        opacity: dim ? 0.86 : undefined,
+        ["--row-color" as string]: depthVar,
+        ...(inCradle ? { ["--cradle-color" as string]: cradle!.color } : {}),
+      }}
+      className={`tree-row ${isSelected ? "is-selected" : ""} ${isFocused ? "is-focused" : ""} ${flashing.has(node.id) ? "is-change-flash" : ""} ${cradleClass}`}
       onClick={(e) => {
         if (e.shiftKey && onShiftNavigate) {
           e.preventDefault();
