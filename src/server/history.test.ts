@@ -33,6 +33,8 @@ describe("toEntry", () => {
         review_count: null,
         approval_count: null,
         comment_count: null,
+        era: null,
+        method: null,
       });
       expect(entry.changeType, `change_type="${dbVal}"`).toBe(expected);
     }
@@ -56,6 +58,8 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
     });
     expect(entry.changeType).toBe("future_type" as any);
   });
@@ -78,6 +82,8 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
     });
     expect(entry.date).toBe("");
   });
@@ -100,6 +106,8 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
     });
     expect("pr" in entry).toBe(false);
     expect("prTitle" in entry).toBe(false);
@@ -114,6 +122,8 @@ describe("toEntry", () => {
     expect("reviewCount" in entry).toBe(false);
     expect("approvalCount" in entry).toBe(false);
     expect("commentCount" in entry).toBe(false);
+    expect("era" in entry).toBe(false);
+    expect("method" in entry).toBe(false);
   });
 
   it("maps all optional fields when present", () => {
@@ -135,6 +145,8 @@ describe("toEntry", () => {
       review_count: 3,
       approval_count: 2,
       comment_count: 5,
+      era: "html",
+      method: "deterministic",
     });
     expect(entry.date).toBe("2024-03-15");
     expect(entry.commitHash).toBe("abc1234");
@@ -152,6 +164,8 @@ describe("toEntry", () => {
     expect(entry.reviewCount).toBe(3);
     expect(entry.approvalCount).toBe(2);
     expect(entry.commentCount).toBe(5);
+    expect(entry.era).toBe("html");
+    expect(entry.method).toBe("deterministic");
   });
 
   const baseRow = {
@@ -169,6 +183,8 @@ describe("toEntry", () => {
     review_count: null,
     approval_count: null,
     comment_count: null,
+    era: null,
+    method: null,
   } as const;
 
   it("coerces a legacy double-encoded (string) diff back to an array", () => {

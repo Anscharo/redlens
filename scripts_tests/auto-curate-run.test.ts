@@ -123,7 +123,7 @@ describe("runAutoCurate — pass 3 (frontier escalation)", () => {
     nodes: {
       "new00000:zzzz": { title: "subj", content: subjC },
       [goodKey]: { title: "cand", content: "an entirely unrelated older candidate body text now" },
-    },
+    } as Record<string, { title: string; content: string }>,
     cases: [{
       key: "new00000:zzzz", kind: "tier-3", newerSha: "new00000", olderSha: "old00000",
       subjectKey: "new00000:zzzz", autoKey: goodKey, candidates: [{ key: goodKey, score: 0.92 }],
