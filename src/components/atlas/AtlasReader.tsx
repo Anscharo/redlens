@@ -66,7 +66,7 @@ export function AtlasReader({
 
   const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
 
-  const { expandedParents, hiddenCount, expandParent, setParentsExpanded } = useDepth6Expand(
+  const { expandedParents, hiddenCount, expandParent, setParentsExpanded, entryById } = useDepth6Expand(
     data.flatNodes,
     id,
   );
@@ -83,8 +83,28 @@ export function AtlasReader({
   // subtree on expand, re-gate it on collapse, so » truly opens everything.
   const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
     expandAll(rootId, expand);
-    setParentsExpanded(collectSubtree(data.atlas.byParent, rootId), expand);
-  }, [expandAll, setParentsExpanded, data]);
+    const ids = collectSubtree(data.atlas.byParent, rootId);
+    if (expand) {
+      setParentsExpanded(ids, true);
+      return;
+    }
+    // Collapsing a bulk-expanded ancestor must not re-gate the current
+    // selection's own revealed path — otherwise a depth-6+ selected node
+    // disappears from docList until the user navigates away and back (the
+    // auto-reveal effect only re-fires on `id` change).
+    const protectedIds = new Set<string>();
+    let cur = entryById.get(id);
+    while (cur && cur.depth >= 6) {
+      const parentId = cur.node.parentId;
+      if (!parentId) break;
+      protectedIds.add(parentId);
+      cur = entryById.get(parentId);
+    }
+    setParentsExpanded(
+      ids.filter((nid) => !protectedIds.has(nid)),
+      false,
+    );
+  }, [expandAll, setParentsExpanded, data, id, entryById]);
 
   useAtlasScroll(id, data, expandedParents);
 
@@ -105,9 +125,8 @@ export function AtlasReader({
     let cradleStart = -1;
     let cradleEnd = -1;
     let cradleColor: string | undefined;
-    const selIdx =
-      !changedSet && selectedId ? visible.findIndex((e) => e.node.id === selectedId) : -1;
-    if (selIdx >= 0) {
+    const selIdx = selectedId ? visible.findIndex((e) => e.node.id === selectedId) : -1;
+    if (!changedSet && selIdx >= 0) {
       const selDepth = visible[selIdx].depth;
       let i = selIdx + 1;
       while (i < visible.length && visible[i].depth > selDepth) i++;
