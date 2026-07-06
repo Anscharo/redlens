@@ -4,7 +4,7 @@
 // mocked (its real impl fetches + caches per id); EntryRow renders for real.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("../../lib/history", async (importOriginal) => {
@@ -68,19 +68,28 @@ describe("NodeHistory states", () => {
   it("appends the pre-markdown footer under the migration PR (no reconstructed entries)", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File" })]);
     render(<NodeHistory nodeId="n6" />);
-    expect(await screen.findByText("view HTML-era diff →")).toBeInTheDocument();
+    expect(await screen.findByText("view original HTML →")).toBeInTheDocument();
   });
 
-  it("shows the reconstruction disclaimer before HTML-era entries and hides the legacy footer", async () => {
+  it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2025-11-21", pr: 117, prTitle: "Migrate To Markdown File", summary: "migration" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", summary: "an html-era change" }),
     ]);
     render(<NodeHistory nodeId="n7" />);
-    expect(await screen.findByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
+
+    await screen.findByText("migration");
+    expect(screen.queryByText("an html-era change")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pre-#117 history is reconstructed/i)).not.toBeInTheDocument();
+    // the legacy "no per-doc identities" footer is also suppressed — this doc DOES have
+    // reconstructed entries, they're just toggled off, so the footer would be misleading
+    expect(screen.queryByText(/79 prior commits exist/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View HTML Era Edits" }));
+
+    expect(await screen.findByText("an html-era change")).toBeInTheDocument();
+    expect(screen.getByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
     expect(screen.getByText("view original HTML →")).toBeInTheDocument();
-    // the legacy "no per-doc identities" footer is suppressed once we have real reconstructed entries
-    expect(screen.queryByText("view HTML-era diff →")).not.toBeInTheDocument();
   });
 
   it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
@@ -90,6 +99,8 @@ describe("NodeHistory states", () => {
       entry({ date: "2025-09-01", commitHash: "h3", era: "html", summary: "deterministic (no method)" }),
     ]);
     render(<NodeHistory nodeId="n8" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View HTML Era Edits" }));
+
     await screen.findByText("ai-resolved");
     expect(screen.getByText("AI")).toBeInTheDocument();
     expect(screen.getByText("human")).toBeInTheDocument();

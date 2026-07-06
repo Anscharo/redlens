@@ -11,6 +11,9 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-06
+- Added Atlas history from before the 2025 migration to markdown, behind a "View HTML Era Edits" toggle
+
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer
 - Sped up the Active Data report load by fetching edit history in one request instead of one per row
