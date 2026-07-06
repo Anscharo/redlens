@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 import type { AtlasNode } from "../../src/types";
 import type { RiskCandidate } from "../../src/lib/riskRules";
 import { RISK_DOMAIN_LABELS } from "../../src/lib/riskRules";
-import { ancestorChain } from "./assess-oea-prompt";
+import { ancestorChain } from "./assess-common";
 
 export const RUBRIC_PATH = path.resolve(import.meta.dir, "../../docs/risk-assessment-rubric.md");
 

@@ -1,6 +1,20 @@
 // Shared plumbing for the assess-* scripts (OEA tasks, risk rules): JSON
-// fence-stripping, uuid prefix resolution for mechanism citations, and the
-// transport retry loop. Bun-only (Bun.sleep), like the scripts themselves.
+// fence-stripping, uuid prefix resolution for mechanism citations, the
+// transport retry loop, and prompt-building helpers. Bun-only (Bun.sleep),
+// like the scripts themselves.
+
+import type { AtlasNode } from "../../src/types";
+
+// Breadcrumb of ancestor titles above `node`, for prompt "Context:" lines.
+export function ancestorChain(node: AtlasNode, docs: Record<string, AtlasNode>): string {
+  const titles: string[] = [];
+  for (let p = node.parentId; p; p = docs[p]?.parentId ?? null) {
+    const parent = docs[p];
+    if (!parent) break;
+    titles.unshift(parent.title);
+  }
+  return titles.join(" › ");
+}
 
 export function stripFences(raw: string): string {
   const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
