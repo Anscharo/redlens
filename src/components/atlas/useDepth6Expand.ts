@@ -74,5 +74,5 @@ export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
     });
   }, []);
 
-  return { expandedParents, hiddenCount, expandParent, setParentsExpanded };
+  return { expandedParents, hiddenCount, expandParent, setParentsExpanded, entryById };
 }

@@ -22,9 +22,7 @@
 ## 2026-07-03
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections
 - Improved the expand-all control for sections with large or hidden subsection hierarchies
-- Added a colored rail down the left of a selected section's subsections
-- Lightened the reader text and matched the reading surface to the sidebar
-- Slimmed the sidebar and reader scrollbars and kept long titles from slipping underneath them
+- Refreshed the reader's look and feel: unified surface, slimmer scrollbars, and a colored rail on selected sections
 
 ## 2026-07-02
 - Added labels beside each search result showing which scope, agent (e.g. Skybase, Grove), or Instance Configuration Document a hit lives under, so you can place a result at a glance
