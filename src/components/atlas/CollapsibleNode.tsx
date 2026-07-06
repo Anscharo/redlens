@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 import { segmentDepths, nrChiclets } from "../../lib/depth";
 import { type FlatEntry } from "../../lib/atlasHelpers";
 import { DocNoChiclets } from "../DocNoChiclets";
@@ -76,10 +76,61 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     if (!isExpanded) revealStore.reveal([node.id]);
     toggle(node.id);
   };
+  // Instant click feedback for expand-all: expanding a large subtree blocks the
+  // main thread, so the CSS .is-open rotation (which keys off isSubtreeExpanded)
+  // only lands after the work finishes — the click feels dead. A Web Animation on
+  // the chevron runs on the compositor, so it turns to its target angle and gives
+  // a slight pop the moment the click registers, playing through the jank. CSS
+  // takes the angle back over once the expand lands (see the effect below).
+  const expandAllRef = useRef<HTMLButtonElement>(null);
+  const spinRef = useRef<Animation | null>(null);
+  const pulseRef = useRef<Animation | null>(null);
   const doExpandAll = () => {
     track("reader_expand_all", { node_id: node.id, action: isSubtreeExpanded ? "collapse" : "expand" });
-    expandAll?.(node.id, !isSubtreeExpanded);
+    const willOpen = !isSubtreeExpanded;
+    const btn = expandAllRef.current;
+    if (btn?.animate) {
+      const from = isSubtreeExpanded ? 90 : 0;
+      const to = willOpen ? 90 : 0;
+      spinRef.current?.cancel();
+      // rotate (transform) held via fill:forwards until CSS .is-open catches up
+      spinRef.current = btn.animate(
+        [{ transform: `rotate(${from}deg)` }, { transform: `rotate(${to}deg)` }],
+        { duration: 200, easing: "ease-out", fill: "forwards" },
+      );
+      // pulse: a looping bright scale-up "working…" beat via the independent
+      // scale/opacity props (they compose with the rotate above instead of
+      // fighting it). Runs on the compositor, so it keeps pulsing through the
+      // expand's main-thread jank; the effect below stops it once .is-open lands.
+      pulseRef.current?.cancel();
+      pulseRef.current = btn.animate(
+        [
+          { scale: "1", opacity: "1" },
+          { scale: "1.4", opacity: "1", offset: 0.5 },
+          { scale: "1", opacity: "1" },
+        ],
+        { duration: 520, easing: "ease-in-out", iterations: Infinity },
+      );
+      // Defer the heavy expand two frames so the chevron feedback commits to the
+      // compositor and PAINTS first. Running expandAll now would let React flush
+      // the large synchronous re-render in this same task, before the browser
+      // ever paints the animation — so it'd only appear once the expand is done.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => expandAll?.(node.id, willOpen)),
+      );
+    } else {
+      expandAll?.(node.id, willOpen);
+    }
   };
+  // Once CSS .is-open reflects the new state (the expand finished), stop the
+  // "working…" pulse and release the WAAPI rotation hold — hover/steady styles
+  // resume and both sit at the same angle, so there's no visible jump.
+  useEffect(() => {
+    pulseRef.current?.cancel();
+    pulseRef.current = null;
+    spinRef.current?.cancel();
+    spinRef.current = null;
+  }, [isSubtreeExpanded]);
 
   return (
     <article
@@ -159,6 +210,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         )}
         {showExpandAll ? (
           <button
+            ref={expandAllRef}
             type="button"
             className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
             aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
