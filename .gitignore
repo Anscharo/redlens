@@ -65,6 +65,7 @@ playwright/.cache/
 .cache/processes-audit.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
+.cache/risk-assessment.md
 .claude/scheduled_tasks.lock
 .claude/worktrees/**
 
