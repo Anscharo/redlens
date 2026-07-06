@@ -32,7 +32,10 @@ const label = (k) => {
 
 const decisions = (file.decisions || []).filter((d) => !WHY_ONLY || d.why);
 const bySha = new Map();
-for (const d of decisions) (bySha.get(d.newerSha) || bySha.set(d.newerSha, []).get(d.newerSha)).push(d);
+for (const d of decisions) {
+  if (!bySha.has(d.newerSha)) bySha.set(d.newerSha, []);
+  bySha.get(d.newerSha).push(d);
+}
 
 const md = [];
 md.push(`# HTML-era threading decisions — human-readable render`);
@@ -43,13 +46,18 @@ md.push(`Methods: deterministic (two independent free signals agreed) · ai (LLM
 md.push(`Claude-curated, evidence in the why line) · human (curation UI). Browse interactively at`);
 md.push(`\`/reports/history-curate\`; audit trail in \`.cache/audit-html-disagreements.md\`.`);
 md.push("");
-const tally = decisions.reduce((m, d) => ((m[d.method] = (m[d.method] || 0) + 1), m), {});
-md.push(`Counts: ${Object.entries(tally).map(([k, v]) => `${k} ${v}`).join(" · ")} · none/split ${decisions.filter((d) => d.chosenKey === "none").length} · with evidence ${decisions.filter((d) => d.why).length}`);
+const tally = {};
+let noneCount = 0, whyCount = 0;
+for (const d of decisions) {
+  tally[d.method] = (tally[d.method] || 0) + 1;
+  if (d.chosenKey === "none") noneCount++;
+  if (d.why) whyCount++;
+}
+md.push(`Counts: ${Object.entries(tally).map(([k, v]) => `${k} ${v}`).join(" · ")} · none/split ${noneCount} · with evidence ${whyCount}`);
 md.push("");
 
-const order = [...bySha.keys()].sort((a, b) => (bySha.get(b).length - bySha.get(a).length));
-for (const sha of order) {
-  const list = bySha.get(sha);
+const order = [...bySha.entries()].sort((a, b) => b[1].length - a[1].length);
+for (const [sha, list] of order) {
   const c = commits.get(sha);
   const title = sha === (q.meta?.migrationSha || "22cc27b5") ? "#117 markdown migration (the HTML→md seed boundary)" : c?.prTitle || "?";
   md.push(`## ${sha} — ${title}${c?.pr ? ` (PR #${c.pr})` : ""}${c?.date ? ` · ${c.date.slice(0, 10)}` : ""} · ${list.length} decisions`);

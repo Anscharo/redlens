@@ -44,9 +44,12 @@ export const CASE_FILTERS: { id: CaseFilter; label: string }[] = [
 // `auto`) — deterministic matcher (forward∩reverse / containment / bijection), LLM∩matcher, cluster
 // (two-family joint assignment), or frontier — else, for a residual case, by whether a frontier
 // hint is available to speed the human review.
+// Deterministic structural mechanisms (free signals, no LLM) that all file under "Auto (matcher)".
+const MATCHER_MECHANISMS = new Set(["forward-reverse", "containment", "bijection", "split", "positional"]);
+
 export function caseCategory(key: string, mechanism: Map<string, string>, hasHint: boolean): Exclude<CaseFilter, "all"> {
   const m = mechanism.get(key);
-  if (m === "forward-reverse" || m === "containment" || m === "bijection" || m === "split" || m === "positional") return "auto-matcher";
+  if (m !== undefined && MATCHER_MECHANISMS.has(m)) return "auto-matcher";
   if (m === "llm-90" || m === "llm-95") return "auto-llm";
   if (m === "cluster") return "auto-cluster";
   if (m === "frontier") return "auto-frontier";

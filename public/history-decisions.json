@@ -433,9 +433,10 @@
       "subjectKey": "22cc27b5:6af6cd24-9513-42a7-be91-3f16845ebadf",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1231",
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1109",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject has the 'fully complete the Process' sentence referencing this block's RPI (#1106); #1109 matches verbatim and completes the block, chosen #1231 lacks the sentence and sits in a different process."
     },
     {
       "caseKey": "22cc27b5:f07b1cca-5db2-4b1b-b760-ea738d2776f3",
@@ -513,9 +514,10 @@
       "subjectKey": "22cc27b5:ec050d61-1d48-453a-ac13-4cea23c68292",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:efa984105d75bfa811b51ed9e80c8aba",
-      "agreedWithAuto": true,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:1e784c69d7af820621f400aef4de2cb4#1133",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the short stub matching #1133 verbatim (next slot after #1132); chosen efa98410 is the long doc already correctly claimed by record 46's subject (double-booked)."
     },
     {
       "caseKey": "22cc27b5:94d06bae-9bc9-4e8f-a38d-4b879466873b",
@@ -523,9 +525,10 @@
       "subjectKey": "22cc27b5:94d06bae-9bc9-4e8f-a38d-4b879466873b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:871a733c3a2ceb3c090e34ab5fc9ee27#1300",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:71f51bcae74ee2e4ef02f06f631b8496#1140",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject references 'Primitive Hub/In Progress Invocations Directory/Instance Name Update' exactly as #1140 does, and this block maps to #1140-1146 (Process Flow #1142 etc.); chosen #1300 references 'Primitive Hub Document Update' and sits in a later block."
     },
     {
       "caseKey": "22cc27b5:ccb71126-1333-453c-aaeb-4359a8013f32",
@@ -583,9 +586,10 @@
       "subjectKey": "22cc27b5:bee5a2d9-1e98-4918-a77d-3e3607b51f0f",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:871a733c3a2ceb3c090e34ab5fc9ee27#1312",
+      "chosenKey": "7b43d159:71f51bcae74ee2e4ef02f06f631b8496#1152",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject text matches #1152 verbatim ('Instance Name Update') and this block maps to #1152-1158 (outputs #1156, sky #1157); chosen #1312 says 'Primitive Hub Document Update' and belongs to a later block."
     },
     {
       "caseKey": "22cc27b5:967f54c6-9a51-4225-a8fd-e366f7a3d91e",
@@ -624,9 +628,10 @@
       "subjectKey": "22cc27b5:9cb3ab72-37f5-4501-8661-a204d0747dd8",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1219",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1158",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject has the 'fully complete the Process' sentence referencing this block's RPI; #1158 matches verbatim and completes the #1152-1158 block, chosen #1219 lacks the sentence and sits in a different process."
     },
     {
       "caseKey": "22cc27b5:b43edb36-1255-4e9d-92e2-9e4435c7bb2f",
@@ -864,9 +869,10 @@
       "subjectKey": "22cc27b5:300fca05-66b1-4f31-966a-d26168ded7c3",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1109",
-      "agreedWithAuto": true,
-      "method": "deterministic"
+      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1219",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the short AAU at doc position ~1219; chosen 1109 has extra 'Required Primitive Inputs' sentence and belongs to the Activation process."
     },
     {
       "caseKey": "22cc27b5:d14fff67-fd16-443b-9d32-763b052dce8b",
@@ -904,9 +910,10 @@
       "subjectKey": "22cc27b5:594d3b57-107d-44bc-a1bf-3f1291b8cccb",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1158",
+      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1231",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the short AAU following ADU 1230; chosen 1158 has extra sentence and belongs to an earlier process."
     },
     {
       "caseKey": "22cc27b5:e27f2332-1072-4b61-84ab-efe6f2ca056e",
@@ -964,9 +971,10 @@
       "subjectKey": "22cc27b5:35c38264-03ec-4485-9de6-2ff368981066",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1379",
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1269",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the IB Activation AAU (references its RPI 5e673229) with the long 'in...Process.' text matching 1269 exactly; chosen 1379 is the short reimbursement-process doc."
     },
     {
       "caseKey": "22cc27b5:a14cea92-f114-4cc8-abfe-77b202e3c1f7",
@@ -1156,9 +1164,10 @@
       "subjectKey": "22cc27b5:d5cce836-259e-48df-ba77-89d58d1476cc",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1391",
+      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1318",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the Facilitator-review AAU (references RPI 7f991abf) with long 'in...Process.' text matching 1318 exactly; chosen 1391 is the short payment-process doc."
     },
     {
       "caseKey": "22cc27b5:bac65a98-2e36-471a-8d3b-68d207ede4e2",
@@ -1397,9 +1406,10 @@
       "subjectKey": "22cc27b5:43aedc35-e90a-48ca-a0fc-346ced2bea0b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1269",
+      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1379",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the short AAU at position ~1379 (after 1377); chosen 1269 has the extra sentence and is the IB Activation doc claimed by record 35c38264."
     },
     {
       "caseKey": "22cc27b5:8d00d8df-f970-4b2e-8da9-3b9fe2af9e2b",
@@ -1438,9 +1448,10 @@
       "subjectKey": "22cc27b5:39aba7ed-95ff-4247-acb7-61032649b218",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3b36b1ac64bdb42a55b7fbc71580d699#1318",
+      "chosenKey": "7b43d159:3a26e2760e80f89c4d234f7991020f89#1391",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is the short AAU following ADU 1390; chosen 1318 has the extra sentence and belongs to the Facilitator-review process (record d5cce836)."
     },
     {
       "caseKey": "22cc27b5:dbae3918-75f7-469d-b623-8faa5ea7aa70",
@@ -1698,9 +1709,10 @@
       "subjectKey": "22cc27b5:d1015b48-32c0-454a-b0a0-7a884f405092",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:477f114344525fe4a2b8fb7084e2171f",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-06): follow-up on judge UNSURE #1: top-scored candidate (a3c428a8, 0.667) is legitimately claimed by a different subject (b0831a3c, corroborated by its own 2/3 prev-neighbor match); of the two remaining unclaimed candidates, 477f (0.615) descends through Parameters Definition -> Utilization Function Definition, matching this subject's own doc_no branch (A.4.4.1.3.2.1.6.x), and its HTML-side 3rd-previous-sibling is the same Utilization Function Definition doc as this subject's md-side 3rd-previous-sibling (byte-identical content) -- direct positional corroboration across the seam. The other candidate (3730..., 0.25) descends through an unrelated Rfactor Definition branch."
     },
     {
       "caseKey": "22cc27b5:a63c529d-890f-4955-89b3-e671e5eb5ff7",
@@ -3799,9 +3811,10 @@
       "subjectKey": "22cc27b5:c93f2fb8-89a5-4f17-8446-ed994a684b5a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:d7deb984d5f1017a44089dde0157f0e2#3221",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:77bacd1ad9ebdd4c10eed11302f7083e#3255",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject's capital 'Instance-specific' matches the 77bacd1a variant, and #3255 sits exactly between neighbors' chosen occ 3250 and 3259; chosen #3221 is the lowercase variant from an earlier instance subtree."
     },
     {
       "caseKey": "22cc27b5:5a5c988e-6d19-4e82-9b27-ae0c0c02dd53",
@@ -4329,9 +4342,10 @@
       "subjectKey": "22cc27b5:bcc685eb-d28c-4306-8b78-5639b1d31f6b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:0bbe4ff4368f551e7c9abd7923cd70cd",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:796f3e87f4237dc5014c4c9d3317f512#3380",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Exact-title Unichain TBC doc exists at the right position (3373<3380<3387, matching the Arbitrum/Optimism run); chosen Base doc is a different chain with a concrete address, and the sibling Arbitrum case correctly took #3373."
     },
     {
       "caseKey": "22cc27b5:17ff233f-2ada-4856-be5f-f3ba2616c1b7",
@@ -4369,9 +4383,10 @@
       "subjectKey": "22cc27b5:1eaa9220-d5e2-44f2-83eb-232add8f04ff",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:796f3e87f4237dc5014c4c9d3317f512#3387",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Not born here: exact-title Optimism TBC doc #3387 sits at the right position and the subject is its unique continuation (Arbitrum->3373, Unichain->3380, Optimism->3387 is the natural bijection)."
     },
     {
       "caseKey": "22cc27b5:715c19b6-63bc-4eae-b8a4-0327e9a10c71",
@@ -4760,10 +4775,10 @@
       "subjectKey": "22cc27b5:1c6ea8a1-71a7-4d56-ba74-68de7ed59f2b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:28841fc29cbf2a528ab1c7a857d2ab4a",
+      "chosenKey": "7b43d159:10c54ad9f419694fa6071dd1e4b16bc5#3490",
       "agreedWithAuto": false,
       "method": "ai",
-      "why": "audit round 2: cross-agent rotation fix -> Spark-section occurrence (same content family)"
+      "why": "redline review (2026-07-04): Subject is Spark MainnetController Admin Functions (verified at 22cc27b5 line 19440); chosen doc is the Spark ForeignController one whose true successor is separate md doc f8e60eae — the Spark Mainnet alternative #3490 is the real predecessor."
     },
     {
       "caseKey": "22cc27b5:6e08ac53-a63b-4c23-8a52-7644f25cb8cf",
@@ -6446,9 +6461,10 @@
       "subjectKey": "22cc27b5:a58592c6-f4f0-4874-bee1-ef11fb91c544",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:c928db8926f21e5bf6f5ca2e4857c452#3631",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:7477e1b2b1360a67b02cb8ab1e807458#3919",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject's lowercase unlimited/unlimited exactly matches alt hash 7477e1b2 at #3919 (Spark, Ethena sUSDe subtree between #3918 and #3920); chosen #3631 is a different capitalized content class from the first SparkLend subtree."
     },
     {
       "caseKey": "22cc27b5:3c72575c-ce4e-4379-ba45-080f335851a1",
@@ -10861,9 +10877,10 @@
       "subjectKey": "22cc27b5:fb21540d-950c-4607-90a3-4736b1f0e517",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:3ac71cc1cfc2389ad43dfcb209217e74",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject is explicitly titled \"(Mainnet)\" and an exact-title, exact-address Grove match exists in a small 5-doc pool; none is wrong (this doc got mis-threaded onto a generic-titled subject instead, see c7c722e6)."
     },
     {
       "caseKey": "22cc27b5:51b50a8f-eb29-4424-bb0a-8247d2acce7d",
@@ -10871,9 +10888,10 @@
       "subjectKey": "22cc27b5:51b50a8f-eb29-4424-bb0a-8247d2acce7d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:5dc0e6102c8b28c78ad743688e617e11",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Relayer counterpart of fb21540d: exact-title \"(Mainnet)\" Grove match exists but was mis-threaded onto a generic-titled subject instead (see 9a69f651)."
     },
     {
       "caseKey": "22cc27b5:228514c4-9a74-4324-b93a-4c10025d4bc7",
@@ -10941,9 +10959,10 @@
       "subjectKey": "22cc27b5:c7c722e6-f0d7-4182-afe1-ac260ce2482b",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:3ac71cc1cfc2389ad43dfcb209217e74",
+      "chosenKey": "7b43d159:4780b1b3869f6e00d96dd912672d5c3d#5028",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Subject has the generic (no-chain) title but was threaded to the \"(Mainnet)\"-titled doc; a still-unclaimed generic-titled sibling is the better title match, freeing the Mainnet doc for fb21540d."
     },
     {
       "caseKey": "22cc27b5:9a69f651-4e37-4c7e-8ecc-e93d0d36e358",
@@ -10951,9 +10970,10 @@
       "subjectKey": "22cc27b5:9a69f651-4e37-4c7e-8ecc-e93d0d36e358",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:5dc0e6102c8b28c78ad743688e617e11",
+      "chosenKey": "7b43d159:fc825f6386c242ebc2a07fb6470140c0#5029",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Relayer counterpart of c7c722e6: generic subject threaded to the Mainnet-titled doc; an unclaimed generic sibling is the better title match."
     },
     {
       "caseKey": "22cc27b5:51739c12-4a4b-429c-a238-b1bdd554decf",
@@ -10971,9 +10991,10 @@
       "subjectKey": "22cc27b5:f655efd0-cbce-4c42-9c80-64f8358a339e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:4780b1b3869f6e00d96dd912672d5c3d#5021",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Generic-titled Freezer subject has an unclaimed exact-title/content Grove-pool match; none is wrong."
     },
     {
       "caseKey": "22cc27b5:9e0a7a51-7cc1-4dce-9465-8b3961d14f1d",
@@ -10981,9 +11002,10 @@
       "subjectKey": "22cc27b5:9e0a7a51-7cc1-4dce-9465-8b3961d14f1d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:fc825f6386c242ebc2a07fb6470140c0#5022",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Relayer counterpart of f655efd0: unclaimed exact-title/content Grove-pool match exists; none is wrong."
     },
     {
       "caseKey": "22cc27b5:15554f42-3b63-4f11-a7e3-2e02c91d7171",
@@ -11222,9 +11244,10 @@
       "subjectKey": "22cc27b5:310f2d02-371c-4fa1-b0bf-1e07d80464ee",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:4c7ced68e8af5837fa6b3f1b1d3c9697#5088",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Small pool (3 exact matches) includes a Grove-section exact-title match; none is wrong given neighboring steps in the same flow (c4c09a75, c639083a) were threaded normally."
     },
     {
       "caseKey": "22cc27b5:c639083a-417f-45c8-ba94-c0713d1539ac",
@@ -11242,9 +11265,10 @@
       "subjectKey": "22cc27b5:e3e6ca9d-7cd6-44f1-a688-80f1e744ed0f",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:53254bb6afe384c46fe17d5a396817b6#5090",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Same pattern as 310f2d02: small pool with a Grove-section exact match sitting unclaimed while surrounding steps were threaded."
     },
     {
       "caseKey": "22cc27b5:609939e3-81c4-4096-9f74-e4a410982b73",
@@ -11502,9 +11526,10 @@
       "subjectKey": "22cc27b5:fcf618b7-7708-4999-af08-c85b5b902ca5",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:bc718ea4456ae62ced6c97c74e4c3cac",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Grove-section alt bc718ea4... has identical title, section, and code block (buyGemNoFee) — a real predecessor was overlooked in favor of 'none'."
     },
     {
       "caseKey": "22cc27b5:1ec9a718-44f4-4ce9-97b3-bebeb207b280",
@@ -11995,9 +12020,10 @@
       "subjectKey": "22cc27b5:2b146ad3-e8ba-4aa8-99e9-73b0b8d90f36",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:be15fe1f450e9aa6d758e30ade2aa198",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Grove-section alt be15fe1f... matches content near-exactly (only a casing difference, consistent with this family's HTML→MD normalization) — a real predecessor was overlooked in favor of 'none'."
     },
     {
       "caseKey": "22cc27b5:cdb0f02e-2fd4-48cb-a38c-17badb67f8da",
@@ -13321,9 +13347,10 @@
       "subjectKey": "22cc27b5:6e549221-bbf2-4c58-922d-649e7beee41c",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a02751e8c44eeaba7cdd525d9f4197c0#5171",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): A Grove-section 'Outflow Rate Limits' alternative matches title+content exactly (incl. no-period 'Unlimited') and is never claimed anywhere in this chunk despite score 1; looks like a missed match, not a genuine split-copy."
     },
     {
       "caseKey": "22cc27b5:76b4c9cd-d637-40f1-a83d-b7f4a7c46d1b",
@@ -13411,9 +13438,10 @@
       "subjectKey": "22cc27b5:9c214444-96bf-4982-9c96-7ae79769262a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:a02751e8c44eeaba7cdd525d9f4197c0#5206",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Same issue as the other 'Outflow Rate Limits' none: an identical-content, exact-punctuation Grove alternative sits unclaimed at score 1 with no chose-record for this title anywhere in the chunk."
     },
     {
       "caseKey": "22cc27b5:c03dd770-73f8-4894-8e6d-314d22aec2df",
@@ -13514,7 +13542,8 @@
       "olderSha": "7b43d159",
       "chosenKey": "none",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-06): follow-up on judge UNSURE #2: full-cluster analysis (63 subjects sharing this candidate pool) shows only 2 unresolved subjects (this one + 5ad3319c) against 3 globally-unclaimed candidates -- but all 3 are wrong-agent docs (2 Spark/SLL-Aave wording, 1 Launch Agent 4), not Grove. Every genuine Grove-content occurrence (41 across two content variants, scores 1.0 and 0.875) is already legitimately claimed by other Grove subjects. Confirms 'none' (created here) is correct, not a missed match."
     },
     {
       "caseKey": "22cc27b5:3c791810-2663-432b-9f8a-7276c721c3d2",
@@ -13567,7 +13596,8 @@
       "olderSha": "7b43d159",
       "chosenKey": "none",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-06): follow-up on judge UNSURE #2 (sibling of a274fcdf, same candidate pool): see that case's why -- all 3 remaining unclaimed candidates are wrong-agent (Spark/LA4), every genuine Grove-content occurrence already claimed elsewhere. Confirms 'none' is correct."
     },
     {
       "caseKey": "22cc27b5:0bf496c2-5a2a-4ec3-8354-bc0dea0657c8",
@@ -14848,9 +14878,10 @@
       "subjectKey": "22cc27b5:d76d266f-50b3-4100-b198-c9d403ad50fd",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ff2af6858b71d457084b30848853d5b7#5790",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): A Keel-section, score-1 alt with identical content (only markdown link formatting differs) exists, so this looks like a real predecessor, not a born-here doc."
     },
     {
       "caseKey": "22cc27b5:e86acb47-775f-4f02-8cef-26eac82dd358",
@@ -17487,9 +17518,10 @@
       "subjectKey": "22cc27b5:4d7615fb-4c15-480f-94ee-cdd7cc2c2167",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "7b43d159:858f5185432178d5f24f0ca3f08a5145#6316",
-      "agreedWithAuto": true,
-      "method": "human"
+      "chosenKey": "7b43d159:858f5185432178d5f24f0ca3f08a5145#6493",
+      "agreedWithAuto": false,
+      "method": "ai",
+      "why": "redline review (2026-07-04): Duplicate assignment: #6316 was already legitimately claimed by sibling record bd9985e8 (RECORD 1735); the full 9-slot Interim Deployment pool visible in this chunk maps 1735,1743,1751,1758,1766,1775,1783,1791,1799 onto only 8 distinct occurrences with #6493 left orphaned -- #6493 is this record's correct predecessor."
     },
     {
       "caseKey": "22cc27b5:70be3fc1-7a65-4577-81e3-c71d987ddaf2",
@@ -19365,9 +19397,10 @@
       "subjectKey": "22cc27b5:1adf5e90-53a8-4036-9964-11430891137e",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ff2af6858b71d457084b30848853d5b7#6687",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): An alternative with identical title, identical content (URL formatting only differs), and the SAME section (Launch Agent 3) scored 1 yet was passed over for 'none' — looks like the genuine predecessor."
     },
     {
       "caseKey": "22cc27b5:f3e8ecec-cb08-4682-9218-d13f567fc00e",
@@ -21551,9 +21584,10 @@
       "subjectKey": "22cc27b5:560787c2-e593-4d69-aba0-d1708fb92a1a",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:7ef1d2197e898f8f6d50e839a5d97696#7110",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): An exact title/section/content match exists in Launch Agent 3 (#7110, score 1) among the alternatives; none was unwarranted."
     },
     {
       "caseKey": "22cc27b5:953249d4-609a-4e03-b069-bbbcd2d1c88e",
@@ -22337,9 +22371,10 @@
       "subjectKey": "22cc27b5:0dfb0a6f-af53-45d5-badb-0383c76f2515",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:e078e6ec2846a4df265ee132ad49dfb3",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): Unclaimed singular LA4 key matches title/section/backtick-content exactly, same pattern as sibling records recovered via orphan-recovery; 'none' looks like a missed recovery."
     },
     {
       "caseKey": "22cc27b5:7ee33331-fa25-4c43-b3e8-de3362118dea",
@@ -22797,9 +22832,10 @@
       "subjectKey": "22cc27b5:a418eef2-bbfc-43eb-8d79-62c7bb940c3d",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:ff2af6858b71d457084b30848853d5b7#7303",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): An exact score-1, section-matching Launch Agent 4 occurrence exists in the small (4-candidate) alternative pool yet was passed over for 'none', inconsistent with identical per-agent template resolution elsewhere in this file."
     },
     {
       "caseKey": "22cc27b5:c14e9e4d-2819-46cb-b267-a9b13600192a",
@@ -22878,9 +22914,10 @@
       "subjectKey": "22cc27b5:848c213e-5478-448c-9c7b-a8ea119823e5",
       "newerSha": "22cc27b5",
       "olderSha": "7b43d159",
-      "chosenKey": "none",
+      "chosenKey": "7b43d159:9ecf0e594da98d2ec8af8444a7dd1a15",
       "agreedWithAuto": false,
-      "method": "deterministic"
+      "method": "ai",
+      "why": "redline review (2026-07-04): An exact score-1 unique LA4-section match exists (backtick-formatted content matches subject verbatim) yet 'none' was chosen, inconsistent with the sibling Completed Instances Directory record (2279) in the same primitive family which resolved correctly."
     },
     {
       "caseKey": "22cc27b5:88717821-a8d4-480e-91c6-ba996685746c",
@@ -27972,9 +28009,10 @@
       "subjectKey": "616a4b50:a02751e8c44eeaba7cdd525d9f4197c0",
       "newerSha": "616a4b50",
       "olderSha": "4ef56cd7",
-      "chosenKey": "4ef56cd7:2ab42cbaf1abae3a614ee0372e4f664d#3893",
+      "chosenKey": "4ef56cd7:9109c08c3469269b40bf0bafff043452",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Alt scores 1.0 and matches subject's actual 'Unlimited' maxAmount exactly; chosen doc still has both fields as unfilled placeholders."
     },
     {
       "caseKey": "524ce9a9:6ff5a0eb4d561636b0871b76e94095fe",
@@ -28352,9 +28390,10 @@
       "subjectKey": "4dbd365e:7f62cf11530b2875c9d3ea6eea6924f0",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "73a607a4:3bad9804cae12a4a89408fee7cd6730b",
+      "chosenKey": "73a607a4:8a93e535a9d4fafe37c3be923f174f5e",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Boilerplate tied across LA1/LA2/LA3/Spark by wording, but this commit's documented LA1->Grove seam (803 removed/885 added) makes LA1 the structurally correct predecessor, not the separately-persisting Spark entity."
     },
     {
       "caseKey": "4dbd365e:27766081db4cf630a93f633d5d935635",
@@ -28392,9 +28431,10 @@
       "subjectKey": "4dbd365e:ce00d32a76e8a0c8c214a7448e0bd9d7",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "73a607a4:9727f47b911e25782ddeb19b270ea3a2",
+      "chosenKey": "73a607a4:4253825ec84f77c4dd4578b6bc53fe38",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): 'Phoenix Labs' vs 'Grove Labs' naming-convention overlap is coincidental; tree-position predecessor per the LA1->Grove seam is LA1's TRC doc, not Spark's."
     },
     {
       "caseKey": "4dbd365e:b3d744c3151064ea34b8c7b153005374",
@@ -28442,9 +28482,10 @@
       "subjectKey": "4dbd365e:441ca248a0a43636745c3aa3b6b478db",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "none",
+      "chosenKey": "73a607a4:e39d6d142f1d40bce9999b4852bc99e5",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Small 2-candidate pool; LA1's 'managing the Launch Agent 1 Liquidity Layer' phrasing structurally mirrors the subject better than Spark's abbreviated 'SLL', and fits the LA1->Grove seam."
     },
     {
       "caseKey": "4dbd365e:9461a2ef2f3f82e81f50ab78632bf41a",
@@ -28552,9 +28593,10 @@
       "subjectKey": "4dbd365e:eeb535cfcda65be8b69bf7ece4ed3ddd",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "73a607a4:d4250911d22b00a473dae23c0d7a17f7",
+      "chosenKey": "73a607a4:6b62c24c85a385542f8eeaedd879f053",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Tied boilerplate across LA1/LA2/LA3/Spark; the commit's LA1->Grove seam makes LA1 the structurally correct predecessor over the persisting Spark entity."
     },
     {
       "caseKey": "4dbd365e:75f8759e4086f3673ea99ab5fea789bf",
@@ -28572,9 +28614,10 @@
       "subjectKey": "4dbd365e:291694e7cd2637b06fd0693eade1d340",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "73a607a4:78863c96e6eb877c53c8a9e1fb0e6aed",
+      "chosenKey": "73a607a4:c31eac8091a9506b2493f11dc065fecb",
       "agreedWithAuto": false,
-      "method": "human"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Tied boilerplate across LA1/LA2/LA3/Spark; LA1->Grove seam favors LA1 over Spark (sibling 'Non-Routine Protocol' doc in same commit correctly avoided Spark)."
     },
     {
       "caseKey": "4dbd365e:2400442c6ea4bd3ea3fd9a0943fd15bf",
@@ -28682,9 +28725,10 @@
       "subjectKey": "4dbd365e:8f6d0079b980aede8e7fda109187d131",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "none",
+      "chosenKey": "73a607a4:88eb829e414d1f1df98316014e38e442",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Small 2-candidate pool; LA1's 'for the Launch Agent 1 Liquidity Layer' phrasing matches subject's structure better than Spark's 'for the SLL on each blockchain', consistent with LA1->Grove seam."
     },
     {
       "caseKey": "4dbd365e:7579b7444c7900e56bd1da028b06b292",
@@ -28702,9 +28746,10 @@
       "subjectKey": "4dbd365e:22a80be5af724b2c3dadad9efa039528",
       "newerSha": "4dbd365e",
       "olderSha": "73a607a4",
-      "chosenKey": "none",
+      "chosenKey": "73a607a4:0909100aba197fadff14c140d2b6e641",
       "agreedWithAuto": false,
-      "method": "ai"
+      "method": "ai",
+      "why": "redline review (2026-07-06): Small 2-candidate pool; LA1->Grove seam makes LA1 the structurally correct predecessor over Spark."
     },
     {
       "caseKey": "4dbd365e:71e4bda20f31fd61fa9dadad07794fd1",

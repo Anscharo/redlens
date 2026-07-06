@@ -25,7 +25,8 @@ const arg = (f) => { const i = process.argv.indexOf(f); return i >= 0 ? process.
 const OUT = path.resolve(ROOT, arg("--out") || ".cache/decisions-judge.jsonl");
 const SHA = arg("--sha");
 const WHY_ONLY = process.argv.includes("--why-only");
-const SAMPLE = arg("--sample") ? Math.max(1, Number(arg("--sample"))) : 1;
+const sampleArg = arg("--sample");
+const SAMPLE = sampleArg ? Math.max(1, Number(sampleArg)) : 1;
 const ALT_CAP = 12;
 
 const q = JSON.parse(fs.readFileSync(path.join(ROOT, "public/history-curation.json"), "utf8"));

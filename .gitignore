@@ -72,6 +72,33 @@ playwright/.cache/
 .cache/forward-reverse-diff.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
+
+# HTML-era curation review/audit artifacts — regenerable from the committed queue + decisions
+# via the scripts/htmlhist/*.mjs tools (render-decisions, export-decisions-judge, audit-html-*,
+# and one-off judge/verification passes). The actual decision trail lives in the committed
+# public/history-decisions.json `why` fields, not these review reports.
+.cache/audit-html-decisions.json
+.cache/audit-html-decisions-cache.json
+.cache/audit-html-disagreements.json
+.cache/audit-html-disagreements.md
+.cache/decisions-judge.jsonl
+.cache/decisions-judge-117.jsonl
+.cache/decisions-review.md
+.cache/judge-117/
+.cache/spotcheck-remaining/
+.cache/residual-closeout.md
+.cache/residual-signal-candidates.md
+.cache/signal-embedding-sim.json
+.cache/signal-embedding-vectors.json
+.cache/signal-positional-graph.json
+.cache/signal-rename-mining.json
+.cache/signal-sibling-count.json
+.cache/signal-type-priors.json
+.cache/cluster-assign-proto.json
+.cache/cluster-assign-sample.txt
+.cache/curation-hard-gold.json
+.cache/curation-hard-set.md
+
 .claude/scheduled_tasks.lock
 .claude/worktrees/**
 
