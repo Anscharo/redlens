@@ -1,6 +1,6 @@
 {
   "rubricVersion": "37ea5cbd052e",
-  "atlasCommit": "2558632e09c0dde26173c5af015362743192fc3b",
+  "atlasCommit": "ac268fc7bc3a4d602bfed36897f1f4d6e2c1aa79",
   "triageModel": "google/gemma-4-26b-a4b-it",
   "assessModel": "deepseek/deepseek-v4-pro",
   "triage": [
@@ -432,6 +432,17 @@
         "alloc"
       ],
       "description": "Defines the framework and categories for monitoring and responding to legal and regulatory risks."
+    },
+    {
+      "taskKey": "u:03bec0ca-5667-40ae-ac54-62ce1a0c66ea",
+      "quoteHash": "7d098bf598c58bd9",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Counts unpaid USDS revenue credits toward Grove's Total Risk Capital requirement."
     },
     {
       "taskKey": "u:0465a8ef-0ec5-43b7-8b6f-bed778758364",
@@ -1516,14 +1527,14 @@
     },
     {
       "taskKey": "u:119f1132-4d75-4823-89d0-872aeb0aa1de",
-      "quoteHash": "c1414603844970c1",
+      "quoteHash": "7559d153b32a2f50",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines the process for Spell Crafters to commit changes and request review from Spell Reviewers."
+      "description": "Requires the Spell Crafter to commit changes and request review by Spell Reviewers per the mainnet workflow."
     },
     {
       "taskKey": "u:11b18384-63d6-478c-bc14-9f1ec495c1cb",
@@ -1738,14 +1749,14 @@
     },
     {
       "taskKey": "u:1463db73-6121-48e9-950a-09dbc699076f",
-      "quoteHash": "2a449cb9f0360315",
+      "quoteHash": "6294cad1caa188b6",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires the Spell Crafter to deploy and test Spells on a Tenderly Testnet before mainnet execution."
+      "description": "Requires testing deployed Spells on a Tenderly Testnet before mainnet deployment."
     },
     {
       "taskKey": "u:14954d6a-0b97-45bf-8734-1e50af8f9ca7",
@@ -5406,14 +5417,14 @@
     },
     {
       "taskKey": "u:3d0a743a-1e14-4376-b5ef-2ebd0f2820d7",
-      "quoteHash": "8c962488ade29722",
+      "quoteHash": "85f840e3bb780b26",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires the Spell Crafter to perform specific security checks against pull request attack vectors before merging."
+      "description": "Requires the Spell Crafter to perform final security checks against attack vectors before merging pull requests."
     },
     {
       "taskKey": "u:3d180927-6af0-462e-b507-ecd3b76aead9",
@@ -5925,14 +5936,14 @@
     },
     {
       "taskKey": "u:4319b89d-a0e3-4e3c-bf99-0390053bd347",
-      "quoteHash": "9c76718561317037",
+      "quoteHash": "bad2cf3af2258d6d",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Mandates that Spell Reviewers follow specific checklists and testing requirements when reviewing draft Spells."
+      "description": "Mandates Spell Reviewers to follow specific checklists and testing requirements during the review process."
     },
     {
       "taskKey": "u:433c317d-0c92-4a3e-9734-0eb26a9a7606",
@@ -7230,7 +7241,7 @@
     },
     {
       "taskKey": "u:510651ca-5a9a-4ac1-ba69-f3c160e185d2",
-      "quoteHash": "021376d65867d2d8",
+      "quoteHash": "cd7e5e7bd1552025",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
@@ -7761,14 +7772,14 @@
     },
     {
       "taskKey": "u:56106653-7764-466a-a5a5-ff6843b100d7",
-      "quoteHash": "dcf28c442449d481",
+      "quoteHash": "cc083fcf62c29377",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires Spell Reviewers to run local tests and post approval comments with test results for pull requests."
+      "description": "Requires Spell Reviewers to run local tests and post approval comments with test results for Pull Requests."
     },
     {
       "taskKey": "u:56593663-55e5-45d5-8682-5eede11aa14a",
@@ -7994,14 +8005,14 @@
     },
     {
       "taskKey": "u:59638793-d1ed-4d6c-9d34-d9359ecfd100",
-      "quoteHash": "9dca5e6f8d923b11",
+      "quoteHash": "ba267fca2f76538b",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Mandates specific pre-deployment workflow steps for Spell Crafters via an external checklist."
+      "description": "Mandates the completion of registered spell checklists by the Spell Crafter before deployment."
     },
     {
       "taskKey": "u:598ff9cf-146e-4499-93d3-583518c390a1",
@@ -8442,15 +8453,14 @@
     },
     {
       "taskKey": "u:5ecdf33d-c8df-439c-98ac-892e62284797",
-      "quoteHash": "24a57d370abf22af",
+      "quoteHash": "e083f1209affc4c1",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
-        "alloc",
-        "sc"
+        "alloc"
       ],
-      "description": "Defines vault parameters and establishes that specific limits will be set via future governance spells."
+      "description": "Defines specific duty, line, gap, and ttl parameters for the ALLOCATOR-GROVE-A Allocator Vault."
     },
     {
       "taskKey": "u:5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
@@ -9397,6 +9407,17 @@
         "alloc"
       ],
       "description": "Defines that perpetual position model implementation will be specified in a future Atlas iteration."
+    },
+    {
+      "taskKey": "u:6a103b6f-53ef-4666-870c-92cfbff6d099",
+      "quoteHash": "10f790ab4fe8f0da",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Mandates a 100% Capital Ratio Requirement for any asset not included in approved pro-forma estimates."
     },
     {
       "taskKey": "u:6a1c7d77-4f03-40db-8ed5-05b1e94442cf",
@@ -11342,14 +11363,14 @@
     },
     {
       "taskKey": "u:81b4e7f6-8f56-497f-889c-48e412244801",
-      "quoteHash": "bbb295d1561d4620",
+      "quoteHash": "6b74bce008256fe3",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines the deployment process for Spells via a specific external workflow checklist."
+      "description": "Mandates the deployment of Spells according to the Core Spell Crafter Mainnet Workflow and registered checklists."
     },
     {
       "taskKey": "u:81bacfed-5cc9-4980-bf71-1e5edcbdadba",
@@ -11562,14 +11583,14 @@
     },
     {
       "taskKey": "u:8411d3bb-f5b8-4f0e-94b1-4ce7bb223099",
-      "quoteHash": "5bbd1e044ebf5e86",
+      "quoteHash": "fba206f8ae2bd481",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Defines the process for the Spell Crafter to hand over approved Spells to the Governance Point."
+      "description": "Defines the process for the Spell Crafter to hand over an approved Spell to the Governance Point."
     },
     {
       "taskKey": "u:8414b48b-932e-430e-a236-727807fd73ba",
@@ -11842,14 +11863,15 @@
     },
     {
       "taskKey": "u:8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
-      "quoteHash": "26366e2ddd752378",
+      "quoteHash": "9b108cce7dda26a5",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
-        "peg"
+        "peg",
+        "alloc"
       ],
-      "description": "Sets the specific parameter values for the Lite Peg Stability Module."
+      "description": "Defines specific parameter values for the Lite Peg Stability Module and DC-IAM mechanisms."
     },
     {
       "taskKey": "u:86a2c5ba-ae8f-4a3d-8f56-124cd27580c8",
@@ -14383,14 +14405,14 @@
     },
     {
       "taskKey": "u:a7e04b56-d754-423d-8ad9-6f1013023a91",
-      "quoteHash": "65f7ae61262e2bd8",
+      "quoteHash": "cfa9502dc731cdfa",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires the Spell Crafter to perform specific pre-deployment setup and checks via a defined workflow."
+      "description": "Requires the Spell Crafter to perform pre-deployment setup and checks according to registered checklists."
     },
     {
       "taskKey": "u:a8334e19-fedb-48fb-a38c-f18666ccc8e6",
@@ -19206,14 +19228,14 @@
     },
     {
       "taskKey": "u:e31813f6-77ce-438e-a791-4d127e783bc7",
-      "quoteHash": "9e5a7fe81bfd2bae",
+      "quoteHash": "8fe48e7eae3d6d0b",
       "model": "google/gemma-4-26b-a4b-it",
       "inScope": true,
       "isRule": true,
       "domains": [
         "sc"
       ],
-      "description": "Requires two Spell Reviewer approvals on GitHub before a Spell Crafter can deploy a spell."
+      "description": "Requires two Spell Reviewer approvals via GitHub pull request before a Spell can be deployed."
     },
     {
       "taskKey": "u:e32e109f-e101-4d96-85bb-b6341773353f",
@@ -20125,6 +20147,17 @@
         "alloc"
       ],
       "description": "Spark inherits and must comply with the base class of Total Risk Capital management requirements."
+    },
+    {
+      "taskKey": "u:edbd7845-ac1e-4a48-a725-89632e225849",
+      "quoteHash": "c8ec3af3dace3bf0",
+      "model": "google/gemma-4-26b-a4b-it",
+      "inScope": true,
+      "isRule": true,
+      "domains": [
+        "alloc"
+      ],
+      "description": "Sets a 2% Financial CRR and a 500,000,000 USD maximum exposure for Galaxy Warehouse."
     },
     {
       "taskKey": "u:edd96df7-4058-4a74-a6e5-827df31e5fdd",
@@ -25970,16 +26003,18 @@
       "stub": false,
       "hasMetrics": false,
       "description": "Requires Spell Crafters to follow specific checklists and submit a Pull Request during the development stage.",
-      "quote": "In the Development Stage, the Spell Crafter writes the code for the Spell based on the contents of the Executive Sheet. The output of the Development Process is a Pull Request containing the code for the Spell that is ready for review. In performing the Development Stage, the Crafter takes the steps set forth in the checklists found here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md).",
-      "quoteHash": "021376d65867d2d8",
+      "quote": "In the Development Stage, the Spell Crafter writes the code for the Spell based on the contents of the Executive Sheet. The output of the Development Process is a Pull Request containing the code for the Spell that is ready for review. In performing the Development Stage, the Crafter takes the steps set forth in the checklists found in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "cd7e5e7bd1552025",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule requires the Spell Crafter to follow specific checklists, which are external documents. The obligation is clear but the precise steps are not contained in the rule text itself; compliance depends on the checklist content, making it a mixed case with a concrete pointer but no in-text metrics.",
+      "precisenessReasoning": "The rule requires the Spell Crafter to follow specific checklists, which are referenced but not included; the obligation is concrete but the operative steps are delegated to an external document, so the rule itself lacks quantifiable thresholds or metrics.",
       "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is mentioned or implicitly reaches this rule. The catch-all misalignment/adjudication backstop is the only recourse, which is always weak."
+      "enforcement": "mid",
+      "mechanismUuids": [
+        "d4bf73e7-2f9f-454c-8add-614dff784f78"
+      ],
+      "enforcementReasoning": "The Agent Artifact Review by Core GovOps (d4bf73e7) includes scheduled review of spell artifacts and can assess penalties for non-compliance with checklists, providing a specific enforcement path, though the consequence is unquantified for this rule."
     },
     {
       "taskKey": "u:3889281f-3306-4701-b1a3-5e0707bb7ef8",
@@ -27003,19 +27038,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Mandates that Spell Reviewers follow specific checklists and testing requirements when reviewing draft Spells.",
-      "quote": "Spell Reviewers must comprehensively review the draft Spell in accordance with Reviewer checklists and testing requirements, set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-reviewer-mainnet-checklist.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-reviewer-mainnet-checklist.md).",
-      "quoteHash": "9c76718561317037",
+      "description": "Mandates Spell Reviewers to follow specific checklists and testing requirements during the review process.",
+      "quote": "Spell Reviewers must comprehensively review the draft Spell in accordance with Reviewer checklists and testing requirements, set out in the Core Spell Reviewer Mainnet Checklist, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "bad2cf3af2258d6d",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule specifies the actor (Spell Reviewers) and the required action (review in accordance with checklists), but the concrete thresholds, metrics, and testing requirements are delegated to an external URL—making it a mixed case where the obligation is clear but not self-contained.",
+      "precisenessReasoning": "The rule mandates Spell Reviewers to follow a specific checklist and testing requirements, but the actual criteria are delegated to an external document (the Core Spell Reviewer Mainnet Checklist). The obligation is clear, but no thresholds, metrics, or verifiable conditions are stated in this paragraph.",
       "metrics": [],
-      "enforcement": "mid",
-      "mechanismUuids": [
-        "d4bf73e7-2f9f-454c-8add-614dff784f78"
-      ],
-      "enforcementReasoning": "The Agent Artifact Review by Core GovOps (d4bf73e7) applies to spell review deliverables; failing to follow the mandated checklist could be identified during scheduled reviews, leading to staged findings and penalty assessments."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment reporting backstop would apply, which is weak."
     },
     {
       "taskKey": "u:32feb38a-043e-4715-9a3e-c94ee6fbf92f",
@@ -27316,17 +27349,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Mandates specific pre-deployment workflow steps for Spell Crafters via an external checklist.",
-      "quote": "After the Spell Reviewers have finished their review, the Spell Crafter performs the last steps before the Spell is ready to be deployed. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md).",
-      "quoteHash": "9dca5e6f8d923b11",
+      "description": "Mandates the completion of registered spell checklists by the Spell Crafter before deployment.",
+      "quote": "After the Spell Reviewers have finished their review, the Spell Crafter performs the last steps before the Spell is ready to be deployed. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "ba267fca2f76538b",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule identifies a specific actor (Spell Crafter) and mandates a set of pre-deployment steps, but the actual content of those steps is entirely delegated to an external, mutable GitHub checklist. No numerical thresholds, deadlines, or quantifiable criteria appear in the text; a third party would need to consult the linked document to determine what exactly is required.",
+      "precisenessReasoning": "The rule obligates the Spell Crafter to perform steps specified in a referenced checklist, but the actual steps are not stated in this paragraph; compliance depends on an external document.",
       "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The paragraph contains no specific consequence for the Spell Crafter's failure to follow the external checklist. No on-chain automations, capital-at-risk incentives, or named remedial processes directly reach this obligation. Only the generic misalignment and adjudication backstops (which alone are always weak) could apply."
+      "enforcement": "mid",
+      "mechanismUuids": [
+        "d4bf73e7-2f9f-454c-8add-614dff784f78"
+      ],
+      "enforcementReasoning": "The Agent Artifact Review by Core GovOps (d4bf73e7) could detect failure to follow the checklist and assess penalties, providing a plausible enforcement path."
     },
     {
       "taskKey": "u:e31813f6-77ce-438e-a791-4d127e783bc7",
@@ -27339,19 +27374,22 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Requires two Spell Reviewer approvals on GitHub before a Spell Crafter can deploy a spell.",
-      "quote": "The Spell Reviewers review the pre-deployment steps. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-reviewer-mainnet-checklist.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-reviewer-mainnet-checklist.md). When they have completed their review, they indicate their approval in a comment to the Github pull request, such as \"good to deploy\". The Spell Crafter may only proceed with the Spell deployment when approvals have been received from the two Spell Reviewers.",
-      "quoteHash": "9e5a7fe81bfd2bae",
+      "description": "Requires two Spell Reviewer approvals via GitHub pull request before a Spell can be deployed.",
+      "quote": "The Spell Reviewers review the pre-deployment steps. These steps are set out in the Core Spell Reviewer Mainnet Checklist, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e). When they have completed their review, they indicate their approval in a comment to the Github pull request, such as \"good to deploy\". The Spell Crafter may only proceed with the Spell deployment when approvals have been received from the two Spell Reviewers.",
+      "quoteHash": "8fe48e7eae3d6d0b",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule defines a clear numeric threshold: the Spell Crafter may only proceed after receiving approvals from two Spell Reviewers. The approval condition is verifiable via a GitHub pull request comment. The required review steps are referenced via a specific external checklist link.",
+      "preciseness": 4,
+      "precisenessReasoning": "The rule defines a clear gate: two Spell Reviewer approvals via GitHub comment before deployment. The exact review criteria are delegated to an external checklist, but the approval condition is objectively verifiable.",
       "metrics": [
-        "approvals from two Spell Reviewers"
+        "approvals from two Spell Reviewers",
+        "comment indicating approval"
       ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism reaches this procedural step. Violation (deploying without two approvals) would only be caught by the generic misalignment reporting and adjudication backstops, which are always weak."
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
+      ],
+      "enforcementReasoning": "Deploying without two approvals violates a security rule, which can trigger Emergency Spells (b8266c11) to pause or freeze the unauthorized deployment, providing a specific consequence with a defined escalation path."
     },
     {
       "taskKey": "u:a7e04b56-d754-423d-8ad9-6f1013023a91",
@@ -27364,19 +27402,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Requires the Spell Crafter to perform specific pre-deployment setup and checks via a defined workflow.",
-      "quote": "The Spell Crafter performs pre-deploy setup and checks. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md).",
-      "quoteHash": "65f7ae61262e2bd8",
+      "description": "Requires the Spell Crafter to perform pre-deployment setup and checks according to registered checklists.",
+      "quote": "The Spell Crafter performs pre-deploy setup and checks. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "cfa9502dc731cdfa",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule obligates the Spell Crafter to perform a specific pre-deployment workflow, but the operative steps and criteria are defined in an external checklist (URL) rather than within the document. A third party could not verify compliance from the paragraph alone, as the checklist's contents are not stated, though the reference to a named workflow provides some concreteness.",
+      "precisenessReasoning": "The rule names the actor (Spell Crafter) and the obligation (perform pre-deploy setup and checks) but delegates the specific steps to an external document (Registered Spell Checklists). No numeric thresholds, formulas, or verifiable criteria are stated in the rule text itself; compliance depends on the content of the referenced checklist.",
       "metrics": [],
       "enforcement": "mid",
       "mechanismUuids": [
         "d4bf73e7-2f9f-454c-8add-614dff784f78"
       ],
-      "enforcementReasoning": "Agent Artifact Review (d4bf73e7) covers operational agents like the Spell Crafter; non-performance of required checks could be identified in review and trigger penalty assessment, providing a plausible enforcement path beyond the generic misalignment backstop."
+      "enforcementReasoning": "The Agent Artifact Review process (d4bf73e7) by Core GovOps includes scheduled review of agent actions and can assess penalties for non-compliance. This mechanism plausibly reaches the Spell Crafter's failure to follow the registered checklists, though no specific penalty is quantified for this rule."
     },
     {
       "taskKey": "u:81b4e7f6-8f56-497f-889c-48e412244801",
@@ -27389,17 +27427,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Defines the deployment process for Spells via a specific external workflow checklist.",
-      "quote": "The Spell Crafter then deploys the Spell as specified herein. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md).",
-      "quoteHash": "bbb295d1561d4620",
+      "description": "Mandates the deployment of Spells according to the Core Spell Crafter Mainnet Workflow and registered checklists.",
+      "quote": "The Spell Crafter then deploys the Spell as specified herein. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "6b74bce008256fe3",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule states an obligation (the Spell Crafter deploys the Spell as specified), but the operative content is entirely delegated to an external checklist link. The Atlas text itself provides no metrics, thresholds, deadlines, or verifiable conditions; compliance would depend on the unstated checklist and a third party could not verify from this text alone.",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule names a concrete actor (Spell Crafter) and a specific referenced document (Registered Spell Checklists) that contains the deployment steps, but the operative criteria are entirely delegated to that external workflow; no thresholds, metrics, or deadlines appear in the paragraph itself.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No specific consequence attaches to this rule. Only the generic misalignment/adjudication backstop could theoretically apply, which is weak. No on-chain, capital-at-risk, or named institutional enforcement mechanism reaches this rule."
+      "enforcementReasoning": "No specific enforcement mechanism reaches this rule; only the generic misalignment reporting and adjudication backstops would apply, which alone are weak."
     },
     {
       "taskKey": "u:1463db73-6121-48e9-950a-09dbc699076f",
@@ -27412,17 +27450,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Requires the Spell Crafter to deploy and test Spells on a Tenderly Testnet before mainnet execution.",
-      "quote": "The Spell Crafter then casts the deployed Spell on a newly deployed Tenderly Testnet. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md).",
-      "quoteHash": "2a449cb9f0360315",
+      "description": "Requires testing deployed Spells on a Tenderly Testnet before mainnet deployment.",
+      "quote": "The Spell Crafter then casts the deployed Spell on a newly deployed Tenderly Testnet. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "6294cad1caa188b6",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule states a concrete obligation ('casts the deployed Spell on a newly deployed Tenderly Testnet') and identifies the actor (Spell Crafter), but the exact procedural steps are delegated to an external URL, and there are no numeric thresholds, metrics, or deadlines stated in the paragraph itself. Compliance is verifiable in principle (e.g., by checking a Tenderly execution), but the rule lacks internal quantification or precise criteria.",
+      "precisenessReasoning": "The rule states a concrete, verifiable action (cast the deployed Spell on a newly deployed Tenderly Testnet) but delegates the detailed steps and any timing or success criteria to an external checklist, leaving the operative procedure qualitative.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism in the rubric catalog reaches this rule. The only backstops are the generic Reports of Misalignment and Adjudication Process catch-alls, which alone constitute weak enforcement. No on-chain automatic enforcement, capital at risk, artifact reviews, or penalty mechanisms directly cover this operational testing step."
+      "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment/adjudication backstop would apply, which is always weak."
     },
     {
       "taskKey": "u:959dea0e-219f-4caa-8101-09bd690ce051",
@@ -27462,17 +27500,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Defines the process for Spell Crafters to commit changes and request review from Spell Reviewers.",
-      "quote": "The Spell Crafter then commits their changes and requests review by the Spell Reviewers. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md)/",
-      "quoteHash": "c1414603844970c1",
+      "description": "Requires the Spell Crafter to commit changes and request review by Spell Reviewers per the mainnet workflow.",
+      "quote": "The Spell Crafter then commits their changes and requests review by the Spell Reviewers. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "7559d153b32a2f50",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 3,
-      "precisenessReasoning": "The rule enumerates concrete steps: 'commits their changes' and 'requests review'. The specific criteria for the review are delegated to an external document, making the operative details qualitative and delegated.",
+      "precisenessReasoning": "The rule names a concrete actor (Spell Crafter) and specific actions (commit changes, request review), but the detailed criteria for compliance are delegated to an external workflow and checklists, leaving the operative steps unquantified in this paragraph.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is cited for this step; failure to request review simply prevents the spell from advancing, but there is no formal penalty or named enforcer outside the generic misalignment backstop."
+      "enforcementReasoning": "No specific enforcement mechanism is identified for failing to commit changes or request review; only the generic misalignment backstop would apply, which is weak."
     },
     {
       "taskKey": "u:56106653-7764-466a-a5a5-ff6843b100d7",
@@ -27485,17 +27523,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Requires Spell Reviewers to run local tests and post approval comments with test results for pull requests.",
-      "quote": "The Spell Reviewers review the Pull Request. As part of this review, they run tests locally. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-reviewer-mainnet-checklist.md.](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md) When they have completed this, each Spell Reviewer posts a comment approving the handover of the Spell (e.g. \"good to handover\"), including a copy of the test results.",
-      "quoteHash": "dcf28c442449d481",
+      "description": "Requires Spell Reviewers to run local tests and post approval comments with test results for Pull Requests.",
+      "quote": "The Spell Reviewers review the Pull Request. As part of this review, they run tests locally. These steps are set out in the Core Spell Reviewer Mainnet Checklist, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e). When they have completed this, each Spell Reviewer posts a comment approving the handover of the Spell (e.g. \"good to handover\"), including a copy of the test results.",
+      "quoteHash": "cc083fcf62c29377",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 4,
-      "precisenessReasoning": "The rule names a specific actor (Spell Reviewers) and a concrete deliverable: post an approving comment with test results. The obligation is objectively verifiable (a comment with test results exists or not). However, it lacks numeric thresholds, formulas, or a deadline, and it does not specify that tests must pass; compliance is binary but not quantified.",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule specifies a clear process (run tests per checklist, post approval comment with test results) but delegates the exact test criteria to an external checklist and lacks quantitative thresholds or deadlines.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism attaches to this duty; failure to post an approval merely stalls the spell handover, which is a process dependency, not a penalty. Only the generic misalignment backstop would apply, which is weak."
+      "enforcementReasoning": "No specific enforcement mechanism reaches this rule; only the generic misalignment/adjudication backstop would apply, which is weak."
     },
     {
       "taskKey": "u:8411d3bb-f5b8-4f0e-94b1-4ce7bb223099",
@@ -27508,17 +27546,17 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Defines the process for the Spell Crafter to hand over approved Spells to the Governance Point.",
-      "quote": "Once the Spell Crafter has received approval to handover the Spell from both the Spell Reviewers, the Spell Crafter proceeds to hand over the Spell to the Governance Point. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md)",
-      "quoteHash": "5bbd1e044ebf5e86",
+      "description": "Defines the process for the Spell Crafter to hand over an approved Spell to the Governance Point.",
+      "quote": "Once the Spell Crafter has received approval to handover the Spell from both the Spell Reviewers, the Spell Crafter proceeds to hand over the Spell to the Governance Point. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "fba206f8ae2bd481",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule describes a handover step using defined actors but contains no quantitative thresholds, deadlines, or verifiable criteria; the actual steps are delegated to an external document, making compliance arguable on the same facts.",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule names actors (Spell Crafter, Spell Reviewers, Governance Point) and a clear condition (approval from both reviewers), but the actual handover steps are delegated to an external workflow document, leaving the operative details unspecified in this text.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism reaches this procedural obligation; only the generic misalignment reporting and adjudication catch-alls (c6c6f595, 560e1024) could apply, which alone are weak."
+      "enforcementReasoning": "No specific enforcement mechanism reaches this procedural step; only the generic misalignment/adjudication backstop could apply, which is weak."
     },
     {
       "taskKey": "u:3d0a743a-1e14-4376-b5ef-2ebd0f2820d7",
@@ -27531,19 +27569,19 @@
       "anchored": true,
       "stub": false,
       "hasMetrics": false,
-      "description": "Requires the Spell Crafter to perform specific security checks against pull request attack vectors before merging.",
-      "quote": "The Spell Crafter conducts a final set of checks to guard against Pull Request attack vectors before merging the Pull Request as specified herein. These steps are set out here: [https://github.com/sky-ecosystem/pe-checklists/blob/master/Spell/Spell-crafter-mainnet-workflow.md](https://github.com/sky-ecosystem/pe-checklists/blob/master/spell/spell-crafter-mainnet-workflow.md)",
-      "quoteHash": "8c962488ade29722",
+      "description": "Requires the Spell Crafter to perform final security checks against attack vectors before merging pull requests.",
+      "quote": "The Spell Crafter conducts a final set of checks to guard against Pull Request attack vectors before merging the Pull Request as specified herein. These steps are set out in the Core Spell Crafter Mainnet Workflow, as specified in [A.1.10.2.5.1.3.2.0.6.1 - Registered Spell Checklists](93f5b36b-06a7-4282-9fd7-14e0cbafd08e).",
+      "quoteHash": "85f840e3bb780b26",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule names the Spell Crafter and an obligation to conduct checks, but the specific checks are entirely delegated to an external document; no metrics, thresholds, or verifiable criteria are provided in the rule text itself, making compliance arguable without the external resource.",
+      "preciseness": 3,
+      "precisenessReasoning": "The rule requires the Spell Crafter to conduct a final set of checks, but the actual checks are delegated to an external checklist document (Registered Spell Checklists). The paragraph itself contains no metrics, thresholds, or verifiable conditions; compliance depends entirely on the referenced checklist.",
       "metrics": [],
       "enforcement": "mid",
       "mechanismUuids": [
         "d4bf73e7-2f9f-454c-8add-614dff784f78"
       ],
-      "enforcementReasoning": "The Agent Artifact Review mechanism (A.1.14.2.10, UUID d4bf73e7) applies to all agent artifacts and provides a path for Core GovOps to review and penalize non-compliance, though the consequence is unquantified for this specific rule."
+      "enforcementReasoning": "The Spell Crafter is an agent subject to artifact review by Core GovOps (d4bf73e7), which includes scheduled review of agent actions and penalty assessment; failure to conduct the required checks could be identified and penalized, though no specific penalty is quantified for this rule."
     },
     {
       "taskKey": "u:f394fe65-d60a-40cb-8cc9-e607fe0c0487",
@@ -35660,6 +35698,36 @@
       "enforcementReasoning": "No specific enforcement mechanism applies to this one-time grant authorization. Only the generic misalignment reporting and adjudication backstops are available, which are weak. There is no on-chain automatic enforcement, capital at risk, or named penalty path for failing to execute the transfer as specified."
     },
     {
+      "taskKey": "u:03bec0ca-5667-40ae-ac54-62ce1a0c66ea",
+      "uuid": "03bec0ca-5667-40ae-ac54-62ce1a0c66ea",
+      "docNo": "A.2.8.2.10.2.2",
+      "title": "Prime Revenue Credit",
+      "domains": [
+        "alloc"
+      ],
+      "anchored": false,
+      "stub": false,
+      "hasMetrics": true,
+      "description": "Counts unpaid USDS revenue credits toward Grove's Total Risk Capital requirement.",
+      "quote": "Grove is owed 2,528,000 USDS based on the true-up of prior Monthly Settlement Cycles. Until this amount is paid to Grove through the next Monthly Settlement Cycle, this credit counts toward Grove's Total Risk Capital (TRC), as defined in [A.3.2.1.2.1 - Total Risk Capital Definition](6f6b25d6-f73c-4733-ba37-12a0a411433c).",
+      "quoteHash": "7d098bf598c58bd9",
+      "model": "deepseek/deepseek-v4-pro",
+      "rubricVersion": "37ea5cbd052e",
+      "preciseness": 5,
+      "precisenessReasoning": "The rule states a specific numeric amount (2,528,000 USDS), a defined actor (Grove), a clear condition (until paid through the next Monthly Settlement Cycle), and a verifiable consequence (counts toward Total Risk Capital). A third party can objectively check compliance from the text alone.",
+      "metrics": [
+        "2,528,000 USDS",
+        "next Monthly Settlement Cycle",
+        "Total Risk Capital"
+      ],
+      "enforcement": "mid",
+      "mechanismUuids": [
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
+        "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
+      ],
+      "enforcementReasoning": "The rule defines a component of Total Risk Capital. Failure to count this credit would understate TRC, potentially causing a breach of capital requirements. The Penalty Mechanisms (b8ee2d12) and Conservatorship (5c3dd35a) for capital breaches plausibly reach such a violation, though no consequence is quantified specifically for this rule."
+    },
+    {
       "taskKey": "u:524ad7de-c3ee-4c5f-8c92-a5fdbb4aa29b",
       "uuid": "524ad7de-c3ee-4c5f-8c92-a5fdbb4aa29b",
       "docNo": "A.2.9.1.1.1.2.2.1",
@@ -39981,6 +40049,35 @@
       "enforcementReasoning": "As a Risk Capital allocation rule, violation triggers the Penalty Mechanisms (b8ee2d12) and can escalate to Conservatorship (5c3dd35a), providing a named enforcer, defined escalation, and concrete remedies."
     },
     {
+      "taskKey": "u:edbd7845-ac1e-4a48-a725-89632e225849",
+      "uuid": "edbd7845-ac1e-4a48-a725-89632e225849",
+      "docNo": "A.3.2.2.1.1.1.1.3.10",
+      "title": "Galaxy Warehouse",
+      "domains": [
+        "alloc"
+      ],
+      "anchored": true,
+      "stub": false,
+      "hasMetrics": true,
+      "description": "Sets a 2% Financial CRR and a 500,000,000 USD maximum exposure for Galaxy Warehouse.",
+      "quote": "The Instance Financial CRR for Galaxy Warehouse is 2%. The maximum exposure is 500,000,000 USD.",
+      "quoteHash": "c8ec3af3dace3bf0",
+      "model": "deepseek/deepseek-v4-pro",
+      "rubricVersion": "37ea5cbd052e",
+      "preciseness": 5,
+      "precisenessReasoning": "The rule states two fully quantified, objectively verifiable thresholds: a 2% Financial CRR and a maximum exposure of 500,000,000 USD. A third party could check compliance from the text alone.",
+      "metrics": [
+        "2%",
+        "500,000,000 USD"
+      ],
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
+        "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
+      ],
+      "enforcementReasoning": "As a Risk Capital requirement under A.3.2.2, breach triggers the Penalty Mechanisms (b8ee2d12) and escalates to conservatorship (5c3dd35a), providing a defined enforcement path with concrete remedies."
+    },
+    {
       "taskKey": "u:e96da090-34ff-4445-a1d3-22cc69be2e51",
       "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
       "docNo": "A.3.2.2.1.1.1.1.4",
@@ -40002,6 +40099,34 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No obligation exists to enforce; the text is purely informational. No enforcement mechanism applies."
+    },
+    {
+      "taskKey": "u:6a103b6f-53ef-4666-870c-92cfbff6d099",
+      "uuid": "6a103b6f-53ef-4666-870c-92cfbff6d099",
+      "docNo": "A.3.2.2.1.1.1.1.4",
+      "title": "Unauthorized Exposures",
+      "domains": [
+        "alloc"
+      ],
+      "anchored": true,
+      "stub": false,
+      "hasMetrics": true,
+      "description": "Mandates a 100% Capital Ratio Requirement for any asset not included in approved pro-forma estimates.",
+      "quote": "An underlying asset of a lending market in which a Prime Agent has invested that was not included in the pro-forma Required Risk Capital estimate approved by the Core Council Risk Advisor, as specified in [A.2.2.10.1.1.2.3 - Instance Setup Deployments](3766cb8c-ab6c-41af-9465-b8dea76d0532), constitutes an Unauthorized Exposure. Because the risk of an Unauthorized Exposure has not been assessed, its Capital Ratio Requirement is 100%, applying at the exposure level the full-reservation principle specified in [A.3.2.1.1.3.2 - Inability To Calculate Types Of RRC](268af0e9-be3d-458e-9ccd-5a560abc7540). An Instance's Capital Ratio Requirement is the capital-weighted aggregate of its exposures' Capital Ratio Requirements, so an Instance with only a fraction of its capital in Unauthorized Exposures has a Capital Ratio Requirement below 100%.",
+      "quoteHash": "10f790ab4fe8f0da",
+      "model": "deepseek/deepseek-v4-pro",
+      "rubricVersion": "37ea5cbd052e",
+      "preciseness": 5,
+      "precisenessReasoning": "The rule defines Unauthorized Exposure precisely (asset not in approved pro-forma) and sets a numeric Capital Ratio Requirement of 100% for such exposures, with a clear aggregation formula. A third party can verify compliance from the text alone.",
+      "metrics": [
+        "Capital Ratio Requirement of 100% for Unauthorized Exposures"
+      ],
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
+        "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
+      ],
+      "enforcementReasoning": "Breach of the capital requirement triggers the Penalty Mechanisms (b8ee2d12) and can escalate to Conservatorship (5c3dd35a), providing a defined enforcement path with concrete remedies."
     },
     {
       "taskKey": "u:69fac7fa-6168-4b74-99cc-28b557826556",
@@ -46169,32 +46294,33 @@
       "docNo": "A.3.3.2.7.1.1.2",
       "title": "Lite Peg Stability Module Parameter Values",
       "domains": [
-        "peg"
+        "peg",
+        "alloc"
       ],
       "anchored": true,
       "stub": false,
       "hasMetrics": true,
-      "description": "Sets the specific parameter values for the Lite Peg Stability Module.",
-      "quote": "The current values of the Lite Peg Stability Module parameters are:\n\n- `tin`: 0%\n- `tout`: 0%\n- DC-IAM `line`: 10,000,000,000\n- DC-IAM `gap`: 400,000,000\n- DC-IAM `ttl`: 43,200 seconds\n- `buf`: 400,000,000\n- Authorized Parties: None",
-      "quoteHash": "26366e2ddd752378",
+      "description": "Defines specific parameter values for the Lite Peg Stability Module and DC-IAM mechanisms.",
+      "quote": "The current values of the Lite Peg Stability Module parameters are:\n\n- `tin`: 0%\n- `tout`: 0%\n- DC-IAM `line`: 10,000,000,000 DAI\n- DC-IAM `gap`: 800,000,000 DAI\n- DC-IAM `ttl`: 43,200 seconds\n- `buf`: 800,000,000 DAI\n- Authorized Parties: None",
+      "quoteHash": "9b108cce7dda26a5",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
       "preciseness": 5,
-      "precisenessReasoning": "The rule lists exact numeric values for all parameters (tin, tout, line, gap, ttl, buf) and a clear state for Authorized Parties. Every value is fully quantified and objectively verifiable.",
+      "precisenessReasoning": "The rule lists exact numeric parameter values (percentages, DAI amounts, seconds) and a defined actor state ('Authorized Parties: None'). All values are fully quantified and objectively verifiable from the text alone.",
       "metrics": [
         "tin: 0%",
         "tout: 0%",
-        "DC-IAM line: 10,000,000,000",
-        "DC-IAM gap: 400,000,000",
+        "DC-IAM line: 10,000,000,000 DAI",
+        "DC-IAM gap: 800,000,000 DAI",
         "DC-IAM ttl: 43,200 seconds",
-        "buf: 400,000,000",
+        "buf: 800,000,000 DAI",
         "Authorized Parties: None"
       ],
       "enforcement": "strong",
       "mechanismUuids": [
         "0082c12d-f1a7-46ff-a4aa-5fe42ece1a4d"
       ],
-      "enforcementReasoning": "The Lite PSM parameters are enforced on-chain by the Peg Stability Module contract (A.3.3.2.1.1). The fixed swap rates (tin/tout) and debt ceiling limits are automatically applied, making peg deviation arbitrageable and preventing unauthorized access; no human intervention is needed."
+      "enforcementReasoning": "The Lite PSM parameters are enforced on-chain by the Peg Stability Module contract; the fixed-rate swap mechanism and debt ceiling parameters are self-executing, making violation impossible without a governance change."
     },
     {
       "taskKey": "u:bf561ea8-ab09-4ff5-a84d-2e92bcff997b",
@@ -48015,23 +48141,26 @@
       "docNo": "A.3.7.1.2.1.3",
       "title": "ALLOCATOR-GROVE-A Parameters",
       "domains": [
-        "alloc",
-        "sc"
+        "alloc"
       ],
       "anchored": true,
       "stub": false,
-      "hasMetrics": false,
-      "description": "Defines vault parameters and establishes that specific limits will be set via future governance spells.",
-      "quote": "The parameters for the ALLOCATOR-GROVE-A Allocator Vault are:\n\n- `duty`: set by the SP-BEAM specified in [A.3.7.1.3 - Stability Parameter Bounded External Access Module](47b8b035-8abd-42e6-86b8-33f852fa953a).\n- `line`: controlled by DC-IAM\n- DC-IAM parameters:\n    - `gap`: will be specified in an upcoming spell\n    - `line`: will be specified in an upcoming spell\n    - `ttl`: will be specified in an upcoming spell",
-      "quoteHash": "24a57d370abf22af",
+      "hasMetrics": true,
+      "description": "Defines specific duty, line, gap, and ttl parameters for the ALLOCATOR-GROVE-A Allocator Vault.",
+      "quote": "The parameters for the ALLOCATOR-GROVE-A Allocator Vault are:\n\n- `duty`: set by the SP-BEAM specified in [A.3.7.1.3 - Stability Parameter Bounded External Access Module](47b8b035-8abd-42e6-86b8-33f852fa953a).\n- `line`: controlled by DC-IAM\n- DC-IAM parameters:\n    - `gap`: 1 million USDS\n    - `line`: 5 million USDS\n    - `ttl`: 24 hours",
+      "quoteHash": "e083f1209affc4c1",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule is a stub: all DC-IAM parameters (gap, line, ttl) are explicitly deferred to 'an upcoming spell', and no numeric thresholds, formulas, or verifiable conditions are provided. The only concrete elements are references to other documents (SP-BEAM, DC-IAM) without any operative values.",
-      "metrics": [],
+      "preciseness": 3,
+      "precisenessReasoning": "The rule provides exact numeric values for gap (1 million USDS), line (5 million USDS), and ttl (24 hours), but the duty parameter is delegated to an external module (SP-BEAM) without a stated value, leaving a key parameter unquantified.",
+      "metrics": [
+        "gap: 1 million USDS",
+        "line: 5 million USDS",
+        "ttl: 24 hours"
+      ],
       "enforcement": "weak",
       "mechanismUuids": [],
-      "enforcementReasoning": "No operative obligation exists to enforce; the rule merely states that parameters will be set in the future. No enforcement mechanism can apply to a placeholder."
+      "enforcementReasoning": "No enforcement mechanism UUID is cited in the rule text or found in the rubric's catalog that reaches this parameter specification; on-chain enforcement is plausible but cannot be linked to a citable mechanism, so the rating defaults to weak."
     },
     {
       "taskKey": "u:08321783-f31a-4a80-8f0c-898afb4d8f9b",
