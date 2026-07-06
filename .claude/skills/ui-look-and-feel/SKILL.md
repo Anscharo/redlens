@@ -71,8 +71,10 @@ token in index.css should also be registered there** so it's editable/audited.
 ## Conventions that bite (from CLAUDE.md + the code)
 
 - Semantic HTML; CSS hover over JS; home button is a plain `<a href="/">`.
-- Selected atlas node: red left bar (`box-shadow: inset 3px 0 0`), transparent
-  background, brighter text. **Never add a background to the selected node.**
+- Selected atlas node: red left bar (`box-shadow: inset 3px 0 0`), brighter
+  text, and a subtle muted-red `--bg` fill against the deep reader/sidebar
+  `--bg-deep`. (The old "never add a background to the selected node" rule was
+  reversed once the reader went deep — the soft `--bg` tint is now the marker.)
 - Scroll is `behavior: "instant"`; scroll targets need
   `scroll-margin-top: 64px` (`HEADER_OFFSET` in `src/lib/layout.ts` — the
   `.atlas-node` rule in index.css must stay in sync).

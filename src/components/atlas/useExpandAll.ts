@@ -3,7 +3,7 @@ import type { AtlasBundle } from "../../lib/docs";
 import type { LoadedData } from "../../lib/atlasHelpers";
 import { revealStore } from "../../lib/revealStore";
 
-function collectSubtree(byParent: AtlasBundle["byParent"], rootId: string): string[] {
+export function collectSubtree(byParent: AtlasBundle["byParent"], rootId: string): string[] {
   const ids = [rootId];
   for (let i = 0; i < ids.length; i++) {
     for (const child of byParent.get(ids[i]) ?? []) ids.push(child.id);

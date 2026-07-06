@@ -6,18 +6,30 @@
   - Each date is a `## YYYY-MM-DD` heading.
   - Each line under a date is one improvement: a single plain-language
     sentence, simpler in tone than a commit message.
+  - Keep each bullet a short, plain highlight of WHAT CHANGED. Don't be verbose
+    and don't add judgment / marketing language or a "so you can…" rationale
+    (avoid "calmer", "easier", "at a glance", "keep your place"). Just state the
+    change: "Lightened the reader text", not "Lightened the text for easier
+    reading".
   - Update this file in the same PR as the change it describes.
+  - Mirror the new bullets into that PR's description too — add a "Patch notes"
+    section listing them verbatim, alongside the fuller technical description
+    that's already there.
 
   Only the 10 most recent bullets across all dates are shown.
 -->
 
-## 2026-07-02
+## 2026-07-06
 - Added an OEA Task Assessment report — every task the Operational Executor Agent performs, rated weak/mid/strong for how precisely it's defined and whether it carries incentives or penalties, with AI-drafted per-task reasoning and links to the enforcement mechanisms
 - Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills
 - Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
 - Entity pages and constellations now show the duties the Atlas assigns to Facilitators and Executor Agents, using the same duty detection that powers the GovOps report
 - Made the GovOps Responsibilities report catch powers, not just chores — discretionary authority (conservatorship, parameter changes, multisig control) and duties written under the org names Atlas Axis and Soter Labs now appear, and mistaken "GovOps meeting" entries (which belong to the Governance Point) are gone
 - Duty rows in the GovOps report now show the exact Atlas sentence that assigns the duty
+- The selected section now stays pinned to the top of the reader while you scroll through its subsections
+- Improved the expand-all control for sections with large or hidden subsection hierarchies
+- Refreshed the reader's look and feel: unified surface, slimmer scrollbars, and a colored rail on selected sections
+- Added labels beside each search result showing which scope, agent (e.g. Skybase, Grove), or Instance Configuration Document a hit lives under, so you can place a result at a glance
 
 ## 2026-07-01
 - Added an Operational GovOps Responsibilities report — every Atlas section that mandates action from a GovOps actor, with per-executor assignments and the Active Data they maintain
