@@ -22,6 +22,7 @@
     "processes:apply-decisions": "node scripts/aux/processes-apply-decisions.mjs",
     "processes:bootstrap": "node scripts/aux/processes-bootstrap.mjs",
     "oea:assess": "bun scripts/aux/assess-oea.ts",
+    "risk:assess": "bun scripts/aux/assess-risk.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
     "build:vite": "vite build",

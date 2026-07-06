@@ -35,6 +35,12 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
       "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
   },
   {
+    id: "risk-rules",
+    title: "Risk Rules Assessment",
+    description:
+      "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for preciseness and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
+  },
+  {
     id: "stale-dates",
     title: "Stale Dates",
     description:

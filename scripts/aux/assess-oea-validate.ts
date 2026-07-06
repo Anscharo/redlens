@@ -3,6 +3,7 @@
 // string doubles as the corrective retry message.
 
 import { PRECISION_ELEMENTS, type Assessment } from "../../src/lib/oeaAssessment";
+import { stripFences, resolveUuid } from "./assess-common";
 
 export type ValidationResult =
   | { ok: true; value: Assessment }
@@ -12,32 +13,6 @@ export type ValidationResult =
 
 const RATINGS = new Set(["weak", "mid", "strong"]);
 const STATES = new Set(["present", "partial", "absent"]);
-
-export function stripFences(raw: string): string {
-  const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-  // Some models preface JSON with a sentence anyway — slice to the outermost braces.
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  return start !== -1 && end > start ? trimmed.slice(start, end + 1) : trimmed;
-}
-
-// Accepts full uuids and unambiguous prefixes (≥8 chars) — models often echo
-// the short form used in the rubric's calibration examples.
-export function resolveUuid(cited: string, docIds: Set<string>, byPrefix: Map<string, string | null>): string | null {
-  const c = cited.trim().toLowerCase();
-  if (docIds.has(c)) return c;
-  if (c.length >= 8) return byPrefix.get(c.slice(0, 8)) ?? null;
-  return null;
-}
-
-export function buildPrefixIndex(docIds: Set<string>): Map<string, string | null> {
-  const byPrefix = new Map<string, string | null>();
-  for (const id of docIds) {
-    const p = id.slice(0, 8);
-    byPrefix.set(p, byPrefix.has(p) ? null : id); // null = ambiguous
-  }
-  return byPrefix;
-}
 
 export function validateAssessment(
   raw: string,

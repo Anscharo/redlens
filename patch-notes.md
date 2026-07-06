@@ -11,6 +11,9 @@
   Only the 10 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-03
+- Added a Risk Rules Assessment report — every atlas paragraph that defines a peg-maintenance, allocation-risk, or smart-contract-security rule, scored 1–5 for how precisely it's defined and weak/mid/strong for penalties and incentives, with AI-drafted reasoning and links to the enforcement mechanisms
+
 ## 2026-07-02
 - Added an OEA Task Assessment report — every task the Operational Executor Agent performs, rated weak/mid/strong for how precisely it's defined and whether it carries incentives or penalties, with AI-drafted per-task reasoning and links to the enforcement mechanisms
 - Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills

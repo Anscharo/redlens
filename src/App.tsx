@@ -53,6 +53,9 @@ const StaleDatesReport = lazy(() =>
 const OeaAssessmentReport = lazy(() =>
   lazyRetry(() => import("./components/reports/OeaAssessmentReport")).then((m) => ({ default: m.OeaAssessmentReport })),
 );
+const RiskRulesReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/RiskRulesReport")).then((m) => ({ default: m.RiskRulesReport })),
+);
 const ReportsIndex = lazy(() =>
   lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
 );
@@ -287,6 +290,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
               <Suspense fallback={<Loading />}>
                 <OeaAssessmentReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_RISK_RULES}>
+              <Suspense fallback={<Loading />}>
+                <RiskRulesReport />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>
