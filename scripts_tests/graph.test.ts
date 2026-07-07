@@ -435,6 +435,23 @@ describe("Pattern 6-bis — process-step Responsible Party", () => {
   });
 });
 
+describe("duty_for — no double-counted core org from a bare+Core pair", () => {
+  it("never emits two duty_for edges from the same doc to the same entity (bare+Core collapse, A.1.6.6)", () => {
+    // findRoleDuties collapses a bare/universal duty + a same-doc Core-only
+    // duty to a single bare result (see graph-duties.mjs) so resolveDutyEntities
+    // doesn't fan the core org out twice for one doc. Mirrors the Pattern
+    // 6-bis process_step_responsible_party_for no-dup check above.
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+    for (const e of edgesOfType("duty_for")) {
+      const key = `${e.from_id}:${e.to_id}`;
+      if (seen.has(key)) dupes.push(key);
+      seen.add(key);
+    }
+    expect(dupes).toEqual([]);
+  });
+});
+
 describe("Pattern 7 — ERG membership", () => {
   // UUID e9807449 = A.1.8.1.2.2.0.6.1 (ERG Active Data doc)
   const ERG_UUID = "e9807449-fdc3-4860-8d53-c56181311618";

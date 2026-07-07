@@ -1,10 +1,10 @@
 // Synthetic-fixture tests for the risk-rule pre-filter. Real-artifact floors
 // live in riskRules.artifact.test.ts.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { AtlasNode } from "../types";
 import type { AtlasBundle } from "./docs";
-import { enumerateRiskCandidates } from "./riskRules";
+import { enumerateRiskCandidates, riskDocContentHash } from "./riskRules";
 
 // A.3.1 Core Stability Parameters — a real anchor uuid (the anchor table is
 // uuid-keyed, so the fixture reuses it).
@@ -100,5 +100,52 @@ describe("enumerateRiskCandidates", () => {
     const { candidates } = enumerateRiskCandidates(bundle([a, b]));
     expect(candidates.map((r) => r.docNo)).toEqual(["A.3.1.2", "A.3.1.10"]);
     expect(new Set(candidates.map((r) => r.taskKey)).size).toBe(candidates.length);
+  });
+});
+
+describe("KNOWN_NON_RULE exclusion — quoteHash staleness guard (FIX 4)", () => {
+  const NONRULE_UUID = "11111111-1111-1111-1111-111111111111";
+  const originalContent = `The documents herein define the peg maintenance rules for this Ecosystem Actor. ${PAD}`;
+  const editedContent = `The peg maintenance rules require at least 5% collateralization at all times. ${PAD}`;
+
+  it("still unconditionally excludes an entry with no recorded quoteHash (pre-backfill fallback)", async () => {
+    vi.resetModules();
+    vi.doMock("./data/risk-non-rule-docs.json", () => ({
+      default: [{ uuid: NONRULE_UUID, docNo: "A.2.9.3", reason: "test fixture, no hash yet" }],
+    }));
+    const { enumerateRiskCandidates: enumerateFresh } = await import("./riskRules");
+    const doc = node(NONRULE_UUID, "A.2.9.3", "Peg Rules", editedContent);
+    const { candidates } = enumerateFresh(bundle([doc]));
+    expect(candidates.find((r) => r.uuid === NONRULE_UUID)).toBeUndefined();
+    vi.doUnmock("./data/risk-non-rule-docs.json");
+    vi.resetModules();
+  });
+
+  it("excludes while the content still matches the curated quoteHash", async () => {
+    vi.resetModules();
+    const quoteHash = riskDocContentHash(originalContent.trim());
+    vi.doMock("./data/risk-non-rule-docs.json", () => ({
+      default: [{ uuid: NONRULE_UUID, docNo: "A.2.9.3", reason: "test fixture", quoteHash }],
+    }));
+    const { enumerateRiskCandidates: enumerateFresh } = await import("./riskRules");
+    const doc = node(NONRULE_UUID, "A.2.9.3", "Peg Rules", originalContent);
+    const { candidates } = enumerateFresh(bundle([doc]));
+    expect(candidates.find((r) => r.uuid === NONRULE_UUID)).toBeUndefined();
+    vi.doUnmock("./data/risk-non-rule-docs.json");
+    vi.resetModules();
+  });
+
+  it("lets the exclusion lapse once the doc's content changes — falls through to candidacy", async () => {
+    vi.resetModules();
+    const staleHash = riskDocContentHash(originalContent.trim());
+    vi.doMock("./data/risk-non-rule-docs.json", () => ({
+      default: [{ uuid: NONRULE_UUID, docNo: "A.2.9.3", reason: "test fixture", quoteHash: staleHash }],
+    }));
+    const { enumerateRiskCandidates: enumerateFresh } = await import("./riskRules");
+    const doc = node(NONRULE_UUID, "A.2.9.3", "Peg Rules", editedContent);
+    const { candidates } = enumerateFresh(bundle([doc]));
+    expect(candidates.find((r) => r.uuid === NONRULE_UUID)).toBeDefined();
+    vi.doUnmock("./data/risk-non-rule-docs.json");
+    vi.resetModules();
   });
 });

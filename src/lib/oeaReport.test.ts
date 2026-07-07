@@ -1,10 +1,12 @@
 // joinAssessments staleness semantics (rubric §Process: never silently reuse a
-// rating once the assessed text changes).
+// rating once the assessed text changes). Ported from the now-deleted
+// oeaAssessmentIndex.test.ts — oeaAssessmentIndex.ts was a dead re-export
+// shim with no production importers (see FIX 5).
 
 import { describe, it, expect } from "vitest";
 import type { OeaTask } from "./oeaTasks";
 import type { OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAssessment";
-import { joinAssessments, summarize } from "./oeaAssessmentIndex";
+import { joinAssessments, summarize } from "./oeaReport";
 
 const task = (taskKey: string, assessedText: string): OeaTask => ({
   taskKey, uuid: "u1", docNo: "A.1", title: "T", assessedText,

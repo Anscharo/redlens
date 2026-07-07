@@ -11,6 +11,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   buildChains,
   rolePills,
+  holderExecutorSlugs,
   filterEqual,
   stripExecutorPrefix,
   type ActiveFilter,
@@ -65,6 +66,14 @@ export function OFReport() {
 
   const allAgents = useMemo(() => [...chains.keys()], [chains]);
 
+  // Holder name → executor slugs, straight from the fac edges. Duty/active-data/
+  // process-step rows carry a `facilitator` holder but no `executor` and (Core
+  // side) no prime chain — this lets the executor filter still match them.
+  const holderExec = useMemo(
+    () => (graphData ? holderExecutorSlugs(graphData, FAC_EDGES) : new Map<string, Set<string>>()),
+    [graphData],
+  );
+
   const toggle = (next: ActiveFilter) => {
     const cleared = filterEqual(filter, next);
     track("report_filter", {
@@ -101,7 +110,8 @@ export function OFReport() {
         agents.some((a) => {
           const n = chains.get(a)?.executorName;
           return n != null && toAnchorId(n) === filter.slug;
-        })
+        }) ||
+        rowFacs(r).some((f) => holderExec.get(f)?.has(filter.slug) === true)
       );
     // facilitator
     return (

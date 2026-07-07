@@ -393,6 +393,17 @@ export function findRoleDuties(role, title, content, orgs = []) {
       }
     }
   }
+  // A bare/universal duty already binds every holder (resolveDutyEntities fans it
+  // to [...opIds, coreId]). If the same doc also yielded a Core/Op-specific
+  // declaration, that specific edge re-binds a holder the universal one already
+  // covers — double-counting the core org (bare+Core, A.1.6.6). Bare subsumes the
+  // specific labels. Only applies where bareLabel is a distinct key (Facilitator/
+  // Executor); GovOps's bareLabel === op.label so they already share a bucket and
+  // the intended Core+Op combo is preserved.
+  const bareDistinct = role.bareLabel !== role.op.label && role.bareLabel !== role.core.label;
+  if (bareDistinct && byDeclared.has(role.bareLabel) && byDeclared.size > 1) {
+    return [byDeclared.get(role.bareLabel)];
+  }
   if (byDeclared.size) return [...byDeclared.values()];
   if (role.titleScan && m.title.test(role.normalize(title ?? ""))) {
     const firstPara = text.split(/\n\n/)[0];

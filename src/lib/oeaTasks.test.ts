@@ -76,6 +76,13 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "adc-core-gov", tt: "doc", e: "responsible_party_for", s: ["A.1.9.1.2.2"], m: JSON.stringify({ role_declared: "Core GovOps", resolution: "direct" }) },
   { f: "endgame", ft: "entity", t: "adc-core-fac", tt: "doc", e: "responsible_party_for", s: ["A.1.6.1.5"], m: JSON.stringify({ role_declared: "Core Facilitator", resolution: "direct" }) },
   { f: "soter", ft: "entity", t: "step-auto", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.7.7"], m: JSON.stringify({ role_declared: "Operational GovOps [automated]", resolution: "chain" }) },
+  // exec-copy-2 (higher doc_no, arrives first) is [automated]; exec-copy-1
+  // (lower doc_no, arrives second and becomes the representative via the
+  // doc_no swap) is NOT — the merged row must report exec-copy-1's own
+  // automated status, not exec-copy-2's first-seen value. Declared Core-side
+  // so this edge marks automatedDocs without also spawning its own
+  // process-step row in the (unrelated) op-duty/universal task list.
+  { f: "soter", ft: "entity", t: "exec-copy-2", tt: "doc", e: "process_step_responsible_party_for", s: ["A.6.1.1.2.4.1"], m: JSON.stringify({ role_declared: "Core GovOps [automated]", resolution: "chain" }) },
 ];
 
 const graph: GraphData = { participants, instances: [], invocations: [], primitives: [], edges };
@@ -110,6 +117,17 @@ describe("enumerateOeaTasks", () => {
     expect(rows[0].uuid).toBe("exec-copy-1");
     expect(rows[0].agents).toEqual(["Spark"]);
     expect(rows[0].quoted).toBe(false); // title-only match rates the snippet
+  });
+
+  it("recomputes `automated` for the swapped-in representative, not the first-seen copy (FIX 3)", () => {
+    // exec-copy-2 (automated) arrives first and seeds automated=true;
+    // exec-copy-1 (lower doc_no, NOT automated) becomes the representative
+    // on the doc_no swap — the merged row must reflect exec-copy-1's own
+    // automated status (false), not the stale first-seen value.
+    const rows = tasks.filter((t) => t.title === "Weekly Settlement");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].uuid).toBe("exec-copy-1");
+    expect(rows[0].automated).toBeFalsy();
   });
 
   it("carries active-data, [automated] process-steps, and operational assignments only", () => {

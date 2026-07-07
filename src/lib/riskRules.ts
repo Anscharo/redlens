@@ -76,11 +76,38 @@ const CONTAINER_RE = /^(the (sub)?documents (herein|below)|this (article|section
 // across the corpus — real quantified rules routinely cite another doc for one
 // supporting detail. Kept as an explicit, audited UUID list instead (see
 // ./data/risk-non-rule-docs.json for the doc_no + reason behind each entry).
-const KNOWN_NON_RULE_UUIDS = new Set(riskNonRuleDocs.map((d) => d.uuid));
+//
+// Unlike the `!stub`-guarded CONTAINER_RE check just below, this UUID
+// exclusion had no staleness guard: once curated, a doc dropped forever
+// regardless of later content edits. Entries now carry an optional
+// `quoteHash` (see riskDocContentHash below) recorded at curation time; the
+// exclusion only applies while the doc's current content still hashes to
+// that value. An entry with NO quoteHash (not yet backfilled) falls back to
+// the old unconditional-exclude behavior, so this is non-breaking pre-backfill
+// — see scripts/aux/backfill-risk-non-rule-hashes.mjs.
+const nonRuleByUuid = new Map(riskNonRuleDocs.map((d) => [d.uuid, d as { uuid: string; docNo: string; reason: string; quoteHash?: string }]));
+
+// A tiny, dependency-free, synchronous hash (FNV-1a). enumerateRiskCandidates
+// runs both in the browser (RiskRulesReport.tsx) and under bun (assess-risk.ts),
+// so it can't use node:crypto (node-only) or crypto.subtle (async-only) like
+// the assessment-cache quoteHash in riskAssessment.ts does. This only needs to
+// be internally consistent with itself (curation time vs. check time), not
+// match that other artifact's hash format.
+export function riskDocContentHash(content: string): string {
+  const s = normalizeAssessedText(content);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
 const STUB_RE = /(further (populated|developed|defined|specified)|be (populated|developed|defined|specified)( further)?) (in|during) (a |the )?(future|later|subsequent) iteration/i;
 const METRICS_RE = /\d+(\.\d+)?\s*%|\bbps\b|basis points|\b\d+\s(hours?|days?|weeks?|months?|years?)\b|\$\s?\d|\b\d{1,3}(,\d{3})+\b|\b\d+(\.\d+)?\s?(million|billion)\b/i;
 
+// fragile: doc_no prefix
 const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+// fragile: doc_no prefix
 const AGENT_ROOT_RE = /^A\.6\.1\.1\.\d+$/;
 
 const DOMAIN_ORDER: RiskDomain[] = ["peg", "alloc", "sc"];
@@ -133,7 +160,11 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
     const stub = STUB_RE.test(quote);
     if (EXCLUDED_TYPES.has(node.type)) { drop(`type:${node.type}`); continue; }
     if (quote.length < 40) { drop("empty"); continue; }
-    if (KNOWN_NON_RULE_UUIDS.has(node.id)) { drop("container"); continue; }
+    const nonRule = nonRuleByUuid.get(node.id);
+    if (nonRule && (nonRule.quoteHash == null || nonRule.quoteHash === riskDocContentHash(quote))) {
+      drop("container");
+      continue;
+    }
     if (!stub && quote.length < 180 && CONTAINER_RE.test(quote)) { drop("container"); continue; }
     rows.push({
       taskKey: `u:${node.id}`,
