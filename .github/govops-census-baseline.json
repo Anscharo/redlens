@@ -76,6 +76,11 @@
       "title": "Full Launch Of Executor Agents"
     },
     {
+      "uuid": "12286b6c-0231-40e3-ab3f-234bc0249216",
+      "doc_no": "A.1.15.1.2",
+      "title": "Governance Security & Ecosystem Actor Embedding"
+    },
+    {
       "uuid": "df31f503-1238-4380-9a0e-25e2ef7c81d0",
       "doc_no": "A.2.1.1.2.0.3.2",
       "title": "Properly Notified - Element Annotation"
@@ -99,11 +104,6 @@
       "uuid": "44028423-2cd1-40cb-89ac-3f762b602b90",
       "doc_no": "A.2.2.6.3",
       "title": "Light Agent Primitive"
-    },
-    {
-      "uuid": "87fd6861-ba8a-4bde-945e-ee9ad37ae3e2",
-      "doc_no": "A.2.2.9.1.2.1.1.2.1",
-      "title": "Ethereum Mainnet General Tracking Methodology"
     },
     {
       "uuid": "ccb71126-1333-453c-aaeb-4359a8013f32",
@@ -141,19 +141,9 @@
       "title": "Required Allocation Instance Parameters"
     },
     {
-      "uuid": "b16cb8a3-aea3-4fda-b904-eb782ea7a8e1",
-      "doc_no": "A.2.2.11.1.4.2.1",
-      "title": "Tracking Via Reward Codes"
-    },
-    {
       "uuid": "5aeba17d-3869-447d-adcd-8c55f41afc01",
       "doc_no": "A.2.3.1.2.2.2.1.3",
       "title": "Core Council Buffer Multisig Signers"
-    },
-    {
-      "uuid": "05fa5c41-26ca-4c25-94dd-834ef72c318a",
-      "doc_no": "A.2.3.1.2.2.2.2",
-      "title": "Aligned Delegates Buffer"
     },
     {
       "uuid": "f0652394-ec87-4b08-abed-e15fd0799ab1",
@@ -164,6 +154,11 @@
       "uuid": "7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
       "doc_no": "A.2.4.1.1",
       "title": "Operational Processes"
+    },
+    {
+      "uuid": "0d561ea6-8689-459c-85eb-7c861553e116",
+      "doc_no": "A.2.4.1.2.1.4",
+      "title": "Settlement Through Sky Core Executive Vote"
     },
     {
       "uuid": "146d3d9c-7f8a-4dc4-b6b3-349bab4279bb",
@@ -241,11 +236,6 @@
       "title": "Operator Multisig Signers"
     },
     {
-      "uuid": "bddf50ca-02ef-4991-abb0-53e09831ee6f",
-      "doc_no": "A.4.4.1.3.8.4.2",
-      "title": "Operator Hot Wallet"
-    },
-    {
       "uuid": "7deff9e4-fa77-4f35-aac6-c73b3d014091",
       "doc_no": "A.6.1.1.1.2.2.1.2.1.1.1",
       "title": "Operational Executor Agent"
@@ -259,26 +249,6 @@
       "uuid": "1563f1ee-0097-4bb3-a03a-01162d00788b",
       "doc_no": "A.6.1.1.1.2.6.1.2.1.2.2.2.3",
       "title": "Signers"
-    },
-    {
-      "uuid": "3e8ed24b-da4a-4c3f-9a74-c3dd6a557abf",
-      "doc_no": "A.6.1.1.1.3.9.7.2.1",
-      "title": "Spark USDS Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "uuid": "603cf96e-5819-4e3d-942e-5290dd000847",
-      "doc_no": "A.6.1.1.1.3.9.7.2.2",
-      "title": "Spark Blue Chip USDC Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "uuid": "5ef1e78f-e1d2-4b09-b00c-618e36ccb2d8",
-      "doc_no": "A.6.1.1.1.3.9.7.2.3",
-      "title": "Spark Blue Chip USDT Morpho Vault - Ethereum Mainnet"
-    },
-    {
-      "uuid": "85722a93-ec30-4e7f-883c-adde12b0ac6b",
-      "doc_no": "A.6.1.1.1.3.9.7.2.4",
-      "title": "Spark USDC Morpho Vault - Base"
     },
     {
       "uuid": "cae67502-6f93-462f-82b6-0a6462e71e1c",
@@ -331,11 +301,6 @@
       "title": "Signers"
     },
     {
-      "uuid": "41ad175e-48c8-4caf-8cb7-638f90ff0ad6",
-      "doc_no": "A.6.1.1.3.3.2",
-      "title": "Use Of Idle Funds"
-    },
-    {
       "uuid": "82200234-6b7c-4299-a552-66ceac3be5e6",
       "doc_no": "A.6.1.1.4.2.2.1.2.1.1.1",
       "title": "Operational Executor Agent"
@@ -344,11 +309,6 @@
       "uuid": "76b51e97-ff82-4f52-8c24-7b75d629bb4a",
       "doc_no": "A.6.1.1.4.2.2.2.2.1.2.1.3",
       "title": "Root Edit Proposal Review By Operational Facilitator"
-    },
-    {
-      "uuid": "20ee784c-115a-40bb-ae74-d4b3726b0c1b",
-      "doc_no": "A.6.1.1.4.3.4.2",
-      "title": "USDS Demand Subsidies Multisig"
     },
     {
       "uuid": "dbb22ec2-97fc-47c1-85d3-9b1cc94d3ce0",

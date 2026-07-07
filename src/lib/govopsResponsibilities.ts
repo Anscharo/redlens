@@ -193,6 +193,7 @@ export function deriveGovOpsResponsibilities(
       duty: dutySnippet(n.content),
       category: "active-data",
       govops: entityById.get(e.f)?.name ?? declared,
+      role: CORE_ROLE_RE.test(declared) ? "Core" : "Operational",
       agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
     seenDocIds.add(n.id);

@@ -115,7 +115,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   // 1. Operational GovOps slice.
   for (const r of deriveGovOpsResponsibilities(bundle, graph)) {
     if (r.category === "op-duty") add(r, "op-duty", "govops");
-    else if (r.category === "active-data") add(r, "active-data", "govops");
+    else if (r.category === "active-data" && r.role === "Operational") add(r, "active-data", "govops");
     else if (r.category === "process-step" && r.role === "Operational") add(r, "process-step", "govops");
     else if (r.category === "assignment" && r.role === "Operational") add(r, "assignment", "govops");
   }
@@ -124,7 +124,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   //    they bind the operational ones too).
   for (const r of deriveFacilitatorResponsibilities(bundle, graph)) {
     if (r.category === "op-duty" || r.category === "universal") add(r, r.category, "facilitator");
-    else if (r.category === "active-data") add(r, "active-data", "facilitator");
+    else if (r.category === "active-data" && r.role === "Operational") add(r, "active-data", "facilitator");
     else if (r.category === "process-step" && r.role === "Operational") add(r, "process-step", "facilitator");
     else if (r.category === "assignment" && r.role === "Operational") add(r, "assignment", "facilitator");
   }

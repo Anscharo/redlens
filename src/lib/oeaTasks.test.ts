@@ -31,6 +31,10 @@ for (const n of [
   node({ id: "exec-copy-1", doc_no: "A.6.1.1.1.4.1", title: "Weekly Settlement", content: "The Operational Executor Agent settles weekly." }),
   // Active data + process-step (one [automated]) + assignments.
   node({ id: "adc-doc", doc_no: "A.6.1.1.1.3.9.1", type: "Active Data Controller", title: "Delegate Roster", content: "The Responsible Party is the Operational GovOps." }),
+  // Active data whose RP is declared Core-side — must be EXCLUDED from the
+  // OEA universe (the OEA never holds this task, only the Core role does).
+  node({ id: "adc-core-gov", doc_no: "A.1.9.1.2.2", type: "Active Data Controller", title: "Emergency Contact List", content: "The Responsible Party is the Core GovOps." }),
+  node({ id: "adc-core-fac", doc_no: "A.1.6.1.5", type: "Active Data Controller", title: "Escalation Contact", content: "The Responsible Party is the Core Facilitator." }),
   node({ id: "step-auto", doc_no: "A.2.2.9.7.7", title: "Roster Update", content: "The Document is updated as follows:\n\n- Responsible Party: Operational GovOps [automated]" }),
   node({ id: "assign-op", doc_no: "A.6.1.2.1.3", title: "GovOps", content: "The Operational GovOps for Operational Executor Agent Amatsu is Soter Labs." }),
   node({ id: "assign-core", doc_no: "A.6.2.2.1.3", title: "GovOps", content: "The Core Council GovOps is Atlas Axis." }),
@@ -68,6 +72,8 @@ const edges: RelationEdge[] = [
   { f: "exec", ft: "entity", t: "exec-copy-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.4.1"], m: dutyMeta("Operational Executor Agent", null) },
   { f: "exec", ft: "entity", t: "exec-copy-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.4.1"], m: dutyMeta("Operational Executor Agent", null) },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.6.1.1.1.3.9.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
+  { f: "soter", ft: "entity", t: "adc-core-gov", tt: "doc", e: "responsible_party_for", s: ["A.1.9.1.2.2"], m: JSON.stringify({ role_declared: "Core GovOps", resolution: "direct" }) },
+  { f: "endgame", ft: "entity", t: "adc-core-fac", tt: "doc", e: "responsible_party_for", s: ["A.1.6.1.5"], m: JSON.stringify({ role_declared: "Core Facilitator", resolution: "direct" }) },
   { f: "soter", ft: "entity", t: "step-auto", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.7.7"], m: JSON.stringify({ role_declared: "Operational GovOps [automated]", resolution: "chain" }) },
 ];
 
@@ -112,6 +118,11 @@ describe("enumerateOeaTasks", () => {
     expect(step?.automated).toBe(true);
     expect(byUuid("assign-op")[0]?.category).toBe("assignment");
     expect(byUuid("assign-core")).toEqual([]); // Core-role assignment excluded
+  });
+
+  it("excludes active-data rows whose Responsible Party is declared Core", () => {
+    expect(byUuid("adc-core-gov")).toEqual([]);
+    expect(byUuid("adc-core-fac")).toEqual([]);
   });
 
   it("marks quote-backed tasks quoted and sorts by doc_no", () => {

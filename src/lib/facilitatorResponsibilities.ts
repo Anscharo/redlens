@@ -168,6 +168,7 @@ export function deriveFacilitatorResponsibilities(
       duty: dutySnippet(n.content),
       category: "active-data",
       facilitator: entityById.get(e.f)?.name ?? declared,
+      role: CORE_FAC_RE.test(declared) ? "Core" : "Operational",
       agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
     seenDocIds.add(n.id);

@@ -51,6 +51,11 @@ describe("findGovOpsDuty — active voice", () => {
     expect(find("The values agreed with GovOps must be added to the Executive Sheet.")).toBeNull();
   });
 
+  it("blocks a negated modal power ('will have no … authority')", () => {
+    // A.1.15.1.2 (12286b6c): Atlas Axis is denied authority, not granted it.
+    expect(find("Atlas Axis will have no decision-making authority in the Executive Vote workstreams.")).toBeNull();
+  });
+
   it("normalizes the spaceless 'CoreGovOps' spelling", () => {
     // A.2.2.1.1.13: "CoreGovOps reviews the inputs…"
     expect(find("CoreGovOps reviews the inputs to the Executor Accord Primitive."))
@@ -88,6 +93,15 @@ describe("findGovOpsDuty — guards against misattribution", () => {
     ).toBeNull();
   });
 
+  it("rejects a comma-less new subject introduced via 'then the <Actor>'", () => {
+    // A.2.4.1.2.1.4 (0d561ea6): the Core Facilitator's obligation, not GovOps's.
+    expect(
+      find(
+        "When Core GovOps has posted the Final Calculation then the Core Facilitator must include payments of these amounts in the next Sky Core Executive Vote as specified herein.",
+      ),
+    ).toBeNull();
+  });
+
   it("keeps a joint-subject list ('GovOps, the Core Facilitator, and the ADs must…')", () => {
     // A.1.3.2.2: joint review obligation.
     expect(
@@ -113,6 +127,19 @@ describe("findGovOpsDuty — passive voice", () => {
     expect(find("The Executive Process Liaison role is currently held by Core GovOps.")).toMatchObject({ match: "passive" });
     // A.4.4.1.3.8.3
     expect(find("All stUSDS BEAM parameters can be modified by Core GovOps.")).toMatchObject({ match: "passive" });
+  });
+
+  it("matches the 'processed'/'assigned' passives", () => {
+    // A.2.2.9.1.2.1.1.2.1
+    expect(
+      find(
+        "This on-chain deposit data is then combined with withdrawal data, which is further processed by Operational GovOps to estimate net deposits associated with the Reward Code.",
+      ),
+    ).toMatchObject({ role_declared: "Operational GovOps", match: "passive" });
+    // A.2.2.11.1.4.2.1
+    expect(
+      find("Each eligible Integrator is assigned a unique Reward Code by Operational GovOps for the Prime Agent managing the relationship with the Integrator."),
+    ).toMatchObject({ role_declared: "Operational GovOps", match: "passive" });
   });
 });
 
@@ -140,6 +167,51 @@ describe("findGovOpsDuty — power phrases", () => {
     expect(find("The Operator Multisig is controlled by Core GovOps.")).toMatchObject({ match: "phrase" });
     // A.3.7.1.3.5.1.3 — a custody roster, not the control declaration.
     expect(find("The signers of the Operator Multisig are three (3) addresses controlled by Core GovOps.")).toBeNull();
+  });
+
+  it("matches 'controlled by' past an intervening indefinite NP", () => {
+    // A.2.3.1.2.2.2.2 (05fa5c41): "is a multisig controlled by" — the copula
+    // and "controlled by" aren't adjacent, unlike the plain roster shape.
+    expect(find("The Aligned Delegates Buffer is a multisig controlled by the Core Facilitator and Core GovOps to transfer funds to Aligned Delegates."))
+      .toMatchObject({ role_declared: "Core GovOps", match: "phrase" });
+  });
+
+  it("matches 'controlled by' past a coordinated or roster-fronted subject", () => {
+    // A.6.1.1.4.3.4.2 (20ee784c): "two (2) signers from Operational GovOps …"
+    expect(find("The USDS Demand Subsidies Multisig is controlled by two (2) signers from Operational GovOps Soter Labs and one (1) signer from Skybase Foundation."))
+      .toMatchObject({ role_declared: "Operational GovOps", match: "phrase" });
+  });
+
+  it("matches nominalized power idioms ('subject to the approval of' / 'under the supervision of')", () => {
+    // A.6.1.1.3.3.2 (41ad175e)
+    expect(find("These deployments will be subject to the approval of Operational GovOps."))
+      .toMatchObject({ role_declared: "Operational GovOps", match: "phrase" });
+    // A.4.4.1.3.8.4.2 (bddf50ca)
+    expect(
+      find(
+        "The wallet is controlled by Ecosystem Actor TechOps Services under the supervision of Core GovOps in consultation with the Core Council Risk Advisor.",
+      ),
+    ).toMatchObject({ role_declared: "Core GovOps", match: "phrase" });
+  });
+
+  it("matches an org-name colon-field role grant ('Curator: Soter Labs')", () => {
+    // A.6.1.1.1.3.9.7.2.1 — Delegated Risk Curation instance details.
+    const d = find("- Curator: Soter Labs, implemented via a Gnosis Safe multisig at `0x0f963A8A8c01042B69054e787E5763ABbB0646A3`, requiring a 3 of 5 signer approval threshold");
+    expect(d).toMatchObject({ role_declared: "Operational GovOps", match: "org", orgName: "Soter Labs" });
+  });
+});
+
+describe("quoteAt truncation window", () => {
+  it("windows the quote around the match instead of truncating from line start", () => {
+    // A.1.5.8 shape: an un-wrapped paragraph over 240 chars whose GovOps
+    // mention sits near the end — truncating from the start would drop it.
+    const filler =
+      "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation. ";
+    const content = `${filler}Formal allegations of such failure must be adjudicated by Core GovOps pursuant to the Adjudication Process.`;
+    const d = find(content);
+    expect(d?.match).toBe("passive");
+    expect(d?.quote).toContain("adjudicated by Core GovOps");
+    expect(d?.quote.startsWith("…")).toBe(true);
   });
 });
 

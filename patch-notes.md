@@ -24,6 +24,8 @@
 - Added an OEA Task Assessment report — every task the Operational Executor Agent performs, rated weak/mid/strong for how precisely it's defined and whether it carries incentives or penalties, with AI-drafted per-task reasoning and links to the enforcement mechanisms
 - Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills
 - Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
+- Fixed the GovOps and Facilitator responsibility reports missing duties written as an instance's "Curator:" field, a multisig "controlled by" clause with an extra noun or joint holders, or an "approval of" / "supervision of" phrase
+- Fixed the OEA Task Assessment report including Active Data tasks that actually belong to Core GovOps or the Core Facilitator, not the Operational Executor Agent
 
 ## 2026-07-06
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections
