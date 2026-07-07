@@ -88,14 +88,6 @@ playwright/.cache/
 .cache/spotcheck-remaining/
 .cache/residual-closeout.md
 .cache/residual-signal-candidates.md
-.cache/signal-embedding-sim.json
-.cache/signal-embedding-vectors.json
-.cache/signal-positional-graph.json
-.cache/signal-rename-mining.json
-.cache/signal-sibling-count.json
-.cache/signal-type-priors.json
-.cache/cluster-assign-proto.json
-.cache/cluster-assign-sample.txt
 .cache/curation-hard-gold.json
 .cache/curation-hard-set.md
 
