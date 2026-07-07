@@ -1319,11 +1319,9 @@
       "taskKey": "u:0f33f443-14d5-48b0-a20d-e35a44230cdc",
       "quoteHash": "f7468e567f0a27e3",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Authorizes a USDS grant via a Skybase Spell and specific multisig address following a Sky Executive Vote."
     },
     {
@@ -1871,11 +1869,9 @@
       "taskKey": "u:15a1cb2b-6311-410c-a401-4d70f6132fc9",
       "quoteHash": "89b234eae710e01f",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Mandates specific metadata and filename formatting for Core Facilitator executive documents during the governance process."
     },
     {
@@ -1971,11 +1967,9 @@
       "taskKey": "u:1760b35f-da5a-4504-a014-dd7a611b4c0e",
       "quoteHash": "2c2869ace96acae4",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Defines the accounting treatment for consolidating legacy funds into the Core Council or Demand Side Buffers."
     },
     {
@@ -2144,17 +2138,6 @@
         "sc"
       ],
       "description": "The MANAGER_ROLE adjusts swap sizes and oracle thresholds within bounds set by the MANAGER_ADMIN_ROLE."
-    },
-    {
-      "taskKey": "u:19222532-1ce1-4306-8129-ea95a982c247",
-      "quoteHash": "e594fafb4532ca02",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "Mandates the implementation of security culture processes and continuous research into security best practices."
     },
     {
       "taskKey": "u:193d8b40-bb67-4f22-b452-845e63481737",
@@ -2917,18 +2900,6 @@
       "description": "Requires operators to split large USDC swaps into smaller increments via PSM refills to respect limits."
     },
     {
-      "taskKey": "u:20dcf582-8862-48b3-9ca9-c3703871bd14",
-      "quoteHash": "b156c67a3efa9d63",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "peg",
-        "sc"
-      ],
-      "description": "Defines the protocol for handling emergency situations and references the governing Emergency Spells process."
-    },
-    {
       "taskKey": "u:20e8467f-561c-4020-bd26-e6c1601fb64d",
       "quoteHash": "17f79deabb2b26db",
       "model": "google/gemma-4-26b-a4b-it",
@@ -3246,17 +3217,6 @@
         "sc"
       ],
       "description": "Defines modification methods for the savings rate and mandates its gradual reduction to zero percent."
-    },
-    {
-      "taskKey": "u:2397551e-9704-435e-b815-0384429be224",
-      "quoteHash": "5f45a018ad801225",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Defines the calculation method for Ethena's Administrative Collateral Requirement Ratio."
     },
     {
       "taskKey": "u:23bb04f0-d312-4230-930d-27782b73b04f",
@@ -4113,12 +4073,9 @@
       "taskKey": "u:2f2c4f2b-ff7a-4cd1-b1bc-8f3f81fe129f",
       "quoteHash": "a671478bb2ff072f",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc",
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Specifies the distribution of USDS allocations to the Skybase SubProxy and USDS Demand Subsidies Multisig."
     },
     {
@@ -4862,12 +4819,9 @@
       "taskKey": "u:36556509-d2b6-4932-8781-9bf4ecc90987",
       "quoteHash": "0fbae46be05bd162",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc",
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Authorizes a direct Executive Vote to transfer 10,000,000 USDS from the Surplus Buffer to Skybase SubProxy."
     },
     {
@@ -7254,11 +7208,9 @@
       "taskKey": "u:51316a6c-fd6a-4507-b99d-731e80fc9f76",
       "quoteHash": "16346e129ed16884",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Defines the monthly SPK token reward formula for sUSDS supplies on the Aave V3 Main Market."
     },
     {
@@ -7837,17 +7789,6 @@
       "description": "Identifies the specific multisig address used by the Core Operator Relayer across multiple networks."
     },
     {
-      "taskKey": "u:56b1cc27-a9e3-4099-8f1f-648da7d1c56b",
-      "quoteHash": "e41362e7c490a662",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "Requires additional community-developed checks to be performed during the Spell validation process."
-    },
-    {
       "taskKey": "u:56e44cdc-1ba5-4254-9308-c4cfe189394a",
       "quoteHash": "e071c6b6265d2c4b",
       "model": "google/gemma-4-26b-a4b-it",
@@ -8018,11 +7959,9 @@
       "taskKey": "u:598ff9cf-146e-4499-93d3-583518c390a1",
       "quoteHash": "1624a981185541c4",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Mandates Alignment Conservers to use specific encryption, anonymity tools, and regular security audits for operational security."
     },
     {
@@ -10359,17 +10298,6 @@
         "alloc"
       ],
       "description": "Sets the maximum, minimum, step, and tau parameters for the WBTC-C Vault stability module."
-    },
-    {
-      "taskKey": "u:75473c4b-69ba-4e6b-bbf6-2c926732364c",
-      "quoteHash": "c3b3652832c21007",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Defines the initial settlement cycle scope and notes the pending implementation of the Senior Risk Capital System."
     },
     {
       "taskKey": "u:7552fd04-f619-4b13-ad86-50b00f6cdfc8",
@@ -13619,11 +13547,9 @@
       "taskKey": "u:9d418790-3081-43b4-a6f6-1c49ff5b4be8",
       "quoteHash": "1b060538da72ab59",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Defines the process and responsible party for updating communication channels and media assets via Direct Edit."
     },
     {
@@ -14019,17 +13945,6 @@
       "description": "Defines the week one process for finalizing Prime Spell content scope via forum and risk review."
     },
     {
-      "taskKey": "u:a1ff2a3d-7131-425c-80c5-a887a4259f12",
-      "quoteHash": "5e66978cffb1b886",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Defines the requirement to calculate Risk Weights according to specified documentation."
-    },
-    {
       "taskKey": "u:a228410a-353b-45dc-8f26-aae54ad8bf44",
       "quoteHash": "bd240fc04e3ef55e",
       "model": "google/gemma-4-26b-a4b-it",
@@ -14373,11 +14288,9 @@
       "taskKey": "u:a6bab26a-a334-4d44-a45a-cf848ed36480",
       "quoteHash": "63d2854e7d2f1b1c",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Requires the Governance Point to update the Spell progress tracker upon completion of each step."
     },
     {
@@ -15876,17 +15789,6 @@
       "description": "Requires expedited offboarding announcements to include specific reasoning and timing disclosures."
     },
     {
-      "taskKey": "u:b83be319-7f7e-4cf5-ad70-ac59302422e4",
-      "quoteHash": "17c8d763a4582614",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Defines the process for moving completed Junior Risk Capital Rental Invocations to the Active Instances subtree."
-    },
-    {
       "taskKey": "u:b84f4195-c79d-477f-9361-3a9687ff5934",
       "quoteHash": "6ff314d374dc0a47",
       "model": "google/gemma-4-26b-a4b-it",
@@ -16540,11 +16442,9 @@
       "taskKey": "u:c14521ea-e2fa-4853-a5af-64f4c96a526a",
       "quoteHash": "c945b9c1aadbc0aa",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Defines eligibility criteria for beneficiaries to access the Legal Resilience Fund via specific Ethereum address proofs."
     },
     {
@@ -17532,17 +17432,6 @@
         "alloc"
       ],
       "description": "Sets a fifty million dollar exposure limit for Hyperliquid perpetuals positions."
-    },
-    {
-      "taskKey": "u:ce3affe8-9e1f-4825-82bd-40c320a1c220",
-      "quoteHash": "947ad77690e6c1b3",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "peg"
-      ],
-      "description": "Defines the current value of the khump parameter within the Smart Burn Engine."
     },
     {
       "taskKey": "u:ce3f2e96-b643-4de7-bfb9-cb0aee678635",
@@ -19263,11 +19152,9 @@
       "taskKey": "u:e34b72db-973c-4cfd-8e8c-ff424c081805",
       "quoteHash": "e2090422ae5bae89",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Defines the mandatory naming format for Executive Sheets during scheduled and out-of-schedule governance votes."
     },
     {
@@ -21145,11 +21032,9 @@
       "taskKey": "u:f84a1cb6-7f77-4bd0-904f-8bf7b368d2d6",
       "quoteHash": "2132527a3965bd94",
       "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
+      "inScope": false,
+      "isRule": false,
+      "domains": [],
       "description": "Mandates manual quarterly virtual revenue share payments from the Sky Surplus Buffer based on Spark Protocol Dai borrowing."
     },
     {
@@ -21229,17 +21114,6 @@
         "peg"
       ],
       "description": "Sets the maximum USDS deposit amount and daily slope for the Peg Stability Module."
-    },
-    {
-      "taskKey": "u:f999239e-8676-4772-b201-2e00920b2bfb",
-      "quoteHash": "6434656cc88f066a",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Specifies the near-term risk capital treatment requirements for Ethena instances."
     },
     {
       "taskKey": "u:f9bf39ea-a02f-4eac-bd81-7c0b4daeb970",
@@ -21828,29 +21702,6 @@
       "enforcementReasoning": "The paragraph states a consequence (derecognition and barring) but does not specify who enforces it or through what process. Only the generic misalignment reporting and adjudication backstops would apply, which are weak."
     },
     {
-      "taskKey": "u:598ff9cf-146e-4499-93d3-583518c390a1",
-      "uuid": "598ff9cf-146e-4499-93d3-583518c390a1",
-      "docNo": "A.1.5.7.0.4.1",
-      "title": "ADs & Facilitators required to adhere to comprehensive operational security practices",
-      "domains": [
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Mandates Alignment Conservers to use specific encryption, anonymity tools, and regular security audits for operational security.",
-      "quote": "The operational security of the Alignment Conserver roles is key to governance integrity overall. Aligned Delegates and Facilitators are mandated to maintain rigorous operational security practices to ensure that their identities and work activities are anonymized and all related information is safeguarded. Such practices must go beyond basic privacy-enhancing measures and must include the use of secure communication channels, stringent data encryption, anonymity tools like VPNs and TOR networks, regular security audits, and rigorous digital footprint management.",
-      "quoteHash": "1624a981185541c4",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule lists qualitative categories (secure communication, encryption, anonymity tools, audits, footprint management) but provides no thresholds, metrics, cadences, or verifiable criteria; compliance is arguable on the same facts.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism reaches this operational security mandate; only the generic misalignment/adjudication backstop applies, which is always weak."
-    },
-    {
       "taskKey": "u:21d0b626-cd84-4237-8cab-d68f697c276d",
       "uuid": "21d0b626-cd84-4237-8cab-d68f697c276d",
       "docNo": "A.1.6.4.3.3.1",
@@ -21964,30 +21815,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The paragraph imposes no specific obligations, so no enforcement mechanism applies beyond the generic misalignment backstop."
-    },
-    {
-      "taskKey": "u:20dcf582-8862-48b3-9ca9-c3703871bd14",
-      "uuid": "20dcf582-8862-48b3-9ca9-c3703871bd14",
-      "docNo": "A.1.9.1",
-      "title": "Emergency Response",
-      "domains": [
-        "peg",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the protocol for handling emergency situations and references the governing Emergency Spells process.",
-      "quote": "The Sky Protocol has often required changes outside of the standard Weekly Governance Cycle and Monthly Governance Cycle to help maintain the peg or to quickly respond to changes in the Ecosystem. This Section defines a general protocol for handling emergency or urgent situations.\n\n[A.1.10.5 - Emergency Spells](b8266c11-3a84-4bbe-abe2-de9474f74ffd) governs the resolution of emergency / urgent situations involving the Executive Process.",
-      "quoteHash": "b156c67a3efa9d63",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a posture statement and cross-reference; it contains no operative rule, thresholds, metrics, or verifiable conditions.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific obligation is created, so no enforcement mechanism applies beyond the generic misalignment backstop."
     },
     {
       "taskKey": "u:5eafb29e-84a0-4a53-a798-3f958c880225",
@@ -22604,11 +22431,9 @@
         "at least one Reviewer from a different Ecosystem Actor (should)",
         "Crafter cannot serve as a Reviewer"
       ],
-      "enforcement": "strong",
-      "mechanismUuids": [
-        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
-      ],
-      "enforcementReasoning": "Violation of this security rule can trigger an Emergency Spell (b8266c11), a pre-authorized executive intervention that freezes or pauses operations, providing a strong enforcement path."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "No specific Atlas enforcement mechanism reaches this staffing/composition requirement — Emergency Spells is a post-hoc security-incident freeze/pause mechanism and does not plausibly apply to an improperly staffed review team; only the generic misalignment/adjudication backstop would apply, which is always weak."
     },
     {
       "taskKey": "u:e007c08a-5fef-42df-a63b-7b4d78b3366f",
@@ -25172,31 +24997,6 @@
       "enforcementReasoning": "The rule is a procedural step with no specified consequence for non-compliance. No on-chain automatic enforcement, capital at risk, or named penalty mechanism reaches this instruction. Only the generic misalignment/adjudication backstop could theoretically apply, which is always weak."
     },
     {
-      "taskKey": "u:e34b72db-973c-4cfd-8e8c-ff424c081805",
-      "uuid": "e34b72db-973c-4cfd-8e8c-ff424c081805",
-      "docNo": "A.1.10.2.4.2.2.2",
-      "title": "The Governance Point Names The Executive Sheet",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the mandatory naming format for Executive Sheets during scheduled and out-of-schedule governance votes.",
-      "quote": "For scheduled Executive Votes in the Executive Process, the Executive Sheet must be named in the following format: \"Executive Contents - YYYY-MM-DD\" (Target Date). For Out-of-Schedule Executive Votes, the naming format can diverge from this standard to reflect the specific context or purpose of the vote.",
-      "quoteHash": "e2090422ae5bae89",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 4,
-      "precisenessReasoning": "The rule specifies a mandatory naming format for scheduled Executive Votes: 'Executive Contents - YYYY-MM-DD' (Target Date). The format is objectively verifiable, but the exact string is slightly ambiguous (whether '(Target Date)' is literal or a placeholder).",
-      "metrics": [
-        "Executive Contents - YYYY-MM-DD (Target Date)"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is mentioned or implied; only the generic misalignment/adjudication backstop could apply, which is weak."
-    },
-    {
       "taskKey": "u:1dac0bce-7edc-45a1-97f8-f11fc381015d",
       "uuid": "1dac0bce-7edc-45a1-97f8-f11fc381015d",
       "docNo": "A.1.10.2.4.2.2.3",
@@ -25218,29 +25018,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is mentioned or structurally implied; only the generic misalignment/adjudication backstop could apply, which is weak."
-    },
-    {
-      "taskKey": "u:a6bab26a-a334-4d44-a45a-cf848ed36480",
-      "uuid": "a6bab26a-a334-4d44-a45a-cf848ed36480",
-      "docNo": "A.1.10.2.4.2.2.4",
-      "title": "The Governance Point Maintains the Spell Progress Tracker",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Requires the Governance Point to update the Spell progress tracker upon completion of each step.",
-      "quote": "The Governance Point must ensure that the progress for the Spell is updated accurately in the Spell progress tracker. When a step is completed, the Governance Point must write \"done\" in the Spell progress tracker column. This is an ongoing responsibility throughout the lifecycle of the Executive Vote to maintain real-time accuracy.",
-      "quoteHash": "63d2854e7d2f1b1c",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule names a specific actor (Governance Point), a concrete action (write 'done' in the tracker column upon step completion), and a defined timeframe (ongoing throughout the Executive Vote lifecycle). A third party can verify compliance by inspecting the tracker.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific consequence is attached to non-compliance. Only the generic misalignment/adjudication backstop (c6c6f595, 560e1024) could apply, which is always weak. No on-chain, capital-at-risk, or priced incentive reaches this procedural duty."
     },
     {
       "taskKey": "u:7a40558a-3eb4-4199-9fe5-6f5b3561c702",
@@ -26531,37 +26308,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is mentioned; only the generic misalignment/adjudication processes (catch-all) would apply, which is always weak for this rule. No on-chain or named institutional mechanism directly covers this procedural step."
-    },
-    {
-      "taskKey": "u:15a1cb2b-6311-410c-a401-4d70f6132fc9",
-      "uuid": "15a1cb2b-6311-410c-a401-4d70f6132fc9",
-      "docNo": "A.1.10.2.4.8.3.3",
-      "title": "Core Facilitator Updates Metadata",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Mandates specific metadata and filename formatting for Core Facilitator executive documents during the governance process.",
-      "quote": "The Core Facilitator must update the metadata of the template. This includes updating the filename and dates to reflect the current values of the Executive Vote.\n\n- Rename the file to \"Executive vote - YYYY, MONTH, DD\". The filename must end with .md and must not contain any banned characters (e.g., \"<>:\"/?*|\"). The date in the filename should correspond to the day the Executive Vote will go live on the voting platform.\n- Replace the placeholder dates in the template with the correct dates for the Executive Vote. The exact time is not required for the Executive Vote and should therefore be left at midnight.",
-      "quoteHash": "89b234eae710e01f",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule specifies an exact filename format with date pattern, required extension, banned character list, and a clear actor (Core Facilitator). A third party could verify compliance from the text alone.",
-      "metrics": [
-        "Executive vote - YYYY, MONTH, DD",
-        ".md",
-        "no banned characters (e.g., \"<>:\"/?*|\")",
-        "date in the filename should correspond to the day the Executive Vote will go live on the voting platform",
-        "replace the placeholder dates in the template with the correct dates for the Executive Vote"
-      ],
-      "enforcement": "mid",
-      "mechanismUuids": [
-        "d4bf73e7-2f9f-454c-8add-614dff784f78"
-      ],
-      "enforcementReasoning": "Agent Artifact Review by Core GovOps (d4bf73e7) plausibly covers Core Facilitator's document artifacts; it provides a scheduled review, staged findings, and penalty assessment, though no quantified consequence is specified for this exact metadata rule, making the enforcement mid."
     },
     {
       "taskKey": "u:dd779187-bc53-448b-9171-89b4655494d1",
@@ -28421,29 +28167,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The paragraph specifies duties without any consequence for non-compliance. No on-chain automation, capital-at-risk, named penalty, or institutional review path is cited or structurally implied. Only the generic misalignment/adjudication backstop would apply, which is insufficient for mid/strong enforcement."
-    },
-    {
-      "taskKey": "u:56b1cc27-a9e3-4099-8f1f-648da7d1c56b",
-      "uuid": "56b1cc27-a9e3-4099-8f1f-648da7d1c56b",
-      "docNo": "A.1.10.2.4.12.3.3",
-      "title": "Additional Community Developed Spell Validation Checks",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Requires additional community-developed checks to be performed during the Spell validation process.",
-      "quote": "The community has developed additional checks to enhance the Spell validation process. These checks are outlined in the subdocuments.",
-      "quoteHash": "e41362e7c490a662",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph only states that community-developed checks exist and are outlined elsewhere; it provides no operative obligation, threshold, or verifiable condition. A third party cannot determine compliance from this text alone. It is functionally a stub.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is attached to this rule. Only the generic misalignment/adjudication backstop (c6c6f595, 560e1024) would apply, which is always weak."
     },
     {
       "taskKey": "u:2662dc31-d68b-4b63-91d9-8ca420632eb2",
@@ -30613,29 +30336,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism targets the reporting obligation; only the generic misalignment/adjudication backstop could apply, which is always weak. No quantified consequence or named enforcer exists for this rule."
-    },
-    {
-      "taskKey": "u:19222532-1ce1-4306-8129-ea95a982c247",
-      "uuid": "19222532-1ce1-4306-8129-ea95a982c247",
-      "docNo": "A.1.10.4",
-      "title": "Governance Security Culture And Research",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Mandates the implementation of security culture processes and continuous research into security best practices.",
-      "quote": "This Section must define processes to cultivate and maintain a strong security culture within the Sky Ecosystem. This Section must implement continuous research and integration of best practices to ensure that the Ecosystem’s security remains effective and up-to-date.",
-      "quoteHash": "e594fafb4532ca02",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule is a placeholder mandating that this Section will define processes and implement research, but it contains no specific obligations, metrics, thresholds, or verifiable conditions; it is aspirational and lacks operative content, effectively a stub.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism beyond the generic misalignment catch-all reaches this aspirational obligation; there is no on-chain, capital-at-risk, priced incentive, or specific penalty that applies to a future definition of processes."
     },
     {
       "taskKey": "u:21fa6749-6209-4280-9b5f-b2a73d400421",
@@ -34783,29 +34483,6 @@
       "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment/adjudication backstop would apply, which is weak. No on-chain automatic enforcement, capital at risk, or priced incentive is present."
     },
     {
-      "taskKey": "u:1760b35f-da5a-4504-a014-dd7a611b4c0e",
-      "uuid": "1760b35f-da5a-4504-a014-dd7a611b4c0e",
-      "docNo": "A.2.3.1.2.2.2.1.6.4",
-      "title": "Expense Recognition For Legacy Account Consolidation",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the accounting treatment for consolidating legacy funds into the Core Council or Demand Side Buffers.",
-      "quote": "The consolidation of funds from Legacy Accounts into the Core Council Buffer or the Demand Side Buffer (see [A.2.2.4.3 - Demand Side Buffer](862b6d83-f464-4125-8259-233b7de75ec4)) is recognized as a one-time expense for purposes of [A.2.3.1.2.1 - Step 0: Net Revenue](c09435ff-d876-442a-899c-ad494175500b). This achieves the same result as if the funds in Legacy Accounts had been returned to the Sky Surplus Buffer and subsequently transferred to the relevant downstream account.",
-      "quoteHash": "2c2869ace96acae4",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 3,
-      "precisenessReasoning": "The rule specifies a concrete accounting treatment (recognize consolidation as a one-time expense) for a defined transaction, making the obligation verifiable, but it provides no numeric thresholds, formulas, or measurement cadence.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment/adjudication backstop could apply, which is always weak."
-    },
-    {
       "taskKey": "u:05fa5c41-26ca-4c25-94dd-834ef72c318a",
       "uuid": "05fa5c41-26ca-4c25-94dd-834ef72c318a",
       "docNo": "A.2.3.1.2.2.2.2",
@@ -35034,29 +34711,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific consequence attaches to this descriptive statement; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:75473c4b-69ba-4e6b-bbf6-2c926732364c",
-      "uuid": "75473c4b-69ba-4e6b-bbf6-2c926732364c",
-      "docNo": "A.2.4.1.2",
-      "title": "Implementation",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the initial settlement cycle scope and notes the pending implementation of the Senior Risk Capital System.",
-      "quote": "The documents herein define the initial implementation of the Monthly Settlement Cycle. This initial implementation of the Monthly Settlement Cycle does not include the Senior Risk Capital System, which is still being developed.",
-      "quoteHash": "c3b3652832c21007",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a descriptive statement that the initial implementation does not include the Senior Risk Capital System, which is still being developed. It imposes no obligation, metric, threshold, or verifiable condition on any party; it is essentially a stub indicating future work.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule exists to enforce; the statement is purely informational. No enforcement mechanism applies."
     },
     {
       "taskKey": "u:1816e5eb-3cf1-427f-b831-8eeb9408887c",
@@ -35591,60 +35245,6 @@
       "enforcementReasoning": "The rule is a one-time authorization for a governance vote; no penalty, automatic enforcement, or named consequence attaches to its inclusion or outcome. Only the generic misalignment backstop could apply, which is weak."
     },
     {
-      "taskKey": "u:2f2c4f2b-ff7a-4cd1-b1bc-8f3f81fe129f",
-      "uuid": "2f2c4f2b-ff7a-4cd1-b1bc-8f3f81fe129f",
-      "docNo": "A.2.8.2.7.2.2.2",
-      "title": "Initial Allocation Distribution",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Specifies the distribution of USDS allocations to the Skybase SubProxy and USDS Demand Subsidies Multisig.",
-      "quote": "10,000,000 USDS of the Initial Allocation is distributed to the Skybase SubProxy.\n\n5,000,000 USDS of the Initial Allocation is distributed to the USDS Demand Subsidies Multisig.",
-      "quoteHash": "a671478bb2ff072f",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule states exact USDS amounts (10,000,000 and 5,000,000) and specific recipients (Skybase SubProxy, USDS Demand Subsidies Multisig). A third party can verify compliance by checking on-chain transfers.",
-      "metrics": [
-        "10,000,000 USDS",
-        "5,000,000 USDS"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is mentioned or implied. The rule is a one-time distribution directive; failure to execute would only be reachable through the generic misalignment/adjudication backstop, which is weak."
-    },
-    {
-      "taskKey": "u:36556509-d2b6-4932-8781-9bf4ecc90987",
-      "uuid": "36556509-d2b6-4932-8781-9bf4ecc90987",
-      "docNo": "A.2.8.2.7.2.2.2.1",
-      "title": "Transfer Of Genesis Capital Allocation To Skybase SubProxy",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Authorizes a direct Executive Vote to transfer 10,000,000 USDS from the Surplus Buffer to Skybase SubProxy.",
-      "quote": "The transfer of 10,000,000 USDS from the Surplus Buffer to the Skybase SubProxy for the Genesis Capital Allocation will be included in the January 29, 2026 Executive Vote.\n\nThis action is authorized to proceed directly to an Executive Vote without a prior Governance Poll.",
-      "quoteHash": "0fbae46be05bd162",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule states an exact amount (10,000,000 USDS), a specific source (Surplus Buffer), a specific destination (Skybase SubProxy), and a precise deadline (January 29, 2026 Executive Vote). A third party can objectively verify compliance by checking whether the transfer was included in that vote.",
-      "metrics": [
-        "10,000,000 USDS",
-        "January 29, 2026 Executive Vote"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific consequence attaches to failing to include the transfer in the Executive Vote. The rule is a one-time authorization; violation would only be reachable through the generic misalignment backstop, which is weak. No on-chain automatic enforcement, capital at risk, or named penalty mechanism applies to this directive."
-    },
-    {
       "taskKey": "u:be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
       "uuid": "be600bf6-c0f2-42c5-ad5c-fd0cb429b628",
       "docNo": "A.2.8.2.7.2.2.2.2",
@@ -35670,32 +35270,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The rule is a one-time governance authorization with no stated consequence for non-inclusion. No specific enforcement mechanism (on-chain, penalty, or otherwise) reaches this directive; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:0f33f443-14d5-48b0-a20d-e35a44230cdc",
-      "uuid": "0f33f443-14d5-48b0-a20d-e35a44230cdc",
-      "docNo": "A.2.8.2.7.2.2.3.1",
-      "title": "Skybase Foundation Grant Authorization: July 2026",
-      "domains": [
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Authorizes a USDS grant via a Skybase Spell and specific multisig address following a Sky Executive Vote.",
-      "quote": "The founding team of Skybase has proposed a one-time cash grant of 700,000 USDS to the Skybase Foundation from Skybase's SubProxy to provide operational capital. This funding will be used to complete payments for Skybase Agent operational needs and other expenses.\n\nSky Governance hereby consents to this grant and authorizes the execution of the associated funding payload. The transfer must be made to the Skybase Foundation Operational Multisig at `0x58B945c8Ce34BD8cEA3Fc0437626F9F87d58A621` in a Skybase Spell included in a Sky Executive Vote unless otherwise agreed by Sky and Skybase.",
-      "quoteHash": "f7468e567f0a27e3",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule specifies an exact amount (700,000 USDS), a precise destination address, and a defined execution method (Skybase Spell in a Sky Executive Vote). The 'unless otherwise agreed' clause is a clear condition, and a third party could verify compliance from the text alone.",
-      "metrics": [
-        "700,000 USDS",
-        "0x58B945c8Ce34BD8cEA3Fc0437626F9F87d58A621"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism applies to this one-time grant authorization. Only the generic misalignment reporting and adjudication backstops are available, which are weak. There is no on-chain automatic enforcement, capital at risk, or named penalty path for failing to execute the transfer as specified."
     },
     {
       "taskKey": "u:03bec0ca-5667-40ae-ac54-62ce1a0c66ea",
@@ -35749,36 +35323,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific consequence attaches to violation of this membership qualification; only the generic misalignment/adjudication backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:c14521ea-e2fa-4853-a5af-64f4c96a526a",
-      "uuid": "c14521ea-e2fa-4853-a5af-64f4c96a526a",
-      "docNo": "A.2.9.1.1.1.4.1.1",
-      "title": "Resilience Fund Proof Of Eligibility",
-      "domains": [
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Defines eligibility criteria for beneficiaries to access the Legal Resilience Fund via specific Ethereum address proofs.",
-      "quote": "To become recognized as a Beneficiary, an Applicant must first select an Ethereum address that is linked to their activity at Sky (\"Proof of Eligibility\" or \"POE\"). Each Beneficiary type will have specific Proofs of Eligibility that are suitable for their role.\n\nValid PoE:\n\n- Address set as owner and used to sign transactions from Sky multisigs, such as Core Unit operational wallets, auditor wallets or SPFs (old structure), or a Facilitator multisig (Endgame Structure)\n    - PoE valid for former Core Unit Contributors, Core Unit Facilitators, and Scope Facilitators.\n- Address that voted directly or through delegation in at least ten Governance Polls or Executive Votes.\n    - PoE valid for active MKR or SKY holders, former Recognized Delegates (old structure), and Aligned Delegates (new structure)\n- Address that received compensation from Sky, with the following conditions:\n    - at least six (6) payouts spread over at least six (6) months in Dai or USDS OR\n    - Dai or USDS DssVest stream spanning at least six (6) months OR\n    - 3 MKR or SKY payouts spread over at least three (3) months OR\n    - MKR or SKY DssVest stream spanning at least three (3) months\n    - PoE valid for former Core Unit Contributors and Facilitators\n- Address that holds >1 MKR or >24,000 SKY\n- Attestation\n    - If no PoE is available, a verified Beneficiary must attest eligibility on behalf of the applicant.\n    - This PoE will be used exceptionally if no other Proof is available and will be assessed individually by the Resilience Fund Technical Committee.",
-      "quoteHash": "c945b9c1aadbc0aa",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule lists multiple concrete, verifiable criteria with numeric thresholds (e.g., 'at least ten Governance Polls', 'at least six (6) payouts spread over at least six (6) months', 'holds >1 MKR or >24,000 SKY') and on-chain address proofs. A third party could check compliance from the text alone.",
-      "metrics": [
-        "at least ten Governance Polls or Executive Votes",
-        "at least six (6) payouts spread over at least six (6) months in Dai or USDS",
-        "Dai or USDS DssVest stream spanning at least six (6) months",
-        "3 MKR or SKY payouts spread over at least three (3) months",
-        "MKR or SKY DssVest stream spanning at least three (3) months",
-        "holds >1 MKR or >24,000 SKY"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The rule defines eligibility for a benefit, not an obligation with a penalty for violation. No enforcement mechanism (on-chain automatic, penalty, conservatorship, etc.) is triggered by failing to meet the criteria; the only backstop is the generic misalignment reporting, which is weak."
     },
     {
       "taskKey": "u:9edd8feb-790b-42de-bf42-ba5d6550df1c",
@@ -36251,11 +35795,9 @@
       "preciseness": 4,
       "precisenessReasoning": "The rule imposes a clear, verifiable obligation: each Multisig must have a designated Administrator, and that designation must be communicated to named leads (Protocol Security Workstream Lead and Core GovOps) before a defined event (activation or operational use). No numeric thresholds or formulas are present, but the binary condition and deadline make compliance objectively checkable.",
       "metrics": [],
-      "enforcement": "strong",
-      "mechanismUuids": [
-        "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
-      ],
-      "enforcementReasoning": "Violation of this security rule (activating a Multisig without a communicated Administrator) constitutes a security rule violation, which falls under the scope of Emergency Spells (b8266c11). This mechanism provides pre-authorized executive intervention (freezes, pauses) by a distinct enforcer, offering a concrete and immediate consequence."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "No specific Atlas enforcement mechanism reaches this documentation/communication duty — an uncommunicated Administrator designation does not plausibly trigger Emergency Spells; only the generic misalignment/adjudication backstop would apply, which is always weak."
     },
     {
       "taskKey": "u:6033699f-1d55-45ba-8eb1-bd8982571cc0",
@@ -38272,11 +37814,9 @@
       "preciseness": 3,
       "precisenessReasoning": "The rule specifies concrete actions (deposit into Allocation Vault, invest in Allocation System Instances, no transfer to SubProxy) but lacks any numeric threshold, formula, or deadline. Compliance is objectively verifiable (did funds go to the vault and get invested?), but no quantified metric exists.",
       "metrics": [],
-      "enforcement": "strong",
-      "mechanismUuids": [
-        "9db14ab7-bb4b-4751-8084-843bd4359f2a"
-      ],
-      "enforcementReasoning": "The Allocation Vault and Allocation System Instances, defined in the referenced Allocation System Primitive (UUID 9db14ab7...), are smart contracts that automatically enforce the use of funds. The vault can only invest in Allocation System Instances and prevents transfers to SubProxy, making violation on-chain impossible or automatically costly."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "The cited UUID (9db14ab7) is the Allocation System Primitive's own definitional doc, not an enforcement mechanism — no on-chain restriction, named enforcer, or penalty is described for a misdirected transfer. No citable mechanism reaches this rule; only the generic misalignment/adjudication backstop would apply, which is weak."
     },
     {
       "taskKey": "u:9835ebab-59cc-4a2b-b030-3b07b4e9203d",
@@ -40178,29 +39718,6 @@
       "enforcementReasoning": "Failure to apply the specified CRRs would breach Risk Capital rules, triggering the Penalty Mechanisms (b8ee2d12) and potential Conservatorship (5c3dd35a). The consequence is unquantified for this specific rule and requires detection and escalation, so enforcement is mid."
     },
     {
-      "taskKey": "u:f999239e-8676-4772-b201-2e00920b2bfb",
-      "uuid": "f999239e-8676-4772-b201-2e00920b2bfb",
-      "docNo": "A.3.2.2.1.1.1.2.1.1",
-      "title": "Ethena",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Specifies the near-term risk capital treatment requirements for Ethena instances.",
-      "quote": "The near-term treatment for Ethena is specified in the documents herein.",
-      "quoteHash": "6434656cc88f066a",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a stub: it states that the near-term treatment is specified in other documents but provides no operative rule, threshold, metric, or verifiable condition. A third party could not determine compliance from this text alone.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific obligation exists to enforce; only the generic misalignment/adjudication backstop (c6c6f595, 560e1024) could apply, which is always weak. No other mechanism reaches this empty rule."
-    },
-    {
       "taskKey": "u:7ce05a43-e3ec-4c54-a11e-30e56526cfdd",
       "uuid": "7ce05a43-e3ec-4c54-a11e-30e56526cfdd",
       "docNo": "A.3.2.2.1.1.1.2.1.1.1",
@@ -41177,29 +40694,6 @@
         "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
       ],
       "enforcementReasoning": "Violation of this calculation rule would constitute a breach of Risk Capital rules, which is subject to the Penalty Mechanisms (b8ee2d12). The consequence is unquantified for this specific rule, so enforcement is mid."
-    },
-    {
-      "taskKey": "u:a1ff2a3d-7131-425c-80c5-a887a4259f12",
-      "uuid": "a1ff2a3d-7131-425c-80c5-a887a4259f12",
-      "docNo": "A.3.2.2.1.1.1.5.2.3",
-      "title": "Determine Risk Weights",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the requirement to calculate Risk Weights according to specified documentation.",
-      "quote": "The third step is calculating the Risk Weights as specified in the documents herein.",
-      "quoteHash": "5e66978cffb1b886",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule only states that Risk Weights are calculated as specified in documents herein, without providing any metrics, thresholds, or formulas. It is a pointer to unspecified documentation, making compliance unverifiable from this text alone.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is attached to this calculation step. Only the generic misalignment backstop could apply, which is weak."
     },
     {
       "taskKey": "u:0144ae72-c945-4f62-998c-e533a5f32858",
@@ -43972,29 +43466,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No enforcement mechanism directly reaches this definitional cross-reference; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:2397551e-9704-435e-b815-0384429be224",
-      "uuid": "2397551e-9704-435e-b815-0384429be224",
-      "docNo": "A.3.2.2.1.3.3.3",
-      "title": "Ethena",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the calculation method for Ethena's Administrative Collateral Requirement Ratio.",
-      "quote": "The Administrative CRR for Ethena is calculated as specified in [A.3.2.2.1.2.4.3 - Ethena](4d4f4c60-4941-41c8-8164-c1f35c4574c8).",
-      "quoteHash": "5f45a018ad801225",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a cross-reference with no operative text, thresholds, or metrics. It contains nothing to comply with on its own.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule exists to enforce; the paragraph is a pointer, so no enforcement mechanism applies."
     },
     {
       "taskKey": "u:92c06f19-21a3-4aea-9503-db685b3fd7f9",
@@ -46798,29 +46269,6 @@
       "enforcementReasoning": "The Kicker Module is an on-chain smart contract that automatically enforces the threshold; transfers are impossible unless the condition is met, making violation impossible by code. The Surplus Buffer and Smart Burn Engine (3eb6f099) encompasses this module, providing on-chain automatic enforcement."
     },
     {
-      "taskKey": "u:ce3affe8-9e1f-4825-82bd-40c320a1c220",
-      "uuid": "ce3affe8-9e1f-4825-82bd-40c320a1c220",
-      "docNo": "A.3.5.2.2.1.1.1",
-      "title": "Kicker Threshold Current Value",
-      "domains": [
-        "peg"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the current value of the khump parameter within the Smart Burn Engine.",
-      "quote": "The current value of the `khump` parameter is specified in [A.3.5.2 - Smart Burn Engine Parameters](ddb90fee-2851-4bf0-b924-f1d73e30ce7a).",
-      "quoteHash": "947ad77690e6c1b3",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph contains no operative rule; it merely states that the current value is specified in another document, providing no threshold, metric, or verifiable condition.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism applies to a purely referential statement; the rule imposes no obligation to enforce."
-    },
-    {
       "taskKey": "u:fc9cece1-84bf-4133-a2ef-ef2182a23a35",
       "uuid": "fc9cece1-84bf-4133-a2ef-ef2182a23a35",
       "docNo": "A.3.5.2.2.1.2",
@@ -47365,9 +46813,11 @@
         "hole: 30,000,000 Dai",
         "dust: 7,500 Dai"
       ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The rule is a descriptive parameter snapshot. No specific enforcement mechanism targets deviation from these exact values; only the generic misalignment backstop would apply, which is weak."
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "bce9331b-04ca-4c50-9783-098739fc72c8"
+      ],
+      "enforcementReasoning": "The vault parameters are enforced on-chain: if a position's collateralization falls below the 150% liquidation ratio, the smart contract automatically liquidates it and applies the 13% chop penalty, per the Liquidation Penalty mechanism (bce9331b) — matching the treatment of every other ilk in this series (ETH-A/B/C, WSTETH-B) with the same chop:13% profile."
     },
     {
       "taskKey": "u:cfb76935-bcd4-4973-967c-7625c1524e58",
@@ -47525,9 +46975,11 @@
         "hole: 10,000,000 Dai",
         "dust: 3,500 Dai"
       ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The parameters are enforced on-chain by the vault's smart contract, but no mechanism UUID from the catalog or the text covers this automatic enforcement. The catalog's on-chain mechanisms (liquidation penalty, PSM) do not encompass the full parameter set, so no citable mechanism reaches this rule."
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "bce9331b-04ca-4c50-9783-098739fc72c8"
+      ],
+      "enforcementReasoning": "The vault's liquidation machinery is enforced on-chain via the Liquidation Penalty (bce9331b) — the same basis on which sibling ilks WBTC-A and WBTC-B were rated, which carry the identical DC-IAM line:0 / chop:0% wound-down profile."
     },
     {
       "taskKey": "u:9ce4d08e-aa5b-4cab-884e-7a53e937bdb8",
@@ -49367,29 +48819,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No enforcement mechanism is specified or implied; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:9d418790-3081-43b4-a6f6-1c49ff5b4be8",
-      "uuid": "9d418790-3081-43b4-a6f6-1c49ff5b4be8",
-      "docNo": "A.3.7.1.5.3",
-      "title": "Communication Channels And Media Assets",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the process and responsible party for updating communication channels and media assets via Direct Edit.",
-      "quote": "The process for adding, removing, and modifying communication channels and media assets, and the order of announcement publication, are defined as Active Data in [A.3.7.1.5.3.0.6.1 - Communication Channels And Media Assets Listing](9ac8a70b-8b6a-4825-a5e0-5e9019e50bc4).\n\nThe Active Data is updated as follows:\n\n- The Responsible Party is Core GovOps.\n- The Update Process must follow the protocol for ‘Direct Edit’.",
-      "quoteHash": "1b060538da72ab59",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 3,
-      "precisenessReasoning": "The rule names a responsible party (Core GovOps) and a specific update protocol ('Direct Edit'), but the actual steps, criteria, and timing are delegated to another document; no quantifiable thresholds or deadlines are provided.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism targets this procedural rule; only the generic misalignment/adjudication backstop would apply, which is weak."
     },
     {
       "taskKey": "u:9ac8a70b-8b6a-4825-a5e0-5e9019e50bc4",
@@ -53865,37 +53294,6 @@
       "enforcementReasoning": "The rule defines a process for parameter modification, but no specific enforcement mechanism is cited or implied beyond the general governance structure. The rubric's catalog does not include a mechanism for routine Executive Vote enforcement, and the paragraph does not reference any enforcement UUID. Therefore, only the generic misalignment backstop would apply, which is weak."
     },
     {
-      "taskKey": "u:f84a1cb6-7f77-4bd0-904f-8bf7b368d2d6",
-      "uuid": "f84a1cb6-7f77-4bd0-904f-8bf7b368d2d6",
-      "docNo": "A.6.1.1.1.3.2.1.2.3.1",
-      "title": "Sky Core Governance Responsibility For Virtual Revenue Share Prior to Launch of SPK",
-      "domains": [
-        "alloc"
-      ],
-      "agents": [
-        "Spark"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Mandates manual quarterly virtual revenue share payments from the Sky Surplus Buffer based on Spark Protocol Dai borrowing.",
-      "quote": "Before the launch of Agent tokens, Sky Governance is temporarily responsible for paying out a \"virtual revenue share\" on behalf of Spark Protocol. It is calculated by taking the total amount of Dai borrowed from Spark Protocol, and then assuming a \"virtual income\" equivalent to 1% of this supply, and calculating a revenue share of 10% on that basis. The calculations and payments must be done manually by the Support Facilitators at the end of each quarter.\n\nAs an example: if, before the launch of Agent tokens, 200 million Dai is borrowed on Spark Protocol, then the virtual income is 1% of 200 million Dai, which gives 2 million Dai; and of that 2 million Dai the virtual revenue share is 200,000 Dai.\n\nThis 200,000 Dai must be paid out in incremental payments each quarter directly by Sky Governance from the Sky Surplus Buffer to a smart contract under the control of Aave Governance. If, before the launch of Agent tokens, less than 100 million Dai is borrowed from Spark Protocol by the Sky Protocol, accrual towards the virtual revenue share payments are paused (unpaid virtual revenue share that already accrued is still paid out at the end of the quarter), and the counting down of the revenue share duration is paused. The virtual revenue share payments and the counting down of the remaining revenue share duration is resumed when at least 100 million Dai is again borrowed from Spark Protocol by the Sky Protocol.\n\nOnce SPK tokens launch, the virtual revenue share system will be discontinued, and the standard rules of the Spark Protocol Aave Revenue Share Ecosystem Agreement shall take effect. See [A.6.1.1.1.3.2.1.2.3.2 - Standard Agreement Post SPK Launch](bb867551-5231-4a5b-ac37-09d545bf70ce).",
-      "quoteHash": "2132527a3965bd94",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule defines a fully quantified formula (1% of total Dai borrowed, 10% of that), a numeric threshold for pausing (100 million Dai borrowed), a named actor (Support Facilitators), a clear cadence (end of each quarter), and a verifiable payment destination. A third party could check compliance from the text alone.",
-      "metrics": [
-        "total amount of Dai borrowed from Spark Protocol",
-        "1% of this supply (virtual income)",
-        "revenue share of 10% on that basis",
-        "less than 100 million Dai is borrowed from Spark Protocol by the Sky Protocol"
-      ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The obligation is a manual payment by Sky Governance with no specified penalty or enforcement mechanism. No on-chain automatic enforcement, no named enforcer distinct from the actor, and no quantified consequence. Only the generic misalignment/adjudication backstop could apply, which is always weak."
-    },
-    {
       "taskKey": "u:93dddb43-1d2e-4ea8-ab18-eb0518a193ba",
       "uuid": "93dddb43-1d2e-4ea8-ab18-eb0518a193ba",
       "docNo": "A.6.1.1.1.3.2.2.1.1",
@@ -53920,37 +53318,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No enforcement mechanism applies because the paragraph does not establish a binding rule; only the generic misalignment backstop would be available, which is weak."
-    },
-    {
-      "taskKey": "u:51316a6c-fd6a-4507-b99d-731e80fc9f76",
-      "uuid": "51316a6c-fd6a-4507-b99d-731e80fc9f76",
-      "docNo": "A.6.1.1.1.3.2.2.2.1.1.0.6.1",
-      "title": "Special Pre-launch Token Reward Program Details",
-      "domains": [
-        "alloc"
-      ],
-      "agents": [
-        "Spark"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Defines the monthly SPK token reward formula for sUSDS supplies on the Aave V3 Main Market.",
-      "quote": "Active pre-launch token reward programs established by [A.6.1.1.1.3.2.2.2.1 - Special Pre-launch Token Reward Programs](9906332c-bc2d-4864-97d4-589f206d6482) are:\n\nAave V3 Main Market sUSDS (7,239,130 SPK per month, ending with SPK token launch):\n\nsUSDS supplies on Aave V3 Main Market are eligible to earn 7,239,130 SPK tokens per month. The SPK rewards program will start on the block during which the sUSDS market is onboarded onto the Aave V3 Main Market and lasts until the issuance of the SPK token, based on the following formula:\n\n`sUSDS Supplies - Sum_i(Stablecoin_i Borrow Amount (in USD) / Stablecoin_i Liquidation Threshold)`",
-      "quoteHash": "16346e129ed16884",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule states a fixed monthly reward amount (7,239,130 SPK), a precise mathematical formula for allocation, and defined start (block of sUSDS market onboarding) and end (SPK token launch) conditions. All elements are quantified and objectively verifiable from on-chain data.",
-      "metrics": [
-        "7,239,130 SPK per month",
-        "sUSDS Supplies - Sum_i(Stablecoin_i Borrow Amount (in USD) / Stablecoin_i Liquidation Threshold)"
-      ],
-      "enforcement": "mid",
-      "mechanismUuids": [
-        "d4bf73e7-2f9f-454c-8add-614dff784f78"
-      ],
-      "enforcementReasoning": "The rule is part of the Prime Agent's artifacts; Core GovOps artifact review (d4bf73e7) can assess compliance and impose penalties, providing a general enforcement path, though no quantified consequence is specified for this specific rule."
     },
     {
       "taskKey": "u:f426cc6e-336a-43bf-825d-1f0c08d1795e",
@@ -59301,32 +58668,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The rule is self-enforcing via smart contract code (transaction reverts if caller lacks relayer role), but no mechanism doc from the catalog or the text covers this on-chain access control; without a citable UUID, enforcement is rated weak per rubric."
-    },
-    {
-      "taskKey": "u:b83be319-7f7e-4cf5-ad70-ac59302422e4",
-      "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4",
-      "docNo": "A.6.1.1.5.2.6.2.4",
-      "title": "In Progress Invocations",
-      "domains": [
-        "alloc"
-      ],
-      "agents": [
-        "Obex"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the process for moving completed Junior Risk Capital Rental Invocations to the Active Instances subtree.",
-      "quote": "The in progress Invocations of the Junior Risk Capital Rental Primitive are contained herein. Once an Invocation is successfully completed, its subtree will be moved to [A.6.1.1.5.2.6.2.2 - Active Instances](b894cf0e-5a3d-4fe2-bb43-668a1f973857).",
-      "quoteHash": "17c8d763a4582614",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule describes a procedural step (moving subtrees upon completion) but provides no quantitative thresholds, metrics, deadlines, or defined actors; compliance is arguable.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism reaches this document-organization rule; only the generic misalignment backstop applies."
     },
     {
       "taskKey": "u:70f39980-940c-4f32-9365-a196fcca7858",

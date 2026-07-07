@@ -68,6 +68,24 @@ const EXCLUDED_TYPES = new Set([
 ]);
 // A one-sentence intro whose only content is pointing at its children.
 const CONTAINER_RE = /^(the (sub)?documents (herein|below)|this (article|section|scope|chapter) (defines|describes|outlines|governs|contains|specifies))/i;
+// Reviewed-by-hand: paragraphs whose entire content is a pointer/deferral to
+// another doc, in phrasing CONTAINER_RE's fixed opening-clause match doesn't
+// cover (mid-sentence deferral, or a container framed as two full sentences).
+// A generic regex for "defers everything to a link/section" over-matches badly
+// across the corpus — real quantified rules routinely cite another doc for one
+// supporting detail. Kept as an explicit, audited UUID list instead, same
+// pattern as ANCHORS/MECHANISM_UUIDS above.
+const KNOWN_NON_RULE_UUIDS = new Set([
+  "20dcf582-8862-48b3-9ca9-c3703871bd14", // A.1.9.1 Emergency Response — topic sentence + pointer to Emergency Spells
+  "56b1cc27-a9e3-4099-8f1f-648da7d1c56b", // A.1.10.2.4.12.3.3 Additional Community Developed Spell Validation Checks
+  "19222532-1ce1-4306-8129-ea95a982c247", // A.1.10.4 Governance Security Culture And Research — aspirational framing, no operative content
+  "75473c4b-69ba-4e6b-bbf6-2c926732364c", // A.2.4.1.2 Implementation — scopes a subtree, not itself a rule
+  "f999239e-8676-4772-b201-2e00920b2bfb", // A.3.2.2.1.1.1.2.1.1 Ethena — "specified in the documents herein"
+  "2397551e-9704-435e-b815-0384429be224", // A.3.2.2.1.3.3.3 Ethena — defers CRR calc to another doc entirely
+  "ce3affe8-9e1f-4825-82bd-40c320a1c220", // A.3.5.2.2.1.1.1 Kicker Threshold Current Value — defers the value elsewhere
+  "a1ff2a3d-7131-425c-80c5-a887a4259f12", // A.3.2.2.1.1.1.5.2.3 Determine Risk Weights — restates the title, zero content
+  "b83be319-7f7e-4cf5-ad70-ac59302422e4", // A.6.1.1.5.2.6.2.4 In Progress Invocations — pure bookkeeping pointer
+]);
 const STUB_RE = /(further (populated|developed|defined|specified)|be (populated|developed|defined|specified)( further)?) (in|during) (a |the )?(future|later|subsequent) iteration/i;
 const METRICS_RE = /\d+(\.\d+)?\s*%|\bbps\b|basis points|\b\d+\s(hours?|days?|weeks?|months?|years?)\b|\$\s?\d|\b\d{1,3}(,\d{3})+\b|\b\d+(\.\d+)?\s?(million|billion)\b/i;
 
@@ -124,6 +142,7 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
     const stub = STUB_RE.test(quote);
     if (EXCLUDED_TYPES.has(node.type)) { drop(`type:${node.type}`); continue; }
     if (quote.length < 40) { drop("empty"); continue; }
+    if (KNOWN_NON_RULE_UUIDS.has(node.id)) { drop("container"); continue; }
     if (!stub && quote.length < 180 && CONTAINER_RE.test(quote)) { drop("container"); continue; }
     rows.push({
       taskKey: `u:${node.id}`,
