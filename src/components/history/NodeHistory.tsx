@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { loadHistory, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
+import { track } from "../../lib/analytics";
 import { EntryRow } from "./EntryRow";
 import { HtmlEraDisclaimer, PreGitDisclaimer, PRE_MD_HTML_URL } from "./HistoryDisclaimers";
 
@@ -99,7 +100,10 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
     <button
       type="button"
       aria-pressed={showReconstructed}
-      onClick={() => setShowReconstructed((v) => !v)}
+      onClick={() => {
+        track("reader_history_reconstructed_toggle", { node_id: nodeId, action: showReconstructed ? "hide" : "show" });
+        setShowReconstructed((v) => !v);
+      }}
       className="mono text-[10px] uppercase tracking-wide px-2 py-1 my-2 rounded"
       style={{
         color: showReconstructed ? "var(--bg)" : "var(--accent)",
