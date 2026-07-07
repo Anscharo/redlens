@@ -8,6 +8,7 @@ import {
   findGovOpsDuty,
   classifyGovOpsRole,
   findRoleDuty,
+  findRoleDuties,
   classifyRole,
   DUTY_ROLES,
   // @ts-expect-error untyped .mjs build-script module
@@ -15,6 +16,7 @@ import {
 
 const FACILITATOR = DUTY_ROLES.find((r: { key: string }) => r.key === "facilitator");
 const EXECUTOR = DUTY_ROLES.find((r: { key: string }) => r.key === "executor");
+const GOVOPS = DUTY_ROLES.find((r: { key: string }) => r.key === "govops");
 
 const ORGS = [
   { name: "Soter Labs", role_declared: "Operational GovOps" },
@@ -58,6 +60,15 @@ describe("findGovOpsDuty — active voice", () => {
         "More information about the role and function of Executor Agents can be found in the Executor Agents Section.",
       ),
     ).toBeNull();
+  });
+
+  it("keeps 'may be required to <verb>' — an obligation idiom, not a true passive", () => {
+    // A.2.2.10.1.1.3.3: GovOps must act, not something being done to GovOps.
+    expect(
+      find(
+        "In the event of any such violations, Operational GovOps may be required to take escalatory steps based on the fallback strategy in the Prime Agent Artifact.",
+      ),
+    ).toMatchObject({ role_declared: "Operational GovOps", match: "active" });
   });
 
   it("blocks a negated modal power ('will have no … authority')", () => {
@@ -269,6 +280,15 @@ describe("findRoleDuty — facilitator", () => {
       .toMatchObject({ role_declared: "Core Facilitator", match: "active" });
   });
 
+  it("matches 'initiates' as an active-obligation verb", () => {
+    // A.1.10.2.3.2.2.3.3.2: the Operational-path half of a dual-path duty.
+    expect(
+      findFac(
+        "Under the Independent Governance path, the Operational Facilitator initiates the vote in accordance with the voting process defined in the Prime Agent's Root Edit Primitive.",
+      ),
+    ).toMatchObject({ role_declared: "Operational Facilitator", match: "active" });
+  });
+
   it("matches the Operational Facilitator in process steps", () => {
     // A.6.1.1.* Independent Governance path shape.
     expect(findFac("Under the Independent Governance path, the Operational Facilitator prepares and submits the Agent Artifact Edit Proposal."))
@@ -468,5 +488,80 @@ describe("classifyRole — bare labels per role", () => {
     expect(classifyRole(EXECUTOR, "Transfers", "The Operational Executor Agent executes the transfer.")).toBe(
       "Operational Executor Agent",
     );
+  });
+});
+
+describe("findRoleDuties — dual-path docs with a genuine Core AND Operational duty", () => {
+  const findFacDuties = (content: string, title = "Some Section") => findRoleDuties(FACILITATOR, title, content, []);
+  const findGovDuties = (content: string, title = "Some Section") => findRoleDuties(GOVOPS, title, content, ORGS);
+
+  it("finds both branches of a 'Sky Governance path / Independent Governance path' split", () => {
+    // A.1.10.2.3.2.2.3.3.2
+    const duties = findFacDuties(
+      "Under the Sky Governance path, the Core Facilitator publishes the Governance Poll on the Sky voting portal. Aligned Delegates vote on the Governance Poll.\n\nUnder the Independent Governance path, the Operational Facilitator initiates the vote in accordance with the voting process defined in the Prime Agent's Root Edit Primitive.",
+    );
+    expect(duties).toHaveLength(2);
+    expect(duties.map((d: { role_declared: string }) => d.role_declared).sort()).toEqual([
+      "Core Facilitator",
+      "Operational Facilitator",
+    ]);
+    expect(duties.every((d: { quote: string | null }) => d.quote)).toBe(true);
+  });
+
+  it("finds both branches of an 'if in the Sky Core Atlas / if in an Agent Artifact' split", () => {
+    // A.1.13.1.3.1
+    const duties = findFacDuties(
+      "The Responsible Party must post their proposed changes to the Active Data. If the Active Data document is located in the Sky Core Atlas, then the Core Facilitator must confirm that the Responsible Party has the authority to request a Direct Edit. If the Active Data document is located in an Agent Artifact, then it is the Operational Facilitator for that Agent that must confirm the Responsible Party's authority to request a Direct Edit.",
+    );
+    expect(duties.map((d: { role_declared: string }) => d.role_declared).sort()).toEqual([
+      "Core Facilitator",
+      "Operational Facilitator",
+    ]);
+  });
+
+  it("finds two independent duties with no branching language at all", () => {
+    // A.3.2.2.7.2.1.2
+    const duties = findGovDuties(
+      "Core GovOps may require the Prime Agent to issue additional tokens and sell them to the extent it deems necessary. Operational GovOps will assist Core GovOps in executing any such transaction.",
+    );
+    expect(duties.map((d: { role_declared: string }) => d.role_declared).sort()).toEqual([
+      "Core GovOps",
+      "Operational GovOps",
+    ]);
+  });
+
+  it("stops at one Core + one Operational, not every mention", () => {
+    // A.2.2.10.1.1.3.3-shaped: three GovOps mentions, only two distinct qualifiers.
+    const duties = findGovDuties(
+      "Core GovOps reviews yields and obligations, applying penalties retroactively. In the event of any such violations, Operational GovOps may be required to take escalatory steps. Core GovOps also documents the outcome.",
+    );
+    expect(duties).toHaveLength(2);
+  });
+
+  it("still returns a single result for an ordinary single-duty doc", () => {
+    expect(findGovDuties("Core GovOps must review such reports promptly.")).toEqual([
+      { role_declared: "Core GovOps", match: "active", quote: "Core GovOps must review such reports promptly." },
+    ]);
+  });
+
+  it("prefers a grounded content match over a bare title guess, when content has one", () => {
+    // A.1.10.2.4.13.5: title "Facilitator Updates Atlas To Reflect Spell
+    // Outcome" bare-title-matches, but the content itself names both
+    // qualifiers with their own verbs — that's strictly better evidence.
+    const duties = findFacDuties(
+      "Following the successful execution of a Spell, the Atlas must be updated to accurately reflect the resulting changes. The Core Facilitator is responsible for ensuring that all relevant Sky Core Atlas documents are modified. For modifications pertaining to Agent Artifacts, the Operational Facilitator for the affected Agent is responsible for carrying out the required follow-up changes.",
+      "Facilitator Updates Atlas To Reflect Spell Outcome",
+    );
+    expect(duties.every((d: { match: string }) => d.match !== "title")).toBe(true);
+    expect(duties.map((d: { role_declared: string }) => d.role_declared).sort()).toEqual([
+      "Core Facilitator",
+      "Operational Facilitator",
+    ]);
+  });
+
+  it("still falls back to a title match when content has nothing verb-anchored", () => {
+    expect(findRoleDuties(FACILITATOR, "Facilitator Duties", "The sections below describe them.", [])).toEqual([
+      { role_declared: "Facilitator", match: "title", quote: null },
+    ]);
   });
 });

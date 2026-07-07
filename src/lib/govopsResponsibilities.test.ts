@@ -55,6 +55,9 @@ for (const n of [
   // Defensive: a rogue doc with BOTH a duty_for and a process-step edge must
   // surface once (duty wins — sections run in priority order).
   node({ id: "dual", doc_no: "A.2.8.8", title: "Dual Signal", content: "Operational GovOps reviews the update.\n\n- Responsible Party: Operational GovOps" }),
+  // A doc genuinely tasking BOTH Core and Operational GovOps (two duty_for
+  // edges) — must produce TWO rows, not collapse to whichever is seen first.
+  node({ id: "duty-dual-role", doc_no: "A.3.9.9", title: "Token Issuance", content: "Core GovOps may require additional tokens. Operational GovOps will assist in executing the transaction." }),
   // Same generic title, outside the per-agent-artifact subtree (A.6.1.1.<n>.*) —
   // these are genuinely different process-step docs that happen to share a
   // structural title, so they must NOT collapse into a single row.
@@ -91,6 +94,8 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "flow-a", tt: "doc", e: "duty_for", s: ["A.2.2.9.1.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method A.") },
   { f: "soter", ft: "entity", t: "flow-b", tt: "doc", e: "duty_for", s: ["A.2.2.9.2.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method B.") },
   { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "duty_for", s: ["A.2.8.8"], m: dutyMeta("Operational GovOps", "Operational GovOps reviews the update.") },
+  { f: "atlas-axis", ft: "entity", t: "duty-dual-role", tt: "doc", e: "duty_for", s: ["A.3.9.9"], m: dutyMeta("Core GovOps", "Core GovOps may require additional tokens.") },
+  { f: "soter", ft: "entity", t: "duty-dual-role", tt: "doc", e: "duty_for", s: ["A.3.9.9"], m: dutyMeta("Operational GovOps", "Operational GovOps will assist in executing the transaction.") },
   // Facilitator-declared duty edge (from the OEA role generalization) — filtered out.
   { f: "jansky", ft: "entity", t: "duty-fac", tt: "doc", e: "duty_for", s: ["A.1.1.2.1"], m: dutyMeta("Core Facilitator", "The Core Facilitator is authorized to conduct Atlas Interpretations.") },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
@@ -184,6 +189,15 @@ describe("deriveGovOpsResponsibilities", () => {
 
   it("ignores duty_for edges declared for non-GovOps acting roles", () => {
     expect(results.find((r) => r.uuid === "duty-fac")).toBeUndefined();
+  });
+
+  it("surfaces a doc that genuinely tasks both Core and Operational GovOps as two rows", () => {
+    const rows = results.filter((r) => r.uuid === "duty-dual-role");
+    expect(rows.map((r) => r.category).sort()).toEqual(["core-duty", "op-duty"]);
+    expect(rows.find((r) => r.category === "core-duty")?.duty).toBe("Core GovOps may require additional tokens.");
+    expect(rows.find((r) => r.category === "op-duty")?.duty).toBe(
+      "Operational GovOps will assist in executing the transaction.",
+    );
   });
 
   it("surfaces a doc carrying both a duty_for and a process-step edge exactly once, as a duty", () => {

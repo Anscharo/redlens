@@ -20,7 +20,7 @@ import {
   rpRoleAndName,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
-import { DUTY_ROLES, findRoleDuty } from "./graph-duties.mjs";
+import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
   const {
@@ -529,29 +529,37 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     if (roleAssignmentDocIds.has(d.id)) continue;
     if (d.type === "Active Data Controller") continue;
     if (d.type === "Type Specification") continue;
+    // Narrative/research doc types are never themselves an operative duty —
+    // Scenarios/Scenario Variations illustrate a misalignment finding,
+    // Annotations define a rubric element, Needed Research poses an open
+    // question. Same exclusion riskRules.ts applies for risk-rule candidacy.
+    if (d.type === "Scenario" || d.type === "Scenario Variation") continue;
+    if (d.type === "Annotation") continue;
+    if (d.type === "Needed Research") continue;
     if (stepRpTargetIds.has(d.id)) continue;
     for (const role of DUTY_ROLES) {
-      const duty = findRoleDuty(role, d.title, d.content, orgsByRole.get(role.key));
-      if (!duty) continue;
+      const duties = findRoleDuties(role, d.title, d.content, orgsByRole.get(role.key));
       const stats = dutyStats.get(role.key);
-      const entities = resolveDutyEntities(role, d, duty);
-      if (!entities.length) {
-        stats.unresolved++;
-        continue;
+      for (const duty of duties) {
+        const entities = resolveDutyEntities(role, d, duty);
+        if (!entities.length) {
+          stats.unresolved++;
+          continue;
+        }
+        for (const entity of entities) {
+          addEdge(
+            entity.id,
+            "entity",
+            d.id,
+            "doc",
+            "duty_for",
+            [d.doc_no],
+            JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
+          );
+          stats.edges++;
+        }
+        stats.byMatch.set(duty.match, (stats.byMatch.get(duty.match) ?? 0) + 1);
       }
-      for (const entity of entities) {
-        addEdge(
-          entity.id,
-          "entity",
-          d.id,
-          "doc",
-          "duty_for",
-          [d.doc_no],
-          JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
-        );
-        stats.edges++;
-      }
-      stats.byMatch.set(duty.match, (stats.byMatch.get(duty.match) ?? 0) + 1);
     }
   }
   for (const role of DUTY_ROLES) {

@@ -78,6 +78,12 @@
     "reason": "\"Operational GovOps associated with the Executor Agent specified in the Executor Accord will carry out…\" — the Executor Agent sits inside a relative clause modifying GovOps, the true subject of \"will carry out\"."
   },
   {
+    "uuid": "8179ca9b-2875-4f7c-9573-9ed6fc5f91cf",
+    "docNo": "A.2.2.6.1.1.1.4",
+    "source": "executor",
+    "reason": "Near-identical text to A.2.2.1.1.13 — \"the Operational GovOps associated with the Executor Agent specified in the Executor Accord will carry out…\" — same relative-clause misattribution."
+  },
+  {
     "uuid": "9de89bf3-9051-44f1-9ec0-d362ee4d4b38",
     "docNo": "A.2.4.1.2.1.3",
     "source": "executor",

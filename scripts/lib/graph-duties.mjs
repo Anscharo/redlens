@@ -22,16 +22,21 @@
 // irregular past participle the suffix check alone misses: "more information
 // can be found in the Executor Agents Section" (A.1.14.3.4.2) is a cross-
 // reference pointer, not a duty, despite the preceding role mention.
+// "required" is carved OUT of the -ed/-en exclusion specifically when followed
+// by "to <verb>" — "Operational GovOps may be required to take escalatory
+// steps" (A.2.2.10.1.1.3.3) is an obligation on GovOps ("must take"), not a
+// true passive; "required" with no following "to" (or any other -ed/-en word)
+// stays excluded as before.
 // Also not when the modal introduces an explicit denial of power: "Atlas Axis
 // will have no decision-making authority" grants nothing (A.1.15.1.2).
-const MODAL = String.raw`(?:must|shall|will|may|can|should)(?!\s+(?:not\s+)?be\s+(?:\w+(?:ed|en)|found)\b)(?!\s+(?:have|has)\s+no\b)`;
+const MODAL = String.raw`(?:must|shall|will|may|can|should)(?!\s+(?:not\s+)?be\s+(?:required(?!\s+to\b)|(?!required\b)\w+(?:ed|en)|found)\b)(?!\s+(?:have|has)\s+no\b)`;
 
 // Obligation/power verbs with the role as subject. "specified" is deliberately
 // absent (cross-references read "… GovOps for Ozone are specified in A.6.1.2.2"
 // — a doc pointer); its passive form lives in PASSIVE_VERBS where the "by"
 // anchor guarantees an actor. The copula power forms allow one intervening
 // adverb that isn't a negation: "is then empowered", never "is not empowered".
-const ACTIVE_VERBS = String.raw`reviews?|validates?|calculates?|executes?|performs?|(?:is|are)\s+(?:(?!not\b)\w+\s+)?(?:responsible|empowered|permitted|granted|authorized)|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?|manages?|oversees?|conducts?|handles?|assesses?|updates?|receives?|verif(?:y|ies)|makes?|creates?|records?|determines?|decides?|designates?|communicates?|notif(?:y|ies)|informs?|gives?|posts?|resolves?|arranges?|compiles?|mints?|shares?|drafts?|incorporates?|seizes?|imposes?|proposes?|escalates?|distributes?|disburses?|evaluates?|interprets?|instructs?|agrees?|documents?|triggers?`;
+const ACTIVE_VERBS = String.raw`reviews?|validates?|calculates?|executes?|performs?|(?:is|are)\s+(?:(?!not\b)\w+\s+)?(?:responsible|empowered|permitted|granted|authorized)|coordinates?|provides?|carries?\s+out|carry\s+out|takes?\s+over|take\s+over|confirms?|submits?|maintains?|monitors?|approves?|prepares?|publishes?|ensures?|manages?|oversees?|conducts?|handles?|assesses?|updates?|receives?|verif(?:y|ies)|makes?|creates?|records?|determines?|decides?|designates?|communicates?|notif(?:y|ies)|informs?|gives?|posts?|resolves?|arranges?|compiles?|mints?|shares?|drafts?|incorporates?|seizes?|imposes?|proposes?|escalates?|distributes?|disburses?|evaluates?|interprets?|instructs?|agrees?|documents?|triggers?|initiates?|formalizes?`;
 
 // Passive participles mirroring ACTIVE_VERBS plus by-anchored power forms
 // (adjudicated/permitted/held/modified by GovOps). "controlled" is NOT here —
@@ -322,6 +327,95 @@ export function findRoleDuty(role, title, content, orgs = []) {
     }
   }
   return null;
+}
+
+// All matches of `re` whose matched text (and start index) pass `valid` —
+// findRoleDuties needs every candidate, not just the first, to find a SECOND
+// duty for the opposite qualifier elsewhere in the same doc.
+function allValidMatches(re, text, valid) {
+  const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+  const hits = [];
+  let m;
+  while ((m = g.exec(text))) {
+    if (valid(m[0], m.index)) hits.push(m);
+    if (g.lastIndex === m.index) g.lastIndex++;
+  }
+  return hits;
+}
+
+/**
+ * Find every DISTINCT duty for one role in one doc — at most one per
+ * declared qualifier (Core / Operational / bare), keeping the first
+ * occurrence of each. Most docs have exactly one; a handful genuinely assign
+ * the role's Core-side and Operational-side holders SEPARATE duties in the
+ * same doc — a "Sky Governance path / Independent Governance path" branch
+ * (A.1.10.2.3.2.2.3.3.2), an "if in the Sky Core Atlas … if in an Agent
+ * Artifact …" branch (A.1.13.1.3.1), or just two consecutive sentences with
+ * no branching language at all (A.3.2.2.7.2.1.2's "Core GovOps may require…
+ * Operational GovOps will assist…"). findRoleDuty (singular) only ever
+ * returns the first of these. Same element shape as findRoleDuty; returns []
+ * instead of null when nothing is found.
+ *
+ * Content is scanned BEFORE the title, unlike findRoleDuty — a verb-grounded,
+ * quoted content match is strictly more trustworthy than a title-based guess,
+ * and title-match docs are exactly where a bare title ("Facilitator Updates
+ * Atlas…") can sit over content that itself states both a Core and an
+ * Operational duty (A.1.10.2.4.13.5). The title is only consulted as a
+ * fallback when the content has nothing verb-anchored to offer at all
+ * ("Facilitator Duties" over "The sections below describe them.").
+ */
+export function findRoleDuties(role, title, content, orgs = []) {
+  const m = matchers(role);
+  const text = role.normalize(content ?? "");
+  const citations = citationSpans(text);
+  const rolePatterns = [
+    ["active", m.active],
+    ["passive", m.passive],
+    ...m.phrases.map((re) => ["phrase", re]),
+  ];
+  const byDeclared = new Map();
+  for (const [match, re] of rolePatterns) {
+    if (byDeclared.has(role.core.label) && byDeclared.has(role.op.label)) break;
+    const hits = allValidMatches(
+      re,
+      text,
+      (s, index) => !inCitation(citations, index) && (!["active", "phrase"].includes(match) || !NEW_SUBJECT_RE.test(s)),
+    );
+    for (const hit of hits) {
+      const scope = sentenceAround(text, hit.index);
+      const declared = classifyRole(role, title, scope);
+      if (!byDeclared.has(declared)) {
+        byDeclared.set(declared, { role_declared: declared, match, quote: quoteAt(text, hit.index) });
+      }
+    }
+  }
+  if (byDeclared.size) return [...byDeclared.values()];
+  if (role.titleScan && m.title.test(role.normalize(title ?? ""))) {
+    const firstPara = text.split(/\n\n/)[0];
+    return [{ role_declared: classifyRole(role, title, firstPara), match: "title", quote: null }];
+  }
+  for (const { name, role_declared } of orgs) {
+    const subj = String.raw`(?<!consultation\s+with\s+(?:the\s+)?)\b${escapeRe(name)}\b`;
+    const orgActive = new RegExp(`${subj}[^.\\n]*?\\b(?:${MODAL}|${ACTIVE_VERBS})\\b`, "i");
+    const orgPassive = new RegExp(
+      `\\b(?:${PASSIVE_VERBS})\\b[^.\\n]*?\\bby\\s+(?:the\\s+)?${escapeRe(name)}\\b`,
+      "i",
+    );
+    const orgColon = new RegExp(`^[ \\t]*-?[ \\t]*[A-Z][\\w /]*:[ \\t]*${escapeRe(name)}\\b`, "im");
+    for (const [kind, re] of [
+      ["active", orgActive],
+      ["passive", orgPassive],
+      ["colon", orgColon],
+    ]) {
+      const hit = firstValidMatch(
+        re,
+        text,
+        (s, index) => !inCitation(citations, index) && (kind !== "active" || !NEW_SUBJECT_RE.test(s)),
+      );
+      if (hit) return [{ role_declared, match: "org", quote: quoteAt(text, hit.index), orgName: name }];
+    }
+  }
+  return [];
 }
 
 // ── back-compat GovOps API (tests + existing call sites) ───────────────────

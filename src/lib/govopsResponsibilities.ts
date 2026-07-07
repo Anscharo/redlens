@@ -130,6 +130,14 @@ export function deriveGovOpsResponsibilities(
   //    (agentFromDocNo is undefined there too, so there's no "agents" list to fall
   //    back on as a consolation). Key those by uuid instead so every one keeps its
   //    own row.
+  //    A doc can genuinely carry BOTH a Core and an Operational duty (a "Sky
+  //    Governance path / Independent Governance path" branch, or just two
+  //    independent sentences, e.g. A.1.10.2.3.2.2.3.3.2, A.3.2.2.7.2.1.2) —
+  //    the key includes `category` (mirroring facilitatorResponsibilities.ts)
+  //    so those don't collide into one row with only the first-seen category
+  //    surviving, and seenDocIds is only marked AFTER every duty_for edge for
+  //    this doc has been processed, so a second edge on the same doc isn't
+  //    skipped before it's even looked at.
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
   const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string> }>();
   for (const e of edges) {
@@ -140,10 +148,10 @@ export function deriveGovOpsResponsibilities(
     // duty_for covers every acting role (GovOps / Facilitator / Executor Agent)
     // — this report only wants the GovOps-declared ones.
     if (!ANY_GOVOPS_RE.test(meta?.role_declared ?? "")) continue;
-    seenDocIds.add(n.id);
 
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
-    const key = AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`;
+    const category: OGResponsibility["category"] = CORE_ROLE_RE.test(meta?.role_declared ?? "") ? "core-duty" : "op-duty";
+    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
     const existing = dutyByTitle.get(key);
     if (existing) {
@@ -161,7 +169,7 @@ export function deriveGovOpsResponsibilities(
       uuid: n.id,
       title: n.title,
       duty,
-      category: CORE_ROLE_RE.test(meta?.role_declared ?? "") ? "core-duty" : "op-duty",
+      category,
       govops: entityById.get(e.f)?.name,
       _agents: new Set(agent ? [agent] : []),
     };
@@ -169,6 +177,7 @@ export function deriveGovOpsResponsibilities(
   }
   for (const { _agents, ...row } of dutyByTitle.values()) {
     results.push({ ...row, agents: _agents.size ? [..._agents] : undefined });
+    seenDocIds.add(row.uuid);
   }
 
   // 4. Active Data — docs whose Responsible Party is declared as GovOps.
