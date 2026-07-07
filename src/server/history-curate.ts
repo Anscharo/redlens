@@ -1,17 +1,11 @@
-// POST /api/history-curate/propose — LLM pre-proposal for the HTML-era history
-// curation tool (plan §10.4). Given a NEWER document and OLDER candidate documents,
-// the model picks which candidate is the newer doc's PREVIOUS version (or "none").
-// Local-only: gated on an OpenRouter key being present (the curation file it drives
-// is never shipped to prod). The LLM only PROPOSES — a human confirms, and the
-// recorded decision is what the build applies, so this never touches determinism.
+// LLM-assisted predecessor proposal for HTML-era history threading (plan §10.4).
+// Given a NEWER document and OLDER candidate documents, the model picks which
+// candidate is the newer doc's PREVIOUS version (or "none"). Shared by the offline
+// batch auto-curator (scripts/htmlhist/auto-curate-html-history.mjs,
+// build-history-curation.mjs, audit-html-decisions.mjs) — the interactive curation
+// UI that used to also call this has been retired now that curation is complete.
 
-import fs from "node:fs";
-import path from "node:path";
 import { getClient, getModel } from "./llm.ts";
-import { config } from "./config.ts";
-
-// Fixed committed filename — the client never supplies a path (no traversal).
-const DECISIONS_FILE = "history-decisions.json";
 
 const SYSTEM =
   "You thread an atlas document's history. Given a NEWER document and several OLDER candidate documents, pick which OLDER candidate is the PREVIOUS version of the NEWER one (the same document, before edits), or \"none\" if the newer document is genuinely new. Content is EXPECTED to change between versions — values, wording, even a rename are normal edits, NOT evidence of a different document. A candidate may include CHANGES → newer: the exact line diff from it to the newer document (- deleted, + added); the true previous version shows a SMALL, COHERENT change while an unrelated document shows a large or incoherent diff — weight this heavily. Candidates may be NEAR-IDENTICAL (same title and body) and are told apart ONLY by their scope + position — the top-level scope the doc lives in (Governance, Support, Stability, Protocol, Accessibility, Agent) and the documents immediately before/after it, shown as 'scope:' / 'under:' (the owning process/element) / 'path:' / 'position: … ‹THIS› …'. Strongly prefer a candidate whose scope MATCHES the newer document's scope; for repeated boilerplate documents (identical bodies like 'Required Primitive Inputs'), the 'under:' owning process is the decisive signal — match it to the newer document's process. Use position/path to disambiguate stubs within a scope. A candidate may note that NO other document could continue it (so declining it here deletes that document) or that other documents also claim it. You may also be given THE CHANGE that produced the newer document (the PR + its forum proposal's edit-list): if it says the newer document's topic was 'Updated' or edited, a predecessor almost certainly exists (pick it); if 'Added'/new, lean 'none'. Judge by the change description and diff, then position, then title + subject/role + prose. Reply ONLY JSON: {\"chosenKey\":\"<one of the candidate keys>\"|\"none\",\"why\":\"<short>\"}.";
@@ -73,12 +67,12 @@ export interface ProposeResult {
   why: string;
 }
 
-// The LLM proposal core, shared by the HTTP endpoint (human-in-the-loop UI) and the
-// offline batch auto-curator (scripts/htmlhist/auto-curate-html-history.mjs) so the prompt
-// lives in exactly one place. Returns the model's chosen candidate key (constrained to
-// the supplied keys, else "none") + a short rationale. The model only PROPOSES — a
-// human confirms in the UI, or the batch script only locks a case when the LLM agrees
-// with an already-confident matcher pick — so this never touches build determinism.
+// The LLM proposal core, used by the offline batch auto-curator
+// (scripts/htmlhist/auto-curate-html-history.mjs) and build-history-curation.mjs.
+// Returns the model's chosen candidate key (constrained to the supplied keys, else
+// "none") + a short rationale. The model only PROPOSES — the batch script only locks
+// a case when the LLM agrees with an already-confident matcher pick — so this never
+// touches build determinism.
 export async function proposePredecessor(
   subject: ProposeSubject,
   candidates: ProposeCandidate[],
@@ -106,7 +100,7 @@ export async function proposePredecessor(
   const response = await getClient().chat.completions.create(
     {
       // opts.model lets the offline auto-curator escalate hard cases to a frontier model
-      // (config.curationFrontierModel) while the page + cheap pass stay on getModel().
+      // (config.curationFrontierModel) while the cheap pass stays on getModel().
       model: opts.model ?? getModel(),
       temperature: 0,
       response_format: { type: "json_object" },
@@ -205,59 +199,4 @@ export async function proposeClusterAssignment(
     return { subjectKey: s.key, chosenKey: cand.key, why };
   });
   return { assignments, conflicts, missing };
-}
-
-// --- dev-only save: persist the human's curation choices to the COMMITTED file ---------
-// Curation is a local activity (the served page is read-only), so this writes the in-repo
-// public/history-decisions.json that `pnpm htmlhist:apply` bakes and the page re-loads on
-// any checkout. Pure write helper, separated for unit-testing; validates the shape and
-// targets a FIXED filename under `dir`, so a client can never steer the write path.
-
-export function writeDecisionsFile(dir: string, body: unknown): number {
-  const file = body as { kind?: string; decisions?: unknown[] };
-  if (file?.kind !== "html-era-history-decisions" || !Array.isArray(file.decisions)) {
-    throw new Error("not a decisions file (expected kind 'html-era-history-decisions' + a decisions array)");
-  }
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, DECISIONS_FILE), JSON.stringify(file, null, 2));
-  return file.decisions.length;
-}
-
-export async function handleCurateSave(req: Request): Promise<Response> {
-  if (!config.curationSaveEnabled) return Response.json({ error: "save is dev-only" }, { status: 404 });
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return Response.json({ error: "bad json" }, { status: 400 });
-  }
-  try {
-    const count = writeDecisionsFile(config.publicDir, body);
-    return Response.json({ ok: true, count, path: `public/${DECISIONS_FILE}` });
-  } catch (error) {
-    return Response.json({ error: String((error as Error)?.message || error) }, { status: 400 });
-  }
-}
-
-export async function handleCuratePropose(req: Request): Promise<Response> {
-  if (!config.curationSaveEnabled) return Response.json({ error: "propose is dev-only" }, { status: 404 });
-  if (!config.openrouterApiKey) return Response.json({ error: "no OpenRouter key configured" }, { status: 404 });
-
-  type Body = { subject?: ProposeSubject; candidates?: ProposeCandidate[] };
-  let body: Body;
-  try {
-    body = (await req.json()) as Body;
-  } catch {
-    return Response.json({ error: "bad json" }, { status: 400 });
-  }
-  const { subject, candidates } = body;
-  if (!subject || !Array.isArray(candidates) || !candidates.length) {
-    return Response.json({ error: "missing subject/candidates" }, { status: 400 });
-  }
-
-  try {
-    return Response.json(await proposePredecessor(subject, candidates));
-  } catch (error) {
-    return Response.json({ error: String((error as Error)?.message || error) }, { status: 502 });
-  }
 }

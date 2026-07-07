@@ -22,11 +22,6 @@ export const config = {
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
   appUrl,
 
-  // HTML-era curation save endpoint (POST /api/history-curate/save) writes the committed
-  // public/history-decisions.json. Curation is a LOCAL/dev activity, so this is enabled only
-  // on localhost (or explicit CURATION_SAVE=1) and 404s in prod — the served page is read-only.
-  curationSaveEnabled: process.env.CURATION_SAVE === "1" || appUrl.startsWith("http://localhost"),
-
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
   githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",

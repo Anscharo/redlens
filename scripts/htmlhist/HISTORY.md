@@ -14,12 +14,13 @@ That's the whole modern story. Everything below is the **pre-#117 (HTML-era) rec
 
 Lifecycle order. `prepare` produces a baseline artifact; `curate` decides the ambiguous threading; `apply` bakes those decisions back in; `audit` double-checks **every** applied decision with an independent second model (then a reviewer adjudicates the disagreements); `trace`/`audit:accuracy` give extra confidence cross-checks.
 
+Curation is **complete** — `public/history-decisions.json` covers every case, closed out and independently re-checked twice (see the PR #128 description). The interactive `/reports/history-curate` review UI + its dev-only save/propose endpoints existed only to get there and have been retired. What's below is now purely the offline pipeline, kept for reproducibility and for the rare future case (a matcher/threading bug fix, new pre-#117 evidence) that requires re-deciding a case by hand-editing the committed decisions file directly.
+
 | Command | Does | Reads → Writes |
 | --- | --- | --- |
 | `pnpm htmlhist:prepare` | Build the frozen pre-#117 history artifact (no curation). Deliberate, reviewed reruns only. | 79 HTML commits + #117 seed → `public/history-html-era.json` |
-| `pnpm htmlhist:curate` | **Build the decision queue AND auto-resolve it** in one shot — forward∩reverse + reverse∩containment (free, deterministic) + LLM∩matcher (≥90%). Add `--frontier` to escalate the uncertain residual to a frontier model (locks on an independent 2nd signal, else writes a hint). | git history → `public/history-curation.json` (queue) + `public/history-auto-decisions.json` (auto baseline the UI pre-fills) + `public/history-curation-proposals.json` (frontier hints, with `--frontier`) + `public/history-curation-llm-cache.json` (resume cache) |
+| `pnpm htmlhist:curate` | **Build the decision queue AND auto-resolve it** in one shot — forward∩reverse + reverse∩containment (free, deterministic) + LLM∩matcher (≥90%). Add `--frontier` to escalate the uncertain residual to a frontier model (locks on an independent 2nd signal, else writes a hint). | git history → `public/history-curation.json` (queue) + `public/history-auto-decisions.json` (auto baseline) + `public/history-curation-proposals.json` (frontier hints, with `--frontier`) + `public/history-curation-llm-cache.json` (resume cache) |
 | `pnpm htmlhist:resume` | **Continue the frontier in batches** — reuses the existing queue + the resume cache (every prior LLM/frontier ask), so a capped run never re-spends; the `--frontier-limit` is spent only on NOT-yet-asked cases. Run repeatedly to finish the frontier a chunk at a time. | existing queue + cache → grows `history-auto-decisions.json` + `-proposals.json` + the cache |
-| *(web UI `/reports/history-curate`)* | Review the residual cases by hand (auto-resolved ones are pre-filled ✓, frontier suggestions shown), then **⤒ save to repo** (dev-only, one click → writes the committed decisions file; ⤓ export downloads as a fallback). | queue + baseline + proposals + committed decisions → `public/history-decisions.json` |
 | `pnpm htmlhist:apply [decisions.json]` | Bake the human/auto decisions into the frozen artifact. No arg ⇒ applies the committed `public/history-decisions.json`. **Partial-safe**: undecided cases fall back to the automatic threading. | decisions → re-freezes `public/history-html-era.json` |
 | `pnpm htmlhist:audit` | **Pass 1 of the post-curation audit** — independently re-pick the predecessor for **every applied decision** (deterministic, AI, and human) with a cheap second model (`google/gemma-4-31b-it`) and flag every case where it disagrees with the recorded pick. Resumable (caches each ask) + partial-safe (`--limit N`). Then **pass 2** = a reviewer (Claude/human) adjudicates each flagged disagreement and records why. Review report only — never artifact data. | `public/history-decisions.json` + queue → `.cache/audit-html-disagreements.{json,md}` + `.cache/audit-html-decisions.json` (ledger) |
 | `pnpm htmlhist:audit:accuracy` | Measure threading **accuracy** (stratified-samples + LLM-grades → a single headline %). The older statistical audit; complements the per-decision one above. Review report only. | → `.cache/audit-html-report.json` |
@@ -32,7 +33,7 @@ Lifecycle order. `prepare` produces a baseline artifact; `curate` decides the am
 
 ```bash
 pnpm htmlhist:curate --frontier      # build queue + auto-resolve + frontier-advise the residual
-#  → review residual at /reports/history-curate, ⤒ save to repo, then:
+#  → decide any residual cases by hand-editing public/history-decisions.json, then:
 git commit public/history-decisions.json
 pnpm htmlhist:apply                  # applies the committed decisions → re-freezes the artifact
 git commit public/history-html-era.json
@@ -41,9 +42,9 @@ pnpm htmlhist:audit                  # pass 1: cheap second model re-checks EVER
 #  (pnpm htmlhist:trace / htmlhist:audit:accuracy any time you want an extra confidence cross-check)
 ```
 
-Partial is fine: decide a subset, save, apply, commit — undecided cases keep the automatic
+Partial is fine: decide a subset, apply, commit — undecided cases keep the automatic
 threading and you can come back later. Both the curation inputs and the applied output are
-committed, so the page works on any checkout and the reconstruction reproduces from git.
+committed, so the reconstruction reproduces from git on any checkout.
 
 ### Incremental, resumable, deployable in chunks
 
@@ -104,5 +105,4 @@ history view is a follow-up — like `created`, it currently lives in `docMeta` 
 
 - The pipeline artifacts (`history-curation.json`, `history-auto-decisions.json`, `history-curation-proposals.json`, `history-decisions.json`, `history-reintroductions.json`, `history-html-era.json`) are **committed** (the reviewed, reproducible reconstruction). The audit + trace write only to `.cache/`. None are on the `pnpm build` path, so frontend-build determinism is untouched.
 - **Serving:** `pnpm build:history` upserts the committed `history-html-era.json` into Postgres `atlas_history` (idempotent, via `htmlEraRows`) on every sync, so dev (preflight) and Railway (atlas worker) both serve the applied reconstruction. No separate sync step.
-- The Bun server does **not** hot-reload routes — if `/api/history-curate/propose` or `/save` 404s in the UI, restart `pnpm dev`. The `⤒ save to repo` endpoint is **dev-only** (localhost / `CURATION_SAVE=1`); it 404s in prod, where the page is read-only.
 - Separate effort: `scripts/aux/atlas-history/` (on-chain polls / edit-proposal enumerators) is the *genesis* pre-history research, not part of this loop.

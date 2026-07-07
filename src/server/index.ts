@@ -15,7 +15,6 @@ import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history.ts";
-import { handleCuratePropose, handleCurateSave } from "./history-curate.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
@@ -101,15 +100,6 @@ const server = Bun.serve({
     // Static segment wins over the `:id` param route, so this matches first.
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
-
-    // Local-only HTML-era history curation: LLM proposes a predecessor; a human
-    // confirms (plan §10.4). Dev-only: gated on config.curationSaveEnabled
-    // (localhost / CURATION_SAVE=1), same as the save route below, plus an
-    // OpenRouter key being present.
-    "/api/history-curate/propose": { POST: (req) => handleCuratePropose(req as Request) },
-    // Dev-only: persist the human's choices to the committed public/history-decisions.json
-    // (handler 404s unless config.curationSaveEnabled — localhost / CURATION_SAVE=1).
-    "/api/history-curate/save": { POST: (req) => handleCurateSave(req as Request) },
 
     "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
