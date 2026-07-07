@@ -1,0 +1,19 @@
+{
+ "gate": 1,
+ "date": "2026-07-06",
+ "verdict": "PASS — no parser change needed",
+ "genesis": {
+  "dfnOccurrences": 1070,
+  "docRows": 890,
+  "parsedNodes": 890
+ },
+ "root_4e931dfd": {
+  "dfnOccurrences": 4785,
+  "parsedNodes": 4019
+ },
+ "delta_explained": {
+  "headerRows": "10 (one per section, <th>-style Doc No/Name/Type/Content rows, no dfn — correctly skipped; tr = nodes+1 in all 10 sections)",
+  "crossReferenceDfns": "180 <dfn> occurrences inside row content cells — citations like \"See A.1.2 - Atlas Documents - Conflict Resolution\", not documents (176 mid-cell, 1 cell-start, 3 inline-in-prose)"
+ },
+ "corrections": "plan figures ≈1,068 (genesis) and ≈4,676 (root) were dfn-occurrence overcounts including cross-reference citations; true doc-row counts are 890 and 4,019"
+}

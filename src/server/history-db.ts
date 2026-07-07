@@ -16,6 +16,13 @@ export const HISTORY_COLS = [
   "doc_id", "commit_sha", "committed_at", "commit_seq", "pr_number", "pr_title", "pr_url",
   "pr_author", "summary", "description", "moved_from", "moved_to", "change_type", "diff",
   "change_kind", "review_count", "approval_count", "comment_count",
+  // HTML-era additive columns (migration 009 / plan §7); null for the markdown era.
+  "era", "seam", "extracted_from", "merged_into", "move_kind",
+  // Per-change provenance (migration 010 / plan §10.4); null unless an ai/human link.
+  "method",
+  // Pre-git origin link (migration 011 / docs/plans/pre-git-history.md); null unless
+  // era is mip/genesis — the mips-repo section URL or the genesis IPFS gateway URL.
+  "source_url",
 ] as const;
 
 /** A single history entry as emitted by build-history.mjs (also the on-disk
@@ -37,6 +44,20 @@ export interface HistoryEvent {
   reviewCount?: number;
   approvalCount?: number;
   commentCount?: number;
+  // HTML-era additive fields (plan §7); absent for markdown-era events.
+  era?: string;
+  seam?: string;
+  extractedFrom?: string;
+  mergedInto?: string;
+  moveKind?: string;
+  // Per-change provenance (plan §10.4): "ai" | "human" on a reconstructed link; else absent.
+  method?: string;
+  // Pre-git origin events only (docs/plans/pre-git-history.md): the event's baked
+  // negative ordering position (mip/genesis/severed reserved blocks) and its external
+  // source link (mips-repo section / genesis IPFS gateway). Absent for git-derived eras,
+  // whose commit_seq is always looked up fresh via seqByCommit.
+  commitSeq?: number;
+  sourceUrl?: string;
 }
 
 /** One row to upsert into atlas_history. */
@@ -59,6 +80,13 @@ export interface HistoryInsert {
   review_count: number | null;
   approval_count: number | null;
   comment_count: number | null;
+  era: string | null;
+  seam: string | null;
+  extracted_from: string | null;
+  merged_into: string | null;
+  move_kind: string | null;
+  method: string | null;
+  source_url: string | null;
 }
 
 /** Topological commit order (oldest = 1) of the atlas submodule, keyed by the
@@ -91,7 +119,12 @@ export function eventToRow(
     doc_id: docId,
     commit_sha: e.commitHash,
     committed_at: e.date ?? null,
-    commit_seq: seqByCommit.get(e.commitHash) ?? null,
+    // git shas resolve through the log-derived map (authoritative); a synthetic
+    // (non-git) sha — html-era tombstones, pre-git mip/genesis/severed events — isn't
+    // in that map, so fall back to the event's own baked seq instead of nulling it out.
+    // Nulling here would silently discard the whole negative-seq ordering design at
+    // ingestion (docs/plans/pre-git-history.md, Gate 3).
+    commit_seq: seqByCommit.get(e.commitHash) ?? e.commitSeq ?? null,
     pr_number: e.pr ?? null,
     pr_title: e.prTitle ?? null,
     pr_url: e.prUrl ?? null,
@@ -106,7 +139,50 @@ export function eventToRow(
     review_count: e.reviewCount ?? null,
     approval_count: e.approvalCount ?? null,
     comment_count: e.commentCount ?? null,
+    era: e.era ?? null,
+    seam: e.seam ?? null,
+    extracted_from: e.extractedFrom ?? null,
+    merged_into: e.mergedInto ?? null,
+    move_kind: e.moveKind ?? null,
+    method: e.method ?? null,
+    source_url: e.sourceUrl ?? null,
   };
+}
+
+/** Map the frozen HTML-era artifact (public/history-html-era.json) to upsertable
+ *  rows (plan §5/§7.1). Each event already carries the HistoryEvent shape + a
+ *  `docId`; commit_seq is reconciled by SHA via `seqByCommit` (gitCommitSeq), so
+ *  the baked artifact seq is never trusted. Null events (missing natural key) are
+ *  dropped. The rows go straight into `upsertHistory`. */
+export function htmlEraRows(
+  artifact: { events: Array<HistoryEvent & { docId: string }> },
+  seqByCommit: Map<string, number>,
+): HistoryInsert[] {
+  const rows: HistoryInsert[] = [];
+  for (const e of artifact.events) {
+    const row = eventToRow(e.docId, e, seqByCommit);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+/** Map the frozen pre-git artifact (public/history-pre-era.json — docs/plans/
+ *  pre-git-history.md) to upsertable rows. Every event's `commitHash` is a synthetic
+ *  tag (`mip:<n>:<sec>`, `genesis:bafkreih7…`, `severed:…`), never a real git sha, so
+ *  its baked `commitSeq` (a reserved negative block) is what eventToRow falls back to —
+ *  there is nothing to reconcile against seqByCommit, unlike htmlEraRows. Same shape,
+ *  separate name per the plan's "ordering / storage" design (kept distinct from
+ *  htmlEraRows so a future divergence in either doesn't silently affect the other). */
+export function preEraRows(
+  artifact: { events: Array<HistoryEvent & { docId: string }> },
+  seqByCommit: Map<string, number>,
+): HistoryInsert[] {
+  const rows: HistoryInsert[] = [];
+  for (const e of artifact.events) {
+    const row = eventToRow(e.docId, e, seqByCommit);
+    if (row) rows.push(row);
+  }
+  return rows;
 }
 
 const SET_CLAUSE = HISTORY_COLS.filter((c) => c !== "doc_id" && c !== "commit_sha" && c !== "change_type")

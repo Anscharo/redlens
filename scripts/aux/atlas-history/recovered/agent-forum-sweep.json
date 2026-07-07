@@ -1,0 +1,2018 @@
+{
+ "range": [
+  "2025-05-13",
+  "2025-11-21"
+ ],
+ "queries": [
+  "agent",
+  "atlas",
+  "agent launch",
+  "liquidity layer",
+  "allocator",
+  "primitive"
+ ],
+ "commits": [
+  {
+   "sha": "4e931df",
+   "date": "2025-05-28",
+   "pr": null,
+   "n": 2101,
+   "hits": [
+    {
+     "id": 26410,
+     "date": "2025-05-14",
+     "title": "An Overview of the Spark Data Hub",
+     "url": "https://forum.skyeco.com/t/26410"
+    },
+    {
+     "id": 26408,
+     "date": "2025-05-14",
+     "title": "DeFi Lending Market Analysis on How Aave and Spark Are Reshaping the Space",
+     "url": "https://forum.skyeco.com/t/26408"
+    },
+    {
+     "id": 26440,
+     "date": "2025-05-21",
+     "title": "[May 29, 2025] Proposed Changes to Spark for Upcoming Spell 2",
+     "url": "https://forum.skyeco.com/t/26440"
+    },
+    {
+     "id": 26448,
+     "date": "2025-05-22",
+     "title": "Proposed Housekeeping Item (Upcoming Executive Spell - 2025-05-29)",
+     "url": "https://forum.skyeco.com/t/26448"
+    },
+    {
+     "id": 26454,
+     "date": "2025-05-24",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-05-26",
+     "url": "https://forum.skyeco.com/t/26454"
+    },
+    {
+     "id": 26478,
+     "date": "2025-05-28",
+     "title": "Spark's Perfect Arbitrage Machine: How One Whale Extracts 100% Yield Through Maker Integration",
+     "url": "https://forum.skyeco.com/t/26478"
+    }
+   ]
+  },
+  {
+   "sha": "79abe87",
+   "date": "2025-06-07",
+   "pr": 1,
+   "n": 551,
+   "hits": [
+    {
+     "id": 26454,
+     "date": "2025-05-24",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-05-26",
+     "url": "https://forum.skyeco.com/t/26454"
+    },
+    {
+     "id": 26478,
+     "date": "2025-05-28",
+     "title": "Spark's Perfect Arbitrage Machine: How One Whale Extracts 100% Yield Through Maker Integration",
+     "url": "https://forum.skyeco.com/t/26478"
+    },
+    {
+     "id": 26514,
+     "date": "2025-05-29",
+     "title": "Spark PSM: The Secret Weapon for Institutional Capital Flows",
+     "url": "https://forum.skyeco.com/t/26514"
+    },
+    {
+     "id": 26535,
+     "date": "2025-05-30",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of June 2, 2025",
+     "url": "https://forum.skyeco.com/t/26535"
+    },
+    {
+     "id": 26559,
+     "date": "2025-06-01",
+     "title": "[June 12, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26559"
+    },
+    {
+     "id": 26585,
+     "date": "2025-06-03",
+     "title": "Atlas Core Development Payment Requests - June 2025",
+     "url": "https://forum.skyeco.com/t/26585"
+    },
+    {
+     "id": 26608,
+     "date": "2025-06-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-09",
+     "url": "https://forum.skyeco.com/t/26608"
+    }
+   ]
+  },
+  {
+   "sha": "ade6ade",
+   "date": "2025-06-12",
+   "pr": 10,
+   "n": 13,
+   "hits": [
+    {
+     "id": 26514,
+     "date": "2025-05-29",
+     "title": "Spark PSM: The Secret Weapon for Institutional Capital Flows",
+     "url": "https://forum.skyeco.com/t/26514"
+    },
+    {
+     "id": 26535,
+     "date": "2025-05-30",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of June 2, 2025",
+     "url": "https://forum.skyeco.com/t/26535"
+    },
+    {
+     "id": 26559,
+     "date": "2025-06-01",
+     "title": "[June 12, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26559"
+    },
+    {
+     "id": 26585,
+     "date": "2025-06-03",
+     "title": "Atlas Core Development Payment Requests - June 2025",
+     "url": "https://forum.skyeco.com/t/26585"
+    },
+    {
+     "id": 26608,
+     "date": "2025-06-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-09",
+     "url": "https://forum.skyeco.com/t/26608"
+    }
+   ]
+  },
+  {
+   "sha": "75d49db",
+   "date": "2025-06-19",
+   "pr": 15,
+   "n": 147,
+   "hits": [
+    {
+     "id": 26608,
+     "date": "2025-06-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-09",
+     "url": "https://forum.skyeco.com/t/26608"
+    },
+    {
+     "id": 26663,
+     "date": "2025-06-13",
+     "title": "[June 26, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26663"
+    },
+    {
+     "id": 26664,
+     "date": "2025-06-14",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-16",
+     "url": "https://forum.skyeco.com/t/26664"
+    },
+    {
+     "id": 26699,
+     "date": "2025-06-19",
+     "title": "Atlas Axis Recruiting for Founding Team Members (June 2025)",
+     "url": "https://forum.skyeco.com/t/26699"
+    }
+   ]
+  },
+  {
+   "sha": "8bba907",
+   "date": "2025-06-27",
+   "pr": 18,
+   "n": 17,
+   "hits": [
+    {
+     "id": 26663,
+     "date": "2025-06-13",
+     "title": "[June 26, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26663"
+    },
+    {
+     "id": 26664,
+     "date": "2025-06-14",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-16",
+     "url": "https://forum.skyeco.com/t/26664"
+    },
+    {
+     "id": 26699,
+     "date": "2025-06-19",
+     "title": "Atlas Axis Recruiting for Founding Team Members (June 2025)",
+     "url": "https://forum.skyeco.com/t/26699"
+    },
+    {
+     "id": 26702,
+     "date": "2025-06-20",
+     "title": "Smart Burn Engine Parameter Update Proposals - June 26, 2025 Spell Contents",
+     "url": "https://forum.skyeco.com/t/26702"
+    },
+    {
+     "id": 26701,
+     "date": "2025-06-20",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-23",
+     "url": "https://forum.skyeco.com/t/26701"
+    },
+    {
+     "id": 26710,
+     "date": "2025-06-23",
+     "title": "Phase 3 MKR to SKY Migration Items [June 26 spell]",
+     "url": "https://forum.skyeco.com/t/26710"
+    },
+    {
+     "id": 26729,
+     "date": "2025-06-25",
+     "title": "Introducing Grove: The Sky Ecosystem’s Institutional Grade Credit Protocol",
+     "url": "https://forum.skyeco.com/t/26729"
+    },
+    {
+     "id": 26744,
+     "date": "2025-06-27",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-30",
+     "url": "https://forum.skyeco.com/t/26744"
+    }
+   ]
+  },
+  {
+   "sha": "4dbd365",
+   "date": "2025-07-04",
+   "pr": 22,
+   "n": 57,
+   "hits": [
+    {
+     "id": 26702,
+     "date": "2025-06-20",
+     "title": "Smart Burn Engine Parameter Update Proposals - June 26, 2025 Spell Contents",
+     "url": "https://forum.skyeco.com/t/26702"
+    },
+    {
+     "id": 26701,
+     "date": "2025-06-20",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-23",
+     "url": "https://forum.skyeco.com/t/26701"
+    },
+    {
+     "id": 26710,
+     "date": "2025-06-23",
+     "title": "Phase 3 MKR to SKY Migration Items [June 26 spell]",
+     "url": "https://forum.skyeco.com/t/26710"
+    },
+    {
+     "id": 26729,
+     "date": "2025-06-25",
+     "title": "Introducing Grove: The Sky Ecosystem’s Institutional Grade Credit Protocol",
+     "url": "https://forum.skyeco.com/t/26729"
+    },
+    {
+     "id": 26744,
+     "date": "2025-06-27",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-30",
+     "url": "https://forum.skyeco.com/t/26744"
+    },
+    {
+     "id": 26750,
+     "date": "2025-06-30",
+     "title": "Phase 3 MKR to SKY Migration Items [July 24th spell]",
+     "url": "https://forum.skyeco.com/t/26750"
+    },
+    {
+     "id": 26767,
+     "date": "2025-07-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-07",
+     "url": "https://forum.skyeco.com/t/26767"
+    }
+   ]
+  },
+  {
+   "sha": "524ce9a",
+   "date": "2025-07-18",
+   "pr": 30,
+   "n": 6,
+   "hits": [
+    {
+     "id": 26779,
+     "date": "2025-07-08",
+     "title": "Atlas Core Development Payment Requests - July 2025",
+     "url": "https://forum.skyeco.com/t/26779"
+    },
+    {
+     "id": 26785,
+     "date": "2025-07-10",
+     "title": "Tokenized T-Bills Transfer from Spark to Grove",
+     "url": "https://forum.skyeco.com/t/26785"
+    },
+    {
+     "id": 26786,
+     "date": "2025-07-10",
+     "title": "About the Grove Prime category",
+     "url": "https://forum.skyeco.com/t/26786"
+    },
+    {
+     "id": 26795,
+     "date": "2025-07-11",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-14",
+     "url": "https://forum.skyeco.com/t/26795"
+    },
+    {
+     "id": 26796,
+     "date": "2025-07-11",
+     "title": "[July 24, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26796"
+    },
+    {
+     "id": 26798,
+     "date": "2025-07-13",
+     "title": "Spark Community Call Update",
+     "url": "https://forum.skyeco.com/t/26798"
+    },
+    {
+     "id": 26805,
+     "date": "2025-07-15",
+     "title": "[July 24, 2025] Proposed Onboardings for Grove in Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26805"
+    },
+    {
+     "id": 26815,
+     "date": "2025-07-16",
+     "title": "Grove - Legal Overview of JAAA",
+     "url": "https://forum.skyeco.com/t/26815"
+    },
+    {
+     "id": 26823,
+     "date": "2025-07-17",
+     "title": "✍️ Community Perspective: Initial Thoughts on Grove",
+     "url": "https://forum.skyeco.com/t/26823"
+    },
+    {
+     "id": 26829,
+     "date": "2025-07-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-21",
+     "url": "https://forum.skyeco.com/t/26829"
+    }
+   ]
+  },
+  {
+   "sha": "eef19ac",
+   "date": "2025-08-12",
+   "pr": 34,
+   "n": 101,
+   "hits": [
+    {
+     "id": 26919,
+     "date": "2025-07-30",
+     "title": "Phase 3 MKR to SKY Migration Item & Housekeeping [August 7th Spell]",
+     "url": "https://forum.skyeco.com/t/26919"
+    },
+    {
+     "id": 26957,
+     "date": "2025-08-01",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-04",
+     "url": "https://forum.skyeco.com/t/26957"
+    },
+    {
+     "id": 26949,
+     "date": "2025-08-01",
+     "title": "[UNIV2DAIUSDC-A] Offboarding Proposal - August 21 Spell",
+     "url": "https://forum.skyeco.com/t/26949"
+    },
+    {
+     "id": 26975,
+     "date": "2025-08-04",
+     "title": "Sky Agent Framework Overhaul",
+     "url": "https://forum.skyeco.com/t/26975"
+    },
+    {
+     "id": 26976,
+     "date": "2025-08-04",
+     "title": "Atlas Core Development Payment Requests - August 2025",
+     "url": "https://forum.skyeco.com/t/26976"
+    },
+    {
+     "id": 26991,
+     "date": "2025-08-08",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-11",
+     "url": "https://forum.skyeco.com/t/26991"
+    },
+    {
+     "id": 26993,
+     "date": "2025-08-08",
+     "title": "[August 21, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26993"
+    },
+    {
+     "id": 26997,
+     "date": "2025-08-10",
+     "title": "[August 21, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26997"
+    },
+    {
+     "id": 27008,
+     "date": "2025-08-11",
+     "title": "Weekly Cycle Atlas Edit Proposal: Week starting 2025-08-11",
+     "url": "https://forum.skyeco.com/t/27008"
+    },
+    {
+     "id": 27005,
+     "date": "2025-08-11",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #8 [Q2, 2025]",
+     "url": "https://forum.skyeco.com/t/27005"
+    }
+   ]
+  },
+  {
+   "sha": "0aa8e44",
+   "date": "2025-08-22",
+   "pr": 46,
+   "n": 43,
+   "hits": [
+    {
+     "id": 26991,
+     "date": "2025-08-08",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-11",
+     "url": "https://forum.skyeco.com/t/26991"
+    },
+    {
+     "id": 26993,
+     "date": "2025-08-08",
+     "title": "[August 21, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26993"
+    },
+    {
+     "id": 26997,
+     "date": "2025-08-10",
+     "title": "[August 21, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/26997"
+    },
+    {
+     "id": 27008,
+     "date": "2025-08-11",
+     "title": "Weekly Cycle Atlas Edit Proposal: Week starting 2025-08-11",
+     "url": "https://forum.skyeco.com/t/27008"
+    },
+    {
+     "id": 27005,
+     "date": "2025-08-11",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #8 [Q2, 2025]",
+     "url": "https://forum.skyeco.com/t/27005"
+    },
+    {
+     "id": 27063,
+     "date": "2025-08-16",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-18",
+     "url": "https://forum.skyeco.com/t/27063"
+    },
+    {
+     "id": 27059,
+     "date": "2025-08-16",
+     "title": "[August 21, 2025] Proposed Changes to Spark for Upcoming Spell 2",
+     "url": "https://forum.skyeco.com/t/27059"
+    },
+    {
+     "id": 27060,
+     "date": "2025-08-16",
+     "title": "Initial Cash Grant to Spark Foundation",
+     "url": "https://forum.skyeco.com/t/27060"
+    },
+    {
+     "id": 27101,
+     "date": "2025-08-22",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-25",
+     "url": "https://forum.skyeco.com/t/27101"
+    }
+   ]
+  },
+  {
+   "sha": "dd13156",
+   "date": "2025-08-25",
+   "pr": 48,
+   "n": 24,
+   "hits": [
+    {
+     "id": 27008,
+     "date": "2025-08-11",
+     "title": "Weekly Cycle Atlas Edit Proposal: Week starting 2025-08-11",
+     "url": "https://forum.skyeco.com/t/27008"
+    },
+    {
+     "id": 27005,
+     "date": "2025-08-11",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #8 [Q2, 2025]",
+     "url": "https://forum.skyeco.com/t/27005"
+    },
+    {
+     "id": 27063,
+     "date": "2025-08-16",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-18",
+     "url": "https://forum.skyeco.com/t/27063"
+    },
+    {
+     "id": 27059,
+     "date": "2025-08-16",
+     "title": "[August 21, 2025] Proposed Changes to Spark for Upcoming Spell 2",
+     "url": "https://forum.skyeco.com/t/27059"
+    },
+    {
+     "id": 27060,
+     "date": "2025-08-16",
+     "title": "Initial Cash Grant to Spark Foundation",
+     "url": "https://forum.skyeco.com/t/27060"
+    },
+    {
+     "id": 27101,
+     "date": "2025-08-22",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-25",
+     "url": "https://forum.skyeco.com/t/27101"
+    },
+    {
+     "id": 27102,
+     "date": "2025-08-23",
+     "title": "[September 4, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27102"
+    }
+   ]
+  },
+  {
+   "sha": "858b4b8",
+   "date": "2025-09-11",
+   "pr": 57,
+   "n": 6,
+   "hits": [
+    {
+     "id": 27122,
+     "date": "2025-08-29",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-01",
+     "url": "https://forum.skyeco.com/t/27122"
+    },
+    {
+     "id": 27129,
+     "date": "2025-09-01",
+     "title": "Technical scope of the stUSDS module launch",
+     "url": "https://forum.skyeco.com/t/27129"
+    },
+    {
+     "id": 27141,
+     "date": "2025-09-02",
+     "title": "Facilitator Decision on Grove/Spark Dispute",
+     "url": "https://forum.skyeco.com/t/27141"
+    },
+    {
+     "id": 27139,
+     "date": "2025-09-02",
+     "title": "Atlas Core Development Payment Requests - September 2025",
+     "url": "https://forum.skyeco.com/t/27139"
+    },
+    {
+     "id": 27149,
+     "date": "2025-09-06",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-08",
+     "url": "https://forum.skyeco.com/t/27149"
+    },
+    {
+     "id": 27153,
+     "date": "2025-09-07",
+     "title": "[September 18, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27153"
+    }
+   ]
+  },
+  {
+   "sha": "0989ae8",
+   "date": "2025-09-11",
+   "pr": 55,
+   "n": 92,
+   "hits": [
+    {
+     "id": 27122,
+     "date": "2025-08-29",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-01",
+     "url": "https://forum.skyeco.com/t/27122"
+    },
+    {
+     "id": 27129,
+     "date": "2025-09-01",
+     "title": "Technical scope of the stUSDS module launch",
+     "url": "https://forum.skyeco.com/t/27129"
+    },
+    {
+     "id": 27141,
+     "date": "2025-09-02",
+     "title": "Facilitator Decision on Grove/Spark Dispute",
+     "url": "https://forum.skyeco.com/t/27141"
+    },
+    {
+     "id": 27139,
+     "date": "2025-09-02",
+     "title": "Atlas Core Development Payment Requests - September 2025",
+     "url": "https://forum.skyeco.com/t/27139"
+    },
+    {
+     "id": 27149,
+     "date": "2025-09-06",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-08",
+     "url": "https://forum.skyeco.com/t/27149"
+    },
+    {
+     "id": 27153,
+     "date": "2025-09-07",
+     "title": "[September 18, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27153"
+    }
+   ]
+  },
+  {
+   "sha": "81f3059",
+   "date": "2025-09-19",
+   "pr": 59,
+   "n": 49,
+   "hits": [
+    {
+     "id": 27149,
+     "date": "2025-09-06",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-08",
+     "url": "https://forum.skyeco.com/t/27149"
+    },
+    {
+     "id": 27153,
+     "date": "2025-09-07",
+     "title": "[September 18, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27153"
+    },
+    {
+     "id": 27169,
+     "date": "2025-09-12",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-15",
+     "url": "https://forum.skyeco.com/t/27169"
+    },
+    {
+     "id": 27173,
+     "date": "2025-09-13",
+     "title": "Monthly Settlement Cycle #1 (July, August) - September 18, 2025 Spell",
+     "url": "https://forum.skyeco.com/t/27173"
+    },
+    {
+     "id": 27175,
+     "date": "2025-09-15",
+     "title": "Technical Scope of the Nova Allocator adjustment",
+     "url": "https://forum.skyeco.com/t/27175"
+    },
+    {
+     "id": 27185,
+     "date": "2025-09-17",
+     "title": "Non-profit entity as new star",
+     "url": "https://forum.skyeco.com/t/27185"
+    },
+    {
+     "id": 27188,
+     "date": "2025-09-19",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-22",
+     "url": "https://forum.skyeco.com/t/27188"
+    },
+    {
+     "id": 27191,
+     "date": "2025-09-19",
+     "title": "[October 2, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27191"
+    },
+    {
+     "id": 27190,
+     "date": "2025-09-19",
+     "title": "[October 2, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27190"
+    }
+   ]
+  },
+  {
+   "sha": "3fff24c",
+   "date": "2025-09-29",
+   "pr": 60,
+   "n": 16,
+   "hits": [
+    {
+     "id": 27175,
+     "date": "2025-09-15",
+     "title": "Technical Scope of the Nova Allocator adjustment",
+     "url": "https://forum.skyeco.com/t/27175"
+    },
+    {
+     "id": 27185,
+     "date": "2025-09-17",
+     "title": "Non-profit entity as new star",
+     "url": "https://forum.skyeco.com/t/27185"
+    },
+    {
+     "id": 27188,
+     "date": "2025-09-19",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-22",
+     "url": "https://forum.skyeco.com/t/27188"
+    },
+    {
+     "id": 27191,
+     "date": "2025-09-19",
+     "title": "[October 2, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27191"
+    },
+    {
+     "id": 27190,
+     "date": "2025-09-19",
+     "title": "[October 2, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27190"
+    },
+    {
+     "id": 27192,
+     "date": "2025-09-20",
+     "title": "[October 02, 2025] Prime Technical Scope & Keel Initialization for Upcoming spell",
+     "url": "https://forum.skyeco.com/t/27192"
+    },
+    {
+     "id": 27215,
+     "date": "2025-09-25",
+     "title": "[October 16, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27215"
+    },
+    {
+     "id": 27222,
+     "date": "2025-09-27",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-29",
+     "url": "https://forum.skyeco.com/t/27222"
+    }
+   ]
+  },
+  {
+   "sha": "955f3f4",
+   "date": "2025-10-09",
+   "pr": 66,
+   "n": 10,
+   "hits": [
+    {
+     "id": 27215,
+     "date": "2025-09-25",
+     "title": "[October 16, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27215"
+    },
+    {
+     "id": 27222,
+     "date": "2025-09-27",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-29",
+     "url": "https://forum.skyeco.com/t/27222"
+    },
+    {
+     "id": 27246,
+     "date": "2025-10-01",
+     "title": "Technical scope of the Lockstake Capped OSM Wrapper launch",
+     "url": "https://forum.skyeco.com/t/27246"
+    },
+    {
+     "id": 27254,
+     "date": "2025-10-02",
+     "title": "Grove - Risk Assessment - PT-USDe & PT-sUSDe",
+     "url": "https://forum.skyeco.com/t/27254"
+    },
+    {
+     "id": 27266,
+     "date": "2025-10-03",
+     "title": "[October 16, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27266"
+    },
+    {
+     "id": 27272,
+     "date": "2025-10-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+     "url": "https://forum.skyeco.com/t/27272"
+    },
+    {
+     "id": 27265,
+     "date": "2025-10-03",
+     "title": "Formation of the Spark Risk Council (SRC)",
+     "url": "https://forum.skyeco.com/t/27265"
+    },
+    {
+     "id": 27286,
+     "date": "2025-10-06",
+     "title": "MSC #2 Settlement Summary (September 2025) – Spark Only (Initial Calculations)",
+     "url": "https://forum.skyeco.com/t/27286"
+    },
+    {
+     "id": 27292,
+     "date": "2025-10-07",
+     "title": "About the Keel Prime category",
+     "url": "https://forum.skyeco.com/t/27292"
+    },
+    {
+     "id": 27293,
+     "date": "2025-10-07",
+     "title": "Atlas Core Development Payment Requests - October 2025",
+     "url": "https://forum.skyeco.com/t/27293"
+    },
+    {
+     "id": 27294,
+     "date": "2025-10-07",
+     "title": "Introducing Keel: Solana's Capital Engine",
+     "url": "https://forum.skyeco.com/t/27294"
+    },
+    {
+     "id": 27296,
+     "date": "2025-10-08",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #9 [Q3, 2025]",
+     "url": "https://forum.skyeco.com/t/27296"
+    }
+   ]
+  },
+  {
+   "sha": "a29e3ab",
+   "date": "2025-10-10",
+   "pr": 69,
+   "n": 9,
+   "hits": [
+    {
+     "id": 27222,
+     "date": "2025-09-27",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-29",
+     "url": "https://forum.skyeco.com/t/27222"
+    },
+    {
+     "id": 27246,
+     "date": "2025-10-01",
+     "title": "Technical scope of the Lockstake Capped OSM Wrapper launch",
+     "url": "https://forum.skyeco.com/t/27246"
+    },
+    {
+     "id": 27254,
+     "date": "2025-10-02",
+     "title": "Grove - Risk Assessment - PT-USDe & PT-sUSDe",
+     "url": "https://forum.skyeco.com/t/27254"
+    },
+    {
+     "id": 27266,
+     "date": "2025-10-03",
+     "title": "[October 16, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27266"
+    },
+    {
+     "id": 27272,
+     "date": "2025-10-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+     "url": "https://forum.skyeco.com/t/27272"
+    },
+    {
+     "id": 27265,
+     "date": "2025-10-03",
+     "title": "Formation of the Spark Risk Council (SRC)",
+     "url": "https://forum.skyeco.com/t/27265"
+    },
+    {
+     "id": 27286,
+     "date": "2025-10-06",
+     "title": "MSC #2 Settlement Summary (September 2025) – Spark Only (Initial Calculations)",
+     "url": "https://forum.skyeco.com/t/27286"
+    },
+    {
+     "id": 27292,
+     "date": "2025-10-07",
+     "title": "About the Keel Prime category",
+     "url": "https://forum.skyeco.com/t/27292"
+    },
+    {
+     "id": 27293,
+     "date": "2025-10-07",
+     "title": "Atlas Core Development Payment Requests - October 2025",
+     "url": "https://forum.skyeco.com/t/27293"
+    },
+    {
+     "id": 27294,
+     "date": "2025-10-07",
+     "title": "Introducing Keel: Solana's Capital Engine",
+     "url": "https://forum.skyeco.com/t/27294"
+    },
+    {
+     "id": 27296,
+     "date": "2025-10-08",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #9 [Q3, 2025]",
+     "url": "https://forum.skyeco.com/t/27296"
+    },
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    }
+   ]
+  },
+  {
+   "sha": "5cd70e5",
+   "date": "2025-10-14",
+   "pr": 64,
+   "n": 15,
+   "hits": [
+    {
+     "id": 27246,
+     "date": "2025-10-01",
+     "title": "Technical scope of the Lockstake Capped OSM Wrapper launch",
+     "url": "https://forum.skyeco.com/t/27246"
+    },
+    {
+     "id": 27254,
+     "date": "2025-10-02",
+     "title": "Grove - Risk Assessment - PT-USDe & PT-sUSDe",
+     "url": "https://forum.skyeco.com/t/27254"
+    },
+    {
+     "id": 27266,
+     "date": "2025-10-03",
+     "title": "[October 16, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27266"
+    },
+    {
+     "id": 27272,
+     "date": "2025-10-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+     "url": "https://forum.skyeco.com/t/27272"
+    },
+    {
+     "id": 27265,
+     "date": "2025-10-03",
+     "title": "Formation of the Spark Risk Council (SRC)",
+     "url": "https://forum.skyeco.com/t/27265"
+    },
+    {
+     "id": 27286,
+     "date": "2025-10-06",
+     "title": "MSC #2 Settlement Summary (September 2025) – Spark Only (Initial Calculations)",
+     "url": "https://forum.skyeco.com/t/27286"
+    },
+    {
+     "id": 27292,
+     "date": "2025-10-07",
+     "title": "About the Keel Prime category",
+     "url": "https://forum.skyeco.com/t/27292"
+    },
+    {
+     "id": 27293,
+     "date": "2025-10-07",
+     "title": "Atlas Core Development Payment Requests - October 2025",
+     "url": "https://forum.skyeco.com/t/27293"
+    },
+    {
+     "id": 27294,
+     "date": "2025-10-07",
+     "title": "Introducing Keel: Solana's Capital Engine",
+     "url": "https://forum.skyeco.com/t/27294"
+    },
+    {
+     "id": 27296,
+     "date": "2025-10-08",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #9 [Q3, 2025]",
+     "url": "https://forum.skyeco.com/t/27296"
+    },
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    }
+   ]
+  },
+  {
+   "sha": "02a3eb1",
+   "date": "2025-10-16",
+   "pr": 78,
+   "n": 367,
+   "hits": [
+    {
+     "id": 27254,
+     "date": "2025-10-02",
+     "title": "Grove - Risk Assessment - PT-USDe & PT-sUSDe",
+     "url": "https://forum.skyeco.com/t/27254"
+    },
+    {
+     "id": 27266,
+     "date": "2025-10-03",
+     "title": "[October 16, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27266"
+    },
+    {
+     "id": 27272,
+     "date": "2025-10-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+     "url": "https://forum.skyeco.com/t/27272"
+    },
+    {
+     "id": 27265,
+     "date": "2025-10-03",
+     "title": "Formation of the Spark Risk Council (SRC)",
+     "url": "https://forum.skyeco.com/t/27265"
+    },
+    {
+     "id": 27286,
+     "date": "2025-10-06",
+     "title": "MSC #2 Settlement Summary (September 2025) – Spark Only (Initial Calculations)",
+     "url": "https://forum.skyeco.com/t/27286"
+    },
+    {
+     "id": 27292,
+     "date": "2025-10-07",
+     "title": "About the Keel Prime category",
+     "url": "https://forum.skyeco.com/t/27292"
+    },
+    {
+     "id": 27293,
+     "date": "2025-10-07",
+     "title": "Atlas Core Development Payment Requests - October 2025",
+     "url": "https://forum.skyeco.com/t/27293"
+    },
+    {
+     "id": 27294,
+     "date": "2025-10-07",
+     "title": "Introducing Keel: Solana's Capital Engine",
+     "url": "https://forum.skyeco.com/t/27294"
+    },
+    {
+     "id": 27296,
+     "date": "2025-10-08",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #9 [Q3, 2025]",
+     "url": "https://forum.skyeco.com/t/27296"
+    },
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    }
+   ]
+  },
+  {
+   "sha": "c43b5e3",
+   "date": "2025-10-16",
+   "pr": 72,
+   "n": 27,
+   "hits": [
+    {
+     "id": 27254,
+     "date": "2025-10-02",
+     "title": "Grove - Risk Assessment - PT-USDe & PT-sUSDe",
+     "url": "https://forum.skyeco.com/t/27254"
+    },
+    {
+     "id": 27266,
+     "date": "2025-10-03",
+     "title": "[October 16, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27266"
+    },
+    {
+     "id": 27272,
+     "date": "2025-10-03",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+     "url": "https://forum.skyeco.com/t/27272"
+    },
+    {
+     "id": 27265,
+     "date": "2025-10-03",
+     "title": "Formation of the Spark Risk Council (SRC)",
+     "url": "https://forum.skyeco.com/t/27265"
+    },
+    {
+     "id": 27286,
+     "date": "2025-10-06",
+     "title": "MSC #2 Settlement Summary (September 2025) – Spark Only (Initial Calculations)",
+     "url": "https://forum.skyeco.com/t/27286"
+    },
+    {
+     "id": 27292,
+     "date": "2025-10-07",
+     "title": "About the Keel Prime category",
+     "url": "https://forum.skyeco.com/t/27292"
+    },
+    {
+     "id": 27293,
+     "date": "2025-10-07",
+     "title": "Atlas Core Development Payment Requests - October 2025",
+     "url": "https://forum.skyeco.com/t/27293"
+    },
+    {
+     "id": 27294,
+     "date": "2025-10-07",
+     "title": "Introducing Keel: Solana's Capital Engine",
+     "url": "https://forum.skyeco.com/t/27294"
+    },
+    {
+     "id": 27296,
+     "date": "2025-10-08",
+     "title": "Spark - Aave Revenue Share Calculations & Payments #9 [Q3, 2025]",
+     "url": "https://forum.skyeco.com/t/27296"
+    },
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    }
+   ]
+  },
+  {
+   "sha": "bd1f39a",
+   "date": "2025-10-23",
+   "pr": 89,
+   "n": 85,
+   "hits": [
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    },
+    {
+     "id": 27326,
+     "date": "2025-10-17",
+     "title": "Capital Transparency: Launch Project Close-out and Sky Simplification Transition",
+     "url": "https://forum.skyeco.com/t/27326"
+    },
+    {
+     "id": 27324,
+     "date": "2025-10-17",
+     "title": "Remi's Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27324"
+    },
+    {
+     "id": 27327,
+     "date": "2025-10-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+     "url": "https://forum.skyeco.com/t/27327"
+    },
+    {
+     "id": 27329,
+     "date": "2025-10-20",
+     "title": "NeoNode’s Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27329"
+    }
+   ]
+  },
+  {
+   "sha": "b5e782a",
+   "date": "2025-10-24",
+   "pr": 91,
+   "n": 10,
+   "hits": [
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    },
+    {
+     "id": 27326,
+     "date": "2025-10-17",
+     "title": "Capital Transparency: Launch Project Close-out and Sky Simplification Transition",
+     "url": "https://forum.skyeco.com/t/27326"
+    },
+    {
+     "id": 27324,
+     "date": "2025-10-17",
+     "title": "Remi's Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27324"
+    },
+    {
+     "id": 27327,
+     "date": "2025-10-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+     "url": "https://forum.skyeco.com/t/27327"
+    },
+    {
+     "id": 27329,
+     "date": "2025-10-20",
+     "title": "NeoNode’s Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27329"
+    },
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    }
+   ]
+  },
+  {
+   "sha": "f0ac286",
+   "date": "2025-10-24",
+   "pr": 85,
+   "n": 12,
+   "hits": [
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    },
+    {
+     "id": 27326,
+     "date": "2025-10-17",
+     "title": "Capital Transparency: Launch Project Close-out and Sky Simplification Transition",
+     "url": "https://forum.skyeco.com/t/27326"
+    },
+    {
+     "id": 27324,
+     "date": "2025-10-17",
+     "title": "Remi's Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27324"
+    },
+    {
+     "id": 27327,
+     "date": "2025-10-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+     "url": "https://forum.skyeco.com/t/27327"
+    },
+    {
+     "id": 27329,
+     "date": "2025-10-20",
+     "title": "NeoNode’s Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27329"
+    },
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    }
+   ]
+  },
+  {
+   "sha": "75b7520",
+   "date": "2025-10-24",
+   "pr": 90,
+   "n": 72,
+   "hits": [
+    {
+     "id": 27309,
+     "date": "2025-10-10",
+     "title": "[October 30, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27309"
+    },
+    {
+     "id": 27311,
+     "date": "2025-10-10",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+     "url": "https://forum.skyeco.com/t/27311"
+    },
+    {
+     "id": 27314,
+     "date": "2025-10-11",
+     "title": "Technical Scope: Launch of the Agent 4 Allocation System",
+     "url": "https://forum.skyeco.com/t/27314"
+    },
+    {
+     "id": 27318,
+     "date": "2025-10-16",
+     "title": "SAEP-02: Modify Spark Liquidity Layer Core Relayer and Freezer Multisig Configuration",
+     "url": "https://forum.skyeco.com/t/27318"
+    },
+    {
+     "id": 27321,
+     "date": "2025-10-16",
+     "title": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27321"
+    },
+    {
+     "id": 27326,
+     "date": "2025-10-17",
+     "title": "Capital Transparency: Launch Project Close-out and Sky Simplification Transition",
+     "url": "https://forum.skyeco.com/t/27326"
+    },
+    {
+     "id": 27324,
+     "date": "2025-10-17",
+     "title": "Remi's Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27324"
+    },
+    {
+     "id": 27327,
+     "date": "2025-10-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+     "url": "https://forum.skyeco.com/t/27327"
+    },
+    {
+     "id": 27329,
+     "date": "2025-10-20",
+     "title": "NeoNode’s Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27329"
+    },
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    }
+   ]
+  },
+  {
+   "sha": "19cc8b9",
+   "date": "2025-10-31",
+   "pr": 96,
+   "n": 20,
+   "hits": [
+    {
+     "id": 27326,
+     "date": "2025-10-17",
+     "title": "Capital Transparency: Launch Project Close-out and Sky Simplification Transition",
+     "url": "https://forum.skyeco.com/t/27326"
+    },
+    {
+     "id": 27324,
+     "date": "2025-10-17",
+     "title": "Remi's Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27324"
+    },
+    {
+     "id": 27327,
+     "date": "2025-10-18",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+     "url": "https://forum.skyeco.com/t/27327"
+    },
+    {
+     "id": 27329,
+     "date": "2025-10-20",
+     "title": "NeoNode’s Spark Delegate Communications",
+     "url": "https://forum.skyeco.com/t/27329"
+    },
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    },
+    {
+     "id": 27362,
+     "date": "2025-10-26",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-27",
+     "url": "https://forum.skyeco.com/t/27362"
+    },
+    {
+     "id": 27364,
+     "date": "2025-10-27",
+     "title": "Launching StarGuard – an upgrade to the Sky Agents’ governance payload execution",
+     "url": "https://forum.skyeco.com/t/27364"
+    },
+    {
+     "id": 27370,
+     "date": "2025-10-29",
+     "title": "Proposed Changes to Launch Agent 4 (Obex) for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27370"
+    },
+    {
+     "id": 27376,
+     "date": "2025-10-30",
+     "title": "[November 13th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27376"
+    },
+    {
+     "id": 27379,
+     "date": "2025-10-31",
+     "title": "Spark Q3 Financial Report Analysis",
+     "url": "https://forum.skyeco.com/t/27379"
+    }
+   ]
+  },
+  {
+   "sha": "a3b6081",
+   "date": "2025-11-07",
+   "pr": 101,
+   "n": 33,
+   "hits": [
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    },
+    {
+     "id": 27362,
+     "date": "2025-10-26",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-27",
+     "url": "https://forum.skyeco.com/t/27362"
+    },
+    {
+     "id": 27364,
+     "date": "2025-10-27",
+     "title": "Launching StarGuard – an upgrade to the Sky Agents’ governance payload execution",
+     "url": "https://forum.skyeco.com/t/27364"
+    },
+    {
+     "id": 27370,
+     "date": "2025-10-29",
+     "title": "Proposed Changes to Launch Agent 4 (Obex) for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27370"
+    },
+    {
+     "id": 27376,
+     "date": "2025-10-30",
+     "title": "[November 13th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27376"
+    },
+    {
+     "id": 27379,
+     "date": "2025-10-31",
+     "title": "Spark Q3 Financial Report Analysis",
+     "url": "https://forum.skyeco.com/t/27379"
+    },
+    {
+     "id": 27381,
+     "date": "2025-11-01",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-03",
+     "url": "https://forum.skyeco.com/t/27381"
+    },
+    {
+     "id": 27393,
+     "date": "2025-11-06",
+     "title": "Out Of Schedule Atlas Edit Proposal",
+     "url": "https://forum.skyeco.com/t/27393"
+    },
+    {
+     "id": 27400,
+     "date": "2025-11-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+     "url": "https://forum.skyeco.com/t/27400"
+    }
+   ]
+  },
+  {
+   "sha": "66dcdb7",
+   "date": "2025-11-07",
+   "pr": 103,
+   "n": 270,
+   "hits": [
+    {
+     "id": 27354,
+     "date": "2025-10-24",
+     "title": "[November 13, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27354"
+    },
+    {
+     "id": 27353,
+     "date": "2025-10-24",
+     "title": "SAEP-03: Spark Savings Configuration",
+     "url": "https://forum.skyeco.com/t/27353"
+    },
+    {
+     "id": 27352,
+     "date": "2025-10-24",
+     "title": "Recommendation to enable Grove to deploy in Aave Core RLUSD",
+     "url": "https://forum.skyeco.com/t/27352"
+    },
+    {
+     "id": 27350,
+     "date": "2025-10-24",
+     "title": "Technical Scope of the Kicker launch",
+     "url": "https://forum.skyeco.com/t/27350"
+    },
+    {
+     "id": 27362,
+     "date": "2025-10-26",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-27",
+     "url": "https://forum.skyeco.com/t/27362"
+    },
+    {
+     "id": 27364,
+     "date": "2025-10-27",
+     "title": "Launching StarGuard – an upgrade to the Sky Agents’ governance payload execution",
+     "url": "https://forum.skyeco.com/t/27364"
+    },
+    {
+     "id": 27370,
+     "date": "2025-10-29",
+     "title": "Proposed Changes to Launch Agent 4 (Obex) for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27370"
+    },
+    {
+     "id": 27376,
+     "date": "2025-10-30",
+     "title": "[November 13th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27376"
+    },
+    {
+     "id": 27379,
+     "date": "2025-10-31",
+     "title": "Spark Q3 Financial Report Analysis",
+     "url": "https://forum.skyeco.com/t/27379"
+    },
+    {
+     "id": 27381,
+     "date": "2025-11-01",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-03",
+     "url": "https://forum.skyeco.com/t/27381"
+    },
+    {
+     "id": 27393,
+     "date": "2025-11-06",
+     "title": "Out Of Schedule Atlas Edit Proposal",
+     "url": "https://forum.skyeco.com/t/27393"
+    },
+    {
+     "id": 27400,
+     "date": "2025-11-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+     "url": "https://forum.skyeco.com/t/27400"
+    }
+   ]
+  },
+  {
+   "sha": "9df3070",
+   "date": "2025-11-10",
+   "pr": 107,
+   "n": 6,
+   "hits": [
+    {
+     "id": 27364,
+     "date": "2025-10-27",
+     "title": "Launching StarGuard – an upgrade to the Sky Agents’ governance payload execution",
+     "url": "https://forum.skyeco.com/t/27364"
+    },
+    {
+     "id": 27370,
+     "date": "2025-10-29",
+     "title": "Proposed Changes to Launch Agent 4 (Obex) for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27370"
+    },
+    {
+     "id": 27376,
+     "date": "2025-10-30",
+     "title": "[November 13th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27376"
+    },
+    {
+     "id": 27379,
+     "date": "2025-10-31",
+     "title": "Spark Q3 Financial Report Analysis",
+     "url": "https://forum.skyeco.com/t/27379"
+    },
+    {
+     "id": 27381,
+     "date": "2025-11-01",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-03",
+     "url": "https://forum.skyeco.com/t/27381"
+    },
+    {
+     "id": 27393,
+     "date": "2025-11-06",
+     "title": "Out Of Schedule Atlas Edit Proposal",
+     "url": "https://forum.skyeco.com/t/27393"
+    },
+    {
+     "id": 27400,
+     "date": "2025-11-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+     "url": "https://forum.skyeco.com/t/27400"
+    },
+    {
+     "id": 27402,
+     "date": "2025-11-10",
+     "title": "Atlas Core Development Payment Requests - November 2025",
+     "url": "https://forum.skyeco.com/t/27402"
+    },
+    {
+     "id": 27404,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & (Solana) Pre-configuration for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27404"
+    },
+    {
+     "id": 27406,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & Parameter Change for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27406"
+    }
+   ]
+  },
+  {
+   "sha": "5636557",
+   "date": "2025-11-19",
+   "pr": 109,
+   "n": 9,
+   "hits": [
+    {
+     "id": 27393,
+     "date": "2025-11-06",
+     "title": "Out Of Schedule Atlas Edit Proposal",
+     "url": "https://forum.skyeco.com/t/27393"
+    },
+    {
+     "id": 27400,
+     "date": "2025-11-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+     "url": "https://forum.skyeco.com/t/27400"
+    },
+    {
+     "id": 27402,
+     "date": "2025-11-10",
+     "title": "Atlas Core Development Payment Requests - November 2025",
+     "url": "https://forum.skyeco.com/t/27402"
+    },
+    {
+     "id": 27404,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & (Solana) Pre-configuration for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27404"
+    },
+    {
+     "id": 27406,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & Parameter Change for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27406"
+    },
+    {
+     "id": 27408,
+     "date": "2025-11-11",
+     "title": "Grove - Risk Assessment - Agora AUSD Liquidity",
+     "url": "https://forum.skyeco.com/t/27408"
+    },
+    {
+     "id": 27407,
+     "date": "2025-11-11",
+     "title": "[November 27th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27407"
+    },
+    {
+     "id": 27413,
+     "date": "2025-11-12",
+     "title": "Sky Stars Future Plans/products (unofficial list)",
+     "url": "https://forum.skyeco.com/t/27413"
+    },
+    {
+     "id": 27418,
+     "date": "2025-11-13",
+     "title": "[November 27, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27418"
+    },
+    {
+     "id": 27417,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Protocol Roadmap",
+     "url": "https://forum.skyeco.com/t/27417"
+    },
+    {
+     "id": 27416,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Distribution Rewards",
+     "url": "https://forum.skyeco.com/t/27416"
+    },
+    {
+     "id": 27415,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Genesis Phase Agent Roadmap",
+     "url": "https://forum.skyeco.com/t/27415"
+    },
+    {
+     "id": 27414,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Institutional Primes and Stars",
+     "url": "https://forum.skyeco.com/t/27414"
+    },
+    {
+     "id": 27421,
+     "date": "2025-11-14",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-17",
+     "url": "https://forum.skyeco.com/t/27421"
+    },
+    {
+     "id": 27441,
+     "date": "2025-11-19",
+     "title": "Technical Scope of the StarGuard Launches for Grove, Keel, and Obex",
+     "url": "https://forum.skyeco.com/t/27441"
+    },
+    {
+     "id": 27442,
+     "date": "2025-11-19",
+     "title": "[Executive Inclusion] - Add ALLOCATOR-OBEX-A to the SP-BEAM",
+     "url": "https://forum.skyeco.com/t/27442"
+    }
+   ]
+  },
+  {
+   "sha": "7b43d15",
+   "date": "2025-11-20",
+   "pr": 115,
+   "n": 386,
+   "hits": [
+    {
+     "id": 27393,
+     "date": "2025-11-06",
+     "title": "Out Of Schedule Atlas Edit Proposal",
+     "url": "https://forum.skyeco.com/t/27393"
+    },
+    {
+     "id": 27400,
+     "date": "2025-11-07",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+     "url": "https://forum.skyeco.com/t/27400"
+    },
+    {
+     "id": 27402,
+     "date": "2025-11-10",
+     "title": "Atlas Core Development Payment Requests - November 2025",
+     "url": "https://forum.skyeco.com/t/27402"
+    },
+    {
+     "id": 27404,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & (Solana) Pre-configuration for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27404"
+    },
+    {
+     "id": 27406,
+     "date": "2025-11-10",
+     "title": "[November 27, 2025] Prime Technical Scope & Parameter Change for upcoming spell",
+     "url": "https://forum.skyeco.com/t/27406"
+    },
+    {
+     "id": 27408,
+     "date": "2025-11-11",
+     "title": "Grove - Risk Assessment - Agora AUSD Liquidity",
+     "url": "https://forum.skyeco.com/t/27408"
+    },
+    {
+     "id": 27407,
+     "date": "2025-11-11",
+     "title": "[November 27th, 2025] Proposed Changes to Grove for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27407"
+    },
+    {
+     "id": 27413,
+     "date": "2025-11-12",
+     "title": "Sky Stars Future Plans/products (unofficial list)",
+     "url": "https://forum.skyeco.com/t/27413"
+    },
+    {
+     "id": 27418,
+     "date": "2025-11-13",
+     "title": "[November 27, 2025] Proposed Changes to Spark for Upcoming Spell",
+     "url": "https://forum.skyeco.com/t/27418"
+    },
+    {
+     "id": 27417,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Protocol Roadmap",
+     "url": "https://forum.skyeco.com/t/27417"
+    },
+    {
+     "id": 27416,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Distribution Rewards",
+     "url": "https://forum.skyeco.com/t/27416"
+    },
+    {
+     "id": 27415,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Genesis Phase Agent Roadmap",
+     "url": "https://forum.skyeco.com/t/27415"
+    },
+    {
+     "id": 27414,
+     "date": "2025-11-13",
+     "title": "Sky Agent Framework: Institutional Primes and Stars",
+     "url": "https://forum.skyeco.com/t/27414"
+    },
+    {
+     "id": 27421,
+     "date": "2025-11-14",
+     "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-17",
+     "url": "https://forum.skyeco.com/t/27421"
+    },
+    {
+     "id": 27441,
+     "date": "2025-11-19",
+     "title": "Technical Scope of the StarGuard Launches for Grove, Keel, and Obex",
+     "url": "https://forum.skyeco.com/t/27441"
+    },
+    {
+     "id": 27442,
+     "date": "2025-11-19",
+     "title": "[Executive Inclusion] - Add ALLOCATOR-OBEX-A to the SP-BEAM",
+     "url": "https://forum.skyeco.com/t/27442"
+    }
+   ]
+  }
+ ]
+}

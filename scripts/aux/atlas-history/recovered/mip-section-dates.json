@@ -1,0 +1,802 @@
+{
+ "101:5": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "The Stability Scope"
+ },
+ "107:2": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "Core Tokens"
+ },
+ "107:3": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "NewBridge"
+ },
+ "107:7": {
+  "date": "2023-06-06",
+  "sha": "6b3c1d5c",
+  "title": "Emissions"
+ },
+ "101:Organizational Alignment": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Organizational Alignment"
+ },
+ "101:Ecosystem Intelligence": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Ecosystem Intelligence"
+ },
+ "101:Universal Alignment Assumption": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Universal Alignment Assumption"
+ },
+ "101:Inner Incentive": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Inner Incentive"
+ },
+ "101:Alignment Engineering": {
+  "date": "2023-02-09",
+  "sha": "bb35ab4e",
+  "title": "Alignment Engineering"
+ },
+ "101:Letter of the Rule vs Spirit of the Rule": {
+  "date": "2023-07-10",
+  "sha": "b3292090",
+  "title": "Letter of the Rule vs Spirit of the Rule"
+ },
+ "101:Incentivized Alignment": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Incentivized Alignment"
+ },
+ "101:Misalignment": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Misalignment"
+ },
+ "101:Slippery Slope Misalignment": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Slippery Slope Misalignment"
+ },
+ "101:Alignment Artifact": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Alignment Artifact"
+ },
+ "101:Scope Bounded Mutable Alignment Artifact (Scope Artifact)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Scope Bounded Mutable Alignment Artifact (Scope Artifact)"
+ },
+ "101:Alignment Conserver": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Alignment Conserver"
+ },
+ "101:SubDAO": {
+  "date": "2023-02-09",
+  "sha": "bb35ab4e",
+  "title": "SubDAO"
+ },
+ "101:Governance Scope (GOV)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Governance Scope (GOV)"
+ },
+ "101:Support Scope (SUP)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Support Scope (SUP)"
+ },
+ "101:Protocol Scope (PRO)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Protocol Scope (PRO)"
+ },
+ "101:Stability Scope (STA)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Stability Scope (STA)"
+ },
+ "101:Accessibility Scope (ACC)": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Accessibility Scope (ACC)"
+ },
+ "101:SubDAO Scope Bounded Mutable Alignment Artifacts": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "SubDAO Scope Bounded Mutable Alignment Artifacts"
+ },
+ "101:Governance Equilibrium": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Governance Equilibrium"
+ },
+ "101:Endgame State": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Endgame State"
+ },
+ "101:Explicit Incentives": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Explicit Incentives"
+ },
+ "101:Whole Weeks": {
+  "date": "2023-07-21",
+  "sha": "91425e7a",
+  "title": "Whole Weeks"
+ },
+ "101:2.4.2": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Alignment Conservers Eligibility Requirements"
+ },
+ "101:2.6.6": {
+  "date": "2023-08-09",
+  "sha": "4b088a75",
+  "title": "Aligned Delegate Operational Security"
+ },
+ "113:7.1": {
+  "date": "2023-05-01",
+  "sha": "1eb99c7e",
+  "title": "Active Facilitators"
+ },
+ "113:10.1": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "GSM (Governance Security Module) Pause Delay"
+ },
+ "113:10.1.1": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Adjusting the GSM Pause Delay"
+ },
+ "113:10.2.1": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Executive Drop"
+ },
+ "113:10.2.2": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Oracle Freeze"
+ },
+ "113:10.2.3": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Debt Ceiling Breaker"
+ },
+ "113:10.2.3.1A": {
+  "date": "2024-04-01",
+  "sha": "6ad33cd6",
+  "title": "Debt Ceiling Breaker Vault Types Whitelist"
+ },
+ "113:10.2.4": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Liquidations Circuit Breaker"
+ },
+ "113:10.2.4.1": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Breaker Price Tolerance"
+ },
+ "113:10.2.5": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Direct Deposit Breaker"
+ },
+ "113:10.2.7": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Dynamic Debt Ceiling"
+ },
+ "113:10.2.8": {
+  "date": "2024-03-05",
+  "sha": "b33ef1e2",
+  "title": "SparkLend Freezer Mom"
+ },
+ "113:10.2.9": {
+  "date": "2024-03-05",
+  "sha": "b33ef1e2",
+  "title": "Smart Burn Engine Breaker"
+ },
+ "113:10.3.1": {
+  "date": "2024-03-05",
+  "sha": "b33ef1e2",
+  "title": "Multisig Freeze of SparkLend"
+ },
+ "102:MIP102c4: Simultaneous Edit Resolution Process": {
+  "date": "2024-02-29",
+  "sha": "89362eea",
+  "title": "MIP102c4: Simultaneous Edit Resolution Process"
+ },
+ "101:2.14.3": {
+  "date": "2024-08-02",
+  "sha": "53c2b472",
+  "title": "Calendar Exceptions"
+ },
+ "101:Week 2, Monday": {
+  "date": "2024-08-02",
+  "sha": "53c2b472",
+  "title": "Week 2, Monday"
+ },
+ "101:2.14.2": {
+  "date": "2023-03-01",
+  "sha": "27c96a88",
+  "title": "Ratification Poll"
+ },
+ "113:12.5": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Multiple Conflicting Atlas Edit Proposals"
+ },
+ "113:12.6": {
+  "date": "2024-03-05",
+  "sha": "b33ef1e2",
+  "title": "Governance Security & Ecosystem Actor Embedding"
+ },
+ "106:2.4.2": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "Designation of Governance Process Support Ecosystem Actors"
+ },
+ "106:3.1.1": {
+  "date": "2024-08-02",
+  "sha": "53c2b472",
+  "title": "Atlas Core Development Executive Vote Funding"
+ },
+ "106:6.4.1": {
+  "date": "2024-03-17",
+  "sha": "513d160e",
+  "title": "Special SPK Token Pre-farming"
+ },
+ "106:7.2": {
+  "date": "2023-06-07",
+  "sha": "6673aad4",
+  "title": "Ecosystem Actor Incubation Related Budgets"
+ },
+ "106:8": {
+  "date": "2023-06-07",
+  "sha": "6673aad4",
+  "title": "Ecosystem Communication Channels"
+ },
+ "106:9.4.1": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Spark Protocol Aave Revenue Share"
+ },
+ "106:10.1": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Legal Defense Resources"
+ },
+ "106:10.1.1": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "The Resilience Fund"
+ },
+ "106:10.1.1.1": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Resilience Fund Budget"
+ },
+ "106:10.1.1.1.1": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Transition Funding"
+ },
+ "106:10.1.1.2": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "The Resilience Technical Committee"
+ },
+ "106:10.1.1.3": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Resilience Fund Policy"
+ },
+ "106:10.1.1.3.1": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Loss Event"
+ },
+ "106:10.1.1.3.2": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Exclusions"
+ },
+ "106:10.1.1.3.3": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Beneficiaries"
+ },
+ "106:10.1.1.3.5": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Effective Date"
+ },
+ "106:10.1.1.3.6": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Base of Coverage"
+ },
+ "106:10.1.1.4": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Resilience Fund Processes and Principles"
+ },
+ "106:10.1.1.4.1.1": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Proof of Eligibility (PoE)"
+ },
+ "106:10.1.1.4.1.1T": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Applications for the RF must follow this template"
+ },
+ "106:10.1.1.4.1.3": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Terms and Conditions"
+ },
+ "106:10.1.1.4.1.5": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Approval Process and Verifiability"
+ },
+ "106:10.1.1.4.2": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Claim Management Process"
+ },
+ "106:10.1.1.4.2.1": {
+  "date": "2023-06-07",
+  "sha": "6673aad4",
+  "title": "Legal Counsel and Quote Pre-approval"
+ },
+ "106:10.1.1.4.2.2": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Claim Approval"
+ },
+ "106:10.1.1.4.2.2.1": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "The Beneficiary submits a Payout Claim by sending an encrypted Message to a Support Facilitator"
+ },
+ "109:3.4.5.2": {
+  "date": "2023-03-29",
+  "sha": "bdab8cb0",
+  "title": "*Claim Approval.*"
+ },
+ "106:10.1.1.4.2.2.6": {
+  "date": "2023-06-07",
+  "sha": "6673aad4",
+  "title": "Quorum and Decision Majorities"
+ },
+ "106:10.1.1.4.2.3": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Payout / Reimbursement"
+ },
+ "106:10.1.1.4.5": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Litigation/Defense Management"
+ },
+ "106:10.1.2": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "The Lawyer Registry (LR)"
+ },
+ "106:10.1.2.1": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Lawyer Registry Acceptance Criteria"
+ },
+ "106:10.1.2.2.3T": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "LR template"
+ },
+ "106:10.1.4": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "The Guardian"
+ },
+ "106:10.1.3": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Legal Defense Standard Operational Processes"
+ },
+ "106:10.2": {
+  "date": "2023-05-01",
+  "sha": "8d497349",
+  "title": "Legal Risk Management"
+ },
+ "106:10.2.1.1": {
+  "date": "2023-06-07",
+  "sha": "6673aad4",
+  "title": "The Policyholder Definition"
+ },
+ "106:10.3": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Privacy and Operational Security"
+ },
+ "106:10.4": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Advocacy and Public Policy"
+ },
+ "106:10.5": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Legal and Regulatory Risk Monitoring"
+ },
+ "106:10.6": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Public Procurement Framework"
+ },
+ "106:10.8": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Technical and Legal Standards"
+ },
+ "106:11": {
+  "date": "2023-09-05",
+  "sha": "70ce4793",
+  "title": "Legal resilience research and preparedness"
+ },
+ "106:11.1": {
+  "date": "2023-06-29",
+  "sha": "e5d39a88",
+  "title": "Resilience Research and Preparedness Budget"
+ },
+ "106:11.2": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Resilience Research Objectives"
+ },
+ "106:1.3": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Application Process"
+ },
+ "106:11.4T": {
+  "date": "2023-08-08",
+  "sha": "046d73b4",
+  "title": "Application Template"
+ },
+ "106:13.1.2.4": {
+  "date": "2023-12-06",
+  "sha": "e90dc3e7",
+  "title": "Out of Scope and Rules"
+ },
+ "106:13.1.3.1.3.1": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Reward Denomination"
+ },
+ "106:13.1.3.1.3.2": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Payout Process"
+ },
+ "106:13.1.3.1.3.3": {
+  "date": "2023-02-28",
+  "sha": "711e814d",
+  "title": "Budget"
+ },
+ "101:3.12": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Purpose System - SUP12"
+ },
+ "101:5.3.2": {
+  "date": "2023-02-09",
+  "sha": "bb35ab4e",
+  "title": "The Dai Savings Rate"
+ },
+ "101:5.5.1": {
+  "date": "2023-05-01",
+  "sha": "7769591c",
+  "title": "Arranged Structures"
+ },
+ "104:5.1.4": {
+  "date": "2023-06-07",
+  "sha": "6c2409a3",
+  "title": "Arranger Reports and Stress Tests"
+ },
+ "104:5.3": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Perpetual yield strategies"
+ },
+ "104:5.3.1": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Perpetual exposure Direct Accumulation"
+ },
+ "104:5.3.2": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Morpho overcollateralized sUSDe or USDe DDM"
+ },
+ "104:7.1": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Stablecoin collateral"
+ },
+ "104:7.1.2": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "Cash Stablecoin Definition"
+ },
+ "104:7.1.2A": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "List of Cash Stablecoins"
+ },
+ "104:7.1.3": {
+  "date": "2023-12-28",
+  "sha": "f2f6ee04",
+  "title": "Cash Stablecoin Peg Stability Module Upgrades"
+ },
+ "104:7.2": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Asset Liability Management"
+ },
+ "104:7.2.1": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Excess Cash Stablecoins"
+ },
+ "104:7.2.2": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Lack of Cash Stablecoins"
+ },
+ "104:7.2.3": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Low Risk RWA"
+ },
+ "104:7.3": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "Legacy RWA"
+ },
+ "104:7.1.1": {
+  "date": "2024-05-01",
+  "sha": "26f62b77",
+  "title": "USDC PSM and Coinbase Custody"
+ },
+ "104:9.1": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "Smart Burn Engine Parameters"
+ },
+ "104:9.1.2.1": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Maximum price"
+ },
+ "104:14.3": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "Native Vault Engine"
+ },
+ "104:14.3.2.1": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "ETH-A"
+ },
+ "104:14.3.2.2": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "ETH-B"
+ },
+ "104:14.3.2.3": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "ETH-C"
+ },
+ "104:14.3.2.4": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "WSTETH-A"
+ },
+ "104:14.3.2.5": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "WSTETH-B"
+ },
+ "104:14.3.2.6": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "WBTC-A"
+ },
+ "104:14.3.2.7": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "WBTC-B"
+ },
+ "104:14.3.2.8": {
+  "date": "2023-03-03",
+  "sha": "5e8090a0",
+  "title": "WBTC-C"
+ },
+ "104:14.3.1.1": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Liquidation Ratio (LR)"
+ },
+ "104:14.3.1.2": {
+  "date": "2023-05-01",
+  "sha": "fe32b976",
+  "title": "Debt Ceiling Limit"
+ },
+ "104:14.3.1.3": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Stability Fee (SF)"
+ },
+ "104:14.3.1.4": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Debt Ceiling Instant Access Module (DC-IAM)"
+ },
+ "104:14.3.1.4.1": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Maximum Debt Ceiling (`line`)"
+ },
+ "104:14.3.1.4.2": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Target Available Debt (`gap`)"
+ },
+ "104:14.3.1.4.3": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Ceiling Increase Cooldown (`ttl`)"
+ },
+ "104:14.3.1.5.1": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Auction Price Function (`calc`)"
+ },
+ "104:14.3.1.5.1.1": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "`cut`"
+ },
+ "104:14.3.1.5.1.2": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "`step`"
+ },
+ "104:14.3.1.5.2": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Auction Price Multiplier (`buf`)"
+ },
+ "104:14.3.1.5.3": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Max Auction Drawdown (`cusp`)"
+ },
+ "104:14.3.1.5.4": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Max Auction Duration (`tail`)"
+ },
+ "104:14.3.1.5.5": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Proportional Kick Incentive (`chip`)"
+ },
+ "104:14.3.1.5.6": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Flat Kick Incentive (`tip`)"
+ },
+ "104:14.3.1.5.7": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Liquidation Penalty (`chop`)"
+ },
+ "104:14.3.1.5.8": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Local Liquidation Limit (`hole`)"
+ },
+ "104:14.3.1.6": {
+  "date": "2023-11-06",
+  "sha": "2f0f7a7a",
+  "title": "Debt Floor (`dust`)"
+ },
+ "104:14.3.6": {
+  "date": "2024-08-02",
+  "sha": "53c2b472",
+  "title": "Native Vault Engine Oracles"
+ },
+ "107:4.1": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "Savings Rate Mechanism"
+ },
+ "107:5.3.1": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "Sealed Activation Exit Fee"
+ },
+ "107:7.2": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "SubDAO Emissions"
+ },
+ "107:7.2.1": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "SubDAO Token NewStable Token Rewards"
+ },
+ "107:7.2.2": {
+  "date": "2024-08-04",
+  "sha": "66c5d7a7",
+  "title": "SubDAO Token NewGovToken Activation Rewards"
+ },
+ "108:4.2": {
+  "date": "2023-06-07",
+  "sha": "a0dc96b1",
+  "title": "Accessibility on External Platforms"
+ },
+ "108:5": {
+  "date": "2023-05-01",
+  "sha": "9d83b848",
+  "title": "Accessibility Campaigns"
+ },
+ "108:8.1": {
+  "date": "2023-06-06",
+  "sha": "6b3c1d5c",
+  "title": "Limited Filtering"
+ },
+ "108:8.2": {
+  "date": "2023-06-06",
+  "sha": "6b3c1d5c",
+  "title": "Full Block"
+ },
+ "108:9": {
+  "date": "2023-06-06",
+  "sha": "6b3c1d5c",
+  "title": "Launch Project"
+ },
+ "104:5.3.1.3A": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Current exposure legal rails Andromeda"
+ },
+ "104:5.3.1.2A": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Current exposure legal rails Clydesdale"
+ },
+ "104:5.3.2.1A": {
+  "date": "2024-03-16",
+  "sha": "eb1a2296",
+  "title": "Current exposure"
+ }
+}

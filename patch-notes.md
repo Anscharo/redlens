@@ -19,6 +19,11 @@
   Only the 10 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-07
+- Added true pre-git Atlas origins for older sections, including MIP sources and the Atlas v2 genesis snapshot
+- Added Atlas history from before the 2025 migration to markdown, behind a "View HTML Era Edits" toggle
+
+
 ## 2026-07-03
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections
 - Improved the expand-all control for sections with large or hidden subsection hierarchies
@@ -43,7 +48,6 @@
 
 ## 2026-06-25
 - Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
-
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer

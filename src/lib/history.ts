@@ -33,6 +33,41 @@ export interface HistoryEntry {
   movedFrom?: string;
   /** Destination path for `changeType: "moved"` */
   movedTo?: string;
+  /** Reconstruction era. "html" = a pre-#117 entry auto-translated from the
+   *  original HTML tables, with lineage traced (deterministic matching + AI
+   *  cross-check + human review) — so the diff is approximate. "mip" / "genesis" /
+   *  "severed" = pre-git origin events (docs/plans/pre-git-history.md): a doc's
+   *  verbiage traced to the MIP-era Atlas, its presence in the recovered Atlas v2
+   *  genesis snapshot, or an undated birth somewhere in the severed (git-less)
+   *  window. Absent for the native markdown era. Drives the reconstruction
+   *  disclaimer in the history panel. */
+  era?: string;
+  /** Per-change provenance for a reconstructed-era entry: how this document's lineage
+   *  link was traced. Only the exceptions are recorded — "ai" (an LLM/frontier
+   *  auto-lock) or "human" (a person's confirmed pick); deterministically-matched
+   *  links are absent ("deterministic" implied). Drives the AI / human badge. */
+  method?: "deterministic" | "ai" | "human";
+  /** Baked ordering position for a pre-git origin event (era mip/genesis/severed) —
+   *  the reserved negative commit_seq block. Absent for git-derived eras, which order
+   *  by their real git-log position instead. NodeHistory sorts on this, not on `date`
+   *  (severed-interval births carry no date at all). */
+  commitSeq?: number;
+  /** External reference for a pre-git origin event: the mips-repo section on GitHub,
+   *  or the genesis IPFS gateway URL. Absent for git-derived eras (those link their
+   *  real commit instead). */
+  sourceUrl?: string;
+}
+
+/** Reconstructed (non-git-native) history eras — every era whose entries carry a
+ *  synthetic (non-git) commit_sha and need the toggle/disclaimer treatment, as
+ *  opposed to a real markdown-era commit. */
+export const RECONSTRUCTED_ERAS = new Set(["html", "mip", "genesis", "severed"]);
+
+/** A real git commit sha (7–40 lowercase hex), as opposed to a synthetic pre-git tag
+ *  (`mip:104:14.3`, `genesis:bafkreih7…`, `severed:…`). Gates the "view on GitHub"
+ *  commit link, which is meaningless for a synthetic tag. */
+export function isGitSha(s: string | undefined | null): boolean {
+  return !!s && /^[0-9a-f]{7,40}$/i.test(s);
 }
 
 /** Single source of truth for change-type → CSS color, shared by the atlas

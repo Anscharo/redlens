@@ -1,0 +1,11 @@
+{
+  "number": 95,
+  "title": "Spark Proposal: Enable Grove to deploy in Aave Core RLUSD",
+  "body": "Originating forum post: https://forum.sky.money/t/recommendation-to-enable-grove-to-deploy-in-aave-core-rlusd/27352\r\n\r\n**Do not merge unless associated poll passes**",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/95",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1,
+  "summary": "[October 30th, 2025] Proposed Changes to Grove for Upcoming Spell Grove Prime Summary [Ethereum] Grove - Onboard Aave Core v3 RLUSD and USDC [Ethereum] Grove - Onboard Aave Horizon RLUSD and USDC [Ethereum] Grove - Onboard Curve RLUSD and USDC Swaps Note: (1) In compliance with the Ecosystem Accord 1, Grove deployments to Aave Core v3 will not be made until November 29th or later. (2) This post was updated to remove the onboarding of Pendle PT redeems, which will be included in a later spell. Rationale [Ethereum] Grove - Onboard Aave Core v3 RLUSD and USDC Aave Core… The recent Grove spell adds support for Aave Core RLUSD market, amongst other items. As noted in the thread, Grove is currently unable to deploy into this market until the end of the Accord. With this notice, Phoenix Labs recommends a snapshot poll to allow Grove to allocate to the Aave Core RLUSD market for any amount."
+}

@@ -1,0 +1,269 @@
+{
+ "proposals": [
+  {
+   "id": 25083,
+   "date": "2024-09-13",
+   "bytes": 4514,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 6,
+   "bullets": 0
+  },
+  {
+   "id": 25179,
+   "date": "2024-09-20",
+   "bytes": 2136,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25324,
+   "date": "2024-10-11",
+   "bytes": 26399,
+   "multiPost": false,
+   "sets": 10,
+   "verbs": 20,
+   "bullets": 0
+  },
+  {
+   "id": 25364,
+   "date": "2024-10-18",
+   "bytes": 1681,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25411,
+   "date": "2024-10-25",
+   "bytes": 5721,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25507,
+   "date": "2024-11-07",
+   "bytes": 4005,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25552,
+   "date": "2024-11-15",
+   "bytes": 1234,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25590,
+   "date": "2024-11-25",
+   "bytes": 72952,
+   "multiPost": false,
+   "sets": 12,
+   "verbs": 31,
+   "bullets": 94
+  },
+  {
+   "id": 25907,
+   "date": "2025-01-30",
+   "bytes": 1478,
+   "multiPost": false,
+   "sets": 5,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25964,
+   "date": "2025-02-11",
+   "bytes": 2669,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25979,
+   "date": "2025-02-12",
+   "bytes": 22145,
+   "multiPost": false,
+   "sets": 8,
+   "verbs": 22,
+   "bullets": 16
+  },
+  {
+   "id": 25983,
+   "date": "2025-02-13",
+   "bytes": 1416,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 25991,
+   "date": "2025-02-14",
+   "bytes": 3423,
+   "multiPost": false,
+   "sets": 6,
+   "verbs": 2,
+   "bullets": 0
+  },
+  {
+   "id": 26000,
+   "date": "2025-02-16",
+   "bytes": 3846,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26002,
+   "date": "2025-02-17",
+   "bytes": 1884,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26010,
+   "date": "2025-02-18",
+   "bytes": 4199,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26111,
+   "date": "2025-03-07",
+   "bytes": 2734,
+   "multiPost": false,
+   "sets": 3,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26176,
+   "date": "2025-03-25",
+   "bytes": 2348,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26177,
+   "date": "2025-03-25",
+   "bytes": 5086,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26205,
+   "date": "2025-03-29",
+   "bytes": 3083,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26209,
+   "date": "2025-03-29",
+   "bytes": 11972,
+   "multiPost": false,
+   "sets": 4,
+   "verbs": 7,
+   "bullets": 26
+  },
+  {
+   "id": 26225,
+   "date": "2025-04-02",
+   "bytes": 1238,
+   "multiPost": false,
+   "sets": 5,
+   "verbs": 0,
+   "bullets": 0
+  },
+  {
+   "id": 26232,
+   "date": "2025-04-05",
+   "bytes": 2588,
+   "multiPost": false,
+   "sets": 3,
+   "verbs": 2,
+   "bullets": 2
+  },
+  {
+   "id": 26262,
+   "date": "2025-04-11",
+   "bytes": 90220,
+   "multiPost": true,
+   "sets": 2,
+   "verbs": 12,
+   "bullets": 201
+  },
+  {
+   "id": 26291,
+   "date": "2025-04-18",
+   "bytes": 19693,
+   "multiPost": false,
+   "sets": 2,
+   "verbs": 13,
+   "bullets": 43
+  },
+  {
+   "id": 26307,
+   "date": "2025-04-23",
+   "bytes": 1251,
+   "multiPost": false,
+   "sets": 2,
+   "verbs": 1,
+   "bullets": 1
+  },
+  {
+   "id": 26319,
+   "date": "2025-04-30",
+   "bytes": 40803,
+   "multiPost": false,
+   "sets": 6,
+   "verbs": 9,
+   "bullets": 65
+  },
+  {
+   "id": 26364,
+   "date": "2025-05-08",
+   "bytes": 3958,
+   "multiPost": false,
+   "sets": 5,
+   "verbs": 7,
+   "bullets": 5
+  },
+  {
+   "id": 26454,
+   "date": "2025-05-24",
+   "bytes": 2972,
+   "multiPost": false,
+   "sets": 1,
+   "verbs": 6,
+   "bullets": 0
+  }
+ ],
+ "severedBornAlive": 2530,
+ "titleHit": 104,
+ "mentionHit": 184,
+ "uncovered": 593
+}

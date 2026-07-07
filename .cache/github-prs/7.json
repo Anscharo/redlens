@@ -1,0 +1,11 @@
+{
+  "number": 7,
+  "title": "AEP-11: Edit",
+  "body": "Originating forum post: https://forum.sky.money/t/aep-11-moderation-policies-of-the-sky-ecosystem-communication-channels/26225",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/7",
+  "commentCount": 1,
+  "reviewCount": 6,
+  "approvalCount": 2,
+  "summary": "AEP-11: Moderation Policies of the Sky Ecosystem Communication Channels Preamble AEP#: 11 Author(s): Endgame Edge Contributors: Atlas Axis Status: RFC Date Proposed: 2025-04-02 Date Ratified: 2025-06-23 Forum URL: https://forum.skyeco.com/t/aep-11-moderation-policies-of-the-sky-ecosystem-communication-channels Ratification Poll URL: https://vote.sky.money/polling/QmeHdTBV Motivation This Atlas Edit formalizes and refines the moderation policies of the Sky ecosystem communication channels for increased transparency and coordination. List of Edits Add A.2.7 - Ecosystem Communication Channels - Moderation (Core) , in turn containing: Moderation Moderation Policies General Requirements Public Communication Of Bans Sky Forum-Specific Requirements Requirements Applicable To All Other Channels Use Of Automated Tools Unbanning Intrinsic Limitations List of Responsible Moderators Add A.5.4 - Accessibility Communication Channels - Moderation Pull Request of Edits github.com/sky-ecosystem/next-gen-atlas AEP-11: Edit (#7) main ← blimpa:AEP-11-edit opened 04:03PM - 05 Jun 25 UTC blimpa +96 -0 Originating forum post: https://forum.sky.money/t/aep-11-moderation-policies-of- … the-sky-ecosystem-communication-channels/26225 Edit: Updated PR to point to new repository."
+}

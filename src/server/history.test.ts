@@ -18,6 +18,7 @@ describe("toEntry", () => {
     for (const [dbVal, expected] of cases) {
       const entry = toEntry({
         commit_sha: "abc1234",
+        commit_seq: null,
         committed_at: "2024-01-01",
         change_type: dbVal,
         pr_number: null,
@@ -33,6 +34,9 @@ describe("toEntry", () => {
         review_count: null,
         approval_count: null,
         comment_count: null,
+        era: null,
+        method: null,
+        source_url: null,
       });
       expect(entry.changeType, `change_type="${dbVal}"`).toBe(expected);
     }
@@ -41,6 +45,7 @@ describe("toEntry", () => {
   it("passes through unknown change_type values unchanged", () => {
     const entry = toEntry({
       commit_sha: "abc1234",
+      commit_seq: null,
       committed_at: "2024-01-01",
       change_type: "future_type",
       pr_number: null,
@@ -56,6 +61,9 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
+      source_url: null,
     });
     expect(entry.changeType).toBe("future_type" as any);
   });
@@ -63,6 +71,7 @@ describe("toEntry", () => {
   it("sets date to empty string when committed_at is null", () => {
     const entry = toEntry({
       commit_sha: "abc1234",
+      commit_seq: null,
       committed_at: null,
       change_type: "added",
       pr_number: null,
@@ -78,6 +87,9 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
+      source_url: null,
     });
     expect(entry.date).toBe("");
   });
@@ -85,6 +97,7 @@ describe("toEntry", () => {
   it("omits optional fields when null", () => {
     const entry = toEntry({
       commit_sha: "abc1234",
+      commit_seq: null,
       committed_at: "2024-01-01",
       change_type: "added",
       pr_number: null,
@@ -100,6 +113,9 @@ describe("toEntry", () => {
       review_count: null,
       approval_count: null,
       comment_count: null,
+      era: null,
+      method: null,
+      source_url: null,
     });
     expect("pr" in entry).toBe(false);
     expect("prTitle" in entry).toBe(false);
@@ -114,12 +130,15 @@ describe("toEntry", () => {
     expect("reviewCount" in entry).toBe(false);
     expect("approvalCount" in entry).toBe(false);
     expect("commentCount" in entry).toBe(false);
+    expect("era" in entry).toBe(false);
+    expect("method" in entry).toBe(false);
   });
 
   it("maps all optional fields when present", () => {
     const diff = [["+", "new line"]] as any;
     const entry = toEntry({
       commit_sha: "abc1234",
+      commit_seq: 42,
       committed_at: "2024-03-15",
       change_type: "structural",
       pr_number: 42,
@@ -135,6 +154,9 @@ describe("toEntry", () => {
       review_count: 3,
       approval_count: 2,
       comment_count: 5,
+      era: "html",
+      method: "deterministic",
+      source_url: "https://example.com/source",
     });
     expect(entry.date).toBe("2024-03-15");
     expect(entry.commitHash).toBe("abc1234");
@@ -152,10 +174,15 @@ describe("toEntry", () => {
     expect(entry.reviewCount).toBe(3);
     expect(entry.approvalCount).toBe(2);
     expect(entry.commentCount).toBe(5);
+    expect(entry.era).toBe("html");
+    expect(entry.method).toBe("deterministic");
+    expect(entry.commitSeq).toBe(42);
+    expect(entry.sourceUrl).toBe("https://example.com/source");
   });
 
   const baseRow = {
     commit_sha: "abc1234",
+    commit_seq: null,
     change_type: "added",
     pr_number: null,
     pr_title: null,
@@ -169,6 +196,9 @@ describe("toEntry", () => {
     review_count: null,
     approval_count: null,
     comment_count: null,
+    era: null,
+    method: null,
+    source_url: null,
   } as const;
 
   it("coerces a legacy double-encoded (string) diff back to an array", () => {
@@ -231,6 +261,7 @@ describe("handleHistory", () => {
           Promise.resolve([
             {
               commit_sha: "aaa0001",
+              commit_seq: 10,
               committed_at: "2024-06-01",
               change_type: "content",
               pr_number: 10,
@@ -242,6 +273,7 @@ describe("handleHistory", () => {
               moved_from: null,
               moved_to: null,
               diff: null,
+              source_url: null,
             },
           ]),
         { mock: true },
@@ -332,15 +364,18 @@ describe("handleHistoryBatch", () => {
       sql: Object.assign(
         () =>
           Promise.resolve([
-            { doc_id: VALID_UUID, commit_sha: "aaa0001", committed_at: "2024-06-01",
+            { doc_id: VALID_UUID, commit_sha: "aaa0001", commit_seq: 10, committed_at: "2024-06-01",
               change_type: "content", pr_number: 10, pr_title: "Fix typo", pr_url: null,
-              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null },
-            { doc_id: VALID_UUID, commit_sha: "aaa0002", committed_at: "2024-05-01",
+              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null,
+              change_kind: null, review_count: null, approval_count: null, comment_count: null, era: null, method: null, source_url: null },
+            { doc_id: VALID_UUID, commit_sha: "aaa0002", commit_seq: 9, committed_at: "2024-05-01",
               change_type: "added", pr_number: null, pr_title: null, pr_url: null,
-              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null },
-            { doc_id: VALID_UUID_2, commit_sha: "bbb0001", committed_at: "2024-04-01",
+              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null,
+              change_kind: null, review_count: null, approval_count: null, comment_count: null, era: null, method: null, source_url: null },
+            { doc_id: VALID_UUID_2, commit_sha: "bbb0001", commit_seq: 8, committed_at: "2024-04-01",
               change_type: "removed", pr_number: null, pr_title: null, pr_url: null,
-              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null },
+              pr_author: null, summary: null, description: null, moved_from: null, moved_to: null, diff: null,
+              change_kind: null, review_count: null, approval_count: null, comment_count: null, era: null, method: null, source_url: null },
           ]),
         { mock: true },
       ),

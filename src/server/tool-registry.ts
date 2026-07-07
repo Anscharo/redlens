@@ -176,7 +176,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_history",
-    description: "Why was this changed? Returns the git-log of changes for one Atlas doc, newest first, each with PR title/author/url and matched summary/description from the PR body. Filter by date range, PR number, or change type.",
+    description: "Why was this changed? Returns the change log for one Atlas doc, newest first — git commits (with PR title/author/url and matched summary/description) plus, for docs old enough, reconstructed pre-git origin events: era='mip' (verbiage traced to the pre-2024 MIP-era Atlas), 'genesis' (present in the Atlas v2 launch snapshot, 2024-09-02), or 'severed' (an undated birth in the git-less window before 2025-05-28). Reconstructed rows have no real commit_sha — check `era` before treating `commit_sha` as a GitHub commit. Filter by date range, PR number, or change type.",
     shape: {
       id: z.string().describe("Doc UUID or doc_no."),
       since: z.string().optional().describe("ISO date (YYYY-MM-DD)."),

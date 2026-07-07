@@ -1,0 +1,30 @@
+{
+ "gate": 5,
+ "date": "2026-07-07",
+ "purpose": "Calibrate a NEW combined corroboration signal for the 24 sub-0.05 MIP hints: title-hit (a distinctive >=8-char substring of the doc's own title found verbatim in the matched MIP's raw text) AND a nonzero content-containment score in that SAME mip. Gate 4 rejected title-hit ALONE (1/8 wrong-MIP case); this asks whether requiring BOTH signals to agree on the same MIP is safe to auto-lock.",
+ "method": "FULL POPULATION review, not a sample: exactly 8 genesis-bridged docs in the entire corpus have both title-hit=true and 0 < mipScore < 0.05 in the same MIP (this is the complete set, not a stratified subset) — reviewed each with real side-by-side genesis-vs-MIP-section text, labeled by Claude (Fable 5) with per-item rationale, same TRUE/PARTIAL/FALSE definitions as gate4-mip-calibration.json.",
+ "labelDefinition": "TRUE = same provision/rule recognizably descending from the matched MIP section (verbatim, paraphrase, or Maker->Sky rebrand); PARTIAL = real process/template lineage but provision-level claim arguable; FALSE = coincidental/boilerplate/wrong section",
+ "results": {
+  "strict_true": "7/8 = 87.5%",
+  "lenient_true_or_partial": "8/8 = 100%",
+  "false": "0/8",
+  "wilson_95_lb_strict": "52.9%",
+  "wilson_95_lb_lenient": "67.6%"
+ },
+ "interpretation": "The Wilson interval is wide because n=8 is small — but n=8 is not a SAMPLE of a larger unreviewed population, it is the ENTIRE population this rule would ever affect (every genesis-bridged doc with this exact signal combination has been checked, not extrapolated from). Zero FALSE and zero wrong-MIP cases is the key finding: pure title-hit-alone (Gate 4) had 1/8 wrong-MIP; requiring content agreement in the SAME mip as the title-hit appears to filter exactly that failure mode, at the cost of only one arguable PARTIAL (scope broadened, not misattributed).",
+ "decision": {
+  "newRule": "Auto-lock when titleHit is true AND mipScore > 0 in that SAME mip (previously: mipScore alone had to be >= 0.05; title-hit alone never locked per Gate 4). Docs with titleHit pointing at a DIFFERENT mip than the best content score still do not lock (unreviewed combination, not covered by this calibration).",
+  "effect": "8 additional MIP-traceable docs (of the 24 sub-threshold hints); 16 sub-threshold hints remain unpromoted (no title-hit, or title-hit disagrees with best-content mip)",
+  "caveat": "1 PARTIAL (Whistleblower Bounty) ships with the same lineage claim as the 7 TRUE cases — the auto-lock event doesn't distinguish PARTIAL from TRUE (no mechanism for that gradation exists), consistent with how Gate 4's own template-boilerplate PARTIAL (X11) already ships without a distinguishing marker."
+ },
+ "labels": [
+  { "docNo": "A.5.9", "title": "Launch Project", "mip": 108, "mipSec": "9", "score": 0.0357, "label": "TRUE", "rationale": "Genesis is a condensed summary; MIP108 section is the detailed provision defining the same named program (objectives, budget, transparency exception, Beta Launch timeline)." },
+  { "docNo": "A.0.1", "title": "Incentive Slack", "mip": 101, "mipSec": null, "score": 0.0103, "label": "TRUE", "rationale": "Near-verbatim paraphrase of a distinctively-named, coined concept. Plan's own cited example of true sub-0.05 lineage." },
+  { "docNo": "A.1.5", "title": "Whistleblower Bounty", "mip": 101, "mipSec": "2.6.6", "score": 0.0145, "label": "PARTIAL", "rationale": "Same mechanism (AD Buffer confiscation funds a whistleblower bounty) but MIP101 scopes it to opsec-compromise reports only; genesis broadens it to any misaligned act warranting penalties/derecognition. Real lineage, but the provision's scope meaningfully changed, not just its wording." },
+  { "docNo": "A.1.6", "title": "Interim Facilitators", "mip": 113, "mipSec": "7.1.3", "score": 0.0294, "label": "TRUE", "rationale": "Near-verbatim mechanism (remaining Facilitators choose an interim one); trigger condition drifted from 'ALL Facilitators unresponsive' to 'a Facilitator unavailable' but the provision is recognizably the same." },
+  { "docNo": "A.2.9", "title": "Policyholder Management", "mip": 106, "mipSec": "10.2.1.2", "score": 0.0417, "label": "TRUE", "rationale": "Near-verbatim, MKR->SKY holder rebrand, same cross-reference structure." },
+  { "docNo": "A.2.10", "title": "Review Process", "mip": 106, "mipSec": "11.5", "score": 0.0323, "label": "TRUE", "rationale": "Near-verbatim, Maker->Sky Forum rebrand, same sentence structure." },
+  { "docNo": "A.1.6", "title": "Core Facilitators", "mip": 101, "mipSec": "2.7.2.3", "score": 0.0323, "label": "TRUE", "rationale": "Near-verbatim, FacilitatorDAO->Facilitator and SubDAO->Star Scopes rebrand." },
+  { "docNo": "A.3.5", "title": "Parameter Reconfiguration Methodology & Frequency", "mip": 104, "mipSec": "9.1.3.6", "score": 0.022, "label": "TRUE", "rationale": "IDENTICAL section title to the genesis doc's own title, near-verbatim content (Advisory Council->Stability Scope Advisors rebrand)." }
+ ]
+}
