@@ -1,0 +1,14 @@
+[
+  {
+    "uuid": "12286b6c-0231-40e3-ab3f-234bc0249216",
+    "docNo": "A.1.15.1.2",
+    "excludedRole": "govops",
+    "reason": "The sentence explicitly DENIES Atlas Axis authority (\"will have no decision-making authority\"), it does not grant one. Regression risk: loosening the MODAL negated-power guard in graph-duties.mjs."
+  },
+  {
+    "uuid": "0d561ea6-8689-459c-85eb-7c861553e116",
+    "docNo": "A.2.4.1.2.1.4",
+    "excludedRole": "govops",
+    "reason": "The obligation (\"must include payments\") belongs to the Core Facilitator, introduced via a comma-less \"then the <Actor>\" subject shift after GovOps's own clause. Regression risk: loosening NEW_SUBJECT_RE's then-guard in graph-duties.mjs."
+  }
+]

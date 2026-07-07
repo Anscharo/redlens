@@ -16,6 +16,7 @@ import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import definitionDocs from "./data/govops-definition-docs.json";
 
 export interface OGResponsibility {
   docNo: string;
@@ -45,13 +46,9 @@ export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
   "process-step": "Process-Step Responsibilities (Active Data update steps)",
 };
 
-// Stable Preamble definitions of the GovOps role. Keyed by UUID; doc_nos are
-// listed in comments for human reference only (doc_nos are not stable).
-const DEFINITION_UUIDS = [
-  "1e73ee4b-823d-406a-af54-223b43bc8e42", // A.0.1.1.47 — GovOps
-  "80c7e2e1-a2af-47dd-80c7-aee6823cca91", // A.0.1.1.48 — Operational Executor GovOps
-  "e512e890-629f-450f-a14d-a3ea06a369c0", // A.0.1.1.49 — Core Council GovOps
-] as const;
+// Stable Preamble definitions of the GovOps role, keyed by UUID (doc_nos in
+// ./data/govops-definition-docs.json are for human reference only — not stable).
+const DEFINITION_UUIDS = definitionDocs.map((d) => d.uuid);
 
 const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
 const ANY_GOVOPS_RE = /gov\s*ops/i;

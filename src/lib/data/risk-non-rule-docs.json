@@ -1,0 +1,11 @@
+[
+  { "uuid": "20dcf582-8862-48b3-9ca9-c3703871bd14", "docNo": "A.1.9.1", "reason": "Emergency Response — topic sentence + pointer to Emergency Spells" },
+  { "uuid": "56b1cc27-a9e3-4099-8f1f-648da7d1c56b", "docNo": "A.1.10.2.4.12.3.3", "reason": "Additional Community Developed Spell Validation Checks — pointer, not a rule" },
+  { "uuid": "19222532-1ce1-4306-8129-ea95a982c247", "docNo": "A.1.10.4", "reason": "Governance Security Culture And Research — aspirational framing, no operative content" },
+  { "uuid": "75473c4b-69ba-4e6b-bbf6-2c926732364c", "docNo": "A.2.4.1.2", "reason": "Implementation — scopes a subtree, not itself a rule" },
+  { "uuid": "f999239e-8676-4772-b201-2e00920b2bfb", "docNo": "A.3.2.2.1.1.1.2.1.1", "reason": "Ethena — \"specified in the documents herein\"" },
+  { "uuid": "2397551e-9704-435e-b815-0384429be224", "docNo": "A.3.2.2.1.3.3.3", "reason": "Ethena — defers CRR calc to another doc entirely" },
+  { "uuid": "ce3affe8-9e1f-4825-82bd-40c320a1c220", "docNo": "A.3.5.2.2.1.1.1", "reason": "Kicker Threshold Current Value — defers the value elsewhere" },
+  { "uuid": "a1ff2a3d-7131-425c-80c5-a887a4259f12", "docNo": "A.3.2.2.1.1.1.5.2.3", "reason": "Determine Risk Weights — restates the title, zero content" },
+  { "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4", "docNo": "A.6.1.1.5.2.6.2.4", "reason": "In Progress Invocations — pure bookkeeping pointer" }
+]
