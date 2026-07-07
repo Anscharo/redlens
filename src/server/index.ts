@@ -103,7 +103,9 @@ const server = Bun.serve({
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     // Local-only HTML-era history curation: LLM proposes a predecessor; a human
-    // confirms (plan §10.4). Self-gates on an OpenRouter key being present.
+    // confirms (plan §10.4). Dev-only: gated on config.curationSaveEnabled
+    // (localhost / CURATION_SAVE=1), same as the save route below, plus an
+    // OpenRouter key being present.
     "/api/history-curate/propose": { POST: (req) => handleCuratePropose(req as Request) },
     // Dev-only: persist the human's choices to the committed public/history-decisions.json
     // (handler 404s unless config.curationSaveEnabled — localhost / CURATION_SAVE=1).

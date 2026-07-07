@@ -49,7 +49,7 @@ export function PreGitDisclaimer() {
     >
       The history events below trace atlas history prior to the current git repo. While
       we can confidently say which docs were unchanged since genesis or MIPS, for edits in this
-      era we dont have the changelogs. Try searching sky forum posts for historical context.
+      era we don't have the changelogs. Try searching sky forum posts for historical context.
     </div>
   );
 }

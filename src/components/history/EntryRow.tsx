@@ -105,7 +105,11 @@ export function EntryRow({ entry, labelOverride }: Props) {
             source →
           </a>
         ) : (
-          <span style={{ color: "var(--tan-3)" }}>{entry.commitHash}</span>
+          // Undated severed-era birth: no real sha, no external source to link —
+          // show a human label instead of the raw internal `severed:<window>` tag.
+          <span style={{ color: "var(--tan-3)" }}>
+            {entry.era === "severed" ? "undated" : entry.commitHash}
+          </span>
         )}
       </div>
 

@@ -240,6 +240,7 @@ export async function handleCurateSave(req: Request): Promise<Response> {
 }
 
 export async function handleCuratePropose(req: Request): Promise<Response> {
+  if (!config.curationSaveEnabled) return Response.json({ error: "propose is dev-only" }, { status: 404 });
   if (!config.openrouterApiKey) return Response.json({ error: "no OpenRouter key configured" }, { status: 404 });
 
   type Body = { subject?: ProposeSubject; candidates?: ProposeCandidate[] };
