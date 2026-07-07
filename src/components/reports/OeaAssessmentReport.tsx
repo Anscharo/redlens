@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AtlasLink } from "../AtlasLink";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
@@ -42,7 +42,7 @@ export function OeaAssessmentReport() {
   const [expanded, setExpanded] = useUrlState("expanded", expandedCodec);
   const trackedView = useRef(false);
 
-  const rows = report?.rows ?? [];
+  const rows = useMemo(() => report?.rows ?? [], [report]);
 
   useEffect(() => {
     if (!report || trackedView.current) return;
@@ -75,15 +75,25 @@ export function OeaAssessmentReport() {
     setExpanded((cur) => (cur === row.task.taskKey ? null : row.task.taskKey));
   };
 
-  const filtered = rows.filter(
-    (r) =>
-      (cat === null || r.task.category === cat) &&
-      (status === null || r.status === status) &&
-      (precision === null || r.entry?.precision.rating === precision) &&
-      (incentives === null || r.entry?.incentives.rating === incentives),
+  // Memoized so a parent re-render (e.g. expanding a row) doesn't hand OeaTable
+  // a fresh `catRows` array — usePagedRows resets its page on `rows` identity
+  // change, which would collapse an expanded row past the first page.
+  const filtered = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          (cat === null || r.task.category === cat) &&
+          (status === null || r.status === status) &&
+          (precision === null || r.entry?.precision.rating === precision) &&
+          (incentives === null || r.entry?.incentives.rating === incentives),
+      ),
+    [rows, cat, status, precision, incentives],
   );
 
-  const byCategory = Object.groupBy(filtered, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>;
+  const byCategory = useMemo(
+    () => Object.groupBy(filtered, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
+    [filtered],
+  );
 
   return (
     <div className="px-6 py-6">

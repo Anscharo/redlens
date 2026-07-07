@@ -111,7 +111,14 @@ export function OFReport() {
           const n = chains.get(a)?.executorName;
           return n != null && toAnchorId(n) === filter.slug;
         }) ||
-        rowFacs(r).some((f) => holderExec.get(f)?.has(filter.slug) === true)
+        // Holder→executor fallback ONLY for rows with no executor/agent context
+        // (Core-side duty/active-data/process-step rows have no prime, so the
+        // chain walk above can't reach them). Gating on empty context stops a
+        // shared Facilitator holder from leaking one executor's assignment row
+        // into another executor's filter.
+        (r.executor == null &&
+          agents.length === 0 &&
+          rowFacs(r).some((f) => holderExec.get(f)?.has(filter.slug) === true))
       );
     // facilitator
     return (
