@@ -111,7 +111,15 @@ export function OGReport() {
           const n = chains.get(a)?.executorName;
           return n != null && toAnchorId(n) === filter.slug;
         }) ||
-        (r.govops != null && holderExec.get(r.govops)?.has(filter.slug) === true)
+        // Holder→executor fallback ONLY for rows with no executor/agent context
+        // (Core-side duty/active-data/process-step rows have no prime, so the
+        // chain walk above can't reach them). Gating on empty context stops a
+        // shared GovOps holder (Soter Labs serves both Amatsu and Ozone) from
+        // leaking one executor's assignment row into the other's filter.
+        (r.executor == null &&
+          agents.length === 0 &&
+          r.govops != null &&
+          holderExec.get(r.govops)?.has(filter.slug) === true)
       );
     // govops
     return (
