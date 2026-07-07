@@ -115,4 +115,12 @@ docs/ds/
 #   history-curation-llm-cache.json  resume cache   (prior LLM/frontier asks; lets capped runs continue)
 #   history-reintroductions.json     reintro ledger (hand-authored; #117 revived-name docs → seam:reintroduced)
 #   history-html-era.json            applied freeze (synced to atlas_history by build:history)
+#   history-pre-era.json             pre-git origins (mip/genesis/severed — docs/plans/
+#                                    pre-git-history.md; scripts/prehist/*, synced by build:history)
 # Regenerated deliberately (reviewed reruns), then committed. The audit/trace write to .cache/.
+.agents/skills/address-extraction/SKILL.md
+.agents/skills/atlas-pr-check/SKILL.md
+.agents/skills/parse-atlas/SKILL.md
+.agents/skills/processes-triage/SKILL.md
+.agents/skills/ui-look-and-feel/SKILL.md
+AGENTS.md

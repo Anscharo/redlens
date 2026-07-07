@@ -34,9 +34,9 @@ continuing through today. Each proposal post contains, per cycle:
 
 So the severed era's change history is publicly reconstructable even though its
 git objects are gone — and it is now **bracketed by two exact HTML snapshots**: the
-**2024-09-02 genesis** (≈1,068 docs, recovered from the IPFS CID in poll #25010 —
+**2024-09-02 genesis** (890 docs, recovered from the IPFS CID in poll #25010 —
 see `atlas-prehistory-mips.md`) at the start, and the first git commit `4e931dfd`
-(2025-05-28, ≈4,676 docs) at the end. The forum cycles narrate the ≈4.4× growth
+(2025-05-28, 4,019 docs) at the end. The forum cycles narrate the ~4.5× growth
 between them.
 
 ## 1. Source — Discourse tag feed (enumeration BUILT)
@@ -204,8 +204,8 @@ gone. Tag every emitted event `provenance='forum'`.
   output against the real git diffs. This is a free accuracy harness — tune the
   parser there before trusting it on the severed-only window.
 - **Reconcile counts at both ends.** Doc numbers/titles in the *first* cycles
-  (Sept 2024) should reconcile against the **genesis snapshot** (≈1,068 docs); the
-  *last* pre-truncation cycles against the `4e931dfd` snapshot (≈4,676 docs).
+  (Sept 2024) should reconcile against the **genesis snapshot** (890 docs); the
+  *last* pre-truncation cycles against the `4e931dfd` snapshot (4,019 docs).
   Replaying the forum edits from genesis forward should roughly reproduce the
   growth curve between the two.
 - **Anchor on-chain.** Severed-era Atlas Edit polls are recorded on-chain via

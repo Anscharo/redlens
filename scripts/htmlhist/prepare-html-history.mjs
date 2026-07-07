@@ -12,22 +12,15 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import crypto from "node:crypto";
-import { execSync } from "node:child_process";
-import { loadHtmlAt } from "./atlas-html.mjs";
-import { seedFromMd, threadBackward, buildEvents } from "./history-html-era.mjs";
+import { buildEvents } from "./history-html-era.mjs";
 import { isSynthetic, syntheticUuid } from "./history-identity.mjs";
 import { detectLineage } from "./history-lineage.mjs";
 import { classifyDiff } from "../lib/history-classify.mjs";
-import { mechanismToMethod } from "./auto-curate.mjs";
-import { contentDupCounts, occKey } from "./history-occkey.mjs";
 import { lineDiff } from "../../src/lib/diffCore.ts";
+import { threadHtmlEra, SEED_HTML, MD117 } from "./run-thread.mjs";
 
 const ROOT = process.cwd();
-const REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const OUT = path.join(ROOT, "public/history-html-era.json");
-const HTML = "Sky Atlas/Sky Atlas.html", MD = "Sky Atlas/Sky Atlas.md";
-const SEED_HTML = "7b43d159", MD117 = "22cc27b5";
 const MEASURE = process.argv.includes("--measure");
 // Content-recovery tier (plan §4.2 follow-up): recover bulk-rename continuations the
 // structural-key tiers drop to death+birth. ON by default; `--no-recover` reverts.
@@ -44,141 +37,17 @@ const DECISIONS_PATH = (() => {
   if (next && !next.startsWith("--")) return next; // explicit path
   return fs.existsSync(DEFAULT_DECISIONS) ? DEFAULT_DECISIONS : null; // committed default
 })();
-const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
-const git = (a) => execSync(`git -C "${REPO}" ${a}`, { maxBuffer: 1 << 30 }).toString();
-const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-
-// #117 markdown monolith → nodes with real uuid4 + body prose (for the seed).
-function parseMd117(blob) {
-  const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
-  const nodes = []; let cur = null;
-  for (const line of blob.split("\n")) {
-    const m = line.match(HRE);
-    if (m) { if (cur) cur.content = norm(cur._b.join(" ")); cur = { uuid: m[5], doc_no: m[2], title: m[3].trim(), type: m[4], _b: [] }; nodes.push(cur); }
-    else if (cur) cur._b.push(line);
-  }
-  if (cur) cur.content = norm(cur._b.join(" "));
-  for (const n of nodes) delete n._b;
-  return nodes;
-}
 
 const t0 = Date.now();
-// canonical commit_seq over the FULL submodule log (oldest = 1), keyed by 7-char sha
-const seqBySha = new Map();
-git("log --reverse --format=%H").trim().split("\n").forEach((h, i) => h && seqBySha.set(h.slice(0, 7), i + 1));
-
-// per-commit metadata for the HTML era (date + PR number from the subject)
-const commitMeta = new Map();
-for (const line of git(`log --format=%H%x09%cI%x09%s ${SEED_HTML} -- '${HTML}'`).trim().split("\n")) {
-  const [full, date, ...rest] = line.split("\t");
-  const subject = rest.join("\t");
-  const pr = (subject.match(/\(#(\d+)\)/) || [])[1] || null;
-  commitMeta.set(full.slice(0, 7), { date, pr: pr ? Number(pr) : null, subject });
-}
-
-const md = parseMd117(git(`show ${MD117}:'${MD}'`));
-const shas = git(`log --reverse --format=%H ${SEED_HTML} -- '${HTML}'`).trim().split("\n");
-const commits = shas.map((full) => {
-  const sha = full.slice(0, 7);
-  return { sha, seq: seqBySha.get(sha) ?? null, nodes: loadHtmlAt(full, REPO) };
+if (DECISIONS_PATH) console.error(`decisions: applying ${path.relative(ROOT, DECISIONS_PATH)}`);
+// commits/threading extracted to run-thread.mjs (shared with scripts/prehist/genesis-bridge.mjs,
+// which needs the SAME real root-commit uuid assignment — not a re-derivation from this artifact).
+const { commits, commitMeta, seed, thread, methodPins, splitOf, applied, lastSha } = threadHtmlEra({
+  decisionsPath: DECISIONS_PATH, recover: RECOVER, diff: DIFF,
 });
-console.error(`loaded ${commits.length} html commits + ${md.length} md docs in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
-
-// Resolve human-confirmed decisions (plan §10.4) into override maps the pipeline
-// consumes. Decisions are content-addressed (`${sha8}:${md5(content)}`) so they bind
-// to the same documents even across a renumber — we never key on doc_no. Seed
-// decisions (newer = the #117 migration) override seedFromMd; the rest override the
-// backward hops. Once recorded, the same decisions reproduce the same artifact.
-let seedOverrides = null, hopOverrides = null, applied = null;
-const splitOf = new Map(); // duplication-split copy uuid -> its #117 source (a kept identical sibling)
-// ai/human decisions to tag for per-change provenance (plan §10.4). Collected here (before
-// threading) and resolved to `${uuid}:${sha}` once nodes carry uuids; deterministic links
-// are the unbadged default, so only ai/human are pinned.
-const methodPins = [];
-if (DECISIONS_PATH) {
-  console.error(`decisions: applying ${path.relative(ROOT, DECISIONS_PATH)}`);
-  const file = JSON.parse(fs.readFileSync(DECISIONS_PATH, "utf8"));
-  // md5(raw #117 body) → uuid, matching build-history-curation.mjs's content-address; and uuid →
-  // body (to detect duplication-splits: identical md docs where some got an html predecessor and the
-  // rest are copies #117 created).
-  const rawUuid = new Map();
-  const mdContentByUuid = new Map();
-  { const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
-    let cur = null, body = [];
-    const flush = () => { if (cur) { const b = body.join("\n").trim(); rawUuid.set(md5(b), cur); mdContentByUuid.set(cur, b); } };
-    for (const line of git(`show ${MD117}:'${MD}'`).split("\n")) {
-      const m = line.match(HRE);
-      if (m) { flush(); cur = m[5]; body = []; }
-      else if (cur) body.push(line);
-    }
-    flush();
-  }
-  // content-address index over every html node (8-char sha, matching the curation file). Index
-  // BOTH the plain key (subject keys, unique-content candidates; last-wins on dups as before) and
-  // the occurrence-precise key (identical stubs → `${sha}:${hash}#${order}`), so a decision that
-  // picked a specific stub resolves to THAT node, not just any row with the same content.
-  const nodeIndex = new Map();
-  shas.forEach((full, idx) => {
-    const sha8 = full.slice(0, 8);
-    const dupCounts = contentDupCounts(commits[idx].nodes);
-    for (const n of commits[idx].nodes) {
-      nodeIndex.set(`${sha8}:${n.contentHash}`, n);
-      nodeIndex.set(occKey(sha8, n, dupCounts), n);
-    }
-  });
-
-  seedOverrides = new Map(); hopOverrides = new Map();
-  let unresolved = 0;
-  for (const d of file.decisions || []) {
-    const chosen = d.chosenKey === "none" ? null : nodeIndex.get(d.chosenKey);
-    if (d.chosenKey !== "none" && !chosen) { unresolved++; continue; } // chosen doc not found this build
-    // provenance: prefer the committed `method`; fall back to deriving it from a raw baseline
-    // file's `auto` mechanism. Only ai/human are surfaced as badges.
-    const method = d.method ?? mechanismToMethod(d.auto);
-    if (d.newerSha === MD117) {               // seed decision: subject is an #117 md doc
-      // subjectKey is now `${sha}:${uuid}` (uuid-keyed, so identical-content md docs stay distinct);
-      // fall back to the old content-address form (`${sha}:${md5}` → rawUuid) for legacy decisions.
-      const part = String(d.subjectKey).split(":")[1];
-      const mdUuid = /^[0-9a-f-]{36}$/.test(part) ? part : rawUuid.get(part);
-      if (!mdUuid) { unresolved++; continue; }
-      seedOverrides.set(mdUuid, chosen);
-      if (method === "ai" || method === "human") methodPins.push({ kind: "seed", mdUuid, method });
-    } else {                                   // backward-hop decision: subject is a newer html node
-      const newer = nodeIndex.get(d.subjectKey);
-      if (!newer) { unresolved++; continue; }
-      hopOverrides.set(newer, chosen);
-      if (method === "ai" || method === "human") methodPins.push({ kind: "hop", newer, newerSha: d.newerSha, method });
-    }
-  }
-  applied = { total: (file.decisions || []).length, seed: seedOverrides.size, hop: hopOverrides.size, unresolved };
-  console.error(`decisions: applied ${applied.seed} seed + ${applied.hop} hop, ${unresolved} unresolved (of ${applied.total})`);
-
-  // duplication-split provenance: among identical-content md docs, some got a real html predecessor
-  // ("kept") and the rest resolved to "none" — #117 duplicated the doc into more copies than existed
-  // in html. Point each "none" copy extracted_from a kept sibling (deterministic: the first by uuid),
-  // so the artifact records the split lineage instead of a bare "created". Derived from the decisions
-  // themselves, so it works for both the auto baseline and human-saved files.
-  const uuidOf = (sk) => { const p = String(sk).split(":")[1]; return /^[0-9a-f-]{36}$/.test(p) ? p : rawUuid.get(p); };
-  const byContent = new Map(); // md content -> { kept:[uuid], none:[uuid] }
-  for (const d of file.decisions || []) {
-    if (d.newerSha !== MD117) continue;
-    const uuid = uuidOf(d.subjectKey);
-    const content = uuid && mdContentByUuid.get(uuid);
-    if (content == null) continue;
-    let g = byContent.get(content); if (!g) byContent.set(content, (g = { kept: [], none: [] }));
-    (d.chosenKey === "none" ? g.none : g.kept).push(uuid);
-  }
-  for (const { kept, none } of byContent.values()) {
-    if (!kept.length || !none.length) continue;
-    const source = kept.slice().sort()[0];
-    for (const u of none) splitOf.set(u, source);
-  }
-  if (splitOf.size) console.error(`decisions: ${splitOf.size} split copies pointed extracted_from their #117 source`);
-}
-
-const lastSha = commits[commits.length - 1].sha;
-const seed = seedFromMd(md, commits[commits.length - 1].nodes, seedOverrides ? { overrides: seedOverrides } : {});
-const thread = threadBackward(commits, { seed: seed.uuidByRow, recover: RECOVER, diff: DIFF, ...(hopOverrides ? { overrides: hopOverrides } : {}) });
+console.error(`loaded ${commits.length} html commits in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+if (applied) console.error(`decisions: applied ${applied.seed} seed + ${applied.hop} hop, ${applied.unresolved} unresolved (of ${applied.total})`);
+if (splitOf.size) console.error(`decisions: ${splitOf.size} split copies pointed extracted_from their #117 source`);
 const rawEvents = buildEvents(commits, { lineDiff });
 
 // resolve the ai/human method pins to `${uuid}:${sha}` now that threading assigned uuids.

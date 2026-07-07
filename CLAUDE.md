@@ -21,7 +21,10 @@ pnpm build:glossary  # extracts Definitions sections → public/glossary.json
 pnpm build:addresses # chainlog + Etherscan enrichment → public/addresses.json (on-chain fields only)
 pnpm snap:chainstate  # viem multicall snapshots → public/chain-state.json
 pnpm build:graph     # Phase 2.6 annotates addresses; relation extraction → public/graph.json + public/relations.json; Phase 4.5 enriches public/addresses.atlas.json
-pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); ALSO upserts the committed public/history-html-era.json (pre-#117 HTML-era reconstruction) idempotently each run so dev + Railway serve it; add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
+pnpm build:history   # git log of atlas submodule → upsert atlas_history in Postgres (DB sink, reads its own incremental cursor); ALSO upserts the committed public/history-html-era.json (pre-#117 HTML-era reconstruction) AND public/history-pre-era.json (pre-git origins, if present) idempotently each run so dev + Railway serve them; add --out-json to write public/history/<uuid>.json instead (DB-less, used by canary tests); --full forces a full walk
+pnpm prehist:genesis  # (ancient-history branch) bridges the recovered Atlas v2 genesis snapshot (2024-09-02) to the repo's real root commit → public/history-pre-era.json; see scripts/prehist/HISTORY.md
+pnpm prehist:mip      # (ancient-history branch) attributes genesis-bridged docs to the MIP-era Atlas (2023-2024), appends into public/history-pre-era.json; run after prehist:genesis
+pnpm prehist:aep      # (ancient-history branch) replaces select severed placeholders with dated Atlas Edit Proposal facts (only Accepted AEPs); run LAST, after prehist:genesis + prehist:mip
 pnpm build:manifest  # sha256 digest of all artifacts → public/manifest.json
 pnpm build:at        # reproducible build at a specific atlas commit
 pnpm pull-atlas      # git submodule update --init --recursive (populate submodule after a shallow clone)

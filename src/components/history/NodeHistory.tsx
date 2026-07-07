@@ -1,51 +1,24 @@
 import { Fragment, useEffect, useState } from "react";
-import { loadHistory, type HistoryEntry } from "../../lib/history";
+import { loadHistory, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
 import { EntryRow } from "./EntryRow";
+import { HtmlEraDisclaimer, PreGitDisclaimer, PRE_MD_HTML_URL } from "./HistoryDisclaimers";
 
 // Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML file
 // with no per-doc identities. Two cases:
 //  · reconstructed — the pre-#117 per-doc history is now threaded into atlas_history
-//    (era="html"); hidden by default behind the "View HTML Era Edits" toggle, with a
-//    disclaimer shown before those entries (the diffs are translated + lineage-traced,
-//    so approximate).
-//  · not reconstructed — a doc created AT the migration (no era="html" entries); keep
-//    the legacy one-line footer pointing at the last pre-migration HTML file.
+//    (era="html", plus era="mip"/"genesis"/"severed" further back — docs/plans/
+//    pre-git-history.md); hidden by default behind the "View Reconstructed History"
+//    toggle, with a disclaimer shown before each reconstructed block.
+//  · not reconstructed — a doc created AT the migration (no reconstructed-era entries);
+//    keep the legacy one-line footer pointing at the last pre-migration HTML file.
 const PRE_MD_PR = 117;
-// 7b43d159 is the last commit before the migration (22cc27b5) — the HTML file's
-// content right before the switch to markdown.
-const PRE_MD_HTML_URL =
-  "https://github.com/sky-ecosystem/next-gen-atlas/blob/7b43d159e098b30e67c4be6a7594a237a340fa58/Sky%20Atlas/Sky%20Atlas.html";
-
-// The provenance disclaimer for reconstructed HTML-era entries. Names the methods we
-// used to trace each document's lineage across the 79 pre-#117 HTML commits.
-function HtmlEraDisclaimer() {
-  return (
-    <div
-      className="mono text-[10px] px-2 py-2.5 leading-snug my-1"
-      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
-    >
-      <strong style={{ color: "var(--tan-2)" }}>Pre-#117 history is reconstructed.</strong>{" "}
-      Before the “Migrate To Markdown File” PR (Nov 2025) the Atlas was a single HTML file
-      with no per-document identities. The entries below were automatically translated from
-      the original HTML tables to markdown, and each document’s lineage was traced by{" "}
-      <span style={{ color: "var(--tan-2)" }}>deterministic matching</span> (content + structure
-      fingerprints),{" "}
-      <span style={{ color: "var(--tan-2)" }}>AI cross-checks</span> using multiple AI models
-      forward and backward looking of changes, PR descriptions for each change, and{" "}
-      <span style={{ color: "var(--tan-2)" }}>human review</span> on top; although thorough the
-      possibility for mistakes exists.{" "}
-      <a
-        href={PRE_MD_HTML_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:underline focus-visible:underline"
-        style={{ color: "var(--accent)" }}
-      >
-        view original HTML →
-      </a>
-    </div>
-  );
-}
+// The repo's first commit (2025-05-28) — everything at/after this is real git history;
+// everything below it (era mip/genesis/severed) predates git entirely. When older
+// origin events exist, this row's "added" label is a lie (it's not the doc's origin,
+// just where git-tracked history starts) — relabel it "committed" instead. Commit
+// hashes throughout this pipeline are truncated to 7 chars (gitCommitSeq, buildEvents,
+// etc.) — 8 would never match and silently disable the relabel.
+const ROOT_SHA = "4e931df";
 
 function PreMdFooter() {
   return (
@@ -67,15 +40,17 @@ function PreMdFooter() {
   );
 }
 
+const PRE_GIT_ERAS = new Set(["mip", "genesis", "severed"]);
+
 export function NodeHistory({ nodeId }: { nodeId: string }) {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(undefined as unknown as null);
   const [loading, setLoading] = useState(true);
-  const [showHtmlEra, setShowHtmlEra] = useState(false);
+  const [showReconstructed, setShowReconstructed] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setEntries(null);
-    setShowHtmlEra(false);
+    setShowReconstructed(false);
     loadHistory(nodeId).then((data) => {
       setEntries(data);
       setLoading(false);
@@ -98,39 +73,60 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
     );
   }
 
-  const sorted = [...entries].sort((a, b) => b.date.localeCompare(a.date));
-  const hasHtmlEra = sorted.some((e) => e.era === "html");
-  // Reconstructed HTML-era entries are hidden until the toggle is on. When shown, they
-  // sort to the bottom (oldest); the disclaimer appears once, right before the first of
-  // them, so it introduces that section. The legacy footer only applies when nothing was
-  // reconstructed at all (docs created at the migration), regardless of the toggle.
-  const visible = showHtmlEra ? sorted : sorted.filter((e) => e.era !== "html");
+  // Order by commit_seq (real git position for git-derived eras; a reserved negative
+  // block for mip/genesis/severed — docs/plans/pre-git-history.md) rather than by date
+  // string: a severed-interval birth has NO date at all, and an empty string would
+  // sort as "smallest" — after even the earliest MIP date — which is chronologically
+  // backwards. commitSeq is populated on every row once ingested; date compare is a
+  // defensive fallback only.
+  const sorted = [...entries].sort((a, b) =>
+    a.commitSeq != null && b.commitSeq != null ? b.commitSeq - a.commitSeq : b.date.localeCompare(a.date),
+  );
+  const hasReconstructed = sorted.some((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
+  const hasPreGit = sorted.some((e) => e.era && PRE_GIT_ERAS.has(e.era));
+  // Reconstructed entries (every era in RECONSTRUCTED_ERAS) are hidden until the toggle
+  // is on. When shown, each block's disclaimer appears once, right before its first entry.
+  const visible = showReconstructed ? sorted : sorted.filter((e) => !e.era || !RECONSTRUCTED_ERAS.has(e.era));
   const firstHtmlEra = visible.findIndex((e) => e.era === "html");
+  const firstPreGit = visible.findIndex((e) => e.era && PRE_GIT_ERAS.has(e.era));
+  // The toggle sits right below the migration entry — that's the actual boundary
+  // between native markdown history and everything reconstructed. Migration is a
+  // markdown-era entry (not RECONSTRUCTED_ERAS), so its index in `visible` is stable
+  // across the toggle. Fall back to the top for the (unlikely) doc whose snapshot was
+  // byte-identical across the migration commit, so it never got its own PR117 row.
+  const migrationIdx = visible.findIndex((e) => e.pr === PRE_MD_PR);
+  const toggleButton = hasReconstructed && (
+    <button
+      type="button"
+      aria-pressed={showReconstructed}
+      onClick={() => setShowReconstructed((v) => !v)}
+      className="mono text-[10px] uppercase tracking-wide px-2 py-1 my-2 rounded"
+      style={{
+        color: showReconstructed ? "var(--bg)" : "var(--accent)",
+        background: showReconstructed ? "var(--accent)" : "transparent",
+        border: "1px solid var(--accent)",
+      }}
+    >
+      {showReconstructed ? "Hide Reconstructed History" : "View Reconstructed History"}
+    </button>
+  );
 
   return (
     <div>
-      {hasHtmlEra && (
-        <button
-          type="button"
-          aria-pressed={showHtmlEra}
-          onClick={() => setShowHtmlEra((v) => !v)}
-          className="mono text-[10px] uppercase tracking-wide px-2 py-1 mb-2 rounded"
-          style={{
-            color: showHtmlEra ? "var(--bg)" : "var(--accent)",
-            background: showHtmlEra ? "var(--accent)" : "transparent",
-            border: "1px solid var(--accent)",
-          }}
-        >
-          {showHtmlEra ? "Hide HTML Era Edits" : "View HTML Era Edits"}
-        </button>
-      )}
-      {visible.map((entry, i) => (
-        <Fragment key={i}>
-          {i === firstHtmlEra && <HtmlEraDisclaimer />}
-          <EntryRow entry={entry} />
-          {!hasHtmlEra && entry.pr === PRE_MD_PR && <PreMdFooter />}
-        </Fragment>
-      ))}
+      {migrationIdx === -1 && toggleButton}
+      {visible.map((entry, i) => {
+        const isRootSnapshot =
+          hasPreGit && entry.era === "html" && entry.changeType === "added" && entry.commitHash.startsWith(ROOT_SHA);
+        return (
+          <Fragment key={i}>
+            {i === firstHtmlEra && <HtmlEraDisclaimer />}
+            {i === firstPreGit && <PreGitDisclaimer />}
+            <EntryRow entry={entry} labelOverride={isRootSnapshot ? "committed" : undefined} />
+            {!hasReconstructed && entry.pr === PRE_MD_PR && <PreMdFooter />}
+            {i === migrationIdx && toggleButton}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }

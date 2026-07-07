@@ -1,4 +1,4 @@
-import { CHANGE_COLOR, type HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, RECONSTRUCTED_ERAS, isGitSha, type HistoryEntry } from "../../lib/history";
 import { DiffView } from "./DiffView";
 
 const CHANGE_LABEL: Record<string, string> = {
@@ -8,19 +8,37 @@ const CHANGE_LABEL: Record<string, string> = {
   moved: "moved",
 };
 
-export function EntryRow({ entry }: { entry: HistoryEntry }) {
+interface Props {
+  entry: HistoryEntry;
+  /** Override the change-type label text for this one row — used by NodeHistory to
+   *  relabel the root html-snapshot "added" event "first git snapshot" when older
+   *  reconstructed origin events exist below it (docs/plans/pre-git-history.md). */
+  labelOverride?: string;
+}
+
+// Pre-git origin events (docs/plans/pre-git-history.md) carry a self-descriptive
+// summary ("Proposed in MIP101 §5", "Present at Atlas v2 genesis") — a redundant
+// "added" chip next to that text adds noise, not information.
+const PRE_GIT_ADDED_ERAS = new Set(["mip", "genesis", "severed"]);
+
+export function EntryRow({ entry, labelOverride }: Props) {
   const color = CHANGE_COLOR[entry.changeType] ?? "var(--tan-3)";
   const hasPr = !!entry.pr;
+  const gitSha = isGitSha(entry.commitHash);
+  const hideChangeLabel =
+    !labelOverride && entry.changeType === "added" && !!entry.era && PRE_GIT_ADDED_ERAS.has(entry.era);
 
   return (
     <div className="border-b py-2.5" style={{ borderColor: "var(--border)" }}>
       <div className="flex items-baseline gap-2 flex-wrap mono text-[10px] mb-1.5">
         <span style={{ color: "var(--tan-3)" }}>{entry.date}</span>
-        <span style={{ color }}>{CHANGE_LABEL[entry.changeType]}</span>
+        {!hideChangeLabel && (
+          <span style={{ color }}>{labelOverride ?? CHANGE_LABEL[entry.changeType]}</span>
+        )}
 
-        {/* per-change provenance for HTML-era entries: only the exceptions (AI / human)
+        {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
             are badged — deterministically-matched links carry no badge (the default). */}
-        {entry.era === "html" && (entry.method === "ai" || entry.method === "human") && (
+        {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (entry.method === "ai" || entry.method === "human") && (
           <span
             title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
             className="shrink-0 px-1 rounded text-[9px] uppercase tracking-wide"
@@ -63,15 +81,32 @@ export function EntryRow({ entry }: { entry: HistoryEntry }) {
           </a>
         )}
 
-        <a
-          href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline focus-visible:underline"
-          style={{ color: "var(--tan-3)" }}
-        >
-          {entry.commitHash}
-        </a>
+        {gitSha ? (
+          <a
+            href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline focus-visible:underline"
+            style={{ color: "var(--tan-3)" }}
+          >
+            {entry.commitHash}
+          </a>
+        ) : entry.sourceUrl ? (
+          // Reconstructed pre-git origin (era mip/genesis): a synthetic tag, not a
+          // commit — link the external source (mips-repo section / genesis snapshot)
+          // instead of a dead github.com/.../commit/ URL.
+          <a
+            href={entry.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline focus-visible:underline"
+            style={{ color: "var(--tan-3)" }}
+          >
+            source →
+          </a>
+        ) : (
+          <span style={{ color: "var(--tan-3)" }}>{entry.commitHash}</span>
+        )}
       </div>
 
       {entry.diff && <DiffView lines={entry.diff} />}

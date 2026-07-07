@@ -1,0 +1,24 @@
+[
+  {
+    "aep": 1,
+    "status": "Accepted",
+    "dateRatified": "2025-02-24",
+    "forumUrl": "https://forum.sky.money/t/aep1-atlas-edit-monthly-cycle-proposal-2025-01-29/25907",
+    "repoUrl": "https://github.com/sky-ecosystem/next-gen-atlas/blob/4e931dfd4017a9b9d573dec1aac352e60f1bb02a/Atlas%20Edit%20Proposals/AEP-1.md",
+    "docs": [
+      {
+        "docId": "0d0e2e1a-0502-4ee3-bc9d-8bd8ddde19ec",
+        "title": "Core Facilitator's Role In Adding Housekeeping Items In Executive Votes",
+        "note": "Matched AEP-1's 'Governance Facilitators' Role in Adding Housekeeping Items In Executive Votes' — same doc, Governance Facilitator renamed Core Facilitator since."
+      },
+      {
+        "docId": "7648bf12-d600-4e0d-807b-5eb18e8d0f4f",
+        "title": "Definition Of Housekeeping Items"
+      },
+      {
+        "docId": "2d165c27-5daf-4a84-af8c-7c36f5de03d2",
+        "title": "Process for Adding Housekeeping Item In Executive Vote"
+      }
+    ]
+  }
+]

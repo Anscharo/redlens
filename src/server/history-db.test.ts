@@ -95,6 +95,71 @@ describe("§10.4: migration 010 + method column", () => {
   it("HISTORY_COLS includes method", () => expect(HISTORY_COLS as readonly string[]).toContain("method"));
 });
 
+describe("pre-git-history.md: migration 011 + source_url column", () => {
+  it("a 011 migration ALTERs atlas_history with source_url", () => {
+    const dir = new URL("./migrations/", import.meta.url);
+    const file = readdirSync(dir).find((n) => n.startsWith("011") && n.endsWith(".sql"));
+    expect(file).toBeTruthy();
+    const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
+    expect(sql).toContain("atlas_history");
+    expect(sql).toContain("source_url");
+  });
+  it("HISTORY_COLS includes source_url", () => expect(HISTORY_COLS as readonly string[]).toContain("source_url"));
+});
+
+describe("pre-git-history.md: eventToRow falls back to a baked commit_seq for synthetic shas", () => {
+  it("a git sha resolves through seqByCommit as before (unaffected)", () => {
+    const r = eventToRow(UUID, { commitHash: "02a3eb1", changeType: "added", commitSeq: 999 } as any, seq) as any;
+    expect(r.commit_seq).toBe(46); // map hit wins over the baked value
+  });
+
+  it("a synthetic (non-git) sha absent from seqByCommit falls back to the event's baked commitSeq", () => {
+    const r = eventToRow(UUID, { commitHash: "genesis:bafkreih7…", changeType: "added", era: "genesis", commitSeq: -20000 } as any, seq) as any;
+    expect(r.commit_seq).toBe(-20000); // NOT null — this was the ingestion bug the fix guards
+  });
+
+  it("a synthetic sha with no baked commitSeq at all still nulls out (no silent garbage)", () => {
+    const r = eventToRow(UUID, { commitHash: "mip:104:14.3", changeType: "added", era: "mip" } as any, seq) as any;
+    expect(r.commit_seq).toBeNull();
+  });
+
+  it("maps sourceUrl to source_url; absent on git-derived events", () => {
+    const withUrl = eventToRow(UUID, { commitHash: "mip:104:14.3", changeType: "added", era: "mip", commitSeq: -30000, sourceUrl: "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md" } as any, seq) as any;
+    expect(withUrl.source_url).toBe("https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md");
+    const withoutUrl = eventToRow(UUID, { commitHash: "02a3eb1", changeType: "modified" } as any, seq) as any;
+    expect(withoutUrl.source_url).toBeNull();
+  });
+});
+
+describe("pre-git-history.md: preEraRows loads public/history-pre-era.json → upsertable rows", () => {
+  const GENESIS_UUID = "2ce24b08-84ff-4524-9710-49bba429c6ef";
+  const artifact = {
+    meta: { kind: "pre-era-history" },
+    events: [
+      { docId: GENESIS_UUID, commitHash: "genesis:bafkreih7…", commitSeq: -20000, changeType: "added", era: "genesis", date: "2024-09-02", summary: "Present at Atlas v2 genesis", sourceUrl: "https://ipfs.io/ipfs/bafkreih7…" },
+      { docId: SYN, commitHash: "severed:2024-09-02..2025-05-28", commitSeq: -10000, changeType: "removed", era: "severed" },
+    ],
+    bridge: [],
+  };
+
+  it("exports preEraRows", () => {
+    expect(typeof (db as any).preEraRows).toBe("function");
+  });
+
+  it("maps every artifact event to a row with era + the BAKED commit_seq (never seqByCommit — synthetic shas never match it)", () => {
+    const rows = (db as any).preEraRows(artifact, seq) as any[];
+    expect(rows.length).toBe(2);
+    expect(rows.find((r) => r.era === "genesis")!.commit_seq).toBe(-20000);
+    expect(rows.find((r) => r.era === "severed")!.commit_seq).toBe(-10000);
+    expect(rows.find((r) => r.era === "genesis")!.source_url).toBe("https://ipfs.io/ipfs/bafkreih7…");
+  });
+
+  it("produces rows whose keys are exactly HISTORY_COLS (upsert-shaped)", () => {
+    const rows = (db as any).preEraRows(artifact, seq) as any[];
+    for (const r of rows) expect(Object.keys(r).sort()).toEqual([...HISTORY_COLS].sort());
+  });
+});
+
 describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () => {
   const artifact = {
     meta: { kind: "html-era-history" },

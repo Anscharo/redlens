@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { CHANGE_COLOR, loadHistoryBatch, type HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, isGitSha, loadHistoryBatch, type HistoryEntry } from "../../lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "../../types";
 import { ROUTES } from "../../lib/routes";
@@ -31,6 +31,10 @@ interface MergedEntry {
   prTitle?: string;
   prAuthor?: string;
   prUrl?: string;
+  /** Reconstructed pre-git eras (mip/genesis/severed) share one synthetic commitHash
+   *  across every doc that cites it, so era is a per-commit property here — same for
+   *  every entry merged into this group. Absent for real git commits. */
+  era?: string;
   docs: AffectedDoc[];
 }
 
@@ -125,6 +129,7 @@ function mergeByCommit(
           prTitle: entry.prTitle,
           prAuthor: entry.prAuthor,
           prUrl: entry.prUrl,
+          era: entry.era,
           docs: [affected],
         });
       }
@@ -227,11 +232,17 @@ function Entry({ entry }: { entry: MergedEntry }) {
                 #{entry.pr}
               </a>
             )}
-            <a href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
-               target="_blank" rel="noopener noreferrer"
-               className="hover:underline focus-visible:underline" style={{ color: "var(--tan-3)" }}>
-              {entry.commitHash.slice(0, 7)}
-            </a>
+            {isGitSha(entry.commitHash) ? (
+              <a href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+                 target="_blank" rel="noopener noreferrer"
+                 className="hover:underline focus-visible:underline" style={{ color: "var(--tan-3)" }}>
+                {entry.commitHash.slice(0, 7)}
+              </a>
+            ) : (
+              // Reconstructed pre-git origin (docs/plans/pre-git-history.md): a synthetic
+              // tag, not a commit — no dead github.com/.../commit/ link, just the era.
+              <span style={{ color: "var(--tan-3)" }}>{entry.era ?? entry.commitHash}</span>
+            )}
             {entry.prAuthor && <span style={{ color: "var(--tan-3)" }}>{entry.prAuthor}</span>}
           </div>
           <DocTable docs={entry.docs} />

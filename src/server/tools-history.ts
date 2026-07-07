@@ -21,6 +21,12 @@ type HistoryRow = {
   pr_author: string | null; pr_url: string | null;
   summary: string | null; description: string | null;
   moved_from: string | null; moved_to: string | null; diff: unknown | null;
+  // era/method distinguish a reconstructed row (html/mip/genesis/severed — docs/plans/
+  // pre-git-history.md) from a real git commit; source_url is the reconstructed row's
+  // external reference (mips-repo section / genesis IPFS gateway) when there's no
+  // commit to link to. Without era the model can't tell reconstructed rows from git
+  // history and would repeat a synthetic tag as if it were a real commit sha.
+  era: string | null; method: string | null; source_url: string | null;
 };
 
 // ── atlas_history ──────────────────────────────────────────────────────────
@@ -43,9 +49,10 @@ export async function atlasHistory(
   const diffCol = opts.with_diff ? ", diff" : "";
   const rows = await sql.unsafe<HistoryRow[]>(
     `SELECT commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title,
-            pr_author, pr_url, summary, description, moved_from, moved_to${diffCol}
+            pr_author, pr_url, summary, description, moved_from, moved_to,
+            era, method, source_url${diffCol}
      FROM atlas_history WHERE ${conditions.join(" AND ")}
-     ORDER BY committed_at DESC NULLS LAST, commit_seq DESC NULLS LAST`,
+     ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST`,
     params,
   );
 
@@ -92,6 +99,7 @@ export async function atlasRecentChanges(
       `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
               h.pr_number, h.pr_title, h.pr_author, h.pr_url,
               h.summary, h.description, h.moved_from, h.moved_to,
+              h.era, h.method, h.source_url,
               n.doc_no, n.title, n.type AS doc_type
        FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
        WHERE ${conditions.join(" AND ")} AND h.doc_id IN (${placeholders})
@@ -103,6 +111,7 @@ export async function atlasRecentChanges(
       `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
               h.pr_number, h.pr_title, h.pr_author, h.pr_url,
               h.summary, h.description, h.moved_from, h.moved_to,
+              h.era, h.method, h.source_url,
               n.doc_no, n.title, n.type AS doc_type
        FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
        WHERE ${conditions.join(" AND ")}
@@ -125,7 +134,7 @@ export async function atlasPr(_ix: Indexes, pr_number: number): Promise<ToolResu
   const rows = await sql<PrRow[]>`
     SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
            h.pr_title, h.pr_author, h.pr_url, h.summary, h.description,
-           h.moved_from, h.moved_to,
+           h.moved_from, h.moved_to, h.era, h.method, h.source_url,
            n.doc_no, n.title, n.type AS doc_type
     FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
     WHERE h.pr_number = ${pr_number}

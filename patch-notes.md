@@ -11,7 +11,8 @@
   Only the 7 most recent bullets across all dates are shown.
 -->
 
-## 2026-07-06
+## 2026-07-07
+- Added true pre-git Atlas origins for older sections, including MIP sources and the Atlas v2 genesis snapshot
 - Added Atlas history from before the 2025 migration to markdown, behind a "View HTML Era Edits" toggle
 
 ## 2026-06-23

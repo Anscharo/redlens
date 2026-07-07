@@ -85,7 +85,7 @@ describe("NodeHistory states", () => {
     // reconstructed entries, they're just toggled off, so the footer would be misleading
     expect(screen.queryByText(/79 prior commits exist/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "View HTML Era Edits" }));
+    fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
 
     expect(await screen.findByText("an html-era change")).toBeInTheDocument();
     expect(screen.getByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
@@ -99,12 +99,118 @@ describe("NodeHistory states", () => {
       entry({ date: "2025-09-01", commitHash: "h3", era: "html", summary: "deterministic (no method)" }),
     ]);
     render(<NodeHistory nodeId="n8" />);
-    fireEvent.click(await screen.findByRole("button", { name: "View HTML Era Edits" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
 
     await screen.findByText("ai-resolved");
     expect(screen.getByText("AI")).toBeInTheDocument();
     expect(screen.getByText("human")).toBeInTheDocument();
     // exactly one AI badge + one human badge — the deterministic entry adds none
     expect(screen.getAllByText(/^(AI|human)$/)).toHaveLength(2);
+  });
+
+  it("hides mip/genesis/severed entries behind the same toggle as html era, with their own disclaimer", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2025-01-01", commitHash: "abcdef1", commitSeq: 500, summary: "modern edit" }),
+      entry({
+        date: "2024-09-02", commitHash: "genesis:bafkreih7", era: "genesis", changeType: "added",
+        commitSeq: -20000, summary: "Present at Atlas v2 genesis",
+      }),
+      entry({
+        date: "2023-11-06", commitHash: "mip:104:14.3", era: "mip", changeType: "added",
+        commitSeq: -29000, summary: "Proposed in MIP104 §14.3",
+      }),
+    ]);
+    render(<NodeHistory nodeId="n9" />);
+    await screen.findByText("modern edit");
+    expect(screen.queryByText("Proposed in MIP104 §14.3")).not.toBeInTheDocument();
+    expect(screen.queryByText("Present at Atlas v2 genesis")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
+    expect(await screen.findByText("Proposed in MIP104 §14.3")).toBeInTheDocument();
+    expect(screen.getByText("Present at Atlas v2 genesis")).toBeInTheDocument();
+    expect(screen.getByText(/trace atlas history prior to the current git repo/i)).toBeInTheDocument();
+  });
+
+  it("orders by commitSeq, not date, when a severed-era birth carries no date at all", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2024-09-02", commitHash: "genesis:bafkreih7", era: "genesis", commitSeq: -20000, summary: "genesis fact" }),
+      entry({ date: "", commitHash: "severed:window", era: "severed", commitSeq: -10000, summary: "severed birth" }),
+    ]);
+    render(<NodeHistory nodeId="n10" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    const severed = await screen.findByText("severed birth");
+    const genesis = screen.getByText("genesis fact");
+    // severed (commitSeq -10000, chronologically LATER) must render before genesis
+    // (-20000, earlier) — a naive date-string sort would put the undated severed
+    // entry last (empty string sorts smallest), which is chronologically backwards.
+    expect(severed.compareDocumentPosition(genesis) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("links a reconstructed row to its external source instead of a dead commit link", async () => {
+    mockLoad.mockResolvedValue([
+      entry({
+        date: "2023-11-06", commitHash: "mip:104:14.3", era: "mip", changeType: "added", commitSeq: -29000,
+        summary: "Proposed in MIP104 §14.3",
+        sourceUrl: "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413",
+      }),
+    ]);
+    render(<NodeHistory nodeId="n11" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    await screen.findByText("Proposed in MIP104 §14.3");
+    const link = screen.getByText("source →").closest("a");
+    expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413");
+  });
+
+  it('relabels the root html-snapshot "added" row "committed" when an older reconstructed origin exists', async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2025-05-28", commitHash: "4e931dfda1b2c3d", era: "html", changeType: "added", commitSeq: 1 }),
+      entry({
+        date: "2024-09-02", commitHash: "genesis:bafkreih7", era: "genesis", changeType: "added",
+        commitSeq: -20000, summary: "Present at Atlas v2 genesis",
+      }),
+    ]);
+    render(<NodeHistory nodeId="n12" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    await screen.findByText("Present at Atlas v2 genesis");
+    expect(screen.getByText("committed")).toBeInTheDocument();
+  });
+
+  it('hides the redundant "added" chip on mip/genesis/severed events (the summary already says it)', async () => {
+    mockLoad.mockResolvedValue([
+      entry({
+        date: "2024-09-02", commitHash: "genesis:bafkreih7", era: "genesis", changeType: "added",
+        commitSeq: -20000, summary: "Present at Atlas v2 genesis",
+      }),
+    ]);
+    render(<NodeHistory nodeId="n13" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    await screen.findByText("Present at Atlas v2 genesis");
+    expect(screen.queryByText("added")).not.toBeInTheDocument();
+  });
+
+  it("places the toggle right below the migration entry, not at the top", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
+      entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n14" />);
+    const modern = await screen.findByText("a modern edit");
+    const migration = screen.getByText("Migrate To Markdown File");
+    const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
+    // DOM order: modern edit, then the migration row, then the toggle.
+    expect(modern.compareDocumentPosition(migration) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("falls back to the top when there's no migration entry for this doc (byte-identical across #117)", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n15" />);
+    const modern = await screen.findByText("a modern edit");
+    const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
+    expect(toggle.compareDocumentPosition(modern) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

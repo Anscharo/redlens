@@ -1,0 +1,1869 @@
+{
+ "gate": 2,
+ "date": "2026-07-06",
+ "corroborator": "sameDocScore (ordered word containment, title-blind) + exact-title",
+ "thresholds": {
+  "CORROB_HI": 0.6,
+  "shortDocWords": 12
+ },
+ "counts": {
+  "pairs": 756,
+  "tier1": 641,
+  "nonTier1": 115,
+  "verdicts": {
+   "lock:structural+content": 84,
+   "queue": 2,
+   "lock:fuzzy+title": 14,
+   "lock:fuzzy+containment": 15
+  },
+  "afterAdjudication": {
+   "locked": 115,
+   "queued": 0
+  }
+ },
+ "nonTier1Pairs": [
+  {
+   "tier": 2,
+   "gOrder": 2,
+   "gTitle": "The Support Scope",
+   "gDocNo": "A.2",
+   "gSection": "Scopes",
+   "rOrder": 2,
+   "rTitle": "The Support Scope",
+   "rDocNo": "A.2",
+   "gWords": 22,
+   "sameDoc": 0.955,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 12,
+   "gTitle": "Facilitators",
+   "gDocNo": "A.1.6",
+   "gSection": "Articles",
+   "rOrder": 13,
+   "rTitle": "Facilitators",
+   "rDocNo": "A.1.6",
+   "gWords": 26,
+   "sameDoc": 0.923,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 24,
+   "gTitle": "Ecosystem Communication Channels",
+   "gDocNo": "A.2.7",
+   "gSection": "Articles",
+   "rOrder": 29,
+   "rTitle": "Ecosystem Communication Channels",
+   "rDocNo": "A.2.7",
+   "gWords": 22,
+   "sameDoc": 0.957,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 40,
+   "gTitle": "Savings Rate And Token Reward Mechanism",
+   "gDocNo": "A.4.3",
+   "gSection": "Articles",
+   "rOrder": 45,
+   "rTitle": "Savings Rate And Token Reward Mechanism",
+   "rDocNo": "A.4.3",
+   "gWords": 45,
+   "sameDoc": 0.978,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 47,
+   "gTitle": "Location Resilience",
+   "gDocNo": "A.5.8",
+   "gSection": "Articles",
+   "rOrder": 51,
+   "rTitle": "Location Resilience",
+   "rDocNo": "A.5.8",
+   "gWords": 27,
+   "sameDoc": 0.964,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 62,
+   "gTitle": "Scope",
+   "gDocNo": "A.0.1",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 67,
+   "rTitle": "Scope",
+   "rDocNo": "A.0.1",
+   "gWords": 65,
+   "sameDoc": 0.8,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 72,
+   "gTitle": "Support Scope (SUP)",
+   "gDocNo": "A.0.1",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 76,
+   "rTitle": "Support Scope (SUP)",
+   "rDocNo": "A.0.1",
+   "gWords": 24,
+   "sameDoc": 0.958,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 85,
+   "gTitle": "Skylink",
+   "gDocNo": "A.0.1",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 87,
+   "rTitle": "Skylink",
+   "rDocNo": "A.0.1",
+   "gWords": 69,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 95,
+   "gTitle": "Atlas Interpretations",
+   "gDocNo": "A.1.1",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 112,
+   "rTitle": "Atlas Interpretations",
+   "rDocNo": "A.1.1",
+   "gWords": 48,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 130,
+   "gTitle": "Warning Recording",
+   "gDocNo": "A.1.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 149,
+   "rTitle": "Warning Recording",
+   "rDocNo": "A.1.4",
+   "gWords": 62,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 136,
+   "gTitle": "Derecognition Recording",
+   "gDocNo": "A.1.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 155,
+   "rTitle": "Derecognition Recording",
+   "rDocNo": "A.1.4",
+   "gWords": 56,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 146,
+   "gTitle": "List Of Recognized Aligned Delegates",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 165,
+   "rTitle": "List Of Recognized Aligned Delegates",
+   "rDocNo": "A.1.5",
+   "gWords": 51,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 147,
+   "gTitle": "In General",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 166,
+   "rTitle": "In General",
+   "rDocNo": "A.1.5",
+   "gWords": 17,
+   "sameDoc": 0.941,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 150,
+   "gTitle": "Eligibility To Receive Budget",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 167,
+   "rTitle": "Eligibility To Receive Budget",
+   "rDocNo": "A.1.5",
+   "gWords": 45,
+   "sameDoc": 0.956,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 151,
+   "gTitle": "Prime Delegates",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 168,
+   "rTitle": "Prime Delegates",
+   "rDocNo": "A.1.5",
+   "gWords": 51,
+   "sameDoc": 0.725,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 152,
+   "gTitle": "Number of Prime Delegate Slots",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 169,
+   "rTitle": "Number of Prime Delegate Slots",
+   "rDocNo": "A.1.5",
+   "gWords": 17,
+   "sameDoc": 0.733,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 155,
+   "gTitle": "AD Buffer",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 172,
+   "rTitle": "AD Buffer",
+   "rDocNo": "A.1.5",
+   "gWords": 97,
+   "sameDoc": 0.939,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 158,
+   "gTitle": "Budget Contingency",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 177,
+   "rTitle": "Budget Contingency",
+   "rDocNo": "A.1.5",
+   "gWords": 48,
+   "sameDoc": 0.98,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 159,
+   "gTitle": "Voting-Activity Metrics",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 178,
+   "rTitle": "Voting-Activity Metrics",
+   "rDocNo": "A.1.5",
+   "gWords": 152,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 160,
+   "gTitle": "Voting-Communication Metrics",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 179,
+   "rTitle": "Voting-Communication Metrics",
+   "rDocNo": "A.1.5",
+   "gWords": 169,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 169,
+   "gTitle": "Emergency Contact Mechanism",
+   "gDocNo": "A.1.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 190,
+   "rTitle": "Emergency Contact Mechanism",
+   "rDocNo": "A.1.5",
+   "gWords": 97,
+   "sameDoc": 0.959,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 173,
+   "gTitle": "Appointment of Facilitators",
+   "gDocNo": "A.1.6",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 194,
+   "rTitle": "Appointment Of Facilitators",
+   "rDocNo": "A.1.6",
+   "gWords": 19,
+   "sameDoc": 0.923,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 185,
+   "gTitle": "Full Scopes Coverage",
+   "gDocNo": "A.1.6",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 206,
+   "rTitle": "Full Scopes Coverage",
+   "rDocNo": "A.1.6",
+   "gWords": 72,
+   "sameDoc": 0.972,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 203,
+   "gTitle": "Pause Delay Current Value",
+   "gDocNo": "A.1.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 249,
+   "rTitle": "Pause Delay Current Value",
+   "rDocNo": "A.1.9",
+   "gWords": 7,
+   "sameDoc": 0.857,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 215,
+   "gTitle": "Smart Burn Engine Breaker Exception",
+   "gDocNo": "A.1.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 261,
+   "rTitle": "Smart Burn Engine Breaker Exception",
+   "rDocNo": "A.1.9",
+   "gWords": 32,
+   "sameDoc": 0.97,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 219,
+   "gTitle": "MultiSig Freeze Of SparkLend",
+   "gDocNo": "A.1.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 269,
+   "rTitle": "Multisig Freeze Of SparkLend",
+   "rDocNo": "A.1.9",
+   "gWords": 150,
+   "sameDoc": 0.509,
+   "titleEq": true,
+   "verdict": "queue"
+  },
+  {
+   "tier": 2,
+   "gOrder": 222,
+   "gTitle": "Definition Of Weekly Poll",
+   "gDocNo": "A.1.11",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 333,
+   "rTitle": "Definition Of Weekly Poll",
+   "rDocNo": "A.1.11",
+   "gWords": 129,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 238,
+   "gTitle": "Triggering Requirement",
+   "gDocNo": "A.1.11",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 352,
+   "rTitle": "Triggering Requirement",
+   "rDocNo": "A.1.11",
+   "gWords": 176,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 248,
+   "gTitle": "Origination",
+   "gDocNo": "A.1.12",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 362,
+   "rTitle": "Origination",
+   "rDocNo": "A.1.12",
+   "gWords": 27,
+   "sameDoc": 0.963,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 249,
+   "gTitle": "Governance Facilitators' Initial Verification",
+   "gDocNo": "A.1.12",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 364,
+   "rTitle": "Governance Facilitators' Initial Verification",
+   "rDocNo": "A.1.12",
+   "gWords": 102,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 295,
+   "gTitle": "In General",
+   "gDocNo": "A.2.2",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 468,
+   "rTitle": "In General",
+   "rDocNo": "A.2.2",
+   "gWords": 69,
+   "sameDoc": 0.986,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 311,
+   "gTitle": "Incubating Ecosystem Actors",
+   "gDocNo": "A.2.6",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1112,
+   "rTitle": "Incubating Ecosystem Actors",
+   "rDocNo": "A.2.6",
+   "gWords": 56,
+   "sameDoc": 0.964,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 313,
+   "gTitle": "Currently Incubating Ecosystem Actors",
+   "gDocNo": "A.2.6",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1114,
+   "rTitle": "Currently Incubating Ecosystem Actors",
+   "rDocNo": "A.2.6",
+   "gWords": 54,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 316,
+   "gTitle": "Communications Infrastructure",
+   "gDocNo": "A.2.7",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1117,
+   "rTitle": "Communications Infrastructure",
+   "rDocNo": "A.2.7",
+   "gWords": 28,
+   "sameDoc": 0.966,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 317,
+   "gTitle": "Forum",
+   "gDocNo": "A.2.7",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1118,
+   "rTitle": "Forum",
+   "rDocNo": "A.2.7",
+   "gWords": 28,
+   "sameDoc": 0.966,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 318,
+   "gTitle": "Chatroom",
+   "gDocNo": "A.2.7",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1119,
+   "rTitle": "Chatroom",
+   "rDocNo": "A.2.7",
+   "gWords": 28,
+   "sameDoc": 0.964,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 336,
+   "gTitle": "Resilience Fund Technical Committee Current Membership",
+   "gDocNo": "A.2.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1136,
+   "rTitle": "Resilience Fund Technical Committee Current Membership",
+   "rDocNo": "A.2.9",
+   "gWords": 53,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 340,
+   "gTitle": "Resilience Fund Policy Beneficiaries",
+   "gDocNo": "A.2.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1140,
+   "rTitle": "Resilience Fund Policy Beneficiaries",
+   "rDocNo": "A.2.9",
+   "gWords": 107,
+   "sameDoc": 0.98,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 379,
+   "gTitle": "Lawyer Registry Covered Areas",
+   "gDocNo": "A.2.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1179,
+   "rTitle": "Lawyer Registry Covered Areas",
+   "rDocNo": "A.2.9",
+   "gWords": 169,
+   "sameDoc": 0.994,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 391,
+   "gTitle": "Lawyer Registry Update Process",
+   "gDocNo": "A.2.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1191,
+   "rTitle": "Lawyer Registry Update Process",
+   "rDocNo": "A.2.9",
+   "gWords": 55,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 395,
+   "gTitle": "The Policyholder",
+   "gDocNo": "A.2.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1195,
+   "rTitle": "The Policyholder",
+   "rDocNo": "A.2.9",
+   "gWords": 235,
+   "sameDoc": 0.996,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 423,
+   "gTitle": "Introduction",
+   "gDocNo": "A.2.11",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1223,
+   "rTitle": "Introduction",
+   "rDocNo": "A.2.11",
+   "gWords": 69,
+   "sameDoc": 0.986,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 436,
+   "gTitle": "Funding",
+   "gDocNo": "A.2.12",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1236,
+   "rTitle": "Funding",
+   "rDocNo": "A.2.12",
+   "gWords": 46,
+   "sameDoc": 0.963,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 443,
+   "gTitle": "Broad Authority",
+   "gDocNo": "A.3.2",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1243,
+   "rTitle": "Broad Authority",
+   "rDocNo": "A.3.2",
+   "gWords": 57,
+   "sameDoc": 0.983,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 458,
+   "gTitle": "Arranged Structures",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1509,
+   "rTitle": "Arranged Structures",
+   "rDocNo": "A.3.5",
+   "gWords": 53,
+   "sameDoc": 0.943,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 462,
+   "gTitle": "Onboarding And Offboarding of Arrangers",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1513,
+   "rTitle": "Onboarding And Offboarding of Arrangers",
+   "rDocNo": "A.3.5",
+   "gWords": 39,
+   "sameDoc": 0.974,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 464,
+   "gTitle": "Reporting And Stress Test Requirements",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1515,
+   "rTitle": "Reporting And Stress Test Requirements",
+   "rDocNo": "A.3.5",
+   "gWords": 138,
+   "sameDoc": 0.985,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 466,
+   "gTitle": "Access To Accounts",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1517,
+   "rTitle": "Access To Accounts",
+   "rDocNo": "A.3.5",
+   "gWords": 87,
+   "sameDoc": 0.99,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 472,
+   "gTitle": "Adjustment Of Perpetual Exposure Direct Accumulation",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1523,
+   "rTitle": "Adjustment Of Perpetual Exposure Direct Accumulation",
+   "rDocNo": "A.3.5",
+   "gWords": 80,
+   "sameDoc": 0.914,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 473,
+   "gTitle": "Requirements For Adjustment Of Perpetual Exposure Direct Accumulation",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1524,
+   "rTitle": "Requirements For Adjustment Of Perpetual Exposure Direct Accumulation",
+   "rDocNo": "A.3.5",
+   "gWords": 38,
+   "sameDoc": 0.973,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 476,
+   "gTitle": "Adjustment Of Exposure Morpho Vault",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1527,
+   "rTitle": "Adjustment Of Exposure Morpho Vault",
+   "rDocNo": "A.3.5",
+   "gWords": 55,
+   "sameDoc": 0.978,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 477,
+   "gTitle": "Requirements For Adjustment Morpho Vault",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1528,
+   "rTitle": "Requirements For Adjustment Morpho Vault",
+   "rDocNo": "A.3.5",
+   "gWords": 41,
+   "sameDoc": 0.971,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 478,
+   "gTitle": "Morpho Vault Multisig",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1529,
+   "rTitle": "Morpho Vault Multisig",
+   "rDocNo": "A.3.5",
+   "gWords": 94,
+   "sameDoc": 0.989,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 549,
+   "gTitle": "Native Vault Engine",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1543,
+   "rTitle": "Native Vault Engine",
+   "rDocNo": "A.3.9",
+   "gWords": 59,
+   "sameDoc": 0.967,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 551,
+   "gTitle": "ETH-A",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1545,
+   "rTitle": "ETH-A",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 552,
+   "gTitle": "ETH-B",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1546,
+   "rTitle": "ETH-B",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 553,
+   "gTitle": "ETH-C",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1547,
+   "rTitle": "ETH-C",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 554,
+   "gTitle": "WSTETH-A",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1548,
+   "rTitle": "WSTETH-A",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 555,
+   "gTitle": "WSTETH-B",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1549,
+   "rTitle": "WSTETH-B",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 556,
+   "gTitle": "WBTC-A",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1550,
+   "rTitle": "WBTC-A",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.935,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 557,
+   "gTitle": "WBTC-B",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1551,
+   "rTitle": "WBTC-B",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.919,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 558,
+   "gTitle": "WBTC-C",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1552,
+   "rTitle": "WBTC-C",
+   "rDocNo": "A.3.9",
+   "gWords": 61,
+   "sameDoc": 0.952,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 560,
+   "gTitle": "Liquidation Ratio",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1554,
+   "rTitle": "Liquidation Ratio",
+   "rDocNo": "A.3.9",
+   "gWords": 102,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 562,
+   "gTitle": "Stability Fee",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1556,
+   "rTitle": "Stability Fee",
+   "rDocNo": "A.3.9",
+   "gWords": 216,
+   "sameDoc": 0.954,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 587,
+   "gTitle": "Updates",
+   "gDocNo": "A.3.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1582,
+   "rTitle": "Updates",
+   "rDocNo": "A.3.9",
+   "gWords": 57,
+   "sameDoc": 0.891,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 650,
+   "gTitle": "USDS",
+   "gDocNo": "A.4.1",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1636,
+   "rTitle": "USDS",
+   "rDocNo": "A.4.1",
+   "gWords": 37,
+   "sameDoc": 0.946,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 654,
+   "gTitle": "Multichain Support Native Mechanisms",
+   "gDocNo": "A.4.2",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1670,
+   "rTitle": "Multichain Support Native Mechanisms",
+   "rDocNo": "A.4.2",
+   "gWords": 19,
+   "sameDoc": 0.947,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 656,
+   "gTitle": "Token Reward Mechanism",
+   "gDocNo": "A.4.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1672,
+   "rTitle": "Token Reward Mechanism",
+   "rDocNo": "A.4.3",
+   "gWords": 20,
+   "sameDoc": 0.95,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 683,
+   "gTitle": "Location Resilience",
+   "gDocNo": "A.5.8",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1721,
+   "rTitle": "Location Resilience",
+   "rDocNo": "A.5.8",
+   "gWords": 18,
+   "sameDoc": 0.944,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 685,
+   "gTitle": "Consequence For Non-Compliance",
+   "gDocNo": "A.5.8",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1723,
+   "rTitle": "Consequence For Non-Compliance",
+   "rDocNo": "A.5.8",
+   "gWords": 57,
+   "sameDoc": 0.975,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 687,
+   "gTitle": "Restricted Features",
+   "gDocNo": "A.5.8",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1725,
+   "rTitle": "Restricted Features",
+   "rDocNo": "A.5.8",
+   "gWords": 37,
+   "sameDoc": 0.968,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 688,
+   "gTitle": "Flagged IPs",
+   "gDocNo": "A.5.8",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1726,
+   "rTitle": "Flagged IPs",
+   "rDocNo": "A.5.8",
+   "gWords": 15,
+   "sameDoc": 0.25,
+   "titleEq": true,
+   "verdict": "queue"
+  },
+  {
+   "tier": 2,
+   "gOrder": 701,
+   "gTitle": "Long Term Focus",
+   "gDocNo": "A.5.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1739,
+   "rTitle": "Long Term Focus",
+   "rDocNo": "A.5.9",
+   "gWords": 45,
+   "sameDoc": 0.978,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 706,
+   "gTitle": "Amount",
+   "gDocNo": "A.5.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1744,
+   "rTitle": "Amount",
+   "rDocNo": "A.5.9",
+   "gWords": 29,
+   "sameDoc": 0.939,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 707,
+   "gTitle": "Budget Remaining Amount",
+   "gDocNo": "A.5.9",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1745,
+   "rTitle": "Budget Remaining Amount",
+   "rDocNo": "A.5.9",
+   "gWords": 49,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 710,
+   "gTitle": "The Scope Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1752,
+   "rTitle": "The Scope Type",
+   "rDocNo": "A.1.2",
+   "gWords": 125,
+   "sameDoc": 0.977,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 711,
+   "gTitle": "The Article Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1753,
+   "rTitle": "The Article Type",
+   "rDocNo": "A.1.2",
+   "gWords": 153,
+   "sameDoc": 0.994,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 718,
+   "gTitle": "The Facilitator Action Tenet Directory Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1760,
+   "rTitle": "The Facilitator Action Tenet Directory Type",
+   "rDocNo": "A.1.2",
+   "gWords": 109,
+   "sameDoc": 0.991,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 725,
+   "gTitle": "The Budget Controller Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1767,
+   "rTitle": "The Budget Controller Type",
+   "rDocNo": "A.1.2",
+   "gWords": 197,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 735,
+   "gTitle": "The Facilitator Scenario Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1777,
+   "rTitle": "The Facilitator Scenario Type",
+   "rDocNo": "A.1.2",
+   "gWords": 274,
+   "sameDoc": 0.997,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 736,
+   "gTitle": "The Scenario Variation Type",
+   "gDocNo": "A.1.2",
+   "gSection": "Type Specifications",
+   "rOrder": 1778,
+   "rTitle": "The Scenario Variation Type",
+   "rDocNo": "A.1.2",
+   "gWords": 288,
+   "sameDoc": 0.997,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 755,
+   "gTitle": "Element Annotation",
+   "gDocNo": null,
+   "gSection": "Annotations",
+   "rOrder": 1802,
+   "rTitle": "Element Annotation",
+   "rDocNo": null,
+   "gWords": 57,
+   "sameDoc": 0.963,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 758,
+   "gTitle": "Element Annotation",
+   "gDocNo": null,
+   "gSection": "Annotations",
+   "rOrder": 1805,
+   "rTitle": "Element Annotation",
+   "rDocNo": null,
+   "gWords": 31,
+   "sameDoc": 0.968,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 837,
+   "gTitle": "Phrase must be read in its broadest sense by Facilitators",
+   "gDocNo": null,
+   "gSection": "Tenets",
+   "rOrder": 1882,
+   "rTitle": "Phrase must be read in its broadest sense by Facilitators",
+   "rDocNo": null,
+   "gWords": 142,
+   "sameDoc": 0.993,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 852,
+   "gTitle": "On-call or stand-by role",
+   "gDocNo": null,
+   "gSection": "Scenarios",
+   "rOrder": 1899,
+   "rTitle": "On-call or stand-by role",
+   "rDocNo": null,
+   "gWords": 210,
+   "sameDoc": 0.995,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2,
+   "gOrder": 857,
+   "gTitle": "var. 1",
+   "gDocNo": null,
+   "gSection": "Scenario Variations",
+   "rOrder": 1906,
+   "rTitle": "var. 1",
+   "rDocNo": null,
+   "gWords": 215,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:structural+content"
+  },
+  {
+   "tier": 2.7,
+   "gOrder": 870,
+   "gTitle": "Research Track",
+   "gDocNo": null,
+   "gSection": "Needed Research",
+   "rOrder": 1918,
+   "rTitle": "Research Track",
+   "rDocNo": null,
+   "gWords": 233,
+   "sameDoc": 0.996,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 280,
+   "gTitle": "Considerations Before Expediting Protocol Changes",
+   "gDocNo": "A.1.14",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 232,
+   "rTitle": "Considerations Before Expediting Protocol Changes",
+   "rDocNo": "A.1.8",
+   "gWords": 78,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 505,
+   "gTitle": "Peg Stability Module",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1472,
+   "rTitle": "Peg Stability Module",
+   "rDocNo": "A.3.4",
+   "gWords": 128,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 880,
+   "gTitle": "List",
+   "gDocNo": "A.2.6",
+   "gSection": "Active Data",
+   "rOrder": 1935,
+   "rTitle": "Currently Incubating Ecosystem Actors",
+   "rDocNo": "A.2.6",
+   "gWords": 303,
+   "sameDoc": 0.99,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3,
+   "gOrder": 508,
+   "gTitle": "Toll / Fee In Definition",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1495,
+   "rTitle": "Lite Peg Stability Module Toll / Fee In Definition",
+   "rDocNo": "A.3.4",
+   "gWords": 18,
+   "sameDoc": 1,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3,
+   "gOrder": 887,
+   "gTitle": "Communication Channels And Media Assets Listing",
+   "gDocNo": "A.3.4",
+   "gSection": "Active Data",
+   "rOrder": 1942,
+   "rTitle": "Communication Channels And Media Assets Listing",
+   "rDocNo": "A.3.9",
+   "gWords": 152,
+   "sameDoc": 0.981,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 495,
+   "gTitle": "Immediate Actions",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1626,
+   "rTitle": "Immediate Actions",
+   "rDocNo": "A.3.9",
+   "gWords": 101,
+   "sameDoc": 0.969,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 517,
+   "gTitle": "Legacy Peg Stability Modules",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1504,
+   "rTitle": "Other Peg Stability Modules",
+   "rDocNo": "A.3.4",
+   "gWords": 56,
+   "sameDoc": 0.982,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3,
+   "gOrder": 467,
+   "gTitle": "Star Owner Can Change Arrangers",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1518,
+   "rTitle": "Agent Owner Can Change Arrangers",
+   "rDocNo": "A.3.5",
+   "gWords": 20,
+   "sameDoc": 0.95,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3,
+   "gOrder": 501,
+   "gTitle": "Requirements For Modification Of Current Communication Coordinator",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1632,
+   "rTitle": "Requirements For Modification Of Current Communication Coordinator",
+   "rDocNo": "A.3.9",
+   "gWords": 80,
+   "sameDoc": 0.986,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 747,
+   "gTitle": "Element Annotation",
+   "gDocNo": null,
+   "gSection": "Annotations",
+   "rOrder": 1791,
+   "rTitle": "Element Annotation",
+   "rDocNo": null,
+   "gWords": 48,
+   "sameDoc": 0.979,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 490,
+   "gTitle": "Legacy RWA Offboarding",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1508,
+   "rTitle": "Other RWA Offboarding",
+   "rDocNo": "A.3.4",
+   "gWords": 61,
+   "sameDoc": 1,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3,
+   "gOrder": 504,
+   "gTitle": "Announcements",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1635,
+   "rTitle": "Announcements",
+   "rDocNo": "A.3.9",
+   "gWords": 52,
+   "sameDoc": 0.941,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 876,
+   "gTitle": "Derecognized Alignment Conservers",
+   "gDocNo": "A.1.4",
+   "gSection": "Active Data",
+   "rOrder": 1926,
+   "rTitle": "Derecognized Alignment Conservers",
+   "rDocNo": "A.1.4",
+   "gWords": 71,
+   "sameDoc": 1,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3,
+   "gOrder": 278,
+   "gTitle": "Definition Of Emergency Situations",
+   "gDocNo": "A.1.14",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 218,
+   "rTitle": "Definition Of Emergency Situations",
+   "rDocNo": "A.1.8",
+   "gWords": 104,
+   "sameDoc": 0.981,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 18,
+   "gTitle": "Emergency Voting System",
+   "gDocNo": "A.1.14",
+   "gSection": "Articles",
+   "rOrder": 15,
+   "rTitle": "Emergency Response System",
+   "rDocNo": "A.1.8",
+   "gWords": 21,
+   "sameDoc": 0.857,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 22,
+   "gTitle": "Star Incubation",
+   "gDocNo": "A.2.5",
+   "gSection": "Articles",
+   "rOrder": 27,
+   "rTitle": "Agent Incubation",
+   "rDocNo": "A.2.5",
+   "gWords": 31,
+   "sameDoc": 0.935,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 25,
+   "gTitle": "Ecosystem Agreements",
+   "gDocNo": "A.2.8",
+   "gSection": "Articles",
+   "rOrder": 30,
+   "rTitle": "Ecosystem Accords",
+   "rDocNo": "A.2.8",
+   "gWords": 15,
+   "sameDoc": 0.933,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 284,
+   "gTitle": "Known And Uncontentious Remedies",
+   "gDocNo": "A.1.14",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 238,
+   "rTitle": "Known And Uncontentious Remedies",
+   "rDocNo": "A.1.8",
+   "gWords": 24,
+   "sameDoc": 0.958,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 289,
+   "gTitle": "Changes To Approved Mechanisms",
+   "gDocNo": "A.1.14",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 229,
+   "rTitle": "Changes To Approved Emergency Contact Mechanisms",
+   "rDocNo": "A.1.8",
+   "gWords": 53,
+   "sameDoc": 0.923,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 306,
+   "gTitle": "Spark Star-Specific Support",
+   "gDocNo": "A.2.5",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1110,
+   "rTitle": "Support For Agents",
+   "rDocNo": "A.2.5",
+   "gWords": 13,
+   "sameDoc": 0.889,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 320,
+   "gTitle": "List Of Active Ecosystem Agreements",
+   "gDocNo": "A.2.8",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1121,
+   "rTitle": "List Of Active Ecosystem Accords",
+   "rDocNo": "A.2.8",
+   "gWords": 8,
+   "sameDoc": 0.875,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 459,
+   "gTitle": "Star Owner For Arranged Structures",
+   "gDocNo": "A.3.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1510,
+   "rTitle": "Agent Owner For Arranged Structures",
+   "rDocNo": "A.3.5",
+   "gWords": 35,
+   "sameDoc": 0.886,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 488,
+   "gTitle": "Low Risk RWA",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1473,
+   "rTitle": "Low Risk Real World Assets",
+   "rDocNo": "A.3.4",
+   "gWords": 74,
+   "sameDoc": 0.882,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 489,
+   "gTitle": "Optimizations",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1490,
+   "rTitle": "Optimizations",
+   "rDocNo": "A.3.4",
+   "gWords": 49,
+   "sameDoc": 0.857,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 516,
+   "gTitle": "Lite Peg Stability Module Parameter Values",
+   "gDocNo": "A.3.4",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1502,
+   "rTitle": "Lite Peg Stability Module Parameter Values",
+   "rDocNo": "A.3.4",
+   "gWords": 37,
+   "sameDoc": 0.902,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 673,
+   "gTitle": "Dai And MKR",
+   "gDocNo": "A.5.2",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 1711,
+   "rTitle": "Dai",
+   "rDocNo": "A.5.2",
+   "gWords": 25,
+   "sameDoc": 0.88,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 675,
+   "gTitle": "Reward System",
+   "gDocNo": "A.5.3",
+   "gSection": "Sections & Primary Docs",
+   "rOrder": 704,
+   "rTitle": "Reward Cadence",
+   "rDocNo": "A.2.4",
+   "gWords": 544,
+   "sameDoc": 0.909,
+   "titleEq": false,
+   "verdict": "lock:fuzzy+containment"
+  },
+  {
+   "tier": 3.5,
+   "gOrder": 886,
+   "gTitle": "Current Exposure Of Morpho SUSDe Or USDe DDM Vault",
+   "gDocNo": "A.3.3",
+   "gSection": "Active Data",
+   "rOrder": 1941,
+   "rTitle": "Current Exposure Of Morpho SUSDe Or USDe DDM Vault",
+   "rDocNo": "A.3.5",
+   "gWords": 11,
+   "sameDoc": 0.929,
+   "titleEq": true,
+   "verdict": "lock:fuzzy+title"
+  }
+ ],
+ "queues": {
+  "ambiguous": [
+   {
+    "gTitle": "Buffer Definition",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "Lite Peg Stability Module Buffer Definition"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Stars Credit Line Borrow Rate Risk Limits",
+    "gDocNo": "A.3.2",
+    "candidates": [
+     "Agents Credit Line Borrow Rate Risk Limits"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Communication Channels And Media Assets",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "Communication Channels And Media Assets"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Emergency Contact Mechanism",
+    "gDocNo": "A.1.14",
+    "candidates": [
+     "Emergency Contact Mechanism"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Emergency Response Firedrills",
+    "gDocNo": "A.1.14",
+    "candidates": [
+     "Emergency Contact Mechanism Fire Drills"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "The Current Communication Coordinator",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "The Current Communication Coordinator"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Emergency Voting System",
+    "gDocNo": "A.1.14",
+    "candidates": [
+     "Emergency Response"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Lite Peg Stability Module Parameter Modification",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "Lite Peg Stability Module Parameter Modification"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Requirements",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "Requirements"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Designated Responsible Party",
+    "gDocNo": "A.3.4",
+    "candidates": [
+     "Designated Responsible Party"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Current Aligned Delegates",
+    "gDocNo": "A.1.5",
+    "candidates": [
+     "Current Aligned Delegates"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Selection Criteria",
+    "gDocNo": "A.1.14",
+    "candidates": [
+     "Emergency Contact Mechanism Selection Criteria"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Current Remaining Amount",
+    "gDocNo": "A.5.9",
+    "candidates": [
+     "Current Remaining Amount"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Emergency Declaration Procedure",
+    "gDocNo": "A.1.14",
+    "candidates": [
+     "Emergency Declaration Procedure"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Stars Credit Line Borrow Rate",
+    "gDocNo": "A.3.2",
+    "candidates": [
+     "Agents Credit Line Borrow Rate"
+    ],
+    "reason": "fuzzy"
+   },
+   {
+    "gTitle": "Spark Star",
+    "gDocNo": "A.1.9",
+    "candidates": [
+     "Spark Agent"
+    ],
+    "reason": "fuzzy"
+   }
+  ],
+  "contained": [
+   {
+    "container": "Emergency Contact Mechanism"
+   },
+   {
+    "container": "Emergency Contact Mechanism Fire Drills"
+   },
+   {
+    "container": "Agents Credit Line Borrow Rate Risk Limits"
+   },
+   {
+    "container": "Lite Peg Stability Module Buffer Definition"
+   },
+   {
+    "container": "Lite Peg Stability Module Parameter Modification"
+   },
+   {
+    "container": "Parameter Adjustments"
+   },
+   {
+    "container": "Operator Update Process"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Element Annotation"
+   },
+   {
+    "container": "Responsible Provision of Evidence"
+   },
+   {
+    "container": "Responsible Provision of Evidence"
+   },
+   {
+    "container": "Research Track"
+   },
+   {
+    "container": "Research Track"
+   },
+   {
+    "container": "Systematic basis of adjudication, fact-finding and evidence"
+   },
+   {
+    "container": "SparkLend Risk Parameters Current Configuration"
+   },
+   {
+    "container": "SparkLend Risk Parameters Cap Automators"
+   },
+   {
+    "container": "SparkLend Risk Parameters Kill Switch"
+   },
+   {
+    "container": "Spark Protocol-Aave Revenue Share"
+   },
+   {
+    "container": "Sky Core Governance Responsibility For Virtual Revenue Share Prior to Launch of SPK"
+   },
+   {
+    "container": "Standard Agreement Post SPK Launch"
+   },
+   {
+    "container": "Buffer Definition"
+   },
+   {
+    "container": "Spark Dai Direct Deposit Module Ongoing Management"
+   },
+   {
+    "container": "Spark Deployment Of New Direct Deposit Modules"
+   }
+  ]
+ },
+ "adjudications": [
+  {
+   "pair": "A.1.9 MultiSig Freeze Of SparkLend (genesis o219) -> Multisig Freeze Of SparkLend (root o269)",
+   "verdict": "lock",
+   "method": "model-adjudicated 2026-07-06, human-reviewable",
+   "rationale": "Same title (case variant), same parent slot (Spark Star -> Spark Agent terminology rename), content is the same provision lightly rewritten (sameDoc 0.509 reflects the edit, not a different doc)."
+  },
+  {
+   "pair": "A.5.8 Flagged IPs [parent: Restricted Features] (genesis o688) -> (root o1726)",
+   "verdict": "lock",
+   "method": "model-adjudicated 2026-07-06, human-reviewable",
+   "rationale": "Two Flagged IPs siblings exist on both sides, disambiguated by parentTitle. The Full Block sibling is content-identical (matched exact); this Restricted Features sibling is the remaining slot with content fully replaced during the severed era (country list -> frontend-process prose). Correct pairing; the doc genuinely had a big severed-era rewrite."
+  }
+ ],
+ "acceptance": "PASS — every non-tier-1 pair locked by two-signal agreement (113) or recorded adjudication (2); ambiguous(16)/contained(28) remain in curation queues as designed"
+}

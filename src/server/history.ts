@@ -15,6 +15,7 @@ const CHANGE_TYPE_REVERSE: Record<string, HistoryEntry["changeType"]> = {
 
 interface HistoryQueryRow {
   commit_sha: string;
+  commit_seq: number | null;
   // TIMESTAMPTZ comes back as a Date (or ISO string); JSONB diff normally an
   // array, but legacy double-encoded rows come back as a JSON string.
   committed_at: string | Date | null;
@@ -34,6 +35,7 @@ interface HistoryQueryRow {
   comment_count: number | null;
   era: string | null;
   method: string | null;
+  source_url: string | null;
 }
 
 /** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
@@ -81,6 +83,8 @@ export function toEntry(row: HistoryQueryRow): HistoryEntry {
   if (row.comment_count != null) entry.commentCount = row.comment_count;
   if (row.era) entry.era = row.era;
   if (row.method) entry.method = row.method as HistoryEntry["method"];
+  if (row.commit_seq != null) entry.commitSeq = row.commit_seq;
+  if (row.source_url) entry.sourceUrl = row.source_url;
   return entry;
 }
 
@@ -90,9 +94,9 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
 
   try {
     const rows = await sql<HistoryQueryRow[]>`
-      SELECT commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
+      SELECT commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title, pr_url,
              pr_author, summary, description, moved_from, moved_to, diff,
-             change_kind, review_count, approval_count, comment_count, era, method
+             change_kind, review_count, approval_count, comment_count, era, method, source_url
       FROM atlas_history
       WHERE doc_id = ${nodeId}
       ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST
@@ -130,9 +134,9 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
 
   try {
     const rows = await sql<(HistoryQueryRow & { doc_id: string })[]>`
-      SELECT doc_id, commit_sha, committed_at, change_type, pr_number, pr_title, pr_url,
+      SELECT doc_id, commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title, pr_url,
              pr_author, summary, description, moved_from, moved_to, diff,
-             change_kind, review_count, approval_count, comment_count, era, method
+             change_kind, review_count, approval_count, comment_count, era, method, source_url
       FROM atlas_history
       WHERE doc_id IN ${sql(ids)}
       ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST

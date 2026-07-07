@@ -38,6 +38,7 @@ import {
   eventToRow,
   gitCommitSeq,
   htmlEraRows,
+  preEraRows,
   readHistoryCursor,
   upsertHistory,
 } from "../../src/server/history-db.ts";
@@ -614,8 +615,9 @@ async function main() {
     // curation decisions baked in (scripts/htmlhist/prepare-html-history.mjs). Upsert it
     // idempotently on every sync — same (doc_id, commit_sha, change_type) conflict key —
     // so BOTH dev (preflight) and Railway (atlas worker) serve the applied reconstruction
-    // from atlas_history. commit_seq is reconciled by sha via seqByCommit, never trusted
-    // from the baked artifact. Absent (un-applied) → skipped, markdown era unaffected.
+    // from atlas_history. Every html-era event's commitHash is a REAL git sha, so its
+    // commit_seq always reconciles via seqByCommit; the baked seq is never reached for
+    // these rows. Absent (un-applied) → skipped, markdown era unaffected.
     let htmlEraCount = 0;
     const htmlEraPath = path.join(ROOT, "public/history-html-era.json");
     if (fs.existsSync(htmlEraPath)) {
@@ -625,10 +627,37 @@ async function main() {
       htmlEraCount = htmlRows.length;
     }
 
+    // ── Pre-git origins (mip / genesis / severed) ─────────────────────────────
+    // The committed artifact (public/history-pre-era.json — scripts/prehist/, docs/plans/
+    // pre-git-history.md) carries synthetic (non-git) commitHash tags with a BAKED negative
+    // commit_seq — there is no real commit to reconcile against, so (unlike html-era rows
+    // above) the baked seq is what lands in the DB. Same idempotent upsert; absent → skipped.
+    let preEraCount = 0, supersededCount = 0;
+    const preEraPath = path.join(ROOT, "public/history-pre-era.json");
+    if (fs.existsSync(preEraPath)) {
+      const artifact = JSON.parse(fs.readFileSync(preEraPath, "utf8"));
+      // Curated AEP upgrades (prehist:aep) replace a row's commit_sha, so the OLD
+      // (docId, commit_sha, change_type) key is untouched by the upsert below — it's
+      // a different conflict target, not an update. Delete each superseded row first
+      // so a doc never ends up carrying both the generic placeholder and its upgrade.
+      for (const s of artifact.supersedes || []) {
+        const { count } = await sql`
+          DELETE FROM atlas_history
+          WHERE doc_id = ${s.docId} AND commit_sha = ${s.commitHash} AND change_type = ${s.changeType}
+        `;
+        supersededCount += count ?? 0;
+      }
+      const preRows = preEraRows(artifact, seqByCommit);
+      await upsertHistory(sql, preRows);
+      preEraCount = preRows.length;
+    }
+
     await sql.end();
     console.error(
       `\ndone: upserted ${rows.length} markdown-era change entries across ${newHistory.size} nodes` +
-      `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""} into atlas_history`,
+      `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""}` +
+      `${preEraCount ? ` + ${preEraCount} pre-git origin rows from the frozen artifact` : ""}` +
+      `${supersededCount ? ` (deleted ${supersededCount} superseded row(s) first)` : ""} into atlas_history`,
     );
     return;
   }

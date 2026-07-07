@@ -1,5 +1,8 @@
 -- HTML-era (pre-#117) history needs annotations the markdown era doesn't (plan §7):
---   era            — format/period: 'html' | 'markdown-monolith' | 'markdown-atoms'
+--   era            — format/period: 'html' | 'markdown-monolith' | 'markdown-atoms' |
+--                    'mip' | 'genesis' | 'severed' (pre-git origins, migration 011 /
+--                    docs/plans/pre-git-history.md — seam/extracted_from/merged_into/
+--                    move_kind stay NULL for these three, same as markdown-era rows)
 --   seam           — per-doc #117 fate: 'kept' | 'split' | 'merged' | 'created' | 'deleted'
 --   extracted_from — on `split` rows: the HTML parent the doc was carved out of
 --   merged_into    — on `merged` rows: the surviving md doc that absorbed it

@@ -15,10 +15,12 @@ the key follow-up questions are now settled by measurement:**
   the MIP system onto the single HTML file, and pinned that *originally uploaded*
   `Sky Atlas.html` to **IPFS** (CID
   `bafkreih7mbj4npqhxeprzk7sahpqjrajmxursaenzqgxdw5uo7sz554os4`, on Sky's own
-  pinata gateway). It still resolves — **693 KB, ≈1,068 docs**: the exact Atlas v2
-  genesis, ~9 months before the git root. So the severed era now has a hard content
-  anchor at *both* ends: genesis (2024-09-02, ≈1,068 docs) → first git commit
-  (2025-05-28, ≈4,676 docs), a ~4.4× expansion the forum cycles narrate.
+  pinata gateway). It still resolves — **693 KB, 890 docs** (the earlier "≈1,068"
+  counted `<dfn>` occurrences, which include cross-reference citations — Gate-1
+  audit 2026-07-06): the exact Atlas v2 genesis, ~9 months before the git root. So
+  the severed era now has a hard content anchor at *both* ends: genesis
+  (2024-09-02, 890 docs) → first git commit (2025-05-28, 4,019 docs), a ~4.5×
+  expansion the forum cycles narrate.
 - **The severed *git* history is gone — a repo re-init, not a force-push.** The
   current repo's GitHub `created_at` is **2025-05-28** (same day as `4e931dfd`), so
   the 2024-09 `makerdao/next-gen-atlas` (127 commits by Dec 2024) was re-created
@@ -35,8 +37,9 @@ Details and a tiered recommendation below.
 
 ## Lineage measured (2026-07-06) — Tier 3 is cheap and it works
 
-The genesis HTML was fetched (693,903 B, parses with the *unchanged* htmlhist
-converter: 890 nodes, 10 sections, scopes `A.0`–`A.5`), `sky-ecosystem/mips` was
+The genesis HTML was fetched (693,633 B, sha256-verified against the CID digest,
+parses with the *unchanged* htmlhist converter: 890 nodes, 10 sections, scopes
+`A.0`–`A.5`), `sky-ecosystem/mips` was
 cloned, and the full MIP → genesis → `4e931dfd` → current-uuid chain was measured
 (prototypes + data: `scripts/aux/atlas-history/{recovered,prototypes}/`):
 
@@ -206,7 +209,8 @@ the git root:
 | | genesis (2024-09-02, IPFS) | first commit `4e931dfd` (2025-05-28) |
 |---|---|---|
 | `<h1>` sections | 10 | 11 |
-| `<dfn>` doc rows | ≈1,068 | ≈4,676 |
+| doc rows (parsed) | 890 | 4,019 |
+| `<dfn>` occurrences (incl. cross-ref citations) | 1,070 | 4,785 |
 | bytes | 693 K | 2.07 M |
 
 Same format, same `A.x` doc_no scheme, no UUIDs — so it splices onto era 3b with
@@ -419,8 +423,8 @@ the reconstruction. Self-serve; no contact needed.
 recovered.** Same format (HTML, same single file, same `A.x` numbering) and same
 authoring cadence, so it splices onto era 3b with the *existing* HTML converter and
 **no new boundary type**. We now hold **both content endpoints**: the **genesis
-HTML (2024-09-02, ≈1,068 docs)** recovered from the #25010 IPFS CID, and the first
-git commit (2025-05-28, ≈4,676 docs). The intermediate per-commit git objects are
+HTML (2024-09-02, 890 docs)** recovered from the #25010 IPFS CID, and the first
+git commit (2025-05-28, 4,019 docs). The intermediate per-commit git objects are
 still unrecoverable publicly (repo re-created 2025-05-28, no pre-truncation fork,
 raw HTML not in Wayback), **but** the era's *change history* is reconstructable
 from the **forum Atlas Edit Weekly Cycle proposals** (continuous back to 2024-09-13
