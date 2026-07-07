@@ -1,6 +1,6 @@
 import { Link } from "./Link";
 import { PatchNotes } from "./PatchNotes";
-import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
+import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
 
 const SKY_URL = "https://sky.money";
 const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";
@@ -9,7 +9,7 @@ const ATLAS_URL = "https://github.com/sky-ecosystem/next-gen-atlas";
 // /preview mounts its own shell, so it needs a plain full-load anchor.
 const PREVIEW_ENABLED = import.meta.env.VITE_PREVIEW_ENABLED === "true";
 
-const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
+const CARDS: { page?: NavPage; to?: string; href?: string; name: string; desc: string }[] = [
   {
     page: "atlas",
     name: "Reader",
@@ -31,19 +31,24 @@ const CARDS: { page?: NavPage; href?: string; name: string; desc: string }[] = [
         name: "Reports",
         desc: "Op Facilitator responsibilities, Active Data index, integrator rewards, and more",
       },
+  {
+    to: ROUTES.CONNECT,
+    name: "Connect (MCP)",
+    desc: "Connect an AI assistant to the atlas over MCP — search, traverse, and cite it directly from your client",
+  },
 ];
 
 export function HomePage() {
   return (
     <main className="flex-1 overflow-y-auto px-6 py-16">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-5xl font-bold text-tan mb-4">Sky Atlas by Redline</h1>
           <h2 className="text-2xl text-tan-2 mb-6">
             Views into the Sky
               Atlas
           </h2>
-          <p className="text-base leading-relaxed text-tan-2" style={{ maxWidth: "56ch" }}>
+          <p className="text-base leading-relaxed text-tan-2" style={{ maxWidth: "68ch" }}>
             The{' '}
             <a href={ATLAS_URL} target="_blank" rel="noopener noreferrer" className="link-accent">
             Sky Atlas
@@ -58,7 +63,7 @@ export function HomePage() {
             straight from the source.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {CARDS.map((c) => {
             const body = (
               <>
@@ -67,8 +72,9 @@ export function HomePage() {
               </>
             );
             const cls = "home-card flex flex-col items-start text-left w-full";
-            return c.page ? (
-              <Link key={c.name} to={NAV_PAGE_ROUTES[c.page]} className={cls}>
+            const to = c.page ? NAV_PAGE_ROUTES[c.page] : c.to;
+            return to ? (
+              <Link key={c.name} to={to} className={cls}>
                 {body}
               </Link>
             ) : (

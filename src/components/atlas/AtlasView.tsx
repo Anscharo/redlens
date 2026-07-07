@@ -5,9 +5,12 @@ import { AtlasActionsContext } from "./AtlasActionsContext";
 import { AtlasReader } from "./AtlasReader";
 import { AtlasAnnotations } from "./AtlasAnnotations";
 import { DrawerToggle } from "../Drawer";
-import { useAtlasData } from "../../hooks/useAtlasData";
+import { useAtlasData, useLoaded } from "../../hooks/useAtlasData";
 import { useAtlasSelection } from "../../hooks/useAtlasSelection";
 import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
+import { useDocViewTracking } from "../../hooks/useDocViewTracking";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { loadGraph } from "../../lib/graph";
 import {
   buildAncestorsWithSelf,
   ATLAS_GRID_STYLE,
@@ -31,8 +34,16 @@ export function AtlasView({
   onOpenTree?: () => void;
 }) {
   const data = useAtlasData();
+  const graph = useLoaded(loadGraph);
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
   const { linkedNodes, targetAddresses, chainValues, glossaryTerms } = useNodeAnnotations(id, data);
+
+  // Atlas-aware analytics: one doc_view per node (live + preview alike).
+  useDocViewTracking(data?.atlas ?? null, id, graph);
+
+  // Reflect the selected doc's title in the browser tab / window title.
+  const docTitle = id ? data?.atlas.docs[id]?.title : null;
+  useDocumentTitle(docTitle ? `${docTitle} — Sky Atlas by Redline` : null);
 
   const ancestors = useMemo(() => {
     if (!data || !id) return [];

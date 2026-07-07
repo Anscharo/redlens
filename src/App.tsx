@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { useLocation, useSearchParams, Switch, Route } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
+import { usePageAnalytics } from "./hooks/usePageAnalytics";
+import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, type NavPage, type SearchScope } from "./lib/routes";
 import { SearchBar } from "./components/SearchBar";
@@ -54,6 +56,9 @@ const HistoryCurateReport = lazy(() =>
 const ProvenancePage = lazy(() =>
   lazyRetry(() => import("./components/ProvenancePage")).then((m) => ({ default: m.ProvenancePage })),
 );
+const ConnectPage = lazy(() =>
+  lazyRetry(() => import("./components/ConnectPage")).then((m) => ({ default: m.ConnectPage })),
+);
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
@@ -92,12 +97,50 @@ export default function App() {
 
   const scope: SearchScope = activeNavPage ?? "atlas";
 
-  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick } =
+  const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
     useSearchInput(location, navigate, scope);
   const { navigateToNode, handleViewChange } = useNavigation({
     navigate,
     nodeId,
   });
+
+  // Analytics: init + per-route $pageview tagged with the product super property.
+  usePageAnalytics(location);
+
+  // Enter in the search box jumps focus to the first result (entity hit or doc).
+  // Returns whether a result was actually focused, so SearchBar only swallows
+  // the keystroke when there was somewhere to go.
+  const focusFirstResult = useCallback(() => {
+    const first = document.querySelector<HTMLElement>(".search-result-link");
+    if (!first) return false;
+    first.focus();
+    return true;
+  }, []);
+
+  // Track opening a comparison pane (null → uuid transition only).
+  const handleSplitChange = useCallback(
+    (sid: string | null) => {
+      if (sid && sid !== splitId) track("atlas_split_open", { node_id: nodeId, split_id: sid });
+      else if (!sid && splitId) track("reader_split_close", { node_id: nodeId, split_id: splitId });
+      setSplitId(sid);
+    },
+    [setSplitId, splitId, nodeId],
+  );
+
+  // Track opening a specific report (not the /reports index), deduped per report.
+  const lastReport = useRef<string | null>(null);
+  useEffect(() => {
+    const prefix = `${ROUTES.REPORTS}/`;
+    if (location.startsWith(prefix)) {
+      const reportId = location.slice(prefix.length);
+      if (reportId && lastReport.current !== reportId) {
+        lastReport.current = reportId;
+        track("report_open", { report_id: reportId });
+      }
+    } else {
+      lastReport.current = null;
+    }
+  }, [location]);
 
   const showTree =
     location === ROUTES.HOME || location === ROUTES.ATLAS || location === ROUTES.SEARCH_HINTS;
@@ -147,6 +190,9 @@ export default function App() {
         onSetMode={wrapModeClick}
         activePage={activeNavPage}
         scope={scope}
+        recentSearches={recentSearches}
+        onRecentSelect={selectRecent}
+        onSubmit={focusFirstResult}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (
@@ -163,7 +209,7 @@ export default function App() {
               <TreeSidebar
                 nodeId={nodeId}
                 onNavigate={handleTreeNavigate}
-                onShiftNavigate={setSplitId}
+                onShiftNavigate={handleSplitChange}
               />
             </Drawer>
           </ErrorBoundary>
@@ -201,7 +247,7 @@ export default function App() {
                 view={atlasView}
                 onViewChange={handleViewChange}
                 splitId={splitId}
-                onSplitChange={setSplitId}
+                onSplitChange={handleSplitChange}
                 onOpenTree={() => setTreeOpen(true)}
               />
             </Route>
@@ -271,6 +317,11 @@ export default function App() {
             <Route path={ROUTES.PROVENANCE}>
               <Suspense fallback={<Loading />}>
                 <ProvenancePage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.CONNECT}>
+              <Suspense fallback={<Loading />}>
+                <ConnectPage />
               </Suspense>
             </Route>
             <Route path="/admin/:rest*">

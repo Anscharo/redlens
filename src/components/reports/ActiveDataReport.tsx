@@ -5,7 +5,9 @@ import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
 import { loadHistoryBatch } from "../../lib/history";
+import { track } from "../../lib/analytics";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   buildActiveDataRows,
   activeDataRowsToCSV,
@@ -69,6 +71,7 @@ function EvidenceCell({ r }: { r: Row }) {
 }
 
 export function ActiveDataReport() {
+  useDocumentTitle("Active Data Index: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
   const rows = useMemo(
@@ -159,7 +162,11 @@ export function ActiveDataReport() {
           {agents.map((a) => (
             <button
               key={a}
-              onClick={() => setAgentFilter(agentFilter === a ? null : a)}
+              onClick={() => {
+                const active = agentFilter !== a;
+                track("report_filter", { report: "active-data", filter_type: "agent", value: active ? a : null, active });
+                setAgentFilter(agentFilter === a ? null : a);
+              }}
               data-active={agentFilter === a ? "true" : undefined}
               className="scope-pill mono text-xs px-2 py-0.5 rounded"
             >
@@ -173,7 +180,11 @@ export function ActiveDataReport() {
           {entityNames.map((e) => (
             <button
               key={e}
-              onClick={() => setEntityFilter(entityFilter === e ? null : e)}
+              onClick={() => {
+                const active = entityFilter !== e;
+                track("report_filter", { report: "active-data", filter_type: "entity", value: active ? e : null, active });
+                setEntityFilter(entityFilter === e ? null : e);
+              }}
               data-active={entityFilter === e ? "true" : undefined}
               className="scope-pill mono text-xs px-2 py-0.5 rounded"
             >
@@ -185,7 +196,10 @@ export function ActiveDataReport() {
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{filtered.length} sections</p>
           <button
-            onClick={() => exportCSV(filtered, lastEditDates)}
+            onClick={() => {
+              track("report_export", { report: "active-data", format: "csv" });
+              exportCSV(filtered, lastEditDates);
+            }}
             className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
           >
             Download CSV

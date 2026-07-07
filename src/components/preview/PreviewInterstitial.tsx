@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { initAnalytics, track } from "../../lib/analytics";
 
 // Low-trust click-through: shown on first visit per session for (a) fork
 // previews whose owner is NOT trusted-tier (whitelisted orgs / atlas-merged
@@ -80,13 +81,24 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
         className="px-4 py-1.5 rounded mono text-sm"
         style={{ background: "var(--hover)", border: "1px solid var(--border)", color: "var(--tan)" }}
         onClick={() => {
+          // Analytics isn't initialised yet (App mounts only after ack) — do it here.
+          initAnalytics();
+          track("preview_interstitial", { product: "preview", action: "proceed", sha });
           sessionStorage.setItem(ackKey, "1");
           setAcked(true);
         }}
       >
         I understand — view the fork
       </button>
-      <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
+      <a
+        href={import.meta.env.BASE_URL}
+        className="text-sm"
+        style={{ color: "var(--accent)" }}
+        onClick={() => {
+          initAnalytics();
+          track("preview_interstitial", { product: "preview", action: "cancel", sha });
+        }}
+      >
         ← back to the live atlas
       </a>
     </div>

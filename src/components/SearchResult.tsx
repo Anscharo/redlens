@@ -3,13 +3,58 @@ import { AtlasLink } from "./AtlasLink";
 import { realDepth, depthColor } from "../lib/depth";
 import { atlasHref } from "../lib/routes";
 import { shortAddr } from "../lib/format";
-import type { SearchHit } from "../types";
+import type { HitLabel, SearchHit } from "../types";
 
 interface Props {
   hit: SearchHit;
+  rank: number; // 0-based position in the result list
+  onResultClick: (hit: SearchHit, rank: number) => void;
 }
 
-export const SearchResult = memo(function SearchResult({ hit }: Props) {
+// AGENT / ICD get a colored kind tag; a bare scope label carries no prefix.
+const LABEL_TAG: Record<HitLabel["kind"], string | null> = {
+  scope: null,
+  agent: "AGENT",
+  icd: "ICD",
+};
+// One chip shape for all pills (differentiated by accent color, so they read as
+// a set): a faint accent-tinted dark fill, an accent border, an accent-colored
+// kind tag, and a name. Deliberately quieter than the results themselves.
+// Distinct hues per kind — agent warm (--entity-agent), ICD cool
+// (--entity-instance, since an ICD defines an instance), scope neutral tan — so
+// scope and ICD don't blur together. Only the agent name is bright; scope/ICD
+// names sit at --tan-2, dimmer than the adjacent result title.
+const LABEL_ACCENT: Record<HitLabel["kind"], string> = {
+  scope: "var(--tan-3)",
+  icd: "var(--entity-instance)",
+  agent: "var(--entity-agent)",
+};
+const LABEL_NAME: Record<HitLabel["kind"], string> = {
+  scope: "var(--tan-2)",
+  icd: "var(--tan-2)",
+  agent: "var(--tan)",
+};
+
+function GutterLabel({ label }: { label: HitLabel }) {
+  const accent = LABEL_ACCENT[label.kind];
+  const tag = LABEL_TAG[label.kind];
+  return (
+    <span
+      className="block text-center text-[10px] leading-tight px-1.5 py-0.5 rounded break-words"
+      style={{
+        color: LABEL_NAME[label.kind],
+        background: `color-mix(in srgb, ${accent} 15%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${accent} 55%, transparent)`,
+      }}
+      title={tag ? `${tag}: ${label.text}` : label.text}
+    >
+      {tag && <span className="mr-1" style={{ color: accent }}>{tag}</span>}
+      {label.text}
+    </span>
+  );
+}
+
+export const SearchResult = memo(function SearchResult({ hit, rank, onResultClick }: Props) {
   const color = depthColor(realDepth(hit.doc_no));
   const shortAddress = hit.chainlogAddress ? shortAddr(hit.chainlogAddress) : "";
 
@@ -17,8 +62,16 @@ export const SearchResult = memo(function SearchResult({ hit }: Props) {
 
   return (
     <div className="relative">
-      {/* Match info — floats left on wide screens, inline on narrow */}
-      <div className="lg:absolute lg:right-full lg:mr-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
+      {/* Provenance labels — float left on wide screens, inline on narrow */}
+      {hit.labels && hit.labels.length > 0 && (
+        <div className="lg:absolute lg:right-full lg:mr-3 lg:top-3 lg:w-[140px] lg:p-0 px-4 pt-2 mono flex flex-wrap lg:flex-col items-start lg:items-stretch justify-start gap-1">
+          {hit.labels.map((label) => (
+            <GutterLabel key={label.kind + label.text} label={label} />
+          ))}
+        </div>
+      )}
+      {/* Match info — floats right on wide screens, inline on narrow */}
+      <div className="lg:absolute lg:left-full lg:ml-3 lg:top-3 lg:flex-col lg:text-center flex items-center gap-1.5 mono px-4 pt-2 lg:p-0 lg:w-[96px]">
         {hit.chainlogId ? (
           <>
             <span className="text-[9px] text-tan-3">via chainlog</span>
@@ -35,6 +88,7 @@ export const SearchResult = memo(function SearchResult({ hit }: Props) {
       <AtlasLink
         to={atlasHref(hit.id)}
         className="search-result-link px-4 py-3"
+        onClick={() => onResultClick(hit, rank)}
       >
         <h3
           className="text-sm font-semibold mb-1 text-tan"

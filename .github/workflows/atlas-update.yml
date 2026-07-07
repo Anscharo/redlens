@@ -76,27 +76,41 @@ jobs:
       # All build warnings ([drift], anchor-not-found, did-not-parse, unknown
       # document type, …) go through console.warn → stderr. Capture stderr
       # wholesale so any future warning is surfaced without a grep allowlist.
-      - name: Rebuild artifacts and update snapshots
+      - name: Build index
         if: steps.atlas.outputs.proceed == 'true'
-        run: |
-          pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
-          pnpm build:graph 2> >(tee -a /tmp/atlas-warnings.log >&2)
-          pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
-          pnpm test:snap:update
-          git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
+        run: pnpm build:index 2> >(tee -a /tmp/atlas-warnings.log >&2)
 
       # Refresh the committed, Etherscan-enriched addresses.json so on-chain
       # addresses introduced by the bump are present — otherwise docs.json gains
       # refs that addresses.json lacks and CI's docs↔addresses sync check drifts.
+      #
+      # ORDER IS LOAD-BEARING: this runs BEFORE build:graph + test:snap:update.
+      # Address-derived edges (e.g. proxies_to) read public/addresses.json, so
+      # the snapshot must be generated from the SAME addresses.json this commit
+      # ships. Running it afterwards left the committed snapshot stale vs the
+      # committed addresses.json, failing CI's snapshot check on every later PR.
+      # Needs docs.json from build:index to pick up addresses the bump introduced.
+      #
       # Degrades gracefully: build:addresses no-ops without ETHERSCAN_API_KEY,
       # and continue-on-error keeps a flaky Etherscan/RPC call from blocking the
-      # bump (the sync test tolerates the residual lag).
+      # bump — build:graph then just reuses the existing addresses.json, which is
+      # still internally consistent with the snapshot built from it.
       - name: Refresh on-chain address metadata
         if: steps.atlas.outputs.proceed == 'true'
         continue-on-error: true
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
         run: pnpm build:addresses 2> >(tee -a /tmp/atlas-warnings.log >&2)
+
+      # Build the graph and refresh the snapshot LAST, so it reflects the
+      # addresses.json refreshed above.
+      - name: Rebuild graph and update snapshots
+        if: steps.atlas.outputs.proceed == 'true'
+        run: |
+          pnpm build:graph 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm test:snap:update
+          git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
       # The syntax spec changing is the leading indicator of a new structural
       # convention — flag it even when the build is warning-free.

@@ -4,6 +4,7 @@ import { type Indexes } from "./indexes.ts";
 import { sql, toVectorLiteral } from "./db.ts";
 import { embedQuery } from "./embed.ts";
 import { config } from "./config.ts";
+import { compactProse } from "../lib/shortenTitle.ts";
 
 const RRF_K = 60;
 
@@ -25,13 +26,17 @@ export interface MergedHit {
 // fuzzy OFF by default (it dilutes exact term/ID/address lookups — the strength
 // of lexical mode), same boosts and OR combine.
 export function runLexical(ix: Indexes, query: string, type: string | undefined, k: number): Hit[] {
-  const results = ix.mini.search(query, {
+  let results = ix.mini.search(query, {
     boost: { title: 10, doc_no: 5, type: 2 },
     prefix: true,
     fuzzy: false,
     combineWith: "OR",
-    filter: type ? (r) => (r as { type?: string }).type === type : undefined,
   });
+  // Type is a POST-filter against docMap, not a MiniSearch `filter`: the index
+  // stores no per-result fields (kept out to shrink the artifact), so results
+  // carry no `type`. Resolve it by id — same approach as the frontend worker.
+  // Filter before slicing to k so the cap counts only type-matching hits.
+  if (type) results = results.filter((r) => ix.docMap.get(r.id as string)?.type === type);
   return results.slice(0, k).map((r, i) => ({ id: r.id as string, rank: i, score: r.score, source: "lexical" }));
 }
 
@@ -54,6 +59,9 @@ export async function runSemantic(
 
   const out: Hit[] = [];
   for (const r of rows) {
+    // Rows are ordered by ascending distance (descending cosine), so once one
+    // falls below the relevance floor, every later row does too — stop.
+    if (r.score < config.semanticMinScore) break;
     if (type && r.type !== type) continue;
     out.push({ id: r.id, rank: out.length, score: r.score, source: "semantic" });
     if (out.length >= k) break;
@@ -90,10 +98,17 @@ export function buildSnippet(content: string, query: string, len = 240): string 
     const i = lc.indexOf(t);
     if (i >= 0 && (at < 0 || i < at)) at = i;
   }
-  if (at < 0) return content.slice(0, len).trim() + (content.length > len ? "…" : "");
-  const start = Math.max(0, at - len / 4);
-  const slice = content.slice(start, start + len).trim();
-  return (start > 0 ? "…" : "") + slice + (start + len < content.length ? "…" : "");
+  // Pull a WIDER raw window, then compact it (drop articles, abbreviate known
+  // words) so the returned snippet carries more content per `len` bytes than a
+  // hard char-truncation would. Compaction happens after slicing so the match
+  // position stays accurate.
+  const raw = Math.round(len * 1.6);
+  const start = at < 0 ? 0 : Math.max(0, at - raw / 4);
+  let text = compactProse(content.slice(start, start + raw).trim());
+  if (text.length > len) text = text.slice(0, len).trimEnd();
+  const lead = start > 0;
+  const trail = start + raw < content.length;
+  return (lead ? "…" : "") + text + (trail ? "…" : "");
 }
 
 // Phrase parsing is shared with the frontend reader (one source of truth):

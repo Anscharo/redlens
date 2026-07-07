@@ -76,6 +76,21 @@ const ABBREVIATIONS: Record<string, string> = {
   notifications: "Notifs.",
 };
 
+// Densify freeform prose (e.g. a search snippet) using the same vocabulary as
+// the breadcrumb title shortener: drop articles/prepositions/conjunctions and
+// abbreviate every known long word. No char cap — the caller controls length.
+// More content words per byte, which is the whole point for MCP snippets.
+export function compactProse(text: string): string {
+  return text
+    .replace(/\bEthereum Mainnet\b/gi, "Ethereum")
+    .replace(ARTICLES_AND_PREPOSITIONS_AND_CONJUNCTIONS, "")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .split(" ")
+    .map((w) => ABBREVIATIONS[w.toLowerCase()] ?? w)
+    .join(" ");
+}
+
 export function shortenTitle(title: string, maxChars: number, abbrRatio = 0.5): string {
   let t = title
     .replace(/\bEthereum Mainnet\b/gi, "Ethereum")

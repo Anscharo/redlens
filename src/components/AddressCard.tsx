@@ -2,6 +2,7 @@ import type { AddressInfo } from "../types";
 import type { ChainValue } from "../lib/chainstate";
 import { explorerUrl } from "../lib/explorer";
 import { shortAddr } from "../lib/format";
+import { track } from "../lib/analytics";
 
 function formatValue(val: ChainValue): string {
   if (val === null) return "—";
@@ -44,6 +45,7 @@ export function AddressCard({
         target="_blank"
         rel="noopener noreferrer"
         className="link-accent mono text-xs block mb-2 break-all"
+        onClick={() => track("reader_address_explorer_out", { address, chain: info.chain })}
       >
         {address}
       </a>

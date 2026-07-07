@@ -1,8 +1,10 @@
 import { Route, Switch } from "wouter";
 import { AdminPage } from "./AdminPage";
 import { PalettePage } from "./PalettePage";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 export function AdminEntry() {
+  useDocumentTitle("Admin: Sky Atlas by Redline");
   return (
     <Switch>
       <Route path="/admin/palette">

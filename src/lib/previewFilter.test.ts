@@ -32,6 +32,8 @@ function configure({
     changed: new Set(changed),
     renumbered: {},
     reusedSlot: {},
+    identitySwap: {},
+    formerUuid: {},
   });
 }
 

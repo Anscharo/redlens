@@ -2,6 +2,7 @@ import { memo, useState, useEffect, useRef, useMemo } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { depthColor, realDepth } from "../lib/depth";
 import { atlasHref } from "../lib/routes";
+import { track } from "../lib/analytics";
 import type { AtlasNode } from "../types";
 import { fitBreadcrumbs } from "../lib/breadcrumbs";
 
@@ -57,6 +58,7 @@ export const Breadcrumbs = memo(function Breadcrumbs({ ancestors }: BreadcrumbsP
           <AtlasLink
             to={atlasHref(a.id)}
             className="breadcrumb-link"
+            onClick={() => track("reader_breadcrumb_nav", { node_id: a.id })}
             style={{ "--crumb-color": depthColor(realDepth(a.doc_no)) } as React.CSSProperties}
           >
             <span className="short">{fittedTitles[i] ?? a.title}</span>

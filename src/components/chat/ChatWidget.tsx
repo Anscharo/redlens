@@ -4,6 +4,7 @@ import { atlasHref } from "../../lib/routes";
 import { ChatLauncher } from "./ChatLauncher";
 import { ChatPanel } from "./ChatPanel";
 import { usePageContext } from "./pageContext";
+import { track } from "../../lib/analytics";
 import "./chat.css";
 
 export type Placement = "float" | "anchored";
@@ -25,18 +26,27 @@ export function ChatWidget() {
   const [, navigate] = useLocation();
   const context = usePageContext();
 
+  // Track each open once (guards ⌘K while already open). product:"chat" overrides
+  // the route-derived super property since the widget overlays any page.
+  const openChat = useCallback(() => {
+    setOpen((o) => {
+      if (!o) track("chat_open", { product: "chat" });
+      return true;
+    });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen(true);
+        openChat();
       } else if (e.key === "Escape") {
         setOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [openChat]);
 
   // Drive the layout push: only when anchored AND open does the shell reserve a
   // right gutter. Cleared on close, placement change, or unmount.
@@ -62,7 +72,7 @@ export function ChatWidget() {
     [navigate],
   );
 
-  if (!open) return <ChatLauncher onOpen={() => setOpen(true)} context={context} />;
+  if (!open) return <ChatLauncher onOpen={openChat} context={context} />;
   return (
     <ChatPanel
       onClose={() => setOpen(false)}

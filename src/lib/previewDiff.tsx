@@ -15,9 +15,16 @@ export interface PreviewDiff {
    *  id → the old occupant's title + where it sits in this preview (absent =
    *  removed by the preview). */
   reusedSlot: Record<string, { title?: string; movedTo?: string }>;
+  /** UUID-identity reassignment: a stable uuid whose underlying *document* was
+   *  wholly replaced (different title + rewritten body). id → old/new titles and
+   *  (best-effort) where the displaced old content moved to. Drives the ⚠. */
+  identitySwap: Record<string, { oldTitle: string; newTitle: string; movedTo?: { id: string; doc_no: string; title: string } }>;
+  /** The other side of a swap: a new doc that received content which previously
+   *  lived under a different uuid. id → that previous uuid + its old identity. */
+  formerUuid: Record<string, { previousId: string; previousTitle: string; previousDocNo: string }>;
 }
 
-const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {} };
+const EMPTY: PreviewDiff = { added: new Set(), changed: new Set(), renumbered: {}, reusedSlot: {}, identitySwap: {}, formerUuid: {} };
 
 const PreviewDiffContext = createContext<PreviewDiff>(EMPTY);
 
@@ -46,6 +53,9 @@ export function PreviewDiffProvider({ children }: { children: ReactNode }) {
           reusedSlot: Array.isArray(d.reusedSlot)
             ? Object.fromEntries((d.reusedSlot as string[]).map((id) => [id, {}]))
             : (d.reusedSlot ?? {}),
+          // Both absent on bundles built before identity-swap detection shipped.
+          identitySwap: d.identitySwap ?? {},
+          formerUuid: d.formerUuid ?? {},
         });
       })
       .catch(() => {});

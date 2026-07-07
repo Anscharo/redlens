@@ -12,7 +12,7 @@ import { config } from "../config.ts";
 import { getIndexes } from "../indexes.ts";
 import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../indexes.ts";
-import { decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
+import { CANONICAL_REPO, decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, touch, remove as removeBundle } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
@@ -52,6 +52,29 @@ function rateLimited(ip: string): boolean {
 
 // Diff cache keyed by (preview sha, current main atlas sha).
 const diffCache = new Map<string, { added: string[]; changed: string[] }>();
+
+// Open PRs against the canonical atlas, for the /preview index "open atlas prs"
+// tab. Cached ~5 min — the pulls list is rate-limited and rarely changes, and
+// many index visitors would otherwise each spend a GitHub call.
+interface OpenPr { number: number; title: string; author: string; draft: boolean; updatedAt: string }
+let openPrsCache: { at: number; v: OpenPr[] } | null = null;
+const OPEN_PRS_TTL_MS = 5 * 60_000;
+
+async function openAtlasPrs(): Promise<OpenPr[]> {
+  const now = Date.now();
+  if (openPrsCache && now - openPrsCache.at < OPEN_PRS_TTL_MS) return openPrsCache.v;
+  const r = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls?state=open&sort=updated&direction=desc&per_page=100`);
+  if (!r.ok || !Array.isArray(r.json)) return openPrsCache?.v ?? []; // serve stale on a GitHub hiccup
+  const prs: OpenPr[] = r.json.map((p: any) => ({
+    number: p.number,
+    title: p.title ?? "",
+    author: p.user?.login ?? "",
+    draft: !!p.draft,
+    updatedAt: p.updated_at ?? "",
+  }));
+  openPrsCache = { at: now, v: prs };
+  return prs;
+}
 
 async function resolveId(rawId: string): Promise<ResolveResult> {
   const hit = resolveCache.get(rawId);
@@ -217,6 +240,13 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
   if (segs.length === 1 && segs[0] === "list") {
     return listPreviews()
       .then((rows) => json(rows, 200))
+      .catch(() => json([], 200));
+  }
+  // GET /api/preview/open-prs — open PRs against the canonical atlas, for the
+  // /preview index "open atlas prs" tab.
+  if (segs.length === 1 && segs[0] === "open-prs") {
+    return openAtlasPrs()
+      .then((prs) => json(prs, 200))
       .catch(() => json([], 200));
   }
   if (segs.length !== 2) return json({ error: "not-found" }, 404);

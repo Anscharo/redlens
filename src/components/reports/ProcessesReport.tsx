@@ -4,6 +4,8 @@ import { AtlasLink } from "../AtlasLink";
 import { ROUTES, atlasHref } from "../../lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { useUrlState, urlBool, urlEnum, urlString } from "../../hooks/useUrlState";
+import { track } from "../../lib/analytics";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadAtlas } from "../../lib/docs";
 import {
   loadProcesses,
@@ -203,6 +205,7 @@ function Row({
 }
 
 export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
+  useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
 
@@ -291,7 +294,10 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
           marks={marks}
           onClear={clear}
           showIgnored={showIgnored}
-          onToggleShowIgnored={() => setShowIgnored((v) => !v)}
+          onToggleShowIgnored={() => {
+            track("report_filter", { report: "processes", filter_type: "show_ignored", active: !showIgnored });
+            setShowIgnored((v) => !v);
+          }}
         />
 
         <div className="flex flex-wrap gap-4 mb-6">
@@ -300,7 +306,11 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
             {categories.map((c) => (
               <button
                 key={c}
-                onClick={() => setCategoryFilter(categoryFilter === c ? null : c)}
+                onClick={() => {
+                  const active = categoryFilter !== c;
+                  track("report_filter", { report: "processes", filter_type: "category", value: active ? c : null, active });
+                  setCategoryFilter(categoryFilter === c ? null : c);
+                }}
                 data-active={categoryFilter === c ? "true" : undefined}
                 className="scope-pill text-xs px-2 py-0.5 rounded"
               >
@@ -313,7 +323,11 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
             {(["active", "deferred-stub"] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
+                onClick={() => {
+                  const active = statusFilter !== s;
+                  track("report_filter", { report: "processes", filter_type: "status", value: active ? s : null, active });
+                  setStatusFilter(statusFilter === s ? "all" : s);
+                }}
                 data-active={statusFilter === s ? "true" : undefined}
                 className="scope-pill text-xs px-2 py-0.5 rounded"
               >
@@ -326,7 +340,11 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
             {(["child", "inline"] as const).map((s) => (
               <button
                 key={s}
-                onClick={() => setShapeFilter(shapeFilter === s ? "all" : s)}
+                onClick={() => {
+                  const active = shapeFilter !== s;
+                  track("report_filter", { report: "processes", filter_type: "shape", value: active ? s : null, active });
+                  setShapeFilter(shapeFilter === s ? "all" : s);
+                }}
                 data-active={shapeFilter === s ? "true" : undefined}
                 className="scope-pill text-xs px-2 py-0.5 rounded"
               >

@@ -119,6 +119,14 @@ const server = Bun.serve({
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     const { pathname } = new URL(req.url);
 
+    // First-party PostHog reverse proxy (strips IP headers; see posthog-proxy.ts).
+    // No config gate: when VITE_POSTHOG_KEY is unset the client never inits, so this
+    // path simply receives no traffic. Lazy-imported to stay off the static hot path.
+    if (pathname === "/z" || pathname.startsWith("/z/")) {
+      const { handlePosthogProxy } = await import("./posthog-proxy.ts");
+      return handlePosthogProxy(req, pathname);
+    }
+
     if (pathname.startsWith("/api/preview/")) return handlePreview(req, server, pathname);
 
     // Immutable per-SHA live atlas artifacts (bundle-store.ts).
@@ -126,10 +134,28 @@ const server = Bun.serve({
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
-      const mcp = createMcpServer();
+      // Analytics-only correlation id, independent of the transport's own (unused)
+      // session machinery below — see McpRequestContext in mcp.ts. Echo whatever the
+      // client sent back, or mint one; the official MCP client (and most compliant
+      // ones) picks up mcp-session-id from ANY response and resends it on every
+      // subsequent call, so repeat calls from one agent run cluster in PostHog
+      // without us tracking IP or maintaining real session state.
+      const sessionId = req.headers.get("mcp-session-id") || crypto.randomUUID();
+      const mcp = createMcpServer({
+        host: new URL(req.url).hostname,
+        userAgent: req.headers.get("user-agent"),
+        protocolVersion: req.headers.get("mcp-protocol-version"),
+        sessionId,
+      });
+      // sessionIdGenerator stays undefined — the SDK's own session validation
+      // requires a persistent transport per session (404s any mismatch), which
+      // conflicts with the fresh-transport-per-request design here. We handle
+      // the session id ourselves as a plain, unvalidated header above/below.
       const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined });
       await mcp.connect(transport);
-      return withCors(await transport.handleRequest(req));
+      const res = await transport.handleRequest(req);
+      res.headers.set("mcp-session-id", sessionId);
+      return withCors(res);
     }
 
     if (pathname !== "/") {

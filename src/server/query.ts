@@ -5,6 +5,8 @@
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
 import { runLexical, runSemantic, rrfMerge, buildSnippet, extractPhrases, matchesPhrases } from "./search.ts";
+import { resolveEntity } from "./entity-resolve.ts";
+import { fitToBudget, TRUNCATION_HINT } from "./output-budget.ts";
 import { sql } from "./db.ts";
 import type { ToolResult } from "./tools.ts";
 
@@ -134,11 +136,35 @@ function chainEntityIds(ix: Indexes, entityId: string, viaType: string, edgeType
   return [...ids];
 }
 
+// Collect the unique ancestor objects referenced by rows' `ancestor_ids` into a
+// single id→{doc_no,title,type,depth} map, so a k=10 enriched query doesn't
+// repeat the same scope/article chain ten times. Null when no row is enriched.
+function collectAncestors(ix: Indexes, rows: unknown[]): Record<string, unknown> | null {
+  const map: Record<string, { doc_no: string; title: string; type: string; depth: number }> = {};
+  let any = false;
+  for (const r of rows) {
+    const ids = (r as { ancestor_ids?: unknown }).ancestor_ids;
+    if (!Array.isArray(ids)) continue;
+    for (const id of ids as string[]) {
+      if (map[id]) continue;
+      const n = ix.docMap.get(id);
+      if (n) {
+        map[id] = { doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth };
+        any = true;
+      }
+    }
+  }
+  return any ? map : null;
+}
+
 function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: boolean) {
   const base: Record<string, unknown> = {
     id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth, parent_id: n.parentId,
   };
-  if (enrich) { base.content = n.content; base.ancestors = ancestorChain(ix, n.id); }
+  // Emit ancestor IDS only; the full ancestor objects are deduped into one
+  // top-level `ancestors` map per response (collectAncestors) so shared chains
+  // aren't repeated across every result.
+  if (enrich) { base.content = n.content; base.ancestor_ids = ancestorChain(ix, n.id).map((a) => a.id); }
   if (includeParams) {
     base.params = (ix.childrenIndex.get(n.id) ?? []).map((c) => ({
       id: c.id, doc_no: c.doc_no, name: c.title, type: c.type, value: c.content,
@@ -152,11 +178,15 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     return { error: "at least one of q, entity, or target_type is required" };
   }
 
+  // `entity` accepts natural-language names ("Spark Protocol") — resolved
+  // server-side; exact slugs still win. resolved_entity echoes the mapping.
   let entityId: string | null = null;
+  let resolvedEntity: { slug: string; name: string } | undefined;
   if (a.entity) {
-    const e = ix.entityBySlug.get(a.entity);
-    if (!e) return { error: `Entity '${a.entity}' not found` };
+    const e = resolveEntity(ix, a.entity);
+    if (!e) return { error: `No entity matches '${a.entity}'. Use atlas_entities to search by name/type.` };
     entityId = e.id;
+    resolvedEntity = { slug: e.slug, name: e.name };
   }
 
   const [hist, stat] = await Promise.all([
@@ -171,6 +201,19 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     : null;
   const constrain = (ids: string[]) => intersect(ids, hist, anc, stat);
   const enrich = (nodes: AtlasNode[]) => nodes.map((n) => enrichNode(ix, n, a.enrich, !!a.include_params));
+  // Cap any content-bearing result array to the output budget so a single call
+  // can't overflow the caller's context; `truncated` tells them to page/narrow.
+  const withBudget = (rows: unknown[], rest: Record<string, unknown>): ToolResult => {
+    const { kept, truncated } = fitToBudget(rows);
+    const ancestors = collectAncestors(ix, kept);
+    return {
+      ...rest,
+      count: kept.length,
+      ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(ancestors ? { ancestors } : {}),
+      results: kept,
+    };
+  };
   const dir: Dir = a.direction ?? "both";
 
   // ── entity_chain ────────────────────────────────────────────────────────────
@@ -179,7 +222,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     const docs = new Map<string, AtlasNode>();
     for (const cid of chain) for (const { doc } of entityDocs(ix, cid, undefined, a.target_type, dir)) docs.set(doc.id, doc);
     const kept = constrain([...docs.keys()]).slice(0, a.k).map((id) => docs.get(id)!);
-    return { entity: a.entity, via_entity_type: a.via_entity_type, mode: "entity_chain", count: kept.length, results: enrich(kept) };
+    return withBudget(enrich(kept), { entity: a.entity, resolved_entity: resolvedEntity, via_entity_type: a.via_entity_type, mode: "entity_chain" });
   }
 
   // ── entity_broad ──────────────────────────────────────────────────────────────
@@ -194,14 +237,28 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       if (kept.length === 0) delete grouped[rel];
       else grouped[rel] = enrich(kept);
     }
-    return { entity: a.entity, mode: "entity_broad", by_relationship: grouped };
+    // Budget across all groups together, preserving grouping.
+    const flat: Array<[string, unknown]> = [];
+    for (const rel of Object.keys(grouped)) for (const row of grouped[rel]) flat.push([rel, row]);
+    const { kept, truncated } = fitToBudget(flat);
+    const by_relationship: Record<string, unknown[]> = {};
+    for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
+    const ancestors = collectAncestors(ix, kept.map(([, row]) => row));
+    return {
+      entity: a.entity,
+      resolved_entity: resolvedEntity,
+      mode: "entity_broad",
+      ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+      ...(ancestors ? { ancestors } : {}),
+      by_relationship,
+    };
   }
 
   // ── type_list ────────────────────────────────────────────────────────────────
   if (!a.entity && !a.q && a.target_type) {
     const rows = [...ix.docMap.values()].filter((d) => d.type === a.target_type);
     const kept = constrain(rows.map((r) => r.id)).slice(0, a.k).map((id) => ix.docMap.get(id)!);
-    return { mode: "type_list", type: a.target_type, count: kept.length, results: enrich(kept) };
+    return withBudget(enrich(kept), { mode: "type_list", type: a.target_type });
   }
 
   // ── entity doc set (for narrow / intersection) ───────────────────────────────
@@ -212,7 +269,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   }
 
   // ── search ───────────────────────────────────────────────────────────────────
-  let searchHits: { id: string; rrf_score: number; score: number; snippet?: string }[] = [];
+  let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string }[] = [];
   if (a.q) {
     const { phrases, casePhrases } = extractPhrases(a.q);
     const fetchK = Math.min(a.k * 4, 200);
@@ -229,14 +286,14 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
         return n ? matchesPhrases(n.title, n.content, phrases, casePhrases) : false;
       });
     }
-    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score }));
+    searchHits = merged.map((m) => ({ id: m.id, rrf_score: m.rrf_score, score: m.score, sources: m.sources }));
   }
 
   // ── intersect / narrow ────────────────────────────────────────────────────────
   if (!a.q && entityDocIds) {
     const ids = [...entityDocIds].slice(0, a.k);
     const nodes = ids.map((id) => ix.docMap.get(id)!).filter(Boolean);
-    return { entity: a.entity, mode: "entity_narrow", count: nodes.length, results: enrich(nodes) };
+    return withBudget(enrich(nodes), { entity: a.entity, resolved_entity: resolvedEntity, mode: "entity_narrow" });
   }
 
   let hits = a.q && entityDocIds ? searchHits.filter((h) => entityDocIds!.has(h.id)) : searchHits;
@@ -245,7 +302,15 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   const mode = a.q && entityDocIds ? "hybrid_graph" : "search";
   const results = hits.map((h) => {
     const n = ix.docMap.get(h.id)!;
-    return { ...enrichNode(ix, n, a.enrich, !!a.include_params), snippet: buildSnippet(n.content, a.q ?? ""), score: h.rrf_score || h.score };
+    // `sources` lets the caller tell agreed hits (lexical ∩ semantic) apart from
+    // single-source ones — the former are the more trustworthy matches. Skip the
+    // snippet when enrich already returned full content (it'd just duplicate it).
+    return {
+      ...enrichNode(ix, n, a.enrich, !!a.include_params),
+      ...(a.enrich ? {} : { snippet: buildSnippet(n.content, a.q ?? "") }),
+      score: h.rrf_score || h.score,
+      sources: h.sources,
+    };
   });
-  return { mode, count: results.length, results };
+  return withBudget(results, resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity, mode } : { mode });
 }

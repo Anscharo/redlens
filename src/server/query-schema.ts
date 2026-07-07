@@ -31,5 +31,12 @@ export const atlasQueryShape = {
     .optional()
     .describe("Entity edge direction. Default 'both' — many relationships (active_data_for, responsible_party_for) are doc→entity."),
   k: z.number().int().min(1).max(50).default(10),
-  enrich: z.boolean().default(true).describe("Include full content and ancestor chain."),
+  enrich: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Retrieve-then-read: default false returns lean rows (title, doc_no, snippet, sources) — scan those, then " +
+        "fetch full text for the ids you want with atlas_get. Set true to inline full content + ancestor ids " +
+        "(ancestors are deduped into a top-level `ancestors` map).",
+    ),
 } as const;
