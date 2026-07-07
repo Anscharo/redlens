@@ -8,9 +8,14 @@
 //   bun scripts/aux/backfill-risk-non-rule-hashes.ts
 //
 // Rewrites src/lib/data/risk-non-rule-docs.json in place, adding a
-// `quoteHash` field to every entry whose uuid is still present in the atlas.
-// Entries whose uuid is missing (doc deleted/renumbered) are left untouched
-// with a console warning — a human should review whether to drop them.
+// `quoteHash` field to every entry that lacks one and whose uuid is still
+// present in the atlas. Entries that ALREADY carry a quoteHash are left
+// untouched — this only ever seeds a missing hash, never re-stamps an existing
+// one to current content. That keeps it idempotent and safe to re-run (or to
+// misfire from CI): it can't silently re-bless a doc whose content has already
+// drifted, which would defeat the staleness guard. Entries whose uuid is
+// missing (doc deleted/renumbered) are left untouched with a console warning —
+// a human should review whether to drop them.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -35,7 +40,12 @@ const entries: { uuid: string; docNo: string; reason: string; quoteHash?: string
 
 let backfilled = 0;
 let missing = 0;
+let skipped = 0;
 const out = entries.map((entry) => {
+  if (entry.quoteHash != null) {
+    skipped++;
+    return entry; // already seeded — never re-stamp to current content
+  }
   const doc = docs[entry.uuid];
   if (!doc) {
     missing++;
@@ -47,4 +57,6 @@ const out = entries.map((entry) => {
 });
 
 fs.writeFileSync(JSON_PATH, `${JSON.stringify(out, null, 2)}\n`);
-console.log(`Backfilled ${backfilled} entries, ${missing} missing from the current atlas.`);
+console.log(
+  `Backfilled ${backfilled} entries, ${skipped} already had a hash, ${missing} missing from the current atlas.`,
+);
