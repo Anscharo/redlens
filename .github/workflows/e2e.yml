@@ -10,18 +10,17 @@ name: E2E
 #     assigns once and keeps stable across redeploys of the same PR — it is NOT
 #     derivable from the PR number alone, so we always read it from the actual
 #     `environment` field rather than reconstructing it.
-#  2. workflow_dispatch — manual run against any PR number. Since the slug can't
-#     be derived from the number, this looks up the most recent GitHub
-#     deployment recorded for that PR (via the deployments API) and reads its
-#     `environment` field the same way. Useful to smoke the workflow before it's
-#     on main (a deployment_status workflow only fires once its file is on the
-#     default branch) or to re-run E2E on demand.
+#  2. workflow_dispatch — manual run against an explicit deployment URL (the
+#     slug can't be derived from a PR number alone, so this takes the full URL
+#     directly rather than looking it up). Useful to smoke the workflow before
+#     it's on main (a deployment_status workflow only fires once its file is on
+#     the default branch) or to re-run E2E on demand.
 on:
   deployment_status:
   workflow_dispatch:
     inputs:
-      pr:
-        description: "PR number to target (its Railway env is looked up via the deployments API)"
+      url:
+        description: "Full deployment URL to test against (e.g. https://redlens-pr-85d143-128.up.railway.app)"
         required: true
         type: string
       atlas_preview_canary_pr:
@@ -71,30 +70,27 @@ jobs:
         id: target
         env:
           ENV_NAME: ${{ github.event.deployment_status.environment }}
-          PR_INPUT: ${{ github.event.inputs.pr }}
-          GH_TOKEN: ${{ github.token }}
+          URL_INPUT: ${{ github.event.inputs.url }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            PR="${PR_INPUT}"
-            # The env slug (e.g. "pr-85d143-128") embeds a random component
-            # assigned once per PR environment — not derivable from the PR
-            # number alone, but stable across redeploys, so look up the most
-            # recent deployment GitHub has recorded for this PR and read its
-            # real `environment` field instead of guessing.
-            ENV_NAME="$(gh api "repos/${{ github.repository }}/deployments?per_page=100" \
-              --jq "[.[] | select(.environment | test(\"-${PR}\$\"))] | sort_by(.created_at) | last | .environment")"
-            if [ -z "$ENV_NAME" ] || [ "$ENV_NAME" = "null" ]; then
-              echo "no recorded deployment found for PR #${PR}" >&2
+            # Manual runs pass the deployment URL directly — the env slug (e.g.
+            # "pr-85d143-128") embeds a random per-environment component that
+            # isn't derivable from a PR number, so there's nothing to look up.
+            URL="${URL_INPUT%/}"
+            if [ -z "$URL" ]; then
+              echo "no deployment URL provided" >&2
               exit 1
             fi
+          else
+            # "Redline Atlas / pr-85d143-128" -> "pr-85d143-128"
+            SLUG="$(printf '%s' "$ENV_NAME" | awk -F'/' '{print $NF}' | xargs)"
+            if [ -z "$SLUG" ]; then
+              echo "could not parse an environment slug from '${ENV_NAME}'" >&2
+              exit 1
+            fi
+            URL="https://redlens-${SLUG}.up.railway.app"
           fi
-          # "Redline Atlas / pr-85d143-128" -> "pr-85d143-128"
-          SLUG="$(printf '%s' "$ENV_NAME" | awk -F'/' '{print $NF}' | xargs)"
-          if [ -z "$SLUG" ]; then
-            echo "could not parse an environment slug from '${ENV_NAME}'" >&2
-            exit 1
-          fi
-          echo "url=https://redlens-${SLUG}.up.railway.app" >> "$GITHUB_OUTPUT"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v6
 
