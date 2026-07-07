@@ -2,102 +2,122 @@
   {
     "uuid": "20dcf582-8862-48b3-9ca9-c3703871bd14",
     "docNo": "A.1.9.1",
-    "reason": "Emergency Response — topic sentence + pointer to Emergency Spells"
+    "reason": "Emergency Response — topic sentence + pointer to Emergency Spells",
+    "quoteHash": "0c4f6bc9"
   },
   {
     "uuid": "56b1cc27-a9e3-4099-8f1f-648da7d1c56b",
     "docNo": "A.1.10.2.4.12.3.3",
-    "reason": "Additional Community Developed Spell Validation Checks — pointer, not a rule"
+    "reason": "Additional Community Developed Spell Validation Checks — pointer, not a rule",
+    "quoteHash": "8647fc8b"
   },
   {
     "uuid": "19222532-1ce1-4306-8129-ea95a982c247",
     "docNo": "A.1.10.4",
-    "reason": "Governance Security Culture And Research — aspirational framing, no operative content"
+    "reason": "Governance Security Culture And Research — aspirational framing, no operative content",
+    "quoteHash": "8c9a5831"
   },
   {
     "uuid": "75473c4b-69ba-4e6b-bbf6-2c926732364c",
     "docNo": "A.2.4.1.2",
-    "reason": "Implementation — scopes a subtree, not itself a rule"
+    "reason": "Implementation — scopes a subtree, not itself a rule",
+    "quoteHash": "75719eca"
   },
   {
     "uuid": "f999239e-8676-4772-b201-2e00920b2bfb",
     "docNo": "A.3.2.2.1.1.1.2.1.1",
-    "reason": "Ethena — \"specified in the documents herein\""
+    "reason": "Ethena — \"specified in the documents herein\"",
+    "quoteHash": "9642ec26"
   },
   {
     "uuid": "2397551e-9704-435e-b815-0384429be224",
     "docNo": "A.3.2.2.1.3.3.3",
-    "reason": "Ethena — defers CRR calc to another doc entirely"
+    "reason": "Ethena — defers CRR calc to another doc entirely",
+    "quoteHash": "f2cd99c1"
   },
   {
     "uuid": "ce3affe8-9e1f-4825-82bd-40c320a1c220",
     "docNo": "A.3.5.2.2.1.1.1",
-    "reason": "Kicker Threshold Current Value — defers the value elsewhere"
+    "reason": "Kicker Threshold Current Value — defers the value elsewhere",
+    "quoteHash": "e277373b"
   },
   {
     "uuid": "a1ff2a3d-7131-425c-80c5-a887a4259f12",
     "docNo": "A.3.2.2.1.1.1.5.2.3",
-    "reason": "Determine Risk Weights — restates the title, zero content"
+    "reason": "Determine Risk Weights — restates the title, zero content",
+    "quoteHash": "3663ee16"
   },
   {
     "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4",
     "docNo": "A.6.1.1.5.2.6.2.4",
-    "reason": "In Progress Invocations — pure bookkeeping pointer"
+    "reason": "In Progress Invocations — pure bookkeeping pointer",
+    "quoteHash": "5f4a4dca"
   },
   {
     "uuid": "0b1162f6-6a30-4a30-b693-68e077093e7c",
     "docNo": "A.1.10.4.1.3.3.1.1",
-    "reason": "Avalanche SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Avalanche SkyLink Bridge\"); operative multisig rules (2/5 signing, usage, reporting) are separate rows"
+    "reason": "Avalanche SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Avalanche SkyLink Bridge\"); operative multisig rules (2/5 signing, usage, reporting) are separate rows",
+    "quoteHash": "1290ae73"
   },
   {
     "uuid": "f833edaa-9f5f-4445-afcb-a9cfc3620b10",
     "docNo": "A.1.10.4.1.4.3.1.1",
-    "reason": "Plasma SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Plasma SkyLink Bridge\"); operative rules are separate rows"
+    "reason": "Plasma SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Plasma SkyLink Bridge\"); operative rules are separate rows",
+    "quoteHash": "f9c40a08"
   },
   {
     "uuid": "f8d0e4df-acca-4f20-a030-584efb4a8695",
     "docNo": "A.2.11.1.3.2.1.1.3.2",
-    "reason": "Use-Case Specific Configuration Requirements — container-intro (\"requirements are specified in the subdocuments herein\")"
+    "reason": "Use-Case Specific Configuration Requirements — container-intro (\"requirements are specified in the subdocuments herein\")",
+    "quoteHash": "46cb36c7"
   },
   {
     "uuid": "d81db018-bce7-44b9-a354-667f128a4db3",
     "docNo": "A.2.11.1.3.2.2.1.1",
-    "reason": "Signer Composition And Rotation — container-intro (\"The documents herein define requirements governing changes to Multisig signer composition\")"
+    "reason": "Signer Composition And Rotation — container-intro (\"The documents herein define requirements governing changes to Multisig signer composition\")",
+    "quoteHash": "5f4049bf"
   },
   {
     "uuid": "05fa5c41-26ca-4c25-94dd-834ef72c318a",
     "docNo": "A.2.3.1.2.2.2.2",
-    "reason": "Aligned Delegates Buffer — bare definition (\"is a multisig controlled by X and Y to transfer funds to Z\"); the operative signer rule is a separate row"
+    "reason": "Aligned Delegates Buffer — bare definition (\"is a multisig controlled by X and Y to transfer funds to Z\"); the operative signer rule is a separate row",
+    "quoteHash": "ca7b0223"
   },
   {
     "uuid": "07dd6a23-424a-4eda-b47c-92e84d46025c",
     "docNo": "A.6.1.1.2.2.6.3.1.4",
-    "reason": "In Progress Invocations Directory — container-intro (\"This document contains a Directory of all prospective Instances...\"); bookkeeping, not a rule"
+    "reason": "In Progress Invocations Directory — container-intro (\"This document contains a Directory of all prospective Instances...\"); bookkeeping, not a rule",
+    "quoteHash": "a19e4391"
   },
   {
     "uuid": "1d4cd705-2892-4b59-82e8-609c4649652d",
     "docNo": "A.3.2.1.1.4.3.2.3",
-    "reason": "bare methodology pointer, not operative rule"
+    "reason": "bare methodology pointer, not operative rule",
+    "quoteHash": "7353901e"
   },
   {
     "uuid": "86925539-2db1-4a2e-930a-2ee6bc833ccd",
     "docNo": "A.6.1.1.1.3.9.2",
-    "reason": "framework-purpose statement with no operative obligation"
+    "reason": "framework-purpose statement with no operative obligation",
+    "quoteHash": "f5933c40"
   },
   {
     "uuid": "12714156-5543-4443-b733-d213db62cecb",
     "docNo": "A.3.3.2.7.1.1.1.1",
-    "reason": "bare glossary definition, no numeric value"
+    "reason": "bare glossary definition, no numeric value",
+    "quoteHash": "78c8d897"
   },
   {
     "uuid": "f2d93d71-1bf9-4199-8190-e1e0beeb5369",
     "docNo": "A.6.1.1.8.2.6.2.4",
-    "reason": "pure navigational/container text"
+    "reason": "pure navigational/container text",
+    "quoteHash": "119636ff"
   },
   {
     "uuid": "93c9f662-4e0d-477e-8fc9-e3726877e842",
     "docNo": "A.3.7.1.1.2.4",
-    "reason": "bare system-capability description"
+    "reason": "bare system-capability description",
+    "quoteHash": "0a441877"
   },
   {
     "uuid": "6d6622aa-5d56-48e0-b8e9-1addd309fc9b",
@@ -107,56 +127,67 @@
   {
     "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
     "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
-    "reason": "pure structural role-assignment statement"
+    "reason": "pure structural role-assignment statement",
+    "quoteHash": "c504211a"
   },
   {
     "uuid": "6dd3c9c2-414b-4f06-bbc7-944f67e1cd89",
     "docNo": "A.3.2.1.2.2.1.1.3",
-    "reason": "bare concept definition with deferred details"
+    "reason": "bare concept definition with deferred details",
+    "quoteHash": "8091104e"
   },
   {
     "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
     "docNo": "A.3.2.2.1.1.1.1.4",
-    "reason": "literal Python reference code, non-binding"
+    "reason": "literal Python reference code, non-binding",
+    "quoteHash": "bddc0655"
   },
   {
     "uuid": "da1a154c-6db8-4012-91a7-31ea4e73e95d",
     "docNo": "A.3.2.2.1.1.1.4",
-    "reason": "container/pointer plus content-free deferral"
+    "reason": "container/pointer plus content-free deferral",
+    "quoteHash": "4e77855b"
   },
   {
     "uuid": "67747090-8545-49b4-95e8-673af9836aa5",
     "docNo": "A.3.7.1.3.1.2",
-    "reason": "bare parameter definition, no value stated"
+    "reason": "bare parameter definition, no value stated",
+    "quoteHash": "cff44f42"
   },
   {
     "uuid": "c2facaa0-f700-49aa-bcbe-ffc0649eb02b",
     "docNo": "A.2.11.1.3.1",
-    "reason": "framework-purpose statement with no compliance requirement"
+    "reason": "framework-purpose statement with no compliance requirement",
+    "quoteHash": "f965addc"
   },
   {
     "uuid": "21fa6749-6209-4280-9b5f-b2a73d400421",
     "docNo": "A.1.10.4.1.1",
-    "reason": "bare capability/identity statement"
+    "reason": "bare capability/identity statement",
+    "quoteHash": "59c231f3"
   },
   {
     "uuid": "09c20045-4b53-4370-98b8-a1199ccf7007",
     "docNo": "A.3.2.1.2.2.2.1.1",
-    "reason": "bare definition + pointer, no operative obligation"
+    "reason": "bare definition + pointer, no operative obligation",
+    "quoteHash": "517d4950"
   },
   {
     "uuid": "f0cc7297-8ab9-4255-9365-d9ba87764f13",
     "docNo": "A.3.7.1.3.5.1",
-    "reason": "pure structural role-assignment statement"
+    "reason": "pure structural role-assignment statement",
+    "quoteHash": "6dc72186"
   },
   {
     "uuid": "51e64b05-ddb8-4ce3-9307-1f2f8dc51a5f",
     "docNo": "A.3.3.2.7.1.1.1.5",
-    "reason": "bare parameter definition"
+    "reason": "bare parameter definition",
+    "quoteHash": "86366237"
   },
   {
     "uuid": "c1805ee8-626e-4aec-9a88-21377579aa3d",
     "docNo": "A.3.3.2.7.1.1.1.3",
-    "reason": "bare parameter definition"
+    "reason": "bare parameter definition",
+    "quoteHash": "06935411"
   }
 ]
