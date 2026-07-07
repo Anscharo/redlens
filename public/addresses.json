@@ -1054,6 +1054,7 @@
   },
   "0xb30fe1cf884b48a22a50d22a9282004f2c5e9406": {
     "chain": "ethereum",
+    "chainlogId": "GROVE",
     "etherscanName": "SDAO",
     "isContract": true,
     "isProxy": false
@@ -1253,6 +1254,7 @@
   },
   "0x829dc2b7e94b1954f0764e573f2e0d45afa28199": {
     "chain": "ethereum",
+    "chainlogId": "PAU_BEACON",
     "etherscanName": "Beacon",
     "isContract": true,
     "isProxy": false
