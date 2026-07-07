@@ -66,7 +66,9 @@
       "entity_id": "uuid? (entity)", "entity_slug": "string? (entity)", "entity_type": "string? (entity)"
     } },
     "report_open": { "props": { "report_id": "string" } },
-    "report_filter": { "props": { "report": "of-responsibilities | active-data | processes", "filter_kind": "string?", "filter_type": "string?", "slug": "string?", "value": "string?|null", "active": "bool" } },
+    "report_view": { "props": { "report": "oea-assessment | risk-rules", "row_count": "number", "stale_count": "number", "unassessed_count": "number", "untriaged_count": "number? (risk only)", "rubric_version": "string|null" } },
+    "report_filter": { "props": { "report": "of-responsibilities | active-data | processes | oea-assessment | risk-rules", "filter_kind": "string?", "filter_type": "string?", "slug": "string?", "value": "string?|null", "active": "bool" } },
+    "report_row_toggle": { "props": { "report": "oea-assessment | risk-rules", "action": "expand | collapse", "task_key": "string", "node_id": "uuid", "category": "string? (oea)", "domain": "string? (risk)", "status": "fresh | stale | unassessed" } },
     "radar_history_toggle": { "props": { "agent_slug": "string", "agent_name": "string", "commit": "string", "pr": "number|null", "date": "string", "open": "bool" } },
     "chat_open": { "props": { "product": "chat" } },
     "chat_message_sent": { "props": { "product": "chat", "node_id": "uuid?", "path": "string" } },

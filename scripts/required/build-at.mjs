@@ -122,6 +122,7 @@ if (process.env.ETHERSCAN_API_KEY) {
 }
 
 run("pnpm build:graph");
+run("pnpm build:oea-report");
 
 if (block != null) {
   console.log(`\nRunning build:snapshot at block ${block}`);

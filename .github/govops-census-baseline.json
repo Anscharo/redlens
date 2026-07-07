@@ -1,0 +1,384 @@
+{
+  "residue": [
+    {
+      "uuid": "3a9d0848-e034-4d6b-8c4f-3d18e92edb71",
+      "doc_no": "A.1.6.6.0.3.1",
+      "title": "Act Swiftly - Element Annotation"
+    },
+    {
+      "uuid": "e9807449-fdc3-4860-8d53-c56181311618",
+      "doc_no": "A.1.9.1.2.2.0.6.1",
+      "title": "Emergency Response Group Current Membership"
+    },
+    {
+      "uuid": "a6acd80e-289a-4159-ba51-3399c5d90f3d",
+      "doc_no": "A.1.10.2.5.2.1.1",
+      "title": "Technical Scope Template Submission Requirements"
+    },
+    {
+      "uuid": "4bead31b-adee-4121-a966-d0e1c31f91e2",
+      "doc_no": "A.1.10.2.7.2.1",
+      "title": "Code Review Requirement"
+    },
+    {
+      "uuid": "2a86809e-8b34-4692-92fe-bcb75b00ce6d",
+      "doc_no": "A.1.10.4.1.1.3",
+      "title": "Ethereum SkyLink Freezer Multisig Signers"
+    },
+    {
+      "uuid": "a9f95fb4-690e-43c2-a231-b8705d62036d",
+      "doc_no": "A.1.10.4.1.2.3.1.1.3",
+      "title": "Solana SkyLink Freezer Multisig Signers"
+    },
+    {
+      "uuid": "22d693e8-4dd9-4673-ba8a-a372069cee43",
+      "doc_no": "A.1.10.4.1.3.3.1.1.3",
+      "title": "Avalanche SkyLink Freezer Multisig Signers"
+    },
+    {
+      "uuid": "f9cd34cb-802e-4322-9307-0e72bb4a4f66",
+      "doc_no": "A.1.10.4.1.4.3.1.1.3",
+      "title": "Plasma SkyLink Freezer Multisig Signers"
+    },
+    {
+      "uuid": "4cf98145-079f-44e0-9a2b-1d7b16037f4a",
+      "doc_no": "A.1.10.5.2.3.2.1.1",
+      "title": "Current Entities Authorized To Validate Authenticity of Standby Spell"
+    },
+    {
+      "uuid": "53cea69b-45cc-4f9c-b863-9bf259e37deb",
+      "doc_no": "A.1.10.5.2.3.3",
+      "title": "ADs' Role In Standby Spells"
+    },
+    {
+      "uuid": "a15e7cd9-ea93-48ac-b53a-afc476ca2d05",
+      "doc_no": "A.1.10.5.3.2.2.1.1",
+      "title": "Current Entities Authorized To Validate Authenticity of Emergency Drop Spell"
+    },
+    {
+      "uuid": "0cec9b17-ef83-4d25-9b6e-dbba11587d52",
+      "doc_no": "A.1.10.5.3.2.3",
+      "title": "ADs' Role In Protego Usage"
+    },
+    {
+      "uuid": "4fe3409f-468b-42d5-8ba1-cc03e4e1563d",
+      "doc_no": "A.1.14.2.10.2.6",
+      "title": "Appeals Process"
+    },
+    {
+      "uuid": "1b199df8-2bc3-4884-a60f-e45c3269fad4",
+      "doc_no": "A.1.14.4.6.1.2",
+      "title": "Executor Agent Facilitators"
+    },
+    {
+      "uuid": "fed006c3-75fb-47d9-a03a-a01ac0e57ccb",
+      "doc_no": "A.1.14.4.7.3",
+      "title": "Full Launch Of Executor Agents"
+    },
+    {
+      "uuid": "12286b6c-0231-40e3-ab3f-234bc0249216",
+      "doc_no": "A.1.15.1.2",
+      "title": "Governance Security & Ecosystem Actor Embedding"
+    },
+    {
+      "uuid": "f51addb2-fba3-476f-b3e4-1c5b4b9013fc",
+      "doc_no": "A.2.1.1.2.0.3.1",
+      "title": "Monitoring And Ensuring - Element Annotation"
+    },
+    {
+      "uuid": "df31f503-1238-4380-9a0e-25e2ef7c81d0",
+      "doc_no": "A.2.1.1.2.0.3.2",
+      "title": "Properly Notified - Element Annotation"
+    },
+    {
+      "uuid": "af4edd62-8e3c-42d2-bf70-41a31570ab0b",
+      "doc_no": "A.2.2.4.3.3",
+      "title": "Demand Side Buffer Multisig Signers"
+    },
+    {
+      "uuid": "88017877-3ec1-4c43-a035-6bebdf11d9bb",
+      "doc_no": "A.2.2.6.1",
+      "title": "Executor Accord Primitive"
+    },
+    {
+      "uuid": "364e52eb-4529-46a9-9852-edaaab88baeb",
+      "doc_no": "A.2.2.6.2.3.2",
+      "title": "Atlas Edit Proposal Process For Prime Agents"
+    },
+    {
+      "uuid": "44028423-2cd1-40cb-89ac-3f762b602b90",
+      "doc_no": "A.2.2.6.3",
+      "title": "Light Agent Primitive"
+    },
+    {
+      "uuid": "ccb71126-1333-453c-aaeb-4359a8013f32",
+      "doc_no": "A.2.2.9.1.2.3.3.2",
+      "title": "Process Flow"
+    },
+    {
+      "uuid": "c860168e-b88e-4d2a-ad0b-388288d1e0cb",
+      "doc_no": "A.2.2.9.2.2.3.3.2",
+      "title": "Process Flow"
+    },
+    {
+      "uuid": "9a8120c4-0a5b-426f-97a5-283c708413f5",
+      "doc_no": "A.2.2.10.1.1.3.2.1.2.1",
+      "title": "Objective of Prime TRC Management"
+    },
+    {
+      "uuid": "d034533f-9b6f-411c-8b60-3bccb374765f",
+      "doc_no": "A.2.2.10.1.1.3.2.1.2.2",
+      "title": "Minimum Capabilities of Prime TRC Management Systems"
+    },
+    {
+      "uuid": "7e95efa7-e409-48dc-9b5a-96edce54bf31",
+      "doc_no": "A.2.2.10.1.1.3.2.1.2.3.1",
+      "title": "Mandate and Rationale"
+    },
+    {
+      "uuid": "482fc286-9969-40cc-b3c9-6233ecbb659c",
+      "doc_no": "A.2.2.10.1.1.3.2.1.3.2",
+      "title": "Validation of TRC Report In General"
+    },
+    {
+      "uuid": "6ad0fdb4-bd11-4d5a-a436-0d106873e0ec",
+      "doc_no": "A.2.2.10.1.2.6.1",
+      "title": "Required Allocation Instance Parameters"
+    },
+    {
+      "uuid": "5aeba17d-3869-447d-adcd-8c55f41afc01",
+      "doc_no": "A.2.3.1.2.2.2.1.3",
+      "title": "Core Council Buffer Multisig Signers"
+    },
+    {
+      "uuid": "f0652394-ec87-4b08-abed-e15fd0799ab1",
+      "doc_no": "A.2.3.1.2.2.2.2.3",
+      "title": "Aligned Delegates Buffer Multisig Signers"
+    },
+    {
+      "uuid": "7f43aea7-9b81-48ef-b3ce-fdfae7e8a551",
+      "doc_no": "A.2.4.1.1",
+      "title": "Operational Processes"
+    },
+    {
+      "uuid": "0d561ea6-8689-459c-85eb-7c861553e116",
+      "doc_no": "A.2.4.1.2.1.4",
+      "title": "Settlement Through Sky Core Executive Vote"
+    },
+    {
+      "uuid": "146d3d9c-7f8a-4dc4-b6b3-349bab4279bb",
+      "doc_no": "A.2.4.1.2.1.6.2",
+      "title": "Process For July / August 2025 Monthly Settlement Cycle"
+    },
+    {
+      "uuid": "8e8ff62f-c6c5-4094-afd1-2cedcf482df6",
+      "doc_no": "A.2.4.1.2.1.6.3",
+      "title": "Process For September 2025 Monthly Settlement Cycle"
+    },
+    {
+      "uuid": "5aa66a15-d59c-4f66-9d80-96583698f24d",
+      "doc_no": "A.2.4.1.2.1.6.4",
+      "title": "Process For November / December 2025 Monthly Settlement Cycle"
+    },
+    {
+      "uuid": "b71564fd-22e0-4c69-99d1-5b23fc1fa329",
+      "doc_no": "A.2.7.1.1.1.1.4.0.6.1",
+      "title": "Current Authorized Forum Accounts"
+    },
+    {
+      "uuid": "4973a9b8-66f1-4486-829e-6c9464b9407c",
+      "doc_no": "A.2.8.1.1.1",
+      "title": "Roles"
+    },
+    {
+      "uuid": "3f43d965-56e4-4153-a59a-00329e3b00e5",
+      "doc_no": "A.2.8.1.1.2.1.1",
+      "title": "Formal Request For Dispute Resolution"
+    },
+    {
+      "uuid": "aa2c4af5-5530-4872-9750-20813f3cd258",
+      "doc_no": "A.2.11.1.3.1.1",
+      "title": "Multisig Administrator"
+    },
+    {
+      "uuid": "3c0847fe-e117-40f8-86a3-9de56c9a3bba",
+      "doc_no": "A.2.11.1.3.2.1.1.1.1",
+      "title": "Impact Assessment"
+    },
+    {
+      "uuid": "35224359-76a6-41fe-adc2-6f70a29f3f4a",
+      "doc_no": "A.2.11.1.3.2.1.1.1.2",
+      "title": "Operational Assessment"
+    },
+    {
+      "uuid": "3d5068af-cb19-4a10-b712-de8e8be7a4f6",
+      "doc_no": "A.2.11.1.3.2.2.1.3.2",
+      "title": "Emergency Operations Training And Readiness Requirement"
+    },
+    {
+      "uuid": "1ccb4063-facc-42d6-a71e-21fe29e84519",
+      "doc_no": "A.3.2.2.7.2.3.2",
+      "title": "Sky Governance Process"
+    },
+    {
+      "uuid": "b74ba49a-de9e-4c4c-866c-b04d9dd208f7",
+      "doc_no": "A.3.3.2.2.2.1",
+      "title": "Reporting Of Failures To Satisfy Actively Stabilizing Collateral Requirement"
+    },
+    {
+      "uuid": "f2c381b3-96db-4f04-9817-6b69cdca8622",
+      "doc_no": "A.3.3.2.4.1.1",
+      "title": "Peg Defense Event Alert Tool"
+    },
+    {
+      "uuid": "154be1f7-3e96-417a-b125-f978c47e2301",
+      "doc_no": "A.3.7.1.3.5.1.3",
+      "title": "Operator Multisig Signers"
+    },
+    {
+      "uuid": "a9a7503a-d4e2-474f-bbbe-51b45385a00f",
+      "doc_no": "A.4.4.1.3.8.4.1.3",
+      "title": "Operator Multisig Signers"
+    },
+    {
+      "uuid": "7deff9e4-fa77-4f35-aac6-c73b3d014091",
+      "doc_no": "A.6.1.1.1.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "32bad904-ba90-4abb-9115-0b304a792521",
+      "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "1563f1ee-0097-4bb3-a03a-01162d00788b",
+      "doc_no": "A.6.1.1.1.2.6.1.2.1.2.2.2.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "cae67502-6f93-462f-82b6-0a6462e71e1c",
+      "doc_no": "A.6.1.1.2.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "381ed4ee-5ec6-460e-b613-3a4610eb0aed",
+      "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "7a7df887-8cdf-447e-8d8e-aad3360c7417",
+      "doc_no": "A.6.1.1.2.2.6.1.2.1.2.2.3.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "0a18da19-36e2-4948-93cc-ee86d20617b3",
+      "doc_no": "A.6.1.1.2.2.6.1.2.1.2.2.4.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "ceb1e104-908d-451c-bc18-b1df694b1caf",
+      "doc_no": "A.6.1.1.3.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "5caf90a5-60dc-4698-9ef7-70aba1c38efe",
+      "doc_no": "A.6.1.1.3.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "17a98019-f677-471b-aebd-7885108c614b",
+      "doc_no": "A.6.1.1.3.2.6.1.2.1.2.2.2.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "81708b61-3321-42f2-af55-204c56b32eb3",
+      "doc_no": "A.6.1.1.3.2.6.1.2.1.2.2.3.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "08036115-62a3-40c8-9b70-61f8dc38035c",
+      "doc_no": "A.6.1.1.3.2.6.1.2.1.2.3.3.4",
+      "title": "Signers"
+    },
+    {
+      "uuid": "e6c86321-bef0-435c-a2db-2b82dc7f1c77",
+      "doc_no": "A.6.1.1.3.2.6.1.2.1.2.3.4.4",
+      "title": "Signers"
+    },
+    {
+      "uuid": "82200234-6b7c-4299-a552-66ceac3be5e6",
+      "doc_no": "A.6.1.1.4.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "76b51e97-ff82-4f52-8c24-7b75d629bb4a",
+      "doc_no": "A.6.1.1.4.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "dbb22ec2-97fc-47c1-85d3-9b1cc94d3ce0",
+      "doc_no": "A.6.1.1.4.3.4.2.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "e3e97ee0-1ef7-48dd-acf0-3e1e6a6de47e",
+      "doc_no": "A.6.1.1.5.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "d21854da-165b-455d-893c-147db514d31c",
+      "doc_no": "A.6.1.1.5.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "2c9c02a4-86a1-4862-90aa-e314d9177f37",
+      "doc_no": "A.6.1.1.5.2.6.1.2.1.2.2.2.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "cac6b239-3d5f-4014-98a2-df082c1c6cdb",
+      "doc_no": "A.6.1.1.5.2.6.1.2.1.2.2.3.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "9eb31932-9fe5-49fb-9f7c-4d44db589295",
+      "doc_no": "A.6.1.1.6.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "af30f942-9746-4576-ab61-df3dd9697fbe",
+      "doc_no": "A.6.1.1.6.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "5660ebf4-dc55-4f91-b5f7-d735195c62a3",
+      "doc_no": "A.6.1.1.6.2.6.1.2.1.2.2.1.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "4525e369-401f-4d39-869f-5b121444ff69",
+      "doc_no": "A.6.1.1.6.2.6.1.2.1.2.2.2.3",
+      "title": "Signers"
+    },
+    {
+      "uuid": "1ab18042-345c-40b2-9ed3-06cfdb3b7d4b",
+      "doc_no": "A.6.1.1.7.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "8f6ab3a5-f915-4faf-8d3b-4cc48cd03824",
+      "doc_no": "A.6.1.1.7.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    },
+    {
+      "uuid": "c1f2c961-08b0-4060-abd6-12f4e26dc682",
+      "doc_no": "A.6.1.1.8.2.2.1.2.1.1.1",
+      "title": "Operational Executor Agent"
+    },
+    {
+      "uuid": "7122bf98-1167-4a50-b411-90254d9d4bb7",
+      "doc_no": "A.6.1.1.8.2.2.2.2.1.2.1.3",
+      "title": "Root Edit Proposal Review By Operational Facilitator"
+    }
+  ]
+}

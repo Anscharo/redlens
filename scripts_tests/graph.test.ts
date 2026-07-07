@@ -121,6 +121,8 @@ const KNOWN_EDGE_TYPES = new Set([
   "comprises",
   "erg_member_for",
   "responsible_party_for",
+  "process_step_responsible_party_for",
+  "duty_for",
   "holds_role_for",
   // accord / definition
   "ecosystem_accord",
@@ -405,6 +407,51 @@ describe("Pattern 6 — Active Data", () => {
   });
 });
 
+describe("Pattern 6-bis — process-step Responsible Party", () => {
+  it("every process_step_responsible_party_for edge targets a non-ADC doc", () => {
+    // Distinct from responsible_party_for (governance data-ownership, ADC-only) —
+    // this is per-step execution RP on process-step "Update" docs.
+    const bad: string[] = [];
+    for (const e of edgesOfType("process_step_responsible_party_for")) {
+      const tgt = docs[e.to_id];
+      if (!tgt || tgt.type === "Active Data Controller") {
+        bad.push(`${tgt?.doc_no}: type=${tgt?.type}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("is deduped per (doc, entity, declared role) — a doc with both an Operational and a Core step keeps both even if they resolve to the same entity", () => {
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+    for (const e of edgesOfType("process_step_responsible_party_for")) {
+      const declared: string = e.meta ? (JSON.parse(e.meta).role_declared ?? "") : "";
+      const role = /core\s*govops|core\s*facilitator/i.test(declared) ? "core" : "operational";
+      const key = `${e.from_id}:${e.to_id}:${role}`;
+      if (seen.has(key)) dupes.push(key);
+      seen.add(key);
+    }
+    expect(dupes).toEqual([]);
+  });
+});
+
+describe("duty_for — no double-counted core org from a bare+Core pair", () => {
+  it("never emits two duty_for edges from the same doc to the same entity (bare+Core collapse, A.1.6.6)", () => {
+    // findRoleDuties collapses a bare/universal duty + a same-doc Core-only
+    // duty to a single bare result (see graph-duties.mjs) so resolveDutyEntities
+    // doesn't fan the core org out twice for one doc. Mirrors the Pattern
+    // 6-bis process_step_responsible_party_for no-dup check above.
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+    for (const e of edgesOfType("duty_for")) {
+      const key = `${e.from_id}:${e.to_id}`;
+      if (seen.has(key)) dupes.push(key);
+      seen.add(key);
+    }
+    expect(dupes).toEqual([]);
+  });
+});
+
 describe("Pattern 7 — ERG membership", () => {
   // UUID e9807449 = A.1.8.1.2.2.0.6.1 (ERG Active Data doc)
   const ERG_UUID = "e9807449-fdc3-4860-8d53-c56181311618";
@@ -592,6 +639,8 @@ describe("relations.json — lean browser payload", () => {
     const PINNED_EDGE_TYPES = new Set([
       "holds_role_for",
       "responsible_party_for",
+      "process_step_responsible_party_for",
+      "duty_for",
       "signer_of",
       "can_modify_signers_of",
       "integration_partner_of",

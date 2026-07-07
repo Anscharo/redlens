@@ -9,10 +9,14 @@ export const ROUTES = {
   CONNECT: "/connect",
   REPORTS: "/reports",
   REPORTS_OF_RESPONSIBILITIES: "/reports/of-responsibilities",
+  REPORTS_GOVOPS_RESPONSIBILITIES: "/reports/gov-ops-responsibilities",
   REPORTS_ACTIVE_DATA: "/reports/active-data",
   REPORTS_REWARDS: "/reports/rewards",
   REPORTS_PROCESSES: "/reports/processes",
   REPORTS_STALE_DATES: "/reports/stale-dates",
+  REPORTS_OEA_ASSESSMENT: "/reports/oea-assessment",
+  REPORTS_RISK_RULES: "/reports/risk-rules",
+  REPORTS_RISK_RUBRIC: "/reports/risk-rules/rubric",
 } as const;
 
 export type NavPage = "atlas" | "constellations" | "radar" | "reports";

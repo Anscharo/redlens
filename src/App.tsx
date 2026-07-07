@@ -35,6 +35,9 @@ const ConstellationsPage = lazy(() =>
 const OpFacilitatorsReport = lazy(() =>
   lazyRetry(() => import("./components/reports/OpFacilitatorsReport")).then((m) => ({ default: m.OFReport })),
 );
+const OpGovOpsReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/OpGovOpsReport")).then((m) => ({ default: m.OGReport })),
+);
 const ActiveDataReport = lazy(() =>
   lazyRetry(() => import("./components/reports/ActiveDataReport")).then((m) => ({ default: m.ActiveDataReport })),
 );
@@ -46,6 +49,15 @@ const ProcessesReport = lazy(() =>
 );
 const StaleDatesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/StaleDatesReport")).then((m) => ({ default: m.StaleDatesReport })),
+);
+const OeaAssessmentReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/OeaAssessmentReport")).then((m) => ({ default: m.OeaAssessmentReport })),
+);
+const RiskRulesReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/RiskRulesReport")).then((m) => ({ default: m.RiskRulesReport })),
+);
+const RubricPage = lazy(() =>
+  lazyRetry(() => import("./components/reports/RubricPage")).then((m) => ({ default: m.RubricPage })),
 );
 const ReportsIndex = lazy(() =>
   lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
@@ -258,6 +270,11 @@ export default function App() {
                 <OpFacilitatorsReport />
               </Suspense>
             </Route>
+            <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
+              <Suspense fallback={<Loading />}>
+                <OpGovOpsReport />
+              </Suspense>
+            </Route>
             <Route path={ROUTES.REPORTS_ACTIVE_DATA}>
               <Suspense fallback={<Loading />}>
                 <ActiveDataReport />
@@ -271,6 +288,21 @@ export default function App() {
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
                 <StaleDatesReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
+              <Suspense fallback={<Loading />}>
+                <OeaAssessmentReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_RISK_RULES}>
+              <Suspense fallback={<Loading />}>
+                <RiskRulesReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
+              <Suspense fallback={<Loading />}>
+                <RubricPage />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>

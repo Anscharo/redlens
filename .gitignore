@@ -21,6 +21,7 @@ public/docs-shallow.json
 public/docs-deep.json
 public/search-index.json
 public/relations.json
+public/oea-report.json
 public/graph.json
 public/glossary.json
 public/addresses.atlas.json
@@ -72,6 +73,7 @@ playwright/.cache/
 .cache/forward-reverse-diff.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
+.cache/risk-assessment.md
 
 # HTML-era curation review/audit artifacts — regenerable from the committed queue + decisions
 # via the scripts/htmlhist/*.mjs tools (render-decisions, export-decisions-judge, audit-html-*,

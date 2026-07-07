@@ -1,9 +1,12 @@
 export type ReportId =
   | "of-responsibilities"
+  | "gov-ops-responsibilities"
   | "active-data"
   | "rewards"
   | "processes"
-  | "stale-dates";
+  | "stale-dates"
+  | "oea-assessment"
+  | "risk-rules";
 
 export interface AtlasNode {
   id: string;

@@ -15,9 +15,12 @@ import {
   isEcosystemAccord,
   extractAssignment,
   extractRP,
+  extractAllRP,
+  extractAutomation,
   rpRoleAndName,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
+import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
   const {
@@ -275,23 +278,28 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // Core Facilitator / GovOps resolve to a single entity across the atlas.
   const coreFacId = edges.find((e) => e.edgeType === "core_facilitator_for")?.fromId ?? null;
   const coreGovId = edges.find((e) => e.edgeType === "core_govops_for")?.fromId ?? null;
-  // Unique operational_govops entity — fallback for A.2.* ADCs that declare
-  // "Operational GovOps" without a Prime Agent context (e.g. Support Scope primitives).
+  // Unique operational role-holders — fallback for docs that declare a role
+  // without a Prime Agent context (e.g. Support Scope primitives). Only valid
+  // when exactly ONE org holds the role atlas-wide: true for Operational GovOps
+  // (Soter Labs) today, false for Operational Facilitators (Endgame Edge +
+  // Redline Facilitation Group) and Operational Executor Agents (Amatsu +
+  // Ozone) — those stay unresolved rather than guessed.
   const uniqueOpGovIds = [...new Set(opGovByExec.values())];
   const uniqueOpGovId = uniqueOpGovIds.length === 1 ? uniqueOpGovIds[0] : null;
+  const uniqueOpFacIds = [...new Set(opFacByExec.values())];
+  const uniqueOpFacId = uniqueOpFacIds.length === 1 ? uniqueOpFacIds[0] : null;
+  const uniqueOpExecIds = [...new Set(opExecByPrime.values())];
+  const uniqueOpExecId = uniqueOpExecIds.length === 1 ? uniqueOpExecIds[0] : null;
+  // The core executor has no executor edge of its own today — it is the target
+  // of the core_govops_for edge.
+  const coreExecId = edges.find((e) => e.edgeType === "core_govops_for")?.toId ?? null;
 
-  let rpDirect = 0,
-    rpChain = 0,
-    rpRole = 0,
-    rpUnresolved = 0;
-  for (const d of allDocs.filter((d) => d.type === "Active Data Controller")) {
-    const raw = extractRP(d.content);
-    if (!raw) {
-      rpUnresolved++;
-      continue;
-    }
+  // Resolve a raw "Responsible Party" declaration to its entity, given the doc it
+  // was declared on (for Prime-Agent-context chain resolution). Shared by 2s (ADC
+  // governance-level RP) and 2s-bis (process-step execution RP, below) — same
+  // declaration shapes, same resolution priority.
+  function resolveResponsibleParty(d, raw) {
     const { role, name } = rpRoleAndName(raw);
-
     let entity = null;
     let resolution = null;
 
@@ -317,6 +325,9 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     }
 
     if (!entity && role) {
+      // fragile: doc_no prefix (extracts the agent-artifact index, not just a
+      // boolean scope check — a UUID-ancestor migration would need to carry
+      // the index through separately, so this stays annotated-only)
       const m = d.doc_no.match(/^A\.6\.1\.1\.(\d+)\./);
       if (m) {
         const primeEntity = entityByDocId.get(docByDocNo.get(`A.6.1.1.${m[1]}`)?.id);
@@ -332,10 +343,27 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
         else if (role === "core_govops") entity = entityById.get(coreGovId);
         else if (role === "operational_govops" && uniqueOpGovId)
           entity = entityById.get(uniqueOpGovId);
+        else if (role === "operational_facilitator" && uniqueOpFacId)
+          entity = entityById.get(uniqueOpFacId);
         else if (role === "support_facilitators") entity = supportFacilitators;
       }
       if (entity) resolution = "chain";
     }
+
+    return { entity, resolution, role };
+  }
+
+  let rpDirect = 0,
+    rpChain = 0,
+    rpRole = 0,
+    rpUnresolved = 0;
+  for (const d of allDocs.filter((d) => d.type === "Active Data Controller")) {
+    const raw = extractRP(d.content);
+    if (!raw) {
+      rpUnresolved++;
+      continue;
+    }
+    const { entity, resolution } = resolveResponsibleParty(d, raw);
 
     if (entity) {
       addEdge(
@@ -357,6 +385,197 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   console.log(
     `  responsible_party_for: ${rpDirect} direct, ${rpChain} via chain, ${rpRole} via role-binding, ${rpUnresolved} unresolved`,
   );
+
+  // --- 2s-bis. process_step_responsible_party_for (Pattern 6, process-step) ---
+  // Process-step "Update" docs (type=Core, mostly A.2.2.9.*) carry the same
+  // bulleted "Responsible Party:" field as ADCs, but for PER-STEP EXECUTION, not
+  // governance data-ownership — a distinct edge type so it never conflates with
+  // responsible_party_for (Pattern 6 / A.1.12.1.2). Scoped to non-ADC docs to
+  // avoid duplicating 2s. A doc may carry several steps; dedupe per (doc,
+  // resolved entity, declared role) — same role repeated collapses to one edge,
+  // but a doc with both an Operational and a Core declaration keeps both even if
+  // they happen to resolve to the same entity.
+  let stepRpEdges = 0,
+    stepRpDocs = 0,
+    stepRpUnresolved = 0;
+  const stepRpTargetIds = new Set(); // consumed by 2s-ter — structural RP beats fuzzy duty scan
+  for (const d of allDocs.filter((d) => d.type !== "Active Data Controller")) {
+    const declarations = extractAllRP(d.content);
+    if (!declarations.length) continue;
+    stepRpDocs++;
+    const emitted = new Set();
+    for (const raw of declarations) {
+      const { clean, automated } = extractAutomation(raw);
+      const { entity, resolution, role } = resolveResponsibleParty(d, clean);
+      if (!entity) {
+        stepRpUnresolved++;
+        continue;
+      }
+      const key = `${entity.id}:${role ?? ""}`;
+      if (emitted.has(key)) continue;
+      emitted.add(key);
+      addEdge(
+        entity.id,
+        "entity",
+        d.id,
+        "doc",
+        "process_step_responsible_party_for",
+        [d.doc_no],
+        JSON.stringify({ role_declared: raw, resolution, automated }),
+      );
+      stepRpTargetIds.add(d.id);
+      stepRpEdges++;
+    }
+  }
+  console.log(
+    `  process_step_responsible_party_for: ${stepRpEdges} edges across ${stepRpDocs} docs, ${stepRpUnresolved} unresolved`,
+  );
+
+  // --- 2s-ter. duty_for (acting-role duty discovery) ---
+  // Neither GovOps nor the Executor Agent has a dedicated "Duties" scope the way
+  // Facilitators do (A.1.7) — duties are scattered across primitive, process,
+  // and agent-artifact docs. Scan every doc for each acting role (GovOps /
+  // Facilitator / Executor Agent — see graph-duties.mjs for the pattern
+  // taxonomy) and emit one duty_for edge per (doc, role), resolved to the org
+  // entity holding the role. Shared skips:
+  //   - Preamble (A.0.*): role definitions, not duties.       // fragile: doc_no prefix
+  //   - Role-assignment docs (the source docs of the gov/fac/exec role edges):
+  //     they name the role-holder, they impose no duty.
+  //   - ADCs: governance-level RP is responsible_party_for (2s).
+  //   - Type Specifications (A.1.2.2.*): they define document types and name
+  //     roles pervasively ("The Facilitator Action Tenet Type") but task no one.
+  //   - Process-step RP docs (2s-bis targets): the structural edge wins over a
+  //     fuzzy content match.
+  const ROLE_ASSIGNMENT_EDGE_TYPES = new Set([
+    "operational_govops_for",
+    "core_govops_for",
+    "operational_facilitator_for",
+    "core_facilitator_for",
+    "operational_executor_agent_for",
+    "core_executor_agent_for",
+  ]);
+  const roleAssignmentDocIds = new Set();
+  for (const e of edges) {
+    if (!ROLE_ASSIGNMENT_EDGE_TYPES.has(e.edgeType)) continue;
+    const d = e.sourceDocNos?.[0] ? docByDocNo.get(e.sourceDocNos[0]) : null;
+    if (d) roleAssignmentDocIds.add(d.id);
+  }
+
+  // Per-role: org list for name-attributed duties, and a resolver from a
+  // declared role label (+ doc context) to the holding entity. Operational
+  // roles resolve via the doc's agent-artifact chain, then the unique-holder
+  // fallback (null when several orgs hold the role — counted, never guessed).
+  const artifactExecId = (d) => {
+    // fragile: doc_no prefix (extracts the agent-artifact index; kept
+    // annotated-only for the same reason as the other artifactExecId-shaped
+    // match above)
+    const m = d.doc_no.match(/^A\.6\.1\.1\.(\d+)\./);
+    if (!m) return null;
+    const primeEntity = entityByDocId.get(docByDocNo.get(`A.6.1.1.${m[1]}`)?.id);
+    return primeEntity ? (opExecByPrime.get(primeEntity.id) ?? null) : null;
+  };
+  const dutyRoleContext = {
+    govops: {
+      coreId: coreGovId,
+      opByExec: opGovByExec,
+      uniqueOpId: uniqueOpGovId,
+      opIds: uniqueOpGovIds,
+    },
+    facilitator: {
+      coreId: coreFacId,
+      opByExec: opFacByExec,
+      uniqueOpId: uniqueOpFacId,
+      opIds: uniqueOpFacIds,
+    },
+    executor: {
+      coreId: coreExecId,
+      opByExec: null, // the chain target IS the executor
+      uniqueOpId: uniqueOpExecId,
+      opIds: uniqueOpExecIds,
+    },
+  };
+  const orgIdByName = new Map();
+  const orgsByRole = new Map();
+  for (const role of DUTY_ROLES) {
+    const ctx = dutyRoleContext[role.key];
+    const orgs = [];
+    for (const id of ctx.opIds) {
+      const e = entityById.get(id);
+      if (e) {
+        orgs.push({ name: e.name, role_declared: role.op.label });
+        orgIdByName.set(e.name, e.id);
+      }
+    }
+    const coreEntity = entityById.get(ctx.coreId);
+    if (coreEntity) {
+      orgs.push({ name: coreEntity.name, role_declared: role.core.label });
+      orgIdByName.set(coreEntity.name, coreEntity.id);
+    }
+    orgsByRole.set(role.key, orgs);
+  }
+  // A duty that cannot be pinned to ONE holder binds EVERY holder — "Operational
+  // Facilitator must X" outside an agent-artifact context is a duty of both
+  // operational facilitator orgs in their own contexts, and a bare-label duty
+  // ("Facilitators must document…", A.1.6 universal duties) binds the core org
+  // too. Fan out one edge per holder rather than dropping the duty.
+  const resolveDutyEntities = (role, d, duty) => {
+    const ctx = dutyRoleContext[role.key];
+    const byIds = (ids) => ids.map((id) => entityById.get(id)).filter(Boolean);
+    if (duty.orgName) return byIds([orgIdByName.get(duty.orgName)]);
+    if (duty.role_declared === role.core.label) return byIds([ctx.coreId]);
+    const execId = artifactExecId(d);
+    if (execId) return byIds([ctx.opByExec ? ctx.opByExec.get(execId) : execId]);
+    if (duty.role_declared === role.op.label) return byIds(ctx.opIds);
+    return byIds([...ctx.opIds, ctx.coreId]); // bare label — universal duty
+  };
+
+  const dutyStats = new Map(DUTY_ROLES.map((r) => [r.key, { edges: 0, unresolved: 0, byMatch: new Map() }]));
+  for (const d of allDocs) {
+    if (d.doc_no.startsWith("A.0.")) continue;
+    if (roleAssignmentDocIds.has(d.id)) continue;
+    if (d.type === "Active Data Controller") continue;
+    if (d.type === "Type Specification") continue;
+    // Narrative/research doc types are never themselves an operative duty —
+    // Scenarios/Scenario Variations illustrate a misalignment finding,
+    // Annotations define a rubric element, Needed Research poses an open
+    // question. Same exclusion riskRules.ts applies for risk-rule candidacy.
+    if (d.type === "Scenario" || d.type === "Scenario Variation") continue;
+    if (d.type === "Annotation") continue;
+    if (d.type === "Needed Research") continue;
+    if (stepRpTargetIds.has(d.id)) continue;
+    for (const role of DUTY_ROLES) {
+      const duties = findRoleDuties(role, d.title, d.content, orgsByRole.get(role.key));
+      const stats = dutyStats.get(role.key);
+      for (const duty of duties) {
+        const entities = resolveDutyEntities(role, d, duty);
+        if (!entities.length) {
+          stats.unresolved++;
+          continue;
+        }
+        for (const entity of entities) {
+          addEdge(
+            entity.id,
+            "entity",
+            d.id,
+            "doc",
+            "duty_for",
+            [d.doc_no],
+            JSON.stringify({ role_declared: duty.role_declared, match: duty.match, quote: duty.quote }),
+          );
+          stats.edges++;
+        }
+        stats.byMatch.set(duty.match, (stats.byMatch.get(duty.match) ?? 0) + 1);
+      }
+    }
+  }
+  for (const role of DUTY_ROLES) {
+    const s = dutyStats.get(role.key);
+    console.log(
+      `  duty_for[${role.key}]: ${s.edges} edges (${["title", "active", "passive", "phrase", "org"]
+        .map((k) => `${s.byMatch.get(k) ?? 0} ${k}`)
+        .join(", ")}), ${s.unresolved} unresolved`,
+    );
+  }
 
   // --- 2t. defines_entity (doc → entity it defines) ---
   for (const e of entityMap.values()) {

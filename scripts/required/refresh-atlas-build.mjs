@@ -30,6 +30,7 @@ run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
 run("bun", ["scripts/required/build-index.mjs"]);
 run("bun", ["scripts/required/build-graph.mjs"]);
 run("bun", ["scripts/required/build-glossary.mjs"]);
+run("bun", ["scripts/required/build-oea-report.ts"]);
 run("bun", ["scripts/required/build-manifest.mjs"]);
 
 // 3. Publish browser-facing artifacts. The SPA is served from dist/, but the

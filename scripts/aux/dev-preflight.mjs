@@ -134,20 +134,29 @@ function runWorker() {
     warn("Atlas worker didn't finish cleanly — reader still works off disk artifacts; DB may be stale. See output above.");
     return false;
   }
-  // The worker builds index+graph but not glossary; refresh it for the synced sha.
+  // The worker builds index+graph but not glossary or derived report views;
+  // refresh them for the synced sha.
   run("pnpm", ["build:glossary"]);
+  run("pnpm", ["build:oea-report"]);
   return true;
 }
 
 // ── Atlas artifacts the reader loads (docs.json et al.) ─────────────────────
 // Fallback for when the worker was skipped or failed: build them if absent.
 function ensureArtifacts() {
-  if (truthy(process.env.DEV_NO_BUILD) || existsSync("public/docs.json")) return;
+  if (truthy(process.env.DEV_NO_BUILD)) return;
+  if (existsSync("public/docs.json")) {
+    if (!existsSync("public/oea-report.json") && existsSync("public/relations.json")) {
+      log("OEA report artifact missing — building it from existing docs + graph…");
+      if (run("pnpm", ["build:oea-report"]).status !== 0) fail("`pnpm build:oea-report` failed — see output above.");
+    }
+    return;
+  }
   if (!existsSync("vendor/next-gen-atlas/content")) {
     fail("Atlas submodule isn't populated. Run `pnpm pull-atlas` first, then `pnpm dev`.");
   }
-  log("Atlas artifacts missing — building (index → graph → glossary)…");
-  for (const t of ["build:index", "build:graph", "build:glossary"]) {
+  log("Atlas artifacts missing — building (index → graph → glossary → oea-report)…");
+  for (const t of ["build:index", "build:graph", "build:glossary", "build:oea-report"]) {
     if (run("pnpm", [t]).status !== 0) fail(`\`pnpm ${t}\` failed — see output above.`);
   }
 }
