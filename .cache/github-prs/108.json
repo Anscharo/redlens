@@ -1,0 +1,11 @@
+{
+  "number": 108,
+  "title": "Minor fixes",
+  "body": "- Fixed copy-pasted lines with the appropriate token\r\n- Added accidentally skipped article belonging to ratified SAEP-03",
+  "author": "blimpa",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/108",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1,
+  "summary": "- Fixed copy-pasted lines with the appropriate token - Added accidentally skipped article belonging to ratified SAEP-03"
+}

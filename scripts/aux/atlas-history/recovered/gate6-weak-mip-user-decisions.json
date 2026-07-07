@@ -1,0 +1,176 @@
+{
+  "generated": "2026-07-07T13:48:28.085Z",
+  "source": "scripts/aux/atlas-history/recovered/gate6-weak-mip-ai-review.json",
+  "choices": {
+    "approve": "accept the AI-reviewed MIP attribution",
+    "reject": "drop this weak MIP attribution",
+    "unsure": "do not decide yet"
+  },
+  "decisions": [
+    {
+      "order": 0,
+      "docId": "de0cc370-de9c-48a4-b10e-91782df7abcd",
+      "title": "Sky Core Governance Security",
+      "docNo": "A.1.9",
+      "mip": 101,
+      "mipSec": "2.10",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 1,
+      "docId": "403a05ce-f8e0-4ecf-8a56-026c0acd0d8a",
+      "title": "Universal Alignment Requirements",
+      "docNo": "A.1.4",
+      "mip": 101,
+      "mipSec": "2.4.3",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "unsure"
+    },
+    {
+      "order": 2,
+      "docId": "f8107b34-93b1-4ab8-a6ab-c4e70a048933",
+      "title": "Warnings Appropriate For Mild Breach",
+      "docNo": "A.1.4",
+      "mip": 101,
+      "mipSec": "2.4.4.1",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 3,
+      "docId": "ac9df70a-d110-42da-805a-abe03b52dcdc",
+      "title": "Facilitators Must Err On Side Of Caution",
+      "docNo": "A.1.6",
+      "mip": 101,
+      "mipSec": "2.6.6.1",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "unsure"
+    },
+    {
+      "order": 4,
+      "docId": "94856ced-5c37-42e0-a756-0fa2ccd73180",
+      "title": "Rejecting A Proposal For Misalignment",
+      "docNo": "A.1.11",
+      "mip": 101,
+      "mipSec": "2.13.3",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 5,
+      "docId": "ad242c8e-81e3-4590-b034-722b3767b9d2",
+      "title": "Resilience Fund Technical Committee Member Requirements",
+      "docNo": "A.2.9",
+      "mip": 106,
+      "mipSec": "10.1.1.2.2",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 7,
+      "docId": "92dcb95c-5a3d-45a4-a1e6-865686909c64",
+      "title": "Audit Procedure for Atlas Amendments",
+      "docNo": "A.2.9",
+      "mip": 106,
+      "mipSec": "10.7",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 8,
+      "docId": "49e644e7-4d15-5298-83e0-f5e2d3d3b6d6",
+      "title": "Include Non-Crypto Key Partners",
+      "docNo": "A.5.9",
+      "mip": 108,
+      "mipSec": "9",
+      "mipSecTitle": null,
+      "aiLabel": "PARTIAL",
+      "verdict": "unsure"
+    },
+    {
+      "order": 9,
+      "docId": "b1cbe4dd-1df7-461f-b6dd-315d899f922c",
+      "title": "Element Annotation",
+      "docNo": null,
+      "mip": 106,
+      "mipSec": "10.1.1.1.1",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "reject"
+    },
+    {
+      "order": 10,
+      "docId": "8d8980b8-3ac7-49c6-8bc9-f601733a3198",
+      "title": "ACs Must Go Beyond Mere Technical Compliance With Rules",
+      "docNo": null,
+      "mip": 101,
+      "mipSec": null,
+      "mipSecTitle": "Letter of the Rule vs Spirit of the Rule",
+      "aiLabel": "PARTIAL",
+      "verdict": "approve"
+    },
+    {
+      "order": 11,
+      "docId": "02d1e35f-0a24-43d9-9406-347eef58a9d1",
+      "title": "Reward System",
+      "docNo": "A.5.3",
+      "mip": 108,
+      "mipSec": "3.1.2",
+      "mipSecTitle": null,
+      "aiLabel": "PARTIAL",
+      "verdict": "approve"
+    },
+    {
+      "order": 12,
+      "docId": "ef008255-07ba-51a4-80f3-6a46675d9520",
+      "title": "AD Buffer And Loss Of Budget Stream",
+      "docNo": "A.1.5",
+      "mip": 101,
+      "mipSec": "2.6.3.2.1",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 13,
+      "docId": "e8b02a25-8c5d-503a-a9ce-e20d417d887c",
+      "title": "SKY Launch",
+      "docNo": "A.4.1",
+      "mip": 107,
+      "mipSec": "2.2.1",
+      "mipSecTitle": null,
+      "aiLabel": "TRUE",
+      "verdict": "approve"
+    },
+    {
+      "order": 14,
+      "docId": "70062207-035c-5417-aa61-52da6901e522",
+      "title": "Scope Advisor Requirements",
+      "docNo": "A.3.1",
+      "mip": 113,
+      "mipSec": "1.1.1.2",
+      "mipSecTitle": null,
+      "aiLabel": "FALSE",
+      "verdict": "unsure"
+    },
+    {
+      "order": 15,
+      "docId": "6b0d739f-f957-46fc-85ad-32ade8144249",
+      "title": "Element Annotation",
+      "docNo": null,
+      "mip": 101,
+      "mipSec": null,
+      "mipSecTitle": "Letter of the Rule vs Spirit of the Rule",
+      "aiLabel": "FALSE",
+      "verdict": "unsure"
+    }
+  ]
+}

@@ -28,6 +28,10 @@ public/addresses.atlas.json
 public/manifest.json
 public/history/
 public/atlas/
+# NOTE: the HTML-era curation pipeline artifacts (history-curation.json,
+# history-auto-decisions.json, history-curation-proposals.json, history-decisions.json,
+# history-html-era.json) are NO LONGER ignored — they are the committed, reviewed
+# reconstruction (plan §7/§10.4). See the "committed curation pipeline" block below.
 
 
 
@@ -64,11 +68,47 @@ playwright/.cache/
 .cache/atlas-rag/meta.json
 .cache/atlas-rag/vectors.bin
 .cache/processes-audit.json
+.cache/audit-html-cases.json
+.cache/audit-html-report.json
+.cache/forward-reverse-diff.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
 .cache/risk-assessment.md
+
+# HTML-era curation review/audit artifacts — regenerable from the committed queue + decisions
+# via the scripts/htmlhist/*.mjs tools (render-decisions, export-decisions-judge, audit-html-*,
+# and one-off judge/verification passes). The actual decision trail lives in the committed
+# public/history-decisions.json `why` fields, not these review reports.
+.cache/audit-html-decisions.json
+.cache/audit-html-decisions-cache.json
+.cache/audit-html-disagreements.json
+.cache/audit-html-disagreements.md
+.cache/decisions-judge.jsonl
+.cache/decisions-judge-117.jsonl
+.cache/decisions-review.md
+.cache/judge-117/
+.cache/spotcheck-remaining/
+.cache/residual-closeout.md
+.cache/residual-signal-candidates.md
+.cache/curation-hard-gold.json
+.cache/curation-hard-set.md
+
 .claude/scheduled_tasks.lock
 .claude/worktrees/**
 
 # Personal docs (not checked in)
 docs/ds/
+
+
+# Committed HTML-era curation pipeline (plan §7/§10.4). These are deliberately TRACKED —
+# the reconstruction must be reproducible and served on any checkout / on Railway:
+#   history-curation.json            queue          (deterministic prepare; the page's input)
+#   history-auto-decisions.json      auto baseline  (cheap-LLM + matcher agreement, pre-fill)
+#   history-curation-proposals.json  frontier hints (gpt-5.5 suggestions for uncertain cases)
+#   history-decisions.json           human choices  (saved from the curation page; apply input)
+#   history-curation-llm-cache.json  resume cache   (prior LLM/frontier asks; lets capped runs continue)
+#   history-reintroductions.json     reintro ledger (hand-authored; #117 revived-name docs → seam:reintroduced)
+#   history-html-era.json            applied freeze (synced to atlas_history by build:history)
+#   history-pre-era.json             pre-git origins (mip/genesis/severed — docs/plans/
+#                                    pre-git-history.md; scripts/prehist/*, synced by build:history)
+# Regenerated deliberately (reviewed reruns), then committed. The audit/trace write to .cache/.

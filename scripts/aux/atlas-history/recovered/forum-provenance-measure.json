@@ -1,0 +1,978 @@
+{
+ "measuredAt": "2026-07-07",
+ "severedBornAlive": 2524,
+ "titleEvidence": {
+  "covered": 438,
+  "tiers": {
+   "none": 2086,
+   "D_prose": 275,
+   "B_bullet": 161,
+   "C_editSetName": 2
+  },
+  "uniqueCovered": 192,
+  "collideCovered": 246,
+  "alsoGenesis": 20,
+  "collideFraction": 0.562
+ },
+ "highTrust": {
+  "count": 62,
+  "rows": [
+   {
+    "docId": "37c38f07-b5a0-40df-939c-a54330ea3c7b",
+    "docNo": "A.2.2.4.1",
+    "title": "Integrator Program",
+    "tier": "bullet",
+    "pids": [
+     25590
+    ],
+    "dates": [
+     "2024-11-25"
+    ]
+   },
+   {
+    "docId": "55999acf-75fe-4adf-8584-9746ef50d3e4",
+    "docNo": "A.3.2",
+    "title": "Risk Capital",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "ca07880e-7bc4-4f18-a59a-2b5a8cd4374e",
+    "docNo": "A.3.2.1.1.4.2.1",
+    "title": "Credit Risk",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "ca685840-ab9a-4fa8-8f08-794536b94490",
+    "docNo": "A.3.2.1.2.2.1.2.3",
+    "title": "Per-Event Basis",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "6bba2076-5d5b-43fd-82c6-df6a35f67355",
+    "docNo": "A.3.2.1.2.2.2",
+    "title": "Senior Risk Capital",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "d2e9a92e-dd5d-4a26-8fc6-c5b47a2c06c2",
+    "docNo": "A.3.2.1.2.2.2.1",
+    "title": "Senior Risk Capital Types",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "09c20045-4b53-4370-98b8-a1199ccf7007",
+    "docNo": "A.3.2.1.2.2.2.1.1",
+    "title": "Internal Senior Risk Capital",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "2adf8738-09b2-43e2-884c-c4ce6ff601ba",
+    "docNo": "A.3.2.1.2.2.2.1.2",
+    "title": "External Senior Risk Capital",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "e600afc0-6f8e-42a7-9413-9ef2f5cf0ebb",
+    "docNo": "A.3.2.1.2.3.1",
+    "title": "Definition Of Ratios",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "ff374833-920c-40f6-ae6c-a71d33d99b82",
+    "docNo": "A.3.2.1.2.3.1.1",
+    "title": "External Per Internal Ratio",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "d10b1c92-b839-45f1-995d-a23381fd6068",
+    "docNo": "A.3.2.2.1",
+    "title": "Required Risk Capital Calculation Implementation",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "8b6a6ecd-da74-4be5-bcb8-96215f473c08",
+    "docNo": "A.3.2.2.1.1.1",
+    "title": "Asset Class Specific Implementation",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "15276567-bf61-4c27-8aa2-2f27da831a48",
+    "docNo": "A.3.2.2.2",
+    "title": "Core Risk Capital Parameters",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "c8b80b82-abe9-43d0-96bb-bfc82c83feb4",
+    "docNo": "A.3.2.2.2.2",
+    "title": "Risk Capital Composition Structural Ratios",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "3ed32706-c072-42b5-b1e5-187bddf8dc37",
+    "docNo": "A.3.2.2.2.2.1",
+    "title": "External Per Internal (EPI) Ratio Value",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "6d2be0c6-37fe-42ba-a4a8-a18dd17b0bc1",
+    "docNo": "A.3.2.2.4",
+    "title": "Senior Risk Capital System Implementation",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "9fac0f6b-cb2d-4dc2-97d5-72c705303675",
+    "docNo": "A.3.2.2.4.2",
+    "title": "External Senior Risk Capital And srUSDS System",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "30e9de3a-d67f-4b89-a777-a9781aab9b1a",
+    "docNo": "A.3.2.2.4.2.1",
+    "title": "srUSDS Contract",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "38a99586-4a13-4ce3-8b2f-cee025e0c390",
+    "docNo": "A.3.2.2.4.2.2",
+    "title": "Deposit And Redemption Queues",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "2220b1b5-f2f6-4325-9bb5-43cca84e184c",
+    "docNo": "A.3.2.2.4.2.3",
+    "title": "Conversion Rate",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "7074ce0f-5a30-40cf-804f-7621233ac9db",
+    "docNo": "A.3.2.2.4.2.3.1",
+    "title": "Previous Conversion Rate",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "cb9bb5b1-50a7-49d8-8ff6-27269061f87e",
+    "docNo": "A.3.2.2.4.2.3.2",
+    "title": "Monthly srUSDS Yield",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "2e3dcac8-d641-49b7-94e9-6947f0a413ca",
+    "docNo": "A.3.2.2.4.2.3.3",
+    "title": "Sources Of Revenue To Sky",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b74e61f5-3793-406d-a0e5-f8f0e4d3ac2f",
+    "docNo": "A.3.2.2.4.3",
+    "title": "Senior Risk Capital (SRC) Origination Process",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "d06b1c1a-7613-4361-a155-f62f68ec30a1",
+    "docNo": "A.3.2.2.4.3.1",
+    "title": "Process Timing and Schedule",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "48a3a23c-2e2f-48b8-bcca-6c99d1c2b6ca",
+    "docNo": "A.3.2.2.4.3.2",
+    "title": "Available Total Senior Risk Capital Pool Determination",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "33ef06d4-6ee3-4302-943d-1b932d8c88b4",
+    "docNo": "A.3.2.2.4.3.3",
+    "title": "Bidding Process",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "0234bb0c-4686-40bc-94e5-13cd8bcd0db7",
+    "docNo": "A.3.2.2.4.3.4",
+    "title": "Allocation & Clearing Price Determination",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "fff0112a-58dd-4041-97f9-7baf113b4e70",
+    "docNo": "A.3.2.2.4.3.5",
+    "title": "Settlement Of Origination",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b63d43f9-cea7-42ee-bfea-5098e55fa68f",
+    "docNo": "A.3.2.2.4.3.6",
+    "title": "OSRC Duration and Renewal",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "0664a5cc-22c9-4d9e-adcf-55ce8c1afc20",
+    "docNo": "A.3.2.2.4.4.1",
+    "title": "Ecosystem Accord Requirements",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "dab711a4-e932-4e2e-bed5-3f459f89cde6",
+    "docNo": "A.3.2.2.4.4.2",
+    "title": "SRC Accounting & Enablement",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "d92f0d3b-e6d5-47d4-b6f1-203ef9326ea6",
+    "docNo": "A.3.2.2.5",
+    "title": "Risk Capital Update Process",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "f969dee1-774b-4201-97ae-c9fb91960a18",
+    "docNo": "A.3.2.2.5.1",
+    "title": "Schedule For Updating Parameters",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "23083399-43b0-4bc2-adf8-4e97a9ae494d",
+    "docNo": "A.3.2.2.5.1.1",
+    "title": "Real Time Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "4c76f9d0-f354-4fba-bf99-2be97b77d234",
+    "docNo": "A.3.2.2.5.1.1.1",
+    "title": "Responsibility For Cost Of Real Time Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "7cdc17d9-6199-42bb-8ff9-f7ffce126d3a",
+    "docNo": "A.3.2.2.5.1.2",
+    "title": "Non-Real Time Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "d105b84d-c1f6-4460-892c-0971942f8905",
+    "docNo": "A.3.2.2.5.2",
+    "title": "Data Maintenance And Integrity",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "ecd07bcd-8a9f-4a3d-b7b0-393f6b5143f7",
+    "docNo": "A.3.2.2.5.2.1",
+    "title": "Responsibility For Data Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b80bdd00-c88b-4186-84de-b6c770b915e0",
+    "docNo": "A.3.2.2.5.2.2",
+    "title": "Verification Of Data Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b6dd98ee-5156-496c-95f3-a6ad0f2eff3b",
+    "docNo": "A.3.2.2.5.2.3",
+    "title": "Penalties For Late Data Updates",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b24ee088-0096-47b0-9e27-4c9e9aeb2d9b",
+    "docNo": "A.3.2.2.6",
+    "title": "Process For Adjusting Risk Capital",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "86134cd1-f754-4637-8796-f239ec00e434",
+    "docNo": "A.3.2.2.6.1",
+    "title": "Updates Due To Changed Market Parameters",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "e083b732-237d-461b-92a4-fe91ea636e3f",
+    "docNo": "A.3.2.2.6.2.2",
+    "title": "No Penalties For Changes In Methodology Or Governance Parameters In Near Term",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "50035dc9-4cab-4141-a5d8-a8a4e6870a56",
+    "docNo": "A.3.2.2.7",
+    "title": "Monitoring And Penalty Mechanisms",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "3fa1e746-ea64-49f0-92e3-f914e8b92b16",
+    "docNo": "A.3.2.2.7.1",
+    "title": "Monitoring As Part Of Settlement Cycle",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
+    "docNo": "A.3.2.2.7.2",
+    "title": "Penalty Mechanisms",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "2e1a8489-5849-4030-9ed8-8b9a0b09d483",
+    "docNo": "A.3.2.2.7.2.1.2",
+    "title": "Additional Token Issuance For Breach Of Capital Requirements",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "5c3dd35a-0c67-44c2-b51b-d40bc865af85",
+    "docNo": "A.3.2.2.7.2.1.4",
+    "title": "Conservatorship For Breach Of Capital Requirements",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "a56f0e2a-2e3e-45a5-8aac-c7708ff4e20d",
+    "docNo": "A.3.2.2.7.2.2",
+    "title": "Penalty Mechanisms For Operational Executor Agents",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "134f7d3e-fee1-4d9d-aef8-1e5a9b390d21",
+    "docNo": "A.3.2.2.7.2.2.1",
+    "title": "Financial Penalties For Operational Executor Agents",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "782d49c6-e4db-4d4a-be29-3f005cd654c1",
+    "docNo": "A.3.2.2.7.2.2.2",
+    "title": "Termination Of Executor Accord",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "7ff23236-91c4-4c5c-b462-d4427b03bfd4",
+    "docNo": "A.3.2.2.7.2.3",
+    "title": "Escalation To Sky Governance",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "36978109-324d-40da-be44-f05809c1544a",
+    "docNo": "A.3.2.2.7.2.3.1",
+    "title": "Triggers For Escalation",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "1ccb4063-facc-42d6-a71e-21fe29e84519",
+    "docNo": "A.3.2.2.7.2.3.2",
+    "title": "Sky Governance Process",
+    "tier": "bullet",
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "b8891a30-f255-4694-895c-4399df916da3",
+    "docNo": "A.4.4",
+    "title": "SKY Staking Mechanism",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "264b1787-cd75-4d28-9c14-c7d5a724eba7",
+    "docNo": "A.4.4.1.3",
+    "title": "SKY-Backed Borrowing",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "f7c00726-64a0-4ba5-8c0d-231d0e27e54c",
+    "docNo": "A.4.4.1.3.4",
+    "title": "Debt Ceiling",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "5e546766-a0c0-4744-9ca9-5509db14bc30",
+    "docNo": "A.4.4.1.3.5",
+    "title": "SKY Borrow Rate",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "5ad3e32c-9b5c-431a-bc20-e236194b65e8",
+    "docNo": "A.4.4.1.3.5.1",
+    "title": "Rate Setting Mechanism",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "e2f1f01f-3303-41c3-b337-f09eb41ba6be",
+    "docNo": "A.4.5",
+    "title": "Distribution Of Agent Tokens",
+    "tier": "bullet",
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "9906332c-bc2d-4864-97d4-589f206d6482",
+    "docNo": "A.6.1.1.1.3.2.2.2.1",
+    "title": "Special Pre-launch Token Reward Programs",
+    "tier": "bullet",
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   }
+  ]
+ },
+ "deCollision": {
+  "candidates": 92,
+  "rescued": 14,
+  "rejectedSiblingBetter": 69,
+  "ambiguous": 2,
+  "weakBody": 7,
+  "falsePositiveFraction": 0.75,
+  "rows": [
+   {
+    "docId": "b6597fb4-d347-44f4-8780-b9a4116c1a36",
+    "docNo": "A.3.2.1.1",
+    "title": "Required Risk Capital",
+    "self": 0.409,
+    "runner": 0,
+    "nCands": 3,
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "0482b0c5-d78b-4e4a-b6c6-c858368d0b2c",
+    "docNo": "A.3.2.1.1.6.1",
+    "title": "Definition",
+    "self": 0.979,
+    "runner": 0.271,
+    "nCands": 10,
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "e8ca3c08-3daf-4b36-bd5e-02b3eea0935a",
+    "docNo": "A.3.2.2",
+    "title": "Implementation",
+    "self": 1,
+    "runner": 0.25,
+    "nCands": 9,
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "c160f99c-c3d8-41e9-a3d1-cde514b7a2da",
+    "docNo": "A.3.2.2.4.2.3.3.1",
+    "title": "Sky Spread",
+    "self": 0.676,
+    "runner": 0,
+    "nCands": 2,
+    "pids": [
+     26262
+    ],
+    "dates": [
+     "2025-04-11"
+    ]
+   },
+   {
+    "docId": "626bd71c-b413-41b7-a5fe-39fd0d43dbf5",
+    "docNo": "A.4.4.1",
+    "title": "SKY Staking",
+    "self": 0.368,
+    "runner": 0,
+    "nCands": 2,
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "337c4f67-685f-42bd-8237-553ed913b89f",
+    "docNo": "A.4.4.1.3.2.1.4",
+    "title": "Utilization Definition",
+    "self": 0.333,
+    "runner": 0,
+    "nCands": 2,
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "78cab555-534d-4e7e-989c-d22d90d02d9e",
+    "docNo": "A.4.4.1.3.2.1.2",
+    "title": "SKY Borrow Rate Definition",
+    "self": 0.375,
+    "runner": 0.125,
+    "nCands": 2,
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "6e329dd6-eda5-43ce-9899-b3a03ede8d0b",
+    "docNo": "A.4.4.1.3.5.2",
+    "title": "SKY Borrow Minimum Rate",
+    "self": 0.647,
+    "runner": 0,
+    "nCands": 2,
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "63e86a25-18f6-4810-a362-d2831781ea2c",
+    "docNo": "A.4.4.1.3.5.2.1",
+    "title": "Parameters Definition",
+    "self": 1,
+    "runner": 0.222,
+    "nCands": 2,
+    "pids": [
+     26291
+    ],
+    "dates": [
+     "2025-04-18"
+    ]
+   },
+   {
+    "docId": "51316a6c-fd6a-4507-b99d-731e80fc9f76",
+    "docNo": "A.6.1.1.1.3.2.2.2.1.1.0.6.1",
+    "title": "Special Pre-launch Token Reward Program Details",
+    "self": 0.823,
+    "runner": 0,
+    "nCands": 2,
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   },
+   {
+    "docId": "631973de-6f13-440b-8f66-478dfdda4d60",
+    "docNo": "A.6.1.1.1.2.6.1.2.1.2.2",
+    "title": "Multisigs",
+    "self": 1,
+    "runner": 0.625,
+    "nCands": 4,
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   },
+   {
+    "docId": "567e4905-2b05-493e-95ac-8a4d20afed2b",
+    "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.2.1",
+    "title": "Address",
+    "self": 1,
+    "runner": 0.455,
+    "nCands": 23,
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   },
+   {
+    "docId": "4c33239e-59c9-4d5b-8872-bf7176d205dc",
+    "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.3.4",
+    "title": "Usage Standards",
+    "self": 0.741,
+    "runner": 0.259,
+    "nCands": 20,
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   },
+   {
+    "docId": "ba833546-a8aa-4390-9c87-0204abd53e4b",
+    "docNo": "A.6.1.1.1.3.2.2.2",
+    "title": "Operational Process Definition",
+    "self": 1,
+    "runner": 0.556,
+    "nCands": 96,
+    "pids": [
+     26209
+    ],
+    "dates": [
+     "2025-03-29"
+    ]
+   }
+  ]
+ },
+ "trustworthyTotal": 76,
+ "thresholds": {
+  "MIN_ABS": 0.1,
+  "MARGIN": 0.05,
+  "SH": 8
+ }
+}

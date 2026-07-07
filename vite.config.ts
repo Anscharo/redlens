@@ -65,9 +65,13 @@ export default defineConfig(() => {
         },
       },
       // Don't watch the atlas submodule, caches, or generated history — they
-      // churn on builds and would trigger noisy dev reloads.
+      // churn on builds and would trigger noisy dev reloads. `history-decisions.json`
+      // is ignored because the curation page WRITES it on ⤒ save; otherwise Vite
+      // full-reloads the page mid-curation and drops the decided state. Only that one
+      // file is ignored — the other history-*.json (queue, auto-decisions, proposals)
+      // must still trigger HMR so a `htmlhist:curate` rebuild shows up in dev.
       watch: {
-        ignored: ["**/vendor/next-gen-atlas/**", "**/.cache/**", "**/public/history/**"],
+        ignored: ["**/vendor/next-gen-atlas/**", "**/.cache/**", "**/public/history/**", "**/public/history-decisions.json"],
       },
     },
   plugins: [

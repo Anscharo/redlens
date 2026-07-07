@@ -4,6 +4,9 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const port = Number(process.env.PORT ?? 3000);
+const appUrl =
+  process.env.APP_URL ??
+  (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
 
 export const config = {
   port,
@@ -17,9 +20,7 @@ export const config = {
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
-  appUrl:
-    process.env.APP_URL ??
-    (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`),
+  appUrl,
 
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
@@ -49,6 +50,31 @@ export const config = {
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
+  // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
+  // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
+  // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
+  // the model bakeoff (scripts/htmlhist/curation-model-bakeoff.mjs): mistral-nemo had the best
+  // hard-case accuracy (97%) at the lowest cost. Decoupled from chatModel so live chat and
+  // the curation selector swap independently. Offline tooling only.
+  curationSelectorModel: process.env.CURATION_SELECTOR_MODEL ?? "mistralai/mistral-nemo",
+  // Models for the OFFLINE auto-curator's CLUSTER pass (joint assignment over near-identical
+  // siblings that share candidates). A subject LOCKS only when these DIFFERENT-family models
+  // agree AND the pick is globally conflict-free — a stronger, more independent signal than
+  // LLM∩matcher, since the matcher is exactly what fails on these. CSV, ≥2 distinct families.
+  // Anthropic side is claude-haiku-4.5 (cheap) rather than sonnet: the two-family agreement lock
+  // is a cross-family CHECK on deepseek's pick, so the Anthropic model only needs to be a competent
+  // independent voter — haiku suffices and the cluster pass is the only place it runs. Offline only.
+  curationClusterModels: (process.env.CURATION_CLUSTER_MODELS ?? "deepseek/deepseek-v4-flash,anthropic/claude-haiku-4.5")
+    .split(",").map((s) => s.trim()).filter(Boolean),
+  // Frontier model the OFFLINE HTML-era auto-curator escalates UNCERTAIN cases to
+  // (pass 3, opt-in via --frontier). Pricier than the selector; only the contested residual
+  // is routed here. deepseek-v4-pro won the bakeoff's frontier slot (94% hard-acc, 0 JSON
+  // failures). Never used by the runtime chat/curation page — offline tooling only.
+  curationFrontierModel: process.env.CURATION_FRONTIER_MODEL ?? "deepseek/deepseek-v4-pro",
+  // Cheap second model the OFFLINE decision audit (scripts/htmlhist/audit-html-decisions.mjs) uses to
+  // independently re-pick each curation predecessor; disagreements with the recorded decision are
+  // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
+  curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
 

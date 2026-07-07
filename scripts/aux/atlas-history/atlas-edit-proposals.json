@@ -1,0 +1,2024 @@
+{
+  "source": "https://forum.skyeco.com",
+  "captured": "2026-06-25",
+  "tags": [
+    "atlas-edit-weekly-proposal",
+    "atlas-edit"
+  ],
+  "anchors": {
+    "truncation_commit_date": "2025-05-28",
+    "forum_floor": "2024-09-13"
+  },
+  "counts": {
+    "total": 85,
+    "cycle_proposals": 84,
+    "severed_cycles": 29,
+    "overlap_cycles": 55,
+    "repo_aep_files": 11
+  },
+  "proposals": [
+    {
+      "id": 25083,
+      "date": "2024-09-13",
+      "title": "Atlas Edit Weekly Cycle Proposal",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 1,
+      "last_poster": "CodeKnight",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal/25083",
+      "raw_url": "https://forum.skyeco.com/raw/25083/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25179,
+      "date": "2024-09-20",
+      "title": "Atlas Edit Weekly Cycle Proposal week of 2024-09-23",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 9,
+      "reply_count": 2,
+      "last_poster": "ecosystem-team",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2024-09-23/25179",
+      "raw_url": "https://forum.skyeco.com/raw/25179/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25324,
+      "date": "2024-10-11",
+      "title": "Atlas weekly cycle edit proposal - week of October 14 2024 01",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 7,
+      "reply_count": 1,
+      "last_poster": "JanSky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-weekly-cycle-edit-proposal-week-of-october-14-2024-01/25324",
+      "raw_url": "https://forum.skyeco.com/raw/25324/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25364,
+      "date": "2024-10-18",
+      "title": "Weekly Atlas Edit Proposal - Week of 2024-10-21 0",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "votewizard",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/weekly-atlas-edit-proposal-week-of-2024-10-21-0/25364",
+      "raw_url": "https://forum.skyeco.com/raw/25364/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25411,
+      "date": "2024-10-25",
+      "title": "Weekly Atlas Edit Proposal - Week of 2024-10-28 0",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 8,
+      "reply_count": 3,
+      "last_poster": "SynchrotronLabs",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/weekly-atlas-edit-proposal-week-of-2024-10-28-0/25411",
+      "raw_url": "https://forum.skyeco.com/raw/25411/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25507,
+      "date": "2024-11-07",
+      "title": "Atlas Edit Weekly Cycle Proposal week of 2024-11-11 0",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 6,
+      "reply_count": 2,
+      "last_poster": "SynchrotronLabs",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2024-11-11-0/25507",
+      "raw_url": "https://forum.skyeco.com/raw/25507/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25552,
+      "date": "2024-11-15",
+      "title": "Weekly Atlas Edit Proposal - Week of 2024-11-18 0",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "GFXlabs",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/weekly-atlas-edit-proposal-week-of-2024-11-18-0/25552",
+      "raw_url": "https://forum.skyeco.com/raw/25552/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25590,
+      "date": "2024-11-25",
+      "title": "2024-11-25 Atlas Edit Weekly Cycle Forum Proposal",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "JuliaChang",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/2024-11-25-atlas-edit-weekly-cycle-forum-proposal/25590",
+      "raw_url": "https://forum.skyeco.com/raw/25590/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25907,
+      "date": "2025-01-30",
+      "title": "AEP1: Atlas Edit Monthly Cycle Proposal - 2025-01-29",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep1-atlas-edit-monthly-cycle-proposal-2025-01-29/25907",
+      "raw_url": "https://forum.skyeco.com/raw/25907/1",
+      "via": "search",
+      "repo_file": "AEP-1.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 25964,
+      "date": "2025-02-11",
+      "title": "AEP-2: Updating Launch Project Transparency Requirements",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-2-updating-launch-project-transparency-requirements/25964",
+      "raw_url": "https://forum.skyeco.com/raw/25964/1",
+      "via": "search",
+      "repo_file": "AEP-2.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 25979,
+      "date": "2025-02-12",
+      "title": "Atlas Edit Weekly Cycle Proposal For Week Of February 17, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "misher",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-for-week-of-february-17-2025/25979",
+      "raw_url": "https://forum.skyeco.com/raw/25979/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 25983,
+      "date": "2025-02-13",
+      "title": "AEP-4: Ensuring Equal Treatment of DAI & USDS Holders",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 7,
+      "reply_count": 4,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-4-ensuring-equal-treatment-of-dai-usds-holders/25983",
+      "raw_url": "https://forum.skyeco.com/raw/25983/1",
+      "via": "search",
+      "repo_file": "AEP-4.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 25991,
+      "date": "2025-02-14",
+      "title": "AEP-3: Monthly Developer/AD/Community Meetings",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 12,
+      "reply_count": 6,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/aep-3-monthly-developer-ad-community-meetings/25991",
+      "raw_url": "https://forum.skyeco.com/raw/25991/1",
+      "via": "search",
+      "repo_file": "AEP-3.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26000,
+      "date": "2025-02-16",
+      "title": "AEP-5: Freedom From Forced Anonymity",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-5-freedom-from-forced-anonymity/26000",
+      "raw_url": "https://forum.skyeco.com/raw/26000/1",
+      "via": "search",
+      "repo_file": "AEP-5.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26002,
+      "date": "2025-02-17",
+      "title": "AEP-6: Focus Integration Boost on Crosschain Adoption",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 5,
+      "reply_count": 3,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-6-focus-integration-boost-on-crosschain-adoption/26002",
+      "raw_url": "https://forum.skyeco.com/raw/26002/1",
+      "via": "search",
+      "repo_file": "AEP-6.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26010,
+      "date": "2025-02-18",
+      "title": "AEP-7: Securing MKR Holder Airdrop of SPK & Subsequent Stars",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 1,
+      "reply_count": 0,
+      "last_poster": null,
+      "tags": [
+        {
+          "id": 1442,
+          "name": "aep",
+          "slug": "aep"
+        },
+        {
+          "id": 1443,
+          "name": "aep-monthly-cycle",
+          "slug": "aep-monthly-cycle"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-7-securing-mkr-holder-airdrop-of-spk-subsequent-stars/26010",
+      "raw_url": "https://forum.skyeco.com/raw/26010/1",
+      "via": "search",
+      "repo_file": "AEP-7.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26111,
+      "date": "2025-03-07",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-03-10",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 5,
+      "reply_count": 1,
+      "last_poster": "Le_Bateleur",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-03-10/26111",
+      "raw_url": "https://forum.skyeco.com/raw/26111/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26176,
+      "date": "2025-03-25",
+      "title": "AEP-8: Focus Integration Boost on Crosschain Adoption",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/aep-8-focus-integration-boost-on-crosschain-adoption/26176",
+      "raw_url": "https://forum.skyeco.com/raw/26176/1",
+      "via": "search",
+      "repo_file": "AEP-8.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26177,
+      "date": "2025-03-25",
+      "title": "AEP-9: Begin returning income to Sky holders via staking",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 26,
+      "reply_count": 14,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/aep-9-begin-returning-income-to-sky-holders-via-staking/26177",
+      "raw_url": "https://forum.skyeco.com/raw/26177/1",
+      "via": "search",
+      "repo_file": "AEP-9.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26205,
+      "date": "2025-03-29",
+      "title": "AEP-10: Making Delegate Anonymity Optional",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/aep-10-making-delegate-anonymity-optional/26205",
+      "raw_url": "https://forum.skyeco.com/raw/26205/1",
+      "via": "search",
+      "repo_file": "AEP-10.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26209,
+      "date": "2025-03-29",
+      "title": "Atlas Edit Weekly Cycle Proposal For Week Of March 31, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 1,
+      "last_poster": "JanSky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-for-week-of-march-31-2025/26209",
+      "raw_url": "https://forum.skyeco.com/raw/26209/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26225,
+      "date": "2025-04-02",
+      "title": "AEP-11: Moderation Policies of the Sky Ecosystem Communication Channels",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 12,
+      "reply_count": 6,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        },
+        {
+          "id": 1473,
+          "name": "atlas-edit-monthly-proposal",
+          "slug": "atlas-edit-monthly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/aep-11-moderation-policies-of-the-sky-ecosystem-communication-channels/26225",
+      "raw_url": "https://forum.skyeco.com/raw/26225/1",
+      "via": "tag:atlas-edit",
+      "repo_file": "AEP-11.md",
+      "ratified": "yes"
+    },
+    {
+      "id": 26232,
+      "date": "2025-04-05",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of April 7, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": "JuliaChang",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-april-7-2025/26232",
+      "raw_url": "https://forum.skyeco.com/raw/26232/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26262,
+      "date": "2025-04-11",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of April 14, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": "JuliaChang",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-april-14-2025/26262",
+      "raw_url": "https://forum.skyeco.com/raw/26262/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26291,
+      "date": "2025-04-18",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of April 21, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "misher",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-april-21-2025/26291",
+      "raw_url": "https://forum.skyeco.com/raw/26291/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26307,
+      "date": "2025-04-23",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of April 28, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-april-28-2025/26307",
+      "raw_url": "https://forum.skyeco.com/raw/26307/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26319,
+      "date": "2025-04-30",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of May 5, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-may-5-2025/26319",
+      "raw_url": "https://forum.skyeco.com/raw/26319/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26364,
+      "date": "2025-05-08",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of May 12, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 5,
+      "reply_count": 0,
+      "last_poster": "JuliaChang",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        },
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-may-12-2025/26364",
+      "raw_url": "https://forum.skyeco.com/raw/26364/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26454,
+      "date": "2025-05-24",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-05-26",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "severed",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-05-26/26454",
+      "raw_url": "https://forum.skyeco.com/raw/26454/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26535,
+      "date": "2025-05-30",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of June 2, 2025",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 5,
+      "reply_count": 2,
+      "last_poster": "misher",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-june-2-2025/26535",
+      "raw_url": "https://forum.skyeco.com/raw/26535/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26608,
+      "date": "2025-06-07",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-09",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-06-09/26608",
+      "raw_url": "https://forum.skyeco.com/raw/26608/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26664,
+      "date": "2025-06-14",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-16",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-06-16/26664",
+      "raw_url": "https://forum.skyeco.com/raw/26664/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26701,
+      "date": "2025-06-20",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-23",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-06-23/26701",
+      "raw_url": "https://forum.skyeco.com/raw/26701/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26744,
+      "date": "2025-06-27",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-06-30",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-06-30/26744",
+      "raw_url": "https://forum.skyeco.com/raw/26744/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26767,
+      "date": "2025-07-03",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-07",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-07-07/26767",
+      "raw_url": "https://forum.skyeco.com/raw/26767/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26795,
+      "date": "2025-07-11",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-14",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-07-14/26795",
+      "raw_url": "https://forum.skyeco.com/raw/26795/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26829,
+      "date": "2025-07-18",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-21",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-07-21/26829",
+      "raw_url": "https://forum.skyeco.com/raw/26829/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26882,
+      "date": "2025-07-25",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-07-28",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-07-28/26882",
+      "raw_url": "https://forum.skyeco.com/raw/26882/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26957,
+      "date": "2025-08-01",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-04",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 10,
+      "reply_count": 7,
+      "last_poster": "CivicSage",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-08-04/26957",
+      "raw_url": "https://forum.skyeco.com/raw/26957/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 26991,
+      "date": "2025-08-08",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-11",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-08-11/26991",
+      "raw_url": "https://forum.skyeco.com/raw/26991/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27008,
+      "date": "2025-08-11",
+      "title": "Weekly Cycle Atlas Edit Proposal: Week starting 2025-08-11",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 11,
+      "reply_count": 3,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/weekly-cycle-atlas-edit-proposal-week-starting-2025-08-11/27008",
+      "raw_url": "https://forum.skyeco.com/raw/27008/1",
+      "via": "search"
+    },
+    {
+      "id": 27063,
+      "date": "2025-08-16",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-18",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-08-18/27063",
+      "raw_url": "https://forum.skyeco.com/raw/27063/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27101,
+      "date": "2025-08-22",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-08-25",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "adamfraser",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-08-25/27101",
+      "raw_url": "https://forum.skyeco.com/raw/27101/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27122,
+      "date": "2025-08-29",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-01",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 7,
+      "reply_count": 3,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-09-01/27122",
+      "raw_url": "https://forum.skyeco.com/raw/27122/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27149,
+      "date": "2025-09-06",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-08",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-09-08/27149",
+      "raw_url": "https://forum.skyeco.com/raw/27149/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27169,
+      "date": "2025-09-12",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-15",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-09-15/27169",
+      "raw_url": "https://forum.skyeco.com/raw/27169/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27188,
+      "date": "2025-09-19",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-22",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-09-22/27188",
+      "raw_url": "https://forum.skyeco.com/raw/27188/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27222,
+      "date": "2025-09-27",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-09-29",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-09-29/27222",
+      "raw_url": "https://forum.skyeco.com/raw/27222/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27272,
+      "date": "2025-10-03",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-06",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 9,
+      "reply_count": 2,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-10-06/27272",
+      "raw_url": "https://forum.skyeco.com/raw/27272/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27311,
+      "date": "2025-10-10",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-13",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-10-13/27311",
+      "raw_url": "https://forum.skyeco.com/raw/27311/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27327,
+      "date": "2025-10-18",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-20",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 1,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-10-20/27327",
+      "raw_url": "https://forum.skyeco.com/raw/27327/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27362,
+      "date": "2025-10-26",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-10-27",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "adamfraser",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-10-27/27362",
+      "raw_url": "https://forum.skyeco.com/raw/27362/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27381,
+      "date": "2025-11-01",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-03",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 6,
+      "reply_count": 2,
+      "last_poster": "adamfraser",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-11-03/27381",
+      "raw_url": "https://forum.skyeco.com/raw/27381/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27393,
+      "date": "2025-11-06",
+      "title": "Out Of Schedule Atlas Edit Proposal",
+      "kind": "other",
+      "is_cycle_proposal": false,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1465,
+          "name": "atlas-edit",
+          "slug": "atlas-edit"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/out-of-schedule-atlas-edit-proposal/27393",
+      "raw_url": "https://forum.skyeco.com/raw/27393/1",
+      "via": "tag:atlas-edit"
+    },
+    {
+      "id": 27400,
+      "date": "2025-11-07",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-10",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-11-10/27400",
+      "raw_url": "https://forum.skyeco.com/raw/27400/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27421,
+      "date": "2025-11-14",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-17",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 9,
+      "reply_count": 1,
+      "last_poster": "adamfraser",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-11-17/27421",
+      "raw_url": "https://forum.skyeco.com/raw/27421/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27452,
+      "date": "2025-11-22",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-11-24",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 11,
+      "reply_count": 7,
+      "last_poster": "misher",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-11-24/27452",
+      "raw_url": "https://forum.skyeco.com/raw/27452/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27488,
+      "date": "2025-11-29",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week of 2025-12-01",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 5,
+      "reply_count": 1,
+      "last_poster": "skystaking",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-12-01/27488",
+      "raw_url": "https://forum.skyeco.com/raw/27488/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27524,
+      "date": "2025-12-05",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2025-12-08",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-12-08/27524",
+      "raw_url": "https://forum.skyeco.com/raw/27524/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27546,
+      "date": "2025-12-12",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2025-12-15",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "skystaking",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2025-12-15/27546",
+      "raw_url": "https://forum.skyeco.com/raw/27546/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27581,
+      "date": "2026-01-04",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-01-05",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-01-05/27581",
+      "raw_url": "https://forum.skyeco.com/raw/27581/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27606,
+      "date": "2026-01-12",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-01-12",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 6,
+      "reply_count": 2,
+      "last_poster": "Kuzmich",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-01-12/27606",
+      "raw_url": "https://forum.skyeco.com/raw/27606/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27627,
+      "date": "2026-01-18",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-01-19",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 6,
+      "reply_count": 2,
+      "last_poster": "OPEX",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-01-19/27627",
+      "raw_url": "https://forum.skyeco.com/raw/27627/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27643,
+      "date": "2026-01-23",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-01-26",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 11,
+      "reply_count": 7,
+      "last_poster": "OPEX",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-01-26/27643",
+      "raw_url": "https://forum.skyeco.com/raw/27643/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27675,
+      "date": "2026-01-30",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-02-02",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-02-02/27675",
+      "raw_url": "https://forum.skyeco.com/raw/27675/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27696,
+      "date": "2026-02-08",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-02-09",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-02-09/27696",
+      "raw_url": "https://forum.skyeco.com/raw/27696/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27720,
+      "date": "2026-02-15",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-02-16",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-02-16/27720",
+      "raw_url": "https://forum.skyeco.com/raw/27720/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27728,
+      "date": "2026-02-20",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-02-23",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": "ROBUSTMushroom",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-02-23/27728",
+      "raw_url": "https://forum.skyeco.com/raw/27728/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27750,
+      "date": "2026-03-06",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-03-09",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 11,
+      "reply_count": 4,
+      "last_poster": "AXA",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-03-09/27750",
+      "raw_url": "https://forum.skyeco.com/raw/27750/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27767,
+      "date": "2026-03-15",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-03-16",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 6,
+      "reply_count": 0,
+      "last_poster": "SynchrotronLabs",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-03-16/27767",
+      "raw_url": "https://forum.skyeco.com/raw/27767/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27781,
+      "date": "2026-03-21",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-03-23",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "BALabs",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-03-23/27781",
+      "raw_url": "https://forum.skyeco.com/raw/27781/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27810,
+      "date": "2026-03-30",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-03-30",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-03-30/27810",
+      "raw_url": "https://forum.skyeco.com/raw/27810/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27822,
+      "date": "2026-04-05",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-04-06",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "misher",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-04-06/27822",
+      "raw_url": "https://forum.skyeco.com/raw/27822/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27838,
+      "date": "2026-04-11",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-04-13",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 5,
+      "reply_count": 1,
+      "last_poster": "JanSky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-04-13/27838",
+      "raw_url": "https://forum.skyeco.com/raw/27838/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27851,
+      "date": "2026-04-17",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-04-20",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-04-20/27851",
+      "raw_url": "https://forum.skyeco.com/raw/27851/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27864,
+      "date": "2026-04-25",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-04-27",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 0,
+      "last_poster": "cloaky",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-04-27/27864",
+      "raw_url": "https://forum.skyeco.com/raw/27864/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27886,
+      "date": "2026-05-01",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-05-04",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "BLUE",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-05-04/27886",
+      "raw_url": "https://forum.skyeco.com/raw/27886/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27897,
+      "date": "2026-05-09",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-05-11",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 7,
+      "reply_count": 2,
+      "last_poster": "sundbry",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-05-11/27897",
+      "raw_url": "https://forum.skyeco.com/raw/27897/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27900,
+      "date": "2026-05-11",
+      "title": "AEP-12: Maintaining Decentralized Governance to Counter Centralization Threats (50%+ to one delegate)",
+      "kind": "monthly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 1,
+      "last_poster": null,
+      "tags": [],
+      "url": "https://forum.skyeco.com/t/aep-12-maintaining-decentralized-governance-to-counter-centralization-threats-50-to-one-delegate/27900",
+      "raw_url": "https://forum.skyeco.com/raw/27900/1",
+      "via": "search"
+    },
+    {
+      "id": 27910,
+      "date": "2026-05-15",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-05-18",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 1,
+      "last_poster": "ldr",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-05-18/27910",
+      "raw_url": "https://forum.skyeco.com/raw/27910/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27933,
+      "date": "2026-05-25",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-05-25",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 3,
+      "reply_count": 0,
+      "last_poster": "Abel189",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-05-25/27933",
+      "raw_url": "https://forum.skyeco.com/raw/27933/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27948,
+      "date": "2026-05-29",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-06-01",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-06-01/27948",
+      "raw_url": "https://forum.skyeco.com/raw/27948/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27951,
+      "date": "2026-06-05",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-06-08",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-06-08/27951",
+      "raw_url": "https://forum.skyeco.com/raw/27951/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27965,
+      "date": "2026-06-12",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-06-15",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 4,
+      "reply_count": 1,
+      "last_poster": "ldr",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-06-15/27965",
+      "raw_url": "https://forum.skyeco.com/raw/27965/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    },
+    {
+      "id": 27983,
+      "date": "2026-06-22",
+      "title": "Atlas Edit Weekly Cycle Proposal - Week Of 2026-06-22",
+      "kind": "weekly",
+      "is_cycle_proposal": true,
+      "window": "overlap",
+      "posts_count": 2,
+      "reply_count": 0,
+      "last_poster": "Bonapublica",
+      "tags": [
+        {
+          "id": 1469,
+          "name": "atlas-edit-weekly-proposal",
+          "slug": "atlas-edit-weekly-proposal"
+        }
+      ],
+      "url": "https://forum.skyeco.com/t/atlas-edit-weekly-cycle-proposal-week-of-2026-06-22/27983",
+      "raw_url": "https://forum.skyeco.com/raw/27983/1",
+      "via": "tag:atlas-edit-weekly-proposal"
+    }
+  ],
+  "repo_aep_files": [
+    {
+      "file": "AEP-1.md",
+      "aep": 1,
+      "date_proposed": "2025-01-29",
+      "date_ratified": "2025-02-24",
+      "status": "Accepted",
+      "authors": "Endgame Edge",
+      "forum_topic_id": 25907,
+      "forum_url": "https://forum.sky.money/t/aep1-atlas-edit-monthly-cycle-proposal-2025-01-29/25907"
+    },
+    {
+      "file": "AEP-2.md",
+      "aep": 2,
+      "date_proposed": "2025-02-11",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-2-updating-launch-project-transparency-requirements/25964",
+      "status": "Rejected-Misaligned",
+      "authors": "GFX Labs",
+      "forum_topic_id": 25964,
+      "forum_url": "https://forum.sky.money/t/aep-2-updating-launch-project-transparency-requirements/25964"
+    },
+    {
+      "file": "AEP-3.md",
+      "aep": 3,
+      "date_proposed": "2025-02-13",
+      "date_ratified": "Forum URL:https://forum.sky.money/t/aep-03-monthly-developer-ad-community-meetings/25991",
+      "status": "Rejected",
+      "authors": "misher",
+      "forum_topic_id": 25991,
+      "forum_url": "https://forum.sky.money/t/aep-03-monthly-developer-ad-community-meetings/25991"
+    },
+    {
+      "file": "AEP-4.md",
+      "aep": 4,
+      "date_proposed": "2025-02-13",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-3-ensuring-equal-treatment-of-dai-usds-holders/25983",
+      "status": "Rejected-Misaligned",
+      "authors": "GFX Labs",
+      "forum_topic_id": 25983,
+      "forum_url": "https://forum.sky.money/t/aep-3-ensuring-equal-treatment-of-dai-usds-holders/25983"
+    },
+    {
+      "file": "AEP-5.md",
+      "aep": 5,
+      "date_proposed": "2025-02-16",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-4-freedom-from-forced-anonymity/26000",
+      "status": "Rejected-Misaligned",
+      "authors": "GFX Labs",
+      "forum_topic_id": 26000,
+      "forum_url": "https://forum.sky.money/t/aep-4-freedom-from-forced-anonymity/26000"
+    },
+    {
+      "file": "AEP-6.md",
+      "aep": 6,
+      "date_proposed": "2025-02-17",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-5-focus-integration-boost-on-crosschain-adoption/26002",
+      "status": "Rejected-Misaligned",
+      "authors": "GFX Labs",
+      "forum_topic_id": 26002,
+      "forum_url": "https://forum.sky.money/t/aep-5-focus-integration-boost-on-crosschain-adoption/26002"
+    },
+    {
+      "file": "AEP-7.md",
+      "aep": 7,
+      "date_proposed": "2025-02-18",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-6-securing-mkr-holder-airdrop-of-spk-subsequent-stars/26010",
+      "status": "Rejected-Misaligned",
+      "authors": "GFX Labs",
+      "forum_topic_id": 26010,
+      "forum_url": "https://forum.sky.money/t/aep-6-securing-mkr-holder-airdrop-of-spk-subsequent-stars/26010"
+    },
+    {
+      "file": "AEP-8.md",
+      "aep": 8,
+      "date_proposed": null,
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-8-focus-integration-boost-on-crosschain-adoption/26176/",
+      "status": "Rejected",
+      "authors": null,
+      "forum_topic_id": 26176,
+      "forum_url": "https://forum.sky.money/t/aep-8-focus-integration-boost-on-crosschain-adoption/26176/"
+    },
+    {
+      "file": "AEP-9.md",
+      "aep": 9,
+      "date_proposed": "2025-03-24",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-05-end-token-burning-and-begin-returning-income-to-sky-holders-via-staking/26177",
+      "status": "Formal Submission",
+      "authors": "misher",
+      "forum_topic_id": 26177,
+      "forum_url": "https://forum.sky.money/t/aep-05-end-token-burning-and-begin-returning-income-to-sky-holders-via-staking/26177"
+    },
+    {
+      "file": "AEP-10.md",
+      "aep": 10,
+      "date_proposed": "2025-03-29",
+      "date_ratified": "Forum URL: https://forum.sky.money/t/aep-10-making-delegate-anonymity-optional/26205",
+      "status": "Rejected",
+      "authors": null,
+      "forum_topic_id": 26205,
+      "forum_url": "https://forum.sky.money/t/aep-10-making-delegate-anonymity-optional/26205"
+    },
+    {
+      "file": "AEP-11.md",
+      "aep": 11,
+      "date_proposed": "2025-04-02",
+      "date_ratified": "2025-06-23",
+      "status": "Accepted",
+      "authors": "Endgame Edge",
+      "forum_topic_id": 26225,
+      "forum_url": "https://forum.sky.money/t/aep-11-moderation-policies-of-the-sky-ecosystem-communication-channels/26225"
+    }
+  ]
+}

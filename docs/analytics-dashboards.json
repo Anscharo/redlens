@@ -55,6 +55,7 @@
     "reader_breadcrumb_nav": { "props": { "node_id": "uuid" } },
     "reader_address_explorer_out": { "props": { "address": "string", "chain": "string" } },
     "atlas_view_tab": { "props": { "node_id": "uuid", "view": "annotations | glossary | history" } },
+    "reader_history_reconstructed_toggle": { "props": { "node_id": "uuid", "action": "show | hide" } },
     "atlas_split_open": { "props": { "node_id": "uuid", "split_id": "uuid" } },
     "reader_split_close": { "props": { "node_id": "uuid", "split_id": "uuid" } },
     "atlas_search": { "props": { "query": "string", "mode": "broad | phrase | strict", "result_count": "number" } },
@@ -157,6 +158,7 @@
         ] },
         { "name": "Annotation panel usage by kind", "type": "trends", "viz": "bar", "series": [{ "event": "reader_annotation_nav", "math": "total" }], "breakdown": { "property": "kind", "type": "event" } },
         { "name": "View-mode tab usage", "type": "trends", "viz": "bar", "series": [{ "event": "atlas_view_tab", "math": "total" }], "breakdown": { "property": "view", "type": "event" } },
+        { "name": "Reconstructed history toggle", "type": "trends", "viz": "bar", "series": [{ "event": "reader_history_reconstructed_toggle", "math": "total" }], "breakdown": { "property": "action", "type": "event" } },
         { "name": "Take-away actions", "type": "trends", "viz": "bar", "series": [
           { "event": "reader_copy_link", "math": "total" }, { "event": "reader_copy_doc_no", "math": "total" },
           { "event": "reader_atlas_link_out", "math": "total" }, { "event": "reader_address_explorer_out", "math": "total" }

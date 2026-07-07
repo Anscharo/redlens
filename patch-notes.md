@@ -33,7 +33,11 @@
 - Fixed the responsibility reports and OEA Task Assessment picking up duties from Needed Research questions, Scenario examples, and rubric-element annotations, which were never real duties
 - Reviewed every OEA Task Assessment rating with high stakes (strong precision or a rewarded/penalized incentives rating) and corrected the ones that didn't hold up — wrong enforcement-mechanism citations, a few over- and under-ratings, and a bare process-step preview that read as a real duty when it wasn't
 
-## 2026-07-06
+- Added true pre-git Atlas origins for older sections, including MIP sources and the Atlas v2 genesis snapshot
+- Added Atlas history from before the 2025 migration to markdown, behind a "View HTML Era Edits" toggle
+
+
+## 2026-07-03
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections
 - Improved the expand-all control for sections with large or hidden subsection hierarchies
 - Refreshed the reader's look and feel: unified surface, slimmer scrollbars, and a colored rail on selected sections
@@ -56,7 +60,6 @@
 
 ## 2026-06-25
 - Cross-references that linked out to sky-atlas.io now open the section inside Redline Atlas instead
-
 
 ## 2026-06-23
 - Fixed addresses on Base and other non-Ethereum chains linking to the wrong block explorer

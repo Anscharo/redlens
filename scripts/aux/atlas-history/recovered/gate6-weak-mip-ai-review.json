@@ -1,0 +1,176 @@
+{
+  "generated": "2026-07-07",
+  "purpose": "AI review of the 16 remaining genesis-bridged MIP hints with 0 < mipScore < 0.05 and no same-MIP title-hit corroboration after Gate 5. These are not a new automatic rule; promoted rows are explicit curation locks in scripts/prehist/build-mip.mjs.",
+  "summary": {
+    "reviewed": 16,
+    "promoted": 14,
+    "rejected": 2,
+    "decision": "Promote only near-verbatim rebrands, short-doc condensations, or clearly derived subprovisions. Leave generic cross-scope boilerplate and mere conceptual/reference overlap unpromoted."
+  },
+  "promoted": [
+    {
+      "docId": "de0cc370-de9c-48a4-b10e-91782df7abcd",
+      "docNo": "A.1.9",
+      "title": "Sky Core Governance Security",
+      "mip": 101,
+      "mipSec": "2.10",
+      "mipScore": 0.0286,
+      "label": "TRUE",
+      "rationale": "Short genesis article is a condensed rebrand of GOV10: same governance-security topic, executive-vote deployment/review, and security-review purpose."
+    },
+    {
+      "docId": "403a05ce-f8e0-4ecf-8a56-026c0acd0d8a",
+      "docNo": "A.1.4",
+      "title": "Universal Alignment Requirements",
+      "mip": 101,
+      "mipSec": "2.4.3",
+      "mipScore": 0.0377,
+      "label": "TRUE",
+      "rationale": "Near-verbatim Alignment Conserver prohibition against collusion/secret organization outside the approved immutable-framework processes."
+    },
+    {
+      "docId": "f8107b34-93b1-4ab8-a6ab-c4e70a048933",
+      "docNo": "A.1.4",
+      "title": "Warnings Appropriate For Mild Breach",
+      "mip": 101,
+      "mipSec": "2.4.4.1",
+      "mipScore": 0.0244,
+      "label": "TRUE",
+      "rationale": "Same mild slippery-slope breach mechanism: first breach may receive a recorded warning with no further consequence."
+    },
+    {
+      "docId": "ac9df70a-d110-42da-805a-abe03b52dcdc",
+      "docNo": "A.1.6",
+      "title": "Facilitators Must Err On Side Of Caution",
+      "mip": 101,
+      "mipSec": "2.6.6.1",
+      "mipScore": 0.0395,
+      "label": "TRUE",
+      "rationale": "Near-verbatim operational-security standard with FacilitatorDAO/AD terminology rewritten into Facilitator/Sky terminology."
+    },
+    {
+      "docId": "94856ced-5c37-42e0-a756-0fa2ccd73180",
+      "docNo": "A.1.11",
+      "title": "Rejecting A Proposal For Misalignment",
+      "mip": 101,
+      "mipSec": "2.13.3",
+      "mipScore": 0.0294,
+      "label": "TRUE",
+      "rationale": "Same mechanism: Facilitators may reject a weekly proposal/poll for misalignment and the triggering delegate loses their AD buffer."
+    },
+    {
+      "docId": "ad242c8e-81e3-4590-b034-722b3767b9d2",
+      "docNo": "A.2.9",
+      "title": "Resilience Fund Technical Committee Member Requirements",
+      "mip": 106,
+      "mipSec": "10.1.1.2.2",
+      "mipScore": 0.0455,
+      "label": "TRUE",
+      "rationale": "Same Resilience Technical Committee member-requirements provision, compressed into Atlas v2 wording."
+    },
+    {
+      "docId": "e99c4433-e55b-49b1-b73a-8bc1ae3a56b6",
+      "docNo": "A.2.9",
+      "title": "Resilience Fund Caps And Exclusions",
+      "mip": 106,
+      "mipSec": "10.1.1.4.3",
+      "mipScore": 0.0455,
+      "label": "TRUE",
+      "rationale": "Near-verbatim caps/exclusions clause with MakerDAO renamed to Sky and list detail moved to subdocuments."
+    },
+    {
+      "docId": "92dcb95c-5a3d-45a4-a1e6-865686909c64",
+      "docNo": "A.2.9",
+      "title": "Audit Procedure for Atlas Amendments",
+      "mip": 106,
+      "mipSec": "10.7",
+      "mipScore": 0.0345,
+      "label": "TRUE",
+      "rationale": "Same ex-post legal/technical audit purpose for amended Atlas documents: internal consistency, alignment, and integrity of the Atlas."
+    },
+    {
+      "docId": "49e644e7-4d15-5298-83e0-f5e2d3d3b6d6",
+      "docNo": "A.5.9",
+      "title": "Include Non-Crypto Key Partners",
+      "mip": 108,
+      "mipSec": "9",
+      "mipScore": 0.0488,
+      "label": "PARTIAL",
+      "rationale": "Genesis doc is a focused subprovision of MIP108 Launch Project: securing/engaging non-crypto partners and shielding them from early decentralized-governance complexity."
+    },
+    {
+      "docId": "b1cbe4dd-1df7-461f-b6dd-315d899f922c",
+      "docNo": null,
+      "title": "Element Annotation",
+      "mip": 106,
+      "mipSec": "10.1.1.1.1",
+      "mipScore": 0.0175,
+      "label": "TRUE",
+      "rationale": "Despite generic annotation title, body is a near-verbatim continuation of the legal/regulatory-action procedure and Resilience Technical Committee assistance."
+    },
+    {
+      "docId": "8d8980b8-3ac7-49c6-8bc9-f601733a3198",
+      "docNo": null,
+      "title": "ACs Must Go Beyond Mere Technical Compliance With Rules",
+      "mip": 101,
+      "mipSec": null,
+      "mipSecTitle": "Letter of the Rule vs Spirit of the Rule",
+      "mipScore": 0.013,
+      "label": "PARTIAL",
+      "rationale": "Genesis requirement is derived from the MIP101 letter-vs-spirit distinction, but turns the concept into an explicit Alignment Conserver standard."
+    },
+    {
+      "docId": "02d1e35f-0a24-43d9-9406-347eef58a9d1",
+      "docNo": "A.5.3",
+      "title": "Reward System",
+      "mip": 108,
+      "mipSec": "3.1.2",
+      "mipScore": 0.0201,
+      "label": "PARTIAL",
+      "rationale": "Genesis reward-system doc begins with a near-verbatim Early Bird Reward System provision, then expands into later reward-code mechanics."
+    },
+    {
+      "docId": "ef008255-07ba-51a4-80f3-6a46675d9520",
+      "docNo": "A.1.5",
+      "title": "AD Buffer And Loss Of Budget Stream",
+      "mip": 101,
+      "mipSec": "2.6.3.2.1",
+      "mipScore": 0.0189,
+      "label": "TRUE",
+      "rationale": "Near-verbatim AD Buffer rule for partial or total budget-stream loss, with PD/RD terminology adjusted."
+    },
+    {
+      "docId": "e8b02a25-8c5d-503a-a9ce-e20d417d887c",
+      "docNo": "A.4.1",
+      "title": "SKY Launch",
+      "mip": 107,
+      "mipSec": "2.2.1",
+      "mipScore": 0.0455,
+      "label": "TRUE",
+      "rationale": "Near-verbatim NewGovToken-to-SKY rebrand: Endgame Token Launch Phase, upgrade from MKR, and 1:24,000 exchange rate."
+    }
+  ],
+  "rejected": [
+    {
+      "docId": "70062207-035c-5417-aa61-52da6901e522",
+      "docNo": "A.3.1",
+      "title": "Scope Advisor Requirements",
+      "mip": 113,
+      "mipSec": "1.1.1.2",
+      "mipScore": 0.0204,
+      "label": "FALSE",
+      "rationale": "Generic advisor independence/expertise boilerplate; the best match is in a different scope domain and does not safely establish lineage."
+    },
+    {
+      "docId": "6b0d739f-f957-46fc-85ad-32ade8144249",
+      "docNo": null,
+      "title": "Element Annotation",
+      "mip": 101,
+      "mipSec": null,
+      "mipSecTitle": "Letter of the Rule vs Spirit of the Rule",
+      "mipScore": 0.0071,
+      "label": "FALSE",
+      "rationale": "The annotation references letter-vs-spirit material but is primarily about defining Spirit of the Atlas; overlap is conceptual/reference-level, not a lineage claim."
+    }
+  ]
+}
