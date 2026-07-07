@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
 import { enumerateOeaTasks } from "./oeaTasks";
+import taskExclusions from "./data/oea-task-exclusions.json";
 
 const ROOT = path.resolve(__dirname, "../..");
 const PUBLIC = path.join(ROOT, "public");
@@ -65,5 +66,17 @@ describe("enumerateOeaTasks (real artifacts)", () => {
     expect(tasks.some((t) => t.automated)).toBe(true);
     const quoted = tasks.filter((t) => t.quoted).length;
     expect(quoted).toBeGreaterThan(tasks.length / 2);
+  });
+
+  it("never surfaces a confirmed non-task from oea-task-exclusions.json", () => {
+    // Regression guard, same idea as dutyKnownExclusions.artifact.test.ts: a
+    // future change to the underlying derives/graph-duties.mjs shouldn't
+    // silently un-exclude a doc a human already reviewed and rejected.
+    for (const entry of taskExclusions) {
+      const bad = tasks.filter(
+        (t) => t.uuid === entry.uuid && (entry.source === "any" || t.sources.includes(entry.source as never)),
+      );
+      expect(bad, `${entry.docNo} (${entry.source}) should stay excluded`).toEqual([]);
+    }
   });
 });

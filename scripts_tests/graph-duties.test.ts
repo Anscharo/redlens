@@ -51,6 +51,15 @@ describe("findGovOpsDuty — active voice", () => {
     expect(find("The values agreed with GovOps must be added to the Executive Sheet.")).toBeNull();
   });
 
+  it("drops 'can be found' — an irregular passive participle the -ed/-en suffix check misses", () => {
+    // A.1.14.3.4.2 (via the executor role): a cross-reference pointer, not a duty.
+    expect(
+      findExec(
+        "More information about the role and function of Executor Agents can be found in the Executor Agents Section.",
+      ),
+    ).toBeNull();
+  });
+
   it("blocks a negated modal power ('will have no … authority')", () => {
     // A.1.15.1.2 (12286b6c): Atlas Axis is denied authority, not granted it.
     expect(find("Atlas Axis will have no decision-making authority in the Executive Vote workstreams.")).toBeNull();
@@ -347,6 +356,104 @@ describe("findRoleDuty — executor agent", () => {
   it("ignores the Executor Agent as the consulted party", () => {
     expect(findExec("The Prime Agent, in consultation with the Operational Executor Agent, will set the parameters."))
       .toBeNull();
+  });
+});
+
+describe("findRoleDuty — new-subject guard applies past the executor/facilitator boundary", () => {
+  it("rejects a bare proper-noun new subject with no comma-'the' (A.2.2.1.1.13)", () => {
+    // Amatsu/Ozone/Core Council Executor Agent 1 all fan out to this bare
+    // "an Executor Agent" mention — "will" binds Core GovOps, introduced right
+    // after the comma with no "the", not the Executor Agent named just before it.
+    expect(
+      findExec(
+        "Now that the Agent has a documented relationship with an Executor Agent, Core GovOps will no longer perform validation of the Agent's Primitive inputs.",
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects the same shape after a modal power grant (A.3.2.2.7.2.2.2)", () => {
+    expect(
+      findExec(
+        "In the event that Core GovOps determines that the Operational Executor Agent is not appropriately supervising the activities of the Prime Agent, Core GovOps may terminate the respective Executor Accord.",
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects it inside a longer intervening clause (A.1.14.3.4.2)", () => {
+    expect(
+      findExec(
+        "To ensure clear direction for Executor Agents when executing Prime Agent strategies involving interaction with the Sky Protocol, Prime Agent Artifacts must include highly detailed and deterministic instructions.",
+      ),
+    ).toBeNull();
+  });
+
+  it("applies the guard to phrase-kind matches too, not just active (A.1.14.5.4)", () => {
+    // Previously only "active" matches were guarded — this discretion-phrase
+    // match ("the Executor Agent, the Core Facilitator has discretion…") slipped
+    // through even though it fits the exact ", the <Actor> <verb>" FP shape.
+    expect(
+      findExec(
+        "If there are operational disagreements between an Agent's Founder or Agent token holders and the Executor Agent, the Core Facilitator has discretion to direct the Executor Agent to take a particular action.",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("findRoleDuty — citation links aren't prose", () => {
+  it("ignores a role mention inside a cross-reference citation's own title (A.2.4.1.2.1.4.1)", () => {
+    // The citation's title text ("…Made By Operational Executor Agents") reads
+    // like a passive duty grant, but it's a reference to a DIFFERENT document.
+    expect(
+      findExec(
+        "Amounts due to Prime Agents, excluding reimbursements made to Operational Executor Agents (see [A.2.4.1.2.1.4.3 - Reimbursement Of Payments Made By Operational Executor Agents](07c5cfd2-d68a-40d6-873d-b82cea9a92be)), are transferred from the Sky Surplus Buffer to the Prime SubProxy Account through an Executive Vote.",
+      ),
+    ).toBeNull();
+  });
+
+  it("still matches live prose reading like a citation title, when it isn't inside brackets", () => {
+    expect(findExec("Reimbursement Of Payments Made By Operational Executor Agents is settled monthly."))
+      .toMatchObject({ match: "passive" });
+  });
+});
+
+describe("classifyRole — scoped to the matched sentence, not the whole doc", () => {
+  it("classifies a bare/universal duty as bare even when a later sentence names the Core role (A.1.6.6)", () => {
+    // The FIRST sentence ("The Facilitator must act swiftly…") is a universal
+    // duty; a "Core Facilitator" escalation appears only in a LATER sentence.
+    // Whole-document scoping previously let that later mention leak backward.
+    const d = findFac(
+      "The Facilitator must act swiftly when an AD is suspected of breaching the requirements defined in this Article. Formal allegations of such failure must be adjudicated by the Core Facilitator pursuant to the adjudication process.",
+    );
+    expect(d).toMatchObject({ role_declared: "Facilitator", match: "active" });
+  });
+
+  it("still classifies Core when the qualifier is in the SAME sentence as the match", () => {
+    const d = findFac("The Core Facilitator must mediate the dispute between the Agent and the Executor Agent.");
+    expect(d).toMatchObject({ role_declared: "Core Facilitator" });
+  });
+
+  it("scopes a title-match's classification to the first paragraph, not the whole doc (A.1.6.6)", () => {
+    // Title "Swift Action Is Required From Facilitators…" title-matches bare
+    // (no Core/Operational qualifier in the title itself); the doc's first
+    // paragraph is a universal duty, and a Core-only escalation clause only
+    // shows up two paragraphs later — that later mention must not win.
+    const d = findRoleDuty(
+      FACILITATOR,
+      "Swift Action Is Required From Facilitators To Redress AD Misalignment",
+      "The Facilitator must act swiftly when an AD is suspected of breaching the requirements defined in this Article.\n\nAny Facilitator has the authority to formally raise an allegation of AD misalignment with the Core Facilitator, which then obligates the latter to initiate a formal adjudication.\n\nFormal allegations of such failure must be adjudicated by the Core Facilitator pursuant to the same process.",
+      [],
+    );
+    expect(d).toMatchObject({ role_declared: "Facilitator", match: "title" });
+  });
+
+  it("doesn't mistake a doc-number citation's internal dots for a sentence boundary", () => {
+    // A.1.6.6 (real shape): the first sentence cites "[A.1.5 - …]" before its
+    // own period — "A.1.5"'s internal dots must not truncate the scope early
+    // and hide the fact that this sentence has no Core/Operational qualifier.
+    const d = findFac(
+      "The Facilitator must act swiftly when an AD is suspected of breaching the requirements defined in [A.1.5 - Alignment Conservers](df4f9bfd-e743-44b5-9c62-9c5f10b15340). Formal allegations of such failure must be adjudicated by the Core Facilitator pursuant to the same process.",
+    );
+    expect(d).toMatchObject({ role_declared: "Facilitator", match: "active" });
   });
 });
 

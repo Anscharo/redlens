@@ -18,9 +18,13 @@
 // Modals count as obligation markers, but not when they introduce a passive in
 // which the role is the patient, not the actor: "items … must be added",
 // "Atlas Axis will be embedded". "will be able to" is not a passive — keep it.
+// "found" is listed alongside the regular -ed/-en participles because it's an
+// irregular past participle the suffix check alone misses: "more information
+// can be found in the Executor Agents Section" (A.1.14.3.4.2) is a cross-
+// reference pointer, not a duty, despite the preceding role mention.
 // Also not when the modal introduces an explicit denial of power: "Atlas Axis
 // will have no decision-making authority" grants nothing (A.1.15.1.2).
-const MODAL = String.raw`(?:must|shall|will|may|can|should)(?!\s+(?:not\s+)?be\s+\w+(?:ed|en)\b)(?!\s+(?:have|has)\s+no\b)`;
+const MODAL = String.raw`(?:must|shall|will|may|can|should)(?!\s+(?:not\s+)?be\s+(?:\w+(?:ed|en)|found)\b)(?!\s+(?:have|has)\s+no\b)`;
 
 // Obligation/power verbs with the role as subject. "specified" is deliberately
 // absent (cross-references read "… GovOps for Ozone are specified in A.6.1.2.2"
@@ -43,7 +47,15 @@ const PASSIVE_VERBS = String.raw`reviewed|validated|calculated|executed|performe
 // Delegates must review"). The same shape recurs without a comma via "then":
 // "Core GovOps has posted the Final Calculation then the Core Facilitator must
 // include payments…" (A.2.4.1.2.1.4) — the modal binds the new subject, not GovOps.
-const NEW_SUBJECT_RE = /(?:,\s+|\bthen\s+)the\s+[A-Z][^,]*$/;
+// A second alternative catches the same shift when the new subject is a bare
+// proper noun with no "the" (how GovOps/Facilitator names are usually written):
+// "…an Executor Agent, Core GovOps will no longer perform validation…"
+// (A.2.2.1.1.13) — "will" binds Core GovOps, not the Executor Agent mentioned
+// just before the comma. Requiring a modal right after the new subject (rather
+// than "any verb", as the "the <Actor>" alternative allows) keeps this from
+// over-triggering on ordinary prose that just happens to follow a comma.
+const NEW_SUBJECT_RE =
+  /(?:,\s+|\bthen\s+)the\s+[A-Z][^,]*$|(?:,\s+|\bthen\s+)[A-Z][\w\s]*?\b(?:must|shall|will|may|can|should)\b[^,]*$/;
 
 /**
  * Role configs. `subject` and `qualifier` are regex sources; `compounds` are
@@ -161,16 +173,61 @@ export function classifyRole(role, title, content) {
   return role.bareLabel;
 }
 
-// First match of `re` whose matched text passes `valid` (used to skip the
-// new-subject FP shape and keep scanning the rest of the doc).
+// First match of `re` whose matched text (and start index) passes `valid`
+// (used to skip the new-subject / citation FP shapes and keep scanning).
 function firstValidMatch(re, text, valid) {
   const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
   let m;
   while ((m = g.exec(text))) {
-    if (valid(m[0])) return m;
+    if (valid(m[0], m.index)) return m;
     if (g.lastIndex === m.index) g.lastIndex++;
   }
   return null;
+}
+
+// Cross-reference citations quote ANOTHER document's title inline —
+// "[A.2.4.1.2.1.4.3 - Reimbursement Of Payments Made By Operational Executor
+// Agents](07c5cfd2-…)" — a linked title phrased "…Made By <Role>" can satisfy
+// a duty pattern even though it's a citation, not live prose about this doc.
+const CITATION_RE = /\[(?:[A-Z][\w.]*|NR-\d+)\s*-\s*[^\]]+\]\([0-9a-f-]{36}\)/g;
+function citationSpans(text) {
+  const spans = [];
+  const re = new RegExp(CITATION_RE.source, CITATION_RE.flags);
+  let m;
+  while ((m = re.exec(text))) spans.push([m.index, m.index + m[0].length]);
+  return spans;
+}
+function inCitation(spans, index) {
+  return spans.some(([s, e]) => index >= s && index < e);
+}
+
+// Scope classifyRole's qualifier scan to the sentence containing the match,
+// not the whole document — a bare/universal duty ("The Facilitator must act
+// swiftly…") shouldn't inherit a "Core Facilitator" label from an unrelated
+// escalation clause several sentences later in the same doc (A.1.6.6, A.1.6.8).
+// A period only ends a sentence when followed by whitespace/end-of-string —
+// otherwise a doc-number citation's internal dots ("[A.1.5 - …]") would be
+// mistaken for sentence boundaries and truncate the scope prematurely.
+function isSentenceEndDot(text, dotIndex) {
+  const next = text[dotIndex + 1];
+  return next === undefined || /\s/.test(next);
+}
+function sentenceAround(text, index) {
+  let start = 0;
+  for (let i = index - 1; i >= 0; i--) {
+    if (text[i] === "\n" || (text[i] === "." && isSentenceEndDot(text, i))) {
+      start = i + 1;
+      break;
+    }
+  }
+  let end = text.length;
+  for (let i = index; i < text.length; i++) {
+    if (text[i] === "\n" || (text[i] === "." && isSentenceEndDot(text, i))) {
+      end = i;
+      break;
+    }
+  }
+  return text.slice(start, end);
 }
 
 // Match the full line containing index, bullet/whitespace-stripped, capped.
@@ -211,17 +268,33 @@ export function findRoleDuty(role, title, content, orgs = []) {
   const m = matchers(role);
   const text = role.normalize(content ?? "");
   if (role.titleScan && m.title.test(role.normalize(title ?? ""))) {
-    return { role_declared: classifyRole(role, title, text), match: "title", quote: null };
+    // A bare, non-qualified title ("Swift Action Is Required From
+    // Facilitators…", A.1.6.6) has no hit index to scope classifyRole to —
+    // use the first paragraph as a proxy for "what this section is actually
+    // about", so a Core-only escalation clause several paragraphs later
+    // doesn't leak backward and mislabel the section's real (universal) duty.
+    const firstPara = text.split(/\n\n/)[0];
+    return { role_declared: classifyRole(role, title, firstPara), match: "title", quote: null };
   }
+  const citations = citationSpans(text);
   const rolePatterns = [
     ["active", m.active],
     ["passive", m.passive],
     ...m.phrases.map((re) => ["phrase", re]),
   ];
   for (const [match, re] of rolePatterns) {
-    const hit = firstValidMatch(re, text, (s) => match !== "active" || !NEW_SUBJECT_RE.test(s));
+    // The new-subject guard applies to "active" and "phrase" kinds — both can
+    // land on a role mention that's really an intervening clause, with the
+    // matched verb/phrase belonging to a DIFFERENT subject introduced after it
+    // (A.1.14.5.4's "the Executor Agent, the Core Facilitator has discretion").
+    const hit = firstValidMatch(
+      re,
+      text,
+      (s, index) => !inCitation(citations, index) && (!["active", "phrase"].includes(match) || !NEW_SUBJECT_RE.test(s)),
+    );
     if (hit) {
-      return { role_declared: classifyRole(role, title, text), match, quote: quoteAt(text, hit.index) };
+      const scope = sentenceAround(text, hit.index);
+      return { role_declared: classifyRole(role, title, scope), match, quote: quoteAt(text, hit.index) };
     }
   }
   for (const { name, role_declared } of orgs) {
@@ -240,7 +313,11 @@ export function findRoleDuty(role, title, content, orgs = []) {
       ["passive", orgPassive],
       ["colon", orgColon],
     ]) {
-      const hit = firstValidMatch(re, text, (s) => kind !== "active" || !NEW_SUBJECT_RE.test(s));
+      const hit = firstValidMatch(
+        re,
+        text,
+        (s, index) => !inCitation(citations, index) && (kind !== "active" || !NEW_SUBJECT_RE.test(s)),
+      );
       if (hit) return { role_declared, match: "org", quote: quoteAt(text, hit.index), orgName: name };
     }
   }

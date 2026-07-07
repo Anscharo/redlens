@@ -14,6 +14,7 @@ import { stripMarkdownLinks } from "./atlasHelpers";
 import { dutySnippet } from "./dutyText";
 import { parseMeta } from "./meta";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import taskExclusions from "./data/oea-task-exclusions.json";
 
 export type OeaSource = "govops" | "facilitator" | "executor";
 export type OeaCategory = "op-duty" | "universal" | "assignment" | "active-data" | "process-step";
@@ -58,6 +59,23 @@ const EXEC_DECLARED_RE = /^(operational\s+)?executor\s+agent$/i;
 const AUTOMATED_RE = /\[automated\]/i;
 const EXEC_SNIPPET_RE = /executor\s+agent/i;
 
+// Confirmed non-tasks (see ./data/oea-task-exclusions.json for the reasoning
+// behind each entry): either generic/definitional content that isn't a
+// rateable duty at all ("any" source), or a genuine misattribution that isn't
+// mechanically fixable in graph-duties.mjs — the role mention sits inside a
+// modifying clause or is one of several hypothetical alternatives, so the
+// text needs judgment to exclude, not a regex.
+const exclusionsByUuid = new Map<string, Set<string>>();
+for (const e of taskExclusions) {
+  const set = exclusionsByUuid.get(e.uuid) ?? new Set<string>();
+  set.add(e.source);
+  exclusionsByUuid.set(e.uuid, set);
+}
+function isExcludedTask(uuid: string, source: OeaSource): boolean {
+  const sources = exclusionsByUuid.get(uuid);
+  return sources ? sources.has("any") || sources.has(source) : false;
+}
+
 export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTask[] {
   const { docs } = bundle;
   const { edges, participants } = graph;
@@ -81,6 +99,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
     source: OeaSource,
   ) => {
     if (!row.uuid || !docs[row.uuid]) return; // unresolved assignment docs etc.
+    if (isExcludedTask(row.uuid, source)) return;
     const taskKey = taskKeyFor({ ...row, category });
     const agents = row.agents ?? (row.agent ? [row.agent] : []);
     const existing = byKey.get(taskKey);
