@@ -26,6 +26,7 @@
 - Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
 - Fixed the GovOps and Facilitator responsibility reports missing duties written as an instance's "Curator:" field, a multisig "controlled by" clause with an extra noun or joint holders, or an "approval of" / "supervision of" phrase
 - Fixed the OEA Task Assessment report including Active Data tasks that actually belong to Core GovOps or the Core Facilitator, not the Operational Executor Agent
+- Corrected 14 ratings and dropped 6 non-rule paragraphs from the Risk Rules Assessment after a spot-check audit — mostly enforcement ratings that cited a mechanism not reaching the rule's actor
 
 ## 2026-07-06
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections

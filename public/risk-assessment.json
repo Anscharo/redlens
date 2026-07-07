@@ -579,18 +579,6 @@
       "description": "Defines the location of processes for offboarding Native Vault Engine collateral."
     },
     {
-      "taskKey": "u:05fa5c41-26ca-4c25-94dd-834ef72c318a",
-      "quoteHash": "c4add0a092409171",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc",
-        "alloc"
-      ],
-      "description": "Defines a multisig controlled by Core Facilitator and Core GovOps for transferring funds to Aligned Delegates."
-    },
-    {
       "taskKey": "u:061ee579-9c4f-4f59-b5cf-401ff4c11f72",
       "quoteHash": "d93c5bd54b3dc695",
       "model": "google/gemma-4-26b-a4b-it",
@@ -753,17 +741,6 @@
         "sc"
       ],
       "description": "Identifies LayerZero and Nethermind as the designated validators for the Token Bridge."
-    },
-    {
-      "taskKey": "u:07dd6a23-424a-4eda-b47c-92e84d46025c",
-      "quoteHash": "d04eb02e12c89acd",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "alloc"
-      ],
-      "description": "Defines the movement of Asset Liability Management Rental Primitive instances between directories based on invocation status."
     },
     {
       "taskKey": "u:07e0f716-ce23-4394-a5f4-bee537713f48",
@@ -994,17 +971,6 @@
         "sc"
       ],
       "description": "Mandates specific data points required for all standard incident reports involving multisig security events."
-    },
-    {
-      "taskKey": "u:0b1162f6-6a30-4a30-b693-68e077093e7c",
-      "quoteHash": "cdaf9f78ee8c292e",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "The Avalanche SkyLink Freezer Multisig can freeze the Avalanche SkyLink Bridge."
     },
     {
       "taskKey": "u:0b6f25c1-fc39-44dc-bd6a-fc612cdb826e",
@@ -18238,17 +18204,6 @@
       "description": "Defines the role and purpose of the Core Council Risk Advisor."
     },
     {
-      "taskKey": "u:d81db018-bce7-44b9-a354-667f128a4db3",
-      "quoteHash": "23cb4f6972ab4a09",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "Defines requirements for rotating, replacing, and updating Multisig signer composition and addresses."
-    },
-    {
       "taskKey": "u:d8242d1a-18f2-4000-a98b-0521486b0708",
       "quoteHash": "fbc2b6f8945bc628",
       "model": "google/gemma-4-26b-a4b-it",
@@ -21007,17 +20962,6 @@
       "description": "Defines stUSDS as segregated risk capital for the SKY-backed borrowing mechanism."
     },
     {
-      "taskKey": "u:f833edaa-9f5f-4445-afcb-a9cfc3620b10",
-      "quoteHash": "3282ed2265287531",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "The Plasma SkyLink Freezer Multisig can freeze the Plasma SkyLink Bridge."
-    },
-    {
       "taskKey": "u:f83f2e87-6a6b-4afb-aa4c-d6d41a4a1cbc",
       "quoteHash": "5e7f2c43194a34ff",
       "model": "google/gemma-4-26b-a4b-it",
@@ -21069,17 +21013,6 @@
         "sc"
       ],
       "description": "Specifies the multisig addresses authorized to hold the ALM Relayer Role."
-    },
-    {
-      "taskKey": "u:f8d0e4df-acca-4f20-a030-584efb4a8695",
-      "quoteHash": "b609454f39477f9e",
-      "model": "google/gemma-4-26b-a4b-it",
-      "inScope": true,
-      "isRule": true,
-      "domains": [
-        "sc"
-      ],
-      "description": "Specifies that additional multisig configuration requirements and exceptions are defined in supplemental subdocuments."
     },
     {
       "taskKey": "u:f934a75a-20f1-46d1-ae5e-56fa7da7b4cd",
@@ -22906,12 +22839,9 @@
         "constructor arguments are as expected in the Init script",
         "instructions to be added to the Executive Sheet"
       ],
-      "enforcement": "mid",
-      "mechanismUuids": [
-        "d4bf73e7-2f9f-454c-8add-614dff784f78",
-        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
-      ],
-      "enforcementReasoning": "The Agent Artifact Review (d4bf73e7) plausibly covers forum posts as governance artifacts; Core GovOps can detect missing items and issue findings. Those findings can trigger Penalty Mechanisms (b8ee2d12), providing a defined escalation path, though no quantified consequence is specified for this particular rule."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "Neither cited mechanism reaches this rule: Agent Artifact Review (d4bf73e7) governs standing Agent Artifacts, not a per-spell executive-process forum post, and Penalty Mechanisms (b8ee2d12) apply to Primes' Risk Capital shortfalls — wrong actor and violation mode. Only the generic misalignment backstop remains, so weak."
     },
     {
       "taskKey": "u:d0c4f880-902e-4d32-ac55-f05725753ac1",
@@ -25273,8 +25203,8 @@
       "quoteHash": "5b2104272e61e3f6",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 4,
-      "precisenessReasoning": "The rule specifies a clear action (the Governance Point must ask the Technical Point to confirm values) at a defined meeting (Week 1 Tuesday), making compliance verifiable. The values are defined in a referenced document, leaving no ambiguity about the obligation.",
+      "preciseness": 2,
+      "precisenessReasoning": "The quote is only 'the Governance Point must ask the Technical Point to confirm the values of recurring items' — a qualitative coordination step with no threshold, deadline, or metric stated in the text (the 'Week 1 Tuesday' cadence is not in this paragraph). A defender could argue compliance either way, so at most 2.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
@@ -29643,11 +29573,11 @@
       "metrics": [
         "at least one (1) member of the team responsible for the code who is not an author of the Pull Request"
       ],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "fcc17c4e-b1cd-4e62-bb2b-0aea02ee72d5"
       ],
-      "enforcementReasoning": "The audit request and intake process (cited UUID) acts as a mandatory gate; failure to provide the required evidence would prevent the audit request from proceeding, directly blocking deployment. This is a specific, defined enforcement path."
+      "enforcementReasoning": "The cited Audit Request And Intake process (fcc17c4e) is a review gate that plausibly reaches the code-review duty, but it is neither on-chain-automatic nor a named enforcer with a concrete quantified remedy (penalty/conservatorship/removal) — a general mechanism without a defined path is mid, not strong."
     },
     {
       "taskKey": "u:31544b57-28e8-4cee-b4ae-f73c2cacabad",
@@ -30714,29 +30644,6 @@
       "enforcementReasoning": "No enforcement mechanism specific to this deployment schedule is present. Only the generic misalignment/adjudication backstop could be invoked, which is weak."
     },
     {
-      "taskKey": "u:0b1162f6-6a30-4a30-b693-68e077093e7c",
-      "uuid": "0b1162f6-6a30-4a30-b693-68e077093e7c",
-      "docNo": "A.1.10.4.1.3.3.1.1",
-      "title": "Avalanche SkyLink Freezer Multisig",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "The Avalanche SkyLink Freezer Multisig can freeze the Avalanche SkyLink Bridge.",
-      "quote": "The Avalanche SkyLink Freezer Multisig has the ability to freeze the Avalanche SkyLink Bridge from Avalanche.",
-      "quoteHash": "cdaf9f78ee8c292e",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph merely states a multisig has an ability, without defining any obligations, thresholds, conditions, or compliance criteria. It is a purely descriptive capability statement, not an actionable rule.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No obligation exists; therefore no specific enforcement mechanism reaches it. Only the generic misalignment backstop would apply if the power is misused, which is weak."
-    },
-    {
       "taskKey": "u:542e7e15-da27-488b-a192-baaa4ec1a9b9",
       "uuid": "542e7e15-da27-488b-a192-baaa4ec1a9b9",
       "docNo": "A.1.10.4.1.3.3.1.1.2",
@@ -30983,29 +30890,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific consequence or enforcement mechanism is stated for misuse or non-use; only the generic misalignment/adjudication backstop (c6c6f595, 560e1024) would apply, which is always weak."
-    },
-    {
-      "taskKey": "u:f833edaa-9f5f-4445-afcb-a9cfc3620b10",
-      "uuid": "f833edaa-9f5f-4445-afcb-a9cfc3620b10",
-      "docNo": "A.1.10.4.1.4.3.1.1",
-      "title": "Plasma SkyLink Freezer Multisig",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "The Plasma SkyLink Freezer Multisig can freeze the Plasma SkyLink Bridge.",
-      "quote": "The Plasma SkyLink Freezer Multisig has the ability to freeze the Plasma SkyLink Bridge from Plasma.",
-      "quoteHash": "3282ed2265287531",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The text states a capability without any obligation, threshold, or verifiable condition; there is nothing to comply with, so a third party cannot check compliance.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The statement imposes no rule or obligation, so no consequence attaches to violation; no enforcement mechanism applies."
     },
     {
       "taskKey": "u:cb8707d5-ff3f-4312-b8cc-97b3734fa81c",
@@ -32273,11 +32157,11 @@
       "preciseness": 5,
       "precisenessReasoning": "The rule defines a binary, objectively verifiable condition (voting for an unvalidated spell) and attaches immediate, concrete consequences (derecognition and full AD Buffer confiscation). A third party can check compliance solely from the paragraph and the referenced validation definition.",
       "metrics": [],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "The rule is an explicit misalignment within the Emergency Spells framework (A.1.10.5); the prescribed consequence—immediate derecognition and buffer confiscation—is a direct, specific enforcement action that the emergency spell mechanism is designed to execute, bypassing standard governance."
+      "enforcementReasoning": "Emergency Spells (b8266c11) execute freezes/pauses but do not carry out the delegate derecognition or buffer confiscation this rule contemplates, and the text says the buffer 'should' be confiscated — no automatic path or named enforcer. A general mechanism reaching the rule without a defined path is mid."
     },
     {
       "taskKey": "u:fd63dc4d-851a-4995-801d-843e68bfb68e",
@@ -33666,9 +33550,11 @@
         "OVRC",
         "Aggregate RRC"
       ],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "The rule mandates a design and implementation of a monitoring system; no specific consequence is stated for failure to comply, and no enforcement mechanism cited in the text or catalog beyond the generic catch-all misalignment process."
+      "enforcement": "strong",
+      "mechanismUuids": [
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
+      ],
+      "enforcementReasoning": "The rule's own text describes on-chain automatic per-second penalty accrual on any OVRC-below-Aggregate-RRC shortfall per the Atlas penalty schedule and interim penalty ledger (Penalty Mechanisms, b8ee2d12) — self-executing enforcement reaching the Prime's shortfall directly, the strongest form."
     },
     {
       "taskKey": "u:482fc286-9969-40cc-b3c9-6233ecbb659c",
@@ -34481,30 +34367,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment/adjudication backstop would apply, which is weak. No on-chain automatic enforcement, capital at risk, or priced incentive is present."
-    },
-    {
-      "taskKey": "u:05fa5c41-26ca-4c25-94dd-834ef72c318a",
-      "uuid": "05fa5c41-26ca-4c25-94dd-834ef72c318a",
-      "docNo": "A.2.3.1.2.2.2.2",
-      "title": "Aligned Delegates Buffer",
-      "domains": [
-        "sc",
-        "alloc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines a multisig controlled by Core Facilitator and Core GovOps for transferring funds to Aligned Delegates.",
-      "quote": "The Aligned Delegates Buffer is a multisig controlled by the Core Facilitator and Core GovOps to transfer funds to Aligned Delegates.",
-      "quoteHash": "c4add0a092409171",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The paragraph defines a multisig and its controllers (Core Facilitator and Core GovOps) and its purpose (transferring funds to Aligned Delegates), but it imposes no obligation, threshold, or verifiable condition. It is purely descriptive, with no measurable compliance requirement.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule is imposed, so there is no violation mode to trigger any enforcement mechanism. Only the generic misalignment backstop would apply, which is always weak."
     },
     {
       "taskKey": "u:b3672c98-07ca-488f-8a26-461bf8d14aae",
@@ -36052,29 +35914,6 @@
       "enforcementReasoning": "No specific enforcement mechanism is cited in the rule or reachable implicitly. The rule is a security guideline without an automatic on-chain penalty, capital-at-risk incentive, or named review process that directly enforces this restriction. Only the generic misalignment/adjudication backstop would apply, which is weak."
     },
     {
-      "taskKey": "u:f8d0e4df-acca-4f20-a030-584efb4a8695",
-      "uuid": "f8d0e4df-acca-4f20-a030-584efb4a8695",
-      "docNo": "A.2.11.1.3.2.1.1.3.2",
-      "title": "Use-Case Specific Configuration Requirements And Considerations",
-      "domains": [
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Specifies that additional multisig configuration requirements and exceptions are defined in supplemental subdocuments.",
-      "quote": "Additional configuration requirements, exceptions or considerations may apply depending on the specific operational use case of the Multisig, and these requirements are specified in the subdocuments herein.",
-      "quoteHash": "b609454f39477f9e",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph states that additional requirements may apply and are specified in subdocuments, but contains no operative thresholds, metrics, or verifiable conditions itself. It is a signpost, not a rule.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism directly reaches this paragraph; it is a pointer to other documents. Only the generic misalignment backstop could apply, which is weak."
-    },
-    {
       "taskKey": "u:f5ed192d-8c49-4095-9b98-840a1a31d47a",
       "uuid": "f5ed192d-8c49-4095-9b98-840a1a31d47a",
       "docNo": "A.2.11.1.3.2.1.1.3.2.1",
@@ -36389,11 +36228,9 @@
       "preciseness": 2,
       "precisenessReasoning": "The rule imposes an obligation to verify addresses but provides no metrics, thresholds, or verifiable criteria; the verification process is delegated to other documents, making compliance arguable.",
       "metrics": [],
-      "enforcement": "mid",
-      "mechanismUuids": [
-        "fd1f682c-2d8a-47c5-8c1d-d95a0a2f2021"
-      ],
-      "enforcementReasoning": "The rule is a security practice; poor security practices can directly raise a Prime's insurance fees via the Risk-Based Pricing Of Insurance mechanism (fd1f682c), providing a priced incentive for compliance."
+      "enforcement": "weak",
+      "mechanismUuids": [],
+      "enforcementReasoning": "The previously cited mechanism (fd1f682c) prices Prime Spell Security Registry insurance for spell-security practices; it does not reach a multisig signer address-verification duty — wrong violation mode. No other mechanism attaches, so weak."
     },
     {
       "taskKey": "u:d1b44379-1e60-480f-b6f8-574e4d2bbb1e",
@@ -36465,29 +36302,6 @@
         "d4bf73e7-2f9f-454c-8add-614dff784f78"
       ],
       "enforcementReasoning": "Compliance with these security requirements can be assessed during Agent Artifact Review by Core GovOps (d4bf73e7), which includes staged findings and penalty assessment; however, no specific consequence is quantified for this rule, making it a mid-level enforcement."
-    },
-    {
-      "taskKey": "u:d81db018-bce7-44b9-a354-667f128a4db3",
-      "uuid": "d81db018-bce7-44b9-a354-667f128a4db3",
-      "docNo": "A.2.11.1.3.2.2.1.1",
-      "title": "Signer Composition And Rotation",
-      "domains": [
-        "sc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines requirements for rotating, replacing, and updating Multisig signer composition and addresses.",
-      "quote": "The documents herein define requirements governing changes to Multisig signer composition, including the rotation, replacement, and updating of Multisig signers and signer addresses.",
-      "quoteHash": "23cb4f6972ab4a09",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a meta-statement that requirements are defined elsewhere; it contains no operative obligations, metrics, thresholds, or verifiable conditions. It is effectively a stub.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific obligation exists to enforce; only the generic misalignment backstop could theoretically apply, which is always weak."
     },
     {
       "taskKey": "u:cb4d28ac-6d54-4d57-99b2-ed80cea73139",
@@ -37560,8 +37374,8 @@
       "quoteHash": "2b2d55ecbe9c0ecb",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 5,
-      "precisenessReasoning": "The rule states a clear entitlement: Prime Agents receive the full Agent Rate on USDS and Dai balances held in their SubProxy through the Monthly Settlement Cycle. The actor, asset, location, rate, and cadence are all specified, making compliance objectively verifiable.",
+      "preciseness": 3,
+      "precisenessReasoning": "Prime Agents receive 'the full Agent Rate' — a named parameter whose magnitude is defined elsewhere and carries no numeric value in this text, so compliance is not third-party-verifiable from the quote alone. Named-but-delegated magnitude is 3, not a fully quantified 5.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
@@ -42248,8 +42062,8 @@
       "quoteHash": "560ad5820cdb780f",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 3,
-      "precisenessReasoning": "The rule defines the F1 Capital Ratio Requirement by referencing a specific piecewise function in another document, but the actual formula, thresholds, and parameters are not contained in this paragraph; a third party cannot verify compliance from this text alone.",
+      "preciseness": 1,
+      "precisenessReasoning": "The quote is a pure definitional cross-reference ('f_1 is the figure calculated as the output of the F1 Piecewise Function') with no operative magnitude in the text; its structurally identical sibling F2 Capital Ratio Requirement is rated 1. Nothing to comply with here — 1.",
       "metrics": [],
       "enforcement": "weak",
       "mechanismUuids": [],
@@ -42402,9 +42216,10 @@
       ],
       "enforcement": "strong",
       "mechanismUuids": [
-        "bce9331b-04ca-4c50-9783-098739fc72c8"
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
+        "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
       ],
-      "enforcementReasoning": "The 100% capital ratio requirement is enforced on-chain: if a protocol fails to maintain it, the Liquidation Penalty (bce9331b) automatically imposes a cost, making violation self-executing."
+      "enforcementReasoning": "As an A.3.2.2.x Risk Capital requirement rule (CRR forced to 100% for extreme-risk protocols), breach of the capital it mandates triggers the Penalty Mechanisms (b8ee2d12) and escalates to Conservatorship (5c3dd35a) — the rubric's canonical strong path. The earlier bce9331b (vault Liquidation Penalty) citation was wrong scope; the rating stays strong on the correct mechanism."
     },
     {
       "taskKey": "u:6905f51d-374e-4bf7-b43c-059073d2d68c",
@@ -49484,11 +49299,11 @@
       "metrics": [
         "three (3) addresses"
       ],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "Violation of the multisig signer rule is a security breach, directly triggering the Emergency Spells mechanism (b8266c11), which authorizes pre‑approved executive intervention (freezes, pauses) — a named enforcer distinct from the actor with a defined escalation path."
+      "enforcementReasoning": "Emergency Spells (b8266c11) can freeze or pause a compromised Operator Multisig — a general mechanism plausibly reaching signer-related harm — but impose no enforcement of the '3 Core-GovOps signers' composition nor a concrete removal remedy for a wrong-signer violation. That is mid, not strong."
     },
     {
       "taskKey": "u:71e28a28-82b9-43eb-9e93-6aee2d5bbbc0",
@@ -52324,8 +52139,8 @@
       "quoteHash": "fbc2b6f8945bc628",
       "model": "deepseek/deepseek-v4-pro",
       "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The paragraph lists current risk parameters but does not impose an obligation on any actor; it is a descriptive snapshot. A regulated party could argue it is not a binding rule, so compliance is arguable.",
+      "preciseness": 4,
+      "precisenessReasoning": "The quote lists a full set of numeric SparkLend parameters (LTV, Optimal Utilization 95%, Slope values, etc.), objectively verifiable against on-chain configuration; the only gap is an unstated measurement cadence — consistent with sibling parameter docs rated 4, not a 'descriptive snapshot' 2.",
       "metrics": [
         "LTV: 0%",
         "Liquidation Threshold: 0%",
@@ -53915,12 +53730,11 @@
         "+30% / -30% collateral haircut",
         "$20 million exposure limit"
       ],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
-        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
-        "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
       ],
-      "enforcementReasoning": "Violating these collateral parameters would breach risk capital rules, triggering the Penalty Mechanisms (b8ee2d12) with quantified financial penalties and escalating to Conservatorship (5c3dd35a) where Sky Core takes direct control — a defined path with concrete remedies."
+      "enforcementReasoning": "Penalty Mechanisms (b8ee2d12) plausibly reach a Prime exceeding this off-chain Arkis exposure limit/haircut, but the consequence is unquantified for this rule; Conservatorship (5c3dd35a) is for capital-requirement breach and does not reach an exposure limit. Identical Arkis sibling rows (SOL/USDT/Binance) are rated mid — mid."
     },
     {
       "taskKey": "u:862b3d39-6298-40ae-b1d7-909e24e87e07",
@@ -54041,11 +53855,11 @@
       "metrics": [
         "collateral haircut rating of +100% / -100%"
       ],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
-        "bce9331b-04ca-4c50-9783-098739fc72c8"
+        "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0"
       ],
-      "enforcementReasoning": "The 100% haircut effectively values unapproved assets at zero. If this causes a position to become undercollateralized, the on-chain liquidation penalty mechanism (bce9331b) automatically liquidates the position, making violation self-enforcing."
+      "enforcementReasoning": "The text's remedy — exposure 'may result in recall of the loan amount or liquidation' — is a discretionary managed-credit action, not the on-chain automatic Liquidation Penalty (bce9331b) that strong requires. The Prime's Risk Capital penalty machinery (b8ee2d12) plausibly reaches the breach but unquantified for this rule — mid."
     },
     {
       "taskKey": "u:e9f0543a-ce6e-46b3-bdb7-c0fd60239c29",
@@ -56073,11 +55887,11 @@
       "preciseness": 3,
       "precisenessReasoning": "The rule names the actor (signers), the action (exercise RELAYER_ROLE), and the standard (Grove Artifact instructions), but the operative criteria are entirely delegated to an external document; no metrics, thresholds, or deadlines appear in the text.",
       "metrics": [],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "b8266c11-3a84-4bbe-abe2-de9474f74ffd"
       ],
-      "enforcementReasoning": "The rule is a security rule; violation could trigger pre-authorized emergency spells (b8266c11), which provide a defined, strong consequence outside the standard governance cycle."
+      "enforcementReasoning": "Emergency Spells (b8266c11) can freeze/pause system-level harm but impose no penalty or removal reaching a signer who fails to follow the Grove Artifact instructions this rule requires — a general mechanism without a defined path to this violation is mid, not strong."
     },
     {
       "taskKey": "u:f789a1aa-ddfb-4ddd-85c4-76387ef6d516",
@@ -56790,32 +56604,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is cited; only the generic misalignment/adjudication backstop would apply if the role were changed, which is weak."
-    },
-    {
-      "taskKey": "u:07dd6a23-424a-4eda-b47c-92e84d46025c",
-      "uuid": "07dd6a23-424a-4eda-b47c-92e84d46025c",
-      "docNo": "A.6.1.1.2.2.6.3.1.4",
-      "title": "In Progress Invocations Directory",
-      "domains": [
-        "alloc"
-      ],
-      "agents": [
-        "Grove"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the movement of Asset Liability Management Rental Primitive instances between directories based on invocation status.",
-      "quote": "This document contains a Directory of all prospective Instances of the Asset Liability Management Rental Primitive whose Invocation is currently in progress. Invocations that are completed successfully are moved to [A.6.1.1.2.2.6.3.1.2 - Active Instances Directory](c2d4d693-c42c-4607-a667-f081665b4a88), whereas failed Invocations are Archived in [A.6.1.1.2.2.6.3.1.5 - Hub Data Repository](722a01cb-c72f-41eb-be97-0adb41096e33).",
-      "quoteHash": "d04eb02e12c89acd",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule describes a process for moving invocation records between directories based on completion status, but provides no quantitative thresholds, deadlines, or defined actor responsible for the movement; compliance is qualitative and arguable.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is mentioned; only the generic misalignment backstop could apply, which is weak."
     },
     {
       "taskKey": "u:beb54246-6454-4716-a381-be605560cba5",

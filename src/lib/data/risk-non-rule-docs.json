@@ -7,5 +7,11 @@
   { "uuid": "2397551e-9704-435e-b815-0384429be224", "docNo": "A.3.2.2.1.3.3.3", "reason": "Ethena — defers CRR calc to another doc entirely" },
   { "uuid": "ce3affe8-9e1f-4825-82bd-40c320a1c220", "docNo": "A.3.5.2.2.1.1.1", "reason": "Kicker Threshold Current Value — defers the value elsewhere" },
   { "uuid": "a1ff2a3d-7131-425c-80c5-a887a4259f12", "docNo": "A.3.2.2.1.1.1.5.2.3", "reason": "Determine Risk Weights — restates the title, zero content" },
-  { "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4", "docNo": "A.6.1.1.5.2.6.2.4", "reason": "In Progress Invocations — pure bookkeeping pointer" }
+  { "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4", "docNo": "A.6.1.1.5.2.6.2.4", "reason": "In Progress Invocations — pure bookkeeping pointer" },
+  { "uuid": "0b1162f6-6a30-4a30-b693-68e077093e7c", "docNo": "A.1.10.4.1.3.3.1.1", "reason": "Avalanche SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Avalanche SkyLink Bridge\"); operative multisig rules (2/5 signing, usage, reporting) are separate rows" },
+  { "uuid": "f833edaa-9f5f-4445-afcb-a9cfc3620b10", "docNo": "A.1.10.4.1.4.3.1.1", "reason": "Plasma SkyLink Freezer Multisig — bare capability statement (\"has the ability to freeze the Plasma SkyLink Bridge\"); operative rules are separate rows" },
+  { "uuid": "f8d0e4df-acca-4f20-a030-584efb4a8695", "docNo": "A.2.11.1.3.2.1.1.3.2", "reason": "Use-Case Specific Configuration Requirements — container-intro (\"requirements are specified in the subdocuments herein\")" },
+  { "uuid": "d81db018-bce7-44b9-a354-667f128a4db3", "docNo": "A.2.11.1.3.2.2.1.1", "reason": "Signer Composition And Rotation — container-intro (\"The documents herein define requirements governing changes to Multisig signer composition\")" },
+  { "uuid": "05fa5c41-26ca-4c25-94dd-834ef72c318a", "docNo": "A.2.3.1.2.2.2.2", "reason": "Aligned Delegates Buffer — bare definition (\"is a multisig controlled by X and Y to transfer funds to Z\"); the operative signer rule is a separate row" },
+  { "uuid": "07dd6a23-424a-4eda-b47c-92e84d46025c", "docNo": "A.6.1.1.2.2.6.3.1.4", "reason": "In Progress Invocations Directory — container-intro (\"This document contains a Directory of all prospective Instances...\"); bookkeeping, not a rule" }
 ]
