@@ -36,6 +36,24 @@ const MIP_RATIFICATION_FALLBACK = "2023-03-27";
 const MIP_SEQ_BASE = -30000;
 const MIPS_REPO = "https://github.com/sky-ecosystem/mips/blob/master"; // default branch is master, not main
 
+// User-approved weak locks (2026-07-07): these docs had nonzero MIP content
+// containment below the calibrated 0.05 auto-lock line and no same-MIP title hit.
+// AI side-by-side review proposed 14 locks; the user approved the 9 below. Keep
+// this as a tiny curation overlay; do not lower AUTO_LOCK globally. Evidence:
+// scripts/aux/atlas-history/recovered/gate6-weak-mip-ai-review.json
+// scripts/aux/atlas-history/recovered/gate6-weak-mip-user-decisions.json
+const CURATED_WEAK_LOCKS = new Map([
+  ["de0cc370-de9c-48a4-b10e-91782df7abcd", { mip: 101 }],
+  ["f8107b34-93b1-4ab8-a6ab-c4e70a048933", { mip: 101 }],
+  ["94856ced-5c37-42e0-a756-0fa2ccd73180", { mip: 101 }],
+  ["ad242c8e-81e3-4590-b034-722b3767b9d2", { mip: 106 }],
+  ["92dcb95c-5a3d-45a4-a1e6-865686909c64", { mip: 106 }],
+  ["8d8980b8-3ac7-49c6-8bc9-f601733a3198", { mip: 101 }],
+  ["02d1e35f-0a24-43d9-9406-347eef58a9d1", { mip: 108 }],
+  ["ef008255-07ba-51a4-80f3-6a46675d9520", { mip: 101 }],
+  ["e8b02a25-8c5d-503a-a9ce-e20d417d887c", { mip: 107 }],
+]);
+
 // ---------- shingle containment (same 8-word scheme as the measurement prototype) ----------
 const norm = (s) => s.toLowerCase().replace(/[`*_#>|[\]()]/g, " ").replace(/[^a-z0-9.%$-]+/g, " ").trim();
 const words = (s) => norm(s).split(/\s+/).filter(Boolean);
@@ -80,7 +98,7 @@ for (const s of mipSecs) {
 
 // ---------- attribute every bridged doc ----------
 const attributed = []; // { docId, mip, mipScore, sec, secTitle, secScore, date, via }
-let titleHitLocked = 0, hintOnly = 0;
+let titleHitLocked = 0, userWeakLocked = 0, hintOnly = 0;
 for (const doc of artifact.bridge) {
   const dSet = shingles(doc.content || "");
   let best = { mip: null, score: 0 };
@@ -96,9 +114,15 @@ for (const doc of artifact.bridge) {
     // exactly the combination Gate 4 measured a wrong-MIP case for.
     const titleNorm = norm(doc.title || "");
     const titleHit = titleNorm.length >= TITLE_HIT_MIN_CHARS && mipRaw.get(best.mip)?.includes(titleNorm);
-    if (!titleHit) { hintOnly++; continue; }
-    via = "titleHit+content";
-    titleHitLocked++;
+    if (titleHit) {
+      via = "titleHit+content";
+      titleHitLocked++;
+    } else {
+      const curated = CURATED_WEAK_LOCKS.get(doc.docId);
+      if (!curated || curated.mip !== Number(best.mip)) { hintOnly++; continue; }
+      via = "userWeak";
+      userWeakLocked++;
+    }
   }
   // best section within the winning MIP
   let sBest = { sec: null, title: null, score: 0 };
@@ -115,7 +139,7 @@ for (const doc of artifact.bridge) {
     date: dated?.date ?? MIP_RATIFICATION_FALLBACK, via,
   });
 }
-console.error(`attributed: ${attributed.length}/${artifact.bridge.length} (${attributed.length - titleHitLocked} by content >= ${AUTO_LOCK}, ${titleHitLocked} by title-hit+content — Gate 5); ${hintOnly} below the line with no title-hit corroboration (curation hint only, not emitted)`);
+console.error(`attributed: ${attributed.length}/${artifact.bridge.length} (${attributed.length - titleHitLocked - userWeakLocked} by content >= ${AUTO_LOCK}, ${titleHitLocked} by title-hit+content — Gate 5, ${userWeakLocked} by user-approved weak-lock review — Gate 6); ${hintOnly} below the line and still unpromoted`);
 
 // ---------- baked ordering: earliest MIP-section date -> most negative seq ----------
 const distinctDates = [...new Set(attributed.map((a) => a.date))].sort();
@@ -137,6 +161,7 @@ const mipEvents = attributed.map((a) => {
   // per-item rationale), not purely threshold-crossed — reuse the existing method
   // badge (ai/human) so the UI distinguishes them, no new plumbing needed.
   if (a.via === "titleHit+content") ev.method = "ai";
+  if (a.via === "userWeak") ev.method = "human";
   return ev;
 });
 
@@ -154,7 +179,7 @@ if (MEASURE) {
   const priorMipCount = (artifact.events || []).filter((e) => e.era === "mip").length;
   if (priorMipCount) console.error(`dropping ${priorMipCount} mip events from a prior run`);
   artifact.events = [...(artifact.events || []).filter((e) => e.era !== "mip"), ...mipEvents];
-  artifact.meta = { ...(artifact.meta || {}), mip: { attributed: attributed.length, byMip, autoLock: AUTO_LOCK, titleHitLocked } };
+  artifact.meta = { ...(artifact.meta || {}), mip: { attributed: attributed.length, byMip, autoLock: AUTO_LOCK, titleHitLocked, userWeakLocked } };
   fs.writeFileSync(OUT, JSON.stringify(artifact));
   console.error(`\nwrote ${mipEvents.length} mip events into ${path.relative(ROOT, OUT)} (${(fs.statSync(OUT).size / 1e3).toFixed(0)} KB)`);
 }

@@ -47,7 +47,7 @@ Today's atlas (10,370 docs) by birth era, measured end-to-end (genesis parse →
 
 | Born | Count | First-entry treatment |
 |---|---|---|
-| At/before genesis (2024-09-02) | **613** | "Present at genesis"; **231** of them also "Proposed in MIP N" (content containment ≥0.05 — the Gate-4-calibrated auto-lock line, measured 98.4% strict precision; was 179 at the pre-calibration ≥0.25 threshold) |
+| At/before genesis (2024-09-02) | **613** | "Present at genesis"; **242** of them also "Proposed in MIP N" (content containment ≥0.05 — the Gate-4-calibrated auto-lock line, Gate-5 title+content locks, plus Gate-6 user-approved weak locks; was 179 at the pre-calibration ≥0.25 threshold) |
 | Severed era (2024-09-02 → 2025-05-28) | **2,530** | Interval birth + forum snippets where covered. **1,649 of these are Agent Scope Database rows** (Agent-launch operational data, not cycle-proposed); the 881 core docs are the forum-snippet audience |
 | Git HTML era (root → #117) | 3,104 | unchanged (existing reconstruction) |
 | Markdown era (post-#117) | 4,123 | unchanged |
@@ -390,8 +390,8 @@ changed `genesis-bridge.mjs`'s locked set:
   Revenue Share Prior to Launch of SPK"** ← genesis's "Spark Protocol-Aave
   Revenue Share". Wired into `computeGenesisBridge` as tier `confirmed-split`;
   same zero-UI-cost treatment as any other locked pair.
-- **24 sub-threshold MIP hints (score 0.007–0.049) — analyzed, not yet acted
-  on**: cross-checked each against two independent signals: (1) title-hit — a
+- **24 sub-threshold MIP hints (score 0.007–0.049) — analyzed**:
+  cross-checked each against two independent signals: (1) title-hit — a
   distinctive substring of the doc's own title (≥8 chars) found verbatim
   inside the SAME best-matching MIP file's raw text; 8 of 24 hit. (2) expected
   scope→MIP domain (A.0→101, A.1→113, A.2→106, A.3→104, A.4→107, A.5→108) —
@@ -400,8 +400,8 @@ changed `genesis-bridge.mjs`'s locked set:
   facilitator conduct/alignment broadly, and every one of those docs IS an
   alignment-conduct topic ("Facilitators Must Err On Side Of Caution",
   "Rejecting A Proposal For Misalignment", "Whistleblower Bounty") just filed
-  under A.1 (Governance) instead of A.0 (Scope-general) today. **Not
-  promoted**: combining title-hit with a weak-but-nonzero content score in the
+  under A.1 (Governance) instead of A.0 (Scope-general) today. At this point,
+  none were promoted yet: combining title-hit with a weak-but-nonzero content score in the
   same MIP is a materially different signal than the "title-hit alone" Gate 4
   measured and explicitly rejected (one wrong-MIP case in that calibration) —
   changing the auto-lock policy on an uncalibrated combined signal needs its
@@ -437,9 +437,18 @@ wrong-MIP failure mode Gate 4 measured — zero wrong-MIP cases here.
 on the same MIP (title-hit pointing at a *different* MIP than the best content
 score still never locks — outside this calibration). 8 additional MIP-traceable
 docs; `method: 'ai'` on these events (reviewed individually, not purely
-threshold-crossed) reuses the existing method badge — no new UI plumbing. 16 of
-the 24 sub-threshold hints remain unpromoted (no title-hit, or a disagreeing
-one).
+threshold-crossed) reuses the existing method badge — no new UI plumbing. Before
+Gate 6, 16 of the 24 sub-threshold hints remained unpromoted (no title-hit, or a
+disagreeing one).
+
+### Gate 6 — weak MIP user review: CALIBRATED AND SHIPPED (2026-07-07)
+
+The remaining 16 sub-threshold hints from Gate 5 were first reviewed
+side-by-side by AI (`gate6-weak-mip-ai-review.json`), then checked by the user
+(`gate6-weak-mip-user-decisions.json`). **9 were approved** as explicit
+user-reviewed locks (`method: 'human'`), without lowering the global
+`AUTO_LOCK=0.05` threshold. The other 7 stay unpromoted for now: 1 rejected, 5
+marked unsure, and 1 skipped/no-decision in the interactive review.
 
 ### Ordering / storage
 
@@ -668,8 +677,10 @@ reconstructed eras (tests assert it by name — see appendix).
    contained, all 115 non-tier-1 pairs corroborated). All Gate-3 ingestion/read/
    FE/chat-tool fixes landed (`history-db.ts` seq fix + `source_url` column,
    `NodeHistory`/`EntryRow`/`ActorHistory` era-aware, `tools-history.ts`
-   era/method/source_url). Current `public/history-pre-era.json`: **4,383 total
-   events** = 876 genesis + 3,183 severed + 324 mip events over 876 bridged docs,
+   era/method/source_url). Current `public/history-pre-era.json`: **4,392 total
+   events** = 876 genesis + 3,183 severed + 333 mip events over 876 bridged docs.
+   The MIP layer includes 316 Gate-4 auto locks, 8 Gate-5 AI locks, and 9
+   Gate-6 user-approved weak locks,
    with 3 AEP supersedes (not just the 613-alive-only
    subset counted in the landscape table — dead-later-in-git-era docs get
    origins too, same zero-cost argument as MIP-on-tombstones). Caught and fixed
@@ -677,9 +688,9 @@ reconstructed eras (tests assert it by name — see appendix).
    but never mapped it — a unit test (`history-db.test.ts`) forced it out
    before it shipped. Also corrected a **write-up error** found during
    verification: Gate 4's "258 MIP-traceable docs" never matched
-   `mip-genesis-lineage.json`'s own data — the real number is **231**,
-   independently reproduced by both a direct re-derivation and the production
-   pipeline; fixed everywhere it was quoted (this file, the gate JSON, memory).
+   `mip-genesis-lineage.json`'s own data — the Gate-4/5 number was **231**;
+   Gate 6 adds only the user-approved weak locks. Fixed everywhere it was quoted
+   (this file, the gate JSON, memory).
    Ship checklist done: NodeHistory tests cover pre-git eras, `prehist:*`
    documented (`scripts/prehist/HISTORY.md` + CLAUDE.md), gitignore extended.
    `patch-notes.md` bullet deferred to the merge-to-main PR (this work is still
