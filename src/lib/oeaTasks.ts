@@ -14,6 +14,7 @@ import { stripMarkdownLinks } from "./atlasHelpers";
 import { dutySnippet } from "./dutyText";
 import { parseMeta } from "./meta";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import taskExclusions from "./data/oea-task-exclusions.json";
 
 export type OeaSource = "govops" | "facilitator" | "executor";
 export type OeaCategory = "op-duty" | "universal" | "assignment" | "active-data" | "process-step";
@@ -44,12 +45,15 @@ export interface OeaTask {
 // consumers (node:crypto in the script, crypto.subtle in the report).
 export const normalizeAssessedText = (s: string): string => s.replace(/\s+/g, " ").trim();
 
+// A.6.1.1 List Of Prime Agent Artifacts. UUID ancestry, not doc_no prefix, keeps
+// task identity stable when the atlas is renumbered.
+const PRIME_AGENT_ARTIFACTS_ROOT_ID = "9fb7f1cc-f60b-4195-892d-5e540f969973";
+
 // Identity key. Title-collapsed agent-artifact rows are keyed by title so the
 // task survives atlas renumbering and collapse-membership changes (a new prime
 // adds a copy without making a new task); everything else is uuid-keyed.
-const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
-export function taskKeyFor(row: { uuid: string; docNo: string; title: string; category: string }): string {
-  return AGENT_ARTIFACT_RE.test(row.docNo)
+export function taskKeyFor(row: { uuid: string; title: string; category: string; collapseByTitle?: boolean }): string {
+  return row.collapseByTitle
     ? `t:${row.title.trim().toLowerCase()}|${row.category}`
     : `u:${row.uuid}`;
 }
@@ -57,6 +61,30 @@ export function taskKeyFor(row: { uuid: string; docNo: string; title: string; ca
 const EXEC_DECLARED_RE = /^(operational\s+)?executor\s+agent$/i;
 const AUTOMATED_RE = /\[automated\]/i;
 const EXEC_SNIPPET_RE = /executor\s+agent/i;
+
+// Confirmed non-tasks (see ./data/oea-task-exclusions.json for the reasoning
+// behind each entry): either generic/definitional content that isn't a
+// rateable duty at all ("any" source), or a genuine misattribution that isn't
+// mechanically fixable in graph-duties.mjs — the role mention sits inside a
+// modifying clause or is one of several hypothetical alternatives, so the
+// text needs judgment to exclude, not a regex.
+const exclusionsByUuid = new Map<string, Set<string>>();
+for (const e of taskExclusions) {
+  const set = exclusionsByUuid.get(e.uuid) ?? new Set<string>();
+  set.add(e.source);
+  exclusionsByUuid.set(e.uuid, set);
+}
+function isExcludedTask(uuid: string, source: OeaSource): boolean {
+  const sources = exclusionsByUuid.get(uuid);
+  return sources ? sources.has("any") || sources.has(source) : false;
+}
+
+function isPrimeAgentArtifactDescendant(docs: AtlasBundle["docs"], uuid: string): boolean {
+  for (let id: string | null | undefined = uuid; id; id = docs[id]?.parentId) {
+    if (id === PRIME_AGENT_ARTIFACTS_ROOT_ID) return true;
+  }
+  return false;
+}
 
 export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTask[] {
   const { docs } = bundle;
@@ -81,7 +109,12 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
     source: OeaSource,
   ) => {
     if (!row.uuid || !docs[row.uuid]) return; // unresolved assignment docs etc.
-    const taskKey = taskKeyFor({ ...row, category });
+    if (isExcludedTask(row.uuid, source)) return;
+    const taskKey = taskKeyFor({
+      ...row,
+      category,
+      collapseByTitle: isPrimeAgentArtifactDescendant(docs, row.uuid),
+    });
     const agents = row.agents ?? (row.agent ? [row.agent] : []);
     const existing = byKey.get(taskKey);
     if (existing) {
@@ -115,7 +148,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   // 1. Operational GovOps slice.
   for (const r of deriveGovOpsResponsibilities(bundle, graph)) {
     if (r.category === "op-duty") add(r, "op-duty", "govops");
-    else if (r.category === "active-data") add(r, "active-data", "govops");
+    else if (r.category === "active-data" && r.role === "Operational") add(r, "active-data", "govops");
     else if (r.category === "process-step" && r.role === "Operational") add(r, "process-step", "govops");
     else if (r.category === "assignment" && r.role === "Operational") add(r, "assignment", "govops");
   }
@@ -124,7 +157,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   //    they bind the operational ones too).
   for (const r of deriveFacilitatorResponsibilities(bundle, graph)) {
     if (r.category === "op-duty" || r.category === "universal") add(r, r.category, "facilitator");
-    else if (r.category === "active-data") add(r, "active-data", "facilitator");
+    else if (r.category === "active-data" && r.role === "Operational") add(r, "active-data", "facilitator");
     else if (r.category === "process-step" && r.role === "Operational") add(r, "process-step", "facilitator");
     else if (r.category === "assignment" && r.role === "Operational") add(r, "assignment", "facilitator");
   }

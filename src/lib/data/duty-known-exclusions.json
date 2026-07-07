@@ -1,0 +1,62 @@
+[
+  {
+    "uuid": "12286b6c-0231-40e3-ab3f-234bc0249216",
+    "docNo": "A.1.15.1.2",
+    "excludedRole": "govops",
+    "reason": "The sentence explicitly DENIES Atlas Axis authority (\"will have no decision-making authority\"), it does not grant one. Regression risk: loosening the MODAL negated-power guard in graph-duties.mjs."
+  },
+  {
+    "uuid": "0d561ea6-8689-459c-85eb-7c861553e116",
+    "docNo": "A.2.4.1.2.1.4",
+    "excludedRole": "govops",
+    "reason": "The obligation (\"must include payments\") belongs to the Core Facilitator, introduced via a comma-less \"then the <Actor>\" subject shift after GovOps's own clause. Regression risk: loosening NEW_SUBJECT_RE's then-guard in graph-duties.mjs."
+  },
+  {
+    "uuid": "a878427f-64a8-430f-8576-70b6e34ef419",
+    "docNo": "A.1.14.4.6",
+    "excludedRole": "govops",
+    "reason": "Title \"Executor Agent GovOps And Facilitator Actors\" bare-title-matches GovOps once the content's false active match (\"Executor Agents supervise… and carry out…\", a comma-shifted subject) is excluded — the doc is a structural relationship statement (Executor Agents act THROUGH GovOps/Facilitator), not a GovOps duty container."
+  },
+  {
+    "uuid": "a878427f-64a8-430f-8576-70b6e34ef419",
+    "docNo": "A.1.14.4.6",
+    "excludedRole": "facilitator",
+    "reason": "Same as the govops exclusion on this doc — the bare title-match survives once the content's false active match is excluded, but the doc defines a relationship, not a Facilitator duty."
+  },
+  {
+    "uuid": "6e4b1649-4d85-404e-a70d-ababba877d9e",
+    "docNo": "A.1.14.4.6.1",
+    "excludedRole": "govops",
+    "reason": "Title \"Executor Agent GovOps And Facilitators\" bare-title-matches; content (\"Executor Agents act exclusively through their associated GovOps and Facilitator actors\") has no verb attributable to GovOps — structural relationship statement, not a duty container."
+  },
+  {
+    "uuid": "6e4b1649-4d85-404e-a70d-ababba877d9e",
+    "docNo": "A.1.14.4.6.1",
+    "excludedRole": "facilitator",
+    "reason": "Same as the govops exclusion on this doc."
+  },
+  {
+    "uuid": "2dc20bcf-08d7-4314-a2f2-aee9b41940e1",
+    "docNo": "A.1.14.4.7.1",
+    "excludedRole": "govops",
+    "reason": "Title \"GovOps And Facilitators Acting As Executor Agents\" bare-title-matches; content describes a transitional definitional arrangement (Sky Governance designates a GovOps Actor + Facilitator collectively AS an Executor Agent) with no verb GovOps itself performs within a sentence — structural, not a duty container."
+  },
+  {
+    "uuid": "2dc20bcf-08d7-4314-a2f2-aee9b41940e1",
+    "docNo": "A.1.14.4.7.1",
+    "excludedRole": "facilitator",
+    "reason": "Same as the govops exclusion on this doc."
+  },
+  {
+    "uuid": "d5ee3f2c-cd2f-4428-974b-341e4cce7295",
+    "docNo": "A.2.2.1.1.15",
+    "excludedRole": "facilitator",
+    "reason": "\"…by the Operational Executor Facilitator as authorized by Omni Documents\" — the ACTIVE_VERBS word \"documents\" (the verb) collides with \"Omni Documents\" (a proper noun) two sentences later, incidentally matching the earlier bare \"Facilitator\" substring inside \"Operational Executor Facilitator\" (a different compound term, not a Facilitator duty)."
+  },
+  {
+    "uuid": "4d5482ad-7944-4073-8fbe-b9dbcd1a27a3",
+    "docNo": "A.2.2.9.1.2.3.1.3",
+    "excludedRole": "govops",
+    "reason": "Bullet header \"Initial Planning Document Triggered For GovOps review\" quote-matched as a GovOps active duty, but the doc's own \"Responsible party\" field for that step is \"Prime Agent\" — GovOps review is only the downstream gate the Prime Agent's own edit is triggered by, not a task GovOps performs here. Caught during the OEA assessment targeted review (2026-07-07): the model's own reasoning independently named the actor as \"Prime Agent\" while still rating this row as a strong OEA task."
+  }
+]

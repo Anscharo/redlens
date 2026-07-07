@@ -151,6 +151,9 @@ async function main() {
   console.log("atlas-worker: build-graph…");
   run("bun", ["scripts/required/build-graph.mjs"]);
 
+  console.log("atlas-worker: build-oea-report…");
+  run("bun", ["scripts/required/build-oea-report.ts"]);
+
   // ── Structural sync → advances sync_state.atlas_sha ──────────────────────
   console.log("atlas-worker: sync.ts…");
   run("bun", ["src/server/sync.ts"]);

@@ -10070,7 +10070,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "core_facilitator_for": 1,
   "core_govops_for": 1,
   "defines_entity": 393,
-  "duty_for": 884,
+  "duty_for": 864,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 8,

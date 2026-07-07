@@ -49,14 +49,21 @@ describe("deriveFacilitatorResponsibilities (real artifacts)", () => {
     expect(results.filter((r) => !r.title?.trim())).toEqual([]);
   });
 
-  it("no uuid appears in more than one category (seenDocIds priority holds)", () => {
+  it("a uuid appears in at most 2 categories, and only among {universal, core-facilitator, op-duty}", () => {
+    // A doc can genuinely task both the Core and Operational side of the
+    // role (e.g. a "Sky Governance path / Independent Governance path"
+    // branch) — that's the ONE legitimate way a uuid spans two rows. 3+
+    // categories, or a pairing that reaches outside this trio (e.g. pulling
+    // in "assignment" or "active-data"), would mean seenDocIds priority broke.
+    const DUTY_CATEGORIES = new Set(["universal", "core-facilitator", "op-duty"]);
     const byUuid = new Map<string, Set<string>>();
     for (const r of results) {
       if (!byUuid.has(r.uuid)) byUuid.set(r.uuid, new Set());
       byUuid.get(r.uuid)!.add(r.category);
     }
-    const conflicted = [...byUuid.entries()].filter(([, cats]) => cats.size > 1);
-    expect(conflicted).toEqual([]);
+    const multi = [...byUuid.entries()].filter(([, cats]) => cats.size > 1);
+    const invalid = multi.filter(([, cats]) => cats.size !== 2 || [...cats].some((c) => !DUTY_CATEGORIES.has(c)));
+    expect(invalid).toEqual([]);
   });
 
   it("includes the universal Facilitator duties (A.1.7 family), each carrying all holders", () => {

@@ -19,13 +19,21 @@
   Only the 10 most recent bullets across all dates are shown.
 -->
 
-## 2026-07-06
+## 2026-07-07
+- Improved assessment report tracking and keyboard access to per-row reasoning
+- Fixed the OEA Task Assessment freshness status to account for full-document changes, not only the displayed snippet
+- Added a Risk Rules Assessment report — every atlas paragraph that defines a peg-maintenance, allocation-risk, or smart-contract-security rule, scored 1–5 for how precisely it's defined and weak/mid/strong for penalties and incentives, with AI-drafted reasoning and links to the enforcement mechanisms
 - Added an OEA Task Assessment report — every task the Operational Executor Agent performs, rated weak/mid/strong for how precisely it's defined and whether it carries incentives or penalties, with AI-drafted per-task reasoning and links to the enforcement mechanisms
 - Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills
 - Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
-- Entity pages and constellations now show the duties the Atlas assigns to Facilitators and Executor Agents, using the same duty detection that powers the GovOps report
-- Made the GovOps Responsibilities report catch powers, not just chores — discretionary authority (conservatorship, parameter changes, multisig control) and duties written under the org names Atlas Axis and Soter Labs now appear, and mistaken "GovOps meeting" entries (which belong to the Governance Point) are gone
-- Duty rows in the GovOps report now show the exact Atlas sentence that assigns the duty
+- Fixed the GovOps and Facilitator responsibility reports missing duties written as an instance's "Curator:" field, a multisig "controlled by" clause with an extra noun or joint holders, or an "approval of" / "supervision of" phrase
+- Fixed the OEA Task Assessment report including Active Data tasks that actually belong to Core GovOps or the Core Facilitator, not the Operational Executor Agent
+- Corrected 14 ratings and dropped 6 non-rule paragraphs from the Risk Rules Assessment after a spot-check audit — mostly enforcement ratings that cited a mechanism not reaching the rule's actor; applied 19 additional corrections from a Sonnet-verified re-audit of the inclusion bias, dropping 17 more bare definitions/capabilities and correcting 2 enforcement ratings
+- Fixed the GovOps and Facilitator responsibility reports missing a section's second duty when it tasks both the Core and Operational side of the role (e.g. a "Sky Governance path / Independent Governance path" split)
+- Fixed the responsibility reports and OEA Task Assessment picking up duties from Needed Research questions, Scenario examples, and rubric-element annotations, which were never real duties
+- Reviewed every OEA Task Assessment rating with high stakes (strong precision or a rewarded/penalized incentives rating) and corrected the ones that didn't hold up — wrong enforcement-mechanism citations, a few over- and under-ratings, and a bare process-step preview that read as a real duty when it wasn't
+
+## 2026-07-06
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections
 - Improved the expand-all control for sections with large or hidden subsection hierarchies
 - Refreshed the reader's look and feel: unified surface, slimmer scrollbars, and a colored rail on selected sections

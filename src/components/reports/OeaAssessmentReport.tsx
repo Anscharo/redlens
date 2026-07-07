@@ -1,15 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { AtlasLink } from "../AtlasLink";
-import { loadGraph } from "../../lib/graph";
-import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import { atlasHref } from "../../lib/routes";
 import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { enumerateOeaTasks, OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
+import { OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadOeaAssessment, joinAssessments, summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaAssessmentIndex";
+import { loadOeaReport, summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OeaTable } from "./OeaAssessmentTable";
 
@@ -36,25 +34,46 @@ function SummaryStrip({ rows }: { rows: OeaRow[] }) {
 
 export function OeaAssessmentReport() {
   useDocumentTitle("OEA Task Assessment: Sky Atlas by Redline");
-  const graphData = useLoaded(loadGraph);
-  const atlas = useLoaded(loadAtlas);
-  const artifact = useLoaded(loadOeaAssessment);
+  const report = useLoaded(loadOeaReport);
   const [cat, setCat] = useUrlState("cat", catCodec);
   const [precision, setPrecision] = useUrlState("precision", ratingCodec);
   const [incentives, setIncentives] = useUrlState("incentives", ratingCodec);
   const [status, setStatus] = useUrlState("status", statusCodec);
   const [expanded, setExpanded] = useUrlState("expanded", expandedCodec);
+  const trackedView = useRef(false);
 
-  const rows = useMemo(() => {
-    if (!atlas || !graphData) return [];
-    return joinAssessments(enumerateOeaTasks(atlas, graphData), artifact);
-  }, [atlas, graphData, artifact]);
+  const rows = report?.rows ?? [];
 
-  const toggle = <T extends string>(kind: string, set: (fn: (cur: T | null) => T | null) => void) =>
+  useEffect(() => {
+    if (!report || trackedView.current) return;
+    trackedView.current = true;
+    track("report_view", {
+      report: "oea-assessment",
+      row_count: report.rows.length,
+      stale_count: report.summary.stale,
+      unassessed_count: report.summary.unassessed,
+      rubric_version: report.rubricVersion,
+    });
+  }, [report]);
+
+  const toggle = <T extends string>(kind: string, current: T | null, set: (fn: (cur: T | null) => T | null) => void) =>
     (next: T) => {
-      track("report_filter", { report: "oea-assessment", filter_kind: kind, slug: next, active: true });
+      track("report_filter", { report: "oea-assessment", filter_kind: kind, slug: next, active: current !== next });
       set((cur) => (cur === next ? null : next));
     };
+
+  const toggleRow = (row: OeaRow) => {
+    const action = expanded === row.task.taskKey ? "collapse" : "expand";
+    track("report_row_toggle", {
+      report: "oea-assessment",
+      action,
+      task_key: row.task.taskKey,
+      node_id: row.task.uuid,
+      category: row.task.category,
+      status: row.status,
+    });
+    setExpanded((cur) => (cur === row.task.taskKey ? null : row.task.taskKey));
+  };
 
   const filtered = rows.filter(
     (r) =>
@@ -82,25 +101,25 @@ export function OeaAssessmentReport() {
           </AtlasLink>
         </p>
         <p className="mono text-xs text-tan-3 mb-4" title="Ratings are LLM-drafted against the assessment rubric, then human-reviewed. Click a row for the reasoning.">
-          ✳ assessed by {artifact?.model ?? "—"} · human-reviewed · rubric {artifact?.rubricVersion ?? "—"}
+          ✳ assessed by {report?.model ?? "—"} · human-reviewed · rubric {report?.rubricVersion ?? "—"}
         </p>
 
         {rows.length > 0 && <SummaryStrip rows={filtered} />}
 
         <div className="flex flex-wrap gap-4 mb-6">
-          <CategoryPills categories={Object.keys(OEA_CATEGORY_LABELS) as OeaCategory[]} active={cat} onToggle={toggle("category", setCat)} />
-          <CategoryPills label="Precision" categories={RATINGS} active={precision} onToggle={toggle("precision", setPrecision)} />
-          <CategoryPills label="Incentives" categories={RATINGS} active={incentives} onToggle={toggle("incentives", setIncentives)} />
-          <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", setStatus)} />
+          <CategoryPills categories={Object.keys(OEA_CATEGORY_LABELS) as OeaCategory[]} active={cat} onToggle={toggle("category", cat, setCat)} />
+          <CategoryPills label="Precision" categories={RATINGS} active={precision} onToggle={toggle("precision", precision, setPrecision)} />
+          <CategoryPills label="Incentives" categories={RATINGS} active={incentives} onToggle={toggle("incentives", incentives, setIncentives)} />
+          <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
         </div>
 
-        {atlas && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
+        {report && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
           const catRows = byCategory[c];
           if (!catRows?.length) return null;
           return (
-            <OeaTable key={c} label={label} rows={catRows} docs={atlas.docs}
+            <OeaTable key={c} label={label} rows={catRows} mechanisms={report.mechanisms}
               expandedKey={expanded}
-              onToggle={(k) => setExpanded((cur) => (cur === k ? null : k))} />
+              onToggle={toggleRow} />
           );
         })}
       </div>

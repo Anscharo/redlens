@@ -40,6 +40,9 @@ for (const n of [
   node({ id: "adc-doc", doc_no: "A.6.1.1.1.3.9.1", type: "Active Data Controller", title: "Delegate Roster", content: "The Responsible Party is the Operational Facilitator." }),
   // ADC where a facilitator org is RP in a NON-facilitator capacity — excluded.
   node({ id: "adc-nonfac", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Endgame Edge." }),
+  // ADC whose Responsible Party is declared Core Facilitator — included here
+  // (this report covers both), tagged role: "Core" for OEA-universe filtering.
+  node({ id: "adc-core", doc_no: "A.1.6.1.5", type: "Active Data Controller", title: "Escalation Contact", content: "The Responsible Party is the Core Facilitator." }),
   // Process-step update doc with a facilitator RP.
   node({ id: "step-op", doc_no: "A.2.2.9.7.7", title: "Roster Update", content: "The Document is updated as follows:\n\n- Responsible Party: Operational Facilitator" }),
   // GovOps-declared duty — a different acting role, must NOT appear here.
@@ -80,6 +83,7 @@ const edges: RelationEdge[] = [
   // Active data: declared-as-facilitator vs named-directly.
   { f: "endgame", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.6.1.1.1.3.9.1"], m: JSON.stringify({ role_declared: "Operational Facilitator", resolution: "chain" }) },
   { f: "endgame", ft: "entity", t: "adc-nonfac", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Endgame Edge", resolution: "direct" }) },
+  { f: "jansky", ft: "entity", t: "adc-core", tt: "doc", e: "responsible_party_for", s: ["A.1.6.1.5"], m: JSON.stringify({ role_declared: "Core Facilitator", resolution: "direct" }) },
   // Process-step RP edge.
   { f: "endgame", ft: "entity", t: "step-op", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.7.7"], m: JSON.stringify({ role_declared: "Operational Facilitator", resolution: "chain", automated: false }) },
 ];
@@ -130,9 +134,17 @@ describe("deriveFacilitatorResponsibilities", () => {
 
   it("includes RP duties declared as Facilitator but excludes non-facilitator capacities", () => {
     const ad = byCat("active-data");
-    expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nonfac excluded
-    expect(ad[0].facilitator).toBe("Endgame Edge");
-    expect(ad[0].agent).toBe("Spark");
+    expect(ad.map((r) => r.uuid).sort()).toEqual(["adc-core", "adc-doc"]); // adc-nonfac excluded
+    const op = ad.find((r) => r.uuid === "adc-doc");
+    expect(op?.facilitator).toBe("Endgame Edge");
+    expect(op?.agent).toBe("Spark");
+    expect(op?.role).toBe("Operational");
+  });
+
+  it("tags active-data rows declared Core Facilitator with role: Core", () => {
+    const ad = byCat("active-data").find((r) => r.uuid === "adc-core");
+    expect(ad?.role).toBe("Core");
+    expect(ad?.facilitator).toBe("JanSky");
   });
 
   it("surfaces facilitator process-step edges with the resolved entity", () => {

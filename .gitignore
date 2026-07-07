@@ -21,6 +21,7 @@ public/docs-shallow.json
 public/docs-deep.json
 public/search-index.json
 public/relations.json
+public/oea-report.json
 public/graph.json
 public/glossary.json
 public/addresses.atlas.json
@@ -65,9 +66,9 @@ playwright/.cache/
 .cache/processes-audit.json
 .cache/processes-audit.md
 .cache/processes-heuristic.json
+.cache/risk-assessment.md
 .claude/scheduled_tasks.lock
 .claude/worktrees/**
 
 # Personal docs (not checked in)
 docs/ds/
-

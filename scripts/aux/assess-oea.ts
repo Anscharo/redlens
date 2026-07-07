@@ -21,7 +21,8 @@ import { enumerateOeaTasks, normalizeAssessedText, type OeaTask } from "../../sr
 import type { Assessment, OeaAssessmentArtifact, OeaAssessmentEntry } from "../../src/lib/oeaAssessment";
 import { getClient } from "../../src/server/llm";
 import { loadRubric, buildSystemPrompt, buildUserPrompt, MECHANISM_CATALOG } from "./assess-oea-prompt";
-import { validateAssessment, buildPrefixIndex, downgradeToWeak } from "./assess-oea-validate";
+import { validateAssessment, downgradeToWeak } from "./assess-oea-validate";
+import { buildPrefixIndex, withRetry } from "./assess-common";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const ARTIFACT_PATH = path.join(ROOT, "public", "oea-assessment.json");
@@ -108,18 +109,6 @@ const docIds = new Set(Object.keys(docs));
 const byPrefix = buildPrefixIndex(docIds);
 const systemPrompt = buildSystemPrompt(rubric.text);
 
-async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
-  for (let i = 0; ; i++) {
-    try { return await fn(); }
-    catch (err) {
-      if (i >= attempts - 1) throw err;
-      const wait = 1000 * 2 ** i;
-      console.warn(`  transport error, retry in ${wait}ms: ${(err as Error).message}`);
-      await Bun.sleep(wait);
-    }
-  }
-}
-
 async function assess(task: OeaTask): Promise<Assessment | null> {
   const messages: { role: "system" | "user" | "assistant"; content: string }[] = [
     { role: "system", content: systemPrompt },
@@ -127,10 +116,14 @@ async function assess(task: OeaTask): Promise<Assessment | null> {
   ];
   let citationFallback: Assessment | null = null;
   for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await withRetry(() =>
-      getClient().chat.completions.create({ model: MODEL, messages, temperature: 0 }),
-    );
-    const raw = res.choices[0]?.message?.content ?? "";
+    // OpenRouter can return 200 with an error payload and no choices (e.g.
+    // :free rate limits) — throw inside withRetry so it backs off and retries.
+    const raw = await withRetry(async () => {
+      const res = await getClient().chat.completions.create({ model: MODEL, messages, temperature: 0 });
+      const content = res.choices?.[0]?.message?.content;
+      if (!content) throw new Error(`no choices in response: ${JSON.stringify(res).slice(0, 200)}`);
+      return content;
+    });
     const v = validateAssessment(raw, docIds, byPrefix);
     if (v.ok) return v.value;
     if (v.citationOnly && v.value) citationFallback = v.value;

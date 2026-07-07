@@ -1,7 +1,6 @@
-import type { AtlasNode } from "../../types";
 import type { Rating, PrecisionElement } from "../../lib/oeaAssessment";
 import { PRECISION_ELEMENTS } from "../../lib/oeaAssessment";
-import type { OeaRow } from "../../lib/oeaAssessmentIndex";
+import type { OeaMechanism, OeaRow } from "../../lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 
@@ -22,7 +21,7 @@ const ELEMENT_LABELS: Record<PrecisionElement, string> = {
 };
 const STATE_STYLE = { present: "text-tan", partial: "text-tan-2", absent: "text-tan-3 line-through" };
 
-function ExpandedBody({ row, docs }: { row: OeaRow; docs: Record<string, AtlasNode> }) {
+function ExpandedBody({ row, mechanisms }: { row: OeaRow; mechanisms: Record<string, OeaMechanism> }) {
   const e = row.entry;
   if (!e) return <p className="text-xs text-tan-3">Not yet assessed — run `pnpm oea:assess`.</p>;
   return (
@@ -54,7 +53,7 @@ function ExpandedBody({ row, docs }: { row: OeaRow; docs: Record<string, AtlasNo
           <p className="text-xs mt-1">
             {e.incentives.mechanismUuids.map((u) => (
               <AtlasLink key={u} to={atlasHref(u)} className="text-accent hover:underline mr-3">
-                {docs[u]?.title ?? u.slice(0, 8)} ↗
+                {mechanisms[u]?.title ?? u.slice(0, 8)} ↗
               </AtlasLink>
             ))}
           </p>
@@ -69,13 +68,13 @@ function ExpandedBody({ row, docs }: { row: OeaRow; docs: Record<string, AtlasNo
 }
 
 export function OeaTable({
-  label, rows, docs, expandedKey, onToggle,
+  label, rows, mechanisms, expandedKey, onToggle,
 }: {
   label: string;
   rows: OeaRow[];
-  docs: Record<string, AtlasNode>;
+  mechanisms: Record<string, OeaMechanism>;
   expandedKey: string | null;
-  onToggle: (taskKey: string) => void;
+  onToggle: (row: OeaRow) => void;
 }) {
   return (
     <div className="mb-8">
@@ -98,18 +97,24 @@ export function OeaTable({
             const e = row.entry;
             return [
               <tr key={row.task.taskKey}
-                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer"
-                onClick={() => onToggle(row.task.taskKey)} aria-expanded={expanded}>
+                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
                 <td className="py-2 px-3 align-top">
-                  <AtlasLink to={atlasHref(row.task.uuid)} className="mono text-xs text-accent hover:underline"
-                    onClick={(ev) => ev.stopPropagation()}>
+                  <AtlasLink to={atlasHref(row.task.uuid)} className="mono text-xs text-accent hover:underline">
                     {row.task.docNo}
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
-                  <span className="mono text-xs text-tan-3 mr-1.5">{expanded ? "▾" : "▸"}</span>
+                  <button
+                    type="button"
+                    className="mono text-xs text-tan-3 mr-1.5 hover:text-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-sm"
+                    aria-expanded={expanded}
+                    aria-label={`${expanded ? "Collapse" : "Expand"} assessment reasoning for ${row.task.title}`}
+                    onClick={() => onToggle(row)}
+                  >
+                    {expanded ? "▾" : "▸"}
+                  </button>
                   <AtlasLink to={atlasHref(row.task.uuid)} className="text-tan hover:underline"
-                    onClick={(ev) => ev.stopPropagation()}>
+                  >
                     {row.task.title}
                   </AtlasLink>
                   {row.task.automated && <span className="mono text-[10px] text-tan-3 ml-1.5">[automated]</span>}
@@ -129,7 +134,7 @@ export function OeaTable({
               expanded && (
                 <tr key={`${row.task.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} />
+                    <ExpandedBody row={row} mechanisms={mechanisms} />
                   </td>
                 </tr>
               ),

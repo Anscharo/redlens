@@ -51,14 +51,22 @@ describe("deriveGovOpsResponsibilities (real artifacts)", () => {
     expect(results.filter((r) => !r.title?.trim())).toEqual([]);
   });
 
-  it("no uuid appears in more than one category (seenDocIds priority holds)", () => {
+  it("a uuid appears in at most a core-duty + op-duty pair, never 3+ categories or any other combo", () => {
+    // A doc can genuinely task both Core and Operational GovOps (e.g. a "Sky
+    // Governance path / Independent Governance path" branch) — that's the
+    // ONE legitimate way a uuid spans two rows. Anything else (3+ categories,
+    // or a pairing outside {core-duty, op-duty}) would mean seenDocIds
+    // priority broke down.
     const byUuid = new Map<string, Set<string>>();
     for (const r of results) {
       if (!byUuid.has(r.uuid)) byUuid.set(r.uuid, new Set());
       byUuid.get(r.uuid)!.add(r.category);
     }
-    const conflicted = [...byUuid.entries()].filter(([, cats]) => cats.size > 1);
-    expect(conflicted).toEqual([]);
+    const multi = [...byUuid.entries()].filter(([, cats]) => cats.size > 1);
+    const invalid = multi.filter(
+      ([, cats]) => cats.size !== 2 || !cats.has("core-duty") || !cats.has("op-duty"),
+    );
+    expect(invalid).toEqual([]);
   });
 
   it("includes at least one process-step result, each resolved to a real GovOps entity", () => {

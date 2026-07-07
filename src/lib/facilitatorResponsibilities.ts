@@ -15,6 +15,13 @@ import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import dutyExclusions from "./data/duty-known-exclusions.json";
+
+// Confirmed non-duty docs whose text otherwise matches the Facilitator
+// pattern — see ./data/duty-known-exclusions.json for the reasoning.
+const EXCLUDED_FACILITATOR_DUTY_UUIDS = new Set(
+  dutyExclusions.filter((e) => e.excludedRole === "facilitator").map((e) => e.uuid),
+);
 
 export interface OFResponsibility {
   docNo: string;
@@ -106,6 +113,7 @@ export function deriveFacilitatorResponsibilities(
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
     if (!n || seenDocIds.has(n.id)) continue; // seen = assignment docs at this point
+    if (EXCLUDED_FACILITATOR_DUTY_UUIDS.has(e.t)) continue;
     const meta = parseMeta<{ role_declared?: string; quote?: string | null }>(e.m);
     const declared = meta?.role_declared ?? "";
     // duty_for covers every acting role — this report wants Facilitator-declared.
@@ -168,6 +176,7 @@ export function deriveFacilitatorResponsibilities(
       duty: dutySnippet(n.content),
       category: "active-data",
       facilitator: entityById.get(e.f)?.name ?? declared,
+      role: CORE_FAC_RE.test(declared) ? "Core" : "Operational",
       agent: agentFromDocNo(n.doc_no, agents) ?? undefined,
     });
     seenDocIds.add(n.id);

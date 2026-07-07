@@ -7,6 +7,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { AtlasNode } from "../../src/types";
 import type { OeaTask } from "../../src/lib/oeaTasks";
+import { ancestorChain } from "./assess-common";
 
 export const RUBRIC_PATH = path.resolve(import.meta.dir, "../../docs/oea-assessment-rubric.md");
 
@@ -73,16 +74,6 @@ Rules:
 - The two catch-all mechanisms alone always mean weak. Self-enforcement is always weak.
 - For [automated] process steps: rate precision on the automation's spec; rate incentives on the OEA's duty to supervise the automation — and say so in the reasoning.
 - Rate the text the OEA would be held to, not what the document probably intends.`;
-}
-
-export function ancestorChain(node: AtlasNode, docs: Record<string, AtlasNode>): string {
-  const titles: string[] = [];
-  for (let p = node.parentId; p; p = docs[p]?.parentId ?? null) {
-    const parent = docs[p];
-    if (!parent) break;
-    titles.unshift(parent.title);
-  }
-  return titles.join(" › ");
 }
 
 const CONTENT_CAP = 6000;

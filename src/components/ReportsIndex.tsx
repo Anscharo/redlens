@@ -1,5 +1,6 @@
 import { Link } from "./Link";
 import { reportHref } from "../lib/routes";
+import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import type { ReportId } from "../types";
 
@@ -33,6 +34,12 @@ const REPORTS: { id: ReportId; title: string; description: string }[] = [
     title: "OEA Task Assessment",
     description:
       "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
+  },
+  {
+    id: "risk-rules",
+    title: "Risk Rules Assessment",
+    description:
+      "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for preciseness and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
   },
   {
     id: "stale-dates",
@@ -71,6 +78,7 @@ export function ReportsIndex({ query }: { query: string }) {
               to={reportHref(r.id)}
               className="w-full text-left px-4 py-4 rounded border transition-colors hover:bg-[var(--hover)] block no-underline"
               style={{ borderColor: "var(--border)" }}
+              onClick={() => track("report_open", { report_id: r.id })}
             >
               <p className="text-sm font-medium mb-1" style={{ color: "var(--tan)" }}>
                 {r.title}

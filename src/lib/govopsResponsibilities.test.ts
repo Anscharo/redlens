@@ -39,6 +39,10 @@ for (const n of [
   // Active Data controller where Soter Labs is RP in a NON-GovOps capacity
   // (named directly) — must be EXCLUDED from GovOps responsibilities.
   node({ id: "adc-nongov", doc_no: "A.2.2.4.9.9.1", type: "Active Data Controller", title: "List Of Auxiliary Accounts", content: "The Responsible Party is Soter Labs." }),
+  // Active Data controller whose Responsible Party is declared Core GovOps —
+  // included here (this report covers both), but tagged role: "Core" so
+  // downstream OEA-universe filtering can exclude it.
+  node({ id: "adc-core", doc_no: "A.1.9.1.2.2", type: "Active Data Controller", title: "Emergency Contact List", content: "The Responsible Party is the Core GovOps." }),
   // Content-discovered duty: the edge carries the matched quote as provenance.
   node({ id: "duty-quoted", doc_no: "A.1.14.4.6.1.1", title: "Executor Agent Duties", content: "Some preamble sentence. GovOps actors carry out operational activities on behalf of Executor Agents." }),
   // Title-discovered duty (quote null) whose content is an unpunctuated bullet
@@ -51,6 +55,9 @@ for (const n of [
   // Defensive: a rogue doc with BOTH a duty_for and a process-step edge must
   // surface once (duty wins — sections run in priority order).
   node({ id: "dual", doc_no: "A.2.8.8", title: "Dual Signal", content: "Operational GovOps reviews the update.\n\n- Responsible Party: Operational GovOps" }),
+  // A doc genuinely tasking BOTH Core and Operational GovOps (two duty_for
+  // edges) — must produce TWO rows, not collapse to whichever is seen first.
+  node({ id: "duty-dual-role", doc_no: "A.3.9.9", title: "Token Issuance", content: "Core GovOps may require additional tokens. Operational GovOps will assist in executing the transaction." }),
   // Same generic title, outside the per-agent-artifact subtree (A.6.1.1.<n>.*) —
   // these are genuinely different process-step docs that happen to share a
   // structural title, so they must NOT collapse into a single row.
@@ -87,11 +94,14 @@ const edges: RelationEdge[] = [
   { f: "soter", ft: "entity", t: "flow-a", tt: "doc", e: "duty_for", s: ["A.2.2.9.1.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method A.") },
   { f: "soter", ft: "entity", t: "flow-b", tt: "doc", e: "duty_for", s: ["A.2.2.9.2.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method B.") },
   { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "duty_for", s: ["A.2.8.8"], m: dutyMeta("Operational GovOps", "Operational GovOps reviews the update.") },
+  { f: "atlas-axis", ft: "entity", t: "duty-dual-role", tt: "doc", e: "duty_for", s: ["A.3.9.9"], m: dutyMeta("Core GovOps", "Core GovOps may require additional tokens.") },
+  { f: "soter", ft: "entity", t: "duty-dual-role", tt: "doc", e: "duty_for", s: ["A.3.9.9"], m: dutyMeta("Operational GovOps", "Operational GovOps will assist in executing the transaction.") },
   // Facilitator-declared duty edge (from the OEA role generalization) — filtered out.
   { f: "jansky", ft: "entity", t: "duty-fac", tt: "doc", e: "duty_for", s: ["A.1.1.2.1"], m: dutyMeta("Core Facilitator", "The Core Facilitator is authorized to conduct Atlas Interpretations.") },
   { f: "soter", ft: "entity", t: "adc-doc", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.1.2.1.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain" }) },
   // Soter Labs named directly (non-GovOps capacity) — excluded.
   { f: "soter", ft: "entity", t: "adc-nongov", tt: "doc", e: "responsible_party_for", s: ["A.2.2.4.9.9.1"], m: JSON.stringify({ role_declared: "Soter Labs", resolution: "direct" }) },
+  { f: "atlas-axis", ft: "entity", t: "adc-core", tt: "doc", e: "responsible_party_for", s: ["A.1.9.1.2.2"], m: JSON.stringify({ role_declared: "Core GovOps", resolution: "direct" }) },
   // Shape #3 — process-step RP edges (already deduped per (doc, entity) upstream).
   { f: "soter", ft: "entity", t: "step-op", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.2.2.3.3.4.2.1"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
   { f: "soter", ft: "entity", t: "step-both", tt: "doc", e: "process_step_responsible_party_for", s: ["A.2.2.9.9.9"], m: JSON.stringify({ role_declared: "Operational GovOps", resolution: "chain", automated: false }) },
@@ -151,9 +161,17 @@ describe("deriveGovOpsResponsibilities", () => {
 
   it("includes RP duties declared as GovOps but excludes non-GovOps capacities", () => {
     const ad = byCat("active-data");
-    expect(ad.map((r) => r.uuid)).toEqual(["adc-doc"]); // adc-nongov excluded
-    expect(ad[0].govops).toBe("Soter Labs");
-    expect(ad[0].agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
+    expect(ad.map((r) => r.uuid).sort()).toEqual(["adc-core", "adc-doc"]); // adc-nongov excluded
+    const op = ad.find((r) => r.uuid === "adc-doc");
+    expect(op?.govops).toBe("Soter Labs");
+    expect(op?.agent).toBeUndefined(); // A.2.2.* is not under an agent artifact
+    expect(op?.role).toBe("Operational");
+  });
+
+  it("tags active-data rows declared Core GovOps with role: Core", () => {
+    const ad = byCat("active-data").find((r) => r.uuid === "adc-core");
+    expect(ad?.role).toBe("Core");
+    expect(ad?.govops).toBe("Atlas Axis");
   });
 
   it("surfaces process_step_responsible_party_for edges, resolving the GovOps role to its entity", () => {
@@ -171,6 +189,15 @@ describe("deriveGovOpsResponsibilities", () => {
 
   it("ignores duty_for edges declared for non-GovOps acting roles", () => {
     expect(results.find((r) => r.uuid === "duty-fac")).toBeUndefined();
+  });
+
+  it("surfaces a doc that genuinely tasks both Core and Operational GovOps as two rows", () => {
+    const rows = results.filter((r) => r.uuid === "duty-dual-role");
+    expect(rows.map((r) => r.category).sort()).toEqual(["core-duty", "op-duty"]);
+    expect(rows.find((r) => r.category === "core-duty")?.duty).toBe("Core GovOps may require additional tokens.");
+    expect(rows.find((r) => r.category === "op-duty")?.duty).toBe(
+      "Operational GovOps will assist in executing the transaction.",
+    );
   });
 
   it("surfaces a doc carrying both a duty_for and a process-step edge exactly once, as a duty", () => {
