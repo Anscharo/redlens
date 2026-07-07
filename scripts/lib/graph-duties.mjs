@@ -56,11 +56,15 @@ const PASSIVE_VERBS = String.raw`reviewed|validated|calculated|executed|performe
 // proper noun with no "the" (how GovOps/Facilitator names are usually written):
 // "…an Executor Agent, Core GovOps will no longer perform validation…"
 // (A.2.2.1.1.13) — "will" binds Core GovOps, not the Executor Agent mentioned
-// just before the comma. Requiring a modal right after the new subject (rather
-// than "any verb", as the "the <Actor>" alternative allows) keeps this from
-// over-triggering on ordinary prose that just happens to follow a comma.
-const NEW_SUBJECT_RE =
-  /(?:,\s+|\bthen\s+)the\s+[A-Z][^,]*$|(?:,\s+|\bthen\s+)[A-Z][\w\s]*?\b(?:must|shall|will|may|can|should)\b[^,]*$/;
+// just before the comma. The terminal trigger is MODAL or ACTIVE_VERBS (not
+// "any verb", as the "the <Actor>" alternative allows) — "…GovOps and
+// Facilitator Actors, Executor Agents supervise other Agents and carry out…"
+// (A.1.14.4.6) needs ACTIVE_VERBS too, since "carry out" is a regular verb,
+// not a modal. Requiring one of these specific triggers (rather than any
+// word) keeps this from over-triggering on ordinary prose after a comma.
+const NEW_SUBJECT_RE = new RegExp(
+  String.raw`(?:,\s+|\bthen\s+)the\s+[A-Z][^,]*$|(?:,\s+|\bthen\s+)[A-Z][\w\s]*?\b(?:${MODAL}|${ACTIVE_VERBS})\b[^,]*$`,
+);
 
 /**
  * Role configs. `subject` and `qualifier` are regex sources; `compounds` are

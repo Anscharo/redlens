@@ -17,6 +17,13 @@ import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
 import definitionDocs from "./data/govops-definition-docs.json";
+import dutyExclusions from "./data/duty-known-exclusions.json";
+
+// Confirmed non-duty docs whose text otherwise matches the GovOps pattern —
+// see ./data/duty-known-exclusions.json for the reasoning behind each entry.
+const EXCLUDED_GOVOPS_DUTY_UUIDS = new Set(
+  dutyExclusions.filter((e) => e.excludedRole === "govops").map((e) => e.uuid),
+);
 
 export interface OGResponsibility {
   docNo: string;
@@ -144,6 +151,7 @@ export function deriveGovOpsResponsibilities(
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
     if (!n || seenDocIds.has(n.id)) continue;
+    if (EXCLUDED_GOVOPS_DUTY_UUIDS.has(e.t)) continue;
     const meta = parseMeta<{ role_declared?: string; quote?: string | null }>(e.m);
     // duty_for covers every acting role (GovOps / Facilitator / Executor Agent)
     // — this report only wants the GovOps-declared ones.

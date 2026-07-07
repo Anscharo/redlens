@@ -399,6 +399,23 @@ describe("findRoleDuty — new-subject guard applies past the executor/facilitat
     ).toBeNull();
   });
 
+  it("rejects a bare proper-noun new subject whose own verb is a regular ACTIVE_VERB, not a modal (A.1.14.4.6)", () => {
+    // "Executor Agents" is the true subject of "carry out"; GovOps/Facilitator
+    // are just the prepositional means ("through X and Y"), not actors here.
+    expect(
+      find(
+        "Through GovOps and Facilitator Actors, Executor Agents supervise other Agents and carry out operational activities on behalf of Prime Agents related to the Sky Primitives.",
+      ),
+    ).toBeNull();
+    // The Executor Agent role's OWN match must stay valid — its subj mention
+    // starts fresh at "Executor Agents", with no comma inside the match.
+    expect(
+      findExec(
+        "Through GovOps and Facilitator Actors, Executor Agents supervise other Agents and carry out operational activities on behalf of Prime Agents related to the Sky Primitives.",
+      ),
+    ).toMatchObject({ role_declared: "Executor Agent", match: "active" });
+  });
+
   it("rejects it inside a longer intervening clause (A.1.14.3.4.2)", () => {
     expect(
       findExec(
