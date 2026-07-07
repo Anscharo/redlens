@@ -5,6 +5,7 @@
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
+import { toAnchorId } from "./anchorId";
 
 export interface Chain {
   agentId: string;
@@ -51,6 +52,30 @@ export function buildChains(graph: GraphData): Map<string, Chain> {
     });
   }
   return map;
+}
+
+// Holder entity name → set of executor anchor slugs, straight from the role
+// edges (GOV_EDGES / FAC_EDGES). Lets a duty/active-data/process-step row —
+// which carries only its govops/facilitator holder, no executor and (Core side)
+// no prime — still resolve to an executor for the executor filter. Prime chains
+// (buildChains) can't cover this: the Core chain has no primes, so duty rows
+// whose holder is a Core org never surface an executor via chains.get(prime).
+export function holderExecutorSlugs(
+  graph: GraphData,
+  edgeSet: Set<string> = GOV_EDGES,
+): Map<string, Set<string>> {
+  const entityById = new Map<string, GraphEntity>(graph.participants.map((e) => [e.id, e]));
+  const m = new Map<string, Set<string>>();
+  for (const e of graph.edges) {
+    if (!edgeSet.has(e.e)) continue;
+    const holder = entityById.get(e.f);
+    const exec = entityById.get(e.t);
+    if (!holder || !exec) continue;
+    const slug = toAnchorId(stripExecutorPrefix(exec.name));
+    const set = m.get(holder.name) ?? m.set(holder.name, new Set()).get(holder.name)!;
+    set.add(slug);
+  }
+  return m;
 }
 
 export interface Pill {

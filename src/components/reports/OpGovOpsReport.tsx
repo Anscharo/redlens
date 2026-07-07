@@ -11,11 +11,13 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   buildChains,
   rolePills,
+  holderExecutorSlugs,
   filterEqual,
   stripExecutorPrefix,
   type ActiveFilter,
   type Chain,
 } from "../../lib/reportChains";
+import { GOV_EDGES } from "../../lib/roleEdges";
 import {
   CATEGORY_LABELS,
   type OGResponsibility,
@@ -64,6 +66,14 @@ export function OGReport() {
 
   const allAgents = useMemo(() => [...chains.keys()], [chains]);
 
+  // Holder name → executor slugs, straight from the gov edges. Duty/active-data/
+  // process-step rows carry a `govops` holder but no `executor` and (Core side)
+  // no prime chain — this lets the executor filter still match them.
+  const holderExec = useMemo(
+    () => (graphData ? holderExecutorSlugs(graphData, GOV_EDGES) : new Map<string, Set<string>>()),
+    [graphData],
+  );
+
   const toggle = (next: ActiveFilter) => {
     const cleared = filterEqual(filter, next);
     track("report_filter", {
@@ -100,7 +110,8 @@ export function OGReport() {
         agents.some((a) => {
           const n = chains.get(a)?.executorName;
           return n != null && toAnchorId(n) === filter.slug;
-        })
+        }) ||
+        (r.govops != null && holderExec.get(r.govops)?.has(filter.slug) === true)
       );
     // govops
     return (

@@ -128,6 +128,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
         existing.docNo = row.docNo;
         existing.assessedText = row.duty;
         existing.quoted = quoteByDoc.has(row.uuid);
+        existing.automated = automatedDocs.has(row.uuid) || undefined;
       }
       return;
     }

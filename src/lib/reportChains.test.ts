@@ -6,8 +6,8 @@
 import { describe, it, expect } from "vitest";
 import type { GraphEntity, RelationEdge } from "../types";
 import type { GraphData } from "./graph";
-import { FAC_EDGES } from "./roleEdges";
-import { buildChains, rolePills, stripExecutorPrefix } from "./reportChains";
+import { FAC_EDGES, GOV_EDGES } from "./roleEdges";
+import { buildChains, rolePills, stripExecutorPrefix, holderExecutorSlugs } from "./reportChains";
 
 const participants: GraphEntity[] = [
   { id: "soter", slug: "soter-labs", name: "Soter Labs", et: "govops_org", st: null, did: null },
@@ -51,6 +51,24 @@ describe("rolePills", () => {
   it("selects the role by edge set — FAC_EDGES yields the facilitator holders", () => {
     const { holders } = rolePills(graph, FAC_EDGES);
     expect(holders.map((p) => p.name).sort()).toEqual(["Endgame Edge", "JanSky"]);
+  });
+});
+
+describe("holderExecutorSlugs", () => {
+  it("maps a core-govops holder name straight to the core executor's slug, bypassing the primeless Core chain", () => {
+    // Atlas Axis (core govops) → Core Council Executor Agent 1: this pair has
+    // no prime, so buildChains/chains.get(prime) can never surface it, but a
+    // duty/active-data row carrying only the `govops` holder name still needs
+    // to resolve to the core executor for the executor filter (FIX 2).
+    const m = holderExecutorSlugs(graph, GOV_EDGES);
+    expect(m.get("Atlas Axis")?.has("core-council-executor-agent-1")).toBe(true);
+    expect(m.get("Soter Labs")?.has("amatsu")).toBe(true);
+  });
+
+  it("selects the role by edge set — FAC_EDGES resolves facilitator holders", () => {
+    const m = holderExecutorSlugs(graph, FAC_EDGES);
+    expect(m.get("JanSky")?.has("core-council-executor-agent-1")).toBe(true);
+    expect(m.get("Endgame Edge")?.has("amatsu")).toBe(true);
   });
 });
 

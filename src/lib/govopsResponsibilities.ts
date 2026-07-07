@@ -145,6 +145,7 @@ export function deriveGovOpsResponsibilities(
   //    surviving, and seenDocIds is only marked AFTER every duty_for edge for
   //    this doc has been processed, so a second edge on the same doc isn't
   //    skipped before it's even looked at.
+  // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
   const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string> }>();
   for (const e of edges) {

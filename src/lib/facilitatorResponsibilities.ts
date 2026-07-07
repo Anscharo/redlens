@@ -106,6 +106,7 @@ export function deriveFacilitatorResponsibilities(
   //    per-agent-artifact subtree collapse with agents accumulated (see
   //    govopsResponsibilities.ts for why bare-title collapse is only safe
   //    there); fan-out edges for one doc collapse with holders accumulated.
+  // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
   type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string> };
   const dutyByKey = new Map<string, DutyRow>();

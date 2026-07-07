@@ -576,6 +576,17 @@ describe("findRoleDuties — dual-path docs with a genuine Core AND Operational 
     ]);
   });
 
+  it("collapses a bare + Core pair to a single bare duty, not a double-count (A.1.6.6)", () => {
+    // The bare "Facilitator" duty is universal and already binds every
+    // holder (op + core) downstream in resolveDutyEntities; a same-doc Core-only
+    // passive duty must not add a second, redundant edge to the core org.
+    const duties = findFacDuties(
+      "The Facilitator must act swiftly when an AD is suspected of breaching the requirements defined in this Article. Formal allegations of such failure must be adjudicated by the Core Facilitator pursuant to the adjudication process.",
+    );
+    expect(duties).toHaveLength(1);
+    expect(duties[0]).toMatchObject({ role_declared: "Facilitator" });
+  });
+
   it("still falls back to a title match when content has nothing verb-anchored", () => {
     expect(findRoleDuties(FACILITATOR, "Facilitator Duties", "The sections below describe them.", [])).toEqual([
       { role_declared: "Facilitator", match: "title", quote: null },

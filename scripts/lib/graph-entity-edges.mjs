@@ -325,6 +325,9 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     }
 
     if (!entity && role) {
+      // fragile: doc_no prefix (extracts the agent-artifact index, not just a
+      // boolean scope check — a UUID-ancestor migration would need to carry
+      // the index through separately, so this stays annotated-only)
       const m = d.doc_no.match(/^A\.6\.1\.1\.(\d+)\./);
       if (m) {
         const primeEntity = entityByDocId.get(docByDocNo.get(`A.6.1.1.${m[1]}`)?.id);
@@ -463,6 +466,9 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // roles resolve via the doc's agent-artifact chain, then the unique-holder
   // fallback (null when several orgs hold the role — counted, never guessed).
   const artifactExecId = (d) => {
+    // fragile: doc_no prefix (extracts the agent-artifact index; kept
+    // annotated-only for the same reason as the other artifactExecId-shaped
+    // match above)
     const m = d.doc_no.match(/^A\.6\.1\.1\.(\d+)\./);
     if (!m) return null;
     const primeEntity = entityByDocId.get(docByDocNo.get(`A.6.1.1.${m[1]}`)?.id);

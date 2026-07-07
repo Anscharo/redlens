@@ -3,6 +3,7 @@ import { PRECISION_ELEMENTS } from "../../lib/oeaAssessment";
 import type { OeaMechanism, OeaRow } from "../../lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
+import { usePagedRows } from "../../hooks/usePagedRows";
 
 const RATING_STYLE: Record<Rating, string> = {
   weak: "bg-[color-mix(in_srgb,var(--red)_30%,transparent)] text-tan",
@@ -76,6 +77,7 @@ export function OeaTable({
   expandedKey: string | null;
   onToggle: (row: OeaRow) => void;
 }) {
+  const { visible, remaining, showMore } = usePagedRows(rows);
   return (
     <div className="mb-8">
       <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
@@ -92,7 +94,7 @@ export function OeaTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => {
+          {visible.map((row) => {
             const expanded = expandedKey === row.task.taskKey;
             const e = row.entry;
             return [
@@ -142,6 +144,15 @@ export function OeaTable({
           })}
         </tbody>
       </table>
+      {remaining > 0 && (
+        <button
+          type="button"
+          onClick={showMore}
+          className="mono text-xs text-accent hover:underline mt-2"
+        >
+          Show {Math.min(remaining, 100)} more ({remaining} remaining)
+        </button>
+      )}
     </div>
   );
 }
