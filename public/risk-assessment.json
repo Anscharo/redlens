@@ -30268,29 +30268,6 @@
       "enforcementReasoning": "No specific enforcement mechanism targets the reporting obligation; only the generic misalignment/adjudication backstop could apply, which is always weak. No quantified consequence or named enforcer exists for this rule."
     },
     {
-      "taskKey": "u:21fa6749-6209-4280-9b5f-b2a73d400421",
-      "uuid": "21fa6749-6209-4280-9b5f-b2a73d400421",
-      "docNo": "A.1.10.4.1.1",
-      "title": "Ethereum SkyLink Freezer Multisig",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "The Ethereum SkyLink Freezer Multisig can freeze SkyLink bridges deployed in the Sky Ecosystem.",
-      "quote": "The Ethereum SkyLink Freezer Multisig has the ability to freeze SkyLink bridges deployed in the Sky Ecosystem from Ethereum Mainnet.",
-      "quoteHash": "2c7aeed96dc68f70",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule merely states a capability of a multisig with no quantified thresholds, metrics, deadlines, or defined obligations for any regulated party. It is descriptive, not prescriptive, and a third party cannot determine compliance from the text.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No consequence is attached to this statement. The only backstop is the generic misalignment/adjudication catch-all, which is insufficient. No specific enforcement mechanism reaches this rule."
-    },
-    {
       "taskKey": "u:861347b3-320f-48fb-ab9a-e9030cb9e44f",
       "uuid": "861347b3-320f-48fb-ab9a-e9030cb9e44f",
       "docNo": "A.1.10.4.1.1.2",
@@ -34491,11 +34468,11 @@
         "50%",
         "fill factor = 1 - (current Aggregate Backstop Capital / Target Aggregate Backstop Capital)"
       ],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "3eb6f099-2736-4f62-9cb8-096a8fcca757"
       ],
-      "enforcementReasoning": "The allocation logic is part of the Surplus Buffer and Smart Burn Engine (A.3.5) and is enforced automatically by on-chain smart contracts, making violation impossible."
+      "enforcementReasoning": "Sonnet re-audit: mechanism 3eb6f099 alone rated mid by rubric, not strong"
     },
     {
       "taskKey": "u:ac7a6636-acbc-40c9-abc1-4543c0beb300",
@@ -35613,30 +35590,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment backstop would apply, which is weak. The Core Facilitator's review is internal self-enforcement."
-    },
-    {
-      "taskKey": "u:c2facaa0-f700-49aa-bcbe-ffc0649eb02b",
-      "uuid": "c2facaa0-f700-49aa-bcbe-ffc0649eb02b",
-      "docNo": "A.2.11.1.3.1",
-      "title": "Purpose",
-      "domains": [
-        "sc",
-        "alloc"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Establishes binding policies and operational requirements for multisig wallet usage across Sky Core and Prime infrastructure.",
-      "quote": "The Multisig Security Enforcement Framework establishes binding policies and operational requirements for the use of Multisig wallets across the Sky Ecosystem. Its objective is to ensure that Multisigs used to control smart contracts, allocate capital, and operate under emergency conditions across Sky Core and Prime Agent infrastructure comply with established security and operational requirements, providing clear grounds for oversight, auditing, and enforcement in cases of noncompliance.",
-      "quoteHash": "4f7cd0ccbefec8ff",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a purpose statement that declares the existence of a framework but contains no operative rules, metrics, thresholds, or verifiable conditions. It is entirely aspirational.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is defined; only the generic misalignment/adjudication backstop could apply, which is always weak."
     },
     {
       "taskKey": "u:aa2c4af5-5530-4872-9750-20813f3cd258",
@@ -37904,29 +37857,6 @@
       "enforcementReasoning": "No operative rule exists in this paragraph, so no enforcement mechanism reaches it."
     },
     {
-      "taskKey": "u:1d4cd705-2892-4b59-82e8-609c4649652d",
-      "uuid": "1d4cd705-2892-4b59-82e8-609c4649652d",
-      "docNo": "A.3.2.1.1.4.3.2.3",
-      "title": "Bond-Like Instruments",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Specifies a modified Credit Risk model for evaluating cryptoassets with duration risk like Pendle PT-tokens.",
-      "quote": "The model for bond-like instruments uses a modified Credit Risk model to evaluate the risk of cryptoassets with duration risk, such as Pendle’s PT-tokens. The implementation of the model for bond-like instruments is specified in [A.3.2.2.1.1.1.4 - Bond-Like Instruments](da1a154c-6db8-4012-91a7-31ea4e73e95d).",
-      "quoteHash": "69cce7341f0f32a0",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph merely states that a modified Credit Risk model is used and defers implementation to another section. It contains no thresholds, metrics, deadlines, or verifiable conditions; it is a descriptive pointer with no operative obligation.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism applies to this descriptive paragraph; it imposes no rule to enforce."
-    },
-    {
       "taskKey": "u:0658e6cd-d785-498a-94c4-71cfbc319c24",
       "uuid": "0658e6cd-d785-498a-94c4-71cfbc319c24",
       "docNo": "A.3.2.1.1.4.3.2.4",
@@ -38267,30 +38197,6 @@
       "enforcementReasoning": "The rule is definitional and imposes no specific obligation that could be violated; no enforcement mechanism is cited or implicitly reaches it. Only the generic misalignment/adjudication backstop would apply, which is always weak."
     },
     {
-      "taskKey": "u:6dd3c9c2-414b-4f06-bbc7-944f67e1cd89",
-      "uuid": "6dd3c9c2-414b-4f06-bbc7-944f67e1cd89",
-      "docNo": "A.3.2.1.2.2.1.1.3",
-      "title": "Tokenized External Junior Risk Capital (TEJRC)",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": true,
-      "hasMetrics": false,
-      "description": "Defines the mechanism for external providers to deposit sUSDS into a smart contract for Prime encumbrance.",
-      "quote": "Tokenized External Junior Risk Capital is capital provided by external capital providers depositing sUSDS into the Tokenized External Junior Risk Capital smart contract, from which Primes can encumber funds. The details of this contract will be specified in a future iteration of the Atlas.",
-      "quoteHash": "a2208da841a8246d",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule is an explicit stub: 'The details of this contract will be specified in a future iteration of the Atlas.' No thresholds, metrics, or verifiable conditions are provided.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No operative obligation exists; the stub defers all details. No enforcement mechanism can reach a rule that has no content to enforce."
-    },
-    {
       "taskKey": "u:6c33bcf5-c29d-48ca-9ee5-e37dcdeb0630",
       "uuid": "6c33bcf5-c29d-48ca-9ee5-e37dcdeb0630",
       "docNo": "A.3.2.1.2.2.1.2.1",
@@ -38391,29 +38297,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "No specific enforcement mechanism is cited; the loss absorption hierarchy is a definitional rule that the protocol must implement, but no on-chain automatic enforcement or penalty path is referenced in the paragraph or catalog."
-    },
-    {
-      "taskKey": "u:09c20045-4b53-4370-98b8-a1199ccf7007",
-      "uuid": "09c20045-4b53-4370-98b8-a1199ccf7007",
-      "docNo": "A.3.2.1.2.2.2.1.1",
-      "title": "Internal Senior Risk Capital",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines Internal Senior Risk Capital as capital sourced from the Aggregate Backstop Capital.",
-      "quote": "Internal Senior Risk Capital (ISRC) is capital sourced from Aggregate Backstop Capital, as specified in [A.2.3.1.3 - Sourcing Of Internal Senior Risk Capital](ac7a6636-acbc-40c9-abc1-4543c0beb300).",
-      "quoteHash": "763a1791a5217239",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a definitional statement with no operative obligation, thresholds, or verifiable conditions; it merely points to another section for details.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism applies to a definitional statement; there is no rule to enforce."
     },
     {
       "taskKey": "u:9e99b084-f15a-4f60-b831-d6c0bd9aec04",
@@ -39432,29 +39315,6 @@
       "enforcementReasoning": "As a Risk Capital requirement under A.3.2.2, breach triggers the Penalty Mechanisms (b8ee2d12) and escalates to conservatorship (5c3dd35a), providing a defined enforcement path with concrete remedies."
     },
     {
-      "taskKey": "u:e96da090-34ff-4445-a1d3-22cc69be2e51",
-      "uuid": "e96da090-34ff-4445-a1d3-22cc69be2e51",
-      "docNo": "A.3.2.2.1.1.1.1.4",
-      "title": "Reference Implementation",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Provides the mathematical implementation for calculating Required Risk Capital for lending market instances.",
-      "quote": "A reference implementation of the calculation of Instance Financial RRC for lending markets is included herein.\n\n```\nimport math\nfrom collections import defaultdict\nimport numpy as np\nfrom scipy.stats import norm\n\n# Constants\nRISK_FREE_RATE = 0.04  # SOFR\nTIME_HORIZON = 1       # 1 year\n\nclass FinancialRRCModel:\n    def __init__(self):\n        # For demo purposes, we hardcode a dummy correlation map\n        self.token_correlation_map = {\n            'TOKENA': {'TOKENB': 0.5},\n            'TOKENB': {'TOKENA': 0.5},\n        }\n\n    def _calculate_effective_volatility(self, list_1, list_2):\n        \"\"\"\n        Calculate the effective variance between two sets of positions.\n        \"\"\"\n        effective_variance = 0.0\n        for sym1, pos1 in list_1.items():\n            for sym2, pos2 in list_2.items():\n                if sym1 == sym2:\n                    corr = 1.0\n                else:\n                    corr = self.token_correlation_map.get(sym1, {}).get(sym2,\n                           self.token_correlation_map.get(sym2, {}).get(sym1, 0.0))\n                effective_variance += (\n                    pos1[\"share\"]\n                    * pos2[\"share\"]\n                    * pos1[\"volatility_30d\"]\n                    * pos2[\"volatility_30d\"]\n                    * corr\n                )\n        return effective_variance\n\n    def _estimate_rrc_for_position(self, wallet_data):\n        \"\"\"\n        Estimate the required-risk capital (RRC) for a given wallet_data dict.\n        \"\"\"\n        # 1) compute effective volatilities\n        var_coll = self._calculate_effective_volatility(\n            wallet_data[\"collateral_positions\"],\n            wallet_data[\"collateral_positions\"],\n        )\n        var_debt = self._calculate_effective_volatility(\n            wallet_data[\"debt_positions\"],\n            wallet_data[\"debt_positions\"],\n        )\n        vol_coll = math.sqrt(var_coll)\n        vol_debt = math.sqrt(var_debt)\n\n        # 2) correlation collateral↔debt\n        cov_cd = self._calculate_effective_volatility(\n            wallet_data[\"collateral_positions\"],\n            wallet_data[\"debt_positions\"],\n        )\n        corr_cd = cov_cd / (vol_coll * vol_debt) if vol_coll * vol_debt > 0 else 0.0\n\n        # 3) drift terms\n        eff_coll_rate = sum(p[\"share\"] * p[\"supply_apy_30d\"]\n                            for p in wallet_data[\"collateral_positions\"].values())\n        eff_borrow_rate = sum(p[\"share\"] * p[\"borrow_apy_30d\"]\n                              for p in wallet_data[\"debt_positions\"].values())\n        eff_stake_rate = sum(p[\"share\"] * p[\"staking_apy_30d\"]\n                             for p in wallet_data[\"collateral_positions\"].values())\n\n        drift_cd = (\n            eff_coll_rate + eff_stake_rate - eff_borrow_rate\n            + (var_debt - var_coll) / 2\n        )\n\n        vol_cd = math.sqrt(\n            max(var_coll + var_debt - 2 * corr_cd * vol_coll * vol_debt, 0)\n        )\n\n        # 4) Black-Cox inputs\n        a = (drift_cd - vol_cd**2 / 2) / (vol_cd**2) if vol_cd > 0 else 0.0\n        L = wallet_data[\"collateral_usd_lt\"]\n        D = wallet_data[\"debt_usd\"]\n        log_term = math.log(L / D) if L > 0 and D > 0 else float(\"-inf\")\n        denom = vol_cd * math.sqrt(TIME_HORIZON) if vol_cd > 0 else 1e-10\n\n        d1 = (log_term + (drift_cd - vol_cd**2/2) * TIME_HORIZON) / denom\n        d2 = (log_term - (drift_cd - vol_cd**2/2) * TIME_HORIZON) / denom\n\n        # 5) Probability of Default\n        try:\n            pd = (\n                norm.cdf(-d1)\n                + norm.cdf(-d2) * (L / D) ** (-2 * a)\n            )\n        except OverflowError:\n            pd = 1.0\n        pd = max(0.0, min(pd, 1.0))\n\n        # 6) Loss Given Default\n        recovery = sum(\n            p[\"share\"] * (1 - p[\"liquidation_penalty\"]) * (1 - p[\"slippage\"])\n            / p[\"liquidation_threshold\"]\n            for p in wallet_data[\"collateral_positions\"].values()\n        )\n        lgd = max(0.0, min(1 - recovery, 1.0))\n\n        # 7) Exposure at Default\n        ead = sum(\n            debt[\"debt_usd\"] * math.exp((RISK_FREE_RATE + debt[\"borrow_apy_30d\"]) * TIME_HORIZON)\n            for debt in wallet_data[\"debt_positions\"].values()\n        )\n\n        # 8) Asset Correlation Coefficient\n        a_acc, b_acc, c_acc = 0.13, 10, 0.33\n        exp_term = math.exp(-b_acc * pd)\n        acc = a_acc * (1 - exp_term)/(1-math.exp(-b_acc)) + c_acc*(1 - (1-exp_term)/(1-math.exp(-b_acc)))\n\n        # 9) Credit risk weight\n        default_threshold = (\n            norm.ppf(max(pd, 1e-10)) + math.sqrt(acc) * norm.ppf(0.999)\n        ) / math.sqrt(1 - acc)\n        credit_risk = max(lgd * norm.cdf(default_threshold) - lgd * pd, 0)\n\n        # 10) RRC\n        rrc = credit_risk * ead\n        return rrc\n\n# -------- DEMO USAGE --------\n\nif __name__ == \"__main__\":\n    # 1) Build a dummy wallet_data structure\n    wallet_data = {\n        \"collateral_positions\": {\n            \"TOKENA\": {\n                \"share\": 0.6,\n                \"volatility_30d\": 0.2,\n                \"supply_apy_30d\": 0.05,\n                \"staking_apy_30d\": 0.02,\n                \"liquidation_penalty\": 0.1,\n                \"liquidation_threshold\": 0.8,\n                \"slippage\": 0.01,\n            },\n            \"TOKENB\": {\n                \"share\": 0.4,\n                \"volatility_30d\": 0.25,\n                \"supply_apy_30d\": 0.04,\n                \"staking_apy_30d\": 0.015,\n                \"liquidation_penalty\": 0.12,\n                \"liquidation_threshold\": 0.85,\n                \"slippage\": 0.015,\n            },\n        },\n        \"debt_positions\": {\n            \"TOKENA\": {\n                \"share\": 0.7,\n                \"volatility_30d\": 0.2,\n                \"borrow_apy_30d\": 0.06,\n                \"debt_usd\":  100_000,\n            },\n            \"TOKENB\": {\n                \"share\": 0.3,\n                \"volatility_30d\": 0.25,\n                \"borrow_apy_30d\": 0.07,\n                \"debt_usd\":  50_000,\n            },\n        },\n        \"collateral_usd_lt\": 200_000,\n        \"debt_usd\": 150_000,\n    }\n\n    # 2) Instantiate and run\n    model = FinancialRRCModel()\n    rrc = model._estimate_rrc_for_position(wallet_data)\n    print(f\"Estimated Required Risk Capital (RRC): ${rrc:,.2f}\")\n```",
-      "quoteHash": "5d670a096e28e3e6",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph merely states that a reference implementation is included; it imposes no mandatory obligation on any actor to use this implementation or to achieve any specific outcome. There is no 'must' or 'shall' language, making it a non-binding reference.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No obligation exists to enforce; the text is purely informational. No enforcement mechanism applies."
-    },
-    {
       "taskKey": "u:6a103b6f-53ef-4666-870c-92cfbff6d099",
       "uuid": "6a103b6f-53ef-4666-870c-92cfbff6d099",
       "docNo": "A.3.2.2.1.1.1.1.4",
@@ -40254,29 +40114,6 @@
         "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
       ],
       "enforcementReasoning": "Breach of this capital requirement triggers the Penalty Mechanisms (b8ee2d12) and can escalate to Conservatorship (5c3dd35a), providing a defined enforcement path with concrete remedies."
-    },
-    {
-      "taskKey": "u:da1a154c-6db8-4012-91a7-31ea4e73e95d",
-      "uuid": "da1a154c-6db8-4012-91a7-31ea4e73e95d",
-      "docNo": "A.3.2.2.1.1.1.4",
-      "title": "Bond-Like Instruments",
-      "domains": [
-        "alloc"
-      ],
-      "anchored": true,
-      "stub": true,
-      "hasMetrics": false,
-      "description": "Specifies that bond-like instrument modeling will be defined in a future iteration of the Atlas.",
-      "quote": "The implementation of the model for bond-like instruments will be specified in a future iteration of the Atlas. The near-term treatment of these assets are specified in the subdocuments herein.",
-      "quoteHash": "bb550d2a611797e4",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph explicitly states that the model will be specified in a future iteration, providing no current thresholds, metrics, or verifiable conditions. It is a stub with nothing to comply with.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No operative rule exists to enforce; only the generic misalignment backstop would apply, which is always weak."
     },
     {
       "taskKey": "u:a479643e-fbd3-4c9b-aba0-40f4657a8011",
@@ -41576,12 +41413,12 @@
       "preciseness": 4,
       "precisenessReasoning": "The formula effAuditValue = effectivenessCoefficient × coverage is fully specified, but the parameters effectivenessCoefficient and coverage are not defined in this paragraph; they are delegated to subdocuments. Thus the core obligation is quantified but with a minor gap.",
       "metrics": [],
-      "enforcement": "strong",
+      "enforcement": "mid",
       "mechanismUuids": [
         "b8ee2d12-c94b-4d22-b55e-d2b6e6d94ad0",
         "5c3dd35a-0c67-44c2-b51b-d40bc865af85"
       ],
-      "enforcementReasoning": "The rule defines a component of the risk capital calculation; failure to use the correct effAuditValue would lead to incorrect risk capital, which is enforced by Penalty Mechanisms (b8ee2d12) and Conservatorship (5c3dd35a) for breach of capital requirements."
+      "enforcementReasoning": "Sonnet re-audit: pure calculation formula, not enforceable as actor violation"
     },
     {
       "taskKey": "u:b4a13cfc-1fef-47da-a350-6e81346203f4",
@@ -45501,80 +45338,6 @@
       "enforcementReasoning": "No enforcement mechanism is specified or implied for this transitional statement; only the generic misalignment backstop would apply, which is weak."
     },
     {
-      "taskKey": "u:12714156-5543-4443-b733-d213db62cecb",
-      "uuid": "12714156-5543-4443-b733-d213db62cecb",
-      "docNo": "A.3.3.2.7.1.1.1.1",
-      "title": "Lite Peg Stability Module Toll / Fee In Definition",
-      "domains": [
-        "peg"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines a percentage fee applied when trading collateral into the PSM for stablecoin exchange.",
-      "quote": "`tin` is a percentage fee applied when trading the collateral asset into the PSM in exchange for Dai**.**",
-      "quoteHash": "a2d0bb2c20e983e1",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph only defines the term 'tin' as a percentage fee, without specifying any numeric value, threshold, or obligation. It is a definitional stub with no operative requirement.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism applies to a definitional paragraph that imposes no obligation. The on-chain PSM fee enforcement is not triggered by this text."
-    },
-    {
-      "taskKey": "u:c1805ee8-626e-4aec-9a88-21377579aa3d",
-      "uuid": "c1805ee8-626e-4aec-9a88-21377579aa3d",
-      "docNo": "A.3.3.2.7.1.1.1.3",
-      "title": "Lite Peg Stability Module Maximum Debt Ceiling Definition",
-      "domains": [
-        "peg"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the maximum debt capacity allowed for the Lite Peg Stability Module.",
-      "quote": "DC-IAM `line` is the maximum amount of debt the LitePSM can accrue.",
-      "quoteHash": "4039c6628c21356b",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 3,
-      "precisenessReasoning": "The rule defines the parameter DC-IAM `line` as the maximum debt, but no numeric threshold is provided; the actual limit is delegated to a parameter set elsewhere.",
-      "metrics": [],
-      "enforcement": "strong",
-      "mechanismUuids": [
-        "0082c12d-f1a7-46ff-a4aa-5fe42ece1a4d"
-      ],
-      "enforcementReasoning": "The LitePSM contract enforces the debt ceiling on-chain, making violation impossible; this is implicit in the Peg Stability Module mechanism (0082c12d)."
-    },
-    {
-      "taskKey": "u:51e64b05-ddb8-4ce3-9307-1f2f8dc51a5f",
-      "uuid": "51e64b05-ddb8-4ce3-9307-1f2f8dc51a5f",
-      "docNo": "A.3.3.2.7.1.1.1.5",
-      "title": "Lite Peg Stability Module Ceiling Increase Cooldown Definition",
-      "domains": [
-        "peg",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the minimum time delay required before increasing the Peg Stability Module debt ceiling.",
-      "quote": "DC-IAM `ttl` is the minimum time requirement before it is possible to increase the debt ceiling, expressed in seconds.",
-      "quoteHash": "aaba0c35c0edad59",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule defines a parameter name and its unit (seconds) but provides no numeric threshold or value; it is a placeholder definition with nothing to comply with.",
-      "metrics": [],
-      "enforcement": "strong",
-      "mechanismUuids": [
-        "0082c12d-f1a7-46ff-a4aa-5fe42ece1a4d"
-      ],
-      "enforcementReasoning": "The DC-IAM ttl is enforced on-chain by the Peg Stability Module smart contract, which prevents debt ceiling increases before the cooldown period; violation is impossible."
-    },
-    {
       "taskKey": "u:8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
       "uuid": "8694e11a-6acd-43f1-90fd-67eb7e7d98d6",
       "docNo": "A.3.3.2.7.1.1.2",
@@ -46870,30 +46633,6 @@
       "enforcementReasoning": "No specific enforcement mechanism reaches this rule; only the generic misalignment/adjudication backstop applies, which is weak."
     },
     {
-      "taskKey": "u:93c9f662-4e0d-477e-8fc9-e3726877e842",
-      "uuid": "93c9f662-4e0d-477e-8fc9-e3726877e842",
-      "docNo": "A.3.7.1.1.2.4",
-      "title": "Debt Ceiling Instant Access Module (DC-IAM)",
-      "domains": [
-        "alloc",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines parameters for adjusting vault debt ceilings via the DC-IAM smart contract logic.",
-      "quote": "The DC-IAM allows any user to adjust the Debt Ceiling of a supported vault type according to the rules defined in the DC-IAM smart contract logic and parameters set by the Core Facilitator. The DC-IAM holds three parameters that can be set by Sky Governance for each vault type, (i) Maximum Debt Ceiling (`line`), (ii) Target Available Debt (`gap`), and (iii) Ceiling Increase Cooldown (`ttl`).",
-      "quoteHash": "abeb3f14c25c4c7b",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph describes the DC-IAM's functionality and lists parameters but imposes no verifiable obligation, threshold, or rule; it merely states that adjustments occur per smart contract logic, which is not a compliance rule.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism UUID from the catalog or text applies; the rule is descriptive and the smart contract's self-enforcement is not documented as a mechanism in the rubric's catalog."
-    },
-    {
       "taskKey": "u:6ba18f25-dae8-4fa5-929e-3c7071b70107",
       "uuid": "6ba18f25-dae8-4fa5-929e-3c7071b70107",
       "docNo": "A.3.7.1.1.2.4.1",
@@ -47635,30 +47374,6 @@
       "enforcementReasoning": "No operative rule exists to enforce; the definition alone does not trigger any enforcement mechanism."
     },
     {
-      "taskKey": "u:67747090-8545-49b4-95e8-673af9836aa5",
-      "uuid": "67747090-8545-49b4-95e8-673af9836aa5",
-      "docNo": "A.3.7.1.3.1.2",
-      "title": "Max Definition",
-      "domains": [
-        "peg",
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": true,
-      "description": "Defines the maximum allowable basis point value for rates set via the SP-BEAM module.",
-      "quote": "The `max` parameter defines the maximum value for rates in basis points that can be set using the Stability Parameter Bounded External Access Module. Each rate parameter added to the SP-BEAM has a specific `max`.",
-      "quoteHash": "ac2f042c6fa893dc",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The rule defines a parameter name but provides no numeric threshold, formula, or specific value; a third party cannot verify compliance because the actual maximum is not stated.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No obligation is created, so no enforcement mechanism applies; only the generic misalignment backstop would be available, which is weak."
-    },
-    {
       "taskKey": "u:4e2910c0-fd52-4e18-97e0-2fbd35569070",
       "uuid": "4e2910c0-fd52-4e18-97e0-2fbd35569070",
       "docNo": "A.3.7.1.3.1.2.1",
@@ -48290,29 +48005,6 @@
       "enforcement": "weak",
       "mechanismUuids": [],
       "enforcementReasoning": "The on-chain enforcement of parameter bounds by the SP-BEAM module is not linked to any documented mechanism UUID in the rubric's catalog or the paragraph text; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
-      "taskKey": "u:f0cc7297-8ab9-4255-9365-d9ba87764f13",
-      "uuid": "f0cc7297-8ab9-4255-9365-d9ba87764f13",
-      "docNo": "A.3.7.1.3.5.1",
-      "title": "Operator Multisig",
-      "domains": [
-        "sc"
-      ],
-      "anchored": true,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the Operator Multisig as the controller of the Stability Parameter Bounded External Access Module.",
-      "quote": "The Operator Multisig is the Operator of the Stability Parameter Bounded External Access Module and is controlled by Core GovOps.",
-      "quoteHash": "1838f613c269ba36",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 2,
-      "precisenessReasoning": "The rule defines the Operator Multisig as the Operator and states it is controlled by Core GovOps. It names actors but provides no metrics, thresholds, formulas, or deadlines; compliance is a binary factual check, not a measurable obligation.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No specific enforcement mechanism is cited or implied; only the generic misalignment backstop would apply, which is weak."
     },
     {
       "taskKey": "u:591ac4d7-5699-4a81-8b4a-d10c8d8c3457",
@@ -54739,32 +54431,6 @@
       "enforcementReasoning": "No specific enforcement mechanism reaches this rule; only the generic misalignment/adjudication backstop applies. No on-chain automatic enforcement, capital-at-risk incentive, or named review process is tied to this emergency power."
     },
     {
-      "taskKey": "u:86925539-2db1-4a2e-930a-2ee6bc833ccd",
-      "uuid": "86925539-2db1-4a2e-930a-2ee6bc833ccd",
-      "docNo": "A.6.1.1.1.3.9.2",
-      "title": "Purpose",
-      "domains": [
-        "sc"
-      ],
-      "agents": [
-        "Spark"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines governance authorization processes for external onchain changes including timelocks and cancellation authorities.",
-      "quote": "The Risk Curation Framework defines the conditions under which Spark governance may authorize external contributors to execute approved changes onchain, while preserving governance oversight, timelock protections, and cancellation authorities.",
-      "quoteHash": "4e15e11417d3446a",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph is a purpose statement describing what the Risk Curation Framework defines, with no operative obligations, metrics, thresholds, or verifiable conditions. It is aspirational and provides no concrete rule to comply with.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism is specified or implied for this paragraph; only the generic misalignment backstop would apply, which is weak."
-    },
-    {
       "taskKey": "u:6f64ac9e-daf1-4339-8046-3894e57f4383",
       "uuid": "6f64ac9e-daf1-4339-8046-3894e57f4383",
       "docNo": "A.6.1.1.1.3.9.3.3",
@@ -55925,32 +55591,6 @@
       "enforcementReasoning": "No direct penalty is specified for violating the signer conditions. The Agent Artifact Review mechanism (d4bf73e7) could detect non-compliance during scheduled reviews and assess penalties, providing a plausible but unquantified consequence."
     },
     {
-      "taskKey": "u:99bc2dd5-5573-4bb9-9210-5af299d058d9",
-      "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
-      "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
-      "title": "Freezer Multisig",
-      "domains": [
-        "sc"
-      ],
-      "agents": [
-        "Grove"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the Freezer Multisig's administrative roles for the ALM Controller and Diamond PAU.",
-      "quote": "The Freezer Multisig has the `FREEZER_ROLE` for the monolithic ALM Controller as defined in [A.6.1.1.2.2.6.1.2.2.1.1.1.4 - Freezer Role](37871a80-dc8f-4804-bce1-5f082e9bca9f), and holds the equivalent Freezer Role for the Diamond PAU as defined in [A.6.1.1.2.2.6.1.2.2.1.1.3.4 - Freezer Role](d910ae36-1251-4385-b989-f303878ed094).",
-      "quoteHash": "144c9c388f448d50",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph merely states that the Freezer Multisig holds specific roles; it imposes no obligation, threshold, or verifiable condition on any regulated party. There is nothing to comply with.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule exists to enforce; the statement is purely descriptive. No enforcement mechanism applies."
-    },
-    {
       "taskKey": "u:939338a1-df49-47cb-9206-810059b6c16a",
       "uuid": "939338a1-df49-47cb-9206-810059b6c16a",
       "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4.2",
@@ -56238,32 +55878,6 @@
         "d4bf73e7-2f9f-454c-8add-614dff784f78"
       ],
       "enforcementReasoning": "Correct role assignment is verifiable via Agent Artifact Review by Core GovOps (d4bf73e7), which can identify misconfiguration and assess penalties, but no automatic on-chain mechanism ensures the role is held only by the specified entities."
-    },
-    {
-      "taskKey": "u:6d6622aa-5d56-48e0-b8e9-1addd309fc9b",
-      "uuid": "6d6622aa-5d56-48e0-b8e9-1addd309fc9b",
-      "docNo": "A.6.1.1.2.2.6.1.2.2.1.1.3.3",
-      "title": "Allocator Role",
-      "domains": [
-        "sc"
-      ],
-      "agents": [
-        "Grove"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the Allocator Role authority and the mechanism for removing actors via the Freezer Role.",
-      "quote": "The `ALLOCATOR_ROLE` is authorized to call functions on the Controller contract to perform operations on behalf of the ALM Proxy contract. The Allocator Role is held by the AdministeredAgent contract, as specified in [A.6.1.1.2.2.6.1.2.1.1.1.4.1.9 - AdministeredAgent Contract](d58e14aa-0901-4aa9-af44-6281161be162), which mediates access for the Grove Liquidity Layer relayer system. The same relayer multisigs used by the monolithic ALM Controller, whose addresses are specified in [A.6.1.1.2.2.6.1.2.1.1.1.2.1.4 - ALM Relayer Multisig Addresses](51b50a8f-eb29-4424-bb0a-8247d2acce7d), are registered as actors of the AdministeredAgent and submit operations through it. An actor may be removed from the AdministeredAgent by any address holding the Freezer Role, as specified in [A.6.1.1.2.2.6.1.2.2.1.1.3.4 - Freezer Role](d910ae36-1251-4385-b989-f303878ed094).",
-      "quoteHash": "eae00872bb016dde",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph defines the Allocator Role and its holders, but imposes no obligation, threshold, or verifiable condition on any party. It is a descriptive specification, not a compliance rule.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No rule to enforce; the text merely describes system roles and access. No enforcement mechanism is relevant."
     },
     {
       "taskKey": "u:d910ae36-1251-4385-b989-f303878ed094",
@@ -58970,32 +58584,6 @@
         "0082c12d-f1a7-46ff-a4aa-5fe42ece1a4d"
       ],
       "enforcementReasoning": "The rule is enforced automatically by the Controller and PSM smart contracts: any call that fails the relayer check, rate limit, or balance requirement reverts on-chain. This is a direct on-chain enforcement of the swap logic, consistent with the Peg Stability Module mechanism."
-    },
-    {
-      "taskKey": "u:f2d93d71-1bf9-4199-8190-e1e0beeb5369",
-      "uuid": "f2d93d71-1bf9-4199-8190-e1e0beeb5369",
-      "docNo": "A.6.1.1.8.2.6.2.4",
-      "title": "In Progress Invocations",
-      "domains": [
-        "alloc"
-      ],
-      "agents": [
-        "Launch Agent 7"
-      ],
-      "anchored": false,
-      "stub": false,
-      "hasMetrics": false,
-      "description": "Defines the process for moving completed Junior Risk Capital Rental Invocations to active instances.",
-      "quote": "The in progress Invocations of the Junior Risk Capital Rental Primitive are contained herein. Once an Invocation is successfully completed, its subtree will be moved to [A.6.1.1.8.2.6.2.2 - Active Instances](9a3c679d-a269-440e-9069-4bd85b428b3f).",
-      "quoteHash": "d84fd8d967dfd1a9",
-      "model": "deepseek/deepseek-v4-pro",
-      "rubricVersion": "37ea5cbd052e",
-      "preciseness": 1,
-      "precisenessReasoning": "The paragraph merely describes where in-progress invocations are stored and that they will be moved upon completion; it imposes no obligation, threshold, deadline, or verifiable condition on any actor.",
-      "metrics": [],
-      "enforcement": "weak",
-      "mechanismUuids": [],
-      "enforcementReasoning": "No enforcement mechanism is specified or implied; the rule is a descriptive note with no compliance requirement."
     },
     {
       "taskKey": "u:eeb2185d-2a4c-45e3-872c-2d241e42d5c4",
