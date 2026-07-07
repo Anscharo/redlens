@@ -29,6 +29,7 @@
 - Corrected 14 ratings and dropped 6 non-rule paragraphs from the Risk Rules Assessment after a spot-check audit — mostly enforcement ratings that cited a mechanism not reaching the rule's actor
 - Fixed the GovOps and Facilitator responsibility reports missing a section's second duty when it tasks both the Core and Operational side of the role (e.g. a "Sky Governance path / Independent Governance path" split)
 - Fixed the responsibility reports and OEA Task Assessment picking up duties from Needed Research questions, Scenario examples, and rubric-element annotations, which were never real duties
+- Reviewed every OEA Task Assessment rating with high stakes (strong precision or a rewarded/penalized incentives rating) and corrected the ones that didn't hold up — wrong enforcement-mechanism citations, a few over- and under-ratings, and a bare process-step preview that read as a real duty when it wasn't
 
 ## 2026-07-06
 - The selected section now stays pinned to the top of the reader while you scroll through its subsections

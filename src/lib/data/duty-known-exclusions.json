@@ -52,5 +52,11 @@
     "docNo": "A.2.2.1.1.15",
     "excludedRole": "facilitator",
     "reason": "\"…by the Operational Executor Facilitator as authorized by Omni Documents\" — the ACTIVE_VERBS word \"documents\" (the verb) collides with \"Omni Documents\" (a proper noun) two sentences later, incidentally matching the earlier bare \"Facilitator\" substring inside \"Operational Executor Facilitator\" (a different compound term, not a Facilitator duty)."
+  },
+  {
+    "uuid": "4d5482ad-7944-4073-8fbe-b9dbcd1a27a3",
+    "docNo": "A.2.2.9.1.2.3.1.3",
+    "excludedRole": "govops",
+    "reason": "Bullet header \"Initial Planning Document Triggered For GovOps review\" quote-matched as a GovOps active duty, but the doc's own \"Responsible party\" field for that step is \"Prime Agent\" — GovOps review is only the downstream gate the Prime Agent's own edit is triggered by, not a task GovOps performs here. Caught during the OEA assessment targeted review (2026-07-07): the model's own reasoning independently named the actor as \"Prime Agent\" while still rating this row as a strong OEA task."
   }
 ]
