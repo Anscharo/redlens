@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { useUrlState, urlString } from "../../hooks/useUrlState";
+import { useUrlState, urlString, type UrlCodec } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
@@ -9,8 +9,15 @@ import type { Rating } from "../../lib/oeaAssessment";
 import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable } from "./RiskRulesTable";
+import { Link } from "../Link";
+import { ROUTES } from "../../lib/routes";
 
-const domainCodec = categoryCodec(RISK_DOMAIN_LABELS);
+// Multi-select: comma-separated in the URL, empty array = no filter.
+const domainsCodec: UrlCodec<RiskDomain[]> = {
+  encode: (v) => (v.length ? v.join(",") : null),
+  decode: (raw) =>
+    raw ? raw.split(",").filter((d): d is RiskDomain => d in RISK_DOMAIN_LABELS) : [],
+};
 const SCORES = ["1", "2", "3", "4", "5"] as const;
 type Score = (typeof SCORES)[number];
 const scoreCodec = categoryCodec(Object.fromEntries(SCORES.map((s) => [s, s])) as Record<Score, string>);
@@ -19,18 +26,19 @@ const statusCodec = categoryCodec<RiskRowStatus>({ fresh: "fresh", stale: "stale
 const expandedCodec = urlString(null);
 const RATINGS = ["weak", "mid", "strong"] as const;
 const STATUSES = ["fresh", "stale", "unassessed"] as const;
-// Allocation risk and smart contract security carry far more rows than peg
-// maintenance — show them first.
-const SECTION_ORDER: RiskDomain[] = ["alloc", "sc", "peg"];
 
 function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
-  const s = summarizeRisk(join.rows);
-  const p = ([1, 2, 3, 4, 5] as const).map((k) => `${s.preciseness[k]}×${k}`).join(" ");
+  const total = join.rows.length;
   return (
     <p className="mono text-xs text-tan-3 mb-4">
-      {shown} rules · preciseness: {p} · incentives: {s.enforcement.weak} weak · {s.enforcement.mid} mid · {s.enforcement.strong} strong
-      {s.stale > 0 && ` · ${s.stale} stale`}
-      {s.unassessed > 0 && ` · ${s.unassessed} unassessed`}
+      {shown === total ? (
+        `${total.toLocaleString()} Atlas sections match the filter`
+      ) : (
+        <>
+          <strong className="font-semibold text-tan">{shown.toLocaleString()}</strong>
+          {` of ${total.toLocaleString()} Atlas sections match the filter`}
+        </>
+      )}
       {join.untriaged > 0 && ` · ${join.untriaged} awaiting triage`}
     </p>
   );
@@ -40,8 +48,8 @@ export function RiskRulesReport() {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
-  const [domain, setDomain] = useUrlState("domain", domainCodec);
-  const [score, setScore] = useUrlState("preciseness", scoreCodec);
+  const [domains, setDomains] = useUrlState("domain", domainsCodec);
+  const [score, setScore] = useUrlState("precision", scoreCodec);
   const [enforce, setEnforce] = useUrlState("incentives", ratingCodec);
   const [status, setStatus] = useUrlState("status", statusCodec);
   const [expanded, setExpanded] = useUrlState("expanded", expandedCodec);
@@ -73,6 +81,13 @@ export function RiskRulesReport() {
       startTransition(() => set((cur) => (cur === next ? null : next)));
     };
 
+  const toggleDomain = (d: RiskDomain) => {
+    track("report_filter", { report: "risk-rules", filter_kind: "domain", slug: d, active: !domains.includes(d) });
+    startTransition(() =>
+      setDomains((cur) => (cur.includes(d) ? cur.filter((x) => x !== d) : [...cur, d])),
+    );
+  };
+
   const toggleRow = (row: RiskRow) => {
     const action = expanded === row.candidate.taskKey ? "collapse" : "expand";
     track("report_row_toggle", {
@@ -93,17 +108,27 @@ export function RiskRulesReport() {
     () =>
       join.rows.filter(
         (r) =>
-          (domain === null || r.triage.domains.includes(domain)) &&
+          (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
           (status === null || r.status === status) &&
           (score === null || String(r.entry?.preciseness) === score) &&
           (enforce === null || r.entry?.enforcement === enforce),
       ),
-    [join, domain, status, score, enforce],
+    [join, domains, status, score, enforce],
   );
-  const byDomain = useMemo(
-    () => Object.groupBy(filtered, (r) => r.triage.domains[0] ?? r.candidate.domains[0]),
-    [filtered],
-  );
+  // Pill counts describe the unfiltered universe so they don't jump around
+  // while filtering. Domain counts use the same any-tag matching as the filter
+  // (rows carry multiple domains, so these overlap and sum to > total).
+  const counts = useMemo(() => {
+    const s = summarizeRisk(join.rows);
+    const domain: Record<RiskDomain, number> = { peg: 0, alloc: 0, sc: 0 };
+    for (const r of join.rows) for (const d of r.triage.domains) domain[d as RiskDomain]++;
+    return {
+      domain,
+      score: Object.fromEntries(SCORES.map((k) => [k, s.preciseness[Number(k) as 1 | 2 | 3 | 4 | 5]])) as Record<Score, number>,
+      enforce: s.enforcement,
+      status: { fresh: join.rows.length - s.stale - s.unassessed, stale: s.stale, unassessed: s.unassessed },
+    };
+  }, [join]);
 
   return (
     <div className="px-6 py-6">
@@ -115,31 +140,27 @@ export function RiskRulesReport() {
         <p className="text-sm text-tan-3 mb-1">
           Every atlas paragraph that defines a risk-management rule, parameter, or process —
           peg maintenance, allocation risk, and smart contract security — scored 1–5 for
-          preciseness and weak/mid/strong for penalties and incentives.
+          precision and weak/mid/strong for penalties and incentives.
         </p>
         <p className="mono text-xs text-tan-3 mb-4" title="Ratings are LLM-drafted against the risk assessment rubric, then human-reviewed. Click a row for the reasoning.">
-          ✳ assessed by {artifact?.assessModel ?? "—"} · human-reviewed · rubric {artifact?.rubricVersion ?? "—"}
+          ✳ assessed by {artifact?.assessModel ?? "—"} · human-reviewed ·{" "}
+          <Link to={ROUTES.REPORTS_RISK_RUBRIC} className="text-accent hover:underline">
+            rubric {artifact?.rubricVersion ?? "—"}
+          </Link>
         </p>
 
         {join.rows.length > 0 && <SummaryStrip join={join} shown={filtered.length} />}
 
-        <div className="flex flex-wrap gap-4 mb-6">
-          <CategoryPills label="Domain" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domain} onToggle={toggle("domain", domain, setDomain)} />
-          <CategoryPills label="Preciseness" categories={SCORES} active={score} onToggle={toggle("preciseness", score, setScore)} />
-          <CategoryPills label="Incentives" categories={RATINGS} active={enforce} onToggle={toggle("incentives", enforce, setEnforce)} />
-          <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
+        <div className="flex flex-col gap-2 mb-6">
+          <CategoryPills label="Risk Type" labelTitle="Broad category of risk assessment" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domains} onToggle={toggleDomain} display={RISK_DOMAIN_LABELS} counts={counts.domain} hint="multi-select" />
+          <CategoryPills label="Precision" labelTitle="How clearly does this section describe a risk-related rule?" categories={SCORES} active={score} onToggle={toggle("precision", score, setScore)} counts={counts.score} hint="1 vague → 5 precise" />
+          <CategoryPills label="Incentives" labelTitle="Does this section include a consequence or predetermined action?" categories={RATINGS} active={enforce} onToggle={toggle("incentives", enforce, setEnforce)} counts={counts.enforce} />
+          <CategoryPills label="Status" labelTitle="Has this section been updated since the report was last refreshed?" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} counts={counts.status} />
         </div>
 
-        {atlas && SECTION_ORDER.map((d) => {
-          const label = RISK_DOMAIN_LABELS[d];
-          const rows = byDomain[d];
-          if (!rows?.length) return null;
-          return (
-            <RiskTable key={d} label={label} rows={rows} docs={atlas.docs}
-              expandedKey={expanded}
-              onToggle={toggleRow} />
-          );
-        })}
+        {atlas && filtered.length > 0 && (
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
+        )}
       </div>
     </div>
   );

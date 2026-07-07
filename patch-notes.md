@@ -20,6 +20,10 @@
 -->
 
 ## 2026-07-07
+- Cleaned up the Risk Rules report — click anywhere on a row to open its reasoning, filter pills show full risk-type names with rule counts and explanatory tooltips, and the mostly-empty status column became an inline badge on the affected rows
+- Replaced the Risk Rules report's per-category sections with one flat table that tags each rule with all of its risk types, and made the risk-type filter multi-select with checkboxes
+- Linked the rubric hash on the Risk Rules report to a new page showing the full assessment rubric
+- Grouped the reports index into OEA Reports and General Reports sections
 - Improved assessment report tracking and keyboard access to per-row reasoning
 - Fixed the OEA Task Assessment freshness status to account for full-document changes, not only the displayed snippet
 - Added a Risk Rules Assessment report — every atlas paragraph that defines a peg-maintenance, allocation-risk, or smart-contract-security rule, scored 1–5 for how precisely it's defined and weak/mid/strong for penalties and incentives, with AI-drafted reasoning and links to the enforcement mechanisms

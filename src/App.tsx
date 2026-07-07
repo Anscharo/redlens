@@ -56,6 +56,9 @@ const OeaAssessmentReport = lazy(() =>
 const RiskRulesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/RiskRulesReport")).then((m) => ({ default: m.RiskRulesReport })),
 );
+const RubricPage = lazy(() =>
+  lazyRetry(() => import("./components/reports/RubricPage")).then((m) => ({ default: m.RubricPage })),
+);
 const ReportsIndex = lazy(() =>
   lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
 );
@@ -295,6 +298,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_RISK_RULES}>
               <Suspense fallback={<Loading />}>
                 <RiskRulesReport />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
+              <Suspense fallback={<Loading />}>
+                <RubricPage />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>

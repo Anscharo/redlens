@@ -1,6 +1,7 @@
 import type { AtlasNode } from "../../types";
 import type { Preciseness } from "../../lib/riskAssessment";
 import type { RiskRow } from "../../lib/riskAssessmentIndex";
+import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
@@ -29,7 +30,7 @@ function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasN
       </blockquote>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
-          Preciseness <ScorePill s={e.preciseness} />
+          Precision <ScorePill s={e.preciseness} />
         </p>
         <p className="text-tan-2">{e.precisenessReasoning}</p>
         {e.metrics.length > 0 && (
@@ -59,17 +60,29 @@ function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasN
         <p className="mono text-[10px] text-tan-3">replicated across: {row.candidate.agents.join(", ")}</p>
       )}
       <p className="mono text-[10px] text-tan-3">
-        ✳ assessed by {e.model} · rubric {e.rubricVersion}
+        ✳ assessed by {e.model}
         {row.status === "stale" && " · STALE — the atlas changed since this rating; re-queued on next run"}
       </p>
     </div>
   );
 }
 
+function DomainPills({ row }: { row: RiskRow }) {
+  const domains = (row.triage.domains.length ? row.triage.domains : row.candidate.domains) as RiskDomain[];
+  return (
+    <span className="flex flex-wrap gap-1">
+      {domains.map((d) => (
+        <span key={d} className="mono text-[10px] px-1.5 py-0.5 rounded bg-[var(--hover)] text-tan-2 whitespace-nowrap">
+          {RISK_DOMAIN_LABELS[d]}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function RiskTable({
-  label, rows, docs, expandedKey, onToggle,
+  rows, docs, expandedKey, onToggle,
 }: {
-  label: string;
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
@@ -78,17 +91,14 @@ export function RiskTable({
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
     <div className="mb-8">
-      <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mb-3 pb-1 border-b border-[var(--border)]">
-        {label} <span className="text-tan-3/60">({rows.length})</span>
-      </h2>
       <table className="w-full text-left">
         <thead>
           <tr className="text-xs mono text-tan-3">
             <th className="py-1 px-3 font-normal w-40">Doc</th>
             <th className="py-1 px-3 font-normal">Rule</th>
-            <th className="py-1 px-3 font-normal w-28">Preciseness</th>
+            <th className="py-1 px-3 font-normal w-40">Risk Type</th>
+            <th className="py-1 px-3 font-normal w-28">Precision</th>
             <th className="py-1 px-3 font-normal w-28">Incentives</th>
-            <th className="py-1 px-3 font-normal w-24" />
           </tr>
         </thead>
         <tbody>
@@ -96,10 +106,14 @@ export function RiskTable({
             const expanded = expandedKey === row.candidate.taskKey;
             const e = row.entry;
             return [
+              // The whole row toggles the assessment; inner links stopPropagation.
+              // The chevron button stays as the keyboard/AT path for the same action.
               <tr key={row.candidate.taskKey}
-                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
+                onClick={() => onToggle(row)}
+                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
                 <td className="py-2 px-3 align-top">
-                  <AtlasLink to={atlasHref(row.candidate.uuid)} className="mono text-xs text-accent hover:underline">
+                  <AtlasLink to={atlasHref(row.candidate.uuid)} onClick={(ev) => ev.stopPropagation()}
+                    className="mono text-xs text-accent hover:underline">
                     {row.candidate.docNo}
                   </AtlasLink>
                 </td>
@@ -109,27 +123,20 @@ export function RiskTable({
                     className="mono text-xs text-tan-3 mr-1.5 hover:text-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-sm"
                     aria-expanded={expanded}
                     aria-label={`${expanded ? "Collapse" : "Expand"} assessment reasoning for ${row.candidate.title}`}
-                    onClick={() => onToggle(row)}
+                    onClick={(ev) => { ev.stopPropagation(); onToggle(row); }}
                   >
                     {expanded ? "▾" : "▸"}
                   </button>
-                  <AtlasLink to={atlasHref(row.candidate.uuid)} className="text-tan hover:underline"
-                  >
-                    {row.candidate.title}
-                  </AtlasLink>
+                  <span className="text-tan">{row.candidate.title}</span>
                   {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}
+                  {row.status !== "fresh" && (
+                    <span className={`badge ml-1.5 ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
+                  )}
                   {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2">{row.triage.description}</p>}
                 </td>
+                <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
                 <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>
-                <td className="py-2 px-3 align-top">
-                  <RatingPill r={e?.enforcement ?? null} />
-                  {e && <span className="text-tan-3 text-[10px] ml-1 cursor-help" title={`assessed by ${e.model}`}>✳</span>}
-                </td>
-                <td className="py-2 px-3 align-top">
-                  {row.status !== "fresh" && (
-                    <span className={`badge ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
-                  )}
-                </td>
+                <td className="py-2 px-3 align-top"><RatingPill r={e?.enforcement ?? null} /></td>
               </tr>,
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
