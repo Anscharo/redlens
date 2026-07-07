@@ -39,6 +39,16 @@ describe("joinAssessments", () => {
     expect(rows[0].status).toBe("stale");
   });
 
+  it("stale when the full document changed even if assessed text is unchanged", () => {
+    const e = { ...entry("u:u1", "Do the thing."), docContentHash: "old" };
+    const rows = joinAssessments(
+      [task("u:u1", "Do the thing.")],
+      artifact([e]),
+      { u1: { contentHash: "new" } },
+    );
+    expect(rows[0].status).toBe("stale");
+  });
+
   it("unassessed when no entry exists (artifact missing entirely too)", () => {
     expect(joinAssessments([task("u:u2", "x")], artifact([]))[0].status).toBe("unassessed");
     expect(joinAssessments([task("u:u2", "x")], null)[0].status).toBe("unassessed");

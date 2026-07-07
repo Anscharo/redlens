@@ -1,4 +1,4 @@
-import { useMemo, useTransition } from "react";
+import { useEffect, useMemo, useRef, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
@@ -6,7 +6,7 @@ import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable } from "./RiskRulesTable";
 
@@ -45,18 +45,46 @@ export function RiskRulesReport() {
   const [enforce, setEnforce] = useUrlState("incentives", ratingCodec);
   const [status, setStatus] = useUrlState("status", statusCodec);
   const [expanded, setExpanded] = useUrlState("expanded", expandedCodec);
+  const trackedView = useRef(false);
 
   const join = useMemo<RiskJoin>(() => {
     if (!atlas) return { rows: [], untriaged: 0, rejected: 0 };
     return joinRisk(enumerateRiskCandidates(atlas).candidates, artifact);
   }, [atlas, artifact]);
 
+  useEffect(() => {
+    if (!artifact || join.rows.length === 0 || trackedView.current) return;
+    trackedView.current = true;
+    const summary = summarizeRisk(join.rows);
+    track("report_view", {
+      report: "risk-rules",
+      row_count: join.rows.length,
+      stale_count: summary.stale,
+      unassessed_count: summary.unassessed,
+      untriaged_count: join.untriaged,
+      rubric_version: artifact.rubricVersion,
+    });
+  }, [artifact, join]);
+
   const [, startTransition] = useTransition();
-  const toggle = <T extends string>(kind: string, set: (fn: (cur: T | null) => T | null) => void) =>
+  const toggle = <T extends string>(kind: string, current: T | null, set: (fn: (cur: T | null) => T | null) => void) =>
     (next: T) => {
-      track("report_filter", { report: "risk-rules", filter_kind: kind, slug: next, active: true });
+      track("report_filter", { report: "risk-rules", filter_kind: kind, slug: next, active: current !== next });
       startTransition(() => set((cur) => (cur === next ? null : next)));
     };
+
+  const toggleRow = (row: RiskRow) => {
+    const action = expanded === row.candidate.taskKey ? "collapse" : "expand";
+    track("report_row_toggle", {
+      report: "risk-rules",
+      action,
+      task_key: row.candidate.taskKey,
+      node_id: row.candidate.uuid,
+      domain: row.triage.domains[0] ?? row.candidate.domains[0] ?? null,
+      status: row.status,
+    });
+    setExpanded((cur) => (cur === row.candidate.taskKey ? null : row.candidate.taskKey));
+  };
 
   // Memoized so the row list only recomputes when a filter actually changes
   // (not on unrelated re-renders, e.g. expanding a row) — RiskTable's
@@ -96,10 +124,10 @@ export function RiskRulesReport() {
         {join.rows.length > 0 && <SummaryStrip join={join} shown={filtered.length} />}
 
         <div className="flex flex-wrap gap-4 mb-6">
-          <CategoryPills label="Domain" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domain} onToggle={toggle("domain", setDomain)} />
-          <CategoryPills label="Preciseness" categories={SCORES} active={score} onToggle={toggle("preciseness", setScore)} />
-          <CategoryPills label="Incentives" categories={RATINGS} active={enforce} onToggle={toggle("incentives", setEnforce)} />
-          <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", setStatus)} />
+          <CategoryPills label="Domain" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domain} onToggle={toggle("domain", domain, setDomain)} />
+          <CategoryPills label="Preciseness" categories={SCORES} active={score} onToggle={toggle("preciseness", score, setScore)} />
+          <CategoryPills label="Incentives" categories={RATINGS} active={enforce} onToggle={toggle("incentives", enforce, setEnforce)} />
+          <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
         </div>
 
         {atlas && SECTION_ORDER.map((d) => {
@@ -109,7 +137,7 @@ export function RiskRulesReport() {
           return (
             <RiskTable key={d} label={label} rows={rows} docs={atlas.docs}
               expandedKey={expanded}
-              onToggle={(k) => setExpanded((cur) => (cur === k ? null : k))} />
+              onToggle={toggleRow} />
           );
         })}
       </div>

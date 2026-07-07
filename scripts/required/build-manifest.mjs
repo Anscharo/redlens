@@ -46,6 +46,7 @@ const ARTIFACTS = [
   // Block number is read from chain-state.json directly by sync-d1.mjs at sync time.
   "glossary.json",
   "relations.json",
+  "oea-report.json",
   // Reproducibility check
   "graph.json",
 ];

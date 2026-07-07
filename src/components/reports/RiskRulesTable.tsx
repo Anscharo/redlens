@@ -73,7 +73,7 @@ export function RiskTable({
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
-  onToggle: (taskKey: string) => void;
+  onToggle: (row: RiskRow) => void;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -97,18 +97,24 @@ export function RiskTable({
             const e = row.entry;
             return [
               <tr key={row.candidate.taskKey}
-                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer"
-                onClick={() => onToggle(row.candidate.taskKey)} aria-expanded={expanded}>
+                className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
                 <td className="py-2 px-3 align-top">
-                  <AtlasLink to={atlasHref(row.candidate.uuid)} className="mono text-xs text-accent hover:underline"
-                    onClick={(ev) => ev.stopPropagation()}>
+                  <AtlasLink to={atlasHref(row.candidate.uuid)} className="mono text-xs text-accent hover:underline">
                     {row.candidate.docNo}
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
-                  <span className="mono text-xs text-tan-3 mr-1.5">{expanded ? "▾" : "▸"}</span>
+                  <button
+                    type="button"
+                    className="mono text-xs text-tan-3 mr-1.5 hover:text-accent focus:outline-none focus-visible:ring-1 focus-visible:ring-accent rounded-sm"
+                    aria-expanded={expanded}
+                    aria-label={`${expanded ? "Collapse" : "Expand"} assessment reasoning for ${row.candidate.title}`}
+                    onClick={() => onToggle(row)}
+                  >
+                    {expanded ? "▾" : "▸"}
+                  </button>
                   <AtlasLink to={atlasHref(row.candidate.uuid)} className="text-tan hover:underline"
-                    onClick={(ev) => ev.stopPropagation()}>
+                  >
                     {row.candidate.title}
                   </AtlasLink>
                   {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}

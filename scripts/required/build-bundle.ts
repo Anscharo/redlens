@@ -4,9 +4,10 @@
 // so the per-SHA serving path (/api/atlas/<sha>/<name>.json) works from the very
 // first request. Runs under bun so it shares bundle-store.ts with the server.
 //
-// Ordering: must run AFTER build:index/graph/glossary (all MAIN artifacts final)
-// and BEFORE `vite build` (which copies public/ → dist/, carrying the per-SHA
-// dir into the served tree). See package.json `build` + the Dockerfile.
+// Ordering: must run AFTER build:index/graph/glossary/report artifacts (all MAIN
+// artifacts final) and BEFORE `vite build` (which copies public/ → dist/,
+// carrying the per-SHA dir into the served tree). See package.json `build` + the
+// Dockerfile.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "../../src/server/config.ts";

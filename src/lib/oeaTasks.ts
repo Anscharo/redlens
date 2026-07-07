@@ -45,12 +45,15 @@ export interface OeaTask {
 // consumers (node:crypto in the script, crypto.subtle in the report).
 export const normalizeAssessedText = (s: string): string => s.replace(/\s+/g, " ").trim();
 
+// A.6.1.1 List Of Prime Agent Artifacts. UUID ancestry, not doc_no prefix, keeps
+// task identity stable when the atlas is renumbered.
+const PRIME_AGENT_ARTIFACTS_ROOT_ID = "9fb7f1cc-f60b-4195-892d-5e540f969973";
+
 // Identity key. Title-collapsed agent-artifact rows are keyed by title so the
 // task survives atlas renumbering and collapse-membership changes (a new prime
 // adds a copy without making a new task); everything else is uuid-keyed.
-const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
-export function taskKeyFor(row: { uuid: string; docNo: string; title: string; category: string }): string {
-  return AGENT_ARTIFACT_RE.test(row.docNo)
+export function taskKeyFor(row: { uuid: string; title: string; category: string; collapseByTitle?: boolean }): string {
+  return row.collapseByTitle
     ? `t:${row.title.trim().toLowerCase()}|${row.category}`
     : `u:${row.uuid}`;
 }
@@ -74,6 +77,13 @@ for (const e of taskExclusions) {
 function isExcludedTask(uuid: string, source: OeaSource): boolean {
   const sources = exclusionsByUuid.get(uuid);
   return sources ? sources.has("any") || sources.has(source) : false;
+}
+
+function isPrimeAgentArtifactDescendant(docs: AtlasBundle["docs"], uuid: string): boolean {
+  for (let id: string | null | undefined = uuid; id; id = docs[id]?.parentId) {
+    if (id === PRIME_AGENT_ARTIFACTS_ROOT_ID) return true;
+  }
+  return false;
 }
 
 export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTask[] {
@@ -100,7 +110,11 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   ) => {
     if (!row.uuid || !docs[row.uuid]) return; // unresolved assignment docs etc.
     if (isExcludedTask(row.uuid, source)) return;
-    const taskKey = taskKeyFor({ ...row, category });
+    const taskKey = taskKeyFor({
+      ...row,
+      category,
+      collapseByTitle: isPrimeAgentArtifactDescendant(docs, row.uuid),
+    });
     const agents = row.agents ?? (row.agent ? [row.agent] : []);
     const existing = byKey.get(taskKey);
     if (existing) {

@@ -15,6 +15,7 @@ function node(p: Partial<AtlasNode> & Pick<AtlasNode, "id" | "doc_no" | "title">
 
 const docs: Record<string, AtlasNode> = {};
 for (const n of [
+  node({ id: "9fb7f1cc-f60b-4195-892d-5e540f969973", doc_no: "A.6.1.1", title: "List Of Prime Agent Artifacts" }),
   node({ id: "prime-doc", doc_no: "A.6.1.1.1", title: "Prime Agent Spark" }),
   node({ id: "duty-gov-op", doc_no: "A.2.2.1.5", title: "Rebate Review", content: "The Operational GovOps reviews the rebate." }),
   node({ id: "duty-gov-core", doc_no: "A.2.2.1.6", title: "Input Validation", content: "Core GovOps validates the inputs." }),
@@ -27,8 +28,8 @@ for (const n of [
   node({ id: "duty-exec-bare", doc_no: "A.1.14.6", title: "Artifact Maintenance", content: "The Executor Agent maintains its Agent Artifact." }),
   node({ id: "duty-exec-core", doc_no: "A.1.14.7", title: "Council Reporting", content: "The Core Executor Agent reports to the council." }),
   // Executor duty replicated under two agent artifacts — title-collapses.
-  node({ id: "exec-copy-2", doc_no: "A.6.1.1.2.4.1", title: "Weekly Settlement", content: "The Operational Executor Agent settles weekly." }),
-  node({ id: "exec-copy-1", doc_no: "A.6.1.1.1.4.1", title: "Weekly Settlement", content: "The Operational Executor Agent settles weekly." }),
+  node({ id: "exec-copy-2", doc_no: "A.6.1.1.2.4.1", parentId: "9fb7f1cc-f60b-4195-892d-5e540f969973", title: "Weekly Settlement", content: "The Operational Executor Agent settles weekly." }),
+  node({ id: "exec-copy-1", doc_no: "A.6.1.1.1.4.1", parentId: "9fb7f1cc-f60b-4195-892d-5e540f969973", title: "Weekly Settlement", content: "The Operational Executor Agent settles weekly." }),
   // Active data + process-step (one [automated]) + assignments.
   node({ id: "adc-doc", doc_no: "A.6.1.1.1.3.9.1", type: "Active Data Controller", title: "Delegate Roster", content: "The Responsible Party is the Operational GovOps." }),
   // Active data whose RP is declared Core-side — must be EXCLUDED from the
@@ -138,9 +139,9 @@ describe("enumerateOeaTasks", () => {
 
 describe("taskKeyFor / normalizeAssessedText", () => {
   it("keys agent-artifact rows by title+category, others by uuid", () => {
-    expect(taskKeyFor({ uuid: "x", docNo: "A.6.1.1.3.2.2", title: " Weekly Settlement ", category: "op-duty" }))
+    expect(taskKeyFor({ uuid: "x", title: " Weekly Settlement ", category: "op-duty", collapseByTitle: true }))
       .toBe("t:weekly settlement|op-duty");
-    expect(taskKeyFor({ uuid: "x", docNo: "A.2.2.1.5", title: "Weekly Settlement", category: "op-duty" }))
+    expect(taskKeyFor({ uuid: "x", title: "Weekly Settlement", category: "op-duty" }))
       .toBe("u:x");
   });
 

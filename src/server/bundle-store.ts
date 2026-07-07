@@ -38,7 +38,8 @@ export const PREVIEW_DIR = process.env.PREVIEW_DIR ?? "/tmp/previews";
 // shared (not atlas-versioned) and stay flat under BASE_URL; preview reuses main's.
 // docs.json stays bundled as the bundleReady core + diff source; the browser
 // fetches docs-shallow.json (depth ≤ 5, first paint) + docs-deep.json (depth > 5,
-// background) instead — see docs/plans/docs-split.md.
+// background) instead — see docs/plans/docs-split.md. Report views that join
+// against the atlas graph stay sha-keyed here too.
 const MAIN_ALLOWLIST = new Set([
   "docs.json",
   "docs-shallow.json",
@@ -46,6 +47,7 @@ const MAIN_ALLOWLIST = new Set([
   "search-index.json",
   "relations.json",
   "glossary.json",
+  "oea-report.json",
   "addresses.atlas.json",
 ]);
 

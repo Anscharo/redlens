@@ -189,9 +189,11 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
     if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
 
-    // 4. build-glossary subprocess (reads docs.json → glossary.json)
+    // 4. build-glossary + report views (read docs.json/relations.json)
     const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
     if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
+    const { code: oea } = await spawnCollect("bun", ["scripts/required/build-oea-report.ts"], false);
+    if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
 
     // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
     const distDir = config.distDir;

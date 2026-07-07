@@ -1,5 +1,6 @@
 import { Link } from "./Link";
 import { reportHref } from "../lib/routes";
+import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import type { ReportId } from "../types";
 
@@ -77,6 +78,7 @@ export function ReportsIndex({ query }: { query: string }) {
               to={reportHref(r.id)}
               className="w-full text-left px-4 py-4 rounded border transition-colors hover:bg-[var(--hover)] block no-underline"
               style={{ borderColor: "var(--border)" }}
+              onClick={() => track("report_open", { report_id: r.id })}
             >
               <p className="text-sm font-medium mb-1" style={{ color: "var(--tan)" }}>
                 {r.title}
