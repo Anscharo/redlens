@@ -11,34 +11,39 @@
     (avoid "calmer", "easier", "at a glance", "keep your place"). Just state the
     change: "Lightened the reader text", not "Lightened the text for easier
     reading".
+  - One bullet per user-visible change worth telling users about. Skip small
+    changes that don't matter much, and fold minor fixes/polish into the
+    feature bullet they belong to. Internal work never gets a bullet:
+    refactors, audits, rating corrections, accuracy passes, or fixes to a
+    feature announced in the same block.
+  - Keep each bullet minimally descriptive: one short sentence. If it needs
+    more than one "—" clause or starts enumerating sub-changes, it's too
+    detailed — the fuller story belongs in the PR description, not here.
+  - Hard limit: 10 bullets per date block (enforced by the validator).
+  - APPEND ONLY: never rewrite, merge, or delete bullets from earlier dates or
+    earlier PRs. New bullets go under today's date at the top; everything below
+    stays untouched.
   - Update this file in the same PR as the change it describes.
   - Mirror the new bullets into that PR's description too — add a "Patch notes"
     section listing them verbatim, alongside the fuller technical description
     that's already there.
 
-  Only the 10 most recent bullets across all dates are shown.
+  Only the 10 most recent bullets across all dates are shown on the homepage —
+  a bloated date block hides every earlier date entirely, which is why the
+  validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-07
-- Cleaned up the Risk Rules report — click anywhere on a row to open its reasoning, filter pills show full risk-type names with rule counts and explanatory tooltips, and the mostly-empty status column became an inline badge on the affected rows
-- Replaced the Risk Rules report's per-category sections with one flat table that tags each rule with all of its risk types, and made the risk-type filter multi-select with checkboxes
-- Linked the rubric hash on the Risk Rules report to a new page showing the full assessment rubric
-- Grouped the reports index into OEA Reports and General Reports sections
-- Improved assessment report tracking and keyboard access to per-row reasoning
-- Fixed the OEA Task Assessment freshness status to account for full-document changes, not only the displayed snippet
-- Added a Risk Rules Assessment report — every atlas paragraph that defines a peg-maintenance, allocation-risk, or smart-contract-security rule, scored 1–5 for how precisely it's defined and weak/mid/strong for penalties and incentives, with AI-drafted reasoning and links to the enforcement mechanisms
-- Added an OEA Task Assessment report — every task the Operational Executor Agent performs, rated weak/mid/strong for how precisely it's defined and whether it carries incentives or penalties, with AI-drafted per-task reasoning and links to the enforcement mechanisms
-- Added a category filter to the GovOps and Facilitator responsibility reports — narrow a report to one duty category (e.g. only Operational duties), combinable with the org/executor/prime pills
-- Rebuilt the Facilitator Responsibilities report on the same duty detection as the GovOps report — it now catches every Atlas section tasking a Facilitator (310 rows, up from ~48), with filter pills for facilitator orgs and a new assignments section
-- Fixed the GovOps and Facilitator responsibility reports missing duties written as an instance's "Curator:" field, a multisig "controlled by" clause with an extra noun or joint holders, or an "approval of" / "supervision of" phrase
-- Fixed the OEA Task Assessment report including Active Data tasks that actually belong to Core GovOps or the Core Facilitator, not the Operational Executor Agent
-- Corrected 14 ratings and dropped 6 non-rule paragraphs from the Risk Rules Assessment after a spot-check audit — mostly enforcement ratings that cited a mechanism not reaching the rule's actor; applied 19 additional corrections from a Sonnet-verified re-audit of the inclusion bias, dropping 17 more bare definitions/capabilities and correcting 2 enforcement ratings
-- Fixed the GovOps and Facilitator responsibility reports missing a section's second duty when it tasks both the Core and Operational side of the role (e.g. a "Sky Governance path / Independent Governance path" split)
-- Fixed the responsibility reports and OEA Task Assessment picking up duties from Needed Research questions, Scenario examples, and rubric-element annotations, which were never real duties
-- Reviewed every OEA Task Assessment rating with high stakes (strong precision or a rewarded/penalized incentives rating) and corrected the ones that didn't hold up — wrong enforcement-mechanism citations, a few over- and under-ratings, and a bare process-step preview that read as a real duty when it wasn't
+## 2026-07-08
+- Added an Updates page with the full improvement history, linked from the homepage
 
-- Added true pre-git Atlas origins for older sections, including MIP sources and the Atlas v2 genesis snapshot
-- Added Atlas history from before the 2025 migration to markdown, behind a "View HTML Era Edits" toggle
+## 2026-07-07
+- Added an OEA Task Assessment report rating every Operational Executor Agent task for precision and incentives
+- Added a Risk Rules Assessment report scoring the atlas's peg-maintenance, allocation-risk, and smart-contract-security rules
+- Rebuilt the Facilitator Responsibilities report on the GovOps duty detection — 310 rows, up from ~48, with facilitator-org filters
+- Added a category filter to the GovOps and Facilitator responsibility reports
+- Reworked the Risk Rules report into one flat table with a multi-select risk-type filter and a linked rubric page
+- Grouped the reports index into OEA Reports and General Reports sections
+- Added Atlas history from before the 2025 markdown migration, plus pre-git origins back to MIP sources and the Atlas v2 genesis snapshot
 
 
 ## 2026-07-03

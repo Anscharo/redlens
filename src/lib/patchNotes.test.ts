@@ -59,6 +59,12 @@ describe("parsePatchNotes", () => {
     expect(total).toBe(6); // sample has only 6 bullets, all fit under 10
   });
 
+  it("returns every group with an Infinity limit (the /updates page)", () => {
+    const groups = parsePatchNotes(SAMPLE, Infinity);
+    expect(groups).toHaveLength(3);
+    expect(groups.reduce((n, g) => n + g.items.length, 0)).toBe(6);
+  });
+
   it("returns [] for empty input", () => {
     expect(parsePatchNotes("")).toEqual([]);
     expect(parsePatchNotes("   \n\n  ")).toEqual([]);
@@ -148,6 +154,19 @@ describe("validatePatchNotes", () => {
 - a
 `;
     expect(validatePatchNotes(raw).some((e) => /no bullets/.test(e))).toBe(true);
+  });
+
+  it("flags a date group with more than 10 bullets", () => {
+    const bullets = Array.from({ length: 11 }, (_, i) => `- bullet ${i}`).join("\n");
+    const raw = `## 2026-06-17\n${bullets}\n`;
+    const errors = validatePatchNotes(raw);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatch(/max 10 per date/);
+  });
+
+  it("accepts a date group with exactly 10 bullets", () => {
+    const bullets = Array.from({ length: 10 }, (_, i) => `- bullet ${i}`).join("\n");
+    expect(validatePatchNotes(`## 2026-06-17\n${bullets}\n`)).toEqual([]);
   });
 
   it("flags bullets before any date heading", () => {
