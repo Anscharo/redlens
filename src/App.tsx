@@ -65,6 +65,9 @@ const ReportsIndex = lazy(() =>
 const ProvenancePage = lazy(() =>
   lazyRetry(() => import("./components/ProvenancePage")).then((m) => ({ default: m.ProvenancePage })),
 );
+const UpdatesPage = lazy(() =>
+  lazyRetry(() => import("./components/UpdatesPage")).then((m) => ({ default: m.UpdatesPage })),
+);
 const ConnectPage = lazy(() =>
   lazyRetry(() => import("./components/ConnectPage")).then((m) => ({ default: m.ConnectPage })),
 );
@@ -341,6 +344,11 @@ export default function App() {
             <Route path={ROUTES.PROVENANCE}>
               <Suspense fallback={<Loading />}>
                 <ProvenancePage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.UPDATES}>
+              <Suspense fallback={<Loading />}>
+                <UpdatesPage />
               </Suspense>
             </Route>
             <Route path={ROUTES.CONNECT}>

@@ -13,6 +13,11 @@
 const DATE_RE = /^##\s+(\d{4}-\d{2}-\d{2})\s*$/;
 const BULLET_RE = /^(\s*)-\s*(.*)$/;
 
+// The homepage shows only the 10 most recent bullets across all dates
+// (src/lib/patchNotes.ts), so a date group at or past this size hides every
+// earlier date entirely.
+const MAX_BULLETS_PER_GROUP = 10;
+
 // True only for a real calendar date in YYYY-MM-DD form (rejects e.g. 2026-13-40).
 function isRealDate(s) {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
@@ -37,8 +42,13 @@ export function validatePatchNotes(raw) {
   let curGroupLine = 0; // line number of the current group's heading
 
   const closeGroup = () => {
-    if (seenDate && curGroupBullets === 0) {
+    if (!seenDate) return;
+    if (curGroupBullets === 0) {
       errors.push(`Line ${curGroupLine}: date "${prevDate}" has no bullets under it.`);
+    } else if (curGroupBullets > MAX_BULLETS_PER_GROUP) {
+      errors.push(
+        `Line ${curGroupLine}: date "${prevDate}" has ${curGroupBullets} bullets — max ${MAX_BULLETS_PER_GROUP} per date (the homepage shows only the 10 most recent bullets, so a larger group hides every earlier date). Condense: one bullet per feature, fold fixes in.`,
+      );
     }
   };
 
