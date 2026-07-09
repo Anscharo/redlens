@@ -2,7 +2,7 @@
 // vitest) — src/server is excluded from vitest. These functions are fully
 // in-memory (no SQL), so a hand-built Indexes fixture is enough.
 import { test, expect } from "bun:test";
-import { atlasTraverse, atlasEntity, atlasEntities, atlasEntityParams } from "./tools-graph.ts";
+import { atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasEntityParams } from "./tools-graph.ts";
 import { atlasGet, atlasDescribe } from "./tools.ts";
 import { buildSystemPrompt } from "./system-prompt.ts";
 import { matchEntities } from "./entity-resolve.ts";
@@ -51,6 +51,13 @@ function makeIx(): Indexes {
     edge(5, "D2", "P3", "parent_of"),
     edge(6, "D1", "DX", "cites"),
     { ...edge(7, "E", "D0", "defines_entity"), from_type: "entity" },
+    {
+      ...edge(8, "E", "IE1", "integration_partner_of"),
+      from_type: "entity",
+      to_type: "entity",
+      source_doc_nos: JSON.stringify(["A.1.1"]),
+      meta: JSON.stringify({ role: "partner" }),
+    },
   ];
   const entities: Entity[] = [
     entity("E", "ent", "agent", "prime", "D0"),
@@ -152,6 +159,47 @@ test("atlas_entities searches by name and filters by type", () => {
   const instances = atlasEntities(ix, { entity_type: "instance", limit: 50, offset: 0 }) as { total: number; results: Array<{ slug: string }> };
   expect(instances.total).toBe(2);
   expect(instances.results.map((r) => r.slug).sort()).toEqual(["ent-allocation-system", "ent-distribution-reward"]);
+});
+
+// ── atlas_edges: global edge enumeration ────────────────────────────────────
+test("atlas_edges filters, resolves endpoints, paginates, and includes provenance", () => {
+  const ix = makeIx();
+  const byType = atlasEdges(ix, {
+    edge_type: "integration_partner_of",
+    from_slug: "ent",
+    include_docs: true,
+    limit: 50,
+    offset: 0,
+  }) as Record<string, any>;
+
+  expect(byType.total).toBe(1);
+  expect(byType.count).toBe(1);
+  expect(byType.edges[0].from).toMatchObject({ node_type: "entity", slug: "ent", type: "agent", name: "ent" });
+  expect(byType.edges[0].to).toMatchObject({
+    node_type: "entity",
+    slug: "ent-distribution-reward",
+    type: "instance",
+    subtype: "distribution-reward",
+  });
+  expect(byType.edges[0].meta).toEqual({ role: "partner" });
+  expect(byType.edges[0].source_doc_nos).toEqual(["A.1.1"]);
+  expect(byType.edges[0].provenance).toEqual([{ node_id: "D1", doc_no: "A.1.1", title: "D1", type: "Core" }]);
+
+  const page = atlasEdges(ix, {
+    from_type: "doc",
+    to_type: "doc",
+    include_docs: false,
+    limit: 2,
+    offset: 1,
+  }) as Record<string, any>;
+  expect(page.total).toBe(6);
+  expect(page.count).toBe(2);
+  expect(page.has_more).toBe(true);
+  expect(page.next_offset).toBe(3);
+  expect(page.edges[0].provenance).toBeUndefined();
+
+  const missing = atlasEdges(ix, { from_slug: "nope", include_docs: false, limit: 10, offset: 0 }) as { error?: string };
+  expect(missing.error).toContain("from_slug");
 });
 
 // ── atlas_get: lean payload ──────────────────────────────────────────────────

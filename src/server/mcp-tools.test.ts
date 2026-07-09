@@ -4,7 +4,7 @@
 // and the chat loop use (tool-registry.ts), so wiring drift is caught here.
 //
 // DB-backed tools (atlas_get_address / atlas_history / atlas_recent_changes /
-// atlas_pr / atlas_changed_between) need Postgres and are exercised by the
+// atlas_history_stats / atlas_pr / atlas_changed_between) need Postgres and are exercised by the
 // "Railway server (Postgres + MCP smoke)" CI job, not here.
 import { test, expect } from "bun:test";
 import { z } from "zod";
@@ -69,12 +69,12 @@ function makeAtlas() {
 
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
-// ── Registry integrity (all 15 tools) ───────────────────────────────────────
-test("tool registry is well-formed: 15 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(15);
+// ── Registry integrity (all 17 tools) ───────────────────────────────────────
+test("tool registry is well-formed: 17 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(17);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(15);
+  expect(TOOLS_BY_NAME.size).toBe(17);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");
@@ -127,6 +127,20 @@ test("atlas_traverse: multi-hop results include the full path; 1-hop don't", () 
   expect(twoHop.hops).toBe(2);
   expect(twoHop.path.map((s: any) => s.doc_no)).toEqual(["A.1", "A.1.1"]); // A → A.1 → A.1.1
   expect(twoHop.path.every((s: any) => s.edge_type === "parent_of" && s.direction === "out")).toBe(true);
+});
+
+test("atlas_edges: registry wiring filters globally with resolved endpoints", () => {
+  const r = call("atlas_edges", {
+    edge_type: "operational_facilitator_for",
+    from_slug: "op-facilitator",
+    include_docs: false,
+    limit: 50,
+    offset: 0,
+  }) as { total: number; edges: any[] };
+
+  expect(r.total).toBe(1);
+  expect(r.edges[0].from).toMatchObject({ node_type: "entity", slug: "op-facilitator", type: "facilitator_org" });
+  expect(r.edges[0].to).toMatchObject({ node_type: "entity", slug: "spark", type: "agent", subtype: "prime" });
 });
 
 // ── entity + entities + entity_params ────────────────────────────────────────
