@@ -24,7 +24,10 @@ function sliceNormalize(vec: number[], dim: number): number[] {
   return v.map((x) => x / n);
 }
 
-export async function embedBatch(texts: string[], attempt = 0): Promise<number[][]> {
+// `signal` lets a caller cancel the request AND its retry loop (the query path
+// races it against a timeout — see search.ts). Without it a timed-out embed
+// would keep fetching/retrying against OpenRouter in the background for ~15s.
+export async function embedBatch(texts: string[], signal?: AbortSignal, attempt = 0): Promise<number[][]> {
   if (!config.openrouterApiKey) throw new Error("OPENROUTER_API_KEY is not set");
   try {
     const res = await fetch(`${config.openrouterBaseUrl}/embeddings`, {
@@ -34,6 +37,7 @@ export async function embedBatch(texts: string[], attempt = 0): Promise<number[]
         "content-type": "application/json",
       },
       body: JSON.stringify({ model: config.embedModel, input: texts, dimensions: EMBED_DIM }),
+      signal,
     });
     if (!res.ok) {
       throw new Error(`embeddings ${res.status}: ${(await res.text().catch(() => "")).slice(0, 300)}`);
@@ -47,14 +51,17 @@ export async function embedBatch(texts: string[], attempt = 0): Promise<number[]
     for (const d of json.data) out[d.index] = sliceNormalize(d.embedding, EMBED_DIM);
     return out;
   } catch (err) {
-    if (attempt >= 4) throw err;
+    // Aborted (caller gave up / timed out) or out of retries → stop now; don't
+    // sleep+retry against a request nobody is waiting for.
+    if (signal?.aborted || attempt >= 4) throw err;
     const wait = 1000 * 2 ** attempt;
     console.warn(`  embed retry ${attempt + 1} in ${wait}ms: ${(err as Error).message}`);
     await Bun.sleep(wait);
-    return embedBatch(texts, attempt + 1);
+    if (signal?.aborted) throw err;
+    return embedBatch(texts, signal, attempt + 1);
   }
 }
 
-export async function embedQuery(text: string): Promise<number[]> {
-  return (await embedBatch([text]))[0];
+export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
+  return (await embedBatch([text], signal))[0];
 }

@@ -47,6 +47,10 @@ export const config = {
   // and atlas_query. Conservative default — good matches sit well above it;
   // raise it (env) to be stricter, lower it if paraphrase recall suffers.
   semanticMinScore: Number(process.env.SEMANTIC_MIN_SCORE ?? 0.3),
+  // Hard ceiling on the query-time embed call. embedBatch retries with backoff
+  // (~15s worst case); the retrieve path must not hang on a flaky provider, so
+  // if the embed exceeds this we drop the semantic leg and answer lexical-only.
+  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 4000),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",

@@ -45,6 +45,23 @@ describe("handlePosthogProxy", () => {
     expect(h.get("content-type")).toBe("text/plain"); // non-IP headers pass through
   });
 
+  it("strips the auth cookie + Authorization so the session JWT never reaches PostHog", async () => {
+    const req = new Request("http://app.example/z/e/", {
+      method: "POST",
+      headers: {
+        cookie: "sky_session=eyJhbGci.secret.jwt; other=1",
+        authorization: "Bearer eyJhbGci.secret.jwt",
+        "content-type": "text/plain",
+      },
+      body: "data",
+    });
+    await handlePosthogProxy(req, "/z/e/");
+    const h = calls[0].headers;
+    expect(h.get("cookie")).toBeNull();
+    expect(h.get("authorization")).toBeNull();
+    expect(h.get("content-type")).toBe("text/plain"); // non-credential headers still pass
+  });
+
   it("routes /z/static/* to the assets host", async () => {
     const req = new Request("http://app.example/z/static/array.js", { method: "GET" });
     await handlePosthogProxy(req, "/z/static/array.js");

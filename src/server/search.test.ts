@@ -2,7 +2,19 @@
 // import Bun's `SQL`, which doesn't exist in node-vitest. vitest.config.ts
 // excludes src/server for that reason.
 import { test, expect } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, type Hit } from "./search.ts";
+import { rrfMerge, matchesPhrases, buildSnippet, withTimeout, type Hit } from "./search.ts";
+
+test("withTimeout resolves when the promise beats the deadline", async () => {
+  const v = await withTimeout(Promise.resolve(42), 1000, "x");
+  expect(v).toBe(42);
+});
+
+test("withTimeout rejects when the promise is slower than the deadline (embed fallback path)", async () => {
+  // A never-settling embed must not hang the caller: runSemantic catches this
+  // rejection and returns [] so the query degrades to lexical-only.
+  const hang = new Promise<number>(() => {});
+  await expect(withTimeout(hang, 20, "embed")).rejects.toThrow(/embed timed out after 20ms/);
+});
 
 test("buildSnippet compacts prose — strips articles and abbreviates known words", () => {
   const s = buildSnippet("The governance of the parameters is defined for the ecosystem.", "governance");

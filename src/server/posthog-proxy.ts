@@ -43,6 +43,15 @@ const IP_HEADERS = new Set([
 // Hop-by-hop / connection headers we re-derive rather than forward verbatim.
 const DROP_HEADERS = new Set(["host", "connection", "content-length"]);
 
+// Credential headers the browser attaches to same-origin requests automatically
+// (the HttpOnly `sky_session` JWT cookie once signed in; Authorization). This
+// proxy is same-origin, so without this they ride along to us.i.posthog.com on
+// every event. Analytics is deliberately anonymous — posthog-js groups on a
+// client-generated `$session_id` with `person_profiles: "never"` — so the JWT
+// buys nothing there and must never leave the origin. Do NOT hash it either:
+// that would inject a user-linked id into a pipeline whose design forbids one.
+const CREDENTIAL_HEADERS = new Set(["cookie", "authorization"]);
+
 export async function handlePosthogProxy(req: Request, pathname: string): Promise<Response> {
   // Strip the "/z" mount: "/z/static/array.js" → "/static/array.js"; "/z" → "/".
   const rest = pathname.slice(MOUNT.length) || "/";
@@ -58,7 +67,7 @@ export async function handlePosthogProxy(req: Request, pathname: string): Promis
   const headers = new Headers();
   for (const [k, v] of req.headers) {
     const lk = k.toLowerCase();
-    if (IP_HEADERS.has(lk) || DROP_HEADERS.has(lk)) continue;
+    if (IP_HEADERS.has(lk) || DROP_HEADERS.has(lk) || CREDENTIAL_HEADERS.has(lk)) continue;
     headers.set(k, v);
   }
   // PostHog's edge routes/TLS-SNIs by Host — it must match the chosen upstream.
