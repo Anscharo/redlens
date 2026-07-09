@@ -25,6 +25,7 @@
 
 import { slugify, normalizeKey, buildNameIndex, parseNameList } from "./graph-patterns.mjs";
 import { normalizeChainLabel } from "./chains.mjs";
+import { normalizeAddress } from "./address-chains.mjs";
 
 const THRESHOLD_RE = /The (.+?) (?:currently )?has a (\d+)\/(\d+) signing requirement/;
 const ADDRESS_RE = /`([A-Za-z0-9]{32,64})`/;
@@ -151,7 +152,7 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
         if (slot.address) {
           const am = (slot.address.content ?? "").match(ADDRESS_RE);
           if (am) {
-            address = am[1].startsWith("0x") ? am[1].toLowerCase() : am[1];
+            address = normalizeAddress(am[1]);
             chain = am[1].startsWith("0x")
               ? normalizeChainLabel((slot.address.content ?? "").match(ADDRESS_CHAIN_RE)?.[1])
               : "solana";
