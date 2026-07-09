@@ -1,8 +1,13 @@
 /**
  * Transfer/grant event extraction (Pattern 18) for build-graph.
  *
- * Three atlas shapes become `funds_transfer` edges (sender entity → recipient
- * entity; meta carries amounts/tx hash/status):
+ * Completed or planned token movements become `funds_transfer` edges (sender
+ * entity → recipient entity; meta carries amounts/tx hash/status). Atlas docs
+ * that authorize or describe recurring payments, but do not record transfer
+ * rows, become `funds_authorization` edges instead so chat/reporting can say
+ * exactly where payment data should exist without implying ledger coverage.
+ * Planned transfer docs that name a source but defer amount/recipient details
+ * become `funds_data_gap` records tied to the source doc/entity.
  *
  *  A. Grant docs under A.2.13 (isGrantDoc) — structured bullet lists:
  *       - Recipient: Sky Frontier Foundation
@@ -16,7 +21,8 @@
  *       "SPK Company Ltd transferred 6.5 billion SPK tokens … to the Sky
  *        Pause Proxy."  (past tense = completed; "will transfer" = planned)
  *
- *  C. Accord grant authorizations (title contains "Grant Authorization"):
+ *  C. Accord grant authorizations (title contains "Grant Authorization")
+ *     become `funds_authorization`, not `funds_transfer`:
  *       "… grant of 800,000 USDS per month to the Grove Foundation from
  *        Grove's Prime Treasury for a three (3) month period …"
  *
@@ -36,6 +42,8 @@ const TX_HASH_RE = /^[-*]\s*Transaction Hash:\s*`?(0x[0-9a-fA-F]{64})`?\s*$/im;
 // name no figure yet).
 const GENESIS_TRANSFER_RE =
   /\b(.+?)\s+(transferred|will transfer)\s+(?:all of (?:the )?)?(?:([\d,.]+(?:\s+(?:billion|million|thousand))?)\s+)?([A-Z]{2,10})\s+tokens?\b[^.]*?\bto\s+(?:the\s+)?([^.,]+?)(?:,|\.|$)/i;
+const GENESIS_TRANSFER_GAP_RE =
+  /\b(.+?)\s+account\s+will transfer\s+([A-Z]{2,10})\s+tokens?\b[\s\S]*?\bfuture iteration\b/i;
 const GENESIS_MINT_RE =
   /The Genesis Supply was minted to an account owned by\s+(?:the\s+)?(.+?)\./i;
 
@@ -100,7 +108,7 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
   const nameIndex = buildNameIndex(entityMap);
   const stats = {
     grants: 0, genesis: 0, authorizations: 0, allocations: 0, budgetTransfers: 0,
-    planned: 0, warnings: 0,
+    planned: 0, dataGaps: 0, warnings: 0,
   };
   const warn = (msg) => { stats.warnings++; console.warn(`  transfers: ${msg}`); };
 
@@ -134,6 +142,48 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
       fromId: from.id, fromType: "entity", toId: to.id, toType: "entity",
       edgeType: "funds_transfer", sourceDocNos: [sourceDoc.doc_no],
       meta: JSON.stringify(meta),
+    });
+  }
+  function addAuthorization(from, to, sourceDoc, meta) {
+    edges.push({
+      fromId: from.id, fromType: "entity", toId: to.id, toType: "entity",
+      edgeType: "funds_authorization", sourceDocNos: [sourceDoc.doc_no],
+      meta: JSON.stringify({
+        ...meta,
+        kind: "grant_authorization",
+        status: "authorized",
+        populated: false,
+        recorded_transfer: false,
+        silence_reason: "Atlas authorizes recurring payments here but does not record completed transfer rows.",
+        expected_record_fields: [
+          "reward period",
+          "payee",
+          "payment address",
+          "amount paid",
+          "transaction hash",
+          "transaction date",
+        ],
+      }),
+    });
+  }
+  function addDataGap(sourceDoc, relatedEntity, meta) {
+    edges.push({
+      fromId: sourceDoc.id, fromType: "doc", toId: relatedEntity.id, toType: "entity",
+      edgeType: "funds_data_gap", sourceDocNos: [sourceDoc.doc_no],
+      meta: JSON.stringify({
+        ...meta,
+        populated: false,
+        recorded_transfer: false,
+        silence_reason: "Atlas describes a planned token movement here but defers recipient, amount, or execution details to a future iteration.",
+        expected_record_fields: [
+          "sender",
+          "recipient",
+          "amount",
+          "token",
+          "transaction hash",
+          "transaction date",
+        ],
+      }),
     });
   }
 
@@ -181,7 +231,22 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     }
 
     const t = content.match(GENESIS_TRANSFER_RE);
-    if (!t) { warn(`genesis transfer did not parse: ${d.doc_no} ("${d.title}")`); continue; }
+    if (!t) {
+      const gap = content.match(GENESIS_TRANSFER_GAP_RE);
+      const source = gap ? resolveParty(gap[1], d) : null;
+      if (gap && source) {
+        addDataGap(d, source, {
+          kind: "planned_genesis_distribution_gap",
+          status: "planned",
+          token: gap[2],
+        });
+        stats.planned++;
+        stats.dataGaps++;
+        continue;
+      }
+      warn(`genesis transfer did not parse: ${d.doc_no} ("${d.title}")`);
+      continue;
+    }
     // Sender capture can carry sentence lead-in ("The X account will…") —
     // try resolve-only on the raw capture and its trailing proper noun before
     // creating an entity (avoids junk entities from lead-in words).
@@ -213,9 +278,7 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     const recipient = resolveParty(m[3], d);
     const sender = resolveParty(m[4], d);
     if (!recipient || !sender) { warn(`grant authorization endpoints unresolved: ${d.doc_no}`); continue; }
-    addTransfer(sender, recipient, d, {
-      kind: "authorization",
-      status: "authorized",
+    addAuthorization(sender, recipient, d, {
       amounts: { [`${m[2]} per month`]: m[1] },
       period_months: Number(m[5]),
       // "Spark Foundation Grant Authorization: December 2025" → "December 2025"

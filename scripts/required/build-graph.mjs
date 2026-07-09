@@ -721,8 +721,8 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   // --- Transfer/grant events (Pattern 18) ---
   const txStats = extractTransfers(allDocs, docById, docByDocNo, entityMap, edges, addPatternEntity);
   console.log(
-    `  Phase 2.8: funds_transfer — ${txStats.grants} grants, ${txStats.genesis} genesis` +
-    ` (${txStats.planned} planned), ${txStats.authorizations} authorizations` +
+    `  Phase 2.8: funds transfer data — ${txStats.grants} grants, ${txStats.genesis} genesis` +
+    ` (${txStats.planned} planned), ${txStats.authorizations} authorizations, ${txStats.dataGaps} gaps` +
     `, ${txStats.allocations} allocations, ${txStats.budgetTransfers} budget transfers` +
     (txStats.warnings ? `, ${txStats.warnings} WARNINGS` : ""),
   );
@@ -860,14 +860,16 @@ const KEEP_ACTOR_EDGE_TYPES = new Set([
   "validator_of",
 ]);
 // Edge types that are graph.json-only (chatbot/MCP data, not browser UI):
-// funds_transfer is event data; authorized_rep_for points at forum-handle
-// individuals that would clutter the canvas; pending_transition is chat/MCP
-// handoff data. governance_channel / emergency_response stay in relations.json
-// — they feed the Radar "Contact" section (doc→entity, so they never reach the
-// entity↔entity canvas anyway).
+// funds_transfer / funds_authorization / funds_data_gap are event/silence data;
+// authorized_rep_for points at forum-handle individuals that would clutter the
+// canvas; pending_transition is chat/MCP handoff data. governance_channel /
+// emergency_response stay in relations.json — they feed the Radar "Contact"
+// section (doc→entity, so they never reach the entity↔entity canvas anyway).
 const OMIT_EDGE_TYPES = new Set([
   "parent_of",
   "funds_transfer",
+  "funds_authorization",
+  "funds_data_gap",
   "authorized_rep_for",
   "pending_transition",
 ]);

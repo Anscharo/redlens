@@ -34,6 +34,7 @@ import {
 import {
   buildKnownPrimitives,
   primitiveSlugFromTitle,
+  deriveInstanceName,
   classifyIcd,
   primitiveStatusFor,
   buildChildrenIndex,
@@ -438,17 +439,11 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     const agentDoc = agentMatch ? docByDocNo.get(agentMatch[1]) : null;
     const agentSlug = agentDoc ? slugify(agentDoc.title) : "unknown";
 
-    const primitiveSlug = primitiveSlugFromTitle(primRoot.title);
-    const rawName = icd.title.replace(/\s+Instance Configuration Document\s*$/i, "").trim();
-    const instanceOfMatch = rawName === "Single"
-      ? primRoot.content?.match(/for (.+?)\.\s+See/i)
-      : null;
-    const name = instanceOfMatch
-      ? instanceOfMatch[1].replace(/\binstance(?:s)?\b/g, "Instance")
-      : rawName;
-    const slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
     const { kind, status } = classifyIcd(icd, primRoot, docByDocNo);
     const params = extractInstanceParams(icd, childrenByDocNo);
+    const primitiveSlug = primitiveSlugFromTitle(primRoot.title);
+    const name = deriveInstanceName(icd, primRoot, agentDoc, params);
+    const slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
     const categoryDocNo = primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."));
     const categoryDoc = docByDocNo.get(categoryDocNo) ?? null;
     const isUnknown = !knownPrimitives.has(primRoot.title);

@@ -149,8 +149,10 @@ const KNOWN_EDGE_TYPES = new Set([
   "can_modify_signers_of",
   // bridge validator sets (Pattern 21)
   "validator_of",
-  // transfer/grant events (Pattern 18)
+  // transfer/grant events and silent authorization locations (Pattern 18)
   "funds_transfer",
+  "funds_authorization",
+  "funds_data_gap",
   // registries / org relations
   "authorized_rep_for",
   "integration_partner_of",
