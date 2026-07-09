@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { eventToRow, HISTORY_COLS } from "./history-db.ts";
+import { eventToRow, HISTORY_COLS, upsertAtlasPrs } from "./history-db.ts";
 import * as db from "./history-db.ts"; // namespace ref so a not-yet-built export is `undefined`, not a link error
 
 const NEW_COLS = ["era", "seam", "extracted_from", "merged_into", "move_kind"] as const;
@@ -105,6 +105,54 @@ describe("pre-git-history.md: migration 011 + source_url column", () => {
     expect(sql).toContain("source_url");
   });
   it("HISTORY_COLS includes source_url", () => expect(HISTORY_COLS as readonly string[]).toContain("source_url"));
+});
+
+describe("PR metadata normalization: migration 012 + atlas_prs dual-write", () => {
+  it("a 012 migration creates atlas_prs, backfills it, and exposes conflict audit view", () => {
+    const dir = new URL("./migrations/", import.meta.url);
+    const file = readdirSync(dir).find((n) => n.startsWith("012") && n.endsWith(".sql"));
+    expect(file).toBeTruthy();
+    const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
+    expect(sql).toContain("create table if not exists atlas_prs");
+    expect(sql).toContain("insert into atlas_prs");
+    expect(sql).toContain("from atlas_history");
+    expect(sql).toContain("create or replace view atlas_pr_metadata_conflicts");
+  });
+
+  it("upsertAtlasPrs writes one PR row with null-safe updates", async () => {
+    const calls: Array<{ query: string; params: unknown[] }> = [];
+    const fakeSql = {
+      unsafe: (query: string, params: unknown[]) => {
+        calls.push({ query, params });
+        return Promise.resolve([]);
+      },
+    };
+
+    await upsertAtlasPrs(fakeSql as any, [
+      {
+        pr_number: 42,
+        title: "Add Scope",
+        url: "https://github.com/sky-ecosystem/next-gen-atlas/pull/42",
+        author: "alice",
+        review_count: 3,
+        approval_count: 2,
+        comment_count: 5,
+      },
+    ]);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].query).toContain("INSERT INTO atlas_prs");
+    expect(calls[0].query).toContain("COALESCE(excluded.title, atlas_prs.title)");
+    expect(calls[0].params).toEqual([
+      42,
+      "Add Scope",
+      "https://github.com/sky-ecosystem/next-gen-atlas/pull/42",
+      "alice",
+      3,
+      2,
+      5,
+    ]);
+  });
 });
 
 describe("pre-git-history.md: eventToRow falls back to a baked commit_seq for synthetic shas", () => {

@@ -29,6 +29,36 @@ export function primitiveSlugFromTitle(title) {
     .replace(/^-|-$/g, "");
 }
 
+export function primitiveDisplayName(title) {
+  return title.replace(/\s+Primitive$/i, "").trim();
+}
+
+export function deriveInstanceName(icd, primRoot, agentDoc, params = {}) {
+  const rawName = icd.title.replace(/\s+Instance Configuration Document\s*$/i, "").trim();
+  const primitiveName = primitiveDisplayName(primRoot.title);
+  const instanceOfMatch = rawName === "Single"
+    ? primRoot.content?.match(/for (.+?)\.\s+See/i)
+    : null;
+  const baseName = instanceOfMatch
+    ? instanceOfMatch[1].replace(/\binstance(?:s)?\b/g, "Instance")
+    : rawName;
+
+  const genericNames = new Set([
+    "Single",
+    primRoot.title,
+    primitiveName,
+  ]);
+  const isGeneric =
+    genericNames.has(baseName) ||
+    baseName.toLowerCase() === primRoot.title.toLowerCase() ||
+    baseName.toLowerCase() === primitiveName.toLowerCase();
+
+  if (!isGeneric || !agentDoc?.title) return baseName;
+
+  const partner = params["Integration Partner Name"]?.[0];
+  return [agentDoc.title, primitiveName, partner].filter(Boolean).join(" — ");
+}
+
 /**
  * Read a primitive's Global Activation Status. Per the atlas convention,
  * `${primRoot}.1.1` is the Primitive Hub Document → Global Activation Status

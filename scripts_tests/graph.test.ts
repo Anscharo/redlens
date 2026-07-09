@@ -149,8 +149,10 @@ const KNOWN_EDGE_TYPES = new Set([
   "can_modify_signers_of",
   // bridge validator sets (Pattern 21)
   "validator_of",
-  // transfer/grant events (Pattern 18)
+  // transfer/grant events and silent authorization locations (Pattern 18)
   "funds_transfer",
+  "funds_authorization",
+  "funds_data_gap",
   // registries / org relations
   "authorized_rep_for",
   "integration_partner_of",
@@ -180,6 +182,23 @@ describe("vocabulary stability", () => {
       (t) => !KNOWN_EDGE_TYPES.has(t),
     );
     expect(unknown, "unknown edge_type — update KNOWN_EDGE_TYPES or the skill").toEqual([]);
+  });
+});
+
+describe("referential integrity", () => {
+  it("no dangling entity-endpoint edges — every entity endpoint resolves (review BUILD B1)", () => {
+    const entIds = new Set(graph.entities.map((e) => e.id));
+    const dangling = graph.edges
+      .filter(
+        (e) =>
+          (e.from_type === "entity" && !entIds.has(e.from_id)) ||
+          (e.to_type === "entity" && !entIds.has(e.to_id)),
+      )
+      .map((e) => `${e.edge_type}: ${e.from_id}→${e.to_id}`);
+    // A leftover here is the ICD slug-collision signature: two ICDs derive the
+    // same instance slug, get-or-create hijacks the first entity's id, and its
+    // incoming edge (invoked_by) points at an id no entity carries anymore.
+    expect(dangling, "entity-typed edge endpoint with no entity — likely an ICD slug collision").toEqual([]);
   });
 });
 

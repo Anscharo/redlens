@@ -12,6 +12,40 @@ function docRow(n: AtlasNode) {
 function entityRow(e: Entity) {
   return { id: e.id, slug: e.slug, name: e.name, entity_type: e.entity_type, subtype: e.subtype };
 }
+function parseJsonObject(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return { raw };
+  }
+}
+function sourceDocNos(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+  } catch {
+    // Fall through to the legacy/string fallback.
+  }
+  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+}
+function endpointRow(ix: Indexes, id: string, nodeType: string) {
+  if (nodeType === "doc") {
+    const d = ix.docMap.get(id);
+    return d
+      ? { id, node_type: "doc", type: d.type, name: d.title, doc_no: d.doc_no }
+      : { id, node_type: "doc", type: "doc", name: id };
+  }
+  if (nodeType === "entity") {
+    const e = ix.entityById.get(id);
+    return e
+      ? { id, node_type: "entity", slug: e.slug, type: e.entity_type, subtype: e.subtype, name: e.name }
+      : { id, node_type: "entity", type: "entity", name: id };
+  }
+  return { id, node_type: nodeType, type: nodeType, name: id };
+}
 
 // ── atlas_neighbors ────────────────────────────────────────────────────────
 export function atlasNeighbors(ix: Indexes, id: string, window: number): ToolResult {
@@ -215,6 +249,67 @@ export function atlasEntities(
     ...(score != null ? { score } : {}),
   }));
   return { total, offset, count: results.length, has_more: offset + results.length < total, results };
+}
+
+// ── atlas_edges ────────────────────────────────────────────────────────────
+export function atlasEdges(
+  ix: Indexes,
+  opts: {
+    edge_type?: string;
+    from_type?: string;
+    to_type?: string;
+    from_slug?: string;
+    to_slug?: string;
+    include_docs: boolean;
+    limit: number;
+    offset: number;
+  },
+): ToolResult {
+  const { edge_type, from_type, to_type, from_slug, to_slug, include_docs, limit, offset } = opts;
+  const fromEntity = from_slug ? ix.entityBySlug.get(from_slug.toLowerCase()) : null;
+  const toEntity = to_slug ? ix.entityBySlug.get(to_slug.toLowerCase()) : null;
+  if (from_slug && !fromEntity) return { error: `from_slug '${from_slug}' not found` };
+  if (to_slug && !toEntity) return { error: `to_slug '${to_slug}' not found` };
+
+  const filtered = ix.edges.filter((e) =>
+    (!edge_type || e.edge_type === edge_type) &&
+    (!from_type || e.from_type === from_type) &&
+    (!to_type || e.to_type === to_type) &&
+    (!fromEntity || e.from_id === fromEntity.id) &&
+    (!toEntity || e.to_id === toEntity.id),
+  );
+  const total = filtered.length;
+  const page = filtered.slice(offset, offset + limit);
+  const rows = page.map((e) => {
+    const docNos = sourceDocNos(e.source_doc_nos);
+    const row: Record<string, unknown> = {
+      id: e.id,
+      edge_type: e.edge_type,
+      from: endpointRow(ix, e.from_id, e.from_type),
+      to: endpointRow(ix, e.to_id, e.to_type),
+      meta: parseJsonObject(e.meta) ?? {},
+      source_doc_nos: docNos,
+    };
+    if (include_docs) {
+      row.provenance = docNos.map((doc_no) => {
+        const doc = ix.byDocNo.get(doc_no);
+        return doc ? { node_id: doc.id, doc_no: doc.doc_no, title: doc.title, type: doc.type } : { doc_no };
+      });
+    }
+    return row;
+  });
+  const { kept, truncated } = fitToBudget(rows);
+  const nextOffset = offset + kept.length < total ? offset + kept.length : null;
+  return {
+    total,
+    limit,
+    offset,
+    count: kept.length,
+    has_more: nextOffset != null,
+    ...(nextOffset != null ? { next_offset: nextOffset } : {}),
+    ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
+    edges: kept,
+  };
 }
 
 // ── atlas_filter ───────────────────────────────────────────────────────────

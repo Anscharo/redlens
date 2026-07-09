@@ -34,6 +34,7 @@ import {
 import {
   buildKnownPrimitives,
   primitiveSlugFromTitle,
+  deriveInstanceName,
   classifyIcd,
   primitiveStatusFor,
   buildChildrenIndex,
@@ -438,17 +439,22 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     const agentDoc = agentMatch ? docByDocNo.get(agentMatch[1]) : null;
     const agentSlug = agentDoc ? slugify(agentDoc.title) : "unknown";
 
-    const primitiveSlug = primitiveSlugFromTitle(primRoot.title);
-    const rawName = icd.title.replace(/\s+Instance Configuration Document\s*$/i, "").trim();
-    const instanceOfMatch = rawName === "Single"
-      ? primRoot.content?.match(/for (.+?)\.\s+See/i)
-      : null;
-    const name = instanceOfMatch
-      ? instanceOfMatch[1].replace(/\binstance(?:s)?\b/g, "Instance")
-      : rawName;
-    const slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
     const { kind, status } = classifyIcd(icd, primRoot, docByDocNo);
     const params = extractInstanceParams(icd, childrenByDocNo);
+    const primitiveSlug = primitiveSlugFromTitle(primRoot.title);
+    const name = deriveInstanceName(icd, primRoot, agentDoc, params);
+    let slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
+    // Two distinct ICDs can derive the same (agent, primitive, name) slug. Since
+    // each ICD becomes its own entity keyed by icd.id (set below), a bare
+    // get-or-create on the shared slug would merge them: the first entity's id
+    // gets hijacked to the second ICD, the first's params are orphaned, and its
+    // incoming edges (e.g. invoked_by) dangle. Disambiguate with a stable suffix
+    // from the ICD uuid so both instances survive. (Review BUILD B1.)
+    if (entityMap.has(slug)) {
+      let candidate = `${slug}-${icd.id.slice(0, 8)}`;
+      while (entityMap.has(candidate)) candidate = `${candidate}-x`;
+      slug = candidate;
+    }
     const categoryDocNo = primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."));
     const categoryDoc = docByDocNo.get(categoryDocNo) ?? null;
     const isUnknown = !knownPrimitives.has(primRoot.title);

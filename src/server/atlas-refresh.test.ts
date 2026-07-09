@@ -15,6 +15,7 @@ function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
     parentId: over.parentId ?? null,
     order: over.order ?? 0,
     content: over.content ?? "",
+    addressRefs: over.addressRefs ?? [],
     ...over,
   };
 }

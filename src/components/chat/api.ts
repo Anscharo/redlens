@@ -13,7 +13,7 @@ export type ChatEvent =
   | { type: "token"; text: string }
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
-  | { type: "tool_result"; name: string; ok: boolean; bytes: number }
+  | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   | {
       type: "done";
       content: string;
@@ -28,6 +28,8 @@ export interface ToolCallRecord {
   args: Record<string, unknown>;
   ok: boolean;
   bytes: number;
+  truncated?: boolean;
+  originalBytes?: number;
 }
 
 export interface AuthUser {

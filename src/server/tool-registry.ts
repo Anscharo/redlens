@@ -8,8 +8,8 @@ import { type Indexes } from "./indexes.ts";
 import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult, type SearchArgs } from "./tools.ts";
 import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
-import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
-import { atlasHistory, atlasRecentChanges, atlasPr, atlasChangedBetween } from "./tools-history.ts";
+import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
+import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 
 export interface AtlasTool {
   name: string;
@@ -117,6 +117,34 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       }),
   },
   {
+    name: "atlas_edges",
+    description:
+      "Enumerate graph edges globally with pagination. Use when a question asks for every relationship of a type " +
+      "(e.g. signer_of, integration_partner_of, active_data_for) or all edges from/to a resolved entity slug. " +
+      "Returns resolved endpoint names/types, parsed meta, source doc numbers, and optional provenance docs.",
+    shape: {
+      edge_type: z.string().optional().describe("Exact edge type filter, e.g. 'signer_of', 'responsible_party_for'."),
+      from_type: z.enum(["doc", "entity", "address"]).optional().describe("Endpoint node kind filter."),
+      to_type: z.enum(["doc", "entity", "address"]).optional().describe("Endpoint node kind filter."),
+      from_slug: z.string().optional().describe("Filter to edges whose source endpoint is this entity slug."),
+      to_slug: z.string().optional().describe("Filter to edges whose target endpoint is this entity slug."),
+      include_docs: z.boolean().default(false).describe("Include provenance document id/title/type for source_doc_nos."),
+      limit: z.number().int().min(1).max(500).default(100),
+      offset: z.number().int().min(0).default(0),
+    },
+    handler: (ix, a) =>
+      atlasEdges(ix, {
+        edge_type: a.edge_type as string | undefined,
+        from_type: a.from_type as string | undefined,
+        to_type: a.to_type as string | undefined,
+        from_slug: a.from_slug as string | undefined,
+        to_slug: a.to_slug as string | undefined,
+        include_docs: (a.include_docs as boolean | undefined) ?? false,
+        limit: (a.limit as number | undefined) ?? 100,
+        offset: (a.offset as number | undefined) ?? 0,
+      }),
+  },
+  {
     name: "atlas_entity",
     description:
       "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
@@ -199,6 +227,35 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       k: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasRecentChanges(ix, a as Parameters<typeof atlasRecentChanges>[1]),
+  },
+  {
+    name: "atlas_history_stats",
+    description:
+      "Summarize Atlas history by month or quarter, with global availability bounds, change-type counts, optional " +
+      "grouping, top changed docs, and top PRs. Use for trend/timeline questions instead of paging raw atlas_history events.",
+    shape: {
+      since: z.string().optional().describe("ISO date (YYYY-MM-DD). If earlier than available history, the response includes a warning."),
+      until: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
+      bucket: z.enum(["month", "quarter"]).default("month"),
+      group_by: z
+        .array(z.enum(["doc_type", "scope", "change_kind", "review_status", "pr_author"]))
+        .max(5)
+        .default([])
+        .describe("Optional grouping dimensions to include inside each bucket."),
+      include_top_docs: z.boolean().default(false),
+      include_prs: z.boolean().default(false),
+      limit: z.number().int().min(1).max(100).default(20).describe("Max top docs / PRs to return."),
+    },
+    handler: (ix, a) =>
+      atlasHistoryStats(ix, {
+        since: a.since as string | undefined,
+        until: a.until as string | undefined,
+        bucket: (a.bucket as "month" | "quarter" | undefined) ?? "month",
+        group_by: (a.group_by as Parameters<typeof atlasHistoryStats>[1]["group_by"] | undefined) ?? [],
+        include_top_docs: (a.include_top_docs as boolean | undefined) ?? false,
+        include_prs: (a.include_prs as boolean | undefined) ?? false,
+        limit: (a.limit as number | undefined) ?? 20,
+      }),
   },
   {
     name: "atlas_pr",
