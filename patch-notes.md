@@ -19,6 +19,9 @@
   Only the 10 most recent bullets across all dates are shown.
 -->
 
+## 2026-07-09
+- Limited oversized chatbot tool results and marked truncated responses so broad Atlas lookups recover cleanly
+
 ## 2026-07-07
 - Cleaned up the Risk Rules report — click anywhere on a row to open its reasoning, filter pills show full risk-type names with rule counts and explanatory tooltips, and the mostly-empty status column became an inline badge on the affected rows
 - Replaced the Risk Rules report's per-category sections with one flat table that tags each rule with all of its risk types, and made the risk-type filter multi-select with checkboxes

@@ -77,6 +77,10 @@ export const config = {
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
+  // Chat transport budget for one tool result fed back to the model. MCP keeps
+  // its larger client-facing budget in output-budget.ts; this smaller cap keeps
+  // a single broad tool call from eating the live chat context.
+  chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum

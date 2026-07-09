@@ -5,6 +5,7 @@ import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import { loadIndexes } from "./indexes.ts";
 import { runChat, type ChatStream, type ChatEvent } from "./chat-loop.ts";
+import { config } from "./config.ts";
 
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
 const ix = loadIndexes();
@@ -84,6 +85,34 @@ test("tool round: leaked pre-tool content triggers clear, then executes + answer
   // done.content is the clean final round only — no leaked sentinel.
   expect(done.type === "done" && done.content).toBe("Done.");
   expect(done.type === "done" && done.toolCalls).toHaveLength(1);
+});
+
+test("tool round records chat-budget truncation metadata", async () => {
+  const previousBudget = config.chatToolResultMaxChars;
+  config.chatToolResultMaxChars = 300;
+  const rounds = [
+    [toolChunk("atlas_describe", JSON.stringify({ sections: ["all"] })), finishChunk("tool_calls")],
+    [textChunk("Done."), finishChunk("stop")],
+  ];
+  try {
+    const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+
+    const result = events.find((e) => e.type === "tool_result");
+    expect(result && result.type === "tool_result" && result.ok).toBe(true);
+    expect(result && result.type === "tool_result" && result.truncated).toBe(true);
+    expect(result && result.type === "tool_result" && result.originalBytes).toBeGreaterThan(
+      result && result.type === "tool_result" ? result.bytes : 0,
+    );
+
+    const done = events.at(-1)!;
+    expect(done.type).toBe("done");
+    if (done.type === "done") {
+      expect(done.toolCalls[0].truncated).toBe(true);
+      expect(done.toolCalls[0].originalBytes).toBeGreaterThan(done.toolCalls[0].bytes);
+    }
+  } finally {
+    config.chatToolResultMaxChars = previousBudget;
+  }
 });
 
 test("maxIterations=1 forces tool_choice:none on the only call", async () => {

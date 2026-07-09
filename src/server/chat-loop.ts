@@ -10,7 +10,7 @@
 //   - aborts mid-stream on signal (orphaned tool rounds burn tokens)
 //   - usage + generation id are surfaced for rate-limiting + cost backfill
 import type OpenAI from "openai";
-import { execTool } from "./llm-tools.ts";
+import { execToolDetailed } from "./llm-tools.ts";
 import { CHAT_TOOLS } from "./llm-tools.ts";
 import { safeParseArgs } from "./llm-tools.ts";
 import { config } from "./config.ts";
@@ -31,6 +31,8 @@ export interface ToolCallRecord {
   args: Record<string, unknown>;
   ok: boolean;
   bytes: number;
+  truncated?: boolean;
+  originalBytes?: number;
 }
 
 export type ChatEvent =
@@ -41,7 +43,7 @@ export type ChatEvent =
   // buffer on `clear`; done.content is the authoritative final answer.
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
-  | { type: "tool_result"; name: string; ok: boolean; bytes: number }
+  | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
   | {
       type: "done";
       content: string;
@@ -131,11 +133,25 @@ export async function* runChat(opts: {
       for (const c of calls) {
         const args = safeParseArgs(c.args);
         yield { type: "tool_call", name: c.name, args };
-        const result = await execTool(opts.ix, c.name, c.args);
-        const ok = !result.startsWith('{"error"');
-        toolCalls.push({ name: c.name, args, ok, bytes: result.length });
-        yield { type: "tool_result", name: c.name, ok, bytes: result.length };
-        msgs.push({ role: "tool", tool_call_id: c.id, content: result });
+        const result = await execToolDetailed(opts.ix, c.name, c.args);
+        const toolContent = result.content;
+        const ok = !toolContent.startsWith('{"error"');
+        const record = {
+          name: c.name,
+          args,
+          ok,
+          bytes: result.returnedChars,
+          ...(result.truncated ? { truncated: true, originalBytes: result.originalChars } : {}),
+        };
+        toolCalls.push(record);
+        yield {
+          type: "tool_result",
+          name: c.name,
+          ok,
+          bytes: result.returnedChars,
+          ...(result.truncated ? { truncated: true, originalBytes: result.originalChars } : {}),
+        };
+        msgs.push({ role: "tool", tool_call_id: c.id, content: toolContent });
       }
       continue;
     }
