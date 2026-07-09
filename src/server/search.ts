@@ -8,6 +8,16 @@ import { compactProse } from "../lib/shortenTitle.ts";
 
 const RRF_K = 60;
 
+// Race a promise against a timeout, clearing the timer either way. Used to bound
+// the query-time embed so a slow provider can't hang the retrieve path.
+export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let tid: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    tid = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(tid));
+}
+
 export interface Hit {
   id: string;
   rank: number;
@@ -47,7 +57,16 @@ export async function runSemantic(
   k: number,
 ): Promise<Hit[]> {
   if (!config.openrouterApiKey) return []; // no key → semantic leg silently empty
-  const vec = await embedQuery(query);
+  // Bound the embed: on timeout or provider failure, degrade to lexical-only
+  // instead of hanging the whole retrieve (embedBatch's backoff can reach ~15s,
+  // which blew the e2e atlas_query timeout). Lexical hits still answer the query.
+  let vec: number[];
+  try {
+    vec = await withTimeout(embedQuery(query), config.semanticEmbedTimeoutMs, "embed");
+  } catch (err) {
+    console.warn(`  semantic leg skipped: ${(err as Error).message}`);
+    return [];
+  }
   const lit = toVectorLiteral(vec);
   const overFetch = type ? Math.min(k * 4, 200) : k;
   const rows = (await sql.unsafe(
