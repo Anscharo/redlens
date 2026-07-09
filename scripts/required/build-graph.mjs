@@ -344,7 +344,7 @@ for (const ent of entityMap.values()) {
     const isSol = !isEvm && /^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(value);
     if (!isEvm && !isSol) continue;
 
-    const addr = isEvm ? value.toLowerCase() : value;
+    const addr = normalizeAddress(value);
     const chain = isSol ? "solana" : icdParamChain(key, params);
     const label = icdParamLabel(key, params, agentName, ent.name);
 
