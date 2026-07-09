@@ -67,17 +67,17 @@
     },
     "Article|plain": {
       "total": 47,
-      "uncovered": 43,
+      "uncovered": 41,
       "samples": [
         "A.0.1",
         "A.1.10",
         "A.1.11",
         "A.1.12",
-        "A.1.13"
+        "A.1.14"
       ]
     },
     "Core|addr": {
-      "total": 336,
+      "total": 346,
       "uncovered": 0,
       "samples": []
     },
@@ -87,7 +87,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is": {
-      "total": 152,
+      "total": 155,
       "uncovered": 0,
       "samples": []
     },
@@ -117,7 +117,7 @@
       "samples": []
     },
     "Core|bullet-kv": {
-      "total": 291,
+      "total": 297,
       "uncovered": 82,
       "samples": [
         "A.3.3.2.7.1.1.2",
@@ -133,8 +133,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 7549,
-      "uncovered": 6250,
+      "total": 7636,
+      "uncovered": 5875,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -166,10 +166,8 @@
     },
     "Core|s:modify-signers": {
       "total": 20,
-      "uncovered": 1,
-      "samples": [
-        "A.2.3.1.2.2.2.1.5"
-      ]
+      "uncovered": 0,
+      "samples": []
     },
     "Core|s:modify-signers,s:signing-req,uuid-link": {
       "total": 1,
@@ -194,13 +192,13 @@
     },
     "Core|s:role-for-is": {
       "total": 43,
-      "uncovered": 26,
+      "uncovered": 22,
       "samples": [
         "A.1.10.2.1.9",
-        "A.1.10.2.4.13.5",
         "A.1.10.2.4.2.3.3",
         "A.1.10.2.4.6.1",
-        "A.1.9.1.5.1"
+        "A.2.11.1.3.2.1.1.6.1",
+        "A.2.11.1.3.2.1.1.6.4"
       ]
     },
     "Core|s:role-for-is,uuid-link": {
@@ -223,13 +221,13 @@
     },
     "Core|s:serves-as": {
       "total": 11,
-      "uncovered": 10,
+      "uncovered": 8,
       "samples": [
-        "A.1.10.2.1.3",
         "A.1.10.2.1.5",
         "A.1.10.2.2.2",
         "A.1.10.2.4.12.3.3.2",
-        "A.1.10.2.4.3.1"
+        "A.1.10.2.4.3.1",
+        "A.1.10.2.4.8.2"
       ]
     },
     "Core|s:serves-as,uuid-link": {
@@ -274,7 +272,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1424,
+      "total": 1427,
       "uncovered": 0,
       "samples": []
     },
@@ -326,7 +324,7 @@
     },
     "Section|plain": {
       "total": 106,
-      "uncovered": 86,
+      "uncovered": 80,
       "samples": [
         "A.0.1.1",
         "A.0.1.2",

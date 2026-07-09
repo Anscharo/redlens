@@ -1,3 +1,112 @@
 {
-  "backlog": []
+  "backlog": [
+    {
+      "taskKey": "u:cd6ad021-80f4-432d-b00f-1d26e7984297",
+      "uuid": "cd6ad021-80f4-432d-b00f-1d26e7984297",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.1.3",
+      "title": "USDS For USDC Swap Maximum"
+    },
+    {
+      "taskKey": "u:36a496db-20c1-4d34-810e-518c4f99a755",
+      "uuid": "36a496db-20c1-4d34-810e-518c4f99a755",
+      "docNo": "A.6.1.1.1.2.6.1.3.3.3.1.4.2.1",
+      "title": "Spark Savings USDT Risk Parameters"
+    },
+    {
+      "taskKey": "u:d8242d1a-18f2-4000-a98b-0521486b0708",
+      "uuid": "d8242d1a-18f2-4000-a98b-0521486b0708",
+      "docNo": "A.6.1.1.1.3.2.1.1.2.1.9",
+      "title": "USDC Risk Parameters"
+    },
+    {
+      "taskKey": "u:15349ede-15d1-4cee-80d9-fd0b5e5f9f3a",
+      "uuid": "15349ede-15d1-4cee-80d9-fd0b5e5f9f3a",
+      "docNo": "A.6.1.1.1.3.7.2.1",
+      "title": "Counterparty Requirements"
+    },
+    {
+      "taskKey": "u:60525756-fcea-4439-af53-e9c6eb1ef898",
+      "uuid": "60525756-fcea-4439-af53-e9c6eb1ef898",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.1",
+      "title": "Bitcoin (BTC)"
+    },
+    {
+      "taskKey": "u:2782410b-2ba0-49d2-91e5-1de2a0e89ab8",
+      "uuid": "2782410b-2ba0-49d2-91e5-1de2a0e89ab8",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.15",
+      "title": "Fully Reserved USD Stablecoins"
+    },
+    {
+      "taskKey": "u:79eb2c89-6107-4b56-a8fe-7f3582d4bd24",
+      "uuid": "79eb2c89-6107-4b56-a8fe-7f3582d4bd24",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.16",
+      "title": "Fully Reserved Major Non-USD Stablecoins"
+    },
+    {
+      "taskKey": "u:406351ec-ca29-4980-8475-61090bb37e98",
+      "uuid": "406351ec-ca29-4980-8475-61090bb37e98",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.17",
+      "title": "Gold (XAU)"
+    },
+    {
+      "taskKey": "u:0a907606-7766-41b7-afc2-04da1bc80cdf",
+      "uuid": "0a907606-7766-41b7-afc2-04da1bc80cdf",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.18",
+      "title": "Silver (XAG)"
+    },
+    {
+      "taskKey": "u:f4da836b-1f60-42a0-b0fc-7f7c6189ea45",
+      "uuid": "f4da836b-1f60-42a0-b0fc-7f7c6189ea45",
+      "docNo": "A.6.1.1.1.3.7.2.2.2.19",
+      "title": "Oil"
+    },
+    {
+      "taskKey": "u:8d8d15cb-f24a-4960-89c9-5d7a2b1c04bd",
+      "uuid": "8d8d15cb-f24a-4960-89c9-5d7a2b1c04bd",
+      "docNo": "A.6.1.1.1.3.7.2.3.2.9",
+      "title": "Ceffu"
+    },
+    {
+      "taskKey": "u:1da59154-e4af-4fa8-b235-1004869e68e5",
+      "uuid": "1da59154-e4af-4fa8-b235-1004869e68e5",
+      "docNo": "A.6.1.1.1.3.7.2.3.2.10",
+      "title": "Copper"
+    },
+    {
+      "taskKey": "u:827b0862-4598-4296-882c-98da321f8920",
+      "uuid": "827b0862-4598-4296-882c-98da321f8920",
+      "docNo": "A.6.1.1.1.3.7.2.3.2.11",
+      "title": "Lighter"
+    },
+    {
+      "taskKey": "u:bacfdbb6-46b7-4f86-82c4-fc32f8ed36b7",
+      "uuid": "bacfdbb6-46b7-4f86-82c4-fc32f8ed36b7",
+      "docNo": "A.6.1.1.1.3.7.2.3.2.12",
+      "title": "Aster"
+    },
+    {
+      "taskKey": "u:50fa8061-8133-4765-a17c-4941634a6ff5",
+      "uuid": "50fa8061-8133-4765-a17c-4941634a6ff5",
+      "docNo": "A.6.1.1.1.3.7.2.5.4",
+      "title": "Parameter Updates in Non Emergency Situations"
+    },
+    {
+      "taskKey": "u:56281438-63f9-46d4-a382-39a790a3bba1",
+      "uuid": "56281438-63f9-46d4-a382-39a790a3bba1",
+      "docNo": "A.6.1.1.1.3.10.3",
+      "title": "Permitted Actions"
+    },
+    {
+      "taskKey": "u:60c1b634-399b-423a-b4de-ef63b75791d9",
+      "uuid": "60c1b634-399b-423a-b4de-ef63b75791d9",
+      "docNo": "A.6.1.1.1.3.10.5",
+      "title": "Disclaimers"
+    },
+    {
+      "taskKey": "u:99bc2dd5-5573-4bb9-9210-5af299d058d9",
+      "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
+      "title": "Freezer Multisig"
+    }
+  ]
 }
