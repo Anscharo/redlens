@@ -293,20 +293,22 @@ Use the readiness assessment's query list and adjudication questions as a golden
 
 ## Implementation order and owners
 
-| Order | Workstream | Primary files/modules | Dependency | Est. size |
-|---|---|---|---|---|
-| 1 | Chat result budget | `src/server/chat-loop.ts`, tool execution plumbing | None | S |
-| 2 | `atlas_edges` | `src/server/tool-registry.ts`, graph adapter | None | M |
-| 3 | `atlas_history_stats` | history DB access, tool registry | History table availability | M |
-| 4 | Extraction/data-silence fixes | graph transfer builder, Active Data population checks, instance naming logic | Build fixtures | M |
-| 5 | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
-| 6 | `atlas_report` tool | tool registry + report builders | Report builders | M |
-| 7 | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
-| 8 | Prompt policy | chat system prompt | None | S |
-| 9 | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
-| 10 | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
-| 11 | Upstream Active Data issue | next-gen-atlas coordination | None | Process |
-| 12 | Supplemental spell/payout sources | TBD | Product decision | Optional L |
+Status legend: ✅ done · ⬜ not started.
+
+| Order | Done | Workstream | Primary files/modules | Dependency | Est. size |
+|---|---|---|---|---|---|
+| 1 | ✅ | Chat result budget | `src/server/chat-loop.ts`, tool execution plumbing | None | S |
+| 2 | ✅ | `atlas_edges` | `src/server/tool-registry.ts`, graph adapter | None | M |
+| 3 | ✅ | `atlas_history_stats` | history DB access, tool registry | History table availability | M |
+| 4 | ✅ | Extraction/data-silence fixes | graph transfer builder, Active Data population checks, instance naming logic | Build fixtures | M |
+| 5 | ⬜ | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
+| 6 | ⬜ | `atlas_report` tool | tool registry + report builders | Report builders | M |
+| 7 | ⬜ | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
+| 8 | ⬜ | Prompt policy | chat system prompt | None | S |
+| 9 | ⬜ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
+| 10 | ⬜ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
+| 11 | ⬜ | Upstream Active Data issue | next-gen-atlas coordination | None | Process |
+| 12 | ⬜ | Supplemental spell/payout sources | TBD | Product decision | Optional L |
 
 ## Acceptance criteria
 
@@ -336,10 +338,10 @@ The remediation is considered successful when staging can satisfy the following:
 
 ## Deliverables checklist
 
-- [ ] `atlas_edges` tool with pagination and endpoint resolution.
-- [ ] `atlas_history_stats` tool with earliest/latest history metadata.
-- [ ] Chat-specific tool result budget and truncation metadata.
-- [ ] Transfer-reference audit, Active Data silence detection, and instance naming cleanup.
+- [x] `atlas_edges` tool with pagination and endpoint resolution. — shipped (`fbe693fe`)
+- [x] `atlas_history_stats` tool with earliest/latest history metadata. — shipped (`fbe693fe`)
+- [x] Chat-specific tool result budget and truncation metadata. — shipped (`093734eb`)
+- [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
 - [ ] Shared report builder modules.
 - [ ] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports.
 - [ ] Entity/edge `first_seen` enrichment.
