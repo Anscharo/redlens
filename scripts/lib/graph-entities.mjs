@@ -443,7 +443,18 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     const params = extractInstanceParams(icd, childrenByDocNo);
     const primitiveSlug = primitiveSlugFromTitle(primRoot.title);
     const name = deriveInstanceName(icd, primRoot, agentDoc, params);
-    const slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
+    let slug = `${agentSlug}-${primitiveSlug}-${slugify(name)}`;
+    // Two distinct ICDs can derive the same (agent, primitive, name) slug. Since
+    // each ICD becomes its own entity keyed by icd.id (set below), a bare
+    // get-or-create on the shared slug would merge them: the first entity's id
+    // gets hijacked to the second ICD, the first's params are orphaned, and its
+    // incoming edges (e.g. invoked_by) dangle. Disambiguate with a stable suffix
+    // from the ICD uuid so both instances survive. (Review BUILD B1.)
+    if (entityMap.has(slug)) {
+      let candidate = `${slug}-${icd.id.slice(0, 8)}`;
+      while (entityMap.has(candidate)) candidate = `${candidate}-x`;
+      slug = candidate;
+    }
     const categoryDocNo = primRoot.doc_no.slice(0, primRoot.doc_no.lastIndexOf("."));
     const categoryDoc = docByDocNo.get(categoryDocNo) ?? null;
     const isUnknown = !knownPrimitives.has(primRoot.title);

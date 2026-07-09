@@ -12,22 +12,19 @@ import { MultiDirectedGraph } from "graphology";
 import { config } from "./config.ts";
 import { MINISEARCH_OPTIONS } from "../lib/searchOptions.ts";
 
-export interface AtlasNode {
-  id: string;
-  doc_no: string;
-  title: string;
-  type: string;
-  depth: number;
-  parentId: string | null;
-  order: number;
-  content: string;
-  contentHash?: string;
-  addressRefs?: string[];
-}
+// One canonical AtlasNode (src/types.ts). Re-exported so existing
+// `import { AtlasNode } from "./indexes.ts"` sites keep working, but there is now
+// a SINGLE declaration — the review found the duplicate (optional addressRefs
+// here vs required in src/types) was what let the DB rebuild silently drop the
+// field. Keep them unified.
+export type { AtlasNode } from "../types.ts";
+import type { AtlasNode } from "../types.ts";
 
-// atlas_doc_meta row shape (after column aliasing) — the inverse of sync.ts's
-// AtlasNode→row write. Shared so the in-process updater's DB→docs.json path
-// stays in lockstep with the worker build and never silently drops a field.
+// atlas_doc_meta row shape (after column aliasing) — the inverse of the
+// nodeToDocRow write in doc-rows.ts. Shared so the in-process updater's
+// DB→docs.json path stays in lockstep with the worker build and never silently
+// drops a field. `contentHash` is the node_content_hash column (parser hash),
+// aliased in the updater SELECT; `addressRefs` is the address_refs column.
 export interface DocMetaRow {
   id: string;
   doc_no: string;
@@ -37,6 +34,8 @@ export interface DocMetaRow {
   parentId: string | null;
   content: string | null;
   order: number;
+  contentHash?: string | null;
+  addressRefs?: string[] | null;
 }
 
 export function docRowToNode(r: DocMetaRow): AtlasNode {
@@ -49,6 +48,8 @@ export function docRowToNode(r: DocMetaRow): AtlasNode {
     parentId: r.parentId,
     content: r.content ?? "",
     order: r.order,
+    contentHash: r.contentHash ?? undefined,
+    addressRefs: r.addressRefs ?? [],
   };
 }
 

@@ -185,6 +185,23 @@ describe("vocabulary stability", () => {
   });
 });
 
+describe("referential integrity", () => {
+  it("no dangling entity-endpoint edges — every entity endpoint resolves (review BUILD B1)", () => {
+    const entIds = new Set(graph.entities.map((e) => e.id));
+    const dangling = graph.edges
+      .filter(
+        (e) =>
+          (e.from_type === "entity" && !entIds.has(e.from_id)) ||
+          (e.to_type === "entity" && !entIds.has(e.to_id)),
+      )
+      .map((e) => `${e.edge_type}: ${e.from_id}→${e.to_id}`);
+    // A leftover here is the ICD slug-collision signature: two ICDs derive the
+    // same instance slug, get-or-create hijacks the first entity's id, and its
+    // incoming edge (invoked_by) points at an id no entity carries anymore.
+    expect(dangling, "entity-typed edge endpoint with no entity — likely an ICD slug collision").toEqual([]);
+  });
+});
+
 describe("Pattern 13 — bootstrap entities", () => {
   it("sky-core and sky-governance exist; sky-ecosystem does not", () => {
     const slugs = new Set(graph.entities.map((e) => e.slug));

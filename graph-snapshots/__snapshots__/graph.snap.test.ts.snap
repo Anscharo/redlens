@@ -1686,6 +1686,104 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Curve RL
 ]
 `;
 
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Curve RLUSD/USDC Pool 2`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the parameters of the Curve RLUSD/USDC Pool Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Curve",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "RLUSD and USDC",
+    "title": "Asset Supplied By Grove Liquidity Layer",
+  },
+  {
+    "content": "RLUSD/USDC",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xD001aE433f254283FeCE51d4ACcE8c53263aa186\`",
+    "title": "Pool Address",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow, outflow and swap are defined in the subdocuments herein.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The inflow RateLimitID is: N/A - swap only.",
+    "title": "Inflow RateLimitID",
+  },
+  {
+    "content": "The outflow RateLimitID is: N/A - swap only.",
+    "title": "Outflow RateLimitID",
+  },
+  {
+    "content": "The swap RateLimitID is: \`0x8dcb7a359e6824ce9fd1c1f50ba67cd468764f690da2589aa3c262ac142c333a\`.",
+    "title": "Swap RateLimitID",
+  },
+  {
+    "content": "The current \`maxAmount\`, \`slope\` and \`maxSlippage\` for this conduit’s inflow/outflow/swap are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The deposit rate limits are:
+
+- \`maxAmount\`: N/A - swap only
+- \`slope\`: N/A - swap only",
+    "title": "Deposit Rate Limits",
+  },
+  {
+    "content": "The withdrawal rate limits are:
+
+- \`maxAmount\`: N/A - swap only",
+    "title": "Withdrawal Rate Limits",
+  },
+  {
+    "content": "The swap rate limits are:
+
+- \`maxAmount\`: 20 million
+- \`slope\`: 100 million per day
+- \`maxSlippage\`: 0.1%",
+    "title": "Swap Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Curve RLUSD/USDC Pool LP Deposits 1`] = `
 [
   {
@@ -10069,20 +10167,20 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 393,
+  "defines_entity": 394,
   "duty_for": 857,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 8,
   "governance_channel": 10,
-  "has_address": 261,
+  "has_address": 263,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
   "instance_of": 189,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 193,
+  "invoked_by": 194,
   "listed_in": 47,
   "located_at": 187,
   "mentions": 567,
@@ -12201,6 +12299,30 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
+    "name": "Ethereum Mainnet - Curve RLUSD/USDC Pool",
+    "params": {
+      "Asset Supplied By Grove Liquidity Layer": "RLUSD and USDC",
+      "Contract Addresses / Underlying Asset Address": "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD",
+      "Deposit Rate Limits / maxAmount": "N/A - swap only",
+      "Deposit Rate Limits / slope": "N/A - swap only",
+      "Inflow RateLimitID": "N/A - swap only",
+      "Network": "Ethereum Mainnet",
+      "Outflow RateLimitID": "N/A - swap only",
+      "Pool Address": "0xD001aE433f254283FeCE51d4ACcE8c53263aa186",
+      "Swap Rate Limits / maxAmount": "20 million",
+      "Swap Rate Limits / maxSlippage": "0.1%",
+      "Swap Rate Limits / slope": "100 million per day",
+      "Swap RateLimitID": "0x8dcb7a359e6824ce9fd1c1f50ba67cd468764f690da2589aa3c262ac142c333a",
+      "Target Protocol": "Curve",
+      "Token": "RLUSD/USDC",
+      "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "Withdrawal Rate Limits / maxAmount": "N/A - swap only",
+    },
+    "slug": "grove-allocation-system-ethereum-mainnet-curve-rlusd-usdc-pool-f6501dc9",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Curve RLUSD/USDC Pool LP Deposits",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "RLUSD and USDC",
@@ -13185,7 +13307,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 106,
+  "allocation-system": 107,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,

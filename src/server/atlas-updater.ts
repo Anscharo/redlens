@@ -145,7 +145,8 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
       dbSha = (st[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
       docRows = (await tx`
         SELECT id, doc_no, title, type, depth,
-               parent_id AS "parentId", content, ord AS "order"
+               parent_id AS "parentId", content, ord AS "order",
+               node_content_hash AS "contentHash", address_refs AS "addressRefs"
         FROM atlas_doc_meta ORDER BY ord
       `) as unknown as DocMetaRow[];
       addrRows = (await tx`

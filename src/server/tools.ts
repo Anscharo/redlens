@@ -9,6 +9,7 @@ import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "./inde
 import { runLexical, runSemantic, rrfMerge, buildSnippet, extractPhrases, matchesPhrases, type MergedHit } from "./search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "./output-budget.ts";
 import { sql } from "./db.ts";
+import { normalizeAddress } from "../../scripts/lib/address-chains.mjs";
 
 export interface ToolResult {
   [k: string]: unknown;
@@ -151,7 +152,10 @@ export async function atlasSearch(ix: Indexes, { query, k, type, mode }: SearchA
 
 // ── atlas_get_address ─────────────────────────────────────────────────────────
 export async function atlasGetAddress(ix: Indexes, address: string, chain?: string): Promise<ToolResult> {
-  const addr = address.toLowerCase();
+  // normalizeAddress (EVM → lower, Solana base58 untouched) matches how sync
+  // stores the key. A bare .toLowerCase() here would miss every case-sensitive
+  // Solana row now that ingest preserves base58 case (review exec #2).
+  const addr = normalizeAddress(address);
   const records = chain
     ? await sql`SELECT * FROM atlas_addresses WHERE address = ${addr} AND chain = ${chain}`
     : await sql`SELECT * FROM atlas_addresses WHERE address = ${addr}`;
