@@ -46,10 +46,11 @@ export async function fetchPostMigrationHistory(
 ): Promise<Map<string, PostMigrationHistory>> {
   if (!docIds.length) return new Map();
   const rows = await sql<PostMigrationRow[]>`
-    SELECT doc_id, commit_seq, committed_at, change_type, pr_title
-    FROM atlas_history
-    WHERE doc_id IN ${sql(docIds)} AND commit_seq > ${sinceSeq}
-    ORDER BY commit_seq ASC NULLS LAST, committed_at ASC NULLS LAST
+    SELECT h.doc_id, h.commit_seq, h.committed_at, h.change_type,
+           COALESCE(h.pr_title, p.title) AS pr_title
+    FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
+    WHERE h.doc_id IN ${sql(docIds)} AND h.commit_seq > ${sinceSeq}
+    ORDER BY h.commit_seq ASC NULLS LAST, h.committed_at ASC NULLS LAST
   `;
   return groupPostMigrationRows(rows);
 }

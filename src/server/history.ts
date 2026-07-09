@@ -94,12 +94,19 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
 
   try {
     const rows = await sql<HistoryQueryRow[]>`
-      SELECT commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title, pr_url,
-             pr_author, summary, description, moved_from, moved_to, diff,
-             change_kind, review_count, approval_count, comment_count, era, method, source_url
-      FROM atlas_history
-      WHERE doc_id = ${nodeId}
-      ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST
+      SELECT h.commit_sha, h.commit_seq, h.committed_at, h.change_type, h.pr_number,
+             COALESCE(h.pr_title, p.title) AS pr_title,
+             COALESCE(h.pr_url, p.url) AS pr_url,
+             COALESCE(h.pr_author, p.author) AS pr_author,
+             h.summary, h.description, h.moved_from, h.moved_to, h.diff,
+             h.change_kind,
+             COALESCE(h.review_count, p.review_count) AS review_count,
+             COALESCE(h.approval_count, p.approval_count) AS approval_count,
+             COALESCE(h.comment_count, p.comment_count) AS comment_count,
+             h.era, h.method, h.source_url
+      FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
+      WHERE h.doc_id = ${nodeId}
+      ORDER BY h.commit_seq DESC NULLS LAST, h.committed_at DESC NULLS LAST
     `;
     return Response.json(rows.map(toEntry), {
       headers: { "Cache-Control": "public, max-age=300" },
@@ -134,12 +141,19 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
 
   try {
     const rows = await sql<(HistoryQueryRow & { doc_id: string })[]>`
-      SELECT doc_id, commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title, pr_url,
-             pr_author, summary, description, moved_from, moved_to, diff,
-             change_kind, review_count, approval_count, comment_count, era, method, source_url
-      FROM atlas_history
-      WHERE doc_id IN ${sql(ids)}
-      ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST
+      SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type, h.pr_number,
+             COALESCE(h.pr_title, p.title) AS pr_title,
+             COALESCE(h.pr_url, p.url) AS pr_url,
+             COALESCE(h.pr_author, p.author) AS pr_author,
+             h.summary, h.description, h.moved_from, h.moved_to, h.diff,
+             h.change_kind,
+             COALESCE(h.review_count, p.review_count) AS review_count,
+             COALESCE(h.approval_count, p.approval_count) AS approval_count,
+             COALESCE(h.comment_count, p.comment_count) AS comment_count,
+             h.era, h.method, h.source_url
+      FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
+      WHERE h.doc_id IN ${sql(ids)}
+      ORDER BY h.commit_seq DESC NULLS LAST, h.committed_at DESC NULLS LAST
     `;
     const out: Record<string, HistoryEntry[]> = {};
     for (const row of rows) (out[row.doc_id] ??= []).push(toEntry(row));

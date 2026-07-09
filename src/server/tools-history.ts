@@ -215,21 +215,25 @@ export async function atlasHistory(
   const node = resolveNode(ix, id) ?? (UUID_RE.test(id) ? { id } : null);
   if (!node) return { error: "Not found" };
 
-  const conditions: string[] = ["doc_id = $1"];
+  const conditions: string[] = ["h.doc_id = $1"];
   const params: unknown[] = [node.id];
   const p = () => `$${params.length}`;
-  if (opts.since) { params.push(opts.since); conditions.push(`committed_at >= ${p()}::date`); }
-  if (opts.until) { params.push(opts.until); conditions.push(`committed_at <= ${p()}::date`); }
-  if (opts.pr != null) { params.push(opts.pr); conditions.push(`pr_number = ${p()}`); }
-  if (opts.change_type) { params.push(pgType(opts.change_type)); conditions.push(`change_type = ${p()}`); }
+  if (opts.since) { params.push(opts.since); conditions.push(`h.committed_at >= ${p()}::date`); }
+  if (opts.until) { params.push(opts.until); conditions.push(`h.committed_at <= ${p()}::date`); }
+  if (opts.pr != null) { params.push(opts.pr); conditions.push(`h.pr_number = ${p()}`); }
+  if (opts.change_type) { params.push(pgType(opts.change_type)); conditions.push(`h.change_type = ${p()}`); }
 
-  const diffCol = opts.with_diff ? ", diff" : "";
+  const diffCol = opts.with_diff ? ", h.diff AS diff" : "";
   const rows = await sql.unsafe<HistoryRow[]>(
-    `SELECT commit_sha, commit_seq, committed_at, change_type, pr_number, pr_title,
-            pr_author, pr_url, summary, description, moved_from, moved_to,
-            era, method, source_url${diffCol}
-     FROM atlas_history WHERE ${conditions.join(" AND ")}
-     ORDER BY commit_seq DESC NULLS LAST, committed_at DESC NULLS LAST`,
+    `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type, h.pr_number,
+            COALESCE(h.pr_title, p.title) AS pr_title,
+            COALESCE(h.pr_author, p.author) AS pr_author,
+            COALESCE(h.pr_url, p.url) AS pr_url,
+            h.summary, h.description, h.moved_from, h.moved_to,
+            h.era, h.method, h.source_url${diffCol}
+     FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY h.commit_seq DESC NULLS LAST, h.committed_at DESC NULLS LAST`,
     params,
   );
 
@@ -274,11 +278,16 @@ export async function atlasRecentChanges(
     const placeholders = linkedDocIds.map((_, i) => `$${params.push(linkedDocIds[i])}`).join(",");
     rows = await sql.unsafe<RecentRow[]>(
       `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
-              h.pr_number, h.pr_title, h.pr_author, h.pr_url,
+              h.pr_number,
+              COALESCE(h.pr_title, p.title) AS pr_title,
+              COALESCE(h.pr_author, p.author) AS pr_author,
+              COALESCE(h.pr_url, p.url) AS pr_url,
               h.summary, h.description, h.moved_from, h.moved_to,
               h.era, h.method, h.source_url,
               n.doc_no, n.title, n.type AS doc_type
-       FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+       FROM atlas_history h
+       LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+       LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
        WHERE ${conditions.join(" AND ")} AND h.doc_id IN (${placeholders})
        ORDER BY h.committed_at DESC NULLS LAST LIMIT $${params.push(opts.k)}`,
       params,
@@ -286,11 +295,16 @@ export async function atlasRecentChanges(
   } else {
     rows = await sql.unsafe<RecentRow[]>(
       `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
-              h.pr_number, h.pr_title, h.pr_author, h.pr_url,
+              h.pr_number,
+              COALESCE(h.pr_title, p.title) AS pr_title,
+              COALESCE(h.pr_author, p.author) AS pr_author,
+              COALESCE(h.pr_url, p.url) AS pr_url,
               h.summary, h.description, h.moved_from, h.moved_to,
               h.era, h.method, h.source_url,
               n.doc_no, n.title, n.type AS doc_type
-       FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+       FROM atlas_history h
+       LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+       LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
        WHERE ${conditions.join(" AND ")}
        ORDER BY h.committed_at DESC NULLS LAST LIMIT $${params.push(opts.k)}`,
       params,
@@ -331,10 +345,18 @@ export async function atlasHistoryStats(
 
   const rows = await sql.unsafe<(Omit<HistoryStatsRow, "scope"> & { committed_at: string | Date | null })[]>(
     `SELECT h.doc_id, h.committed_at, h.change_type,
-            h.change_kind, h.review_count, h.approval_count, h.comment_count,
-            h.pr_number, h.pr_title, h.pr_author, h.pr_url,
+            h.change_kind,
+            COALESCE(h.review_count, p.review_count) AS review_count,
+            COALESCE(h.approval_count, p.approval_count) AS approval_count,
+            COALESCE(h.comment_count, p.comment_count) AS comment_count,
+            h.pr_number,
+            COALESCE(h.pr_title, p.title) AS pr_title,
+            COALESCE(h.pr_author, p.author) AS pr_author,
+            COALESCE(h.pr_url, p.url) AS pr_url,
             n.doc_no, n.title, n.type AS doc_type
-     FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+     FROM atlas_history h
+     LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+     LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
      WHERE ${conditions.join(" AND ")}
      ORDER BY h.committed_at ASC, h.commit_seq ASC NULLS LAST`,
     params,
@@ -355,10 +377,15 @@ export async function atlasPr(_ix: Indexes, pr_number: number): Promise<ToolResu
   type PrRow = HistoryRow & { doc_no: string | null; title: string | null; doc_type: string | null };
   const rows = await sql<PrRow[]>`
     SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
-           h.pr_title, h.pr_author, h.pr_url, h.summary, h.description,
+           COALESCE(h.pr_title, p.title) AS pr_title,
+           COALESCE(h.pr_author, p.author) AS pr_author,
+           COALESCE(h.pr_url, p.url) AS pr_url,
+           h.summary, h.description,
            h.moved_from, h.moved_to, h.era, h.method, h.source_url,
            n.doc_no, n.title, n.type AS doc_type
-    FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+    FROM atlas_history h
+    LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+    LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
     WHERE h.pr_number = ${pr_number}
     ORDER BY n.doc_no NULLS LAST, h.change_type
   `;
@@ -424,10 +451,15 @@ export async function atlasChangedBetween(
 
   const rows = await sql.unsafe<BetweenRow[]>(
     `SELECT h.doc_id, h.commit_sha, h.commit_seq, h.committed_at, h.change_type,
-            h.pr_number, h.pr_title, h.pr_author, h.pr_url,
+            h.pr_number,
+            COALESCE(h.pr_title, p.title) AS pr_title,
+            COALESCE(h.pr_author, p.author) AS pr_author,
+            COALESCE(h.pr_url, p.url) AS pr_url,
             h.summary, h.description, h.moved_from, h.moved_to,
             n.doc_no, n.title, n.type AS doc_type
-     FROM atlas_history h LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+     FROM atlas_history h
+     LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
+     LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
      WHERE ${conditions.join(" AND ")}
      ORDER BY h.commit_seq, n.doc_no NULLS LAST
      LIMIT $${params.push(opts.limit)}`,
