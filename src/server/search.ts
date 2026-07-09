@@ -60,10 +60,15 @@ export async function runSemantic(
   // Bound the embed: on timeout or provider failure, degrade to lexical-only
   // instead of hanging the whole retrieve (embedBatch's backoff can reach ~15s,
   // which blew the e2e atlas_query timeout). Lexical hits still answer the query.
+  // The AbortController makes the timeout real — it cancels the in-flight fetch +
+  // retry loop, not just the wrapper promise, so a slow provider doesn't leave
+  // background embed work piling up per query.
+  const ac = new AbortController();
   let vec: number[];
   try {
-    vec = await withTimeout(embedQuery(query), config.semanticEmbedTimeoutMs, "embed");
+    vec = await withTimeout(embedQuery(query, ac.signal), config.semanticEmbedTimeoutMs, "embed");
   } catch (err) {
+    ac.abort();
     console.warn(`  semantic leg skipped: ${(err as Error).message}`);
     return [];
   }
