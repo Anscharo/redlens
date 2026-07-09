@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-09
+- Fixed a range of reliability and data-accuracy issues across search, the reader, and reports
+
 ## 2026-07-08
 - Added an Updates page with the full improvement history, linked from the homepage
 

@@ -64,11 +64,14 @@ export interface EdgeResult {
 
 let worker: Worker | null = null;
 let ready = false;
-const readyCallbacks: Array<() => void> = [];
+// Waiters carry a reject arm too: a worker init failure (500/parse on
+// relations.json, or a worker-script load error) must settle them with an error
+// instead of hanging forever — see failWorker.
+const readyCallbacks: Array<{ resolve: () => void; reject: (e: Error) => void }> = [];
 
 // Constellation init — resolved once from the worker's ready payload.
 let constellationInit: ConstellationInit | null = null;
-const constellationInitWaiters: Array<(d: ConstellationInit) => void> = [];
+const constellationInitWaiters: Array<{ resolve: (d: ConstellationInit) => void; reject: (e: Error) => void }> = [];
 
 // Pending callbacks keyed by request id / agent id.
 const edgePending = new Map<string, (r: EdgeResult) => void>();
@@ -103,12 +106,19 @@ function getWorker(): Worker {
   // Thread the live atlas base via the worker `name` (read as self.name) — same
   // pattern as the atlas/search workers — so the worker fetches the sha-keyed
   // relations.json. Inline `new Worker(new URL(...))` so Vite compiles it.
-  worker = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), {
+  const w = new Worker(new URL("../workers/graph.worker.ts", import.meta.url), {
     type: "module",
     name: liveAtlasBase(),
   });
+  worker = w;
+  // Guard both listeners against a belated event from THIS instance after it's
+  // been terminated + replaced (failWorker → respawn): only act while `worker`
+  // still points at us, so a late signal from a dead worker can't tear down its
+  // successor.
+  const isCurrent = () => worker === w;
 
-  worker.addEventListener("message", (e: MessageEvent<GraphWorkerOutMessage>) => {
+  w.addEventListener("message", (e: MessageEvent<GraphWorkerOutMessage>) => {
+    if (!isCurrent()) return;
     const msg = e.data;
 
     if (msg.type === "error") {
@@ -116,16 +126,20 @@ function getWorker(): Worker {
       if (!handledStaleMessage(msg.message)) {
         console.error("[graph]", msg.message);
         captureException(new Error(msg.message), { mechanism: "graph.worker" });
+        // init() failed → the worker will never post "ready". Settle every waiter
+        // with the error and drop the worker so the next consumer call respawns a
+        // fresh one (a transient 500/network error on relations.json recovers).
+        failWorker(new Error(msg.message));
       }
       return;
     }
 
     if (msg.type === "ready") {
       constellationInit = { entities: msg.entities, entityEdges: msg.entityEdges };
-      for (const cb of constellationInitWaiters) cb(constellationInit);
+      for (const cb of constellationInitWaiters) cb.resolve(constellationInit);
       constellationInitWaiters.length = 0;
       ready = true;
-      for (const cb of readyCallbacks) cb();
+      for (const cb of readyCallbacks) cb.resolve();
       readyCallbacks.length = 0;
       return;
     }
@@ -149,12 +163,36 @@ function getWorker(): Worker {
     }
   });
 
-  return worker;
+  // Worker-script load / uncaught errors never arrive as a message, so the
+  // message handler above can't see them — listen directly and fail the same way.
+  w.addEventListener("error", (e) => {
+    if (!isCurrent() || ready) return; // post-init errors surface via per-request timeouts
+    const err = new Error((e as ErrorEvent).message || "graph worker error");
+    console.error("[graph]", err.message);
+    captureException(err, { mechanism: "graph.worker" });
+    failWorker(err);
+  });
+
+  return w;
+}
+
+// Settle every waiter with the error and drop the worker so the next consumer
+// call respawns a fresh one. Without this, a worker init failure leaves
+// whenReady()/getConstellationInit() promises pending forever with no retry.
+function failWorker(err: Error): void {
+  for (const cb of readyCallbacks) cb.reject(err);
+  readyCallbacks.length = 0;
+  for (const cb of constellationInitWaiters) cb.reject(err);
+  constellationInitWaiters.length = 0;
+  worker?.terminate();
+  worker = null;
+  ready = false;
+  constellationInit = null;
 }
 
 function whenReady(): Promise<void> {
   if (ready) return Promise.resolve();
-  return new Promise((resolve) => readyCallbacks.push(resolve));
+  return new Promise((resolve, reject) => readyCallbacks.push({ resolve, reject }));
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +202,7 @@ function whenReady(): Promise<void> {
 export function getConstellationInit(): Promise<ConstellationInit> {
   getWorker();
   if (constellationInit) return Promise.resolve(constellationInit);
-  return new Promise((resolve) => constellationInitWaiters.push(resolve));
+  return new Promise((resolve, reject) => constellationInitWaiters.push({ resolve, reject }));
 }
 
 export async function getEdges(id: string): Promise<EdgeResult> {

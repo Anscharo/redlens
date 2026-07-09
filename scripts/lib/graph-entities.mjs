@@ -31,6 +31,7 @@ import {
   extractListItems,
   primitiveRootFor,
 } from "./graph-patterns.mjs";
+import { normalizeAddress } from "./address-chains.mjs";
 import {
   buildKnownPrimitives,
   primitiveSlugFromTitle,
@@ -178,7 +179,9 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     if (info.label) {
       const s = slugify(info.label);
       if (!labelToAddresses.has(s)) labelToAddresses.set(s, []);
-      labelToAddresses.get(s).push({ addr: addr.toLowerCase(), chain: info.chain ?? "ethereum" });
+      // `addr` is an addressesRaw key (already normalized), but call it explicitly
+      // so this doesn't lowercase case-sensitive Solana base58 into a split node id.
+      labelToAddresses.get(s).push({ addr: normalizeAddress(addr), chain: info.chain ?? "ethereum" });
       if (info.roles?.includes("delegate") && !entityMap.has(s)) {
         addEntity(s, info.label, "delegate_org", null, null, {
           source: "addresses_json_delegate",

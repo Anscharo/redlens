@@ -100,8 +100,12 @@ export function extractPhrases(q: string): {
     if (trimmed) phrases.push(trimmed);
     return ` ${p} `;
   });
-  // Single quotes → case-sensitive exact match
-  rest = rest.replace(/'([^']+)'/g, (_, p: string) => {
+  // Single quotes → case-sensitive exact match. The quotes must sit at
+  // non-alphanumeric boundaries so apostrophes inside words (contractions,
+  // possessives: don't, Sky's) aren't mistaken for phrase delimiters — a query
+  // like `don't won't` used to capture `t won` as a required case-sensitive
+  // phrase and then match zero docs.
+  rest = rest.replace(/(?<![A-Za-z0-9])'([^']+?)'(?![A-Za-z0-9])/g, (_, p: string) => {
     const trimmed = p.trim();
     if (trimmed) casePhrases.push(trimmed);
     return ` ${p} `;

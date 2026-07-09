@@ -34,7 +34,9 @@ export function AtlasView({
   onOpenTree?: () => void;
 }) {
   const data = useAtlasData();
-  const graph = useLoaded(loadGraph);
+  // soft: the relations panel is an enrichment — a graph load failure must not
+  // blank the whole reader (the doc content still renders without it).
+  const graph = useLoaded(loadGraph, { soft: true });
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
   const { linkedNodes, targetAddresses, chainValues, glossaryTerms } = useNodeAnnotations(id, data);
 

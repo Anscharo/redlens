@@ -212,6 +212,22 @@ describe("extractPhrases: query parsing", () => {
     const { casePhrases } = extractPhrases("user's delegate");
     expect(casePhrases).not.toContain("s delegate");
   });
+
+  it("two contractions do not capture the text between them as a case phrase", () => {
+    // The load-bearing regression: `don't won't` has two apostrophes, so the old
+    // /'([^']+)'/ captured `t won` and then matched zero docs. Boundary-anchored
+    // quotes leave contractions alone.
+    const { casePhrases, rest } = extractPhrases("don't won't work");
+    expect(casePhrases).toHaveLength(0);
+    expect(rest).toContain("don't");
+    expect(rest).toContain("won't");
+  });
+
+  it("possessive between real single-quoted phrase still isolates only the phrase", () => {
+    // Sky's ... 'exact' — the possessive apostrophe must not merge with the quote.
+    const { casePhrases } = extractPhrases("Sky's 'delegate' role");
+    expect(casePhrases).toEqual(["delegate"]);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -51,6 +51,12 @@ export const config = {
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
   semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 4000),
+  // In-process LRU for query-time embeddings. Doc embeddings are cached in
+  // Postgres by content_hash, but query strings weren't cached at all — every
+  // semantic atlas_query/atlas_search paid a fresh OpenRouter round-trip, even
+  // for a repeated query. This caches the last N query vectors per process so a
+  // repeat is instant (no network, no cost, no timeout exposure). 0 disables it.
+  queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
