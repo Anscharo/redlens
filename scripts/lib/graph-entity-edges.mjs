@@ -21,6 +21,7 @@ import {
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
+import { normalizeAddress } from "./address-chains.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
   const {
@@ -594,9 +595,13 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // --- 2v. mentions (doc → address) ---
   for (const d of allDocs) {
     for (const addr of d.addressRefs ?? []) {
-      const info = addressesRaw[addr] ?? addressesRaw[addr.toLowerCase()];
+      // normalizeAddress = EVM→lowercase, Solana base58 left as-is. addressRefs
+      // carry raw casing; addressesRaw is keyed by the normalized form, and the
+      // node id MUST match the has_address side or the graph splits around Solana.
+      const key = normalizeAddress(addr);
+      const info = addressesRaw[key];
       const chain = info?.chain ?? "ethereum";
-      addEdge(d.id, "doc", `${addr.toLowerCase()}:${chain}`, "address", "mentions", [d.doc_no]);
+      addEdge(d.id, "doc", `${key}:${chain}`, "address", "mentions", [d.doc_no]);
     }
   }
 
@@ -648,9 +653,9 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     if (info.implementation) {
       const chain = info.chain ?? "ethereum";
       addEdge(
-        `${addr.toLowerCase()}:${chain}`,
+        `${normalizeAddress(addr)}:${chain}`,
         "address",
-        `${info.implementation.toLowerCase()}:${chain}`,
+        `${normalizeAddress(info.implementation)}:${chain}`,
         "address",
         "proxies_to",
         [],

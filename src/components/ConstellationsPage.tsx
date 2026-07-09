@@ -45,7 +45,7 @@ export function ConstellationsPage({ query }: { query: string }) {
   const [hiddenTypes, setHiddenTypes] = useUrlState("hide", hiddenTypesCodec);
   const [focusAgentId, setFocusAgentId] = useUrlState("focus", focusCodec);
 
-  const { init, neighborIds, topId, clusterIds } = useConstellationsWorker(query, focusAgentId);
+  const { init, initError, neighborIds, topId, clusterIds } = useConstellationsWorker(query, focusAgentId);
 
   useEffect(() => {
     if (topId) selectEntity(topId);
@@ -117,6 +117,11 @@ export function ConstellationsPage({ query }: { query: string }) {
         .sort((a, b) => a.name.localeCompare(b.name)) as GraphEntity[],
     [allEntities],
   );
+
+  // Surface a graph worker init failure to the route ErrorBoundary rather than
+  // spinning "loading constellations" forever (deep review Exec #4/#5). Placed
+  // after all hooks so the throw doesn't change the hook call count.
+  if (initError) throw initError;
 
   if (!graphData || !docNoToId) {
     return <Loading>loading constellations</Loading>;

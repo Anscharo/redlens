@@ -781,7 +781,9 @@ const addressRows = Object.entries(addressesRaw).map(([addr, info]) => {
   const cs = chainStateByAddr[addr.toLowerCase()];
   const s = info.label ? slugify(info.label) : null;
   return {
-    address: addr.toLowerCase(),
+    // addr is an addressesRaw key (already normalized); keep it normalized rather
+    // than lowercasing, which would corrupt case-sensitive Solana base58.
+    address: normalizeAddress(addr),
     chain,
     label: info.label ?? null,
     chainlog_id: info.chainlogId ?? null,

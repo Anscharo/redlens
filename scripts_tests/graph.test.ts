@@ -200,6 +200,25 @@ describe("referential integrity", () => {
     // incoming edge (invoked_by) points at an id no entity carries anymore.
     expect(dangling, "entity-typed edge endpoint with no entity — likely an ICD slug collision").toEqual([]);
   });
+
+  it("no Solana address node id appears under two casings (review BUILD B2)", () => {
+    // base58 is case-sensitive, so normalizeAddress leaves Solana untouched. If
+    // any build path lowercases it (has_address kept case, mentions/proxies_to
+    // lowercased), the same address splits into two `<addr>:solana` node ids and
+    // any join across edge types disconnects. Assert every casing is unique when
+    // lowercased — one node per real address.
+    const solIds = new Set<string>();
+    for (const e of relations.edges) {
+      for (const id of [e.f, e.t]) if (id.endsWith(":solana")) solIds.add(id);
+    }
+    const byLower = new Map<string, string[]>();
+    for (const id of solIds) {
+      const k = id.toLowerCase();
+      (byLower.get(k) ?? byLower.set(k, []).get(k)!).push(id);
+    }
+    const split = [...byLower.values()].filter((v) => v.length > 1);
+    expect(split, "Solana address node id lowercased in one path but not another").toEqual([]);
+  });
 });
 
 describe("Pattern 13 — bootstrap entities", () => {

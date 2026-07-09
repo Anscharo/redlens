@@ -17,8 +17,13 @@
 | Exec #3 / X-cutting #1, #2 — updater DB→disk drops `addressRefs` + `contentHash` | ✅ fixed | `2aeb0458` (main) — migration 013 adds `node_content_hash` (parser hash, distinct from embed-text `content_hash`) + `address_refs` jsonb; round-trip DB-verified |
 | BUILD B1 — ICD slug collision merges instances + dangling `invoked_by` | ✅ fixed | `2aeb0458` (main) — uuid-suffix slug disambiguation; new referential-integrity test |
 | X-cutting #11 — duplicate `AtlasNode` type (root of the drop) | ✅ fixed | `2aeb0458` (main) — unified to one declaration |
-| SERVER inefficiency #5 — query embed has no cache / unbounded backoff | 🟡 mitigated | `52cd8520` (review-followups) — bounded with `SEMANTIC_EMBED_TIMEOUT_MS` + lexical fallback; a real embed cache is still open |
-| Exec #4 (graph worker hang), #5 (`useLoaded` no rejection), #6 (apostrophe phrase quotes), BUILD B2(build), and all other findings | ⬜ open | — |
+| SERVER inefficiency #5 — query embed has no cache / unbounded backoff | ✅ fixed | `52cd8520` (review-followups) bounded it with `SEMANTIC_EMBED_TIMEOUT_MS` + AbortSignal cancel + lexical fallback; `review-followups-2` adds the real in-process LRU query-embed cache (`QUERY_EMBED_CACHE_SIZE`) so repeats skip the round-trip |
+| Exec #4 — graph worker init failure hangs every consumer | ✅ fixed | `review-followups-2` — `failWorker` settles ready/init waiters with the error + respawns on next call; worker `error`-event listener catches script-load failures (both guarded against a belated event from a terminated instance). Consumers audited: `useGraphEdges`/`EntityFlow`/`constellationQuery`/`constellationCluster` already `.catch`; `useConstellationsWorker` now surfaces `initError` (rejection was newly reachable) → `ConstellationsPage` throws it to the boundary. New `src/lib/graph.test.ts` + `useConstellationsWorker.test.tsx` |
+| Exec #5 — `useLoaded` has no rejection handling (permanent spinner + unhandled rejection) | ✅ fixed | `review-followups-2` — `useLoaded` catches + re-throws to the route ErrorBoundary by default, `{ soft: true }` for the reader's graph enrichment; `SearchResults` graph load now `.catch`es; new `src/hooks/useAtlasData.test.tsx` |
+| Exec #6 — apostrophes parsed as case-sensitive phrase quotes → zero results | ✅ fixed | `review-followups-2` — single-quote phrase regex now requires non-alphanumeric boundaries so `don't won't` no longer captures `t won`; new `searchHighlight` regression tests |
+| X-cutting #9 — no `docRowToNode` round-trip parity test (would have caught #1–2) | 🟡 partial | `2aeb0458` (main) — `src/server/doc-rows.test.ts` now locks the write→read round-trip (incl. `contentHash`/`addressRefs`, and the tempting-but-wrong `content_hash` reuse). The SHALLOW_MAX_DEPTH duplication is still convention-only ("KEEP IN SYNC" comment, no parity test) |
+| BUILD B2(build) — Solana address node ids split across casings in the graph build | ✅ fixed | `review-followups-2` — `normalizeAddress` at every address node-id site (`mentions`, label-path `has_address`, `proxies_to`, `addressRows`); before/after `<addr>:solana` count 57→40 (0 dual-cased), no duplicate edges on merged nodes; new referential-integrity regression test in `scripts_tests/graph.test.ts` |
+| All other findings | ⬜ open | — |
 
 Everything below is the original report, unchanged.
 
@@ -28,7 +33,7 @@ Everything below is the original report, unchanged.
 
 Ranked by blast radius. Every item here was re-read at the cited location by the orchestrator during the verify pass.
 
-> ✅ = fixed, 🟡 = mitigated, ⬜ = open (per the Resolution status table above): #1 ✅ · #2 ✅ · #3 ✅ · #4 ⬜ · #5 ⬜ · #6 ⬜ · #7 ✅.
+> ✅ = fixed, 🟡 = mitigated, ⬜ = open (per the Resolution status table above): #1 ✅ · #2 ✅ · #3 ✅ · #4 ✅ · #5 ✅ · #6 ✅ · #7 ✅.
 
 1. **PostHog proxy incidentally forwards the browser auth cookie to a third party** — `src/server/posthog-proxy.ts:58-63`. The header-copy loop drops IP/hop-by-hop headers but not `cookie`, so on browser analytics traffic the HttpOnly `sky_session` JWT is forwarded to `us.i.posthog.com` on every event once a user signs in. It's forwarded incidentally (same-origin `fetch`/`sendBeacon` attach the cookie automatically) and contributes nothing — the browser side already groups events via posthog-js's client-generated `$session_id` (`persistence: "sessionStorage"`, `person_profiles: "never"` — analytics is deliberately anonymous). **This is unrelated to MCP session analytics**, which never goes through this proxy: MCP posts server-to-server via `captureServerEvent` and correctly groups on the `mcp-session-id` header (`index.ts:135`, `mcp.ts:83`), an opaque non-credential correlation id — no cookie, nothing to hash. (CONFIRMED — flagged by the orchestrator as "the most severe claim yet.") *Fix: add `cookie` and `authorization` to `DROP_HEADERS` — do not hash the JWT (that would inject a user-linked id into a pipeline whose design forbids it).*
 

@@ -9,13 +9,28 @@ import { type LoadedData } from "../lib/atlasHelpers";
 import { useDataSource } from "../lib/dataSource";
 
 /** Load any module-level cached promise (loadGraph, loadAtlas, loadDocs, etc.)
- *  and return the resolved value, or null while loading. */
-export function useLoaded<T>(loader: () => Promise<T>): T | null {
+ *  and return the resolved value, or null while loading.
+ *
+ *  On rejection the loader's error is re-thrown during render so the nearest
+ *  ErrorBoundary (App wraps every route) shows its page-level error UI — a load
+ *  failure must not become a permanent "Loading…" spinner + an unhandled promise
+ *  rejection. Pass `{ soft: true }` when the data is a non-load-bearing
+ *  enrichment (e.g. the graph panel inside the reader): the failure is still
+ *  caught (no unhandled rejection) but returns null instead of blanking the page. */
+export function useLoaded<T>(loader: () => Promise<T>, opts?: { soft?: boolean }): T | null {
   const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const ref = useRef(loader);
+  const soft = opts?.soft ?? false;
   useEffect(() => {
-    ref.current().then(setData);
+    let live = true;
+    ref.current().then(
+      (v) => { if (live) setData(v); },
+      (e) => { if (live) setError(e instanceof Error ? e : new Error(String(e))); },
+    );
+    return () => { live = false; };
   }, []);
+  if (error && !soft) throw error;
   return data;
 }
 

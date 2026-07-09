@@ -79,7 +79,13 @@ export const SearchResults = memo(function SearchResults({
 
   const [graph, setGraph] = useState<{ participants: GraphEntity[]; edges: import("../types").RelationEdge[] } | null>(null);
   useEffect(() => {
-    loadGraph().then((g) => setGraph({ participants: g.participants, edges: g.edges }));
+    let live = true;
+    // Graph powers the entity-hit overlay only — an enrichment. Swallow failures
+    // (no unhandled rejection) and leave `graph` null; search results still render.
+    loadGraph()
+      .then((g) => { if (live) setGraph({ participants: g.participants, edges: g.edges }); })
+      .catch(() => {});
+    return () => { live = false; };
   }, []);
 
   const participantLinks = useMemo(

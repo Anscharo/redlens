@@ -62,6 +62,43 @@ export async function embedBatch(texts: string[], signal?: AbortSignal, attempt 
   }
 }
 
+// In-process LRU of query-string → embedding. Only the single-query path uses
+// it (embedQuery); doc batches are already cached in Postgres by content_hash.
+// A Map preserves insertion order, so the oldest key is always first — we delete
+// on hit and re-insert to bump recency, and evict the head when over capacity.
+// Keyed on model+dim+text so a config swap (different model or an EMBED_DIM
+// change) can't return a stale vector for the new regime.
+const queryEmbedCache = new Map<string, number[]>();
+
+function cacheKey(text: string): string {
+  return `${config.embedModel}:${EMBED_DIM}:${text}`;
+}
+
+// Exposed for tests (assert cache behavior without hitting the network).
+export function _clearQueryEmbedCache(): void {
+  queryEmbedCache.clear();
+}
+
 export async function embedQuery(text: string, signal?: AbortSignal): Promise<number[]> {
-  return (await embedBatch([text], signal))[0];
+  const cap = config.queryEmbedCacheSize;
+  if (cap <= 0) return (await embedBatch([text], signal))[0];
+
+  const key = cacheKey(text);
+  const hit = queryEmbedCache.get(key);
+  if (hit) {
+    // Bump recency: delete + re-insert moves it to the tail.
+    queryEmbedCache.delete(key);
+    queryEmbedCache.set(key, hit);
+    return hit;
+  }
+
+  const vec = (await embedBatch([text], signal))[0];
+  queryEmbedCache.set(key, vec);
+  // Evict least-recently-used entries (Map iteration is insertion order).
+  while (queryEmbedCache.size > cap) {
+    const oldest = queryEmbedCache.keys().next().value;
+    if (oldest === undefined) break;
+    queryEmbedCache.delete(oldest);
+  }
+  return vec;
 }

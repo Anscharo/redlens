@@ -8,13 +8,22 @@ import {
 
 export function useConstellationsWorker(query: string, focusAgentId: string | null) {
   const [init, setInit] = useState<ConstellationInit | null>(null);
+  const [initError, setInitError] = useState<Error | null>(null);
   const [neighborIds, setNeighborIds] = useState<Set<string> | null>(null);
   const [topId, setTopId] = useState<string | null>(null);
   const [clusterIds, setClusterIds] = useState<Set<string> | null>(null);
   const queryIdRef = useRef(0);
 
   useEffect(() => {
-    getConstellationInit().then(setInit);
+    let live = true;
+    // getConstellationInit now REJECTS on a worker init failure (it used to hang);
+    // capture the error so the page can show it instead of leaking an unhandled
+    // rejection + spinning "loading constellations" forever.
+    getConstellationInit().then(
+      (v) => { if (live) setInit(v); },
+      (e) => { if (live) setInitError(e instanceof Error ? e : new Error(String(e))); },
+    );
+    return () => { live = false; };
   }, []);
 
   useEffect(() => {
@@ -44,5 +53,5 @@ export function useConstellationsWorker(query: string, focusAgentId: string | nu
       .catch((err) => console.warn("constellation cluster failed", err));
   }, [focusAgentId]);
 
-  return { init, neighborIds, topId, clusterIds };
+  return { init, initError, neighborIds, topId, clusterIds };
 }
