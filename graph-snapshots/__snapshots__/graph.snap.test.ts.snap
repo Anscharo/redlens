@@ -5544,6 +5544,125 @@ exports[`allocation-system sub-doc content > Spark > Arbitrum - Fluid sUSDS ERC4
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Arbitrum - Spark Savings v2 USDT 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Spark Savings v2 USDT Instance on Arbitrum of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Arbitrum",
+    "title": "Network",
+  },
+  {
+    "content": "Spark Savings Protocol",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDT",
+    "title": "Asset Supplied By Users",
+  },
+  {
+    "content": "spUSDT",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "TBD",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The specific \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are not defined for this Instance.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "TBD",
+    "title": "Spark Vault v2 Implementation",
+  },
+  {
+    "content": "\`0x65d946e533748A998B1f0E430803e39A6388f7a1\`",
+    "title": "Default admin",
+  },
+  {
+    "content": "TBD",
+    "title": "Setter",
+  },
+  {
+    "content": "\`0x92afd6F2385a90e44da3a8B60fe36f6cBe1D8709\` (ALM_PROXY)",
+    "title": "Taker",
+  },
+  {
+    "content": "The subdocuments herein define the current configuration of the risk parameters.",
+    "title": "Risk Parameters Current Configuration",
+  },
+  {
+    "content": "The Risk parameters are:
+
+- Supply cap: 250,000,000 USDT
+- Max yield: 6%
+- Current yield (at launch): 0%",
+    "title": "Spark Savings USDT Risk Parameters",
+  },
+  {
+    "content": "The current \`maxAmount\` for this conduit's take, transferAssets, and bridge operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The take rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Take Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The bridge-to-Ethereum rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Bridge to Ethereum Rate Limits",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Avalanche - Aave v3 USDC Vault 1`] = `
 [
   {
@@ -6601,6 +6720,72 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Anchorag
   {
     "content": "- \`maxAmount\`: 50,000,000 USAT
 - \`slope\`: 250,000,000 USAT per day",
+    "title": "transferAsset Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Anchorage USDC 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Anchorage USDC Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Anchorage",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDC",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x49506C3Aa028693458d6eE816b2EC28522946872\`",
+    "title": "Destination Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this conduit’s transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "- \`maxAmount\`: 50,000,000 USDC
+- \`slope\`: 250,000,000 USDC per day",
     "title": "transferAsset Rate Limits",
   },
   {
@@ -8509,7 +8694,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178\`",
+    "content": "\`0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699\`",
     "title": "Allocator Role Address",
   },
   {
@@ -8636,7 +8821,7 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Bl
     "title": "Underlying Asset Address",
   },
   {
-    "content": "\`0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178\`",
+    "content": "\`0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699\`",
     "title": "Allocator Role Address",
   },
   {
@@ -9821,6 +10006,80 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDC to Binance (receive USDT) 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Transfer USDC to Binance (receive USDT) of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Binance",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDT",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "TBD",
+    "title": "Binance Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 USDC
+- \`slope\`: 100,000,000 USDC per day
+- \`maxSlippage\`: 0.2%
+- \`rechargeRate\`: 50,000 USDC per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDC to Paxos (receive PYUSD) 1`] = `
 [
   {
@@ -9960,6 +10219,80 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer
   },
   {
     "content": "",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDT to Binance (receive USDC) 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Transfer USDT to Binance (receive USDC) of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Binance",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDT",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDC",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xdAC17F958D2ee523a2206206994597C13D831ec7\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xdAC17F958D2ee523a2206206994597C13D831ec7\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "TBD",
+    "title": "Binance Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 USDT
+- \`slope\`: 100,000,000 USDT per day
+- \`maxSlippage\`: 0.2%
+- \`rechargeRate\`: 50,000 USDT per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
     "title": "Instance-specific Operational Processes",
   },
 ]
@@ -10128,8 +10461,8 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
   {
     "content": "The swap rate limits are:
 
-- \`maxAmount\`: 5,000,000
-- \`slope\`: 50,000,000 per day",
+- \`maxAmount\`: 25,000,000
+- \`slope\`: 250,000,000 per day",
     "title": "Swap Rate Limits",
   },
   {
@@ -10163,27 +10496,27 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 27,
-  "cites": 1933,
+  "cites": 1936,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 394,
+  "defines_entity": 398,
   "duty_for": 857,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 8,
   "governance_channel": 10,
-  "has_address": 263,
+  "has_address": 269,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 189,
+  "instance_of": 193,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 194,
+  "invoked_by": 198,
   "listed_in": 47,
-  "located_at": 187,
-  "mentions": 567,
+  "located_at": 190,
+  "mentions": 581,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -10985,6 +11318,22 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
+    "name": "Arbitrum - Spark Savings v2 USDT",
+    "params": {
+      "Asset Supplied By Users": "USDT",
+      "Network": "Arbitrum",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Rate Limits": "The specific \`maxAmount\` and \`slope\` for this conduit's inflow/outflow are not defined for this Instance.",
+      "Target Protocol": "Spark Savings Protocol",
+      "Token": "spUSDT",
+      "Token Address": "TBD",
+      "Underlying Asset Address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+    },
+    "slug": "spark-allocation-system-arbitrum-spark-savings-v2-usdt",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
     "name": "Avalanche - Aave v3 USDC Vault",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
@@ -11188,6 +11537,23 @@ exports[`instances > allocation-system instances 1`] = `
       "transferAsset Rate Limits / slope": "250,000,000 USAT per day",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-anchorage-usat",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Anchorage USDC",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDC",
+      "Destination Address": "0x49506C3Aa028693458d6eE816b2EC28522946872",
+      "Network": "Ethereum Mainnet",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Anchorage",
+      "Token": "USDC",
+      "Token Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "transferAsset Rate Limits / maxAmount": "50,000,000 USDC",
+      "transferAsset Rate Limits / slope": "250,000,000 USDC per day",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-anchorage-usdc",
     "status": "Active",
   },
   {
@@ -11540,7 +11906,7 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Morpho USDT",
     "params": {
-      "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
+      "Allocator Role Address": "0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699",
       "Asset Supplied By Spark Liquidity Layer": "USDT",
       "Inflow Rate Limits / maxAmount": "0",
       "Inflow Rate Limits / slope": "1,000,000,000 USDT per day",
@@ -11560,7 +11926,7 @@ exports[`instances > allocation-system instances 1`] = `
     "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Spark Blue Chip USDT Vault",
     "params": {
-      "Allocator Role Address": "0x9Ad87668d49ab69EEa0AF091de970EF52b0D5178",
+      "Allocator Role Address": "0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699",
       "Asset Supplied By Spark Liquidity Layer": "USDT",
       "Inflow Rate Limits / maxAmount": "100,000,000 USDT",
       "Inflow Rate Limits / slope": "1,000,000,000 USDT per day",
@@ -11809,6 +12175,26 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Transfer USDC to Binance (receive USDT)",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDC",
+      "Binance Deposit Address": "TBD",
+      "Network": "Ethereum Mainnet",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Binance",
+      "Token Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "Token to Receive": "USDT",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDC",
+      "TransferAssets Rate Limits / maxSlippage": "0.2%",
+      "TransferAssets Rate Limits / rechargeRate": "50,000 USDC per day",
+      "TransferAssets Rate Limits / slope": "100,000,000 USDC per day",
+      "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdc-to-binance-receive-usdt",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Transfer USDC to Paxos (receive PYUSD)",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
@@ -11841,6 +12227,26 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdg-to-paxos-receive-pyusd",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Transfer USDT to Binance (receive USDC)",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDT",
+      "Binance Deposit Address": "TBD",
+      "Network": "Ethereum Mainnet",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit's inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Binance",
+      "Token Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      "Token to Receive": "USDC",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDT",
+      "TransferAssets Rate Limits / maxSlippage": "0.2%",
+      "TransferAssets Rate Limits / rechargeRate": "50,000 USDT per day",
+      "TransferAssets Rate Limits / slope": "100,000,000 USDT per day",
+      "Underlying Asset Address": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdt-to-binance-receive-usdc",
     "status": "Active",
   },
   {
@@ -11883,8 +12289,8 @@ exports[`instances > allocation-system instances 1`] = `
       "Pool ID": "0x3b1b1f2e775a6db1664f8e7d59ad568605ea2406312c11aef03146c0cf89d5b9",
       "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
       "Swap Fee": "0.0005%",
-      "Swap Rate Limits / maxAmount": "5,000,000",
-      "Swap Rate Limits / slope": "50,000,000 per day",
+      "Swap Rate Limits / maxAmount": "25,000,000",
+      "Swap Rate Limits / slope": "250,000,000 per day",
       "Target Protocol": "Uniswap v4",
       "Tick Range and Width": "- Min lower tick limit: 276,304 (-0.2%)
 - Max upper tick limit: 276,344 (+0.2%)
@@ -13307,7 +13713,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 107,
+  "allocation-system": 111,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,

@@ -491,6 +491,12 @@
     "isContract": true,
     "isProxy": false
   },
+  "0x9ad87668d49ab69eea0af091de970ef52b0d5178": {
+    "chain": "ethereum",
+    "etherscanName": "ALMProxyFreezable",
+    "isContract": true,
+    "isProxy": false
+  },
   "0xc0bcbb2554d4694fe7b34bb68b9ddfbb55d896bc": {
     "chain": "ethereum",
     "isContract": false,
@@ -506,9 +512,15 @@
     "isContract": false,
     "isProxy": false
   },
-  "0x92afd6f2385a90e44da3a8b60fe36f6cbe1d8709": {
+  "0xcba0c0a2a0b6bb11233ec4ea85c5bffea33e724d": {
     "chain": "ethereum",
-    "etherscanName": "Collector",
+    "etherscanName": "SparkRewards",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0x92afd6f2385a90e44da3a8b60fe36f6cbe1d8709": {
+    "chain": "arbitrum",
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false
   },
@@ -540,6 +552,12 @@
   "0x4e64b576f72c237690f27727376186639447f096": {
     "chain": "ethereum",
     "isContract": false,
+    "isProxy": false
+  },
+  "0x45d91340b3b7b96985a72b5c678f7d9e8d664b62": {
+    "chain": "avalanche",
+    "etherscanName": "ALMProxyFreezable",
+    "isContract": true,
     "isProxy": false
   },
   "0x8a25a24ede9482c4fc0738f99611be58f1c839ab": {
@@ -790,12 +808,6 @@
     "isContract": true,
     "isProxy": false
   },
-  "0x9ad87668d49ab69eea0af091de970ef52b0d5178": {
-    "chain": "ethereum",
-    "etherscanName": "ALMProxyFreezable",
-    "isContract": true,
-    "isProxy": false
-  },
   "0x0f963a8a8c01042b69054e787e5763abbb0646a3": {
     "chain": "gnosis",
     "isContract": false,
@@ -815,6 +827,12 @@
   "0xc7cdcfdefc64631ed6799c95e3b110cd42f2bd22": {
     "chain": "ethereum",
     "etherscanName": "VaultV2",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0xe5c6318456a7cb6f74f93b4eee4616db5fcef699": {
+    "chain": "ethereum",
+    "etherscanName": "ALMProxyFreezable",
     "isContract": true,
     "isProxy": false
   },
@@ -908,12 +926,6 @@
     "isContract": false,
     "isProxy": false
   },
-  "0xcba0c0a2a0b6bb11233ec4ea85c5bffea33e724d": {
-    "chain": "ethereum",
-    "etherscanName": "SparkRewards",
-    "isContract": true,
-    "isProxy": false
-  },
   "0xf62e339f21d8018940f188f6987bcdf02a849619": {
     "chain": "ethereum",
     "isContract": false,
@@ -947,6 +959,17 @@
   "0xaf88d065e77c8cc2239327c5edb3a432268e5831": {
     "chain": "ethereum",
     "isContract": false,
+    "isProxy": false
+  },
+  "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": {
+    "chain": "ethereum",
+    "isContract": false,
+    "isProxy": false
+  },
+  "0x65d946e533748a998b1f0e430803e39a6388f7a1": {
+    "chain": "arbitrum",
+    "etherscanName": "Executor",
+    "isContract": true,
     "isProxy": false
   },
   "0x625e7708f30ca75bfd92586e17077590c60eb4cd": {
@@ -1031,12 +1054,6 @@
   "0x6bad07722818ceff1deacc33280dbbfda4939a09": {
     "chain": "ethereum",
     "etherscanName": "DssVestTransferrable",
-    "isContract": true,
-    "isProxy": false
-  },
-  "0x45d91340b3b7b96985a72b5c678f7d9e8d664b62": {
-    "chain": "avalanche",
-    "etherscanName": "ALMProxyFreezable",
     "isContract": true,
     "isProxy": false
   },
