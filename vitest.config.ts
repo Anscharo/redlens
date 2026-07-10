@@ -14,7 +14,7 @@ export default defineConfig({
   test: {
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
     // e2e/** are Playwright specs (browser/API against a live deploy) — never vitest.
+    // Component tests that need a DOM opt in individually via a `// @vitest-environment jsdom` pragma.
     exclude: [".claude/**", "**/node_modules/**", "vendor/**", "graph-snapshots/**", "src/server/**", "e2e/**"],
-    environmentMatchGlobs: [["src/components/**", "jsdom"]],
   },
 });

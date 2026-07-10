@@ -5,9 +5,9 @@ import { ChatLauncher } from "./ChatLauncher";
 import { ChatPanel } from "./ChatPanel";
 import { usePageContext } from "./pageContext";
 import { track } from "../../lib/analytics";
+import type { Placement } from "./types";
 import "./chat.css";
 
-export type Placement = "float" | "anchored";
 const PLACEMENT_KEY = "rlc-placement";
 
 function readPlacement(): Placement {
