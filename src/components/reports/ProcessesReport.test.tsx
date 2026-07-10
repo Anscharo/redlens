@@ -9,6 +9,11 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
+// jsdom doesn't implement scrollIntoView; the expand effect calls it inside a
+// requestAnimationFrame, so without this stub the throw surfaces as an unhandled
+// error and fails the run.
+Element.prototype.scrollIntoView = vi.fn();
+
 vi.mock("../../lib/docs", () => ({
   loadAtlas: () =>
     Promise.resolve({
