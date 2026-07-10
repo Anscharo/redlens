@@ -203,6 +203,23 @@ describe("NodeHistory states", () => {
     expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("ignores a stale response from a superseded nodeId (fast A→B navigation)", async () => {
+    // Node A's fetch is slower and resolves AFTER B's — it must not clobber B's view.
+    mockLoad.mockImplementationOnce(
+      () => new Promise((resolve) => setTimeout(() => resolve([entry({ summary: "A's history" })]), 40)),
+    );
+    mockLoad.mockImplementationOnce(
+      () => new Promise((resolve) => setTimeout(() => resolve([entry({ summary: "B's history" })]), 5)),
+    );
+    const { rerender } = render(<NodeHistory nodeId="node-a" />);
+    rerender(<NodeHistory nodeId="node-b" />);
+
+    expect(await screen.findByText("B's history")).toBeInTheDocument();
+    // Give A's (stale) response time to arrive and confirm it's discarded.
+    await new Promise((r) => setTimeout(r, 60));
+    expect(screen.queryByText("A's history")).not.toBeInTheDocument();
+  });
+
   it("falls back to the top when there's no migration entry for this doc (byte-identical across #117)", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),

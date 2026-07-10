@@ -49,13 +49,18 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
   const [showReconstructed, setShowReconstructed] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setEntries(null);
     setShowReconstructed(false);
     loadHistory(nodeId).then((data) => {
+      if (cancelled) return;
       setEntries(data);
       setLoading(false);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [nodeId]);
 
   if (loading) {

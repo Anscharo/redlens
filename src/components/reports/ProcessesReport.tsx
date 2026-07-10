@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { useLocation, useSearchParams } from "wouter";
+import { useSearchParams } from "wouter";
 import { AtlasLink } from "../AtlasLink";
-import { ROUTES, atlasHref } from "../../lib/routes";
+import { atlasHref } from "../../lib/routes";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { useUrlState, urlBool, urlEnum, urlString } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
@@ -217,8 +217,7 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
   // URL is the source of truth for the expanded row. Bookmarkable + back/forward
   // navigation drives expansion via useSearchParams. The post-render useEffect
   // below scrolls the row into view on initial load and on toggle.
-  const [, navigate] = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const expandedUuid = searchParams.get("expanded");
 
   const { marks, byUuid: ignoresByUuid, mark, unmark, clear } = useLocalIgnores();
@@ -274,7 +273,12 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
 
   const toggle = (uuid: string) => {
     const next = expandedUuid === uuid ? null : uuid;
-    navigate(next ? `${ROUTES.REPORTS_PROCESSES}?expanded=${next}` : ROUTES.REPORTS_PROCESSES);
+    setSearchParams((prev) => {
+      const np = new URLSearchParams(prev);
+      if (next) np.set("expanded", next);
+      else np.delete("expanded");
+      return np;
+    });
   };
 
   return (

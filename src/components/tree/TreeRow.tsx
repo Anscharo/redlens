@@ -151,6 +151,10 @@ export function TreeRow({
   return (
     <div
       data-node-id={node.id}
+      role="treeitem"
+      aria-selected={isSelected}
+      aria-level={treeDepth}
+      aria-expanded={hasChildren ? isExpanded : undefined}
       style={{
         ...style,
         ...ROW_LAYOUT_STYLE,
@@ -169,13 +173,14 @@ export function TreeRow({
     >
       {hasChildren ? (
         <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
-          <span
+          <button
+            type="button"
             className="tree-toggle"
             style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
             onClick={(e) => onToggle(node.id, e)}
           >
             {isExpanded ? "\u25BE" : "\u25B8"}
-          </span>
+          </button>
         </Tooltip>
       ) : (
         <span

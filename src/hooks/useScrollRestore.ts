@@ -9,14 +9,22 @@ import { saveScroll, getSavedScroll } from "../lib/scrollMemory";
 // list rendered) — otherwise the restore is wasted on an empty container and
 // the saved value gets overwritten with 0.
 //
+// Pass `excludeParams` for URL params that don't represent a distinct scroll
+// context (e.g. a "show more" pagination counter) — changing them shouldn't
+// change the restore key, or the position resets to the top every time the
+// param changes.
+//
 // If the URL has a #hash, the hook stays out of the way so anchor scroll wins.
 export function useScrollRestore(
   ref: RefObject<HTMLElement | null>,
   ready: boolean = true,
+  excludeParams: readonly string[] = [],
 ): void {
   const [path] = useLocation();
   const [params] = useSearchParams();
-  const search = params.toString();
+  const filtered = new URLSearchParams(params);
+  for (const p of excludeParams) filtered.delete(p);
+  const search = filtered.toString();
   const key = search ? `${path}?${search}` : path;
   const restoredKey = useRef<string | null>(null);
 
