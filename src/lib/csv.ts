@@ -6,8 +6,18 @@
 
 export type CsvCell = string | number | null | undefined;
 
+// CSV injection guard: a spreadsheet treats a string cell that opens with
+// =, +, -, @ (or a leading tab/CR) as a formula, so an Atlas title/quote like
+// "=cmd|…" could execute on open. Prefix such strings with a single quote so
+// the spreadsheet renders them as literal text. Numbers are exempt — a JS
+// number can't carry a payload, and neutralizing would corrupt legitimate
+// negatives (e.g. a -30 "days until stale").
+function neutralizeFormula(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+}
+
 function escapeCell(v: CsvCell): string {
-  const s = v == null ? "" : String(v);
+  const s = v == null ? "" : typeof v === "number" ? String(v) : neutralizeFormula(v);
   return `"${s.replace(/"/g, '""')}"`;
 }
 

@@ -78,6 +78,25 @@ describe("joinRisk", () => {
     expect(lines[2]).toContain('"unassessed","","",""');
   });
 
+  it("riskRowsToCSV exports the ASSESSED quote for stale rows, not the current Atlas text", () => {
+    // Stale: the atlas paragraph changed since the rating. The exported quote
+    // must match the ratings (the old assessed text), not the live paragraph.
+    const j = joinRisk(
+      [candidate("u:u1", "The NEW rule text.")],
+      artifact([triage("u:u1")], [entry("u:u1", "The OLD rule text.")]),
+    );
+    expect(j.rows[0].status).toBe("stale");
+    const csv = riskRowsToCSV(j.rows);
+    expect(csv).toContain('"The OLD rule text."');
+    expect(csv).not.toContain("The NEW rule text.");
+  });
+
+  it("riskRowsToCSV falls back to the live paragraph when a row is unassessed", () => {
+    const j = joinRisk([candidate("u:u1", "Live paragraph.")], artifact([triage("u:u1")], []));
+    expect(j.rows[0].status).toBe("unassessed");
+    expect(riskRowsToCSV(j.rows)).toContain('"Live paragraph."');
+  });
+
   it("summarizeRisk counts ratings and statuses", () => {
     const j = joinRisk(
       [candidate("u:u1", "The rule text."), candidate("u:u2", "other")],

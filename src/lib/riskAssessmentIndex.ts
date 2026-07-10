@@ -116,7 +116,12 @@ export function riskRowsToCSV(rows: RiskRow[]): string {
       r.entry?.enforcementReasoning ?? "",
       r.entry?.metrics.join("; ") ?? "",
       r.triage.description,
-      r.candidate.quote,
+      // The quote the ratings actually describe: for assessed (incl. stale)
+      // rows that's the assessed text, which for stale rows differs from the
+      // current Atlas paragraph (r.candidate.quote). Falls back to the live
+      // paragraph only when unassessed (no ratings to mismatch). Mirrors the
+      // report's expanded view, which renders r.entry.quote.
+      r.entry?.quote ?? r.candidate.quote,
     ]),
   );
 }
