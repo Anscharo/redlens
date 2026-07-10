@@ -63,31 +63,35 @@ interface RunRecord {
   grade: GoldenGradeResult;
 }
 
-const runs: RunRecord[] = [];
+// Each fixture is an independent LLM run against the same read-only `ix` — run
+// them concurrently rather than paying N sequential network round trips.
+// Logging happens as each settles, so ordering in the console may interleave;
+// `runs` itself preserves the original fixture order (Promise.all).
+const runs: RunRecord[] = await Promise.all(
+  questions.map(async (q) => {
+    const messages = [
+      { role: "system" as const, content: buildSystemPrompt(ix) },
+      { role: "user" as const, content: q.query },
+    ];
 
-for (const q of questions) {
-  const messages = [
-    { role: "system" as const, content: buildSystemPrompt(ix) },
-    { role: "user" as const, content: q.query },
-  ];
+    let done: Extract<ChatEvent, { type: "done" }> | null = null;
+    for await (const ev of runChat({ ix, messages, stream: openrouterStream, maxIterations: config.chatMaxIterations })) {
+      if (ev.type === "done") done = ev;
+    }
+    const answer = done?.content ?? "";
+    const toolCalls = (done?.toolCalls ?? []).map((c) => ({ name: c.name, ok: c.ok, truncated: c.truncated }));
+    const grade = gradeAnswer(q, answer, toolCalls);
 
-  let done: Extract<ChatEvent, { type: "done" }> | null = null;
-  for await (const ev of runChat({ ix, messages, stream: openrouterStream, maxIterations: config.chatMaxIterations })) {
-    if (ev.type === "done") done = ev;
-  }
-  const answer = done?.content ?? "";
-  const toolCalls = (done?.toolCalls ?? []).map((c) => ({ name: c.name, ok: c.ok, truncated: c.truncated }));
-  const grade = gradeAnswer(q, answer, toolCalls);
+    if (!JSON_ONLY) {
+      const mark = grade.passed ? "PASS" : "FAIL";
+      console.log(`\n[${mark}] ${q.id} (${q.category}) → ${grade.outcome}`);
+      if (grade.failures.length) console.log(`  failures: ${grade.failures.join("; ")}`);
+      if (grade.warnings.length) console.log(`  warnings: ${grade.warnings.join("; ")}`);
+    }
 
-  runs.push({ id: q.id, category: q.category, query: q.query, answer, toolCalls, grade });
-
-  if (!JSON_ONLY) {
-    const mark = grade.passed ? "PASS" : "FAIL";
-    console.log(`\n[${mark}] ${q.id} (${q.category}) → ${grade.outcome}`);
-    if (grade.failures.length) console.log(`  failures: ${grade.failures.join("; ")}`);
-    if (grade.warnings.length) console.log(`  warnings: ${grade.warnings.join("; ")}`);
-  }
-}
+    return { id: q.id, category: q.category, query: q.query, answer, toolCalls, grade };
+  }),
+);
 
 const summary = {
   model: config.chatModel,

@@ -2,6 +2,7 @@
 // docs/plans/chatbot-readiness-remediation-plan.md). No network/DB/Bun-SQL
 // dependency — this file is imported by both the live runner
 // (scripts/aux/eval-golden.ts) and its unit tests, and runs fine under vitest.
+import { UUID_RE } from "../../src/lib/patterns.ts";
 
 export type GoldenOutcome = "answered" | "partial" | "honest_decline" | "hallucinated" | "truncated" | "tool_failure";
 
@@ -50,7 +51,9 @@ export interface GoldenGradeResult {
   warnings: string[];
 }
 
-const CITATION_RE = /\]\(\/atlas\/[0-9a-f-]{36}\)/i;
+// Composes the canonical UUID_RE (stripping its ^...$ anchors) into the
+// system prompt's citation link format: [Title](/atlas/<uuid>).
+const CITATION_RE = new RegExp(`\\]\\(/atlas/${UUID_RE.source.slice(1, -1)}\\)`, "i");
 
 function containsAny(haystack: string, needles: string[]): boolean {
   return needles.some((n) => haystack.includes(n.toLowerCase()));
@@ -90,9 +93,9 @@ export function gradeAnswer(q: GoldenQuestion, answer: string, toolCalls: Golden
   if (q.check.requireAny?.length && !containsAny(lower, q.check.requireAny)) {
     failures.push(`none of the expected phrases present: ${q.check.requireAny.join(" | ")}`);
   }
-  if (q.check.forbidAny?.length) {
-    const present = presentFromForbid(lower, q.check.forbidAny);
-    if (present.length) failures.push(`forbidden phrase(s) present (looks like a ruling / overclaim): ${present.join(", ")}`);
+  const forbiddenPresent = q.check.forbidAny?.length ? presentFromForbid(lower, q.check.forbidAny) : [];
+  if (forbiddenPresent.length) {
+    failures.push(`forbidden phrase(s) present (looks like a ruling / overclaim): ${forbiddenPresent.join(", ")}`);
   }
   if (q.check.expectToolCalls?.length) {
     const called = new Set(toolCalls.map((c) => c.name));
@@ -103,12 +106,14 @@ export function gradeAnswer(q: GoldenQuestion, answer: string, toolCalls: Golden
   const passed = failures.length === 0;
   // forbidAny violations on a decline/ruling-guard question are the
   // hallucination signal the plan's grader vocabulary calls out explicitly.
-  const hallucinationSignal = q.check.forbidAny?.length && presentFromForbid(lower, q.check.forbidAny).length > 0;
-  const outcome: GoldenOutcome = !passed && hallucinationSignal
-    ? "hallucinated"
-    : !passed
-      ? "partial"
-      : q.expectedOutcome;
+  let outcome: GoldenOutcome;
+  if (passed) {
+    outcome = q.expectedOutcome;
+  } else if (forbiddenPresent.length) {
+    outcome = "hallucinated";
+  } else {
+    outcome = "partial";
+  }
 
   return { id: q.id, outcome, passed, failures, warnings };
 }
