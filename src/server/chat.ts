@@ -25,7 +25,7 @@ interface ChatBody {
 // Generous cap on raw user input: well above any real prompt (typical chat
 // UIs cap in the low thousands of characters) but far below what would blow
 // past the model's context window or get shipped/persisted as multi-MB rows.
-export const MAX_MESSAGE_BYTES = 32_000;
+export const MAX_MESSAGE_BYTES = 28_000;
 
 // Pure so it's unit-testable without a session/DB fixture.
 export function messageExceedsLimit(message: string, limitBytes = MAX_MESSAGE_BYTES): boolean {
