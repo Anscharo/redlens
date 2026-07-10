@@ -204,7 +204,16 @@ The assessment notes that useful rollups already exist in frontend-oriented modu
 
 ## Phase 2 — Temporal enrichment and data remediation
 
-### 2.1 Stamp entities and edges with `first_seen`
+### 2.1 Stamp entities and edges with `first_seen` — ✅ shipped as `atlas_first_seen`
+
+Implemented as a dedicated DB-backed tool (`atlas_first_seen`, `src/server/first-seen.ts`) rather than
+inline fields on `atlas_edges`/`atlas_entity`/`atlas_entities`: those three tools are intentionally
+synchronous and DB-free (`tools-graph.ts`), which is what keeps them testable without Postgres in
+`mcp-tools.test.ts`. `atlas_first_seen` takes a batch of entity slugs and/or doc UUIDs/doc_nos, resolves
+each in-memory, then does one bulk `MIN(committed_at) WHERE change_type='added'` query against
+`atlas_history`. Every date is labeled `first_seen_source: "history"` per the plan's date-provenance
+requirement.
+
 
 **Purpose:** Make "since when" questions answerable without forcing the model to join graph results to history manually.
 
@@ -303,7 +312,7 @@ Status legend: ✅ done · ⬜ not started.
 | 4 | ✅ | Extraction/data-silence fixes | graph transfer builder, Active Data population checks, instance naming logic | Build fixtures | M |
 | 5 | ⬜ | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
 | 6 | ⬜ | `atlas_report` tool | tool registry + report builders | Report builders | M |
-| 7 | ⬜ | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
+| 7 | ✅ | `first_seen` enrichment | `src/server/first-seen.ts` (new `atlas_first_seen` tool) | History stats assumptions | M/L |
 | 8 | ✅ | Prompt policy | chat system prompt | None | S |
 | 9 | ✅ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
 | 10 | ⬜ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
@@ -344,7 +353,7 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
 - [ ] Shared report builder modules. — deferred (report-scoped work, out of scope for this pass)
 - [ ] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — deferred (report-scoped work, out of scope for this pass)
-- [ ] Entity/edge `first_seen` enrichment.
+- [x] Entity/edge `first_seen` enrichment. — shipped as a dedicated `atlas_first_seen` tool (`src/server/first-seen.ts`), kept out of the synchronous no-DB graph tools rather than spliced into `atlas_edges`/`atlas_entity`/`atlas_entities`
 - [x] Ruling-vs-reporting prompt policy. — shipped (`src/server/system-prompt.ts`)
 - [x] ask-atlas server-prefix tolerance. — shipped (`.claude/agents/ask-atlas.md`)
 - [ ] Golden-question regression harness.

@@ -4,8 +4,9 @@
 // and the chat loop use (tool-registry.ts), so wiring drift is caught here.
 //
 // DB-backed tools (atlas_get_address / atlas_history / atlas_recent_changes /
-// atlas_history_stats / atlas_pr / atlas_changed_between) need Postgres and are exercised by the
-// "Railway server (Postgres + MCP smoke)" CI job, not here.
+// atlas_history_stats / atlas_pr / atlas_changed_between / atlas_first_seen) need
+// Postgres and are exercised by the "Railway server (Postgres + MCP smoke)" CI
+// job, not here.
 import { test, expect } from "bun:test";
 import { z } from "zod";
 import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./tool-registry.ts";
@@ -69,12 +70,12 @@ function makeAtlas() {
 
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
-// ── Registry integrity (all 17 tools) ───────────────────────────────────────
-test("tool registry is well-formed: 17 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(17);
+// ── Registry integrity (all 18 tools) ───────────────────────────────────────
+test("tool registry is well-formed: 18 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(18);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(17);
+  expect(TOOLS_BY_NAME.size).toBe(18);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");
