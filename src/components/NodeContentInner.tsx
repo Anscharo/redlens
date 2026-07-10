@@ -107,10 +107,19 @@ function loadKatex(): Promise<void> {
       import("rehype-katex"),
       import("remark-math"),
       import("katex/dist/katex.min.css"),
-    ]).then(([rehypeKatexMod, remarkMathMod]) => {
-      remarkPluginsMath = [remarkGfm, remarkMathMod.default];
-      rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
-    });
+    ])
+      .then(([rehypeKatexMod, remarkMathMod]) => {
+        remarkPluginsMath = [remarkGfm, remarkMathMod.default];
+        rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
+      })
+      .catch((err) => {
+        // A rejected dynamic import (e.g. a stale chunk URL after a redeploy)
+        // would otherwise cache forever — every future math node would await
+        // the same dead promise and never render KaTeX again this session.
+        // Clear it so the next node with math content retries the import.
+        katexPromise = null;
+        throw err;
+      });
   }
   return katexPromise;
 }
@@ -121,7 +130,13 @@ export default function NodeContentInner({ content, onNavigate }: Props) {
 
   useEffect(() => {
     if (hasMath && !rehypePluginsMath) {
-      loadKatex().then(() => setKatexReady(true));
+      loadKatex()
+        .then(() => setKatexReady(true))
+        .catch(() => {
+          // Leave katexReady false — plain markdown (with raw $...$ delimiters)
+          // still renders via NodeContent's ErrorBoundary/fallback path, and a
+          // later node/effect run will retry now that katexPromise was cleared.
+        });
     }
   }, [hasMath]);
 

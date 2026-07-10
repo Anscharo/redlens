@@ -248,6 +248,11 @@ mark {
 .tree-toggle {
   cursor: pointer;
   line-height: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
 }
 .tree-toggle:hover {
   color: var(--tan) !important;

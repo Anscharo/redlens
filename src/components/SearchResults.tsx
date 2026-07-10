@@ -121,7 +121,7 @@ export const SearchResults = memo(function SearchResults({
   const scrollRef = useRef<HTMLElement>(null);
   // Wait until results are rendered before restoring — otherwise we'd scroll
   // an empty container and clobber the saved offset.
-  useScrollRestore(scrollRef, state.status === "done" && displayed.length > 0);
+  useScrollRestore(scrollRef, state.status === "done" && displayed.length > 0, ["n"]);
 
   return (
     <main ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -129,7 +129,7 @@ export const SearchResults = memo(function SearchResults({
         {entityHits.length > 0 && (
           <>
             <div className="px-4 py-2 text-xs border-b mono text-tan-3 border-border">
-              Agents · Alignment Conservers · Goverance Operators {entityHits.length}
+              Agents · Alignment Conservers · Governance Operators {entityHits.length}
             </div>
             <ul>
               {entityHits.map(({ participant }, i) => (

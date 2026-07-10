@@ -114,6 +114,44 @@ describe("sky-atlas.io deep-link internalisation", () => {
   });
 });
 
+describe("KaTeX lazy-load retry after a failed chunk import", () => {
+  // katexPromise is a module-level cache: a rejected dynamic import (e.g. a
+  // stale chunk URL right after a redeploy) must not be cached forever, or
+  // every subsequent math node in the session would await the same dead
+  // promise and never render KaTeX again. Fails the FIRST dynamic import of
+  // rehype-katex, succeeds on the second — a fresh module instance per test
+  // (vi.resetModules) isolates the module-level katexPromise/rehypePluginsMath.
+  let attempt = 0;
+
+  beforeEach(() => {
+    attempt = 0;
+    vi.resetModules();
+    vi.doMock("rehype-katex", () => {
+      attempt++;
+      if (attempt === 1) throw new Error("simulated chunk load failure");
+      return { default: () => {} };
+    });
+    vi.doMock("remark-math", () => ({ default: () => {} }));
+    vi.doMock("katex/dist/katex.min.css", () => ({}));
+  });
+
+  it("retries the import (and eventually renders math) after an earlier failure", async () => {
+    const { default: FreshNodeContentInner } = await import("./NodeContentInner");
+    render(<FreshNodeContentInner content="Inline math $x^2$ here." />);
+    // First mount: the import throws, so it falls back to plain markdown —
+    // the raw, un-rendered math delimiters stay in the text.
+    expect(await screen.findByText(/\$x\^2\$/)).toBeInTheDocument();
+    cleanup();
+
+    // Second node (or a retry of the same one): the cached promise must have
+    // been cleared, so this import attempt is fresh — and it succeeds this
+    // time, proving the failure wasn't cached forever.
+    render(<FreshNodeContentInner content="Inline math $y^2$ here." />);
+    await screen.findByText(/\$y\^2\$/);
+    expect(attempt).toBe(2);
+  });
+});
+
 describe("basic markdown", () => {
   it("renders plain text without crashing", async () => {
     render(<NodeContentInner content="Hello world." />);
