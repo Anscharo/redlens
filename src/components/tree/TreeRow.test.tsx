@@ -20,6 +20,10 @@ import type { AtlasNode } from "../../types";
 
 afterEach(cleanup);
 
+// react-window supplies these to every RowComponent; TreeRow doesn't consume
+// them, so a stub is enough to satisfy RowComponentProps.
+const aria = { "aria-posinset": 1, "aria-setsize": 1, role: "listitem" } as const;
+
 function node(over: Partial<AtlasNode> = {}): AtlasNode {
   return {
     id: "n1",
@@ -56,7 +60,7 @@ describe("TreeRow ARIA semantics", () => {
   it("sets role=treeitem, aria-level, and aria-selected on the row", () => {
     const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: false, treeDepth: 2 }];
     const data = { ...baseData(visibleNodes), selectedIndex: 0 };
-    render(<TreeRow index={0} style={{}} {...data} />);
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
 
     const row = screen.getByRole("treeitem");
     expect(row).toHaveAttribute("aria-level", "2");
@@ -71,7 +75,7 @@ describe("TreeRow ARIA semantics", () => {
       ...baseData(visibleNodes),
       expandedIds: new Set(["n2"]),
     };
-    render(<TreeRow index={0} style={{}} {...data} />);
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
 
     const row = screen.getByRole("treeitem");
     expect(row).toHaveAttribute("aria-expanded", "true");
@@ -83,7 +87,7 @@ describe("TreeRow ARIA semantics", () => {
   it("reflects aria-selected=false and aria-expanded=false when not selected/expanded", () => {
     const visibleNodes: VisibleNode[] = [{ node: node({ id: "n3" }), hasChildren: true, treeDepth: 1 }];
     const data = baseData(visibleNodes);
-    render(<TreeRow index={0} style={{}} {...data} />);
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
 
     const row = screen.getByRole("treeitem");
     expect(row).toHaveAttribute("aria-selected", "false");
