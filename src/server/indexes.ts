@@ -267,8 +267,8 @@ export function setIndexes(ix: Indexes): void {
 
 // Full rebuild from freshly-regenerated on-disk artifacts, then atomic swap. The
 // self-updater's correct, ship-first path (no per-doc diffing). `meta.atlasCommit`
-// advances automatically because it's re-read from the rebuilt manifest.json —
-// the convergence signal the drift checker compares against.
+// advances automatically because it's re-read from the rebuilt graph.json (falling
+// back to docs.json) — the convergence signal the drift checker compares against.
 export function rebuildFromDisk(): Indexes {
   const { docs, entities, edges, meta, searchIndexJson } = readArtifactsFromDisk();
   const ix = buildIndexes(docs, entities, edges, meta, searchIndexJson);

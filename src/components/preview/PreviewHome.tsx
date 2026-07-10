@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { parsePreviewInput, localPreviews } from "../../lib/previewLocal";
 import { initAnalytics, register, track, pageview } from "../../lib/analytics";
 import { PreviewPrTabs } from "./PreviewPrTabs";
+import type { Entry } from "./types";
 
 // /preview index: paste a PR / branch / fork URL (or id) → generate a preview;
 // below, "my recent previews" — strictly the INTERSECTION of what this browser
@@ -20,13 +21,6 @@ interface DbRow {
   pr_state: string | null;
   doc_count: number;
   last_access: string;
-}
-
-export interface Entry {
-  id: string;
-  title?: string;
-  detail: string;
-  at: number;
 }
 
 function mergeEntries(rows: DbRow[]): Entry[] {

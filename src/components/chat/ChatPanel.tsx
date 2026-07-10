@@ -8,7 +8,7 @@ import { usePrefs } from "./usePrefs";
 import { useAuth } from "./auth";
 import { track } from "../../lib/analytics";
 import type { PageContextView } from "./pageContext";
-import type { Placement } from "./ChatWidget";
+import type { Placement } from "./types";
 
 const STARTERS = [
   "How are Operational Facilitators rewarded, and who signs off on the budget?",
