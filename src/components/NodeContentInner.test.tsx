@@ -169,13 +169,4 @@ describe("basic markdown", () => {
     const strong = await screen.findByText("important");
     expect(strong.tagName).toBe("STRONG");
   });
-
-  it("with math={false}, leaves $-delimited currency as literal text (no KaTeX)", async () => {
-    const { container } = render(
-      <NodeContentInner content="maintain the $1 peg with a $0.05 tolerance" math={false} />,
-    );
-    // The literal text must survive intact and no KaTeX math node is produced.
-    expect(await screen.findByText(/maintain the \$1 peg with a \$0\.05 tolerance/)).toBeInTheDocument();
-    expect(container.querySelector(".katex")).toBeNull();
-  });
 });

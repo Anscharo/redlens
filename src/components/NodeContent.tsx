@@ -6,7 +6,6 @@ const NodeContentInner = lazy(() => import("./NodeContentInner"));
 interface Props {
   content: string;
   onNavigate?: (id: string) => void;
-  math?: boolean;
 }
 
 /** Warm the markdown-renderer chunk (the CODE, distinct from the worker's doc

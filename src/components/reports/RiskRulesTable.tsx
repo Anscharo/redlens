@@ -35,7 +35,7 @@ function ExpandedBody({
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">Source paragraph</p>
         <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
-          <NodeContent content={e.quote} onNavigate={onNavigate} math={false} />
+          <NodeContent content={e.quote} onNavigate={onNavigate} />
         </blockquote>
       </div>
       <div>
