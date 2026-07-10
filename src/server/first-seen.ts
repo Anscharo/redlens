@@ -11,8 +11,30 @@ import { type ToolResult } from "./tools.ts";
 
 export interface FirstSeen {
   date: string; // YYYY-MM-DD
-  source: "history"; // derived from atlas_history; never confused with an explicit in-content date
+  // Which atlas_history record backs the date, in descending specificity:
+  // a PR number ("pr:1234") when the 'added' event came in through a PR;
+  // otherwise the pre-git era tag ("mip" / "genesis-v2" / "html-era" / "severed")
+  // when the doc predates git history; otherwise a plain git commit with no PR
+  // ("commit:<seq>", falling back to the short sha if seq is somehow absent).
+  // Never confused with an explicit in-content date — this is always derived.
+  source: string;
 }
+
+type AddedRow = {
+  doc_id: string;
+  committed_at: string | Date | null;
+  pr_number: number | null;
+  era: string | null;
+  commit_sha: string;
+  commit_seq: number | null;
+};
+
+const ERA_LABEL: Record<string, string> = {
+  mip: "mip",
+  genesis: "genesis-v2",
+  html: "html-era",
+  severed: "severed",
+};
 
 function isoDate(v: string | Date | null): string | null {
   if (!v) return null;
@@ -20,26 +42,33 @@ function isoDate(v: string | Date | null): string | null {
   return String(v).slice(0, 10);
 }
 
-/** Earliest `added` commit date per doc_id, for the given ids only. Empty input
- *  short-circuits to an empty map without touching the DB. */
+function sourceLabel(r: AddedRow): string {
+  if (r.pr_number != null) return `pr:${r.pr_number}`;
+  if (r.era && ERA_LABEL[r.era]) return ERA_LABEL[r.era];
+  return `commit:${r.commit_seq ?? r.commit_sha}`;
+}
+
+/** Earliest `added` event per doc_id, for the given ids only. Empty input
+ *  short-circuits to an empty map without touching the DB. Ties (same
+ *  committed_at) break on commit_seq so the result is deterministic. */
 export async function firstSeenFor(docIds: string[]): Promise<Map<string, FirstSeen>> {
   const ids = [...new Set(docIds)];
   if (ids.length === 0) return new Map();
 
   const params: unknown[] = [];
   const placeholders = ids.map((id) => `$${params.push(id)}`).join(",");
-  const rows = await sql.unsafe<{ doc_id: string; first_added: string | Date | null }[]>(
-    `SELECT doc_id, MIN(committed_at) AS first_added
+  const rows = await sql.unsafe<AddedRow[]>(
+    `SELECT DISTINCT ON (doc_id) doc_id, committed_at, pr_number, era, commit_sha, commit_seq
      FROM atlas_history
      WHERE change_type = 'added' AND doc_id IN (${placeholders})
-     GROUP BY doc_id`,
+     ORDER BY doc_id, committed_at ASC NULLS LAST, commit_seq ASC NULLS LAST`,
     params,
   );
 
   const out = new Map<string, FirstSeen>();
   for (const r of rows) {
-    const date = isoDate(r.first_added);
-    if (date) out.set(r.doc_id, { date, source: "history" });
+    const date = isoDate(r.committed_at);
+    if (date) out.set(r.doc_id, { date, source: sourceLabel(r) });
   }
   return out;
 }
