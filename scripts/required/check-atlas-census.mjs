@@ -29,6 +29,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fingerprint, isSignalFingerprint } from "../lib/census-fingerprint.mjs";
+import { codeUnitCompare } from "../lib/natural-sort.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const BASELINE_PATH = path.join(ROOT, ".github/atlas-census-baseline.json");
@@ -147,7 +148,7 @@ console.log(
 
 if (update) {
   const fingerprints = Object.fromEntries(
-    [...census].sort(([a], [b]) => a.localeCompare(b)),
+    [...census].sort(([a], [b]) => codeUnitCompare(a, b)),
   );
   fs.writeFileSync(BASELINE_PATH, JSON.stringify({ fingerprints }, null, 2) + "\n");
   console.log(`census: baseline written → ${path.relative(ROOT, BASELINE_PATH)}`);

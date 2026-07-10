@@ -24,10 +24,10 @@
  * Leaves the atlas submodule checked out at <sha>. To restore:
  *   git submodule update
  */
-import { execSync } from "child_process";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const ATLAS = path.join(ROOT, "vendor/next-gen-atlas");

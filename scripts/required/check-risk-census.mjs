@@ -34,6 +34,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { enumerateRiskCandidates } from "../../src/lib/riskRules.ts";
 import { normalizeAssessedText } from "../../src/lib/oeaTasks.ts";
+import { naturalCompare } from "../lib/natural-sort.mjs";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const BASELINE_PATH = path.join(ROOT, ".github/risk-census-baseline.json");
@@ -66,7 +67,7 @@ for (const c of candidates) {
   if (assessFresh) counts.fresh++;
   else { counts.backlog++; backlog.push(c); } // unassessed, or assessed against stale text/rubric
 }
-backlog.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+backlog.sort((a, b) => naturalCompare(a.docNo, b.docNo));
 
 // ---------------------------------------------------------------------------
 // Compare against baseline → [drift] warnings for new backlog rows

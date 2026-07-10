@@ -53,6 +53,7 @@ import {
   extractExpectedTokens,
 } from "../lib/address-annotate.mjs";
 import { normalizeChainLabel } from "../lib/chains.mjs";
+import { codeUnitCompare } from "../lib/natural-sort.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -198,7 +199,7 @@ if (chainState.chains) {
     const labelPool = [...g.labels];
     const candidates = labelPool.filter((l) => !GENERIC_LABELS.has(l.toLowerCase()));
     const pool = candidates.length ? candidates : labelPool;
-    pool.sort((a, b) => b.length - a.length || a.localeCompare(b));
+    pool.sort((a, b) => b.length - a.length || codeUnitCompare(a, b));
     entry.entityLabel = pool[0] ?? null;
     entry.aliases = pool.length > 1 ? pool.slice(1) : [];
 
