@@ -148,6 +148,25 @@ describe("HTML escaping", () => {
     expect(result).toContain("<mark>govern</mark>");
     expect(result).toContain("&amp;");
   });
+
+  it("does NOT highlight inside a produced entity — term 'amp' vs a literal '&'", () => {
+    // Regression for the corruption this PR fixes: the old code ran the regex
+    // over already-escaped text, so a term like "amp" matched inside the
+    // generated "&amp;" entity, yielding "&<mark>amp</mark>;". The raw text
+    // "Tom & Jerry" contains no "amp", so nothing should be marked.
+    const result = applyHighlight("Tom & Jerry", ["amp"], [], []);
+    expect(result).toBe("Tom &amp; Jerry");
+    expect(result).not.toContain("<mark>");
+  });
+
+  it("highlights a real 'amp' word but leaves the escaped '&' entity intact", () => {
+    const result = applyHighlight("amps & ohms", ["amp"], [], []);
+    expect(result).toContain("<mark>amp</mark>s");
+    expect(result).toContain("&amp;");
+    // the mark must not have leaked into the entity
+    expect(result).not.toContain("&amp;<");
+    expect(result).not.toContain("<mark>amp</mark>;");
+  });
 });
 
 // ---------------------------------------------------------------------------
