@@ -295,6 +295,8 @@ Use the readiness assessment's query list and adjudication questions as a golden
 
 Status legend: ✅ done · 🟡 in progress · ⬜ not started.
 
+Detailed sub-plans: report tooling (#5/#6) in [`atlas-report-remaining-kinds.md`](./atlas-report-remaining-kinds.md); everything else (#7–#12) in [`chatbot-readiness-remaining-workstreams.md`](./chatbot-readiness-remaining-workstreams.md).
+
 | Order | Done | Workstream | Primary files/modules | Dependency | Est. size |
 |---|---|---|---|---|---|
 | 1 | ✅ | Chat result budget | `src/server/chat-loop.ts`, tool execution plumbing | None | S |
