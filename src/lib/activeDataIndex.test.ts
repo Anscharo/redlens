@@ -230,8 +230,11 @@ describe("activeDataRowsToCSV", () => {
   const csv = activeDataRowsToCSV(rows);
   const lines = csv.split("\n");
 
-  // Parse a single line of the form "a","b","c" into cell values.
-  // Matches the generator's format (no internal-quote escaping).
+  // Parse a single line of the form "a","b","c" into cell values. NOTE: this is
+  // a naive splitter that does NOT understand RFC 4180 doubled quotes ("") — the
+  // fixture rows below contain no embedded quotes, so it's sufficient for the
+  // cell-count / cell-value checks. The generator's doubled-quote escaping is
+  // covered directly by the "doubles embedded double-quotes" test below.
   function parseLine(line: string): string[] {
     const cells: string[] = [];
     const re = /"([^"]*)"/g;
@@ -253,6 +256,18 @@ describe("activeDataRowsToCSV", () => {
     for (const line of lines.slice(1)) {
       expect((line.match(/"/g) ?? []).length).toBe(expectedQuotes);
     }
+  });
+
+  it("doubles embedded double-quotes (RFC 4180) so quoted titles don't shift columns", () => {
+    // Regression for the CSV fix: a literal " in a field must be emitted as ""
+    // inside the quoted cell, otherwise Excel/Sheets mis-parse and every later
+    // column shifts. None of the built fixture rows carry an embedded quote, so
+    // synthesize one from a real row.
+    const row = { ...rows[0], activeDataTitle: 'Ada "The Great" Lovelace' };
+    const dataLine = activeDataRowsToCSV([row]).split("\n")[1];
+    expect(dataLine).toContain('"Ada ""The Great"" Lovelace"');
+    // still exactly 12 quoted cells' worth of wrapping + the doubled pair (4 extra ")
+    expect((dataLine.match(/"/g) ?? []).length).toBe(12 * 2 + 4);
   });
 
   it("each CSV row contains the exact field values shown in the table", () => {
