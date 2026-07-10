@@ -7,6 +7,7 @@
 
 import type { AtlasNode } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { toCSV } from "./csv";
 
 export type DatePrecision = "day" | "month" | "quarter";
 
@@ -144,4 +145,28 @@ export function buildStaleDatesReport(
   report.dueSoon.sort(byDate);
   report.upcoming.sort(byDate);
   return report;
+}
+
+// Exports the full report as an RFC-4180 CSV string. All three buckets are
+// flattened with a leading Bucket column (there are no filters on this report).
+export function staleDatesToCSV(report: StaleDatesReport): string {
+  const bucketed: Array<[string, DateClaim]> = [
+    ...report.stale.map((c): [string, DateClaim] => ["stale", c]),
+    ...report.dueSoon.map((c): [string, DateClaim] => ["due-soon", c]),
+    ...report.upcoming.map((c): [string, DateClaim] => ["upcoming", c]),
+  ];
+  return toCSV(
+    ["Bucket", "Doc No", "Title", "Date Text", "Boundary Date", "Precision", "Days Until Stale", "Handoff", "Context"],
+    bucketed.map(([bucket, c]) => [
+      bucket,
+      c.docNo,
+      c.title,
+      c.raw,
+      c.dateISO,
+      c.precision,
+      c.daysUntilStale,
+      c.transition ? "yes" : "",
+      `${c.contextBefore}${c.raw}${c.contextAfter}`,
+    ]),
+  );
 }

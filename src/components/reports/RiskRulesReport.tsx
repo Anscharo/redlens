@@ -45,7 +45,7 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport() {
+export function RiskRulesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
@@ -174,7 +174,7 @@ export function RiskRulesReport() {
         </div>
 
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} onNavigate={onNavigate} />
         )}
       </div>
     </div>

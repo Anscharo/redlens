@@ -34,7 +34,8 @@
 -->
 
 ## 2026-07-10
-- Added a Download CSV button to the Risk Rules Assessment report
+- Added Download CSV buttons to the Risk Rules, OEA Task Assessment, Operational GovOps, and Stale Dates reports
+- Made the Risk Rules report's source-paragraph preview render document links as clickable links
 - Fixed several reader and search glitches, including report filters clearing on expand and the results list jumping on "load more"
 - Fixed CSV export mangling quoted fields and some background data not recovering after a failed load
 

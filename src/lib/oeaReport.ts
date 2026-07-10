@@ -1,8 +1,9 @@
 import type { AtlasNode } from "../types";
 import { fetchJson } from "./verify";
 import type { Rating, OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAssessment";
-import { normalizeAssessedText, type OeaTask } from "./oeaTasks";
+import { normalizeAssessedText, OEA_CATEGORY_LABELS, type OeaTask } from "./oeaTasks";
 import { handledStale, liveAtlasBase } from "./atlasBase";
+import { toCSV } from "./csv";
 
 export type OeaRowStatus = "fresh" | "stale" | "unassessed";
 
@@ -116,4 +117,30 @@ export function loadOeaReport(base: string = liveAtlasBase()): Promise<OeaReport
     cache.set(base, cached);
   }
   return cached;
+}
+
+// Exports the given (already-filtered) OEA task rows as an RFC-4180 CSV string.
+// Columns mirror the table plus the assessment reasoning revealed on row-expand;
+// unassessed rows leave the rating columns blank.
+export function oeaRowsToCSV(rows: OeaRow[]): string {
+  return toCSV(
+    [
+      "Doc No", "Title", "Category", "Status",
+      "Precision", "Precision Reasoning", "Incentives", "Incentives Reasoning",
+      "Agents", "Assessed Text", "Model",
+    ],
+    rows.map((r) => [
+      r.task.docNo,
+      r.task.title,
+      OEA_CATEGORY_LABELS[r.task.category] ?? r.task.category,
+      r.status,
+      r.entry?.precision.rating ?? "",
+      r.entry?.precision.reasoning ?? "",
+      r.entry?.incentives.rating ?? "",
+      r.entry?.incentives.reasoning ?? "",
+      (r.task.agents ?? []).join("; "),
+      r.entry?.assessedText ?? r.task.assessedText,
+      r.entry?.model ?? "",
+    ]),
+  );
 }

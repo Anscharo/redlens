@@ -12,6 +12,7 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
@@ -238,4 +239,22 @@ export function deriveGovOpsResponsibilities(
   }
 
   return results;
+}
+
+// Exports the given (already-filtered) GovOps responsibility rows as an
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+export function govopsRowsToCSV(rows: OGResponsibility[]): string {
+  return toCSV(
+    ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
+    rows.map((r) => [
+      r.docNo,
+      r.title,
+      CATEGORY_LABELS[r.category] ?? r.category,
+      r.duty,
+      (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),
+      r.govops ?? "",
+      r.executor ?? "",
+      r.role ?? "",
+    ]),
+  );
 }
