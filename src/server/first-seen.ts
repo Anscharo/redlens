@@ -15,7 +15,7 @@ export interface FirstSeen {
   // a PR number ("pr:1234") when the 'added' event came in through a PR;
   // otherwise the pre-git era tag ("mip" / "genesis-v2" / "html-era" / "severed")
   // when the doc predates git history; otherwise a plain git commit with no PR
-  // ("commit:<seq>", falling back to the short sha if seq is somehow absent).
+  // ("commit:<short sha>").
   // Never confused with an explicit in-content date — this is always derived.
   source: string;
 }
@@ -45,7 +45,7 @@ function isoDate(v: string | Date | null): string | null {
 function sourceLabel(r: AddedRow): string {
   if (r.pr_number != null) return `pr:${r.pr_number}`;
   if (r.era && ERA_LABEL[r.era]) return ERA_LABEL[r.era];
-  return `commit:${r.commit_seq ?? r.commit_sha}`;
+  return `commit:${r.commit_sha}`;
 }
 
 /** Earliest `added` event per doc_id, for the given ids only. Empty input
