@@ -92,17 +92,15 @@ describe("first-seen", () => {
     expect(result.get("severed-doc")?.source).toBe("severed");
   });
 
-  it("firstSeenFor labels a plain git commit (no PR, no era) as commit:<seq>, falling back to the sha", async () => {
+  it("firstSeenFor labels a plain git commit (no PR, no era) as commit:<short sha>", async () => {
     mock.module("./db.ts", () => ({
       sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () =>
-          Promise.resolve([addedRow("d1", { commit_seq: 77 }), addedRow("d2", { commit_seq: null, commit_sha: "deadbee" })]),
+        unsafe: () => Promise.resolve([addedRow("d1", { commit_sha: "deadbee" })]),
       }),
     }));
     const { firstSeenFor } = await import("./first-seen.ts");
-    const result = await firstSeenFor(["d1", "d2"]);
-    expect(result.get("d1")?.source).toBe("commit:77");
-    expect(result.get("d2")?.source).toBe("commit:deadbee");
+    const result = await firstSeenFor(["d1"]);
+    expect(result.get("d1")?.source).toBe("commit:deadbee");
   });
 
   it("atlasFirstSeen resolves entity slugs to their defining doc and docs to themselves", async () => {

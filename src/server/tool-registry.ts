@@ -286,7 +286,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
       "every date is derived from atlas_history, never an explicit in-content date. `first_seen_source` names the " +
       "underlying record: `pr:<number>` for a PR-linked commit, `mip` / `genesis-v2` / `html-era` / `severed` for a " +
-      "pre-git-history reconstruction, or `commit:<seq>` for a plain git commit with no PR. An entity's first_seen " +
+      "pre-git-history reconstruction, or `commit:<short sha>` for a plain git commit with no PR. An entity's first_seen " +
       "is its defining doc's first_seen.",
     shape: {
       ids: z

@@ -214,7 +214,7 @@ each in-memory, then does one bulk `DISTINCT ON (doc_id) ... WHERE change_type='
 `atlas_history` per the plan's date-provenance requirement. `first_seen_source` names the specific
 underlying record rather than a flat "history" tag: `pr:<number>` when the 'added' event came in
 through a PR, `mip` / `genesis-v2` / `html-era` / `severed` when the doc predates git history, or
-`commit:<seq>` for a plain git commit with no PR.
+`commit:<short sha>` for a plain git commit with no PR.
 
 
 **Purpose:** Make "since when" questions answerable without forcing the model to join graph results to history manually.
