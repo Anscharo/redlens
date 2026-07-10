@@ -1,0 +1,51 @@
+// Regression test for the countNewAddresses silent-degrade bug: a torn/corrupt
+// read of main's addresses.atlas.json used to be indistinguishable from
+// "genuinely zero new addresses", hiding the swapped-payment-address banner.
+// It now retries once, then returns undefined (not 0) so callers can tell
+// "checked, zero" apart from "couldn't check".
+import { test, expect } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { countNewAddresses } from "./build.ts";
+
+function mkTmp(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "pv-build-"));
+}
+
+function writeAddrs(dir: string, addresses: Record<string, unknown>) {
+  fs.writeFileSync(path.join(dir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: "x", addresses }));
+}
+
+test("counts addresses present in preview but absent from main", async () => {
+  const previewDir = mkTmp();
+  const mainDir = mkTmp();
+  writeAddrs(previewDir, { "0xaaa": {}, "0xbbb": {}, "0xccc": {} });
+  writeAddrs(mainDir, { "0xaaa": {} });
+  expect(await countNewAddresses(previewDir, mainDir)).toBe(2);
+});
+
+test("returns 0 (not undefined) when main's file is well-formed and there's genuinely nothing new", async () => {
+  const previewDir = mkTmp();
+  const mainDir = mkTmp();
+  writeAddrs(previewDir, { "0xaaa": {} });
+  writeAddrs(mainDir, { "0xaaa": {} });
+  expect(await countNewAddresses(previewDir, mainDir)).toBe(0);
+});
+
+test("a torn/corrupt main read returns undefined, not a false 0 (the bug)", async () => {
+  const previewDir = mkTmp();
+  const mainDir = mkTmp();
+  writeAddrs(previewDir, { "0xaaa": {} });
+  // Simulate a mid-rewrite torn read: truncated JSON.
+  fs.writeFileSync(path.join(mainDir, "addresses.atlas.json"), '{"atlasCommit":"x","addresse');
+  const result = await countNewAddresses(previewDir, mainDir);
+  expect(result).toBeUndefined();
+});
+
+test("a missing preview file also returns undefined rather than 0", async () => {
+  const previewDir = mkTmp(); // no addresses.atlas.json written
+  const mainDir = mkTmp();
+  writeAddrs(mainDir, { "0xaaa": {} });
+  expect(await countNewAddresses(previewDir, mainDir)).toBeUndefined();
+});

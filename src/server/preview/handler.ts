@@ -51,7 +51,10 @@ function rateLimited(ip: string): boolean {
 }
 
 // Diff cache keyed by (preview sha, current main atlas sha).
-const diffCache = new Map<string, { added: string[]; changed: string[] }>();
+// Exported for the eviction regression test only — not otherwise consumed
+// outside this module.
+export const diffCache = new Map<string, { added: string[]; changed: string[] }>();
+export const DIFF_CACHE_MAX = 1000; // FIFO cap — matches the resolveCache pattern above
 
 // Open PRs against the canonical atlas, for the /preview index "open atlas prs"
 // tab. Cached ~5 min — the pulls list is rate-limited and rarely changes, and
@@ -118,8 +121,34 @@ const SSE_HEADERS = {
   ...CORS,
 };
 
+// A client cancel/close can land before the async unsubscribe fn is known
+// (drive() hasn't resolved yet). Naively assigning `unsub = u` in the .then()
+// loses a cancel that already fired against the stale initial noop, leaking
+// the subscriber (a dead `send` stays in Inflight.subscribers until the build
+// ends). This gate makes "cancel then resolve" and "resolve then cancel" both
+// invoke the real unsubscribe exactly once. Exported for the race regression
+// test; otherwise internal to eventsResponse.
+export function makeUnsubGate(): { resolve: (u: () => void) => void; cancel: () => void } {
+  let unsub: (() => void) | null = null;
+  let cancelled = false;
+  return {
+    resolve(u) {
+      if (cancelled) {
+        u();
+        return;
+      }
+      unsub = u;
+    },
+    cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      unsub?.();
+    },
+  };
+}
+
 function eventsResponse(rawId: string, ip: string): Response {
-  let unsub: () => void = () => {};
+  const gate = makeUnsubGate();
   const stream = new ReadableStream({
     start(controller) {
       const enc = new TextEncoder();
@@ -127,7 +156,7 @@ function eventsResponse(rawId: string, ip: string): Response {
       const close = () => {
         if (closed) return;
         closed = true;
-        unsub();
+        gate.cancel();
         try {
           controller.close();
         } catch {
@@ -142,12 +171,10 @@ function eventsResponse(rawId: string, ip: string): Response {
         }
         if (ev.phase === "ready" || ev.phase === "failed") close();
       };
-      void drive(rawId, ip, send).then((u) => {
-        unsub = u;
-      });
+      void drive(rawId, ip, send).then((u) => gate.resolve(u));
     },
     cancel() {
-      unsub();
+      gate.cancel();
     },
   });
   return new Response(stream, { headers: SSE_HEADERS });
@@ -203,7 +230,10 @@ function diffResponse(sha: string): Response {
     diff = { added: delta.added.map((n) => n.id), changed: delta.changed.map((n) => n.id) };
     // Skip caching when atlasCommit is unknown (main not yet loaded) — the key
     // would be "<sha>:unknown" and would serve a stale diff once main loads.
-    if (mainSha !== "unknown") diffCache.set(key, diff);
+    if (mainSha !== "unknown") {
+      diffCache.set(key, diff);
+      if (diffCache.size > DIFF_CACHE_MAX) diffCache.delete(diffCache.keys().next().value!);
+    }
   }
   return json(diff, 200);
 }
@@ -253,8 +283,15 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
   const [a, b] = segs;
 
   if (b === "events") {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(a);
+    } catch {
+      // Malformed percent-encoding (e.g. a lone "%E0%A4%A") — not a valid id.
+      return json({ error: "not-found" }, 404);
+    }
     const ip = server.requestIP(req)?.address ?? "unknown";
-    return eventsResponse(decodeURIComponent(a), ip);
+    return eventsResponse(decoded, ip);
   }
   // artifact + diff endpoints are sha-keyed
   if (!SHA_RE.test(a)) return json({ error: "not-found" }, 404);

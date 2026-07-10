@@ -145,20 +145,41 @@ function fail(f: Inflight, sha: string, code: PreviewErrorCode, message?: string
 // reference that the LIVE atlas does not? Surfaced in the fork banner — targets
 // the "fork with a swapped payment address" attack. Key-set compare of the
 // bundle's addresses.atlas.json vs main's (shape: { atlasCommit, addresses }).
-function countNewAddresses(outDir: string): number {
-  try {
-    const read = (p: string): Record<string, unknown> => {
-      const j = JSON.parse(fs.readFileSync(p, "utf8"));
-      return j.addresses ?? j;
-    };
-    const previewAddrs = read(path.join(outDir, "addresses.atlas.json"));
-    const mainAddrs = read(path.join(config.publicDir, "addresses.atlas.json"));
-    let n = 0;
-    for (const a of Object.keys(previewAddrs)) if (!(a in mainAddrs)) n++;
-    return n;
-  } catch {
-    return 0;
+//
+// main's addresses.atlas.json is rewritten in place (no atomic temp+rename) by
+// the atlas worker's own build cycle, which can race this read. A parse
+// failure there is a torn read, not "genuinely zero new addresses" — silently
+// returning 0 would hide the swapped-address banner exactly when we can least
+// verify it's safe to. Retry once (the worker's write is a single fs call, so
+// a short delay almost always lands on the settled file); if it still fails,
+// log loudly and return undefined so the caller can tell "checked, zero" apart
+// from "couldn't check".
+function readAddressMap(p: string): Record<string, unknown> {
+  const j = JSON.parse(fs.readFileSync(p, "utf8"));
+  return j.addresses ?? j;
+}
+
+// mainDir defaults to config.publicDir; overridable so the parse-failure-vs-
+// zero behavior is testable without touching the real public/ directory.
+// Exported for that regression test only.
+export async function countNewAddresses(outDir: string, mainDir: string = config.publicDir): Promise<number | undefined> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const previewAddrs = readAddressMap(path.join(outDir, "addresses.atlas.json"));
+      const mainAddrs = readAddressMap(path.join(mainDir, "addresses.atlas.json"));
+      let n = 0;
+      for (const a of Object.keys(previewAddrs)) if (!(a in mainAddrs)) n++;
+      return n;
+    } catch (e) {
+      if (attempt === 0) {
+        await new Promise((r) => setTimeout(r, 150));
+        continue;
+      }
+      console.error(`[preview] countNewAddresses: failed to read address maps for ${outDir}:`, e);
+      return undefined;
+    }
   }
+  return undefined;
 }
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
@@ -293,7 +314,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
           meta.behindBy = filesR.v.behindBy;
           if (filesR.v.truncated) meta.diffTruncated = true;
         }
-        meta.newAddresses = countNewAddresses(paths.outDir);
+        meta.newAddresses = await countNewAddresses(paths.outDir);
       }
       writeMeta(sha, meta);
       await upsertPreview(meta);

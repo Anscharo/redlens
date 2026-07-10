@@ -22,6 +22,16 @@ interface ChatBody {
   pageContext?: PageContext;
 }
 
+// Generous cap on raw user input: well above any real prompt (typical chat
+// UIs cap in the low thousands of characters) but far below what would blow
+// past the model's context window or get shipped/persisted as multi-MB rows.
+export const MAX_MESSAGE_BYTES = 32_000;
+
+// Pure so it's unit-testable without a session/DB fixture.
+export function messageExceedsLimit(message: string, limitBytes = MAX_MESSAGE_BYTES): boolean {
+  return Buffer.byteLength(message, "utf8") > limitBytes;
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
@@ -59,6 +69,11 @@ export async function handleChat(req: Request): Promise<Response> {
     return json({ error: "invalid_json" }, 400);
   }
   if (!body.message?.trim()) return json({ error: "empty_message" }, 400);
+  // Reject before any DB write or rate-limit accounting — an oversized first
+  // request must not slip past the (past-usage-only) rate limiter below.
+  if (messageExceedsLimit(body.message)) {
+    return json({ error: "message_too_large", limitBytes: MAX_MESSAGE_BYTES }, 400);
+  }
 
   const userId = session.user.id;
 
