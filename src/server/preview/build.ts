@@ -314,7 +314,12 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
           meta.behindBy = filesR.v.behindBy;
           if (filesR.v.truncated) meta.diffTruncated = true;
         }
-        meta.newAddresses = await countNewAddresses(paths.outDir);
+        const newAddrs = await countNewAddresses(paths.outDir);
+        // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
+        // it so the banner/interstitial still warn (the swapped-payment-address
+        // screen exists for exactly this case).
+        if (newAddrs === undefined) meta.addressCheckFailed = true;
+        else meta.newAddresses = newAddrs;
       }
       writeMeta(sha, meta);
       await upsertPreview(meta);

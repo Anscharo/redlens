@@ -52,6 +52,12 @@ export interface PreviewMeta {
   behindBy?: number;
   /** Addresses in this preview's atlas not present in the live atlas. */
   newAddresses?: number;
+  /**
+   * The new-address comparison could not be run (main's addresses.atlas.json was
+   * unreadable/torn). Distinct from `newAddresses: 0` — we fail closed and warn,
+   * since an unreadable map can't prove the fork introduces no payment addresses.
+   */
+  addressCheckFailed?: boolean;
   /** Diff recovery was bounded — markers may miss docs on very large forks. */
   diffTruncated?: boolean;
 }
