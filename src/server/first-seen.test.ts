@@ -21,19 +21,16 @@ function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | nu
   };
 }
 
+// Stubs db.ts's `sql` so firstSeenFor's `sql.unsafe(...)` resolves to `rows`.
+function mockHistoryRows(rows: ReturnType<typeof addedRow>[]) {
+  mock.module("./db.ts", () => ({
+    sql: Object.assign(() => Promise.resolve([]), { unsafe: () => Promise.resolve(rows) }),
+  }));
+}
+
 describe("first-seen", () => {
   beforeEach(() => {
     mock.restore();
-  });
-
-  it("earliestFirstSeen picks the minimum date across ids, ignoring misses", async () => {
-    const { earliestFirstSeen } = await import("./first-seen.ts");
-    const map = new Map([
-      ["a", { date: "2025-03-01", source: "pr:100" }],
-      ["b", { date: "2024-11-15", source: "mip" }],
-    ]);
-    expect(earliestFirstSeen(map, ["a", "b", "missing"])?.date).toBe("2024-11-15");
-    expect(earliestFirstSeen(map, ["missing"])).toBeNull();
   });
 
   it("firstSeenFor short-circuits on empty input without querying the DB", async () => {
@@ -50,11 +47,7 @@ describe("first-seen", () => {
   });
 
   it("firstSeenFor drops rows with no committed_at", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () => Promise.resolve([addedRow("d1"), addedRow("d2", { committed_at: null })]),
-      }),
-    }));
+    mockHistoryRows([addedRow("d1"), addedRow("d2", { committed_at: null })]);
     const { firstSeenFor } = await import("./first-seen.ts");
     const result = await firstSeenFor(["d1", "d2"]);
     expect(result.has("d1")).toBe(true);
@@ -62,28 +55,19 @@ describe("first-seen", () => {
   });
 
   it("firstSeenFor labels a PR-linked commit as pr:<number>, even if the commit also has an era", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () => Promise.resolve([addedRow("d1", { pr_number: 1234, era: "html" })]),
-      }),
-    }));
+    mockHistoryRows([addedRow("d1", { pr_number: 1234, era: "html" })]);
     const { firstSeenFor } = await import("./first-seen.ts");
     const result = await firstSeenFor(["d1"]);
     expect(result.get("d1")).toEqual({ date: "2025-01-15", source: "pr:1234" });
   });
 
   it("firstSeenFor labels a pre-git era with no PR as mip / genesis-v2 / html-era / severed", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () =>
-          Promise.resolve([
-            addedRow("mip-doc", { era: "mip" }),
-            addedRow("genesis-doc", { era: "genesis" }),
-            addedRow("html-doc", { era: "html" }),
-            addedRow("severed-doc", { era: "severed" }),
-          ]),
-      }),
-    }));
+    mockHistoryRows([
+      addedRow("mip-doc", { era: "mip" }),
+      addedRow("genesis-doc", { era: "genesis" }),
+      addedRow("html-doc", { era: "html" }),
+      addedRow("severed-doc", { era: "severed" }),
+    ]);
     const { firstSeenFor } = await import("./first-seen.ts");
     const result = await firstSeenFor(["mip-doc", "genesis-doc", "html-doc", "severed-doc"]);
     expect(result.get("mip-doc")?.source).toBe("mip");
@@ -93,26 +77,17 @@ describe("first-seen", () => {
   });
 
   it("firstSeenFor labels a plain git commit (no PR, no era) as commit:<short sha>", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () => Promise.resolve([addedRow("d1", { commit_sha: "deadbee" })]),
-      }),
-    }));
+    mockHistoryRows([addedRow("d1", { commit_sha: "deadbee" })]);
     const { firstSeenFor } = await import("./first-seen.ts");
     const result = await firstSeenFor(["d1"]);
     expect(result.get("d1")?.source).toBe("commit:deadbee");
   });
 
   it("atlasFirstSeen resolves entity slugs to their defining doc and docs to themselves", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () =>
-          Promise.resolve([
-            addedRow("d1", { committed_at: "2023-09-02", era: "genesis" }),
-            addedRow("d2", { committed_at: "2025-06-01", pr_number: 42 }),
-          ]),
-      }),
-    }));
+    mockHistoryRows([
+      addedRow("d1", { committed_at: "2023-09-02", era: "genesis" }),
+      addedRow("d2", { committed_at: "2025-06-01", pr_number: 42 }),
+    ]);
     const { atlasFirstSeen } = await import("./first-seen.ts");
     const ix = buildIndexes([doc("d1", "A.1"), doc("d2", "A.2")], [entity("e1", "spark", "d1")], [], {});
 
@@ -125,11 +100,7 @@ describe("first-seen", () => {
   });
 
   it("atlasFirstSeen reports a distinct note when resolved but never recorded as 'added'", async () => {
-    mock.module("./db.ts", () => ({
-      sql: Object.assign(() => Promise.resolve([]), {
-        unsafe: () => Promise.resolve([]),
-      }),
-    }));
+    mockHistoryRows([]);
     const { atlasFirstSeen } = await import("./first-seen.ts");
     const ix = buildIndexes([doc("d1", "A.1")], [], [], {});
 

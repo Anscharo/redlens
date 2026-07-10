@@ -8,6 +8,8 @@
 import { sql } from "./db.ts";
 import { type Indexes, resolveNode } from "./indexes.ts";
 import { type ToolResult } from "./tools.ts";
+import { isoDate } from "./tools-history.ts";
+import { RECONSTRUCTED_ERAS } from "../lib/history.ts";
 
 export interface FirstSeen {
   date: string; // YYYY-MM-DD
@@ -29,6 +31,9 @@ type AddedRow = {
   commit_seq: number | null;
 };
 
+// Display label per reconstructed era (src/lib/history.ts's RECONSTRUCTED_ERAS
+// is the canonical membership set — reused here so a new era value only needs
+// a label added, not a second parallel vocabulary to keep in sync).
 const ERA_LABEL: Record<string, string> = {
   mip: "mip",
   genesis: "genesis-v2",
@@ -36,15 +41,9 @@ const ERA_LABEL: Record<string, string> = {
   severed: "severed",
 };
 
-function isoDate(v: string | Date | null): string | null {
-  if (!v) return null;
-  if (v instanceof Date) return v.toISOString().slice(0, 10);
-  return String(v).slice(0, 10);
-}
-
 function sourceLabel(r: AddedRow): string {
   if (r.pr_number != null) return `pr:${r.pr_number}`;
-  if (r.era && ERA_LABEL[r.era]) return ERA_LABEL[r.era];
+  if (r.era && RECONSTRUCTED_ERAS.has(r.era)) return ERA_LABEL[r.era] ?? r.era;
   return `commit:${r.commit_sha}`;
 }
 
@@ -71,17 +70,6 @@ export async function firstSeenFor(docIds: string[]): Promise<Map<string, FirstS
     if (date) out.set(r.doc_id, { date, source: sourceLabel(r) });
   }
   return out;
-}
-
-/** Earliest first_seen among a set of provenance doc ids — used when several
- *  docs back one edge/entity and we want the earliest date any of them appeared. */
-export function earliestFirstSeen(map: Map<string, FirstSeen>, docIds: string[]): FirstSeen | null {
-  let earliest: FirstSeen | null = null;
-  for (const id of docIds) {
-    const fs = map.get(id);
-    if (fs && (!earliest || fs.date < earliest.date)) earliest = fs;
-  }
-  return earliest;
 }
 
 // ── atlas_first_seen ─────────────────────────────────────────────────────────

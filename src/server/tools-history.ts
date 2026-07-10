@@ -61,7 +61,7 @@ type HistoryStatsOpts = {
   latest_available_date?: string | null;
 };
 
-function isoDate(v: string | Date | null): string | null {
+export function isoDate(v: string | Date | null): string | null {
   if (!v) return null;
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return v.slice(0, 10);
