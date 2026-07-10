@@ -173,8 +173,19 @@ function ensureBundle() {
   }
 }
 
+// The /connect page's tool list (public/tools.json) — generated straight from
+// src/server/tool-registry.ts, not atlas content, so it doesn't depend on
+// docs.json/the worker at all. Cheap; just keep it fresh every boot.
+function ensureToolsCatalog() {
+  if (truthy(process.env.DEV_NO_BUILD)) return;
+  if (run("bun", ["scripts/required/build-tools.ts"]).status !== 0) {
+    warn("build:tools didn't finish cleanly — /connect's tool list may be stale or missing.");
+  }
+}
+
 export async function preflight() {
   ensureDeps();
+  ensureToolsCatalog();
   if (truthy(process.env.DEV_NO_DB)) {
     warn("DEV_NO_DB=1 — skipping Postgres; history/chat/preview need a DB.");
     ensureArtifacts();

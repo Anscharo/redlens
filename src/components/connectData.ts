@@ -39,24 +39,3 @@ export const USAGE_EXAMPLES: { ask: string; tools: string[] }[] = [
   { ask: "What Active Data is Spark responsible for, and has any of it changed recently?", tools: ["atlas_query"] },
   { ask: "List every Action Tenet under the Governance scope.", tools: ["atlas_filter"] },
 ];
-
-// The atlas tool set, mirrored from src/server/tool-registry.ts (ATLAS_TOOLS).
-export const TOOLS: { name: string; desc: string }[] = [
-  { name: "atlas_search", desc: "Lexical / semantic / hybrid search over the whole atlas." },
-  { name: "atlas_get", desc: "Fetch nodes by UUID or doc_no, each with its full ancestor chain." },
-  { name: "atlas_describe", desc: "Live schema: doc-type and edge-type vocabularies, entity types, atlas commit pin." },
-  { name: "atlas_entities", desc: "Find entities by name (fuzzy) or type/subtype — resolve 'Spark Protocol' to a slug." },
-  { name: "atlas_get_address", desc: "Look up an on-chain address — merged atlas + chain metadata, linked entity, referencing docs." },
-  { name: "atlas_neighbors", desc: "Hierarchical context around a node: parent, siblings, children." },
-  { name: "atlas_traverse", desc: "Follow typed edges up to N hops from a node." },
-  { name: "atlas_edges", desc: "Enumerate graph edges by type or endpoint entity, with pagination and provenance." },
-  { name: "atlas_entity", desc: "Everything tied to an entity (agent, role, actor) — takes a slug or a plain name; paginated." },
-  { name: "atlas_filter", desc: "Filter docs by type, entity subtree, ancestor, doc_no pattern, or depth." },
-  { name: "atlas_entity_params", desc: "Read an instance's Core children as a parameter map." },
-  { name: "atlas_history", desc: "Change log for one doc, newest first, with PR metadata and optional diffs." },
-  { name: "atlas_recent_changes", desc: "Recent changes across the atlas, filterable by type / entity." },
-  { name: "atlas_history_stats", desc: "History trends by month or quarter, with availability bounds, groups, top docs, and PRs." },
-  { name: "atlas_pr", desc: "Every doc touched by a single next-gen-atlas PR." },
-  { name: "atlas_changed_between", desc: "Docs added/modified/moved/removed between two atlas commits." },
-  { name: "atlas_query", desc: "One-call multi-dimensional query — search × graph × type × history × scope, intersected." },
-];
