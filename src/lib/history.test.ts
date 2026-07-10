@@ -111,3 +111,36 @@ describe("loadHistoryBatch", () => {
     expect(getSpy).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("loadHistory", () => {
+  it("never rejects — a transient fetch failure resolves to null", async () => {
+    const a = freshId();
+    installFetch(() => {
+      throw new Error("offline");
+    });
+
+    await expect(loadHistory(a)).resolves.toBeNull();
+  });
+
+  it("retries after a transient failure instead of permanently caching null (unlike a real 404)", async () => {
+    const a = freshId();
+    installFetch(() => {
+      throw new Error("offline");
+    });
+    expect(await loadHistory(a)).toBeNull();
+
+    // A network blip must not poison the cache — the next call re-fetches
+    // and can now succeed.
+    const getSpy = installFetch(() => jsonRes([entry("ccc")]));
+    expect(await loadHistory(a)).toEqual([entry("ccc")]);
+    expect(getSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("an explicit 404 (no backend, e.g. GitHub Pages) IS cached as null — no refetch", async () => {
+    const a = freshId();
+    const getSpy = installFetch(() => jsonRes(null, false));
+    expect(await loadHistory(a)).toBeNull();
+    expect(await loadHistory(a)).toBeNull();
+    expect(getSpy).toHaveBeenCalledTimes(1); // second call reused the cached settled promise
+  });
+});

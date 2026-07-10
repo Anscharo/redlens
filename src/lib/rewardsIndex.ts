@@ -46,6 +46,10 @@ function buildGraphCtx(byDocNo: Map<string, AtlasNode>, graph?: GraphData): Grap
   // edges. Edge direction: doc(*.0.6.1 "List Of Payments") → doc(controller).
   // Stripping the last 2 segments of the controller's doc_no yields the ICD
   // doc_no (works for active/completed ".3.4" and in-progress ".4.4" tiers).
+  // fragile: doc_no prefix — ".3.4"/".4.4" are NOT spec-defined structural
+  // suffixes (only .0.3.X/.0.4.X/.1.X/.varX/.0.6.X/NR-X are); this is editorial
+  // ICD-tier numbering that could renumber. Migrate to UUID-based parent_of
+  // traversal when convenient.
   const paymentControllerByInstance = new Map<string, AtlasNode>();
   for (const e of graph?.edges ?? []) {
     if (e.e !== "active_data_for") continue;
@@ -196,6 +200,9 @@ function extractPrimitive(
   agent: AgentRef,
   kind: PrimitiveKind,
 ): AgentPrimitive | null {
+  // fragile: doc_no prefix — ".2.5.1"/".2.5.2" (DR/Integration Boost primitives)
+  // are editorial ICD-tier numbering, not a spec-defined structural suffix;
+  // built by string concatenation off the agent's own (also arithmetic) doc_no.
   const primitiveDocNo = `${agent.docNo}.2.5.${kind === "DR" ? "1" : "2"}`;
   const head = byDocNo.get(primitiveDocNo);
   if (!head) return null;

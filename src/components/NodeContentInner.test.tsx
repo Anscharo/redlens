@@ -17,7 +17,7 @@ const DOC_NO = "A.3.7.1.2.2";
 // resolveAtlasRef is fed by loaded atlas bundles at runtime; stub it so the
 // renderer sees UUID/doc_no -> internal-id only for nodes we "host".
 vi.mock("../lib/docs", () => ({
-  resolveAtlasRef: (fragment: string) =>
+  resolveAtlasRef: (_base: string, fragment: string) =>
     fragment === UUID || fragment === DOC_NO ? UUID : undefined,
 }));
 

@@ -17,7 +17,13 @@ export function loadChainState(): Promise<ChainState> {
     cached = fetchJson<ChainState>(
       `${import.meta.env.BASE_URL}chain-state.json`,
       "chain-state.json",
-    ).catch(() => ({ block: "", values: {} }));
+    ).catch(() => {
+      // Don't cache the failure — a blip (or a build that hasn't produced
+      // chain-state.json yet) should be retried on the next call instead of
+      // permanently resolving to empty values for the rest of the session.
+      cached = null;
+      return { block: "", values: {} };
+    });
   }
   return cached;
 }

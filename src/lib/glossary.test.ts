@@ -1,6 +1,6 @@
 // Tests for buildLookup — the alias-flattening step that powers glossary highlighting.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { buildLookup, type Glossary } from "./glossary";
 
 const entry = (term: string) => ({
@@ -54,5 +54,56 @@ describe("buildLookup", () => {
     const lookup = buildLookup(g);
     expect(lookup["aligned delegate"]).toBeDefined();
     expect(Object.keys(lookup)).toHaveLength(1);
+  });
+});
+
+// loadGlossary — a JSON-bodied 4xx/5xx must not be cached as the glossary
+// (deep review finding: raw fetch() + r.json() had no res.ok check, unlike
+// the sibling loaders which route through fetchJson).
+describe("loadGlossary", () => {
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("does not cache a 404's JSON error body as the glossary — retries next call", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return {
+        ok: false,
+        status: 404,
+        json: async () => ({ error: "not found" }),
+      } as Response;
+    });
+
+    const { loadGlossary } = await import("./glossary");
+    await expect(loadGlossary("/base/")).rejects.toThrow();
+    expect(calls).toBe(1);
+
+    // A second call retries instead of reusing a cached rejection/error body.
+    await expect(loadGlossary("/base/")).rejects.toThrow();
+    expect(calls).toBe(2);
+  });
+
+  it("resolves normally on a 2xx response and caches the result", async () => {
+    let calls = 0;
+    const terms: Glossary = { sky: [entry("Sky")] };
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => ({ atlasCommit: null, terms }) } as Response;
+    });
+
+    const { loadGlossary } = await import("./glossary");
+    const first = await loadGlossary("/base2/");
+    const second = await loadGlossary("/base2/");
+    expect(first).toEqual(terms);
+    expect(second).toBe(first);
+    expect(calls).toBe(1);
   });
 });

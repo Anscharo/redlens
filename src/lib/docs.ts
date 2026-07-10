@@ -30,34 +30,56 @@ const workerCache = new Map<string, WorkerHandles>();
 // renderer turn an atlas reference fragment (a bare UUID or a doc_no, e.g. the
 // `#…` of a sky-atlas.io deep-link embedded in atlas prose) into an internal
 // node id without prop-drilling the whole bundle into NodeContent.
-const knownNodeIds = new Set<string>();
-const docNoIndex = new Map<string, string>();
+//
+// Keyed by data-source base (same key as workerCache/docsPromises above) —
+// registerRefs is fed by EVERY resolved bundle, including preview bundles, so
+// a single shared (unkeyed) index would let a preview's doc_no collide with
+// and resolve to a live-atlas node id (or vice versa) once both had loaded in
+// the same session. resolveAtlasRef takes the caller's base and only ever
+// looks at that base's slice.
+const refIndexes = new Map<string, { knownNodeIds: Set<string>; docNoIndex: Map<string, string> }>();
 
-function registerRefs(b: AtlasBundle): void {
-  for (const id in b.docs) knownNodeIds.add(id);
-  for (const [docNo, id] of b.docNoToId) docNoIndex.set(docNo, id);
+function refIndexFor(base: string): { knownNodeIds: Set<string>; docNoIndex: Map<string, string> } {
+  let idx = refIndexes.get(base);
+  if (!idx) {
+    idx = { knownNodeIds: new Set(), docNoIndex: new Map() };
+    refIndexes.set(base, idx);
+  }
+  return idx;
 }
 
-/** Resolve an atlas reference fragment (UUID or doc_no) to an internal node id,
- *  or undefined when it isn't a node we host (caller should keep it external). */
-export function resolveAtlasRef(fragment: string): string | undefined {
-  if (knownNodeIds.has(fragment)) return fragment;
-  return docNoIndex.get(fragment);
+function registerRefs(base: string, b: AtlasBundle): void {
+  const idx = refIndexFor(base);
+  for (const id in b.docs) idx.knownNodeIds.add(id);
+  for (const [docNo, id] of b.docNoToId) idx.docNoIndex.set(docNo, id);
 }
 
-function toBundle(msg: {
-  docs: Record<string, AtlasNode>;
-  atlasCommit?: string | null;
-  byParentEntries: [string | null, AtlasNode[]][];
-  docNoToIdEntries: [string, string][];
-}): AtlasBundle {
+/** Resolve an atlas reference fragment (UUID or doc_no) to an internal node id
+ *  within `base`'s bundle, or undefined when it isn't a node we host there
+ *  (caller should keep it external). */
+export function resolveAtlasRef(base: string, fragment: string): string | undefined {
+  const idx = refIndexes.get(base);
+  if (!idx) return undefined;
+  if (idx.knownNodeIds.has(fragment)) return fragment;
+  return idx.docNoIndex.get(fragment);
+}
+
+function toBundle(
+  base: string,
+  msg: {
+    docs: Record<string, AtlasNode>;
+    atlasCommit?: string | null;
+    byParentEntries: [string | null, AtlasNode[]][];
+    docNoToIdEntries: [string, string][];
+  },
+): AtlasBundle {
   const bundle: AtlasBundle = {
     docs: msg.docs,
     atlasCommit: msg.atlasCommit ?? null,
     byParent: new Map(msg.byParentEntries),
     docNoToId: new Map(msg.docNoToIdEntries),
   };
-  registerRefs(bundle);
+  registerRefs(base, bundle);
   return bundle;
 }
 
@@ -74,9 +96,9 @@ function spawn(base: string): WorkerHandles {
   worker.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.type === "shallow") {
-      resolveShallow(toBundle(msg));
+      resolveShallow(toBundle(base, msg));
     } else if (msg.type === "ready") {
-      resolveFull(toBundle(msg));
+      resolveFull(toBundle(base, msg));
       worker.terminate();
     } else if (msg.type === "error") {
       worker.terminate();
