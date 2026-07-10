@@ -2,6 +2,8 @@
  * Markdown table parsing utilities for Atlas Active Data tables.
  */
 
+import { ETH_ADDR_RE } from "./address-chains.mjs";
+
 /**
  * Parse a markdown table from Atlas node content.
  * Returns an array of row objects keyed by column header (raw markdown preserved).
@@ -42,7 +44,7 @@ export function parseMarkdownTable(content) {
 
 /** Extract all lowercase 0x EVM addresses from a markdown cell. */
 export function extractEthAddresses(cell) {
-  return [...cell.matchAll(/0x[0-9a-fA-F]{40}/g)].map((m) =>
+  return [...cell.matchAll(ETH_ADDR_RE)].map((m) =>
     m[0].toLowerCase()
   );
 }

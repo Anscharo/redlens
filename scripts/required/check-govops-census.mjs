@@ -24,6 +24,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { naturalCompare } from "../lib/natural-sort.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const BASELINE_PATH = path.join(ROOT, ".github/govops-census-baseline.json");
@@ -143,7 +144,7 @@ for (const d of Object.values(docs)) {
   counts.residue++;
   residue.push({ uuid: d.id, doc_no: d.doc_no, title: d.title });
 }
-residue.sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+residue.sort((a, b) => naturalCompare(a.doc_no, b.doc_no));
 
 // ---------------------------------------------------------------------------
 // Compare against baseline → [drift] warnings for new residue docs

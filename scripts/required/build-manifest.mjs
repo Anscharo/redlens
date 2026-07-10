@@ -12,11 +12,11 @@
  * Run: node scripts/build-manifest.mjs
  */
 
-import fs from "fs";
-import path from "path";
-import crypto from "crypto";
-import { execSync } from "child_process";
-import { fileURLToPath } from "url";
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const PUBLIC = path.join(ROOT, "public");
@@ -78,7 +78,6 @@ for (const name of ARTIFACTS) {
 }
 
 const manifest = {
-  generatedAt: new Date().toISOString(),
   appCommit: gitRev(ROOT),
   atlasCommit: gitRev(path.join(ROOT, "vendor/next-gen-atlas")),
   artifacts,

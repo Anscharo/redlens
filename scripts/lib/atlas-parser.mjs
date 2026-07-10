@@ -219,7 +219,10 @@ function findAllDocuments(contentRoot) {
 // Non-NR: 1 + (ancestor folders that contain a document.md), capped at 6.
 //   Phantom extension folders (only _index.md) don't count.
 // NR: target's level + 1, capped at 6 (memoized; recurses through targets[0]).
-function computeLevels(docs, contentRoot) {
+// Exported for direct unit testing (e.g. self-referential/cyclic NR chains) —
+// exercising it through parseTree() would also trip the emit-order invariant
+// checks, which are a separate concern from the recursion/cycle guard here.
+export function computeLevels(docs, contentRoot) {
   const byUuid = new Map(docs.map((d) => [d.uuid, d]));
   const hasDocCache = new Map();
   const hasDocumentMd = (p) => {
@@ -231,8 +234,11 @@ function computeLevels(docs, contentRoot) {
   };
 
   const levels = new Map();
+  const inProgress = new Set(); // paranoid cycle guard, mirrors emitDoc's `emitted` guard below
   const levelOf = (doc) => {
     if (levels.has(doc.uuid)) return levels.get(doc.uuid);
+    if (inProgress.has(doc.uuid)) return 1; // self-referential NR chain — break the recursion
+    inProgress.add(doc.uuid);
     let lv;
     if (doc.doc_no.startsWith("NR-")) {
       const target = doc.targets.length ? byUuid.get(doc.targets[0]) : undefined;
@@ -245,6 +251,7 @@ function computeLevels(docs, contentRoot) {
       lv = Math.min(count + 1, 6);
     }
     levels.set(doc.uuid, lv);
+    inProgress.delete(doc.uuid);
     return lv;
   };
   for (const d of docs) levelOf(d);
