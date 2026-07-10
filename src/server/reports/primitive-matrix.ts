@@ -33,6 +33,9 @@ interface SubtypeRow {
 }
 
 const CLASS_ORDER = { universal: 0, optional: 1, dormant: 2 } as const;
+// Highest-ranked status wins when an agent has a subtype more than once, so the
+// per-status breakdown is deterministic regardless of graph iteration order.
+const STATUS_RANK: Record<Activation, number> = { Active: 2, Completed: 1, Inactive: 0 };
 
 export function buildPrimitiveMatrixReport(ix: Indexes, opts: { include_provenance: boolean }): ToolResult {
   // Prime Agents = the denominator, ordered by defining doc_no so the matrix is
@@ -52,6 +55,10 @@ export function buildPrimitiveMatrixReport(ix: Indexes, opts: { include_provenan
   // subtype → (agent name → activation status), + a representative category doc.
   const statusBySubtype = new Map<string, Map<string, Activation>>();
   const categoryDocBySubtype = new Map<string, string>();
+  // Any globalActivation value the atlas emits that we don't recognize — surfaced
+  // so a new/renamed status isn't silently coerced to Inactive (which would
+  // misclassify a live primitive as dormant with no signal).
+  const unknownStatuses = new Set<string>();
 
   for (const p of ix.entities) {
     if (p.entity_type !== "primitive" || !p.subtype) continue;
@@ -59,15 +66,17 @@ export function buildPrimitiveMatrixReport(ix: Indexes, opts: { include_provenan
     const agentDocId = typeof meta.agent_doc_id === "string" ? meta.agent_doc_id : null;
     const agent = agentDocId ? agentByDocId.get(agentDocId) : undefined;
     if (!agent) continue; // primitive not owned by a Prime Agent — skip
-    const status = meta.status === "Active" || meta.status === "Completed" || meta.status === "Inactive"
-      ? (meta.status as Activation)
-      : "Inactive"; // unknown/missing status is treated as not-engaged
+    const raw = typeof meta.status === "string" ? meta.status : "";
+    const known = raw === "Active" || raw === "Completed" || raw === "Inactive";
+    if (raw && !known) unknownStatuses.add(raw);
+    const status: Activation = known ? (raw as Activation) : "Inactive"; // unknown/missing → not-engaged
 
     let byAgent = statusBySubtype.get(p.subtype);
     if (!byAgent) statusBySubtype.set(p.subtype, (byAgent = new Map()));
-    // If an agent somehow has the subtype twice, keep the most-engaged status.
+    // If an agent has the subtype twice, keep the highest-ranked status
+    // (Active > Completed > Inactive) — deterministic across graph orderings.
     const prev = byAgent.get(agent.name);
-    if (!prev || (ENGAGED.has(status) && !ENGAGED.has(prev))) byAgent.set(agent.name, status);
+    if (!prev || STATUS_RANK[status] > STATUS_RANK[prev]) byAgent.set(agent.name, status);
 
     if (opts.include_provenance && !categoryDocBySubtype.has(p.subtype)) {
       const catDocId = typeof meta.primitive_category_doc_id === "string" ? meta.primitive_category_doc_id : null;
@@ -132,6 +141,11 @@ export function buildPrimitiveMatrixReport(ix: Indexes, opts: { include_provenan
     subtypes: kept,
     truncated,
   };
+  if (unknownStatuses.size) {
+    result.unknown_statuses = [...unknownStatuses].sort();
+    result.unknown_status_warning =
+      "Primitives carried globalActivation value(s) this report doesn't recognize; they were counted as not-engaged (Inactive) and may be misclassified as dormant/optional.";
+  }
   if (truncated) result.note = TRUNCATION_HINT;
   return result;
 }

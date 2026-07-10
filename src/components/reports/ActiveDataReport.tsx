@@ -14,20 +14,12 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
 
 type Row = ActiveDataRow;
-
-function exportCSV(rows: Row[], lastEditDates: Map<string, string>) {
-  const blob = new Blob([activeDataRowsToCSV(rows, lastEditDates)], { type: "text/csv" });
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob),
-    download: "active-data-index.csv",
-  });
-  a.click();
-}
 
 function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] }) {
   if (!steps.length) return null;
@@ -195,15 +187,12 @@ export function ActiveDataReport() {
 
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{filtered.length} sections</p>
-          <button
-            onClick={() => {
-              track("report_export", { report: "active-data", format: "csv" });
-              exportCSV(filtered, lastEditDates);
-            }}
-            className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
-          >
-            Download CSV
-          </button>
+          <DownloadCsvButton
+            report="active-data"
+            filename="active-data-index.csv"
+            rowCount={filtered.length}
+            build={() => activeDataRowsToCSV(filtered, lastEditDates)}
+          />
         </div>
 
         <div className="overflow-x-auto">

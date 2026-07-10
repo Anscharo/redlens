@@ -13,6 +13,10 @@ import { track } from "../lib/analytics";
 interface Props {
   content: string;
   onNavigate?: (id: string) => void;
+  // When false, `$`/`$$` are left as literal text instead of being parsed as
+  // KaTeX math — used where the content is verbatim evidence (e.g. a risk-rule
+  // source paragraph) and a stray `$100k` must not be swallowed as inline math.
+  math?: boolean;
 }
 
 const NavigateContext = createContext<((id: string) => void) | undefined>(undefined);
@@ -124,8 +128,8 @@ function loadKatex(): Promise<void> {
   return katexPromise;
 }
 
-export default function NodeContentInner({ content, onNavigate }: Props) {
-  const hasMath = MATH_RE.test(content);
+export default function NodeContentInner({ content, onNavigate, math = true }: Props) {
+  const hasMath = math && MATH_RE.test(content);
   const [katexReady, setKatexReady] = useState(!!rehypePluginsMath);
 
   useEffect(() => {

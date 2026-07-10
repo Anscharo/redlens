@@ -78,3 +78,48 @@ test("include_provenance:false omits category_doc_no", () => {
   const r = buildPrimitiveMatrixReport(makeIx(), { include_provenance: false }) as any;
   expect(r.subtypes[0].category_doc_no).toBeUndefined();
 });
+
+// Two Prime Agents. Alpha has the same subtype twice with different engaged
+// statuses (Completed + Active) to exercise deterministic dedup; a third
+// primitive carries an unrecognized status to exercise unknown-status surfacing.
+function makeEdgeCaseIx(): Indexes {
+  const docs = [node("AA", "A.6.1.1.1", "Alpha"), node("AD", "A.6.1.1.2", "Bravo")];
+  const entities: Entity[] = [
+    entity("agentA", "alpha", "Alpha", "agent", "prime", "AA", null),
+    entity("agentB", "bravo", "Bravo", "agent", "prime", "AD", null),
+    // Alpha's agent-token appears twice: Completed then Active — highest rank (Active) must win.
+    entity("p1", "alpha-token-a", "Alpha Token A", "primitive", "agent-token", "d1", { agent_doc_id: "AA", status: "Completed" }),
+    entity("p2", "alpha-token-b", "Alpha Token B", "primitive", "agent-token", "d2", { agent_doc_id: "AA", status: "Active" }),
+    entity("p3", "bravo-token", "Bravo Token", "primitive", "agent-token", "d3", { agent_doc_id: "AD", status: "Active" }),
+    // Unrecognized globalActivation value — must be surfaced, counted as Inactive.
+    entity("p4", "alpha-weird", "Alpha Weird", "primitive", "mystery-primitive", "d4", { agent_doc_id: "AA", status: "Suspended" }),
+    entity("p5", "bravo-weird", "Bravo Weird", "primitive", "mystery-primitive", "d5", { agent_doc_id: "AD", status: "Inactive" }),
+  ];
+  return {
+    docMap: new Map(docs.map((d) => [d.id, d])),
+    byDocNo: new Map(docs.map((d) => [d.doc_no, d])),
+    entities,
+    entityById: new Map(entities.map((e) => [e.id, e])),
+    entityBySlug: new Map(entities.map((e) => [e.slug, e])),
+  } as unknown as Indexes;
+}
+
+test("duplicate (agent,subtype) dedup is deterministic — highest-ranked status wins", () => {
+  const r = buildPrimitiveMatrixReport(makeEdgeCaseIx(), { include_provenance: false }) as any;
+  const token = r.subtypes.find((s: any) => s.subtype === "agent-token");
+  // Alpha had Completed + Active → Active wins (rank Active > Completed).
+  expect(token.agent_status.Alpha).toBe("Active");
+  expect(token.active_count).toBe(2); // Alpha (deduped to Active) + Bravo
+  expect(token.completed_count).toBe(0);
+  expect(token.classification).toBe("universal");
+});
+
+test("unrecognized globalActivation is surfaced, not silently coerced", () => {
+  const r = buildPrimitiveMatrixReport(makeEdgeCaseIx(), { include_provenance: false }) as any;
+  expect(r.unknown_statuses).toEqual(["Suspended"]);
+  expect(r.unknown_status_warning).toContain("recognize");
+  // The mystery primitive with the unknown status is counted as not-engaged.
+  const mystery = r.subtypes.find((s: any) => s.subtype === "mystery-primitive");
+  expect(mystery.classification).toBe("dormant");
+  expect(mystery.agent_status.Alpha).toBe("Inactive");
+});

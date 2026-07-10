@@ -7,7 +7,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import type { Rating } from "../../lib/oeaAssessment";
 import { loadRiskAssessment, joinRisk, summarizeRisk, riskRowsToCSV, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
-import { downloadCSV } from "../../lib/csv";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable } from "./RiskRulesTable";
 import { Link } from "../Link";
@@ -153,16 +153,12 @@ export function RiskRulesReport({ onNavigate }: { onNavigate: (id: string) => vo
         {join.rows.length > 0 && (
           <div className="flex items-start justify-between gap-4 mb-4">
             <SummaryStrip join={join} shown={filtered.length} />
-            <button
-              onClick={() => {
-                track("report_export", { report: "risk-rules", format: "csv", row_count: filtered.length });
-                downloadCSV("risk-rules-assessment.csv", riskRowsToCSV(filtered));
-              }}
-              disabled={filtered.length === 0}
-              className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              Download CSV
-            </button>
+            <DownloadCsvButton
+              report="risk-rules"
+              filename="risk-rules-assessment.csv"
+              rowCount={filtered.length}
+              build={() => riskRowsToCSV(filtered)}
+            />
           </div>
         )}
 

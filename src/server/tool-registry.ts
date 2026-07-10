@@ -318,9 +318,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "kind='multisigs' returns every multisig in one call: chain, address, threshold, signer " +
       "organizations with per-org signer counts, signer-modification authorities, purpose, and " +
       "provenance doc_nos — the complete evidence for a multisig security review. " +
-      "kind='primitive_matrix' returns the agent × primitive-subtype presence matrix: which " +
-      "primitives are universal (every Prime Agent has them) vs optional, with per-subtype " +
-      "counts and the agents missing each optional one. " +
+      "kind='primitive_matrix' returns the agent × primitive-subtype ACTIVATION matrix: for each " +
+      "primitive, which Prime Agents have it engaged (globalActivation Active or Completed) vs " +
+      "Inactive. Classifies each as universal (engaged for every agent), optional (some), or " +
+      "dormant (none engaged). Note: `missing_agents` lists agents where the primitive is Inactive " +
+      "— i.e. present but not engaged — NOT agents that lack the primitive. " +
       "(More kinds — rewards, active_data, actors, transfers — are being added.)",
     shape: {
       kind: z
