@@ -62,6 +62,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "- `atlas_get_address` — resolve an on-chain address (0x… / base58) to its atlas entity, roles, and chain-state.",
     "- `atlas_edges` — enumerate all graph edges of a type or all edges from/to an entity slug; use for exhaustive relationship maps.",
     "- `atlas_history_stats` — summarize Atlas history by month/quarter; use for trend, timeline, and coverage-window questions.",
+    "- `atlas_first_seen` — bulk 'since when' lookup for entity slugs / doc ids, derived from atlas_history. Use only when the atlas text has no explicit date; label the answer as history-derived, not an atlas-stated date.",
     "- `atlas_describe` — re-inspect the live schema (types, edge kinds, entity slugs) if you need exact vocabulary for a filter.",
     `You may call tools up to ${config.chatMaxIterations} rounds. Plan the call, read results, then answer.`,
     "",

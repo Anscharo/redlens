@@ -10,6 +10,7 @@ import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
+import { atlasFirstSeen } from "./first-seen.ts";
 
 export interface AtlasTool {
   name: string;
@@ -277,6 +278,22 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
+  },
+  {
+    name: "atlas_first_seen",
+    description:
+      "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
+      "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
+      "the response labels every date `first_seen_source: \"history\"` to distinguish it from an explicit " +
+      "in-content date. An entity's first_seen is its defining doc's first_seen.",
+    shape: {
+      ids: z
+        .array(z.string())
+        .min(1)
+        .max(50)
+        .describe("Entity slugs and/or doc UUIDs/doc_nos to look up, up to 50 per call."),
+    },
+    handler: (ix, a) => atlasFirstSeen(ix, a.ids as string[]),
   },
   {
     name: "atlas_query",
