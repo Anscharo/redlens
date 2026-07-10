@@ -10,6 +10,7 @@ import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
+import { atlasReport, type AtlasReportArgs } from "./reports/index.ts";
 
 export interface AtlasTool {
   name: string;
@@ -290,6 +291,24 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "full content + ancestor ids (deduped into a top-level `ancestors` map), or fetch specific ids with atlas_get.",
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
+  },
+  {
+    name: "atlas_report",
+    description:
+      "Curated, model-ready reports too expensive to assemble from primitive graph calls. " +
+      "kind='multisigs' returns every multisig in one call: chain, address, threshold, signer " +
+      "organizations with per-org signer counts, signer-modification authorities, purpose, and " +
+      "provenance doc_nos — the complete evidence for a multisig security review. " +
+      "(More kinds — rewards, active_data, primitive_matrix, actors, transfers — are being added.)",
+    shape: {
+      kind: z.enum(["multisigs"]).describe("Which curated report to return. Currently only 'multisigs'."),
+      include_provenance: z
+        .boolean()
+        .optional()
+        .default(true)
+        .describe("Include source doc_nos for each field (default true; set false for a leaner rollup)."),
+    },
+    handler: (ix, a) => atlasReport(ix, a as unknown as AtlasReportArgs),
   },
 ];
 

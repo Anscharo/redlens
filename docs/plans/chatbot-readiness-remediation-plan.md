@@ -293,7 +293,7 @@ Use the readiness assessment's query list and adjudication questions as a golden
 
 ## Implementation order and owners
 
-Status legend: ✅ done · ⬜ not started.
+Status legend: ✅ done · 🟡 in progress · ⬜ not started.
 
 | Order | Done | Workstream | Primary files/modules | Dependency | Est. size |
 |---|---|---|---|---|---|
@@ -302,7 +302,7 @@ Status legend: ✅ done · ⬜ not started.
 | 3 | ✅ | `atlas_history_stats` | history DB access, tool registry | History table availability | M |
 | 4 | ✅ | Extraction/data-silence fixes | graph transfer builder, Active Data population checks, instance naming logic | Build fixtures | M |
 | 5 | ⬜ | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
-| 6 | ⬜ | `atlas_report` tool | tool registry + report builders | Report builders | M |
+| 6 | 🟡 | `atlas_report` tool | tool registry + report builders | Report builders | M |
 | 7 | ⬜ | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
 | 8 | ⬜ | Prompt policy | chat system prompt | None | S |
 | 9 | ⬜ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
@@ -342,8 +342,8 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] `atlas_history_stats` tool with earliest/latest history metadata. — shipped (`fbe693fe`)
 - [x] Chat-specific tool result budget and truncation metadata. — shipped (`093734eb`)
 - [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
-- [ ] Shared report builder modules.
-- [ ] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports.
+- [ ] Shared report builder modules. — deferred until the first FE-backed kind (active_data/rewards) forces a neutral `ReportGraph` shape; `multisigs` is greenfield and lives server-native under `src/server/reports/`.
+- [~] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — tool skeleton + `multisigs` kind shipped (`src/server/reports/`, advertised in `ATLAS_TOOLS` for both MCP + chat, budget-guarded, fixture-tested); remaining five kinds pending.
 - [ ] Entity/edge `first_seen` enrichment.
 - [ ] Ruling-vs-reporting prompt policy.
 - [ ] ask-atlas server-prefix tolerance.
