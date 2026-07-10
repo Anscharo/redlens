@@ -9,18 +9,19 @@ import { OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
 import type { Rating } from "../../lib/oeaAssessment";
 import { loadOeaReport, summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
-import { OeaTable } from "./OeaAssessmentTable";
-import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { OeaTable, oeaSearchFields } from "./OeaAssessmentTable";
+import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(OEA_CATEGORY_LABELS);
 
-// Header-box text filter: title, doc number, the assessed duty text, and
-// agent names. Category/rating/status facets are pill-owned and excluded;
-// the text filter ANDs with the pills.
-const searchText = (r: OeaRow) =>
-  buildHaystack([r.task.title, r.task.docNo, r.task.assessedText, ...(r.task.agents ?? [])]);
+// Header-box text filter over the fields declared in OeaAssessmentTable
+// (which also tracks their visibility for the hidden-match aside).
+// Category/rating/status facets are pill-owned and excluded; the text
+// filter ANDs with the pills.
+const searchText = (r: OeaRow) => fieldsHaystack(oeaSearchFields(r));
+const SEARCHES = "doc no · title · assessed task text · covered prime agents";
 const RATING_LABELS: Record<Rating, string> = { weak: "weak", mid: "mid", strong: "strong" };
 const STATUS_LABELS: Record<OeaRowStatus, string> = { fresh: "fresh", stale: "stale", unassessed: "unassessed" };
 const ratingCodec = categoryCodec(RATING_LABELS);
@@ -99,6 +100,7 @@ export function OeaAssessmentReport({ query }: { query: string }) {
     [rows, cat, status, precision, incentives],
   );
   const shown = useMemo(() => [...filterRows(filtered, query, searchText)], [filtered, query]);
+  const tokens = useMemo(() => queryTokens(query), [query]);
 
   const byCategory = useMemo(
     () => Object.groupBy(shown, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
@@ -141,6 +143,7 @@ export function OeaAssessmentReport({ query }: { query: string }) {
             incentives && `incentives:${incentives}`,
             status && `status:${status}`,
           ]}
+          searches={SEARCHES}
         />
         {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         {report && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
@@ -149,7 +152,8 @@ export function OeaAssessmentReport({ query }: { query: string }) {
           return (
             <OeaTable key={c} label={label} rows={catRows} mechanisms={report.mechanisms}
               expandedKey={expanded}
-              onToggle={toggleRow} />
+              onToggle={toggleRow}
+              tokens={tokens} />
           );
         })}
       </div>

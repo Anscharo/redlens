@@ -4,9 +4,14 @@
 export function FilterSummary({
   query,
   filters = [],
+  searches,
 }: {
   query: string;
   filters?: (string | false | null | undefined)[];
+  // Exactly what the text query is matched against — set on reports that
+  // search more than the visible row text, so a match on a hidden field
+  // (e.g. an agent attribution) isn't mysterious.
+  searches?: string;
 }) {
   const q = query.trim();
   const active = filters.filter((f): f is string => !!f);
@@ -24,6 +29,9 @@ export function FilterSummary({
         <>
           {" "}match filters <span className="text-tan">{active.join(" + ")}</span>
         </>
+      )}
+      {q && searches && (
+        <span className="block mt-0.5 text-[10px] opacity-80">searches: {searches}</span>
       )}
     </p>
   );

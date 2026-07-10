@@ -16,22 +16,16 @@ import {
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
-import { buildHaystack, matchesTokens, queryTokens } from "../../lib/reportFilter";
+import { fieldsHaystack, matchesTokens, queryTokens } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
+import { icdSearchFields } from "./rewardsSearch";
 
-// Header-box text filter, per ICD row: instance text, partner/code/address/
-// chain/cadence, tracking methodology, param names + values, plus the owning
-// agent and its chain entities — so "skybase" surfaces every SkyBase instance
-// and "0x…" finds reward addresses wherever they appear.
-const icdHaystack = (agent: RewardsAgent, i: RewardsInstance | RewardsInvocation) =>
-  buildHaystack([
-    i.name, i.docNo, i.status,
-    i.rewardCode, i.partnerName, i.rewardChain, i.cadence, i.rewardAddress,
-    i.tracking, i.paymentsResponsibleParty?.name,
-    agent.name, agent.chain?.executor?.name, agent.chain?.govops?.name,
-    ...Object.entries(i.params ?? {}).flatMap(([k, [v]]) => [k, v]),
-  ]);
+// Header-box text filter, per ICD row, over the fields in rewardsSearch.ts —
+// so "skybase" surfaces every SkyBase instance and "0x…" finds reward
+// addresses wherever they appear.
+const SEARCHES =
+  "instance · doc nos · status · reward code · partner · chain · cadence · address · payments RP · tracking text · params · agent + chain entities";
 
 // Filters a primitive's ICD buckets; null when nothing survives (the whole
 // DR/IB table is hidden).
@@ -41,7 +35,7 @@ function filterPrimitive(
   tokens: string[],
 ): AgentPrimitive | null {
   const keep = <T extends RewardsInstance | RewardsInvocation>(list: T[]): T[] =>
-    list.filter((i) => matchesTokens(icdHaystack(agent, i), tokens));
+    list.filter((i) => matchesTokens(fieldsHaystack(icdSearchFields(agent, i)), tokens));
   const next = {
     ...prim,
     active: keep(prim.active),
@@ -91,9 +85,11 @@ function EcosystemHeader({
 function AgentSection({
   agent,
   addrMap,
+  tokens,
 }: {
   agent: RewardsAgent;
   addrMap: Record<string, AddressInfo>;
+  tokens: string[];
 }) {
   // Instance counts (Active/Suspended/Completed) — operational deployments.
   // Invocations are counted separately so the empty-state copy doesn't claim
@@ -137,8 +133,8 @@ function AgentSection({
           )}
         </p>
       )}
-      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} />}
-      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} />}
+      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} tokens={tokens} />}
+      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} tokens={tokens} />}
     </section>
   );
 }
@@ -223,7 +219,7 @@ export function RewardsReport({ query }: { query: string }) {
           )}
         </p>
 
-        <FilterSummary query={query} />
+        <FilterSummary query={query} searches={SEARCHES} />
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Failed to load report.</p>
@@ -241,7 +237,7 @@ export function RewardsReport({ query }: { query: string }) {
             <EcosystemHeader idx={idx} addrMap={addrMap} />
             {idx.agents.length > 0 && shownAgents.length === 0 && <NoRowsMatch query={query} />}
             {shownAgents.map((a) => (
-              <AgentSection key={a.name} agent={a} addrMap={addrMap} />
+              <AgentSection key={a.name} agent={a} addrMap={addrMap} tokens={queryTokens(query)} />
             ))}
           </>
         )}

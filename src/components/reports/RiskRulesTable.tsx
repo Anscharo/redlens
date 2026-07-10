@@ -6,6 +6,19 @@ import { RatingPill } from "./OeaAssessmentTable";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
+import { hiddenMatches, type SearchField } from "../../lib/reportFilter";
+import { Highlight, MatchAside } from "./Highlight";
+
+// The search haystack as labelled fields; the rated paragraph (quote) and
+// covered prime agents only render in the expanded body, so matches on them
+// surface via the floating aside. Keep in sync with the cells below.
+export const riskSearchFields = (r: RiskRow): SearchField[] => [
+  { label: "doc no", value: r.candidate.docNo },
+  { label: "title", value: r.candidate.title },
+  { label: "summary", value: r.triage.description ?? "" },
+  { label: "rule text", value: r.candidate.quote, hidden: true },
+  { label: "prime agent", value: (r.candidate.agents ?? []).join(", "), hidden: true },
+];
 
 const SCORE_STYLE: Record<Preciseness, string> = {
   1: "bg-[color-mix(in_srgb,var(--red)_35%,transparent)] text-tan",
@@ -81,12 +94,13 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle,
+  rows, docs, expandedKey, onToggle, tokens = [],
 }: {
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
+  tokens?: string[];
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -111,10 +125,11 @@ export function RiskTable({
               <tr key={row.candidate.taskKey}
                 onClick={() => onToggle(row)}
                 className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
-                <td className="py-2 px-3 align-top">
+                <td className="py-2 px-3 align-top relative">
+                  <MatchAside matches={hiddenMatches(riskSearchFields(row), tokens)} tokens={tokens} />
                   <AtlasLink to={atlasHref(row.candidate.uuid)} onClick={(ev) => ev.stopPropagation()}
                     className="mono text-xs text-accent hover:underline">
-                    {row.candidate.docNo}
+                    <Highlight text={row.candidate.docNo} tokens={tokens} />
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
@@ -127,12 +142,12 @@ export function RiskTable({
                   >
                     {expanded ? "▾" : "▸"}
                   </button>
-                  <span className="text-tan">{row.candidate.title}</span>
+                  <span className="text-tan"><Highlight text={row.candidate.title} tokens={tokens} /></span>
                   {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}
                   {row.status !== "fresh" && (
                     <span className={`badge ml-1.5 ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
                   )}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2">{row.triage.description}</p>}
+                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.triage.description} tokens={tokens} /></p>}
                 </td>
                 <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
                 <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>

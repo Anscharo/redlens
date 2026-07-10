@@ -804,6 +804,41 @@ button.atlas-node-expand-all:focus-visible {
   user-select: none;
 }
 
+/* ─── Report search: matched-term highlight ─── */
+.q-mark {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ─── Report search: floating "why did this row match" note ───
+   Sits in the left page gutter beside the row; the anchoring cell must be
+   position:relative. Gutter only exists on wide screens — hidden below. */
+.match-aside {
+  position: absolute;
+  right: 100%;
+  top: 0.45rem;
+  margin-right: 1rem;
+  width: 11rem;
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+  color: var(--tan-3);
+  pointer-events: none;
+}
+.match-aside-label {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+@media (max-width: 1279px) {
+  .match-aside {
+    display: none;
+  }
+}
+
 /* ─── Scope filter pill ─── */
 .scope-pill {
   background: var(--surface);

@@ -21,8 +21,9 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
-import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { buildHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
 import { FilterSummary } from "./FilterSummary";
+import { Highlight } from "./Highlight";
 
 // Header-box text filter: title + doc number. Category/status/shape are
 // pill-owned and deliberately excluded.
@@ -130,6 +131,7 @@ function Row({
   existing,
   onMark,
   onUnmark,
+  tokens,
 }: {
   r: ProcessRow;
   node: AtlasNode;
@@ -140,6 +142,7 @@ function Row({
   existing: LocalIgnore | undefined;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
+  tokens: string[];
 }) {
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
@@ -160,7 +163,7 @@ function Row({
             onClick={stop}
             className="mono text-xs text-accent hover:underline text-left"
           >
-            {r.docNo}
+            <Highlight text={r.docNo} tokens={tokens} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -169,7 +172,7 @@ function Row({
             onClick={stop}
             className="text-sm text-tan hover:underline text-left"
           >
-            {r.title}
+            <Highlight text={r.title} tokens={tokens} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -250,6 +253,7 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
     });
     return filterRows(base, query, searchText);
   }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, query]);
+  const tokens = useMemo(() => queryTokens(query), [query]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();
@@ -410,6 +414,7 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
                         existing={ignoresByUuid.get(r.uuid)}
                         onMark={mark}
                         onUnmark={unmark}
+                        tokens={tokens}
                       />
                     );
                   })}

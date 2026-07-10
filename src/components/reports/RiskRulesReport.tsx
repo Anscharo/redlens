@@ -8,21 +8,19 @@ import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "..
 import type { Rating } from "../../lib/oeaAssessment";
 import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
-import { RiskTable } from "./RiskRulesTable";
+import { RiskTable, riskSearchFields } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
-import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
-// Header-box text filter: title, doc number, the rated paragraph, and agent
-// names. Domain/precision/incentives/status are pill-owned and excluded; the
-// text filter ANDs with the pills.
-const searchText = (r: RiskRow) =>
-  buildHaystack([
-    r.candidate.title, r.candidate.docNo, r.candidate.quote,
-    ...(r.candidate.agents ?? []),
-  ]);
+// Header-box text filter over the fields declared in RiskRulesTable (which
+// also tracks their visibility for the hidden-match aside). Domain/precision/
+// incentives/status are pill-owned and excluded; the text filter ANDs with
+// the pills.
+const searchText = (r: RiskRow) => fieldsHaystack(riskSearchFields(r));
+const SEARCHES = "doc no · title · summary · full rule paragraph · covered prime agents";
 
 // Multi-select: comma-separated in the URL, empty array = no filter.
 const domainsCodec: UrlCodec<RiskDomain[]> = {
@@ -182,10 +180,11 @@ export function RiskRulesReport({ query }: { query: string }) {
             enforce && `incentives:${enforce}`,
             status && `status:${status}`,
           ]}
+          searches={SEARCHES}
         />
         {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} tokens={queryTokens(query)} />
         )}
       </div>
     </div>

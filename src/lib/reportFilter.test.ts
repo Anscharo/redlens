@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { queryTokens, buildHaystack, matchesTokens, filterRows } from "./reportFilter";
+import {
+  queryTokens, buildHaystack, matchesTokens, filterRows,
+  fieldsHaystack, fieldMatches, flexTokenSource, excerptAround, hiddenMatches,
+  type SearchField,
+} from "./reportFilter";
 
 describe("queryTokens", () => {
   it("lowercases and splits on whitespace", () => {
@@ -55,5 +59,58 @@ describe("filterRows", () => {
   });
   it("returns the same array identity for a blank query", () => {
     expect(filterRows(rows, "  ", hay)).toBe(rows);
+  });
+});
+
+describe("field-level matching", () => {
+  const fields: SearchField[] = [
+    { label: "title", value: "Weekly rate update" },
+    { label: "agent", value: "Sky Base", hidden: true },
+    { label: "quote", value: "The rate must be posted within 24 hours of the Executive Vote.", hidden: true },
+  ];
+
+  it("fieldsHaystack matches buildHaystack over values", () => {
+    expect(fieldsHaystack(fields)).toBe(buildHaystack(fields.map((f) => f.value)));
+  });
+
+  it("fieldMatches covers plain and de-spaced", () => {
+    expect(fieldMatches("Sky Base", "skybase")).toBe(true);
+    expect(fieldMatches("Sky Base", "base")).toBe(true);
+    expect(fieldMatches("Sky Base", "nope")).toBe(false);
+  });
+
+  it("flexTokenSource locates de-spaced tokens in original text", () => {
+    expect(new RegExp(flexTokenSource("skybase"), "i").exec("led by Sky Base today")?.[0]).toBe("Sky Base");
+    expect(new RegExp(flexTokenSource("a.3.2"), "i").test("A.3.2.1")).toBe(true);
+  });
+
+  it("excerptAround windows the value near the match", () => {
+    const e = excerptAround("The rate must be posted within 24 hours of the Executive Vote.", "executive");
+    expect(e).toContain("Executive Vote");
+    expect(e.startsWith("…")).toBe(true);
+  });
+
+  describe("hiddenMatches", () => {
+    it("empty when a visible field carries the token", () => {
+      expect(hiddenMatches(fields, ["rate"])).toEqual([]);
+    });
+    it("reports the hidden field for hidden-only tokens", () => {
+      const m = hiddenMatches(fields, ["skybase"]);
+      expect(m).toHaveLength(1);
+      expect(m[0].label).toBe("agent");
+      expect(m[0].excerpt).toBe("Sky Base");
+    });
+    it("one entry per hidden field even for multiple tokens", () => {
+      const m = hiddenMatches(fields, ["sky", "base"]);
+      expect(m.map((x) => x.label)).toEqual(["agent"]);
+    });
+    it("mixed visible+hidden tokens only report the hidden-only ones", () => {
+      const m = hiddenMatches(fields, ["rate", "vote"]);
+      expect(m.map((x) => x.label)).toEqual(["quote"]);
+      expect(m[0].excerpt).toContain("Executive Vote");
+    });
+    it("empty for an empty token list", () => {
+      expect(hiddenMatches(fields, [])).toEqual([]);
+    });
   });
 });

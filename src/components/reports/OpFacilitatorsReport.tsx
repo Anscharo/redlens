@@ -25,22 +25,18 @@ import {
 } from "../../lib/facilitatorResponsibilities";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
-import { OFCategoryTable } from "./OFCategoryTable";
-import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
+import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
 
-// Header-box text filter: visible row text + every rendered entity name.
+// Header-box text filter over the fields declared in OFCategoryTable (which
+// also tracks their per-category visibility for the hidden-match aside).
 // Category is pill-owned and deliberately excluded.
-const searchText = (r: OFResponsibility) =>
-  buildHaystack([
-    r.duty, r.title, r.docNo, r.role,
-    r.facilitator, ...(r.facilitators ?? []),
-    r.agent, ...(r.agents ?? []),
-    r.executor,
-  ]);
+const searchText = (r: OFResponsibility) => fieldsHaystack(ofSearchFields(r));
+const SEARCHES = "doc no · title · duty text · role · facilitator · executor · prime agents";
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -143,6 +139,7 @@ export function OFReport({ query }: { query: string }) {
     );
   };
 
+  const tokens = useMemo(() => queryTokens(query), [query]);
   const filtered = filterRows(
     responsibilities.filter((r) => (cat === null || r.category === cat) && matches(r)),
     query,
@@ -194,13 +191,13 @@ export function OFReport({ query }: { query: string }) {
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
-        <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} />
+        <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} searches={SEARCHES} />
         {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OFResponsibility["category"], string][]).map(
           ([cat, label]) => {
             const rows = byCategory[cat];
             if (!rows?.length) return null;
-            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} />;
+            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} tokens={tokens} />;
           },
         )}
       </div>

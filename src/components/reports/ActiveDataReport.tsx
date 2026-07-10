@@ -14,27 +14,41 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
-import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { fieldsHaystack, filterRows, hiddenMatches, queryTokens, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
+import { Highlight, MatchAside } from "./Highlight";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
 
 type Row = ActiveDataRow;
 
-// Header-box text filter: visible row text + rendered entity names, including
-// the agent-chain names (executor/facilitator/govops) so e.g. "sidestream"
-// finds every row Sidestream touches. Evidence steps stay out (provenance).
-const searchText = (r: Row) =>
-  buildHaystack([
-    r.activeDataTitle, r.activeDataDocNo,
-    r.controllerTitle, r.controllerDocNo,
-    r.agent, r.process, r.sourceDocNo,
-    r.responsibleParty?.name, r.responsibleParty?.declared,
-    r.facilitator?.name, r.facilitator?.role,
-    r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName,
-  ]);
+// Header-box text filter as labelled fields; `hidden` marks what the table
+// below does NOT render (agent-chain names, declared RP text, source doc),
+// so those matches get explained in the row's floating aside. "sidestream"
+// still finds every row Sidestream touches via its chain.
+const searchFields = (r: Row): SearchField[] => [
+  { label: "title", value: r.activeDataTitle },
+  { label: "doc no", value: r.activeDataDocNo },
+  { label: "controller", value: r.controllerDocNo ?? "" },
+  { label: "controller title", value: r.controllerTitle ?? "", hidden: true },
+  { label: "prime agent", value: r.agent ?? "" },
+  { label: "process", value: r.process },
+  { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
+  { label: "resp. party", value: r.responsibleParty?.name ?? "" },
+  { label: "declared rp", value: r.responsibleParty?.declared ?? "", hidden: true },
+  { label: "facilitator", value: r.facilitator?.name ?? "" },
+  { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
+  {
+    label: "agent chain",
+    value: [r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName].filter(Boolean).join(", "),
+    hidden: true,
+  },
+];
+const searchText = (r: Row) => fieldsHaystack(searchFields(r));
+const SEARCHES =
+  "title · doc nos · controller · prime agent · process · responsible party (incl. declared text) · facilitator (incl. role) · agent chain (executor/facilitator/govops)";
 
 function exportCSV(rows: Row[], lastEditDates: Map<string, string>) {
   const blob = new Blob([activeDataRowsToCSV(rows, lastEditDates)], { type: "text/csv" });
@@ -156,6 +170,7 @@ export function ActiveDataReport({ query }: { query: string }) {
     [rows, agentFilter, entityFilter],
   );
   const shown = useMemo(() => [...filterRows(filtered, query, searchText)], [filtered, query]);
+  const tokens = useMemo(() => queryTokens(query), [query]);
 
   return (
     <div className="px-6 py-6">
@@ -210,7 +225,7 @@ export function ActiveDataReport({ query }: { query: string }) {
           ))}
         </div>
 
-        <FilterSummary query={query} filters={[agentFilter, entityFilter]} />
+        <FilterSummary query={query} filters={[agentFilter, entityFilter]} searches={SEARCHES} />
 
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{shown.length} sections</p>
@@ -246,14 +261,15 @@ export function ActiveDataReport({ query }: { query: string }) {
                   key={r.activeDataId}
                   className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
                 >
-                  <td className="py-2 px-3 align-top">
+                  <td className="py-2 px-3 align-top relative">
+                    <MatchAside matches={hiddenMatches(searchFields(r), tokens)} tokens={tokens} />
                     <AtlasLink
                       to={atlasHref(r.activeDataId)}
                       className="text-sm text-tan hover:underline text-left block"
                     >
-                      {r.activeDataTitle}
+                      <Highlight text={r.activeDataTitle} tokens={tokens} />
                     </AtlasLink>
-                    <span className="mono text-[10px] text-accent">{r.activeDataDocNo}</span>
+                    <span className="mono text-[10px] text-accent"><Highlight text={r.activeDataDocNo} tokens={tokens} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.controllerId && r.controllerDocNo ? (
@@ -261,14 +277,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                         to={atlasHref(r.controllerId)}
                         className="mono text-xs text-tan-2 hover:underline text-left"
                       >
-                        {r.controllerDocNo}
+                        <Highlight text={r.controllerDocNo} tokens={tokens} />
                       </AtlasLink>
                     ) : (
                       <span className="mono text-[10px] text-tan-3">—</span>
                     )}
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.agent ?? "—"}</span>
+                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} tokens={tokens} /> : "—"}</span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.responsibleParty ? (
@@ -278,14 +294,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          {r.responsibleParty.name}
+                          <Highlight text={r.responsibleParty.name} tokens={tokens} />
                         </AtlasLink>
                       ) : (
                         <span
                           className="text-xs text-tan-2"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          {r.responsibleParty.name}
+                          <Highlight text={r.responsibleParty.name} tokens={tokens} />
                         </span>
                       )
                     ) : (
@@ -300,11 +316,11 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.facilitator.role}
                         >
-                          {r.facilitator.name}
+                          <Highlight text={r.facilitator.name} tokens={tokens} />
                         </AtlasLink>
                       ) : (
                         <span className="text-xs text-tan-2" title={r.facilitator.role}>
-                          {r.facilitator.name}
+                          <Highlight text={r.facilitator.name} tokens={tokens} />
                         </span>
                       )
                     ) : (
@@ -315,7 +331,7 @@ export function ActiveDataReport({ query }: { query: string }) {
                     <EvidenceCell r={r} />
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.process}</span>
+                    <span className="mono text-xs text-tan-3"><Highlight text={r.process} tokens={tokens} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     <span className="mono text-xs text-tan-3">
