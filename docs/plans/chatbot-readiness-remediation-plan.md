@@ -304,8 +304,8 @@ Status legend: ✅ done · ⬜ not started.
 | 5 | ⬜ | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
 | 6 | ⬜ | `atlas_report` tool | tool registry + report builders | Report builders | M |
 | 7 | ⬜ | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
-| 8 | ⬜ | Prompt policy | chat system prompt | None | S |
-| 9 | ⬜ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
+| 8 | ✅ | Prompt policy | chat system prompt | None | S |
+| 9 | ✅ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
 | 10 | ⬜ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
 | 11 | ⬜ | Upstream Active Data issue | next-gen-atlas coordination | None | Process |
 | 12 | ⬜ | Supplemental spell/payout sources | TBD | Product decision | Optional L |
@@ -342,10 +342,10 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] `atlas_history_stats` tool with earliest/latest history metadata. — shipped (`fbe693fe`)
 - [x] Chat-specific tool result budget and truncation metadata. — shipped (`093734eb`)
 - [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
-- [ ] Shared report builder modules.
-- [ ] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports.
+- [ ] Shared report builder modules. — deferred (report-scoped work, out of scope for this pass)
+- [ ] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — deferred (report-scoped work, out of scope for this pass)
 - [ ] Entity/edge `first_seen` enrichment.
-- [ ] Ruling-vs-reporting prompt policy.
-- [ ] ask-atlas server-prefix tolerance.
+- [x] Ruling-vs-reporting prompt policy. — shipped (`src/server/system-prompt.ts`)
+- [x] ask-atlas server-prefix tolerance. — shipped (`.claude/agents/ask-atlas.md`)
 - [ ] Golden-question regression harness.
 - [ ] Upstream Active Data issue and supplemental data decision.
