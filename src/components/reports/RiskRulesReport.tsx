@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
+import { loadAddresses } from "../../lib/addresses";
+import { setAddressMap } from "../../lib/addressMap";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useUrlState, urlString, type UrlCodec } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
@@ -44,10 +46,18 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport() {
+export function RiskRulesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
+
+  // Curated explorer URLs for address linkification in quotes — only the main
+  // reader's useAtlasData populates the map, so hydrate it here for direct visits.
+  useEffect(() => {
+    loadAddresses()
+      .then((a) => a && setAddressMap(a))
+      .catch(() => {});
+  }, []);
   const [domains, setDomains] = useUrlState("domain", domainsCodec);
   const [score, setScore] = useUrlState("precision", scoreCodec);
   const [enforce, setEnforce] = useUrlState("incentives", ratingCodec);
@@ -159,7 +169,7 @@ export function RiskRulesReport() {
         </div>
 
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} onNavigate={onNavigate} />
         )}
       </div>
     </div>

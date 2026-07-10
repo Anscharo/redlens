@@ -4,6 +4,7 @@ import type { RiskRow } from "../../lib/riskAssessmentIndex";
 import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
 import { AtlasLink } from "../AtlasLink";
+import { NodeContent } from "../NodeContent";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
 
@@ -20,19 +21,19 @@ export function ScorePill({ s }: { s: Preciseness | null }) {
   return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${SCORE_STYLE[s]}`}>{s}/5</span>;
 }
 
-function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasNode> }) {
+function ExpandedBody({ row, docs, onNavigate }: { row: RiskRow; docs: Record<string, AtlasNode>; onNavigate: (id: string) => void }) {
   const e = row.entry;
   if (!e) return <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>;
   return (
     <div className="space-y-3 text-sm">
-      <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-        {e.quote}
+      <blockquote className="border-l-2 border-[var(--border)] pl-3">
+        <NodeContent content={e.quote} onNavigate={onNavigate} />
       </blockquote>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Precision <ScorePill s={e.preciseness} />
         </p>
-        <p className="text-tan-2">{e.precisenessReasoning}</p>
+        <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} />
         {e.metrics.length > 0 && (
           <p className="mono text-[11px] text-tan-3 mt-1">
             metrics: {e.metrics.map((m) => (
@@ -45,7 +46,7 @@ function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasN
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Penalties / Incentives <RatingPill r={e.enforcement} />
         </p>
-        <p className="text-tan-2">{e.enforcementReasoning}</p>
+        <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} />
         {e.mechanismUuids.length > 0 && (
           <p className="text-xs mt-1">
             {e.mechanismUuids.map((u) => (
@@ -81,12 +82,13 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle,
+  rows, docs, expandedKey, onToggle, onNavigate,
 }: {
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
+  onNavigate: (id: string) => void;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -141,7 +143,7 @@ export function RiskTable({
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} />
+                    <ExpandedBody row={row} docs={docs} onNavigate={onNavigate} />
                   </td>
                 </tr>
               ),

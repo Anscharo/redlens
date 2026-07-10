@@ -34,6 +34,7 @@
 -->
 
 ## 2026-07-10
+- Rule quotes in the Risk Rules report now render with clickable atlas links and addresses, like the reader
 - Fixed the Connect page's tool list to always match the live MCP server
 
 ## 2026-07-09
