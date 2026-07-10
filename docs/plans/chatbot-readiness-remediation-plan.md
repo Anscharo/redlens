@@ -210,9 +210,11 @@ Implemented as a dedicated DB-backed tool (`atlas_first_seen`, `src/server/first
 inline fields on `atlas_edges`/`atlas_entity`/`atlas_entities`: those three tools are intentionally
 synchronous and DB-free (`tools-graph.ts`), which is what keeps them testable without Postgres in
 `mcp-tools.test.ts`. `atlas_first_seen` takes a batch of entity slugs and/or doc UUIDs/doc_nos, resolves
-each in-memory, then does one bulk `MIN(committed_at) WHERE change_type='added'` query against
-`atlas_history`. Every date is labeled `first_seen_source: "history"` per the plan's date-provenance
-requirement.
+each in-memory, then does one bulk `DISTINCT ON (doc_id) ... WHERE change_type='added'` query against
+`atlas_history` per the plan's date-provenance requirement. `first_seen_source` names the specific
+underlying record rather than a flat "history" tag: `pr:<number>` when the 'added' event came in
+through a PR, `mip` / `genesis-v2` / `html-era` / `severed` when the doc predates git history, or
+`commit:<seq>` for a plain git commit with no PR.
 
 
 **Purpose:** Make "since when" questions answerable without forcing the model to join graph results to history manually.
