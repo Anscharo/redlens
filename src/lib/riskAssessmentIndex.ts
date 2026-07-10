@@ -7,9 +7,10 @@
 // script-side (triage entries store only the hash, not the quote).
 
 import { fetchJson } from "./verify";
+import { toCSV } from "./csv";
 import type { Rating } from "./oeaAssessment";
 import { normalizeAssessedText } from "./oeaTasks";
-import type { RiskCandidate } from "./riskRules";
+import { RISK_DOMAIN_LABELS, type RiskCandidate, type RiskDomain } from "./riskRules";
 import type { Preciseness, RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "./riskAssessment";
 
 export type RiskRowStatus = "fresh" | "stale" | "unassessed";
@@ -85,4 +86,37 @@ export function summarizeRisk(rows: RiskRow[]): RiskSummary {
     }
   }
   return s;
+}
+
+const RISK_CSV_HEADERS = [
+  "Doc No", "Title", "UUID", "Risk Types", "Status",
+  "Precision", "Precision Reasoning", "Incentives", "Incentives Reasoning",
+  "Metrics", "Description", "Quote",
+] as const;
+
+function domainLabels(domains: RiskDomain[]): string {
+  return domains.map((d) => RISK_DOMAIN_LABELS[d] ?? d).join("; ");
+}
+
+// Exports the given (already-filtered) risk rows as an RFC-4180 CSV string.
+// Column order mirrors the visible table plus the assessment reasoning that the
+// table only reveals on row-expand. Unassessed rows leave the rating columns blank.
+export function riskRowsToCSV(rows: RiskRow[]): string {
+  return toCSV(
+    [...RISK_CSV_HEADERS],
+    rows.map((r) => [
+      r.candidate.docNo,
+      r.candidate.title,
+      r.candidate.uuid,
+      domainLabels(r.triage.domains),
+      r.status,
+      r.entry?.preciseness ?? "",
+      r.entry?.precisenessReasoning ?? "",
+      r.entry?.enforcement ?? "",
+      r.entry?.enforcementReasoning ?? "",
+      r.entry?.metrics.join("; ") ?? "",
+      r.triage.description,
+      r.candidate.quote,
+    ]),
+  );
 }

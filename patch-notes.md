@@ -33,6 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-10
+- Added a Download CSV button to the Risk Rules Assessment report
+- Fixed several reader and search glitches, including report filters clearing on expand and the results list jumping on "load more"
+- Fixed CSV export mangling quoted fields and some background data not recovering after a failed load
+
 ## 2026-07-09
 - Fixed a range of reliability and data-accuracy issues across search, the reader, and reports
 

@@ -23,7 +23,13 @@
 | Exec #6 — apostrophes parsed as case-sensitive phrase quotes → zero results | ✅ fixed | `review-followups-2` — single-quote phrase regex now requires non-alphanumeric boundaries so `don't won't` no longer captures `t won`; new `searchHighlight` regression tests |
 | X-cutting #9 — no `docRowToNode` round-trip parity test (would have caught #1–2) | 🟡 partial | `2aeb0458` (main) — `src/server/doc-rows.test.ts` now locks the write→read round-trip (incl. `contentHash`/`addressRefs`, and the tempting-but-wrong `content_hash` reuse). The SHALLOW_MAX_DEPTH duplication is still convention-only ("KEEP IN SYNC" comment, no parity test) |
 | BUILD B2(build) — Solana address node ids split across casings in the graph build | ✅ fixed | `review-followups-2` — `normalizeAddress` at every address node-id site (`mentions`, label-path `has_address`, `proxies_to`, `addressRows`); before/after `<addr>:solana` count 57→40 (0 dual-cased), no duplicate edges on merged nodes; new referential-integrity regression test in `scripts_tests/graph.test.ts` |
-| All other findings | ⬜ open | — |
+| Frontend CONFIRMED (P2 B1 filter-wipe, B2 scroll-jump, B3 stale NodeHistory, B7 tree ARIA, B8 typo) | 🔧 in PR | branch `review/frontend-bugs` — user-facing, all traced |
+| Shared-lib robustness (P3 B4 glossary `res.ok`=P5#6; B5 chainstate/B6 history cache-poison, B7 CSV quotes, B8 highlighter entities, B9 scroll-glide, B3 cross-base, B10 rewards doc_no annotate) | 🔧 in PR | branch `review/shared-lib-robustness` — mostly SUSPICIOUS, verify-or-decline gate |
+| Server robustness (P4 #5 diffCache evict, #7 URIError→404, #8 SSE unsub race, #11 chat input cap) | 🔧 in PR | branch `review/server-robustness` — CONFIRMED first; #3/#6/#10 verify-or-decline |
+| Build determinism (P1 B8 `localeCompare`, B10 manifest timestamp, `node:` imports, B5 eth-regex boundary, B7 NR cycle guard) | 🔧 in PR | branch `review/build-determinism` — REPRO + snap gated |
+| Config hygiene (P5 #4 `environmentMatchGlobs`, #12 tsconfig excludes, #10 dead `build:railway`, #14 stale comment, #13 type-only cycles) | 🔧 in PR | branch `review/config-hygiene` — low-risk one-liners |
+| **Deferred by decision** — P5 #3 `tsconfig.server` strict, #7/#8 CI prod-build gating + artifact-gated asserts, #5 Dockerfile `bun.lock` | ⏸ deferred | High blast radius / infra; each needs its own careful PR + CI reasoning, not a fan-out one-liner. `strict` surfaces many errors; `bun.lock` changes prod resolution; CI gating touches deploy flow |
+| **Deferred by decision** — Part A architectural refactors (canonical chain-walk module, split `build-graph.mjs`, one loader policy) + Part 1/3/4 inefficiency (I*) + messiness (M*) | ⏸ deferred | Not worth standalone PRs; fold opportunistically when touching the file. Micro-perf/dup-regex/dead-map cleanups don't justify review churn |
 
 Everything below is the original report, unchanged.
 
@@ -275,3 +281,6 @@ SQL injection (all `sql.unsafe` sites build only `$N` placeholders; user values 
 - Dedupe `addrRows` by `(address, chain)` after lowercasing in `sync.ts` (prevents a whole-sync rollback).
 - Fix the apostrophe/case-phrase parse in `searchHighlight.ts:102-106` (require whitespace/start before the opening quote) so contractions don't zero out results.
 - Correct the CLAUDE.md "flat virtualized list" description of AtlasView (it isn't virtualized).
+
+
+    

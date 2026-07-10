@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { RiskCandidate } from "./riskRules";
 import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "./riskAssessment";
-import { joinRisk, summarizeRisk } from "./riskAssessmentIndex";
+import { joinRisk, summarizeRisk, riskRowsToCSV } from "./riskAssessmentIndex";
 
 const candidate = (taskKey: string, quote: string): RiskCandidate => ({
   taskKey, uuid: "u1", docNo: "A.3.1", title: "T", quote,
@@ -60,6 +60,22 @@ describe("joinRisk", () => {
     expect(j.rejected).toBe(2);
     expect(j.untriaged).toBe(1);
     expect(joinRisk([candidate("u:u1", "x")], null).untriaged).toBe(1);
+  });
+
+  it("riskRowsToCSV emits a header, maps domain labels, and blanks unassessed ratings", () => {
+    const j = joinRisk(
+      [candidate("u:u1", "The rule text."), candidate("u:u2", "other")],
+      artifact([triage("u:u1"), triage("u:u2")], [entry("u:u1", "The rule text.")]),
+    );
+    const csv = riskRowsToCSV(j.rows);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toContain('"Doc No","Title","UUID","Risk Types","Status"');
+    // Assessed row: domain label resolved, rating present.
+    expect(lines[1]).toContain('"Peg Maintenance"');
+    expect(lines[1]).toContain('"fresh"');
+    expect(lines[1]).toContain('"4"');
+    // Unassessed row: rating columns blank (Precision/Precision Reasoning/Incentives).
+    expect(lines[2]).toContain('"unassessed","","",""');
   });
 
   it("summarizeRisk counts ratings and statuses", () => {

@@ -6,7 +6,8 @@ import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { loadRiskAssessment, joinRisk, summarizeRisk, riskRowsToCSV, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { downloadCSV } from "../../lib/csv";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable } from "./RiskRulesTable";
 import { Link } from "../Link";
@@ -30,7 +31,7 @@ const STATUSES = ["fresh", "stale", "unassessed"] as const;
 function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   const total = join.rows.length;
   return (
-    <p className="mono text-xs text-tan-3 mb-4">
+    <p className="mono text-xs text-tan-3">
       {shown === total ? (
         `${total.toLocaleString()} Atlas sections match the filter`
       ) : (
@@ -149,7 +150,21 @@ export function RiskRulesReport() {
           </Link>
         </p>
 
-        {join.rows.length > 0 && <SummaryStrip join={join} shown={filtered.length} />}
+        {join.rows.length > 0 && (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <SummaryStrip join={join} shown={filtered.length} />
+            <button
+              onClick={() => {
+                track("report_export", { report: "risk-rules", format: "csv", row_count: filtered.length });
+                downloadCSV("risk-rules-assessment.csv", riskRowsToCSV(filtered));
+              }}
+              disabled={filtered.length === 0}
+              className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              Download CSV
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 mb-6">
           <CategoryPills label="Risk Type" labelTitle="Broad category of risk assessment" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domains} onToggle={toggleDomain} display={RISK_DOMAIN_LABELS} counts={counts.domain} hint="multi-select" />
