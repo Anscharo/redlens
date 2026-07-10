@@ -11,6 +11,7 @@ import { atlasQueryShape } from "./query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 import { atlasReport, type AtlasReportArgs } from "./reports/index.ts";
+import { atlasFirstSeen } from "./first-seen.ts";
 
 export interface AtlasTool {
   name: string;
@@ -278,6 +279,24 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(500).default(100),
     },
     handler: (ix, a) => atlasChangedBetween(ix, a as Parameters<typeof atlasChangedBetween>[1]),
+  },
+  {
+    name: "atlas_first_seen",
+    description:
+      "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
+      "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
+      "every date is derived from atlas_history, never an explicit in-content date. `first_seen_source` names the " +
+      "underlying record: `pr:<number>` for a PR-linked commit, `mip` / `genesis-v2` / `html-era` / `severed` for a " +
+      "pre-git-history reconstruction, or `commit:<short sha>` for a plain git commit with no PR. An entity's first_seen " +
+      "is its defining doc's first_seen.",
+    shape: {
+      ids: z
+        .array(z.string())
+        .min(1)
+        .max(50)
+        .describe("Entity slugs and/or doc UUIDs/doc_nos to look up, up to 50 per call."),
+    },
+    handler: (ix, a) => atlasFirstSeen(ix, a.ids as string[]),
   },
   {
     name: "atlas_query",

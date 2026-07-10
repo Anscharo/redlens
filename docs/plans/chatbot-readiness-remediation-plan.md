@@ -204,7 +204,18 @@ The assessment notes that useful rollups already exist in frontend-oriented modu
 
 ## Phase 2 — Temporal enrichment and data remediation
 
-### 2.1 Stamp entities and edges with `first_seen`
+### 2.1 Stamp entities and edges with `first_seen` — ✅ shipped as `atlas_first_seen`
+
+Implemented as a dedicated DB-backed tool (`atlas_first_seen`, `src/server/first-seen.ts`) rather than
+inline fields on `atlas_edges`/`atlas_entity`/`atlas_entities`: those three tools are intentionally
+synchronous and DB-free (`tools-graph.ts`), which is what keeps them testable without Postgres in
+`mcp-tools.test.ts`. `atlas_first_seen` takes a batch of entity slugs and/or doc UUIDs/doc_nos, resolves
+each in-memory, then does one bulk `DISTINCT ON (doc_id) ... WHERE change_type='added'` query against
+`atlas_history` per the plan's date-provenance requirement. `first_seen_source` names the specific
+underlying record rather than a flat "history" tag: `pr:<number>` when the 'added' event came in
+through a PR, `mip` / `genesis-v2` / `html-era` / `severed` when the doc predates git history, or
+`commit:<short sha>` for a plain git commit with no PR.
+
 
 **Purpose:** Make "since when" questions answerable without forcing the model to join graph results to history manually.
 
@@ -263,7 +274,18 @@ Add a policy block to the chat system prompt:
 - Prefer capability discovery or configurable server prefixes.
 - Add a smoke test using an alternate MCP server registration name.
 
-## Phase 4 — Golden-question evaluation harness
+## Phase 4 — Golden-question evaluation harness — ✅ shipped (harness + fixtures; CI gating not wired)
+
+Implemented: `scripts/aux/eval-golden.ts` (runner — real `runChat` + real `ATLAS_TOOLS` registry +
+real OpenRouter stream), `scripts/aux/eval-golden-questions.ts` (8 fixtures derived from this plan's own
+Readiness targets / Acceptance criteria, since `docs/chatbot-readiness-assessment.md` — this plan's
+cited source — was never committed to the repo), and `scripts/aux/eval-golden-grade.ts` (pure rubric
+grader, unit-tested in `scripts/aux/eval-golden-grade.test.ts`, no network/DB). Run with
+`pnpm eval:golden` (needs `OPENROUTER_API_KEY` + built `docs.json`/`graph.json`); writes
+`.cache/eval-golden.json` and exits nonzero on any rubric failure. **Not done**: wiring `pnpm eval:golden`
+into CI/release gating (§4.3) — that needs a decision on where/how often it's worth the LLM spend, and a
+live run was not exercised in this session (no API key / DB / built artifacts available here) — only the
+pure grader logic is verified.
 
 ### 4.1 Convert the assessment into regression tests
 
@@ -305,10 +327,10 @@ Detailed sub-plan for the remaining `atlas_report` kinds (#5/#6): [`atlas-report
 | 4 | ✅ | Extraction/data-silence fixes | graph transfer builder, Active Data population checks, instance naming logic | Build fixtures | M |
 | 5 | ⬜ | Shared report builders | `src/lib/*Index.ts` refactor or equivalent shared modules | Graph adapter stable | L |
 | 6 | 🟡 | `atlas_report` tool | tool registry + report builders | Report builders | M |
-| 7 | ⬜ | `first_seen` enrichment | build/sync pipeline + graph attrs | History stats assumptions | M/L |
-| 8 | ⬜ | Prompt policy | chat system prompt | None | S |
-| 9 | ⬜ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
-| 10 | ⬜ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
+| 7 | ✅ | `first_seen` enrichment | `src/server/first-seen.ts` (new `atlas_first_seen` tool) | History stats assumptions | M/L |
+| 8 | ✅ | Prompt policy | chat system prompt | None | S |
+| 9 | ✅ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
+| 10 | ✅ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
 | 11 | ⬜ | Upstream Active Data issue | next-gen-atlas coordination | None | Process |
 | 12 | ⬜ | Supplemental spell/payout sources | TBD | Product decision | Optional L |
 
@@ -346,8 +368,8 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
 - [ ] Shared report builder modules. — deferred until the first FE-backed kind (active_data) forces a neutral `ReportGraph` shape; `multisigs` + `primitive_matrix` are greenfield and live server-native under `src/server/reports/`. Sequencing + design: [`atlas-report-remaining-kinds.md`](./atlas-report-remaining-kinds.md).
 - [~] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — tool skeleton + `multisigs` + `primitive_matrix` kinds shipped (`src/server/reports/`, advertised in `ATLAS_TOOLS` for both MCP + chat, budget-guarded, fixture-tested); remaining four kinds (`active_data`, `transfers`, `rewards`, `actors`) planned in [`atlas-report-remaining-kinds.md`](./atlas-report-remaining-kinds.md).
-- [ ] Entity/edge `first_seen` enrichment.
-- [ ] Ruling-vs-reporting prompt policy.
-- [ ] ask-atlas server-prefix tolerance.
-- [ ] Golden-question regression harness.
+- [x] Entity/edge `first_seen` enrichment. — shipped as a dedicated `atlas_first_seen` tool (`src/server/first-seen.ts`), kept out of the synchronous no-DB graph tools rather than spliced into `atlas_edges`/`atlas_entity`/`atlas_entities`
+- [x] Ruling-vs-reporting prompt policy. — shipped (`src/server/system-prompt.ts`)
+- [x] ask-atlas server-prefix tolerance. — shipped (`.claude/agents/ask-atlas.md`)
+- [x] Golden-question regression harness. — shipped (`scripts/aux/eval-golden*.ts`, `pnpm eval:golden`); CI gating (§4.3) not wired
 - [ ] Upstream Active Data issue and supplemental data decision.

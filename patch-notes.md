@@ -37,7 +37,6 @@
 - Added a Download CSV button to every report
 - Made the Risk Rules report's source-paragraph preview render document links as clickable links
 - Fixed several reader and search glitches, including report filters clearing on expand and the results list jumping on "load more"
-- Fixed CSV export mangling quoted fields and some background data not recovering after a failed load
 
 ## 2026-07-09
 - Fixed a range of reliability and data-accuracy issues across search, the reader, and reports

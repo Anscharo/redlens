@@ -28,6 +28,10 @@ public/addresses.atlas.json
 public/manifest.json
 public/history/
 public/atlas/
+# Not atlas-derived, but same reasoning: generated from src/server/tool-registry.ts
+# (pnpm build:tools) so the /connect page's tool list can never hand-drift from
+# what the server actually exposes.
+public/tools.json
 # NOTE: the HTML-era curation pipeline artifacts (history-curation.json,
 # history-auto-decisions.json, history-curation-proposals.json, history-decisions.json,
 # history-html-era.json) are NO LONGER ignored — they are the committed, reviewed
