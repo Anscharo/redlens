@@ -342,8 +342,8 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] `atlas_history_stats` tool with earliest/latest history metadata. — shipped (`fbe693fe`)
 - [x] Chat-specific tool result budget and truncation metadata. — shipped (`093734eb`)
 - [x] Transfer-reference audit, Active Data silence detection, and instance naming cleanup. — shipped (`ded1352b`)
-- [ ] Shared report builder modules. — deferred until the first FE-backed kind (active_data/rewards) forces a neutral `ReportGraph` shape; `multisigs` is greenfield and lives server-native under `src/server/reports/`.
-- [~] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — tool skeleton + `multisigs` kind shipped (`src/server/reports/`, advertised in `ATLAS_TOOLS` for both MCP + chat, budget-guarded, fixture-tested); remaining five kinds pending.
+- [ ] Shared report builder modules. — deferred until the first FE-backed kind (active_data) forces a neutral `ReportGraph` shape; `multisigs` + `primitive_matrix` are greenfield and live server-native under `src/server/reports/`. Sequencing + design: [`atlas-report-remaining-kinds.md`](./atlas-report-remaining-kinds.md).
+- [~] `atlas_report` tool with `rewards`, `active_data`, `multisigs`, `transfers`, `primitive_matrix`, and `actors` reports. — tool skeleton + `multisigs` + `primitive_matrix` kinds shipped (`src/server/reports/`, advertised in `ATLAS_TOOLS` for both MCP + chat, budget-guarded, fixture-tested); remaining four kinds (`active_data`, `transfers`, `rewards`, `actors`) planned in [`atlas-report-remaining-kinds.md`](./atlas-report-remaining-kinds.md).
 - [ ] Entity/edge `first_seen` enrichment.
 - [ ] Ruling-vs-reporting prompt policy.
 - [ ] ask-atlas server-prefix tolerance.

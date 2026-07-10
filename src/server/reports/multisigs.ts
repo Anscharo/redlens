@@ -11,28 +11,7 @@
 import type { Indexes, Edge } from "../indexes.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import type { ToolResult } from "../tools.ts";
-
-function parseMeta(raw: string | null): Record<string, unknown> {
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
-  } catch {
-    return {};
-  }
-}
-
-// source_doc_nos is a JSON array string (current build) or a legacy comma list.
-function parseDocNos(raw: string | null): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
-  } catch {
-    // fall through to legacy comma-split
-  }
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
-}
+import { parseMeta, parseDocNos } from "./util.ts";
 
 interface SignerOrg {
   name: string;

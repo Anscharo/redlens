@@ -299,9 +299,14 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "kind='multisigs' returns every multisig in one call: chain, address, threshold, signer " +
       "organizations with per-org signer counts, signer-modification authorities, purpose, and " +
       "provenance doc_nos — the complete evidence for a multisig security review. " +
-      "(More kinds — rewards, active_data, primitive_matrix, actors, transfers — are being added.)",
+      "kind='primitive_matrix' returns the agent × primitive-subtype presence matrix: which " +
+      "primitives are universal (every Prime Agent has them) vs optional, with per-subtype " +
+      "counts and the agents missing each optional one. " +
+      "(More kinds — rewards, active_data, actors, transfers — are being added.)",
     shape: {
-      kind: z.enum(["multisigs"]).describe("Which curated report to return. Currently only 'multisigs'."),
+      kind: z
+        .enum(["multisigs", "primitive_matrix"])
+        .describe("Which curated report to return: 'multisigs' or 'primitive_matrix'."),
       include_provenance: z
         .boolean()
         .optional()
