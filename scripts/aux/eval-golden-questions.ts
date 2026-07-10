@@ -28,7 +28,7 @@ export const GOLDEN_QUESTIONS: GoldenQuestion[] = [
     rubricRow: "complete",
     expectedOutcome: "answered",
     check: {
-      requireAny: ["threshold", "signer"],
+      requireAll: ["threshold", "signer"],
       requireCitation: true,
       expectToolCalls: ["atlas_edges", "atlas_entities", "atlas_query"],
     },

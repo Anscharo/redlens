@@ -328,7 +328,7 @@ Status legend: ✅ done · ⬜ not started.
 | 7 | ✅ | `first_seen` enrichment | `src/server/first-seen.ts` (new `atlas_first_seen` tool) | History stats assumptions | M/L |
 | 8 | ✅ | Prompt policy | chat system prompt | None | S |
 | 9 | ✅ | ask-atlas prefix fix | agent/tool config | MCP registration contract | S |
-| 10 | ⬜ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
+| 10 | ✅ | Eval harness | scripts/tests + golden fixtures | Tools mostly stable | M |
 | 11 | ⬜ | Upstream Active Data issue | next-gen-atlas coordination | None | Process |
 | 12 | ⬜ | Supplemental spell/payout sources | TBD | Product decision | Optional L |
 

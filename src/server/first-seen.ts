@@ -12,7 +12,11 @@ import { isoDate } from "./tools-history.ts";
 import { RECONSTRUCTED_ERAS } from "../lib/history.ts";
 
 export interface FirstSeen {
-  date: string; // YYYY-MM-DD
+  // YYYY-MM-DD, or null if the 'added' event is recorded but genuinely
+  // undated — severed-era reconstructions (scripts/prehist/build-genesis.mjs)
+  // emit `date: null` on purpose; that's a real record with an unknown date,
+  // not a missing one, so it must not be conflated with "no record at all".
+  date: string | null;
   // Which atlas_history record backs the date, in descending specificity:
   // a PR number ("pr:1234") when the 'added' event came in through a PR;
   // otherwise the pre-git era tag ("mip" / "genesis-v2" / "html-era" / "severed")
@@ -54,20 +58,19 @@ export async function firstSeenFor(docIds: string[]): Promise<Map<string, FirstS
   const ids = [...new Set(docIds)];
   if (ids.length === 0) return new Map();
 
-  const params: unknown[] = [];
-  const placeholders = ids.map((id) => `$${params.push(id)}`).join(",");
-  const rows = await sql.unsafe<AddedRow[]>(
-    `SELECT DISTINCT ON (doc_id) doc_id, committed_at, pr_number, era, commit_sha, commit_seq
-     FROM atlas_history
-     WHERE change_type = 'added' AND doc_id IN (${placeholders})
-     ORDER BY doc_id, committed_at ASC NULLS LAST, commit_seq ASC NULLS LAST`,
-    params,
-  );
+  const rows = await sql<AddedRow[]>`
+    SELECT DISTINCT ON (doc_id) doc_id, committed_at, pr_number, era, commit_sha, commit_seq
+    FROM atlas_history
+    WHERE change_type = 'added' AND doc_id IN ${sql(ids)}
+    ORDER BY doc_id, committed_at ASC NULLS LAST, commit_seq ASC NULLS LAST
+  `;
 
   const out = new Map<string, FirstSeen>();
   for (const r of rows) {
-    const date = isoDate(r.committed_at);
-    if (date) out.set(r.doc_id, { date, source: sourceLabel(r) });
+    // Every row here IS a real 'added' event — even a severed-era row with a
+    // null committed_at is evidence the doc existed, just undated. Dropping
+    // it would silently downgrade "severed, date unknown" to "no record".
+    out.set(r.doc_id, { date: isoDate(r.committed_at), source: sourceLabel(r) });
   }
   return out;
 }
@@ -78,13 +81,18 @@ export async function firstSeenFor(docIds: string[]): Promise<Map<string, FirstS
 // for the whole batch. An entity's first_seen is its defining doc's first_seen;
 // a bare doc's first_seen is its own.
 export async function atlasFirstSeen(ix: Indexes, ids: string[]): Promise<ToolResult> {
-  type Resolved = { requested: string; kind: "doc" | "entity"; label: string; docId: string | null };
+  // `found` (does this slug/id resolve to a real entity/doc at all) is tracked
+  // separately from `docId` (do we have a doc to look up in history) — an
+  // entity can be found and legitimately have no defining doc (e.g. `sky-core`,
+  // scripts/lib/graph-entities.mjs; pattern-derived instances, graph-patterns.mjs),
+  // which must not be reported the same way as "no such entity/doc".
+  type Resolved = { requested: string; kind: "doc" | "entity"; label: string; found: boolean; docId: string | null };
   const resolved: Resolved[] = ids.map((requested) => {
     const entity = ix.entityBySlug.get(requested.toLowerCase());
-    if (entity) return { requested, kind: "entity", label: entity.name, docId: entity.defining_doc_id };
+    if (entity) return { requested, kind: "entity", label: entity.name, found: true, docId: entity.defining_doc_id };
     const node = resolveNode(ix, requested);
-    if (node) return { requested, kind: "doc", label: node.title, docId: node.id };
-    return { requested, kind: "doc", label: requested, docId: null };
+    if (node) return { requested, kind: "doc", label: node.title, found: true, docId: node.id };
+    return { requested, kind: "doc", label: requested, found: false, docId: null };
   });
 
   const docIds = resolved.map((r) => r.docId).filter((id): id is string => !!id);
@@ -92,14 +100,21 @@ export async function atlasFirstSeen(ix: Indexes, ids: string[]): Promise<ToolRe
 
   const results = resolved.map((r) => {
     const fs = r.docId ? firstSeenMap.get(r.docId) : undefined;
+
+    let note: string | undefined;
+    if (!r.found) note = "not found";
+    else if (!r.docId) note = "entity has no defining doc — first_seen cannot be derived";
+    else if (!fs) note = "no recorded 'added' event in atlas_history";
+    else if (fs.date == null) note = "recorded as 'added' but the exact date is unknown (severed era)";
+
     return {
       requested: r.requested,
       kind: r.kind,
       label: r.label,
-      resolved: r.docId != null,
+      resolved: r.found,
       first_seen: fs?.date ?? null,
       first_seen_source: fs?.source ?? null,
-      note: r.docId == null ? "not found" : fs ? undefined : "no recorded 'added' event in atlas_history",
+      note,
     };
   });
 
