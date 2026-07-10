@@ -272,7 +272,18 @@ Add a policy block to the chat system prompt:
 - Prefer capability discovery or configurable server prefixes.
 - Add a smoke test using an alternate MCP server registration name.
 
-## Phase 4 — Golden-question evaluation harness
+## Phase 4 — Golden-question evaluation harness — ✅ shipped (harness + fixtures; CI gating not wired)
+
+Implemented: `scripts/aux/eval-golden.ts` (runner — real `runChat` + real `ATLAS_TOOLS` registry +
+real OpenRouter stream), `scripts/aux/eval-golden-questions.ts` (8 fixtures derived from this plan's own
+Readiness targets / Acceptance criteria, since `docs/chatbot-readiness-assessment.md` — this plan's
+cited source — was never committed to the repo), and `scripts/aux/eval-golden-grade.ts` (pure rubric
+grader, unit-tested in `scripts/aux/eval-golden-grade.test.ts`, no network/DB). Run with
+`pnpm eval:golden` (needs `OPENROUTER_API_KEY` + built `docs.json`/`graph.json`); writes
+`.cache/eval-golden.json` and exits nonzero on any rubric failure. **Not done**: wiring `pnpm eval:golden`
+into CI/release gating (§4.3) — that needs a decision on where/how often it's worth the LLM spend, and a
+live run was not exercised in this session (no API key / DB / built artifacts available here) — only the
+pure grader logic is verified.
 
 ### 4.1 Convert the assessment into regression tests
 
@@ -356,5 +367,5 @@ The remediation is considered successful when staging can satisfy the following:
 - [x] Entity/edge `first_seen` enrichment. — shipped as a dedicated `atlas_first_seen` tool (`src/server/first-seen.ts`), kept out of the synchronous no-DB graph tools rather than spliced into `atlas_edges`/`atlas_entity`/`atlas_entities`
 - [x] Ruling-vs-reporting prompt policy. — shipped (`src/server/system-prompt.ts`)
 - [x] ask-atlas server-prefix tolerance. — shipped (`.claude/agents/ask-atlas.md`)
-- [ ] Golden-question regression harness.
+- [x] Golden-question regression harness. — shipped (`scripts/aux/eval-golden*.ts`, `pnpm eval:golden`); CI gating (§4.3) not wired
 - [ ] Upstream Active Data issue and supplemental data decision.
