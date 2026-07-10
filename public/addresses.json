@@ -560,6 +560,13 @@
     "isContract": true,
     "isProxy": false
   },
+  "0x2e1b01adabb8d4981863394bea23a1263cbaedfc": {
+    "chain": "ethereum",
+    "etherscanName": "GnosisSafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0xd9db270c1b5e3bd161e8c8503c55ceabee709552"
+  },
   "0x8a25a24ede9482c4fc0738f99611be58f1c839ab": {
     "chain": "ethereum",
     "etherscanName": "SafeProxy",
@@ -580,13 +587,6 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a"
-  },
-  "0x2e1b01adabb8d4981863394bea23a1263cbaedfc": {
-    "chain": "ethereum",
-    "etherscanName": "GnosisSafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0xd9db270c1b5e3bd161e8c8503c55ceabee709552"
   },
   "0xc02ab1a5eaa8d1b114ef786d9bde108cd4364359": {
     "chain": "ethereum",

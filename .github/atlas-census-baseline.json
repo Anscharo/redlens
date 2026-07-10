@@ -77,7 +77,7 @@
       ]
     },
     "Core|addr": {
-      "total": 346,
+      "total": 347,
       "uncovered": 0,
       "samples": []
     },
@@ -133,8 +133,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 7636,
-      "uncovered": 5875,
+      "total": 7641,
+      "uncovered": 5880,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
