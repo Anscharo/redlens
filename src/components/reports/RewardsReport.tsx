@@ -5,10 +5,53 @@ import { loadAddresses } from "../../lib/addresses";
 import { loadGraph } from "../../lib/graph";
 import { atlasHref } from "../../lib/routes";
 import type { AddressInfo } from "../../types";
-import { buildRewardsIndex, type RewardsIndex, type RewardsAgent } from "../../lib/rewardsIndex";
+import {
+  buildRewardsIndex,
+  type RewardsIndex,
+  type RewardsAgent,
+  type AgentPrimitive,
+  type RewardsInstance,
+  type RewardsInvocation,
+} from "../../lib/rewardsIndex";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
+import { buildHaystack, matchesTokens, queryTokens } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+
+// Header-box text filter, per ICD row: instance text, partner/code/address/
+// chain/cadence, tracking methodology, param names + values, plus the owning
+// agent and its chain entities — so "skybase" surfaces every SkyBase instance
+// and "0x…" finds reward addresses wherever they appear.
+const icdHaystack = (agent: RewardsAgent, i: RewardsInstance | RewardsInvocation) =>
+  buildHaystack([
+    i.name, i.docNo, i.status,
+    i.rewardCode, i.partnerName, i.rewardChain, i.cadence, i.rewardAddress,
+    i.tracking, i.paymentsResponsibleParty?.name,
+    agent.name, agent.chain?.executor?.name, agent.chain?.govops?.name,
+    ...Object.entries(i.params ?? {}).flatMap(([k, [v]]) => [k, v]),
+  ]);
+
+// Filters a primitive's ICD buckets; null when nothing survives (the whole
+// DR/IB table is hidden).
+function filterPrimitive(
+  agent: RewardsAgent,
+  prim: AgentPrimitive,
+  tokens: string[],
+): AgentPrimitive | null {
+  const keep = <T extends RewardsInstance | RewardsInvocation>(list: T[]): T[] =>
+    list.filter((i) => matchesTokens(icdHaystack(agent, i), tokens));
+  const next = {
+    ...prim,
+    active: keep(prim.active),
+    suspended: keep(prim.suspended),
+    completed: keep(prim.completed),
+    invocations: keep(prim.invocations),
+  };
+  return next.active.length + next.suspended.length + next.completed.length + next.invocations.length > 0
+    ? next
+    : null;
+}
 
 function EcosystemHeader({
   idx,
@@ -99,7 +142,7 @@ function AgentSection({
   );
 }
 
-export function RewardsReport() {
+export function RewardsReport({ query }: { query: string }) {
   useDocumentTitle("Integrator Reward Relationships: Sky Atlas by Redline");
   const [idx, setIdx] = useState<RewardsIndex | null>(null);
   const [addrMap, setAddrMap] = useState<Record<string, AddressInfo>>({});
@@ -115,6 +158,22 @@ export function RewardsReport() {
       setError(String(err));
     });
   }, [attempt]);
+
+  // Text filter: keep agents with at least one matching ICD, with their DR/IB
+  // buckets narrowed to the matching rows. Empty-query passthrough keeps the
+  // unfiltered view (including agents with no instances).
+  const shownAgents = useMemo(() => {
+    if (!idx) return [];
+    const tokens = queryTokens(query);
+    if (tokens.length === 0) return idx.agents;
+    return idx.agents
+      .map((a) => {
+        const dr = a.dr ? filterPrimitive(a, a.dr, tokens) : null;
+        const ib = a.ib ? filterPrimitive(a, a.ib, tokens) : null;
+        return dr || ib ? { ...a, dr, ib } : null;
+      })
+      .filter((a): a is RewardsAgent => a !== null);
+  }, [idx, query]);
 
   const summary = useMemo(() => {
     if (!idx) return null;
@@ -178,7 +237,8 @@ export function RewardsReport() {
         ) : (
           <>
             <EcosystemHeader idx={idx} addrMap={addrMap} />
-            {idx.agents.map((a) => (
+            {idx.agents.length > 0 && shownAgents.length === 0 && <NoRowsMatch query={query} />}
+            {shownAgents.map((a) => (
               <AgentSection key={a.name} agent={a} addrMap={addrMap} />
             ))}
           </>

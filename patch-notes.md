@@ -34,6 +34,7 @@
 -->
 
 ## 2026-07-10
+- Added per-report search: the header box now filters the open report's rows, with the pill showing the report name
 - Fixed the Connect page's tool list to always match the live MCP server
 
 ## 2026-07-09

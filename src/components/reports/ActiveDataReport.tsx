@@ -14,11 +14,26 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
 
 type Row = ActiveDataRow;
+
+// Header-box text filter: visible row text + rendered entity names, including
+// the agent-chain names (executor/facilitator/govops) so e.g. "sidestream"
+// finds every row Sidestream touches. Evidence steps stay out (provenance).
+const searchText = (r: Row) =>
+  buildHaystack([
+    r.activeDataTitle, r.activeDataDocNo,
+    r.controllerTitle, r.controllerDocNo,
+    r.agent, r.process, r.sourceDocNo,
+    r.responsibleParty?.name, r.responsibleParty?.declared,
+    r.facilitator?.name, r.facilitator?.role,
+    r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName,
+  ]);
 
 function exportCSV(rows: Row[], lastEditDates: Map<string, string>) {
   const blob = new Blob([activeDataRowsToCSV(rows, lastEditDates)], { type: "text/csv" });
@@ -70,7 +85,7 @@ function EvidenceCell({ r }: { r: Row }) {
   );
 }
 
-export function ActiveDataReport() {
+export function ActiveDataReport({ query }: { query: string }) {
   useDocumentTitle("Active Data Index: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
@@ -139,6 +154,7 @@ export function ActiveDataReport() {
       }),
     [rows, agentFilter, entityFilter],
   );
+  const shown = useMemo(() => [...filterRows(filtered, query, searchText)], [filtered, query]);
 
   return (
     <div className="px-6 py-6">
@@ -194,11 +210,11 @@ export function ActiveDataReport() {
         </div>
 
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-tan-3">{filtered.length} sections</p>
+          <p className="text-xs text-tan-3">{shown.length} sections</p>
           <button
             onClick={() => {
               track("report_export", { report: "active-data", format: "csv" });
-              exportCSV(filtered, lastEditDates);
+              exportCSV(shown, lastEditDates);
             }}
             className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
           >
@@ -206,6 +222,7 @@ export function ActiveDataReport() {
           </button>
         </div>
 
+        {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         <div className="overflow-x-auto">
           <table className="w-full text-left" style={{ minWidth: "1120px" }}>
             <thead>
@@ -221,7 +238,7 @@ export function ActiveDataReport() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {shown.map((r) => (
                 <tr
                   key={r.activeDataId}
                   className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"

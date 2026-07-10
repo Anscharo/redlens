@@ -5,7 +5,7 @@ import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
-import { ROUTES, type NavPage, type SearchScope } from "./lib/routes";
+import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
 import { AtlasView } from "./components/atlas/AtlasView";
@@ -108,6 +108,9 @@ export default function App() {
           : null;
 
   const scope: SearchScope = activeNavPage ?? "atlas";
+  // On a specific report page the pill shows the report's short name and the
+  // box filters that report's rows (query stays in ?q= on the same route).
+  const reportScopeCfg = REPORT_SCOPE_CONFIG[location];
 
   const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
     useSearchInput(location, navigate, scope);
@@ -202,6 +205,7 @@ export default function App() {
         onSetMode={wrapModeClick}
         activePage={activeNavPage}
         scope={scope}
+        scopeCfg={reportScopeCfg}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
         onSubmit={focusFirstResult}
@@ -270,37 +274,37 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_OF_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpFacilitatorsReport />
+                <OpFacilitatorsReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpGovOpsReport />
+                <OpGovOpsReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_ACTIVE_DATA}>
               <Suspense fallback={<Loading />}>
-                <ActiveDataReport />
+                <ActiveDataReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_REWARDS}>
               <Suspense fallback={<Loading />}>
-                <RewardsReport />
+                <RewardsReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
-                <StaleDatesReport />
+                <StaleDatesReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
               <Suspense fallback={<Loading />}>
-                <OeaAssessmentReport />
+                <OeaAssessmentReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RULES}>
               <Suspense fallback={<Loading />}>
-                <RiskRulesReport />
+                <RiskRulesReport query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
@@ -310,7 +314,7 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>
               <Suspense fallback={<Loading />}>
-                <ProcessesReport onNavigate={navigateToNode} />
+                <ProcessesReport onNavigate={navigateToNode} query={query} />
               </Suspense>
             </Route>
             <Route path={ROUTES.CONSTELLATIONS}>

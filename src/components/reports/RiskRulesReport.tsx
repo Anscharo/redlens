@@ -11,6 +11,17 @@ import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+
+// Header-box text filter: title, doc number, the rated paragraph, and agent
+// names. Domain/precision/incentives/status are pill-owned and excluded; the
+// text filter ANDs with the pills.
+const searchText = (r: RiskRow) =>
+  buildHaystack([
+    r.candidate.title, r.candidate.docNo, r.candidate.quote,
+    ...(r.candidate.agents ?? []),
+  ]);
 
 // Multi-select: comma-separated in the URL, empty array = no filter.
 const domainsCodec: UrlCodec<RiskDomain[]> = {
@@ -44,7 +55,7 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport() {
+export function RiskRulesReport({ query }: { query: string }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
@@ -106,14 +117,18 @@ export function RiskRulesReport() {
   // pagination relies on `rows` keeping a stable identity across those.
   const filtered = useMemo(
     () =>
-      join.rows.filter(
-        (r) =>
-          (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
-          (status === null || r.status === status) &&
-          (score === null || String(r.entry?.preciseness) === score) &&
-          (enforce === null || r.entry?.enforcement === enforce),
-      ),
-    [join, domains, status, score, enforce],
+      [...filterRows(
+        join.rows.filter(
+          (r) =>
+            (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
+            (status === null || r.status === status) &&
+            (score === null || String(r.entry?.preciseness) === score) &&
+            (enforce === null || r.entry?.enforcement === enforce),
+        ),
+        query,
+        searchText,
+      )],
+    [join, domains, status, score, enforce, query],
   );
   // Pill counts describe the unfiltered universe so they don't jump around
   // while filtering. Domain counts use the same any-tag matching as the filter
@@ -158,6 +173,7 @@ export function RiskRulesReport() {
           <CategoryPills label="Status" labelTitle="Has this section been updated since the report was last refreshed?" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} counts={counts.status} />
         </div>
 
+        {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
           <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
         )}

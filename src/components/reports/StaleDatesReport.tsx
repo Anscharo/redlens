@@ -6,6 +6,16 @@ import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+
+// Header-box text filter: date (ISO + raw text), doc title/number, snippet
+// prose, and the "handoff" badge word for transition rows.
+const searchText = (c: DateClaim) =>
+  buildHaystack([
+    c.dateISO, c.raw, c.title, c.docNo, c.context,
+    c.transition ? "handoff" : null,
+  ]);
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -98,7 +108,7 @@ function Section({ title, hint, claims, tone, textTone }: { title: string; hint:
   );
 }
 
-export function StaleDatesReport() {
+export function StaleDatesReport({ query }: { query: string }) {
   useDocumentTitle("Stale Dates: Sky Atlas by Redline");
   const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +126,16 @@ export function StaleDatesReport() {
     () => (docs ? buildStaleDatesReport(docs, new Date(`${day}T12:00:00Z`)) : null),
     [docs, day],
   );
+
+  // Text filter applies within each bucket; buckets keep their order/heading.
+  const sections = useMemo(
+    () =>
+      report
+        ? SECTIONS.map((s) => ({ ...s, claims: [...filterRows(report[s.key], query, searchText)] }))
+        : null,
+    [report, query],
+  );
+  const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
 
   return (
     <div className="px-6 py-6">
@@ -142,11 +162,13 @@ export function StaleDatesReport() {
               retry
             </button>
           </div>
-        ) : !report ? (
+        ) : !report || !sections ? (
           <p className="mono text-base text-tan-3">loading…</p>
+        ) : !anyShown && query.trim() ? (
+          <NoRowsMatch query={query} />
         ) : (
-          SECTIONS.map((s) => (
-            <Section key={s.key} title={s.title} hint={s.hint} claims={report[s.key]} tone={s.tone} textTone={s.textTone} />
+          sections.map((s) => (
+            <Section key={s.key} title={s.title} hint={s.hint} claims={s.claims} tone={s.tone} textTone={s.textTone} />
           ))
         )}
       </div>

@@ -10,8 +10,16 @@ import type { Rating } from "../../lib/oeaAssessment";
 import { loadOeaReport, summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OeaTable } from "./OeaAssessmentTable";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
 
 const catCodec = categoryCodec(OEA_CATEGORY_LABELS);
+
+// Header-box text filter: title, doc number, the assessed duty text, and
+// agent names. Category/rating/status facets are pill-owned and excluded;
+// the text filter ANDs with the pills.
+const searchText = (r: OeaRow) =>
+  buildHaystack([r.task.title, r.task.docNo, r.task.assessedText, ...(r.task.agents ?? [])]);
 const RATING_LABELS: Record<Rating, string> = { weak: "weak", mid: "mid", strong: "strong" };
 const STATUS_LABELS: Record<OeaRowStatus, string> = { fresh: "fresh", stale: "stale", unassessed: "unassessed" };
 const ratingCodec = categoryCodec(RATING_LABELS);
@@ -32,7 +40,7 @@ function SummaryStrip({ rows }: { rows: OeaRow[] }) {
   );
 }
 
-export function OeaAssessmentReport() {
+export function OeaAssessmentReport({ query }: { query: string }) {
   useDocumentTitle("OEA Task Assessment: Sky Atlas by Redline");
   const report = useLoaded(loadOeaReport);
   const [cat, setCat] = useUrlState("cat", catCodec);
@@ -89,10 +97,11 @@ export function OeaAssessmentReport() {
       ),
     [rows, cat, status, precision, incentives],
   );
+  const shown = useMemo(() => [...filterRows(filtered, query, searchText)], [filtered, query]);
 
   const byCategory = useMemo(
-    () => Object.groupBy(filtered, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
-    [filtered],
+    () => Object.groupBy(shown, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
+    [shown],
   );
 
   return (
@@ -114,7 +123,7 @@ export function OeaAssessmentReport() {
           ✳ assessed by {report?.model ?? "—"} · human-reviewed · rubric {report?.rubricVersion ?? "—"}
         </p>
 
-        {rows.length > 0 && <SummaryStrip rows={filtered} />}
+        {rows.length > 0 && <SummaryStrip rows={shown} />}
 
         <div className="flex flex-wrap gap-4 mb-6">
           <CategoryPills categories={Object.keys(OEA_CATEGORY_LABELS) as OeaCategory[]} active={cat} onToggle={toggle("category", cat, setCat)} />
@@ -123,6 +132,7 @@ export function OeaAssessmentReport() {
           <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
         </div>
 
+        {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         {report && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
           const catRows = byCategory[c];
           if (!catRows?.length) return null;

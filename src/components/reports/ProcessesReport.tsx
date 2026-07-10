@@ -21,6 +21,11 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+
+// Header-box text filter: title + doc number. Category/status/shape are
+// pill-owned and deliberately excluded.
+const searchText = (r: ProcessRow) => buildHaystack([r.title, r.docNo]);
 
 type StatusFilter = "all" | "active" | "deferred-stub";
 type ShapeFilter = "all" | "child" | "inline";
@@ -204,7 +209,7 @@ function Row({
   );
 }
 
-export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
+export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string) => void; query: string }) {
   useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
@@ -235,14 +240,15 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
   const categories = useMemo(() => [...new Set(rows.map((r) => r.category))].sort(), [rows]);
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    const base = rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (shapeFilter !== "all" && r.shape !== shapeFilter) return false;
       if (categoryFilter && r.category !== categoryFilter) return false;
       if (!showIgnored && ignoresByUuid.has(r.uuid)) return false;
       return true;
     });
-  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid]);
+    return filterRows(base, query, searchText);
+  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, query]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();

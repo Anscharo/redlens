@@ -26,8 +26,20 @@ import {
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OFCategoryTable } from "./OFCategoryTable";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
+
+// Header-box text filter: visible row text + every rendered entity name.
+// Category is pill-owned and deliberately excluded.
+const searchText = (r: OFResponsibility) =>
+  buildHaystack([
+    r.duty, r.title, r.docNo, r.role,
+    r.facilitator, ...(r.facilitators ?? []),
+    r.agent, ...(r.agents ?? []),
+    r.executor,
+  ]);
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -43,7 +55,7 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-export function OFReport() {
+export function OFReport({ query }: { query: string }) {
   useDocumentTitle("Operational Facilitator Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
@@ -130,8 +142,10 @@ export function OFReport() {
     );
   };
 
-  const filtered = responsibilities.filter(
-    (r) => (cat === null || r.category === cat) && matches(r),
+  const filtered = filterRows(
+    responsibilities.filter((r) => (cat === null || r.category === cat) && matches(r)),
+    query,
+    searchText,
   );
 
   const presentCats = useMemo(
@@ -171,6 +185,7 @@ export function OFReport() {
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
+        {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OFResponsibility["category"], string][]).map(
           ([cat, label]) => {
             const rows = byCategory[cat];

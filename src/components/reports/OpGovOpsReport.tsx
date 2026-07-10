@@ -26,8 +26,19 @@ import {
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable } from "./OGCategoryTable";
+import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
+
+// Header-box text filter: visible row text + every rendered entity name.
+// Category is pill-owned and deliberately excluded.
+const searchText = (r: OGResponsibility) =>
+  buildHaystack([
+    r.duty, r.title, r.docNo, r.role,
+    r.govops, r.agent, ...(r.agents ?? []),
+    r.executor,
+  ]);
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -43,7 +54,7 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-export function OGReport() {
+export function OGReport({ query }: { query: string }) {
   useDocumentTitle("Operational GovOps Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
@@ -132,10 +143,14 @@ export function OGReport() {
   };
 
   // Definitions have no actor attribution — only show them with no active entity filter.
-  const filtered = responsibilities.filter(
-    (r) =>
-      (cat === null || r.category === cat) &&
-      (r.category === "definition" ? filter === null : matches(r)),
+  const filtered = filterRows(
+    responsibilities.filter(
+      (r) =>
+        (cat === null || r.category === cat) &&
+        (r.category === "definition" ? filter === null : matches(r)),
+    ),
+    query,
+    searchText,
   );
 
   const presentCats = useMemo(
@@ -175,6 +190,7 @@ export function OGReport() {
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
+        {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OGResponsibility["category"], string][]).map(
           ([cat, label]) => {
             const rows = byCategory[cat];

@@ -64,7 +64,7 @@ describe("ProcessesReport row expand", () => {
   it("preserves active filter params in the URL when a row is expanded", async () => {
     window.history.pushState({}, "", "/reports/processes?status=active&shape=inline&category=Governance&ignored=1");
 
-    render(<ProcessesReport onNavigate={() => {}} />);
+    render(<ProcessesReport onNavigate={() => {}} query="" />);
 
     const row = await screen.findByText("First Process");
     fireEvent.click(row.closest("tr")!);
@@ -81,7 +81,7 @@ describe("ProcessesReport row expand", () => {
   it("removes only the expanded param when the same row is toggled closed", async () => {
     window.history.pushState({}, "", "/reports/processes?status=active&expanded=uuid-1");
 
-    render(<ProcessesReport onNavigate={() => {}} />);
+    render(<ProcessesReport onNavigate={() => {}} query="" />);
 
     const row = await screen.findByText("First Process");
     fireEvent.click(row.closest("tr")!);

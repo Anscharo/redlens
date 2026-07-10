@@ -3,7 +3,7 @@ import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
 import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
-import { SCOPE_CONFIG, type SearchScope } from "../lib/routes";
+import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RecentSuggestion } from "../lib/recentSearches";
 import type { RefObject } from "react";
@@ -29,6 +29,9 @@ interface Props extends NavBarProps {
   onClear: () => void;
   onSetMode: (mode: SearchMode) => void;
   scope: SearchScope;
+  // Route-specific pill override (e.g. a report page's short name). Falls
+  // back to the scope's generic config.
+  scopeCfg?: ScopeConfig;
   recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
   // Pressing Enter on a typed query (not while picking a recent) calls this;
@@ -46,11 +49,12 @@ export function SearchBar({
   onSetMode,
   activePage,
   scope,
+  scopeCfg,
   recentSearches = [],
   onRecentSelect,
   onSubmit,
 }: Props) {
-  const cfg = SCOPE_CONFIG[scope];
+  const cfg = scopeCfg ?? SCOPE_CONFIG[scope];
 
   // Surface recents when the field is empty (incl. the bare quote markers the
   // phrase/strict pills leave behind) OR when what's typed is a prefix of a
