@@ -17,6 +17,7 @@ interface PreviewMeta {
   aheadBy?: number;
   behindBy?: number;
   newAddresses?: number;
+  addressCheckFailed?: boolean;
   diffTruncated?: boolean;
 }
 
@@ -84,6 +85,11 @@ export function PreviewBanner() {
       {isFork && (meta!.newAddresses ?? 0) > 0 && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           ⚠ {meta!.newAddresses} new on-chain address{meta!.newAddresses === 1 ? "" : "es"}
+        </span>
+      )}
+      {isFork && meta!.addressCheckFailed && (
+        <span className="mono text-xs" style={{ color: "var(--red)" }}>
+          ⚠ couldn't verify new on-chain addresses
         </span>
       )}
       {isFork && meta!.diffTruncated && (

@@ -92,4 +92,15 @@ describe("PreviewBanner", () => {
     renderBanner(PREVIEW_SOURCE);
     await waitFor(() => expect(screen.getByText(/1 new on-chain address$/)).toBeTruthy());
   });
+
+  it("fails closed: warns when the address check could not be run", async () => {
+    // addressCheckFailed (main's map was unreadable) must NOT read as "0 new
+    // addresses" — the fork banner still warns rather than silently reassuring.
+    mockMeta({
+      sha: "def", repo: "m/next-gen-atlas", ref: "x", kind: "branch",
+      forkOwner: "m", addressCheckFailed: true,
+    });
+    renderBanner(PREVIEW_SOURCE);
+    await waitFor(() => expect(screen.getByText(/couldn't verify new on-chain addresses/)).toBeTruthy());
+  });
 });

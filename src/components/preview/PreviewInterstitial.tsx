@@ -15,6 +15,7 @@ interface Meta {
   forkOwner?: string;
   trustTier?: string;
   newAddresses?: number;
+  addressCheckFailed?: boolean;
   behindBy?: number;
 }
 
@@ -74,6 +75,12 @@ export function PreviewInterstitial({ sha, base, children }: { sha: string; base
           This fork references {meta!.newAddresses} on-chain address
           {meta!.newAddresses === 1 ? "" : "es"} not present in the live atlas. Do not send funds to or
           interact with addresses from unreviewed content.
+        </p>
+      )}
+      {meta!.addressCheckFailed && (
+        <p className="text-sm max-w-xl" style={{ color: "var(--red)" }}>
+          We couldn't verify whether this fork introduces new on-chain addresses. Treat any address in
+          unreviewed content with caution — do not send funds to or interact with it.
         </p>
       )}
       <button
