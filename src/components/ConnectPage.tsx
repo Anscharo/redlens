@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { ENDPOINT, CLIENTS, TOOLS, USAGE_EXAMPLES } from "./connectData";
+import { ENDPOINT, CLIENTS, USAGE_EXAMPLES } from "./connectData";
+import { loadTools, type ToolInfo } from "../lib/tools";
 
 function CodeBlock({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -32,6 +33,10 @@ function CodeBlock({ code }: { code: string }) {
 
 export function ConnectPage() {
   useDocumentTitle("Connect (MCP) — Sky Atlas by Redline");
+  const [tools, setTools] = useState<ToolInfo[] | null>(null);
+  useEffect(() => {
+    loadTools().then(setTools).catch(() => setTools([]));
+  }, []);
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <div className="max-w-3xl mx-auto">
@@ -96,7 +101,8 @@ export function ConnectPage() {
           Verify the connection
         </h2>
         <p className="text-xs mb-2" style={{ color: "var(--tan-3)" }}>
-          A raw <span className="mono">tools/list</span> call should return the {TOOLS.length} atlas tools:
+          A raw <span className="mono">tools/list</span> call should return{" "}
+          {tools ? `the ${tools.length} atlas tools` : "the atlas tools"}:
         </p>
         <CodeBlock
           code={`curl -s ${ENDPOINT} \\
@@ -109,7 +115,17 @@ export function ConnectPage() {
           Tools
         </h2>
         <ul className="space-y-2 mb-8">
-          {TOOLS.map((t) => (
+          {tools === null && (
+            <li className="text-xs" style={{ color: "var(--tan-3)" }}>
+              Loading tools…
+            </li>
+          )}
+          {tools?.length === 0 && (
+            <li className="text-xs" style={{ color: "var(--tan-3)" }}>
+              Couldn't load the tool list.
+            </li>
+          )}
+          {tools?.map((t) => (
             <li key={t.name} className="text-xs" style={{ color: "var(--tan-2)" }}>
               <span className="mono" style={{ color: "var(--accent)" }}>
                 {t.name}

@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-10
+- Fixed the Connect page's tool list to always match the live MCP server
+
 ## 2026-07-09
 - Fixed a range of reliability and data-accuracy issues across search, the reader, and reports
 
