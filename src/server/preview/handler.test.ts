@@ -66,3 +66,38 @@ test("handler: artifact + meta served, diff vs main, allowlist + sha validation"
   // unknown bundle → 404
   expect((await call(`/api/preview/${"b".repeat(40)}/docs.json`)).status).toBe(404);
 });
+
+test("handler: malformed percent-encoding on the events id returns 404, not a 500", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+  // A lone "%" or an incomplete escape throws inside decodeURIComponent.
+  const res = await call("/api/preview/%E0%A4%A/events");
+  expect(res.status).toBe(404);
+});
+
+test("handler: diffCache evicts FIFO once it exceeds DIFF_CACHE_MAX", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+  const { diffCache, DIFF_CACHE_MAX } = await import("./handler.ts");
+  const { previewPaths, writeMeta } = await import("./cache.ts");
+
+  diffCache.clear();
+  const n = DIFF_CACHE_MAX + 50;
+  for (let i = 0; i < n; i++) {
+    const sha = i.toString(16).padStart(40, "0");
+    const p = previewPaths(sha);
+    fs.mkdirSync(p.outDir, { recursive: true });
+    fs.writeFileSync(path.join(p.outDir, "docs.json"), JSON.stringify({ atlasCommit: sha, nodes: {} }));
+    writeMeta(sha, { sha, repo: "r", ref: "b", kind: "branch", resolvedAt: "t", docCount: 0, buildMs: 1 });
+    await call(`/api/preview/${sha}/diff.json`);
+  }
+  expect(diffCache.size).toBeLessThanOrEqual(DIFF_CACHE_MAX);
+}, 30_000);
