@@ -13,8 +13,6 @@ export function applyHighlight(
   phrases: string[],
   casePhrases: string[],
 ): string {
-  const escaped = raw.replace(/[&<>"]/g, ESC_HTML);
-
   type Entry = { pattern: string; exact: string; caseSensitive: boolean };
   const entries: Entry[] = [];
 
@@ -22,21 +20,31 @@ export function applyHighlight(
   for (const p of phrases)    if (p.length >= 2) entries.push({ pattern: "\\b" + ESC_RE(p) + "\\b", exact: p, caseSensitive: false });
   for (const t of terms)      if (t.length >= 2) entries.push({ pattern: ESC_RE(t), exact: "", caseSensitive: false });
 
-  if (entries.length === 0) return escaped;
+  if (entries.length === 0) return raw.replace(/[&<>"]/g, ESC_HTML);
 
-  // Build one alternation; use 'gi' so the engine finds all candidates — the
-  // callback enforces case-sensitivity for casePhrases by comparing match text.
+  // Match against the RAW (unescaped) text so a term like "amp"/"quot" can't
+  // land inside an HTML entity produced by escaping (e.g. "R&D" -> "R&amp;D",
+  // where matching post-escape would highlight inside the "&amp;" entity and
+  // corrupt the markup when rendered via dangerouslySetInnerHTML). Escaping
+  // happens per-segment below, after match boundaries are known.
   const re = new RegExp(entries.map((e) => `(${e.pattern})`).join("|"), "gi");
-  return escaped.replace(re, (...args: unknown[]) => {
-    const match = args[0] as string;
-    const groups = args.slice(1, entries.length + 1) as (string | undefined)[];
+
+  let out = "";
+  let last = 0;
+  for (const m of raw.matchAll(re)) {
+    const match = m[0];
+    const groups = m.slice(1, entries.length + 1);
     const idx = groups.findIndex((g) => g !== undefined);
-    if (idx === -1) return match;
-    const entry = entries[idx];
-    // Reject case-insensitive hit for a case-sensitive pattern
-    if (entry.caseSensitive && match !== entry.exact) return match;
-    return `<mark>${match}</mark>`;
-  });
+    const entry = idx === -1 ? undefined : entries[idx];
+    // Reject a case-insensitive hit for a case-sensitive pattern.
+    const accept = entry && (!entry.caseSensitive || match === entry.exact);
+    out += raw.slice(last, m.index).replace(/[&<>"]/g, ESC_HTML);
+    const escapedMatch = match.replace(/[&<>"]/g, ESC_HTML);
+    out += accept ? `<mark>${escapedMatch}</mark>` : escapedMatch;
+    last = m.index + match.length;
+  }
+  out += raw.slice(last).replace(/[&<>"]/g, ESC_HTML);
+  return out;
 }
 
 export function buildSnippet(

@@ -349,6 +349,14 @@ function evidenceChain(steps: EvidenceStep[]): string {
   return steps.map((s) => s.docNo).join(" → ");
 }
 
+// RFC 4180: a literal `"` inside a quoted field must be doubled. Every field
+// below is wrapped in quotes, so every field must go through this first —
+// an unescaped `"` (e.g. a title containing a quoted term) otherwise shifts
+// every later column in that row.
+function csv(v: string): string {
+  return `"${v.replace(/"/g, '""')}"`;
+}
+
 export function activeDataRowsToCSV(
   rows: ActiveDataRow[],
   lastEditDates: Map<string, string> = new Map(),
@@ -356,9 +364,21 @@ export function activeDataRowsToCSV(
   const header =
     "Active Data Doc,Active Data Title,Controller Doc,Controller Title,Agent,Responsible Party,RP Evidence,Facilitator,Facilitator Role,Facilitator Evidence,Process,Last Edited\n";
   const body = rows
-    .map(
-      (r) =>
-        `"${r.activeDataDocNo}","${r.activeDataTitle}","${r.controllerDocNo ?? ""}","${r.controllerTitle ?? ""}","${r.agent ?? ""}","${r.responsibleParty?.name ?? ""}","${evidenceChain(r.responsibleParty?.evidence ?? [])}","${r.facilitator?.name ?? ""}","${r.facilitator?.role ?? ""}","${evidenceChain(r.facilitator?.evidence ?? [])}","${r.process}","${lastEditDates.get(r.activeDataId) ?? ""}"`,
+    .map((r) =>
+      [
+        csv(r.activeDataDocNo),
+        csv(r.activeDataTitle),
+        csv(r.controllerDocNo ?? ""),
+        csv(r.controllerTitle ?? ""),
+        csv(r.agent ?? ""),
+        csv(r.responsibleParty?.name ?? ""),
+        csv(evidenceChain(r.responsibleParty?.evidence ?? [])),
+        csv(r.facilitator?.name ?? ""),
+        csv(r.facilitator?.role ?? ""),
+        csv(evidenceChain(r.facilitator?.evidence ?? [])),
+        csv(r.process),
+        csv(lastEditDates.get(r.activeDataId) ?? ""),
+      ].join(","),
     )
     .join("\n");
   return header + body;

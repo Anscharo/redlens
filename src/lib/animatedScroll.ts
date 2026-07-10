@@ -8,15 +8,23 @@ const HEADER_OFFSET = 64; // fallback when scroll-margin-top isn't set
 const GLIDE_MS = 220;
 const MAX_GLIDE_PX = Infinity;
 
-function glide(scroller: Element, target: number) {
+// One in-flight glide per scroller: a second glide() call within GLIDE_MS
+// (e.g. rapid nav clicks) must cancel the first rAF loop instead of letting
+// both loops write scrollTop each frame and fight over the final position.
+const activeGlide = new WeakMap<Element, symbol>();
+
+export function glide(scroller: Element, target: number) {
   let start = scroller.scrollTop;
   const dist = target - start;
   if (Math.abs(dist) > MAX_GLIDE_PX) {
     start = target - Math.sign(dist) * MAX_GLIDE_PX;
     scroller.scrollTop = start;
   }
+  const token = Symbol();
+  activeGlide.set(scroller, token);
   const t0 = performance.now();
   const step = (now: number) => {
+    if (activeGlide.get(scroller) !== token) return; // superseded by a later glide
     const t = Math.min(1, (now - t0) / GLIDE_MS);
     scroller.scrollTop = start + (target - start) * (1 - Math.pow(1 - t, 3));
     if (t < 1) requestAnimationFrame(step);

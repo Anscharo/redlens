@@ -7,6 +7,7 @@ import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresse
 import { UUID_RE } from "../lib/patterns";
 import { atlasHref } from "../lib/routes";
 import { resolveAtlasRef } from "../lib/docs";
+import { useDataSource } from "../lib/dataSource";
 import { track } from "../lib/analytics";
 
 interface Props {
@@ -30,7 +31,7 @@ const SKY_ATLAS_REF_RE = /^https?:\/\/(?:www\.)?sky-atlas\.io\/?#(.+)$/i;
 // internally regardless. sky-atlas.io deep-links are internalised only when the
 // referenced node (by UUID or doc_no) is one we host — otherwise we leave the
 // outlink intact.
-function internalTargetId(href: string): string | null {
+function internalTargetId(base: string, href: string): string | null {
   if (UUID_RE.test(href)) return href;
   const m = SKY_ATLAS_REF_RE.exec(href);
   if (!m) return null;
@@ -40,7 +41,7 @@ function internalTargetId(href: string): string | null {
   } catch {
     fragment = m[1];
   }
-  return resolveAtlasRef(fragment) ?? null;
+  return resolveAtlasRef(base, fragment) ?? null;
 }
 
 // UUID and eth-address links — styling via .atlas-md a in CSS
@@ -51,7 +52,8 @@ function MarkdownLink({
   ...props
 }: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: unknown }) {
   const onNavigate = useNavigateContext();
-  const targetId = href ? internalTargetId(href) : null;
+  const { base } = useDataSource();
+  const targetId = href ? internalTargetId(base, href) : null;
   if (targetId && onNavigate) {
     return (
       <a

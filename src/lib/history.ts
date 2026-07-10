@@ -89,13 +89,23 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
   if (!p) {
     // /api/history/:nodeId — absolute path, same-origin on Railway.
     // On GitHub Pages (no backend) the 404 resolves to null, which the UI
-    // already handles gracefully.
+    // already handles gracefully — that outcome IS cached (it's a stable
+    // property of the deploy, not a blip). A real rejection (network error,
+    // offline) is transient, so it evicts the cache entry instead of being
+    // cached as permanent "no history" — mirroring loadHistoryBatch below,
+    // which already only seeds the cache on a real response.
     p = fetch(`/api/history/${nodeId}`)
       .then((r) => (r.ok ? (r.json() as Promise<HistoryEntry[]>) : null))
-      .catch(() => null);
+      .catch((err) => {
+        cache.delete(nodeId);
+        throw err;
+      });
     cache.set(nodeId, p);
   }
-  return p;
+  // Callers never see a rejection (existing contract) — a transient failure
+  // resolves to null for this call, while the cache eviction above (if any)
+  // means the next call retries instead of reusing the failed promise.
+  return p.catch(() => null);
 }
 
 /** Max ids per /api/history/batch request — shared by the server (hard cap on
