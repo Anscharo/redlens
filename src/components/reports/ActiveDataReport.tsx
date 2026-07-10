@@ -33,17 +33,18 @@ const searchFields = (r: Row): SearchField[] => [
   { label: "doc no", value: r.activeDataDocNo },
   { label: "controller", value: r.controllerDocNo ?? "" },
   { label: "controller title", value: r.controllerTitle ?? "", hidden: true },
-  { label: "prime agent", value: r.agent ?? "" },
+  { label: "prime agent", value: r.agent ?? "", despace: true },
   { label: "process", value: r.process },
   { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
-  { label: "resp. party", value: r.responsibleParty?.name ?? "" },
+  { label: "resp. party", value: r.responsibleParty?.name ?? "", despace: true },
   { label: "declared rp", value: r.responsibleParty?.declared ?? "", hidden: true },
-  { label: "facilitator", value: r.facilitator?.name ?? "" },
+  { label: "facilitator", value: r.facilitator?.name ?? "", despace: true },
   { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
   {
     label: "agent chain",
     value: [r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName].filter(Boolean).join(", "),
     hidden: true,
+    despace: true,
   },
 ];
 const searchText = (r: Row) => fieldsHaystack(searchFields(r));
@@ -284,7 +285,7 @@ export function ActiveDataReport({ query }: { query: string }) {
                     )}
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} tokens={tokens} /> : "—"}</span>
+                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} tokens={tokens} flex /> : "—"}</span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.responsibleParty ? (
@@ -294,14 +295,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          <Highlight text={r.responsibleParty.name} tokens={tokens} />
+                          <Highlight text={r.responsibleParty.name} tokens={tokens} flex />
                         </AtlasLink>
                       ) : (
                         <span
                           className="text-xs text-tan-2"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          <Highlight text={r.responsibleParty.name} tokens={tokens} />
+                          <Highlight text={r.responsibleParty.name} tokens={tokens} flex />
                         </span>
                       )
                     ) : (
@@ -316,11 +317,11 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.facilitator.role}
                         >
-                          <Highlight text={r.facilitator.name} tokens={tokens} />
+                          <Highlight text={r.facilitator.name} tokens={tokens} flex />
                         </AtlasLink>
                       ) : (
                         <span className="text-xs text-tan-2" title={r.facilitator.role}>
-                          <Highlight text={r.facilitator.name} tokens={tokens} />
+                          <Highlight text={r.facilitator.name} tokens={tokens} flex />
                         </span>
                       )
                     ) : (

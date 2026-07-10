@@ -1,13 +1,17 @@
 import type { ReactNode } from "react";
 import { flexTokenSource, type HiddenMatch } from "../../lib/reportFilter";
 
-// Wraps every query-token occurrence in `text` in a <mark>. Tokens are matched
-// whitespace-flexibly so a de-spaced query ("skybase") still highlights
-// "Sky Base". Longest token first so overlapping tokens prefer the long match.
-export function Highlight({ text, tokens }: { text: string | null | undefined; tokens: string[] }) {
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Wraps every query-token occurrence in `text` in a <mark>. Exact substring
+// matching by default; `flex` (for entity-name cells only) also bridges
+// internal whitespace so a de-spaced query ("skybase") highlights "Sky Base".
+// Never set flex on prose — it would mark junk like "dss" ↔ "recorDS Show".
+// Longest token first so overlapping tokens prefer the long match.
+export function Highlight({ text, tokens, flex = false }: { text: string | null | undefined; tokens: string[]; flex?: boolean }) {
   if (!text || tokens.length === 0) return <>{text}</>;
   const re = new RegExp(
-    [...tokens].sort((a, b) => b.length - a.length).map(flexTokenSource).join("|"),
+    [...tokens].sort((a, b) => b.length - a.length).map(flex ? flexTokenSource : escapeRe).join("|"),
     "gi",
   );
   const parts: ReactNode[] = [];
@@ -36,7 +40,7 @@ export function MatchAside({ matches, tokens }: { matches: HiddenMatch[]; tokens
       {matches.map((m) => (
         <span key={m.label} className="block">
           <span className="match-aside-label">{m.label}</span>{" "}
-          <Highlight text={m.excerpt} tokens={tokens} />
+          <Highlight text={m.excerpt} tokens={tokens} flex={m.despace} />
         </span>
       ))}
     </span>

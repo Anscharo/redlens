@@ -80,7 +80,7 @@ function InstanceRow({
                     : undefined
                 }
               >
-                <Highlight text={inst.paymentsResponsibleParty.name} tokens={tokens} />
+                <Highlight text={inst.paymentsResponsibleParty.name} tokens={tokens} flex />
               </Link>
             ) : (
               <span className="text-tan-3">—</span>
@@ -95,7 +95,7 @@ function InstanceRow({
                 to={atlasHref(inst.partnerNameDocId ?? inst.id)}
                 className="text-tan-2 hover:underline text-left"
               >
-                <Highlight text={inst.partnerName} tokens={tokens} />
+                <Highlight text={inst.partnerName} tokens={tokens} flex />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>

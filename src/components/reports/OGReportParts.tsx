@@ -15,10 +15,10 @@ export function AgentChips({ agents, chains, tokens = [] }: { agents: string[]; 
             to={atlasHref(c.agentId)}
             className="mono text-xs px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
           >
-            <Highlight text={a} tokens={tokens} />
+            <Highlight text={a} tokens={tokens} flex />
           </AtlasLink>
         ) : (
-          <span key={a} className="mono text-xs px-1.5 py-0.5 text-tan-3"><Highlight text={a} tokens={tokens} /></span>
+          <span key={a} className="mono text-xs px-1.5 py-0.5 text-tan-3"><Highlight text={a} tokens={tokens} flex /></span>
         );
       })}
     </div>

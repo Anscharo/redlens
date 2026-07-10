@@ -16,11 +16,11 @@ export function icdSearchFields(
     { label: "doc no", value: i.docNo },
     { label: "reward code", value: i.rewardCode ?? "" },
     { label: "tracking doc", value: i.trackingDocNo ?? "" },
-    { label: "partner", value: i.partnerName ?? "" },
+    { label: "partner", value: i.partnerName ?? "", despace: true },
     { label: "chain", value: i.rewardChain ?? "" },
     { label: "cadence", value: i.cadence ?? "" },
     { label: "address", value: i.rewardAddress ?? "" },
-    { label: "payments rp", value: i.paymentsResponsibleParty?.name ?? "" },
+    { label: "payments rp", value: i.paymentsResponsibleParty?.name ?? "", despace: true },
     { label: "tracking", value: i.tracking ?? "", hidden: true },
     {
       label: "params",
@@ -29,10 +29,11 @@ export function icdSearchFields(
         .join(" · "),
       hidden: true,
     },
-    { label: "agent", value: agent.name },
+    { label: "agent", value: agent.name, despace: true },
     {
       label: "agent chain",
       value: [agent.chain?.executor?.name, agent.chain?.govops?.name].filter(Boolean).join(", "),
+      despace: true,
     },
   ];
 }

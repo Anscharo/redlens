@@ -16,18 +16,16 @@ export function queryTokens(query: string): string[] {
 
 /**
  * Builds a lowercase haystack from a row's searchable fields. Fields are
- * joined with " | " so a token can't straddle two fields. Each field with
- * internal whitespace also contributes a de-spaced copy, so "skybase"
- * matches "Sky Base" (and "sky base" already matches "SkyBase" token-wise).
+ * joined with " | " so a token can't straddle two fields. Plain substring
+ * semantics only — de-spaced matching is a per-field opt-in (see
+ * SearchField.despace), reserved for entity names; applying it to prose
+ * made "dss" match "recorDS Show".
  */
 export function buildHaystack(fields: Array<string | number | null | undefined>): string {
   const parts: string[] = [];
   for (const f of fields) {
     if (f === null || f === undefined || f === "") continue;
-    const lower = String(f).toLowerCase();
-    parts.push(lower);
-    const despaced = lower.replace(/\s+/g, "");
-    if (despaced !== lower) parts.push(despaced);
+    parts.push(String(f).toLowerCase());
   }
   return parts.join(" | ");
 }
@@ -60,17 +58,32 @@ export interface SearchField {
   label: string; // short human label, e.g. "executor", "tracking"
   value: string;
   hidden?: boolean; // searched but not rendered in the row
+  // Entity-name field: also match with internal whitespace removed, so
+  // "skybase" finds "Sky Base". NEVER set on prose/titles — bridging spaces
+  // in running text produces junk matches ("dss" ↔ "recorDS Show").
+  despace?: boolean;
 }
 
-/** Same haystack semantics as buildHaystack, from labelled fields. */
+/** Haystack from labelled fields; de-spaced copies only for despace fields. */
 export function fieldsHaystack(fields: SearchField[]): string {
-  return buildHaystack(fields.map((f) => f.value));
+  const parts: string[] = [];
+  for (const f of fields) {
+    if (!f.value) continue;
+    const lower = f.value.toLowerCase();
+    parts.push(lower);
+    if (f.despace) {
+      const despaced = lower.replace(/\s+/g, "");
+      if (despaced !== lower) parts.push(despaced);
+    }
+  }
+  return parts.join(" | ");
 }
 
-/** Token-vs-single-field test (plain + de-spaced, case-insensitive). */
-export function fieldMatches(value: string, token: string): boolean {
-  const lower = value.toLowerCase();
-  return lower.includes(token) || lower.replace(/\s+/g, "").includes(token);
+/** Token-vs-single-field test (case-insensitive; de-spaced only if opted in). */
+export function fieldMatches(field: SearchField, token: string): boolean {
+  const lower = field.value.toLowerCase();
+  if (lower.includes(token)) return true;
+  return !!field.despace && lower.replace(/\s+/g, "").includes(token);
 }
 
 /** Regex source matching `token` with optional whitespace between characters —
@@ -85,16 +98,20 @@ export function flexTokenSource(token: string): string {
 export interface HiddenMatch {
   label: string;
   excerpt: string;
+  despace?: boolean; // the source field allows space-bridged highlighting
 }
 
 /** Short window of `value` around the first occurrence of `token`. */
-export function excerptAround(value: string, token: string, radius = 26): string {
+export function excerptAround(value: string, token: string, despace = false, radius = 26): string {
   let idx = value.toLowerCase().indexOf(token);
   let len = token.length;
-  if (idx === -1) {
+  if (idx === -1 && despace) {
     const m = new RegExp(flexTokenSource(token), "i").exec(value);
     idx = m?.index ?? 0;
     len = m?.[0].length ?? 0;
+  } else if (idx === -1) {
+    idx = 0;
+    len = 0;
   }
   const start = Math.max(0, idx - radius);
   const end = Math.min(value.length, idx + len + radius);
@@ -111,12 +128,12 @@ export function hiddenMatches(fields: SearchField[], tokens: string[]): HiddenMa
   const out: HiddenMatch[] = [];
   const seen = new Set<string>();
   for (const t of tokens) {
-    const visibleHit = fields.some((f) => !f.hidden && f.value && fieldMatches(f.value, t));
+    const visibleHit = fields.some((f) => !f.hidden && f.value && fieldMatches(f, t));
     if (visibleHit) continue;
     for (const f of fields) {
-      if (!f.hidden || !f.value || seen.has(f.label) || !fieldMatches(f.value, t)) continue;
+      if (!f.hidden || !f.value || seen.has(f.label) || !fieldMatches(f, t)) continue;
       seen.add(f.label);
-      out.push({ label: f.label, excerpt: excerptAround(f.value, t) });
+      out.push({ label: f.label, excerpt: excerptAround(f.value, t, f.despace), despace: f.despace });
     }
   }
   return out;

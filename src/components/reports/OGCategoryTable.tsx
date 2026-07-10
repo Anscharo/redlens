@@ -18,9 +18,9 @@ export function ogSearchFields(r: OGResponsibility): SearchField[] {
     { label: "title", value: r.title, hidden: assignment },
     { label: "duty", value: r.duty, hidden: assignment },
     { label: "role", value: r.role ?? "", hidden: true },
-    { label: "govops", value: r.govops ?? "", hidden: !govVisible },
-    { label: "executor", value: r.executor ?? "", hidden: !assignment },
-    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible },
+    { label: "govops", value: r.govops ?? "", hidden: !govVisible, despace: true },
+    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
+    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
   ];
 }
 
@@ -82,10 +82,10 @@ export function OGCategoryTable({
               {cat === "assignment" ? (
                 <>
                   <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} /> : "—"}
+                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} flex /> : "—"}
                   </td>
                   <td className="py-2 px-3 align-top text-sm text-accent">
-                    <Highlight text={r.govops ?? "—"} tokens={tokens} />
+                    <Highlight text={r.govops ?? "—"} tokens={tokens} flex />
                   </td>
                   <td className="py-2 px-3 align-top">
                     <AgentChips agents={r.agents ?? []} chains={chains} tokens={tokens} />
@@ -97,7 +97,7 @@ export function OGCategoryTable({
                   <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} tokens={tokens} /></td>
                   {(cat === "active-data" || cat === "process-step") && (
                     <td className="py-2 px-3 align-top text-sm text-accent">
-                      <Highlight text={r.govops ?? "—"} tokens={tokens} />
+                      <Highlight text={r.govops ?? "—"} tokens={tokens} flex />
                     </td>
                   )}
                   {(cat === "op-duty" || cat === "core-duty") && (

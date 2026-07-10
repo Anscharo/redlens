@@ -18,8 +18,8 @@ describe("buildHaystack", () => {
   it("skips empty/null fields and lowercases", () => {
     expect(buildHaystack(["Foo", null, undefined, ""])).toBe("foo");
   });
-  it("adds a de-spaced copy of multi-word fields", () => {
-    expect(buildHaystack(["Sky Base"])).toBe("sky base | skybase");
+  it("does NOT de-space (that's a per-field opt-in via SearchField.despace)", () => {
+    expect(buildHaystack(["Sky Base"])).toBe("sky base");
   });
   it("separates fields so tokens cannot straddle a boundary", () => {
     const h = buildHaystack(["data", "controller"]);
@@ -36,10 +36,6 @@ describe("matchesTokens", () => {
     expect(matchesTokens(h, ["sky", "rate"])).toBe(true);
     expect(matchesTokens(h, ["sky", "missing"])).toBe(false);
   });
-  it("matches entity names with or without spaces", () => {
-    expect(matchesTokens(h, ["skybase"])).toBe(true);
-    expect(matchesTokens(h, ["sky", "base"])).toBe(true);
-  });
   it("supports doc_no prefix filtering", () => {
     expect(matchesTokens(h, ["a.3.2"])).toBe(true);
     expect(matchesTokens(h, ["a.4"])).toBe(false);
@@ -51,7 +47,12 @@ describe("filterRows", () => {
     { name: "Sky Base", duty: "maintain rates" },
     { name: "Sidestream", duty: "publish reports" },
   ];
-  const hay = (r: (typeof rows)[number]) => buildHaystack([r.name, r.duty]);
+  // Name fields opt into de-spaced matching; prose (duty) does not.
+  const hay = (r: (typeof rows)[number]) =>
+    fieldsHaystack([
+      { label: "name", value: r.name, despace: true },
+      { label: "duty", value: r.duty },
+    ]);
 
   it("filters by any searchable field", () => {
     expect(filterRows(rows, "skybase", hay)).toEqual([rows[0]]);
@@ -65,18 +66,29 @@ describe("filterRows", () => {
 describe("field-level matching", () => {
   const fields: SearchField[] = [
     { label: "title", value: "Weekly rate update" },
-    { label: "agent", value: "Sky Base", hidden: true },
+    { label: "agent", value: "Sky Base", hidden: true, despace: true },
     { label: "quote", value: "The rate must be posted within 24 hours of the Executive Vote.", hidden: true },
   ];
 
-  it("fieldsHaystack matches buildHaystack over values", () => {
-    expect(fieldsHaystack(fields)).toBe(buildHaystack(fields.map((f) => f.value)));
+  it("fieldsHaystack de-spaces only despace fields", () => {
+    expect(fieldsHaystack(fields)).toContain("skybase");
+    expect(fieldsHaystack(fields)).not.toContain("theratemust");
   });
 
-  it("fieldMatches covers plain and de-spaced", () => {
-    expect(fieldMatches("Sky Base", "skybase")).toBe(true);
-    expect(fieldMatches("Sky Base", "base")).toBe(true);
-    expect(fieldMatches("Sky Base", "nope")).toBe(false);
+  it("de-spaced matching is per-field: entity names yes, prose no", () => {
+    // "dss" is a substring of the de-spaced prose "…recordsshow…" — the quote
+    // field must NOT despace, or nonsense tokens match running text.
+    const prose: SearchField = { label: "quote", value: "records show the rate" };
+    expect(fieldMatches(prose, "dss")).toBe(false);
+    expect(fieldMatches({ ...prose, despace: true }, "dss")).toBe(true); // what despacing would do
+    expect(matchesTokens(fieldsHaystack([prose]), ["dss"])).toBe(false);
+  });
+
+  it("fieldMatches covers plain, and de-spaced only when opted in", () => {
+    expect(fieldMatches({ label: "a", value: "Sky Base", despace: true }, "skybase")).toBe(true);
+    expect(fieldMatches({ label: "a", value: "Sky Base" }, "skybase")).toBe(false);
+    expect(fieldMatches({ label: "a", value: "Sky Base" }, "base")).toBe(true);
+    expect(fieldMatches({ label: "a", value: "Sky Base" }, "nope")).toBe(false);
   });
 
   it("flexTokenSource locates de-spaced tokens in original text", () => {
@@ -88,6 +100,10 @@ describe("field-level matching", () => {
     const e = excerptAround("The rate must be posted within 24 hours of the Executive Vote.", "executive");
     expect(e).toContain("Executive Vote");
     expect(e.startsWith("…")).toBe(true);
+  });
+
+  it("excerptAround only uses flexible location for despace fields", () => {
+    expect(excerptAround("led by Sky Base today", "skybase", true)).toContain("Sky Base");
   });
 
   describe("hiddenMatches", () => {

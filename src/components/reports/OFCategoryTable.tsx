@@ -24,9 +24,9 @@ export function ofSearchFields(r: OFResponsibility): SearchField[] {
     { label: "title", value: r.title, hidden: assignment },
     { label: "duty", value: r.duty, hidden: assignment },
     { label: "role", value: r.role ?? "", hidden: true },
-    { label: "facilitator", value: [r.facilitator, ...(r.facilitators ?? [])].filter(Boolean).join(", "), hidden: !facVisible },
-    { label: "executor", value: r.executor ?? "", hidden: !assignment },
-    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible },
+    { label: "facilitator", value: [r.facilitator, ...(r.facilitators ?? [])].filter(Boolean).join(", "), hidden: !facVisible, despace: true },
+    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
+    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
   ];
 }
 
@@ -83,10 +83,10 @@ export function OFCategoryTable({
               {cat === "assignment" ? (
                 <>
                   <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} /> : "—"}
+                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} flex /> : "—"}
                   </td>
                   <td className="py-2 px-3 align-top text-sm text-accent">
-                    <Highlight text={r.facilitator ?? "—"} tokens={tokens} />
+                    <Highlight text={r.facilitator ?? "—"} tokens={tokens} flex />
                   </td>
                   <td className="py-2 px-3 align-top">
                     <AgentChips agents={r.agents ?? []} chains={chains} tokens={tokens} />
@@ -97,7 +97,7 @@ export function OFCategoryTable({
                   <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} tokens={tokens} /></td>
                   <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} tokens={tokens} /></td>
                   {showFac && (
-                    <td className="py-2 px-3 align-top text-sm text-accent"><Highlight text={facNames(r)} tokens={tokens} /></td>
+                    <td className="py-2 px-3 align-top text-sm text-accent"><Highlight text={facNames(r)} tokens={tokens} flex /></td>
                   )}
                   {showPrime && (
                     <td className="py-2 px-3 align-top">

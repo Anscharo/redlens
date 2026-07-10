@@ -17,7 +17,7 @@ export const riskSearchFields = (r: RiskRow): SearchField[] => [
   { label: "title", value: r.candidate.title },
   { label: "summary", value: r.triage.description ?? "" },
   { label: "rule text", value: r.candidate.quote, hidden: true },
-  { label: "prime agent", value: (r.candidate.agents ?? []).join(", "), hidden: true },
+  { label: "prime agent", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
 ];
 
 const SCORE_STYLE: Record<Preciseness, string> = {
