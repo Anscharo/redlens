@@ -12,11 +12,13 @@ import {
   buildProcessRows,
   indexByParentDocNo,
   getStepChildren,
+  processRowsToCSV,
   type ProcessRow,
 } from "../../lib/processesIndex";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useLocalIgnores } from "../../hooks/useLocalIgnores";
 import { NodeContent } from "../NodeContent";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
@@ -357,6 +359,18 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
             ))}
           </div>
         </div>
+
+        {!loading && (
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <p className="mono text-xs text-tan-3">{filtered.length} processes</p>
+            <DownloadCsvButton
+              report="processes"
+              filename="atlas-processes.csv"
+              rowCount={filtered.length}
+              build={() => processRowsToCSV(filtered)}
+            />
+          </div>
+        )}
 
         {loading ? (
           <p className="text-sm text-tan-3">Loading…</p>

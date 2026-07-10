@@ -22,9 +22,11 @@ import {
   CATEGORY_LABELS,
   type OFResponsibility,
   deriveFacilitatorResponsibilities,
+  facilitatorRowsToCSV,
 } from "../../lib/facilitatorResponsibilities";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OFCategoryTable } from "./OFCategoryTable";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
@@ -169,6 +171,16 @@ export function OFReport() {
           <FilterPills label="Executor" items={pills.executors} kind="executor" filter={filter} onToggle={toggle} />
           <PrimePills agents={allAgents} filter={filter} onToggle={toggle} />
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
+        </div>
+
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <p className="mono text-xs text-tan-3">{filtered.length} responsibilities</p>
+          <DownloadCsvButton
+            report="of-responsibilities"
+            filename="op-facilitator-responsibilities.csv"
+            rowCount={filtered.length}
+            build={() => facilitatorRowsToCSV(filtered)}
+          />
         </div>
 
         {(Object.entries(CATEGORY_LABELS) as [OFResponsibility["category"], string][]).map(

@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
-import { deriveFacilitatorResponsibilities } from "./facilitatorResponsibilities";
+import { deriveFacilitatorResponsibilities, facilitatorRowsToCSV, type OFResponsibility } from "./facilitatorResponsibilities";
 
 function node(p: Partial<AtlasNode> & Pick<AtlasNode, "id" | "doc_no" | "title">): AtlasNode {
   return {
@@ -157,5 +157,20 @@ describe("deriveFacilitatorResponsibilities", () => {
   it("never emits an empty duty snippet or title", () => {
     expect(results.filter((r) => !r.title?.trim())).toEqual([]);
     expect(results.filter((r) => !r.duty?.trim() && r.category !== "assignment")).toEqual([]);
+  });
+});
+
+describe("facilitatorRowsToCSV", () => {
+  it("emits a header, maps the category label, and joins agents/facilitators with '; '", () => {
+    const rows: OFResponsibility[] = [
+      { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", facilitator: "Steakhouse", role: "Operational", agents: ["Amatsu", "Ozone"] },
+      { docNo: "A.1.7.1", uuid: "u2", title: "Universal duty", duty: "must do the thing", category: "universal", facilitators: ["Steakhouse", "TechOps"] },
+    ];
+    const lines = facilitatorRowsToCSV(rows).split("\r\n");
+    expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","Facilitators","Executor","Role"');
+    expect(lines[1]).toContain('"Amatsu; Ozone"');
+    expect(lines[1]).toContain('"Facilitator Assignments (per Executor Agent)"');
+    expect(lines[2]).toContain('"Steakhouse; TechOps"');
+    expect(lines[2]).toContain('"Universal — all Facilitators"');
   });
 });
