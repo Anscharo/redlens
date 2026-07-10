@@ -22,6 +22,7 @@ import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
+import { FilterSummary } from "./FilterSummary";
 
 // Header-box text filter: title + doc number. Category/status/shape are
 // pill-owned and deliberately excluded.
@@ -363,6 +364,15 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
             ))}
           </div>
         </div>
+
+        <FilterSummary
+          query={query}
+          filters={[
+            categoryFilter,
+            statusFilter !== "all" && `status:${statusFilter}`,
+            shapeFilter !== "all" && `shape:${shapeFilter}`,
+          ]}
+        />
 
         {loading ? (
           <p className="text-sm text-tan-3">Loading…</p>

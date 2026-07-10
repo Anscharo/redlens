@@ -16,6 +16,7 @@ import {
 } from "../../lib/activeDataIndex";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
@@ -208,6 +209,8 @@ export function ActiveDataReport({ query }: { query: string }) {
             </button>
           ))}
         </div>
+
+        <FilterSummary query={query} filters={[agentFilter, entityFilter]} />
 
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{shown.length} sections</p>

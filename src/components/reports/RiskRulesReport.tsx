@@ -13,6 +13,7 @@ import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 // Header-box text filter: title, doc number, the rated paragraph, and agent
 // names. Domain/precision/incentives/status are pill-owned and excluded; the
@@ -173,6 +174,15 @@ export function RiskRulesReport({ query }: { query: string }) {
           <CategoryPills label="Status" labelTitle="Has this section been updated since the report was last refreshed?" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} counts={counts.status} />
         </div>
 
+        <FilterSummary
+          query={query}
+          filters={[
+            ...domains.map((d) => RISK_DOMAIN_LABELS[d]),
+            score && `precision:${score}`,
+            enforce && `incentives:${enforce}`,
+            status && `status:${status}`,
+          ]}
+        />
         {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
           <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />

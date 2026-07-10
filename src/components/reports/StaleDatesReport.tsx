@@ -8,6 +8,7 @@ import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 // Header-box text filter: date (ISO + raw text), doc title/number, snippet
 // prose, and the "handoff" badge word for transition rows.
@@ -150,6 +151,7 @@ export function StaleDatesReport({ query }: { query: string }) {
             <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
+        <FilterSummary query={query} />
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>

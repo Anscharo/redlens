@@ -12,6 +12,7 @@ import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OeaTable } from "./OeaAssessmentTable";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(OEA_CATEGORY_LABELS);
 
@@ -132,6 +133,15 @@ export function OeaAssessmentReport({ query }: { query: string }) {
           <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
         </div>
 
+        <FilterSummary
+          query={query}
+          filters={[
+            cat && OEA_CATEGORY_LABELS[cat],
+            precision && `precision:${precision}`,
+            incentives && `incentives:${incentives}`,
+            status && `status:${status}`,
+          ]}
+        />
         {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         {report && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
           const catRows = byCategory[c];

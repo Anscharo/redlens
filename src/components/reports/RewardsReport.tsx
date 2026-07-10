@@ -18,6 +18,7 @@ import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 import { buildHaystack, matchesTokens, queryTokens } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 // Header-box text filter, per ICD row: instance text, partner/code/address/
 // chain/cadence, tracking methodology, param names + values, plus the owning
@@ -222,6 +223,7 @@ export function RewardsReport({ query }: { query: string }) {
           )}
         </p>
 
+        <FilterSummary query={query} />
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Failed to load report.</p>

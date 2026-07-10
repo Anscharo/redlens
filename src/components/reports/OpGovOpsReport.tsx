@@ -28,6 +28,7 @@ import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable } from "./OGCategoryTable";
 import { buildHaystack, filterRows } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
 
@@ -153,6 +154,14 @@ export function OGReport({ query }: { query: string }) {
     searchText,
   );
 
+  // Display name of the active entity filter — the pill whose anchor-id slug
+  // matches (pills derive their slugs from these same names).
+  const filterName = filter
+    ? ([...pills.holders.map((p) => p.name), ...pills.executors.map((p) => p.name), ...allAgents].find(
+        (n) => toAnchorId(n) === filter.slug,
+      ) ?? filter.slug)
+    : null;
+
   const presentCats = useMemo(
     () =>
       (Object.keys(CATEGORY_LABELS) as OGResponsibility["category"][]).filter((c) =>
@@ -190,6 +199,7 @@ export function OGReport({ query }: { query: string }) {
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
+        <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} />
         {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OGResponsibility["category"], string][]).map(
           ([cat, label]) => {
