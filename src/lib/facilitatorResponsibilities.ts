@@ -11,6 +11,7 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
@@ -208,4 +209,22 @@ export function deriveFacilitatorResponsibilities(
   }
 
   return results;
+}
+
+// Exports the given (already-filtered) facilitator responsibility rows as an
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+export function facilitatorRowsToCSV(rows: OFResponsibility[]): string {
+  return toCSV(
+    ["Doc No", "Title", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
+    rows.map((r) => [
+      r.docNo,
+      r.title,
+      CATEGORY_LABELS[r.category] ?? r.category,
+      r.duty,
+      (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),
+      (r.facilitators ?? (r.facilitator ? [r.facilitator] : [])).join("; "),
+      r.executor ?? "",
+      r.role ?? "",
+    ]),
+  );
 }

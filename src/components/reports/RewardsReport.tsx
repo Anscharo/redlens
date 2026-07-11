@@ -5,9 +5,10 @@ import { loadAddresses } from "../../lib/addresses";
 import { loadGraph } from "../../lib/graph";
 import { atlasHref } from "../../lib/routes";
 import type { AddressInfo } from "../../types";
-import { buildRewardsIndex, type RewardsIndex, type RewardsAgent } from "../../lib/rewardsIndex";
+import { buildRewardsIndex, rewardsIndexToCSV, type RewardsIndex, type RewardsAgent } from "../../lib/rewardsIndex";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 
 function EcosystemHeader({
@@ -162,6 +163,17 @@ export function RewardsReport() {
             </span>
           )}
         </p>
+
+        {idx && (
+          <div className="flex justify-end mb-4">
+            <DownloadCsvButton
+              report="rewards"
+              filename="integrator-reward-relationships.csv"
+              rowCount={summary ? summary.dr + summary.ib + summary.drInvocations + summary.ibInvocations : 0}
+              build={() => rewardsIndexToCSV(idx)}
+            />
+          </div>
+        )}
 
         {error ? (
           <div className="flex items-center gap-3">

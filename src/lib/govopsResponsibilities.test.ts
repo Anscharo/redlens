@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
-import { deriveGovOpsResponsibilities } from "./govopsResponsibilities";
+import { deriveGovOpsResponsibilities, govopsRowsToCSV, type OGResponsibility } from "./govopsResponsibilities";
 
 const GOVOPS_DEF = "1e73ee4b-823d-406a-af54-223b43bc8e42"; // A.0.1.1.47
 
@@ -216,5 +216,21 @@ describe("deriveGovOpsResponsibilities", () => {
   it("never emits an empty duty snippet or title", () => {
     expect(results.filter((r) => !r.title?.trim())).toEqual([]);
     expect(results.filter((r) => !r.duty?.trim() && r.category !== "assignment")).toEqual([]);
+  });
+});
+
+describe("govopsRowsToCSV", () => {
+  it("emits a header, maps the category label, and joins agents with '; '", () => {
+    const rows: OGResponsibility[] = [
+      { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", govops: "Soter Labs", role: "Operational", agents: ["Amatsu", "Ozone"] },
+      { docNo: "A.2.1", uuid: "u2", title: "A duty", duty: "does the thing", category: "op-duty", govops: "Soter Labs" },
+    ];
+    const lines = govopsRowsToCSV(rows).split("\r\n");
+    expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","GovOps","Executor","Role"');
+    expect(lines[1]).toContain('"Amatsu; Ozone"');
+    expect(lines[1]).toContain('"Ozone"'); // executor column
+    expect(lines[1]).toContain('"GovOps Assignments (per Executor Agent)"');
+    // Row without agents/executor/role leaves those blank.
+    expect(lines[2]).toContain('"does the thing","","Soter Labs","",""');
   });
 });

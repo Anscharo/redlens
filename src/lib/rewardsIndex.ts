@@ -1,6 +1,7 @@
 import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
 import { agentsFromGraph, type AgentRef } from "./activeDataIndex";
 import { parseMeta } from "./meta";
+import { toCSV } from "./csv";
 import type { GraphData } from "./graph";
 import type {
   AgentPrimitive,
@@ -287,4 +288,42 @@ export function buildRewardsIndex(
     ibPrimitive: eco("73577399-62e4-4a83-ae11-64ef7e7b7f20"), // A.2.2.8.2 (Integration Boost Primitive)
     demandSideBufferAddress: "0x5e2fec3a3c4e63a422e45c1bb83edb3a5ad0543b",
   };
+}
+
+// Flattens the reward index to one CSV row per Instance/Invocation across every
+// agent's DR and IB primitives. Params are joined as "key=value; …" (display
+// value only). Empty columns for fields that don't apply to the primitive kind.
+function paramsToString(params?: Record<string, ParamTuple>): string {
+  if (!params) return "";
+  return Object.entries(params).map(([k, tup]) => `${k}=${tup[0]}`).join("; ");
+}
+
+export function rewardsIndexToCSV(idx: RewardsIndex): string {
+  const rows: (string | number)[][] = [];
+  for (const a of idx.agents) {
+    const exec = a.chain?.executor?.name ?? "";
+    const govops = a.chain?.govops?.name ?? "";
+    for (const prim of [a.dr, a.ib]) {
+      if (!prim) continue;
+      const kindLabel = prim.kind === "DR" ? "Distribution Reward" : "Integration Boost";
+      for (const icd of [...prim.active, ...prim.suspended, ...prim.completed, ...prim.invocations]) {
+        rows.push([
+          a.name, exec, govops, kindLabel, prim.primitiveDocNo, prim.globalActivation ?? "",
+          icd.docNo, icd.name, icd.status,
+          icd.rewardCode ?? "", icd.partnerName ?? "", icd.rewardAddress ?? "", icd.rewardChain ?? "",
+          icd.cadence ?? "", icd.tracking ?? "",
+          icd.paymentsControllerDocNo ?? "", icd.paymentsResponsibleParty?.name ?? "",
+          paramsToString(icd.params),
+        ]);
+      }
+    }
+  }
+  return toCSV(
+    [
+      "Agent", "Executor", "GovOps", "Primitive", "Primitive Doc", "Global Activation",
+      "Doc No", "Name", "Status", "Reward Code", "Partner Name", "Reward Address",
+      "Reward Chain", "Cadence", "Tracking", "Payments Controller Doc", "Responsible Party", "Params",
+    ],
+    rows,
+  );
 }

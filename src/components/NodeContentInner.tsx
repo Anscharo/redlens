@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
+import { remarkDeMathProse } from "../lib/mathGuard";
 import { UUID_RE } from "../lib/patterns";
 import { atlasHref } from "../lib/routes";
 import { resolveAtlasRef } from "../lib/docs";
@@ -109,7 +110,10 @@ function loadKatex(): Promise<void> {
       import("katex/dist/katex.min.css"),
     ])
       .then(([rehypeKatexMod, remarkMathMod]) => {
-        remarkPluginsMath = [remarkGfm, remarkMathMod.default];
+        // remarkDeMathProse runs AFTER remark-math to reclassify inline-math
+        // spans that are actually prose/currency (e.g. a `$100k … | … $` table
+        // row) back to literal text, so KaTeX never garbles them.
+        remarkPluginsMath = [remarkGfm, remarkMathMod.default, remarkDeMathProse];
         rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
       })
       .catch((err) => {
