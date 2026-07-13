@@ -1,18 +1,19 @@
 import type { ReactNode } from "react";
-import { flexTokenSource, type HiddenMatch } from "../../lib/reportFilter";
+import { flexTokenSource, type HiddenMatch, type ReportQuery } from "../../lib/reportFilter";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-// Wraps every query-token occurrence in `text` in a <mark>. Exact substring
-// matching by default; `flex` (for entity-name cells only) also bridges
+// Wraps every query-needle occurrence in `text` in a <mark>. Matching mirrors
+// the filter: case-insensitive unless the query is strict (rq.cased). Exact
+// substring by default; `flex` (for entity-name cells only) also bridges
 // internal whitespace so a de-spaced query ("skybase") highlights "Sky Base".
 // Never set flex on prose — it would mark junk like "dss" ↔ "recorDS Show".
-// Longest token first so overlapping tokens prefer the long match.
-export function Highlight({ text, tokens, flex = false }: { text: string | null | undefined; tokens: string[]; flex?: boolean }) {
-  if (!text || tokens.length === 0) return <>{text}</>;
+// Longest needle first so overlapping needles prefer the long match.
+export function Highlight({ text, rq, flex = false }: { text: string | null | undefined; rq: ReportQuery; flex?: boolean }) {
+  if (!text || rq.needles.length === 0) return <>{text}</>;
   const re = new RegExp(
-    [...tokens].sort((a, b) => b.length - a.length).map(flex ? flexTokenSource : escapeRe).join("|"),
-    "gi",
+    [...rq.needles].sort((a, b) => b.length - a.length).map(flex ? flexTokenSource : escapeRe).join("|"),
+    rq.cased ? "g" : "gi",
   );
   const parts: ReactNode[] = [];
   let last = 0;
@@ -33,14 +34,14 @@ export function Highlight({ text, tokens, flex = false }: { text: string | null 
 // that isn't visible in the row itself: the hidden field's label + a
 // highlighted excerpt around the matched term. Anchor the containing cell
 // with `relative`.
-export function MatchAside({ matches, tokens }: { matches: HiddenMatch[]; tokens: string[] }) {
+export function MatchAside({ matches, rq }: { matches: HiddenMatch[]; rq: ReportQuery }) {
   if (matches.length === 0) return null;
   return (
     <span className="match-aside" aria-label="matched on a field not shown in this row">
       {matches.map((m) => (
         <span key={m.label} className="block">
           <span className="match-aside-label">{m.label}</span>{" "}
-          <Highlight text={m.excerpt} tokens={tokens} flex={m.despace} />
+          <Highlight text={m.excerpt} rq={rq} flex={m.despace} />
         </span>
       ))}
     </span>

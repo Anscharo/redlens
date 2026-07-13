@@ -2,7 +2,7 @@ import type { OFResponsibility } from "../../lib/facilitatorResponsibilities";
 import type { Chain } from "../../lib/reportChains";
 import { stripExecutorPrefix } from "../../lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { hiddenMatches, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // Duty rows carry per-row facilitator attribution (fan-out edges) — shown for
@@ -35,13 +35,13 @@ export function OFCategoryTable({
   label,
   rows,
   chains,
-  tokens = [],
+  rq = EMPTY_QUERY,
 }: {
   cat: OFResponsibility["category"];
   label: string;
   rows: OFResponsibility[];
   chains: Map<string, Chain>;
-  tokens?: string[];
+  rq?: ReportQuery;
 }) {
   const showFac = cat === "op-duty" || cat === "active-data" || cat === "process-step";
   const showPrime = cat !== "universal" && cat !== "core-facilitator" && cat !== "assignment";
@@ -77,34 +77,34 @@ export function OFCategoryTable({
               className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
             >
               <td className="py-2 px-3 align-top relative">
-                <MatchAside matches={hiddenMatches(ofSearchFields(r), tokens)} tokens={tokens} />
-                <DocCell r={r} tokens={tokens} />
+                <MatchAside matches={hiddenMatches(ofSearchFields(r), rq)} rq={rq} />
+                <DocCell r={r} rq={rq} />
               </td>
               {cat === "assignment" ? (
                 <>
                   <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} flex /> : "—"}
+                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} rq={rq} flex /> : "—"}
                   </td>
                   <td className="py-2 px-3 align-top text-sm text-accent">
-                    <Highlight text={r.facilitator ?? "—"} tokens={tokens} flex />
+                    <Highlight text={r.facilitator ?? "—"} rq={rq} flex />
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <AgentChips agents={r.agents ?? []} chains={chains} tokens={tokens} />
+                    <AgentChips agents={r.agents ?? []} chains={chains} rq={rq} />
                   </td>
                 </>
               ) : (
                 <>
-                  <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} tokens={tokens} /></td>
-                  <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} tokens={tokens} /></td>
+                  <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} rq={rq} /></td>
+                  <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} rq={rq} /></td>
                   {showFac && (
-                    <td className="py-2 px-3 align-top text-sm text-accent"><Highlight text={facNames(r)} tokens={tokens} flex /></td>
+                    <td className="py-2 px-3 align-top text-sm text-accent"><Highlight text={facNames(r)} rq={rq} flex /></td>
                   )}
                   {showPrime && (
                     <td className="py-2 px-3 align-top">
                       <AgentChips
                         agents={r.agents ?? (r.agent ? [r.agent] : [])}
                         chains={chains}
-                        tokens={tokens}
+                        rq={rq}
                       />
                     </td>
                   )}

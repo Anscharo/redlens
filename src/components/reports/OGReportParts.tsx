@@ -2,8 +2,9 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import type { Chain } from "../../lib/reportChains";
 import { Highlight } from "./Highlight";
+import { EMPTY_QUERY, type ReportQuery } from "../../lib/reportFilter";
 
-export function AgentChips({ agents, chains, tokens = [] }: { agents: string[]; chains: Map<string, Chain>; tokens?: string[] }) {
+export function AgentChips({ agents, chains, rq = EMPTY_QUERY }: { agents: string[]; chains: Map<string, Chain>; rq?: ReportQuery }) {
   if (!agents.length) return null;
   return (
     <div className="flex flex-wrap gap-1">
@@ -15,22 +16,22 @@ export function AgentChips({ agents, chains, tokens = [] }: { agents: string[]; 
             to={atlasHref(c.agentId)}
             className="mono text-xs px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
           >
-            <Highlight text={a} tokens={tokens} flex />
+            <Highlight text={a} rq={rq} flex />
           </AtlasLink>
         ) : (
-          <span key={a} className="mono text-xs px-1.5 py-0.5 text-tan-3"><Highlight text={a} tokens={tokens} flex /></span>
+          <span key={a} className="mono text-xs px-1.5 py-0.5 text-tan-3"><Highlight text={a} rq={rq} flex /></span>
         );
       })}
     </div>
   );
 }
 
-export function DocCell({ r, tokens = [] }: { r: { uuid: string; docNo: string }; tokens?: string[] }) {
+export function DocCell({ r, rq = EMPTY_QUERY }: { r: { uuid: string; docNo: string }; rq?: ReportQuery }) {
   return r.uuid ? (
     <AtlasLink to={atlasHref(r.uuid)} className="mono text-xs text-accent hover:underline text-left">
-      <Highlight text={r.docNo} tokens={tokens} />
+      <Highlight text={r.docNo} rq={rq} />
     </AtlasLink>
   ) : (
-    <span className="mono text-xs text-tan-3 text-left"><Highlight text={r.docNo} tokens={tokens} /></span>
+    <span className="mono text-xs text-tan-3 text-left"><Highlight text={r.docNo} rq={rq} /></span>
   );
 }

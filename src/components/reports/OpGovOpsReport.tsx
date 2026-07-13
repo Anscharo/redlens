@@ -26,7 +26,7 @@ import {
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable, ogSearchFields } from "./OGCategoryTable";
-import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -35,7 +35,6 @@ const catCodec = categoryCodec(CATEGORY_LABELS);
 // Header-box text filter over the fields declared in OGCategoryTable (which
 // also tracks their per-category visibility for the hidden-match aside).
 // Category is pill-owned and deliberately excluded.
-const searchText = (r: OGResponsibility) => fieldsHaystack(ogSearchFields(r));
 const SEARCHES = "doc no · title · duty text · role · govops · executor · prime agents";
 
 const filterCodec: UrlCodec<ActiveFilter> = {
@@ -52,7 +51,7 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-export function OGReport({ query }: { query: string }) {
+export function OGReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Operational GovOps Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
@@ -141,15 +140,15 @@ export function OGReport({ query }: { query: string }) {
   };
 
   // Definitions have no actor attribution — only show them with no active entity filter.
-  const tokens = useMemo(() => queryTokens(query), [query]);
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const filtered = filterRows(
     responsibilities.filter(
       (r) =>
         (cat === null || r.category === cat) &&
         (r.category === "definition" ? filter === null : matches(r)),
     ),
-    query,
-    searchText,
+    rq,
+    ogSearchFields,
   );
 
   // Display name of the active entity filter — the pill whose anchor-id slug
@@ -203,7 +202,7 @@ export function OGReport({ query }: { query: string }) {
           ([cat, label]) => {
             const rows = byCategory[cat];
             if (!rows?.length) return null;
-            return <OGCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} tokens={tokens} />;
+            return <OGCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} rq={rq} />;
           },
         )}
       </div>

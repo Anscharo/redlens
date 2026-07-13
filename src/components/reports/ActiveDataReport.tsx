@@ -14,7 +14,7 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
-import { fieldsHaystack, filterRows, hiddenMatches, queryTokens, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
@@ -47,7 +47,6 @@ const searchFields = (r: Row): SearchField[] => [
     despace: true,
   },
 ];
-const searchText = (r: Row) => fieldsHaystack(searchFields(r));
 const SEARCHES =
   "title · doc nos · controller · prime agent · process · responsible party (incl. declared text) · facilitator (incl. role) · agent chain (executor/facilitator/govops)";
 
@@ -101,7 +100,7 @@ function EvidenceCell({ r }: { r: Row }) {
   );
 }
 
-export function ActiveDataReport({ query }: { query: string }) {
+export function ActiveDataReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Active Data Index: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
@@ -170,8 +169,8 @@ export function ActiveDataReport({ query }: { query: string }) {
       }),
     [rows, agentFilter, entityFilter],
   );
-  const shown = useMemo(() => [...filterRows(filtered, query, searchText)], [filtered, query]);
-  const tokens = useMemo(() => queryTokens(query), [query]);
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const shown = useMemo(() => [...filterRows(filtered, rq, searchFields)], [filtered, rq]);
 
   return (
     <div className="px-6 py-6">
@@ -263,14 +262,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                   className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
                 >
                   <td className="py-2 px-3 align-top relative">
-                    <MatchAside matches={hiddenMatches(searchFields(r), tokens)} tokens={tokens} />
+                    <MatchAside matches={hiddenMatches(searchFields(r), rq)} rq={rq} />
                     <AtlasLink
                       to={atlasHref(r.activeDataId)}
                       className="text-sm text-tan hover:underline text-left block"
                     >
-                      <Highlight text={r.activeDataTitle} tokens={tokens} />
+                      <Highlight text={r.activeDataTitle} rq={rq} />
                     </AtlasLink>
-                    <span className="mono text-[10px] text-accent"><Highlight text={r.activeDataDocNo} tokens={tokens} /></span>
+                    <span className="mono text-[10px] text-accent"><Highlight text={r.activeDataDocNo} rq={rq} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.controllerId && r.controllerDocNo ? (
@@ -278,14 +277,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                         to={atlasHref(r.controllerId)}
                         className="mono text-xs text-tan-2 hover:underline text-left"
                       >
-                        <Highlight text={r.controllerDocNo} tokens={tokens} />
+                        <Highlight text={r.controllerDocNo} rq={rq} />
                       </AtlasLink>
                     ) : (
                       <span className="mono text-[10px] text-tan-3">—</span>
                     )}
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} tokens={tokens} flex /> : "—"}</span>
+                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} rq={rq} flex /> : "—"}</span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.responsibleParty ? (
@@ -295,14 +294,14 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          <Highlight text={r.responsibleParty.name} tokens={tokens} flex />
+                          <Highlight text={r.responsibleParty.name} rq={rq} flex />
                         </AtlasLink>
                       ) : (
                         <span
                           className="text-xs text-tan-2"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          <Highlight text={r.responsibleParty.name} tokens={tokens} flex />
+                          <Highlight text={r.responsibleParty.name} rq={rq} flex />
                         </span>
                       )
                     ) : (
@@ -317,11 +316,11 @@ export function ActiveDataReport({ query }: { query: string }) {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.facilitator.role}
                         >
-                          <Highlight text={r.facilitator.name} tokens={tokens} flex />
+                          <Highlight text={r.facilitator.name} rq={rq} flex />
                         </AtlasLink>
                       ) : (
                         <span className="text-xs text-tan-2" title={r.facilitator.role}>
-                          <Highlight text={r.facilitator.name} tokens={tokens} flex />
+                          <Highlight text={r.facilitator.name} rq={rq} flex />
                         </span>
                       )
                     ) : (
@@ -332,7 +331,7 @@ export function ActiveDataReport({ query }: { query: string }) {
                     <EvidenceCell r={r} />
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3"><Highlight text={r.process} tokens={tokens} /></span>
+                    <span className="mono text-xs text-tan-3"><Highlight text={r.process} rq={rq} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     <span className="mono text-xs text-tan-3">

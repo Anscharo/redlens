@@ -21,13 +21,16 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
-import { buildHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight } from "./Highlight";
 
 // Header-box text filter: title + doc number. Category/status/shape are
 // pill-owned and deliberately excluded.
-const searchText = (r: ProcessRow) => buildHaystack([r.title, r.docNo]);
+const searchFields = (r: ProcessRow): SearchField[] => [
+  { label: "title", value: r.title },
+  { label: "doc no", value: r.docNo },
+];
 
 type StatusFilter = "all" | "active" | "deferred-stub";
 type ShapeFilter = "all" | "child" | "inline";
@@ -131,7 +134,7 @@ function Row({
   existing,
   onMark,
   onUnmark,
-  tokens,
+  rq,
 }: {
   r: ProcessRow;
   node: AtlasNode;
@@ -142,7 +145,7 @@ function Row({
   existing: LocalIgnore | undefined;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
-  tokens: string[];
+  rq: ReportQuery;
 }) {
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
@@ -163,7 +166,7 @@ function Row({
             onClick={stop}
             className="mono text-xs text-accent hover:underline text-left"
           >
-            <Highlight text={r.docNo} tokens={tokens} />
+            <Highlight text={r.docNo} rq={rq} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -172,7 +175,7 @@ function Row({
             onClick={stop}
             className="text-sm text-tan hover:underline text-left"
           >
-            <Highlight text={r.title} tokens={tokens} />
+            <Highlight text={r.title} rq={rq} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -213,7 +216,7 @@ function Row({
   );
 }
 
-export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string) => void; query: string }) {
+export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: string) => void; query: string; mode: ReportMode }) {
   useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
@@ -230,6 +233,7 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
   const expandedUuid = searchParams.get("expanded");
 
   const { marks, byUuid: ignoresByUuid, mark, unmark, clear } = useLocalIgnores();
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
 
   const childrenByParentDocNo = useMemo(
     () => (atlas ? indexByParentDocNo(atlas.docs) : new Map()),
@@ -251,9 +255,8 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
       if (!showIgnored && ignoresByUuid.has(r.uuid)) return false;
       return true;
     });
-    return filterRows(base, query, searchText);
-  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, query]);
-  const tokens = useMemo(() => queryTokens(query), [query]);
+    return filterRows(base, rq, searchFields);
+  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, rq]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();
@@ -414,7 +417,7 @@ export function ProcessesReport({ onNavigate, query }: { onNavigate: (id: string
                         existing={ignoresByUuid.get(r.uuid)}
                         onMark={mark}
                         onUnmark={unmark}
-                        tokens={tokens}
+                        rq={rq}
                       />
                     );
                   })}

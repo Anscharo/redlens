@@ -6,7 +6,7 @@ import { RatingPill } from "./OeaAssessmentTable";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { hiddenMatches, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // The search haystack as labelled fields; the rated paragraph (quote) and
@@ -94,13 +94,13 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle, tokens = [],
+  rows, docs, expandedKey, onToggle, rq = EMPTY_QUERY,
 }: {
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
-  tokens?: string[];
+  rq?: ReportQuery;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -126,10 +126,10 @@ export function RiskTable({
                 onClick={() => onToggle(row)}
                 className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
                 <td className="py-2 px-3 align-top relative">
-                  <MatchAside matches={hiddenMatches(riskSearchFields(row), tokens)} tokens={tokens} />
+                  <MatchAside matches={hiddenMatches(riskSearchFields(row), rq)} rq={rq} />
                   <AtlasLink to={atlasHref(row.candidate.uuid)} onClick={(ev) => ev.stopPropagation()}
                     className="mono text-xs text-accent hover:underline">
-                    <Highlight text={row.candidate.docNo} tokens={tokens} />
+                    <Highlight text={row.candidate.docNo} rq={rq} />
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
@@ -142,12 +142,12 @@ export function RiskTable({
                   >
                     {expanded ? "▾" : "▸"}
                   </button>
-                  <span className="text-tan"><Highlight text={row.candidate.title} tokens={tokens} /></span>
+                  <span className="text-tan"><Highlight text={row.candidate.title} rq={rq} /></span>
                   {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}
                   {row.status !== "fresh" && (
                     <span className={`badge ml-1.5 ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
                   )}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.triage.description} tokens={tokens} /></p>}
+                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.triage.description} rq={rq} /></p>}
                 </td>
                 <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
                 <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>

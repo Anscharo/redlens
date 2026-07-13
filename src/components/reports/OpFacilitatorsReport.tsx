@@ -26,7 +26,7 @@ import {
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
-import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -35,7 +35,6 @@ const catCodec = categoryCodec(CATEGORY_LABELS);
 // Header-box text filter over the fields declared in OFCategoryTable (which
 // also tracks their per-category visibility for the hidden-match aside).
 // Category is pill-owned and deliberately excluded.
-const searchText = (r: OFResponsibility) => fieldsHaystack(ofSearchFields(r));
 const SEARCHES = "doc no · title · duty text · role · facilitator · executor · prime agents";
 
 const filterCodec: UrlCodec<ActiveFilter> = {
@@ -52,7 +51,7 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-export function OFReport({ query }: { query: string }) {
+export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Operational Facilitator Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
@@ -139,11 +138,11 @@ export function OFReport({ query }: { query: string }) {
     );
   };
 
-  const tokens = useMemo(() => queryTokens(query), [query]);
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const filtered = filterRows(
     responsibilities.filter((r) => (cat === null || r.category === cat) && matches(r)),
-    query,
-    searchText,
+    rq,
+    ofSearchFields,
   );
 
   // Display name of the active entity filter — the pill whose anchor-id slug
@@ -197,7 +196,7 @@ export function OFReport({ query }: { query: string }) {
           ([cat, label]) => {
             const rows = byCategory[cat];
             if (!rows?.length) return null;
-            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} tokens={tokens} />;
+            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} rq={rq} />;
           },
         )}
       </div>

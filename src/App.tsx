@@ -206,6 +206,7 @@ export default function App() {
         activePage={activeNavPage}
         scope={scope}
         scopeCfg={reportScopeCfg}
+        showModes={scope === "atlas" || !!reportScopeCfg}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
         onSubmit={focusFirstResult}
@@ -274,37 +275,37 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_OF_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpFacilitatorsReport query={query} />
+                <OpFacilitatorsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpGovOpsReport query={query} />
+                <OpGovOpsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_ACTIVE_DATA}>
               <Suspense fallback={<Loading />}>
-                <ActiveDataReport query={query} />
+                <ActiveDataReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_REWARDS}>
               <Suspense fallback={<Loading />}>
-                <RewardsReport query={query} />
+                <RewardsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
-                <StaleDatesReport query={query} />
+                <StaleDatesReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
               <Suspense fallback={<Loading />}>
-                <OeaAssessmentReport query={query} />
+                <OeaAssessmentReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RULES}>
               <Suspense fallback={<Loading />}>
-                <RiskRulesReport query={query} />
+                <RiskRulesReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
@@ -314,7 +315,7 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>
               <Suspense fallback={<Loading />}>
-                <ProcessesReport onNavigate={navigateToNode} query={query} />
+                <ProcessesReport onNavigate={navigateToNode} query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.CONSTELLATIONS}>

@@ -2,7 +2,7 @@ import type { OGResponsibility } from "../../lib/govopsResponsibilities";
 import type { Chain } from "../../lib/reportChains";
 import { stripExecutorPrefix } from "../../lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { hiddenMatches, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // The search haystack as labelled fields, with `hidden` tracking exactly what
@@ -29,13 +29,13 @@ export function OGCategoryTable({
   label,
   rows,
   chains,
-  tokens = [],
+  rq = EMPTY_QUERY,
 }: {
   cat: OGResponsibility["category"];
   label: string;
   rows: OGResponsibility[];
   chains: Map<string, Chain>;
-  tokens?: string[];
+  rq?: ReportQuery;
 }) {
   return (
     <div className="mb-8">
@@ -76,38 +76,38 @@ export function OGCategoryTable({
               className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
             >
               <td className="py-2 px-3 align-top relative">
-                <MatchAside matches={hiddenMatches(ogSearchFields(r), tokens)} tokens={tokens} />
-                <DocCell r={r} tokens={tokens} />
+                <MatchAside matches={hiddenMatches(ogSearchFields(r), rq)} rq={rq} />
+                <DocCell r={r} rq={rq} />
               </td>
               {cat === "assignment" ? (
                 <>
                   <td className="py-2 px-3 align-top text-sm text-tan">
-                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} tokens={tokens} flex /> : "—"}
+                    {r.executor ? <Highlight text={stripExecutorPrefix(r.executor)} rq={rq} flex /> : "—"}
                   </td>
                   <td className="py-2 px-3 align-top text-sm text-accent">
-                    <Highlight text={r.govops ?? "—"} tokens={tokens} flex />
+                    <Highlight text={r.govops ?? "—"} rq={rq} flex />
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <AgentChips agents={r.agents ?? []} chains={chains} tokens={tokens} />
+                    <AgentChips agents={r.agents ?? []} chains={chains} rq={rq} />
                   </td>
                 </>
               ) : (
                 <>
-                  <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} tokens={tokens} /></td>
-                  <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} tokens={tokens} /></td>
+                  <td className="py-2 px-3 align-top text-sm text-tan"><Highlight text={r.title} rq={rq} /></td>
+                  <td className="py-2 px-3 align-top text-sm text-tan-2"><Highlight text={r.duty} rq={rq} /></td>
                   {(cat === "active-data" || cat === "process-step") && (
                     <td className="py-2 px-3 align-top text-sm text-accent">
-                      <Highlight text={r.govops ?? "—"} tokens={tokens} flex />
+                      <Highlight text={r.govops ?? "—"} rq={rq} flex />
                     </td>
                   )}
                   {(cat === "op-duty" || cat === "core-duty") && (
                     <td className="py-2 px-3 align-top">
-                      <AgentChips agents={r.agents ?? []} chains={chains} tokens={tokens} />
+                      <AgentChips agents={r.agents ?? []} chains={chains} rq={rq} />
                     </td>
                   )}
                   {(cat === "active-data" || cat === "process-step") && (
                     <td className="py-2 px-3 align-top">
-                      <AgentChips agents={r.agent ? [r.agent] : []} chains={chains} tokens={tokens} />
+                      <AgentChips agents={r.agent ? [r.agent] : []} chains={chains} rq={rq} />
                     </td>
                   )}
                 </>

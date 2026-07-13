@@ -6,18 +6,21 @@ import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { buildHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight } from "./Highlight";
 
 // Header-box text filter: date (ISO + raw text), doc title/number, snippet
-// prose, and the "handoff" badge word for transition rows.
-const searchText = (c: DateClaim) =>
-  buildHaystack([
-    c.dateISO, c.raw, c.title, c.docNo, c.context,
-    c.transition ? "handoff" : null,
-  ]);
+// prose, and the "handoff" badge word for transition rows. All visible.
+const searchFields = (c: DateClaim): SearchField[] => [
+  { label: "date", value: c.dateISO },
+  { label: "date text", value: c.raw },
+  { label: "title", value: c.title },
+  { label: "doc no", value: c.docNo },
+  { label: "context", value: c.context },
+  { label: "handoff", value: c.transition ? "handoff" : "" },
+];
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -56,7 +59,7 @@ const SECTIONS: {
   },
 ];
 
-function ClaimRow({ c, tone, tokens }: { c: DateClaim; tone: string; tokens: string[] }) {
+function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
   // dark background is unreadable as small text, so the date stays tan.
   // The whole row is one link to the doc; the doc number renders as plain
@@ -70,10 +73,10 @@ function ClaimRow({ c, tone, tokens }: { c: DateClaim; tone: string; tokens: str
     >
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} tokens={tokens} /></span>
+          <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} rq={rq} /></span>
           <span className="mono text-base text-tan-2">{staleness(c)}</span>
         </span>
-        <span className="text-lg text-tan"><Highlight text={c.title} tokens={tokens} /></span>
+        <span className="text-lg text-tan"><Highlight text={c.title} rq={rq} /></span>
         {c.transition && (
           <span
             className="mono text-xs px-1.5 py-0.5 rounded"
@@ -83,18 +86,18 @@ function ClaimRow({ c, tone, tokens }: { c: DateClaim; tone: string; tokens: str
             handoff
           </span>
         )}
-        <span className="mono text-xs text-accent ml-auto"><Highlight text={c.docNo} tokens={tokens} /></span>
+        <span className="mono text-xs text-accent ml-auto"><Highlight text={c.docNo} rq={rq} /></span>
       </div>
       <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
-        …<Highlight text={c.contextBefore} tokens={tokens} />
-        <em><Highlight text={c.raw} tokens={tokens} /></em>
-        <Highlight text={c.contextAfter} tokens={tokens} />…
+        …<Highlight text={c.contextBefore} rq={rq} />
+        <em><Highlight text={c.raw} rq={rq} /></em>
+        <Highlight text={c.contextAfter} rq={rq} />…
       </p>
     </AtlasLink>
   );
 }
 
-function Section({ title, hint, claims, tone, textTone, tokens }: { title: string; hint: string; claims: DateClaim[]; tone: string; textTone?: string; tokens: string[] }) {
+function Section({ title, hint, claims, tone, textTone, rq }: { title: string; hint: string; claims: DateClaim[]; tone: string; textTone?: string; rq: ReportQuery }) {
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-0.5" style={{ color: textTone ?? tone }}>
@@ -104,13 +107,13 @@ function Section({ title, hint, claims, tone, textTone, tokens }: { title: strin
       {claims.length === 0 ? (
         <p className="mono text-base text-tan-3">none</p>
       ) : (
-        claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} tokens={tokens} />)
+        claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} rq={rq} />)
       )}
     </section>
   );
 }
 
-export function StaleDatesReport({ query }: { query: string }) {
+export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Stale Dates: Sky Atlas by Redline");
   const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,12 +133,13 @@ export function StaleDatesReport({ query }: { query: string }) {
   );
 
   // Text filter applies within each bucket; buckets keep their order/heading.
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const sections = useMemo(
     () =>
       report
-        ? SECTIONS.map((s) => ({ ...s, claims: [...filterRows(report[s.key], query, searchText)] }))
+        ? SECTIONS.map((s) => ({ ...s, claims: [...filterRows(report[s.key], rq, searchFields)] }))
         : null,
-    [report, query],
+    [report, rq],
   );
   const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
 
@@ -171,7 +175,7 @@ export function StaleDatesReport({ query }: { query: string }) {
           <NoRowsMatch query={query} />
         ) : (
           sections.map((s) => (
-            <Section key={s.key} title={s.title} hint={s.hint} claims={s.claims} tone={s.tone} textTone={s.textTone} tokens={queryTokens(query)} />
+            <Section key={s.key} title={s.title} hint={s.hint} claims={s.claims} tone={s.tone} textTone={s.textTone} rq={rq} />
           ))
         )}
       </div>

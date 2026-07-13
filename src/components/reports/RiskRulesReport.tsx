@@ -11,7 +11,7 @@ import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable, riskSearchFields } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
-import { fieldsHaystack, filterRows, queryTokens } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -19,7 +19,6 @@ import { FilterSummary } from "./FilterSummary";
 // also tracks their visibility for the hidden-match aside). Domain/precision/
 // incentives/status are pill-owned and excluded; the text filter ANDs with
 // the pills.
-const searchText = (r: RiskRow) => fieldsHaystack(riskSearchFields(r));
 const SEARCHES = "doc no · title · summary · full rule paragraph · covered prime agents";
 
 // Multi-select: comma-separated in the URL, empty array = no filter.
@@ -54,7 +53,7 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport({ query }: { query: string }) {
+export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
@@ -114,6 +113,7 @@ export function RiskRulesReport({ query }: { query: string }) {
   // Memoized so the row list only recomputes when a filter actually changes
   // (not on unrelated re-renders, e.g. expanding a row) — RiskTable's
   // pagination relies on `rows` keeping a stable identity across those.
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const filtered = useMemo(
     () =>
       [...filterRows(
@@ -124,10 +124,10 @@ export function RiskRulesReport({ query }: { query: string }) {
             (score === null || String(r.entry?.preciseness) === score) &&
             (enforce === null || r.entry?.enforcement === enforce),
         ),
-        query,
-        searchText,
+        rq,
+        riskSearchFields,
       )],
-    [join, domains, status, score, enforce, query],
+    [join, domains, status, score, enforce, rq],
   );
   // Pill counts describe the unfiltered universe so they don't jump around
   // while filtering. Domain counts use the same any-tag matching as the filter
@@ -184,7 +184,7 @@ export function RiskRulesReport({ query }: { query: string }) {
         />
         {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} tokens={queryTokens(query)} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} rq={rq} />
         )}
       </div>
     </div>

@@ -16,7 +16,7 @@ import {
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
-import { fieldsHaystack, matchesTokens, queryTokens } from "../../lib/reportFilter";
+import { parseReportQuery, rowMatches, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { icdSearchFields } from "./rewardsSearch";
@@ -32,10 +32,10 @@ const SEARCHES =
 function filterPrimitive(
   agent: RewardsAgent,
   prim: AgentPrimitive,
-  tokens: string[],
+  rq: ReportQuery,
 ): AgentPrimitive | null {
   const keep = <T extends RewardsInstance | RewardsInvocation>(list: T[]): T[] =>
-    list.filter((i) => matchesTokens(fieldsHaystack(icdSearchFields(agent, i)), tokens));
+    list.filter((i) => rowMatches(icdSearchFields(agent, i), rq));
   const next = {
     ...prim,
     active: keep(prim.active),
@@ -85,11 +85,11 @@ function EcosystemHeader({
 function AgentSection({
   agent,
   addrMap,
-  tokens,
+  rq,
 }: {
   agent: RewardsAgent;
   addrMap: Record<string, AddressInfo>;
-  tokens: string[];
+  rq: ReportQuery;
 }) {
   // Instance counts (Active/Suspended/Completed) — operational deployments.
   // Invocations are counted separately so the empty-state copy doesn't claim
@@ -133,13 +133,13 @@ function AgentSection({
           )}
         </p>
       )}
-      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} tokens={tokens} />}
-      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} tokens={tokens} />}
+      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} rq={rq} />}
+      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} rq={rq} />}
     </section>
   );
 }
 
-export function RewardsReport({ query }: { query: string }) {
+export function RewardsReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Integrator Reward Relationships: Sky Atlas by Redline");
   const [idx, setIdx] = useState<RewardsIndex | null>(null);
   const [addrMap, setAddrMap] = useState<Record<string, AddressInfo>>({});
@@ -159,18 +159,18 @@ export function RewardsReport({ query }: { query: string }) {
   // Text filter: keep agents with at least one matching ICD, with their DR/IB
   // buckets narrowed to the matching rows. Empty-query passthrough keeps the
   // unfiltered view (including agents with no instances).
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const shownAgents = useMemo(() => {
     if (!idx) return [];
-    const tokens = queryTokens(query);
-    if (tokens.length === 0) return idx.agents;
+    if (rq.needles.length === 0) return idx.agents;
     return idx.agents
       .map((a) => {
-        const dr = a.dr ? filterPrimitive(a, a.dr, tokens) : null;
-        const ib = a.ib ? filterPrimitive(a, a.ib, tokens) : null;
+        const dr = a.dr ? filterPrimitive(a, a.dr, rq) : null;
+        const ib = a.ib ? filterPrimitive(a, a.ib, rq) : null;
         return dr || ib ? { ...a, dr, ib } : null;
       })
       .filter((a): a is RewardsAgent => a !== null);
-  }, [idx, query]);
+  }, [idx, rq]);
 
   const summary = useMemo(() => {
     if (!idx) return null;
@@ -237,7 +237,7 @@ export function RewardsReport({ query }: { query: string }) {
             <EcosystemHeader idx={idx} addrMap={addrMap} />
             {idx.agents.length > 0 && shownAgents.length === 0 && <NoRowsMatch query={query} />}
             {shownAgents.map((a) => (
-              <AgentSection key={a.name} agent={a} addrMap={addrMap} tokens={queryTokens(query)} />
+              <AgentSection key={a.name} agent={a} addrMap={addrMap} rq={rq} />
             ))}
           </>
         )}

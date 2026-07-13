@@ -32,6 +32,9 @@ interface Props extends NavBarProps {
   // Route-specific pill override (e.g. a report page's short name). Falls
   // back to the scope's generic config.
   scopeCfg?: ScopeConfig;
+  // Show the broad/phrase/strict mode pills. Defaults to atlas scope only;
+  // report pages opt in (their filters honor the same mode semantics).
+  showModes?: boolean;
   recentSearches?: RecentSuggestion[];
   onRecentSelect?: (query: string, rank: number) => void;
   // Pressing Enter on a typed query (not while picking a recent) calls this;
@@ -50,11 +53,13 @@ export function SearchBar({
   activePage,
   scope,
   scopeCfg,
+  showModes,
   recentSearches = [],
   onRecentSelect,
   onSubmit,
 }: Props) {
   const cfg = scopeCfg ?? SCOPE_CONFIG[scope];
+  const modesVisible = showModes ?? scope === "atlas";
 
   // Surface recents when the field is empty (incl. the bare quote markers the
   // phrase/strict pills leave behind) OR when what's typed is a prefix of a
@@ -191,7 +196,7 @@ export function SearchBar({
           )}
           </div>
 
-          {scope === "atlas" && (
+          {modesVisible && (
             <div className="flex gap-2 shrink-0">
               {MODES.map((m) => {
                 const { symbol } = MODE_CONFIG[m];

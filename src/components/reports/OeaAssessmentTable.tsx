@@ -4,7 +4,7 @@ import type { OeaMechanism, OeaRow } from "../../lib/oeaReport";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
-import { hiddenMatches, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
 // The search haystack as labelled fields; the covered prime agents are
@@ -81,14 +81,14 @@ function ExpandedBody({ row, mechanisms }: { row: OeaRow; mechanisms: Record<str
 }
 
 export function OeaTable({
-  label, rows, mechanisms, expandedKey, onToggle, tokens = [],
+  label, rows, mechanisms, expandedKey, onToggle, rq = EMPTY_QUERY,
 }: {
   label: string;
   rows: OeaRow[];
   mechanisms: Record<string, OeaMechanism>;
   expandedKey: string | null;
   onToggle: (row: OeaRow) => void;
-  tokens?: string[];
+  rq?: ReportQuery;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -114,9 +114,9 @@ export function OeaTable({
               <tr key={row.task.taskKey}
                 className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
                 <td className="py-2 px-3 align-top relative">
-                  <MatchAside matches={hiddenMatches(oeaSearchFields(row), tokens)} tokens={tokens} />
+                  <MatchAside matches={hiddenMatches(oeaSearchFields(row), rq)} rq={rq} />
                   <AtlasLink to={atlasHref(row.task.uuid)} className="mono text-xs text-accent hover:underline">
-                    <Highlight text={row.task.docNo} tokens={tokens} />
+                    <Highlight text={row.task.docNo} rq={rq} />
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
@@ -131,10 +131,10 @@ export function OeaTable({
                   </button>
                   <AtlasLink to={atlasHref(row.task.uuid)} className="text-tan hover:underline"
                   >
-                    <Highlight text={row.task.title} tokens={tokens} />
+                    <Highlight text={row.task.title} rq={rq} />
                   </AtlasLink>
                   {row.task.automated && <span className="mono text-[10px] text-tan-3 ml-1.5">[automated]</span>}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.task.assessedText} tokens={tokens} /></p>}
+                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.task.assessedText} rq={rq} /></p>}
                 </td>
                 <td className="py-2 px-3 align-top"><RatingPill r={e?.precision.rating ?? null} /></td>
                 <td className="py-2 px-3 align-top">
