@@ -28,55 +28,6 @@ export function dutySnippet(content: string, preferRe: RegExp): string {
   return (i > 0 ? "…" : "") + units[i] + (i < last ? "…" : "");
 }
 
-// One doc merged into a collapsed duty row (see dutyCollapseKey below).
-// Shared by the GovOps and Facilitator report row shapes.
-export interface MergedSource {
-  docNo: string;
-  uuid: string;
-  agent?: string; // Prime Agent whose artifact subtree holds this copy
-}
-
-// Doc-number tokens (citation labels like "A.6.1.1.1.2.2 - Root Edit Proposal
-// Submission", bare doc_no references, "NR-3"). Per-agent replicas cite into
-// their OWN subtree, so the visible doc numbers differ per copy even when the
-// duty is identical — they must not participate in the collapse key. Segments
-// must be numeric (or the spec's varX suffix) so prose tokens like "U.S." or
-// "SKY.eth" are left alone.
-const DOC_NO_TOKEN_RE = /\b(?:[A-Z]{1,3}(?:\.(?:\d+|var\d+))+|NR-\d+)\b/g;
-
-// Collapse-key builder for per-agent-artifact duty rows. Same-title docs
-// replicated once per agent artifact may only collapse when the doc CONTENT is
-// also the same — otherwise unrelated duties sharing a structural title
-// ("Modification" of two different multisigs) get silently merged, dropping
-// rows and misattributing agents. Key on the full content, NOT the edge's
-// matched quote: quotes are truncated at a fixed length by build-graph, so
-// their tails differ by however long the agent's name is. Two per-agent
-// replicas of the same duty differ only by the OWNING agent's name ("reviews
-// Spark's calculation" vs "reviews Grove's calculation"), the doc numbers /
-// link targets of citations into their own subtrees, and trivial punctuation
-// ("two-thirds" vs "two thirds", curly vs straight apostrophes) — so the key
-// strips markdown links and doc-number tokens, masks the owning agent's name,
-// and collapses every non-alphanumeric run before comparing. Only the OWNER is
-// masked: a mention of a DIFFERENT agent is substantive content ("reviews
-// Grove's collateral" under Spark ≠ "reviews Obex's collateral" under Keel),
-// so masking every known agent name would over-merge those.
-const ownerMaskCache = new Map<string, RegExp>();
-export function dutyCollapseKey(content: string, ownerAgent?: string): string {
-  let maskRe: RegExp | undefined;
-  if (ownerAgent) {
-    maskRe = ownerMaskCache.get(ownerAgent);
-    if (!maskRe) {
-      maskRe = new RegExp(`\\b${ownerAgent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
-      ownerMaskCache.set(ownerAgent, maskRe);
-    }
-  }
-  const stripped = stripMarkdownLinks(content).replace(DOC_NO_TOKEN_RE, " ");
-  return (maskRe ? stripped.replace(maskRe, " ") : stripped)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
 // Process-step "Update" docs open with a boilerplate sentence ("The Document
 // is updated as follows.") before the actual field/RP/trigger spec — a
 // useless preview on its own. When firstLine() would return this, pull the
