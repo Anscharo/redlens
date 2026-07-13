@@ -11,6 +11,7 @@ describe("isStaleChunkError", () => {
     "Failed to fetch dynamically imported module: https://x/assets/NodeContentInner-abc.js", // Chrome
     "error loading dynamically imported module: https://x/assets/a.js", // Firefox
     "Importing a module script failed.", // Safari
+    "Failed to load module script: Expected a JavaScript module script but the server responded with a MIME type of \"text/html\".", // module-script MIME mismatch
     "Unable to preload CSS for /assets/RadarPage-abc.css", // Vite preload helper
   ])("matches %s", (message) => {
     expect(isStaleChunkError(new TypeError(message))).toBe(true);
