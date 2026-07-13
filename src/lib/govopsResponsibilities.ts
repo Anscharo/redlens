@@ -13,7 +13,7 @@ import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
-import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine, type MergedSource } from "./dutyText";
+import { dutySnippet as sharedDutySnippet, dutyCollapseKey, firstLine, type MergedSource } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -135,7 +135,8 @@ export function deriveGovOpsResponsibilities(
   //
   //    Collapsing is only allowed under the per-agent-artifact subtree
   //    (A.6.1.1.<agent>.*), and only when the duty TEXT also matches under
-  //    dutyCollapseKeyer (agent names masked, punctuation normalized) — title
+  //    dutyCollapseKey (owning agent's name masked, doc-number citation
+  //    labels stripped, punctuation normalized) — title
   //    alone is not enough: structural titles like "Modification" recur under
   //    every agent for DIFFERENT duties (different multisig, different signer
   //    thresholds), and bare-title collapse silently dropped those rows while
@@ -155,7 +156,6 @@ export function deriveGovOpsResponsibilities(
   //    skipped before it's even looked at.
   // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
-  const collapseKey = dutyCollapseKeyer(agents.map((a) => a.name));
   const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string>; _sources: MergedSource[] }>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
@@ -169,8 +169,8 @@ export function deriveGovOpsResponsibilities(
 
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
     const category: OGResponsibility["category"] = CORE_ROLE_RE.test(meta?.role_declared ?? "") ? "core-duty" : "op-duty";
-    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? `${n.title.trim().toLowerCase()}:${collapseKey(n.content)}` : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
+    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? `${n.title.trim().toLowerCase()}:${dutyCollapseKey(n.content, agent)}` : `uuid:${n.id}`}`;
     const existing = dutyByTitle.get(key);
     if (existing) {
       // Keep the lowest doc_no as the representative row.
