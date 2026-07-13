@@ -7,8 +7,10 @@
 // this mirrors the stale-sha data-artifact policy in atlasBase.ts: reload
 // once, transparently, instead of stranding the user on "failed to render".
 
+// "Unable to preload CSS" is Vite's preload-helper error for a lazy chunk's
+// stylesheet dep — hashed like the JS, so it goes stale the same way.
 const STALE_CHUNK_RE =
-  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Failed to load module script/i;
+  /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Failed to load module script|Unable to preload CSS/i;
 
 export function isStaleChunkError(err: unknown): boolean {
   return err instanceof Error && STALE_CHUNK_RE.test(err.message);
@@ -32,6 +34,9 @@ export const pageReloader = {
  *  (and does nothing) inside the cooldown window or when sessionStorage is
  *  unavailable (no storage → no loop guard → never auto-reload). */
 export function reloadForStaleChunk(): boolean {
+  // Offline, a chunk 404 isn't deploy drift and a reload would land on the
+  // browser's offline page (there's no offline shell) — keep the fallback UI.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
   try {
     const last = Number(sessionStorage.getItem(RELOAD_STAMP_KEY) ?? "0");
     if (Date.now() - last < RELOAD_COOLDOWN_MS) return false;
@@ -44,12 +49,14 @@ export function reloadForStaleChunk(): boolean {
 }
 
 /** Global hook: Vite dispatches `vite:preloadError` when a dynamic import (or
- *  one of its preloaded deps) fails. Reload before the rejection ever reaches
- *  React; preventDefault() stops Vite from rethrowing while the reload is in
- *  flight. When the guard blocks, the error propagates to the nearest
- *  ErrorBoundary, whose fallback renders the refresh prompt. */
+ *  one of its preloaded deps) fails. For stale-chunk payloads ONLY — a module
+ *  evaluation error also lands here and must surface, not reload — reload
+ *  before the rejection ever reaches React; preventDefault() stops Vite from
+ *  rethrowing while the reload is in flight. When the guard blocks, the error
+ *  propagates to the nearest ErrorBoundary, whose fallback renders the
+ *  refresh prompt. */
 export function installStaleChunkReload(): void {
   window.addEventListener("vite:preloadError", (event) => {
-    if (reloadForStaleChunk()) event.preventDefault();
+    if (isStaleChunkError(event.payload) && reloadForStaleChunk()) event.preventDefault();
   });
 }
