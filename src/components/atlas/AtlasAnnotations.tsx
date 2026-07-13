@@ -71,7 +71,7 @@ export function AtlasAnnotations({
           zIndex: 10,
         }}
       />
-      <ErrorBoundary resetKey={id} fallback={(_, reset) => <PanelError reset={reset} />}>
+      <ErrorBoundary resetKey={id} fallback={(error, reset) => <PanelError error={error} reset={reset} />}>
         <RightPanel
           id={id}
           linkedNodes={linkedNodes}

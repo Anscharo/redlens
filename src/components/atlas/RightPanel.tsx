@@ -201,7 +201,7 @@ export function RightPanel({
                   addresses · {Object.keys(targetAddresses).length}
                 </p>
                 {Object.entries(targetAddresses).map(([address, info]) => (
-                  <ErrorBoundary key={address} fallback={<InlineError />}>
+                  <ErrorBoundary key={address} fallback={(error) => <InlineError error={error} />}>
                     <AddressCard
                       address={address}
                       info={info}
@@ -247,7 +247,7 @@ export function RightPanel({
           </div>
         ) : (
           <div className="px-4 py-5">
-            <ErrorBoundary resetKey={id} fallback={<InlineError />}>
+            <ErrorBoundary resetKey={id} fallback={(error) => <InlineError error={error} />}>
               {preview ? <PreviewHistory nodeId={id} /> : <NodeHistory nodeId={id} />}
             </ErrorBoundary>
           </div>
