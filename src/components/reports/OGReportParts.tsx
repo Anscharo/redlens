@@ -35,6 +35,8 @@ export function DocCell({
 }) {
   // A row that merged several per-agent doc replicas links every copy, not
   // just the representative — each copy is a real atlas doc a reader may need.
+  // The owning agent rides along as both a hover tooltip and an aria-label
+  // (a bare title attribute is invisible to screen readers and touch).
   if (r.sources && r.sources.length > 1) {
     return (
       <ul className="flex flex-col gap-0.5">
@@ -43,6 +45,7 @@ export function DocCell({
             <AtlasLink
               to={atlasHref(s.uuid)}
               title={s.agent}
+              aria-label={s.agent ? `${s.docNo} — ${s.agent}` : undefined}
               className="mono text-xs text-accent hover:underline text-left"
             >
               <Highlight text={s.docNo} rq={rq} />

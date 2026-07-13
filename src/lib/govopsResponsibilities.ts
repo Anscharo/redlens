@@ -13,7 +13,7 @@ import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
-import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine } from "./dutyText";
+import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine, type MergedSource } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -46,12 +46,6 @@ export interface OGResponsibility {
   // Every doc merged into this row (duty rows collapsing per-agent replicas) —
   // set only when 2+ docs merged; includes the representative. docNo-ordered.
   sources?: MergedSource[];
-}
-
-export interface MergedSource {
-  docNo: string;
-  uuid: string;
-  agent?: string; // Prime Agent whose artifact subtree holds this copy
 }
 
 export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {

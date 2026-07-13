@@ -12,11 +12,10 @@ import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
-import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine } from "./dutyText";
+import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine, type MergedSource } from "./dutyText";
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
-import type { MergedSource } from "./govopsResponsibilities";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
 // Confirmed non-duty docs whose text otherwise matches the Facilitator

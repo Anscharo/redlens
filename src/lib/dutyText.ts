@@ -28,6 +28,14 @@ export function dutySnippet(content: string, preferRe: RegExp): string {
   return (i > 0 ? "…" : "") + units[i] + (i < last ? "…" : "");
 }
 
+// One doc merged into a collapsed duty row (see dutyCollapseKeyer below).
+// Shared by the GovOps and Facilitator report row shapes.
+export interface MergedSource {
+  docNo: string;
+  uuid: string;
+  agent?: string; // Prime Agent whose artifact subtree holds this copy
+}
+
 // Collapse-key factory for per-agent-artifact duty rows. Same-title docs
 // replicated once per agent artifact may only collapse when the doc CONTENT is
 // also the same — otherwise unrelated duties sharing a structural title
