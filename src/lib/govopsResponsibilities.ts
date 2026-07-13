@@ -13,7 +13,7 @@ import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
-import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
+import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -127,17 +127,21 @@ export function deriveGovOpsResponsibilities(
   //    matched quote (provenance) which doubles as the duty text; title-only
   //    matches carry no quote and fall back to a content snippet.
   //    Duplicate duties (the same section replicated under every agent artifact,
-  //    e.g. "Operational GovOps Reviews Rebate") are collapsed by title, with the
-  //    covered Prime Agents accumulated onto a single representative row.
+  //    e.g. "Operational GovOps Reviews Rebate") are collapsed, with the covered
+  //    Prime Agents accumulated onto a single representative row.
   //
-  //    Collapsing by bare title is only safe under the per-agent-artifact subtree
-  //    (A.6.1.1.<agent>.*), where the SAME content is genuinely duplicated once per
-  //    agent. Outside it, generic structural titles ("Process Flow", "Required
-  //    Primitive Inputs", "Validation", "Signers") are reused across UNRELATED
-  //    primitives/processes — collapsing those would silently drop distinct docs
-  //    (agentFromDocNo is undefined there too, so there's no "agents" list to fall
-  //    back on as a consolation). Key those by uuid instead so every one keeps its
-  //    own row.
+  //    Collapsing is only allowed under the per-agent-artifact subtree
+  //    (A.6.1.1.<agent>.*), and only when the duty TEXT also matches under
+  //    dutyCollapseKeyer (agent names masked, punctuation normalized) — title
+  //    alone is not enough: structural titles like "Modification" recur under
+  //    every agent for DIFFERENT duties (different multisig, different signer
+  //    thresholds), and bare-title collapse silently dropped those rows while
+  //    misattributing their agents to the representative doc. Outside the
+  //    agent-artifact subtree, generic structural titles ("Process Flow",
+  //    "Required Primitive Inputs", "Validation", "Signers") are reused across
+  //    UNRELATED primitives/processes (agentFromDocNo is undefined there too,
+  //    so there's no "agents" list to fall back on as a consolation). Key those
+  //    by uuid so every one keeps its own row.
   //    A doc can genuinely carry BOTH a Core and an Operational duty (a "Sky
   //    Governance path / Independent Governance path" branch, or just two
   //    independent sentences, e.g. A.1.10.2.3.2.2.3.3.2, A.3.2.2.7.2.1.2) —
@@ -148,6 +152,7 @@ export function deriveGovOpsResponsibilities(
   //    skipped before it's even looked at.
   // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+  const collapseKey = dutyCollapseKeyer(agents.map((a) => a.name));
   const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string> }>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
@@ -161,7 +166,7 @@ export function deriveGovOpsResponsibilities(
 
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
     const category: OGResponsibility["category"] = CORE_ROLE_RE.test(meta?.role_declared ?? "") ? "core-duty" : "op-duty";
-    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
+    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? `${n.title.trim().toLowerCase()}:${collapseKey(n.content)}` : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
     const existing = dutyByTitle.get(key);
     if (existing) {

@@ -12,7 +12,7 @@ import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
-import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
+import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine } from "./dutyText";
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -104,11 +104,14 @@ export function deriveFacilitatorResponsibilities(
   // 2. Duties — duty_for edges declared for the Facilitator role. Category from
   //    the declared role: Core / Operational / bare ("Facilitator" — A.1.7-style
   //    universal duties that bind every holder). Same-title rows under the
-  //    per-agent-artifact subtree collapse with agents accumulated (see
-  //    govopsResponsibilities.ts for why bare-title collapse is only safe
-  //    there); fan-out edges for one doc collapse with holders accumulated.
+  //    per-agent-artifact subtree collapse with agents accumulated — but only
+  //    when the duty text also matches under dutyCollapseKeyer (see
+  //    govopsResponsibilities.ts: structural titles like "Modification" recur
+  //    per agent for DIFFERENT duties, so title alone over-collapses); fan-out
+  //    edges for one doc collapse with holders accumulated.
   // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
+  const collapseKey = dutyCollapseKeyer(agents.map((a) => a.name));
   type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string> };
   const dutyByKey = new Map<string, DutyRow>();
   for (const e of edges) {
@@ -127,7 +130,7 @@ export function deriveFacilitatorResponsibilities(
         ? "op-duty"
         : "universal";
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
-    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
+    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? `${n.title.trim().toLowerCase()}:${collapseKey(n.content)}` : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
     const facName = entityById.get(e.f)?.name;
     const existing = dutyByKey.get(key);

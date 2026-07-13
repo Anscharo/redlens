@@ -1,5 +1,34 @@
 import { describe, it, expect } from "vitest";
-import { firstLine, dutySnippet } from "./dutyText";
+import { firstLine, dutySnippet, dutyCollapseKeyer } from "./dutyText";
+
+describe("dutyCollapseKeyer", () => {
+  const key = dutyCollapseKeyer(["Spark", "Grove", "Launch Agent 7"]);
+
+  it("equates per-agent replicas differing only by the agent's own name", () => {
+    expect(key("Operational GovOps reviews Spark’s calculation of the rebate.")).toBe(
+      key("Operational GovOps reviews Grove's calculation of the rebate."),
+    );
+    expect(key("work with Launch Agent 7 to resolve the disagreement")).toBe(
+      key("work with Spark to resolve the disagreement"),
+    );
+  });
+
+  it("normalizes punctuation and markdown-link targets, not just names", () => {
+    expect(key("at least two-thirds of signers")).toBe(key("at least two thirds of signers"));
+    expect(key("see [Spark](aaaa-uuid) for details")).toBe(key("see [Grove](bbbb-uuid) for details"));
+  });
+
+  it("keeps genuinely different duties apart", () => {
+    expect(key("can change the signers of the Core Operator Relayer Multisig")).not.toBe(
+      key("can change the signers of the USDS Demand Subsidies Multisig"),
+    );
+    expect(key("at least three (3) signers")).not.toBe(key("at least two (2) signers"));
+  });
+
+  it("does not mask a name embedded inside a longer word", () => {
+    expect(key("the Sparkling reserve")).not.toBe(key("the Groveling reserve"));
+  });
+});
 
 describe("firstLine", () => {
   it("returns the first non-empty line for ordinary content", () => {

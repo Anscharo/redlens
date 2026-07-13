@@ -28,6 +28,33 @@ export function dutySnippet(content: string, preferRe: RegExp): string {
   return (i > 0 ? "…" : "") + units[i] + (i < last ? "…" : "");
 }
 
+// Collapse-key factory for per-agent-artifact duty rows. Same-title docs
+// replicated once per agent artifact may only collapse when the doc CONTENT is
+// also the same — otherwise unrelated duties sharing a structural title
+// ("Modification" of two different multisigs) get silently merged, dropping
+// rows and misattributing agents. Key on the full content, NOT the edge's
+// matched quote: quotes are truncated at a fixed length by build-graph, so
+// their tails differ by however long the agent's name is. Two per-agent
+// replicas of the same duty differ only by the agent's own name ("reviews
+// Spark's calculation" vs "reviews Grove's calculation"), the link UUIDs into
+// their own subtrees, and trivial punctuation ("two-thirds" vs "two thirds",
+// curly vs straight apostrophes) — so the key strips markdown links, masks the
+// given agent names (longest first, so multi-word names win), and collapses
+// every non-alphanumeric run before comparing.
+export function dutyCollapseKeyer(agentNames: readonly string[]): (content: string) => string {
+  const names = agentNames.filter(Boolean).sort((a, b) => b.length - a.length);
+  const maskRe = names.length
+    ? new RegExp(`\\b(?:${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "gi")
+    : null;
+  return (content: string) => {
+    const stripped = stripMarkdownLinks(content);
+    return (maskRe ? stripped.replace(maskRe, " ") : stripped)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  };
+}
+
 // Process-step "Update" docs open with a boilerplate sentence ("The Document
 // is updated as follows.") before the actual field/RP/trigger spec — a
 // useless preview on its own. When firstLine() would return this, pull the

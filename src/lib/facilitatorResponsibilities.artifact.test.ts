@@ -78,16 +78,24 @@ describe("deriveFacilitatorResponsibilities (real artifacts)", () => {
     expect(results.some((r) => r.category === "op-duty")).toBe(true);
   });
 
-  it("includes the per-agent root-edit duties, collapsed by title with agents accumulated", () => {
+  it("includes the per-agent root-edit duties, collapsed by content with agents accumulated", () => {
+    // Identical replicas collapse, but genuine per-agent variants stay apart:
+    // Spark's copy adds an author-compliance check the other agents' copies
+    // don't have, so it keeps its own row. Every agent copy must survive
+    // somewhere — the union of agents across the variant rows stays large.
     const rootEdit = results.filter((r) => /^root edit proposal review/i.test(r.title));
-    expect(rootEdit).toHaveLength(1);
-    expect(rootEdit[0].agents?.length ?? 0).toBeGreaterThan(3);
+    expect(rootEdit.length).toBeGreaterThanOrEqual(2);
+    const union = new Set(rootEdit.flatMap((r) => r.agents ?? []));
+    expect(union.size).toBeGreaterThan(3);
   });
 
   it("includes the Root Edit Token Holder Vote duty for every agent copy ('triggers' verb)", () => {
+    // Three real variants (SRC-review gate / >50% of votes cast excluding
+    // abstentions / 50% in favor) — each keeps a row, no agent copy is dropped.
     const vote = results.filter((r) => /^root edit token holder vote/i.test(r.title));
-    expect(vote).toHaveLength(1);
-    expect(vote[0].agents?.length ?? 0).toBeGreaterThan(6);
+    expect(vote.length).toBeGreaterThanOrEqual(2);
+    const union = new Set(vote.flatMap((r) => r.agents ?? []));
+    expect(union.size).toBeGreaterThan(6);
   });
 
   it("includes at least one assignment result", () => {

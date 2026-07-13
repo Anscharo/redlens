@@ -28,9 +28,17 @@ const docs: Record<string, AtlasNode> = {};
 for (const n of [
   node({ id: GOVOPS_DEF, doc_no: "A.0.1.1.47", title: "GovOps", content: "Governance Operations (\"GovOps\") actors are specialized Ecosystem Actors." }),
   node({ id: "prime-doc", doc_no: "A.6.1.1.1", title: "Prime Agent Spark" }),
-  // Two copies of the same duty under two different agent artifacts — must collapse.
-  node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Spark's calculation of the rebate before executing." }),
-  node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Grove's calculation of the rebate before executing." }),
+  node({ id: "prime-doc-2", doc_no: "A.6.1.1.2", title: "Prime Agent Grove" }),
+  // Two copies of the same duty under two different agent artifacts — must
+  // collapse: the text differs only by each agent's own name (masked by the
+  // collapse key) and punctuation (curly vs straight apostrophe).
+  node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Spark’s calculation of the rebate before executing." }),
+  node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Grove's calculation of the rebate before executing" }),
+  // Same structural title under two agent artifacts but genuinely DIFFERENT
+  // duties (different multisig) — must NOT collapse (the A.6.1.1.<n> "Modification"
+  // bug: Spark's row swallowed Skybase's distinct duty and its agent).
+  node({ id: "duty-msig-1", doc_no: "A.6.1.1.1.9.5", title: "Modification", content: "Operational GovOps Soter Labs can change the signers of the Core Operator Relayer Multisig at any time." }),
+  node({ id: "duty-msig-2", doc_no: "A.6.1.1.2.9.5", title: "Modification", content: "Operational GovOps Soter Labs can change the signers of the USDS Demand Subsidies Multisig at any time." }),
   node({ id: "duty-core", doc_no: "A.2.2.1.1.13", title: "Core GovOps Validates Executor Accord Primitive Inputs", content: "Core GovOps reviews the inputs to the Executor Accord Primitive to ensure validity." }),
   // Assignment doc (no duty_for edge — build-graph excludes the structural doc_no).
   node({ id: "assign-doc", doc_no: "A.6.1.2.1.2", title: "Operational GovOps", content: "Operational GovOps for Operational Executor Agent Amatsu is Soter Labs." }),
@@ -76,6 +84,7 @@ const participants: GraphEntity[] = [
   { id: "exec", slug: "amatsu", name: "Operational Executor Agent Amatsu", et: "agent", st: "operational_executor", did: null },
   { id: "core-exec", slug: "cc-exec-1", name: "Core Council Executor Agent 1", et: "agent", st: "core_executor", did: null },
   { id: "prime", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "prime-doc" },
+  { id: "prime-2", slug: "grove", name: "Grove", et: "agent", st: "prime", did: "prime-doc-2" },
 ];
 
 const dutyMeta = (role: string, quote: string | null, match = quote ? "active" : "title") =>
@@ -88,6 +97,8 @@ const edges: RelationEdge[] = [
   // Duties — duty_for edges as build-graph section 2s-ter emits them.
   { f: "soter", ft: "entity", t: "duty-op-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.2.3"], m: dutyMeta("Operational GovOps", null) },
   { f: "soter", ft: "entity", t: "duty-op-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.2.3"], m: dutyMeta("Operational GovOps", null) },
+  { f: "soter", ft: "entity", t: "duty-msig-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.9.5"], m: dutyMeta("Operational GovOps", "Operational GovOps Soter Labs can change the signers of the Core Operator Relayer Multisig at any time.") },
+  { f: "soter", ft: "entity", t: "duty-msig-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.9.5"], m: dutyMeta("Operational GovOps", "Operational GovOps Soter Labs can change the signers of the USDS Demand Subsidies Multisig at any time.") },
   { f: "atlas-axis", ft: "entity", t: "duty-core", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", null) },
   { f: "soter", ft: "entity", t: "duty-quoted", tt: "doc", e: "duty_for", s: ["A.1.14.4.6.1.1"], m: dutyMeta("Operational GovOps", "GovOps actors [carry out](someuuid) operational activities on behalf of Executor Agents.") },
   { f: "atlas-axis", ft: "entity", t: "duty-title-bullets", tt: "doc", e: "duty_for", s: ["A.2.7.7"], m: dutyMeta("Core GovOps", null) },
@@ -120,12 +131,19 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(defs.map((r) => r.uuid)).toContain(GOVOPS_DEF);
   });
 
-  it("collapses duplicate per-agent duties by title and accumulates agents", () => {
+  it("collapses duplicate per-agent duties and accumulates agents", () => {
     const op = byCat("op-duty");
     const rebate = op.filter((r) => /reviews rebate/i.test(r.title));
     expect(rebate).toHaveLength(1);
     expect(rebate[0].docNo).toBe("A.6.1.1.1.2.3"); // lowest doc_no is representative
-    expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark"]));
+    expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark", "Grove"]));
+  });
+
+  it("does not collapse same-title agent-artifact docs whose duties genuinely differ", () => {
+    const msig = byCat("op-duty").filter((r) => r.title === "Modification");
+    expect(msig.map((r) => r.uuid).sort()).toEqual(["duty-msig-1", "duty-msig-2"]);
+    expect(msig.find((r) => r.uuid === "duty-msig-1")?.agents).toEqual(["Spark"]);
+    expect(msig.find((r) => r.uuid === "duty-msig-2")?.agents).toEqual(["Grove"]);
   });
 
   it("classifies duties op vs core from the edge's declared role", () => {
