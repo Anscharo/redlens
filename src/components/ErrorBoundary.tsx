@@ -1,5 +1,10 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { captureException } from "../lib/analytics";
+import { isStaleChunkError } from "../lib/staleChunk";
+
+// The stale-chunk-aware fallback components live in ErrorFallbacks.tsx;
+// re-exported here so call sites import boundary + fallbacks from one place.
+export { PanelError, InlineError } from "./ErrorFallbacks";
 
 interface Props {
   children: ReactNode;
@@ -23,7 +28,10 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
-    captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack });
+    // staleChunk tags deploy-drift errors for tracking. Deliberately no
+    // auto-reload — the fallback shows a refresh prompt and the user decides.
+    const staleChunk = isStaleChunkError(error);
+    captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack, staleChunk });
     this.props.onError?.(error, info);
   }
 
@@ -46,15 +54,3 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
   }
 }
 
-export function PanelError({ reset }: { reset?: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <p className="text-xs mono" style={{ color: "var(--error-text)" }}>failed to load</p>
-      {reset && <button onClick={reset} className="text-xs mono text-accent hover:underline">retry</button>}
-    </div>
-  );
-}
-
-export function InlineError() {
-  return <span className="text-xs mono" style={{ color: "var(--error-text)" }} role="alert">failed to render</span>;
-}

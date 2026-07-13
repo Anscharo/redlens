@@ -36,7 +36,7 @@ function NodeContentSkeleton() {
 
 export const NodeContent = memo(function NodeContent(props: Props) {
   return (
-    <ErrorBoundary fallback={<InlineError />}>
+    <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
       <Suspense fallback={<NodeContentSkeleton />}>
         <NodeContentInner {...props} />
       </Suspense>

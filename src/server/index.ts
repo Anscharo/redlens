@@ -9,6 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes } from "./indexes.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
+import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
@@ -157,10 +158,7 @@ const server = Bun.serve({
       if (req.headers.get("accept-encoding")?.includes("gzip")) {
         const gz = Bun.file(filePath + ".gz");
         if (await gz.exists()) {
-          const mime = pathname.endsWith(".json") ? "application/json"
-            : pathname.endsWith(".js") ? "application/javascript"
-            : pathname.endsWith(".css") ? "text/css"
-            : "application/octet-stream";
+          const mime = contentTypeFor(pathname);
           return new Response(gz, {
             headers: { "Content-Encoding": "gzip", "Content-Type": mime, "Vary": "Accept-Encoding" },
           });
@@ -168,6 +166,15 @@ const server = Bun.serve({
       }
       const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
+      // File-like miss (final path segment has an extension): 404, never the
+      // SPA-HTML fallthrough — HTML masquerading as the requested file turns a
+      // clean miss into a MIME-type import error. This covers hashed assets a
+      // pre-deploy tab still wants (/assets/*.js, the root-level
+      // workbox-<hash>.js the old service worker re-imports) in one rule; the
+      // client handles the miss (src/lib/staleChunk.ts). Safe for navigations:
+      // every SPA route is extension-less (radar slugs are slugify()d, preview
+      // ids are PR numbers/shas — dots can't occur in a route's final segment).
+      if (/\.[^/]+$/.test(pathname)) return NOT_FOUND();
     }
     // SPA fallback. Inject the live atlas sha into the HTML so the app's first
     // artifact fetch hits the immutable /api/atlas/<sha>/ URL with no extra
