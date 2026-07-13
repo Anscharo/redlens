@@ -26,7 +26,32 @@ export function AgentChips({ agents, chains, rq = EMPTY_QUERY }: { agents: strin
   );
 }
 
-export function DocCell({ r, rq = EMPTY_QUERY }: { r: { uuid: string; docNo: string }; rq?: ReportQuery }) {
+export function DocCell({
+  r,
+  rq = EMPTY_QUERY,
+}: {
+  r: { uuid: string; docNo: string; sources?: { docNo: string; uuid: string; agent?: string }[] };
+  rq?: ReportQuery;
+}) {
+  // A row that merged several per-agent doc replicas links every copy, not
+  // just the representative — each copy is a real atlas doc a reader may need.
+  if (r.sources && r.sources.length > 1) {
+    return (
+      <ul className="flex flex-col gap-0.5">
+        {r.sources.map((s) => (
+          <li key={s.uuid}>
+            <AtlasLink
+              to={atlasHref(s.uuid)}
+              title={s.agent}
+              className="mono text-xs text-accent hover:underline text-left"
+            >
+              <Highlight text={s.docNo} rq={rq} />
+            </AtlasLink>
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return r.uuid ? (
     <AtlasLink to={atlasHref(r.uuid)} className="mono text-xs text-accent hover:underline text-left">
       <Highlight text={r.docNo} rq={rq} />

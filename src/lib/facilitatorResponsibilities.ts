@@ -16,6 +16,7 @@ import { dutySnippet as sharedDutySnippet, dutyCollapseKeyer, firstLine } from "
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import type { MergedSource } from "./govopsResponsibilities";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
 // Confirmed non-duty docs whose text otherwise matches the Facilitator
@@ -42,6 +43,9 @@ export interface OFResponsibility {
   facilitators?: string[]; // duty rows — every holder the duty fanned out to
   executor?: string; // Executor Agent name (assignment rows)
   role?: "Operational" | "Core"; // assignment / process-step role
+  // Every doc merged into this row (duty rows collapsing per-agent replicas) —
+  // set only when 2+ docs merged; includes the representative. docNo-ordered.
+  sources?: MergedSource[];
 }
 
 export const CATEGORY_LABELS: Record<OFResponsibility["category"], string> = {
@@ -112,7 +116,7 @@ export function deriveFacilitatorResponsibilities(
   // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
   const collapseKey = dutyCollapseKeyer(agents.map((a) => a.name));
-  type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string> };
+  type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string>; _sources: MergedSource[] };
   const dutyByKey = new Map<string, DutyRow>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
@@ -143,6 +147,8 @@ export function deriveFacilitatorResponsibilities(
       }
       if (agent) existing._agents.add(agent);
       if (facName) existing._facs.add(facName);
+      if (!existing._sources.some((s) => s.uuid === n.id))
+        existing._sources.push({ docNo: n.doc_no, uuid: n.id, agent });
       continue;
     }
     dutyByKey.set(key, {
@@ -153,15 +159,18 @@ export function deriveFacilitatorResponsibilities(
       category,
       _facs: new Set(facName ? [facName] : []),
       _agents: new Set(agent ? [agent] : []),
+      _sources: [{ docNo: n.doc_no, uuid: n.id, agent }],
     });
   }
-  for (const { _facs, _agents, ...row } of dutyByKey.values()) {
+  for (const { _facs, _agents, _sources, ...row } of dutyByKey.values()) {
+    _sources.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
     results.push({
       ...row,
       facilitators: _facs.size ? [..._facs] : undefined,
       agents: _agents.size ? [..._agents] : undefined,
+      sources: _sources.length > 1 ? _sources : undefined,
     });
-    seenDocIds.add(row.uuid);
+    for (const s of _sources) seenDocIds.add(s.uuid);
   }
 
   // 3. Active Data — docs whose Responsible Party is declared as a Facilitator.
@@ -220,7 +229,7 @@ export function facilitatorRowsToCSV(rows: readonly OFResponsibility[]): string 
   return toCSV(
     ["Doc No", "Title", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
     rows.map((r) => [
-      r.docNo,
+      r.sources?.map((s) => s.docNo).join("; ") ?? r.docNo,
       r.title,
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,

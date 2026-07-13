@@ -14,7 +14,7 @@ export function ogSearchFields(r: OGResponsibility): SearchField[] {
   const govVisible = assignment || cat === "active-data" || cat === "process-step";
   const primeVisible = cat !== "definition";
   return [
-    { label: "doc no", value: r.docNo },
+    { label: "doc no", value: r.sources?.map((s) => s.docNo).join(" ") ?? r.docNo },
     { label: "title", value: r.title, hidden: assignment },
     { label: "duty", value: r.duty, hidden: assignment },
     { label: "role", value: r.role ?? "", hidden: true },

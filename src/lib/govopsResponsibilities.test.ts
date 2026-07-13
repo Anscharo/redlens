@@ -137,6 +137,16 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(rebate).toHaveLength(1);
     expect(rebate[0].docNo).toBe("A.6.1.1.1.2.3"); // lowest doc_no is representative
     expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark", "Grove"]));
+    // Every merged copy stays reachable — the row links all of them.
+    expect(rebate[0].sources).toEqual([
+      { docNo: "A.6.1.1.1.2.3", uuid: "duty-op-1", agent: "Spark" },
+      { docNo: "A.6.1.1.2.2.3", uuid: "duty-op-2", agent: "Grove" },
+    ]);
+  });
+
+  it("omits sources on rows that merged nothing", () => {
+    const single = results.find((r) => r.uuid === "duty-msig-1");
+    expect(single?.sources).toBeUndefined();
   });
 
   it("does not collapse same-title agent-artifact docs whose duties genuinely differ", () => {
@@ -242,8 +252,11 @@ describe("govopsRowsToCSV", () => {
     const rows: OGResponsibility[] = [
       { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", govops: "Soter Labs", role: "Operational", agents: ["Amatsu", "Ozone"] },
       { docNo: "A.2.1", uuid: "u2", title: "A duty", duty: "does the thing", category: "op-duty", govops: "Soter Labs" },
+      { docNo: "A.3.1", uuid: "u3", title: "Merged", duty: "shared duty", category: "op-duty", sources: [{ docNo: "A.3.1", uuid: "u3", agent: "Spark" }, { docNo: "A.4.1", uuid: "u4", agent: "Grove" }] },
     ];
     const lines = govopsRowsToCSV(rows).split("\r\n");
+    // A merged row lists every source doc_no, not just the representative.
+    expect(lines[3]).toContain('"A.3.1; A.4.1"');
     expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","GovOps","Executor","Role"');
     expect(lines[1]).toContain('"Amatsu; Ozone"');
     expect(lines[1]).toContain('"Ozone"'); // executor column

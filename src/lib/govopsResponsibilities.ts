@@ -43,6 +43,15 @@ export interface OGResponsibility {
   govops?: string; // GovOps entity name (assignment / duty / active-data / process-step)
   executor?: string; // Executor Agent name (assignment rows)
   role?: "Operational" | "Core"; // assignment / process-step role
+  // Every doc merged into this row (duty rows collapsing per-agent replicas) —
+  // set only when 2+ docs merged; includes the representative. docNo-ordered.
+  sources?: MergedSource[];
+}
+
+export interface MergedSource {
+  docNo: string;
+  uuid: string;
+  agent?: string; // Prime Agent whose artifact subtree holds this copy
 }
 
 export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
@@ -153,7 +162,7 @@ export function deriveGovOpsResponsibilities(
   // fragile: doc_no prefix
   const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
   const collapseKey = dutyCollapseKeyer(agents.map((a) => a.name));
-  const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string> }>();
+  const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string>; _sources: MergedSource[] }>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
@@ -177,9 +186,11 @@ export function deriveGovOpsResponsibilities(
         existing.duty = duty;
       }
       if (agent) existing._agents.add(agent);
+      if (!existing._sources.some((s) => s.uuid === n.id))
+        existing._sources.push({ docNo: n.doc_no, uuid: n.id, agent });
       continue;
     }
-    const row: OGResponsibility & { _agents: Set<string> } = {
+    const row: OGResponsibility & { _agents: Set<string>; _sources: MergedSource[] } = {
       docNo: n.doc_no,
       uuid: n.id,
       title: n.title,
@@ -187,12 +198,18 @@ export function deriveGovOpsResponsibilities(
       category,
       govops: entityById.get(e.f)?.name,
       _agents: new Set(agent ? [agent] : []),
+      _sources: [{ docNo: n.doc_no, uuid: n.id, agent }],
     };
     dutyByTitle.set(key, row);
   }
-  for (const { _agents, ...row } of dutyByTitle.values()) {
-    results.push({ ...row, agents: _agents.size ? [..._agents] : undefined });
-    seenDocIds.add(row.uuid);
+  for (const { _agents, _sources, ...row } of dutyByTitle.values()) {
+    _sources.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+    results.push({
+      ...row,
+      agents: _agents.size ? [..._agents] : undefined,
+      sources: _sources.length > 1 ? _sources : undefined,
+    });
+    for (const s of _sources) seenDocIds.add(s.uuid);
   }
 
   // 4. Active Data — docs whose Responsible Party is declared as GovOps.
@@ -252,7 +269,7 @@ export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
   return toCSV(
     ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
     rows.map((r) => [
-      r.docNo,
+      r.sources?.map((s) => s.docNo).join("; ") ?? r.docNo,
       r.title,
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,

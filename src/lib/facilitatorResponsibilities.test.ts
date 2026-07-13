@@ -117,6 +117,13 @@ describe("deriveFacilitatorResponsibilities", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].docNo).toBe("A.6.1.1.1.2.2"); // lowest doc_no is representative
     expect(rows[0].agents).toEqual(["Spark"]);
+    // Every merged copy stays reachable — the row links all of them.
+    expect(rows[0].sources?.map((s) => s.uuid)).toEqual(["duty-op-1", "duty-op-2"]);
+  });
+
+  it("does not emit sources for a fanned-out edge set on a single doc", () => {
+    const row = byCat("universal").find((r) => r.uuid === "duty-universal");
+    expect(row?.sources).toBeUndefined();
   });
 
   it("does not collapse same-title agent-artifact docs whose duties genuinely differ", () => {
