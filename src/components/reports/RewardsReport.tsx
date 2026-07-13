@@ -10,18 +10,15 @@ import {
   rewardsIndexToCSV,
   type RewardsIndex,
   type RewardsAgent,
-  type AgentPrimitive,
-  type RewardsInstance,
-  type RewardsInvocation,
 } from "../../lib/rewardsIndex";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
-import { parseReportQuery, rowMatches, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
-import { icdSearchFields } from "./rewardsSearch";
+import { filterRewardsAgents } from "./rewardsSearch";
 
 // Header-box text filter, per ICD row, over the fields in rewardsSearch.ts —
 // so "skybase" surfaces every SkyBase instance and "0x…" finds reward
@@ -29,25 +26,14 @@ import { icdSearchFields } from "./rewardsSearch";
 const SEARCHES =
   "instance · doc nos · status · reward code · partner · chain · cadence · address · payments RP · tracking text · params · agent + chain entities";
 
-// Filters a primitive's ICD buckets; null when nothing survives (the whole
-// DR/IB table is hidden).
-function filterPrimitive(
-  agent: RewardsAgent,
-  prim: AgentPrimitive,
-  rq: ReportQuery,
-): AgentPrimitive | null {
-  const keep = <T extends RewardsInstance | RewardsInvocation>(list: T[]): T[] =>
-    list.filter((i) => rowMatches(icdSearchFields(agent, i), rq));
-  const next = {
-    ...prim,
-    active: keep(prim.active),
-    suspended: keep(prim.suspended),
-    completed: keep(prim.completed),
-    invocations: keep(prim.invocations),
-  };
-  return next.active.length + next.suspended.length + next.completed.length + next.invocations.length > 0
-    ? next
-    : null;
+// Total ICD rows (instances + invocations) across the given agents — the
+// number the CSV will emit, so its label matches the filtered export.
+function countIcds(agents: RewardsAgent[]): number {
+  let n = 0;
+  for (const a of agents)
+    for (const prim of [a.dr, a.ib])
+      if (prim) n += prim.active.length + prim.suspended.length + prim.completed.length + prim.invocations.length;
+  return n;
 }
 
 function EcosystemHeader({
@@ -162,17 +148,10 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
   // buckets narrowed to the matching rows. Empty-query passthrough keeps the
   // unfiltered view (including agents with no instances).
   const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
-  const shownAgents = useMemo(() => {
-    if (!idx) return [];
-    if (rq.needles.length === 0) return idx.agents;
-    return idx.agents
-      .map((a) => {
-        const dr = a.dr ? filterPrimitive(a, a.dr, rq) : null;
-        const ib = a.ib ? filterPrimitive(a, a.ib, rq) : null;
-        return dr || ib ? { ...a, dr, ib } : null;
-      })
-      .filter((a): a is RewardsAgent => a !== null);
-  }, [idx, rq]);
+  const shownAgents = useMemo(
+    () => (idx ? filterRewardsAgents(idx.agents, rq) : []),
+    [idx, rq],
+  );
 
   const summary = useMemo(() => {
     if (!idx) return null;
@@ -227,8 +206,8 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
             <DownloadCsvButton
               report="rewards"
               filename="integrator-reward-relationships.csv"
-              rowCount={summary ? summary.dr + summary.ib + summary.drInvocations + summary.ibInvocations : 0}
-              build={() => rewardsIndexToCSV(idx)}
+              rowCount={countIcds(shownAgents)}
+              build={() => rewardsIndexToCSV({ ...idx, agents: shownAgents })}
             />
           </div>
         )}
@@ -248,7 +227,12 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
           <p className="text-sm text-tan-3">Loading…</p>
         ) : (
           <>
-            <EcosystemHeader idx={idx} addrMap={addrMap} />
+            {/* Reference cards (primitive definitions + buffer address) — kept
+                as context while filtering, hidden only when the filter clears
+                the whole report so the empty state reads cleanly. */}
+            {(shownAgents.length > 0 || rq.needles.length === 0) && (
+              <EcosystemHeader idx={idx} addrMap={addrMap} />
+            )}
             {idx.agents.length > 0 && shownAgents.length === 0 && <NoRowsMatch query={query} />}
             {shownAgents.map((a) => (
               <AgentSection key={a.name} agent={a} addrMap={addrMap} rq={rq} />

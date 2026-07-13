@@ -7,38 +7,11 @@ import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-// "2026-07-31" → "July 2026", so month-name queries ("july", "july 2026",
-// "jul") match the row through its month POSITION only — never through a
-// same-numbered day like 2026-02-07. Rendered as a hidden field: the row
-// shows the ISO date, and the aside explains a month-name match.
-const monthLabel = (iso: string): string => {
-  const m = Number(iso.slice(5, 7));
-  return m >= 1 && m <= 12 ? `${MONTHS[m - 1]} ${iso.slice(0, 4)}` : "";
-};
-
-// Header-box text filter: date (ISO + the raw atlas text + a derived
-// month-name form), doc title/number, snippet prose, and the "handoff"
-// badge word for transition rows.
-const searchFields = (c: DateClaim): SearchField[] => [
-  { label: "date", value: c.dateISO },
-  { label: "month", value: monthLabel(c.dateISO), hidden: true },
-  { label: "date text", value: c.raw },
-  { label: "title", value: c.title },
-  { label: "doc no", value: c.docNo },
-  { label: "context", value: c.context },
-  { label: "handoff", value: c.transition ? "handoff" : "" },
-];
-const SEARCHES = "date (ISO + month name) · date text · title · doc no · snippet text";
+import { staleSearchFields, STALE_SEARCHES } from "./staleDatesSearch";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -89,7 +62,7 @@ function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery
       className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
       style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
-      <MatchAside matches={hiddenMatches(searchFields(c), rq)} rq={rq} />
+      <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
           <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} rq={rq} /></span>
@@ -156,11 +129,21 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
   const sections = useMemo(
     () =>
       report
-        ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, searchFields) }))
+        ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, staleSearchFields) }))
         : null,
     [report, rq],
   );
   const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
+
+  // The CSV exports what's on screen — the filtered buckets, not the full scan
+  // — so a downloaded file matches the active query (totalDateMentions is the
+  // scan tally and stays informational).
+  const csvReport = useMemo(() => {
+    if (!report || !sections) return null;
+    const claimsFor = (key: (typeof SECTIONS)[number]["key"]) =>
+      [...(sections.find((s) => s.key === key)?.claims ?? [])];
+    return { ...report, upcoming: claimsFor("upcoming"), dueSoon: claimsFor("dueSoon"), stale: claimsFor("stale") };
+  }, [report, sections]);
 
   return (
     <div className="px-6 py-6">
@@ -175,14 +158,14 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
             <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
-        <FilterSummary query={query} searches={SEARCHES} />
-        {report && (
+        <FilterSummary query={query} searches={STALE_SEARCHES} />
+        {csvReport && (
           <div className="flex justify-end mb-4">
             <DownloadCsvButton
               report="stale-dates"
               filename="stale-dates.csv"
-              rowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
-              build={() => staleDatesToCSV(report)}
+              rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
+              build={() => staleDatesToCSV(csvReport)}
             />
           </div>
         )}

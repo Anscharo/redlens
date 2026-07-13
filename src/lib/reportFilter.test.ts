@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   queryTokens, parseReportQuery, fieldMatches, rowMatches, filterRows,
-  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, EMPTY_QUERY,
+  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, EMPTY_QUERY,
   type SearchField,
 } from "./reportFilter";
 
@@ -38,6 +38,21 @@ describe("parseReportQuery", () => {
     expect(parseReportQuery("  ")).toBe(EMPTY_QUERY);
     expect(parseReportQuery('""')).toBe(EMPTY_QUERY);
     expect(parseReportQuery("''")).toBe(EMPTY_QUERY);
+  });
+});
+
+describe("displayQuery (UI copy for FilterSummary / NoRowsMatch)", () => {
+  it("unwraps a clean phrase/strict wrap so callers don't double the quotes", () => {
+    expect(displayQuery('"Executive Vote"')).toBe("Executive Vote");
+    expect(displayQuery("'Executive Vote'")).toBe("Executive Vote");
+  });
+  it("leaves unquoted and partially-quoted text as-is (trimmed)", () => {
+    expect(displayQuery("  executive vote ")).toBe("executive vote");
+    expect(displayQuery('"executive vote')).toBe('"executive vote');
+  });
+  it("empty-wrap collapses to empty (no filter shown)", () => {
+    expect(displayQuery('""')).toBe("");
+    expect(displayQuery("''")).toBe("");
   });
 });
 

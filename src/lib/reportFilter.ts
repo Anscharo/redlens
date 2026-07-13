@@ -60,6 +60,16 @@ export function parseReportQuery(raw: string, mode: ReportMode = "broad"): Repor
   return needles.length ? { needles, cased: false } : EMPTY_QUERY;
 }
 
+/**
+ * The query as it should read in UI copy (FilterSummary, NoRowsMatch): a clean
+ * phrase/strict wrap (`"foo"` / `'foo'`) is unwrapped so callers can quote it
+ * themselves without doubling the marks. Everything else is returned trimmed.
+ */
+export function displayQuery(raw: string): string {
+  const t = raw.trim();
+  return wrapped(t, '"') ?? wrapped(t, "'") ?? t;
+}
+
 // ---------------------------------------------------------------------------
 // Field-level matching. Each report describes its haystack as labelled fields
 // with a `hidden` flag, so the UI can explain WHY a row matched: needles that

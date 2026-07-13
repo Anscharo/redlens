@@ -3,6 +3,8 @@
 // when neither a text query nor a pill filter is active. Styled as a light
 // callout (.filter-summary in index.css) so the explanation of what's being
 // searched stands out against the dark page.
+import { displayQuery } from "../../lib/reportFilter";
+
 export function FilterSummary({
   query,
   filters = [],
@@ -15,7 +17,7 @@ export function FilterSummary({
   // (e.g. an agent attribution) isn't mysterious.
   searches?: string;
 }) {
-  const q = query.trim();
+  const q = displayQuery(query);
   const active = filters.filter((f): f is string => !!f);
   if (!q && active.length === 0) return null;
   return (

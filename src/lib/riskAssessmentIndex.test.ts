@@ -97,6 +97,22 @@ describe("joinRisk", () => {
     expect(riskRowsToCSV(j.rows)).toContain('"Live paragraph."');
   });
 
+  it("orders rows by numeric doc_no (so A.6.1.1.10 follows A.6.1.1.9, not lexically before it)", () => {
+    // Candidates arrive in atlas-parse order, which is NOT a numeric doc sort;
+    // joinRisk re-sorts so the report reads top-down in document order and
+    // expanded agent-copy rows land in their own doc positions.
+    const c = (uuid: string, docNo: string): RiskCandidate => ({
+      taskKey: `u:${uuid}`, uuid, docNo, title: "T", quote: "q",
+      domains: ["peg"], anchored: true, stub: false, hasMetrics: false,
+    });
+    const keys = ["u:x3", "u:x1", "u:x2"];
+    const j = joinRisk(
+      [c("x3", "A.6.1.1.10"), c("x1", "A.6.1.1.2"), c("x2", "A.6.1.1.9")],
+      artifact(keys.map((k) => triage(k)), []),
+    );
+    expect(j.rows.map((r) => r.candidate.docNo)).toEqual(["A.6.1.1.2", "A.6.1.1.9", "A.6.1.1.10"]);
+  });
+
   it("re-expands a collapsed agent-artifact rule into one row per copy", () => {
     const rep: RiskCandidate = {
       ...candidate("t:shared rule|risk", "Spark must hold coverage."),
