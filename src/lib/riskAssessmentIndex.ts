@@ -58,8 +58,35 @@ export function joinRisk(candidates: RiskCandidate[], artifact: RiskAssessmentAr
           entry.rubricVersion === artifact!.rubricVersion
         ? "fresh"
         : "stale";
-    join.rows.push({ candidate, triage, entry, status });
+    if (candidate.copies && candidate.copies.length > 1) {
+      // Re-expand a collapsed agent-artifact rule into one row per agent's
+      // copy — a single row covering many agents reads like a report mistake.
+      // All copies share the rep's triage/assessment (the clause is identical
+      // modulo the agent name); each row links to that agent's own doc.
+      for (const c of candidate.copies) {
+        join.rows.push({
+          candidate: {
+            ...candidate,
+            taskKey: `u:${c.uuid}`,
+            uuid: c.uuid,
+            docNo: c.docNo,
+            quote: c.quote,
+            agents: [c.agent],
+            copies: undefined,
+          },
+          triage,
+          entry,
+          status,
+        });
+      }
+    } else {
+      join.rows.push({ candidate, triage, entry, status });
+    }
   }
+  // Expansion appends copies at the rep's position; restore global doc order.
+  join.rows.sort((a, b) =>
+    a.candidate.docNo.localeCompare(b.candidate.docNo, undefined, { numeric: true }),
+  );
   return join;
 }
 
@@ -118,10 +145,11 @@ export function riskRowsToCSV(rows: RiskRow[]): string {
       r.triage.description,
       // The quote the ratings actually describe: for assessed (incl. stale)
       // rows that's the assessed text, which for stale rows differs from the
-      // current Atlas paragraph (r.candidate.quote). Falls back to the live
-      // paragraph only when unassessed (no ratings to mismatch). Mirrors the
-      // report's expanded view, which renders r.entry.quote.
-      r.entry?.quote ?? r.candidate.quote,
+      // current Atlas paragraph (r.candidate.quote). Expanded agent-copy rows
+      // (candidate.taskKey rewritten to u:<uuid>, entry keeps t:…) export
+      // their OWN paragraph, and unassessed rows the live one. Mirrors the
+      // report's expanded view.
+      r.entry && r.entry.taskKey === r.candidate.taskKey ? r.entry.quote : r.candidate.quote,
     ]),
   );
 }

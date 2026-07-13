@@ -20,9 +20,11 @@ export const riskSearchFields = (r: RiskRow): SearchField[] => [
   // Same thing the expanded body labels "Source paragraph" — keep the terms
   // identical so the aside and the expanded view obviously refer to one field.
   { label: "source paragraph", value: r.candidate.quote, hidden: true },
-  // Replicated agent-artifact rules carry EVERY covered prime — the label
-  // says so, since the aside otherwise reads like a spurious entity list.
-  { label: "covered primes", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
+  // Replicated agent-artifact rules are one row per agent's copy (joinRisk
+  // re-expands them), so this is the row's own artifact location. The label
+  // phrases it as ownership so an agent-name query reads as "this doc lives
+  // under that agent", not as text found inside the rule.
+  { label: "doc is owned by agent matching", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
 ];
 
 const SCORE_STYLE: Record<Preciseness, string> = {
@@ -47,6 +49,10 @@ function ExpandedBody({
   rq: ReportQuery;
 }) {
   const e = row.entry;
+  // Expanded agent-copy rows (taskKey rewritten to u:<uuid> by joinRisk while
+  // the shared entry keeps its t:… key) show their OWN paragraph, not the
+  // representative's — otherwise a Keel row would quote Spark's copy.
+  const srcQuote = e && e.taskKey === row.candidate.taskKey ? e.quote : row.candidate.quote;
   if (!e)
     return (
       <div className="space-y-3 text-sm">
@@ -65,11 +71,11 @@ function ExpandedBody({
             otherwise the term that matched this row would be invisible here. */}
         {rq.needles.length > 0 ? (
           <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-            <Highlight text={e.quote} rq={rq} />
+            <Highlight text={srcQuote} rq={rq} />
           </blockquote>
         ) : (
           <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
-            <NodeContent content={e.quote} onNavigate={onNavigate} />
+            <NodeContent content={srcQuote} onNavigate={onNavigate} />
           </blockquote>
         )}
       </div>
@@ -101,9 +107,6 @@ function ExpandedBody({
           </p>
         )}
       </div>
-      {row.candidate.agents && row.candidate.agents.length > 1 && (
-        <p className="mono text-[10px] text-tan-3">replicated across: {row.candidate.agents.join(", ")}</p>
-      )}
       <p className="mono text-[10px] text-tan-3">
         ✳ assessed by {e.model}
         {row.status === "stale" && " · STALE — the atlas changed since this rating; re-queued on next run"}

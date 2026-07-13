@@ -853,6 +853,10 @@ button.atlas-node-expand-all:focus-visible {
   text-align: right;
   color: var(--tan-3);
   pointer-events: none;
+  /* Adjacent matching rows can stack asides taller than their rows; an opaque
+     backing keeps the overlap readable (the later row paints on top). */
+  background: var(--bg);
+  padding-bottom: 2px;
 }
 .match-aside-head {
   color: var(--tan-3);

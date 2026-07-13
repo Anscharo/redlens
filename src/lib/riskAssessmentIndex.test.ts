@@ -97,6 +97,35 @@ describe("joinRisk", () => {
     expect(riskRowsToCSV(j.rows)).toContain('"Live paragraph."');
   });
 
+  it("re-expands a collapsed agent-artifact rule into one row per copy", () => {
+    const rep: RiskCandidate = {
+      ...candidate("t:shared rule|risk", "Spark must hold coverage."),
+      docNo: "A.6.1.1.1.5.1",
+      agents: ["Spark", "Grove"],
+      copies: [
+        { uuid: "u1", docNo: "A.6.1.1.1.5.1", quote: "Spark must hold coverage.", agent: "Spark" },
+        { uuid: "u2", docNo: "A.6.1.1.2.5.1", quote: "Grove must hold coverage.", agent: "Grove" },
+      ],
+    };
+    const j = joinRisk(
+      [rep],
+      artifact([triage("t:shared rule|risk")], [entry("t:shared rule|risk", "Spark must hold coverage.")]),
+    );
+    expect(j.rows).toHaveLength(2);
+    // Each row points at that agent's own doc and carries only its agent…
+    expect(j.rows.map((r) => r.candidate.docNo)).toEqual(["A.6.1.1.1.5.1", "A.6.1.1.2.5.1"]);
+    expect(j.rows.map((r) => r.candidate.agents)).toEqual([["Spark"], ["Grove"]]);
+    expect(j.rows.map((r) => r.candidate.taskKey)).toEqual(["u:u1", "u:u2"]);
+    // …while sharing the rep's assessment and status.
+    for (const r of j.rows) {
+      expect(r.entry?.taskKey).toBe("t:shared rule|risk");
+      expect(r.status).toBe("fresh");
+    }
+    // CSV exports each copy's OWN paragraph, not the representative's.
+    const csv = riskRowsToCSV(j.rows);
+    expect(csv).toContain('"Grove must hold coverage."');
+  });
+
   it("summarizeRisk counts ratings and statuses", () => {
     const j = joinRisk(
       [candidate("u:u1", "The rule text."), candidate("u:u2", "other")],

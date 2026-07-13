@@ -35,6 +35,7 @@
 
 ## 2026-07-13
 - Added per-report search: the header box filters the open report's rows, with the report name in the pill and the same broad/phrase/strict buttons as the Atlas search
+- Risk Rules now lists every Prime Agent's copy of a replicated rule as its own row instead of one combined entry
 - Fixed the Connect page's tool list to always match the live MCP server
 
 ## 2026-07-10
