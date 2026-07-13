@@ -33,13 +33,21 @@ export function ScorePill({ s }: { s: Preciseness | null }) {
   return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${SCORE_STYLE[s]}`}>{s}/5</span>;
 }
 
-function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasNode> }) {
+function ExpandedBody({ row, docs, rq }: { row: RiskRow; docs: Record<string, AtlasNode>; rq: ReportQuery }) {
   const e = row.entry;
-  if (!e) return <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>;
+  if (!e)
+    return (
+      <div className="space-y-3 text-sm">
+        <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
+          <Highlight text={row.candidate.quote} rq={rq} />
+        </blockquote>
+        <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>
+      </div>
+    );
   return (
     <div className="space-y-3 text-sm">
       <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-        {e.quote}
+        <Highlight text={e.quote} rq={rq} />
       </blockquote>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
@@ -156,7 +164,7 @@ export function RiskTable({
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} />
+                    <ExpandedBody row={row} docs={docs} rq={rq} />
                   </td>
                 </tr>
               ),

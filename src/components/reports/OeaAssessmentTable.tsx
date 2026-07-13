@@ -34,13 +34,21 @@ const ELEMENT_LABELS: Record<PrecisionElement, string> = {
 };
 const STATE_STYLE = { present: "text-tan", partial: "text-tan-2", absent: "text-tan-3 line-through" };
 
-function ExpandedBody({ row, mechanisms }: { row: OeaRow; mechanisms: Record<string, OeaMechanism> }) {
+function ExpandedBody({ row, mechanisms, rq }: { row: OeaRow; mechanisms: Record<string, OeaMechanism>; rq: ReportQuery }) {
   const e = row.entry;
-  if (!e) return <p className="text-xs text-tan-3">Not yet assessed — run `pnpm oea:assess`.</p>;
+  if (!e)
+    return (
+      <div className="space-y-3 text-sm">
+        <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3">
+          <Highlight text={row.task.assessedText} rq={rq} />
+        </blockquote>
+        <p className="text-xs text-tan-3">Not yet assessed — run `pnpm oea:assess`.</p>
+      </div>
+    );
   return (
     <div className="space-y-3 text-sm">
       <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3">
-        {e.assessedText}
+        <Highlight text={e.assessedText} rq={rq} />
         {!e.quoted && <span className="text-tan-3"> (representative snippet — full document was rated)</span>}
       </blockquote>
       <div>
@@ -150,7 +158,7 @@ export function OeaTable({
               expanded && (
                 <tr key={`${row.task.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} mechanisms={mechanisms} />
+                    <ExpandedBody row={row} mechanisms={mechanisms} rq={rq} />
                   </td>
                 </tr>
               ),

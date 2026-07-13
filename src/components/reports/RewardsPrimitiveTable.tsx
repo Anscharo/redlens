@@ -63,7 +63,7 @@ function InstanceRow({
                 to={atlasHref(inst.trackingDocId)}
                 className="mono text-[11px] text-accent hover:underline"
               >
-                {inst.trackingDocNo}
+                <Highlight text={inst.trackingDocNo} rq={rq} />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
