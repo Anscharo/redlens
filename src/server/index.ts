@@ -20,7 +20,6 @@ import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
 import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
-import { archiveDistAssets, serveArchivedAsset } from "./asset-archive.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -169,14 +168,11 @@ const server = Bun.serve({
       }
       const file = Bun.file(filePath);
       if (await file.exists()) return new Response(file);
-      // Hashed asset missing from THIS build: a pre-deploy tab asking for the
-      // previous build's chunk. Serve it from the grace-period archive; when
-      // truly gone, 404 — the SPA-HTML fallthrough would masquerade as the
-      // module and turn a clean miss into a MIME-type import error.
-      if (pathname.startsWith("/assets/")) {
-        const archived = await serveArchivedAsset(pathname, req);
-        return archived ?? NOT_FOUND();
-      }
+      // Hashed asset missing from this build (a pre-deploy tab asking for the
+      // previous build's chunk): 404, never the SPA-HTML fallthrough — that
+      // would masquerade as the module and turn a clean miss into a MIME-type
+      // import error. The client handles the miss (src/lib/staleChunk.ts).
+      if (pathname.startsWith("/assets/")) return NOT_FOUND();
     }
     // SPA fallback. Inject the live atlas sha into the HTML so the app's first
     // artifact fetch hits the immutable /api/atlas/<sha>/ URL with no extra
@@ -222,12 +218,6 @@ void (async () => {
     } catch (e) {
       console.error(`migrations: boot run failed (${(e as Error).message}) — serving on existing schema; see /api/freshness`);
     }
-    // Archive this build's hashed assets for grace-period serving (needs the
-    // migrated table, hence sequenced here). Detached + best-effort: an archive
-    // failure only costs stale tabs their grace window, never boot.
-    archiveDistAssets()
-      .then((r) => { if (r) console.log(`asset-archive: ${r.archived} assets upserted, ${r.pruned} pruned`); })
-      .catch((e) => console.warn(`asset-archive: boot archive failed (${(e as Error).message})`));
     // to_regclass returns NULL (not an error) when the table doesn't exist yet,
     // so a genuinely fresh DB is distinguishable from a transient query failure.
     const reg = await sql`SELECT to_regclass('public.sync_state') AS t`;
