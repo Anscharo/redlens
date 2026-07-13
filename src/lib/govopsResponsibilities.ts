@@ -243,7 +243,7 @@ export function deriveGovOpsResponsibilities(
 
 // Exports the given (already-filtered) GovOps responsibility rows as an
 // RFC-4180 CSV string. Columns mirror the grouped table, flattened.
-export function govopsRowsToCSV(rows: OGResponsibility[]): string {
+export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
   return toCSV(
     ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
     rows.map((r) => [
