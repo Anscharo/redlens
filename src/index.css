@@ -804,6 +804,32 @@ button.atlas-node-expand-all:focus-visible {
   user-select: none;
 }
 
+/* ─── Report filter summary callout ───
+   Explains what the search box is doing on a report page. Deliberately
+   inverted against the dark theme — cream fill, accent border, charcoal
+   text — so the "why these rows" readout stands out. --bg on --tan is
+   ~15:1; --red on --tan is ~5.6:1 (AA at this size + weight). */
+.filter-summary {
+  display: inline-block;
+  max-width: 100%;
+  background: var(--tan);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 7px 12px;
+}
+.filter-summary-em {
+  color: var(--red);
+  font-weight: 600;
+}
+.filter-summary-searches {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  opacity: 0.78;
+}
+
 /* ─── Report search: matched-term highlight ─── */
 .q-mark {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
