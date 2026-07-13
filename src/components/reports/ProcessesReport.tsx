@@ -23,6 +23,17 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
+import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { FilterSummary } from "./FilterSummary";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { Highlight } from "./Highlight";
+
+// Header-box text filter: title + doc number. Category/status/shape are
+// pill-owned and deliberately excluded.
+const searchFields = (r: ProcessRow): SearchField[] => [
+  { label: "title", value: r.title },
+  { label: "doc no", value: r.docNo },
+];
 
 type StatusFilter = "all" | "active" | "deferred-stub";
 type ShapeFilter = "all" | "child" | "inline";
@@ -126,6 +137,7 @@ function Row({
   existing,
   onMark,
   onUnmark,
+  rq,
 }: {
   r: ProcessRow;
   node: AtlasNode;
@@ -136,6 +148,7 @@ function Row({
   existing: LocalIgnore | undefined;
   onMark: (uuid: string, reason: string) => void;
   onUnmark: (uuid: string) => void;
+  rq: ReportQuery;
 }) {
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
@@ -156,7 +169,7 @@ function Row({
             onClick={stop}
             className="mono text-xs text-accent hover:underline text-left"
           >
-            {r.docNo}
+            <Highlight text={r.docNo} rq={rq} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -165,7 +178,7 @@ function Row({
             onClick={stop}
             className="text-sm text-tan hover:underline text-left"
           >
-            {r.title}
+            <Highlight text={r.title} rq={rq} />
           </AtlasLink>
         </td>
         <td className="py-2 px-3 align-top">
@@ -206,7 +219,7 @@ function Row({
   );
 }
 
-export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => void }) {
+export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: string) => void; query: string; mode: ReportMode }) {
   useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
@@ -223,6 +236,7 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
   const expandedUuid = searchParams.get("expanded");
 
   const { marks, byUuid: ignoresByUuid, mark, unmark, clear } = useLocalIgnores();
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
 
   const childrenByParentDocNo = useMemo(
     () => (atlas ? indexByParentDocNo(atlas.docs) : new Map()),
@@ -237,14 +251,15 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
   const categories = useMemo(() => [...new Set(rows.map((r) => r.category))].sort(), [rows]);
 
   const filtered = useMemo(() => {
-    return rows.filter((r) => {
+    const base = rows.filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (shapeFilter !== "all" && r.shape !== shapeFilter) return false;
       if (categoryFilter && r.category !== categoryFilter) return false;
       if (!showIgnored && ignoresByUuid.has(r.uuid)) return false;
       return true;
     });
-  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid]);
+    return filterRows(base, rq, searchFields);
+  }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, rq]);
 
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();
@@ -360,6 +375,14 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
           </div>
         </div>
 
+        <FilterSummary
+          query={query}
+          filters={[
+            categoryFilter,
+            statusFilter !== "all" && `status:${statusFilter}`,
+            shapeFilter !== "all" && `shape:${shapeFilter}`,
+          ]}
+        />
         {!loading && (
           <div className="flex items-center justify-between gap-4 mb-4">
             <p className="mono text-xs text-tan-3">{filtered.length} processes</p>
@@ -408,6 +431,7 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
                         existing={ignoresByUuid.get(r.uuid)}
                         onMark={mark}
                         onUnmark={unmark}
+                        rq={rq}
                       />
                     );
                   })}
@@ -417,9 +441,7 @@ export function ProcessesReport({ onNavigate }: { onNavigate: (id: string) => vo
           ))
         )}
 
-        {!loading && filtered.length === 0 && (
-          <p className="text-sm text-tan-3">No processes match the current filters.</p>
-        )}
+        {!loading && filtered.length === 0 && <NoRowsMatch query={query} />}
       </div>
     </div>
   );

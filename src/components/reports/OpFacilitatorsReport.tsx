@@ -27,9 +27,17 @@ import {
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
-import { OFCategoryTable } from "./OFCategoryTable";
+import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(CATEGORY_LABELS);
+
+// Header-box text filter over the fields declared in OFCategoryTable (which
+// also tracks their per-category visibility for the hidden-match aside).
+// Category is pill-owned and deliberately excluded.
+const SEARCHES = "doc no · title · duty text · role · facilitator · executor · prime agents";
 
 const filterCodec: UrlCodec<ActiveFilter> = {
   encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
@@ -45,7 +53,7 @@ const filterCodec: UrlCodec<ActiveFilter> = {
   },
 };
 
-export function OFReport() {
+export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Operational Facilitator Responsibilities: Sky Atlas by Redline");
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
@@ -132,9 +140,20 @@ export function OFReport() {
     );
   };
 
-  const filtered = responsibilities.filter(
-    (r) => (cat === null || r.category === cat) && matches(r),
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const filtered = filterRows(
+    responsibilities.filter((r) => (cat === null || r.category === cat) && matches(r)),
+    rq,
+    ofSearchFields,
   );
+
+  // Display name of the active entity filter — the pill whose anchor-id slug
+  // matches (pills derive their slugs from these same names).
+  const filterName = filter
+    ? ([...pills.holders.map((p) => p.name), ...pills.executors.map((p) => p.name), ...allAgents].find(
+        (n) => toAnchorId(n) === filter.slug,
+      ) ?? filter.slug)
+    : null;
 
   const presentCats = useMemo(
     () =>
@@ -173,6 +192,7 @@ export function OFReport() {
           <CategoryPills categories={presentCats} active={cat} onToggle={toggleCat} />
         </div>
 
+        <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} searches={SEARCHES} />
         <div className="flex items-center justify-between gap-4 mb-4">
           <p className="mono text-xs text-tan-3">{filtered.length} responsibilities</p>
           <DownloadCsvButton
@@ -183,11 +203,12 @@ export function OFReport() {
           />
         </div>
 
+        {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OFResponsibility["category"], string][]).map(
           ([cat, label]) => {
             const rows = byCategory[cat];
             if (!rows?.length) return null;
-            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} />;
+            return <OFCategoryTable key={cat} cat={cat} label={label} rows={rows} chains={chains} rq={rq} />;
           },
         )}
       </div>

@@ -10741,7 +10741,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 404,
+  "defines_entity": 403,
   "duty_for": 858,
   "ecosystem_accord": 20,
   "emergency_response": 16,
@@ -10767,7 +10767,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "provides_services_to": 2,
   "proxies_to": 67,
   "ranked_delegate_for": 3,
-  "responsible_party_for": 64,
+  "responsible_party_for": 63,
   "signer_of": 61,
   "validator_of": 27,
 }
@@ -11154,11 +11154,6 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "adc": "A.2.2.9.3.1.2.1",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
-  },
-  {
-    "adc": "A.2.7.1.1.1.1.4",
-    "declared": "entity to which the registration pertains",
-    "party": "entity to which the registration pertains",
   },
   {
     "adc": "A.2.8.1.2",

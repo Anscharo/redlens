@@ -213,7 +213,7 @@ export function deriveFacilitatorResponsibilities(
 
 // Exports the given (already-filtered) facilitator responsibility rows as an
 // RFC-4180 CSV string. Columns mirror the grouped table, flattened.
-export function facilitatorRowsToCSV(rows: OFResponsibility[]): string {
+export function facilitatorRowsToCSV(rows: readonly OFResponsibility[]): string {
   return toCSV(
     ["Doc No", "Title", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
     rows.map((r) => [
