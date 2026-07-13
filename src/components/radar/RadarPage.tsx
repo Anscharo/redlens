@@ -34,8 +34,14 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sidebarGroups;
+    // The search pill promises "name, role" — a role query matches a group's
+    // label ("facilitator", "prime") and keeps that whole group.
     return sidebarGroups
-      .map((g) => ({ ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) }))
+      .map((g) =>
+        g.label.toLowerCase().includes(q)
+          ? g
+          : { ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) },
+      )
       .filter((g) => g.actors.length > 0);
   }, [sidebarGroups, query]);
 

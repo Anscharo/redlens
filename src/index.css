@@ -804,6 +804,83 @@ button.atlas-node-expand-all:focus-visible {
   user-select: none;
 }
 
+/* ─── Report filter summary callout ───
+   Explains what the search box is doing on a report page. Deliberately
+   inverted against the dark theme — cream fill, accent border, charcoal
+   text — so the "why these rows" readout stands out. --bg on --tan is
+   ~15:1; --red on --tan is ~5.6:1 (AA at this size + weight). */
+.filter-summary {
+  display: inline-block;
+  max-width: 100%;
+  background: var(--tan);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 7px 12px;
+}
+.filter-summary-em {
+  color: var(--red);
+  font-weight: 600;
+}
+.filter-summary-searches {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  opacity: 0.78;
+}
+
+/* ─── Report search: matched-term highlight ─── */
+.q-mark {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* ─── Report search: floating "why did this row match" note ───
+   Sits in the left page gutter beside the row; the anchoring cell must be
+   position:relative. Gutter only exists on wide screens — hidden below. */
+.match-aside {
+  position: absolute;
+  right: 100%;
+  top: 0.45rem;
+  margin-right: 1rem;
+  width: 11rem;
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: right;
+  color: var(--tan-3);
+  pointer-events: none;
+  /* Adjacent matching rows can stack asides taller than their rows; an opaque
+     backing keeps the overlap readable (the later row paints on top). */
+  background: var(--bg);
+  padding-bottom: 2px;
+}
+.match-aside-label {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+@media (max-width: 1279px) {
+  .match-aside {
+    display: none;
+  }
+}
+/* Wider gutters get wider floaters — fixed steps so the note never hangs off
+   the left viewport edge on the narrower "wide" screens. */
+@media (min-width: 1500px) {
+  .match-aside {
+    width: 15rem;
+  }
+}
+@media (min-width: 1750px) {
+  .match-aside {
+    width: 19rem;
+  }
+}
+
 /* ─── Scope filter pill ─── */
 .scope-pill {
   background: var(--surface);

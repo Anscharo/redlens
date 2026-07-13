@@ -169,7 +169,7 @@ export function buildProcessRows(
 }
 
 // Exports the given (already-filtered) process rows as an RFC-4180 CSV string.
-export function processRowsToCSV(rows: ProcessRow[]): string {
+export function processRowsToCSV(rows: readonly ProcessRow[]): string {
   return toCSV(
     ["Doc No", "Title", "Category", "Shape", "Status", "Steps"],
     rows.map((r) => [

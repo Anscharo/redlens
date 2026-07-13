@@ -196,6 +196,20 @@ describe("buildActiveDataRows", () => {
     }
   });
 
+  it("descriptive RP declarations stay unresolved but keep their declared text", () => {
+    // A.2.7.1.1.1.1.4 declares "The Responsible Party is the entity to which
+    // the registration pertains" — a phrase, not an entity. The extractor
+    // (isDescriptiveRP in scripts/lib/graph-patterns.mjs) must not mint an
+    // entity from it, and the row must carry the text as declaredRP instead.
+    const phrase = "entity to which the registration pertains";
+    expect(participants.some((e) => e.name === phrase)).toBe(false);
+    const row = rows.find((r) => r.declaredRP === phrase);
+    expect(row).toBeDefined();
+    expect(row?.responsibleParty).toBeNull();
+    // declaredRP is a fallback only — never set alongside a resolved entity.
+    for (const r of rows) if (r.responsibleParty) expect(r.declaredRP).toBeNull();
+  });
+
   it("every row under a Prime Agent gets an Operational Facilitator", () => {
     for (const r of rows) {
       if (!r.agent) continue;
@@ -292,7 +306,9 @@ describe("activeDataRowsToCSV", () => {
       expect(ctrlDoc, `row ${i} controllerDocNo`).toBe(r.controllerDocNo ?? "");
       expect(ctrlTitle, `row ${i} controllerTitle`).toBe(r.controllerTitle ?? "");
       expect(agent, `row ${i} agent`).toBe(r.agent ?? "");
-      expect(rp, `row ${i} responsibleParty.name`).toBe(r.responsibleParty?.name ?? "");
+      // Falls back to the raw declared text when the RP resolves to no entity
+      // (descriptive declarations) — same fallback the UI's RP cell shows.
+      expect(rp, `row ${i} responsibleParty.name`).toBe(r.responsibleParty?.name ?? r.declaredRP ?? "");
       expect(rpEvidence, `row ${i} rpEvidence`).toBe(
         (r.responsibleParty?.evidence ?? []).map((s) => s.docNo).join(" → "),
       );

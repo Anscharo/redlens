@@ -10,9 +10,18 @@ import type { Rating } from "../../lib/oeaAssessment";
 import { loadOeaReport, summarize, oeaRowsToCSV, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
-import { OeaTable } from "./OeaAssessmentTable";
+import { OeaTable, oeaSearchFields } from "./OeaAssessmentTable";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
 
 const catCodec = categoryCodec(OEA_CATEGORY_LABELS);
+
+// Header-box text filter over the fields declared in OeaAssessmentTable
+// (which also tracks their visibility for the hidden-match aside).
+// Category/rating/status facets are pill-owned and excluded; the text
+// filter ANDs with the pills.
+const SEARCHES = "doc no · title · assessed task text · covered prime agents";
 const RATING_LABELS: Record<Rating, string> = { weak: "weak", mid: "mid", strong: "strong" };
 const STATUS_LABELS: Record<OeaRowStatus, string> = { fresh: "fresh", stale: "stale", unassessed: "unassessed" };
 const ratingCodec = categoryCodec(RATING_LABELS);
@@ -21,7 +30,7 @@ const expandedCodec = urlString(null);
 const RATINGS = ["weak", "mid", "strong"] as const;
 const STATUSES = ["fresh", "stale", "unassessed"] as const;
 
-function SummaryStrip({ rows }: { rows: OeaRow[] }) {
+function SummaryStrip({ rows }: { rows: readonly OeaRow[] }) {
   const s = summarize(rows);
   const fmt = (r: Record<Rating, number>) => `${r.weak} weak · ${r.mid} mid · ${r.strong} strong`;
   return (
@@ -33,7 +42,7 @@ function SummaryStrip({ rows }: { rows: OeaRow[] }) {
   );
 }
 
-export function OeaAssessmentReport() {
+export function OeaAssessmentReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("OEA Task Assessment: Sky Atlas by Redline");
   const report = useLoaded(loadOeaReport);
   const [cat, setCat] = useUrlState("cat", catCodec);
@@ -90,10 +99,12 @@ export function OeaAssessmentReport() {
       ),
     [rows, cat, status, precision, incentives],
   );
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const shown = useMemo(() => filterRows(filtered, rq, oeaSearchFields), [filtered, rq]);
 
   const byCategory = useMemo(
-    () => Object.groupBy(filtered, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
-    [filtered],
+    () => Object.groupBy(shown, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,
+    [shown],
   );
 
   return (
@@ -117,12 +128,12 @@ export function OeaAssessmentReport() {
 
         {rows.length > 0 && (
           <div className="flex items-start justify-between gap-4 mb-4">
-            <SummaryStrip rows={filtered} />
+            <SummaryStrip rows={shown} />
             <DownloadCsvButton
               report="oea-assessment"
               filename="oea-task-assessment.csv"
-              rowCount={filtered.length}
-              build={() => oeaRowsToCSV(filtered)}
+              rowCount={shown.length}
+              build={() => oeaRowsToCSV(shown)}
             />
           </div>
         )}
@@ -134,13 +145,25 @@ export function OeaAssessmentReport() {
           <CategoryPills label="Status" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} />
         </div>
 
+        <FilterSummary
+          query={query}
+          filters={[
+            cat && OEA_CATEGORY_LABELS[cat],
+            precision && `precision:${precision}`,
+            incentives && `incentives:${incentives}`,
+            status && `status:${status}`,
+          ]}
+          searches={SEARCHES}
+        />
+        {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         {report && (Object.entries(OEA_CATEGORY_LABELS) as [OeaCategory, string][]).map(([c, label]) => {
           const catRows = byCategory[c];
           if (!catRows?.length) return null;
           return (
             <OeaTable key={c} label={label} rows={catRows} mechanisms={report.mechanisms}
               expandedKey={expanded}
-              onToggle={toggleRow} />
+              onToggle={toggleRow}
+              rq={rq} />
           );
         })}
       </div>

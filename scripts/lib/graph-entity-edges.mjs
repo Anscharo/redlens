@@ -18,6 +18,7 @@ import {
   extractAllRP,
   extractAutomation,
   rpRoleAndName,
+  isDescriptiveRP,
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
@@ -300,7 +301,11 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // governance-level RP) and 2s-bis (process-step execution RP, below) — same
   // declaration shapes, same resolution priority.
   function resolveResponsibleParty(d, raw) {
-    const { role, name } = rpRoleAndName(raw);
+    const { role, name: rawName } = rpRoleAndName(raw);
+    // Descriptive phrases ("entity to which the registration pertains") are
+    // not entity names — never role-title- or direct-resolve them (mirrors the
+    // 1f skip in graph-entities.mjs). They count as unresolved.
+    const name = rawName && isDescriptiveRP(rawName) ? null : rawName;
     let entity = null;
     let resolution = null;
 
