@@ -858,16 +858,6 @@ button.atlas-node-expand-all:focus-visible {
   background: var(--bg);
   padding-bottom: 2px;
 }
-.match-aside-head {
-  color: var(--tan-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 9px;
-  opacity: 0.8;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 2px;
-  margin-bottom: 2px;
-}
 .match-aside-label {
   color: var(--accent);
   text-transform: uppercase;

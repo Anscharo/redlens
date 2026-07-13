@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   queryTokens, parseReportQuery, fieldMatches, rowMatches, filterRows,
-  flexTokenSource, excerptAround, hiddenMatches, EMPTY_QUERY,
+  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, EMPTY_QUERY,
   type SearchField,
 } from "./reportFilter";
 
@@ -111,6 +111,32 @@ describe("flexTokenSource / excerptAround", () => {
   });
   it("uses flexible location only for despace fields", () => {
     expect(excerptAround("led by Sky Base today", "skybase", { despace: true })).toContain("Sky Base");
+  });
+});
+
+describe("trimLinksAround (aside excerpt cleanup)", () => {
+  const prose = "comfortable collateralization ratios ([forum post](https://forum.sky.money/t/123)) at all times";
+
+  it("drops markdown links that are just noise near the match", () => {
+    const t = trimLinksAround(prose, "collateralization");
+    expect(t).not.toContain("https://forum.sky.money");
+    expect(t).not.toContain("[");
+    expect(t).toContain("collateralization ratios");
+  });
+  it("keeps the link label when the match is in the label", () => {
+    expect(trimLinksAround(prose, "forum post")).toContain("forum post");
+  });
+  it("keeps the URL when the match is in the URL", () => {
+    expect(trimLinksAround(prose, "forum.sky.money")).toContain("https://forum.sky.money/t/123");
+  });
+  it("flows into hiddenMatches excerpts", () => {
+    const fields: SearchField[] = [
+      { label: "title", value: "Some Rule" },
+      { label: "source paragraph", value: prose, hidden: true },
+    ];
+    const m = hiddenMatches(fields, parseReportQuery("collateralization"));
+    expect(m[0].excerpt).not.toContain("forum.sky.money");
+    expect(m[0].excerpt).toContain("collateralization");
   });
 });
 

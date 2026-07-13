@@ -134,6 +134,23 @@ export function excerptAround(value: string, needle: string, opts: { despace?: b
   return `${start > 0 ? "…" : ""}${value.slice(start, end).trim()}${end < value.length ? "…" : ""}`;
 }
 
+// Markdown links in an excerpt window are noise ("…ratios ([https://forum.sk…")
+// — drop them UNLESS the needle matches inside the link itself, in which case
+// keep just the half (label or URL) that carries the match.
+const MD_LINK_RE = /\[([^\]]*)\]\(([^)]*)\)/g;
+
+export function trimLinksAround(value: string, needle: string, cased = false): string {
+  return value
+    .replace(MD_LINK_RE, (whole, text: string, url: string) => {
+      const fold = (s: string) => (cased ? s : s.toLowerCase());
+      if (!fold(whole).includes(fold(needle))) return "";
+      return fold(text).includes(fold(needle)) ? text : url;
+    })
+    .replace(/\(\s*\)/g, "")
+    .replace(/[^\S\n]{2,}/g, " ")
+    .replace(/[^\S\n]+([.,;:)])/g, "$1");
+}
+
 /**
  * For needles that match NO visible field, returns one highlighted-excerpt
  * entry per hidden field that carries such a needle — the "why did this row
@@ -151,7 +168,7 @@ export function hiddenMatches(fields: SearchField[], rq: ReportQuery): HiddenMat
       seen.add(f.label);
       out.push({
         label: f.label,
-        excerpt: excerptAround(f.value, n, { despace: f.despace, cased: rq.cased }),
+        excerpt: excerptAround(trimLinksAround(f.value, n, rq.cased), n, { despace: f.despace, cased: rq.cased }),
         despace: f.despace,
       });
     }

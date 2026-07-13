@@ -56,8 +56,8 @@ function ExpandedBody({
   if (!e)
     return (
       <div className="space-y-3 text-sm">
-        <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-          <Highlight text={row.candidate.quote} rq={rq} />
+        <blockquote className="text-tan-2 border-l-2 border-[var(--border)] rounded-r pl-3 pr-2 py-1.5">
+          <NodeContent content={row.candidate.quote} onNavigate={onNavigate} highlight={rq} />
         </blockquote>
         <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>
       </div>
@@ -66,18 +66,9 @@ function ExpandedBody({
     <div className="space-y-3 text-sm">
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">Source paragraph</p>
-        {/* NodeContent renders markdown and can't mark query matches, so while a
-            search query is active fall back to plain text with highlights —
-            otherwise the term that matched this row would be invisible here. */}
-        {rq.needles.length > 0 ? (
-          <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-            <Highlight text={srcQuote} rq={rq} />
-          </blockquote>
-        ) : (
-          <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
-            <NodeContent content={srcQuote} onNavigate={onNavigate} />
-          </blockquote>
-        )}
+        <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
+          <NodeContent content={srcQuote} onNavigate={onNavigate} highlight={rq} />
+        </blockquote>
       </div>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
