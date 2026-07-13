@@ -6,7 +6,8 @@ import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { loadRiskAssessment, joinRisk, summarizeRisk, riskRowsToCSV, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable, riskSearchFields } from "./RiskRulesTable";
 import { Link } from "../Link";
@@ -39,7 +40,7 @@ const STATUSES = ["fresh", "stale", "unassessed"] as const;
 function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   const total = join.rows.length;
   return (
-    <p className="mono text-xs text-tan-3 mb-4">
+    <p className="mono text-xs text-tan-3">
       {shown === total ? (
         `${total.toLocaleString()} Atlas sections match the filter`
       ) : (
@@ -53,7 +54,7 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMode }) {
+export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mode: ReportMode; onNavigate: (id: string) => void }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
@@ -163,7 +164,17 @@ export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMo
           </Link>
         </p>
 
-        {join.rows.length > 0 && <SummaryStrip join={join} shown={filtered.length} />}
+        {join.rows.length > 0 && (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <SummaryStrip join={join} shown={filtered.length} />
+            <DownloadCsvButton
+              report="risk-rules"
+              filename="risk-rules-assessment.csv"
+              rowCount={filtered.length}
+              build={() => riskRowsToCSV(filtered)}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 mb-6">
           <CategoryPills label="Risk Type" labelTitle="Broad category of risk assessment" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domains} onToggle={toggleDomain} display={RISK_DOMAIN_LABELS} counts={counts.domain} hint="multi-select" />
@@ -184,7 +195,7 @@ export function RiskRulesReport({ query, mode }: { query: string; mode: ReportMo
         />
         {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} rq={rq} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} onNavigate={onNavigate} rq={rq} />
         )}
       </div>
     </div>

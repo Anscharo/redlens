@@ -22,7 +22,9 @@ import {
   CATEGORY_LABELS,
   type OGResponsibility,
   deriveGovOpsResponsibilities,
+  govopsRowsToCSV,
 } from "../../lib/govopsResponsibilities";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable, ogSearchFields } from "./OGCategoryTable";
@@ -197,6 +199,16 @@ export function OGReport({ query, mode }: { query: string; mode: ReportMode }) {
         </div>
 
         <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} searches={SEARCHES} />
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <p className="mono text-xs text-tan-3">{filtered.length} responsibilities</p>
+          <DownloadCsvButton
+            report="gov-ops-responsibilities"
+            filename="op-govops-responsibilities.csv"
+            rowCount={filtered.length}
+            build={() => govopsRowsToCSV(filtered)}
+          />
+        </div>
+
         {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OGResponsibility["category"], string][]).map(
           ([cat, label]) => {

@@ -7,6 +7,7 @@ import { atlasHref } from "../../lib/routes";
 import type { AddressInfo } from "../../types";
 import {
   buildRewardsIndex,
+  rewardsIndexToCSV,
   type RewardsIndex,
   type RewardsAgent,
   type AgentPrimitive,
@@ -15,6 +16,7 @@ import {
 } from "../../lib/rewardsIndex";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
 import { parseReportQuery, rowMatches, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
@@ -220,6 +222,18 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
         </p>
 
         <FilterSummary query={query} searches={SEARCHES} />
+        {idx && (
+          <div className="flex justify-end mb-4">
+            <DownloadCsvButton
+              report="rewards"
+              filename="integrator-reward-relationships.csv"
+              rowCount={summary ? summary.dr + summary.ib + summary.drInvocations + summary.ibInvocations : 0}
+              build={() => rewardsIndexToCSV(idx)}
+            />
+          </div>
+        )}
+
+
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Failed to load report.</p>

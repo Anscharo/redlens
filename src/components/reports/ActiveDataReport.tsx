@@ -18,6 +18,7 @@ import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type Sear
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
@@ -49,16 +50,6 @@ const searchFields = (r: Row): SearchField[] => [
 ];
 const SEARCHES =
   "title · doc nos · controller · prime agent · process · responsible party (incl. declared text) · facilitator (incl. role) · agent chain (executor/facilitator/govops)";
-
-function exportCSV(rows: Row[], lastEditDates: Map<string, string>) {
-  const blob = new Blob([activeDataRowsToCSV(rows, lastEditDates)], { type: "text/csv" });
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob),
-    download: "active-data-index.csv",
-  });
-  a.click();
-}
-
 function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] }) {
   if (!steps.length) return null;
   return (
@@ -232,15 +223,12 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
 
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs text-tan-3">{shown.length} sections</p>
-          <button
-            onClick={() => {
-              track("report_export", { report: "active-data", format: "csv" });
-              exportCSV(shown, lastEditDates);
-            }}
-            className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
-          >
-            Download CSV
-          </button>
+          <DownloadCsvButton
+            report="active-data"
+            filename="active-data-index.csv"
+            rowCount={shown.length}
+            build={() => activeDataRowsToCSV(shown, lastEditDates)}
+          />
         </div>
 
         {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}

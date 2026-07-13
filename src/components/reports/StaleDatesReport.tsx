@@ -4,7 +4,8 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
-import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
@@ -175,6 +176,16 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
           )}
         </p>
         <FilterSummary query={query} searches={SEARCHES} />
+        {report && (
+          <div className="flex justify-end mb-4">
+            <DownloadCsvButton
+              report="stale-dates"
+              filename="stale-dates.csv"
+              rowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
+              build={() => staleDatesToCSV(report)}
+            />
+          </div>
+        )}
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>

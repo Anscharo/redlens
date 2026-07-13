@@ -305,7 +305,7 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RULES}>
               <Suspense fallback={<Loading />}>
-                <RiskRulesReport query={query} mode={activeMode} />
+                <RiskRulesReport query={query} mode={activeMode} onNavigate={navigateToNode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RUBRIC}>

@@ -3,6 +3,7 @@ import type { Preciseness } from "../../lib/riskAssessment";
 import type { RiskRow } from "../../lib/riskAssessmentIndex";
 import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
+import { NodeContent } from "../NodeContent";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
@@ -35,7 +36,14 @@ export function ScorePill({ s }: { s: Preciseness | null }) {
   return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${SCORE_STYLE[s]}`}>{s}/5</span>;
 }
 
-function ExpandedBody({ row, docs, rq }: { row: RiskRow; docs: Record<string, AtlasNode>; rq: ReportQuery }) {
+function ExpandedBody({
+  row, docs, onNavigate, rq,
+}: {
+  row: RiskRow;
+  docs: Record<string, AtlasNode>;
+  onNavigate: (id: string) => void;
+  rq: ReportQuery;
+}) {
   const e = row.entry;
   if (!e)
     return (
@@ -48,9 +56,21 @@ function ExpandedBody({ row, docs, rq }: { row: RiskRow; docs: Record<string, At
     );
   return (
     <div className="space-y-3 text-sm">
-      <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-        <Highlight text={e.quote} rq={rq} />
-      </blockquote>
+      <div>
+        <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">Source paragraph</p>
+        {/* NodeContent renders markdown and can't mark query matches, so while a
+            search query is active fall back to plain text with highlights —
+            otherwise the term that matched this row would be invisible here. */}
+        {rq.needles.length > 0 ? (
+          <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
+            <Highlight text={e.quote} rq={rq} />
+          </blockquote>
+        ) : (
+          <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
+            <NodeContent content={e.quote} onNavigate={onNavigate} />
+          </blockquote>
+        )}
+      </div>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Precision <ScorePill s={e.preciseness} />
@@ -104,12 +124,13 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle, rq = EMPTY_QUERY,
+  rows, docs, expandedKey, onToggle, onNavigate, rq = EMPTY_QUERY,
 }: {
   rows: RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
+  onNavigate: (id: string) => void;
   rq?: ReportQuery;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
@@ -166,7 +187,7 @@ export function RiskTable({
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} rq={rq} />
+                    <ExpandedBody row={row} docs={docs} onNavigate={onNavigate} rq={rq} />
                   </td>
                 </tr>
               ),

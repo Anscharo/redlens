@@ -149,6 +149,8 @@ Entity-focused view at `/radar` (index) and `/radar/:slug` (actor page). Builds 
 
 Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step or worker involvement — it can't serve a stale view).
 
+**When adding a new report** (a new `/reports/<slug>` route, `ReportId`, `src/components/reports/*` page, or `src/lib/*Index.ts` module), read and follow `.claude/skills/new-report/SKILL.md` (skill: `new-report`) — the checklist for CSV export, URL-synced filtering, in-report search, analytics, result counts, and registration that every report must satisfy.
+
 **Graph snapshots (`graph-snapshots/`):**
 
 Vitest snapshot tests that record the current state of `relations.json`. Run `pnpm test:snap` to verify no drift; run `pnpm test:snap:update` to accept deliberate changes. Uses `vitest.snap.config.ts` (separate from the main `vitest.config.ts` which excludes this folder).

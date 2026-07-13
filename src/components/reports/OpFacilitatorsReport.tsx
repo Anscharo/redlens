@@ -22,9 +22,11 @@ import {
   CATEGORY_LABELS,
   type OFResponsibility,
   deriveFacilitatorResponsibilities,
+  facilitatorRowsToCSV,
 } from "../../lib/facilitatorResponsibilities";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
 import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
@@ -191,6 +193,16 @@ export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
         </div>
 
         <FilterSummary query={query} filters={[filterName, cat && CATEGORY_LABELS[cat]]} searches={SEARCHES} />
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <p className="mono text-xs text-tan-3">{filtered.length} responsibilities</p>
+          <DownloadCsvButton
+            report="of-responsibilities"
+            filename="op-facilitator-responsibilities.csv"
+            rowCount={filtered.length}
+            build={() => facilitatorRowsToCSV(filtered)}
+          />
+        </div>
+
         {responsibilities.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {(Object.entries(CATEGORY_LABELS) as [OFResponsibility["category"], string][]).map(
           ([cat, label]) => {

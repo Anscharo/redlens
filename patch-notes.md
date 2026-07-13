@@ -33,9 +33,14 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-10
+## 2026-07-13
 - Added per-report search: the header box filters the open report's rows, with the report name in the pill and the same broad/phrase/strict buttons as the Atlas search
 - Fixed the Connect page's tool list to always match the live MCP server
+
+## 2026-07-10
+- Added a Download CSV button to every report
+- Made the Risk Rules report's source-paragraph preview render document links as clickable links
+- Fixed several reader and search glitches, including report filters clearing on expand and the results list jumping on "load more"
 
 ## 2026-07-09
 - Fixed a range of reliability and data-accuracy issues across search, the reader, and reports

@@ -7,8 +7,9 @@ import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadOeaReport, summarize, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
+import { loadOeaReport, summarize, oeaRowsToCSV, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OeaTable, oeaSearchFields } from "./OeaAssessmentTable";
 import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
@@ -33,7 +34,7 @@ function SummaryStrip({ rows }: { rows: OeaRow[] }) {
   const s = summarize(rows);
   const fmt = (r: Record<Rating, number>) => `${r.weak} weak · ${r.mid} mid · ${r.strong} strong`;
   return (
-    <p className="mono text-xs text-tan-3 mb-4">
+    <p className="mono text-xs text-tan-3">
       {rows.length} tasks · precision: {fmt(s.precision)} · incentives: {fmt(s.incentives)}
       {s.stale > 0 && ` · ${s.stale} stale`}
       {s.unassessed > 0 && ` · ${s.unassessed} unassessed`}
@@ -125,7 +126,17 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
           ✳ assessed by {report?.model ?? "—"} · human-reviewed · rubric {report?.rubricVersion ?? "—"}
         </p>
 
-        {rows.length > 0 && <SummaryStrip rows={shown} />}
+        {rows.length > 0 && (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <SummaryStrip rows={shown} />
+            <DownloadCsvButton
+              report="oea-assessment"
+              filename="oea-task-assessment.csv"
+              rowCount={shown.length}
+              build={() => oeaRowsToCSV(shown)}
+            />
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-4 mb-6">
           <CategoryPills categories={Object.keys(OEA_CATEGORY_LABELS) as OeaCategory[]} active={cat} onToggle={toggle("category", cat, setCat)} />

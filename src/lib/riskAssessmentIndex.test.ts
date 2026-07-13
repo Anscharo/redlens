@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { RiskCandidate } from "./riskRules";
 import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "./riskAssessment";
-import { joinRisk, summarizeRisk } from "./riskAssessmentIndex";
+import { joinRisk, summarizeRisk, riskRowsToCSV } from "./riskAssessmentIndex";
 
 const candidate = (taskKey: string, quote: string): RiskCandidate => ({
   taskKey, uuid: "u1", docNo: "A.3.1", title: "T", quote,
@@ -60,6 +60,41 @@ describe("joinRisk", () => {
     expect(j.rejected).toBe(2);
     expect(j.untriaged).toBe(1);
     expect(joinRisk([candidate("u:u1", "x")], null).untriaged).toBe(1);
+  });
+
+  it("riskRowsToCSV emits a header, maps domain labels, and blanks unassessed ratings", () => {
+    const j = joinRisk(
+      [candidate("u:u1", "The rule text."), candidate("u:u2", "other")],
+      artifact([triage("u:u1"), triage("u:u2")], [entry("u:u1", "The rule text.")]),
+    );
+    const csv = riskRowsToCSV(j.rows);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toContain('"Doc No","Title","UUID","Risk Types","Status"');
+    // Assessed row: domain label resolved, rating present.
+    expect(lines[1]).toContain('"Peg Maintenance"');
+    expect(lines[1]).toContain('"fresh"');
+    expect(lines[1]).toContain('"4"');
+    // Unassessed row: rating columns blank (Precision/Precision Reasoning/Incentives).
+    expect(lines[2]).toContain('"unassessed","","",""');
+  });
+
+  it("riskRowsToCSV exports the ASSESSED quote for stale rows, not the current Atlas text", () => {
+    // Stale: the atlas paragraph changed since the rating. The exported quote
+    // must match the ratings (the old assessed text), not the live paragraph.
+    const j = joinRisk(
+      [candidate("u:u1", "The NEW rule text.")],
+      artifact([triage("u:u1")], [entry("u:u1", "The OLD rule text.")]),
+    );
+    expect(j.rows[0].status).toBe("stale");
+    const csv = riskRowsToCSV(j.rows);
+    expect(csv).toContain('"The OLD rule text."');
+    expect(csv).not.toContain("The NEW rule text.");
+  });
+
+  it("riskRowsToCSV falls back to the live paragraph when a row is unassessed", () => {
+    const j = joinRisk([candidate("u:u1", "Live paragraph.")], artifact([triage("u:u1")], []));
+    expect(j.rows[0].status).toBe("unassessed");
+    expect(riskRowsToCSV(j.rows)).toContain('"Live paragraph."');
   });
 
   it("summarizeRisk counts ratings and statuses", () => {
