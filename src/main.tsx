@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import { Router } from "wouter";
 import "./index.css";
 import App from "./App.tsx";
-import { ErrorBoundary } from "./components/ErrorBoundary";
+import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
+import { installStaleChunkReload, isStaleChunkError } from "./lib/staleChunk";
 import { AuthProvider } from "./components/chat/auth";
 import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
@@ -34,16 +35,24 @@ function Root() {
   );
 }
 
+installStaleChunkReload();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary
-      fallback={(error) => (
-        <div className="flex flex-col items-center justify-center h-dvh gap-4 text-center px-4">
-          <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Something went wrong</p>
-          <p className="text-xs mono text-tan-3 max-w-md">{error.message}</p>
-          <a href={import.meta.env.BASE_URL} className="text-xs mono text-accent hover:underline">← home</a>
-        </div>
-      )}
+      fallback={(error) =>
+        isStaleChunkError(error) ? (
+          <div className="flex items-center justify-center h-dvh">
+            <PanelError error={error} />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-dvh gap-4 text-center px-4">
+            <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Something went wrong</p>
+            <p className="text-xs mono text-tan-3 max-w-md">{error.message}</p>
+            <a href={import.meta.env.BASE_URL} className="text-xs mono text-accent hover:underline">← home</a>
+          </div>
+        )
+      }
     >
       <Root />
     </ErrorBoundary>

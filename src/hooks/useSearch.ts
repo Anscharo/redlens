@@ -35,8 +35,11 @@ export function useSearch() {
 
     worker.addEventListener("error", (e: ErrorEvent) => {
       console.error("Search worker error:", e.message, e);
-      captureException(e.error ?? e.message, { mechanism: "search.worker" });
-      setState({ status: "error", message: e.message ?? "Worker failed to load" });
+      // Opaque worker error events (script fetch failure, cross-origin) carry
+      // neither .error nor .message — synthesize one so the report isn't
+      // "Primitive value captured as exception: undefined".
+      captureException(e.error ?? new Error(e.message || "search worker failed to load (opaque error event)"), { mechanism: "search.worker" });
+      setState({ status: "error", message: e.message || "Worker failed to load" });
     });
 
     worker.addEventListener("message", (e: MessageEvent<WorkerOutMessage>) => {

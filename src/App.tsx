@@ -18,6 +18,7 @@ import { HomePage } from "./components/HomePage";
 import { DevPanel } from "./DevPanel";
 import { Footer } from "./components/Footer";
 import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
+import { isStaleChunkError } from "./lib/staleChunk";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { useDataSource } from "./lib/dataSource";
@@ -208,7 +209,7 @@ export default function App() {
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (
-          <ErrorBoundary fallback={<PanelError />}>
+          <ErrorBoundary fallback={(error) => <PanelError error={error} />}>
             <Drawer
               open={treeOpen}
               onClose={() => setTreeOpen(false)}
@@ -229,12 +230,16 @@ export default function App() {
         <div className={`flex-1 flex flex-col ${windowScroll ? "" : "overflow-hidden"}`}>
           <ErrorBoundary
             resetKey={location}
-            fallback={(error) => (
-              <div className="flex flex-col items-center justify-center flex-1 py-24 gap-4">
-                <p className="text-sm mono" style={{ color: "var(--error-text)" }}>page failed to load</p>
-                <p className="text-xs mono text-tan-3 text-center max-w-md">{error.message}</p>
-              </div>
-            )}
+            fallback={(error) =>
+              isStaleChunkError(error) ? (
+                <PanelError error={error} />
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 py-24 gap-4">
+                  <p className="text-sm mono" style={{ color: "var(--error-text)" }}>page failed to load</p>
+                  <p className="text-xs mono text-tan-3 text-center max-w-md">{error.message}</p>
+                </div>
+              )
+            }
           >
           <Switch>
             <Route path={ROUTES.HOME}>

@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-13
+- Fixed "failed to render" errors after a new version is deployed — the app now refreshes itself to pick up the update
+
 ## 2026-07-10
 - Added a Download CSV button to every report
 - Made the Risk Rules report's source-paragraph preview render document links as clickable links

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { captureException } from "../lib/analytics";
+import { isStaleChunkError, pageReloader, reloadForStaleChunk } from "../lib/staleChunk";
 
 interface Props {
   children: ReactNode;
@@ -23,8 +24,13 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
-    captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack });
+    const staleChunk = isStaleChunkError(error);
+    captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack, staleChunk });
     this.props.onError?.(error, info);
+    // Deploy drift: the chunk this tab wants was replaced by a newer build, and
+    // a refresh is the fix — do it for the user. The fallback UI (rendered
+    // regardless) only stays visible if the reload-loop guard blocks.
+    if (staleChunk) reloadForStaleChunk();
   }
 
   componentDidUpdate(prev: Props) {
@@ -46,15 +52,30 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
   }
 }
 
-export function PanelError({ reset }: { reset?: () => void }) {
+export function PanelError({ error, reset }: { error?: Error; reset?: () => void }) {
+  const stale = error !== undefined && isStaleChunkError(error);
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <p className="text-xs mono" style={{ color: "var(--error-text)" }}>failed to load</p>
-      {reset && <button onClick={reset} className="text-xs mono text-accent hover:underline">retry</button>}
+      <p className="text-xs mono" style={{ color: stale ? "var(--tan)" : "var(--error-text)" }}>
+        {stale ? "a new version of the app is available" : "failed to load"}
+      </p>
+      {stale ? (
+        <button onClick={() => pageReloader.reload()} className="text-xs mono text-accent hover:underline">refresh to update</button>
+      ) : (
+        reset && <button onClick={reset} className="text-xs mono text-accent hover:underline">retry</button>
+      )}
     </div>
   );
 }
 
-export function InlineError() {
+export function InlineError({ error }: { error?: Error }) {
+  if (error !== undefined && isStaleChunkError(error)) {
+    return (
+      <span className="text-xs mono" role="alert" style={{ color: "var(--tan-3)" }}>
+        a new version of the app is available —{" "}
+        <button onClick={() => pageReloader.reload()} className="text-accent hover:underline">refresh</button>
+      </span>
+    );
+  }
   return <span className="text-xs mono" style={{ color: "var(--error-text)" }} role="alert">failed to render</span>;
 }
