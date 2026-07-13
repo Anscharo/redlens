@@ -4,7 +4,7 @@ import { Router } from "wouter";
 import "./index.css";
 import App from "./App.tsx";
 import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
-import { installStaleChunkReload, isStaleChunkError } from "./lib/staleChunk";
+import { isStaleChunkError } from "./lib/staleChunk";
 import { AuthProvider } from "./components/chat/auth";
 import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
@@ -34,8 +34,6 @@ function Root() {
     </Router>
   );
 }
-
-installStaleChunkReload();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

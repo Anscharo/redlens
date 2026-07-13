@@ -12,7 +12,6 @@ import { pageReloader } from "../lib/staleChunk";
 
 // React logs caught render errors; silence it so the suite output stays clean.
 beforeEach(() => {
-  sessionStorage.clear();
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(pageReloader, "reload").mockImplementation(() => {});
 });
@@ -90,18 +89,17 @@ describe("ErrorBoundary", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows the refresh prompt and auto-reloads on a stale-chunk error", () => {
+  it("shows the refresh prompt on a stale-chunk error without auto-reloading", () => {
     render(
       <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
         <StaleBomb />
       </ErrorBoundary>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("a new version of the app is available");
-    // componentDidCatch attempts the guarded auto-reload for deploy drift.
-    expect(pageReloader.reload).toHaveBeenCalledTimes(1);
-    // The prompt's refresh button also works (for when the guard blocked).
+    // Deliberately NO auto-reload — the user decides via the button.
+    expect(pageReloader.reload).not.toHaveBeenCalled();
     fireEvent.click(screen.getByText("refresh"));
-    expect(pageReloader.reload).toHaveBeenCalledTimes(2);
+    expect(pageReloader.reload).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the plain failure text for non-stale errors", () => {
@@ -123,7 +121,7 @@ describe("ErrorBoundary", () => {
     expect(screen.getByText("a new version of the app is available")).toBeInTheDocument();
     expect(screen.queryByText("retry")).toBeNull();
     fireEvent.click(screen.getByText("refresh to update"));
-    expect(pageReloader.reload).toHaveBeenCalledTimes(2); // auto-reload + button
+    expect(pageReloader.reload).toHaveBeenCalledTimes(1);
   });
 
   it("resets via the function fallback's reset callback once the cause is fixed", () => {

@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { captureException } from "../lib/analytics";
-import { isStaleChunkError, pageReloader, reloadForStaleChunk } from "../lib/staleChunk";
+import { isStaleChunkError, pageReloader } from "../lib/staleChunk";
 
 interface Props {
   children: ReactNode;
@@ -24,13 +24,11 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    // staleChunk tags deploy-drift errors for tracking. Deliberately no
+    // auto-reload — the fallback shows a refresh prompt and the user decides.
     const staleChunk = isStaleChunkError(error);
     captureException(error, { mechanism: "ErrorBoundary", componentStack: info.componentStack, staleChunk });
     this.props.onError?.(error, info);
-    // Deploy drift: the chunk this tab wants was replaced by a newer build, and
-    // a refresh is the fix — do it for the user. The fallback UI (rendered
-    // regardless) only stays visible if the reload-loop guard blocks.
-    if (staleChunk) reloadForStaleChunk();
   }
 
   componentDidUpdate(prev: Props) {
