@@ -146,13 +146,16 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
   }, [rows]);
 
   // Unique names for the Entity filter: responsible parties + facilitators.
+  // Lowercase-first "names" are descriptive declarations that leaked through
+  // extraction ("entity to which the registration pertains"), not entities —
+  // they stay visible in the row but don't earn a filter pill.
   const entityNames = useMemo(() => {
     const names = new Set<string>();
     rows.forEach((r) => {
       if (r.responsibleParty?.name) names.add(r.responsibleParty.name);
       if (r.facilitator?.name) names.add(r.facilitator.name);
     });
-    return [...names].sort();
+    return [...names].filter((n) => /^[A-Z0-9]/.test(n)).sort();
   }, [rows]);
 
   const filtered = useMemo(

@@ -14,7 +14,7 @@ export const oeaSearchFields = (r: OeaRow): SearchField[] => [
   { label: "doc no", value: r.task.docNo },
   { label: "title", value: r.task.title },
   { label: "task text", value: r.task.assessedText },
-  { label: "prime agent", value: (r.task.agents ?? []).join(", "), hidden: true, despace: true },
+  { label: "covered primes", value: (r.task.agents ?? []).join(", "), hidden: true, despace: true },
 ];
 
 const RATING_STYLE: Record<Rating, string> = {

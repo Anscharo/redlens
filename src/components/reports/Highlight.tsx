@@ -38,6 +38,7 @@ export function MatchAside({ matches, rq }: { matches: HiddenMatch[]; rq: Report
   if (matches.length === 0) return null;
   return (
     <span className="match-aside" aria-label="matched on a field not shown in this row">
+      <span className="match-aside-head block">matched — not shown in row</span>
       {matches.map((m) => (
         <span key={m.label} className="block">
           <span className="match-aside-label">{m.label}</span>{" "}
