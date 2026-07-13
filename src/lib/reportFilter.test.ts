@@ -114,6 +114,36 @@ describe("flexTokenSource / excerptAround", () => {
   });
 });
 
+describe("month-name date matching (stale-dates pattern)", () => {
+  // The report expands each row's ISO date into a hidden "July 2026"-style
+  // field, so month queries match by month POSITION, never by a same-numbered
+  // day — "july" must not match 2026-02-07.
+  const claim = (iso: string, month: string): SearchField[] => [
+    { label: "date", value: iso },
+    { label: "month", value: month, hidden: true },
+    { label: "context", value: "will be included in the Executive Vote" },
+  ];
+  const julyRow = claim("2026-07-31", "July 2026");
+  const feb7Row = claim("2026-02-07", "February 2026");
+
+  it('"july" matches the -07- month, not a day of 07', () => {
+    expect(rowMatches(julyRow, parseReportQuery("july"))).toBe(true);
+    expect(rowMatches(feb7Row, parseReportQuery("july"))).toBe(false);
+  });
+  it('"july 2026" and "jul" also match', () => {
+    expect(rowMatches(julyRow, parseReportQuery("july 2026"))).toBe(true);
+    expect(rowMatches(julyRow, parseReportQuery("jul"))).toBe(true);
+  });
+  it("the month-only match is explained via the hidden aside", () => {
+    const m = hiddenMatches(julyRow, parseReportQuery("july"));
+    expect(m.map((x) => x.label)).toEqual(["month"]);
+    expect(m[0].excerpt).toBe("July 2026");
+  });
+  it("literal ISO matching is untouched", () => {
+    expect(rowMatches(feb7Row, parseReportQuery("2026-02"))).toBe(true);
+  });
+});
+
 describe("hiddenMatches", () => {
   const fields: SearchField[] = [
     { label: "title", value: "Weekly rate update" },

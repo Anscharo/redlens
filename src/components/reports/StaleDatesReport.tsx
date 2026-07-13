@@ -6,21 +6,38 @@ import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
-import { Highlight } from "./Highlight";
+import { Highlight, MatchAside } from "./Highlight";
 
-// Header-box text filter: date (ISO + raw text), doc title/number, snippet
-// prose, and the "handoff" badge word for transition rows. All visible.
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+// "2026-07-31" → "July 2026", so month-name queries ("july", "july 2026",
+// "jul") match the row through its month POSITION only — never through a
+// same-numbered day like 2026-02-07. Rendered as a hidden field: the row
+// shows the ISO date, and the aside explains a month-name match.
+const monthLabel = (iso: string): string => {
+  const m = Number(iso.slice(5, 7));
+  return m >= 1 && m <= 12 ? `${MONTHS[m - 1]} ${iso.slice(0, 4)}` : "";
+};
+
+// Header-box text filter: date (ISO + the raw atlas text + a derived
+// month-name form), doc title/number, snippet prose, and the "handoff"
+// badge word for transition rows.
 const searchFields = (c: DateClaim): SearchField[] => [
   { label: "date", value: c.dateISO },
+  { label: "month", value: monthLabel(c.dateISO), hidden: true },
   { label: "date text", value: c.raw },
   { label: "title", value: c.title },
   { label: "doc no", value: c.docNo },
   { label: "context", value: c.context },
   { label: "handoff", value: c.transition ? "handoff" : "" },
 ];
+const SEARCHES = "date (ISO + month name) · date text · title · doc no · snippet text";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -68,9 +85,10 @@ function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery
     <AtlasLink
       to={atlasHref(c.docId)}
       title={c.title}
-      className="block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
+      className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
       style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
+      <MatchAside matches={hiddenMatches(searchFields(c), rq)} rq={rq} />
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
           <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} rq={rq} /></span>
@@ -156,7 +174,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
             <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
-        <FilterSummary query={query} />
+        <FilterSummary query={query} searches={SEARCHES} />
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
