@@ -878,6 +878,18 @@ button.atlas-node-expand-all:focus-visible {
     display: none;
   }
 }
+/* Wider gutters get wider floaters — fixed steps so the note never hangs off
+   the left viewport edge on the narrower "wide" screens. */
+@media (min-width: 1500px) {
+  .match-aside {
+    width: 15rem;
+  }
+}
+@media (min-width: 1750px) {
+  .match-aside {
+    width: 19rem;
+  }
+}
 
 /* ─── Scope filter pill ─── */
 .scope-pill {

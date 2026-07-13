@@ -117,7 +117,7 @@ export interface HiddenMatch {
 }
 
 /** Short window of `value` around the first occurrence of `needle`. */
-export function excerptAround(value: string, needle: string, opts: { despace?: boolean; cased?: boolean } = {}, radius = 26): string {
+export function excerptAround(value: string, needle: string, opts: { despace?: boolean; cased?: boolean } = {}, radius = 34): string {
   const scan = opts.cased ? value : value.toLowerCase();
   let idx = scan.indexOf(needle);
   let len = needle.length;
