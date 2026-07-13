@@ -179,6 +179,15 @@ export function extractAutomation(raw) {
   return { clean, automated };
 }
 
+// A Responsible Party "name" that starts lowercase is a descriptive phrase,
+// not a proper-noun entity — e.g. "entity to which the registration pertains"
+// (A.2.7.1.1.1.1.4), where the RP varies per registration. Such declarations
+// must never mint an entity (1f) or direct-resolve to one (2s); they stay
+// unresolved, carrying only their declared text.
+export function isDescriptiveRP(name) {
+  return /^[a-z]/.test(name.trim());
+}
+
 export function rpRoleAndName(raw) {
   // Defensive: the role is occasionally spelled without a space in prose
   // ("CoreGovOps"); normalize before matching so it isn't misread as a name.

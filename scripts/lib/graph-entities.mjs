@@ -27,6 +27,7 @@ import {
   extractAssignment,
   extractRP,
   rpRoleAndName,
+  isDescriptiveRP,
   parseNameList,
   extractListItems,
   primitiveRootFor,
@@ -143,6 +144,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     const { role, name } = rpRoleAndName(raw);
     if (role && !name) continue; // "Operational GovOps" — no name to create
     if (!name) continue;
+    if (isDescriptiveRP(name)) continue; // descriptive phrase, not an entity name
     const needle = name.toLowerCase();
     let hitRoleTitle = false;
     for (const t of roleBindingTitles)

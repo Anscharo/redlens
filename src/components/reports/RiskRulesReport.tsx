@@ -20,7 +20,7 @@ import { FilterSummary } from "./FilterSummary";
 // also tracks their visibility for the hidden-match aside). Domain/precision/
 // incentives/status are pill-owned and excluded; the text filter ANDs with
 // the pills.
-const SEARCHES = "doc no · title · summary · full rule paragraph · covered prime agents";
+const SEARCHES = "doc no · title · summary · source paragraph · covered prime agents";
 
 // Multi-select: comma-separated in the URL, empty array = no filter.
 const domainsCodec: UrlCodec<RiskDomain[]> = {

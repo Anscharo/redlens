@@ -17,7 +17,9 @@ export const riskSearchFields = (r: RiskRow): SearchField[] => [
   { label: "doc no", value: r.candidate.docNo },
   { label: "title", value: r.candidate.title },
   { label: "summary", value: r.triage.description ?? "" },
-  { label: "rule paragraph", value: r.candidate.quote, hidden: true },
+  // Same thing the expanded body labels "Source paragraph" — keep the terms
+  // identical so the aside and the expanded view obviously refer to one field.
+  { label: "source paragraph", value: r.candidate.quote, hidden: true },
   // Replicated agent-artifact rules carry EVERY covered prime — the label
   // says so, since the aside otherwise reads like a spurious entity list.
   { label: "covered primes", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },

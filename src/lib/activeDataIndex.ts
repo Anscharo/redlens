@@ -88,6 +88,9 @@ export interface ActiveDataRow {
   agent: string | null;
   chain: AgentChain | null;
   responsibleParty: ResponsibleParty | null;
+  // Raw declared RP text when no responsible_party_for edge exists — e.g. a
+  // descriptive declaration that resolves to no single entity.
+  declaredRP: string | null;
   facilitator: Facilitator | null;
   process: ProcessKind;
   sourceDocNo: string | null;
@@ -103,6 +106,19 @@ export function agentFromDocNo(docNo: string, agents: AgentRef[]): string | null
 export function extractProcess(content: string): ProcessKind {
   if (/alignment conserver/i.test(content)) return "Alignment Conserver Changes";
   return "Direct Edit";
+}
+
+// Display-only fallback when the graph deliberately left the RP unresolved —
+// descriptive declarations like "entity to which the registration pertains"
+// never mint an entity or an edge (see isDescriptiveRP in
+// scripts/lib/graph-patterns.mjs; keep these regexes in sync with RP_RE_IS /
+// RP_RE_COLON there), but the declared text is still worth showing in the row.
+const RP_DECLARED_IS = /(?:The\s+)?Responsible Party\s+is\s+(?:the\s+)?([^.[\n]+?)\s*\./i;
+const RP_DECLARED_COLON = /Responsible Party:\s*([^\n]+?)\s*(?:\.\s*$|\.(?=\s|\n)|$)/im;
+
+export function extractDeclaredRP(content: string | null | undefined): string | null {
+  if (!content) return null;
+  return (content.match(RP_DECLARED_IS)?.[1] ?? content.match(RP_DECLARED_COLON)?.[1] ?? "").trim() || null;
 }
 
 // Chain: prime → executor → facilitator/govops, resolved via role-as-edge
@@ -336,6 +352,7 @@ export function buildActiveDataRows(
         agent,
         chain,
         responsibleParty,
+        declaredRP: respEdge ? null : extractDeclaredRP(controllerDoc?.content),
         facilitator,
         process: extractProcess((controllerDoc ?? ad).content),
         sourceDocNo: respEdge?.s?.[0] ?? ctrl?.source ?? null,
@@ -366,7 +383,7 @@ export function activeDataRowsToCSV(
       r.controllerDocNo ?? "",
       r.controllerTitle ?? "",
       r.agent ?? "",
-      r.responsibleParty?.name ?? "",
+      r.responsibleParty?.name ?? r.declaredRP ?? "",
       evidenceChain(r.responsibleParty?.evidence ?? []),
       r.facilitator?.name ?? "",
       r.facilitator?.role ?? "",

@@ -38,7 +38,9 @@ const searchFields = (r: Row): SearchField[] => [
   { label: "process", value: r.process },
   { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
   { label: "resp. party", value: r.responsibleParty?.name ?? "", despace: true },
-  { label: "declared rp", value: r.responsibleParty?.declared ?? "", hidden: true },
+  // Declared text is visible in the row when it's the RP-cell fallback
+  // (no resolved entity), hidden (tooltip-only) when an entity is shown.
+  { label: "declared rp", value: r.responsibleParty?.declared ?? r.declaredRP ?? "", hidden: !!r.responsibleParty },
   { label: "facilitator", value: r.facilitator?.name ?? "", despace: true },
   { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
   {
@@ -137,16 +139,16 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
   }, [rows]);
 
   // Unique names for the Entity filter: responsible parties + facilitators.
-  // Lowercase-first "names" are descriptive declarations that leaked through
-  // extraction ("entity to which the registration pertains"), not entities —
-  // they stay visible in the row but don't earn a filter pill.
+  // (Descriptive declarations like "entity to which the registration
+  // pertains" never reach here — the graph extractor excludes them, and the
+  // row shows them via declaredRP instead of a ResponsibleParty entity.)
   const entityNames = useMemo(() => {
     const names = new Set<string>();
     rows.forEach((r) => {
       if (r.responsibleParty?.name) names.add(r.responsibleParty.name);
       if (r.facilitator?.name) names.add(r.facilitator.name);
     });
-    return [...names].filter((n) => /^[A-Z0-9]/.test(n)).sort();
+    return [...names].sort();
   }, [rows]);
 
   const filtered = useMemo(
@@ -295,6 +297,13 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
                           <Highlight text={r.responsibleParty.name} rq={rq} flex />
                         </span>
                       )
+                    ) : r.declaredRP ? (
+                      <span
+                        className="text-xs text-tan-3 italic"
+                        title="declared in the ADC — does not resolve to a single entity"
+                      >
+                        <Highlight text={r.declaredRP} rq={rq} />
+                      </span>
                     ) : (
                       <span className="mono text-[10px] text-tan-3">Governance</span>
                     )}
