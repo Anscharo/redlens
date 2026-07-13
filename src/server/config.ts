@@ -133,6 +133,12 @@ export const config = {
   distDir: resolve(ROOT, "dist"),
   root: ROOT,
 
+  // Grace window for previous builds' hashed assets (asset-archive.ts): a file
+  // absent from every deployed build for this many days is pruned from
+  // asset_archive. Pre-deploy tabs older than this fall back to the client's
+  // stale-chunk reload.
+  assetGraceDays: Number(process.env.ASSET_GRACE_DAYS ?? 14),
+
   // Per-SHA immutable atlas bundle store (src/server/bundle-store.ts). The live
   // atlas serves artifacts from <atlasBundleRoot>/<sha>/<name>.json, mirroring
   // the preview store under one mechanism. Defaults to public/atlas: in prod
