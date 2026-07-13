@@ -40,7 +40,7 @@ function zeroRatings(): Record<Rating, number> {
   return { weak: 0, mid: 0, strong: 0 };
 }
 
-export function summarize(rows: OeaRow[]): OeaSummary {
+export function summarize(rows: readonly OeaRow[]): OeaSummary {
   const s: OeaSummary = { precision: zeroRatings(), incentives: zeroRatings(), stale: 0, unassessed: 0 };
   for (const r of rows) {
     if (r.status === "unassessed") s.unassessed++;
@@ -122,7 +122,7 @@ export function loadOeaReport(base: string = liveAtlasBase()): Promise<OeaReport
 // Exports the given (already-filtered) OEA task rows as an RFC-4180 CSV string.
 // Columns mirror the table plus the assessment reasoning revealed on row-expand;
 // unassessed rows leave the rating columns blank.
-export function oeaRowsToCSV(rows: OeaRow[]): string {
+export function oeaRowsToCSV(rows: readonly OeaRow[]): string {
   return toCSV(
     [
       "Doc No", "Title", "Category", "Status",

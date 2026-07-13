@@ -122,7 +122,7 @@ function DomainPills({ row }: { row: RiskRow }) {
 export function RiskTable({
   rows, docs, expandedKey, onToggle, onNavigate, rq = EMPTY_QUERY,
 }: {
-  rows: RiskRow[];
+  rows: readonly RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;

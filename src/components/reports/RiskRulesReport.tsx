@@ -117,7 +117,7 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
   const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const filtered = useMemo(
     () =>
-      [...filterRows(
+      filterRows(
         join.rows.filter(
           (r) =>
             (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
@@ -127,7 +127,7 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
         ),
         rq,
         riskSearchFields,
-      )],
+      ),
     [join, domains, status, score, enforce, rq],
   );
   // Pill counts describe the unfiltered universe so they don't jump around

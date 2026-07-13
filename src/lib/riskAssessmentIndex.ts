@@ -128,7 +128,7 @@ function domainLabels(domains: RiskDomain[]): string {
 // Exports the given (already-filtered) risk rows as an RFC-4180 CSV string.
 // Column order mirrors the visible table plus the assessment reasoning that the
 // table only reveals on row-expand. Unassessed rows leave the rating columns blank.
-export function riskRowsToCSV(rows: RiskRow[]): string {
+export function riskRowsToCSV(rows: readonly RiskRow[]): string {
   return toCSV(
     [...RISK_CSV_HEADERS],
     rows.map((r) => [

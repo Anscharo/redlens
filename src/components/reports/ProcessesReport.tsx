@@ -25,6 +25,7 @@ import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
 import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { FilterSummary } from "./FilterSummary";
+import { NoRowsMatch } from "./NoRowsMatch";
 import { Highlight } from "./Highlight";
 
 // Header-box text filter: title + doc number. Category/status/shape are
@@ -440,9 +441,7 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
           ))
         )}
 
-        {!loading && filtered.length === 0 && (
-          <p className="text-sm text-tan-3">No processes match the current filters.</p>
-        )}
+        {!loading && filtered.length === 0 && <NoRowsMatch query={query} />}
       </div>
     </div>
   );

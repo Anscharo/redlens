@@ -368,7 +368,7 @@ function evidenceChain(steps: EvidenceStep[]): string {
 }
 
 export function activeDataRowsToCSV(
-  rows: ActiveDataRow[],
+  rows: readonly ActiveDataRow[],
   lastEditDates: Map<string, string> = new Map(),
 ): string {
   return toCSV(

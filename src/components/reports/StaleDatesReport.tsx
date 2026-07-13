@@ -116,7 +116,7 @@ function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery
   );
 }
 
-function Section({ title, hint, claims, tone, textTone, rq }: { title: string; hint: string; claims: DateClaim[]; tone: string; textTone?: string; rq: ReportQuery }) {
+function Section({ title, hint, claims, tone, textTone, rq }: { title: string; hint: string; claims: readonly DateClaim[]; tone: string; textTone?: string; rq: ReportQuery }) {
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-0.5" style={{ color: textTone ?? tone }}>
@@ -156,7 +156,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
   const sections = useMemo(
     () =>
       report
-        ? SECTIONS.map((s) => ({ ...s, claims: [...filterRows(report[s.key], rq, searchFields)] }))
+        ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, searchFields) }))
         : null,
     [report, rq],
   );

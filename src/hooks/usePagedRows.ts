@@ -7,7 +7,7 @@ const DEFAULT_PAGE_SIZE = 100;
 // DOM nodes in a single commit. Resets to one page whenever `rows` changes
 // identity (a new filter result) — callers must memoize `rows` so unrelated
 // re-renders (e.g. expanding a row) don't reset the page.
-export function usePagedRows<T>(rows: T[], pageSize = DEFAULT_PAGE_SIZE) {
+export function usePagedRows<T>(rows: readonly T[], pageSize = DEFAULT_PAGE_SIZE) {
   const [count, setCount] = useState(pageSize);
   useEffect(() => setCount(pageSize), [rows, pageSize]);
   return {

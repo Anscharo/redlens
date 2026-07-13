@@ -30,7 +30,7 @@ const expandedCodec = urlString(null);
 const RATINGS = ["weak", "mid", "strong"] as const;
 const STATUSES = ["fresh", "stale", "unassessed"] as const;
 
-function SummaryStrip({ rows }: { rows: OeaRow[] }) {
+function SummaryStrip({ rows }: { rows: readonly OeaRow[] }) {
   const s = summarize(rows);
   const fmt = (r: Record<Rating, number>) => `${r.weak} weak · ${r.mid} mid · ${r.strong} strong`;
   return (
@@ -100,7 +100,7 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
     [rows, cat, status, precision, incentives],
   );
   const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
-  const shown = useMemo(() => [...filterRows(filtered, rq, oeaSearchFields)], [filtered, rq]);
+  const shown = useMemo(() => filterRows(filtered, rq, oeaSearchFields), [filtered, rq]);
 
   const byCategory = useMemo(
     () => Object.groupBy(shown, (r) => r.task.category) as Record<OeaCategory, OeaRow[]>,

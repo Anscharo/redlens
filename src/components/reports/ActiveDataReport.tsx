@@ -166,7 +166,7 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
     [rows, agentFilter, entityFilter],
   );
   const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
-  const shown = useMemo(() => [...filterRows(filtered, rq, searchFields)], [filtered, rq]);
+  const shown = useMemo(() => filterRows(filtered, rq, searchFields), [filtered, rq]);
 
   return (
     <div className="px-6 py-6">

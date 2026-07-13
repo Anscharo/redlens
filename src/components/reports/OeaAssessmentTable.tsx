@@ -92,7 +92,7 @@ export function OeaTable({
   label, rows, mechanisms, expandedKey, onToggle, rq = EMPTY_QUERY,
 }: {
   label: string;
-  rows: OeaRow[];
+  rows: readonly OeaRow[];
   mechanisms: Record<string, OeaMechanism>;
   expandedKey: string | null;
   onToggle: (row: OeaRow) => void;

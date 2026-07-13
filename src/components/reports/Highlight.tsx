@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { flexTokenSource, type HiddenMatch, type ReportQuery } from "../../lib/reportFilter";
+import { fitAsideMatches } from "./asideFit";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -33,12 +34,40 @@ export function Highlight({ text, rq, flex = false }: { text: string | null | un
 // Floating note beside a row (left margin, wide screens) explaining a match
 // that isn't visible in the row itself: the hidden field's label + a
 // highlighted excerpt around the matched term. Anchor the containing cell
-// with `relative`.
+// with `relative`. Content is height-fitted to the row via pretext text
+// measurement (asideFit.ts) so a tall note never overflows into the next
+// row's aside.
 export function MatchAside({ matches, rq }: { matches: HiddenMatch[]; rq: ReportQuery }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [fitted, setFitted] = useState<HiddenMatch[]>([]);
+  // Key of the inputs — the parent recomputes `matches` every render, so the
+  // effect must depend on content, not array identity.
+  const key = matches.map((m) => `${m.label}\x1f${m.excerpt}`).join("\x1e");
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || matches.length === 0) return;
+    // The anchoring cell (offsetParent) spans the row's full height in both
+    // table rows and the relative list items StaleDates uses.
+    const anchor = el.offsetParent as HTMLElement | null;
+    const compute = () => {
+      const width = el.getBoundingClientRect().width;
+      const rowH = anchor?.getBoundingClientRect().height ?? 0;
+      setFitted(width > 0 ? fitAsideMatches(matches, width, rowH) : matches);
+    };
+    compute();
+    const ro = anchor ? new ResizeObserver(compute) : null;
+    if (anchor) ro!.observe(anchor);
+    // Source Code Pro loads async; measurements before that used a fallback.
+    document.fonts?.ready.then(compute).catch(() => {});
+    return () => ro?.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
   if (matches.length === 0) return null;
   return (
-    <span className="match-aside" aria-label="matched on a field not shown in this row">
-      {matches.map((m) => (
+    <span ref={ref} className="match-aside" aria-label="matched on a field not shown in this row">
+      {fitted.map((m) => (
         <span key={m.label} className="block">
           <span className="match-aside-label">{m.label}</span>{" "}
           <Highlight text={m.excerpt} rq={rq} flex={m.despace} />
