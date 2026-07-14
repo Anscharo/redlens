@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { Link } from "../Link";
 import { useSelection } from "../../lib/selection";
 import { getSharedCollection } from "../../lib/collectionsApi";
 import { track } from "../../lib/analytics";
@@ -7,10 +8,14 @@ import { ROUTES } from "../../lib/routes";
 
 // /c/:id — opens a SHARED collection (public read, works logged-out). Fetches the
 // collection by id, loads it into the working selection, and hands off to the
-// reader's selected-only view. Replaces whatever the viewer had selected, same
-// as opening one's own collection from /collections.
+// reader's selected-only view. Replaces whatever the viewer had selected.
+//
+// We set the collection NAME (for the pill) but deliberately NOT the active
+// collection ID: the viewer usually isn't the owner, so an in-place "Update"
+// would 404. Leaving the id unset makes the save modal offer "save as new"
+// instead — the viewer keeps their own copy.
 export function SharedCollectionOpener({ id }: { id: string }) {
-  const { replace, setActiveCollectionId, setActiveCollectionName } = useSelection();
+  const { replace, setActiveCollectionName } = useSelection();
   const [, navigate] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +25,6 @@ export function SharedCollectionOpener({ id }: { id: string }) {
       .then((c) => {
         if (!alive) return;
         replace(c.ids);
-        setActiveCollectionId(c.id);
         setActiveCollectionName(c.name);
         track("collection_open_shared", { id: c.id, count: c.ids.length });
         navigate(`${ROUTES.ATLAS}?selectedOnly=1`, { replace: true });
@@ -29,7 +33,7 @@ export function SharedCollectionOpener({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id, replace, setActiveCollectionId, setActiveCollectionName, navigate]);
+  }, [id, replace, setActiveCollectionName, navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 py-24 gap-3 text-center px-4">
@@ -38,9 +42,9 @@ export function SharedCollectionOpener({ id }: { id: string }) {
           <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
             {error}
           </p>
-          <a href={ROUTES.ATLAS} className="text-xs mono text-accent hover:underline">
+          <Link to={ROUTES.ATLAS} className="text-xs mono text-accent hover:underline">
             ← back to the atlas
-          </a>
+          </Link>
         </>
       ) : (
         <p className="mono text-xs text-tan-3">Opening shared collection…</p>

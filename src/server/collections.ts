@@ -23,6 +23,13 @@ interface CollectionBody {
   ids?: string[];
 }
 
+// Server-side safety caps (the UI enforces a tighter 32-char name via maxLength;
+// these guard a direct authenticated POST/PATCH from inserting a giant name or a
+// huge ids array — each id is its own INSERT, so an unbounded array is also a
+// per-request perf hazard). Generous vs the UI so legitimate saves never trip.
+const MAX_NAME_LEN = 200;
+const MAX_IDS = 2000;
+
 async function itemsFor(collectionId: string): Promise<string[]> {
   const rows = (await sql`
     SELECT doc_id FROM collection_items WHERE collection_id = ${collectionId} ORDER BY position
@@ -144,6 +151,8 @@ export async function handleCollections(req: Request): Promise<Response> {
     }
     if (!body.name?.trim()) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
+    if (body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);
+    if ((body.ids?.length ?? 0) > MAX_IDS) return json({ error: "too_many_ids" }, 400);
     return json(await createCollection(userId, body), 201, session.refresh);
   }
 
@@ -156,6 +165,8 @@ export async function handleCollections(req: Request): Promise<Response> {
     }
     if (body.name !== undefined && !body.name.trim()) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
+    if (body.name !== undefined && body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);
+    if (body.ids !== undefined && body.ids.length > MAX_IDS) return json({ error: "too_many_ids" }, 400);
     const updated = await updateCollection(userId, id, body);
     if (!updated) return json({ error: "not_found" }, 404);
     return json(updated, 200, session.refresh);

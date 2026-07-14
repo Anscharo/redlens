@@ -68,11 +68,16 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     saveSelection([...ids]);
   }, [ids]);
 
-  // When the selection empties while the "Selected only" filter is on (e.g. the
-  // user unchecks the last doc), drop back to "All". Otherwise the filter stays
-  // armed and the next doc checked snaps the reader to just that one.
+  // When the selection empties (e.g. the user unchecks the last doc), drop back
+  // to "All" so the filter doesn't stay armed and snap the next checked doc into
+  // a hidden selected-only view, and forget any active collection — an empty set
+  // is no longer "that collection", so the next docs picked start fresh/unnamed
+  // (otherwise the pill keeps the old name and Save offers a stale "Update").
   useEffect(() => {
-    if (selectedOnly && ids.size === 0) setSelectedOnly(false);
+    if (ids.size > 0) return;
+    if (selectedOnly) setSelectedOnly(false);
+    setActiveCollectionId(null);
+    setActiveCollectionName(null);
   }, [selectedOnly, ids, setSelectedOnly]);
 
   useEffect(() => {
