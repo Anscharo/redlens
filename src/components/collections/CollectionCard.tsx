@@ -2,10 +2,10 @@ import { useState } from "react";
 import type { Collection } from "../../lib/collectionsApi";
 import type { AtlasNode } from "../../types";
 
-const PREVIEW_COUNT = 3;
+const PREVIEW_COUNT = 10;
 
-// Single collection card: name (inline-editable), doc count + preview titles,
-// updated date, and Open/Rename/Delete actions.
+// Single collection card: name (inline-editable), doc count + a vertical list of
+// the first documents (doc_no + title), updated date, and Open/Rename/Delete.
 export function CollectionCard({
   collection,
   docs,
@@ -29,13 +29,13 @@ export function CollectionCard({
     else setDraft(collection.name);
   };
 
-  const titles = docs
+  const items = docs
     ? collection.ids
         .slice(0, PREVIEW_COUNT)
-        .map((id) => docs[id]?.title)
-        .filter((t): t is string => Boolean(t))
+        .map((id) => docs[id])
+        .filter((n): n is AtlasNode => Boolean(n))
     : [];
-  const extra = collection.ids.length - titles.length;
+  const extra = collection.ids.length - items.length;
 
   return (
     <article
@@ -77,10 +77,20 @@ export function CollectionCard({
         </p>
       </div>
 
-      <p className="text-xs text-tan-3 mb-3">
+      <p className="text-xs text-tan-3 mb-2">
         {collection.ids.length} {collection.ids.length === 1 ? "document" : "documents"}
-        {titles.length > 0 && <> — {titles.join(", ")}{extra > 0 ? ` +${extra} more` : ""}</>}
       </p>
+      {items.length > 0 && (
+        <ul className="mb-3 flex flex-col gap-0.5">
+          {items.map((n) => (
+            <li key={n.id} className="text-xs flex gap-2 min-w-0">
+              <span className="mono text-tan-3 shrink-0">{n.doc_no}</span>
+              <span className="truncate" style={{ color: "var(--tan-2)" }}>{n.title}</span>
+            </li>
+          ))}
+          {extra > 0 && <li className="text-xs text-tan-3">+{extra} more</li>}
+        </ul>
+      )}
 
       <div className="flex gap-2">
         <button

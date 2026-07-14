@@ -81,7 +81,7 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
             <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
               Sign in to save this selection as a collection
             </h2>
-            <SignInButtons variant="menu" source="collections" />
+            <SignInButtons variant="menu" source="collections" sansSerif />
           </>
         ) : (
           <>

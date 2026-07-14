@@ -20,7 +20,7 @@ export function CollectionsPage() {
   useDocumentTitle("Collections");
   const { user } = useAuth();
   const { collections, loading, error, rename, remove } = useCollections();
-  const { replace, setActiveCollectionId } = useSelection();
+  const { replace, setActiveCollectionId, setActiveCollectionName } = useSelection();
   const [, navigate] = useLocation();
   const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
 
@@ -34,6 +34,7 @@ export function CollectionsPage() {
   const openCollection = (c: Collection) => {
     replace(c.ids);
     setActiveCollectionId(c.id);
+    setActiveCollectionName(c.name);
     track("collection_open", { id: c.id, count: c.ids.length });
     // Carry the selected-only flag in the destination URL: selectedOnly is
     // decoded from the current URL by SelectionProvider, so setting it here

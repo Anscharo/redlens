@@ -1,24 +1,40 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
 import { useSelection } from "../../lib/selection";
 import { track } from "../../lib/analytics";
+import { ROUTES } from "../../lib/routes";
 import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
 import { usersEnabled } from "../../lib/usersEnabled";
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
-// Always-visible bar above the tree (live reader). "All" is always shown; once
-// docs are selected a "Selected · n" filter appears with a clear (×) button
-// right beside it. On the right, a checkbox toggles selection mode (when on,
-// every document shows a checkbox) alongside the save-as-collection button.
-// Hidden only in preview, where PreviewTreeToggle owns this slot (mutually
-// exclusive).
+// Bar above the tree (live reader). "All" plus, once docs are selected, a
+// "Selected · n" filter with a clear (×), a save-as-collection button, and a
+// checkbox that toggles selection mode. The select checkbox is a READER entry
+// point, so it only shows on the /atlas route — not the home/search pages, where
+// the tree is also mounted. With nothing selected off the reader, the whole bar
+// is hidden. Always hidden in preview (PreviewTreeToggle owns this slot).
 export function SelectionTreeToggle() {
   const { preview } = useDataSource();
-  const { ids, selectionMode, setSelectionMode, selectedOnly, setSelectedOnly, setActiveCollectionId, clear } =
-    useSelection();
+  const [location] = useLocation();
+  const {
+    ids,
+    selectionMode,
+    setSelectionMode,
+    selectedOnly,
+    setSelectedOnly,
+    setActiveCollectionId,
+    activeCollectionName,
+    setActiveCollectionName,
+    clear,
+  } = useSelection();
   const [showSave, setShowSave] = useState(false);
   if (preview) return null;
   const count = ids.size;
+  const inReader = location === ROUTES.ATLAS;
+  // Off the reader (home / search-hints), the selection UI only earns its space
+  // when there's already a selection to filter — otherwise hide the bar entirely.
+  if (!inReader && count === 0) return null;
 
   return (
     <div className={TREE_TOGGLE_BAR_CLASS} style={TREE_TOGGLE_BAR_STYLE}>
@@ -43,7 +59,7 @@ export function SelectionTreeToggle() {
               setSelectedOnly(true);
             }}
           >
-            Selected · {count}
+            {activeCollectionName ?? "Selected"} · {count}
           </button>
           <button
             type="button"
@@ -57,6 +73,7 @@ export function SelectionTreeToggle() {
               clear();
               setSelectedOnly(false);
               setActiveCollectionId(null);
+              setActiveCollectionName(null);
             }}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
@@ -91,21 +108,24 @@ export function SelectionTreeToggle() {
       )}
 
       {/* Selection-mode toggle — a checkbox mirroring the per-document ones, so
-          its meaning ("show the checkboxes") reads at a glance. */}
-      <label
-        className="atlas-node-select"
-        title={selectionMode ? "Turn off selection mode" : "Turn on selection mode (show checkboxes)"}
-        aria-label="Selection mode"
-      >
-        <input
-          type="checkbox"
-          checked={selectionMode}
-          onChange={() => {
-            track("selection_mode_toggle", { on: !selectionMode, count });
-            setSelectionMode(!selectionMode);
-          }}
-        />
-      </label>
+          its meaning ("show the checkboxes") reads at a glance. Reader-only: it's
+          the entry point to selecting, which only makes sense while reading. */}
+      {inReader && (
+        <label
+          className="atlas-node-select"
+          title={selectionMode ? "Turn off selection mode" : "Turn on selection mode (show checkboxes)"}
+          aria-label="Selection mode"
+        >
+          <input
+            type="checkbox"
+            checked={selectionMode}
+            onChange={() => {
+              track("selection_mode_toggle", { on: !selectionMode, count });
+              setSelectionMode(!selectionMode);
+            }}
+          />
+        </label>
+      )}
 
       {showSave && <SaveCollectionModal ids={[...ids]} onClose={() => setShowSave(false)} />}
     </div>
