@@ -25,6 +25,7 @@ import {
   VERIFIER_COOKIE,
   type SessionUser,
 } from "./session.ts";
+import { json } from "./http.ts";
 
 const GITHUB_SCOPES = ["read:user", "user:email"];
 const GOOGLE_SCOPES = ["openid", "profile", "email"];
@@ -43,11 +44,6 @@ function redirect(location: string, cookies: string[] = []): Response {
   return new Response(null, { status: 302, headers });
 }
 
-function json(body: unknown, status = 200, cookies: string[] = []): Response {
-  const headers = new Headers({ "content-type": "application/json" });
-  for (const c of cookies) headers.append("set-cookie", c);
-  return new Response(JSON.stringify(body), { status, headers });
-}
 
 interface GithubUser {
   id: number;
