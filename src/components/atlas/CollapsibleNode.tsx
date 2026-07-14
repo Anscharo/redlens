@@ -253,7 +253,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       </div>
       {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
-      {hiddenCount > 0 && onExpandChildren && (
+      {/* In preview mode the reader shows a flat changed-only list that ignores
+          depth-6 gating, so revealing hidden descendants is a no-op — hide the
+          affordance rather than offer a dead button. */}
+      {hiddenCount > 0 && onExpandChildren && !isPreview && (
         <button
           type="button"
           onClick={(e) => {
