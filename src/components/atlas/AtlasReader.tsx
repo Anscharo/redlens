@@ -277,7 +277,7 @@ export function AtlasReader({
             title="Open comparison pane (or shift-click any node)"
             onClick={() => onSplitChange(id)}
             aria-label="Open comparison pane"
-            className="absolute top-2 right-7 z-10 mono text-[10px] px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
+            className="absolute top-2 right-[38px] z-10 mono text-[10px] px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <svg
