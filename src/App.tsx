@@ -82,6 +82,11 @@ const AdminEntry = lazy(() =>
 const CollectionsPage = lazy(() =>
   lazyRetry(() => import("./components/collections/CollectionsPage")).then((m) => ({ default: m.CollectionsPage })),
 );
+const SharedCollectionOpener = lazy(() =>
+  lazyRetry(() => import("./components/collections/SharedCollectionOpener")).then((m) => ({
+    default: m.SharedCollectionOpener,
+  })),
+);
 
 const splitCodec = urlString(null);
 
@@ -379,6 +384,13 @@ export default function App() {
               <Suspense fallback={<Loading />}>
                 <CollectionsPage />
               </Suspense>
+            </Route>
+            <Route path={ROUTES.SHARED_COLLECTION}>
+              {(params: { id: string }) => (
+                <Suspense fallback={<Loading />}>
+                  <SharedCollectionOpener id={params.id} />
+                </Suspense>
+              )}
             </Route>
             <Route path="/admin/:rest*">
               <Suspense fallback={<Loading />}>

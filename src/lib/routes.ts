@@ -9,6 +9,7 @@ export const ROUTES = {
   UPDATES: "/updates",
   CONNECT: "/connect",
   COLLECTIONS: "/collections",
+  SHARED_COLLECTION: "/c/:id",
   REPORTS: "/reports",
   REPORTS_OF_RESPONSIBILITIES: "/reports/of-responsibilities",
   REPORTS_GOVOPS_RESPONSIBILITIES: "/reports/gov-ops-responsibilities",
