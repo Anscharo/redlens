@@ -3,6 +3,7 @@
 // plain JSON in/out.
 import { sql } from "./db.ts";
 import { getSessionUser } from "./session.ts";
+import { json, isStringArray } from "./http.ts";
 
 interface CollectionRow {
   id: string;
@@ -20,16 +21,6 @@ interface CollectionOut {
 interface CollectionBody {
   name?: string;
   ids?: string[];
-}
-
-function json(body: unknown, status = 200, refresh?: string): Response {
-  const res = new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-  if (refresh) res.headers.append("set-cookie", refresh);
-  return res;
-}
-
-function isStringArray(v: unknown): v is string[] {
-  return Array.isArray(v) && v.every((x) => typeof x === "string");
 }
 
 async function itemsFor(collectionId: string): Promise<string[]> {

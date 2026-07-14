@@ -13,6 +13,7 @@ import { getModel, openrouterStream } from "./llm.ts";
 import { runChat, type ChatEvent } from "./chat-loop.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { getWindowUsage } from "./rate-limit.ts";
+import { json } from "./http.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -32,9 +33,6 @@ export function messageExceedsLimit(message: string, limitBytes = MAX_MESSAGE_BY
   return Buffer.byteLength(message, "utf8") > limitBytes;
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 // Resolve the target conversation: verify ownership of an existing one, or open
 // a new row. Returns null if the id was supplied but isn't the caller's.
