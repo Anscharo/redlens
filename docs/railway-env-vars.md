@@ -16,6 +16,8 @@ Quick reference — variable names and which service they go on. For the full st
 
 `CHAT_ENABLED` is AND-gated by `USERS_ENABLED` — chat requires a logged-in session, so enabling chat means setting **both** `USERS_ENABLED=1` and `CHAT_ENABLED=1` (plus the matching `VITE_USERS_ENABLED=1` / `VITE_CHAT_ENABLED=1` build args).
 
+`USERS_ENABLED` further requires `CHAT_JWT_SECRET` to be set — without a secret to sign sessions the login surface stays **off** (routes 404, and the profile/Collections UI is hidden even if `VITE_USERS_ENABLED=1` was baked in). The server logs a loud warning at boot if `USERS_ENABLED` is set without the secret.
+
 ## Atlas Worker service
 
 | Variable | Value | Required |

@@ -93,7 +93,10 @@ export default defineConfig(() => {
         } catch {
           /* artifacts not built yet — empty sha → flat BASE_URL fallback */
         }
-        return html.replaceAll("{{ATLAS_SHA}}", sha);
+        // Dev has no Bun-served HTML, so substitute the login flag here too. The
+        // real JWT-secret check lives server-side; in dev the build flag is a
+        // good-enough proxy (dev.mjs forwards both together).
+        return html.replaceAll("{{ATLAS_SHA}}", sha).replaceAll("{{USERS_ENABLED}}", String(usersEnabled));
       },
     },
     tailwindcss(),

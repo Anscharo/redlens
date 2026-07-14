@@ -30,15 +30,15 @@ console.log(
     `(${Math.round(performance.now() - t0)}ms)`,
 );
 
-// Fail-loud at boot when the login surface is switched on but its hard
-// prerequisites are missing — otherwise the gaps only surface as an opaque
-// per-request 400 mid-OAuth (a missing CHAT_JWT_SECRET throws at session
-// signing, right after a *successful* code exchange, which looks like an
-// exchange failure). Warn, don't exit: the reader/MCP still serve fine.
+// Fail-loud at boot when logins were requested (USERS_ENABLED=1) but a hard
+// prerequisite is missing — so the surface stays OFF (see config.usersEnabled)
+// instead of half-working. Without this, a missing CHAT_JWT_SECRET only surfaced
+// as an opaque per-request 400 mid-OAuth (signing throws right after a
+// *successful* code exchange). Warn, don't exit: the reader/MCP serve fine.
 function checkAuthConfig(): void {
-  if (!config.usersEnabled) return;
+  if (!config.usersRequested) return;
   const problems: string[] = [];
-  if (!config.jwtSecret) problems.push("CHAT_JWT_SECRET unset — session signing throws, so every login fails");
+  if (!config.jwtSecret) problems.push("CHAT_JWT_SECRET unset — sessions can't be signed (the login surface stays disabled)");
   const github = config.githubClientId && config.githubClientSecret;
   const google = config.googleClientId && config.googleClientSecret;
   if (!github && !google) {
@@ -50,7 +50,7 @@ function checkAuthConfig(): void {
     if (config.googleClientSecret && !config.googleClientId) problems.push("GOOGLE_CLIENT_SECRET set but GOOGLE_CLIENT_ID missing");
   }
   if (!problems.length) return;
-  console.warn("⚠️  USERS_ENABLED is on but auth config is incomplete — logins will fail:");
+  console.warn(`⚠️  USERS_ENABLED is set but the login surface is OFF (usersEnabled=${config.usersEnabled}) — incomplete config:`);
   for (const p of problems) console.warn(`   • ${p}`);
   console.warn(`   redirect URI in use: ${config.appUrl}/api/auth/<provider>/callback`);
 }
@@ -219,7 +219,13 @@ const server = Bun.serve({
     } catch {
       /* indexes not loaded yet */
     }
-    const html = (await Bun.file(config.distDir + "/index.html").text()).replace("{{ATLAS_SHA}}", sha);
+    // Inject the server's REAL login capability (usersEnabled requires a JWT
+    // secret) so the frontend shows the profile/collections UI only when a
+    // sign-in can actually succeed — not merely because the bundle was built
+    // with VITE_USERS_ENABLED. See src/lib/usersEnabled.ts.
+    const html = (await Bun.file(config.distDir + "/index.html").text())
+      .replace("{{ATLAS_SHA}}", sha)
+      .replace("{{USERS_ENABLED}}", String(config.usersEnabled));
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { headers });

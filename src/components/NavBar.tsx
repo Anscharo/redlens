@@ -2,6 +2,7 @@ import { Link } from "./Link";
 import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
 import { useDataSource } from "../lib/dataSource";
+import { usersEnabled } from "../lib/usersEnabled";
 
 export interface NavBarProps {
   activePage: NavPage | null;
@@ -24,7 +25,7 @@ export function NavBar({ activePage }: NavBarProps) {
           Reports
         </NavLink>
       )}
-      {__USERS_ENABLED__ && !preview && <ProfileButton />}
+      {usersEnabled() && !preview && <ProfileButton />}
     </div>
   );
 }
