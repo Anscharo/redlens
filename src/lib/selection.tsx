@@ -12,15 +12,12 @@ interface Selection {
    *  every document. Off by default so the checkboxes don't always show. */
   selectionMode: boolean;
   setSelectionMode: (v: boolean) => void;
-  toggle: (id: string) => void;
   /** Checkbox toggle with shift-click range support: on shift, selects every
    *  currently-visible doc between the last-toggled anchor and `id`. */
   rangeToggle: (id: string, shift: boolean) => void;
   /** Register the reader's current ordered list of visible doc ids, so
    *  rangeToggle knows what "between" means in the view the user sees. */
   setVisibleOrder: (ids: string[]) => void;
-  add: (id: string) => void;
-  remove: (id: string) => void;
   clear: () => void;
   replace: (ids: string[]) => void;
   selectedOnly: boolean;
@@ -38,11 +35,8 @@ const NOOP_SELECTION: Selection = {
   ids: EMPTY_IDS as Set<string>,
   selectionMode: false,
   setSelectionMode: () => {},
-  toggle: () => {},
   rangeToggle: () => {},
   setVisibleOrder: () => {},
-  add: () => {},
-  remove: () => {},
   clear: () => {},
   replace: () => {},
   selectedOnly: false,
@@ -92,16 +86,6 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     orderRef.current = order;
   }, []);
 
-  const toggle = useCallback((id: string) => {
-    setIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-    anchorRef.current = id;
-  }, []);
-
   const rangeToggle = useCallback((id: string, shift: boolean) => {
     const order = orderRef.current;
     const anchor = anchorRef.current;
@@ -130,19 +114,6 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     anchorRef.current = id;
   }, []);
 
-  const add = useCallback((id: string) => {
-    setIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
-  }, []);
-
-  const remove = useCallback((id: string) => {
-    setIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-
   const clear = useCallback(() => setIds(new Set()), []);
 
   const replace = useCallback((newIds: string[]) => setIds(new Set(newIds)), []);
@@ -152,11 +123,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       ids,
       selectionMode,
       setSelectionMode,
-      toggle,
       rangeToggle,
       setVisibleOrder,
-      add,
-      remove,
       clear,
       replace,
       selectedOnly,
@@ -164,7 +132,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       activeCollectionId,
       setActiveCollectionId,
     }),
-    [ids, selectionMode, toggle, rangeToggle, setVisibleOrder, add, remove, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
+    [ids, selectionMode, rangeToggle, setVisibleOrder, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;

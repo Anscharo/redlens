@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useDataSource } from "../../lib/dataSource";
 import { useSelection } from "../../lib/selection";
 import { track } from "../../lib/analytics";
+import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
 // Always-visible bar above the tree (live reader). A "Select" toggle turns
@@ -17,20 +18,11 @@ export function SelectionTreeToggle() {
   if (preview) return null;
   const count = ids.size;
 
-  const btn = (active: boolean, color: string): React.CSSProperties => ({
-    color: active ? color : "var(--tan-3)",
-    background: active ? "var(--hover)" : "transparent",
-    fontWeight: active ? 600 : 400,
-  });
-
   return (
-    <div
-      className="flex items-center gap-1 px-2 py-1.5 text-[11px] mono shrink-0"
-      style={{ borderBottom: "1px solid var(--border)" }}
-    >
+    <div className={TREE_TOGGLE_BAR_CLASS} style={TREE_TOGGLE_BAR_STYLE}>
       <button
         className="px-2 py-0.5 rounded"
-        style={btn(selectionMode, "var(--accent)")}
+        style={togglePillStyle(selectionMode, "var(--accent)")}
         title={selectionMode ? "Turn off selection mode" : "Turn on selection mode (show checkboxes)"}
         aria-pressed={selectionMode}
         onClick={() => {
@@ -48,7 +40,7 @@ export function SelectionTreeToggle() {
           </span>
           <button
             className="px-2 py-0.5 rounded"
-            style={btn(!selectedOnly, "var(--tan)")}
+            style={togglePillStyle(!selectedOnly, "var(--tan)")}
             onClick={() => {
               track("selection_view_toggle", { view: "all", count });
               setSelectedOnly(false);
@@ -58,7 +50,7 @@ export function SelectionTreeToggle() {
           </button>
           <button
             className="px-2 py-0.5 rounded"
-            style={btn(selectedOnly, "#fff")}
+            style={togglePillStyle(selectedOnly, "#fff")}
             onClick={() => {
               track("selection_view_toggle", { view: "selected_only", count });
               setSelectedOnly(true);
