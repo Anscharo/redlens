@@ -133,6 +133,23 @@ export function AtlasReader({
     setVisibleOrder(orderedVisibleIds);
   }, [orderedVisibleIds, setVisibleOrder]);
 
+  // In the flat filtered view, a doc's "expand all children" affordance is only
+  // meaningful if it actually has a descendant in the filter set. Collect every
+  // ancestor of a matched doc so we can gate the affordance to those parents.
+  const filteredParentIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!filterSet) return set;
+    for (const entry of data.flatNodes) {
+      if (!filterSet.has(entry.node.id)) continue;
+      let pid = entry.node.parentId ?? null;
+      while (pid && !set.has(pid)) {
+        set.add(pid);
+        pid = data.atlas.docs[pid]?.parentId ?? null;
+      }
+    }
+    return set;
+  }, [data, filterSet]);
+
   const docList = useMemo(() => {
     if (filterSet) {
       // Selected-only / changed-only: a flat subset in document order. Between
@@ -163,7 +180,7 @@ export function AtlasReader({
             entry={entry}
             isSelected={entry.node.id === selectedId}
             isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
-            hasChildren={data.atlas.byParent.has(entry.node.id)}
+            hasChildren={filteredParentIds.has(entry.node.id)}
             isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
             hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
             onExpandChildren={handleExpandParent}
@@ -246,7 +263,7 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll }}>
