@@ -9,10 +9,10 @@ export type Collection = {
   updatedAt: string;
 };
 
-// Max length for a collection name — short enough that the "NAME · n" pill fits
-// the sidebar without crowding the other controls (long names still get CSS
-// truncation there as a backstop). Enforced on both the create + rename inputs.
-export const MAX_COLLECTION_NAME_LEN = 18;
+// Max length for a collection name. The "NAME · n" sidebar pill shows the full
+// name when there's room and truncates (CSS) only when the row is cramped.
+// Enforced on both the create + rename inputs.
+export const MAX_COLLECTION_NAME_LEN = 32;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(apiUrl(path), {
