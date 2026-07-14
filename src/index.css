@@ -435,16 +435,26 @@ mark {
 }
 
 /* Barrier between two docs in the flat selected-only / changed-only reader list
-   that are NOT true neighbors in the full atlas order — a horizontally centered
-   ellipsis marking the omitted span. */
+   that are NOT true neighbors in the full atlas order — a centered ellipsis
+   flanked by a rule covering a third of the width on each side, marking the
+   omitted span. */
 .selection-gap {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   color: var(--tan-3);
   font-size: 20px;
   line-height: 1;
   padding: 8px 0;
   user-select: none;
-  letter-spacing: 0.2em;
+}
+.selection-gap::before,
+.selection-gap::after {
+  content: "";
+  width: 33%;
+  height: 1px;
+  background: color-mix(in srgb, var(--tan-3) 35%, transparent);
 }
 
 /* Atlas tree view */

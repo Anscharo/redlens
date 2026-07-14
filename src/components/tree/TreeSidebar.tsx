@@ -199,7 +199,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       return Object.values(docs)
         .filter((n) => flatFilter.has(n.id))
         .sort((a, b) => a.order - b.order)
-        .map((node) => ({ node, hasChildren: false, treeDepth: 1 }));
+        // Use the node's real depth (not a flat 1) so chiclet colors — and NR-X
+        // chiclets in particular, whose number is colored by this depth — match
+        // the reader instead of all rendering as depth-1 red.
+        .map((node) => ({ node, hasChildren: false, treeDepth: node.depth }));
     }
     const result: VisibleNode[] = [];
     function walk(parentId: string | null, parentDocNo?: string) {
