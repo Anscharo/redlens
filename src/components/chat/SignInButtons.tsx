@@ -8,9 +8,14 @@ import { track } from "../../lib/analytics";
 export function SignInButtons({
   variant = "menu",
   source = "chat",
+  sansSerif = false,
 }: {
   variant?: "menu" | "composer";
   source?: string;
+  // Menu variant only: use the app's sans-serif (Inter) instead of the chat
+  // menu's serif. On in the save-collection modal (an app-styled surface); off
+  // in the profile dropdown, which stays serif like the rest of that menu.
+  sansSerif?: boolean;
 }) {
   const { openAuth } = useAuth();
 
@@ -34,11 +39,11 @@ export function SignInButtons({
 
   return (
     <>
-      <button className="rlc-menu-item rlc-signin-menu justify-start" onClick={() => click("github")}>
+      <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("github")}>
         <GitHubMark /> <span>Continue with GitHub</span>
       </button>
       <div className="border-t border-border" />
-      <button className="rlc-menu-item rlc-signin-menu justify-start" onClick={() => click("google")}>
+      <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("google")}>
         <GoogleMark /> <span>Continue with Google</span>
       </button>
     </>

@@ -24,6 +24,10 @@ interface Selection {
   setSelectedOnly: (v: boolean) => void;
   activeCollectionId: string | null;
   setActiveCollectionId: (id: string | null) => void;
+  /** Name of the currently-open collection, if any — shown in the view pill
+   *  ("NAME · n") in place of the generic "Selected · n". */
+  activeCollectionName: string | null;
+  setActiveCollectionName: (name: string | null) => void;
 }
 
 // A stable no-op default so components rendered WITHOUT the provider (e.g. the
@@ -43,6 +47,8 @@ const NOOP_SELECTION: Selection = {
   setSelectedOnly: () => {},
   activeCollectionId: null,
   setActiveCollectionId: () => {},
+  activeCollectionName: null,
+  setActiveCollectionName: () => {},
 };
 
 const SelectionContext = createContext<Selection>(NOOP_SELECTION);
@@ -56,6 +62,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedOnly, setSelectedOnly] = useUrlState("selectedOnly", urlBool(false));
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [activeCollectionName, setActiveCollectionName] = useState<string | null>(null);
 
   useEffect(() => {
     saveSelection([...ids]);
@@ -131,8 +138,10 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       setSelectedOnly,
       activeCollectionId,
       setActiveCollectionId,
+      activeCollectionName,
+      setActiveCollectionName,
     }),
-    [ids, selectionMode, rangeToggle, setVisibleOrder, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
+    [ids, selectionMode, rangeToggle, setVisibleOrder, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
