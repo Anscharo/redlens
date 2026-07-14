@@ -24,7 +24,7 @@ export function NavBar({ activePage }: NavBarProps) {
           Reports
         </NavLink>
       )}
-      {__CHAT_ENABLED__ && !preview && <ProfileButton />}
+      {__USERS_ENABLED__ && !preview && <ProfileButton />}
     </div>
   );
 }

@@ -16,8 +16,12 @@ COPY . .
 
 # Clone the atlas. Railway strips .git from the build context so submodule
 # init cannot work — a direct clone gives us the content we need.
-# Chat + auth ship DISABLED by default; rebuild with --build-arg
-# VITE_CHAT_ENABLED=1 (and set CHAT_ENABLED=1 at runtime) to enable.
+# Login features (auth, saved Collections) + chat ship DISABLED by default.
+# Rebuild with --build-arg VITE_USERS_ENABLED=1 (and set USERS_ENABLED=1 at
+# runtime) to enable logins; add --build-arg VITE_CHAT_ENABLED=1 (+ CHAT_ENABLED=1
+# at runtime) for chat. Chat needs a logged-in session, so it also requires the
+# USERS flags — VITE_CHAT_ENABLED=1 alone (without users) leaves chat off.
+ARG VITE_USERS_ENABLED=0
 ARG VITE_CHAT_ENABLED=0
 # PostHog analytics key. VITE_* vars are inlined by Vite AT BUILD TIME, not read
 # at runtime — so the key must be present in this build environment, not just as a
@@ -38,8 +42,8 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:oea-report \
  && bun run build:bundle \
  && bun run build:tools \
- && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
- && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY VITE_PREVIEW_ENABLED=$VITE_PREVIEW_ENABLED bun run build:vite \
+ && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
+ && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY VITE_PREVIEW_ENABLED=$VITE_PREVIEW_ENABLED bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json dist/oea-report.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────

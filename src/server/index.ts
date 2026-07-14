@@ -103,11 +103,13 @@ const server = Bun.serve({
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
-    "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
+    // Auth + collections need only a logged-in session (usersEnabled); chat +
+    // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
+    "/api/auth/*": (req) => config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
-    "/api/collections":     (req) => config.chatEnabled ? handleCollections(req as Request) : NOT_FOUND(),
-    "/api/collections/:id": (req) => config.chatEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.

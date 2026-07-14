@@ -20,9 +20,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // No /api backend on static deploys (GH Pages / CF Pages) — skip the boot
-    // probe entirely; the chat UI + profile button aren't mounted there anyway.
-    if (!__CHAT_ENABLED__) {
+    // No /api backend on static deploys (GH Pages / CF Pages) or when logins are
+    // off — skip the boot probe entirely; the profile button + chat UI aren't
+    // mounted there anyway. Auth backs both users features and chat, so it keys
+    // on the broader USERS flag (chat can't be on without users).
+    if (!__USERS_ENABLED__) {
       setLoading(false);
       return;
     }

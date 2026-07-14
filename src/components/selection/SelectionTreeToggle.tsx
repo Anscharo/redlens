@@ -78,9 +78,9 @@ export function SelectionTreeToggle() {
             </svg>
           </button>
           {/* Saving needs the auth + collections backend, which only exists when
-              chat is enabled. In static builds hide the affordance rather than
+              logins are enabled. In static builds hide the affordance rather than
               offer a sign-in that dead-ends at a disabled /api/auth. */}
-          {__CHAT_ENABLED__ && (
+          {__USERS_ENABLED__ && (
             <button
               type="button"
               className="px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
