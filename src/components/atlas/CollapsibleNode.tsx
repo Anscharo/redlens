@@ -49,7 +49,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
 }) {
   const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
-  const { ids: selectedIds, toggle: toggleSelected } = useSelection();
+  const { ids: selectedIds, rangeToggle } = useSelection();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
@@ -203,7 +203,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             checked={selectedIds.has(node.id)}
             onChange={(e) => {
               e.stopPropagation();
-              toggleSelected(node.id);
+              // Shift-click extends the selection across the visible range; the
+              // change event's native (pointer/mouse) event carries shiftKey.
+              rangeToggle(node.id, (e.nativeEvent as MouseEvent).shiftKey);
             }}
           />
         </label>

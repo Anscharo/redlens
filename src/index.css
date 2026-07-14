@@ -434,6 +434,19 @@ mark {
   cursor: pointer;
 }
 
+/* Barrier between two docs in the flat selected-only / changed-only reader list
+   that are NOT true neighbors in the full atlas order — a horizontally centered
+   ellipsis marking the omitted span. */
+.selection-gap {
+  text-align: center;
+  color: var(--tan-3);
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 0;
+  user-select: none;
+  letter-spacing: 0.2em;
+}
+
 /* Atlas tree view */
 /* Atlas reading area: deep bg matching the tree sidebar so the center and the
    left rail read as one continuous surface. */

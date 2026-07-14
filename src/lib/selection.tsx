@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useUrlState, urlBool } from "../hooks/useUrlState";
 import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 
@@ -9,6 +9,12 @@ import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 interface Selection {
   ids: Set<string>;
   toggle: (id: string) => void;
+  /** Checkbox toggle with shift-click range support: on shift, selects every
+   *  currently-visible doc between the last-toggled anchor and `id`. */
+  rangeToggle: (id: string, shift: boolean) => void;
+  /** Register the reader's current ordered list of visible doc ids, so
+   *  rangeToggle knows what "between" means in the view the user sees. */
+  setVisibleOrder: (ids: string[]) => void;
   add: (id: string) => void;
   remove: (id: string) => void;
   clear: () => void;
@@ -27,6 +33,8 @@ const EMPTY_IDS: ReadonlySet<string> = new Set();
 const NOOP_SELECTION: Selection = {
   ids: EMPTY_IDS as Set<string>,
   toggle: () => {},
+  rangeToggle: () => {},
+  setVisibleOrder: () => {},
   add: () => {},
   remove: () => {},
   clear: () => {},
@@ -60,6 +68,16 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", handler);
   }, []);
 
+  // The reader's current ordered visible doc ids, and the last checkbox the user
+  // toggled (the anchor for a subsequent shift-click range). Refs, not state:
+  // they feed an imperative handler and must never trigger a re-render.
+  const orderRef = useRef<string[]>([]);
+  const anchorRef = useRef<string | null>(null);
+
+  const setVisibleOrder = useCallback((order: string[]) => {
+    orderRef.current = order;
+  }, []);
+
   const toggle = useCallback((id: string) => {
     setIds((prev) => {
       const next = new Set(prev);
@@ -67,6 +85,35 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       else next.add(id);
       return next;
     });
+    anchorRef.current = id;
+  }, []);
+
+  const rangeToggle = useCallback((id: string, shift: boolean) => {
+    const order = orderRef.current;
+    const anchor = anchorRef.current;
+    if (shift && anchor && anchor !== id) {
+      const a = order.indexOf(anchor);
+      const b = order.indexOf(id);
+      if (a >= 0 && b >= 0) {
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        // Shift-select adds the whole visible span (anchor included) — it never
+        // deselects, matching the common list range-select convention.
+        setIds((prev) => {
+          const next = new Set(prev);
+          for (let k = lo; k <= hi; k++) next.add(order[k]);
+          return next;
+        });
+        anchorRef.current = id;
+        return;
+      }
+    }
+    setIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    anchorRef.current = id;
   }, []);
 
   const add = useCallback((id: string) => {
@@ -90,6 +137,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     () => ({
       ids,
       toggle,
+      rangeToggle,
+      setVisibleOrder,
       add,
       remove,
       clear,
@@ -99,7 +148,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       activeCollectionId,
       setActiveCollectionId,
     }),
-    [ids, toggle, add, remove, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
+    [ids, toggle, rangeToggle, setVisibleOrder, add, remove, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
