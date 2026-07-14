@@ -6,6 +6,7 @@ import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { GlossaryEntry } from "../../lib/glossary";
+import type { CousinDoc } from "../../lib/cousins";
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_MIN = 260;
@@ -15,6 +16,7 @@ const RIGHT_PANEL_DEFAULT = 420;
 export function AtlasAnnotations({
   id,
   linkedNodes,
+  equivalentNodes,
   targetAddresses,
   chainValues,
   glossaryTerms,
@@ -26,6 +28,7 @@ export function AtlasAnnotations({
 }: {
   id: string;
   linkedNodes: AtlasNode[];
+  equivalentNodes: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   glossaryTerms: GlossaryEntry[][];
@@ -75,6 +78,7 @@ export function AtlasAnnotations({
         <RightPanel
           id={id}
           linkedNodes={linkedNodes}
+          equivalentNodes={equivalentNodes}
           targetAddresses={targetAddresses}
           chainValues={chainValues}
           annotationCount={annotationCount}

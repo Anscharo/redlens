@@ -33,14 +33,17 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-14
+- Added a cousin documents section to the annotations panel, linking each Prime Agent artifact document to its equivalent under the other Prime Agents
+
 ## 2026-07-13
 - Fixed the GovOps and Facilitator reports merging same-titled duties that actually differ between Prime Agents — each variant now keeps its own row with the right agents, and rows that do merge identical per-agent copies now link every copy
 - Fixed "failed to render" errors after a new version is deployed — the app now shows a refresh prompt to load the update
 - Added per-report search: the header box filters the open report's rows, with the report name in the pill and the same broad/phrase/strict buttons as the Atlas search
 - Risk Rules now lists every Prime Agent's copy of a replicated rule as its own row instead of one combined entry
-- Fixed the Connect page's tool list to always match the live MCP server
 
 ## 2026-07-10
+- Fixed the Connect page's tool list to always match the live MCP server
 - Added a Download CSV button to every report
 - Made the Risk Rules report's source-paragraph preview render document links as clickable links
 - Fixed several reader and search glitches, including report filters clearing on expand and the results list jumping on "load more"

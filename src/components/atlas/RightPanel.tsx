@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { EdgeResult } from "../../lib/graph";
+import type { CousinDoc } from "../../lib/cousins";
 import type { GlossaryEntry } from "../../lib/glossary";
 import { RelatedNode } from "../RelatedNode";
 import { AddressCard } from "../AddressCard";
@@ -18,6 +19,7 @@ const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 export function RightPanel({
   id,
   linkedNodes,
+  equivalentNodes,
   targetAddresses,
   chainValues,
   annotationCount,
@@ -30,6 +32,7 @@ export function RightPanel({
 }: {
   id: string;
   linkedNodes: AtlasNode[];
+  equivalentNodes: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   annotationCount: number;
@@ -114,19 +117,38 @@ export function RightPanel({
         {tab === "annotations" ? (
           <div className="px-4 py-5"> 
             {linkedNodes.length > 0 ? (
-              <>
-                <p className="text-xs mono mb-4 text-tan-3">
-                  {linkedNodes.length} linked document{linkedNodes.length !== 1 ? "s" : ""}
+              <section>
+                <p className="text-sm mono mb-4 text-tan-2 font-semibold tracking-wide">
+                  linked documents · {linkedNodes.length}
                 </p>
                 {linkedNodes.map((node) => (
                   <RelatedNode key={node.id} node={node} onNavigate={(nid) => annNav("linked_doc", nid)} />
                 ))}
-              </>
+              </section>
+            ) : null}
+
+            {equivalentNodes.length > 0 ? (
+              <section className="mt-8 pt-5 border-t border-border">
+                <p className="text-sm mono mb-2 text-tan-2 font-semibold tracking-wide">
+                  cousin documents · {equivalentNodes.length}
+                </p>
+                <p className="text-xs leading-relaxed mb-4 text-tan-3">
+                  Equivalent documents under the other Prime Agents.
+                </p>
+                {equivalentNodes.map(({ node, agent }) => (
+                  <RelatedNode
+                    key={node.id}
+                    node={node}
+                    eyebrow={`${agent} agent`}
+                    onNavigate={(nid) => annNav("cousin_doc", nid)}
+                  />
+                ))}
+              </section>
             ) : null}
 
             {citedBy.length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-3 text-tan-3">cited by · {citedBy.length}</p>
+                <p className="text-sm mono mb-3 text-tan-2 font-semibold tracking-wide">cited by · {citedBy.length}</p>
                 <div className="space-y-1">
                   {citedBy.map((e, i) => (
                     <button
@@ -143,7 +165,7 @@ export function RightPanel({
 
             {graphRels.length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-3 text-tan-3">relations · {graphRels.length}</p>
+                <p className="text-sm mono mb-3 text-tan-2 font-semibold tracking-wide">relations · {graphRels.length}</p>
                 <div className="space-y-2">
                   {graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut)).map(({ edge: e, isOut }, i) => {
                     const otherId = (isOut ? e.t : e.f) ?? "";
@@ -197,7 +219,7 @@ export function RightPanel({
 
             {Object.keys(targetAddresses).length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-4 text-tan-3">
+                <p className="text-sm mono mb-4 text-tan-2 font-semibold tracking-wide">
                   addresses · {Object.keys(targetAddresses).length}
                 </p>
                 {Object.entries(targetAddresses).map(([address, info]) => (
