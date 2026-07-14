@@ -22,15 +22,7 @@ export const RelatedNode = memo(function RelatedNode({
         {eyebrow && <p className="text-[11px] mono mb-1 text-tan-3">{eyebrow}</p>}
         <p className="text-sm font-semibold mb-1" style={{ color }}>{node.title}</p>
         <div className="flex items-center gap-3">
-          <span
-            className="text-[11px] font-medium px-2 py-0.5 rounded-full mono badge"
-            style={{
-              color,
-              border: `1px solid color-mix(in srgb, ${color} 40%, transparent)`,
-            }}
-          >
-            {node.type}
-          </span>
+          <span className="atlas-type-pill">{node.type}</span>
           <span className="text-xs mono text-tan-2">{node.doc_no}</span>
           <span className="text-[10px] mono text-tan-3">{node.id}</span>
         </div>
