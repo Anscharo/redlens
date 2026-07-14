@@ -28,7 +28,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const props = {
     id: "node-1",
     linkedNodes: [],
-    equivalentNodes: [],
+    cousinDocs: [],
     targetAddresses: {},
     chainValues: {},
     annotationCount: 0,
@@ -66,7 +66,7 @@ describe("RightPanel tablist", () => {
 
   it("labels equivalent cousin documents by agent", () => {
     setup({
-      equivalentNodes: [{ node: makeNode({ title: "Grove Agent Artifact" }), agent: "Grove" }],
+      cousinDocs: [{ node: makeNode({ title: "Grove Agent Artifact" }), agent: "Grove" }],
       annotationCount: 1,
     });
     expect(screen.getByText(/cousin documents · 1/)).toBeInTheDocument();

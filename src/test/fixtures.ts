@@ -3,9 +3,9 @@
 // individual tests only spell out the fields they actually exercise. Every
 // factory takes a partial override and deep-merges it over a sane default.
 
-import type { AtlasNode, AddressInfo, SearchHit, ResolvedEdge } from "../types";
+import type { AtlasNode, AddressInfo, SearchHit, ResolvedEdge, GraphEntity } from "../types";
 import type { AtlasBundle } from "../lib/docs";
-import type { EdgeResult } from "../lib/graph";
+import type { EdgeResult, GraphData } from "../lib/graph";
 import type { GlossaryEntry } from "../lib/glossary";
 import type { FlatEntry, LoadedData } from "../lib/atlasHelpers";
 
@@ -59,6 +59,14 @@ export function makeAtlasBundle(nodes: AtlasNode[] = [makeNode()]): AtlasBundle 
     byParent.set(n.parentId, bucket);
   }
   return { docs, byParent, docNoToId, atlasCommit: null };
+}
+
+export function makeGraphEntity(overrides: Partial<GraphEntity> = {}): GraphEntity {
+  return { id: "e-x", slug: "x", name: "X", et: "instance", st: "token", did: null, ...overrides };
+}
+
+export function makeGraphData(overrides: Partial<GraphData> = {}): GraphData {
+  return { participants: [], instances: [], invocations: [], primitives: [], edges: [], ...overrides };
 }
 
 export function makeLoadedData(overrides: Partial<LoadedData> = {}): LoadedData {

@@ -18,7 +18,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       targetAddresses: {} as Record<string, AddressInfo>,
       chainValues: {} as Record<string, Record<string, ChainValue>>,
       glossaryTerms: [] as GlossaryEntry[][],
-      equivalentNodes: [] as CousinDoc[],
+      cousinDocs: [] as CousinDoc[],
     };
     if (!data || !id) return empty;
     const { docs } = data.atlas;
@@ -27,7 +27,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
     const linkedNodes = extractLinkedIds(target)
       .map((lid) => docs[lid])
       .filter((n): n is AtlasNode => !!n);
-    const equivalentNodes = graph ? findCousinDocs(id, docs, graph) : [];
+    const cousinDocs = graph ? findCousinDocs(id, data.atlas, graph) : [];
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};
     for (const ref of target.addressRefs ?? []) {
@@ -46,6 +46,6 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
       }
     }
     glossaryTerms.sort((a, b) => a[0].term.localeCompare(b[0].term));
-    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, equivalentNodes };
+    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs };
   }, [data, id, glossaryLookup, graph]);
 }
