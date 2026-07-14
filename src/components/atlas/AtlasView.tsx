@@ -38,7 +38,7 @@ export function AtlasView({
   // blank the whole reader (the doc content still renders without it).
   const graph = useLoaded(loadGraph, { soft: true });
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms } = useNodeAnnotations(id, data);
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, equivalentNodes } = useNodeAnnotations(id, data, graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
@@ -67,7 +67,7 @@ export function AtlasView({
   }
 
   const addressCount = Object.keys(targetAddresses).length;
-  const annotationCount = linkedNodes.length + addressCount;
+  const annotationCount = linkedNodes.length + equivalentNodes.length + addressCount;
 
   return (
     <AtlasActionsContext.Provider value={{ navigate: handleNavigate, toggle: () => {}, splitNavigate: onSplitChange }}>
@@ -88,6 +88,7 @@ export function AtlasView({
             <AtlasAnnotations
               id={id}
               linkedNodes={linkedNodes}
+              equivalentNodes={equivalentNodes}
               targetAddresses={targetAddresses}
               chainValues={chainValues}
               glossaryTerms={glossaryTerms}
