@@ -11,6 +11,7 @@ import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
 import { useDocViewTracking } from "../../hooks/useDocViewTracking";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadGraph } from "../../lib/graph";
+import { useDataSource } from "../../lib/dataSource";
 import {
   buildAncestorsWithSelf,
   ATLAS_GRID_STYLE,
@@ -37,8 +38,14 @@ export function AtlasView({
   // soft: the relations panel is an enrichment — a graph load failure must not
   // blank the whole reader (the doc content still renders without it).
   const graph = useLoaded(loadGraph, { soft: true });
+  // loadGraph reads the live-atlas base, so its node ids/relations describe the
+  // live atlas — not the preview bundle `data` came from. Cousins resolve graph
+  // entities against `data.atlas.docs`, so a live graph in preview would link to
+  // the wrong docs (or miss preview-only ones). Hide cousins in preview, same as
+  // useGraphEdges hides the graph-relations section.
+  const { preview } = useDataSource();
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs } = useNodeAnnotations(id, data, graph);
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs } = useNodeAnnotations(id, data, preview ? null : graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
