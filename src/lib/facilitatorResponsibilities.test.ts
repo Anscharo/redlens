@@ -32,6 +32,11 @@ for (const n of [
   // Operational duty replicated under two agent artifacts — must collapse.
   node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.2", title: "Root Edit Proposal Review By Operational Facilitator", content: "The Operational Facilitator reviews the proposal." }),
   node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.2", title: "Root Edit Proposal Review By Operational Facilitator", content: "The Operational Facilitator reviews the proposal." }),
+  // Same structural title under two agent artifacts but genuinely DIFFERENT
+  // duties — must NOT collapse (see govopsResponsibilities: the "Modification"
+  // bug swallowed distinct rows and misattributed their agents).
+  node({ id: "duty-div-1", doc_no: "A.6.1.1.1.9.5", title: "Modification", content: "The Operational Facilitator can change the signers of the Alpha Multisig." }),
+  node({ id: "duty-div-2", doc_no: "A.6.1.1.2.9.5", title: "Modification", content: "The Operational Facilitator can change the signers of the Beta Multisig." }),
   // Operational duty outside an artifact context — fans out to BOTH op orgs.
   node({ id: "duty-op-shared", doc_no: "A.3.7.1.9", title: "Signer Change Authority", content: "The Operational Facilitator can change the signers of the multisig." }),
   // Assignment doc (excluded from duty discovery by build-graph).
@@ -75,6 +80,8 @@ const edges: RelationEdge[] = [
   // Per-agent-artifact op duty, two copies (chain-resolved to one org each).
   { f: "endgame", ft: "entity", t: "duty-op-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.2.2"], m: dutyMeta("Operational Facilitator", null) },
   { f: "endgame", ft: "entity", t: "duty-op-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.2.2"], m: dutyMeta("Operational Facilitator", null) },
+  { f: "endgame", ft: "entity", t: "duty-div-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.9.5"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the Alpha Multisig.") },
+  { f: "endgame", ft: "entity", t: "duty-div-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.9.5"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the Beta Multisig.") },
   // Contextless op duty — fanned out to both operational orgs.
   { f: "endgame", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
   { f: "redline", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
@@ -110,6 +117,18 @@ describe("deriveFacilitatorResponsibilities", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].docNo).toBe("A.6.1.1.1.2.2"); // lowest doc_no is representative
     expect(rows[0].agents).toEqual(["Spark"]);
+    // Every merged copy stays reachable — the row links all of them.
+    expect(rows[0].sources?.map((s) => s.uuid)).toEqual(["duty-op-1", "duty-op-2"]);
+  });
+
+  it("does not emit sources for a fanned-out edge set on a single doc", () => {
+    const row = byCat("universal").find((r) => r.uuid === "duty-universal");
+    expect(row?.sources).toBeUndefined();
+  });
+
+  it("does not collapse same-title agent-artifact docs whose duties genuinely differ", () => {
+    const rows = byCat("op-duty").filter((r) => r.title === "Modification");
+    expect(rows.map((r) => r.uuid).sort()).toEqual(["duty-div-1", "duty-div-2"]);
   });
 
   it("collapses a contextless op duty fanned to both orgs into one row", () => {

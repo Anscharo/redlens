@@ -1,4 +1,5 @@
 import type { OFResponsibility } from "../../lib/facilitatorResponsibilities";
+import { mergedDocNos } from "../../lib/dutyCollapse";
 import type { Chain } from "../../lib/reportChains";
 import { stripExecutorPrefix } from "../../lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
@@ -20,7 +21,7 @@ export function ofSearchFields(r: OFResponsibility): SearchField[] {
   const facVisible = assignment || cat === "op-duty" || cat === "active-data" || cat === "process-step";
   const primeVisible = cat !== "universal" && cat !== "core-facilitator";
   return [
-    { label: "doc no", value: r.docNo },
+    { label: "doc no", value: mergedDocNos(r, " ") },
     { label: "title", value: r.title, hidden: assignment },
     { label: "duty", value: r.duty, hidden: assignment },
     { label: "role", value: r.role ?? "", hidden: true },

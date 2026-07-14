@@ -14,6 +14,14 @@ import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
+import {
+  dutyRowKeyer,
+  finalizeDutySources,
+  mergeDutyDoc,
+  mergedDocNos,
+  newDutySources,
+  type MergedSource,
+} from "./dutyCollapse";
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -43,6 +51,9 @@ export interface OGResponsibility {
   govops?: string; // GovOps entity name (assignment / duty / active-data / process-step)
   executor?: string; // Executor Agent name (assignment rows)
   role?: "Operational" | "Core"; // assignment / process-step role
+  // Every doc merged into this row (duty rows collapsing per-agent replicas) —
+  // set only when 2+ docs merged; includes the representative. docNo-ordered.
+  sources?: MergedSource[];
 }
 
 export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
@@ -127,17 +138,13 @@ export function deriveGovOpsResponsibilities(
   //    matched quote (provenance) which doubles as the duty text; title-only
   //    matches carry no quote and fall back to a content snippet.
   //    Duplicate duties (the same section replicated under every agent artifact,
-  //    e.g. "Operational GovOps Reviews Rebate") are collapsed by title, with the
-  //    covered Prime Agents accumulated onto a single representative row.
+  //    e.g. "Operational GovOps Reviews Rebate") are collapsed, with the covered
+  //    Prime Agents accumulated onto a single representative row.
   //
-  //    Collapsing by bare title is only safe under the per-agent-artifact subtree
-  //    (A.6.1.1.<agent>.*), where the SAME content is genuinely duplicated once per
-  //    agent. Outside it, generic structural titles ("Process Flow", "Required
-  //    Primitive Inputs", "Validation", "Signers") are reused across UNRELATED
-  //    primitives/processes — collapsing those would silently drop distinct docs
-  //    (agentFromDocNo is undefined there too, so there's no "agents" list to fall
-  //    back on as a consolation). Key those by uuid instead so every one keeps its
-  //    own row.
+  //    Collapse semantics (why same-title collapse is only allowed under the
+  //    agent-artifact subtree, and only when the CONTENT matches too) live in
+  //    ./dutyCollapse — see dutyRowKeyer / dutyCollapseKey there. Everything
+  //    outside that subtree keys by uuid so nothing merges.
   //    A doc can genuinely carry BOTH a Core and an Operational duty (a "Sky
   //    Governance path / Independent Governance path" branch, or just two
   //    independent sentences, e.g. A.1.10.2.3.2.2.3.3.2, A.3.2.2.7.2.1.2) —
@@ -146,9 +153,8 @@ export function deriveGovOpsResponsibilities(
   //    surviving, and seenDocIds is only marked AFTER every duty_for edge for
   //    this doc has been processed, so a second edge on the same doc isn't
   //    skipped before it's even looked at.
-  // fragile: doc_no prefix
-  const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
-  const dutyByTitle = new Map<string, OGResponsibility & { _agents: Set<string> }>();
+  const rowKey = dutyRowKeyer();
+  const dutyByKey = new Map<string, OGResponsibility & { _sources: MergedSource[] }>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
@@ -161,34 +167,25 @@ export function deriveGovOpsResponsibilities(
 
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
     const category: OGResponsibility["category"] = CORE_ROLE_RE.test(meta?.role_declared ?? "") ? "core-duty" : "op-duty";
-    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
-    const existing = dutyByTitle.get(key);
+    const key = rowKey(category, n, agent);
+    const existing = dutyByKey.get(key);
     if (existing) {
-      // Keep the lowest doc_no as the representative row.
-      if (n.doc_no.localeCompare(existing.docNo, undefined, { numeric: true }) < 0) {
-        existing.docNo = n.doc_no;
-        existing.uuid = n.id;
-        existing.duty = duty;
-      }
-      if (agent) existing._agents.add(agent);
+      mergeDutyDoc(existing, n, duty, agent);
       continue;
     }
-    const row: OGResponsibility & { _agents: Set<string> } = {
+    dutyByKey.set(key, {
       docNo: n.doc_no,
       uuid: n.id,
       title: n.title,
       duty,
       category,
       govops: entityById.get(e.f)?.name,
-      _agents: new Set(agent ? [agent] : []),
-    };
-    dutyByTitle.set(key, row);
+      _sources: newDutySources(n, agent),
+    });
   }
-  for (const { _agents, ...row } of dutyByTitle.values()) {
-    results.push({ ...row, agents: _agents.size ? [..._agents] : undefined });
-    seenDocIds.add(row.uuid);
-  }
+  for (const { _sources, ...row } of dutyByKey.values())
+    results.push({ ...row, ...finalizeDutySources(_sources, seenDocIds) });
 
   // 4. Active Data — docs whose Responsible Party is declared as GovOps.
   //    Keyed on the edge's declared role, NOT the entity type: a GovOps org
@@ -247,7 +244,7 @@ export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
   return toCSV(
     ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
     rows.map((r) => [
-      r.docNo,
+      mergedDocNos(r, "; "),
       r.title,
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,
