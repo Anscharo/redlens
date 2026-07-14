@@ -119,16 +119,31 @@ export function extractQuotedSpans(answer: string): string[] {
   return [...new Set(spans.map((s) => normalizeForMatch(stripQuoteDecoration(s))).filter((s) => s.length >= 25))];
 }
 
-// A quote is grounded if it appears in the turn's tool-result evidence or in
-// the content of any doc the answer cites.
+// Quotation conventions are not evidence differences: "..." elision and
+// bracketed editorial insertions ("[of]", "[sic]") split a quote into
+// contiguous segments, each verified independently, and punctuation hugging
+// the quotation marks is the author's, not the source's. Segments too short
+// to verify meaningfully (<12 chars) are skipped.
+function quoteSegments(span: string): string[] {
+  return span
+    .split(/\.{3,}|…|\[[^\]]{0,40}\]/)
+    .map((seg) => seg.replace(/^[\s"',.;:!?()—–-]+|[\s"',.;:!?()—–-]+$/g, ""))
+    .filter((seg) => seg.length >= 12);
+}
+
+// A quote is grounded if every verifiable segment appears in the turn's
+// tool-result evidence or in the title/content of any doc the answer cites.
 export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
   const spans = extractQuotedSpans(answer);
   if (spans.length === 0) return [];
   const haystacks = [
     ...evidenceTexts.map(normalizeForMatch),
-    ...extractCitations(answer).map((c) => normalizeForMatch(ix.docMap.get(c.uuid)?.content ?? "")),
+    ...extractCitations(answer).map((c) => {
+      const doc = ix.docMap.get(c.uuid);
+      return normalizeForMatch(doc ? `${doc.title}\n${doc.content}` : "");
+    }),
   ];
-  return spans.filter((s) => !haystacks.some((h) => h.includes(s)));
+  return spans.filter((s) => quoteSegments(s).some((seg) => !haystacks.some((h) => h.includes(seg))));
 }
 
 export interface CheckReport {

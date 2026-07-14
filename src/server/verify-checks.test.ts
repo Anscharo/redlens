@@ -11,6 +11,7 @@ import {
   findDocNoMismatches,
   countUncitedParagraphs,
   extractQuotedSpans,
+  normalizeForMatch,
   findUngroundedQuotes,
   runDeterministicChecks,
 } from "./verify-checks.ts";
@@ -72,6 +73,26 @@ test("quote grounding: found in evidence or cited doc content; invented quote fl
   if (docLine) {
     const citedQuote = `> ${docLine.slice(0, 80)}\n\n[${realDoc.title}](/atlas/${realUuid})`;
     expect(findUngroundedQuotes(citedQuote, [], ix)).toEqual([]);
+  }
+});
+
+test("quotation conventions: ellipsis, editorial brackets, hugging punctuation", () => {
+  const evidence = ['{"content":"The standard Distribution Reward rate is set at 0.2%. The rate is annualized on all USDS balances associated with the relevant Reward Code."}'];
+  // Elision: both segments are real source text, just non-contiguous.
+  const elided = '> "The standard Distribution Reward rate is set at 0.2%... annualized on all USDS balances associated with the relevant Reward Code."';
+  expect(findUngroundedQuotes(elided, evidence, ix)).toEqual([]);
+  // Editorial insertion + trailing comma inside the quotes.
+  const bracketed = 'It pays "Distribution Reward rate is set at [exactly] 0.2%," per the doc.';
+  expect(findUngroundedQuotes(bracketed, evidence, ix)).toEqual([]);
+  // A genuinely altered segment still fails even alongside a grounded one.
+  const misquoted = '> "The standard Distrib. Reward rate is set at 0.2%... annualized on all USDS balances associated with the relevant Reward Code."';
+  expect(findUngroundedQuotes(misquoted, evidence, ix)).not.toEqual([]);
+});
+
+test("a cited doc's TITLE grounds a quote of it", () => {
+  const quoted = `The section "${realDoc.title}" is defined in [${realDoc.title}](/atlas/${realUuid}).`;
+  if (normalizeForMatch(realDoc.title).length >= 25) {
+    expect(findUngroundedQuotes(quoted, [], ix)).toEqual([]);
   }
 });
 

@@ -12,6 +12,9 @@
 //   pnpm eval:bakeoff --only <id> [--only id2] subset of queries
 //   pnpm eval:bakeoff --judge <model>          override judge (default sonnet-5)
 //   pnpm eval:bakeoff --concurrency N          parallel runs (default 4)
+//   pnpm eval:bakeoff --resume                 keep prior ok runs from the last
+//                                              report, only run missing/errored
+//                                              cells (assumes the same judge)
 //
 // Requires artifacts + OPENROUTER_API_KEY (.env.local); DB-backed tools need
 // DATABASE_URL for a faithful run (history queries degrade to tool errors).
@@ -32,9 +35,11 @@ const REPORT_PATH = path.join(ROOT, ".cache", "eval-bakeoff.json");
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] ? [argv[i + 1]] : []));
 
-const MODELS = (flag("models")[0]?.split(",") ?? ["qwen/qwen3-32b", "anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5", "deepseek/deepseek-v4-flash"])
-  .map((m) => m.trim()).filter(Boolean);
-const JUDGE = flag("judge")[0] ?? "anthropic/claude-sonnet-5";
+const MODELS = (flag("models")[0]?.split(",") ?? [
+  "qwen/qwen3-32b", "anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5", "deepseek/deepseek-v4-flash",
+  "z-ai/glm-5.2", "tencent/hy3", "google/gemma-4-31b-it", "mistralai/mistral-medium-3-5",
+]).map((m) => m.trim()).filter(Boolean);
+const JUDGE = flag("judge")[0] ?? "anthropic/claude-opus-4.8"; // outside the candidate set — no self-judging
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 4);
 const ONLY = new Set(flag("only"));
 
@@ -45,10 +50,22 @@ if (!config.openrouterApiKey) {
 const ix = loadIndexes();
 const queries = ONLY.size ? BAKEOFF_QUERIES.filter((q) => ONLY.has(q.id)) : BAKEOFF_QUERIES;
 
+// --resume: keep prior successful runs from the last report (same judge
+// assumed) and only run the cells that are missing or errored.
+const priorOk = new Map<string, RunResult>();
+if (argv.includes("--resume") && fs.existsSync(REPORT_PATH)) {
+  const prior = JSON.parse(fs.readFileSync(REPORT_PATH, "utf8")) as { results?: RunResult[] };
+  for (const r of prior.results ?? []) {
+    if (!r.error && MODELS.includes(r.model) && queries.some((q) => q.id === r.id)) priorOk.set(`${r.model} ${r.id}`, r);
+  }
+  if (priorOk.size) console.log(`resuming: keeping ${priorOk.size} ok runs from ${REPORT_PATH}`);
+}
+
 interface JudgeScores { support: number; completeness: number; honesty: number; notes: string }
 interface RunResult {
   model: string; id: string;
-  score: number; judge: JudgeScores | null;
+  score: number | null; // null = judge unparseable after retry — excluded from quality means
+  judge: JudgeScores | null;
   fabrications: { rawInvalidCitations: number; repaired: number; stripped: number; invalidDocNos: number; ungroundedQuotes: number };
   citations: number; rounds: number; toolCalls: number; latencyMs: number;
   usage: { input: number; output: number };
@@ -73,22 +90,25 @@ async function judgeAnswer(q: BakeoffQuery, evidence: string, answer: string): P
       content: `## Question\n${q.query}\n\n## What a good answer looks like\n${q.expect}\n\n## Evidence retrieved by the assistant\n${evidence || "(none — no tools were called)"}\n\n## Answer to grade\n${answer}`,
     },
   ];
-  try {
-    const res = await openrouterJson({ model: JUDGE, messages, maxTokens: 600, signal: AbortSignal.timeout(60_000) });
-    const s = res.text.indexOf("{");
-    const e = res.text.lastIndexOf("}");
-    if (s === -1 || e <= s) return null;
-    const j = JSON.parse(res.text.slice(s, e + 1)) as Record<string, unknown>;
-    return { support: clamp01(j.support), completeness: clamp01(j.completeness), honesty: clamp01(j.honesty), notes: String(j.notes ?? "") };
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await openrouterJson({ model: JUDGE, messages, maxTokens: 600, signal: AbortSignal.timeout(60_000) });
+      const s = res.text.indexOf("{");
+      const e = res.text.lastIndexOf("}");
+      if (s === -1 || e <= s) continue;
+      const j = JSON.parse(res.text.slice(s, e + 1)) as Record<string, unknown>;
+      return { support: clamp01(j.support), completeness: clamp01(j.completeness), honesty: clamp01(j.honesty), notes: String(j.notes ?? "") };
+    } catch {
+      // retry once, then give up — an unjudged run is excluded from quality means
+    }
   }
+  return null;
 }
 
 async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
   const started = Date.now();
   const base = {
-    model, id: q.id, score: 0, judge: null as JudgeScores | null,
+    model, id: q.id, score: null as number | null, judge: null as JudgeScores | null,
     fabrications: { rawInvalidCitations: 0, repaired: 0, stripped: 0, invalidDocNos: 0, ungroundedQuotes: 0 },
     citations: 0, rounds: 0, toolCalls: 0, latencyMs: 0, usage: { input: 0, output: 0 }, answer: "", error: null as string | null,
   };
@@ -99,12 +119,16 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
     ];
     let done: Extract<ChatEvent, { type: "done" }> | null = null;
     let rounds = 0;
-    for await (const ev of runChat({
-      ix, messages, stream: makeOpenrouterStream({}, [model]),
-      maxIterations: config.chatMaxIterations, signal: AbortSignal.timeout(240_000),
-      onRoundEnd: (info) => { rounds = Math.max(rounds, info.iter + 1); },
-    })) {
-      if (ev.type === "done") done = ev;
+    // Some models (deepseek) intermittently return an empty final message —
+    // retry the chat once so a flake doesn't hole the grid.
+    for (let attempt = 0; attempt < 2 && !done?.content.trim(); attempt++) {
+      for await (const ev of runChat({
+        ix, messages, stream: makeOpenrouterStream({}, [model]),
+        maxIterations: config.chatMaxIterations, signal: AbortSignal.timeout(240_000),
+        onRoundEnd: (info) => { rounds = Math.max(rounds, info.iter + 1); },
+      })) {
+        if (ev.type === "done") done = ev;
+      }
     }
     if (!done || !done.content.trim()) throw new Error("empty answer");
 
@@ -125,11 +149,11 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
     // Judge quality, penalized by what would still ship broken (hard fabrications)
     // and lightly by garbles production had to repair.
     const hardFab = fabrications.stripped + fabrications.invalidDocNos + fabrications.ungroundedQuotes;
-    const quality = judge ? 0.4 * judge.support + 0.3 * judge.completeness + 0.3 * judge.honesty : 0;
-    const score = Math.max(0, quality - 0.15 * hardFab - 0.05 * fabrications.repaired);
+    const quality = judge ? 0.4 * judge.support + 0.3 * judge.completeness + 0.3 * judge.honesty : null;
+    const score = quality === null ? null : Math.max(0, quality - 0.15 * hardFab - 0.05 * fabrications.repaired);
 
     return {
-      ...base, score: Number(score.toFixed(3)), judge, fabrications,
+      ...base, score: score === null ? null : Number(score.toFixed(3)), judge, fabrications,
       citations: shipped.citations.length, rounds, toolCalls: done.toolCalls.length,
       latencyMs: Date.now() - started, usage: done.usage, answer: repair.content,
     };
@@ -139,8 +163,8 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
 }
 
 // Simple worker pool over the model × query grid.
-const grid = MODELS.flatMap((model) => queries.map((q) => ({ model, q })));
-const results: RunResult[] = [];
+const grid = MODELS.flatMap((model) => queries.map((q) => ({ model, q }))).filter(({ model, q }) => !priorOk.has(`${model} ${q.id}`));
+const results: RunResult[] = [...priorOk.values()];
 let cursor = 0;
 async function worker() {
   for (;;) {
@@ -149,7 +173,7 @@ async function worker() {
     const { model, q } = grid[i];
     const r = await runOne(model, q);
     results.push(r);
-    console.log(`[${results.length}/${grid.length}] ${model} × ${q.id} → ${r.error ? `ERROR ${r.error.slice(0, 60)}` : `score=${r.score}`}`);
+    console.log(`[${results.length - priorOk.size}/${grid.length}] ${model} × ${q.id} → ${r.error ? `ERROR ${r.error.slice(0, 60)}` : `score=${r.score}`}`);
   }
 }
 await Promise.all(Array.from({ length: Math.max(1, CONCURRENCY) }, worker));
@@ -158,13 +182,16 @@ await Promise.all(Array.from({ length: Math.max(1, CONCURRENCY) }, worker));
 const byModel = MODELS.map((model) => {
   const rs = results.filter((r) => r.model === model);
   const ok = rs.filter((r) => !r.error);
+  const graded = ok.filter((r) => r.judge); // quality means only over judged runs
   const avg = (f: (r: RunResult) => number) => (ok.length ? ok.reduce((s, r) => s + f(r), 0) / ok.length : 0);
+  const gavg = (f: (r: RunResult) => number) => (graded.length ? graded.reduce((s, r) => s + f(r), 0) / graded.length : 0);
   return {
     model,
-    meanScore: Number(avg((r) => r.score).toFixed(3)),
-    support: Number(avg((r) => r.judge?.support ?? 0).toFixed(2)),
-    completeness: Number(avg((r) => r.judge?.completeness ?? 0).toFixed(2)),
-    honesty: Number(avg((r) => r.judge?.honesty ?? 0).toFixed(2)),
+    meanScore: Number(gavg((r) => r.score ?? 0).toFixed(3)),
+    support: Number(gavg((r) => r.judge?.support ?? 0).toFixed(2)),
+    completeness: Number(gavg((r) => r.judge?.completeness ?? 0).toFixed(2)),
+    honesty: Number(gavg((r) => r.judge?.honesty ?? 0).toFixed(2)),
+    unjudged: ok.length - graded.length,
     hardFabPerRun: Number(avg((r) => r.fabrications.stripped + r.fabrications.invalidDocNos + r.fabrications.ungroundedQuotes).toFixed(2)),
     repairedPerRun: Number(avg((r) => r.fabrications.repaired).toFixed(2)),
     citationsPerRun: Number(avg((r) => r.citations).toFixed(1)),
@@ -177,7 +204,7 @@ const byModel = MODELS.map((model) => {
 fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
 fs.writeFileSync(REPORT_PATH, JSON.stringify({ judge: JUDGE, atlasCommit: ix.meta.atlasCommit ?? null, ranAt: new Date().toISOString(), scoreboard: byModel, results }, null, 2));
 
-const cols = ["model", "meanScore", "support", "completeness", "honesty", "hardFabPerRun", "repairedPerRun", "citationsPerRun", "meanLatencyS", "meanTokens", "errors"] as const;
+const cols = ["model", "meanScore", "support", "completeness", "honesty", "hardFabPerRun", "repairedPerRun", "citationsPerRun", "meanLatencyS", "meanTokens", "unjudged", "errors"] as const;
 const width = (c: string) => Math.max(c.length, ...byModel.map((r) => String(r[c as keyof typeof r]).length)) + 2;
 console.log(`\njudge=${JUDGE}  queries=${queries.length}  atlas=${(ix.meta.atlasCommit ?? "?").slice(0, 8)}`);
 console.log(cols.map((c) => c.padEnd(width(c))).join(""));
@@ -190,7 +217,7 @@ console.log(" ".repeat(mw) + MODELS.map((m) => m.split("/")[1].slice(0, 18).padE
 for (const q of queries) {
   const cells = MODELS.map((m) => {
     const r = results.find((x) => x.model === m && x.id === q.id);
-    return (r?.error ? "ERR" : String(r?.score ?? "-")).padEnd(20);
+    return (r?.error ? "ERR" : r?.score === null ? "n/j" : String(r?.score ?? "-")).padEnd(20);
   });
   console.log(q.id.padEnd(mw) + cells.join(""));
 }
