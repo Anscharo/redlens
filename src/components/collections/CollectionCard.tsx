@@ -21,6 +21,18 @@ export function CollectionCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(collection.name);
+  const [copied, setCopied] = useState(false);
+
+  const share = async () => {
+    const url = `${window.location.origin}/c/${collection.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("Copy this share link:", url);
+    }
+  };
 
   const submitRename = () => {
     const trimmed = draft.trim();
@@ -107,6 +119,14 @@ export function CollectionCard({
           onClick={() => setEditing(true)}
         >
           Rename
+        </button>
+        <button
+          className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"
+          style={{ borderColor: "var(--border)", color: "var(--tan-3)" }}
+          onClick={share}
+          title="Copy a shareable link (anyone with the link can open it)"
+        >
+          {copied ? "Copied!" : "Share"}
         </button>
         <button
           className="mono text-xs px-3 py-1.5 rounded border transition-colors hover:bg-[var(--hover)]"

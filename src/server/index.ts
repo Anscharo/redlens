@@ -14,7 +14,7 @@ import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
-import { handleCollections } from "./collections.ts";
+import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -134,6 +134,9 @@ const server = Bun.serve({
     "/api/auth/*": (req) => config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    // Public share read is unauthenticated (anyone with the link) — declared
+    // before the auth-gated :id route so the more specific path wins.
+    "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
     "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
     "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
   },

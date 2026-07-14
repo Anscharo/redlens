@@ -107,6 +107,21 @@ async function deleteCollection(userId: string, id: string): Promise<boolean> {
   return deleted.length > 0;
 }
 
+// Public, unauthenticated read of a single collection by id — backs shared
+// /c/<id> links. Anyone with the (unguessable) id can view it; no user scoping,
+// and only name + ids are returned. Feature-gated (config.usersEnabled) at the
+// route, so it 404s where collections don't exist.
+export async function handleSharedCollection(req: Request): Promise<Response> {
+  if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
+  const { pathname } = new URL(req.url);
+  const id = pathname.match(/^\/api\/collections\/([^/]+)\/shared$/)?.[1];
+  if (!id) return json({ error: "not_found" }, 404);
+  const rows = (await sql`SELECT id, name, updated_at FROM collections WHERE id = ${id}`) as CollectionRow[];
+  if (!rows.length) return json({ error: "not_found" }, 404);
+  const row = rows[0];
+  return json({ id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids: await itemsFor(id) });
+}
+
 export async function handleCollections(req: Request): Promise<Response> {
   const session = await getSessionUser(req);
   if (!session) return json({ error: "unauthenticated" }, 401);

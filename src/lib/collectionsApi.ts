@@ -51,6 +51,20 @@ export function renameCollection(id: string, name: string): Promise<Collection> 
   });
 }
 
+// Replace an existing collection's documents (used when updating an open,
+// modified collection in place instead of saving a new one).
+export function updateCollectionItems(id: string, ids: string[]): Promise<Collection> {
+  return request<Collection>(`collections/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+// Public read-by-id — no auth, so a shared /c/<id> link opens for anyone.
+export function getSharedCollection(id: string): Promise<Collection> {
+  return request<Collection>(`collections/${id}/shared`);
+}
+
 export async function deleteCollection(id: string): Promise<void> {
   await request<{ ok: true }>(`collections/${id}`, { method: "DELETE" });
 }
