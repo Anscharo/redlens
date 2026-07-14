@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiUrl, type AuthUser } from "./api";
+import { usersEnabled } from "../../lib/usersEnabled";
 
 export type AuthProvider = "github" | "google";
 
@@ -20,9 +21,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // No /api backend on static deploys (GH Pages / CF Pages) — skip the boot
-    // probe entirely; the chat UI + profile button aren't mounted there anyway.
-    if (!__CHAT_ENABLED__) {
+    // No /api backend on static deploys (GH Pages / CF Pages) or when logins are
+    // off / not fully configured (no JWT secret) — skip the boot probe entirely;
+    // the profile button + chat UI aren't mounted there anyway. usersEnabled()
+    // combines the build flag with the server's injected runtime capability.
+    if (!usersEnabled()) {
       setLoading(false);
       return;
     }

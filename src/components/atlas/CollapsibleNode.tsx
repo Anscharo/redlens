@@ -9,6 +9,8 @@ import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
+import { useSelection } from "../../lib/selection";
+import { useSelectionSet } from "../../lib/selectionFilter";
 import { track } from "../../lib/analytics";
 
 const DRAG_THRESHOLD_PX = 4;
@@ -48,6 +50,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
 }) {
   const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
+  const { ids: selectedIds, selectionMode, rangeToggle } = useSelection();
+  const inSelectedOnly = !!useSelectionSet();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
@@ -190,6 +194,24 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
+      {selectionMode && (
+        <label
+          className="atlas-node-select absolute top-2 right-2"
+          aria-label={`Select ${node.title}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            type="checkbox"
+            checked={selectedIds.has(node.id)}
+            onChange={(e) => {
+              e.stopPropagation();
+              // Shift-click extends the selection across the visible range; the
+              // change event's native (pointer/mouse) event carries shiftKey.
+              rangeToggle(node.id, (e.nativeEvent as MouseEvent).shiftKey);
+            }}
+          />
+        </label>
+      )}
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
@@ -233,7 +255,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       </div>
       {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
-      {hiddenCount > 0 && onExpandChildren && (
+      {/* In selected-only mode the reader shows a flat list that ignores depth-6
+          gating, so revealing hidden descendants is a no-op — hide the affordance
+          rather than offer a dead button. */}
+      {hiddenCount > 0 && onExpandChildren && !inSelectedOnly && (
         <button
           type="button"
           onClick={(e) => {

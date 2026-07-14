@@ -14,6 +14,7 @@ import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
+import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -28,6 +29,32 @@ console.log(
   `indexes: ${ix.docMap.size} docs, ${ix.entities.length} entities, ${ix.edges.length} edges ` +
     `(${Math.round(performance.now() - t0)}ms)`,
 );
+
+// Fail-loud at boot when logins were requested (USERS_ENABLED=1) but a hard
+// prerequisite is missing — so the surface stays OFF (see config.usersEnabled)
+// instead of half-working. Without this, a missing CHAT_JWT_SECRET only surfaced
+// as an opaque per-request 400 mid-OAuth (signing throws right after a
+// *successful* code exchange). Warn, don't exit: the reader/MCP serve fine.
+function checkAuthConfig(): void {
+  if (!config.usersRequested) return;
+  const problems: string[] = [];
+  if (!config.jwtSecret) problems.push("CHAT_JWT_SECRET unset — sessions can't be signed (the login surface stays disabled)");
+  const github = config.githubClientId && config.githubClientSecret;
+  const google = config.googleClientId && config.googleClientSecret;
+  if (!github && !google) {
+    problems.push("no OAuth provider configured — set GITHUB_CLIENT_ID + GITHUB_CLIENT_SECRET and/or the GOOGLE_ pair");
+  } else {
+    if (config.githubClientId && !config.githubClientSecret) problems.push("GITHUB_CLIENT_ID set but GITHUB_CLIENT_SECRET missing");
+    if (config.githubClientSecret && !config.githubClientId) problems.push("GITHUB_CLIENT_SECRET set but GITHUB_CLIENT_ID missing");
+    if (config.googleClientId && !config.googleClientSecret) problems.push("GOOGLE_CLIENT_ID set but GOOGLE_CLIENT_SECRET missing");
+    if (config.googleClientSecret && !config.googleClientId) problems.push("GOOGLE_CLIENT_SECRET set but GOOGLE_CLIENT_ID missing");
+  }
+  if (!problems.length) return;
+  console.warn(`⚠️  USERS_ENABLED is set but the login surface is OFF (usersEnabled=${config.usersEnabled}) — incomplete config:`);
+  for (const p of problems) console.warn(`   • ${p}`);
+  console.warn(`   redirect URI in use: ${config.appUrl}/api/auth/<provider>/callback`);
+}
+checkAuthConfig();
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -102,9 +129,16 @@ const server = Bun.serve({
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
-    "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
+    // Auth + collections need only a logged-in session (usersEnabled); chat +
+    // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
+    "/api/auth/*": (req) => config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    // Public share read is unauthenticated (anyone with the link) — declared
+    // before the auth-gated :id route so the more specific path wins.
+    "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
+    "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
@@ -188,7 +222,13 @@ const server = Bun.serve({
     } catch {
       /* indexes not loaded yet */
     }
-    const html = (await Bun.file(config.distDir + "/index.html").text()).replace("{{ATLAS_SHA}}", sha);
+    // Inject the server's REAL login capability (usersEnabled requires a JWT
+    // secret) so the frontend shows the profile/collections UI only when a
+    // sign-in can actually succeed — not merely because the bundle was built
+    // with VITE_USERS_ENABLED. See src/lib/usersEnabled.ts.
+    const html = (await Bun.file(config.distDir + "/index.html").text())
+      .replace("{{ATLAS_SHA}}", sha)
+      .replace("{{USERS_ENABLED}}", String(config.usersEnabled));
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { headers });

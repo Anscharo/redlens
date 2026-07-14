@@ -34,6 +34,7 @@
 -->
 
 ## 2026-07-14
+- Added document selection and saved collections: check documents in the reader, filter the tree to just your selection, and save it as a named collection when signed in
 - Added a cousin documents section to the annotations panel, linking each Prime Agent artifact document to its equivalent under the other Prime Agents
 
 ## 2026-07-13

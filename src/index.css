@@ -406,6 +406,57 @@ mark {
   color: var(--tan) !important;
 }
 
+/* Document selection checkbox — top-right corner of each atlas row. Subtle
+   until checked/hovered so it doesn't compete with the title. */
+.atlas-node-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.12s;
+  /* Below the sticky selected node (.atlas-node.is-selected, z-index 2) so a
+     row's checkbox is occluded as it scrolls under the pinned selected doc,
+     instead of poking through its solid fill. The selected node's own checkbox
+     still shows: that whole article is z-index 2, and this stacks inside it. */
+  z-index: 1;
+}
+.atlas-node-select:hover,
+.atlas-node-select:has(input:checked) {
+  opacity: 1;
+}
+.atlas-node-select input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Barrier between two docs in the flat selected-only / changed-only reader list
+   that are NOT true neighbors in the full atlas order — a centered ellipsis
+   flanked by a rule covering a third of the width on each side, marking the
+   omitted span. */
+.selection-gap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--tan-3);
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 0;
+  user-select: none;
+}
+.selection-gap::before,
+.selection-gap::after {
+  content: "";
+  width: 33%;
+  height: 1px;
+  background: color-mix(in srgb, var(--tan-3) 35%, transparent);
+}
+
 /* Atlas tree view */
 /* Atlas reading area: deep bg matching the tree sidebar so the center and the
    left rail read as one continuous surface. */

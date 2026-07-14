@@ -14,6 +14,8 @@ import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
+import { useSelectionSet } from "../../lib/selectionFilter";
+import { useSelection } from "../../lib/selection";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
@@ -109,14 +111,99 @@ export function AtlasReader({
   useAtlasScroll(id, data, expandedParents);
 
   const changedSet = usePreviewChangedSet();
+  const selectionSet = useSelectionSet();
+  const filterSet = changedSet ?? selectionSet;
+
+  // Ordered ids of the rows the user currently sees (same filter as docList's
+  // `visible`), registered with the selection store so shift-click range-select
+  // spans exactly the visible list.
+  const { setVisibleOrder } = useSelection();
+  const orderedVisibleIds = useMemo(() => {
+    const out: string[] = [];
+    for (const entry of data.flatNodes) {
+      if (filterSet) {
+        if (filterSet.has(entry.node.id)) out.push(entry.node.id);
+      } else if (!(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""))) {
+        out.push(entry.node.id);
+      }
+    }
+    return out;
+  }, [data, filterSet, expandedParents]);
+  useEffect(() => {
+    setVisibleOrder(orderedVisibleIds);
+  }, [orderedVisibleIds, setVisibleOrder]);
+
+  // In the flat filtered view, a doc's "expand all children" affordance is only
+  // meaningful if it actually has a descendant in the filter set. Collect every
+  // ancestor of a matched doc so we can gate the affordance to those parents.
+  const filteredParentIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!filterSet) return set;
+    for (const entry of data.flatNodes) {
+      if (!filterSet.has(entry.node.id)) continue;
+      let pid = entry.node.parentId ?? null;
+      while (pid && !set.has(pid)) {
+        set.add(pid);
+        pid = data.atlas.docs[pid]?.parentId ?? null;
+      }
+    }
+    return set;
+  }, [data, filterSet]);
 
   const docList = useMemo(() => {
-    const visible = data.flatNodes.filter((entry) => {
-      // "changed only": show exactly the changed/added docs (flat), bypassing
-      // the depth-6 gate. Otherwise honor the normal depth gating.
-      if (changedSet) return changedSet.has(entry.node.id);
-      return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
-    });
+    if (filterSet) {
+      // Selected-only / changed-only: a flat subset in document order. Between
+      // two kept docs that are NOT adjacent in the full atlas order (something
+      // was filtered out between them), drop an ellipsis barrier so the gap
+      // reads as intentional rather than as true neighbors. The selected node is
+      // wrapped alone in a .selection-group so its position:sticky stays bounded
+      // to itself (no cradle in this flat view).
+      const kept: { entry: (typeof data.flatNodes)[number]; gap: boolean }[] = [];
+      let prev = -1;
+      data.flatNodes.forEach((entry, i) => {
+        if (!filterSet.has(entry.node.id)) return;
+        kept.push({ entry, gap: prev >= 0 && i - prev > 1 });
+        prev = i;
+      });
+      const out: ReactElement[] = [];
+      for (const { entry, gap } of kept) {
+        if (gap) {
+          out.push(
+            <div key={`__gap-${entry.node.id}`} className="selection-gap" aria-hidden="true">
+              ⋯
+            </div>,
+          );
+        }
+        const node = (
+          <CollapsibleNode
+            key={entry.node.id}
+            entry={entry}
+            isSelected={entry.node.id === selectedId}
+            isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
+            hasChildren={filteredParentIds.has(entry.node.id)}
+            isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
+            hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
+            onExpandChildren={handleExpandParent}
+          />
+        );
+        out.push(
+          entry.node.id === selectedId ? (
+            <div key={`__sel-${entry.node.id}`} className="selection-group">
+              {node}
+            </div>
+          ) : (
+            node
+          ),
+        );
+      }
+      return out;
+    }
+
+    // filterSet is null here (the flat filtered view returned above): honor the
+    // normal depth-6 gating.
+    const visible = data.flatNodes.filter(
+      (entry) => !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")),
+    );
     // Cradle: the selected node's visible descendants are the contiguous run
     // of deeper entries right after it (flatNodes is DFS document order).
     // They get a left rail in the selected node's color, closed under the
@@ -126,7 +213,7 @@ export function AtlasReader({
     let cradleEnd = -1;
     let cradleColor: string | undefined;
     const selIdx = selectedId ? visible.findIndex((e) => e.node.id === selectedId) : -1;
-    if (!changedSet && selIdx >= 0) {
+    if (!filterSet && selIdx >= 0) {
       const selDepth = visible[selIdx].depth;
       let i = selIdx + 1;
       while (i < visible.length && visible[i].depth > selDepth) i++;
@@ -176,7 +263,7 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, changedSet]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll }}>
@@ -190,7 +277,7 @@ export function AtlasReader({
             title="Open comparison pane (or shift-click any node)"
             onClick={() => onSplitChange(id)}
             aria-label="Open comparison pane"
-            className="absolute top-2 right-2 z-10 mono text-[10px] px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
+            className="absolute top-2 right-[38px] z-10 mono text-[10px] px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
           >
             <svg
