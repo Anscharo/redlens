@@ -15,6 +15,7 @@ import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
+import { useSelection } from "../../lib/selection";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
@@ -113,15 +114,79 @@ export function AtlasReader({
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
 
+  // Ordered ids of the rows the user currently sees (same filter as docList's
+  // `visible`), registered with the selection store so shift-click range-select
+  // spans exactly the visible list.
+  const { setVisibleOrder } = useSelection();
+  const orderedVisibleIds = useMemo(() => {
+    const out: string[] = [];
+    for (const entry of data.flatNodes) {
+      if (filterSet) {
+        if (filterSet.has(entry.node.id)) out.push(entry.node.id);
+      } else if (!(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""))) {
+        out.push(entry.node.id);
+      }
+    }
+    return out;
+  }, [data, filterSet, expandedParents]);
+  useEffect(() => {
+    setVisibleOrder(orderedVisibleIds);
+  }, [orderedVisibleIds, setVisibleOrder]);
+
   const docList = useMemo(() => {
-    const visible = data.flatNodes.filter((entry) => {
-      // "changed only" (preview) or "selected only": show exactly the
-      // matching docs (flat), bypassing the depth-6 gate. Otherwise honor the
-      // normal depth gating. Preview's changed-set takes priority when both
-      // are active.
-      if (filterSet) return filterSet.has(entry.node.id);
-      return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
-    });
+    if (filterSet) {
+      // Selected-only / changed-only: a flat subset in document order. Between
+      // two kept docs that are NOT adjacent in the full atlas order (something
+      // was filtered out between them), drop an ellipsis barrier so the gap
+      // reads as intentional rather than as true neighbors. The selected node is
+      // wrapped alone in a .selection-group so its position:sticky stays bounded
+      // to itself (no cradle in this flat view).
+      const kept: { entry: (typeof data.flatNodes)[number]; gap: boolean }[] = [];
+      let prev = -1;
+      data.flatNodes.forEach((entry, i) => {
+        if (!filterSet.has(entry.node.id)) return;
+        kept.push({ entry, gap: prev >= 0 && i - prev > 1 });
+        prev = i;
+      });
+      const out: ReactElement[] = [];
+      for (const { entry, gap } of kept) {
+        if (gap) {
+          out.push(
+            <div key={`__gap-${entry.node.id}`} className="selection-gap" aria-hidden="true">
+              ⋯
+            </div>,
+          );
+        }
+        const node = (
+          <CollapsibleNode
+            key={entry.node.id}
+            entry={entry}
+            isSelected={entry.node.id === selectedId}
+            isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
+            hasChildren={data.atlas.byParent.has(entry.node.id)}
+            isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
+            hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
+            onExpandChildren={handleExpandParent}
+          />
+        );
+        out.push(
+          entry.node.id === selectedId ? (
+            <div key={`__sel-${entry.node.id}`} className="selection-group">
+              {node}
+            </div>
+          ) : (
+            node
+          ),
+        );
+      }
+      return out;
+    }
+
+    // filterSet is null here (the flat filtered view returned above): honor the
+    // normal depth-6 gating.
+    const visible = data.flatNodes.filter(
+      (entry) => !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")),
+    );
     // Cradle: the selected node's visible descendants are the contiguous run
     // of deeper entries right after it (flatNodes is DFS document order).
     // They get a left rail in the selected node's color, closed under the
