@@ -9,7 +9,7 @@ import { SaveCollectionModal } from "./SaveCollectionModal";
 // or when nothing is selected — so it and PreviewTreeToggle never both show.
 export function SelectionTreeToggle() {
   const { preview } = useDataSource();
-  const { ids, selectedOnly, setSelectedOnly, clear } = useSelection();
+  const { ids, selectedOnly, setSelectedOnly, setActiveCollectionId, clear } = useSelection();
   const [showSave, setShowSave] = useState(false);
   if (preview || ids.size === 0) return null;
   const count = ids.size;
@@ -51,28 +51,40 @@ export function SelectionTreeToggle() {
         className="px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
         title="Clear selection"
         aria-label="Clear selection"
-        onClick={() => clear()}
+        onClick={() => {
+          // Also drop the view mode + active collection: otherwise selectedOnly
+          // stays true in the URL, the toggle vanishes (no ids), and the next
+          // checkbox snaps straight back into a hidden selected-only view.
+          clear();
+          setSelectedOnly(false);
+          setActiveCollectionId(null);
+        }}
       >
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true">
           <path d="M1 1 L9 9 M9 1 L1 9" />
         </svg>
       </button>
-      <button
-        type="button"
-        className="px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
-        title="Save as collection"
-        aria-label="Save as collection"
-        onClick={() => {
-          track("collection_save_open", { count });
-          setShowSave(true);
-        }}
-      >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-          <path d="M1.5 1.5 h7 l2 2 v7 h-9 z" />
-          <path d="M3.5 1.5 v3 h4 v-3" />
-          <path d="M3 8 h6" />
-        </svg>
-      </button>
+      {/* Saving needs the auth + collections backend, which only exists when
+          chat is enabled. In static builds hide the affordance rather than
+          offer a sign-in that dead-ends at a disabled /api/auth. */}
+      {__CHAT_ENABLED__ && (
+        <button
+          type="button"
+          className="px-1.5 py-0.5 rounded text-tan-3 hover:text-tan"
+          title="Save as collection"
+          aria-label="Save as collection"
+          onClick={() => {
+            track("collection_save_open", { count });
+            setShowSave(true);
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+            <path d="M1.5 1.5 h7 l2 2 v7 h-9 z" />
+            <path d="M3.5 1.5 v3 h4 v-3" />
+            <path d="M3 8 h6" />
+          </svg>
+        </button>
+      )}
       {showSave && <SaveCollectionModal ids={[...ids]} onClose={() => setShowSave(false)} />}
     </div>
   );

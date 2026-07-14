@@ -39,9 +39,17 @@ async function itemsFor(collectionId: string): Promise<string[]> {
   return rows.map((r) => r.doc_id);
 }
 
-async function insertItems(collectionId: string, ids: string[]): Promise<void> {
+// Drop duplicate doc ids (keeping first-seen order): the caller-supplied list
+// can repeat, and (collection_id, doc_id) is a primary key — an unfiltered
+// re-insert would throw mid-loop and, for a PATCH, leave the collection emptied.
+function dedupe(ids: string[]): string[] {
+  return [...new Set(ids)];
+}
+
+// `exec` is either the pooled `sql` or a transaction handle from sql.begin().
+async function insertItems(exec: typeof sql, collectionId: string, ids: string[]): Promise<void> {
   for (let i = 0; i < ids.length; i++) {
-    await sql`
+    await exec`
       INSERT INTO collection_items (collection_id, doc_id, position) VALUES (${collectionId}, ${ids[i]}, ${i})
     `;
   }
@@ -61,12 +69,16 @@ async function listCollections(userId: string): Promise<CollectionOut[]> {
 
 async function createCollection(userId: string, body: CollectionBody): Promise<CollectionOut> {
   const name = body.name!.trim();
-  const ids = body.ids ?? [];
-  const created = (await sql`
-    INSERT INTO collections (user_id, name) VALUES (${userId}, ${name}) RETURNING id, name, updated_at
-  `) as CollectionRow[];
-  const row = created[0];
-  await insertItems(row.id, ids);
+  const ids = dedupe(body.ids ?? []);
+  // Insert the collection and its items in one transaction so a failed item
+  // insert can't leave an empty collection behind.
+  const row = await sql.begin(async (tx) => {
+    const created = (await tx`
+      INSERT INTO collections (user_id, name) VALUES (${userId}, ${name}) RETURNING id, name, updated_at
+    `) as CollectionRow[];
+    await insertItems(tx, created[0].id, ids);
+    return created[0];
+  });
   return { id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids };
 }
 
@@ -78,9 +90,14 @@ async function updateCollection(userId: string, id: string, body: CollectionBody
     await sql`UPDATE collections SET name = ${body.name.trim()}, updated_at = now() WHERE id = ${id}`;
   }
   if (body.ids !== undefined) {
-    await sql`DELETE FROM collection_items WHERE collection_id = ${id}`;
-    await insertItems(id, body.ids);
-    await sql`UPDATE collections SET updated_at = now() WHERE id = ${id}`;
+    const ids = dedupe(body.ids);
+    // Atomic replace: delete + reinsert in one transaction so a partial failure
+    // can't leave the collection emptied or half-repopulated.
+    await sql.begin(async (tx) => {
+      await tx`DELETE FROM collection_items WHERE collection_id = ${id}`;
+      await insertItems(tx, id, ids);
+      await tx`UPDATE collections SET updated_at = now() WHERE id = ${id}`;
+    });
   }
   if (body.name === undefined && body.ids === undefined) {
     await sql`UPDATE collections SET updated_at = now() WHERE id = ${id}`;
