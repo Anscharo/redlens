@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Collection } from "../../lib/collectionsApi";
+import { type Collection, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
 import type { AtlasNode } from "../../types";
 
 const PREVIEW_COUNT = 10;
@@ -48,6 +48,7 @@ export function CollectionCard({
             autoFocus
             className="text-sm font-medium bg-transparent border-b outline-none flex-1"
             style={{ color: "var(--tan)", borderColor: "var(--border)" }}
+            maxLength={MAX_COLLECTION_NAME_LEN}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={submitRename}
