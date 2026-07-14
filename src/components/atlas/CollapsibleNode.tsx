@@ -194,7 +194,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     >
       {!isPreview && (
         <label
-          className="atlas-node-select absolute top-2 right-2 z-10"
+          className="atlas-node-select absolute top-2 right-2"
           aria-label={`Select ${node.title}`}
           onClick={(e) => e.stopPropagation()}
         >
