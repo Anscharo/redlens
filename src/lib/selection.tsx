@@ -8,6 +8,10 @@ import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 // selected-only toggle is URL-synced like other view filters.
 interface Selection {
   ids: Set<string>;
+  /** Whether selection mode is active — when on, the reader shows a checkbox on
+   *  every document. Off by default so the checkboxes don't always show. */
+  selectionMode: boolean;
+  setSelectionMode: (v: boolean) => void;
   toggle: (id: string) => void;
   /** Checkbox toggle with shift-click range support: on shift, selects every
    *  currently-visible doc between the last-toggled anchor and `id`. */
@@ -32,6 +36,8 @@ interface Selection {
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 const NOOP_SELECTION: Selection = {
   ids: EMPTY_IDS as Set<string>,
+  selectionMode: false,
+  setSelectionMode: () => {},
   toggle: () => {},
   rangeToggle: () => {},
   setVisibleOrder: () => {},
@@ -53,6 +59,7 @@ export function useSelection(): Selection {
 
 export function SelectionProvider({ children }: { children: ReactNode }) {
   const [ids, setIds] = useState<Set<string>>(() => new Set(loadSelection()));
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedOnly, setSelectedOnly] = useUrlState("selectedOnly", urlBool(false));
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
@@ -136,6 +143,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Selection>(
     () => ({
       ids,
+      selectionMode,
+      setSelectionMode,
       toggle,
       rangeToggle,
       setVisibleOrder,
@@ -148,7 +157,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       activeCollectionId,
       setActiveCollectionId,
     }),
-    [ids, toggle, rangeToggle, setVisibleOrder, add, remove, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
+    [ids, selectionMode, toggle, rangeToggle, setVisibleOrder, add, remove, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;

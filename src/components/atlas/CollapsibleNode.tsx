@@ -50,7 +50,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
 }) {
   const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
-  const { ids: selectedIds, rangeToggle } = useSelection();
+  const { ids: selectedIds, selectionMode, rangeToggle } = useSelection();
   const inSelectedOnly = !!useSelectionSet();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -194,7 +194,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
-      {!isPreview && (
+      {selectionMode && (
         <label
           className="atlas-node-select absolute top-2 right-2"
           aria-label={`Select ${node.title}`}
