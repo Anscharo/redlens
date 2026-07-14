@@ -1,0 +1,130 @@
+// Deterministic citation repair — models (especially small ones) cannot
+// reliably transcribe 36-char UUIDs out of long tool results, so the
+// orchestrator stops trusting them with link targets: after the answer
+// completes, every /atlas/ link is validated in code; invalid targets are
+// re-resolved from what was actually retrieved this turn (near-miss uuid,
+// doc_no href, truncated uuid, title match), and anything unrepairable is
+// de-linkified so a dead link can never ship. Runs BEFORE the deterministic
+// checks, which then validate the repaired answer; stripped links are folded
+// back in as hard failures by the orchestrator.
+import { UUID_RE } from "../lib/patterns.ts";
+import { normalizeForMatch } from "./verify-checks.ts";
+import type { Indexes } from "./indexes.ts";
+
+// Link text often leads with a doc_no ("A.1.6 - Title") — a real one
+// identifies the doc directly; either way it's stripped before title
+// matching. Same DOC_NO_CORE shape as verify-checks.
+const DOC_NO_LEAD = /^((?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+))(?:\s*[-–—:]\s*|\s*$)/;
+
+export interface CitationRepair {
+  content: string;
+  repaired: { title: string; from: string; to: string }[];
+  stripped: { title: string; target: string }[];
+}
+
+const hex32 = (s: string) => s.toLowerCase().replace(/[^0-9a-f]/g, "");
+
+// Unique near-miss: a full-length uuid whose 32 hex chars differ from exactly
+// one candidate in ≤6 positions. Two random uuids differ in ~30 positions, so
+// a ≤6-char garble identifies its source unambiguously.
+function nearMiss(target: string, candidates: string[]): string | null {
+  const t = hex32(target);
+  if (t.length !== 32) return null;
+  let best: string | null = null;
+  let bestD = 7;
+  let tied = false;
+  for (const c of candidates) {
+    const h = hex32(c);
+    if (h.length !== 32) continue;
+    let d = 0;
+    for (let i = 0; i < 32 && d <= 6; i++) if (h[i] !== t[i]) d++;
+    if (d < bestD) [best, bestD, tied] = [c, d, false];
+    else if (d === bestD && d < 7 && c !== best) tied = true;
+  }
+  return tied ? null : best;
+}
+
+// norm(title) → uuids, ambiguity preserved as list length.
+function titleIndex(docs: Iterable<{ id: string; title: string }>): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const d of docs) {
+    const key = normalizeForMatch(d.title);
+    if (!key) continue;
+    const arr = map.get(key);
+    if (arr) arr.push(d.id);
+    else map.set(key, [d.id]);
+  }
+  return map;
+}
+
+export function repairCitations(answer: string, evidenceTexts: string[], ix: Indexes): CitationRepair {
+  const repaired: CitationRepair["repaired"] = [];
+  const stripped: CitationRepair["stripped"] = [];
+
+  // Docs that actually appeared in this turn's tool results — the only pool a
+  // garbled uuid can plausibly have come from, and the first place a title
+  // match is trusted.
+  // UUID_RE is anchored (^…$) — slice the anchors off for a global scan.
+  const evidenceUuids = [...new Set((evidenceTexts.join("\n").match(new RegExp(UUID_RE.source.slice(1, -1), "gi")) ?? []).map((u) => u.toLowerCase()))]
+    .filter((u) => ix.docMap.has(u));
+  const evidenceTitles = titleIndex(evidenceUuids.map((u) => ix.docMap.get(u)!));
+  let fullTitles: Map<string, string[]> | null = null; // whole-atlas fallback, built lazily
+
+  // Resolve a doc from the link TEXT alone: a leading real doc_no wins, then
+  // a title match — unique among retrieved docs, else unique across the atlas.
+  const resolveByText = (title: string): string | null => {
+    const claimed = title.match(DOC_NO_LEAD)?.[1];
+    const byNo = claimed ? ix.byDocNo.get(claimed) : undefined;
+    if (byNo) return byNo.id;
+    const key = normalizeForMatch(title.replace(DOC_NO_LEAD, ""));
+    if (!key) return null;
+    const ev = evidenceTitles.get(key) ?? [];
+    if (new Set(ev).size === 1) return ev[0];
+    fullTitles ??= titleIndex(ix.docMap.values());
+    const all = fullTitles.get(key) ?? [];
+    return all.length === 1 ? all[0] : null;
+  };
+
+  const resolve = (title: string, target: string): string | null => {
+    const t = target.toLowerCase();
+    if (ix.docMap.has(t)) return t; // already valid
+    const byNo = ix.byDocNo.get(target); // doc_no used as href
+    if (byNo) return byNo.id;
+    const near = nearMiss(t, evidenceUuids);
+    if (near) return near;
+    // Truncated uuid: unique hex prefix (≥8 chars), evidence docs first.
+    const hex = hex32(t);
+    if (/^[0-9a-f-]+$/.test(t) && hex.length >= 8 && hex.length < 32) {
+      const pool = evidenceUuids.filter((u) => hex32(u).startsWith(hex));
+      const hits = pool.length > 0 ? pool : [...ix.docMap.keys()].filter((u) => hex32(u).startsWith(hex));
+      if (hits.length === 1) return hits[0];
+    }
+    return resolveByText(title);
+  };
+
+  const withAtlasLinks = answer.replace(/\[([^\]]+)\]\(\/atlas\/([^)\s]+)\)/g, (m, title: string, target: string) => {
+    const to = resolve(title, target);
+    if (to === target.toLowerCase()) return m; // valid as written
+    if (to) {
+      repaired.push({ title, from: target, to });
+      return `[${title}](/atlas/${to})`;
+    }
+    stripped.push({ title, target });
+    return title; // de-linkify — never ship a dead link
+  });
+
+  // Pseudo-citations: links whose href has no scheme and no leading "/" —
+  // models emit tool names or topic slugs as hrefs ("[Doc Structure](atlas_describe)").
+  // Promote to a real citation when the title identifies a doc; else de-linkify.
+  const content = withAtlasLinks.replace(/\[([^\]]+)\]\((?![a-z][a-z0-9+.-]*:|\/|#)([^)\s]+)\)/gi, (_m, title: string, target: string) => {
+    const to = resolveByText(title);
+    if (to) {
+      repaired.push({ title, from: target, to });
+      return `[${title}](/atlas/${to})`;
+    }
+    stripped.push({ title, target });
+    return title;
+  });
+
+  return { content, repaired, stripped };
+}

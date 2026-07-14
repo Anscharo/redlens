@@ -99,6 +99,21 @@ test("deterministic-only mode stays quiet on clean answers, flags invalid citati
     expect(verify && verify.type === "verify_result" && verify.action).toBe("annotate");
   }));
 
+test("fabricated citation uuid is repaired in code when the title identifies a real doc", () =>
+  withModels("", "", async () => {
+    // Unique-title doc → the repair pass swaps the invented uuid for the real
+    // one; nothing is stripped, so the deterministic-only turn stays quiet.
+    const counts = new Map<string, number>();
+    for (const d of ix.docMap.values()) counts.set(d.title, (counts.get(d.title) ?? 0) + 1);
+    const doc = [...ix.docMap.values()].find((d) => d.title.length > 12 && counts.get(d.title) === 1)!;
+    const bad = `Per [${doc.title}](/atlas/12345678-1234-4321-8765-1234567890ab).`;
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(bad), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    expect(events.some((e) => e.type === "verify_result")).toBe(false);
+    expect(lastDone(events).content).toBe(`Per [${doc.title}](/atlas/${doc.id}).`);
+  }));
+
 test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
   withModels("", "", async () => {
     const bad = "That rule is defined in Q.99.42.7 of the atlas.";

@@ -13,7 +13,9 @@ import type { Indexes } from "./indexes.ts";
 import { config } from "./config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify-checks.ts";
-import { computeOverall, evidenceFromTranscript, runVerifier, type Verdict, type VerifyOverall } from "./verifier.ts";
+import { repairCitations, type CitationRepair } from "./citation-repair.ts";
+import { computeOverall, evidenceFromTranscript, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verifier.ts";
+import { atlasDescribe } from "./tools.ts";
 import { adviseRecovery, type Recovery } from "./advisor.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -81,11 +83,38 @@ function verifyEvent(
   };
 }
 
+// Repair the answer's atlas links in code, then fold unrepairable (stripped)
+// links back into the report as hard failures — the link is gone from the
+// shipped text, but a fabricated citation still means an unsupported claim.
+function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair): CheckReport {
+  const checks = runDeterministicChecks(content, toolTexts, ix);
+  if (repair.stripped.length === 0) return checks;
+  return {
+    ...checks,
+    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target)],
+    failed: true,
+  };
+}
+
+const toolTextsOf = (transcript: Msg[]): string[] =>
+  transcript.filter((m) => m.role === "tool" && typeof m.content === "string").map((m) => m.content as string);
+
+// The live schema the system prompt hands the model (doc counts, type + edge
+// vocabularies) is legitimate knowledge it never retrieves via tools — without
+// this entry the verifier flags TRUE schema facts ("the atlas has ~N docs")
+// as invented.
+const schemaEvidence = (ix: Indexes): EvidenceEntry => ({
+  label: "[E0]",
+  tool: "atlas_schema",
+  args: "(live schema, injected into the assistant's system prompt)",
+  content: JSON.stringify(atlasDescribe(ix)),
+});
+
 // One line per hard deterministic failure — fed to the advisor and the revision
 // steer so recovery targets the exact fabrication, not just "audit failed".
 function describeCheckFailures(checks: CheckReport): string[] {
   return [
-    ...checks.invalidCitations.map((u) => `cited uuid ${u} does not exist in the atlas`),
+    ...checks.invalidCitations.map((u) => `cited doc ${u} does not exist in the atlas — cite only docs retrieved this turn`),
     ...checks.invalidDocNos.map((d) => `document number ${d} does not exist in the atlas — remove it or replace it with the real number from the tool results`),
     ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
@@ -159,12 +188,18 @@ export async function* runVerifiedChat(opts: {
   }
 
   // ── Verification (deterministic always; model audit when configured) ─────
+  // Citation repair runs first, on the FULL tool texts (the verifier evidence
+  // budget doesn't apply to free string scans): done.content is authoritative
+  // client-side, so repaired links replace the streamed ones at done.
   const telemetry = checker.telemetry();
   const evidence = evidenceFromTranscript(done.transcript);
-  const checks = runDeterministicChecks(done.content, evidence.map((e) => e.content), opts.ix);
+  const toolTexts = toolTextsOf(done.transcript);
+  const repair = repairCitations(done.content, toolTexts, opts.ix);
+  if (repair.content !== done.content) done = { ...done, content: repair.content };
+  const checks = repairedChecks(done.content, toolTexts, opts.ix, repair);
   checksMeta.push({
     kind: "round_checks", model: null, action: null,
-    verdict: { telemetry, checks: { ...checks, citations: checks.citations.length } },
+    verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, checks: { ...checks, citations: checks.citations.length } },
     overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
   });
 
@@ -177,7 +212,7 @@ export async function* runVerifiedChat(opts: {
     };
     const run = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: done.content, evidence, checks, telemetry, signal: opts.signal,
+      answer: done.content, evidence: [schemaEvidence(opts.ix), ...evidence], checks, telemetry, signal: opts.signal,
     });
     verdict = run.verdict;
     checksMeta.push({
@@ -251,13 +286,16 @@ export async function* runVerifiedChat(opts: {
 
   // ── Re-verify once; the second verdict is final even if amber ─────────────
   const revEvidence = evidenceFromTranscript(revDone.transcript);
-  const revChecks = runDeterministicChecks(revDone.content, revEvidence.map((e) => e.content), opts.ix);
+  const revToolTexts = toolTextsOf(revDone.transcript);
+  const revRepair = repairCitations(revDone.content, revToolTexts, opts.ix);
+  if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
+  const revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair);
   let revVerdict: Verdict | null = null;
   if (verifierModel && !opts.signal?.aborted) {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
     const rerun = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: revDone.content, evidence: revEvidence, checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal,
+      answer: revDone.content, evidence: [schemaEvidence(opts.ix), ...revEvidence], checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({

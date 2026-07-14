@@ -122,7 +122,7 @@ export async function handleChat(req: Request): Promise<Response> {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (e: { type: string }) =>
+      const send = (e: { type: string } & Record<string, unknown>) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
       send({ type: "meta", conversationId: convId, tier: route.tier });
       try {

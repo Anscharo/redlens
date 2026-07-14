@@ -38,6 +38,7 @@
     "risk:assess": "bun scripts/aux/assess-risk.ts",
     "eval:golden": "bun scripts/aux/eval-golden.ts",
     "eval:verifier": "bun scripts/aux/eval-verifier.ts",
+    "eval:bakeoff": "bun scripts/aux/eval-bakeoff.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
     "build:vite": "vite build",
