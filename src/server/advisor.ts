@@ -49,6 +49,9 @@ export function buildAdvisorPrompt(params: {
   transcriptDigest: string;
   verdict: Verdict | null;
   telemetry: RoundTelemetry;
+  // Hard deterministic failures (fabricated doc numbers / uuids / quotes) —
+  // more precise than the model verdict, and present even when it is null.
+  checkFailures?: string[];
 }): Msg[] {
   const verdictBlock = params.verdict
     ? JSON.stringify(
@@ -74,6 +77,7 @@ export function buildAdvisorPrompt(params: {
         `## Question\n${params.question}`,
         `## Retrieval attempts (tool → result preview)\n${params.transcriptDigest}`,
         `## Verification verdict\n${verdictBlock}`,
+        ...(params.checkFailures?.length ? [`## Deterministic check failures (certain, found by code)\n${params.checkFailures.join("\n")}`] : []),
         `## Retrieval telemetry\n${telemetryBlock}`,
       ].join("\n\n"),
     },
@@ -94,6 +98,7 @@ export async function adviseRecovery(params: {
   transcriptDigest: string;
   verdict: Verdict | null;
   telemetry: RoundTelemetry;
+  checkFailures?: string[];
   signal?: AbortSignal;
   timeoutMs?: number;
 }): Promise<AdvisorRun> {

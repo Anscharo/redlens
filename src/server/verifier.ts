@@ -123,6 +123,7 @@ export function buildVerifierPrompt(params: {
   ].join("\n");
   const checksBlock = [
     `citations=${checks.citations.length} invalid_citations=${checks.invalidCitations.join(",") || "none"}`,
+    `invalid_doc_numbers=${checks.invalidDocNos.join(",") || "none"} docno_mismatches=${checks.docNoMismatches.join("; ") || "none"}`,
     `uncited_paragraphs=${checks.uncitedParagraphs} ungrounded_quotes=${checks.ungroundedQuotes.length}`,
   ].join("\n");
   return [

@@ -33,3 +33,20 @@ test("adviseRecovery swallows transport errors as null", async () => {
   const run = await adviseRecovery({ call: boom, model: "m", question: "q", transcriptDigest: "d", verdict: null, telemetry });
   expect(run.recovery).toBeNull();
 });
+
+test("deterministic check failures ride the advisor prompt when provided", async () => {
+  let prompt = "";
+  const call: JsonCall = async ({ messages }) => {
+    prompt = messages.map((m) => m.content).join("\n");
+    return { text: '{"action":"rewrite","guidance":"g"}', usage: { input: 1, output: 1 }, generationId: null, latencyMs: 1 };
+  };
+  await adviseRecovery({
+    call, model: "m", question: "q", transcriptDigest: "d", verdict: null, telemetry,
+    checkFailures: ["document number Q.99.42.7 does not exist in the atlas — remove it or replace it with the real number from the tool results"],
+  });
+  expect(prompt).toContain("Deterministic check failures");
+  expect(prompt).toContain("Q.99.42.7");
+
+  await adviseRecovery({ call, model: "m", question: "q", transcriptDigest: "d", verdict: null, telemetry });
+  expect(prompt).not.toContain("Deterministic check failures");
+});

@@ -9,7 +9,7 @@ import type { RoundTelemetry } from "./round-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const cleanChecks: CheckReport = { citations: [], invalidCitations: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], failed: false };
+const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], failed: false };
 const failedChecks: CheckReport = { ...cleanChecks, invalidCitations: ["00000000-dead-beef-0000-000000000000"], failed: true };
 const telemetry: RoundTelemetry = { rounds: 1, toolCalls: 1, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
 

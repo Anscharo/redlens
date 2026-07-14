@@ -42,6 +42,36 @@ export function findInvalidCitationUuids(citations: Citation[], ix: Indexes): st
   return [...new Set(citations.filter((c) => !ix.docMap.has(c.uuid)).map((c) => c.uuid))];
 }
 
+// Doc-number mentions anywhere in the answer (prose or link text): editorial
+// doc_nos (A.1.6) plus the spec-invariant structural forms (.varX, NR-X). The
+// letter prefix must lead straight into dotted digits, so prose like "Q1 2026"
+// or "v1.2" never matches. Source string, not RegExp — fresh /g per scan.
+const DOC_NO_CORE = String.raw`(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)`;
+
+export function extractDocNoMentions(answer: string): string[] {
+  return [...new Set(answer.match(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g")) ?? [])];
+}
+
+// Every mentioned doc number must exist in the atlas — models keep inventing
+// plausible-looking numbers, and a fabricated number is a hard failure even
+// when the surrounding claim is right.
+export function findInvalidDocNos(answer: string, ix: Indexes): string[] {
+  return extractDocNoMentions(answer).filter((d) => !ix.byDocNo.has(d));
+}
+
+// Citations whose link text leads with a doc number that is not the linked
+// doc's actual number — deterministic proof of misattribution even when the
+// number and the uuid both exist individually.
+export function findDocNoMismatches(citations: Citation[], ix: Indexes): string[] {
+  const out: string[] = [];
+  for (const c of citations) {
+    const claimed = c.title.match(new RegExp(String.raw`^${DOC_NO_CORE}\b`))?.[0];
+    const doc = ix.docMap.get(c.uuid);
+    if (claimed && doc && doc.doc_no !== claimed) out.push(`${claimed} links to ${doc.doc_no} (${doc.title})`);
+  }
+  return [...new Set(out)];
+}
+
 // Substantive paragraphs with no citation link. A soft signal (the answer's
 // lead sentence or a summary bullet legitimately goes uncited) — reported to
 // the verifier prompt, never a hard failure on its own.
@@ -104,24 +134,31 @@ export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix
 export interface CheckReport {
   citations: Citation[];
   invalidCitations: string[];
+  invalidDocNos: string[];
+  docNoMismatches: string[];
   bareAtlasLinks: string[];
   uncitedParagraphs: number;
   ungroundedQuotes: string[];
-  // Hard deterministic failure — invented citation targets or invented quotes.
-  // Soft signals (bare links, uncited paragraphs) inform, they don't fail.
+  // Hard deterministic failure — invented citation targets, invented/misattributed
+  // doc numbers, or invented quotes. Soft signals (bare links, uncited
+  // paragraphs) inform, they don't fail.
   failed: boolean;
 }
 
 export function runDeterministicChecks(answer: string, evidenceTexts: string[], ix: Indexes): CheckReport {
   const citations = extractCitations(answer);
   const invalidCitations = findInvalidCitationUuids(citations, ix);
+  const invalidDocNos = findInvalidDocNos(answer, ix);
+  const docNoMismatches = findDocNoMismatches(citations, ix);
   const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
   return {
     citations,
     invalidCitations,
+    invalidDocNos,
+    docNoMismatches,
     bareAtlasLinks: findBareAtlasLinks(answer),
     uncitedParagraphs: countUncitedParagraphs(answer),
     ungroundedQuotes,
-    failed: invalidCitations.length > 0 || ungroundedQuotes.length > 0,
+    failed: invalidCitations.length > 0 || invalidDocNos.length > 0 || docNoMismatches.length > 0 || ungroundedQuotes.length > 0,
   };
 }

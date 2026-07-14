@@ -30,6 +30,8 @@ export type ChatEvent =
       action: "annotate" | "revised" | null;
       claims: VerifyClaim[];
       invalidCitations: string[];
+      invalidDocNos: string[];
+      docNoMismatches: string[];
       ungroundedQuotes: string[];
     }
   | {

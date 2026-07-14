@@ -18,7 +18,12 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
   if (verify.status === "unverified") return null;
 
   const flagged = verify.claims.filter((c) => c.status !== "supported");
-  const issues = flagged.length + verify.invalidCitations.length + verify.ungroundedQuotes.length;
+  const issues =
+    flagged.length +
+    verify.invalidCitations.length +
+    verify.invalidDocNos.length +
+    verify.docNoMismatches.length +
+    verify.ungroundedQuotes.length;
   const label =
     verify.status === "warn"
       ? `caution: ${issues} unsupported claim${issues === 1 ? "" : "s"}`
@@ -42,6 +47,16 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
           {verify.invalidCitations.map((uuid) => (
             <li key={uuid} data-status="contradicted">
               cites a document that does not exist: <code>{uuid}</code>
+            </li>
+          ))}
+          {verify.invalidDocNos.map((d) => (
+            <li key={d} data-status="contradicted">
+              document number does not exist in the atlas: <code>{d}</code>
+            </li>
+          ))}
+          {verify.docNoMismatches.map((m) => (
+            <li key={m} data-status="contradicted">
+              document number doesn’t match its link: {m}
             </li>
           ))}
           {verify.ungroundedQuotes.map((q) => (

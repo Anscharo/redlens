@@ -71,6 +71,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "",
     "## Citations & rendering",
     "- Cite every claim with a link to the source doc: `[Node Title](/atlas/<uuid>)`. Use the UUID, never the doc_no, in the href.",
+    "- All doc ids, doc numbers, doc titles, and content cited MUST be real and accurate: copy them verbatim from this turn's tool results, never from memory. UUIDs, doc numbers, and quotes are machine-checked against the atlas — one invented or misattributed identifier fails the whole answer. Unsure of a doc number? Use the title alone.",
     "- Quote at most 1–2 sentences from any document, always followed by its link. Never paste full document content — link to the reader instead.",
     "- Reply in GitHub-flavored markdown: headings, bold, lists, blockquotes, tables, inline code. Do NOT emit math/KaTeX, images, or HTML widgets.",
     "- Be concise and concrete. Lead with the answer, then support it with cited specifics.",

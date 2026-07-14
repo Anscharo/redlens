@@ -6,6 +6,9 @@ import {
   extractCitations,
   findBareAtlasLinks,
   findInvalidCitationUuids,
+  extractDocNoMentions,
+  findInvalidDocNos,
+  findDocNoMismatches,
   countUncitedParagraphs,
   extractQuotedSpans,
   findUngroundedQuotes,
@@ -83,4 +86,38 @@ test("runDeterministicChecks: failed only on invalid citations or ungrounded quo
   const badQuote = runDeterministicChecks('> Entirely fabricated verbatim quotation about governance rules', [], ix);
   expect(badQuote.failed).toBe(true);
   expect(badQuote.ungroundedQuotes).toHaveLength(1);
+});
+
+test("doc-number mentions: extracted + deduped; version-like strings never match", () => {
+  const answer = "See A.1.6 and A.1.6 again, NR-3, and A.2.1.var2 — but v1.2, Q1 2026, 99.9%, and EIP-712 stay out. Ends with A.3.";
+  expect(extractDocNoMentions(answer).sort()).toEqual(["A.1.6", "A.2.1.var2", "A.3", "NR-3"]);
+});
+
+test("invalid doc numbers: fabricated number flagged, real one passes", () => {
+  const FAKE_DOCNO = "Q.99.42.7";
+  expect(ix.byDocNo.has(FAKE_DOCNO)).toBe(false);
+  const dotted = [...ix.docMap.values()].find((d) => /^[A-Z]{1,3}(\.\d+)+$/.test(d.doc_no))!;
+  expect(findInvalidDocNos(`Real ${dotted.doc_no} vs fake ${FAKE_DOCNO}.`, ix)).toEqual([FAKE_DOCNO]);
+});
+
+test("doc-number/link mismatch: real-but-wrong number in citation text flagged; matching pair passes", () => {
+  const other = [...ix.docMap.values()].find((d) => /^[A-Z]{1,3}(\.\d+)+$/.test(d.doc_no) && d.id !== realUuid)!;
+  const mismatched = extractCitations(`[${other.doc_no} - ${realDoc.title}](/atlas/${realUuid})`);
+  expect(findDocNoMismatches(mismatched, ix)).toHaveLength(1);
+  const matching = extractCitations(`[${other.doc_no} - ${other.title}](/atlas/${other.id})`);
+  expect(findDocNoMismatches(matching, ix)).toEqual([]);
+  // No leading doc_no in the link text → nothing to compare, no flag.
+  const plain = extractCitations(`[${realDoc.title}](/atlas/${realUuid})`);
+  expect(findDocNoMismatches(plain, ix)).toEqual([]);
+});
+
+test("runDeterministicChecks: fabricated or misattributed doc numbers are hard failures", () => {
+  const invented = runDeterministicChecks("The rule lives in Q.99.42.7 of the atlas.", [], ix);
+  expect(invented.failed).toBe(true);
+  expect(invented.invalidDocNos).toEqual(["Q.99.42.7"]);
+
+  const other = [...ix.docMap.values()].find((d) => /^[A-Z]{1,3}(\.\d+)+$/.test(d.doc_no) && d.id !== realUuid)!;
+  const misattributed = runDeterministicChecks(`Per [${other.doc_no} - X](/atlas/${realUuid}).`, [], ix);
+  expect(misattributed.failed).toBe(true);
+  expect(misattributed.docNoMismatches).toHaveLength(1);
 });

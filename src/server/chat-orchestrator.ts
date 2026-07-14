@@ -41,6 +41,8 @@ export type HarnessEvent =
       action: "annotate" | "revised" | null;
       claims: { claim: string; status: "supported" | "unsupported" | "contradicted" }[];
       invalidCitations: string[];
+      invalidDocNos: string[];
+      docNoMismatches: string[];
       ungroundedQuotes: string[];
     };
 
@@ -73,8 +75,21 @@ function verifyEvent(
     action,
     claims: (verdict?.claims ?? []).map((c) => ({ claim: c.claim, status: c.status })),
     invalidCitations: checks.invalidCitations,
+    invalidDocNos: checks.invalidDocNos,
+    docNoMismatches: checks.docNoMismatches,
     ungroundedQuotes: checks.ungroundedQuotes,
   };
+}
+
+// One line per hard deterministic failure — fed to the advisor and the revision
+// steer so recovery targets the exact fabrication, not just "audit failed".
+function describeCheckFailures(checks: CheckReport): string[] {
+  return [
+    ...checks.invalidCitations.map((u) => `cited uuid ${u} does not exist in the atlas`),
+    ...checks.invalidDocNos.map((d) => `document number ${d} does not exist in the atlas — remove it or replace it with the real number from the tool results`),
+    ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
+    ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
+  ];
 }
 
 function retrievalTrouble(t: RoundTelemetry): boolean {
@@ -193,9 +208,10 @@ export async function* runVerifiedChat(opts: {
   // ── One recovery cycle, hard cap ──────────────────────────────────────────
   yield { type: "status", stage: "advising", detail: "Answer didn’t fully check out — conferring with advisor…" };
   const digest = evidence.map((e) => `${e.tool}(${e.args.slice(0, 160)}) → ${e.content.slice(0, 200)}`).join("\n");
+  const checkFailures = describeCheckFailures(checks);
   const adv = await adviseRecovery({
     call: opts.jsonCall!, model: advisorModel, question: opts.question,
-    transcriptDigest: digest || "(no tools were called)", verdict, telemetry, signal: opts.signal,
+    transcriptDigest: digest || "(no tools were called)", verdict, telemetry, checkFailures, signal: opts.signal,
   });
   checksMeta.push({
     kind: "advisor_recovery", model: advisorModel,
@@ -212,7 +228,9 @@ export async function* runVerifiedChat(opts: {
 
   yield { type: "status", stage: "revising", detail: "Revising with corrections…" };
   yield { type: "clear" };
-  const { steer, maxIterations } = revisionSteer(adv.recovery, verdict?.feedback ?? "");
+  const feedback = [verdict?.feedback ?? "", checkFailures.length ? `Deterministic failures: ${checkFailures.join("; ")}.` : ""]
+    .filter(Boolean).join(" ");
+  const { steer, maxIterations } = revisionSteer(adv.recovery, feedback);
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
   for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd })) {

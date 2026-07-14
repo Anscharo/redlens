@@ -99,6 +99,17 @@ test("deterministic-only mode stays quiet on clean answers, flags invalid citati
     expect(verify && verify.type === "verify_result" && verify.action).toBe("annotate");
   }));
 
+test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
+  withModels("", "", async () => {
+    const bad = "That rule is defined in Q.99.42.7 of the atlas.";
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(bad), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const verify = events.find((e) => e.type === "verify_result");
+    expect(verify && verify.type === "verify_result" && verify.overall).toBe("fail");
+    expect(verify && verify.type === "verify_result" && verify.invalidDocNos).toEqual(["Q.99.42.7"]);
+  }));
+
 test("verifier pass: checking status, verify_result pass, no advisor call", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const jsonCalls: { model: string }[] = [];

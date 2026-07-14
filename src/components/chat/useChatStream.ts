@@ -15,6 +15,8 @@ export interface VerifyState {
   status: VerifyOverall | "checking" | "revised";
   claims: VerifyClaim[];
   invalidCitations: string[];
+  invalidDocNos: string[];
+  docNoMismatches: string[];
   ungroundedQuotes: string[];
 }
 
@@ -89,7 +91,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             ...m,
             statusLine: ev.detail ?? `${ev.stage}…`,
             ...(ev.stage === "checking" && !m.verify
-              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], ungroundedQuotes: [] } }
+              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [] } }
               : {}),
           }));
           break;
@@ -100,6 +102,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               status: ev.action === "revised" ? "revised" : ev.overall,
               claims: ev.claims,
               invalidCitations: ev.invalidCitations,
+              invalidDocNos: ev.invalidDocNos,
+              docNoMismatches: ev.docNoMismatches,
               ungroundedQuotes: ev.ungroundedQuotes,
             },
           }));
