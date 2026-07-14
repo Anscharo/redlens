@@ -6,6 +6,7 @@ import App from "./App.tsx";
 import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
 import { isStaleChunkError } from "./lib/staleChunk";
 import { AuthProvider } from "./components/chat/auth";
+import { SelectionProvider } from "./lib/selection";
 import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
 import { PreviewHome } from "./components/preview/PreviewHome";
@@ -28,7 +29,9 @@ function Root() {
     <Router base={baseNoSlash}>
       <DataSourceContext.Provider value={DEFAULT_SOURCE}>
         <AuthProvider>
-          <App />
+          <SelectionProvider>
+            <App />
+          </SelectionProvider>
         </AuthProvider>
       </DataSourceContext.Provider>
     </Router>

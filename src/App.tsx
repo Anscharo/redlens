@@ -79,6 +79,9 @@ const RadarPage = lazy(() =>
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
 );
+const CollectionsPage = lazy(() =>
+  lazyRetry(() => import("./components/collections/CollectionsPage")).then((m) => ({ default: m.CollectionsPage })),
+);
 
 const splitCodec = urlString(null);
 
@@ -192,7 +195,9 @@ export default function App() {
   // overflow-hidden wrappers are dropped, so the browser's native
   // history.scrollRestoration handles back/forward for free.
   const windowScroll =
-    location.startsWith(ROUTES.REPORTS) || location.startsWith(ROUTES.RADAR);
+    location.startsWith(ROUTES.REPORTS) ||
+    location.startsWith(ROUTES.RADAR) ||
+    location === ROUTES.COLLECTIONS;
 
   return (
     <div
@@ -368,6 +373,11 @@ export default function App() {
             <Route path={ROUTES.CONNECT}>
               <Suspense fallback={<Loading />}>
                 <ConnectPage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.COLLECTIONS}>
+              <Suspense fallback={<Loading />}>
+                <CollectionsPage />
               </Suspense>
             </Route>
             <Route path="/admin/:rest*">

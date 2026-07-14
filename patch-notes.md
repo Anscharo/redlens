@@ -39,6 +39,7 @@
 
 ## 2026-07-14
 - Added a cousin documents section to the annotations panel, linking each Prime Agent artifact document to its equivalent under the other Prime Agents
+- Added document selection and saved collections: check documents in the reader, filter the tree to just your selection, and save it as a named collection when signed in
 
 ## 2026-07-13
 - Fixed the GovOps and Facilitator reports merging same-titled duties that actually differ between Prime Agents — each variant now keeps its own row with the right agents, and rows that do merge identical per-agent copies now link every copy

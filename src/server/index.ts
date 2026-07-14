@@ -14,6 +14,7 @@ import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
+import { handleCollections } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -105,6 +106,8 @@ const server = Bun.serve({
     "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    "/api/collections":     (req) => config.chatEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/collections/:id": (req) => config.chatEnabled ? handleCollections(req as Request) : NOT_FOUND(),
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.

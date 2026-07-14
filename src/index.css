@@ -406,6 +406,29 @@ mark {
   color: var(--tan) !important;
 }
 
+/* Document selection checkbox — top-right corner of each atlas row. Subtle
+   until checked/hovered so it doesn't compete with the title. */
+.atlas-node-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.12s;
+}
+.atlas-node-select:hover,
+.atlas-node-select:has(input:checked) {
+  opacity: 1;
+}
+.atlas-node-select input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 /* Atlas tree view */
 /* Atlas reading area: deep bg matching the tree sidebar so the center and the
    left rail read as one continuous surface. */
