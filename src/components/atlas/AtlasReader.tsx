@@ -14,6 +14,7 @@ import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
+import { useSelectionSet } from "../../lib/selectionFilter";
 import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
@@ -109,12 +110,16 @@ export function AtlasReader({
   useAtlasScroll(id, data, expandedParents);
 
   const changedSet = usePreviewChangedSet();
+  const selectionSet = useSelectionSet();
+  const filterSet = changedSet ?? selectionSet;
 
   const docList = useMemo(() => {
     const visible = data.flatNodes.filter((entry) => {
-      // "changed only": show exactly the changed/added docs (flat), bypassing
-      // the depth-6 gate. Otherwise honor the normal depth gating.
-      if (changedSet) return changedSet.has(entry.node.id);
+      // "changed only" (preview) or "selected only": show exactly the
+      // matching docs (flat), bypassing the depth-6 gate. Otherwise honor the
+      // normal depth gating. Preview's changed-set takes priority when both
+      // are active.
+      if (filterSet) return filterSet.has(entry.node.id);
       return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
     });
     // Cradle: the selected node's visible descendants are the contiguous run
@@ -126,7 +131,7 @@ export function AtlasReader({
     let cradleEnd = -1;
     let cradleColor: string | undefined;
     const selIdx = selectedId ? visible.findIndex((e) => e.node.id === selectedId) : -1;
-    if (!changedSet && selIdx >= 0) {
+    if (!filterSet && selIdx >= 0) {
       const selDepth = visible[selIdx].depth;
       let i = selIdx + 1;
       while (i < visible.length && visible[i].depth > selDepth) i++;
@@ -176,7 +181,7 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, changedSet]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll }}>
