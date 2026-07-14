@@ -67,6 +67,13 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     saveSelection([...ids]);
   }, [ids]);
 
+  // When the selection empties while the "Selected only" filter is on (e.g. the
+  // user unchecks the last doc), drop back to "All". Otherwise the filter stays
+  // armed and the next doc checked snaps the reader to just that one.
+  useEffect(() => {
+    if (selectedOnly && ids.size === 0) setSelectedOnly(false);
+  }, [selectedOnly, ids, setSelectedOnly]);
+
   useEffect(() => {
     const handler = (e: StorageEvent) => {
       if (e.key === STORAGE_KEY) setIds(new Set(loadSelection()));
