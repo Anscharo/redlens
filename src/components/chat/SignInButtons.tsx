@@ -34,11 +34,11 @@ export function SignInButtons({
 
   return (
     <>
-      <button className="rlc-menu-item justify-start" onClick={() => click("github")}>
+      <button className="rlc-menu-item rlc-signin-menu justify-start" onClick={() => click("github")}>
         <GitHubMark /> <span>Continue with GitHub</span>
       </button>
       <div className="border-t border-border" />
-      <button className="rlc-menu-item justify-start" onClick={() => click("google")}>
+      <button className="rlc-menu-item rlc-signin-menu justify-start" onClick={() => click("google")}>
         <GoogleMark /> <span>Continue with Google</span>
       </button>
     </>
