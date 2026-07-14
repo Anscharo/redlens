@@ -24,7 +24,6 @@ export const RelatedNode = memo(function RelatedNode({
         <div className="flex items-center gap-3">
           <span className="atlas-type-pill">{node.type}</span>
           <span className="text-xs mono text-tan-2">{node.doc_no}</span>
-          <span className="text-[10px] mono text-tan-3">{node.id}</span>
         </div>
       </AtlasLink>
       {node.content && (
