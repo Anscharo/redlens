@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
-import { createCollection } from "../../lib/collectionsApi";
+import { createCollection, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
 import { track } from "../../lib/analytics";
 
 interface SaveCollectionModalProps {
@@ -98,6 +98,7 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
               className="mono"
               type="text"
               placeholder="Collection name"
+              maxLength={MAX_COLLECTION_NAME_LEN}
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => {

@@ -52,14 +52,16 @@ export function SelectionTreeToggle() {
       {count > 0 && (
         <>
           <button
-            className="px-2 py-0.5 rounded"
+            className={`px-2 py-0.5 rounded flex items-center gap-1 min-w-0${activeCollectionName ? " max-w-[14ch]" : ""}`}
             style={togglePillStyle(selectedOnly, "#fff")}
+            title={activeCollectionName ?? undefined}
             onClick={() => {
               track("selection_view_toggle", { view: "selected_only", count });
               setSelectedOnly(true);
             }}
           >
-            {activeCollectionName ?? "Selected"} · {count}
+            <span className="truncate min-w-0">{activeCollectionName ?? "Selected"}</span>
+            <span className="shrink-0">· {count}</span>
           </button>
           <button
             type="button"
