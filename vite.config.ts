@@ -33,14 +33,17 @@ const buildTime = new Date().toISOString();
 const base = "/";
 
 export default defineConfig(() => {
-  // The chat widget + auth/profile button need the Bun /api backend, which only
-  // exists on Railway (and locally via the dev proxy). They ship DISABLED by
-  // default everywhere — GH Pages, CF Pages, Railway, and dev alike — so merging
-  // this branch adds nothing user-visible. Flip the bundle on by building with
-  // VITE_CHAT_ENABLED=1 (and pair it with the server's CHAT_ENABLED=1). Any other
-  // value (or unset) leaves chat off; a missing var never breaks the build.
-  const chatEnabled =
-    process.env.VITE_CHAT_ENABLED === "1" || process.env.VITE_CHAT_ENABLED === "true";
+  // Login-gated features (auth/profile button, saved Collections) and the chat
+  // widget all need the Bun /api backend, which only exists on Railway (and
+  // locally via the dev proxy). Two build flags:
+  //   VITE_USERS_ENABLED=1 → login-required UI (profile button, save-collection)
+  //   VITE_CHAT_ENABLED=1  → the chat widget
+  // Chat needs a logged-in session, so chat is AND-gated by users: enabling chat
+  // without users leaves chat off. Both default off everywhere (GH Pages, CF
+  // Pages, Railway, dev) — a missing var never breaks the build.
+  const truthy = (v: string | undefined) => v === "1" || v === "true";
+  const usersEnabled = truthy(process.env.VITE_USERS_ENABLED);
+  const chatEnabled = truthy(process.env.VITE_CHAT_ENABLED) && usersEnabled;
 
   return {
     base,
@@ -197,6 +200,7 @@ export default defineConfig(() => {
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
       __BUILD_TIME__: JSON.stringify(buildTime),
+      __USERS_ENABLED__: JSON.stringify(usersEnabled),
       __CHAT_ENABLED__: JSON.stringify(chatEnabled),
       __REPO_URL__: JSON.stringify(repoUrl),
     },

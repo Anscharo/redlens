@@ -11,12 +11,19 @@ const appUrl =
 export const config = {
   port,
 
-  // Master switch for the chat + OAuth surface (/api/auth/*, /api/chat,
-  // /api/usage). OFF by default so the merged image exposes nothing until it's
-  // explicitly enabled; pair with the frontend's VITE_CHAT_ENABLED build flag.
-  // When off, the routes 404 and the missing OAuth/JWT/DB vars below never
-  // matter — the static SPA + /mcp keep serving normally.
-  chatEnabled: process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true",
+  // Master switch for the login/OAuth surface (/api/auth/*, /api/collections*).
+  // OFF by default so the merged image exposes nothing until it's explicitly
+  // enabled; pair with the frontend's VITE_USERS_ENABLED build flag. When off,
+  // the routes 404 and the missing OAuth/JWT/DB vars below never matter — the
+  // static SPA + /mcp keep serving normally.
+  usersEnabled: process.env.USERS_ENABLED === "1" || process.env.USERS_ENABLED === "true",
+
+  // The chat surface (/api/chat, /api/usage). Chat requires a logged-in session,
+  // so it is AND-gated by usersEnabled: CHAT_ENABLED=1 alone (without
+  // USERS_ENABLED=1) leaves chat off. Pair with the frontend's VITE_CHAT_ENABLED.
+  chatEnabled:
+    (process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true") &&
+    (process.env.USERS_ENABLED === "1" || process.env.USERS_ENABLED === "true"),
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.

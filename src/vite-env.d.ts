@@ -3,6 +3,7 @@
 
 declare const __COMMIT_HASH__: string;
 declare const __BUILD_TIME__: string;
+declare const __USERS_ENABLED__: boolean;
 declare const __CHAT_ENABLED__: boolean;
 declare const __REPO_URL__: string;
 

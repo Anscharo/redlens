@@ -9,17 +9,21 @@ import { preflight } from "./dev-preflight.mjs";
 
 await preflight();
 
-// Chat + auth are off by default (see vite.config.ts / src/server/config.ts).
-// One dev knob lights up both halves: set CHAT_ENABLED=1 or VITE_CHAT_ENABLED=1
-// and dev.mjs forwards the right flag to each child (server reads CHAT_ENABLED,
-// the Vite build reads VITE_CHAT_ENABLED).
+// Login features + chat are off by default (see vite.config.ts / config.ts).
+// Two dev knobs, forwarded to both children (server reads USERS_ENABLED /
+// CHAT_ENABLED, the Vite build reads the VITE_-prefixed pair):
+//   USERS_ENABLED=1 (or VITE_USERS_ENABLED=1) → login features (auth, collections)
+//   CHAT_ENABLED=1  (or VITE_CHAT_ENABLED=1)  → chat widget; implies users, since
+//                                               chat needs a logged-in session
 const truthy = (v) => v === "1" || v === "true";
 const chat = truthy(process.env.CHAT_ENABLED) || truthy(process.env.VITE_CHAT_ENABLED);
-const flag = chat ? "1" : "0";
+const users = chat || truthy(process.env.USERS_ENABLED) || truthy(process.env.VITE_USERS_ENABLED);
+const chatFlag = chat ? "1" : "0";
+const usersFlag = users ? "1" : "0";
 
 const procs = [
-  { name: "server", color: "\x1b[36m", cmd: "bun", args: ["src/server/index.ts"], env: { CHAT_ENABLED: flag } }, // cyan
-  { name: "vite", color: "\x1b[35m", cmd: "vite", args: [], env: { VITE_CHAT_ENABLED: flag } }, // magenta
+  { name: "server", color: "\x1b[36m", cmd: "bun", args: ["src/server/index.ts"], env: { CHAT_ENABLED: chatFlag, USERS_ENABLED: usersFlag } }, // cyan
+  { name: "vite", color: "\x1b[35m", cmd: "vite", args: [], env: { VITE_CHAT_ENABLED: chatFlag, VITE_USERS_ENABLED: usersFlag } }, // magenta
 ];
 
 const reset = "\x1b[0m";
