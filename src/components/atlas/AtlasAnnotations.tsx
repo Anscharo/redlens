@@ -16,7 +16,7 @@ const RIGHT_PANEL_DEFAULT = 420;
 export function AtlasAnnotations({
   id,
   linkedNodes,
-  equivalentNodes,
+  cousinDocs,
   targetAddresses,
   chainValues,
   glossaryTerms,
@@ -28,7 +28,7 @@ export function AtlasAnnotations({
 }: {
   id: string;
   linkedNodes: AtlasNode[];
-  equivalentNodes: CousinDoc[];
+  cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   glossaryTerms: GlossaryEntry[][];
@@ -78,7 +78,7 @@ export function AtlasAnnotations({
         <RightPanel
           id={id}
           linkedNodes={linkedNodes}
-          equivalentNodes={equivalentNodes}
+          cousinDocs={cousinDocs}
           targetAddresses={targetAddresses}
           chainValues={chainValues}
           annotationCount={annotationCount}
