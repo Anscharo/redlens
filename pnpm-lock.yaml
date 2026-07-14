@@ -17,6 +17,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@3.25.76)
+      '@posthog/ai':
+        specifier: 8.3.0
+        version: 8.3.0(openai@6.39.1(ws@8.18.3)(zod@3.25.76))(posthog-node@5.41.0)
       '@uiw/react-color':
         specifier: 2.10.1
         version: 2.10.1(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -53,6 +56,9 @@ importers:
       posthog-js:
         specifier: 1.393.1
         version: 1.393.1
+      posthog-node:
+        specifier: 5.41.0
+        version: 5.41.0
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -1376,11 +1382,51 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  '@posthog/ai@8.3.0':
+    resolution: {integrity: sha512-3lWqAkZb0LlNqtMkW4dTQ3jdrS17HaNiQv09vf7OZFvc5EVqYGcapzjtK5Zhe69BRr9KtWYjwPQ8SDIapQRACA==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      '@ai-sdk/provider': ^2.0.0 || ^3.0.0
+      '@anthropic-ai/sdk': ^0.78.0
+      '@google/genai': ^1.43.0
+      '@langchain/core': ^1.1.29
+      '@openai/agents': ^0.8.0
+      '@opentelemetry/api': ^1.9.0
+      '@opentelemetry/exporter-trace-otlp-http': '>=0.200.0 <1.0.0'
+      '@opentelemetry/sdk-trace-base': ^2.0.0
+      openai: ^6.25.0
+      posthog-node: ^5.0.0
+    peerDependenciesMeta:
+      '@ai-sdk/provider':
+        optional: true
+      '@anthropic-ai/sdk':
+        optional: true
+      '@google/genai':
+        optional: true
+      '@langchain/core':
+        optional: true
+      '@openai/agents':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@opentelemetry/exporter-trace-otlp-http':
+        optional: true
+      '@opentelemetry/sdk-trace-base':
+        optional: true
+      openai:
+        optional: true
+
   '@posthog/core@1.37.1':
     resolution: {integrity: sha512-KRBuxF/XBm3tNpqWlXpWE82XxsYsJb0jSyEic14LMXMvqDv5iApK1jfV0+seikDb9SpPs3tPkWUfHdwaUtFBtQ==}
 
+  '@posthog/core@1.40.2':
+    resolution: {integrity: sha512-H12j7O9iHGvpK9t2ko8W4pvfbV1pBDxrsWC1LA6yp2RhzwvC4T3sWhu+AekDQJSRSrJEWlB0t/Ueq9QhPSq7FQ==}
+
   '@posthog/types@1.391.1':
     resolution: {integrity: sha512-ASwd7Nf4pViqdYRYaNRyPYRVKWa1CcHUAUWR0XeQJLGdNnsWACBwe0sSieb/cHnKsRXjRwO/23KIY83lm/Ccpw==}
+
+  '@posthog/types@1.393.0':
+    resolution: {integrity: sha512-vzWeEJZ7ERQhFRoQYaP5jzN1JvIu46UJyHXsuv+dTGW2r3sMgREOhNxXLZjmFHwZ8/FOHQoyqqQmXTCXZSfMSg==}
 
   '@rolldown/binding-android-arm64@1.0.0-rc.13':
     resolution: {integrity: sha512-5ZiiecKH2DXAVJTNN13gNMUcCDg4Jy8ZjbXEsPnqa248wgOVeYRX0iqXXD5Jz4bI9BFHgKsI2qmyJynstbmr+g==}
@@ -3485,6 +3531,15 @@ packages:
   posthog-js@1.393.1:
     resolution: {integrity: sha512-+oQfAmvgu5ReW0ADLn3AcVet/SYeuvLzmvImSHPa/LVt+ap50I6Zpq/6oAHAd0+hxurp5uyWNfNnSiMbym+rug==}
 
+  posthog-node@5.41.0:
+    resolution: {integrity: sha512-jOkX6THOr5WD+FGUEaTxekas8c7NOC3TqJ2Byfe2KMimQdL/F/osz17uSbkNzR4V9WFZoe8YaGP3Xp0EUpPKGg==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
+
   preact@10.29.2:
     resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
 
@@ -3994,6 +4049,10 @@ packages:
     resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
+    hasBin: true
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -5422,11 +5481,26 @@ snapshots:
     dependencies:
       playwright: 1.61.0
 
+  '@posthog/ai@8.3.0(openai@6.39.1(ws@8.18.3)(zod@3.25.76))(posthog-node@5.41.0)':
+    dependencies:
+      '@posthog/core': 1.40.2
+      posthog-node: 5.41.0
+      uuid: 11.1.1
+      zod: 4.4.3
+    optionalDependencies:
+      openai: 6.39.1(ws@8.18.3)(zod@3.25.76)
+
   '@posthog/core@1.37.1':
     dependencies:
       '@posthog/types': 1.391.1
 
+  '@posthog/core@1.40.2':
+    dependencies:
+      '@posthog/types': 1.393.0
+
   '@posthog/types@1.391.1': {}
+
+  '@posthog/types@1.393.0': {}
 
   '@rolldown/binding-android-arm64@1.0.0-rc.13':
     optional: true
@@ -7838,6 +7912,10 @@ snapshots:
       query-selector-shadow-dom: 1.0.1
       web-vitals: 5.3.0
 
+  posthog-node@5.41.0:
+    dependencies:
+      '@posthog/core': 1.40.2
+
   preact@10.29.2: {}
 
   pretty-bytes@5.6.0: {}
@@ -8506,6 +8584,8 @@ snapshots:
   use-sync-external-store@1.6.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  uuid@11.1.1: {}
 
   vary@1.1.2: {}
 

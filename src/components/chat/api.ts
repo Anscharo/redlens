@@ -6,14 +6,32 @@ export function apiUrl(path: string): string {
   return `/api/${path.replace(/^\/+/, "")}`;
 }
 
-// Mirrors the server's ChatEvent union (src/server/chat-loop.ts) plus the
-// `meta` and `error` envelope events emitted by the route (src/server/chat.ts).
+// Mirrors the server's HarnessEvent union (src/server/chat-orchestrator.ts —
+// ChatEvent plus the reliability-harness `status`/`verify_result` events) and
+// the `meta`/`error` envelope events emitted by the route (src/server/chat.ts).
+export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
+
+export interface VerifyClaim {
+  claim: string;
+  status: "supported" | "unsupported" | "contradicted";
+}
+
 export type ChatEvent =
   | { type: "meta"; conversationId: string }
   | { type: "token"; text: string }
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
+  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  | {
+      type: "verify_result";
+      overall: VerifyOverall;
+      confidence: number | null;
+      action: "annotate" | "revised" | null;
+      claims: VerifyClaim[];
+      invalidCitations: string[];
+      ungroundedQuotes: string[];
+    }
   | {
       type: "done";
       content: string;

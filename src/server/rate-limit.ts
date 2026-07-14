@@ -32,11 +32,26 @@ export async function getWindowUsage(userId: string, nowMs: number = Date.now())
   const windowMinutes = config.rateLimitWindowMinutes;
   const limit = config.rateLimitTokensPerWindow;
   const { startMs, resetsAtMs } = bucketBounds(nowMs, windowMinutes * 60_000);
+  // Two sums: conversationalist tokens on messages rows + reliability-harness
+  // (verifier/advisor) tokens on message_checks rows. The harness spends real
+  // tokens per turn — it must count against the same budget, or checks become
+  // an invisible way past the window.
   const rows = (await sql`
-    SELECT COALESCE(SUM(COALESCE(m.input_tokens, 0) + COALESCE(m.output_tokens, 0)), 0)::int AS tokens
-    FROM messages m
-    JOIN conversations c ON c.id = m.conversation_id
-    WHERE c.user_id = ${userId} AND m.created_at >= ${new Date(startMs)}
+    SELECT (
+      COALESCE((
+        SELECT SUM(COALESCE(m.input_tokens, 0) + COALESCE(m.output_tokens, 0))
+        FROM messages m
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.user_id = ${userId} AND m.created_at >= ${new Date(startMs)}
+      ), 0)
+      + COALESCE((
+        SELECT SUM(COALESCE(mc.input_tokens, 0) + COALESCE(mc.output_tokens, 0))
+        FROM message_checks mc
+        JOIN messages m ON m.id = mc.message_id
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.user_id = ${userId} AND mc.created_at >= ${new Date(startMs)}
+      ), 0)
+    )::int AS tokens
   `) as { tokens: number }[];
   const tokens = Number(rows[0]?.tokens ?? 0);
   return { tokens, limit, exceeded: tokens >= limit, resetsAt: new Date(resetsAtMs).toISOString(), windowMinutes };

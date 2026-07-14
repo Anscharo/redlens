@@ -37,6 +37,7 @@
     "oea:assess": "bun scripts/aux/assess-oea.ts",
     "risk:assess": "bun scripts/aux/assess-risk.ts",
     "eval:golden": "bun scripts/aux/eval-golden.ts",
+    "eval:verifier": "bun scripts/aux/eval-verifier.ts",
     "build:at": "node --env-file-if-exists=.env.local scripts/required/build-at.mjs",
     "build:ts": "tsc -b",
     "build:vite": "vite build",
@@ -66,6 +67,7 @@
   "dependencies": {
     "@chenglou/pretext": "0.0.5",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "@posthog/ai": "8.3.0",
     "@uiw/react-color": "2.10.1",
     "@xyflow/react": "12.10.2",
     "arctic": "3.7.0",
@@ -78,6 +80,7 @@
     "minisearch": "7.2.0",
     "openai": "6.39.1",
     "posthog-js": "1.393.1",
+    "posthog-node": "5.41.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-markdown": "10.1.0",

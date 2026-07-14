@@ -92,6 +92,35 @@ export const config = {
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
 
+  // Chat reliability harness (docs/plans/chat-reliability-harness.md).
+  // Final claim-audit model — should be a stronger, DIFFERENT-family model than
+  // chatModel (cross-family independence, same rationale as curationClusterModels).
+  // Empty = model verification off; deterministic checks still run.
+  chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
+  // Escalation-only recovery model; chat-tier is fine (recovery planning is
+  // easier than verification). Empty = advisor off.
+  chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
+  // Deterministic checks (free, pure code) — independent of the model slots.
+  chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
+  // Evidence digest budget for the final audit, newest-round-first.
+  chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
+  // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
+  chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
+  // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
+  // blocks on the advisor). Smoke testing showed chat-tier models can need >5s
+  // for the recovery JSON, so this is env-tunable per deployed advisor model.
+  chatAdvisorTimeoutMs: Number(process.env.CHAT_ADVISOR_TIMEOUT_MS ?? 8000),
+
+  // Per-turn model routing (rules-based — src/server/model-router.ts). Each slot
+  // is a CSV: first entry = primary model, rest = OpenRouter fallback models
+  // tried in order on provider failure. Unset tier slots inherit chatModel +
+  // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL
+  // behaves exactly as before.
+  chatModelFast: (process.env.CHAT_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  // Fallbacks for the default chain (also inherited by unset tiers).
+  chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum
   // reaches the limit, /api/chat returns 429 until enough usage ages out.

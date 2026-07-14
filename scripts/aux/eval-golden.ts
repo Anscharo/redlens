@@ -9,6 +9,9 @@
 //   pnpm eval:golden               run the full set
 //   pnpm eval:golden --only <id>   run one fixture (repeatable)
 //   pnpm eval:golden --json        machine-readable output only (still writes the report file)
+//   pnpm eval:golden --save-evidence   also write .cache/eval-evidence/<id>.json
+//     ({question, answer, evidence}) per PASSING run — the verifier eval's
+//     input corpus (pnpm eval:verifier mutates these saved turns)
 //
 // Requires: public/docs.json + graph.json (pnpm build:index / build:graph) and
 // OPENROUTER_API_KEY. Postgres-backed tools (atlas_history_stats, atlas_pr,
@@ -24,6 +27,7 @@ import { loadIndexes } from "../../src/server/indexes.ts";
 import { buildSystemPrompt } from "../../src/server/system-prompt.ts";
 import { runChat, type ChatEvent } from "../../src/server/chat-loop.ts";
 import { openrouterStream } from "../../src/server/llm.ts";
+import { evidenceFromTranscript } from "../../src/server/verifier.ts";
 import { config } from "../../src/server/config.ts";
 import { GOLDEN_QUESTIONS } from "./eval-golden-questions.ts";
 import { gradeAnswer, type GoldenGradeResult } from "./eval-golden-grade.ts";
@@ -33,6 +37,8 @@ const REPORT_PATH = path.join(ROOT, ".cache", "eval-golden.json");
 
 const argv = process.argv.slice(2);
 const JSON_ONLY = argv.includes("--json");
+const SAVE_EVIDENCE = argv.includes("--save-evidence");
+const EVIDENCE_DIR = path.join(ROOT, ".cache", "eval-evidence");
 const ONLY = new Set(
   argv.flatMap((a, i) => (a === "--only" && argv[i + 1] ? [argv[i + 1]] : [])),
 );
@@ -85,6 +91,16 @@ const runs: RunRecord[] = await Promise.all(
       const answer = done?.content ?? "";
       const toolCalls = (done?.toolCalls ?? []).map((c) => ({ name: c.name, ok: c.ok, truncated: c.truncated }));
       const grade = gradeAnswer(q, answer, toolCalls);
+
+      // Verifier-eval corpus: only passing runs are saved (a mutation of a
+      // failing answer wouldn't isolate the verifier's catch rate).
+      if (SAVE_EVIDENCE && grade.passed && done) {
+        fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
+        fs.writeFileSync(
+          path.join(EVIDENCE_DIR, `${q.id}.json`),
+          JSON.stringify({ id: q.id, question: q.query, answer, evidence: evidenceFromTranscript(done.transcript) }, null, 2),
+        );
+      }
 
       if (!JSON_ONLY) {
         const mark = grade.passed ? "PASS" : "FAIL";

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type ToolCallRecord } from "./api";
+import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 
 export interface TraceRow {
@@ -9,6 +9,15 @@ export interface TraceRow {
   bytes: number | null;
 }
 
+// Reliability-harness verdict for one assistant message. "checking" while the
+// audit is in flight; "revised" when the answer was replaced after escalation.
+export interface VerifyState {
+  status: VerifyOverall | "checking" | "revised";
+  claims: VerifyClaim[];
+  invalidCitations: string[];
+  ungroundedQuotes: string[];
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -16,6 +25,8 @@ export interface ChatMsg {
   rounds: number;
   sources: ToolCallRecord[]; // authoritative tool calls from `done`
   done: boolean;
+  verify?: VerifyState;
+  statusLine?: string | null; // transient harness status ticker (streaming only)
 }
 
 export interface SendResult {
@@ -70,7 +81,28 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           convIdRef.current = ev.conversationId;
           break;
         case "token":
-          patchLast((m) => ({ ...m, content: m.content + ev.text }));
+          // Answer is streaming — the status ticker yields to the live text.
+          patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
+          break;
+        case "status":
+          patchLast((m) => ({
+            ...m,
+            statusLine: ev.detail ?? `${ev.stage}…`,
+            ...(ev.stage === "checking" && !m.verify
+              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], ungroundedQuotes: [] } }
+              : {}),
+          }));
+          break;
+        case "verify_result":
+          patchLast((m) => ({
+            ...m,
+            verify: {
+              status: ev.action === "revised" ? "revised" : ev.overall,
+              claims: ev.claims,
+              invalidCitations: ev.invalidCitations,
+              ungroundedQuotes: ev.ungroundedQuotes,
+            },
+          }));
           break;
         case "clear":
           // The round just streamed turned out to be a tool round — discard
@@ -103,6 +135,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             content: ev.content, // authoritative final answer
             sources: ev.toolCalls,
             done: true,
+            statusLine: null,
+            // A "checking" chip that never resolved (verifier off/failed
+            // silently) must not spin forever.
+            ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
           }));
           break;
         case "error":

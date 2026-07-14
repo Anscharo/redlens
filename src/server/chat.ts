@@ -9,8 +9,9 @@ import type OpenAI from "openai";
 import { sql } from "./db.ts";
 import { getIndexes } from "./indexes.ts";
 import { getSessionUser } from "./session.ts";
-import { getModel, openrouterStream } from "./llm.ts";
-import { runChat, type ChatEvent } from "./chat-loop.ts";
+import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
+import { routeTier, resolveTierModels } from "./model-router.ts";
+import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { getWindowUsage } from "./rate-limit.ts";
 
@@ -111,18 +112,46 @@ export async function handleChat(req: Request): Promise<Response> {
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
+  // Per-turn tier routing (rules-based, free): pick the model chain before any
+  // LLM work. Follow-up turns (an assistant reply already in history) never
+  // route fast on brevity alone — see model-router.ts.
+  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
+  const models = resolveTierModels(route.tier);
+
   const startedAt = Date.now();
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (e: ChatEvent | { type: string; [k: string]: unknown }) =>
+      const send = (e: { type: string }) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-      send({ type: "meta", conversationId: convId });
+      send({ type: "meta", conversationId: convId, tier: route.tier });
       try {
-        let done: Extract<ChatEvent, { type: "done" }> | null = null;
-        for await (const ev of runChat({ ix, messages, stream: openrouterStream, signal: req.signal })) {
-          send(ev);
-          if (ev.type === "done") done = ev;
+        let done: HarnessDone | null = null;
+        // PostHog AI observability: one trace per turn (fresh id, conversation id as
+        // a filterable property), attributed to the signed-in user. The SAME obs
+        // feeds the answer stream AND the harness jsonCall (verifier/advisor), so
+        // every generation of the turn lands in one trace. No-op when POSTHOG_KEY is
+        // unset (both factories fall back to the plain client).
+        const obs = {
+          distinctId: userId,
+          traceId: crypto.randomUUID(),
+          properties: { conversation_id: convId, chat_tier: route.tier, chat_route_reason: route.reason },
+        };
+        const chatStream = makeOpenrouterStream(obs, models);
+        // runVerifiedChat = runChat wrapped in the reliability harness (status
+        // events, deterministic checks, verifier audit, advisor escalation —
+        // model slots are env-gated, unset = pass-through). done carries the
+        // internal transcript/checksMeta; sanitizeDone strips them off the wire.
+        for await (const ev of runVerifiedChat({
+          ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
+          question: body.message, signal: req.signal,
+        })) {
+          if (ev.type === "done") {
+            done = ev as HarnessDone;
+            send(sanitizeDone(done));
+          } else {
+            send(ev);
+          }
         }
         // Don't persist an empty assistant row for an aborted turn.
         if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt);
@@ -143,20 +172,38 @@ export async function handleChat(req: Request): Promise<Response> {
   return new Response(stream, { headers });
 }
 
-async function persistAssistant(convId: string, done: Extract<ChatEvent, { type: "done" }>, latencyMs: number): Promise<void> {
+async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
-  await sql`
+  const inserted = (await sql`
     INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
     VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
             ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
-  `;
+    RETURNING id
+  `) as { id: string }[];
+  await persistChecks(inserted[0].id, done.checksMeta ?? []);
+
+  // Harness (verifier/advisor) tokens count toward the conversation totals and
+  // the rate-limit window (via message_checks) — never toward the messages row,
+  // which stays conversationalist-only so the two sums don't double-count.
+  const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
+  const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
   await sql`
     UPDATE conversations
-    SET total_input_tokens = total_input_tokens + ${done.usage.input},
-        total_output_tokens = total_output_tokens + ${done.usage.output},
+    SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
+        total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
         query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
         updated_at = now()
     WHERE id = ${convId}
   `;
+}
+
+async function persistChecks(messageId: string, rows: CheckRowMeta[]): Promise<void> {
+  for (const r of rows) {
+    await sql`
+      INSERT INTO message_checks (message_id, kind, model, action, verdict, overall, input_tokens, output_tokens, generation_id, latency_ms)
+      VALUES (${messageId}, ${r.kind}, ${r.model}, ${r.action}, ${r.verdict ?? null}::jsonb, ${r.overall},
+              ${r.inputTokens}, ${r.outputTokens}, ${r.generationId}, ${r.latencyMs})
+    `;
+  }
 }

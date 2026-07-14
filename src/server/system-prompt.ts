@@ -64,7 +64,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "- `atlas_history_stats` — summarize Atlas history by month/quarter; use for trend, timeline, and coverage-window questions.",
     "- `atlas_first_seen` — bulk 'since when' lookup for entity slugs / doc ids, derived from atlas_history. Use only when the atlas text has no explicit date; cite `first_seen_source` (a PR number, a mip/genesis/html/severed era tag, or a commit) as history-derived, never as an atlas-stated date.",
     "- `atlas_describe` — re-inspect the live schema (types, edge kinds, entity slugs) if you need exact vocabulary for a filter.",
-    `You may call tools up to ${config.chatMaxIterations} rounds. Plan the call, read results, then answer.`,
+    `You may call tools up to ${config.chatMaxIterations} rounds, but most questions need far fewer: a question about a single document usually needs exactly ONE atlas_query (or atlas_get) — answer immediately once you have the evidence. Plan the call, read results, then answer. Do not keep searching for confirmation the evidence already provides.`,
     "",
     "## Reporting vs. ruling",
     "For eligibility, payment-rate, or dispute questions: cite the governing atlas rule text and its provenance, present competing readings if the text is ambiguous, and say plainly when the atlas is silent. Never issue a facilitator or governance ruling yourself — say that the relevant facilitator or governance process must decide. You report what the atlas says; you do not adjudicate.",

@@ -4,8 +4,14 @@
 // prefixing each process's output with a colored [server] / [vite] label so the
 // interleaved logs in `pnpm dev` are distinguishable. FORCE_COLOR keeps each
 // tool's own colors alive even though we pipe their stdio through here.
+import { existsSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { preflight } from "./dev-preflight.mjs";
+
+// The Bun children auto-load .env.local, but this Node runner does not — so pull
+// it into process.env here too, letting the CHAT_ENABLED knob live in .env.local
+// (not just an inline shell prefix). A missing file is fine.
+if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 await preflight();
 
