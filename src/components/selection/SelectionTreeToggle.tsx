@@ -16,7 +16,7 @@ import { SaveCollectionModal } from "./SaveCollectionModal";
 // is hidden. Always hidden in preview (PreviewTreeToggle owns this slot).
 export function SelectionTreeToggle() {
   const { preview } = useDataSource();
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const {
     ids,
     selectionMode,
@@ -39,7 +39,7 @@ export function SelectionTreeToggle() {
   return (
     <div className={TREE_TOGGLE_BAR_CLASS} style={TREE_TOGGLE_BAR_STYLE}>
       <button
-        className="px-2 py-0.5 rounded"
+        className="px-2 py-0.5 rounded shrink-0"
         style={togglePillStyle(!selectedOnly, "var(--tan)")}
         onClick={() => {
           track("selection_view_toggle", { view: "all", count });
@@ -52,7 +52,7 @@ export function SelectionTreeToggle() {
       {count > 0 && (
         <>
           <button
-            className={`px-2 py-0.5 rounded flex items-center gap-1 min-w-0${activeCollectionName ? " max-w-[14ch]" : ""}`}
+            className="px-2 py-0.5 rounded flex items-center gap-1 min-w-0"
             style={togglePillStyle(selectedOnly, "#fff")}
             title={activeCollectionName ?? undefined}
             onClick={() => {
@@ -60,12 +60,14 @@ export function SelectionTreeToggle() {
               setSelectedOnly(true);
             }}
           >
+            {/* Name yields first (truncates) when the row is cramped; on a wide
+                sidebar it shows in full — no fixed cap, just flex shrink. */}
             <span className="truncate min-w-0">{activeCollectionName ?? "Selected"}</span>
             <span className="shrink-0">· {count}</span>
           </button>
           <button
             type="button"
-            className="px-1 py-0.5 rounded text-tan-3 hover:text-tan"
+            className="px-1 py-0.5 rounded text-tan-3 hover:text-tan shrink-0"
             title="Clear selection"
             aria-label="Clear selection"
             onClick={() => {
@@ -93,7 +95,7 @@ export function SelectionTreeToggle() {
       {count > 0 && usersEnabled() && (
         <button
           type="button"
-          className="px-1 py-0.5 rounded text-tan-3 hover:text-tan"
+          className="px-1 py-0.5 rounded text-tan-3 hover:text-tan shrink-0"
           title="Save as collection"
           aria-label="Save as collection"
           onClick={() => {
@@ -109,12 +111,30 @@ export function SelectionTreeToggle() {
         </button>
       )}
 
+      {/* Jump to the full Collections page (a users feature, same gate as save). */}
+      {usersEnabled() && (
+        <button
+          type="button"
+          className="px-1 py-0.5 rounded text-tan-3 hover:text-tan shrink-0"
+          title="Open collections"
+          aria-label="Open collections"
+          onClick={() => {
+            track("collections_open_nav", {});
+            navigate(ROUTES.COLLECTIONS);
+          }}
+        >
+          <svg width="13" height="12" viewBox="0 0 13 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
+            <path d="M1 2.5 h3.5 l1 1.5 h6 v6.5 h-10.5 z" />
+          </svg>
+        </button>
+      )}
+
       {/* Selection-mode toggle — a checkbox mirroring the per-document ones, so
           its meaning ("show the checkboxes") reads at a glance. Reader-only: it's
           the entry point to selecting, which only makes sense while reading. */}
       {inReader && (
         <label
-          className="atlas-node-select"
+          className="atlas-node-select shrink-0"
           title={selectionMode ? "Turn off selection mode" : "Turn on selection mode (show checkboxes)"}
           aria-label="Selection mode"
         >
