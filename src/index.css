@@ -417,6 +417,11 @@ mark {
   cursor: pointer;
   opacity: 0.35;
   transition: opacity 0.12s;
+  /* Below the sticky selected node (.atlas-node.is-selected, z-index 2) so a
+     row's checkbox is occluded as it scrolls under the pinned selected doc,
+     instead of poking through its solid fill. The selected node's own checkbox
+     still shows: that whole article is z-index 2, and this stacks inside it. */
+  z-index: 1;
 }
 .atlas-node-select:hover,
 .atlas-node-select:has(input:checked) {
