@@ -3,6 +3,7 @@ import { useDataSource } from "../../lib/dataSource";
 import { useSelection } from "../../lib/selection";
 import { track } from "../../lib/analytics";
 import { TREE_TOGGLE_BAR_CLASS, TREE_TOGGLE_BAR_STYLE, togglePillStyle } from "../tree/togglePill";
+import { usersEnabled } from "../../lib/usersEnabled";
 import { SaveCollectionModal } from "./SaveCollectionModal";
 
 // Always-visible bar above the tree (live reader). "All" is always shown; once
@@ -70,7 +71,7 @@ export function SelectionTreeToggle() {
       {/* Saving needs the auth + collections backend, which only exists when
           logins are enabled. In static builds hide the affordance rather than
           offer a sign-in that dead-ends at a disabled /api/auth. */}
-      {count > 0 && __USERS_ENABLED__ && (
+      {count > 0 && usersEnabled() && (
         <button
           type="button"
           className="px-1 py-0.5 rounded text-tan-3 hover:text-tan"
