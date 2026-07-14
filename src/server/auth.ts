@@ -116,7 +116,11 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
       const email = await resolveEmail(gh, token);
       const user = await upsertUser("github", String(gh.id), email, gh.name ?? gh.login, gh.avatar_url);
       return redirect(`${config.appUrl}/`, [sessionCookie(await signSession(user)), clearStateCookie()]);
-    } catch {
+    } catch (err) {
+      // Log the real cause — otherwise the opaque 400 hides redirect-URI /
+      // client-secret mismatches and DB errors. Callback URI in play:
+      // `${config.appUrl}/api/auth/github/callback` (must match the OAuth app).
+      console.error("github oauth callback failed:", err);
       return json({ error: "oauth_exchange_failed" }, 400, [clearStateCookie()]);
     }
   }
@@ -162,7 +166,10 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
         claims.picture ?? null,
       );
       return redirect(`${config.appUrl}/`, [sessionCookie(await signSession(user)), ...clear]);
-    } catch {
+    } catch (err) {
+      // See the github/callback note — surface the real cause in the logs.
+      // Callback URI: `${config.appUrl}/api/auth/google/callback`.
+      console.error("google oauth callback failed:", err);
       return json({ error: "oauth_exchange_failed" }, 400, clear);
     }
   }
