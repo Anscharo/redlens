@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
 import { SignInButtons } from "./SignInButtons";
+import { Link } from "../Link";
 
 // NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
 // provider choice (GitHub / Google), both routing through the shared openAuth.
@@ -68,10 +69,10 @@ export function ProfileButton() {
                 <span className="text-tan-3">→</span>
               </button>
               <div className="border-t border-border" />
-              <a className="rlc-menu-item" href="/collections">
+              <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
                 <span>Collections</span>
                 <span className="text-tan-3">→</span>
-              </a>
+              </Link>
               <div className="border-t border-border" />
               <button
                 className="rlc-menu-item"
