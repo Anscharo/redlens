@@ -667,11 +667,9 @@ button.atlas-node-expand-all:focus-visible {
   border-color: var(--tan);
 }
 
-/* Owning-agent pill: sits on its own line under an expanded row's colored doc
-   number, to the left of the content — a tan agent marker. */
-.atlas-agent-pill-row {
-  margin: 4px 0 2px;
-}
+/* Owning-agent pill: sits in the left gutter beside an expanded row's content,
+   aligned under the colored doc number and never wider than it — a tan agent
+   marker. */
 .atlas-agent-pill {
   font-family: "Source Code Pro", "Courier New", monospace;
   font-size: 10px;

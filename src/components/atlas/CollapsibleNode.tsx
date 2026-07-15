@@ -263,11 +263,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </HeadingTag>
         </div>
       </div>
-      {isExpanded && agentName && (
-        <div className="atlas-agent-pill-row pl-3">
-          <span className="atlas-agent-pill">{agentName}</span>
-        </div>
-      )}
       {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
       {/* In selected-only mode the reader shows a flat list that ignores depth-6
@@ -297,12 +292,28 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </svg>
         </button>
       )}
-      {isExpanded && hasContent && (
-        <div
-          className="atlas-node-body"
-          style={{ marginLeft: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length }}
-        >
-          <NodeContent content={node.content} onNavigate={navigate} />
+      {isExpanded && (hasContent || agentName) && (
+        <div className="flex items-start">
+          {/* Left gutter: the owning-agent pill, aligned under the doc-number
+              chiclets and never wider than them — a long name wraps to further
+              (centered) lines within that width. The column reserves the full
+              doc-number indent so the body keeps the exact left edge it had with
+              no pill. */}
+          <div
+            className="shrink-0 pl-3"
+            style={{ width: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length, marginTop: 4.5 }}
+          >
+            {agentName && (
+              <span className="atlas-agent-pill" style={{ maxWidth: CHICLET_W * docNoParts.length }}>
+                {agentName}
+              </span>
+            )}
+          </div>
+          {hasContent && (
+            <div className="atlas-node-body flex-1 min-w-0" style={{ marginLeft: 0 }}>
+              <NodeContent content={node.content} onNavigate={navigate} />
+            </div>
+          )}
         </div>
       )}
     </article>
