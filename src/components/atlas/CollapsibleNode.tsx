@@ -21,6 +21,9 @@ const DRAG_THRESHOLD_PX = 4;
 // width — keep in sync with index.css).
 const TITLE_TEXT_OFFSET = 69;
 const CHICLET_W = 15;
+// gap-2 (8) + the toggle chevron (14): the agent pill may extend past the doc
+// numbers to also cover the chevron column, giving a slightly wider cap.
+const CHEVRON_W = 22;
 
 const TITLE_CLASS = "text-lg font-bold";
 
@@ -302,7 +305,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             style={{ width: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length, marginTop: 4.5 }}
           >
             {agentName && (
-              <span className="atlas-agent-pill" style={{ maxWidth: CHICLET_W * docNoParts.length }}>
+              <span className="atlas-agent-pill" style={{ maxWidth: CHICLET_W * docNoParts.length + CHEVRON_W }}>
                 {agentName}
               </span>
             )}

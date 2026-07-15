@@ -3,6 +3,14 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import { buildAncestors } from "./atlasHelpers";
 
+// Shorten long owning-agent names for the compact reader pill: "Executor" is the
+// worst offender, so abbreviate it to "Exec." (e.g. "Core Council Executor
+// Agent 1" → "Core Council Exec. Agent 1"). Applied at the owning-agent layer so
+// every pill fed from here stays consistent.
+export function abbreviateAgentName(name: string): string {
+  return name.replace(/\bExecutor\b/g, "Exec.");
+}
+
 // The agent (prime or executor) whose subtree a doc lives under, or null.
 // Every agent is a graph participant (et === "agent") whose `did` is its root
 // doc; a doc is "under" it when that root doc is one of the doc's ancestors.
@@ -25,7 +33,7 @@ export function findOwningAgent(
   const ancestors: AtlasNode[] = buildAncestors(atlas.docs, atlas.docNoToId, targetId);
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const name = nameByDoc.get(ancestors[i].id);
-    if (name) return name;
+    if (name) return abbreviateAgentName(name);
   }
   return null;
 }
@@ -52,7 +60,7 @@ export function buildOwningAgentMap(
     for (let i = ancestors.length - 1; i >= 0; i--) {
       const name = nameByDoc.get(ancestors[i].id);
       if (name) {
-        map.set(id, name);
+        map.set(id, abbreviateAgentName(name));
         break;
       }
     }
