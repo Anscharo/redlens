@@ -16,6 +16,7 @@ import {
   type ProcessRow,
 } from "../../lib/processesIndex";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
 import { useLocalIgnores } from "../../hooks/useLocalIgnores";
 import { NodeContent } from "../NodeContent";
 import { DownloadCsvButton } from "./DownloadCsvButton";
@@ -223,6 +224,8 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
   useDocumentTitle("Atlas Processes: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const processes = useLoaded(loadProcesses);
+  // Curated explorer URLs for addresses in process docs on direct visits.
+  useHydrateAddressMap();
 
   const [statusFilter, setStatusFilter] = useUrlState("status", statusCodec);
   const [shapeFilter, setShapeFilter] = useUrlState("shape", shapeCodec);
