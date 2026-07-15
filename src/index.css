@@ -681,7 +681,16 @@ button.atlas-node-expand-all:focus-visible {
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.4;
-  white-space: nowrap;
+  /* Never exceed the reader column: hug the name on one line, but cap at the
+     available width and wrap to a second (balanced, centered) line when the name
+     is too long. `balance` evens the two lines; `overflow-wrap: anywhere` keeps
+     a single very long token from spilling past the edge. */
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .atlas-copy-btn {
