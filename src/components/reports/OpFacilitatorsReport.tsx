@@ -200,6 +200,10 @@ export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
             filename="op-facilitator-responsibilities.csv"
             rowCount={filtered.length}
             build={() => facilitatorRowsToCSV(filtered)}
+            fullRowCount={responsibilities.length}
+            buildFull={() => facilitatorRowsToCSV(responsibilities)}
+            query={query}
+            filters={[filterName, cat]}
           />
         </div>
 

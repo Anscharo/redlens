@@ -70,6 +70,54 @@ export function displayQuery(raw: string): string {
   return wrapped(t, '"') ?? wrapped(t, "'") ?? t;
 }
 
+/**
+ * Whether the header text query or any pill filter is currently active — the
+ * same predicate FilterSummary uses to decide whether to render. Drives the
+ * visibility of the "Download filtered report" button.
+ */
+export function hasActiveFilter(
+  query: string,
+  filters: (string | false | null | undefined)[] = [],
+): boolean {
+  return !!displayQuery(query).trim() || filters.some(Boolean);
+}
+
+/**
+ * The filename for a report's *filtered* CSV export: the base name with a
+ * best-effort marker of the active query + filter labels inserted before the
+ * extension (`active-data-index.csv` → `active-data-index.spark-vote.csv`), so
+ * the filtered download is distinguishable on disk from the full one. Falls
+ * back to `.filtered` when nothing slug-able is active.
+ */
+export function filteredExportName(
+  filename: string,
+  query: string,
+  filters: (string | false | null | undefined)[] = [],
+): string {
+  const parts = [displayQuery(query).trim(), ...filters.filter((f): f is string => !!f)];
+  const slug =
+    parts
+      .join(" ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40)
+      .replace(/-+$/g, "") || "filtered";
+  return insertBeforeExt(filename, slug);
+}
+
+/**
+ * Insert a (slug-safe) `marker` before the filename's extension:
+ * `report.csv` + `abc123` → `report.abc123.csv`. A blank marker is a no-op, and
+ * a filename with no extension gets the marker appended.
+ */
+export function insertBeforeExt(filename: string, marker: string): string {
+  if (!marker) return filename;
+  return /(\.[^.]+)$/.test(filename)
+    ? filename.replace(/(\.[^.]+)$/, `.${marker}$1`)
+    : `${filename}.${marker}`;
+}
+
 // ---------------------------------------------------------------------------
 // Field-level matching. Each report describes its haystack as labelled fields
 // with a `hidden` flag, so the UI can explain WHY a row matched: needles that

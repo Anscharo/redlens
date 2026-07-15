@@ -1,31 +1,76 @@
 import { track } from "../../lib/analytics";
 import { downloadCSV } from "../../lib/csv";
+import { filteredExportName, hasActiveFilter, insertBeforeExt } from "../../lib/reportFilter";
+import { liveAtlasSha } from "../../lib/atlasBase";
+import { useDataSource } from "../../lib/dataSource";
 
-// Shared "Download CSV" control for the /reports/* pages. `build` is a thunk so
-// the (potentially large) CSV string is only assembled on click, never on
-// render. Disabled — and a no-op — when there are no rows to export.
+type FilterVal = string | false | null | undefined;
+
+const BTN_CLASS =
+  "mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap";
+
+// CSV downloads for the /reports/* pages. Two controls:
+//   • "Download full report" — always visible, always exports the full
+//     (unfiltered) dataset, regardless of any active search/filters.
+//   • "Download filtered report" — shown only while a search or filter is
+//     active; exports the currently visible rows (the old single-button
+//     behavior). Its file name carries a best-effort marker of the active
+//     query/filters so the two downloads are distinguishable on disk.
+// `build`/`buildFull` are thunks so the (potentially large) CSV string is only
+// assembled on click, never on render. `query`/`filters` are the same values
+// the report hands <FilterSummary>, so button visibility stays in sync with the
+// on-screen filter callout.
 export function DownloadCsvButton({
   report,
   filename,
   rowCount,
   build,
+  fullRowCount,
+  buildFull,
+  query,
+  filters = [],
 }: {
   report: string; // analytics slug, e.g. "oea-assessment"
   filename: string; // downloaded file name, e.g. "oea-task-assessment.csv"
-  rowCount: number; // rows the export will contain (the filtered view)
-  build: () => string; // returns the CSV text; called only on click
+  rowCount: number; // rows in the filtered view
+  build: () => string; // filtered CSV text; called only on click
+  fullRowCount: number; // rows in the full (unfiltered) dataset
+  buildFull: () => string; // full CSV text; called only on click
+  query: string; // active header-box query
+  filters?: FilterVal[]; // active pill filters (labels), matching FilterSummary
 }) {
+  const filtering = hasActiveFilter(query, filters);
+  // Tag every download with the atlas version it was taken from, so a saved CSV
+  // is traceable to a specific atlas commit (preview sha when in preview mode,
+  // else the live injected sha; omitted in dev/cold boot where no sha exists).
+  const { preview } = useDataSource();
+  const sha = preview?.sha ?? liveAtlasSha();
+  const download = (scope: "full" | "filtered", count: number, builder: () => string) => {
+    track("report_export", { report, format: "csv", row_count: count, scope });
+    const base = scope === "filtered" ? filteredExportName(filename, query, filters) : filename;
+    const name = insertBeforeExt(base, sha ? sha.slice(0, 8) : "");
+    downloadCSV(name, builder());
+  };
   return (
-    <button
-      type="button"
-      onClick={() => {
-        track("report_export", { report, format: "csv", row_count: rowCount });
-        downloadCSV(filename, build());
-      }}
-      disabled={rowCount === 0}
-      className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap self-start"
-    >
-      Download CSV
-    </button>
+    <div className="flex items-center gap-2 self-start">
+      {filtering && (
+        <button
+          type="button"
+          onClick={() => download("filtered", rowCount, build)}
+          disabled={rowCount === 0}
+          className={BTN_CLASS}
+        >
+          Download filtered report
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => download("full", fullRowCount, buildFull)}
+        disabled={fullRowCount === 0}
+        className={BTN_CLASS}
+      >
+        Download full report
+      </button>
+    </div>
   );
 }

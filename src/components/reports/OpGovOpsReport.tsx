@@ -206,6 +206,10 @@ export function OGReport({ query, mode }: { query: string; mode: ReportMode }) {
             filename="op-govops-responsibilities.csv"
             rowCount={filtered.length}
             build={() => govopsRowsToCSV(filtered)}
+            fullRowCount={responsibilities.length}
+            buildFull={() => govopsRowsToCSV(responsibilities)}
+            query={query}
+            filters={[filterName, cat]}
           />
         </div>
 

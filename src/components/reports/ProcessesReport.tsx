@@ -393,7 +393,16 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
               report="processes"
               filename="atlas-processes.csv"
               rowCount={filtered.length}
-              build={() => processRowsToCSV(filtered)}
+              build={() => processRowsToCSV(filtered, ignoresByUuid)}
+              fullRowCount={rows.length}
+              buildFull={() => processRowsToCSV(rows, ignoresByUuid)}
+              query={query}
+              filters={[
+                categoryFilter,
+                statusFilter !== "all" && statusFilter,
+                shapeFilter !== "all" && shapeFilter,
+                showIgnored && "show ignored",
+              ]}
             />
           </div>
         )}

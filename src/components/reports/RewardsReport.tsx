@@ -208,6 +208,9 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
               filename="integrator-reward-relationships.csv"
               rowCount={countIcds(shownAgents)}
               build={() => rewardsIndexToCSV({ ...idx, agents: shownAgents })}
+              fullRowCount={countIcds(idx.agents)}
+              buildFull={() => rewardsIndexToCSV(idx)}
+              query={query}
             />
           </div>
         )}

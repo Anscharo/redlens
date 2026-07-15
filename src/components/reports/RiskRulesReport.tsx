@@ -175,6 +175,15 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
               filename="risk-rules-assessment.csv"
               rowCount={filtered.length}
               build={() => riskRowsToCSV(filtered)}
+              fullRowCount={join.rows.length}
+              buildFull={() => riskRowsToCSV(join.rows)}
+              query={query}
+              filters={[
+                ...domains.map((d) => RISK_DOMAIN_LABELS[d]),
+                score,
+                enforce,
+                status,
+              ]}
             />
           </div>
         )}

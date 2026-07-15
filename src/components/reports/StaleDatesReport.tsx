@@ -159,13 +159,16 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
           )}
         </p>
         <FilterSummary query={query} searches={STALE_SEARCHES} />
-        {csvReport && (
+        {csvReport && report && (
           <div className="flex justify-end mb-4">
             <DownloadCsvButton
               report="stale-dates"
               filename="stale-dates.csv"
               rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
               build={() => staleDatesToCSV(csvReport)}
+              fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
+              buildFull={() => staleDatesToCSV(report)}
+              query={query}
             />
           </div>
         )}

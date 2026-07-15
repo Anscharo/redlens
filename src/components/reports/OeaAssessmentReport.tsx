@@ -134,6 +134,10 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
               filename="oea-task-assessment.csv"
               rowCount={shown.length}
               build={() => oeaRowsToCSV(shown)}
+              fullRowCount={rows.length}
+              buildFull={() => oeaRowsToCSV(rows)}
+              query={query}
+              filters={[cat, status, precision, incentives]}
             />
           </div>
         )}

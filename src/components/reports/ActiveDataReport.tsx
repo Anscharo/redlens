@@ -230,6 +230,10 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
             filename="active-data-index.csv"
             rowCount={shown.length}
             build={() => activeDataRowsToCSV(shown, lastEditDates)}
+            fullRowCount={rows.length}
+            buildFull={() => activeDataRowsToCSV(rows, lastEditDates)}
+            query={query}
+            filters={[agentFilter, entityFilter]}
           />
         </div>
 
