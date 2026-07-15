@@ -31,6 +31,8 @@ export function RightPanel({
   onNavigateByDocNo,
   tab,
   onTabChange,
+  selectedIds,
+  onRelatedSelect,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
@@ -44,6 +46,8 @@ export function RightPanel({
   onNavigateByDocNo: (docNo: string) => void;
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
+  selectedIds?: Set<string>;
+  onRelatedSelect?: (id: string, shiftKey: boolean) => void;
 }) {
   const { preview } = useDataSource();
 
@@ -126,7 +130,13 @@ export function RightPanel({
                   linked documents · {linkedNodes.length}
                 </p>
                 {linkedNodes.map((node) => (
-                  <RelatedNode key={node.id} node={node} onNavigate={navLinked} />
+                  <RelatedNode
+                    key={node.id}
+                    node={node}
+                    onNavigate={navLinked}
+                    selected={selectedIds?.has(node.id)}
+                    onSelect={onRelatedSelect}
+                  />
                 ))}
               </section>
             ) : null}
@@ -146,6 +156,8 @@ export function RightPanel({
                       node={node}
                       eyebrow={<span className="atlas-agent-pill">{agent}</span>}
                       onNavigate={navCousin}
+                      selected={selectedIds?.has(node.id)}
+                      onSelect={onRelatedSelect}
                     />
                   ))}
                 </div>

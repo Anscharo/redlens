@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Breadcrumbs } from "../Breadcrumbs";
 import { Loading } from "../Loading";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { AtlasReader } from "./AtlasReader";
 import { AtlasAnnotations } from "./AtlasAnnotations";
+import { collectSubtree } from "./useExpandAll";
+import { useSelection } from "../../lib/selection";
 import { DrawerToggle } from "../Drawer";
 import { useAtlasData, useLoaded } from "../../hooks/useAtlasData";
 import { useAtlasSelection } from "../../hooks/useAtlasSelection";
@@ -69,6 +71,18 @@ export function AtlasView({
     [data, graph, preview],
   );
 
+  // Selection checkboxes on the annotations-panel cards mirror the reader's:
+  // plain click toggles the doc, shift-click adds it + all descendants.
+  const { ids: selectedIds, toggleDoc, selectSubtree } = useSelection();
+  const onRelatedSelect = useCallback(
+    (nid: string, shift: boolean) => {
+      if (!data) return;
+      if (shift) selectSubtree(collectSubtree(data.atlas.byParent, nid));
+      else toggleDoc(nid);
+    },
+    [data, toggleDoc, selectSubtree],
+  );
+
   if (!data) {
     return <Loading />;
   }
@@ -118,6 +132,8 @@ export function AtlasView({
                 const uuid = data.atlas.docNoToId.get(docNo);
                 if (uuid) onNavigate(uuid);
               }}
+              selectedIds={selectedIds}
+              onRelatedSelect={preview ? undefined : onRelatedSelect}
             />
           )}
         </div>
