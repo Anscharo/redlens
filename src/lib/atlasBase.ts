@@ -22,6 +22,12 @@ export function liveAtlasBase(): string {
   return sha && SHA_RE.test(sha) ? `/api/atlas/${sha}/` : import.meta.env.BASE_URL;
 }
 
+/** The validated live atlas sha, or null when absent/invalid (dev, cold boot). */
+export function liveAtlasSha(): string | null {
+  const sha = typeof window !== "undefined" ? window.__ATLAS_SHA__ : undefined;
+  return sha && SHA_RE.test(sha) ? sha : null;
+}
+
 // Force-forward on a stale sha. A 404 on a sha-keyed URL means the pinned sha was
 // pruned; reload once — the fresh no-cache HTML carries the new sha and the app
 // re-fetches the new immutable URLs. We deliberately never serve a stale sha or

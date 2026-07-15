@@ -103,7 +103,19 @@ export function filteredExportName(
       .replace(/^-+|-+$/g, "")
       .slice(0, 40)
       .replace(/-+$/g, "") || "filtered";
-  return filename.replace(/(\.[^.]+)$/, `.${slug}$1`);
+  return insertBeforeExt(filename, slug);
+}
+
+/**
+ * Insert a (slug-safe) `marker` before the filename's extension:
+ * `report.csv` + `abc123` → `report.abc123.csv`. A blank marker is a no-op, and
+ * a filename with no extension gets the marker appended.
+ */
+export function insertBeforeExt(filename: string, marker: string): string {
+  if (!marker) return filename;
+  return /(\.[^.]+)$/.test(filename)
+    ? filename.replace(/(\.[^.]+)$/, `.${marker}$1`)
+    : `${filename}.${marker}`;
 }
 
 // ---------------------------------------------------------------------------

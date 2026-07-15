@@ -261,14 +261,6 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
     return filterRows(base, rq, searchFields);
   }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, rq]);
 
-  // The "full report" export ignores the pill/search filters but still honors
-  // the ignored-rows gate (ignored candidates are excluded from the inventory
-  // by curation, not by an ad-hoc filter).
-  const fullRows = useMemo(
-    () => rows.filter((r) => showIgnored || !ignoresByUuid.has(r.uuid)),
-    [rows, showIgnored, ignoresByUuid],
-  );
-
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();
     for (const r of filtered) {
@@ -398,14 +390,15 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
               report="processes"
               filename="atlas-processes.csv"
               rowCount={filtered.length}
-              build={() => processRowsToCSV(filtered)}
-              fullRowCount={fullRows.length}
-              buildFull={() => processRowsToCSV(fullRows)}
+              build={() => processRowsToCSV(filtered, ignoresByUuid)}
+              fullRowCount={rows.length}
+              buildFull={() => processRowsToCSV(rows, ignoresByUuid)}
               query={query}
               filters={[
                 categoryFilter,
                 statusFilter !== "all" && statusFilter,
                 shapeFilter !== "all" && shapeFilter,
+                showIgnored && "show ignored",
               ]}
             />
           </div>
