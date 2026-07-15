@@ -74,7 +74,12 @@ function ExpandedBody({
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Precision <ScorePill s={e.preciseness} />
         </p>
-        <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} />
+        {/* Reasoning is free-form LLM prose (no atlas links), so render it
+            noMath: it carries currency and stray `$a$` spans that the reader's
+            KaTeX path would misrender, while still linkifying any addresses. */}
+        <div className="text-tan-2">
+          <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} noMath />
+        </div>
         {e.metrics.length > 0 && (
           <p className="mono text-[11px] text-tan-3 mt-1">
             metrics: {e.metrics.map((m) => (
@@ -87,7 +92,9 @@ function ExpandedBody({
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Penalties / Incentives <RatingPill r={e.enforcement} />
         </p>
-        <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} />
+        <div className="text-tan-2">
+          <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} noMath />
+        </div>
         {e.mechanismUuids.length > 0 && (
           <p className="text-xs mt-1">
             {e.mechanismUuids.map((u) => (
