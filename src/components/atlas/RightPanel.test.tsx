@@ -70,7 +70,10 @@ describe("RightPanel tablist", () => {
       annotationCount: 1,
     });
     expect(screen.getByText(/cousin documents · 1/)).toBeInTheDocument();
-    expect(screen.getByText("Grove agent")).toBeInTheDocument();
+    // Agent shown as the reader's agent pill (just the name), not "<name> agent".
+    const pill = screen.getByText("Grove");
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass("atlas-agent-pill");
   });
 });
 

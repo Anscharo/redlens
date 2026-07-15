@@ -144,7 +144,7 @@ export function RightPanel({
                     <RelatedNode
                       key={node.id}
                       node={node}
-                      eyebrow={`${agent} agent`}
+                      eyebrow={<span className="atlas-agent-pill">{agent}</span>}
                       onNavigate={navCousin}
                     />
                   ))}

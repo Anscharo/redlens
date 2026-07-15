@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type ReactNode } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { NodeContent } from "./NodeContent";
 import { atlasHref } from "../lib/routes";
@@ -12,14 +12,14 @@ export const RelatedNode = memo(function RelatedNode({
 }: {
   node: AtlasNode;
   onNavigate: (id: string) => void;
-  eyebrow?: string;
+  eyebrow?: ReactNode;
 }) {
   const color = depthColor(realDepth(node.doc_no));
 
   return (
     <div className="related-node">
       <AtlasLink to={atlasHref(node.id)} className="block no-underline mb-2">
-        {eyebrow && <p className="text-[11px] mono mb-1 text-tan-3">{eyebrow}</p>}
+        {eyebrow && <div className="mb-1">{eyebrow}</div>}
         <p className="text-sm font-semibold mb-1" style={{ color }}>{node.title}</p>
         <div className="flex items-center gap-3">
           <span className="atlas-type-pill">{node.type}</span>
