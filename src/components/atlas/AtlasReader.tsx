@@ -29,14 +29,14 @@ export function AtlasReader({
   splitId,
   onSplitChange,
   data,
-  agentName,
+  agentByDoc,
 }: {
   id: string;
   selectedId: string | null;
   splitId: string | null;
   onSplitChange: (id: string | null) => void;
   data: LoadedData;
-  agentName?: string | null;
+  agentByDoc?: Map<string, string> | null;
 }) {
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
@@ -175,7 +175,7 @@ export function AtlasReader({
             isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
             hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
             onExpandChildren={handleExpandParent}
-            agentName={entry.node.id === selectedId ? agentName : undefined}
+            agentName={agentByDoc?.get(entry.node.id)}
           />
         );
         out.push(
@@ -235,7 +235,7 @@ export function AtlasReader({
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
-          agentName={entry.node.id === selectedId ? agentName : undefined}
+          agentName={agentByDoc?.get(entry.node.id)}
         />
       );
     });
@@ -256,7 +256,7 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds, agentName]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds, agentByDoc]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }}>

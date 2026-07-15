@@ -664,9 +664,8 @@ button.atlas-node-expand-all:focus-visible {
   border-color: var(--tan);
 }
 
-/* Owning-agent pill: sits on its own line under the selected row's colored doc
-   number, to the left of the content. Accent-tinted so it reads as an agent
-   marker distinct from the neutral type pill. */
+/* Owning-agent pill: sits on its own line under an expanded row's colored doc
+   number, to the left of the content — a tan agent marker. */
 .atlas-agent-pill-row {
   margin: 4px 0 2px;
 }
@@ -676,9 +675,9 @@ button.atlas-node-expand-all:focus-visible {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--tan);
+  background: transparent;
+  border: 1px solid var(--tan);
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.4;

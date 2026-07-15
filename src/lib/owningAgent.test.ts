@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findOwningAgent } from "./owningAgent";
+import { findOwningAgent, buildOwningAgentMap } from "./owningAgent";
 import { makeNode, makeAtlasBundle, makeGraphEntity, makeGraphData } from "../test/fixtures";
 
 // Spark (prime, root A.6.1.1.1) with a nested token param; a Grove executor
@@ -40,5 +40,21 @@ describe("findOwningAgent", () => {
   it("returns null when the graph is absent (preview mode)", () => {
     const { atlas, sparkTokenParam } = fixture();
     expect(findOwningAgent(sparkTokenParam.id, atlas, null)).toBeNull();
+  });
+});
+
+describe("buildOwningAgentMap", () => {
+  it("maps every doc under an agent to its name, excluding roots and outsiders", () => {
+    const { atlas, graph, sparkRoot, sparkTokenParam, outsider } = fixture();
+    const map = buildOwningAgentMap(atlas, graph);
+    expect(map.get(sparkTokenParam.id)).toBe("Spark");
+    expect(map.get("spark-token")).toBe("Spark");
+    expect(map.has(sparkRoot.id)).toBe(false);
+    expect(map.has(outsider.id)).toBe(false);
+  });
+
+  it("is empty in preview mode (no graph)", () => {
+    const { atlas } = fixture();
+    expect(buildOwningAgentMap(atlas, null).size).toBe(0);
   });
 });

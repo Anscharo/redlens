@@ -49,7 +49,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   cradle?: "line" | "foot";
   cradleColor?: string;
   /** Owning prime/executor agent name — shown as a pill under the doc number
-   *  on the selected row. Only passed for the selected node. */
+   *  whenever the row is expanded. Undefined for docs not under an agent. */
   agentName?: string | null;
 }) {
   const { navigate, toggle, splitNavigate, expandAll, selectSubtree } = useAtlasActions();
@@ -270,7 +270,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </HeadingTag>
         </div>
       </div>
-      {isSelected && agentName && (
+      {isExpanded && agentName && (
         <div className="atlas-agent-pill-row pl-3">
           <span className="atlas-agent-pill">{agentName}</span>
         </div>
