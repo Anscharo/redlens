@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
 import { useUrlState, urlString, type UrlCodec } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -58,6 +59,8 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
+  // Curated explorer URLs for address linkification in quotes on direct visits.
+  useHydrateAddressMap();
   const [domains, setDomains] = useUrlState("domain", domainsCodec);
   const [score, setScore] = useUrlState("precision", scoreCodec);
   const [enforce, setEnforce] = useUrlState("incentives", ratingCodec);

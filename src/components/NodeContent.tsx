@@ -10,6 +10,11 @@ interface Props {
   onNavigate?: (id: string) => void;
   /** Report-search query whose matches get <mark>ed in the rendered output. */
   highlight?: ReportQuery;
+  /** Skip the KaTeX/`$…$` math path entirely, so dollar amounts and stray
+   *  single-symbol spans (`$100k`, `parameter $a$`) render as literal text.
+   *  Use for free-form, non-atlas-authored prose (e.g. LLM assessment
+   *  reasoning) that was never written with math delimiters in mind. */
+  noMath?: boolean;
 }
 
 /** Warm the markdown-renderer chunk (the CODE, distinct from the worker's doc

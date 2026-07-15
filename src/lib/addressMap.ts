@@ -1,5 +1,8 @@
-// Module-level shared address map. AtlasView calls setAddressMap() once after
-// loadAddresses() resolves; the rehype plugin in NodeContent reads from here.
+// Module-level shared address map, read synchronously by the rehypeEthAddresses
+// plugin in NodeContent to resolve curated block-explorer URLs. It's an
+// imperative singleton (not React state) because the rehype plugin runs outside
+// the component tree. Populated by the reader's useAtlasData during its data
+// load, and by report pages via useHydrateAddressMap() on direct visits.
 let SHARED_ADDRESSES: Record<string, { explorerUrl: string }> = {};
 
 export function setAddressMap(m: Record<string, { explorerUrl: string }>) {

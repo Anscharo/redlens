@@ -152,6 +152,32 @@ describe("KaTeX lazy-load retry after a failed chunk import", () => {
   });
 });
 
+describe("noMath prop", () => {
+  // Free-form prose (LLM assessment reasoning) carries currency and stray
+  // single-symbol `$…$` runs that were never authored as math. noMath skips
+  // the KaTeX path so they stay literal text, while links/addresses still work.
+  it("renders a stray $a$ span as literal text instead of math", async () => {
+    render(<NodeContentInner content="assigns 0 to parameter $a$ under a condition" noMath />);
+    expect(await screen.findByText(/parameter \$a\$ under/)).toBeInTheDocument();
+  });
+
+  it("keeps currency amounts literal", async () => {
+    render(<NodeContentInner content="a $1,000,000 cap and a $20,000 threshold" noMath />);
+    expect(await screen.findByText(/\$1,000,000 cap and a \$20,000 threshold/)).toBeInTheDocument();
+  });
+
+  it("still linkifies addresses and navigates UUID links under noMath", async () => {
+    const onNavigate = vi.fn();
+    render(<NodeContentInner content={`[node](${UUID}) at ${EVM}`} onNavigate={onNavigate} noMath />);
+    expect(await screen.findByRole("link", { name: EVM })).toHaveAttribute(
+      "href",
+      `https://etherscan.io/address/${EVM}`,
+    );
+    await userEvent.click(screen.getByRole("link", { name: "node" }));
+    expect(onNavigate).toHaveBeenCalledWith(UUID);
+  });
+});
+
 describe("basic markdown", () => {
   it("renders plain text without crashing", async () => {
     render(<NodeContentInner content="Hello world." />);

@@ -34,6 +34,7 @@
 -->
 
 ## 2026-07-15
+- On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers
 - Reports now offer a "Download full report" button that always exports the complete dataset, alongside a "Download filtered report" button that appears only while a search or filter is active
 
 ## 2026-07-13

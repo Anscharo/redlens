@@ -17,6 +17,7 @@ interface Props {
   content: string;
   onNavigate?: (id: string) => void;
   highlight?: ReportQuery;
+  noMath?: boolean;
 }
 
 const NavigateContext = createContext<((id: string) => void) | undefined>(undefined);
@@ -131,8 +132,8 @@ function loadKatex(): Promise<void> {
   return katexPromise;
 }
 
-export default function NodeContentInner({ content, onNavigate, highlight }: Props) {
-  const hasMath = MATH_RE.test(content);
+export default function NodeContentInner({ content, onNavigate, highlight, noMath }: Props) {
+  const hasMath = !noMath && MATH_RE.test(content);
   const [katexReady, setKatexReady] = useState(!!rehypePluginsMath);
 
   useEffect(() => {
