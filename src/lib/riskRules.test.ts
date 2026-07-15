@@ -87,6 +87,12 @@ describe("enumerateRiskCandidates", () => {
     expect(collapsed[0].taskKey).toBe("t:risk capital coverage|risk");
     expect(collapsed[0].uuid).toBe("d1"); // lowest doc_no is the representative
     expect(collapsed[0].agents).toEqual(["Spark", "Grove"]);
+    // Every copy's own location is recorded so joinRisk can re-expand the
+    // collapsed rule into one visible row per agent.
+    expect(collapsed[0].copies).toEqual([
+      { uuid: "d1", docNo: "A.6.1.1.1.5.1", quote: same1.content.trim(), agent: "Spark" },
+      { uuid: "d2", docNo: "A.6.1.1.2.5.1", quote: same2.content.trim(), agent: "Grove" },
+    ]);
     expect(excluded["collapsed-copy"]).toBe(1);
 
     const caps = candidates.filter((r) => r.title === "Exposure Cap");

@@ -5,10 +5,36 @@ import { loadAddresses } from "../../lib/addresses";
 import { loadGraph } from "../../lib/graph";
 import { atlasHref } from "../../lib/routes";
 import type { AddressInfo } from "../../types";
-import { buildRewardsIndex, type RewardsIndex, type RewardsAgent } from "../../lib/rewardsIndex";
+import {
+  buildRewardsIndex,
+  rewardsIndexToCSV,
+  type RewardsIndex,
+  type RewardsAgent,
+} from "../../lib/rewardsIndex";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
+import { parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
+import { filterRewardsAgents } from "./rewardsSearch";
+
+// Header-box text filter, per ICD row, over the fields in rewardsSearch.ts —
+// so "skybase" surfaces every SkyBase instance and "0x…" finds reward
+// addresses wherever they appear.
+const SEARCHES =
+  "instance · doc nos · status · reward code · partner · chain · cadence · address · payments RP · tracking text · params · agent + chain entities";
+
+// Total ICD rows (instances + invocations) across the given agents — the
+// number the CSV will emit, so its label matches the filtered export.
+function countIcds(agents: RewardsAgent[]): number {
+  let n = 0;
+  for (const a of agents)
+    for (const prim of [a.dr, a.ib])
+      if (prim) n += prim.active.length + prim.suspended.length + prim.completed.length + prim.invocations.length;
+  return n;
+}
 
 function EcosystemHeader({
   idx,
@@ -47,9 +73,11 @@ function EcosystemHeader({
 function AgentSection({
   agent,
   addrMap,
+  rq,
 }: {
   agent: RewardsAgent;
   addrMap: Record<string, AddressInfo>;
+  rq: ReportQuery;
 }) {
   // Instance counts (Active/Suspended/Completed) — operational deployments.
   // Invocations are counted separately so the empty-state copy doesn't claim
@@ -93,13 +121,13 @@ function AgentSection({
           )}
         </p>
       )}
-      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} />}
-      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} />}
+      {agent.dr && <PrimitiveTable agent={agent} prim={agent.dr} addrMap={addrMap} rq={rq} />}
+      {agent.ib && <PrimitiveTable agent={agent} prim={agent.ib} addrMap={addrMap} rq={rq} />}
     </section>
   );
 }
 
-export function RewardsReport() {
+export function RewardsReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Integrator Reward Relationships: Sky Atlas by Redline");
   const [idx, setIdx] = useState<RewardsIndex | null>(null);
   const [addrMap, setAddrMap] = useState<Record<string, AddressInfo>>({});
@@ -115,6 +143,15 @@ export function RewardsReport() {
       setError(String(err));
     });
   }, [attempt]);
+
+  // Text filter: keep agents with at least one matching ICD, with their DR/IB
+  // buckets narrowed to the matching rows. Empty-query passthrough keeps the
+  // unfiltered view (including agents with no instances).
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const shownAgents = useMemo(
+    () => (idx ? filterRewardsAgents(idx.agents, rq) : []),
+    [idx, rq],
+  );
 
   const summary = useMemo(() => {
     if (!idx) return null;
@@ -163,6 +200,19 @@ export function RewardsReport() {
           )}
         </p>
 
+        <FilterSummary query={query} searches={SEARCHES} />
+        {idx && (
+          <div className="flex justify-end mb-4">
+            <DownloadCsvButton
+              report="rewards"
+              filename="integrator-reward-relationships.csv"
+              rowCount={countIcds(shownAgents)}
+              build={() => rewardsIndexToCSV({ ...idx, agents: shownAgents })}
+            />
+          </div>
+        )}
+
+
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>Failed to load report.</p>
@@ -177,9 +227,15 @@ export function RewardsReport() {
           <p className="text-sm text-tan-3">Loading…</p>
         ) : (
           <>
-            <EcosystemHeader idx={idx} addrMap={addrMap} />
-            {idx.agents.map((a) => (
-              <AgentSection key={a.name} agent={a} addrMap={addrMap} />
+            {/* Reference cards (primitive definitions + buffer address) — kept
+                as context while filtering, hidden only when the filter clears
+                the whole report so the empty state reads cleanly. */}
+            {(shownAgents.length > 0 || rq.needles.length === 0) && (
+              <EcosystemHeader idx={idx} addrMap={addrMap} />
+            )}
+            {idx.agents.length > 0 && shownAgents.length === 0 && <NoRowsMatch query={query} />}
+            {shownAgents.map((a) => (
+              <AgentSection key={a.name} agent={a} addrMap={addrMap} rq={rq} />
             ))}
           </>
         )}

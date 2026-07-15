@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import type { RiskCandidate } from "./riskRules";
 import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskTriageEntry } from "./riskAssessment";
-import { joinRisk, summarizeRisk } from "./riskAssessmentIndex";
+import { joinRisk, summarizeRisk, riskRowsToCSV } from "./riskAssessmentIndex";
 
 const candidate = (taskKey: string, quote: string): RiskCandidate => ({
   taskKey, uuid: "u1", docNo: "A.3.1", title: "T", quote,
@@ -60,6 +60,86 @@ describe("joinRisk", () => {
     expect(j.rejected).toBe(2);
     expect(j.untriaged).toBe(1);
     expect(joinRisk([candidate("u:u1", "x")], null).untriaged).toBe(1);
+  });
+
+  it("riskRowsToCSV emits a header, maps domain labels, and blanks unassessed ratings", () => {
+    const j = joinRisk(
+      [candidate("u:u1", "The rule text."), candidate("u:u2", "other")],
+      artifact([triage("u:u1"), triage("u:u2")], [entry("u:u1", "The rule text.")]),
+    );
+    const csv = riskRowsToCSV(j.rows);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toContain('"Doc No","Title","UUID","Risk Types","Status"');
+    // Assessed row: domain label resolved, rating present.
+    expect(lines[1]).toContain('"Peg Maintenance"');
+    expect(lines[1]).toContain('"fresh"');
+    expect(lines[1]).toContain('"4"');
+    // Unassessed row: rating columns blank (Precision/Precision Reasoning/Incentives).
+    expect(lines[2]).toContain('"unassessed","","",""');
+  });
+
+  it("riskRowsToCSV exports the ASSESSED quote for stale rows, not the current Atlas text", () => {
+    // Stale: the atlas paragraph changed since the rating. The exported quote
+    // must match the ratings (the old assessed text), not the live paragraph.
+    const j = joinRisk(
+      [candidate("u:u1", "The NEW rule text.")],
+      artifact([triage("u:u1")], [entry("u:u1", "The OLD rule text.")]),
+    );
+    expect(j.rows[0].status).toBe("stale");
+    const csv = riskRowsToCSV(j.rows);
+    expect(csv).toContain('"The OLD rule text."');
+    expect(csv).not.toContain("The NEW rule text.");
+  });
+
+  it("riskRowsToCSV falls back to the live paragraph when a row is unassessed", () => {
+    const j = joinRisk([candidate("u:u1", "Live paragraph.")], artifact([triage("u:u1")], []));
+    expect(j.rows[0].status).toBe("unassessed");
+    expect(riskRowsToCSV(j.rows)).toContain('"Live paragraph."');
+  });
+
+  it("orders rows by numeric doc_no (so A.6.1.1.10 follows A.6.1.1.9, not lexically before it)", () => {
+    // Candidates arrive in atlas-parse order, which is NOT a numeric doc sort;
+    // joinRisk re-sorts so the report reads top-down in document order and
+    // expanded agent-copy rows land in their own doc positions.
+    const c = (uuid: string, docNo: string): RiskCandidate => ({
+      taskKey: `u:${uuid}`, uuid, docNo, title: "T", quote: "q",
+      domains: ["peg"], anchored: true, stub: false, hasMetrics: false,
+    });
+    const keys = ["u:x3", "u:x1", "u:x2"];
+    const j = joinRisk(
+      [c("x3", "A.6.1.1.10"), c("x1", "A.6.1.1.2"), c("x2", "A.6.1.1.9")],
+      artifact(keys.map((k) => triage(k)), []),
+    );
+    expect(j.rows.map((r) => r.candidate.docNo)).toEqual(["A.6.1.1.2", "A.6.1.1.9", "A.6.1.1.10"]);
+  });
+
+  it("re-expands a collapsed agent-artifact rule into one row per copy", () => {
+    const rep: RiskCandidate = {
+      ...candidate("t:shared rule|risk", "Spark must hold coverage."),
+      docNo: "A.6.1.1.1.5.1",
+      agents: ["Spark", "Grove"],
+      copies: [
+        { uuid: "u1", docNo: "A.6.1.1.1.5.1", quote: "Spark must hold coverage.", agent: "Spark" },
+        { uuid: "u2", docNo: "A.6.1.1.2.5.1", quote: "Grove must hold coverage.", agent: "Grove" },
+      ],
+    };
+    const j = joinRisk(
+      [rep],
+      artifact([triage("t:shared rule|risk")], [entry("t:shared rule|risk", "Spark must hold coverage.")]),
+    );
+    expect(j.rows).toHaveLength(2);
+    // Each row points at that agent's own doc and carries only its agent…
+    expect(j.rows.map((r) => r.candidate.docNo)).toEqual(["A.6.1.1.1.5.1", "A.6.1.1.2.5.1"]);
+    expect(j.rows.map((r) => r.candidate.agents)).toEqual([["Spark"], ["Grove"]]);
+    expect(j.rows.map((r) => r.candidate.taskKey)).toEqual(["u:u1", "u:u2"]);
+    // …while sharing the rep's assessment and status.
+    for (const r of j.rows) {
+      expect(r.entry?.taskKey).toBe("t:shared rule|risk");
+      expect(r.status).toBe("fresh");
+    }
+    // CSV exports each copy's OWN paragraph, not the representative's.
+    const csv = riskRowsToCSV(j.rows);
+    expect(csv).toContain('"Grove must hold coverage."');
   });
 
   it("summarizeRisk counts ratings and statuses", () => {

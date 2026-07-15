@@ -4,6 +4,7 @@
 
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { parseMeta } from "./meta";
+import { toCSV } from "./csv";
 import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 
 export interface AgentRef {
@@ -87,6 +88,9 @@ export interface ActiveDataRow {
   agent: string | null;
   chain: AgentChain | null;
   responsibleParty: ResponsibleParty | null;
+  // Raw declared RP text when no responsible_party_for edge exists — e.g. a
+  // descriptive declaration that resolves to no single entity.
+  declaredRP: string | null;
   facilitator: Facilitator | null;
   process: ProcessKind;
   sourceDocNo: string | null;
@@ -102,6 +106,19 @@ export function agentFromDocNo(docNo: string, agents: AgentRef[]): string | null
 export function extractProcess(content: string): ProcessKind {
   if (/alignment conserver/i.test(content)) return "Alignment Conserver Changes";
   return "Direct Edit";
+}
+
+// Display-only fallback when the graph deliberately left the RP unresolved —
+// descriptive declarations like "entity to which the registration pertains"
+// never mint an entity or an edge (see isDescriptiveRP in
+// scripts/lib/graph-patterns.mjs; keep these regexes in sync with RP_RE_IS /
+// RP_RE_COLON there), but the declared text is still worth showing in the row.
+const RP_DECLARED_IS = /(?:The\s+)?Responsible Party\s+is\s+(?:the\s+)?([^.[\n]+?)\s*\./i;
+const RP_DECLARED_COLON = /Responsible Party:\s*([^\n]+?)\s*(?:\.\s*$|\.(?=\s|\n)|$)/im;
+
+export function extractDeclaredRP(content: string | null | undefined): string | null {
+  if (!content) return null;
+  return (content.match(RP_DECLARED_IS)?.[1] ?? content.match(RP_DECLARED_COLON)?.[1] ?? "").trim() || null;
 }
 
 // Chain: prime → executor → facilitator/govops, resolved via role-as-edge
@@ -335,6 +352,7 @@ export function buildActiveDataRows(
         agent,
         chain,
         responsibleParty,
+        declaredRP: respEdge ? null : extractDeclaredRP(controllerDoc?.content),
         facilitator,
         process: extractProcess((controllerDoc ?? ad).content),
         sourceDocNo: respEdge?.s?.[0] ?? ctrl?.source ?? null,
@@ -349,37 +367,29 @@ function evidenceChain(steps: EvidenceStep[]): string {
   return steps.map((s) => s.docNo).join(" → ");
 }
 
-// RFC 4180: a literal `"` inside a quoted field must be doubled. Every field
-// below is wrapped in quotes, so every field must go through this first —
-// an unescaped `"` (e.g. a title containing a quoted term) otherwise shifts
-// every later column in that row.
-function csv(v: string): string {
-  return `"${v.replace(/"/g, '""')}"`;
-}
-
 export function activeDataRowsToCSV(
-  rows: ActiveDataRow[],
+  rows: readonly ActiveDataRow[],
   lastEditDates: Map<string, string> = new Map(),
 ): string {
-  const header =
-    "Active Data Doc,Active Data Title,Controller Doc,Controller Title,Agent,Responsible Party,RP Evidence,Facilitator,Facilitator Role,Facilitator Evidence,Process,Last Edited\n";
-  const body = rows
-    .map((r) =>
-      [
-        csv(r.activeDataDocNo),
-        csv(r.activeDataTitle),
-        csv(r.controllerDocNo ?? ""),
-        csv(r.controllerTitle ?? ""),
-        csv(r.agent ?? ""),
-        csv(r.responsibleParty?.name ?? ""),
-        csv(evidenceChain(r.responsibleParty?.evidence ?? [])),
-        csv(r.facilitator?.name ?? ""),
-        csv(r.facilitator?.role ?? ""),
-        csv(evidenceChain(r.facilitator?.evidence ?? [])),
-        csv(r.process),
-        csv(lastEditDates.get(r.activeDataId) ?? ""),
-      ].join(","),
-    )
-    .join("\n");
-  return header + body;
+  return toCSV(
+    [
+      "Active Data Doc", "Active Data Title", "Controller Doc", "Controller Title",
+      "Agent", "Responsible Party", "RP Evidence", "Facilitator", "Facilitator Role",
+      "Facilitator Evidence", "Process", "Last Edited",
+    ],
+    rows.map((r) => [
+      r.activeDataDocNo,
+      r.activeDataTitle,
+      r.controllerDocNo ?? "",
+      r.controllerTitle ?? "",
+      r.agent ?? "",
+      r.responsibleParty?.name ?? r.declaredRP ?? "",
+      evidenceChain(r.responsibleParty?.evidence ?? []),
+      r.facilitator?.name ?? "",
+      r.facilitator?.role ?? "",
+      evidenceChain(r.facilitator?.evidence ?? []),
+      r.process,
+      lastEditDates.get(r.activeDataId) ?? "",
+    ]),
+  );
 }

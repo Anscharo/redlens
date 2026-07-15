@@ -196,6 +196,20 @@ describe("buildActiveDataRows", () => {
     }
   });
 
+  it("descriptive RP declarations stay unresolved but keep their declared text", () => {
+    // A.2.7.1.1.1.1.4 declares "The Responsible Party is the entity to which
+    // the registration pertains" — a phrase, not an entity. The extractor
+    // (isDescriptiveRP in scripts/lib/graph-patterns.mjs) must not mint an
+    // entity from it, and the row must carry the text as declaredRP instead.
+    const phrase = "entity to which the registration pertains";
+    expect(participants.some((e) => e.name === phrase)).toBe(false);
+    const row = rows.find((r) => r.declaredRP === phrase);
+    expect(row).toBeDefined();
+    expect(row?.responsibleParty).toBeNull();
+    // declaredRP is a fallback only — never set alongside a resolved entity.
+    for (const r of rows) if (r.responsibleParty) expect(r.declaredRP).toBeNull();
+  });
+
   it("every row under a Prime Agent gets an Operational Facilitator", () => {
     for (const r of rows) {
       if (!r.agent) continue;
@@ -228,7 +242,7 @@ describe("buildActiveDataRows", () => {
 
 describe("activeDataRowsToCSV", () => {
   const csv = activeDataRowsToCSV(rows);
-  const lines = csv.split("\n");
+  const lines = csv.split("\r\n");
 
   // Parse a single line of the form "a","b","c" into cell values. NOTE: this is
   // a naive splitter that does NOT understand RFC 4180 doubled quotes ("") — the
@@ -245,7 +259,7 @@ describe("activeDataRowsToCSV", () => {
 
   it("has a header and one data line per row", () => {
     expect(lines.length).toBe(rows.length + 1);
-    expect(lines[0]).toMatch(/^Active Data Doc,/);
+    expect(lines[0]).toMatch(/^"Active Data Doc",/);
   });
 
   it("quotes every cell — no bare commas in row content leak the column count", () => {
@@ -264,7 +278,7 @@ describe("activeDataRowsToCSV", () => {
     // column shifts. None of the built fixture rows carry an embedded quote, so
     // synthesize one from a real row.
     const row = { ...rows[0], activeDataTitle: 'Ada "The Great" Lovelace' };
-    const dataLine = activeDataRowsToCSV([row]).split("\n")[1];
+    const dataLine = activeDataRowsToCSV([row]).split("\r\n")[1];
     expect(dataLine).toContain('"Ada ""The Great"" Lovelace"');
     // still exactly 12 quoted cells' worth of wrapping + the doubled pair (4 extra ")
     expect((dataLine.match(/"/g) ?? []).length).toBe(12 * 2 + 4);
@@ -292,7 +306,9 @@ describe("activeDataRowsToCSV", () => {
       expect(ctrlDoc, `row ${i} controllerDocNo`).toBe(r.controllerDocNo ?? "");
       expect(ctrlTitle, `row ${i} controllerTitle`).toBe(r.controllerTitle ?? "");
       expect(agent, `row ${i} agent`).toBe(r.agent ?? "");
-      expect(rp, `row ${i} responsibleParty.name`).toBe(r.responsibleParty?.name ?? "");
+      // Falls back to the raw declared text when the RP resolves to no entity
+      // (descriptive declarations) — same fallback the UI's RP cell shows.
+      expect(rp, `row ${i} responsibleParty.name`).toBe(r.responsibleParty?.name ?? r.declaredRP ?? "");
       expect(rpEvidence, `row ${i} rpEvidence`).toBe(
         (r.responsibleParty?.evidence ?? []).map((s) => s.docNo).join(" → "),
       );
@@ -311,7 +327,7 @@ describe("activeDataRowsToCSV", () => {
     const rowWithEvidence = rows.find((r) => (r.responsibleParty?.evidence.length ?? 0) > 1);
     if (!rowWithEvidence) return; // skip if atlas has no multi-step chains
     const csv = activeDataRowsToCSV([rowWithEvidence]);
-    const cells = parseLine(csv.split("\n")[1]);
+    const cells = parseLine(csv.split("\r\n")[1]);
     const expectedRP = rowWithEvidence.responsibleParty!.evidence.map((s) => s.docNo).join(" → ");
     expect(cells[6]).toBe(expectedRP);
   });
@@ -320,7 +336,7 @@ describe("activeDataRowsToCSV", () => {
     const sampleRow = rows[0];
     const dates = new Map([[sampleRow.activeDataId, "2025-03-15"]]);
     const csvWithDates = activeDataRowsToCSV([sampleRow], dates);
-    const cells = parseLine(csvWithDates.split("\n")[1]);
+    const cells = parseLine(csvWithDates.split("\r\n")[1]);
     expect(cells).toHaveLength(12);
     expect(cells[11]).toBe("2025-03-15");
   });
@@ -328,6 +344,6 @@ describe("activeDataRowsToCSV", () => {
   it("Last Edited is empty string when no date is available for a row", () => {
     const sampleRow = rows[0];
     const csv = activeDataRowsToCSV([sampleRow], new Map());
-    expect(parseLine(csv.split("\n")[1])[11]).toBe("");
+    expect(parseLine(csv.split("\r\n")[1])[11]).toBe("");
   });
 });

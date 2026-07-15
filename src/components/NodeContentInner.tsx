@@ -4,15 +4,19 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
+import { remarkDeMathProse } from "../lib/mathGuard";
 import { UUID_RE } from "../lib/patterns";
 import { atlasHref } from "../lib/routes";
 import { resolveAtlasRef } from "../lib/docs";
 import { useDataSource } from "../lib/dataSource";
 import { track } from "../lib/analytics";
+import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
+import type { ReportQuery } from "../lib/reportFilter";
 
 interface Props {
   content: string;
   onNavigate?: (id: string) => void;
+  highlight?: ReportQuery;
 }
 
 const NavigateContext = createContext<((id: string) => void) | undefined>(undefined);
@@ -109,7 +113,10 @@ function loadKatex(): Promise<void> {
       import("katex/dist/katex.min.css"),
     ])
       .then(([rehypeKatexMod, remarkMathMod]) => {
-        remarkPluginsMath = [remarkGfm, remarkMathMod.default];
+        // remarkDeMathProse runs AFTER remark-math to reclassify inline-math
+        // spans that are actually prose/currency (e.g. a `$100k … | … $` table
+        // row) back to literal text, so KaTeX never garbles them.
+        remarkPluginsMath = [remarkGfm, remarkMathMod.default, remarkDeMathProse];
         rehypePluginsMath = [[rehypeKatexMod.default, KATEX_OPTIONS], rehypeEthAddresses()];
       })
       .catch((err) => {
@@ -124,7 +131,7 @@ function loadKatex(): Promise<void> {
   return katexPromise;
 }
 
-export default function NodeContentInner({ content, onNavigate }: Props) {
+export default function NodeContentInner({ content, onNavigate, highlight }: Props) {
   const hasMath = MATH_RE.test(content);
   const [katexReady, setKatexReady] = useState(!!rehypePluginsMath);
 
@@ -141,13 +148,19 @@ export default function NodeContentInner({ content, onNavigate }: Props) {
   }, [hasMath]);
 
   const usesMath = hasMath && katexReady;
+  const rehypeBase = usesMath ? rehypePluginsMath! : rehypePluginsBase;
+  // Highlight marks run LAST so they can wrap text produced by the earlier
+  // plugins (link labels, address links) without those re-splitting a <mark>.
+  const rehypePlugins = highlight?.needles.length
+    ? [...rehypeBase, rehypeHighlightMarks(highlight)]
+    : rehypeBase;
 
   return (
     <NavigateContext value={onNavigate}>
       <div className="atlas-md">
         <ReactMarkdown
           remarkPlugins={usesMath ? remarkPluginsMath! : [remarkGfm]}
-          rehypePlugins={usesMath ? rehypePluginsMath! : rehypePluginsBase}
+          rehypePlugins={rehypePlugins}
           components={components}
         >
           {content}

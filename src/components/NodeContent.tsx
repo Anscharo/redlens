@@ -3,9 +3,13 @@ import { ErrorBoundary, InlineError } from "./ErrorBoundary";
 
 const NodeContentInner = lazy(() => import("./NodeContentInner"));
 
+import type { ReportQuery } from "../lib/reportFilter";
+
 interface Props {
   content: string;
   onNavigate?: (id: string) => void;
+  /** Report-search query whose matches get <mark>ed in the rendered output. */
+  highlight?: ReportQuery;
 }
 
 /** Warm the markdown-renderer chunk (the CODE, distinct from the worker's doc
@@ -32,7 +36,7 @@ function NodeContentSkeleton() {
 
 export const NodeContent = memo(function NodeContent(props: Props) {
   return (
-    <ErrorBoundary fallback={<InlineError />}>
+    <ErrorBoundary fallback={(error) => <InlineError error={error} />}>
       <Suspense fallback={<NodeContentSkeleton />}>
         <NodeContentInner {...props} />
       </Suspense>

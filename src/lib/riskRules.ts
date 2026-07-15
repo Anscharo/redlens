@@ -18,6 +18,17 @@ export const RISK_DOMAIN_LABELS: Record<RiskDomain, string> = {
   sc: "Smart Contract Security",
 };
 
+// One per-agent location of a collapsed agent-artifact rule. The report
+// re-expands collapsed candidates into one visible row per copy (joinRisk),
+// so every agent's own doc shows up — the collapse exists only to assess the
+// shared clause once, not to hide locations.
+export interface RiskCopy {
+  uuid: string;
+  docNo: string;
+  quote: string; // that agent's own paragraph text
+  agent: string;
+}
+
 export interface RiskCandidate {
   taskKey: string; // u:<uuid> | t:<title>|risk (identical agent-artifact copies)
   uuid: string; // representative doc (lowest doc_no for collapsed copies)
@@ -27,6 +38,7 @@ export interface RiskCandidate {
   domains: RiskDomain[];
   anchored: boolean; // in an anchor subtree (vs keyword residue)
   agents?: string[]; // covered Prime Agents for agent-artifact rows
+  copies?: RiskCopy[]; // per-agent locations of a collapsed rule (incl. the rep)
   stub: boolean; // "specified in a future iteration" — preciseness-1 finding
   hasMetrics: boolean; // carries quantifiable tokens (%/bps/amounts/durations)
 }
@@ -213,6 +225,12 @@ export function enumerateRiskCandidates(bundle: AtlasBundle): RiskEnumeration {
     const [rep, ...copies] = group;
     rep.taskKey = `t:${titleKey}|risk`;
     rep.agents = [...new Set(group.flatMap((r) => r.agents ?? []))];
+    rep.copies = group.map((r) => ({
+      uuid: r.uuid,
+      docNo: r.docNo,
+      quote: r.quote,
+      agent: r.agents?.[0] ?? "(unknown agent)",
+    }));
     for (const c of copies) dropKeys.add(c.taskKey);
     excluded["collapsed-copy"] = (excluded["collapsed-copy"] ?? 0) + copies.length;
   }

@@ -14,21 +14,44 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type SearchField } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
+import { Highlight, MatchAside } from "./Highlight";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 
 const agentCodec = urlString(null);
 const entityCodec = urlString(null);
 
 type Row = ActiveDataRow;
 
-function exportCSV(rows: Row[], lastEditDates: Map<string, string>) {
-  const blob = new Blob([activeDataRowsToCSV(rows, lastEditDates)], { type: "text/csv" });
-  const a = Object.assign(document.createElement("a"), {
-    href: URL.createObjectURL(blob),
-    download: "active-data-index.csv",
-  });
-  a.click();
-}
-
+// Header-box text filter as labelled fields; `hidden` marks what the table
+// below does NOT render (agent-chain names, declared RP text, source doc),
+// so those matches get explained in the row's floating aside. "sidestream"
+// still finds every row Sidestream touches via its chain.
+const searchFields = (r: Row): SearchField[] => [
+  { label: "title", value: r.activeDataTitle },
+  { label: "doc no", value: r.activeDataDocNo },
+  { label: "controller", value: r.controllerDocNo ?? "" },
+  { label: "controller title", value: r.controllerTitle ?? "", hidden: true },
+  { label: "prime agent", value: r.agent ?? "", despace: true },
+  { label: "process", value: r.process },
+  { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
+  { label: "resp. party", value: r.responsibleParty?.name ?? "", despace: true },
+  // Declared text is visible in the row when it's the RP-cell fallback
+  // (no resolved entity), hidden (tooltip-only) when an entity is shown.
+  { label: "declared rp", value: r.responsibleParty?.declared ?? r.declaredRP ?? "", hidden: !!r.responsibleParty },
+  { label: "facilitator", value: r.facilitator?.name ?? "", despace: true },
+  { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
+  {
+    label: "agent chain",
+    value: [r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName].filter(Boolean).join(", "),
+    hidden: true,
+    despace: true,
+  },
+];
+const SEARCHES =
+  "title · doc nos · controller · prime agent · process · responsible party (incl. declared text) · facilitator (incl. role) · agent chain (executor/facilitator/govops)";
 function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] }) {
   if (!steps.length) return null;
   return (
@@ -70,7 +93,7 @@ function EvidenceCell({ r }: { r: Row }) {
   );
 }
 
-export function ActiveDataReport() {
+export function ActiveDataReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Active Data Index: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const graph = useLoaded(loadGraph);
@@ -116,6 +139,9 @@ export function ActiveDataReport() {
   }, [rows]);
 
   // Unique names for the Entity filter: responsible parties + facilitators.
+  // (Descriptive declarations like "entity to which the registration
+  // pertains" never reach here — the graph extractor excludes them, and the
+  // row shows them via declaredRP instead of a ResponsibleParty entity.)
   const entityNames = useMemo(() => {
     const names = new Set<string>();
     rows.forEach((r) => {
@@ -139,6 +165,8 @@ export function ActiveDataReport() {
       }),
     [rows, agentFilter, entityFilter],
   );
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const shown = useMemo(() => filterRows(filtered, rq, searchFields), [filtered, rq]);
 
   return (
     <div className="px-6 py-6">
@@ -193,19 +221,19 @@ export function ActiveDataReport() {
           ))}
         </div>
 
+        <FilterSummary query={query} filters={[agentFilter, entityFilter]} searches={SEARCHES} />
+
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-tan-3">{filtered.length} sections</p>
-          <button
-            onClick={() => {
-              track("report_export", { report: "active-data", format: "csv" });
-              exportCSV(filtered, lastEditDates);
-            }}
-            className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors"
-          >
-            Download CSV
-          </button>
+          <p className="text-xs text-tan-3">{shown.length} sections</p>
+          <DownloadCsvButton
+            report="active-data"
+            filename="active-data-index.csv"
+            rowCount={shown.length}
+            build={() => activeDataRowsToCSV(shown, lastEditDates)}
+          />
         </div>
 
+        {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
         <div className="overflow-x-auto">
           <table className="w-full text-left" style={{ minWidth: "1120px" }}>
             <thead>
@@ -221,19 +249,20 @@ export function ActiveDataReport() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {shown.map((r) => (
                 <tr
                   key={r.activeDataId}
                   className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
                 >
-                  <td className="py-2 px-3 align-top">
+                  <td className="py-2 px-3 align-top relative">
+                    <MatchAside matches={hiddenMatches(searchFields(r), rq)} rq={rq} />
                     <AtlasLink
                       to={atlasHref(r.activeDataId)}
                       className="text-sm text-tan hover:underline text-left block"
                     >
-                      {r.activeDataTitle}
+                      <Highlight text={r.activeDataTitle} rq={rq} />
                     </AtlasLink>
-                    <span className="mono text-[10px] text-accent">{r.activeDataDocNo}</span>
+                    <span className="mono text-[10px] text-accent"><Highlight text={r.activeDataDocNo} rq={rq} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.controllerId && r.controllerDocNo ? (
@@ -241,14 +270,14 @@ export function ActiveDataReport() {
                         to={atlasHref(r.controllerId)}
                         className="mono text-xs text-tan-2 hover:underline text-left"
                       >
-                        {r.controllerDocNo}
+                        <Highlight text={r.controllerDocNo} rq={rq} />
                       </AtlasLink>
                     ) : (
                       <span className="mono text-[10px] text-tan-3">—</span>
                     )}
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.agent ?? "—"}</span>
+                    <span className="mono text-xs text-tan-3">{r.agent ? <Highlight text={r.agent} rq={rq} flex /> : "—"}</span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     {r.responsibleParty ? (
@@ -258,16 +287,23 @@ export function ActiveDataReport() {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          {r.responsibleParty.name}
+                          <Highlight text={r.responsibleParty.name} rq={rq} flex />
                         </AtlasLink>
                       ) : (
                         <span
                           className="text-xs text-tan-2"
                           title={r.responsibleParty.declared ?? undefined}
                         >
-                          {r.responsibleParty.name}
+                          <Highlight text={r.responsibleParty.name} rq={rq} flex />
                         </span>
                       )
+                    ) : r.declaredRP ? (
+                      <span
+                        className="text-xs text-tan-3 italic"
+                        title="declared in the ADC — does not resolve to a single entity"
+                      >
+                        <Highlight text={r.declaredRP} rq={rq} />
+                      </span>
                     ) : (
                       <span className="mono text-[10px] text-tan-3">Governance</span>
                     )}
@@ -280,11 +316,11 @@ export function ActiveDataReport() {
                           className="text-xs text-tan-2 hover:text-tan hover:underline text-left"
                           title={r.facilitator.role}
                         >
-                          {r.facilitator.name}
+                          <Highlight text={r.facilitator.name} rq={rq} flex />
                         </AtlasLink>
                       ) : (
                         <span className="text-xs text-tan-2" title={r.facilitator.role}>
-                          {r.facilitator.name}
+                          <Highlight text={r.facilitator.name} rq={rq} flex />
                         </span>
                       )
                     ) : (
@@ -295,7 +331,7 @@ export function ActiveDataReport() {
                     <EvidenceCell r={r} />
                   </td>
                   <td className="py-2 px-3 align-top">
-                    <span className="mono text-xs text-tan-3">{r.process}</span>
+                    <span className="mono text-xs text-tan-3"><Highlight text={r.process} rq={rq} /></span>
                   </td>
                   <td className="py-2 px-3 align-top">
                     <span className="mono text-xs text-tan-3">

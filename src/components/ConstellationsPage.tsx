@@ -239,7 +239,7 @@ export function ConstellationsPage({ query }: { query: string }) {
         </div>
       )}
       <div className="flex-1 relative" style={{ minHeight: 0 }}>
-        <ErrorBoundary fallback={<PanelError />}>
+        <ErrorBoundary fallback={(error) => <PanelError error={error} />}>
           <EntityFlow
             allNodes={allNodes}
             allEdges={allEdges}

@@ -4,19 +4,27 @@ import type { AddressInfo } from "../../types";
 import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "../../lib/rewardsIndex";
 import { atlasHref, actorHref } from "../../lib/routes";
 import { AddressLink, StatusPill } from "./RewardsCells";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
+import { Highlight, MatchAside } from "./Highlight";
+import { icdSearchFields } from "./rewardsSearch";
 
 function InstanceRow({
   inst,
   kind,
   addrMap,
+  agent,
+  rq,
 }: {
   inst: RewardsInstance | RewardsInvocation;
   kind: "DR" | "IB";
   addrMap: Record<string, AddressInfo>;
+  agent: RewardsAgent;
+  rq: ReportQuery;
 }) {
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors">
-      <td className="py-2 px-3 align-top w-20">
+      <td className="py-2 px-3 align-top w-20 relative">
+        <MatchAside matches={hiddenMatches(icdSearchFields(agent, inst), rq)} rq={rq} />
         <StatusPill s={inst.status} />
       </td>
       <td className="py-2 px-3 align-top">
@@ -24,10 +32,10 @@ function InstanceRow({
           to={atlasHref(inst.id)}
           className="text-sm text-tan hover:underline text-left"
         >
-          {inst.name}
+          <Highlight text={inst.name} rq={rq} />
         </AtlasLink>
         <div className="mono text-[10px] text-tan-3 mt-0.5 flex items-center gap-2">
-          <span>{inst.docNo}</span>
+          <span><Highlight text={inst.docNo} rq={rq} /></span>
           {inst.params && Object.keys(inst.params).length > 0 && (
             <span className="opacity-70" title={Object.keys(inst.params).join(" · ")}>
               ⚙ {Object.keys(inst.params).length}
@@ -43,7 +51,7 @@ function InstanceRow({
                 to={atlasHref(inst.rewardCodeDocId ?? inst.id)}
                 className="px-1.5 py-0.5 rounded bg-[var(--hover)] text-tan hover:underline"
               >
-                {inst.rewardCode}
+                <Highlight text={inst.rewardCode} rq={rq} />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
@@ -55,7 +63,7 @@ function InstanceRow({
                 to={atlasHref(inst.trackingDocId)}
                 className="mono text-[11px] text-accent hover:underline"
               >
-                {inst.trackingDocNo}
+                <Highlight text={inst.trackingDocNo} rq={rq} />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
@@ -72,7 +80,7 @@ function InstanceRow({
                     : undefined
                 }
               >
-                {inst.paymentsResponsibleParty.name}
+                <Highlight text={inst.paymentsResponsibleParty.name} rq={rq} flex />
               </Link>
             ) : (
               <span className="text-tan-3">—</span>
@@ -87,7 +95,7 @@ function InstanceRow({
                 to={atlasHref(inst.partnerNameDocId ?? inst.id)}
                 className="text-tan-2 hover:underline text-left"
               >
-                {inst.partnerName}
+                <Highlight text={inst.partnerName} rq={rq} flex />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
@@ -106,7 +114,7 @@ function InstanceRow({
                 to={atlasHref(inst.rewardChainDocId ?? inst.id)}
                 className="text-tan-3 hover:underline"
               >
-                {inst.rewardChain}
+                <Highlight text={inst.rewardChain} rq={rq} />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
@@ -118,7 +126,7 @@ function InstanceRow({
                 to={atlasHref(inst.cadenceDocId ?? inst.id)}
                 className="text-tan-3 hover:underline"
               >
-                {inst.cadence}
+                <Highlight text={inst.cadence} rq={rq} />
               </AtlasLink>
             ) : (
               <span className="text-tan-3">—</span>
@@ -134,10 +142,12 @@ export function PrimitiveTable({
   agent,
   prim,
   addrMap,
+  rq = EMPTY_QUERY,
 }: {
   agent: RewardsAgent;
   prim: AgentPrimitive;
   addrMap: Record<string, AddressInfo>;
+  rq?: ReportQuery;
 }) {
   const instances = [...prim.active, ...prim.suspended, ...prim.completed];
   const invocations = prim.invocations;
@@ -197,7 +207,7 @@ export function PrimitiveTable({
             <thead><HeaderRow /></thead>
             <tbody>
               {instances.map((inst) => (
-                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} />
+                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} agent={agent} rq={rq} />
               ))}
             </tbody>
           </table>
@@ -212,7 +222,7 @@ export function PrimitiveTable({
             <thead><HeaderRow /></thead>
             <tbody>
               {invocations.map((inst) => (
-                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} />
+                <InstanceRow key={inst.id || inst.docNo} inst={inst} kind={kind} addrMap={addrMap} agent={agent} rq={rq} />
               ))}
             </tbody>
           </table>
