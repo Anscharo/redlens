@@ -17,7 +17,7 @@ export const RelatedNode = memo(function RelatedNode({
   const color = depthColor(realDepth(node.doc_no));
 
   return (
-    <div className="related-node py-4 border-b border-border">
+    <div className="related-node py-4">
       <AtlasLink to={atlasHref(node.id)} className="block no-underline mb-2">
         {eyebrow && <p className="text-[11px] mono mb-1 text-tan-3">{eyebrow}</p>}
         <p className="text-sm font-semibold mb-1" style={{ color }}>{node.title}</p>
