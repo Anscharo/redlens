@@ -139,14 +139,15 @@ export function RightPanel({
                 <p className="text-xs leading-relaxed mb-4 text-tan-3">
                   Equivalent documents under the other Prime Agents.
                 </p>
-                <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-4">
                   {cousinDocs.map(({ node, agent }) => (
-                    <RelatedNode
-                      key={node.id}
-                      node={node}
-                      eyebrow={`${agent} agent`}
-                      onNavigate={navCousin}
-                    />
+                    <div key={node.id} style={{ padding: 4 }}>
+                      <RelatedNode
+                        node={node}
+                        eyebrow={`${agent} agent`}
+                        onNavigate={navCousin}
+                      />
+                    </div>
                   ))}
                 </div>
               </section>
