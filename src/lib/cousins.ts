@@ -13,6 +13,62 @@ export interface CousinDoc {
 const agentOf = (e: GraphEntity) =>
   parseMeta<{ agent_doc_id?: string | null }>(e.m)?.agent_doc_id;
 
+// A doc under a Prime Agent's "Omni Documents" subtree: A.6.1.1.<agent>.3(.…).
+const OMNI_RE = /^A\.6\.1\.1\.(\d+)\.3(?:\..+)?$/;
+// A title only counts as an omni cousin when at least this share of its
+// atlas-wide occurrences are omni docs — high enough to reject generic section
+// titles ("Parameters", "Data Repository") that merely recur across the atlas.
+const OMNI_SHARE_MIN = 0.7;
+
+// Omni-doc cousins. Some docs recur across every Prime Agent's Omni Documents
+// subtree (e.g. "Sky Forum", "Governance Information Unrelated To Root Edit
+// Primitive"), but that subtree is numbered agent-specifically — the primitive
+// suffix-parallelism doesn't hold and these get no covering instance/invocation/
+// primitive entity, so findCousinDocs' main path misses them. Match them
+// deterministically by exact title across agents, with two guards (no allowlist):
+//   • same true depth (uncapped doc_no segment count), and
+//   • the title is omni-specific: >= OMNI_SHARE_MIN of its atlas-wide uses are
+//     omni docs — this is what separates real omni docs from generic titles.
+function findOmniCousins(
+  targetDoc: AtlasNode | undefined,
+  atlas: Pick<AtlasBundle, "docs" | "docNoToId">,
+  graph: GraphData,
+): CousinDoc[] {
+  const m = targetDoc?.doc_no.match(OMNI_RE);
+  if (!targetDoc || !m) return [];
+  const targetAgent = m[1];
+  const titleLc = targetDoc.title.trim().toLowerCase();
+  if (!titleLc) return [];
+  const targetSeg = targetDoc.doc_no.split(".").length;
+
+  let global = 0; // atlas-wide docs with this exact title
+  let omni = 0; //   …of which are omni docs
+  const byAgent = new Map<string, AtlasNode>(); // other agent → its equivalent doc
+  for (const d of Object.values(atlas.docs)) {
+    if ((d.title ?? "").trim().toLowerCase() !== titleLc) continue;
+    global++;
+    const om = d.doc_no.match(OMNI_RE);
+    if (!om) continue;
+    omni++;
+    if (om[1] === targetAgent || d.doc_no.split(".").length !== targetSeg) continue;
+    if (!byAgent.has(om[1])) byAgent.set(om[1], d);
+  }
+  if (byAgent.size === 0 || global === 0 || omni / global < OMNI_SHARE_MIN) return [];
+
+  const agentName = new Map(
+    graph.participants
+      .filter((p) => p.et === "agent" && p.did)
+      .map((p) => [p.did as string, abbreviateAgentName(p.name)]),
+  );
+  const cousins: CousinDoc[] = [];
+  for (const [agentX, doc] of byAgent) {
+    const rootId = atlas.docNoToId.get(`A.6.1.1.${agentX}`);
+    const name = (rootId && agentName.get(rootId)) || (rootId && atlas.docs[rootId]?.title) || "Unknown";
+    cousins.push({ node: doc, agent: name });
+  }
+  return cousins.sort((a, b) => a.node.doc_no.localeCompare(b.node.doc_no, undefined, { numeric: true }));
+}
+
 // "Cousins" of a doc: the equivalent docs under other prime agents. The graph
 // already categorizes every instance / invocation / primitive entity by
 // primitive slug (st) and owning agent (meta.agent_doc_id), so equivalence is
@@ -41,7 +97,9 @@ export function findCousinDocs(
   const chain = buildAncestorsWithSelf(atlas.docs, atlas.docNoToId, targetId);
   let hit: { ent: GraphEntity; pool: GraphEntity[] } | undefined;
   for (let i = chain.length - 1; i >= 0 && !hit; i--) hit = byDid.get(chain[i].id);
-  if (!hit?.ent.st) return [];
+  // No covering primitive/instance/invocation entity → try the omni-doc path
+  // (docs parallel across agents' Omni Documents subtrees, matched by title).
+  if (!hit?.ent.st) return findOmniCousins(atlas.docs[targetId], atlas, graph);
 
   const agentDocId = agentOf(hit.ent);
   if (!agentDocId) return [];

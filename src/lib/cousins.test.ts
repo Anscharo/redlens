@@ -72,3 +72,48 @@ describe("findCousinDocs", () => {
     expect(findCousinDocs(sparkToken.id, atlas, graph)).toEqual([]);
   });
 });
+
+// Omni-doc fallback: docs parallel across agents' Omni Documents subtrees
+// (A.6.1.1.X.3.*) that have no covering primitive entity, matched by exact title,
+// gated on omni-share >= 0.7 and same true depth.
+function omniFixture() {
+  const spark = makeNode({ id: "s", doc_no: "A.6.1.1.1", title: "Spark" });
+  const grove = makeNode({ id: "g", doc_no: "A.6.1.1.2", title: "Grove" });
+  // Omni-specific title — appears only in the omni region (share 1.0).
+  const sForum = makeNode({ id: "sf", doc_no: "A.6.1.1.1.3.1", title: "Sky Forum" });
+  const gForum = makeNode({ id: "gf", doc_no: "A.6.1.1.2.3.1", title: "Sky Forum" });
+  // Generic title — mostly used outside the omni region (share 2/5 = 0.4).
+  const sGen = makeNode({ id: "sp", doc_no: "A.6.1.1.1.3.2", title: "Parameters" });
+  const gGen = makeNode({ id: "gp", doc_no: "A.6.1.1.2.3.2", title: "Parameters" });
+  const o1 = makeNode({ id: "o1", doc_no: "A.2.1", title: "Parameters" });
+  const o2 = makeNode({ id: "o2", doc_no: "A.2.2", title: "Parameters" });
+  const o3 = makeNode({ id: "o3", doc_no: "A.2.3", title: "Parameters" });
+  // Omni-specific title but Grove's copy is one level deeper — depth guard skips it.
+  const sWidget = makeNode({ id: "sw", doc_no: "A.6.1.1.1.3.5", title: "Widget" });
+  const gWidget = makeNode({ id: "gw", doc_no: "A.6.1.1.2.3.5.1", title: "Widget" });
+  const atlas = makeAtlasBundle([spark, grove, sForum, gForum, sGen, gGen, o1, o2, o3, sWidget, gWidget]);
+  const graph = makeGraphData({
+    participants: [
+      makeGraphEntity({ id: spark.id, name: "Spark", et: "agent", st: "prime", did: spark.id }),
+      makeGraphEntity({ id: grove.id, name: "Grove", et: "agent", st: "prime", did: grove.id }),
+    ],
+  });
+  return { atlas, graph, sForum, gForum, sGen, sWidget };
+}
+
+describe("findCousinDocs — omni docs", () => {
+  it("links an omni-specific title across agents", () => {
+    const { atlas, graph, sForum, gForum } = omniFixture();
+    expect(findCousinDocs(sForum.id, atlas, graph)).toEqual([{ node: gForum, agent: "Grove" }]);
+  });
+
+  it("does not link a generic title used mostly outside the omni region", () => {
+    const { atlas, graph, sGen } = omniFixture();
+    expect(findCousinDocs(sGen.id, atlas, graph)).toEqual([]);
+  });
+
+  it("does not link an omni doc whose cousin sits at a different depth", () => {
+    const { atlas, graph, sWidget } = omniFixture();
+    expect(findCousinDocs(sWidget.id, atlas, graph)).toEqual([]);
+  });
+});
