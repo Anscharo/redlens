@@ -2,6 +2,7 @@ import type { AtlasNode, GraphEntity } from "../types";
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import { buildAncestorsWithSelf } from "./atlasHelpers";
+import { abbreviateAgentName } from "./owningAgent";
 import { parseMeta } from "./meta";
 
 export interface CousinDoc {
@@ -56,7 +57,7 @@ export function findCousinDocs(
       : "";
 
   const agentName = new Map(
-    graph.participants.filter((p) => p.et === "agent").map((p) => [p.id, p.name]),
+    graph.participants.filter((p) => p.et === "agent").map((p) => [p.id, abbreviateAgentName(p.name)]),
   );
 
   const cousins: CousinDoc[] = [];
