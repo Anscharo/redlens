@@ -202,6 +202,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         <label
           className="atlas-node-select absolute top-2 right-2"
           aria-label={`Select ${node.title}`}
+          title="shift-click: also select everything beneath"
           onClick={(e) => e.stopPropagation()}
         >
           <input
@@ -209,7 +210,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             checked={selectedIds.has(node.id)}
             onChange={(e) => {
               e.stopPropagation();
-              toggleDoc(node.id);
+              // Shift-click selects this doc + all its descendants; a plain click
+              // toggles just this one. The change event's native mouse event
+              // carries the shift state.
+              if ((e.nativeEvent as MouseEvent).shiftKey && selectSubtree) {
+                selectSubtree(node.id);
+              } else {
+                toggleDoc(node.id);
+              }
             }}
           />
         </label>
@@ -222,16 +230,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             type="button"
             className={`atlas-node-toggle${isExpanded ? " is-open" : ""}`}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.doc_no}`}
-            title={`${showExpandAll ? "alt-click: expand/collapse all beneath · " : ""}shift-click: select this document and everything beneath`}
-            onClick={(e) => {
-              if (e.shiftKey && selectSubtree) {
-                e.stopPropagation();
-                selectSubtree(node.id);
-                return;
-              }
-              if (e.altKey && showExpandAll) doExpandAll();
-              else doToggle();
-            }}
+            title={showExpandAll ? "alt-click: expand/collapse all beneath" : undefined}
+            onClick={(e) => (e.altKey && showExpandAll ? doExpandAll() : doToggle())}
           >
             ›
           </button>
@@ -246,15 +246,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             type="button"
             className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
             aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
-            title={`${isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"} · shift-click: select this document and everything beneath`}
-            onClick={(e) => {
-              if (e.shiftKey && selectSubtree) {
-                e.stopPropagation();
-                selectSubtree(node.id);
-                return;
-              }
-              doExpandAll();
-            }}
+            title={isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"}
+            onClick={doExpandAll}
           >
             »
           </button>
