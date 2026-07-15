@@ -58,6 +58,21 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
   [ROUTES.REPORTS_RISK_RULES]:              { label: "risk",    placeholder: "Filter rules — title, doc no, text" },
 };
 
+// Canonical report id → display title. Single source of truth shared by the
+// reports index (ReportsIndex) and visit-history capture (useReportVisitTracking).
+// Keyed by report id (the /reports/<id> slug); the rubric sub-page is deliberately
+// absent (it's prose, not a listed report).
+export const REPORT_TITLES: Record<string, string> = {
+  "of-responsibilities": "Operational Facilitator Responsibilities",
+  "gov-ops-responsibilities": "Operational GovOps Responsibilities",
+  "oea-assessment": "OEA Task Assessment",
+  "active-data": "Active Data Index",
+  rewards: "Integrator Reward Relationships",
+  "risk-rules": "Risk Rules Assessment",
+  "stale-dates": "Stale Dates",
+  processes: "Atlas Processes",
+};
+
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
 // restores the exact destination URL.
 export const atlasHref = (id: string) => `${ROUTES.ATLAS}?id=${id}`;

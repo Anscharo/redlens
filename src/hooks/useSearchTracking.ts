@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { SearchState } from "./useSearch";
 import type { SearchMode } from "./useSearchInput";
 import { track } from "../lib/analytics";
+import { recordVisit } from "../lib/visitHistory";
 
 // Fires a single `atlas_search` event once the user pauses typing for DEBOUNCE_MS
 // (so "governance" logs once, not g→go→gov→…), or immediately on unmount when they
@@ -24,6 +25,10 @@ export function useSearchTracking(state: SearchState, mode: SearchMode): void {
     if (lastSent.current === key) return;
     lastSent.current = key;
     track("atlas_search", { query: p.query, mode: p.mode, result_count: p.result_count, product: "search" });
+    // Durable, browser-local cross-session tally (distinct from the ephemeral
+    // recentSearches list). Encode the query so `&`/`#`/`?` in it survive URL
+    // parsing; recordVisit canonicalizes to /?q=<normalized>.
+    void recordVisit({ path: `/?q=${encodeURIComponent(p.query)}`, label: p.query });
   }, []);
 
   useEffect(() => {
