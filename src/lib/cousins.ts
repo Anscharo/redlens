@@ -14,7 +14,29 @@ const agentOf = (e: GraphEntity) =>
   parseMeta<{ agent_doc_id?: string | null }>(e.m)?.agent_doc_id;
 
 // A doc under a Prime Agent's "Omni Documents" subtree: A.6.1.1.<agent>.3(.…).
+// fragile: doc_no prefix — the Prime Agents scope root (A.6.1.1) and the omni
+// section suffix (.3) are hardcoded; a renumber silently drops omni cousins.
 const OMNI_RE = /^A\.6\.1\.1\.(\d+)\.3(?:\..+)?$/;
+
+// Lowercased-title → docs index, memoized on the docs object identity so it is
+// built once per atlas load and reused across navigations (the annotations memo
+// re-invokes findCousinDocs on every doc change). Avoids a full atlas rescan +
+// per-doc title normalization on each omni view.
+const titleIndexCache = new WeakMap<Record<string, AtlasNode>, Map<string, AtlasNode[]>>();
+function titleIndex(docs: Record<string, AtlasNode>): Map<string, AtlasNode[]> {
+  let idx = titleIndexCache.get(docs);
+  if (idx) return idx;
+  idx = new Map();
+  for (const d of Object.values(docs)) {
+    const t = (d.title ?? "").trim().toLowerCase();
+    if (!t) continue;
+    const arr = idx.get(t);
+    if (arr) arr.push(d);
+    else idx.set(t, [d]);
+  }
+  titleIndexCache.set(docs, idx);
+  return idx;
+}
 // A title only counts as an omni cousin when at least this share of its
 // atlas-wide occurrences are omni docs — high enough to reject generic section
 // titles ("Parameters", "Data Repository") that merely recur across the atlas.
@@ -41,19 +63,18 @@ function findOmniCousins(
   if (!titleLc) return [];
   const targetSeg = targetDoc.doc_no.split(".").length;
 
-  let global = 0; // atlas-wide docs with this exact title
-  let omni = 0; //   …of which are omni docs
+  const sameTitle = titleIndex(atlas.docs).get(titleLc) ?? [];
+  const global = sameTitle.length; // atlas-wide docs with this title (always >= 1: target is one)
+  let omni = 0; //                    …of which are omni docs
   const byAgent = new Map<string, AtlasNode>(); // other agent → its equivalent doc
-  for (const d of Object.values(atlas.docs)) {
-    if ((d.title ?? "").trim().toLowerCase() !== titleLc) continue;
-    global++;
+  for (const d of sameTitle) {
     const om = d.doc_no.match(OMNI_RE);
     if (!om) continue;
     omni++;
     if (om[1] === targetAgent || d.doc_no.split(".").length !== targetSeg) continue;
     if (!byAgent.has(om[1])) byAgent.set(om[1], d);
   }
-  if (byAgent.size === 0 || global === 0 || omni / global < OMNI_SHARE_MIN) return [];
+  if (byAgent.size === 0 || omni / global < OMNI_SHARE_MIN) return [];
 
   const agentName = new Map(
     graph.participants
