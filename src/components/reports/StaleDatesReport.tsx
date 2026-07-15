@@ -7,7 +7,7 @@ import { useUTCDay } from "../../hooks/useUTCDay";
 import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { filterRows, hasActiveFilter, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
@@ -168,7 +168,7 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
               build={() => staleDatesToCSV(csvReport)}
               fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
               buildFull={() => staleDatesToCSV(report)}
-              filtering={hasActiveFilter(query)}
+              query={query}
             />
           </div>
         )}

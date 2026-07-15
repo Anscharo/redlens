@@ -25,14 +25,23 @@ analytics, counts).
 
 ## The three non-negotiables
 
-1. **CSV download.** A visible **Download CSV** `<button>` that exports the *currently
-   filtered* rows (not the full set). Export through a **shared** CSV helper —
-   `src/lib/csv.ts` (`toCSV(headers, rows)`). Create it if it doesn't exist yet, with
-   RFC-4180 escaping: wrap every field in `"`, and double embedded quotes (`"` → `""`).
-   **Do not** hand-roll per-report escaping — `activeDataRowsToCSV` in `activeDataIndex.ts`
-   still carries its own local `csv()` escaper (correct, but a duplicate); build new reports
-   on the shared `toCSV`/`downloadCSV` and migrate that local helper over when you touch it.
-   Fire `track("report_export", { report: "<slug>", format: "csv" })` on click.
+1. **CSV download — two buttons, via the shared `DownloadCsvButton`.** Render
+   `src/components/reports/DownloadCsvButton.tsx`, which provides **both** report downloads:
+   - **Download full report** — always visible, always exports the *full, unfiltered* dataset.
+   - **Download filtered report** — shown only while a search or filter is active, exports the
+     *currently filtered* rows (its filename gets a best-effort marker of the active query/filters).
+
+   Pass both builders and counts (`build`/`rowCount` for the filtered view, `buildFull`/`fullRowCount`
+   for the full set) plus the report's `query` and its active `filters` array (the same values you
+   hand `<FilterSummary>`, so the filtered button's visibility stays in sync). The builders are thunks
+   — the CSV string is assembled on click, never on render. Don't hand-roll a single-button download.
+   Export through the **shared** CSV helper `src/lib/csv.ts` (`toCSV(headers, rows)` / `downloadCSV`);
+   create it if missing, with RFC-4180 escaping: wrap every field in `"`, and double embedded quotes
+   (`"` → `""`). **Do not** hand-roll per-report escaping — `activeDataRowsToCSV` in `activeDataIndex.ts`
+   still carries its own local `csv()` escaper (correct, but a duplicate); build new reports on the
+   shared `toCSV`/`downloadCSV` and migrate that local helper over when you touch it.
+   `DownloadCsvButton` fires `track("report_export", { report: "<slug>", format: "csv", scope, row_count })`
+   on click (`scope` is `"full"` or `"filtered"`).
 
 2. **Filtering, via the shared filter UI.** Use `useUrlState` so every filter/tab lives
    in a URL param (shareable, bookmarkable, back-button-safe). Render filters with the
@@ -91,7 +100,7 @@ analytics, counts).
 
 ## Definition of done
 
-- [ ] Download CSV button exports filtered rows via `src/lib/csv.ts` (escaping correct)
+- [ ] `DownloadCsvButton` wired with both full + filtered exports via `src/lib/csv.ts` (escaping correct)
 - [ ] Filters URL-synced via `useUrlState` + `FilterPills`/`CategoryPills`
 - [ ] Header search filters the report in place (`q` param)
 - [ ] Pure `src/lib/<name>Index.ts` + colocated `.test.ts`

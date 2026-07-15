@@ -1,5 +1,8 @@
 import { track } from "../../lib/analytics";
 import { downloadCSV } from "../../lib/csv";
+import { filteredExportName, hasActiveFilter } from "../../lib/reportFilter";
+
+type FilterVal = string | false | null | undefined;
 
 const BTN_CLASS =
   "mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap";
@@ -9,9 +12,12 @@ const BTN_CLASS =
 //     (unfiltered) dataset, regardless of any active search/filters.
 //   • "Download filtered report" — shown only while a search or filter is
 //     active; exports the currently visible rows (the old single-button
-//     behavior).
+//     behavior). Its file name carries a best-effort marker of the active
+//     query/filters so the two downloads are distinguishable on disk.
 // `build`/`buildFull` are thunks so the (potentially large) CSV string is only
-// assembled on click, never on render.
+// assembled on click, never on render. `query`/`filters` are the same values
+// the report hands <FilterSummary>, so button visibility stays in sync with the
+// on-screen filter callout.
 export function DownloadCsvButton({
   report,
   filename,
@@ -19,7 +25,8 @@ export function DownloadCsvButton({
   build,
   fullRowCount,
   buildFull,
-  filtering,
+  query,
+  filters = [],
 }: {
   report: string; // analytics slug, e.g. "oea-assessment"
   filename: string; // downloaded file name, e.g. "oea-task-assessment.csv"
@@ -27,11 +34,14 @@ export function DownloadCsvButton({
   build: () => string; // filtered CSV text; called only on click
   fullRowCount: number; // rows in the full (unfiltered) dataset
   buildFull: () => string; // full CSV text; called only on click
-  filtering: boolean; // whether a search/filter is currently active
+  query: string; // active header-box query
+  filters?: FilterVal[]; // active pill filters (labels), matching FilterSummary
 }) {
+  const filtering = hasActiveFilter(query, filters);
   const download = (scope: "full" | "filtered", count: number, builder: () => string) => {
     track("report_export", { report, format: "csv", row_count: count, scope });
-    downloadCSV(filename, builder());
+    const name = scope === "filtered" ? filteredExportName(filename, query, filters) : filename;
+    downloadCSV(name, builder());
   };
   return (
     <div className="flex items-center gap-2 self-start">
