@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   queryTokens, parseReportQuery, fieldMatches, rowMatches, filterRows,
   flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, hasActiveFilter,
-  filteredExportName, EMPTY_QUERY,
+  filteredExportName, insertBeforeExt, EMPTY_QUERY,
   type SearchField,
 } from "./reportFilter";
 
@@ -102,6 +102,23 @@ describe("filteredExportName (names the 'Download filtered report' file)", () =>
     const name = filteredExportName("r.csv", "a".repeat(50));
     expect(name.length).toBeLessThanOrEqual("r.".length + 40 + ".csv".length);
     expect(name).not.toMatch(/-\.csv$/);
+  });
+});
+
+describe("insertBeforeExt (atlas-sha / slug markers)", () => {
+  it("inserts the marker before the extension", () => {
+    expect(insertBeforeExt("atlas-processes.csv", "a1b2c3d4")).toBe("atlas-processes.a1b2c3d4.csv");
+  });
+  it("composes with a filtered name (slug then sha)", () => {
+    expect(insertBeforeExt(filteredExportName("report.csv", "vote"), "a1b2c3d4")).toBe(
+      "report.vote.a1b2c3d4.csv",
+    );
+  });
+  it("is a no-op for a blank marker", () => {
+    expect(insertBeforeExt("report.csv", "")).toBe("report.csv");
+  });
+  it("appends when the filename has no extension", () => {
+    expect(insertBeforeExt("report", "a1b2c3d4")).toBe("report.a1b2c3d4");
   });
 });
 

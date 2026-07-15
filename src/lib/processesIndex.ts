@@ -169,16 +169,26 @@ export function buildProcessRows(
 }
 
 // Exports the given (already-filtered) process rows as an RFC-4180 CSV string.
-export function processRowsToCSV(rows: readonly ProcessRow[]): string {
+// `ignores` (uuid → { reason }) annotates the "Ignored" column so a full export
+// — which includes ignored candidates — stays distinguishable: the cell carries
+// the ignore reason (or "yes" when the reason is blank), empty otherwise.
+export function processRowsToCSV(
+  rows: readonly ProcessRow[],
+  ignores?: ReadonlyMap<string, { reason: string }>,
+): string {
   return toCSV(
-    ["Doc No", "Title", "Category", "Shape", "Status", "Steps"],
-    rows.map((r) => [
-      r.docNo,
-      r.title,
-      r.category,
-      r.shape,
-      r.status,
-      r.stepCount ?? "",
-    ]),
+    ["Doc No", "Title", "Category", "Shape", "Status", "Steps", "Ignored"],
+    rows.map((r) => {
+      const ig = ignores?.get(r.uuid);
+      return [
+        r.docNo,
+        r.title,
+        r.category,
+        r.shape,
+        r.status,
+        r.stepCount ?? "",
+        ig ? ig.reason || "yes" : "",
+      ];
+    }),
   );
 }

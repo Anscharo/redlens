@@ -1,6 +1,8 @@
 import { track } from "../../lib/analytics";
 import { downloadCSV } from "../../lib/csv";
-import { filteredExportName, hasActiveFilter } from "../../lib/reportFilter";
+import { filteredExportName, hasActiveFilter, insertBeforeExt } from "../../lib/reportFilter";
+import { liveAtlasSha } from "../../lib/atlasBase";
+import { useDataSource } from "../../lib/dataSource";
 
 type FilterVal = string | false | null | undefined;
 
@@ -38,9 +40,15 @@ export function DownloadCsvButton({
   filters?: FilterVal[]; // active pill filters (labels), matching FilterSummary
 }) {
   const filtering = hasActiveFilter(query, filters);
+  // Tag every download with the atlas version it was taken from, so a saved CSV
+  // is traceable to a specific atlas commit (preview sha when in preview mode,
+  // else the live injected sha; omitted in dev/cold boot where no sha exists).
+  const { preview } = useDataSource();
+  const sha = preview?.sha ?? liveAtlasSha();
   const download = (scope: "full" | "filtered", count: number, builder: () => string) => {
     track("report_export", { report, format: "csv", row_count: count, scope });
-    const name = scope === "filtered" ? filteredExportName(filename, query, filters) : filename;
+    const base = scope === "filtered" ? filteredExportName(filename, query, filters) : filename;
+    const name = insertBeforeExt(base, sha ? sha.slice(0, 8) : "");
     downloadCSV(name, builder());
   };
   return (
