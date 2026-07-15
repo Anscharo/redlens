@@ -141,13 +141,12 @@ export function RightPanel({
                 </p>
                 <div className="flex flex-col gap-4">
                   {cousinDocs.map(({ node, agent }) => (
-                    <div key={node.id} style={{ padding: 4 }}>
-                      <RelatedNode
-                        node={node}
-                        eyebrow={`${agent} agent`}
-                        onNavigate={navCousin}
-                      />
-                    </div>
+                    <RelatedNode
+                      key={node.id}
+                      node={node}
+                      eyebrow={`${agent} agent`}
+                      onNavigate={navCousin}
+                    />
                   ))}
                 </div>
               </section>

@@ -329,7 +329,10 @@ mark {
 .related-node {
   border-radius: 2px;
   margin: 2px;
-  padding: 2px;
+  /* Padding lives here (not a py-4 utility on the element) because this is the
+     element that carries the hover background — the inset must be inside the
+     hover target. */
+  padding: 16px 10px;
   transition: background-color 0.1s;
 }
 .related-node:hover,

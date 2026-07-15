@@ -26,7 +26,8 @@ export function useNodeAnnotations(id: string, data: LoadedData | null, graph: G
     if (!target) return empty;
     const linkedNodes = extractLinkedIds(target)
       .map((lid) => docs[lid])
-      .filter((n): n is AtlasNode => !!n);
+      .filter((n): n is AtlasNode => !!n)
+      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
     const cousinDocs = graph ? findCousinDocs(id, data.atlas, graph) : [];
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};

@@ -71,9 +71,7 @@ export function findCousinDocs(
     const doc = (equivId && atlas.docs[equivId]) || root;
     cousins.push({ node: doc, agent: agentName.get(otherAgent) ?? atlas.docs[otherAgent]?.title ?? "Unknown" });
   }
-  return cousins.sort(
-    (a, b) =>
-      a.agent.localeCompare(b.agent) ||
-      a.node.doc_no.localeCompare(b.node.doc_no, undefined, { numeric: true }),
+  return cousins.sort((a, b) =>
+    a.node.doc_no.localeCompare(b.node.doc_no, undefined, { numeric: true }),
   );
 }
