@@ -139,7 +139,7 @@ export function RightPanel({
                 <p className="text-xs leading-relaxed mb-4 text-tan-3">
                   Equivalent documents under the other Prime Agents.
                 </p>
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-[14px]">
                   {cousinDocs.map(({ node, agent }) => (
                     <RelatedNode
                       key={node.id}
