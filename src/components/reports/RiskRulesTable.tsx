@@ -74,7 +74,7 @@ function ExpandedBody({
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Precision <ScorePill s={e.preciseness} />
         </p>
-        <p className="text-tan-2">{e.precisenessReasoning}</p>
+        <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} />
         {e.metrics.length > 0 && (
           <p className="mono text-[11px] text-tan-3 mt-1">
             metrics: {e.metrics.map((m) => (
@@ -87,7 +87,7 @@ function ExpandedBody({
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Penalties / Incentives <RatingPill r={e.enforcement} />
         </p>
-        <p className="text-tan-2">{e.enforcementReasoning}</p>
+        <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} />
         {e.mechanismUuids.length > 0 && (
           <p className="text-xs mt-1">
             {e.mechanismUuids.map((u) => (
