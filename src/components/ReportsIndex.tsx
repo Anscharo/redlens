@@ -1,68 +1,59 @@
 import { Link } from "./Link";
-import { reportHref } from "../lib/routes";
+import { reportHref, REPORT_TITLES } from "../lib/routes";
 import { track } from "../lib/analytics";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import type { ReportId } from "../types";
 
+// Titles come from REPORT_TITLES (shared with visit-history capture); cards carry
+// only the id + description here.
 type ReportCard = { id: ReportId; title: string; description: string };
+const card = (id: ReportId, description: string): ReportCard => ({
+  id,
+  title: REPORT_TITLES[id],
+  description,
+});
 
 const SECTIONS: { title: string; reports: ReportCard[] }[] = [
   {
     title: "OEA Reports",
     reports: [
-      {
-        id: "of-responsibilities",
-        title: "Operational Facilitator Responsibilities",
-        description:
-          "Every Atlas section mandating action from an Operational Facilitator, grouped by duty type with per-agent filtering.",
-      },
-      {
-        id: "gov-ops-responsibilities",
-        title: "Operational GovOps Responsibilities",
-        description:
-          "Every Atlas section mandating action from an Operational or Core GovOps — role definitions, per-executor assignments, scattered duties, and Active Data they maintain as Responsible Party.",
-      },
-      {
-        id: "oea-assessment",
-        title: "OEA Task Assessment",
-        description:
-          "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
-      },
+      card(
+        "of-responsibilities",
+        "Every Atlas section mandating action from an Operational Facilitator, grouped by duty type with per-agent filtering.",
+      ),
+      card(
+        "gov-ops-responsibilities",
+        "Every Atlas section mandating action from an Operational or Core GovOps — role definitions, per-executor assignments, scattered duties, and Active Data they maintain as Responsible Party.",
+      ),
+      card(
+        "oea-assessment",
+        "Every task the Operational Executor Agent performs, rated weak/mid/strong for definitional precision and for incentives/penalties — AI-drafted against a fixed rubric, human-reviewed, with per-task reasoning.",
+      ),
     ],
   },
   {
     title: "General Reports",
     reports: [
-      {
-        id: "active-data",
-        title: "Active Data Index",
-        description:
-          "All Active Data sections, their Responsible Parties, edit processes, and agent assignments — with CSV export.",
-      },
-      {
-        id: "rewards",
-        title: "Integrator Reward Relationships",
-        description:
-          "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
-      },
-      {
-        id: "risk-rules",
-        title: "Risk Rules Assessment",
-        description:
-          "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
-      },
-      {
-        id: "stale-dates",
-        title: "Stale Dates",
-        description:
-          "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
-      },
-      {
-        id: "processes",
-        title: "Atlas Processes",
-        description:
-          "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
-      },
+      card(
+        "active-data",
+        "All Active Data sections, their Responsible Parties, edit processes, and agent assignments — with CSV export.",
+      ),
+      card(
+        "rewards",
+        "Every Distribution Reward and Integration Boost instance each Prime Agent has invoked — reward codes, partner names, and on-chain reward addresses.",
+      ),
+      card(
+        "risk-rules",
+        "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
+      ),
+      card(
+        "stale-dates",
+        "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
+      ),
+      card(
+        "processes",
+        "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
+      ),
     ],
   },
 ];

@@ -3,6 +3,7 @@ import { useLocation, useSearchParams, Switch, Route } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
+import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
@@ -122,6 +123,9 @@ export default function App() {
 
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
+  // Browser-local visit log: record report page views (docs/actors/searches are
+  // captured at their own sites, where the human label is available).
+  useReportVisitTracking(location);
 
   // Enter in the search box jumps focus to the first result (entity hit or doc).
   // Returns whether a result was actually focused, so SearchBar only swallows

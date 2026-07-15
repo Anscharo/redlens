@@ -14,6 +14,8 @@ import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { recordVisit } from "../../lib/visitHistory";
+import { actorHref } from "../../lib/routes";
 
 interface Props {
   query: string;
@@ -60,6 +62,12 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
         : null
       : "Redline Radar for Sky Atlas",
   );
+
+  // Append the actor page to the browser-local visit log once its profile loads.
+  useEffect(() => {
+    if (!actorSlug || !profile) return;
+    void recordVisit({ path: actorHref(actorSlug), label: profile.entity.name });
+  }, [actorSlug, profile]);
 
   return (
     <RadarProvider value={{ docs }}>
