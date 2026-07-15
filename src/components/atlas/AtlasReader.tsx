@@ -144,26 +144,57 @@ export function AtlasReader({
       // Selected-only / changed-only: a flat subset in document order. Between
       // two kept docs that are NOT adjacent in the full atlas order (something
       // was filtered out between them), drop an ellipsis barrier so the gap
-      // reads as intentional rather than as true neighbors. The selected node is
-      // wrapped alone in a .selection-group so its position:sticky stays bounded
-      // to itself (no cradle in this flat view).
-      const kept: { entry: (typeof data.flatNodes)[number]; gap: boolean }[] = [];
+      // reads as intentional rather than as true neighbors.
+      const kept: { entry: (typeof data.flatNodes)[number]; i: number; gap: boolean }[] = [];
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
         if (!filterSet.has(entry.node.id)) return;
-        kept.push({ entry, gap: prev >= 0 && i - prev > 1 });
+        kept.push({ entry, i, gap: prev >= 0 && i - prev > 1 });
         prev = i;
       });
-      const out: ReactElement[] = [];
-      for (const { entry, gap } of kept) {
+
+      // Cradle in the selected-only view (not changed-only preview): the selected
+      // node's descendants that survive the filter get the rail — even when
+      // non-contiguous (docs filtered out between them). We can't use the flat
+      // list's adjacency like the unfiltered branch does, so compute the selected
+      // node's descendant span in the FULL flatNodes (a contiguous deeper run in
+      // DFS order) and mark kept rows whose original index falls inside it; the
+      // last such row gets the closing foot.
+      let cradleColor: string | undefined;
+      let cradleFrom = -1;
+      let cradleTo = -1;
+      const selFull = !changedSet && selectedId ? data.flatNodes.findIndex((e) => e.node.id === selectedId) : -1;
+      if (selFull >= 0) {
+        const selDepth = data.flatNodes[selFull].depth;
+        let j = selFull + 1;
+        while (j < data.flatNodes.length && data.flatNodes[j].depth > selDepth) j++;
+        if (j > selFull + 1) {
+          cradleFrom = selFull + 1;
+          cradleTo = j - 1;
+          cradleColor = data.flatNodes[selFull].color;
+        }
+      }
+      let lastCradleKept = -1;
+      if (cradleFrom >= 0) {
+        kept.forEach((k, idx) => {
+          if (k.i >= cradleFrom && k.i <= cradleTo) lastCradleKept = idx;
+        });
+      }
+      const kSel = selectedId ? kept.findIndex((k) => k.entry.node.id === selectedId) : -1;
+
+      // Each kept row → its optional leading gap divider + the node itself.
+      const blocks = kept.map(({ entry, i, gap }, k) => {
+        const block: ReactElement[] = [];
         if (gap) {
-          out.push(
+          block.push(
             <div key={`__gap-${entry.node.id}`} className="selection-gap" aria-hidden="true">
               ⋯
             </div>,
           );
         }
-        const node = (
+        const inCradle = cradleFrom >= 0 && i >= cradleFrom && i <= cradleTo;
+        const cradle = inCradle ? (k === lastCradleKept ? ("foot" as const) : ("line" as const)) : undefined;
+        block.push(
           <CollapsibleNode
             key={entry.node.id}
             entry={entry}
@@ -173,20 +204,27 @@ export function AtlasReader({
             isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
             hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
             onExpandChildren={handleExpandParent}
+            cradle={cradle}
+            cradleColor={cradle ? cradleColor : undefined}
             agentName={agentByDoc?.get(entry.node.id)}
-          />
+          />,
         );
-        out.push(
-          entry.node.id === selectedId ? (
-            <div key={`__sel-${entry.node.id}`} className="selection-group">
-              {node}
-            </div>
-          ) : (
-            node
-          ),
-        );
-      }
-      return out;
+        return block;
+      });
+
+      if (kSel < 0) return blocks.flat();
+      // Bound the sticky selected node to a group spanning it + its cradle rows,
+      // so it stays pinned while the cradle is on screen, then scrolls off with
+      // it (matching the unfiltered cradle). With no cradle the group is just the
+      // selected node.
+      const groupEnd = lastCradleKept >= 0 ? lastCradleKept : kSel;
+      return [
+        ...blocks.slice(0, kSel).flat(),
+        <div key="__selection-group" className="selection-group">
+          {blocks.slice(kSel, groupEnd + 1).flat()}
+        </div>,
+        ...blocks.slice(groupEnd + 1).flat(),
+      ];
     }
 
     // filterSet is null here (the flat filtered view returned above): honor the
@@ -254,7 +292,7 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds, agentByDoc]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, filteredParentIds, agentByDoc]);
 
   return (
     <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }}>
