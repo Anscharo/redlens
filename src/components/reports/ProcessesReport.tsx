@@ -23,7 +23,7 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
-import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { FilterSummary } from "./FilterSummary";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { Highlight } from "./Highlight";
@@ -401,11 +401,12 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
               build={() => processRowsToCSV(filtered)}
               fullRowCount={fullRows.length}
               buildFull={() => processRowsToCSV(fullRows)}
-              filtering={hasActiveFilter(query, [
+              query={query}
+              filters={[
                 categoryFilter,
                 statusFilter !== "all" && statusFilter,
                 shapeFilter !== "all" && shapeFilter,
-              ])}
+              ]}
             />
           </div>
         )}

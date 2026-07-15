@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   queryTokens, parseReportQuery, fieldMatches, rowMatches, filterRows,
-  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, EMPTY_QUERY,
+  flexTokenSource, excerptAround, hiddenMatches, trimLinksAround, displayQuery, hasActiveFilter,
+  filteredExportName, EMPTY_QUERY,
   type SearchField,
 } from "./reportFilter";
 
@@ -53,6 +54,54 @@ describe("displayQuery (UI copy for FilterSummary / NoRowsMatch)", () => {
   it("empty-wrap collapses to empty (no filter shown)", () => {
     expect(displayQuery('""')).toBe("");
     expect(displayQuery("''")).toBe("");
+  });
+});
+
+describe("hasActiveFilter (drives the 'Download filtered report' button)", () => {
+  it("false when the query is blank and no filter is set", () => {
+    expect(hasActiveFilter("")).toBe(false);
+    expect(hasActiveFilter("  ")).toBe(false);
+    expect(hasActiveFilter("  ", [null, false, undefined])).toBe(false);
+  });
+  it("false for an empty-quote wrap (collapses to no query)", () => {
+    expect(hasActiveFilter('""')).toBe(false);
+    expect(hasActiveFilter("''")).toBe(false);
+  });
+  it("true when a text query is present", () => {
+    expect(hasActiveFilter("executive vote")).toBe(true);
+    expect(hasActiveFilter('"executive vote"')).toBe(true);
+  });
+  it("true when any pill filter is truthy, even with a blank query", () => {
+    expect(hasActiveFilter("", ["Sky Base"])).toBe(true);
+    expect(hasActiveFilter("  ", [null, "status:stale", false])).toBe(true);
+  });
+});
+
+describe("filteredExportName (names the 'Download filtered report' file)", () => {
+  it("inserts a query slug before the extension", () => {
+    expect(filteredExportName("stale-dates.csv", "executive vote")).toBe("stale-dates.executive-vote.csv");
+  });
+  it("unwraps a quoted phrase query before slugging", () => {
+    expect(filteredExportName("stale-dates.csv", '"executive vote"')).toBe("stale-dates.executive-vote.csv");
+  });
+  it("combines query + active filter labels", () => {
+    expect(filteredExportName("active-data-index.csv", "vote", ["Spark", null, false])).toBe(
+      "active-data-index.vote-spark.csv",
+    );
+  });
+  it("uses filter labels alone when the query is blank", () => {
+    expect(filteredExportName("op-govops-responsibilities.csv", "  ", ["Sky Base"])).toBe(
+      "op-govops-responsibilities.sky-base.csv",
+    );
+  });
+  it("falls back to 'filtered' when nothing is slug-able", () => {
+    expect(filteredExportName("report.csv", "", [null, false, undefined])).toBe("report.filtered.csv");
+    expect(filteredExportName("report.csv", '""')).toBe("report.filtered.csv");
+  });
+  it("caps the slug length and trims a trailing hyphen", () => {
+    const name = filteredExportName("r.csv", "a".repeat(50));
+    expect(name.length).toBeLessThanOrEqual("r.".length + 40 + ".csv".length);
+    expect(name).not.toMatch(/-\.csv$/);
   });
 });
 

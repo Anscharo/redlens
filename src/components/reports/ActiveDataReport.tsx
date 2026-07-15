@@ -14,7 +14,7 @@ import {
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
-import { filterRows, hasActiveFilter, hiddenMatches, parseReportQuery, type ReportMode, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type SearchField } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
@@ -232,7 +232,8 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
             build={() => activeDataRowsToCSV(shown, lastEditDates)}
             fullRowCount={rows.length}
             buildFull={() => activeDataRowsToCSV(rows, lastEditDates)}
-            filtering={hasActiveFilter(query, [agentFilter, entityFilter])}
+            query={query}
+            filters={[agentFilter, entityFilter]}
           />
         </div>
 

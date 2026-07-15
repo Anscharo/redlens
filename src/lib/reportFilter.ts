@@ -82,6 +82,30 @@ export function hasActiveFilter(
   return !!displayQuery(query).trim() || filters.some(Boolean);
 }
 
+/**
+ * The filename for a report's *filtered* CSV export: the base name with a
+ * best-effort marker of the active query + filter labels inserted before the
+ * extension (`active-data-index.csv` → `active-data-index.spark-vote.csv`), so
+ * the filtered download is distinguishable on disk from the full one. Falls
+ * back to `.filtered` when nothing slug-able is active.
+ */
+export function filteredExportName(
+  filename: string,
+  query: string,
+  filters: (string | false | null | undefined)[] = [],
+): string {
+  const parts = [displayQuery(query).trim(), ...filters.filter((f): f is string => !!f)];
+  const slug =
+    parts
+      .join(" ")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40)
+      .replace(/-+$/g, "") || "filtered";
+  return filename.replace(/(\.[^.]+)$/, `.${slug}$1`);
+}
+
 // ---------------------------------------------------------------------------
 // Field-level matching. Each report describes its haystack as labelled fields
 // with a `hidden` flag, so the UI can explain WHY a row matched: needles that

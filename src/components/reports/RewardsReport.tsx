@@ -15,7 +15,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { AddressLink, EntityChip } from "./RewardsCells";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { PrimitiveTable } from "./RewardsPrimitiveTable";
-import { hasActiveFilter, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { filterRewardsAgents } from "./rewardsSearch";
@@ -210,7 +210,7 @@ export function RewardsReport({ query, mode }: { query: string; mode: ReportMode
               build={() => rewardsIndexToCSV({ ...idx, agents: shownAgents })}
               fullRowCount={countIcds(idx.agents)}
               buildFull={() => rewardsIndexToCSV(idx)}
-              filtering={hasActiveFilter(query)}
+              query={query}
             />
           </div>
         )}
