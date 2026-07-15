@@ -12,7 +12,7 @@ import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { RiskTable, riskSearchFields } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -172,6 +172,14 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
               filename="risk-rules-assessment.csv"
               rowCount={filtered.length}
               build={() => riskRowsToCSV(filtered)}
+              fullRowCount={join.rows.length}
+              buildFull={() => riskRowsToCSV(join.rows)}
+              filtering={hasActiveFilter(query, [
+                ...domains.map((d) => RISK_DOMAIN_LABELS[d]),
+                score,
+                enforce,
+                status,
+              ])}
             />
           </div>
         )}

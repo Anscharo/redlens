@@ -28,7 +28,7 @@ import { DownloadCsvButton } from "./DownloadCsvButton";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { OGCategoryTable, ogSearchFields } from "./OGCategoryTable";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -206,6 +206,9 @@ export function OGReport({ query, mode }: { query: string; mode: ReportMode }) {
             filename="op-govops-responsibilities.csv"
             rowCount={filtered.length}
             build={() => govopsRowsToCSV(filtered)}
+            fullRowCount={responsibilities.length}
+            buildFull={() => govopsRowsToCSV(responsibilities)}
+            filtering={hasActiveFilter(query, [filterName, cat])}
           />
         </div>
 

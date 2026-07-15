@@ -11,7 +11,7 @@ import { loadOeaReport, summarize, oeaRowsToCSV, type OeaRow, type OeaRowStatus 
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OeaTable, oeaSearchFields } from "./OeaAssessmentTable";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -134,6 +134,9 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
               filename="oea-task-assessment.csv"
               rowCount={shown.length}
               build={() => oeaRowsToCSV(shown)}
+              fullRowCount={rows.length}
+              buildFull={() => oeaRowsToCSV(rows)}
+              filtering={hasActiveFilter(query, [cat, status, precision, incentives])}
             />
           </div>
         )}

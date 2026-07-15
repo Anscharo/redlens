@@ -23,7 +23,7 @@ import { ProcessCurationPanel } from "./ProcessCurationPanel";
 import { ProcessCurationBar } from "./ProcessCurationBar";
 import type { LocalIgnore } from "../../lib/curationStore";
 import type { AtlasNode } from "../../types";
-import { filterRows, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode, type ReportQuery, type SearchField } from "../../lib/reportFilter";
 import { FilterSummary } from "./FilterSummary";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { Highlight } from "./Highlight";
@@ -261,6 +261,14 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
     return filterRows(base, rq, searchFields);
   }, [rows, statusFilter, shapeFilter, categoryFilter, showIgnored, ignoresByUuid, rq]);
 
+  // The "full report" export ignores the pill/search filters but still honors
+  // the ignored-rows gate (ignored candidates are excluded from the inventory
+  // by curation, not by an ad-hoc filter).
+  const fullRows = useMemo(
+    () => rows.filter((r) => showIgnored || !ignoresByUuid.has(r.uuid)),
+    [rows, showIgnored, ignoresByUuid],
+  );
+
   const byCategory = useMemo(() => {
     const map = new Map<string, ProcessRow[]>();
     for (const r of filtered) {
@@ -391,6 +399,13 @@ export function ProcessesReport({ onNavigate, query, mode }: { onNavigate: (id: 
               filename="atlas-processes.csv"
               rowCount={filtered.length}
               build={() => processRowsToCSV(filtered)}
+              fullRowCount={fullRows.length}
+              buildFull={() => processRowsToCSV(fullRows)}
+              filtering={hasActiveFilter(query, [
+                categoryFilter,
+                statusFilter !== "all" && statusFilter,
+                shapeFilter !== "all" && shapeFilter,
+              ])}
             />
           </div>
         )}

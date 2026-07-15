@@ -28,7 +28,7 @@ import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OFCategoryTable, ofSearchFields } from "./OFCategoryTable";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, hasActiveFilter, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 
@@ -200,6 +200,9 @@ export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
             filename="op-facilitator-responsibilities.csv"
             rowCount={filtered.length}
             build={() => facilitatorRowsToCSV(filtered)}
+            fullRowCount={responsibilities.length}
+            buildFull={() => facilitatorRowsToCSV(responsibilities)}
+            filtering={hasActiveFilter(query, [filterName, cat])}
           />
         </div>
 
