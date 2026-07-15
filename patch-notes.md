@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-15
+- Reports now offer a "Download full report" button that always exports the complete dataset, alongside a "Download filtered report" button that appears only while a search or filter is active
+
 ## 2026-07-13
 - Fixed the GovOps and Facilitator reports merging same-titled duties that actually differ between Prime Agents — each variant now keeps its own row with the right agents, and rows that do merge identical per-agent copies now link every copy
 - Fixed "failed to render" errors after a new version is deployed — the app now shows a refresh prompt to load the update

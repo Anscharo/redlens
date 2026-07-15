@@ -70,6 +70,18 @@ export function displayQuery(raw: string): string {
   return wrapped(t, '"') ?? wrapped(t, "'") ?? t;
 }
 
+/**
+ * Whether the header text query or any pill filter is currently active — the
+ * same predicate FilterSummary uses to decide whether to render. Drives the
+ * visibility of the "Download filtered report" button.
+ */
+export function hasActiveFilter(
+  query: string,
+  filters: (string | false | null | undefined)[] = [],
+): boolean {
+  return !!displayQuery(query).trim() || filters.some(Boolean);
+}
+
 // ---------------------------------------------------------------------------
 // Field-level matching. Each report describes its haystack as labelled fields
 // with a `hidden` flag, so the UI can explain WHY a row matched: needles that
