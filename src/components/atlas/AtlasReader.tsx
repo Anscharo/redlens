@@ -29,12 +29,14 @@ export function AtlasReader({
   splitId,
   onSplitChange,
   data,
+  agentName,
 }: {
   id: string;
   selectedId: string | null;
   splitId: string | null;
   onSplitChange: (id: string | null) => void;
   data: LoadedData;
+  agentName?: string | null;
 }) {
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
@@ -114,24 +116,13 @@ export function AtlasReader({
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
 
-  // Ordered ids of the rows the user currently sees (same filter as docList's
-  // `visible`), registered with the selection store so shift-click range-select
-  // spans exactly the visible list.
-  const { setVisibleOrder } = useSelection();
-  const orderedVisibleIds = useMemo(() => {
-    const out: string[] = [];
-    for (const entry of data.flatNodes) {
-      if (filterSet) {
-        if (filterSet.has(entry.node.id)) out.push(entry.node.id);
-      } else if (!(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""))) {
-        out.push(entry.node.id);
-      }
-    }
-    return out;
-  }, [data, filterSet, expandedParents]);
-  useEffect(() => {
-    setVisibleOrder(orderedVisibleIds);
-  }, [orderedVisibleIds, setVisibleOrder]);
+  // Shift-clicking a node's expand toggle selects that node + all descendants.
+  // Turn selection mode on so the resulting checks are visible.
+  const { selectSubtree, setSelectionMode } = useSelection();
+  const handleSelectSubtree = useCallback((rootId: string) => {
+    setSelectionMode(true);
+    selectSubtree(collectSubtree(data.atlas.byParent, rootId));
+  }, [selectSubtree, setSelectionMode, data]);
 
   // In the flat filtered view, a doc's "expand all children" affordance is only
   // meaningful if it actually has a descendant in the filter set. Collect every
@@ -184,6 +175,7 @@ export function AtlasReader({
             isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
             hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
             onExpandChildren={handleExpandParent}
+            agentName={entry.node.id === selectedId ? agentName : undefined}
           />
         );
         out.push(
@@ -243,6 +235,7 @@ export function AtlasReader({
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
+          agentName={entry.node.id === selectedId ? agentName : undefined}
         />
       );
     });
@@ -263,10 +256,10 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, filteredParentIds, agentName]);
 
   return (
-    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll }}>
+    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }}>
       <div
         className="relative flex flex-col overflow-hidden flex-1 min-w-0"
         style={{ ...ATLAS_LEFT_PANE_STYLE, minHeight: 0 }}

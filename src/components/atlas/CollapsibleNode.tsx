@@ -35,6 +35,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   idPrefix,
   cradle,
   cradleColor,
+  agentName,
 }: {
   entry: FlatEntry;
   isSelected: boolean;
@@ -47,10 +48,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
   cradle?: "line" | "foot";
   cradleColor?: string;
+  /** Owning prime/executor agent name — shown as a pill under the doc number
+   *  on the selected row. Only passed for the selected node. */
+  agentName?: string | null;
 }) {
-  const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, expandAll, selectSubtree } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
-  const { ids: selectedIds, selectionMode, rangeToggle } = useSelection();
+  const { ids: selectedIds, selectionMode, toggleDoc } = useSelection();
   const inSelectedOnly = !!useSelectionSet();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -205,9 +209,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             checked={selectedIds.has(node.id)}
             onChange={(e) => {
               e.stopPropagation();
-              // Shift-click extends the selection across the visible range; the
-              // change event's native (pointer/mouse) event carries shiftKey.
-              rangeToggle(node.id, (e.nativeEvent as MouseEvent).shiftKey);
+              toggleDoc(node.id);
             }}
           />
         </label>
@@ -220,8 +222,16 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             type="button"
             className={`atlas-node-toggle${isExpanded ? " is-open" : ""}`}
             aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.doc_no}`}
-            title={showExpandAll ? "alt-click: expand/collapse all beneath" : undefined}
-            onClick={(e) => (e.altKey && showExpandAll ? doExpandAll() : doToggle())}
+            title={`${showExpandAll ? "alt-click: expand/collapse all beneath · " : ""}shift-click: select this document and everything beneath`}
+            onClick={(e) => {
+              if (e.shiftKey && selectSubtree) {
+                e.stopPropagation();
+                selectSubtree(node.id);
+                return;
+              }
+              if (e.altKey && showExpandAll) doExpandAll();
+              else doToggle();
+            }}
           >
             ›
           </button>
@@ -236,8 +246,15 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             type="button"
             className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
             aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
-            title={isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"}
-            onClick={doExpandAll}
+            title={`${isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"} · shift-click: select this document and everything beneath`}
+            onClick={(e) => {
+              if (e.shiftKey && selectSubtree) {
+                e.stopPropagation();
+                selectSubtree(node.id);
+                return;
+              }
+              doExpandAll();
+            }}
           >
             »
           </button>
@@ -253,6 +270,11 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </HeadingTag>
         </div>
       </div>
+      {isSelected && agentName && (
+        <div className="atlas-agent-pill-row pl-3">
+          <span className="atlas-agent-pill">{agentName}</span>
+        </div>
+      )}
       {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
       {/* In selected-only mode the reader shows a flat list that ignores depth-6

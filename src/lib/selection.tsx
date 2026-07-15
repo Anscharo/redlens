@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useUrlState, urlBool } from "../hooks/useUrlState";
 import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 
@@ -12,12 +12,13 @@ interface Selection {
    *  every document. Off by default so the checkboxes don't always show. */
   selectionMode: boolean;
   setSelectionMode: (v: boolean) => void;
-  /** Checkbox toggle with shift-click range support: on shift, selects every
-   *  currently-visible doc between the last-toggled anchor and `id`. */
-  rangeToggle: (id: string, shift: boolean) => void;
-  /** Register the reader's current ordered list of visible doc ids, so
-   *  rangeToggle knows what "between" means in the view the user sees. */
-  setVisibleOrder: (ids: string[]) => void;
+  /** Toggle a single doc's membership (the per-document checkbox). */
+  toggleDoc: (id: string) => void;
+  /** Toggle a whole subtree at once (a doc + all its descendants), keyed on the
+   *  root's current membership: if the root is selected, the whole set is
+   *  removed; otherwise the whole set is added. Backs shift-clicking a node's
+   *  expand toggle. The caller passes the flattened id list (root first). */
+  selectSubtree: (ids: string[]) => void;
   clear: () => void;
   replace: (ids: string[]) => void;
   selectedOnly: boolean;
@@ -39,8 +40,8 @@ const NOOP_SELECTION: Selection = {
   ids: EMPTY_IDS as Set<string>,
   selectionMode: false,
   setSelectionMode: () => {},
-  rangeToggle: () => {},
-  setVisibleOrder: () => {},
+  toggleDoc: () => {},
+  selectSubtree: () => {},
   clear: () => {},
   replace: () => {},
   selectedOnly: false,
@@ -88,42 +89,28 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  // The reader's current ordered visible doc ids, and the last checkbox the user
-  // toggled (the anchor for a subsequent shift-click range). Refs, not state:
-  // they feed an imperative handler and must never trigger a re-render.
-  const orderRef = useRef<string[]>([]);
-  const anchorRef = useRef<string | null>(null);
-
-  const setVisibleOrder = useCallback((order: string[]) => {
-    orderRef.current = order;
-  }, []);
-
-  const rangeToggle = useCallback((id: string, shift: boolean) => {
-    const order = orderRef.current;
-    const anchor = anchorRef.current;
-    if (shift && anchor && anchor !== id) {
-      const a = order.indexOf(anchor);
-      const b = order.indexOf(id);
-      if (a >= 0 && b >= 0) {
-        const [lo, hi] = a < b ? [a, b] : [b, a];
-        // Shift-select adds the whole visible span (anchor included) — it never
-        // deselects, matching the common list range-select convention.
-        setIds((prev) => {
-          const next = new Set(prev);
-          for (let k = lo; k <= hi; k++) next.add(order[k]);
-          return next;
-        });
-        anchorRef.current = id;
-        return;
-      }
-    }
+  const toggleDoc = useCallback((id: string) => {
     setIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-    anchorRef.current = id;
+  }, []);
+
+  const selectSubtree = useCallback((subtreeIds: string[]) => {
+    if (subtreeIds.length === 0) return;
+    setIds((prev) => {
+      const next = new Set(prev);
+      // Root-keyed toggle: an already-selected root deselects the whole subtree,
+      // otherwise the whole subtree is added.
+      if (next.has(subtreeIds[0])) {
+        for (const sid of subtreeIds) next.delete(sid);
+      } else {
+        for (const sid of subtreeIds) next.add(sid);
+      }
+      return next;
+    });
   }, []);
 
   const clear = useCallback(() => setIds(new Set()), []);
@@ -135,8 +122,8 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       ids,
       selectionMode,
       setSelectionMode,
-      rangeToggle,
-      setVisibleOrder,
+      toggleDoc,
+      selectSubtree,
       clear,
       replace,
       selectedOnly,
@@ -146,7 +133,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       activeCollectionName,
       setActiveCollectionName,
     }),
-    [ids, selectionMode, rangeToggle, setVisibleOrder, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
+    [ids, selectionMode, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;

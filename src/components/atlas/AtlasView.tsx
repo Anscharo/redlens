@@ -11,6 +11,7 @@ import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
 import { useDocViewTracking } from "../../hooks/useDocViewTracking";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadGraph } from "../../lib/graph";
+import { findOwningAgent } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
 import {
   buildAncestorsWithSelf,
@@ -59,6 +60,15 @@ export function AtlasView({
     return buildAncestorsWithSelf(data.atlas.docs, data.atlas.docNoToId, id);
   }, [data, id]);
 
+  // The prime/executor agent whose subtree the selected doc lives under, shown
+  // as a pill under its doc number in the reader. Preview hides it for the same
+  // reason cousins/graph relations are hidden: the live graph's ids don't match
+  // preview docs.
+  const owningAgent = useMemo(
+    () => (data && id ? findOwningAgent(id, data.atlas, preview ? null : graph) : null),
+    [data, id, graph, preview],
+  );
+
   if (!data) {
     return <Loading />;
   }
@@ -90,6 +100,7 @@ export function AtlasView({
             splitId={splitId}
             onSplitChange={onSplitChange}
             data={data}
+            agentName={owningAgent}
           />
           {id && (
             <AtlasAnnotations
