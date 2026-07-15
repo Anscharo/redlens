@@ -19,9 +19,9 @@ export const RelatedNode = memo(function RelatedNode({
   return (
     <div className="related-node">
       <AtlasLink to={atlasHref(node.id)} className="block no-underline mb-2">
-        <p className="text-xs mono mb-1 text-tan-2">{node.doc_no}</p>
-        <p className="text-sm font-semibold my-1.5" style={{ color }}>{node.title}</p>
-        <div className="flex items-center gap-2">
+        <p className="text-[11px] mono mb-1 text-tan-2">{node.doc_no}</p>
+        <p className="text-base font-semibold my-1.5" style={{ color }}>{node.title}</p>
+        <div className="flex items-center gap-2 scale-90 origin-left">
           <span className="atlas-type-pill">{node.type}</span>
           {eyebrow}
         </div>
