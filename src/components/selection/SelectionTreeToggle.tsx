@@ -19,8 +19,6 @@ export function SelectionTreeToggle() {
   const [location, navigate] = useLocation();
   const {
     ids,
-    selectionMode,
-    setSelectionMode,
     selectedOnly,
     setSelectedOnly,
     setActiveCollectionId,
@@ -127,26 +125,6 @@ export function SelectionTreeToggle() {
             <path d="M1 2.5 h3.5 l1 1.5 h6 v6.5 h-10.5 z" />
           </svg>
         </button>
-      )}
-
-      {/* Selection-mode toggle — a checkbox mirroring the per-document ones, so
-          its meaning ("show the checkboxes") reads at a glance. Reader-only: it's
-          the entry point to selecting, which only makes sense while reading. */}
-      {inReader && (
-        <label
-          className="atlas-node-select shrink-0"
-          title={selectionMode ? "Turn off selection mode" : "Turn on selection mode (show checkboxes)"}
-          aria-label="Selection mode"
-        >
-          <input
-            type="checkbox"
-            checked={selectionMode}
-            onChange={() => {
-              track("selection_mode_toggle", { on: !selectionMode, count });
-              setSelectionMode(!selectionMode);
-            }}
-          />
-        </label>
       )}
 
       {showSave && <SaveCollectionModal ids={[...ids]} onClose={() => setShowSave(false)} />}

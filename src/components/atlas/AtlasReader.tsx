@@ -116,13 +116,11 @@ export function AtlasReader({
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
 
-  // Shift-clicking a node's expand toggle selects that node + all descendants.
-  // Turn selection mode on so the resulting checks are visible.
-  const { selectSubtree, setSelectionMode } = useSelection();
+  // Shift-clicking a doc's selection checkbox selects it + all descendants.
+  const { selectSubtree } = useSelection();
   const handleSelectSubtree = useCallback((rootId: string) => {
-    setSelectionMode(true);
     selectSubtree(collectSubtree(data.atlas.byParent, rootId));
-  }, [selectSubtree, setSelectionMode, data]);
+  }, [selectSubtree, data]);
 
   // In the flat filtered view, a doc's "expand all children" affordance is only
   // meaningful if it actually has a descendant in the filter set. Collect every

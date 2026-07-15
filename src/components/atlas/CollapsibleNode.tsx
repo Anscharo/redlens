@@ -54,7 +54,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
 }) {
   const { navigate, toggle, splitNavigate, expandAll, selectSubtree } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
-  const { ids: selectedIds, selectionMode, toggleDoc } = useSelection();
+  const { ids: selectedIds, toggleDoc } = useSelection();
   const inSelectedOnly = !!useSelectionSet();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -198,30 +198,28 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
-      {selectionMode && (
-        <label
-          className="atlas-node-select absolute top-2 right-2"
-          aria-label={`Select ${node.title}`}
-          title="shift-click: also select everything beneath"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            checked={selectedIds.has(node.id)}
-            onChange={(e) => {
-              e.stopPropagation();
-              // Shift-click selects this doc + all its descendants; a plain click
-              // toggles just this one. The change event's native mouse event
-              // carries the shift state.
-              if ((e.nativeEvent as MouseEvent).shiftKey && selectSubtree) {
-                selectSubtree(node.id);
-              } else {
-                toggleDoc(node.id);
-              }
-            }}
-          />
-        </label>
-      )}
+      <label
+        className="atlas-node-select absolute top-2 right-2"
+        aria-label={`Select ${node.title}`}
+        title="shift-click: also select everything beneath"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <input
+          type="checkbox"
+          checked={selectedIds.has(node.id)}
+          onChange={(e) => {
+            e.stopPropagation();
+            // Shift-click selects this doc + all its descendants; a plain click
+            // toggles just this one. The change event's native mouse event
+            // carries the shift state.
+            if ((e.nativeEvent as MouseEvent).shiftKey && selectSubtree) {
+              selectSubtree(node.id);
+            } else {
+              toggleDoc(node.id);
+            }
+          }}
+        />
+      </label>
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
@@ -263,7 +261,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </HeadingTag>
         </div>
       </div>
-      {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
+      {isSelected && isExpanded && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
       {/* In selected-only mode the reader shows a flat list that ignores depth-6
           gating, so revealing hidden descendants is a no-op — hide the affordance

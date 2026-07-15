@@ -418,7 +418,11 @@ mark {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  opacity: 0.35;
+  /* Hidden by default — no selection "mode" to arm. It reveals on row hover, on
+     the selected row, and whenever it's already checked (see below). Kept
+     non-interactive while hidden so the invisible corner can't toggle. */
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 0.12s;
   /* Below the sticky selected node (.atlas-node.is-selected, z-index 2) so a
      row's checkbox is occluded as it scrolls under the pinned selected doc,
@@ -426,9 +430,12 @@ mark {
      still shows: that whole article is z-index 2, and this stacks inside it. */
   z-index: 1;
 }
-.atlas-node-select:hover,
+.atlas-node:hover .atlas-node-select,
+.atlas-node:focus-within .atlas-node-select,
+.atlas-node.is-selected .atlas-node-select,
 .atlas-node-select:has(input:checked) {
   opacity: 1;
+  pointer-events: auto;
 }
 .atlas-node-select input {
   width: 13px;

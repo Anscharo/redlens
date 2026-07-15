@@ -5,16 +5,13 @@ import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
 
-// The selection checkbox only renders when selection mode is on, so mock the
-// selection store to force it on and capture toggleDoc. selectSubtree reaches
-// the checkbox through AtlasActionsContext (the reader provides it), so it's
-// injected via the provider below, not the store.
+// Mock the selection store to capture toggleDoc. selectSubtree reaches the
+// checkbox through AtlasActionsContext (the reader provides it), so it's injected
+// via the provider below, not the store.
 const mocks = vi.hoisted(() => ({ toggleDoc: vi.fn() }));
 vi.mock("../../lib/selection", () => ({
   useSelection: () => ({
     ids: new Set<string>(),
-    selectionMode: true,
-    setSelectionMode: () => {},
     toggleDoc: mocks.toggleDoc,
     selectSubtree: () => {},
     clear: () => {},

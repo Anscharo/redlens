@@ -8,10 +8,6 @@ import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 // selected-only toggle is URL-synced like other view filters.
 interface Selection {
   ids: Set<string>;
-  /** Whether selection mode is active — when on, the reader shows a checkbox on
-   *  every document. Off by default so the checkboxes don't always show. */
-  selectionMode: boolean;
-  setSelectionMode: (v: boolean) => void;
   /** Toggle a single doc's membership (the per-document checkbox). */
   toggleDoc: (id: string) => void;
   /** Toggle a whole subtree at once (a doc + all its descendants), keyed on the
@@ -38,8 +34,6 @@ interface Selection {
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 const NOOP_SELECTION: Selection = {
   ids: EMPTY_IDS as Set<string>,
-  selectionMode: false,
-  setSelectionMode: () => {},
   toggleDoc: () => {},
   selectSubtree: () => {},
   clear: () => {},
@@ -60,7 +54,6 @@ export function useSelection(): Selection {
 
 export function SelectionProvider({ children }: { children: ReactNode }) {
   const [ids, setIds] = useState<Set<string>>(() => new Set(loadSelection()));
-  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedOnly, setSelectedOnly] = useUrlState("selectedOnly", urlBool(false));
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [activeCollectionName, setActiveCollectionName] = useState<string | null>(null);
@@ -120,8 +113,6 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Selection>(
     () => ({
       ids,
-      selectionMode,
-      setSelectionMode,
       toggleDoc,
       selectSubtree,
       clear,
@@ -133,7 +124,7 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
       activeCollectionName,
       setActiveCollectionName,
     }),
-    [ids, selectionMode, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
+    [ids, toggleDoc, selectSubtree, clear, replace, selectedOnly, setSelectedOnly, activeCollectionId, activeCollectionName],
   );
 
   return <SelectionContext.Provider value={value}>{children}</SelectionContext.Provider>;
