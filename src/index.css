@@ -675,9 +675,9 @@ button.atlas-node-expand-all:focus-visible {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--tan);
+  color: var(--tan-3);
   background: transparent;
-  border: 1px solid var(--tan);
+  border: 1px solid var(--tan-3);
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.4;
