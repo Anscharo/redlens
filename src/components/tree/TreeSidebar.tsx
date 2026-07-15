@@ -191,13 +191,11 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const visibleNodes = useMemo(() => {
     if (!bundle) return [];
     const { byParent, docs } = bundle;
-    // "Changed only" (preview) or "selected only": flat list of just the
-    // matching docs, in document order — no hierarchy, no ancestors, nothing
-    // to expand. Preview's changed-set takes priority when both are active.
-    const flatFilter = changedSet ?? selectionSet;
-    if (flatFilter) {
+    // "Changed only" (preview): a flat list of just the changed docs, in
+    // document order — no hierarchy, nothing to expand.
+    if (changedSet) {
       return Object.values(docs)
-        .filter((n) => flatFilter.has(n.id))
+        .filter((n) => changedSet.has(n.id))
         .sort((a, b) => a.order - b.order)
         // Use the node's real depth (not a flat 1) so chiclet colors — and NR-X
         // chiclets in particular, whose number is colored by this depth — match
@@ -205,6 +203,26 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         .map((node) => ({ node, hasChildren: false, treeDepth: node.depth }));
     }
     const result: VisibleNode[] = [];
+    // "Selected only": selected docs stay visible, but keep WORKING chevrons —
+    // expanding a selected node reveals its children so you can browse into the
+    // subtree. Hierarchical walk that shows a node when it's selected OR under an
+    // expanded shown ancestor; the parentDocNo chain keeps depth/chiclet colors
+    // right even where intermediate (unselected) ancestors are hidden.
+    if (selectionSet) {
+      const walkSel = (parentId: string | null, parentDocNo: string | undefined, reveal: boolean) => {
+        for (const node of byParent.get(parentId) ?? []) {
+          const hasChildren = byParent.has(node.id);
+          if (selectionSet.has(node.id) || reveal) {
+            result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no, parentDocNo), parentDocNo });
+            walkSel(node.id, node.doc_no, hasChildren && expandedIds.has(node.id));
+          } else {
+            walkSel(node.id, node.doc_no, false);
+          }
+        }
+      };
+      walkSel(null, undefined, false);
+      return result;
+    }
     function walk(parentId: string | null, parentDocNo?: string) {
       for (const node of byParent.get(parentId) ?? []) {
         const hasChildren = byParent.has(node.id);
