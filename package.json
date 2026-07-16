@@ -59,7 +59,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:server": "bun test src/server",
+    "test:server": "bun test src/server scripts/aux/eval-verifier-mutations.test.ts",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "test:e2e": "playwright test",
