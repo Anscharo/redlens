@@ -207,6 +207,7 @@ export function AtlasReader({
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
             agentName={agentByDoc?.get(entry.node.id)}
+            inSelectedOnly={!!selectionSet}
           />,
         );
         return block;
@@ -272,6 +273,7 @@ export function AtlasReader({
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
           agentName={agentByDoc?.get(entry.node.id)}
+          inSelectedOnly={!!selectionSet}
         />
       );
     });
@@ -292,10 +294,18 @@ export function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, filteredParentIds, agentByDoc]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc]);
+
+  // Stable actions-context value: rebuilding it every render forced every
+  // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection
+  // change). All members are stable callbacks, so memoize the object too.
+  const actions = useMemo(
+    () => ({ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }),
+    [navigate, handleToggle, splitNavigate, handleExpandAll, handleSelectSubtree],
+  );
 
   return (
-    <AtlasActionsContext.Provider value={{ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }}>
+    <AtlasActionsContext.Provider value={actions}>
       <div
         className="relative flex flex-col overflow-hidden flex-1 min-w-0"
         style={{ ...ATLAS_LEFT_PANE_STYLE, minHeight: 0 }}

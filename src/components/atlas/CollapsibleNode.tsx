@@ -9,8 +9,7 @@ import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
-import { useSelection } from "../../lib/selection";
-import { useSelectionSet } from "../../lib/selectionFilter";
+import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
 
 const DRAG_THRESHOLD_PX = 4;
@@ -39,6 +38,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   cradle,
   cradleColor,
   agentName,
+  inSelectedOnly = false,
 }: {
   entry: FlatEntry;
   isSelected: boolean;
@@ -54,11 +54,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   /** Owning prime/executor agent name — shown as a pill under the doc number
    *  whenever the row is expanded. Undefined for docs not under an agent. */
   agentName?: string | null;
+  /** "Selected only" view is active — hides the hidden-descendants affordance.
+   *  Passed as a prop (not read from selection context) so a selection change
+   *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
+  inSelectedOnly?: boolean;
 }) {
-  const { navigate, toggle, splitNavigate, expandAll, selectSubtree } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
-  const { ids: selectedIds, toggleDoc } = useSelection();
-  const inSelectedOnly = !!useSelectionSet();
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
   // NR-X nodes carry an opaque global number ("NR-12"), not a positional doc_no.
@@ -201,28 +203,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
-      <label
-        className="atlas-node-select absolute top-2 right-2"
-        aria-label={`Select ${node.title}`}
-        title="shift-click: also select everything beneath"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          type="checkbox"
-          checked={selectedIds.has(node.id)}
-          onChange={(e) => {
-            e.stopPropagation();
-            // Shift-click selects this doc + all its descendants; a plain click
-            // toggles just this one. The change event's native mouse event
-            // carries the shift state.
-            if ((e.nativeEvent as MouseEvent).shiftKey && selectSubtree) {
-              selectSubtree(node.id);
-            } else {
-              toggleDoc(node.id);
-            }
-          }}
-        />
-      </label>
+      <NodeSelectBox nodeId={node.id} title={node.title} />
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
