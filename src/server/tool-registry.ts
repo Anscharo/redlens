@@ -15,6 +15,12 @@ import { atlasFirstSeen } from "./first-seen.ts";
 export interface AtlasTool {
   name: string;
   description: string;
+  // Short agent-steering line: the QUESTION SHAPE that should make an agent
+  // reach for this tool over the alternatives. `description` says what the tool
+  // does (reference, shared with MCP + /connect); `whenToUse` says when to pick
+  // it (decision-point steer). llm-tools.ts appends it to the tool description
+  // the chat model reads natively; MCP and /connect ignore it.
+  whenToUse?: string;
   shape: z.ZodRawShape;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 }
@@ -22,6 +28,8 @@ export interface AtlasTool {
 export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_describe",
+    whenToUse:
+      "You need exact schema vocabulary (a type name, an edge type, or how entity types connect) before building a filter or traversal. Not for content.",
     description:
       "Self-describing schema. By default returns doc-type + edge-type + entity-type vocabularies (with counts) and " +
       "doc/entity totals. The heavier entity_type_graph (how entity types connect — traversal chains like " +
@@ -37,6 +45,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_get",
+    whenToUse:
+      "You already have a UUID or doc_no and need the full document text — typically to read a doc a search surfaced.",
     description:
       "Fetch one or many Atlas nodes by UUID or doc_no. Each result includes the full ancestor chain (parent → root). " +
       "Pass a string for one node or an array for bulk.",
@@ -47,6 +57,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_search",
+    whenToUse:
+      "You only need to find docs by words, with no graph/entity/history dimension. If the question spans dimensions, use atlas_query instead.",
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
       'mode="semantic" uses Qwen3 embeddings via pgvector (paraphrase / concept queries). ' +
@@ -62,6 +74,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_get_address",
+    whenToUse:
+      "The question contains or is about an on-chain address (0x… / base58) and you need its entity, roles, or chain state.",
     description:
       "Look up an on-chain address. Returns merged atlas + chain metadata (label, chainlog id, etherscan name, " +
       "roles, aliases, expected tokens, chain_state snapshot), the linked entity, and the doc edges that reference it.",
@@ -73,6 +87,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_neighbors",
+    whenToUse:
+      "You have one node and need its immediate structural context — parent, siblings, direct children (e.g. 'what else is in this section').",
     description: "Return the hierarchical context around a node: parent, N siblings above/below, and direct children.",
     shape: {
       id: z.string().describe("Node UUID or doc_no."),
@@ -82,6 +98,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_traverse",
+    whenToUse:
+      "You need everything reachable from a node along typed edges several hops out — indirect or chained relationships, not just direct neighbors.",
     description:
       "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
       "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
@@ -97,6 +115,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entities",
+    whenToUse:
+      "You have a NAME (e.g. 'Spark Protocol') and need its entity slug, or want to browse entities by type/subtype. Call this FIRST when you lack a slug the other entity tools need.",
     description:
       "Find entities by free-text name and/or structural filters — the tool to call FIRST to turn a name like " +
       "'Spark Protocol' into a slug (atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching " +
@@ -119,6 +139,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_edges",
+    whenToUse:
+      "The question asks for EVERY relationship of a type (all signers, all integration partners) or all edges to/from one resolved entity slug.",
     description:
       "Enumerate graph edges globally with pagination. Use when a question asks for every relationship of a type " +
       "(e.g. signer_of, integration_partner_of, active_data_for) or all edges from/to a resolved entity slug. " +
@@ -147,6 +169,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity",
+    whenToUse:
+      "The question is about what an actor actually HAS or does — its instances, responsibilities, or Active Data. Use this instead of searching and reading titles when you need an agent's real holdings, not docs that merely mention it.",
     description:
       "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
       "name ('Spark Protocol') — resolved server-side; the response echoes `resolved` + `alternatives`. Returns " +
@@ -170,6 +194,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_filter",
+    whenToUse:
+      "You want documents by STRUCTURE — a type, an entity's subtree, a doc_no pattern, or a depth range — rather than by words.",
     description: "Filter Atlas documents by structural attributes. Compose any of: type, entity slug (restricts to entity's artifact subtree), ancestor_id (recursive descendants), doc_no_pattern (SQL LIKE, e.g. '%.0.4.%'), depth_min/max.",
     shape: {
       type: z.string().optional().describe("Atlas doc type (e.g. 'Active Data', 'Core', 'Action Tenet')."),
@@ -185,6 +211,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity_params",
+    whenToUse:
+      "You need an instance's actual PARAMETER VALUES — rates, thresholds, statuses, signer counts, addresses — as a map. Read configured values here rather than inferring them from prose or a doc title.",
     description:
       "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded " +
       "as child Cores. With `id`, returns that one doc's params. With `entity`, returns params for every INSTANCE doc " +
@@ -205,6 +233,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_history",
+    whenToUse:
+      "The question is why or when ONE specific document changed.",
     description: "Why was this changed? Returns the change log for one Atlas doc, newest first — git commits (with PR title/author/url and matched summary/description) plus, for docs old enough, reconstructed pre-git origin events: era='mip' (verbiage traced to the pre-2024 MIP-era Atlas), 'genesis' (present in the Atlas v2 launch snapshot, 2024-09-02), or 'severed' (an undated birth in the git-less window before 2025-05-28). Reconstructed rows have no real commit_sha — check `era` before treating `commit_sha` as a GitHub commit. Filter by date range, PR number, or change type.",
     shape: {
       id: z.string().describe("Doc UUID or doc_no."),
@@ -218,6 +248,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_recent_changes",
+    whenToUse:
+      "The question is 'what changed recently' across the atlas, with no specific document in mind.",
     description: "What changed recently? Returns the most recent change events across the whole atlas, optionally filtered by doc type, change type, or entity. Defaults to the last 30 days.",
     shape: {
       since: z.string().optional().describe("ISO date. Defaults to 30 days ago."),
@@ -231,6 +263,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_history_stats",
+    whenToUse:
+      "Trend, timeline, quarterly, or coverage-window questions — use aggregated history instead of paging raw atlas_history events.",
     description:
       "Summarize Atlas history by month or quarter, with global availability bounds, change-type counts, optional " +
       "grouping, top changed docs, and top PRs. Use for trend/timeline questions instead of paging raw atlas_history events.",
@@ -260,6 +294,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_pr",
+    whenToUse:
+      "The question names a specific GitHub PR number and asks what it touched.",
     description: "What did PR #N touch? Returns every doc affected by a single GitHub PR against next-gen-atlas, with per-doc summary/description from the PR body.",
     shape: {
       pr_number: z.number().int().describe("GitHub PR number on sky-ecosystem/next-gen-atlas."),
@@ -268,6 +304,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_changed_between",
+    whenToUse:
+      "The question compares two atlas versions — what changed between two commits/SHAs.",
     description: "Which docs changed between two atlas commits? Pass two short SHAs and get every doc added/modified/moved/removed in that window. Uses commit_seq for exact topological ordering.",
     shape: {
       commit_a: z.string().describe("First boundary commit SHA (7-char prefix or full)."),
@@ -281,6 +319,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_first_seen",
+    whenToUse:
+      "'Since when' for a batch of entities/docs — ONLY when the atlas text gives no explicit date. Cite the source as history-derived, never as an atlas-stated date.",
     description:
       "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
       "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
@@ -299,6 +339,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_query",
+    whenToUse:
+      "START HERE for most substantive questions. One call combines search + entity-graph + doc-type + history + status + ancestor scope; prefer one rich atlas_query over chaining narrow tools.",
     description:
       "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (q), " +
       "entity graph traversal (entity + edge_types), entity-chain traversal (entity + via_entity_type), " +

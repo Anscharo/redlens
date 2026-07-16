@@ -10,6 +10,8 @@
 //   pnpm eval:bakeoff                          default candidate set
 //   pnpm eval:bakeoff --models a,b,c           explicit candidates
 //   pnpm eval:bakeoff --only <id> [--only id2] subset of queries
+//   pnpm eval:bakeoff --set rulings            facilitator-ruling set (STRONG-
+//                                              tier eval; --set all for both)
 //   pnpm eval:bakeoff --judge <model>          override judge (default sonnet-5)
 //   pnpm eval:bakeoff --concurrency N          parallel runs (default 4)
 //   pnpm eval:bakeoff --resume                 keep prior ok runs from the last
@@ -29,26 +31,46 @@ import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
 import { repairCitations } from "../../src/server/citation-repair.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
+import { RULING_QUERIES } from "./eval-bakeoff-rulings.ts";
+import { EXTENDED_QUERIES } from "./eval-bakeoff-extended.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const REPORT_PATH = path.join(ROOT, ".cache", "eval-bakeoff.json");
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] ? [argv[i + 1]] : []));
 
+// Default = the serious contenders from the 2026-07 core bakeoff. Cut:
+// sonnet-5 (lost at 3-50x the price), qwen3-32b (deposed incumbent, bottom
+// of the field), tencent/hy3 (provider too flaky to grade).
 const MODELS = (flag("models")[0]?.split(",") ?? [
-  "qwen/qwen3-32b", "anthropic/claude-haiku-4.5", "anthropic/claude-sonnet-5", "deepseek/deepseek-v4-flash",
-  "z-ai/glm-5.2", "tencent/hy3", "google/gemma-4-31b-it", "mistralai/mistral-medium-3-5",
+  "google/gemma-4-31b-it", "mistralai/mistral-medium-3-5", "z-ai/glm-5.2",
+  "deepseek/deepseek-v4-flash", "anthropic/claude-haiku-4.5",
 ]).map((m) => m.trim()).filter(Boolean);
-const JUDGE = flag("judge")[0] ?? "anthropic/claude-opus-4.8"; // outside the candidate set — no self-judging
+const JUDGE = flag("judge")[0] ?? "openai/gpt-5.6-terra"; // outside the candidate set — no self-judging
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 4);
 const ONLY = new Set(flag("only"));
+// --set core (default) | rulings (facilitator-ruling set — the STRONG-tier
+// eval) | all. Rulings live in eval-bakeoff-rulings.ts.
+const SET = flag("set")[0] ?? "core";
+// Each set gets its own report so a rulings run never clobbers core results.
+const REPORT_PATH = path.join(ROOT, ".cache", SET === "core" ? "eval-bakeoff.json" : `eval-bakeoff-${SET}.json`);
 
 if (!config.openrouterApiKey) {
   console.error("OPENROUTER_API_KEY is not set (.env.local) — cannot run the bakeoff.");
   process.exit(1);
 }
 const ix = loadIndexes();
-const queries = ONLY.size ? BAKEOFF_QUERIES.filter((q) => ONLY.has(q.id)) : BAKEOFF_QUERIES;
+const QUERY_SETS: Record<string, BakeoffQuery[]> = {
+  core: BAKEOFF_QUERIES,
+  rulings: RULING_QUERIES,
+  extended: EXTENDED_QUERIES,
+  all: [...BAKEOFF_QUERIES, ...RULING_QUERIES, ...EXTENDED_QUERIES],
+};
+const setQueries = QUERY_SETS[SET];
+if (!setQueries) {
+  console.error(`unknown --set ${SET} — use ${Object.keys(QUERY_SETS).join("|")}`);
+  process.exit(1);
+}
+const queries = ONLY.size ? setQueries.filter((q) => ONLY.has(q.id)) : setQueries;
 
 // --resume: keep prior successful runs from the last report (same judge
 // assumed) and only run the cells that are missing or errored.
@@ -56,7 +78,8 @@ const priorOk = new Map<string, RunResult>();
 if (argv.includes("--resume") && fs.existsSync(REPORT_PATH)) {
   const prior = JSON.parse(fs.readFileSync(REPORT_PATH, "utf8")) as { results?: RunResult[] };
   for (const r of prior.results ?? []) {
-    if (!r.error && MODELS.includes(r.model) && queries.some((q) => q.id === r.id)) priorOk.set(`${r.model} ${r.id}`, r);
+    // Unjudged runs (judge call failed, e.g. on a budget cap) are re-run too.
+    if (!r.error && r.judge && MODELS.includes(r.model) && queries.some((q) => q.id === r.id)) priorOk.set(`${r.model} ${r.id}`, r);
   }
   if (priorOk.size) console.log(`resuming: keeping ${priorOk.size} ok runs from ${REPORT_PATH}`);
 }
@@ -70,6 +93,9 @@ interface RunResult {
   citations: number; rounds: number; toolCalls: number; latencyMs: number;
   usage: { input: number; output: number };
   answer: string; error: string | null;
+  // Full tool outputs — lets deterministic checks be recomputed offline after
+  // a checker change, without re-paying for the model runs.
+  toolTexts?: string[];
 }
 
 const clamp01 = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
@@ -155,7 +181,7 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
     return {
       ...base, score: score === null ? null : Number(score.toFixed(3)), judge, fabrications,
       citations: shipped.citations.length, rounds, toolCalls: done.toolCalls.length,
-      latencyMs: Date.now() - started, usage: done.usage, answer: repair.content,
+      latencyMs: Date.now() - started, usage: done.usage, answer: repair.content, toolTexts,
     };
   } catch (e) {
     return { ...base, latencyMs: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
@@ -165,6 +191,10 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
 // Simple worker pool over the model × query grid.
 const grid = MODELS.flatMap((model) => queries.map((q) => ({ model, q }))).filter(({ model, q }) => !priorOk.has(`${model} ${q.id}`));
 const results: RunResult[] = [...priorOk.values()];
+function saveReport(extra: Record<string, unknown> = {}) {
+  fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
+  fs.writeFileSync(REPORT_PATH, JSON.stringify({ judge: JUDGE, atlasCommit: ix.meta.atlasCommit ?? null, ranAt: new Date().toISOString(), ...extra, results }, null, 2));
+}
 let cursor = 0;
 async function worker() {
   for (;;) {
@@ -173,6 +203,7 @@ async function worker() {
     const { model, q } = grid[i];
     const r = await runOne(model, q);
     results.push(r);
+    saveReport(); // incremental — a killed run keeps everything paid for so far
     console.log(`[${results.length - priorOk.size}/${grid.length}] ${model} × ${q.id} → ${r.error ? `ERROR ${r.error.slice(0, 60)}` : `score=${r.score}`}`);
   }
 }
@@ -201,8 +232,7 @@ const byModel = MODELS.map((model) => {
   };
 }).sort((a, b) => b.meanScore - a.meanScore);
 
-fs.mkdirSync(path.dirname(REPORT_PATH), { recursive: true });
-fs.writeFileSync(REPORT_PATH, JSON.stringify({ judge: JUDGE, atlasCommit: ix.meta.atlasCommit ?? null, ranAt: new Date().toISOString(), scoreboard: byModel, results }, null, 2));
+saveReport({ scoreboard: byModel });
 
 const cols = ["model", "meanScore", "support", "completeness", "honesty", "hardFabPerRun", "repairedPerRun", "citationsPerRun", "meanLatencyS", "meanTokens", "unjudged", "errors"] as const;
 const width = (c: string) => Math.max(c.length, ...byModel.map((r) => String(r[c as keyof typeof r]).length)) + 2;

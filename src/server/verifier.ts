@@ -125,6 +125,10 @@ export function buildVerifierPrompt(params: {
     `citations=${checks.citations.length} invalid_citations=${checks.invalidCitations.join(",") || "none"}`,
     `invalid_doc_numbers=${checks.invalidDocNos.join(",") || "none"} docno_mismatches=${checks.docNoMismatches.join("; ") || "none"}`,
     `uncited_paragraphs=${checks.uncitedParagraphs} ungrounded_quotes=${checks.ungroundedQuotes.length}`,
+    `ungrounded_addresses=${checks.ungroundedAddresses.join(",") || "none"}`,
+    // Soft: an untraced figure may be computed, unit-converted, or a schema
+    // fact from [E0] — judge each against the evidence rather than assuming.
+    `numbers_not_found_verbatim_in_evidence=${checks.untracedNumbers.join(",") || "none"}`,
   ].join("\n");
   return [
     { role: "system", content: VERIFIER_SYSTEM },

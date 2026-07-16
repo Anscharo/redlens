@@ -3,7 +3,7 @@
 // failure found here (overall is computed in code, see verifier.ts).
 // Kept dependency-light (patterns.ts only, plus the Indexes type) so the
 // golden-eval grader can share the citation pattern without dragging in Bun.
-import { UUID_RE } from "../lib/patterns.ts";
+import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC } from "../lib/patterns.ts";
 import type { Indexes } from "./indexes.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
@@ -84,13 +84,32 @@ export function countUncitedParagraphs(answer: string): number {
     .filter((p) => !citation.test(p)).length;
 }
 
-// Whitespace/case/punctuation-tolerant containment form. Curly quotes and
-// markdown emphasis are authoring noise, not evidence differences.
+// A markdown link, bounded on BOTH parts. The bounds are load-bearing, not
+// cosmetic: evidence is JSON full of stray "[" (e.g. "sources":["lexical"]),
+// and an unbounded `[^\]]+` will happily run across newlines and quotes until
+// some later "](" — swallowing hundreds of characters of real evidence and
+// silently turning faithful quotes into "fabrications". Link text is
+// single-line and short; an href never contains whitespace.
+const MD_LINK_SRC = String.raw`\[([^\]\n]{1,120})\]\([^)\s]*\)`;
+
+// Whitespace/case/punctuation-tolerant containment form. Quote marks and
+// markdown emphasis are authoring noise, not evidence differences: a model
+// that writes `the 'Reward Instance' refers to…` around a term the atlas
+// writes bare is quoting faithfully, and dropping quote characters on BOTH
+// sides also collapses `"span"` and `span` to one key so a single quotation
+// can't be counted twice.
 export function normalizeForMatch(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
+    // Tool results arrive as JSON, so a source line break is the literal two
+    // characters \n — nothing quoting it verbatim could ever match.
+    .replace(/\\[nrt]/g, " ")
+    .replace(/\\(.)/g, "$1")
+    // Evidence carries raw markdown; an answer quotes the RENDERED text. Both
+    // sides collapse to link text so `see [A.2.2.9.1 - Foo](uuid)` matches a
+    // faithful quote of `see A.2.2.9.1 - Foo`.
+    .replace(new RegExp(MD_LINK_SRC, "g"), "$1")
+    .replace(/[“”"‘’']/g, "")
     .replace(/[*_`]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -104,19 +123,75 @@ export function normalizeForMatch(s: string): string {
 // remaining markdown link collapses to its text before matching.
 function stripQuoteDecoration(span: string): string {
   return span
-    .replace(/\s*[—–-]{1,2}\s*\[[^\]]*\]\([^)]*\)\s*$/, "")
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+    // Trailing attribution, optionally followed by a doc_no: `— [Title](/atlas/x) (A.1.2.3)`
+    .replace(new RegExp(String.raw`\s*[—–-]{1,2}\s*` + MD_LINK_SRC + String.raw`\s*(?:\([^)]*\))?\s*$`), "")
+    .replace(new RegExp(MD_LINK_SRC, "g"), "$1");
+}
+
+// A blockquote line that is ONLY an attribution — `— [Title](/atlas/uuid) (A.1.2.3)`
+// or `— Distribution Reward Rate (A.2.2.9.1.2.1.2)` — is the author crediting a
+// source, not quoting it. Left unhandled it flags as invented atlas text, which
+// punishes the models that attribute most rigorously. Requires BOTH a leading
+// attribution dash and a citation marker (link or doc_no), so a quoted list item
+// like `> - item one` is still treated as quoted content.
+const ATTRIBUTION_DASH = /^\s*[—–-]{1,2}\s*\S/;
+const CITATION_MARKER = /\[[^\]]*\]\([^)]*\)|\b(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)\b/;
+const isAttributionLine = (line: string) => ATTRIBUTION_DASH.test(line) && CITATION_MARKER.test(line);
+
+// A quoted TERM the answer denies is a mention, not a quotation: `the atlas
+// does not contain an organization called "X"`. Such a term can never appear
+// in the evidence — its absence IS the claim — so demanding grounding fires
+// exactly when the model does the most honest thing available. Kept narrow: a
+// denial must sit within 40 chars of the quote with no clause break, and only
+// term-length spans qualify, so a long passage is always checked even under a
+// negation.
+// Absence markers: the answer asserting the quoted thing does NOT exist. The
+// verbs are deliberately specific — a bare "not" would excuse a real invented
+// quote in any ordinary negated sentence ("this is not a hypothetical: the doc
+// states \"…\""). The denial may sit before the quote or after it, but must be
+// in the same clause (no sentence/clause break between).
+const ABSENCE_VERB = "contain|mention|define|include|specify|list|name|exist|appear|say|state|address|cover|prescribe|prohibit|document|record|refer";
+const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*\s*(?:${ABSENCE_VERB})|(?:does|do|did|is|are|was|were)n't\s+\w*\s*(?:${ABSENCE_VERB})|there\s+(?:is|are)\s+no\b|no such\b|nowhere\b|(?:is|are)\s+silent|not\s+(?:available|specified|stated|covered|addressed|found|mentioned|defined|documented)|lacks?\b|lacking\b|absent\b|never\s+\w*\s*(?:${ABSENCE_VERB})s?)`;
+const DENIAL_BEFORE = new RegExp(ABSENCE + String.raw`[^.!?;:]{0,40}$`, "i");
+const DENIAL_AFTER = new RegExp(String.raw`^[^.!?;:]{0,80}?` + ABSENCE, "i");
+const MAX_DENIED_TERM = 60;
+
+// Quote characters pair in document order: 1st opens, 2nd closes, 3rd opens…
+// Extracting with a single regex desyncs that pairing whenever a span is
+// skipped (a short term like "Delegate"), so the scan then captures the PROSE
+// BETWEEN two quoted terms as if it were quoted text. Pair first, filter after.
+function quotedPairs(line: string): { text: string; start: number; end: number }[] {
+  const marks: number[] = [];
+  for (let i = 0; i < line.length; i++) if (line[i] === '"' || line[i] === "“" || line[i] === "”") marks.push(i);
+  const out: { text: string; start: number; end: number }[] = [];
+  for (let i = 0; i + 1 < marks.length; i += 2) {
+    out.push({ text: line.slice(marks[i] + 1, marks[i + 1]), start: marks[i], end: marks[i + 1] });
+  }
+  return out;
 }
 
 export function extractQuotedSpans(answer: string): string[] {
   const spans: string[] = [];
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq) spans.push(bq[1]);
+    if (bq && !isAttributionLine(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
   }
-  const inline = /["“]([^"“”]{10,})["”]/g;
-  for (let m = inline.exec(answer); m; m = inline.exec(answer)) spans.push(m[1]);
-  return [...new Set(spans.map((s) => normalizeForMatch(stripQuoteDecoration(s))).filter((s) => s.length >= 25))];
+  // Inline pass: collapse markdown links to their text FIRST — a quote inside
+  // one link's title otherwise pairs with the quote in the next link's title,
+  // capturing the href and prose between them as a phantom "quote". Scanned
+  // per line because a real inline quotation never spans lines.
+  const flat = answer.replace(new RegExp(MD_LINK_SRC, "g"), "$1");
+  for (const line of flat.split("\n")) {
+    for (const q of quotedPairs(line)) {
+      if (q.text.length < 10) continue;
+      const denied =
+        q.text.length <= MAX_DENIED_TERM &&
+        (DENIAL_BEFORE.test(line.slice(0, q.start)) || DENIAL_AFTER.test(line.slice(q.end + 1)));
+      if (denied) continue;
+      spans.push(q.text);
+    }
+  }
+  return [...new Set(spans.map((s) => normalizeForMatch(s)).filter((s) => s.length >= 25))];
 }
 
 // Quotation conventions are not evidence differences: "..." elision and
@@ -146,6 +221,53 @@ export function findUngroundedQuotes(answer: string, evidenceTexts: string[], ix
   return spans.filter((s) => quoteSegments(s).some((seg) => !haystacks.some((h) => h.includes(seg))));
 }
 
+// An on-chain address cannot be paraphrased, computed, or converted — it is
+// either copied from a tool result or invented. The reader linkifies addresses
+// straight to a block explorer, so a wrong one sends the user to the wrong
+// contract: this is a HARD failure. EVM matching is case-insensitive (EIP-55
+// checksum casing is cosmetic); base58 is case-SENSITIVE and compared exactly.
+export function findUngroundedAddresses(answer: string, evidenceTexts: string[]): string[] {
+  const hay = evidenceTexts.join("\n");
+  const hayLower = hay.toLowerCase();
+  const out: string[] = [];
+  for (const m of answer.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) {
+    if (!hayLower.includes(m.toLowerCase())) out.push(m);
+  }
+  for (const m of answer.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) {
+    if (!hay.includes(m)) out.push(m);
+  }
+  return [...new Set(out)];
+}
+
+// Figures that appear nowhere in the evidence. Deliberately a SOFT signal, not
+// a failure: models legitimately compute (counts, sums), convert units
+// (0.5% = 50bps), and cite schema facts that arrive via the system prompt
+// rather than a tool result. The verifier — which does see the schema as [E0]
+// — adjudicates. Skips ordinals/small counts, doc numbers, and link hrefs.
+const NUMBER_RE = /\d[\d,]*(?:\.\d+)?/g;
+const SMALL_COUNT_MAX = 20;
+
+export function findUntracedNumbers(answer: string, evidenceTexts: string[]): string[] {
+  const stripCommas = (s: string) => s.replace(/,(?=\d{3}\b)/g, "");
+  // Drop link hrefs (uuids), doc numbers, and code spans before scanning: their
+  // digits are identifiers, not claims.
+  const prose = stripCommas(
+    answer
+      .replace(/\]\([^)]*\)/g, "]")
+      .replace(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g"), "")
+      .replace(/`[^`]*`/g, ""),
+  );
+  const hay = stripCommas(evidenceTexts.join("\n"));
+  const out: string[] = [];
+  for (const m of prose.match(NUMBER_RE) ?? []) {
+    const n = Number(m);
+    if (!Number.isFinite(n)) continue;
+    if (Number.isInteger(n) && Math.abs(n) <= SMALL_COUNT_MAX) continue;
+    if (!hay.includes(m)) out.push(m);
+  }
+  return [...new Set(out)];
+}
+
 export interface CheckReport {
   citations: Citation[];
   invalidCitations: string[];
@@ -154,9 +276,11 @@ export interface CheckReport {
   bareAtlasLinks: string[];
   uncitedParagraphs: number;
   ungroundedQuotes: string[];
+  ungroundedAddresses: string[];
+  untracedNumbers: string[];
   // Hard deterministic failure — invented citation targets, invented/misattributed
-  // doc numbers, or invented quotes. Soft signals (bare links, uncited
-  // paragraphs) inform, they don't fail.
+  // doc numbers, invented quotes, or invented addresses. Soft signals (bare
+  // links, uncited paragraphs, untraced numbers) inform, they don't fail.
   failed: boolean;
 }
 
@@ -166,6 +290,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
   const invalidDocNos = findInvalidDocNos(answer, ix);
   const docNoMismatches = findDocNoMismatches(citations, ix);
   const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
+  const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   return {
     citations,
     invalidCitations,
@@ -174,6 +299,13 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     bareAtlasLinks: findBareAtlasLinks(answer),
     uncitedParagraphs: countUncitedParagraphs(answer),
     ungroundedQuotes,
-    failed: invalidCitations.length > 0 || invalidDocNos.length > 0 || docNoMismatches.length > 0 || ungroundedQuotes.length > 0,
+    ungroundedAddresses,
+    untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
+    failed:
+      invalidCitations.length > 0 ||
+      invalidDocNos.length > 0 ||
+      docNoMismatches.length > 0 ||
+      ungroundedQuotes.length > 0 ||
+      ungroundedAddresses.length > 0,
   };
 }

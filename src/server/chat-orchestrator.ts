@@ -46,6 +46,7 @@ export type HarnessEvent =
       invalidDocNos: string[];
       docNoMismatches: string[];
       ungroundedQuotes: string[];
+      ungroundedAddresses: string[];
     };
 
 export type HarnessDone = DoneEvent & { checksMeta: CheckRowMeta[] };
@@ -80,6 +81,7 @@ function verifyEvent(
     invalidDocNos: checks.invalidDocNos,
     docNoMismatches: checks.docNoMismatches,
     ungroundedQuotes: checks.ungroundedQuotes,
+    ungroundedAddresses: checks.ungroundedAddresses,
   };
 }
 
@@ -118,6 +120,7 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.invalidDocNos.map((d) => `document number ${d} does not exist in the atlas — remove it or replace it with the real number from the tool results`),
     ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
+    ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
   ];
 }
 
@@ -268,13 +271,21 @@ export async function* runVerifiedChat(opts: {
   const { steer, maxIterations } = revisionSteer(adv.recovery, feedback);
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
-  for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd })) {
-    if (ev.type === "done") {
-      revDone = ev;
-      break;
+  try {
+    for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd })) {
+      if (ev.type === "done") {
+        revDone = ev;
+        break;
+      }
+      if (ev.type === "tool_call") yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
+      yield ev;
     }
-    if (ev.type === "tool_call") yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
-    yield ev;
+  } catch {
+    // The revision replays the whole transcript, so it can fail where the
+    // original didn't (context overflow, provider error). The original answer
+    // is already in hand and merely failed an audit — never lose it to a
+    // recovery attempt. Harness flakiness must not break a turn.
+    revDone = null;
   }
 
   // Failed/aborted revision → the original answer stands (done.content is

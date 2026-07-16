@@ -18,9 +18,16 @@ function toJsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
   return schema;
 }
 
+// The chat model reads a tool's description at the moment it chooses which tool
+// to call — a closer signal than the system prompt. So the registry's
+// `whenToUse` steer is appended here (MCP + /connect keep the bare description).
 export const CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = ATLAS_TOOLS.map((t) => ({
   type: "function",
-  function: { name: t.name, description: t.description, parameters: toJsonSchema(t.shape) },
+  function: {
+    name: t.name,
+    description: t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description,
+    parameters: toJsonSchema(t.shape),
+  },
 }));
 
 export function safeParseArgs(raw: string): Record<string, unknown> {
