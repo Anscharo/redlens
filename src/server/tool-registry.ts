@@ -330,12 +330,22 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "responsibilities — each with the duty text, the attributed Facilitator/Executor/agent, " +
       "and (with provenance) the source doc_nos. Use it to answer 'what is a Facilitator " +
       "responsible for' without reconstructing it from duty_for / *_facilitator_for edges. " +
+      "kind='govops_responsibilities' is the GovOps counterpart: every Operational/Core GovOps " +
+      "responsibility in one call, grouped by category — role definitions, Operational/Core GovOps " +
+      "duties, per-Executor-Agent assignments, Active Data maintenance where GovOps is the " +
+      "Responsible Party, and process-step responsibilities — with the same duty text, attribution, " +
+      "and provenance. Use it to answer 'what is GovOps responsible for'. " +
       "(More kinds — rewards, active_data, actors, transfers — are being added.)",
     shape: {
       kind: z
-        .enum(["multisigs", "primitive_matrix", "facilitator_responsibilities"])
+        .enum([
+          "multisigs",
+          "primitive_matrix",
+          "facilitator_responsibilities",
+          "govops_responsibilities",
+        ])
         .describe(
-          "Which curated report to return: 'multisigs', 'primitive_matrix', or 'facilitator_responsibilities'.",
+          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', or 'govops_responsibilities'.",
         ),
       include_provenance: z
         .boolean()
