@@ -4,6 +4,7 @@ import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
 import { useSelection } from "../../lib/selection";
 import { createCollection, updateCollectionItems, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
+import { MAX_COLLECTION_DOCS } from "../../lib/collectionsLimits";
 import { track } from "../../lib/analytics";
 
 interface SaveCollectionModalProps {
@@ -55,9 +56,11 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
     }
   }
 
+  const over = ids.length > MAX_COLLECTION_DOCS;
+
   const handleCreate = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || over) return;
     return run(async () => {
       const created = await createCollection(trimmed, ids);
       setActiveCollectionId(created.id);
@@ -67,7 +70,7 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
   };
 
   const handleUpdate = () => {
-    if (!activeCollectionId) return;
+    if (!activeCollectionId || over) return;
     return run(async () => {
       await updateCollectionItems(activeCollectionId, ids);
       track("collection_update", { id: activeCollectionId, count: ids.length });
@@ -75,8 +78,9 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
   };
 
   const count = (
-    <p className="mono" style={{ fontSize: 10, color: "var(--tan-3)", margin: "2px 0 0" }}>
-      {ids.length} document{ids.length === 1 ? "" : "s"}
+    <p className="mono" style={{ fontSize: 10, color: over ? "var(--red)" : "var(--tan-3)", margin: "2px 0 0" }}>
+      {ids.length.toLocaleString()} / {MAX_COLLECTION_DOCS.toLocaleString()} document{ids.length === 1 ? "" : "s"}
+      {over ? " — over the limit" : ""}
     </p>
   );
   const errorLine = error && (
@@ -111,7 +115,7 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
               {count}
             </div>
             {errorLine}
-            <button onClick={handleUpdate} disabled={pending} className="mono" style={{ ...primaryBtn, opacity: pending ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <button onClick={handleUpdate} disabled={pending || over} className="mono" style={{ ...primaryBtn, opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {pending ? "saving…" : `Update “${activeCollectionName ?? "collection"}”`}
             </button>
             <button onClick={() => setNaming(true)} disabled={pending} className="mono" style={ghostBtn}>
@@ -149,9 +153,9 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
               </button>
               <button
                 onClick={handleCreate}
-                disabled={pending || !name.trim()}
+                disabled={pending || !name.trim() || over}
                 className="mono"
-                style={{ ...primaryBtn, cursor: pending || !name.trim() ? "default" : "pointer", opacity: pending || !name.trim() ? 0.6 : 1 }}
+                style={{ ...primaryBtn, cursor: pending || !name.trim() || over ? "default" : "pointer", opacity: pending || !name.trim() || over ? 0.6 : 1 }}
               >
                 {pending ? "saving…" : "save"}
               </button>

@@ -4,6 +4,7 @@
 import { sql } from "./db.ts";
 import { getSessionUser } from "./session.ts";
 import { json, isStringArray } from "./http.ts";
+import { MAX_COLLECTION_DOCS } from "../lib/collectionsLimits.ts";
 
 interface CollectionRow {
   id: string;
@@ -25,10 +26,11 @@ interface CollectionBody {
 
 // Server-side safety caps (the UI enforces a tighter 32-char name via maxLength;
 // these guard a direct authenticated POST/PATCH from inserting a giant name or a
-// huge ids array — each id is its own INSERT, so an unbounded array is also a
-// per-request perf hazard). Generous vs the UI so legitimate saves never trip.
+// huge ids array). MAX_IDS is the shared MAX_COLLECTION_DOCS so the limit shown
+// in the UI matches what the server accepts; items are inserted in batches
+// (insertItems) so even a full-atlas save is a few statements, not one per doc.
 const MAX_NAME_LEN = 200;
-const MAX_IDS = 2000;
+const MAX_IDS = MAX_COLLECTION_DOCS;
 
 async function itemsFor(collectionId: string): Promise<string[]> {
   const rows = (await sql`
@@ -45,11 +47,24 @@ function dedupe(ids: string[]): string[] {
 }
 
 // `exec` is either the pooled `sql` or a transaction handle from sql.begin().
+// Batched multi-row insert: at MAX_COLLECTION_DOCS this is a handful of
+// statements instead of thousands of round-trips. Chunked so bind-param count
+// stays well under Postgres' ~65k limit (3000 rows × 2 params + 1 shared = ~6k).
+const INSERT_CHUNK = 3000;
 async function insertItems(exec: typeof sql, collectionId: string, ids: string[]): Promise<void> {
-  for (let i = 0; i < ids.length; i++) {
-    await exec`
-      INSERT INTO collection_items (collection_id, doc_id, position) VALUES (${collectionId}, ${ids[i]}, ${i})
-    `;
+  for (let i = 0; i < ids.length; i += INSERT_CHUNK) {
+    const chunk = ids.slice(i, i + INSERT_CHUNK);
+    const params: unknown[] = [collectionId]; // $1, reused for every row
+    const valuesSql = chunk
+      .map((docId, j) => {
+        params.push(docId, i + j);
+        return `($1, $${params.length - 1}, $${params.length})`;
+      })
+      .join(",");
+    await exec.unsafe(
+      `INSERT INTO collection_items (collection_id, doc_id, position) VALUES ${valuesSql}`,
+      params,
+    );
   }
 }
 
