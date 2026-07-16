@@ -335,7 +335,12 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "duties, per-Executor-Agent assignments, Active Data maintenance where GovOps is the " +
       "Responsible Party, and process-step responsibilities — with the same duty text, attribution, " +
       "and provenance. Use it to answer 'what is GovOps responsible for'. " +
-      "(More kinds — rewards, active_data, actors, transfers — are being added.)",
+      "kind='rewards' returns the integrator reward rollup: for each Prime Agent, its operational " +
+      "chain (executor, govops), and its Distribution Reward + Integration Boost primitives — each " +
+      "with global activation and every Instance/Invocation (status, reward code / partner name, " +
+      "reward address + chain, cadence, tracking, payments controller + responsible party, and " +
+      "with provenance the raw source params). Use for reward-program / integrator questions. " +
+      "(More kinds — active_data, actors, transfers — are being added.)",
     shape: {
       kind: z
         .enum([
@@ -343,9 +348,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
           "primitive_matrix",
           "facilitator_responsibilities",
           "govops_responsibilities",
+          "rewards",
         ])
         .describe(
-          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', or 'govops_responsibilities'.",
+          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', 'govops_responsibilities', or 'rewards'.",
         ),
       include_provenance: z
         .boolean()

@@ -34,7 +34,7 @@
 -->
 
 ## 2026-07-16
-- The atlas chatbot can now pull full Operational Facilitator and GovOps responsibilities reports in one step to answer questions about what those roles are responsible for
+- The atlas chatbot can now pull full Facilitator responsibilities, GovOps responsibilities, and integrator reward reports in one step to answer questions about what those roles are responsible for and how rewards are set up
 
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers
