@@ -323,11 +323,20 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "Inactive. Classifies each as universal (engaged for every agent), optional (some), or " +
       "dormant (none engaged). Note: `missing_agents` lists agents where the primitive is Inactive " +
       "— i.e. present but not engaged — NOT agents that lack the primitive. " +
+      "kind='facilitator_responsibilities' returns every Operational/Core Facilitator " +
+      "responsibility in one call, grouped by category: universal duties (bind all Facilitators), " +
+      "Core/Operational Facilitator duties, per-Executor-Agent assignments, Active Data " +
+      "maintenance where a Facilitator is the Responsible Party, and process-step " +
+      "responsibilities — each with the duty text, the attributed Facilitator/Executor/agent, " +
+      "and (with provenance) the source doc_nos. Use it to answer 'what is a Facilitator " +
+      "responsible for' without reconstructing it from duty_for / *_facilitator_for edges. " +
       "(More kinds — rewards, active_data, actors, transfers — are being added.)",
     shape: {
       kind: z
-        .enum(["multisigs", "primitive_matrix"])
-        .describe("Which curated report to return: 'multisigs' or 'primitive_matrix'."),
+        .enum(["multisigs", "primitive_matrix", "facilitator_responsibilities"])
+        .describe(
+          "Which curated report to return: 'multisigs', 'primitive_matrix', or 'facilitator_responsibilities'.",
+        ),
       include_provenance: z
         .boolean()
         .optional()
