@@ -28,7 +28,7 @@ const invocations = relations.entities.filter((e) => e.et === "invocation");
 const primitives = relations.entities.filter((e) => e.et === "primitive");
 
 const results = deriveGovOpsResponsibilities(
-  { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null },
+  { docs },
   { participants, instances, invocations, primitives, edges: relations.edges },
 );
 
