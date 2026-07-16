@@ -33,6 +33,7 @@ export type ChatEvent =
       invalidDocNos: string[];
       docNoMismatches: string[];
       ungroundedQuotes: string[];
+      ungroundedAddresses: string[];
     }
   | {
       type: "done";

@@ -18,6 +18,7 @@ export interface VerifyState {
   invalidDocNos: string[];
   docNoMismatches: string[];
   ungroundedQuotes: string[];
+  ungroundedAddresses: string[];
 }
 
 export interface ChatMsg {
@@ -60,12 +61,33 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     });
   }, []);
 
+  // Terminate the last assistant message: mark done, drop the transient status
+  // ticker, and resolve a still-"checking" verify chip so it can't pulse
+  // forever when the stream ends by abort/error before verification resolves
+  // (the "done" event has its own copy of this guard).
+  const finalizeLast = useCallback(
+    (extra: Partial<ChatMsg> = {}) => {
+      patchLast((m) =>
+        m.role === "assistant"
+          ? {
+              ...m,
+              done: true,
+              statusLine: null,
+              ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
+              ...extra,
+            }
+          : m,
+      );
+    },
+    [patchLast],
+  );
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
-    patchLast((m) => (m.role === "assistant" ? { ...m, done: true } : m));
-  }, [patchLast]);
+    finalizeLast();
+  }, [finalizeLast]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
@@ -91,7 +113,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             ...m,
             statusLine: ev.detail ?? `${ev.stage}…`,
             ...(ev.stage === "checking" && !m.verify
-              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [] } }
+              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
               : {}),
           }));
           break;
@@ -105,6 +127,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               invalidDocNos: ev.invalidDocNos,
               docNoMismatches: ev.docNoMismatches,
               ungroundedQuotes: ev.ungroundedQuotes,
+              ungroundedAddresses: ev.ungroundedAddresses,
             },
           }));
           break;
@@ -147,11 +170,11 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           break;
         case "error":
           setError(ev.message);
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
           break;
       }
     },
-    [patchLast],
+    [patchLast, finalizeLast],
   );
 
   const send = useCallback(
@@ -188,7 +211,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
 
         if (res.status === 401) {
           handlers.onAuthError?.();
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
           setStreaming(false);
           return {};
         }
@@ -199,7 +222,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           };
           const message = body.message ?? "Usage limit reached.";
           setError(message);
-          patchLast((m) => ({ ...m, content: message, done: true }));
+          finalizeLast({ content: message });
           setStreaming(false);
           return { rateLimited: { message, resetsAt: body.resetsAt ?? "" } };
         }
@@ -241,7 +264,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {
           setError((err as Error).message);
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
@@ -250,7 +273,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       }
       return {};
     },
-    [streaming, dispatch, patchLast, handlers],
+    [streaming, dispatch, patchLast, finalizeLast, handlers],
   );
 
   return { messages, streaming, error, send, stop, reset };

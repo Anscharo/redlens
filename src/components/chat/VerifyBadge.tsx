@@ -23,7 +23,8 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
     verify.invalidCitations.length +
     verify.invalidDocNos.length +
     verify.docNoMismatches.length +
-    verify.ungroundedQuotes.length;
+    verify.ungroundedQuotes.length +
+    verify.ungroundedAddresses.length;
   const label =
     verify.status === "warn"
       ? `caution: ${issues} unsupported claim${issues === 1 ? "" : "s"}`
@@ -62,6 +63,11 @@ export function VerifyBadge({ verify }: { verify: VerifyState }) {
           {verify.ungroundedQuotes.map((q) => (
             <li key={q} data-status="contradicted">
               quote not found in any retrieved source: “{q.length > 120 ? `${q.slice(0, 120)}…` : q}”
+            </li>
+          ))}
+          {verify.ungroundedAddresses.map((a) => (
+            <li key={a} data-status="contradicted">
+              address not found in any retrieved source: <code>{a}</code>
             </li>
           ))}
           {flagged.map((c, i) => (

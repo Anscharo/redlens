@@ -193,15 +193,23 @@ export async function runVerifier(params: {
   checks: CheckReport;
   telemetry: RoundTelemetry;
   signal?: AbortSignal;
+  timeoutMs?: number;
   obs?: ErrorContext;
 }): Promise<VerifierRun> {
+  const timeoutMs = params.timeoutMs ?? config.chatVerifierTimeoutMs;
   try {
-    const res = await params.call({
-      model: params.model,
-      messages: buildVerifierPrompt(params),
-      maxTokens: 2000,
-      signal: params.signal,
-    });
+    // Hard deadline: a hung/slow verifier call must never stall the terminal
+    // done event — the answer already streamed. Timeout → caught below →
+    // "unverified" badge, same as any other verification flakiness.
+    const res = await Promise.race([
+      params.call({
+        model: params.model,
+        messages: buildVerifierPrompt(params),
+        maxTokens: 2000,
+        signal: params.signal,
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("verifier timeout")), timeoutMs)),
+    ]);
     const verdict = parseVerdict(res.text);
     // The call succeeded but the judge's JSON didn't parse — the turn silently
     // degrades to "unverified" with no other record this happened.

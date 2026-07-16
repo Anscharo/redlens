@@ -121,6 +121,10 @@ export const config = {
   chatPrefetch: process.env.CHAT_PREFETCH !== "0",
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
+  // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
+  // never blocks on the audit — the answer already streamed). The verifier is a
+  // stronger, slower model than the advisor, so its deadline is more generous.
+  chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
   // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
