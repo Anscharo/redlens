@@ -1,5 +1,5 @@
 import { Suspense, use, useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRouter } from "wouter";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
 import { useDataSource } from "../../lib/dataSource";
@@ -14,6 +14,8 @@ import { Drawer, DrawerToggle } from "../Drawer";
 import { Loading } from "../Loading";
 import { RadarProvider } from "./RadarContext";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { recordVisit } from "../../lib/visitHistory";
+import { actorHref } from "../../lib/routes";
 
 interface Props {
   query: string;
@@ -26,7 +28,8 @@ interface InnerProps extends Props {
 }
 
 function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps) {
-  const { base } = useDataSource();
+  const { base } = useDataSource(); // data-source base (/api/...), NOT the router base
+  const { base: routerBase } = useRouter(); // "" live / /preview/<id> in preview
   const docs = use(loadDocs(base));
   const graph = use(loadGraph(base));
 
@@ -34,8 +37,14 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sidebarGroups;
+    // The search pill promises "name, role" — a role query matches a group's
+    // label ("facilitator", "prime") and keeps that whole group.
     return sidebarGroups
-      .map((g) => ({ ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) }))
+      .map((g) =>
+        g.label.toLowerCase().includes(q)
+          ? g
+          : { ...g, actors: g.actors.filter((a) => a.name.toLowerCase().includes(q)) },
+      )
       .filter((g) => g.actors.length > 0);
   }, [sidebarGroups, query]);
 
@@ -54,6 +63,12 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
         : null
       : "Redline Radar for Sky Atlas",
   );
+
+  // Append the actor page to the browser-local visit log once its profile loads.
+  useEffect(() => {
+    if (!actorSlug || !profile) return;
+    void recordVisit({ path: actorHref(actorSlug), label: profile.entity.name, base: routerBase });
+  }, [actorSlug, profile, routerBase]);
 
   return (
     <RadarProvider value={{ docs }}>

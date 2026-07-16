@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AtlasNode } from "../types";
-import { buildProcessRows, countSteps, type ProcessEntry } from "./processesIndex";
+import { buildProcessRows, countSteps, processRowsToCSV, type ProcessEntry, type ProcessRow } from "./processesIndex";
 
 function mkNode(
   id: string,
@@ -114,5 +114,29 @@ describe("countSteps heuristics", () => {
     expect(countSteps(two, empty)).toBeNull();
     const three = mkNode("x", "A.1", "P", { content: "- a\n- b\n- c" });
     expect(countSteps(three, empty)).toBe(3);
+  });
+});
+
+describe("processRowsToCSV", () => {
+  const rows: ProcessRow[] = [
+    { uuid: "u1", docNo: "A.1.1", title: "Onboard", category: "governance", shape: "child", status: "active", stepCount: 4 },
+    { uuid: "u2", docNo: "A.2.1", title: "Prose flow", category: "risk", shape: "inline", status: "deferred-stub", stepCount: null },
+  ];
+
+  it("emits the header (incl. Ignored) and renders a null step count as an empty cell", () => {
+    const lines = processRowsToCSV(rows).split("\r\n");
+    expect(lines[0]).toBe('"Doc No","Title","Category","Shape","Status","Steps","Ignored"');
+    expect(lines[1]).toBe('"A.1.1","Onboard","governance","child","active","4",""');
+    expect(lines[2]).toBe('"A.2.1","Prose flow","risk","inline","deferred-stub","",""');
+  });
+
+  it("annotates the Ignored column with the ignore reason (or 'yes' when blank)", () => {
+    const ignores = new Map([
+      ["u1", { reason: "duplicate of A.9" }],
+      ["u2", { reason: "" }],
+    ]);
+    const lines = processRowsToCSV(rows, ignores).split("\r\n");
+    expect(lines[1]).toBe('"A.1.1","Onboard","governance","child","active","4","duplicate of A.9"');
+    expect(lines[2]).toBe('"A.2.1","Prose flow","risk","inline","deferred-stub","","yes"');
   });
 });

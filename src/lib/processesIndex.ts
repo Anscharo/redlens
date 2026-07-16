@@ -1,5 +1,6 @@
 import type { AtlasNode } from "../types";
 import { fetchJson } from "./verify";
+import { toCSV } from "./csv";
 
 // One curated entry from public/processes.json — the hand-validated inventory.
 // Title + doc_no are resolved from docs.json at read time via the entry's uuid.
@@ -165,4 +166,29 @@ export function buildProcessRows(
       };
     })
     .filter((r): r is ProcessRow => r !== null);
+}
+
+// Exports the given (already-filtered) process rows as an RFC-4180 CSV string.
+// `ignores` (uuid → { reason }) annotates the "Ignored" column so a full export
+// — which includes ignored candidates — stays distinguishable: the cell carries
+// the ignore reason (or "yes" when the reason is blank), empty otherwise.
+export function processRowsToCSV(
+  rows: readonly ProcessRow[],
+  ignores?: ReadonlyMap<string, { reason: string }>,
+): string {
+  return toCSV(
+    ["Doc No", "Title", "Category", "Shape", "Status", "Steps", "Ignored"],
+    rows.map((r) => {
+      const ig = ignores?.get(r.uuid);
+      return [
+        r.docNo,
+        r.title,
+        r.category,
+        r.shape,
+        r.status,
+        r.stepCount ?? "",
+        ig ? ig.reason || "yes" : "",
+      ];
+    }),
+  );
 }

@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import type { AtlasNode } from "../types";
-import { buildStaleDatesReport, extractDateClaims } from "./staleDates";
+import { buildStaleDatesReport, extractDateClaims, staleDatesToCSV } from "./staleDates";
 
 const ROOT = path.resolve(__dirname, "../..");
 const docs: Record<string, AtlasNode> = JSON.parse(
@@ -221,5 +221,20 @@ describe("buildStaleDatesReport — bucketing (synthetic)", () => {
     expect(r.dueSoon.map((c) => c.docId)).toEqual(["b"]);
     expect(r.upcoming.map((c) => c.docId)).toEqual(["c"]);
     expect(r.totalDateMentions).toBe(3);
+  });
+});
+
+describe("staleDatesToCSV", () => {
+  it("flattens the three buckets with a leading Bucket column", () => {
+    const csv = staleDatesToCSV(report);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe('"Bucket","Doc No","Title","Date Text","Boundary Date","Precision","Days Until Stale","Handoff","Context"');
+    const total = report.stale.length + report.dueSoon.length + report.upcoming.length;
+    expect(lines.length - 1).toBe(total); // one data row per claim
+    // Buckets appear in stale → due-soon → upcoming order.
+    const buckets = lines.slice(1).map((l) => l.slice(1, l.indexOf('","')));
+    const firstUpcoming = buckets.indexOf("upcoming");
+    const lastStale = buckets.lastIndexOf("stale");
+    if (firstUpcoming !== -1 && lastStale !== -1) expect(lastStale).toBeLessThan(firstUpcoming);
   });
 });

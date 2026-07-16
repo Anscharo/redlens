@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import type { OeaTask } from "./oeaTasks";
 import type { OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAssessment";
-import { joinAssessments, summarize } from "./oeaReport";
+import { joinAssessments, summarize, oeaRowsToCSV } from "./oeaReport";
 
 const task = (taskKey: string, assessedText: string): OeaTask => ({
   taskKey, uuid: "u1", docNo: "A.1", title: "T", assessedText,
@@ -66,5 +66,24 @@ describe("joinAssessments", () => {
     expect(s.incentives.weak).toBe(1);
     expect(s.unassessed).toBe(1);
     expect(s.stale).toBe(0);
+  });
+});
+
+describe("oeaRowsToCSV", () => {
+  it("emits a header, maps the category label, and blanks unassessed ratings", () => {
+    const rows = joinAssessments([task("u:u1", "Do the thing."), task("u:u2", "Other")], artifact([entry("u:u1", "Do the thing.")]));
+    const lines = oeaRowsToCSV(rows).split("\r\n");
+    expect(lines[0]).toContain('"Doc No","Title","Category","Status"');
+    // Assessed row carries the ratings + reasoning.
+    expect(lines[1]).toContain('"mid"');
+    expect(lines[1]).toContain('"weak"');
+    expect(lines[1]).toContain('"fresh"');
+    // Unassessed row leaves precision/reasoning/incentives blank.
+    expect(lines[2]).toContain('"unassessed","","",""');
+  });
+
+  it("escapes a title containing a quote (delegates to shared toCSV)", () => {
+    const rows = joinAssessments([{ ...task("u:u1", "x"), title: 'The "Big" Task' } as never], artifact([]));
+    expect(oeaRowsToCSV(rows)).toContain('"The ""Big"" Task"');
   });
 });

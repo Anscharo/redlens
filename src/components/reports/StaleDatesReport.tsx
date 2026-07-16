@@ -4,8 +4,14 @@ import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { loadDocs } from "../../lib/docs";
 import { useUTCDay } from "../../hooks/useUTCDay";
-import { buildStaleDatesReport, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
+import { Highlight, MatchAside } from "./Highlight";
+import { staleSearchFields, STALE_SEARCHES } from "./staleDatesSearch";
 
 function staleness(c: DateClaim): string {
   // The viewer's local day and the day the atlas text was written against can
@@ -44,7 +50,7 @@ const SECTIONS: {
   },
 ];
 
-function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
+function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery }) {
   // The tone lives on a left bar (the selected-node idiom) — --red on the
   // dark background is unreadable as small text, so the date stays tan.
   // The whole row is one link to the doc; the doc number renders as plain
@@ -53,15 +59,16 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
     <AtlasLink
       to={atlasHref(c.docId)}
       title={c.title}
-      className="block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
+      className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
       style={{ borderColor: "var(--border)", borderLeftColor: tone }}
     >
+      <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
       <div className="flex items-baseline gap-6 flex-wrap">
         <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold text-tan">{c.dateISO}</span>
+          <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} rq={rq} /></span>
           <span className="mono text-base text-tan-2">{staleness(c)}</span>
         </span>
-        <span className="text-lg text-tan">{c.title}</span>
+        <span className="text-lg text-tan"><Highlight text={c.title} rq={rq} /></span>
         {c.transition && (
           <span
             className="mono text-xs px-1.5 py-0.5 rounded"
@@ -71,18 +78,18 @@ function ClaimRow({ c, tone }: { c: DateClaim; tone: string }) {
             handoff
           </span>
         )}
-        <span className="mono text-xs text-accent ml-auto">{c.docNo}</span>
+        <span className="mono text-xs text-accent ml-auto"><Highlight text={c.docNo} rq={rq} /></span>
       </div>
       <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
-        …{c.contextBefore}
-        <em>{c.raw}</em>
-        {c.contextAfter}…
+        …<Highlight text={c.contextBefore} rq={rq} />
+        <em><Highlight text={c.raw} rq={rq} /></em>
+        <Highlight text={c.contextAfter} rq={rq} />…
       </p>
     </AtlasLink>
   );
 }
 
-function Section({ title, hint, claims, tone, textTone }: { title: string; hint: string; claims: DateClaim[]; tone: string; textTone?: string }) {
+function Section({ title, hint, claims, tone, textTone, rq }: { title: string; hint: string; claims: readonly DateClaim[]; tone: string; textTone?: string; rq: ReportQuery }) {
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold mb-0.5" style={{ color: textTone ?? tone }}>
@@ -92,13 +99,13 @@ function Section({ title, hint, claims, tone, textTone }: { title: string; hint:
       {claims.length === 0 ? (
         <p className="mono text-base text-tan-3">none</p>
       ) : (
-        claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} />)
+        claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} rq={rq} />)
       )}
     </section>
   );
 }
 
-export function StaleDatesReport() {
+export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Stale Dates: Sky Atlas by Redline");
   const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +124,27 @@ export function StaleDatesReport() {
     [docs, day],
   );
 
+  // Text filter applies within each bucket; buckets keep their order/heading.
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const sections = useMemo(
+    () =>
+      report
+        ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, staleSearchFields) }))
+        : null,
+    [report, rq],
+  );
+  const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
+
+  // The CSV exports what's on screen — the filtered buckets, not the full scan
+  // — so a downloaded file matches the active query (totalDateMentions is the
+  // scan tally and stays informational).
+  const csvReport = useMemo(() => {
+    if (!report || !sections) return null;
+    const claimsFor = (key: (typeof SECTIONS)[number]["key"]) =>
+      [...(sections.find((s) => s.key === key)?.claims ?? [])];
+    return { ...report, upcoming: claimsFor("upcoming"), dueSoon: claimsFor("dueSoon"), stale: claimsFor("stale") };
+  }, [report, sections]);
+
   return (
     <div className="px-6 py-6">
       <div className="max-w-4xl mx-auto">
@@ -130,6 +158,20 @@ export function StaleDatesReport() {
             <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
           )}
         </p>
+        <FilterSummary query={query} searches={STALE_SEARCHES} />
+        {csvReport && report && (
+          <div className="flex justify-end mb-4">
+            <DownloadCsvButton
+              report="stale-dates"
+              filename="stale-dates.csv"
+              rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
+              build={() => staleDatesToCSV(csvReport)}
+              fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
+              buildFull={() => staleDatesToCSV(report)}
+              query={query}
+            />
+          </div>
+        )}
         {error ? (
           <div className="flex items-center gap-3">
             <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
@@ -142,11 +184,13 @@ export function StaleDatesReport() {
               retry
             </button>
           </div>
-        ) : !report ? (
+        ) : !report || !sections ? (
           <p className="mono text-base text-tan-3">loading…</p>
+        ) : !anyShown && query.trim() ? (
+          <NoRowsMatch query={query} />
         ) : (
-          SECTIONS.map((s) => (
-            <Section key={s.key} title={s.title} hint={s.hint} claims={report[s.key]} tone={s.tone} textTone={s.textTone} />
+          sections.map((s) => (
+            <Section key={s.key} title={s.title} hint={s.hint} claims={s.claims} tone={s.tone} textTone={s.textTone} rq={rq} />
           ))
         )}
       </div>

@@ -1,16 +1,27 @@
 import { useEffect, useMemo, useRef, useTransition } from "react";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
+import { useHydrateAddressMap } from "../../hooks/useHydrateAddressMap";
 import { useUrlState, urlString, type UrlCodec } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { enumerateRiskCandidates, RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadRiskAssessment, joinRisk, summarizeRisk, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { loadRiskAssessment, joinRisk, summarizeRisk, riskRowsToCSV, type RiskJoin, type RiskRow, type RiskRowStatus } from "../../lib/riskAssessmentIndex";
+import { DownloadCsvButton } from "./DownloadCsvButton";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
-import { RiskTable } from "./RiskRulesTable";
+import { RiskTable, riskSearchFields } from "./RiskRulesTable";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
+import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { NoRowsMatch } from "./NoRowsMatch";
+import { FilterSummary } from "./FilterSummary";
+
+// Header-box text filter over the fields declared in RiskRulesTable (which
+// also tracks their visibility for the hidden-match aside). Domain/precision/
+// incentives/status are pill-owned and excluded; the text filter ANDs with
+// the pills.
+const SEARCHES = "doc no · title · summary · source paragraph · owning prime agent";
 
 // Multi-select: comma-separated in the URL, empty array = no filter.
 const domainsCodec: UrlCodec<RiskDomain[]> = {
@@ -30,7 +41,7 @@ const STATUSES = ["fresh", "stale", "unassessed"] as const;
 function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   const total = join.rows.length;
   return (
-    <p className="mono text-xs text-tan-3 mb-4">
+    <p className="mono text-xs text-tan-3">
       {shown === total ? (
         `${total.toLocaleString()} Atlas sections match the filter`
       ) : (
@@ -44,10 +55,12 @@ function SummaryStrip({ join, shown }: { join: RiskJoin; shown: number }) {
   );
 }
 
-export function RiskRulesReport() {
+export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mode: ReportMode; onNavigate: (id: string) => void }) {
   useDocumentTitle("Risk Rules Assessment: Sky Atlas by Redline");
   const atlas = useLoaded(loadAtlas);
   const artifact = useLoaded(loadRiskAssessment);
+  // Curated explorer URLs for address linkification in quotes on direct visits.
+  useHydrateAddressMap();
   const [domains, setDomains] = useUrlState("domain", domainsCodec);
   const [score, setScore] = useUrlState("precision", scoreCodec);
   const [enforce, setEnforce] = useUrlState("incentives", ratingCodec);
@@ -104,16 +117,21 @@ export function RiskRulesReport() {
   // Memoized so the row list only recomputes when a filter actually changes
   // (not on unrelated re-renders, e.g. expanding a row) — RiskTable's
   // pagination relies on `rows` keeping a stable identity across those.
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
   const filtered = useMemo(
     () =>
-      join.rows.filter(
-        (r) =>
-          (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
-          (status === null || r.status === status) &&
-          (score === null || String(r.entry?.preciseness) === score) &&
-          (enforce === null || r.entry?.enforcement === enforce),
+      filterRows(
+        join.rows.filter(
+          (r) =>
+            (domains.length === 0 || domains.some((d) => r.triage.domains.includes(d))) &&
+            (status === null || r.status === status) &&
+            (score === null || String(r.entry?.preciseness) === score) &&
+            (enforce === null || r.entry?.enforcement === enforce),
+        ),
+        rq,
+        riskSearchFields,
       ),
-    [join, domains, status, score, enforce],
+    [join, domains, status, score, enforce, rq],
   );
   // Pill counts describe the unfiltered universe so they don't jump around
   // while filtering. Domain counts use the same any-tag matching as the filter
@@ -149,7 +167,26 @@ export function RiskRulesReport() {
           </Link>
         </p>
 
-        {join.rows.length > 0 && <SummaryStrip join={join} shown={filtered.length} />}
+        {join.rows.length > 0 && (
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <SummaryStrip join={join} shown={filtered.length} />
+            <DownloadCsvButton
+              report="risk-rules"
+              filename="risk-rules-assessment.csv"
+              rowCount={filtered.length}
+              build={() => riskRowsToCSV(filtered)}
+              fullRowCount={join.rows.length}
+              buildFull={() => riskRowsToCSV(join.rows)}
+              query={query}
+              filters={[
+                ...domains.map((d) => RISK_DOMAIN_LABELS[d]),
+                score,
+                enforce,
+                status,
+              ]}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 mb-6">
           <CategoryPills label="Risk Type" labelTitle="Broad category of risk assessment" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domains} onToggle={toggleDomain} display={RISK_DOMAIN_LABELS} counts={counts.domain} hint="multi-select" />
@@ -158,8 +195,19 @@ export function RiskRulesReport() {
           <CategoryPills label="Status" labelTitle="Has this section been updated since the report was last refreshed?" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} counts={counts.status} />
         </div>
 
+        <FilterSummary
+          query={query}
+          filters={[
+            ...domains.map((d) => RISK_DOMAIN_LABELS[d]),
+            score && `precision:${score}`,
+            enforce && `incentives:${enforce}`,
+            status && `status:${status}`,
+          ]}
+          searches={SEARCHES}
+        />
+        {join.rows.length > 0 && filtered.length === 0 && <NoRowsMatch query={query} />}
         {atlas && filtered.length > 0 && (
-          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} />
+          <RiskTable rows={filtered} docs={atlas.docs} expandedKey={expanded} onToggle={toggleRow} onNavigate={onNavigate} rq={rq} />
         )}
       </div>
     </div>

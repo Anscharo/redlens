@@ -3,9 +3,29 @@ import type { Preciseness } from "../../lib/riskAssessment";
 import type { RiskRow } from "../../lib/riskAssessmentIndex";
 import { RISK_DOMAIN_LABELS, type RiskDomain } from "../../lib/riskRules";
 import { RatingPill } from "./OeaAssessmentTable";
+import { NodeContent } from "../NodeContent";
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { usePagedRows } from "../../hooks/usePagedRows";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { Highlight, MatchAside } from "./Highlight";
+
+// The search haystack as labelled fields; the rated paragraph (quote) and
+// covered prime agents only render in the expanded body, so matches on them
+// surface via the floating aside. Keep in sync with the cells below.
+export const riskSearchFields = (r: RiskRow): SearchField[] => [
+  { label: "doc no", value: r.candidate.docNo },
+  { label: "title", value: r.candidate.title },
+  { label: "summary", value: r.triage.description ?? "" },
+  // Same thing the expanded body labels "Source paragraph" — keep the terms
+  // identical so the aside and the expanded view obviously refer to one field.
+  { label: "source paragraph", value: r.candidate.quote, hidden: true },
+  // Replicated agent-artifact rules are one row per agent's copy (joinRisk
+  // re-expands them), so this is the row's own artifact location. The label
+  // phrases it as ownership so an agent-name query reads as "this doc lives
+  // under that agent", not as text found inside the rule.
+  { label: "doc is owned by agent matching", value: (r.candidate.agents ?? []).join(", "), hidden: true, despace: true },
+];
 
 const SCORE_STYLE: Record<Preciseness, string> = {
   1: "bg-[color-mix(in_srgb,var(--red)_35%,transparent)] text-tan",
@@ -20,19 +40,46 @@ export function ScorePill({ s }: { s: Preciseness | null }) {
   return <span className={`mono text-[10px] px-1.5 py-0.5 rounded ${SCORE_STYLE[s]}`}>{s}/5</span>;
 }
 
-function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasNode> }) {
+function ExpandedBody({
+  row, docs, onNavigate, rq,
+}: {
+  row: RiskRow;
+  docs: Record<string, AtlasNode>;
+  onNavigate: (id: string) => void;
+  rq: ReportQuery;
+}) {
   const e = row.entry;
-  if (!e) return <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>;
+  // Expanded agent-copy rows (taskKey rewritten to u:<uuid> by joinRisk while
+  // the shared entry keeps its t:… key) show their OWN paragraph, not the
+  // representative's — otherwise a Keel row would quote Spark's copy.
+  const srcQuote = e && e.taskKey === row.candidate.taskKey ? e.quote : row.candidate.quote;
+  if (!e)
+    return (
+      <div className="space-y-3 text-sm">
+        <blockquote className="text-tan-2 border-l-2 border-[var(--border)] rounded-r pl-3 pr-2 py-1.5">
+          <NodeContent content={row.candidate.quote} onNavigate={onNavigate} highlight={rq} />
+        </blockquote>
+        <p className="text-xs text-tan-3">Not yet assessed — run `pnpm risk:assess`.</p>
+      </div>
+    );
   return (
     <div className="space-y-3 text-sm">
-      <blockquote className="mono text-xs text-tan-2 border-l-2 border-[var(--border)] pl-3 whitespace-pre-wrap">
-        {e.quote}
-      </blockquote>
+      <div>
+        <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">Source paragraph</p>
+        <blockquote className="text-tan-2 border-l-2 border-[var(--accent)] rounded-r pl-3 pr-2 py-1.5 bg-[color-mix(in_srgb,var(--surface)_45%,transparent)]">
+          <NodeContent content={srcQuote} onNavigate={onNavigate} highlight={rq} />
+        </blockquote>
+      </div>
       <div>
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Precision <ScorePill s={e.preciseness} />
         </p>
-        <p className="text-tan-2">{e.precisenessReasoning}</p>
+        {/* Reasoning is free-form LLM prose (no atlas links), so render it
+            noMath: it carries currency and stray `$a$` spans that the reader's
+            KaTeX path would misrender, while still linkifying any addresses. */}
+        <div className="text-tan-2">
+          <NodeContent content={e.precisenessReasoning} onNavigate={onNavigate} noMath />
+        </div>
         {e.metrics.length > 0 && (
           <p className="mono text-[11px] text-tan-3 mt-1">
             metrics: {e.metrics.map((m) => (
@@ -45,7 +92,9 @@ function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasN
         <p className="mono text-[10px] text-tan-3 uppercase tracking-wider mb-1">
           Penalties / Incentives <RatingPill r={e.enforcement} />
         </p>
-        <p className="text-tan-2">{e.enforcementReasoning}</p>
+        <div className="text-tan-2">
+          <NodeContent content={e.enforcementReasoning} onNavigate={onNavigate} noMath />
+        </div>
         {e.mechanismUuids.length > 0 && (
           <p className="text-xs mt-1">
             {e.mechanismUuids.map((u) => (
@@ -56,9 +105,6 @@ function ExpandedBody({ row, docs }: { row: RiskRow; docs: Record<string, AtlasN
           </p>
         )}
       </div>
-      {row.candidate.agents && row.candidate.agents.length > 1 && (
-        <p className="mono text-[10px] text-tan-3">replicated across: {row.candidate.agents.join(", ")}</p>
-      )}
       <p className="mono text-[10px] text-tan-3">
         ✳ assessed by {e.model}
         {row.status === "stale" && " · STALE — the atlas changed since this rating; re-queued on next run"}
@@ -81,12 +127,14 @@ function DomainPills({ row }: { row: RiskRow }) {
 }
 
 export function RiskTable({
-  rows, docs, expandedKey, onToggle,
+  rows, docs, expandedKey, onToggle, onNavigate, rq = EMPTY_QUERY,
 }: {
-  rows: RiskRow[];
+  rows: readonly RiskRow[];
   docs: Record<string, AtlasNode>;
   expandedKey: string | null;
   onToggle: (row: RiskRow) => void;
+  onNavigate: (id: string) => void;
+  rq?: ReportQuery;
 }) {
   const { visible, remaining, showMore } = usePagedRows(rows);
   return (
@@ -111,10 +159,11 @@ export function RiskTable({
               <tr key={row.candidate.taskKey}
                 onClick={() => onToggle(row)}
                 className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors cursor-pointer">
-                <td className="py-2 px-3 align-top">
+                <td className="py-2 px-3 align-top relative">
+                  <MatchAside matches={hiddenMatches(riskSearchFields(row), rq)} rq={rq} />
                   <AtlasLink to={atlasHref(row.candidate.uuid)} onClick={(ev) => ev.stopPropagation()}
                     className="mono text-xs text-accent hover:underline">
-                    {row.candidate.docNo}
+                    <Highlight text={row.candidate.docNo} rq={rq} />
                   </AtlasLink>
                 </td>
                 <td className="py-2 px-3 align-top text-sm">
@@ -127,12 +176,12 @@ export function RiskTable({
                   >
                     {expanded ? "▾" : "▸"}
                   </button>
-                  <span className="text-tan">{row.candidate.title}</span>
+                  <span className="text-tan"><Highlight text={row.candidate.title} rq={rq} /></span>
                   {row.candidate.stub && <span className="mono text-[10px] text-tan-3 ml-1.5">[stub]</span>}
                   {row.status !== "fresh" && (
                     <span className={`badge ml-1.5 ${row.status === "stale" ? "badge-red" : "badge-muted"}`}>{row.status}</span>
                   )}
-                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2">{row.triage.description}</p>}
+                  {!expanded && <p className="text-xs text-tan-2 mt-0.5 line-clamp-2"><Highlight text={row.triage.description} rq={rq} /></p>}
                 </td>
                 <td className="py-2 px-3 align-top"><DomainPills row={row} /></td>
                 <td className="py-2 px-3 align-top"><ScorePill s={e?.preciseness ?? null} /></td>
@@ -141,7 +190,7 @@ export function RiskTable({
               expanded && (
                 <tr key={`${row.candidate.taskKey}:x`} className="border-t border-[var(--border)]">
                   <td colSpan={5} className="py-3 px-3 bg-[color-mix(in_srgb,var(--surface)_60%,transparent)]">
-                    <ExpandedBody row={row} docs={docs} />
+                    <ExpandedBody row={row} docs={docs} onNavigate={onNavigate} rq={rq} />
                   </td>
                 </tr>
               ),

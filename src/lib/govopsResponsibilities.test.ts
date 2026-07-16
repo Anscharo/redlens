@@ -8,7 +8,7 @@ import { describe, it, expect } from "vitest";
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
-import { deriveGovOpsResponsibilities } from "./govopsResponsibilities";
+import { deriveGovOpsResponsibilities, govopsRowsToCSV, type OGResponsibility } from "./govopsResponsibilities";
 
 const GOVOPS_DEF = "1e73ee4b-823d-406a-af54-223b43bc8e42"; // A.0.1.1.47
 
@@ -28,9 +28,17 @@ const docs: Record<string, AtlasNode> = {};
 for (const n of [
   node({ id: GOVOPS_DEF, doc_no: "A.0.1.1.47", title: "GovOps", content: "Governance Operations (\"GovOps\") actors are specialized Ecosystem Actors." }),
   node({ id: "prime-doc", doc_no: "A.6.1.1.1", title: "Prime Agent Spark" }),
-  // Two copies of the same duty under two different agent artifacts — must collapse.
-  node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Spark's calculation of the rebate before executing." }),
-  node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Grove's calculation of the rebate before executing." }),
+  node({ id: "prime-doc-2", doc_no: "A.6.1.1.2", title: "Prime Agent Grove" }),
+  // Two copies of the same duty under two different agent artifacts — must
+  // collapse: the text differs only by each agent's own name (masked by the
+  // collapse key) and punctuation (curly vs straight apostrophe).
+  node({ id: "duty-op-1", doc_no: "A.6.1.1.1.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Spark’s calculation of the rebate before executing." }),
+  node({ id: "duty-op-2", doc_no: "A.6.1.1.2.2.3", title: "Operational GovOps Reviews Rebate", content: "Operational GovOps reviews Grove's calculation of the rebate before executing" }),
+  // Same structural title under two agent artifacts but genuinely DIFFERENT
+  // duties (different multisig) — must NOT collapse (the A.6.1.1.<n> "Modification"
+  // bug: Spark's row swallowed Skybase's distinct duty and its agent).
+  node({ id: "duty-msig-1", doc_no: "A.6.1.1.1.9.5", title: "Modification", content: "Operational GovOps Soter Labs can change the signers of the Core Operator Relayer Multisig at any time." }),
+  node({ id: "duty-msig-2", doc_no: "A.6.1.1.2.9.5", title: "Modification", content: "Operational GovOps Soter Labs can change the signers of the USDS Demand Subsidies Multisig at any time." }),
   node({ id: "duty-core", doc_no: "A.2.2.1.1.13", title: "Core GovOps Validates Executor Accord Primitive Inputs", content: "Core GovOps reviews the inputs to the Executor Accord Primitive to ensure validity." }),
   // Assignment doc (no duty_for edge — build-graph excludes the structural doc_no).
   node({ id: "assign-doc", doc_no: "A.6.1.2.1.2", title: "Operational GovOps", content: "Operational GovOps for Operational Executor Agent Amatsu is Soter Labs." }),
@@ -76,6 +84,7 @@ const participants: GraphEntity[] = [
   { id: "exec", slug: "amatsu", name: "Operational Executor Agent Amatsu", et: "agent", st: "operational_executor", did: null },
   { id: "core-exec", slug: "cc-exec-1", name: "Core Council Executor Agent 1", et: "agent", st: "core_executor", did: null },
   { id: "prime", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "prime-doc" },
+  { id: "prime-2", slug: "grove", name: "Grove", et: "agent", st: "prime", did: "prime-doc-2" },
 ];
 
 const dutyMeta = (role: string, quote: string | null, match = quote ? "active" : "title") =>
@@ -88,6 +97,8 @@ const edges: RelationEdge[] = [
   // Duties — duty_for edges as build-graph section 2s-ter emits them.
   { f: "soter", ft: "entity", t: "duty-op-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.2.3"], m: dutyMeta("Operational GovOps", null) },
   { f: "soter", ft: "entity", t: "duty-op-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.2.3"], m: dutyMeta("Operational GovOps", null) },
+  { f: "soter", ft: "entity", t: "duty-msig-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.9.5"], m: dutyMeta("Operational GovOps", "Operational GovOps Soter Labs can change the signers of the Core Operator Relayer Multisig at any time.") },
+  { f: "soter", ft: "entity", t: "duty-msig-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.9.5"], m: dutyMeta("Operational GovOps", "Operational GovOps Soter Labs can change the signers of the USDS Demand Subsidies Multisig at any time.") },
   { f: "atlas-axis", ft: "entity", t: "duty-core", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", null) },
   { f: "soter", ft: "entity", t: "duty-quoted", tt: "doc", e: "duty_for", s: ["A.1.14.4.6.1.1"], m: dutyMeta("Operational GovOps", "GovOps actors [carry out](someuuid) operational activities on behalf of Executor Agents.") },
   { f: "atlas-axis", ft: "entity", t: "duty-title-bullets", tt: "doc", e: "duty_for", s: ["A.2.7.7"], m: dutyMeta("Core GovOps", null) },
@@ -120,12 +131,29 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(defs.map((r) => r.uuid)).toContain(GOVOPS_DEF);
   });
 
-  it("collapses duplicate per-agent duties by title and accumulates agents", () => {
+  it("collapses duplicate per-agent duties and accumulates agents", () => {
     const op = byCat("op-duty");
     const rebate = op.filter((r) => /reviews rebate/i.test(r.title));
     expect(rebate).toHaveLength(1);
     expect(rebate[0].docNo).toBe("A.6.1.1.1.2.3"); // lowest doc_no is representative
-    expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark"]));
+    expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark", "Grove"]));
+    // Every merged copy stays reachable — the row links all of them.
+    expect(rebate[0].sources).toEqual([
+      { docNo: "A.6.1.1.1.2.3", uuid: "duty-op-1", agent: "Spark" },
+      { docNo: "A.6.1.1.2.2.3", uuid: "duty-op-2", agent: "Grove" },
+    ]);
+  });
+
+  it("omits sources on rows that merged nothing", () => {
+    const single = results.find((r) => r.uuid === "duty-msig-1");
+    expect(single?.sources).toBeUndefined();
+  });
+
+  it("does not collapse same-title agent-artifact docs whose duties genuinely differ", () => {
+    const msig = byCat("op-duty").filter((r) => r.title === "Modification");
+    expect(msig.map((r) => r.uuid).sort()).toEqual(["duty-msig-1", "duty-msig-2"]);
+    expect(msig.find((r) => r.uuid === "duty-msig-1")?.agents).toEqual(["Spark"]);
+    expect(msig.find((r) => r.uuid === "duty-msig-2")?.agents).toEqual(["Grove"]);
   });
 
   it("classifies duties op vs core from the edge's declared role", () => {
@@ -216,5 +244,24 @@ describe("deriveGovOpsResponsibilities", () => {
   it("never emits an empty duty snippet or title", () => {
     expect(results.filter((r) => !r.title?.trim())).toEqual([]);
     expect(results.filter((r) => !r.duty?.trim() && r.category !== "assignment")).toEqual([]);
+  });
+});
+
+describe("govopsRowsToCSV", () => {
+  it("emits a header, maps the category label, and joins agents with '; '", () => {
+    const rows: OGResponsibility[] = [
+      { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", govops: "Soter Labs", role: "Operational", agents: ["Amatsu", "Ozone"] },
+      { docNo: "A.2.1", uuid: "u2", title: "A duty", duty: "does the thing", category: "op-duty", govops: "Soter Labs" },
+      { docNo: "A.3.1", uuid: "u3", title: "Merged", duty: "shared duty", category: "op-duty", sources: [{ docNo: "A.3.1", uuid: "u3", agent: "Spark" }, { docNo: "A.4.1", uuid: "u4", agent: "Grove" }] },
+    ];
+    const lines = govopsRowsToCSV(rows).split("\r\n");
+    // A merged row lists every source doc_no, not just the representative.
+    expect(lines[3]).toContain('"A.3.1; A.4.1"');
+    expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","GovOps","Executor","Role"');
+    expect(lines[1]).toContain('"Amatsu; Ozone"');
+    expect(lines[1]).toContain('"Ozone"'); // executor column
+    expect(lines[1]).toContain('"GovOps Assignments (per Executor Agent)"');
+    // Row without agents/executor/role leaves those blank.
+    expect(lines[2]).toContain('"does the thing","","Soter Labs","",""');
   });
 });

@@ -95,6 +95,19 @@ describe("deriveGovOpsResponsibilities (real artifacts)", () => {
     expect(results.some((r) => r.docNo === "A.1.10.4.1.1.5")).toBe(true); // Ethereum SkyLink Freezer Multisig Modification
   });
 
+  it("does not collapse same-title agent-artifact duties whose text genuinely differs", () => {
+    // "Modification" recurs under every agent artifact. Spark's doc
+    // (31c59017…, A.6.1.1.1.2.6.1.2.1.2.2.2.5 — Core Operator Relayer Multisig)
+    // and Skybase's (665ca5c5…, A.6.1.1.4.3.4.2.5 — USDS Demand Subsidies
+    // Multisig) are DIFFERENT duties: bare-title collapse used to swallow
+    // Skybase's row and misattribute its agent to Spark's doc.
+    const spark = results.find((r) => r.uuid === "31c59017-769f-4a5b-88f7-8bef200dcc71");
+    const skybase = results.find((r) => r.uuid === "665ca5c5-ca1b-471a-9a10-16c46ee10cfd");
+    expect(spark).toBeDefined();
+    expect(skybase).toBeDefined();
+    expect(spark?.agents).not.toContain("Skybase");
+  });
+
   it("does not silently collapse generic structural titles reused across unrelated primitives", () => {
     // "Process Flow" is reused by ~11 distinct Distribution Reward / Integration
     // Boost process-step docs outside the per-agent-artifact subtree — each must

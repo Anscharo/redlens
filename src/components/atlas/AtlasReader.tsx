@@ -209,13 +209,13 @@ export function AtlasReader({
         )}
         <div ref={scrollContainerRef} className="atlas-scroll overflow-y-auto flex-1" style={{ minHeight: 0 }}>
           <div className="mx-auto py-2">
-            <ErrorBoundary resetKey={id} fallback={<PanelError />}>
+            <ErrorBoundary resetKey={id} fallback={(error) => <PanelError error={error} />}>
               {docList}
             </ErrorBoundary>
           </div>
         </div>
         {splitId && (
-          <ErrorBoundary resetKey={splitId} fallback={<PanelError />}>
+          <ErrorBoundary resetKey={splitId} fallback={(error) => <PanelError error={error} />}>
             <JuniorPane
               splitId={splitId}
               data={data}

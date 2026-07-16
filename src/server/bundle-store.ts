@@ -186,6 +186,18 @@ export async function publishBundle(store: BundleStore, sha: string, srcDir: str
  * Response, or null if the name isn't allowlisted / the file is missing (caller
  * decides the 404 shape). `extraHeaders` carry the per-namespace cache policy.
  */
+/** Extension → Content-Type for served artifacts. Shared with the static
+ *  handler in index.ts so the two serving paths can't drift. */
+export function contentTypeFor(name: string): string {
+  return name.endsWith(".json")
+    ? "application/json"
+    : name.endsWith(".js")
+      ? "application/javascript"
+      : name.endsWith(".css")
+        ? "text/css"
+        : "application/octet-stream";
+}
+
 export async function serveBundleArtifact(
   store: BundleStore,
   sha: string,
@@ -195,13 +207,7 @@ export async function serveBundleArtifact(
 ): Promise<Response | null> {
   const p = artifactPath(store, sha, name);
   if (!p) return null;
-  const mime = name.endsWith(".json")
-    ? "application/json"
-    : name.endsWith(".js")
-      ? "application/javascript"
-      : name.endsWith(".css")
-        ? "text/css"
-        : "application/octet-stream";
+  const mime = contentTypeFor(name);
   if (req.headers.get("accept-encoding")?.includes("gzip")) {
     const gz = Bun.file(p + ".gz");
     if (await gz.exists()) {

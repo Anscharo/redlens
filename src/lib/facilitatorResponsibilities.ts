@@ -11,7 +11,16 @@ import type { AtlasBundle } from "./docs";
 import type { GraphData } from "./graph";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
+import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
+import {
+  dutyRowKeyer,
+  finalizeDutySources,
+  mergeDutyDoc,
+  mergedDocNos,
+  newDutySources,
+  type MergedSource,
+} from "./dutyCollapse";
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
@@ -41,6 +50,9 @@ export interface OFResponsibility {
   facilitators?: string[]; // duty rows — every holder the duty fanned out to
   executor?: string; // Executor Agent name (assignment rows)
   role?: "Operational" | "Core"; // assignment / process-step role
+  // Every doc merged into this row (duty rows collapsing per-agent replicas) —
+  // set only when 2+ docs merged; includes the representative. docNo-ordered.
+  sources?: MergedSource[];
 }
 
 export const CATEGORY_LABELS: Record<OFResponsibility["category"], string> = {
@@ -102,14 +114,12 @@ export function deriveFacilitatorResponsibilities(
 
   // 2. Duties — duty_for edges declared for the Facilitator role. Category from
   //    the declared role: Core / Operational / bare ("Facilitator" — A.1.7-style
-  //    universal duties that bind every holder). Same-title rows under the
-  //    per-agent-artifact subtree collapse with agents accumulated (see
-  //    govopsResponsibilities.ts for why bare-title collapse is only safe
-  //    there); fan-out edges for one doc collapse with holders accumulated.
-  // fragile: doc_no prefix
-  const AGENT_ARTIFACT_RE = /^A\.6\.1\.1\.\d+\./;
-  type DutyRow = OFResponsibility & { _facs: Set<string>; _agents: Set<string> };
-  const dutyByKey = new Map<string, DutyRow>();
+  //    universal duties that bind every holder). Collapse semantics live in
+  //    ./dutyCollapse (dutyRowKeyer: same-title collapse only under the
+  //    agent-artifact subtree and only when the content matches too); fan-out
+  //    edges for one doc collapse with holders accumulated in _facs.
+  const rowKey = dutyRowKeyer();
+  const dutyByKey = new Map<string, OFResponsibility & { _facs: Set<string>; _sources: MergedSource[] }>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
@@ -126,18 +136,12 @@ export function deriveFacilitatorResponsibilities(
         ? "op-duty"
         : "universal";
     const duty = meta?.quote ? stripMarkdownLinks(meta.quote) : dutySnippet(n.content);
-    const key = `${category}:${AGENT_ARTIFACT_RE.test(n.doc_no) ? n.title.trim().toLowerCase() : `uuid:${n.id}`}`;
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
+    const key = rowKey(category, n, agent);
     const facName = entityById.get(e.f)?.name;
     const existing = dutyByKey.get(key);
     if (existing) {
-      // Keep the lowest doc_no as the representative row.
-      if (n.doc_no.localeCompare(existing.docNo, undefined, { numeric: true }) < 0) {
-        existing.docNo = n.doc_no;
-        existing.uuid = n.id;
-        existing.duty = duty;
-      }
-      if (agent) existing._agents.add(agent);
+      mergeDutyDoc(existing, n, duty, agent);
       if (facName) existing._facs.add(facName);
       continue;
     }
@@ -148,17 +152,15 @@ export function deriveFacilitatorResponsibilities(
       duty,
       category,
       _facs: new Set(facName ? [facName] : []),
-      _agents: new Set(agent ? [agent] : []),
+      _sources: newDutySources(n, agent),
     });
   }
-  for (const { _facs, _agents, ...row } of dutyByKey.values()) {
+  for (const { _facs, _sources, ...row } of dutyByKey.values())
     results.push({
       ...row,
       facilitators: _facs.size ? [..._facs] : undefined,
-      agents: _agents.size ? [..._agents] : undefined,
+      ...finalizeDutySources(_sources, seenDocIds),
     });
-    seenDocIds.add(row.uuid);
-  }
 
   // 3. Active Data — docs whose Responsible Party is declared as a Facilitator.
   //    Keyed on the edge's declared role, NOT the entity type: a facilitator org
@@ -208,4 +210,22 @@ export function deriveFacilitatorResponsibilities(
   }
 
   return results;
+}
+
+// Exports the given (already-filtered) facilitator responsibility rows as an
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+export function facilitatorRowsToCSV(rows: readonly OFResponsibility[]): string {
+  return toCSV(
+    ["Doc No", "Title", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
+    rows.map((r) => [
+      mergedDocNos(r, "; "),
+      r.title,
+      CATEGORY_LABELS[r.category] ?? r.category,
+      r.duty,
+      (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),
+      (r.facilitators ?? (r.facilitator ? [r.facilitator] : [])).join("; "),
+      r.executor ?? "",
+      r.role ?? "",
+    ]),
+  );
 }

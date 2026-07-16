@@ -1,10 +1,604 @@
 {
   "backlog": [
     {
+      "taskKey": "u:f44e6bf3-acf2-483e-af99-7cbee48c0c56",
+      "uuid": "f44e6bf3-acf2-483e-af99-7cbee48c0c56",
+      "docNo": "A.0.1.1.56",
+      "title": "Fortification Foundation"
+    },
+    {
+      "taskKey": "u:badd8b62-dffe-4778-b5e2-78c76195242d",
+      "uuid": "badd8b62-dffe-4778-b5e2-78c76195242d",
+      "docNo": "A.1.10.2.5.1.2.1.1",
+      "title": "Agent Spell Reviewer Checklist"
+    },
+    {
+      "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
+      "uuid": "b76195f2-7494-43a4-919e-fa823303ad06",
+      "docNo": "A.2.2.10.1.1.1.3.1",
+      "title": "Default Admin Role"
+    },
+    {
+      "taskKey": "u:4f77eb6c-4b2f-4fa0-a7c0-d58e9b76ce8e",
+      "uuid": "4f77eb6c-4b2f-4fa0-a7c0-d58e9b76ce8e",
+      "docNo": "A.2.2.10.1.1.1.3.2",
+      "title": "Controller Role"
+    },
+    {
+      "taskKey": "u:e7a97395-ddd5-4ae8-874f-1bb3f247446a",
+      "uuid": "e7a97395-ddd5-4ae8-874f-1bb3f247446a",
+      "docNo": "A.2.2.10.1.1.1.3.3",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:636a39e4-5908-4fee-bae8-e0b11e0d9c55",
+      "uuid": "636a39e4-5908-4fee-bae8-e0b11e0d9c55",
+      "docNo": "A.2.2.10.1.1.1.3.4",
+      "title": "Actor"
+    },
+    {
+      "taskKey": "u:cc7cb4b7-981e-44f5-a0d5-62e5b47d112e",
+      "uuid": "cc7cb4b7-981e-44f5-a0d5-62e5b47d112e",
+      "docNo": "A.2.2.10.1.1.1.3.5",
+      "title": "Revoker"
+    },
+    {
+      "taskKey": "u:82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
+      "uuid": "82a04ab9-158e-4c6e-9f2a-04ef68c3a2f0",
+      "docNo": "A.2.2.10.1.1.1.3.6",
+      "title": "Grantor"
+    },
+    {
+      "taskKey": "u:d823b872-fe99-4856-9096-55335357d55e",
+      "uuid": "d823b872-fe99-4856-9096-55335357d55e",
+      "docNo": "A.2.2.10.1.1.1.3.7",
+      "title": "Administered Agent Admin"
+    },
+    {
+      "taskKey": "u:a2677d19-1f2c-4361-bedc-34cb2e7eaab5",
+      "uuid": "a2677d19-1f2c-4361-bedc-34cb2e7eaab5",
+      "docNo": "A.2.2.10.1.1.1.4",
+      "title": "Liquidity Layer Shared Contracts"
+    },
+    {
+      "taskKey": "u:5b0627e8-102b-42ea-8d9b-38463591faf9",
+      "uuid": "5b0627e8-102b-42ea-8d9b-38463591faf9",
+      "docNo": "A.2.2.10.1.1.1.4.1",
+      "title": "Beacon"
+    },
+    {
+      "taskKey": "u:b7c73a0c-456d-4e75-93ac-8eec185ece31",
+      "uuid": "b7c73a0c-456d-4e75-93ac-8eec185ece31",
+      "docNo": "A.2.2.10.1.1.1.4.2",
+      "title": "Facets"
+    },
+    {
+      "taskKey": "u:c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
+      "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
+      "docNo": "A.2.2.10.1.1.1.4.2.1",
+      "title": "Aave Facet"
+    },
+    {
+      "taskKey": "u:d9cbf883-119e-403d-8efa-125997cd8897",
+      "uuid": "d9cbf883-119e-403d-8efa-125997cd8897",
+      "docNo": "A.2.2.10.1.1.1.4.2.2",
+      "title": "Basin Facet"
+    },
+    {
+      "taskKey": "u:ce25217f-c37d-4415-b0d6-adecab3c7855",
+      "uuid": "ce25217f-c37d-4415-b0d6-adecab3c7855",
+      "docNo": "A.2.2.10.1.1.1.4.2.3",
+      "title": "CCTP Facet"
+    },
+    {
+      "taskKey": "u:0c7d3bb1-6013-4c1b-900e-5232c7c5d595",
+      "uuid": "0c7d3bb1-6013-4c1b-900e-5232c7c5d595",
+      "docNo": "A.2.2.10.1.1.1.4.2.4",
+      "title": "Centrifuge Facet"
+    },
+    {
+      "taskKey": "u:0648b191-3f6c-4164-b26d-71666ca1a1cb",
+      "uuid": "0648b191-3f6c-4164-b26d-71666ca1a1cb",
+      "docNo": "A.2.2.10.1.1.1.4.2.5",
+      "title": "Curve Facet"
+    },
+    {
+      "taskKey": "u:b6a37e83-d51e-4bd3-afe6-a6f95cd943fe",
+      "uuid": "b6a37e83-d51e-4bd3-afe6-a6f95cd943fe",
+      "docNo": "A.2.2.10.1.1.1.4.2.6",
+      "title": "DAI-USDS Facet"
+    },
+    {
+      "taskKey": "u:05f5d939-712b-4204-8f77-4ef5ea598dcc",
+      "uuid": "05f5d939-712b-4204-8f77-4ef5ea598dcc",
+      "docNo": "A.2.2.10.1.1.1.4.2.7",
+      "title": "ERC-4626 Facet"
+    },
+    {
+      "taskKey": "u:83d0bf58-6a92-4873-ba9e-e5a23c8dca1c",
+      "uuid": "83d0bf58-6a92-4873-ba9e-e5a23c8dca1c",
+      "docNo": "A.2.2.10.1.1.1.4.2.8",
+      "title": "ERC-7540 Facet"
+    },
+    {
+      "taskKey": "u:b009545a-fd85-42f9-ad94-bc0acfe1f27a",
+      "uuid": "b009545a-fd85-42f9-ad94-bc0acfe1f27a",
+      "docNo": "A.2.2.10.1.1.1.4.2.9",
+      "title": "Ethena Facet"
+    },
+    {
+      "taskKey": "u:22387224-d9be-4aee-b47f-07307eb17c90",
+      "uuid": "22387224-d9be-4aee-b47f-07307eb17c90",
+      "docNo": "A.2.2.10.1.1.1.4.2.10",
+      "title": "Farm Facet"
+    },
+    {
+      "taskKey": "u:17b0a239-b0b0-476e-9a67-b8b6e3156507",
+      "uuid": "17b0a239-b0b0-476e-9a67-b8b6e3156507",
+      "docNo": "A.2.2.10.1.1.1.4.2.11",
+      "title": "LayerZero Facet"
+    },
+    {
+      "taskKey": "u:2561da4c-6e42-4503-b763-4f121236b1e8",
+      "uuid": "2561da4c-6e42-4503-b763-4f121236b1e8",
+      "docNo": "A.2.2.10.1.1.1.4.2.12",
+      "title": "Maple Facet"
+    },
+    {
+      "taskKey": "u:8c492c88-d8f9-46c8-85f6-a42ee6f944d6",
+      "uuid": "8c492c88-d8f9-46c8-85f6-a42ee6f944d6",
+      "docNo": "A.2.2.10.1.1.1.4.2.13",
+      "title": "Merkl Facet"
+    },
+    {
+      "taskKey": "u:35060c04-e4c8-4dd1-a4fe-09bc9288534d",
+      "uuid": "35060c04-e4c8-4dd1-a4fe-09bc9288534d",
+      "docNo": "A.2.2.10.1.1.1.4.2.14",
+      "title": "OTC Facet"
+    },
+    {
+      "taskKey": "u:222342b5-aa4c-4be4-8411-c947e96e8fdd",
+      "uuid": "222342b5-aa4c-4be4-8411-c947e96e8fdd",
+      "docNo": "A.2.2.10.1.1.1.4.2.15",
+      "title": "Pendle Facet"
+    },
+    {
+      "taskKey": "u:afa3da61-c32a-4efd-900b-16e1c262c842",
+      "uuid": "afa3da61-c32a-4efd-900b-16e1c262c842",
+      "docNo": "A.2.2.10.1.1.1.4.2.16",
+      "title": "PSM Facet"
+    },
+    {
+      "taskKey": "u:ad11b1de-41d7-4529-920b-55583445648e",
+      "uuid": "ad11b1de-41d7-4529-920b-55583445648e",
+      "docNo": "A.2.2.10.1.1.1.4.2.17",
+      "title": "Spark Vault Facet"
+    },
+    {
+      "taskKey": "u:6f3e9682-7628-407b-adc3-9627bad3a419",
+      "uuid": "6f3e9682-7628-407b-adc3-9627bad3a419",
+      "docNo": "A.2.2.10.1.1.1.4.2.18",
+      "title": "Superstate Facet"
+    },
+    {
+      "taskKey": "u:e59b91c8-05c9-47b2-a115-8a41b12de659",
+      "uuid": "e59b91c8-05c9-47b2-a115-8a41b12de659",
+      "docNo": "A.2.2.10.1.1.1.4.2.19",
+      "title": "Transfer Asset Facet"
+    },
+    {
+      "taskKey": "u:b808a829-2f31-42f1-ac9f-6801d3eb8437",
+      "uuid": "b808a829-2f31-42f1-ac9f-6801d3eb8437",
+      "docNo": "A.2.2.10.1.1.1.4.2.20",
+      "title": "Uniswap v3 Facet"
+    },
+    {
+      "taskKey": "u:c58ae1da-985d-4f85-80be-396de4f8191f",
+      "uuid": "c58ae1da-985d-4f85-80be-396de4f8191f",
+      "docNo": "A.2.2.10.1.1.1.4.2.21",
+      "title": "Uniswap v4 Facet"
+    },
+    {
+      "taskKey": "u:917e1162-3c06-4508-b0e9-02c5eefc1346",
+      "uuid": "917e1162-3c06-4508-b0e9-02c5eefc1346",
+      "docNo": "A.2.2.10.1.1.1.4.2.22",
+      "title": "USDS Facet"
+    },
+    {
+      "taskKey": "u:abe32bbc-2ac3-4d3c-8133-14c233e6853d",
+      "uuid": "abe32bbc-2ac3-4d3c-8133-14c233e6853d",
+      "docNo": "A.2.2.10.1.1.1.4.2.23",
+      "title": "weETH Facet"
+    },
+    {
+      "taskKey": "u:2dae0ea0-5fff-4806-8c30-27a92e5676dc",
+      "uuid": "2dae0ea0-5fff-4806-8c30-27a92e5676dc",
+      "docNo": "A.2.2.10.1.1.1.4.2.24",
+      "title": "Wrap Proxy ETH Facet"
+    },
+    {
+      "taskKey": "u:304c403a-ca08-4f49-a2f8-34c3c8a793db",
+      "uuid": "304c403a-ca08-4f49-a2f8-34c3c8a793db",
+      "docNo": "A.2.2.10.1.1.1.4.2.25",
+      "title": "wstETH Facet"
+    },
+    {
+      "taskKey": "u:cc980032-b7e4-41c5-ac4d-2f99f89f51dc",
+      "uuid": "cc980032-b7e4-41c5-ac4d-2f99f89f51dc",
+      "docNo": "A.2.2.10.1.1.1.4.3",
+      "title": "PAU Factory"
+    },
+    {
+      "taskKey": "u:8772a459-55ea-4387-889d-08fb01ad40d4",
+      "uuid": "8772a459-55ea-4387-889d-08fb01ad40d4",
+      "docNo": "A.2.2.10.1.1.1.4.4",
+      "title": "PAU Assembler"
+    },
+    {
+      "taskKey": "u:833a0750-ff91-4fdc-95a8-af77df301dbc",
+      "uuid": "833a0750-ff91-4fdc-95a8-af77df301dbc",
+      "docNo": "A.2.2.10.1.1.1.4.5",
+      "title": "Administered Agent Factory"
+    },
+    {
+      "taskKey": "u:3b387169-c279-4d0f-918c-e6c424c6ea2c",
+      "uuid": "3b387169-c279-4d0f-918c-e6c424c6ea2c",
+      "docNo": "A.2.2.10.1.1.1.5",
+      "title": "Liquidity Layer Operational Processes"
+    },
+    {
+      "taskKey": "u:9b6c5e8f-2148-4e2c-8971-9f516a7910c3",
+      "uuid": "9b6c5e8f-2148-4e2c-8971-9f516a7910c3",
+      "docNo": "A.2.2.10.1.1.1.5.1.1",
+      "title": "Adding a Facet"
+    },
+    {
+      "taskKey": "u:91c8c247-31ad-4e7b-a8b0-73e32c2a1367",
+      "uuid": "91c8c247-31ad-4e7b-a8b0-73e32c2a1367",
+      "docNo": "A.2.2.10.1.1.1.5.1.2",
+      "title": "Removing a Facet"
+    },
+    {
+      "taskKey": "u:5e941add-bf8d-4623-95a1-69795e7f7034",
+      "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
+      "docNo": "A.2.2.10.1.1.1.5.2",
+      "title": "Diamond PAU Controller Functions"
+    },
+    {
+      "taskKey": "u:d9173f82-6a6b-432a-a6e4-c8f80f70ba35",
+      "uuid": "d9173f82-6a6b-432a-a6e4-c8f80f70ba35",
+      "docNo": "A.2.2.10.1.1.1.5.2.1",
+      "title": "Mint USDS"
+    },
+    {
+      "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
+      "uuid": "8eea7011-c299-4861-bf2e-0adb78e3ef30",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
+      "uuid": "b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.2",
+      "title": "Check Rate Limits"
+    },
+    {
+      "taskKey": "u:1490a13f-c897-4f0d-9ba3-205f40900321",
+      "uuid": "1490a13f-c897-4f0d-9ba3-205f40900321",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.3",
+      "title": "Mint USDS To ALM Proxy"
+    },
+    {
+      "taskKey": "u:f01e63b7-dde7-422a-89a1-6931839d49f5",
+      "uuid": "f01e63b7-dde7-422a-89a1-6931839d49f5",
+      "docNo": "A.2.2.10.1.1.1.5.2.2",
+      "title": "Burn USDS"
+    },
+    {
+      "taskKey": "u:53d3749c-ef45-45ed-9657-373580abe3cf",
+      "uuid": "53d3749c-ef45-45ed-9657-373580abe3cf",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:b900fd43-5f7c-438f-a1dd-0e89db98f4db",
+      "uuid": "b900fd43-5f7c-438f-a1dd-0e89db98f4db",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.2",
+      "title": "Check Rate Limits"
+    },
+    {
+      "taskKey": "u:feace76a-e48a-42da-8732-74bbf55c530f",
+      "uuid": "feace76a-e48a-42da-8732-74bbf55c530f",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.3",
+      "title": "Burn USDS From ALM Proxy"
+    },
+    {
+      "taskKey": "u:5592661d-78e9-4185-9c6e-15ffa47e0aef",
+      "uuid": "5592661d-78e9-4185-9c6e-15ffa47e0aef",
+      "docNo": "A.2.2.10.1.1.1.5.2.3",
+      "title": "Deposit To Aave Market"
+    },
+    {
+      "taskKey": "u:26eec581-240e-4214-85a4-ee9309b986d4",
+      "uuid": "26eec581-240e-4214-85a4-ee9309b986d4",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:989bca9d-f56a-4965-8684-62de547f605a",
+      "uuid": "989bca9d-f56a-4965-8684-62de547f605a",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.2",
+      "title": "Check Rate Limits"
+    },
+    {
+      "taskKey": "u:d783250a-d160-4f1f-8648-e2c9a6d95816",
+      "uuid": "d783250a-d160-4f1f-8648-e2c9a6d95816",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.3",
+      "title": "Deposit Asset Into Aave Market"
+    },
+    {
+      "taskKey": "u:038eaa5c-d4c0-4a56-8d30-bc3a04508f0e",
+      "uuid": "038eaa5c-d4c0-4a56-8d30-bc3a04508f0e",
+      "docNo": "A.2.2.10.1.1.1.5.2.4",
+      "title": "Withdraw From Aave Market"
+    },
+    {
+      "taskKey": "u:c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
+      "uuid": "c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
+      "uuid": "ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.2",
+      "title": "Check Rate Limits"
+    },
+    {
+      "taskKey": "u:ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
+      "uuid": "ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.3",
+      "title": "Withdraw Asset From Aave Market"
+    },
+    {
+      "taskKey": "u:6f5bc654-a053-4b1f-9ada-6aa13d0a2109",
+      "uuid": "6f5bc654-a053-4b1f-9ada-6aa13d0a2109",
+      "docNo": "A.2.2.10.1.1.1.5.3",
+      "title": "Rate Limit Management"
+    },
+    {
+      "taskKey": "u:1cb17b82-a294-4942-8183-4d90b224a79d",
+      "uuid": "1cb17b82-a294-4942-8183-4d90b224a79d",
+      "docNo": "A.2.2.10.1.1.1.5.3.1",
+      "title": "RateLimits Query"
+    },
+    {
+      "taskKey": "u:f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
+      "uuid": "f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
+      "docNo": "A.2.2.10.1.1.1.5.3.2",
+      "title": "Set RateLimit"
+    },
+    {
+      "taskKey": "u:a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
+      "uuid": "a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
+      "docNo": "A.2.2.10.1.1.1.5.3.3",
+      "title": "Set Unlimited RateLimit"
+    },
+    {
+      "taskKey": "u:39217368-efa1-4168-a231-b010d6e23dfa",
+      "uuid": "39217368-efa1-4168-a231-b010d6e23dfa",
+      "docNo": "A.2.2.10.1.1.1.5.3.4",
+      "title": "Set Trigger For RateLimit Decrease"
+    },
+    {
+      "taskKey": "u:ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
+      "uuid": "ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
+      "docNo": "A.2.2.10.1.1.1.5.3.5",
+      "title": "Set Trigger For RateLimit Increase"
+    },
+    {
+      "taskKey": "u:728ea3d3-606a-4080-bc56-4a9e2c7fecb3",
+      "uuid": "728ea3d3-606a-4080-bc56-4a9e2c7fecb3",
+      "docNo": "A.2.3.1.2.2.1",
+      "title": "Fortification Foundation Allocation"
+    },
+    {
+      "taskKey": "u:816e01d2-76a7-45ea-a770-22e4d3bc1247",
+      "uuid": "816e01d2-76a7-45ea-a770-22e4d3bc1247",
+      "docNo": "A.3.3.2.4.2",
+      "title": "Peg Defense Obligations"
+    },
+    {
+      "taskKey": "u:2af50d93-00ba-4546-b827-0759ab8dd4a2",
+      "uuid": "2af50d93-00ba-4546-b827-0759ab8dd4a2",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.1",
+      "title": "Timelock Delay"
+    },
+    {
+      "taskKey": "u:e47f8b7c-48e8-4d5e-bceb-75e2b0b0517d",
+      "uuid": "e47f8b7c-48e8-4d5e-bceb-75e2b0b0517d",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.2",
+      "title": "Guardian Multisig Address"
+    },
+    {
+      "taskKey": "u:25c35ce7-ded6-48d1-8eb8-4b2098152c28",
+      "uuid": "25c35ce7-ded6-48d1-8eb8-4b2098152c28",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.3",
+      "title": "Guardian Multisig Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:7e6ebd94-6864-4f96-bf29-77d9491788f1",
+      "uuid": "7e6ebd94-6864-4f96-bf29-77d9491788f1",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.4",
+      "title": "Guardian Multisig Quorum"
+    },
+    {
+      "taskKey": "u:022bbefc-9a31-4ac0-a14a-5f87ba9739e1",
+      "uuid": "022bbefc-9a31-4ac0-a14a-5f87ba9739e1",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.5",
+      "title": "Guardian Powers"
+    },
+    {
       "taskKey": "u:cd6ad021-80f4-432d-b00f-1d26e7984297",
       "uuid": "cd6ad021-80f4-432d-b00f-1d26e7984297",
       "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.1.3",
       "title": "USDS For USDC Swap Maximum"
+    },
+    {
+      "taskKey": "u:6cd396d6-8f98-4ca8-a61d-8b49def2a793",
+      "uuid": "6cd396d6-8f98-4ca8-a61d-8b49def2a793",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.1",
+      "title": "Base USDC Deposit Maximum"
+    },
+    {
+      "taskKey": "u:3cd83281-90cf-4c29-a3a5-6dc83099750b",
+      "uuid": "3cd83281-90cf-4c29-a3a5-6dc83099750b",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.2",
+      "title": "Base USDC Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:38d0e2c3-3702-4906-b230-66a152dd998d",
+      "uuid": "38d0e2c3-3702-4906-b230-66a152dd998d",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.3",
+      "title": "Base USDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:2cac91fb-e1e2-443d-ad12-ee45211eba1d",
+      "uuid": "2cac91fb-e1e2-443d-ad12-ee45211eba1d",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.4",
+      "title": "Base USDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:f9e926e1-e127-42ec-883d-d11baecb0fd6",
+      "uuid": "f9e926e1-e127-42ec-883d-d11baecb0fd6",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.5",
+      "title": "Base sUSDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:521cc062-0b43-4d93-91c3-fdc29e4792f1",
+      "uuid": "521cc062-0b43-4d93-91c3-fdc29e4792f1",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.2.6",
+      "title": "Base sUSDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:ffbc3f81-fd95-4a38-9f95-6c834d01212a",
+      "uuid": "ffbc3f81-fd95-4a38-9f95-6c834d01212a",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.1",
+      "title": "Arbitrum USDC Deposit Maximum"
+    },
+    {
+      "taskKey": "u:f7e5dc3b-b26c-4a44-9e0b-0b385ad22704",
+      "uuid": "f7e5dc3b-b26c-4a44-9e0b-0b385ad22704",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.2",
+      "title": "Arbitrum USDC Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:ddf6a5b7-5c41-4c80-8ad9-0222ef558fb4",
+      "uuid": "ddf6a5b7-5c41-4c80-8ad9-0222ef558fb4",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.3",
+      "title": "Arbitrum USDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:f5a14451-b476-46ea-91e8-009f6230ac3e",
+      "uuid": "f5a14451-b476-46ea-91e8-009f6230ac3e",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.4",
+      "title": "Arbitrum USDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:8be6ab2f-9b82-4727-be24-e2d6ac5c4c5f",
+      "uuid": "8be6ab2f-9b82-4727-be24-e2d6ac5c4c5f",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.5",
+      "title": "Arbitrum sUSDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:127e7438-d797-4b3e-a464-230f8253f0d2",
+      "uuid": "127e7438-d797-4b3e-a464-230f8253f0d2",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.3.6",
+      "title": "Arbitrum sUSDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:c02294b9-1938-40b5-af8c-57b82c7b1f51",
+      "uuid": "c02294b9-1938-40b5-af8c-57b82c7b1f51",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.1",
+      "title": "Unichain USDC Deposit Maximum"
+    },
+    {
+      "taskKey": "u:cb146c46-207d-4a52-be6d-9a4623f2d921",
+      "uuid": "cb146c46-207d-4a52-be6d-9a4623f2d921",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.2",
+      "title": "Unichain USDC Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:f998ce83-747f-4c60-95ba-26f1f2facdb8",
+      "uuid": "f998ce83-747f-4c60-95ba-26f1f2facdb8",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.3",
+      "title": "Unichain USDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:3a6e6efd-314a-4f21-b238-0ffa148fb8e3",
+      "uuid": "3a6e6efd-314a-4f21-b238-0ffa148fb8e3",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.4",
+      "title": "Unichain USDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:1741e5ba-e45a-4960-b193-f8bee9d595c9",
+      "uuid": "1741e5ba-e45a-4960-b193-f8bee9d595c9",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.5",
+      "title": "Unichain sUSDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:16004284-de05-4ee4-a9db-762de1270de9",
+      "uuid": "16004284-de05-4ee4-a9db-762de1270de9",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.4.6",
+      "title": "Unichain sUSDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:3f08e295-8edc-489a-8d46-9b4b7ca83d01",
+      "uuid": "3f08e295-8edc-489a-8d46-9b4b7ca83d01",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.1",
+      "title": "Optimism USDC Deposit Maximum"
+    },
+    {
+      "taskKey": "u:90c809f2-3f2c-4a76-beb8-06140822e2cd",
+      "uuid": "90c809f2-3f2c-4a76-beb8-06140822e2cd",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.2",
+      "title": "Optimism USDC Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:f162baa7-9400-4368-adf8-5793415de5b3",
+      "uuid": "f162baa7-9400-4368-adf8-5793415de5b3",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.3",
+      "title": "Optimism USDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:f04f600b-3cc0-4c10-8540-1dce56d130e2",
+      "uuid": "f04f600b-3cc0-4c10-8540-1dce56d130e2",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.4",
+      "title": "Optimism USDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:ae241843-1492-42b4-8a66-687701ba4dc0",
+      "uuid": "ae241843-1492-42b4-8a66-687701ba4dc0",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.5",
+      "title": "Optimism sUSDS Deposit Maximum"
+    },
+    {
+      "taskKey": "u:a9d4793d-da6a-440e-9435-993070700b60",
+      "uuid": "a9d4793d-da6a-440e-9435-993070700b60",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.5.6",
+      "title": "Optimism sUSDS Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:3d180927-6af0-462e-b507-ecd3b76aead9",
+      "uuid": "3d180927-6af0-462e-b507-ecd3b76aead9",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.6.1",
+      "title": "Avalanche USDC Deposit Maximum"
+    },
+    {
+      "taskKey": "u:8b9fa488-8005-488a-8537-11a8bdcb205b",
+      "uuid": "8b9fa488-8005-488a-8537-11a8bdcb205b",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.6.2",
+      "title": "Avalanche USDC Withdrawal Maximum"
     },
     {
       "taskKey": "u:36a496db-20c1-4d34-810e-518c4f99a755",
@@ -103,10 +697,166 @@
       "title": "Disclaimers"
     },
     {
+      "taskKey": "u:fa3e13f2-6837-499b-82b6-b4b9f78a9d08",
+      "uuid": "fa3e13f2-6837-499b-82b6-b4b9f78a9d08",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.1.1.2.6.3",
+      "title": "ALM Freezer Multisig Address"
+    },
+    {
+      "taskKey": "u:4210841c-c76a-4d9b-bfdd-0c11f23c785a",
+      "uuid": "4210841c-c76a-4d9b-bfdd-0c11f23c785a",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.1.1.2.6.4",
+      "title": "ALM Relayer Multisig Addresses"
+    },
+    {
       "taskKey": "u:99bc2dd5-5573-4bb9-9210-5af299d058d9",
       "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
       "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
       "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:0eed3609-62a2-4c5b-ae5b-4f78212252ee",
+      "uuid": "0eed3609-62a2-4c5b-ae5b-4f78212252ee",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.1.1.2.1.5",
+      "title": "AdministeredAgent Contract"
+    },
+    {
+      "taskKey": "u:817fabeb-fcd9-42f4-bcdb-863c67105ccf",
+      "uuid": "817fabeb-fcd9-42f4-bcdb-863c67105ccf",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.1.3.2",
+      "title": "Whitelisting Of ALM Proxy"
+    },
+    {
+      "taskKey": "u:1830fb80-a44b-4aaf-b72c-7c4997cb9486",
+      "uuid": "1830fb80-a44b-4aaf-b72c-7c4997cb9486",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1",
+      "title": "Osero Relayer Multisig"
+    },
+    {
+      "taskKey": "u:d39e8188-807c-4cf1-8952-e02e455e255b",
+      "uuid": "d39e8188-807c-4cf1-8952-e02e455e255b",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:9abbed49-3b16-4bb3-956c-7809958b1b9a",
+      "uuid": "9abbed49-3b16-4bb3-956c-7809958b1b9a",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.2",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:2ecfa2d0-b20c-41fa-99c9-8c865d665519",
+      "uuid": "2ecfa2d0-b20c-41fa-99c9-8c865d665519",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.3",
+      "title": "Signers"
+    },
+    {
+      "taskKey": "u:4721045a-46d0-42b9-b763-9826b7c88735",
+      "uuid": "4721045a-46d0-42b9-b763-9826b7c88735",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:da68307c-23cb-48fa-b6cc-52a31f812dc5",
+      "uuid": "da68307c-23cb-48fa-b6cc-52a31f812dc5",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.1.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:f48b14c7-6dd1-4d10-b546-a604be45758c",
+      "uuid": "f48b14c7-6dd1-4d10-b546-a604be45758c",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2",
+      "title": "Core Operator Relayer Multisig"
+    },
+    {
+      "taskKey": "u:92ed192c-7019-4864-b06d-c56fec8d3414",
+      "uuid": "92ed192c-7019-4864-b06d-c56fec8d3414",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:4d53e814-8131-4fb9-b9d3-17e27ed04f9e",
+      "uuid": "4d53e814-8131-4fb9-b9d3-17e27ed04f9e",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.2",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:b35e8470-3b60-4093-a7d4-384f2a86f44d",
+      "uuid": "b35e8470-3b60-4093-a7d4-384f2a86f44d",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.3",
+      "title": "Signers"
+    },
+    {
+      "taskKey": "u:5c9542e5-bd8c-4c9d-a6d2-c2f8382f13d1",
+      "uuid": "5c9542e5-bd8c-4c9d-a6d2-c2f8382f13d1",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:7c52496f-8863-44a1-8e62-119f755fc038",
+      "uuid": "7c52496f-8863-44a1-8e62-119f755fc038",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.2.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:51460bc2-f5fb-4302-912a-ed3e6943aae0",
+      "uuid": "51460bc2-f5fb-4302-912a-ed3e6943aae0",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3",
+      "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159",
+      "uuid": "3b22b5f4-3cc4-4c47-9b84-a64fb4f3b159",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.1",
+      "title": "Address"
+    },
+    {
+      "taskKey": "u:3639aaf9-48b9-4021-8ccc-76d956689c83",
+      "uuid": "3639aaf9-48b9-4021-8ccc-76d956689c83",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.2",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:5476d3cf-1781-46df-95a2-ff86a7965c97",
+      "uuid": "5476d3cf-1781-46df-95a2-ff86a7965c97",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.3",
+      "title": "Signers"
+    },
+    {
+      "taskKey": "u:0af92fed-3b01-40b2-95c7-a3726241906b",
+      "uuid": "0af92fed-3b01-40b2-95c7-a3726241906b",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.4",
+      "title": "Usage Standards"
+    },
+    {
+      "taskKey": "u:72931c13-0cd1-44c9-80b7-eb9a83463758",
+      "uuid": "72931c13-0cd1-44c9-80b7-eb9a83463758",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.2.1.3.5",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:fc89f81a-cad3-42fe-afc1-880e2ecb73a3",
+      "uuid": "fc89f81a-cad3-42fe-afc1-880e2ecb73a3",
+      "docNo": "A.6.1.1.7.2.6.1.2.1.3.2",
+      "title": "Stablewatch's Total Risk Capital (TRC) Management Processes"
+    },
+    {
+      "taskKey": "u:aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
+      "uuid": "aae0e1ba-4ed0-4484-9187-3e53f3695ae8",
+      "docNo": "A.6.1.1.7.2.6.1.2.2.1.1",
+      "title": "Role Hierarchies And Permissions"
+    },
+    {
+      "taskKey": "u:39b320a8-240c-487d-9c72-25b8a2457a4b",
+      "uuid": "39b320a8-240c-487d-9c72-25b8a2457a4b",
+      "docNo": "A.6.1.1.7.2.6.1.2.2.3.1",
+      "title": "Remove Compromised Actor As Freezer"
+    },
+    {
+      "taskKey": "u:7ba1cc79-9a9f-460c-85b8-72181788397f",
+      "uuid": "7ba1cc79-9a9f-460c-85b8-72181788397f",
+      "docNo": "A.6.1.1.7.2.6.1.2.2.3.2",
+      "title": "Withdraw All SparkLend Positions"
     }
   ]
 }

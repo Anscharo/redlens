@@ -3,9 +3,10 @@ import { useLocation, useSearchParams, Switch, Route } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
+import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
-import { ROUTES, type NavPage, type SearchScope } from "./lib/routes";
+import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
 import { AtlasView } from "./components/atlas/AtlasView";
@@ -18,6 +19,7 @@ import { HomePage } from "./components/HomePage";
 import { DevPanel } from "./DevPanel";
 import { Footer } from "./components/Footer";
 import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
+import { isStaleChunkError } from "./lib/staleChunk";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { useDataSource } from "./lib/dataSource";
@@ -108,6 +110,9 @@ export default function App() {
           : null;
 
   const scope: SearchScope = activeNavPage ?? "atlas";
+  // On a specific report page the pill shows the report's short name and the
+  // box filters that report's rows (query stays in ?q= on the same route).
+  const reportScopeCfg = REPORT_SCOPE_CONFIG[location];
 
   const { query, activeMode, isMixed, inputRef, handleChange, clearQuery, wrapModeClick, broadSearch, state, handleHintClick, recentSearches, selectRecent } =
     useSearchInput(location, navigate, scope);
@@ -118,6 +123,9 @@ export default function App() {
 
   // Analytics: init + per-route $pageview tagged with the product super property.
   usePageAnalytics(location);
+  // Browser-local visit log: record report page views (docs/actors/searches are
+  // captured at their own sites, where the human label is available).
+  useReportVisitTracking(location);
 
   // Enter in the search box jumps focus to the first result (entity hit or doc).
   // Returns whether a result was actually focused, so SearchBar only swallows
@@ -202,13 +210,15 @@ export default function App() {
         onSetMode={wrapModeClick}
         activePage={activeNavPage}
         scope={scope}
+        scopeCfg={reportScopeCfg}
+        showModes={scope === "atlas" || !!reportScopeCfg}
         recentSearches={recentSearches}
         onRecentSelect={selectRecent}
         onSubmit={focusFirstResult}
       />
       <div className={`flex-1 flex ${windowScroll ? "" : "overflow-hidden"}`}>
         {showTree && (
-          <ErrorBoundary fallback={<PanelError />}>
+          <ErrorBoundary fallback={(error) => <PanelError error={error} />}>
             <Drawer
               open={treeOpen}
               onClose={() => setTreeOpen(false)}
@@ -229,12 +239,16 @@ export default function App() {
         <div className={`flex-1 flex flex-col ${windowScroll ? "" : "overflow-hidden"}`}>
           <ErrorBoundary
             resetKey={location}
-            fallback={(error) => (
-              <div className="flex flex-col items-center justify-center flex-1 py-24 gap-4">
-                <p className="text-sm mono" style={{ color: "var(--error-text)" }}>page failed to load</p>
-                <p className="text-xs mono text-tan-3 text-center max-w-md">{error.message}</p>
-              </div>
-            )}
+            fallback={(error) =>
+              isStaleChunkError(error) ? (
+                <PanelError error={error} />
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 py-24 gap-4">
+                  <p className="text-sm mono" style={{ color: "var(--error-text)" }}>page failed to load</p>
+                  <p className="text-xs mono text-tan-3 text-center max-w-md">{error.message}</p>
+                </div>
+              )
+            }
           >
           <Switch>
             <Route path={ROUTES.HOME}>
@@ -270,37 +284,37 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_OF_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpFacilitatorsReport />
+                <OpFacilitatorsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
               <Suspense fallback={<Loading />}>
-                <OpGovOpsReport />
+                <OpGovOpsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_ACTIVE_DATA}>
               <Suspense fallback={<Loading />}>
-                <ActiveDataReport />
+                <ActiveDataReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_REWARDS}>
               <Suspense fallback={<Loading />}>
-                <RewardsReport />
+                <RewardsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
-                <StaleDatesReport />
+                <StaleDatesReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
               <Suspense fallback={<Loading />}>
-                <OeaAssessmentReport />
+                <OeaAssessmentReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RULES}>
               <Suspense fallback={<Loading />}>
-                <RiskRulesReport />
+                <RiskRulesReport query={query} mode={activeMode} onNavigate={navigateToNode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
@@ -310,7 +324,7 @@ export default function App() {
             </Route>
             <Route path={ROUTES.REPORTS_PROCESSES}>
               <Suspense fallback={<Loading />}>
-                <ProcessesReport onNavigate={navigateToNode} />
+                <ProcessesReport onNavigate={navigateToNode} query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.CONSTELLATIONS}>
