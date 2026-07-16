@@ -7,7 +7,7 @@
 // report's module — only the collapse mechanism is shared, so a collapse fix
 // can never again land in one report and miss the other.
 
-import { stripMarkdownLinks } from "./atlasHelpers";
+import { stripMarkdownLinks } from "./stripMarkdownLinks";
 
 // One doc merged into a collapsed duty row.
 export interface MergedSource {
