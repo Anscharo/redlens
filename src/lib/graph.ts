@@ -7,19 +7,12 @@ import type {
 import { fetchJson } from "./verify";
 import { captureException } from "./analytics";
 import { liveAtlasBase, handledStale, handledStaleMessage } from "./atlasBase";
+import type { GraphData, ConstellationInit } from "./graphData";
 
-export interface GraphData {
-  participants: GraphEntity[];
-  instances: GraphEntity[];
-  invocations: GraphEntity[];
-  primitives: GraphEntity[];
-  edges: RelationEdge[];
-}
-
-export interface ConstellationInit {
-  entities: GraphEntity[];
-  entityEdges: RelationEdge[];
-}
+// GraphData / ConstellationInit moved to the DOM-free ./graphData so server-side
+// report builders can import them without this worker/analytics layer. Re-exported
+// here so existing `import type { GraphData } from "./graph"` callers keep working.
+export type { GraphData, ConstellationInit } from "./graphData";
 
 // Module-level cache for the raw graph data (used by reports/radar).
 // Cache the raw graph data per data-source base (used by reports/radar). A
