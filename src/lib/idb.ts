@@ -53,90 +53,76 @@ function wrap<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
-export async function add<T>(record: T): Promise<void> {
+// The one place the openDb/null-check/try-catch dance lives: run `fn` against the
+// store and return `fallback` if IndexedDB is missing or the op throws (quota,
+// constraint, …). Every helper below is a one-liner over this.
+async function withStore<T>(
+  mode: IDBTransactionMode,
+  fallback: T,
+  fn: (s: IDBObjectStore) => Promise<T>,
+): Promise<T> {
   const db = await openDb();
-  if (!db) return;
+  if (!db) return fallback;
   try {
-    await wrap(store(db, "readwrite").add(record as unknown as Record<string, unknown>));
+    return await fn(store(db, mode));
   } catch {
-    // quota / constraint — drop the row silently, never break the caller
+    return fallback;
   }
 }
 
-export async function getAll<T>(): Promise<T[]> {
-  const db = await openDb();
-  if (!db) return [];
-  try {
-    return await wrap(store(db, "readonly").getAll() as IDBRequest<T[]>);
-  } catch {
-    return [];
-  }
+// Walk a cursor over the `at` index, deleting each row until `keepGoing` returns
+// false or the cursor ends. Shared by the two pruning helpers.
+function deleteWhile(
+  req: IDBRequest<IDBCursorWithValue | null>,
+  keepGoing: () => boolean,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (!cursor || !keepGoing()) return resolve();
+      cursor.delete();
+      cursor.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
 }
 
-export async function count(): Promise<number> {
-  const db = await openDb();
-  if (!db) return 0;
-  try {
-    return await wrap(store(db, "readonly").count());
-  } catch {
-    return 0;
-  }
+export function add<T>(record: T): Promise<void> {
+  return withStore("readwrite", undefined, async (s) => {
+    await wrap(s.add(record as unknown as Record<string, unknown>));
+  });
 }
 
-export async function clear(): Promise<void> {
-  const db = await openDb();
-  if (!db) return;
-  try {
-    await wrap(store(db, "readwrite").clear());
-  } catch {
-    // ignore
-  }
+export function getAll<T>(): Promise<T[]> {
+  return withStore("readonly", [] as T[], (s) => wrap(s.getAll() as IDBRequest<T[]>));
 }
 
-// Cursor over the `at` index deleting every row strictly older than `cutoff`.
-export async function deleteBefore(cutoff: number): Promise<void> {
-  const db = await openDb();
-  if (!db) return;
-  try {
-    const idx = store(db, "readwrite").index("at");
-    const req = idx.openCursor(IDBKeyRange.upperBound(cutoff, true));
-    await new Promise<void>((resolve, reject) => {
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor) return resolve();
-        cursor.delete();
-        cursor.continue();
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    // ignore
-  }
+export function count(): Promise<number> {
+  return withStore("readonly", 0, (s) => wrap(s.count()));
 }
 
-// Delete oldest rows (ascending `at`) until at most `max` remain.
+export function clear(): Promise<void> {
+  return withStore("readwrite", undefined, async (s) => {
+    await wrap(s.clear());
+  });
+}
+
+// Delete every row strictly older than `cutoff`.
+export function deleteBefore(cutoff: number): Promise<void> {
+  return withStore("readwrite", undefined, (s) =>
+    deleteWhile(s.index("at").openCursor(IDBKeyRange.upperBound(cutoff, true)), () => true),
+  );
+}
+
+// Delete oldest rows (ascending `at`) until at most `max` remain. `count()` runs
+// in its own transaction first (awaiting a request then issuing another on the
+// same transaction risks TransactionInactiveError once it auto-commits).
 export async function trimToMax(max: number): Promise<void> {
-  const db = await openDb();
-  if (!db) return;
-  try {
-    const total = await count();
-    let toDelete = total - max;
-    if (toDelete <= 0) return;
-    const idx = store(db, "readwrite").index("at");
-    const req = idx.openCursor();
-    await new Promise<void>((resolve, reject) => {
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor || toDelete <= 0) return resolve();
-        cursor.delete();
-        toDelete--;
-        cursor.continue();
-      };
-      req.onerror = () => reject(req.error);
-    });
-  } catch {
-    // ignore
-  }
+  let toDelete = (await count()) - max;
+  if (toDelete <= 0) return;
+  await withStore("readwrite", undefined, (s) =>
+    deleteWhile(s.index("at").openCursor(), () => toDelete-- > 0),
+  );
 }
 
 // Test-only: drop the memoized handle so a fresh fake-indexeddb picks up.

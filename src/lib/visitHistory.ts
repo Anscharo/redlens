@@ -44,44 +44,13 @@ function splitPath(raw: string): { pathname: string; params: URLSearchParams } {
   return { pathname, params };
 }
 
-// The current page's /preview/<id> router-base segment, or "" when live / no DOM.
-// Capture sites pass BASE-RELATIVE app paths (atlasHref(id) → /atlas?id=X), which
-// are identical in preview and live; reading the real URL (the same signal
-// main.tsx routes on) lets recordVisit prefix preview visits centrally, without
-// threading the DataSource context into every tracking hook.
-function previewPrefix(): string {
-  if (typeof window === "undefined") return "";
-  const base = import.meta.env.BASE_URL.replace(/\/$/, ""); // usually "" (root)
-  const rel = window.location.pathname.startsWith(base)
-    ? window.location.pathname.slice(base.length)
-    : window.location.pathname;
-  const m = rel.match(PREVIEW_RE);
-  return m ? m[0] : "";
-}
-
-// A leading atlas-PR-preview segment: /preview/<id>. Previews mount the SAME App
-// on the SAME origin under this router base (see main.tsx), and IndexedDB is
-// per-origin — so we keep this prefix on stored paths to separate preview visits
-// from live ones. productForPath already maps /preview* → "preview", so no
-// kindForPath change is needed once the prefix is retained.
-const PREVIEW_RE = /^\/preview\/[^/]+/;
-
 // Canonicalize a route to its identity form so the same target always groups
 // into one row. Drops incidental query/hash (?view, ?split, #frag) but KEEPS the
 // per-route identity param: `id` on /atlas, normalized `q` on the home/search
-// route. An optional leading /preview/<id> prefix is preserved verbatim; the
-// remainder is canonicalized as usual (so /preview/<id>/atlas?id=X keeps its id).
+// route. Callers pass BASE-RELATIVE app paths (atlasHref(id) → /atlas?id=X);
+// recordVisit prepends any /preview/<id> router base separately, so this helper
+// stays preview-agnostic.
 export function canonicalPath(raw: string): string {
-  const previewMatch = raw.match(PREVIEW_RE);
-  if (previewMatch) {
-    const prefix = previewMatch[0];
-    const rest = raw.slice(prefix.length) || "/";
-    return prefix + canonicalizeApp(rest);
-  }
-  return canonicalizeApp(raw);
-}
-
-function canonicalizeApp(raw: string): string {
   const { pathname, params } = splitPath(raw);
   if (pathname === "/atlas") {
     const id = params.get("id");
@@ -94,14 +63,12 @@ function canonicalizeApp(raw: string): string {
   return pathname; // /reports/<id>, /radar/<slug> — path segment is the identity
 }
 
-// Which product surface a stored path belongs to. Wraps productForPath but adds
-// the one case it doesn't cover: the home route carrying a `q` param is a search.
-// A /preview/<id>/… path resolves to "preview" (productForPath handles the prefix).
+// Which product surface a stored path belongs to. productForPath already covers
+// every case (incl. /preview/<id>/… → "preview" via its /preview prefix, and / →
+// "search"); we only strip the query first so the exact "/" match survives a
+// "?q=" suffix on stored search paths.
 export function kindForPath(path: string): Product {
-  if (PREVIEW_RE.test(path)) return "preview";
-  const { pathname, params } = splitPath(path);
-  if ((pathname === "/" || pathname === "") && params.get("q")) return "search";
-  return productForPath(pathname);
+  return productForPath(splitPath(path).pathname);
 }
 
 // Group events by canonical path into "most visited" rows. Pure — unit-tested
@@ -135,9 +102,15 @@ let snapshot: VisitEvent[] = [];
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+function emit(): void {
+  for (const l of listeners) l();
+}
+
+// Full re-read — used only for initial hydration and after clearHistory, NOT per
+// write (the log is append-only, so recordVisit appends to snapshot in place).
 async function refresh(): Promise<void> {
   snapshot = await idb.getAll<VisitEvent>();
-  for (const l of listeners) l();
+  emit();
 }
 
 function subscribe(cb: () => void): () => void {
@@ -168,24 +141,35 @@ async function prune(now: number): Promise<void> {
  * Append one visit. Fire-and-forget — callers don't await. Canonicalizes the
  * path, drops a repeat of the same path within DEDUPE_MS (guards remounts /
  * rapid re-navigation), then opportunistically enforces retention + row cap.
+ *
+ * `base` is the wouter router base (`useRouter().base`) — `""` on the live atlas,
+ * `/preview/<id>` in preview mode. Prepending it keeps preview visits on their own
+ * paths (and kind "preview") so they never collide with live ones in the
+ * per-origin IndexedDB store. Callers pass base-relative app paths (atlasHref(id)).
  */
-export async function recordVisit(input: { path: string; label: string }): Promise<void> {
-  // Prepend the /preview/<id> router base when the current page is a preview, so
-  // preview visits get their own path (and kind "preview") and never collide with
-  // live ones in the per-origin IndexedDB store.
-  const path = canonicalPath(previewPrefix() + input.path);
+export async function recordVisit(input: {
+  path: string;
+  label: string;
+  base?: string;
+}): Promise<void> {
+  const path = (input.base ?? "") + canonicalPath(input.path);
   const now = Date.now();
   const prev = lastRecorded.get(path);
   if (prev !== undefined && now - prev < DEDUPE_MS) return;
   lastRecorded.set(path, now);
 
-  await idb.add<VisitEvent>({ path, label: input.label, at: now });
+  const event: VisitEvent = { path, label: input.label, at: now };
+  await idb.add<VisitEvent>(event);
 
   if (++writesSincePrune >= PRUNE_EVERY) {
     writesSincePrune = 0;
     await prune(now);
   }
-  if (hydrated) await refresh();
+  // Append-only: extend the live snapshot in place rather than re-reading the store.
+  if (hydrated) {
+    snapshot = [...snapshot, event];
+    emit();
+  }
 }
 
 /** Read all events, optionally only those on/after `since`. */
