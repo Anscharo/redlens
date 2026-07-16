@@ -102,6 +102,10 @@ export const config = {
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
+  // Deterministic pre-lookup (glossary + entity match on the user's message)
+  // seeded as a synthetic tool round before the first LLM request — saves a
+  // tool round trip on definition/entity questions. Free, pure code.
+  chatPrefetch: process.env.CHAT_PREFETCH !== "0",
   // Evidence digest budget for the final audit, newest-round-first.
   chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.

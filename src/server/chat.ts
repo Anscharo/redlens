@@ -13,6 +13,8 @@ import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
+import { buildPrefetch, prefetchRound } from "./prefetch.ts";
+import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -111,6 +113,13 @@ export async function handleChat(req: Request): Promise<Response> {
     { role: "system", content: buildSystemPrompt(ix, body.pageContext) },
     ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
+
+  // Deterministic pre-lookup (glossary + entity match, pure code, ~ms): seed a
+  // synthetic tool round after the user message so definition/entity questions
+  // can answer in ONE request instead of tool-round → answer-round. Injects
+  // nothing on a miss; the harness treats it as ordinary turn evidence.
+  const prefetch = config.chatPrefetch ? buildPrefetch(ix, body.message) : null;
+  if (prefetch) messages.push(...prefetchRound(body.message, prefetch));
 
   // Per-turn tier routing (rules-based, free): pick the model chain before any
   // LLM work. Follow-up turns (an assistant reply already in history) never
