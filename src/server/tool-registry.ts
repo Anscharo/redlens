@@ -340,7 +340,12 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "with global activation and every Instance/Invocation (status, reward code / partner name, " +
       "reward address + chain, cadence, tracking, payments controller + responsible party, and " +
       "with provenance the raw source params). Use for reward-program / integrator questions. " +
-      "(More kinds — active_data, actors, transfers — are being added.)",
+      "kind='active_data' returns one row per Active Data document: its controller, the resolved " +
+      "Responsible Party (with resolution kind — direct/chain/role — and, with provenance, the " +
+      "evidence doc_no chain), the prime→executor→facilitator/govops chain, the approving " +
+      "Facilitator, and the update process (Direct Edit vs Alignment Conserver). Use for " +
+      "'who maintains / is responsible for this Active Data' and data-governance questions. " +
+      "(More kinds — actors, transfers — are being added.)",
     shape: {
       kind: z
         .enum([
@@ -349,9 +354,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
           "facilitator_responsibilities",
           "govops_responsibilities",
           "rewards",
+          "active_data",
         ])
         .describe(
-          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', 'govops_responsibilities', or 'rewards'.",
+          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', 'govops_responsibilities', 'rewards', or 'active_data'.",
         ),
       include_provenance: z
         .boolean()

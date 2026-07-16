@@ -10,6 +10,7 @@ import { buildPrimitiveMatrixReport } from "./primitive-matrix.ts";
 import { buildFacilitatorResponsibilitiesReport } from "./facilitator-responsibilities.ts";
 import { buildGovOpsResponsibilitiesReport } from "./govops-responsibilities.ts";
 import { buildRewardsReport } from "./rewards.ts";
+import { buildActiveDataReport } from "./active-data.ts";
 
 // Planned superset (docs/plans/chatbot-readiness-remediation-plan.md §1.1):
 // "rewards" | "active_data" | "multisigs" | "transfers" | "primitive_matrix" | "actors".
@@ -18,7 +19,8 @@ export type ReportKind =
   | "primitive_matrix"
   | "facilitator_responsibilities"
   | "govops_responsibilities"
-  | "rewards";
+  | "rewards"
+  | "active_data";
 
 export interface AtlasReportArgs {
   kind: ReportKind;
@@ -38,6 +40,8 @@ export function atlasReport(ix: Indexes, args: AtlasReportArgs): ToolResult {
       return buildGovOpsResponsibilitiesReport(ix, { include_provenance });
     case "rewards":
       return buildRewardsReport(ix, { include_provenance });
+    case "active_data":
+      return buildActiveDataReport(ix, { include_provenance });
     default:
       return { error: `Unknown report kind '${args.kind as string}'.` };
   }
