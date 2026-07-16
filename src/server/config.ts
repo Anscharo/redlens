@@ -87,6 +87,14 @@ export const config = {
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
+  // Conversationalist sampling temperature. Pinned (provider defaults hover
+  // around 0.7) — a grounded citation machine wants low variance, and pinning
+  // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
+  chatTemperature: Number(process.env.CHAT_TEMPERATURE ?? 0.3),
+  // Output ceiling per completion request (each tool round + the answer). The
+  // rate-limit window only counts tokens after the fact; this caps a runaway
+  // generation up front. Generous — real answers sit far below it.
+  chatMaxOutputTokens: Number(process.env.CHAT_MAX_OUTPUT_TOKENS ?? 4096),
   // Chat transport budget for one tool result fed back to the model. MCP keeps
   // its larger client-facing budget in output-budget.ts; this smaller cap keeps
   // a single broad tool call from eating the live chat context.

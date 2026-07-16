@@ -138,6 +138,8 @@ export function makeOpenrouterStream(obs: ChatObservability = {}, models: string
         messages,
         tools,
         tool_choice: toolChoice,
+        temperature: config.chatTemperature,
+        max_tokens: config.chatMaxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
         ...posthogParams(obs, "atlas-chat"),

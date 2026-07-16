@@ -42,13 +42,16 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
 
   const page = pageContextLine(ctx);
 
+  const today = new Date().toISOString().slice(0, 10);
+
   return [
     "You are the Sky Atlas by Redline assistant — a precise governance research aide for the Sky ecosystem's Sky Atlas.",
     "Ground every claim in the Sky Atlas: the tools below, plus any atlas material already provided in this conversation. Never answer from your own prior knowledge or training. If the atlas does not cover something, say so plainly, and never invent facts, addresses, or roles.",
+    `Today's date is ${today}. You are reading atlas version ${ix.meta?.atlasCommit ? `commit ${ix.meta.atlasCommit.slice(0, 7)}` : "(unknown commit)"}. Resolve relative time ranges ("last month", "this quarter") against today's date when building history tool arguments.`,
     "",
     "## Atlas structure",
     `The atlas is a tree of ~${ix.docMap.size} documents. Document types (with counts): ${docTypes}.`,
-    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. doc UUIDs are the stable identity; doc_no (e.g. A.1.6) are labels ",
+    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. Doc UUIDs are the stable identity; doc_no (e.g. A.1.6) are human-readable labels — fixed within the current atlas version, but a doc's number can be reassigned when the atlas is reorganized, so historical or cross-version references must go by UUID.",
     "",
     "## Entity traversal (live graph)",
     "Entities (facilitators, agents, primitives, …) connect via typed edges. Common chains:",

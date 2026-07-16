@@ -14,6 +14,7 @@ import { routeTier, resolveTierModels } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { buildPrefetch, prefetchRound } from "./prefetch.ts";
+import { windowHistory } from "./chat-history.ts";
 import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
 
@@ -109,9 +110,12 @@ export async function handleChat(req: Request): Promise<Response> {
   `) as { role: string; content: string }[];
 
   const ix = getIndexes();
+  // The DB keeps the full conversation; the model gets a windowed replay
+  // (recent turns verbatim, older ones truncated, hard char budget) so long
+  // conversations never grow the per-round context without bound.
   const messages: Msg[] = [
     { role: "system", content: buildSystemPrompt(ix, body.pageContext) },
-    ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
   // Deterministic pre-lookup (glossary + entity match, pure code, ~ms): seed a

@@ -3,7 +3,7 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import type { JsonCall } from "./llm.ts";
-import { parseVerdict, computeOverall, evidenceFromTranscript, runVerifier, type Verdict } from "./verifier.ts";
+import { parseVerdict, computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type Verdict } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 
@@ -71,4 +71,29 @@ test("runVerifier carries usage + generation id from the JSON call", async () =>
   expect(run.verdict).not.toBeNull();
   expect(run.usage).toEqual({ input: 10, output: 5 });
   expect(run.generationId).toBe("gen-v");
+});
+
+test("priorTurnsEvidence folds earlier assistant answers into one entry, newest-first budget", () => {
+  const transcript: Msg[] = [
+    { role: "system", content: "sys" },
+    { role: "user", content: "q1" },
+    { role: "assistant", content: "answer one" },
+    { role: "user", content: "q2" },
+    { role: "assistant", content: "answer two" },
+    { role: "user", content: "q3 (current turn)" },
+    { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "atlas_search", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "c1", content: "{}" },
+  ];
+  const e = priorTurnsEvidence(transcript);
+  expect(e?.label).toBe("[E-prev]");
+  expect(e?.content).toBe("answer one\n---\nanswer two");
+  // Budget keeps the newest prior answer when both don't fit.
+  expect(priorTurnsEvidence(transcript, 12)?.content).toBe("answer two");
+  // First turn of a conversation → no entry.
+  expect(priorTurnsEvidence([{ role: "user", content: "q" }])).toBeNull();
+  // Tool-call assistant messages and empties never count as prior answers.
+  expect(priorTurnsEvidence([
+    { role: "assistant", content: "" },
+    { role: "user", content: "q" },
+  ])).toBeNull();
 });

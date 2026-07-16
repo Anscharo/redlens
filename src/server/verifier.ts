@@ -95,9 +95,40 @@ export function evidenceFromTranscript(transcript: Msg[], maxChars = config.chat
   return kept;
 }
 
+// Assistant answers from EARLIER turns of the conversation, folded into one
+// evidence entry. The system prompt tells the model that atlas material already
+// in the conversation counts as grounding, so a follow-up ("summarize what you
+// just said") legitimately answers with zero this-turn tool calls — without
+// this entry the verifier flags every such claim as unsupported.
+export function priorTurnsEvidence(transcript: Msg[], maxChars = 8000): EvidenceEntry | null {
+  const lastUser = transcript.findLastIndex((m) => m.role === "user");
+  const answers = transcript
+    .slice(0, Math.max(lastUser, 0))
+    .filter((m) => m.role === "assistant" && typeof m.content === "string" && m.content.trim() !== "")
+    .map((m) => m.content as string);
+  if (answers.length === 0) return null;
+  // Newest-first budget, same policy as tool evidence: recent turns matter most.
+  let joined = "";
+  for (let i = answers.length - 1; i >= 0; i--) {
+    const next = answers[i] + (joined ? "\n---\n" + joined : "");
+    if (next.length > maxChars) {
+      joined = joined || `${answers[i].slice(0, maxChars)}…[truncated]`;
+      break;
+    }
+    joined = next;
+  }
+  return {
+    label: "[E-prev]",
+    tool: "conversation",
+    args: "(the assistant's own answers from earlier turns of this conversation)",
+    content: joined,
+  };
+}
+
 const VERIFIER_SYSTEM = [
   "You are a strict verification auditor for a governance research assistant answering from the Sky Atlas.",
   "Judge the assistant's answer ONLY against the evidence entries provided. Your own knowledge of Sky, MakerDAO, or governance is irrelevant; if the evidence does not contain a fact, the fact is unsupported even if you believe it is true.",
+  "[E-prev], when present, holds the assistant's own answers from earlier turns: claims that restate or summarize them are supported (conversation continuity), but NEW specifics absent from both [E-prev] and the tool evidence are not.",
   "Claims include: numbers, dates, rates, role assignments, responsibilities, document identities and statuses, and existence/absence statements.",
   "Hedged statements ('the atlas does not appear to cover X') are SUPPORTED when the evidence pattern matches the hedge (e.g. searches returned nothing relevant).",
   "'ruling_issued' is true only if the answer itself adjudicates an eligibility/payment/dispute outcome instead of reporting what the atlas says.",

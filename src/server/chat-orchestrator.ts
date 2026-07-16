@@ -14,7 +14,7 @@ import { config } from "./config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify-checks.ts";
 import { repairCitations, type CitationRepair } from "./citation-repair.ts";
-import { computeOverall, evidenceFromTranscript, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verifier.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verifier.ts";
 import { atlasDescribe } from "./tools.ts";
 import { adviseRecovery, type Recovery } from "./advisor.ts";
 
@@ -207,6 +207,12 @@ export async function* runVerifiedChat(opts: {
   });
 
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
+  // Earlier-turn answers count as grounding for follow-ups (the system prompt
+  // says so), so the verifier gets them as one [E-prev] entry alongside the
+  // schema — otherwise every "summarize what you said" turn flags unsupported.
+  const prevEvidence = priorTurnsEvidence(done.transcript);
+  const baseEvidence = (turnEvidence: EvidenceEntry[]) =>
+    [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence];
   let verdict: Verdict | null = null;
   if (verifierModel) {
     yield {
@@ -215,7 +221,7 @@ export async function* runVerifiedChat(opts: {
     };
     const run = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: done.content, evidence: [schemaEvidence(opts.ix), ...evidence], checks, telemetry, signal: opts.signal,
+      answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal,
     });
     verdict = run.verdict;
     checksMeta.push({
@@ -306,7 +312,7 @@ export async function* runVerifiedChat(opts: {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
     const rerun = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: revDone.content, evidence: [schemaEvidence(opts.ix), ...revEvidence], checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal,
+      answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({
