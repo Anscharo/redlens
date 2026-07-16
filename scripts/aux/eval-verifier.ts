@@ -24,7 +24,7 @@ import type { RoundTelemetry } from "../../src/server/round-checks.ts";
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const EVIDENCE_DIR = path.join(ROOT, ".cache", "eval-evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, ".cache", "eval-evidence");
 const REPORT_PATH = path.join(ROOT, ".cache", "eval-verifier.json");
 
 const THRESHOLDS = { fabrication: 0.9, ruling: 0.9, fprMax: 0.1 };

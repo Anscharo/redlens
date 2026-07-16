@@ -46,6 +46,9 @@ const MODELS = (flag("models")[0]?.split(",") ?? [
   "deepseek/deepseek-v4-flash", "anthropic/claude-haiku-4.5",
 ]).map((m) => m.trim()).filter(Boolean);
 const JUDGE = flag("judge")[0] ?? "openai/gpt-5.6-terra"; // outside the candidate set — no self-judging
+// --no-judge: generate answers + save full toolTexts, but make NO judge call.
+// For human/self grading — read each answer against its own toolTexts offline.
+const NO_JUDGE = argv.includes("--no-judge");
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 4);
 const ONLY = new Set(flag("only"));
 // --set core (default) | rulings (facilitator-ruling set — the STRONG-tier
@@ -163,7 +166,7 @@ async function runOne(model: string, q: BakeoffQuery): Promise<RunResult> {
     const repair = repairCitations(done.content, toolTexts, ix); // what production would ship
     const shipped = runDeterministicChecks(repair.content, toolTexts, ix);
     const evidence = evidenceFromTranscript(done.transcript).map((e) => `${e.label} ${e.tool}(${e.args}) →\n${e.content}`).join("\n\n");
-    const judge = await judgeAnswer(q, evidence, repair.content);
+    const judge = NO_JUDGE ? null : await judgeAnswer(q, evidence, repair.content);
 
     const fabrications = {
       rawInvalidCitations: rawChecks.invalidCitations.length,
@@ -236,7 +239,7 @@ saveReport({ scoreboard: byModel });
 
 const cols = ["model", "meanScore", "support", "completeness", "honesty", "hardFabPerRun", "repairedPerRun", "citationsPerRun", "meanLatencyS", "meanTokens", "unjudged", "errors"] as const;
 const width = (c: string) => Math.max(c.length, ...byModel.map((r) => String(r[c as keyof typeof r]).length)) + 2;
-console.log(`\njudge=${JUDGE}  queries=${queries.length}  atlas=${(ix.meta.atlasCommit ?? "?").slice(0, 8)}`);
+console.log(`\njudge=${NO_JUDGE ? "(none — self/manual grading)" : JUDGE}  queries=${queries.length}  atlas=${(ix.meta.atlasCommit ?? "?").slice(0, 8)}`);
 console.log(cols.map((c) => c.padEnd(width(c))).join(""));
 for (const row of byModel) console.log(cols.map((c) => String(row[c]).padEnd(width(c))).join(""));
 

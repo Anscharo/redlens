@@ -25,7 +25,7 @@ import { runSlice, type SliceName, type SliceClaim } from "../../src/server/veri
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const EVIDENCE_DIR = path.join(ROOT, ".cache", "eval-evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, ".cache", "eval-evidence");
 const REPORT_PATH = path.join(ROOT, ".cache", "eval-slices.json");
 const argv = process.argv.slice(2);
 const flag = (n: string) => argv.flatMap((a, i) => (a === `--${n}` && argv[i + 1] ? [argv[i + 1]] : []));
