@@ -31,7 +31,7 @@ export interface VisitSummary {
 
 const DEDUPE_MS = 30_000; // ignore a repeat of the same path within this window
 const RETENTION_MS = 180 * 24 * 60 * 60 * 1000; // forget visits older than ~180 days
-const MAX_ROWS = 5_000; // hard cap; oldest rows evicted past this
+const MAX_ROWS = 5_000; // best-effort soft cap; oldest rows evicted past this (trimToMax isn't atomic)
 const PRUNE_EVERY = 20; // amortize retention/cap enforcement across writes
 
 // --- pure helpers (exported for unit tests; no DB, no clock) ---------------
@@ -44,10 +44,44 @@ function splitPath(raw: string): { pathname: string; params: URLSearchParams } {
   return { pathname, params };
 }
 
+// The current page's /preview/<id> router-base segment, or "" when live / no DOM.
+// Capture sites pass BASE-RELATIVE app paths (atlasHref(id) → /atlas?id=X), which
+// are identical in preview and live; reading the real URL (the same signal
+// main.tsx routes on) lets recordVisit prefix preview visits centrally, without
+// threading the DataSource context into every tracking hook.
+function previewPrefix(): string {
+  if (typeof window === "undefined") return "";
+  const base = import.meta.env.BASE_URL.replace(/\/$/, ""); // usually "" (root)
+  const rel = window.location.pathname.startsWith(base)
+    ? window.location.pathname.slice(base.length)
+    : window.location.pathname;
+  const m = rel.match(PREVIEW_RE);
+  return m ? m[0] : "";
+}
+
+// A leading atlas-PR-preview segment: /preview/<id>. Previews mount the SAME App
+// on the SAME origin under this router base (see main.tsx), and IndexedDB is
+// per-origin — so we keep this prefix on stored paths to separate preview visits
+// from live ones. productForPath already maps /preview* → "preview", so no
+// kindForPath change is needed once the prefix is retained.
+const PREVIEW_RE = /^\/preview\/[^/]+/;
+
 // Canonicalize a route to its identity form so the same target always groups
 // into one row. Drops incidental query/hash (?view, ?split, #frag) but KEEPS the
-// per-route identity param: `id` on /atlas, normalized `q` on the home/search route.
+// per-route identity param: `id` on /atlas, normalized `q` on the home/search
+// route. An optional leading /preview/<id> prefix is preserved verbatim; the
+// remainder is canonicalized as usual (so /preview/<id>/atlas?id=X keeps its id).
 export function canonicalPath(raw: string): string {
+  const previewMatch = raw.match(PREVIEW_RE);
+  if (previewMatch) {
+    const prefix = previewMatch[0];
+    const rest = raw.slice(prefix.length) || "/";
+    return prefix + canonicalizeApp(rest);
+  }
+  return canonicalizeApp(raw);
+}
+
+function canonicalizeApp(raw: string): string {
   const { pathname, params } = splitPath(raw);
   if (pathname === "/atlas") {
     const id = params.get("id");
@@ -62,7 +96,9 @@ export function canonicalPath(raw: string): string {
 
 // Which product surface a stored path belongs to. Wraps productForPath but adds
 // the one case it doesn't cover: the home route carrying a `q` param is a search.
+// A /preview/<id>/… path resolves to "preview" (productForPath handles the prefix).
 export function kindForPath(path: string): Product {
+  if (PREVIEW_RE.test(path)) return "preview";
   const { pathname, params } = splitPath(path);
   if ((pathname === "/" || pathname === "") && params.get("q")) return "search";
   return productForPath(pathname);
@@ -134,7 +170,10 @@ async function prune(now: number): Promise<void> {
  * rapid re-navigation), then opportunistically enforces retention + row cap.
  */
 export async function recordVisit(input: { path: string; label: string }): Promise<void> {
-  const path = canonicalPath(input.path);
+  // Prepend the /preview/<id> router base when the current page is a preview, so
+  // preview visits get their own path (and kind "preview") and never collide with
+  // live ones in the per-origin IndexedDB store.
+  const path = canonicalPath(previewPrefix() + input.path);
   const now = Date.now();
   const prev = lastRecorded.get(path);
   if (prev !== undefined && now - prev < DEDUPE_MS) return;
@@ -158,13 +197,18 @@ export async function getEvents(opts: { since?: number } = {}): Promise<VisitEve
 /**
  * "Most visited" — group the log by canonical path, filter by kind/since, sort
  * by visit count (tiebreak most-recent). The query a future UI will call.
+ *
+ * Preview visits (kind "preview") are excluded by default so atlas-PR review
+ * activity never pollutes "most visited"; pass `{ kind: "preview" }` to get them.
  */
 export async function topVisited(
   opts: { kind?: Product; n?: number; since?: number } = {},
 ): Promise<VisitSummary[]> {
   const events = await getEvents({ since: opts.since });
   let rows = summarize(events);
-  if (opts.kind) rows = rows.filter((r) => r.kind === opts.kind);
+  rows = opts.kind
+    ? rows.filter((r) => r.kind === opts.kind)
+    : rows.filter((r) => r.kind !== "preview");
   rows.sort((a, b) => b.count - a.count || b.last - a.last);
   return opts.n ? rows.slice(0, opts.n) : rows;
 }
