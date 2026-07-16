@@ -10,6 +10,7 @@ import type { JsonCall } from "./llm.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "./config.ts";
+import { captureError, captureEvent, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -192,6 +193,7 @@ export async function runVerifier(params: {
   checks: CheckReport;
   telemetry: RoundTelemetry;
   signal?: AbortSignal;
+  obs?: ErrorContext;
 }): Promise<VerifierRun> {
   try {
     const res = await params.call({
@@ -200,8 +202,15 @@ export async function runVerifier(params: {
       maxTokens: 2000,
       signal: params.signal,
     });
-    return { verdict: parseVerdict(res.text), usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
-  } catch {
+    const verdict = parseVerdict(res.text);
+    // The call succeeded but the judge's JSON didn't parse — the turn silently
+    // degrades to "unverified" with no other record this happened.
+    if (!verdict && res.text.trim()) {
+      captureEvent("chat_verdict_unparseable", params.obs, { model: params.model, text_preview: res.text.slice(0, 300) });
+    }
+    return { verdict, usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
+  } catch (err) {
+    captureError(err, params.obs, { stage: "verifier_call", model: params.model });
     return { verdict: null, usage: null, generationId: null, latencyMs: null };
   }
 }

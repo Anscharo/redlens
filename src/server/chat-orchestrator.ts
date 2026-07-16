@@ -17,6 +17,7 @@ import { repairCitations, type CitationRepair } from "./citation-repair.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verifier.ts";
 import { atlasDescribe } from "./tools.ts";
 import { adviseRecovery, type Recovery } from "./advisor.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type DoneEvent = Extract<ChatEvent, { type: "done" }>;
@@ -162,6 +163,7 @@ export async function* runVerifiedChat(opts: {
   question: string;
   signal?: AbortSignal;
   maxIterations?: number;
+  obs?: ErrorContext;
 }): AsyncGenerator<HarnessEvent> {
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
   const checker = createRoundChecker();
@@ -173,7 +175,7 @@ export async function* runVerifiedChat(opts: {
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
-  for await (const ev of runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd })) {
+  for await (const ev of runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs })) {
     if (ev.type === "done") {
       done = ev;
       break; // held back — the harness emits its own terminal done
@@ -221,7 +223,7 @@ export async function* runVerifiedChat(opts: {
     };
     const run = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal,
+      answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal, obs: opts.obs,
     });
     verdict = run.verdict;
     checksMeta.push({
@@ -255,7 +257,7 @@ export async function* runVerifiedChat(opts: {
   const checkFailures = describeCheckFailures(checks);
   const adv = await adviseRecovery({
     call: opts.jsonCall!, model: advisorModel, question: opts.question,
-    transcriptDigest: digest || "(no tools were called)", verdict, telemetry, checkFailures, signal: opts.signal,
+    transcriptDigest: digest || "(no tools were called)", verdict, telemetry, checkFailures, signal: opts.signal, obs: opts.obs,
   });
   checksMeta.push({
     kind: "advisor_recovery", model: advisorModel,
@@ -278,7 +280,7 @@ export async function* runVerifiedChat(opts: {
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
   try {
-    for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd })) {
+    for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs })) {
       if (ev.type === "done") {
         revDone = ev;
         break;
@@ -286,11 +288,13 @@ export async function* runVerifiedChat(opts: {
       if (ev.type === "tool_call") yield { type: "status", stage: "querying", detail: describeCall(ev.name, ev.args) };
       yield ev;
     }
-  } catch {
+  } catch (err) {
     // The revision replays the whole transcript, so it can fail where the
     // original didn't (context overflow, provider error). The original answer
     // is already in hand and merely failed an audit — never lose it to a
-    // recovery attempt. Harness flakiness must not break a turn.
+    // recovery attempt. Harness flakiness must not break a turn, but the
+    // failure itself is worth knowing about.
+    captureError(err, opts.obs, { stage: "revision_loop" });
     revDone = null;
   }
 
@@ -312,7 +316,7 @@ export async function* runVerifiedChat(opts: {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
     const rerun = await runVerifier({
       call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal,
+      answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({

@@ -10,6 +10,7 @@ import type { JsonCall } from "./llm.ts";
 import type { Verdict } from "./verifier.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "./config.ts";
+import { captureError, captureEvent, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -101,6 +102,7 @@ export async function adviseRecovery(params: {
   checkFailures?: string[];
   signal?: AbortSignal;
   timeoutMs?: number;
+  obs?: ErrorContext;
 }): Promise<AdvisorRun> {
   const timeoutMs = params.timeoutMs ?? config.chatAdvisorTimeoutMs;
   try {
@@ -108,8 +110,15 @@ export async function adviseRecovery(params: {
       params.call({ model: params.model, messages: buildAdvisorPrompt(params), maxTokens: 500, signal: params.signal }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("advisor timeout")), timeoutMs)),
     ]);
-    return { recovery: parseRecovery(res.text), usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
-  } catch {
+    const recovery = parseRecovery(res.text);
+    // The call succeeded but the advisor's JSON didn't parse — silently falls
+    // back to annotate-only with no other record this happened.
+    if (!recovery && res.text.trim()) {
+      captureEvent("chat_recovery_unparseable", params.obs, { model: params.model, text_preview: res.text.slice(0, 300) });
+    }
+    return { recovery, usage: res.usage, generationId: res.generationId, latencyMs: res.latencyMs };
+  } catch (err) {
+    captureError(err, params.obs, { stage: "advisor_call", model: params.model });
     return { recovery: null, usage: null, generationId: null, latencyMs: null };
   }
 }

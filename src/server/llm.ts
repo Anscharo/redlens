@@ -54,12 +54,13 @@ export function getModel(): string {
   return config.chatModel;
 }
 
-// Per-request PostHog attribution for one chat turn. distinctId is the signed-in
-// user; traceId groups every generation of a single turn — the answer stream AND
-// the harness's verifier/advisor/revision rounds — under one trace in the LLM view.
-// Use a fresh per-turn id (not the conversation id): a trace is one turn's work, so
-// human think-time between turns never inflates trace-level latency. The
-// conversation id rides along as a filterable property instead.
+// Per-request PostHog attribution for one chat turn. distinctId is the
+// CONVERSATION id, not the signed-in user — PostHog groups a conversation's
+// turns together without ever learning who the user is. traceId groups every
+// generation of a single turn — the answer stream AND the harness's
+// verifier/advisor/revision rounds — under one trace in the LLM view. Use a
+// fresh per-turn id (not the conversation id): a trace is one turn's work, so
+// human think-time between turns never inflates trace-level latency.
 export interface ChatObservability {
   distinctId?: string;
   traceId?: string;
@@ -67,15 +68,16 @@ export interface ChatObservability {
 }
 
 // posthog* params for a create() body — only when PostHog is on (else the plain
-// fallback client would forward them to OpenRouter). privacyMode: true → metadata
-// only (model, tokens, latency, cost), no prompt/response text, matching the
-// anonymous-by-default posture of the rest of the analytics stack.
+// fallback client would forward them to OpenRouter). privacyMode is inverted from
+// config.chatCaptureContent: false (the default) captures $ai_input/$ai_output_choices
+// (the actual prompt/response text) alongside token/latency/cost metadata; set
+// CHAT_CAPTURE_CONTENT=0 to fall back to metadata-only.
 function posthogParams(obs: ChatObservability, surface: string): Record<string, unknown> {
   if (!getPosthog()) return {};
   return {
     posthogDistinctId: obs.distinctId,
     posthogTraceId: obs.traceId,
-    posthogPrivacyMode: true,
+    posthogPrivacyMode: !config.chatCaptureContent,
     posthogProperties: { chat_surface: surface, ...obs.properties },
   };
 }

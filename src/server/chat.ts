@@ -17,6 +17,7 @@ import { buildPrefetch, prefetchRound } from "./prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
 import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
+import { captureError } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -133,6 +134,19 @@ export async function handleChat(req: Request): Promise<Response> {
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();
+  // PostHog AI observability: one trace per turn (fresh id, conversation id as
+  // a filterable property). distinctId is the CONVERSATION, not the signed-in
+  // user — semi-anonymous analytics: turns of one conversation stay grouped
+  // together in PostHog, but no user identity is sent (userId stays DB-only,
+  // via conversations.user_id, never leaves the server). The SAME obs feeds the
+  // answer stream, the harness jsonCall (verifier/advisor), and error capture,
+  // so every generation AND every error of the turn lands in one trace. No-op
+  // when POSTHOG_KEY is unset (both factories fall back to the plain client).
+  const obs = {
+    distinctId: convId,
+    traceId: crypto.randomUUID(),
+    properties: { chat_tier: route.tier, chat_route_reason: route.reason },
+  };
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (e: { type: string } & Record<string, unknown>) =>
@@ -140,16 +154,6 @@ export async function handleChat(req: Request): Promise<Response> {
       send({ type: "meta", conversationId: convId, tier: route.tier });
       try {
         let done: HarnessDone | null = null;
-        // PostHog AI observability: one trace per turn (fresh id, conversation id as
-        // a filterable property), attributed to the signed-in user. The SAME obs
-        // feeds the answer stream AND the harness jsonCall (verifier/advisor), so
-        // every generation of the turn lands in one trace. No-op when POSTHOG_KEY is
-        // unset (both factories fall back to the plain client).
-        const obs = {
-          distinctId: userId,
-          traceId: crypto.randomUUID(),
-          properties: { conversation_id: convId, chat_tier: route.tier, chat_route_reason: route.reason },
-        };
         const chatStream = makeOpenrouterStream(obs, models);
         // runVerifiedChat = runChat wrapped in the reliability harness (status
         // events, deterministic checks, verifier audit, advisor escalation —
@@ -157,7 +161,7 @@ export async function handleChat(req: Request): Promise<Response> {
         // internal transcript/checksMeta; sanitizeDone strips them off the wire.
         for await (const ev of runVerifiedChat({
           ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
-          question: body.message, signal: req.signal,
+          question: body.message, signal: req.signal, obs,
         })) {
           if (ev.type === "done") {
             done = ev as HarnessDone;
@@ -169,7 +173,10 @@ export async function handleChat(req: Request): Promise<Response> {
         // Don't persist an empty assistant row for an aborted turn.
         if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt);
       } catch (err) {
-        if (!req.signal.aborted) send({ type: "error", message: (err as Error).message });
+        if (!req.signal.aborted) {
+          captureError(err, obs, { stage: "stream_handler" });
+          send({ type: "error", message: (err as Error).message });
+        }
       } finally {
         controller.close();
       }

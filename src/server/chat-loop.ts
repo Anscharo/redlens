@@ -15,6 +15,7 @@ import { CHAT_TOOLS } from "./llm-tools.ts";
 import { safeParseArgs } from "./llm-tools.ts";
 import { config } from "./config.ts";
 import type { Indexes } from "./indexes.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -94,6 +95,7 @@ export async function* runChat(opts: {
   signal?: AbortSignal;
   maxIterations?: number;
   onRoundEnd?: (info: RoundInfo) => void;
+  obs?: ErrorContext;
 }): AsyncGenerator<ChatEvent> {
   const msgs: Msg[] = [...opts.messages];
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
@@ -170,7 +172,7 @@ export async function* runChat(opts: {
       for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
       // Execute the round's calls in parallel (pure latency win); results are
       // then emitted + pushed in call order for deterministic transcripts.
-      const results = await Promise.all(parsedCalls.map((c) => execToolDetailed(opts.ix, c.name, c.raw)));
+      const results = await Promise.all(parsedCalls.map((c) => execToolDetailed(opts.ix, c.name, c.raw, opts.obs)));
       const roundResults: RoundInfo["results"] = [];
       for (let i = 0; i < parsedCalls.length; i++) {
         const c = parsedCalls[i];
@@ -196,8 +198,9 @@ export async function* runChat(opts: {
       }
       try {
         opts.onRoundEnd?.({ iter, calls: parsedCalls.map((c) => ({ name: c.name, args: c.args })), results: roundResults });
-      } catch {
-        // Observer errors must never break the loop.
+      } catch (err) {
+        // Observer errors must never break the loop, but are still worth knowing about.
+        captureError(err, opts.obs, { stage: "on_round_end_observer" });
       }
       continue;
     }

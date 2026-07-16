@@ -95,6 +95,11 @@ export const config = {
   // rate-limit window only counts tokens after the fact; this caps a runaway
   // generation up front. Generous — real answers sit far below it.
   chatMaxOutputTokens: Number(process.env.CHAT_MAX_OUTPUT_TOKENS ?? 4096),
+  // PostHog AI observability: capture raw prompt/response text on $ai_generation
+  // events (posthogPrivacyMode: false), not just token counts/latency/cost. On by
+  // default per product decision; env escape hatch to dial back to metadata-only
+  // without a redeploy if the content volume/privacy tradeoff needs revisiting.
+  chatCaptureContent: process.env.CHAT_CAPTURE_CONTENT !== "0",
   // Chat transport budget for one tool result fed back to the model. MCP keeps
   // its larger client-facing budget in output-budget.ts; this smaller cap keeps
   // a single broad tool call from eating the live chat context.

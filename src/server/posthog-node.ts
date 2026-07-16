@@ -33,3 +33,33 @@ export function getPosthog(): PostHog | null {
 export async function shutdownPosthog(): Promise<void> {
   if (client) await client.shutdown();
 }
+
+// Shared correlation context for the error/degradation capture helpers below.
+// traceId is the join key back to a turn's $ai_generation events (see llm.ts) —
+// always fold it in so an error can be found alongside the completions it broke.
+export interface ErrorContext {
+  distinctId?: string;
+  traceId?: string;
+  properties?: Record<string, unknown>;
+}
+
+function withTrace(ctx: ErrorContext, extra?: Record<string, unknown>): Record<string, unknown> {
+  return { ...(ctx.traceId ? { $ai_trace_id: ctx.traceId } : {}), ...ctx.properties, ...extra };
+}
+
+// Best-effort exception capture for internal failures the chat harness
+// deliberately swallows to keep a turn alive (verifier/advisor transport
+// errors, tool handler crashes, revision-loop failures). No-op when
+// POSTHOG_KEY is unset, same silent-disable as getPosthog().
+export function captureError(error: unknown, ctx: ErrorContext = {}, extra?: Record<string, unknown>): void {
+  getPosthog()?.captureException(error, ctx.distinctId, withTrace(ctx, extra));
+}
+
+// Best-effort event capture for silent DEGRADATIONS that aren't exceptions —
+// a judge/advisor call succeeded but returned unparseable JSON, so the turn
+// falls back to "unverified"/"annotate" with no other record it happened.
+export function captureEvent(event: string, ctx: ErrorContext = {}, properties?: Record<string, unknown>): void {
+  const ph = getPosthog();
+  if (!ph) return;
+  ph.capture({ distinctId: ctx.distinctId ?? "server", event, properties: withTrace(ctx, properties) });
+}
