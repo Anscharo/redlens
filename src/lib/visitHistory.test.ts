@@ -36,6 +36,12 @@ describe("canonicalPath", () => {
     const q = "a & b # c";
     expect(canonicalPath(`/?q=${encodeURIComponent(q)}`)).toBe(`/?q=${encodeURIComponent(q.toLowerCase())}`);
   });
+
+  it("preserves a /preview/<id> prefix while canonicalizing the remainder", () => {
+    expect(canonicalPath("/preview/42/atlas?id=abc&view=history")).toBe("/preview/42/atlas?id=abc");
+    expect(canonicalPath("/preview/42/reports/stale-dates?x=1")).toBe("/preview/42/reports/stale-dates");
+    expect(canonicalPath("/preview/42/?q=Foo")).toBe("/preview/42/?q=foo");
+  });
 });
 
 describe("kindForPath", () => {
@@ -44,6 +50,12 @@ describe("kindForPath", () => {
     expect(kindForPath("/reports/stale-dates")).toBe("reports");
     expect(kindForPath("/radar/spark")).toBe("radar");
     expect(kindForPath("/?q=foo")).toBe("search"); // home + q param = search
+  });
+
+  it("classifies any /preview/<id>/… path as preview", () => {
+    expect(kindForPath("/preview/42/atlas?id=abc")).toBe("preview");
+    expect(kindForPath("/preview/42/?q=foo")).toBe("preview"); // preview beats search
+    expect(kindForPath("/preview/42/reports/stale-dates")).toBe("preview");
   });
 });
 
@@ -119,6 +131,18 @@ describe("topVisited", () => {
     expect(recent[0].path).toBe("/atlas?id=a");
     expect(recent[0].count).toBe(1);
     expect(await topVisited({ n: 1 })).toHaveLength(1);
+  });
+
+  it("excludes preview visits by default, includes them on request", async () => {
+    await idb.add<VisitEvent>({ path: "/atlas?id=a", label: "A", at: 1 });
+    await idb.add<VisitEvent>({ path: "/preview/42/atlas?id=b", label: "B (preview)", at: 2 });
+
+    const live = await topVisited();
+    expect(live.map((r) => r.path)).toEqual(["/atlas?id=a"]); // preview omitted
+
+    const preview = await topVisited({ kind: "preview" });
+    expect(preview.map((r) => r.path)).toEqual(["/preview/42/atlas?id=b"]);
+    expect(preview[0].kind).toBe("preview");
   });
 });
 
