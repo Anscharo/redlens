@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useRouter } from "wouter";
 import type { SearchState } from "./useSearch";
 import type { SearchMode } from "./useSearchInput";
 import { track } from "../lib/analytics";
@@ -11,8 +12,9 @@ import { recordVisit } from "../lib/visitHistory";
 const DEBOUNCE_MS = 500;
 
 export function useSearchTracking(state: SearchState, mode: SearchMode): void {
+  const { base } = useRouter(); // "" live / /preview/<id> in preview
   const lastSent = useRef("");
-  const pending = useRef<{ query: string; mode: SearchMode; result_count: number } | null>(null);
+  const pending = useRef<{ query: string; mode: SearchMode; result_count: number; base: string } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flush = useCallback(() => {
@@ -28,15 +30,15 @@ export function useSearchTracking(state: SearchState, mode: SearchMode): void {
     // Durable, browser-local cross-session tally (distinct from the ephemeral
     // recentSearches list). Encode the query so `&`/`#`/`?` in it survive URL
     // parsing; recordVisit canonicalizes to /?q=<normalized>.
-    void recordVisit({ path: `/?q=${encodeURIComponent(p.query)}`, label: p.query });
+    void recordVisit({ path: `/?q=${encodeURIComponent(p.query)}`, label: p.query, base: p.base });
   }, []);
 
   useEffect(() => {
     if (state.status !== "done" || !state.query || state.query.startsWith("/")) return;
-    pending.current = { query: state.query, mode, result_count: state.hits.length };
+    pending.current = { query: state.query, mode, result_count: state.hits.length, base };
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(flush, DEBOUNCE_MS);
-  }, [state, mode, flush]);
+  }, [state, mode, base, flush]);
 
   // Flush a still-pending search when leaving the results (e.g. clicking a result).
   useEffect(() => () => flush(), [flush]);

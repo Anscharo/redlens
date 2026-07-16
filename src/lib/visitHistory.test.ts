@@ -36,12 +36,6 @@ describe("canonicalPath", () => {
     const q = "a & b # c";
     expect(canonicalPath(`/?q=${encodeURIComponent(q)}`)).toBe(`/?q=${encodeURIComponent(q.toLowerCase())}`);
   });
-
-  it("preserves a /preview/<id> prefix while canonicalizing the remainder", () => {
-    expect(canonicalPath("/preview/42/atlas?id=abc&view=history")).toBe("/preview/42/atlas?id=abc");
-    expect(canonicalPath("/preview/42/reports/stale-dates?x=1")).toBe("/preview/42/reports/stale-dates");
-    expect(canonicalPath("/preview/42/?q=Foo")).toBe("/preview/42/?q=foo");
-  });
 });
 
 describe("kindForPath", () => {
@@ -96,6 +90,14 @@ describe("recordVisit", () => {
     await recordVisit({ path: "/atlas?id=a", label: "Alpha" });
     await recordVisit({ path: "/radar/x", label: "X" });
     expect(await getEvents()).toHaveLength(2);
+  });
+
+  it("prepends the router base so preview visits don't collide with live", async () => {
+    // base is useRouter().base: "" live, /preview/<id> in preview mode.
+    await recordVisit({ path: "/atlas?id=a", label: "Alpha", base: "/preview/42" });
+    const events = await getEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0].path).toBe("/preview/42/atlas?id=a"); // separated from live /atlas?id=a
   });
 });
 

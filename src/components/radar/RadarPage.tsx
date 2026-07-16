@@ -1,5 +1,5 @@
 import { Suspense, use, useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRouter } from "wouter";
 import { loadDocs } from "../../lib/docs";
 import { loadGraph } from "../../lib/graph";
 import { useDataSource } from "../../lib/dataSource";
@@ -28,7 +28,8 @@ interface InnerProps extends Props {
 }
 
 function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps) {
-  const { base } = useDataSource();
+  const { base } = useDataSource(); // data-source base (/api/...), NOT the router base
+  const { base: routerBase } = useRouter(); // "" live / /preview/<id> in preview
   const docs = use(loadDocs(base));
   const graph = use(loadGraph(base));
 
@@ -66,8 +67,8 @@ function RadarLoaded({ query, actorSlug, drawerOpen, onDrawerClose }: InnerProps
   // Append the actor page to the browser-local visit log once its profile loads.
   useEffect(() => {
     if (!actorSlug || !profile) return;
-    void recordVisit({ path: actorHref(actorSlug), label: profile.entity.name });
-  }, [actorSlug, profile]);
+    void recordVisit({ path: actorHref(actorSlug), label: profile.entity.name, base: routerBase });
+  }, [actorSlug, profile, routerBase]);
 
   return (
     <RadarProvider value={{ docs }}>

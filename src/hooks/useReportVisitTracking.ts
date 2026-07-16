@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useRouter } from "wouter";
 import { recordVisit } from "../lib/visitHistory";
 import { REPORT_TITLES, reportHref } from "../lib/routes";
 
@@ -7,14 +8,16 @@ import { REPORT_TITLES, reportHref } from "../lib/routes";
 // but there's no single component to hang visit capture on — so we do it here,
 // centrally, keyed off the /reports/<id> slug and the shared REPORT_TITLES
 // registry. Sub-pages (e.g. /reports/risk-rules/rubric) and the index are absent
-// from the registry and so are skipped. `location` excludes the querystring.
+// from the registry and so are skipped. `location` excludes the querystring;
+// `base` (router base) keeps preview visits separate from live.
 export function useReportVisitTracking(location: string): void {
+  const { base } = useRouter();
   useEffect(() => {
     const prefix = "/reports/";
     if (!location.startsWith(prefix)) return;
     const id = location.slice(prefix.length);
     const title = REPORT_TITLES[id];
     if (!title) return;
-    void recordVisit({ path: reportHref(id), label: title });
-  }, [location]);
+    void recordVisit({ path: reportHref(id), label: title, base });
+  }, [location, base]);
 }
