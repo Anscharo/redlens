@@ -11,7 +11,6 @@
 // (rewards, active_data, actors) share this one adapter.
 import type { Indexes, Entity, Edge, AtlasNode } from "../indexes.ts";
 import type { GraphData } from "../../lib/graphData.ts";
-import type { AtlasBundle } from "../../lib/docsTypes.ts";
 import type { GraphEntity, RelationEdge } from "../../types.ts";
 import { parseDocNos } from "./util.ts";
 
@@ -58,18 +57,11 @@ export function indexesToGraphData(ix: Indexes): GraphData {
   };
 }
 
-export function indexesToBundle(ix: Indexes): AtlasBundle {
+// The report derivations only read the UUID→node record, so project just that —
+// building the AtlasBundle's byParent (with its per-bucket sort) and docNoToId
+// maps was dead work on every call.
+export function indexesToDocs(ix: Indexes): Record<string, AtlasNode> {
   const docs: Record<string, AtlasNode> = {};
-  const byParent = new Map<string | null, AtlasNode[]>();
-  const docNoToId = new Map<string, string>();
-  for (const node of ix.docMap.values()) {
-    docs[node.id] = node;
-    docNoToId.set(node.doc_no, node.id);
-    const key = node.parentId ?? null;
-    const arr = byParent.get(key);
-    if (arr) arr.push(node);
-    else byParent.set(key, [node]);
-  }
-  for (const arr of byParent.values()) arr.sort((a, b) => a.order - b.order);
-  return { docs, byParent, docNoToId, atlasCommit: ix.meta.atlasCommit ?? null };
+  for (const node of ix.docMap.values()) docs[node.id] = node;
+  return docs;
 }

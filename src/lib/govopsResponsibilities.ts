@@ -75,7 +75,7 @@ const ANY_GOVOPS_RE = /gov\s*ops/i;
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 
 export function deriveGovOpsResponsibilities(
-  { docs }: AtlasBundle,
+  { docs }: Pick<AtlasBundle, "docs">,
   { edges, participants }: GraphData,
 ): OGResponsibility[] {
   const results: OGResponsibility[] = [];
