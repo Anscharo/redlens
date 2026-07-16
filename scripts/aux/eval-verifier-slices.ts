@@ -11,7 +11,7 @@
 //   FPR      — clean baselines wrongly flagged
 //   spanKill — share of `supported` verdicts whose span FAILED code validation
 //              (the model tried to assert support into existence)
-//   real     — verdict on audited real defects (.cache/eval-evidence/*.audit)
+//   real     — verdict on audited real defects (scripts/aux/eval-corpora/evidence/*.audit)
 //
 //   pnpm eval:slices                       default models × all slices
 //   pnpm eval:slices --models a,b --limit 8
@@ -25,7 +25,7 @@ import { runSlice, type SliceName, type SliceClaim } from "../../src/server/veri
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, ".cache", "eval-evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "aux", "eval-corpora", "evidence");
 const REPORT_PATH = path.join(ROOT, ".cache", "eval-slices.json");
 const argv = process.argv.slice(2);
 const flag = (n: string) => argv.flatMap((a, i) => (a === `--${n}` && argv[i + 1] ? [argv[i + 1]] : []));

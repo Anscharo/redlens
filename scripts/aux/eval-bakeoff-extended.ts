@@ -3,7 +3,7 @@
 // per-agent addresses, document-type semantics, agent lifecycle, status
 // changes, cross-agent comparison, and role-group membership. Doubles as
 // verifier/advisor corpus feedstock: clean judged answers are promoted into
-// .cache/eval-evidence/ by eval-corpus-from-bakeoff.ts.
+// scripts/aux/eval-corpora/evidence/ by eval-corpus-from-bakeoff.ts.
 import type { BakeoffQuery } from "./eval-bakeoff-queries.ts";
 
 export const EXTENDED_QUERIES: BakeoffQuery[] = [

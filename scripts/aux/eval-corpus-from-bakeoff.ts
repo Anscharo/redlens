@@ -1,4 +1,4 @@
-// Promote bakeoff runs into the verifier/advisor corpus (.cache/eval-evidence/,
+// Promote bakeoff runs into the verifier/advisor corpus (scripts/aux/eval-corpora/evidence/,
 // same SavedRun shape eval:golden --save-evidence writes).
 //
 // NO DETERMINISTIC FILTER — deliberately. An earlier version required
@@ -28,7 +28,7 @@ import { RULING_QUERIES } from "./eval-bakeoff-rulings.ts";
 import { EXTENDED_QUERIES } from "./eval-bakeoff-extended.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const EVIDENCE_DIR = path.join(ROOT, ".cache", "eval-evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "aux", "eval-corpora", "evidence");
 const REPORTS = ["eval-bakeoff.json", "eval-bakeoff-rulings.json", "eval-bakeoff-extended.json", "eval-bakeoff-all.json"]
   .map((f) => path.join(ROOT, ".cache", f)).filter((p) => fs.existsSync(p));
 

@@ -1,0 +1,73 @@
+{
+  "id": "bakeoff-pioneers",
+  "question": "Which agents are Pioneers, for which chains, and when did they gain that status?",
+  "answer": "Based on the available Atlas documentation, the following agents have instances of the **Pioneer Chain Primitive**:\n\n*   **Spark**: [Pioneer Chain Primitive](/atlas/949247f8-c643-4f52-b0f1-cbf3c731da89)\n*   **Grove**: [Pioneer Chain Primitive](/atlas/f8ffe054-1981-457e-abc6-412f3ee37927)\n*   **Keel**: [Pioneer Chain Primitive](/atlas/8744a0ac-6d59-407d-a192-7ce4ce257420)\n*   **Skybase**: [Pioneer Chain Primitive](/atlas/d096b01c-84a2-44a5-9af6-8888a825e0d4)\n*   **Obex**: [Pioneer Chain Primitive](/atlas/2f0a0b71-759e-4f14-b63d-0286450855fe)\n\nThe Atlas does not specify which particular chains these agents are Pioneers for, nor does it provide the dates on which they gained this status.",
+  "evidence": [
+    {
+      "label": "[E1]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"mode\":\"search\",\"count\":10,\"results\":[{\"id\":\"949247f8-c643-4f52-b0f1-cbf3c731da89\",\"doc_no\":\"A.6.1.1.1.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"1bc21199-26d0-4cdd-8d66-454ac62204b9\",\"snippet\":\"Docs. herein contain all data Specs. Spark\u2019s Inst. Pioneer Chain Primitive. See [.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"score\":0.01639344262295082,\"sources\":[\"lexical\"]},{\"id\":\"45a70053-e0a3-4188-a40b-f6b64ffde9e6\",\"doc_no\":\"A.6.1.1.4.2.5.2.4.1.2.6\",\"title\":\"Integration Boost Data Submission Responsible Actor\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"614f046c-829b-4330-a462-adff2245b36d\",\"snippet\":\"Data Submission Responsible Actor is Data Submission Responsible Actor is.\",\"score\":0.01639344262295082,\"sources\":[\"semantic\"]},{\"id\":\"f8ffe054-1981-457e-abc6-412f3ee37927\",\"doc_no\":\"A.6.1.1.2.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"6b9bbf5e-0a76-4082-a042-811d4c426e6e\",\"snippet\":\"Docs. herein contain all data Specs. Grove\u2019s Inst. Pioneer Chain Primitive. See [.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"score\":0.016129032258064516,\"sources\":[\"lexical\"]},{\"id\":\"adda8707-63b5-414a-b30c-bb07bb09ec47\",\"doc_no\":\"A.6.1.1.8.2.1.2.1.1\",\"title\":\"Global Activation Status\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"d3c6d7a2-f399-40bd-ac22-4a565cfa253a\",\"snippet\":\"`Completed`\",\"score\":0.016129032258064516,\"sources\":[\"semantic\"]},{\"id\":\"8744a0ac-6d59-407d-a192-7ce4ce257420\",\"doc_no\":\"A.6.1.1.3.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"0d415ab8-7a66-4d82-98a4-67696a120650\",\"snippet\":\"Docs. herein contain all data Specs. Keel\u2019s Inst. Pioneer Chain Primitive. See [.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"score\":0.015873015873015872,\"sources\":[\"lexical\"]},{\"id\":\"32f5e8a7-fdce-4e77-b032-4c1670ecb9da\",\"doc_no\":\"A.6.1.1.5.2.1.2.1.1\",\"title\":\"Global Activation Status\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"de2892b7-087c-49ee-8b85-e3753987d38e\",\"snippet\":\"`Completed`\",\"score\":0.015873015873015872,\"sources\":[\"semantic\"]},{\"id\":\"d096b01c-84a2-44a5-9af6-8888a825e0d4\",\"doc_no\":\"A.6.1.1.4.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"614f046c-829b-4330-a462-adff2245b36d\",\"snippet\":\"Docs. herein contain all data Specs. Skybase's Inst. Pioneer Chain Primitive. See [.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"score\":0.015625,\"sources\":[\"lexical\"]},{\"id\":\"fb90f38d-0222-4b27-a7f4-b05900306d70\",\"doc_no\":\"A.6.1.1.2.2.1.2.1.1\",\"title\":\"Global Activation Status\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"6b9bbf5e-0a76-4082-a042-811d4c426e6e\",\"snippet\":\"`Completed`\",\"score\":0.015625,\"sources\":[\"semantic\"]},{\"id\":\"2f0a0b71-759e-4f14-b63d-0286450855fe\",\"doc_no\":\"A.6.1.1.5.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"de2892b7-087c-49ee-8b85-e3753987d38e\",\"snippet\":\"Docs. herein contain all data Specs. Obex's Inst. Pioneer Chain Primitive. See [.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"score\":0.015384615384615385,\"sources\":[\"lexical\"]},{\"id\":\"f8278414-f667-4d1d-a2bd-8ada95c5311a\",\"doc_no\":\"A.6.1.1.7.2.1.2.1.1\",\"title\":\"Global Activation Status\",\"type\":\"Core\",\"depth\":6,\"parent_id\":\"0d6f6016-eaf1-47e2-b8e7-98bf5e4f1dc0\",\"snippet\":\"`Completed`\",\"score\":0.015384615384615385,\"sources\":[\"semantic\"]}]}"
+    },
+    {
+      "label": "[E2]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"instances\":[{\"id\":\"949247f8-c643-4f52-b0f1-cbf3c731da89\",\"doc_no\":\"A.6.1.1.1.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"params\":[]}]}"
+    },
+    {
+      "label": "[E3]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"instances\":[{\"id\":\"f8ffe054-1981-457e-abc6-412f3ee37927\",\"doc_no\":\"A.6.1.1.2.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"params\":[]}]}"
+    },
+    {
+      "label": "[E4]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"instances\":[{\"id\":\"8744a0ac-6d59-407d-a192-7ce4ce257420\",\"doc_no\":\"A.6.1.1.3.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"params\":[]}]}"
+    },
+    {
+      "label": "[E5]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"instances\":[{\"id\":\"d096b01c-84a2-44a5-9af6-8888a825e0d4\",\"doc_no\":\"A.6.1.1.4.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"params\":[]}]}"
+    },
+    {
+      "label": "[E6]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"instances\":[{\"id\":\"2f0a0b71-759e-4f14-b63d-0286450855fe\",\"doc_no\":\"A.6.1.1.5.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"params\":[]}]}"
+    },
+    {
+      "label": "[E7]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"count\":5,\"results\":[{\"id\":\"949247f8-c643-4f52-b0f1-cbf3c731da89\",\"doc_no\":\"A.6.1.1.1.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parentId\":\"1bc21199-26d0-4cdd-8d66-454ac62204b9\",\"order\":3572,\"content\":\"The documents herein contain all data and specifications for Spark\u2019s Instances of the Pioneer Chain Primitive. See [A.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"1bc21199-26d0-4cdd-8d66-454ac62204b9\",\"doc_no\":\"A.6.1.1.1.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"dee2f5a4-279a-488c-9a9d-9583e3216fbf\",\"doc_no\":\"A.6.1.1.1\",\"title\":\"Spark\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]},{\"id\":\"f8ffe054-1981-457e-abc6-412f3ee37927\",\"doc_no\":\"A.6.1.1.2.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parentId\":\"6b9bbf5e-0a76-4082-a042-811d4c426e6e\",\"order\":5717,\"content\":\"The documents herein contain all data and specifications for Grove\u2019s Instances of the Pioneer Chain Primitive. See [A.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"6b9bbf5e-0a76-4082-a042-811d4c426e6e\",\"doc_no\":\"A.6.1.1.2.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"727b0de6-095b-485e-bf9c-02108a364480\",\"doc_no\":\"A.6.1.1.2\",\"title\":\"Grove\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]},{\"id\":\"8744a0ac-6d59-407d-a192-7ce4ce257420\",\"doc_no\":\"A.6.1.1.3.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parentId\":\"0d415ab8-7a66-4d82-98a4-67696a120650\",\"order\":7571,\"content\":\"The documents herein contain all data and specifications for Keel\u2019s Instances of the Pioneer Chain Primitive. See [A.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"0d415ab8-7a66-4d82-98a4-67696a120650\",\"doc_no\":\"A.6.1.1.3.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"bc6aed17-2969-4d04-9af6-c7bf3e4497e6\",\"doc_no\":\"A.6.1.1.3\",\"title\":\"Keel\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]},{\"id\":\"d096b01c-84a2-44a5-9af6-8888a825e0d4\",\"doc_no\":\"A.6.1.1.4.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parentId\":\"614f046c-829b-4330-a462-adff2245b36d\",\"order\":8684,\"content\":\"The documents herein contain all data and specifications for Skybase's Instances of the Pioneer Chain Primitive. See [A.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"614f046c-829b-4330-a462-adff2245b36d\",\"doc_no\":\"A.6.1.1.4.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"c88439b5-f456-4e51-8825-42e0ba83546f\",\"doc_no\":\"A.6.1.1.4\",\"title\":\"Skybase\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]},{\"id\":\"2f0a0b71-759e-4f14-b63d-0286450855fe\",\"doc_no\":\"A.6.1.1.5.2.5.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":6,\"parentId\":\"de2892b7-087c-49ee-8b85-e3753987d38e\",\"order\":9046,\"content\":\"The documents herein contain all data and specifications for Obex's Instances of the Pioneer Chain Primitive. See [A.2.2.9.3 - Pioneer Chain Primitive](4c7be4c6-44b5-407a-94ae-3d7ca7e8039c).\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"de2892b7-087c-49ee-8b85-e3753987d38e\",\"doc_no\":\"A.6.1.1.5.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"f558e673-cbab-4696-8ca1-3af9b90fe5d4\",\"doc_no\":\"A.6.1.1.5\",\"title\":\"Obex\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]}]}"
+    },
+    {
+      "label": "[E8]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"count\":1,\"results\":[{\"id\":\"4aab68fd-0e8c-4781-b6f6-f94a89cb22fa\",\"doc_no\":\"A.2.2.9.3.1\",\"title\":\"Introduction\",\"type\":\"Core\",\"depth\":5,\"hops\":1,\"edge_type\":\"parent_of\",\"direction\":\"out\"}]}"
+    },
+    {
+      "label": "[E9]",
+      "tool": "atlas_tool",
+      "args": "(from bakeoff transcript)",
+      "content": "{\"target\":{\"id\":\"4c7be4c6-44b5-407a-94ae-3d7ca7e8039c\",\"doc_no\":\"A.2.2.9.3\",\"title\":\"Pioneer Chain Primitive\",\"type\":\"Core\",\"depth\":4},\"parent\":{\"id\":\"26415305-432d-423b-9553-3f325279712d\",\"doc_no\":\"A.2.2.9\",\"title\":\"Demand Side Stablecoin Primitives\",\"type\":\"Section\",\"depth\":3},\"siblings\":[{\"id\":\"e632c38f-3e4e-4c7e-acfd-b6ec45a422e6\",\"doc_no\":\"A.2.2.9.1\",\"title\":\"Distribution Reward Primitive\",\"type\":\"Core\",\"depth\":4},{\"id\":\"73577399-62e4-4a83-ae11-64ef7e7b7f20\",\"doc_no\":\"A.2.2.9.2\",\"title\":\"Integration Boost Primitive\",\"type\":\"Core\",\"depth\":4}],\"children\":[{\"id\":\"4aab68fd-0e8c-4781-b6f6-f94a89cb22fa\",\"doc_no\":\"A.2.2.9.3.1\",\"title\":\"Introduction\",\"type\":\"Core\",\"depth\":5}]}"
+    }
+  ],
+  "sourceModel": "google/gemma-4-31b-it",
+  "checkerFlags": {
+    "invalidDocNos": [],
+    "docNoMismatches": [],
+    "ungroundedQuotes": [],
+    "ungroundedAddresses": [],
+    "untracedNumbers": []
+  },
+  "audit": {
+    "verdict": "defect",
+    "notes": "Lists Spark, Grove, Keel, Skybase, Obex as having Pioneer Chain Primitive INSTANCES. Ground truth (A.6.1.1.N.2.5.3.1.1 Global Activation Status): Active only for Grove, Keel, Osero. Spark/Skybase/Obex are Inactive with 0 instances beneath their Active Instances Directory; Osero is Active but OMITTED. Also claims 'the Atlas does not specify which chains' while Grove and Keel each have a populated instance. Root cause: mistook the per-agent scaffold hub (present for all 8 agents) for an instance. All deterministic checks PASS; judge scored 0.91."
+  }
+}
