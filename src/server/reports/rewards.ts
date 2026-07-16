@@ -10,7 +10,7 @@ import type { ToolResult } from "../tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { buildRewardsIndex } from "../../lib/rewardsIndex.ts";
 import type { AgentPrimitive, RewardsAgent, RewardsIcd } from "../../lib/rewardsTypes.ts";
-import { indexesToGraphData, indexesToBundle } from "./ix-adapter.ts";
+import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
 
 // `params` is the raw [value, srcUuid, srcDocNo] tuple map behind each resolved
 // field — the provenance layer. Drop it for the leaner (include_provenance:false)
@@ -33,8 +33,7 @@ function stripAgentParams(a: RewardsAgent): RewardsAgent {
 }
 
 export function buildRewardsReport(ix: Indexes, opts: { include_provenance: boolean }): ToolResult {
-  const { docs } = indexesToBundle(ix);
-  const { agents: allAgents, ...ecosystem } = buildRewardsIndex(docs, indexesToGraphData(ix));
+  const { agents: allAgents, ...ecosystem } = buildRewardsIndex(indexesToDocs(ix), indexesToGraphData(ix));
 
   const agents = opts.include_provenance ? allAgents : allAgents.map(stripAgentParams);
 

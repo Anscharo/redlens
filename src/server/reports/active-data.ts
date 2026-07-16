@@ -11,7 +11,7 @@ import type { Indexes } from "../indexes.ts";
 import type { ToolResult } from "../tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { buildActiveDataRows, type ActiveDataRow } from "../../lib/activeDataIndex.ts";
-import { indexesToGraphData, indexesToBundle } from "./ix-adapter.ts";
+import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
 
 // The evidence arrays are the provenance layer — the ordered doc_no chain that
 // proves each Responsible Party / Facilitator resolution. Drop them for the
@@ -25,8 +25,7 @@ function stripRowProvenance(r: ActiveDataRow): ActiveDataRow {
 }
 
 export function buildActiveDataReport(ix: Indexes, opts: { include_provenance: boolean }): ToolResult {
-  const { docs } = indexesToBundle(ix);
-  const allRows = buildActiveDataRows(docs, indexesToGraphData(ix));
+  const allRows = buildActiveDataRows(indexesToDocs(ix), indexesToGraphData(ix));
 
   const rows = opts.include_provenance ? allRows : allRows.map(stripRowProvenance);
 

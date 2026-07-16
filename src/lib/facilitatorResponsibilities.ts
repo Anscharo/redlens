@@ -71,7 +71,7 @@ const ANY_FAC_RE = /facilitator/i;
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_FAC_RE);
 
 export function deriveFacilitatorResponsibilities(
-  { docs }: AtlasBundle,
+  { docs }: Pick<AtlasBundle, "docs">,
   { edges, participants }: GraphData,
 ): OFResponsibility[] {
   const results: OFResponsibility[] = [];
