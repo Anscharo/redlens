@@ -71,6 +71,33 @@ describe("findCousinDocs", () => {
     graph.instances[0].m = undefined;
     expect(findCousinDocs(sparkToken.id, atlas, graph)).toEqual([]);
   });
+
+  it("resolves to the nearest covering entity when nested inside another", () => {
+    // Spark's "Reward" instance sits *inside* Spark's "Token" instance subtree,
+    // so both structurally cover the reward doc. The ancestor chain is walked
+    // deepest-first, so it must resolve to the reward entity (→ reward cousins),
+    // not the enclosing token entity (which would wrongly yield Grove's Token).
+    const sparkRoot = makeNode({ id: "s-root", doc_no: "A.6.1.1.1", title: "Spark" });
+    const groveRoot = makeNode({ id: "g-root", doc_no: "A.6.1.1.2", title: "Grove" });
+    const sparkToken = makeNode({ id: "s-token", doc_no: "A.6.1.1.1.2.1", title: "Token" });
+    const sparkReward = makeNode({ id: "s-reward", doc_no: "A.6.1.1.1.2.1.5", title: "Reward" });
+    const groveToken = makeNode({ id: "g-token", doc_no: "A.6.1.1.2.2.1", title: "Token" });
+    const groveReward = makeNode({ id: "g-reward", doc_no: "A.6.1.1.2.2.1.5", title: "Reward" });
+    const atlas = makeAtlasBundle([sparkRoot, groveRoot, sparkToken, sparkReward, groveToken, groveReward]);
+    const graph = makeGraphData({
+      participants: [
+        makeGraphEntity({ id: sparkRoot.id, name: "Spark", et: "agent", st: "prime", did: sparkRoot.id }),
+        makeGraphEntity({ id: groveRoot.id, name: "Grove", et: "agent", st: "prime", did: groveRoot.id }),
+      ],
+      instances: [
+        makeGraphEntity({ id: "i-s-token", st: "token", did: sparkToken.id, m: JSON.stringify({ agent_doc_id: sparkRoot.id }) }),
+        makeGraphEntity({ id: "i-s-reward", st: "reward", did: sparkReward.id, m: JSON.stringify({ agent_doc_id: sparkRoot.id }) }),
+        makeGraphEntity({ id: "i-g-token", st: "token", did: groveToken.id, m: JSON.stringify({ agent_doc_id: groveRoot.id }) }),
+        makeGraphEntity({ id: "i-g-reward", st: "reward", did: groveReward.id, m: JSON.stringify({ agent_doc_id: groveRoot.id }) }),
+      ],
+    });
+    expect(findCousinDocs(sparkReward.id, atlas, graph)).toEqual([{ node: groveReward, agent: "Grove" }]);
+  });
 });
 
 // Omni-doc fallback: docs parallel across agents' Omni Documents subtrees
