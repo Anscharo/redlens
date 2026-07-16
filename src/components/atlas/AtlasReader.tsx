@@ -1,4 +1,5 @@
 import {
+  memo,
   useState,
   useEffect,
   useRef,
@@ -23,7 +24,13 @@ import {
   type LoadedData,
 } from "../../lib/atlasHelpers";
 
-export function AtlasReader({
+// memo boundary: AtlasView re-renders on annotation-tab switches and other
+// panel state the reader doesn't care about. All props here are stable refs
+// (data, agentByDoc memoized; handlers are useCallbacks), so the reader skips
+// those re-renders entirely — the panels can never slow it. (Selection changes
+// still re-render it shallowly via its own useSelectionSet subscription for the
+// "selected only" view, but docList bails when that set is unchanged.)
+export const AtlasReader = memo(function AtlasReader({
   id,
   selectedId,
   splitId,
@@ -353,4 +360,4 @@ export function AtlasReader({
       </div>
     </AtlasActionsContext.Provider>
   );
-}
+});

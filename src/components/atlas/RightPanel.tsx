@@ -31,8 +31,8 @@ export function RightPanel({
   onNavigateByDocNo,
   tab,
   onTabChange,
-  selectedIds,
-  onRelatedSelect,
+  selectable,
+  byParent,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
@@ -46,8 +46,11 @@ export function RightPanel({
   onNavigateByDocNo: (docNo: string) => void;
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
-  selectedIds?: Set<string>;
-  onRelatedSelect?: (id: string, shiftKey: boolean) => void;
+  /** Show self-subscribing selection checkboxes on related cards. The checkbox
+   *  state lives in each card's RelatedSelectBox, so a selection toggle doesn't
+   *  re-render this panel (or the sibling reader) — only the checkbox itself. */
+  selectable?: boolean;
+  byParent?: Map<string | null, AtlasNode[]>;
 }) {
   const { preview } = useDataSource();
 
@@ -134,8 +137,8 @@ export function RightPanel({
                     key={node.id}
                     node={node}
                     onNavigate={navLinked}
-                    selected={selectedIds?.has(node.id)}
-                    onSelect={onRelatedSelect}
+                    selectable={selectable}
+                    byParent={byParent}
                   />
                 ))}
               </section>
@@ -156,8 +159,8 @@ export function RightPanel({
                       node={node}
                       eyebrow={<span className="atlas-agent-pill">{agent}</span>}
                       onNavigate={navCousin}
-                      selected={selectedIds?.has(node.id)}
-                      onSelect={onRelatedSelect}
+                      selectable={selectable}
+                      byParent={byParent}
                     />
                   ))}
                 </div>

@@ -25,8 +25,8 @@ export function AtlasAnnotations({
   onTabChange,
   onNavigate,
   onNavigateByDocNo,
-  selectedIds,
-  onRelatedSelect,
+  selectable,
+  byParent,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
@@ -39,8 +39,8 @@ export function AtlasAnnotations({
   onTabChange: (v: "annotations" | "glossary" | "history") => void;
   onNavigate: (id: string) => void;
   onNavigateByDocNo: (docNo: string) => void;
-  selectedIds?: Set<string>;
-  onRelatedSelect?: (id: string, shiftKey: boolean) => void;
+  selectable?: boolean;
+  byParent?: Map<string | null, AtlasNode[]>;
 }) {
   const graphEdges = useGraphEdges(id);
   const [rightWidth, setRightWidth] = useState(() => {
@@ -92,8 +92,8 @@ export function AtlasAnnotations({
           onNavigateByDocNo={onNavigateByDocNo}
           tab={tab}
           onTabChange={onTabChange}
-          selectedIds={selectedIds}
-          onRelatedSelect={onRelatedSelect}
+          selectable={selectable}
+          byParent={byParent}
         />
       </ErrorBoundary>
     </div>

@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { AtlasLink } from "./AtlasLink";
 import { NodeContent } from "./NodeContent";
+import { RelatedSelectBox } from "./RelatedSelectBox";
 import { atlasHref } from "../lib/routes";
 import type { AtlasNode } from "../types";
 import { depthColor, realDepth } from "../lib/depth";
@@ -9,38 +10,24 @@ export const RelatedNode = memo(function RelatedNode({
   node,
   onNavigate,
   eyebrow,
-  selected = false,
-  onSelect,
+  selectable = false,
+  byParent,
 }: {
   node: AtlasNode;
   onNavigate: (id: string) => void;
   eyebrow?: ReactNode;
-  selected?: boolean;
-  /** When provided, a selection checkbox is shown. Shift-click selects the doc
-   *  plus all its descendants; a plain click toggles just this doc. */
-  onSelect?: (id: string, shiftKey: boolean) => void;
+  /** When true, a self-subscribing selection checkbox is shown (needs byParent
+   *  for shift-click subtree selection). Kept as a stable flag — the checkbox's
+   *  own checked state lives in RelatedSelectBox, so toggling selection doesn't
+   *  re-render this card or its parents. */
+  selectable?: boolean;
+  byParent?: Map<string | null, AtlasNode[]>;
 }) {
   const color = depthColor(realDepth(node.doc_no));
 
   return (
     <div className="related-node relative">
-      {onSelect && (
-        <label
-          className="atlas-node-select absolute top-2 right-2"
-          aria-label={`Select ${node.title}`}
-          title="shift-click: also select everything beneath"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input
-            type="checkbox"
-            checked={selected}
-            onChange={(e) => {
-              e.stopPropagation();
-              onSelect(node.id, (e.nativeEvent as MouseEvent).shiftKey);
-            }}
-          />
-        </label>
-      )}
+      {selectable && byParent && <RelatedSelectBox node={node} byParent={byParent} />}
       <AtlasLink to={atlasHref(node.id)} className="block no-underline mb-2">
         <p className="text-[11px] mono mb-1 text-tan-2">{node.doc_no}</p>
         <p className="text-base font-semibold my-1.5" style={{ color }}>{node.title}</p>
