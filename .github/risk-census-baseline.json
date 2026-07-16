@@ -1,16 +1,88 @@
 {
   "backlog": [
     {
+      "taskKey": "u:05d714e5-9428-4978-ac57-e3885b4e4c41",
+      "uuid": "05d714e5-9428-4978-ac57-e3885b4e4c41",
+      "docNo": "A.0.1.1.55",
+      "title": "Sky Frontier Foundation"
+    },
+    {
       "taskKey": "u:f44e6bf3-acf2-483e-af99-7cbee48c0c56",
       "uuid": "f44e6bf3-acf2-483e-af99-7cbee48c0c56",
       "docNo": "A.0.1.1.56",
       "title": "Fortification Foundation"
     },
     {
+      "taskKey": "u:fa9145a8-308c-4732-927d-cb6da4682fcf",
+      "uuid": "fa9145a8-308c-4732-927d-cb6da4682fcf",
+      "docNo": "A.1.10.1.2",
+      "title": "Chainlog"
+    },
+    {
+      "taskKey": "u:14954d6a-0b97-45bf-8734-1e50af8f9ca7",
+      "uuid": "14954d6a-0b97-45bf-8734-1e50af8f9ca7",
+      "docNo": "A.1.10.2.3.2.2.2.1.6",
+      "title": "Creation Of Public Information Dashboard"
+    },
+    {
+      "taskKey": "u:93b1ccb0-ee1e-4e41-8a3b-03520de76ab4",
+      "uuid": "93b1ccb0-ee1e-4e41-8a3b-03520de76ab4",
+      "docNo": "A.1.10.2.4.11.1.2",
+      "title": "Governance Point Requests TechOps Services To Whitelist Spell Address"
+    },
+    {
+      "taskKey": "u:42979dc0-bf99-4ba4-97a5-ccfe02845ad7",
+      "uuid": "42979dc0-bf99-4ba4-97a5-ccfe02845ad7",
+      "docNo": "A.1.10.2.4.12.2.8",
+      "title": "Using Chainlog Smart Contract For Spell Validation"
+    },
+    {
+      "taskKey": "u:3326e18a-a909-448b-a9b3-ee17afc87160",
+      "uuid": "3326e18a-a909-448b-a9b3-ee17afc87160",
+      "docNo": "A.1.10.2.4.12.2.11",
+      "title": "Using The Sky Forum For Spell Validation"
+    },
+    {
+      "taskKey": "u:2a14eed2-f334-410c-a669-d055ed0a9e59",
+      "uuid": "2a14eed2-f334-410c-a669-d055ed0a9e59",
+      "docNo": "A.1.10.2.4.12.4.8",
+      "title": "Public Validation Status Reporting"
+    },
+    {
       "taskKey": "u:badd8b62-dffe-4778-b5e2-78c76195242d",
       "uuid": "badd8b62-dffe-4778-b5e2-78c76195242d",
       "docNo": "A.1.10.2.5.1.2.1.1",
       "title": "Agent Spell Reviewer Checklist"
+    },
+    {
+      "taskKey": "u:b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
+      "uuid": "b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
+      "docNo": "A.1.10.3.2.14",
+      "title": "Ethereum SkyLink Freezer Multisig"
+    },
+    {
+      "taskKey": "u:82aaec1b-acac-4ed4-8e03-2d8f29ba5ccb",
+      "uuid": "82aaec1b-acac-4ed4-8e03-2d8f29ba5ccb",
+      "docNo": "A.1.10.3.2.15",
+      "title": "Solana SkyLink Freezer Multisig"
+    },
+    {
+      "taskKey": "u:57f524b8-292c-496b-a879-2102ce4a81e5",
+      "uuid": "57f524b8-292c-496b-a879-2102ce4a81e5",
+      "docNo": "A.1.10.3.2.16",
+      "title": "Avalanche SkyLink Freezer Multisig"
+    },
+    {
+      "taskKey": "u:93089354-d2eb-4930-a1c7-0ca2f7b60e67",
+      "uuid": "93089354-d2eb-4930-a1c7-0ca2f7b60e67",
+      "docNo": "A.1.10.3.2.17",
+      "title": "Plasma SkyLink Freezer Multisig"
+    },
+    {
+      "taskKey": "u:203b8c79-c7cf-4fcc-94e3-5bf42f791619",
+      "uuid": "203b8c79-c7cf-4fcc-94e3-5bf42f791619",
+      "docNo": "A.2.2.1.5.1",
+      "title": "Current Primitives"
     },
     {
       "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
@@ -397,16 +469,112 @@
       "title": "Set Trigger For RateLimit Increase"
     },
     {
+      "taskKey": "u:4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
+      "uuid": "4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
+      "docNo": "A.2.2.10.1.1.3.2.1.1",
+      "title": "Sky Core Required Risk Capital (RRC) Dashboard"
+    },
+    {
+      "taskKey": "u:d8086dc0-7e77-4c6b-98c7-5fc41337a1ce",
+      "uuid": "d8086dc0-7e77-4c6b-98c7-5fc41337a1ce",
+      "docNo": "A.2.2.10.2",
+      "title": "Risk Capital Rental Primitive"
+    },
+    {
       "taskKey": "u:728ea3d3-606a-4080-bc56-4a9e2c7fecb3",
       "uuid": "728ea3d3-606a-4080-bc56-4a9e2c7fecb3",
       "docNo": "A.2.3.1.2.2.1",
       "title": "Fortification Foundation Allocation"
     },
     {
+      "taskKey": "u:1816e5eb-3cf1-427f-b831-8eeb9408887c",
+      "uuid": "1816e5eb-3cf1-427f-b831-8eeb9408887c",
+      "docNo": "A.2.4.1.2.1.3.1",
+      "title": "Payment Of Amounts Due To Prime Agents"
+    },
+    {
+      "taskKey": "u:6e3d5198-fdb5-47dd-b632-4c71a313a1a6",
+      "uuid": "6e3d5198-fdb5-47dd-b632-4c71a313a1a6",
+      "docNo": "A.2.4.1.2.1.3.2",
+      "title": "Collection Of Amounts Due From Prime Agents"
+    },
+    {
+      "taskKey": "u:25743b88-dead-47fe-bd81-b709e69f5949",
+      "uuid": "25743b88-dead-47fe-bd81-b709e69f5949",
+      "docNo": "A.2.8.2.1.2.1",
+      "title": "Revenue Share"
+    },
+    {
+      "taskKey": "u:ac648f96-3b0d-46c6-9501-a3a88da26961",
+      "uuid": "ac648f96-3b0d-46c6-9501-a3a88da26961",
+      "docNo": "A.2.8.2.1.2.9.2",
+      "title": "Risk Capital Share"
+    },
+    {
+      "taskKey": "u:00f61aa6-7bb4-4c7f-9492-2e2b2b4e78b2",
+      "uuid": "00f61aa6-7bb4-4c7f-9492-2e2b2b4e78b2",
+      "docNo": "A.3.2.1.2.2.1.1.2",
+      "title": "Prime-External Junior Risk Capital (SEJRC)"
+    },
+    {
+      "taskKey": "u:6bba2076-5d5b-43fd-82c6-df6a35f67355",
+      "uuid": "6bba2076-5d5b-43fd-82c6-df6a35f67355",
+      "docNo": "A.3.2.1.2.2.2",
+      "title": "Senior Risk Capital"
+    },
+    {
+      "taskKey": "u:672d377f-067e-4742-a987-b2c6258f9c99",
+      "uuid": "672d377f-067e-4742-a987-b2c6258f9c99",
+      "docNo": "A.3.2.2.1.1.1.5.3.1",
+      "title": "Instance Financial CRRs For Specific Assets"
+    },
+    {
+      "taskKey": "u:d47ffd80-c463-49b3-b4a9-60bb6d2b114e",
+      "uuid": "d47ffd80-c463-49b3-b4a9-60bb6d2b114e",
+      "docNo": "A.3.2.2.3.1",
+      "title": "Prime External JRC Rental System Implementation"
+    },
+    {
+      "taskKey": "u:268b4b1f-9a19-42f8-b7c6-d8dc01e32517",
+      "uuid": "268b4b1f-9a19-42f8-b7c6-d8dc01e32517",
+      "docNo": "A.3.2.2.4.4",
+      "title": "Originated Senior Risk Capital (OSRC) Rental Implementation"
+    },
+    {
+      "taskKey": "u:b74ba49a-de9e-4c4c-866c-b04d9dd208f7",
+      "uuid": "b74ba49a-de9e-4c4c-866c-b04d9dd208f7",
+      "docNo": "A.3.3.2.2.2.1",
+      "title": "Reporting Of Failures To Satisfy Actively Stabilizing Collateral Requirement"
+    },
+    {
       "taskKey": "u:816e01d2-76a7-45ea-a770-22e4d3bc1247",
       "uuid": "816e01d2-76a7-45ea-a770-22e4d3bc1247",
       "docNo": "A.3.3.2.4.2",
       "title": "Peg Defense Obligations"
+    },
+    {
+      "taskKey": "u:9c06226e-b9ed-49e7-8d82-557b9414b294",
+      "uuid": "9c06226e-b9ed-49e7-8d82-557b9414b294",
+      "docNo": "A.3.7.1.6.6.2",
+      "title": "Genesis Capital Phase-Out"
+    },
+    {
+      "taskKey": "u:d70d5580-760f-4441-9f93-7494e0d05808",
+      "uuid": "d70d5580-760f-4441-9f93-7494e0d05808",
+      "docNo": "A.4.2.2.2.3.1",
+      "title": "Freezer Multisigs"
+    },
+    {
+      "taskKey": "u:199661f2-b3d9-4308-a5d9-9ed15880b00d",
+      "uuid": "199661f2-b3d9-4308-a5d9-9ed15880b00d",
+      "docNo": "A.4.2.2.3.3.1",
+      "title": "Freezer Multisigs"
+    },
+    {
+      "taskKey": "u:022129be-e83f-417f-a0b6-4a066fc66d62",
+      "uuid": "022129be-e83f-417f-a0b6-4a066fc66d62",
+      "docNo": "A.4.2.2.4.3.1",
+      "title": "Freezer Multisigs"
     },
     {
       "taskKey": "u:2af50d93-00ba-4546-b827-0759ab8dd4a2",
@@ -607,6 +775,66 @@
       "title": "Spark Savings USDT Risk Parameters"
     },
     {
+      "taskKey": "t:risk capital rental primitive|risk",
+      "uuid": "bef153ea-bce0-4f87-aea1-be1ed219b0c1",
+      "docNo": "A.6.1.1.1.2.6.2",
+      "title": "Risk Capital Rental Primitive"
+    },
+    {
+      "taskKey": "u:cdd934f4-7607-4447-873a-2b08618d50b5",
+      "uuid": "cdd934f4-7607-4447-873a-2b08618d50b5",
+      "docNo": "A.6.1.1.1.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:064dec5f-e008-450a-80b9-098dd49a06bc",
+      "uuid": "064dec5f-e008-450a-80b9-098dd49a06bc",
+      "docNo": "A.6.1.1.1.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:0e18ffbc-b51b-4a25-a60a-b4b8ba61580b",
+      "uuid": "0e18ffbc-b51b-4a25-a60a-b4b8ba61580b",
+      "docNo": "A.6.1.1.1.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:93185aa4-1770-4649-b9b8-a570a3f6b2e8",
+      "uuid": "93185aa4-1770-4649-b9b8-a570a3f6b2e8",
+      "docNo": "A.6.1.1.1.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:b9d396f1-e40c-4ec7-9855-852ae94e51ca",
+      "uuid": "b9d396f1-e40c-4ec7-9855-852ae94e51ca",
+      "docNo": "A.6.1.1.1.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:505bd7a0-19e8-4b67-acb0-cf007114dd6c",
+      "uuid": "505bd7a0-19e8-4b67-acb0-cf007114dd6c",
+      "docNo": "A.6.1.1.1.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:a9dfa35d-e51d-43ee-aa07-90c96a6acb86",
+      "uuid": "a9dfa35d-e51d-43ee-aa07-90c96a6acb86",
+      "docNo": "A.6.1.1.1.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:6fab7906-d1dd-4291-9044-10eecd2c65d0",
+      "uuid": "6fab7906-d1dd-4291-9044-10eecd2c65d0",
+      "docNo": "A.6.1.1.1.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:17e60d50-f521-4634-a732-ecface0953ca",
+      "uuid": "17e60d50-f521-4634-a732-ecface0953ca",
+      "docNo": "A.6.1.1.1.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
       "taskKey": "u:d8242d1a-18f2-4000-a98b-0521486b0708",
       "uuid": "d8242d1a-18f2-4000-a98b-0521486b0708",
       "docNo": "A.6.1.1.1.3.2.1.1.2.1.9",
@@ -713,6 +941,276 @@
       "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
       "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
       "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:75fef570-0632-4721-91c7-72b904dd7c78",
+      "uuid": "75fef570-0632-4721-91c7-72b904dd7c78",
+      "docNo": "A.6.1.1.2.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:9b363d62-f785-48e8-bf4c-248262af6d9d",
+      "uuid": "9b363d62-f785-48e8-bf4c-248262af6d9d",
+      "docNo": "A.6.1.1.2.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:5c973874-a0c1-4fa9-a5b5-3d5ae92ffe86",
+      "uuid": "5c973874-a0c1-4fa9-a5b5-3d5ae92ffe86",
+      "docNo": "A.6.1.1.2.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:b276c0f8-15f5-492b-b7b9-f3df603354c6",
+      "uuid": "b276c0f8-15f5-492b-b7b9-f3df603354c6",
+      "docNo": "A.6.1.1.2.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:3d09f988-872e-46a4-871d-b176052fb3a7",
+      "uuid": "3d09f988-872e-46a4-871d-b176052fb3a7",
+      "docNo": "A.6.1.1.2.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:5a3df9c1-35de-4fbc-8533-8fe93f111594",
+      "uuid": "5a3df9c1-35de-4fbc-8533-8fe93f111594",
+      "docNo": "A.6.1.1.2.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:07287112-4dbb-4bfa-a73d-ea3f2845718e",
+      "uuid": "07287112-4dbb-4bfa-a73d-ea3f2845718e",
+      "docNo": "A.6.1.1.2.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:3f553aac-54e2-40f5-8545-53a8065feaef",
+      "uuid": "3f553aac-54e2-40f5-8545-53a8065feaef",
+      "docNo": "A.6.1.1.2.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:a08608f5-a6a7-43dc-ba2f-34c685af073a",
+      "uuid": "a08608f5-a6a7-43dc-ba2f-34c685af073a",
+      "docNo": "A.6.1.1.2.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:9264bed6-21a2-4e39-8546-0ab157380740",
+      "uuid": "9264bed6-21a2-4e39-8546-0ab157380740",
+      "docNo": "A.6.1.1.3.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:7585f2d5-a12a-4526-9dbd-88fb210dd4aa",
+      "uuid": "7585f2d5-a12a-4526-9dbd-88fb210dd4aa",
+      "docNo": "A.6.1.1.3.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:23138f00-8867-4b18-81fa-713007909f8f",
+      "uuid": "23138f00-8867-4b18-81fa-713007909f8f",
+      "docNo": "A.6.1.1.3.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:67e1b1e7-eb74-4b14-a125-0e9245266878",
+      "uuid": "67e1b1e7-eb74-4b14-a125-0e9245266878",
+      "docNo": "A.6.1.1.3.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:45ecc8cb-5ae7-4ea3-9edf-d1ac8ce2b860",
+      "uuid": "45ecc8cb-5ae7-4ea3-9edf-d1ac8ce2b860",
+      "docNo": "A.6.1.1.3.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:50cf8700-8938-4dce-b7b5-4dfc3bd92836",
+      "uuid": "50cf8700-8938-4dce-b7b5-4dfc3bd92836",
+      "docNo": "A.6.1.1.3.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:ee196317-63fc-4f69-a985-2a4f5a5be4e5",
+      "uuid": "ee196317-63fc-4f69-a985-2a4f5a5be4e5",
+      "docNo": "A.6.1.1.3.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:14b1b9d8-c60a-4cb5-a06b-a059f354bcec",
+      "uuid": "14b1b9d8-c60a-4cb5-a06b-a059f354bcec",
+      "docNo": "A.6.1.1.3.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:2b4b1b5a-e6a7-4743-9263-0fa8872d2f68",
+      "uuid": "2b4b1b5a-e6a7-4743-9263-0fa8872d2f68",
+      "docNo": "A.6.1.1.3.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:1c446878-ac5e-46a5-956c-346dfb288381",
+      "uuid": "1c446878-ac5e-46a5-956c-346dfb288381",
+      "docNo": "A.6.1.1.4.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:30d04fa4-801d-468a-b7ea-2b0ffb54c18b",
+      "uuid": "30d04fa4-801d-468a-b7ea-2b0ffb54c18b",
+      "docNo": "A.6.1.1.4.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:f0296ab8-bf0c-465a-955e-2566580cc810",
+      "uuid": "f0296ab8-bf0c-465a-955e-2566580cc810",
+      "docNo": "A.6.1.1.4.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:ebbef9e3-ab93-4a98-90d3-57663fac9134",
+      "uuid": "ebbef9e3-ab93-4a98-90d3-57663fac9134",
+      "docNo": "A.6.1.1.4.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:7b34c64e-fda4-40d0-84cd-891c86e8de1c",
+      "uuid": "7b34c64e-fda4-40d0-84cd-891c86e8de1c",
+      "docNo": "A.6.1.1.4.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:90c24d4a-39b0-40a3-af07-7cd353440b7e",
+      "uuid": "90c24d4a-39b0-40a3-af07-7cd353440b7e",
+      "docNo": "A.6.1.1.4.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:44cbe0d7-fb84-4958-9bd7-29f931e09629",
+      "uuid": "44cbe0d7-fb84-4958-9bd7-29f931e09629",
+      "docNo": "A.6.1.1.4.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:759df9b0-3bac-426e-b08d-3a5fb98d1cb9",
+      "uuid": "759df9b0-3bac-426e-b08d-3a5fb98d1cb9",
+      "docNo": "A.6.1.1.4.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:08ab0db0-8a0f-45b5-8579-8c4984a69fd1",
+      "uuid": "08ab0db0-8a0f-45b5-8579-8c4984a69fd1",
+      "docNo": "A.6.1.1.4.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:5f9e7e17-d7c4-4c72-9d0f-a2b58de3bbe6",
+      "uuid": "5f9e7e17-d7c4-4c72-9d0f-a2b58de3bbe6",
+      "docNo": "A.6.1.1.5.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:51f16355-24cf-463f-9603-154da3fcb1b3",
+      "uuid": "51f16355-24cf-463f-9603-154da3fcb1b3",
+      "docNo": "A.6.1.1.5.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:b60d8075-b908-4086-9bb0-0d8a609b1dd6",
+      "uuid": "b60d8075-b908-4086-9bb0-0d8a609b1dd6",
+      "docNo": "A.6.1.1.5.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:ecd92a2e-9c67-4fb0-b3cf-3ad63cebf8a5",
+      "uuid": "ecd92a2e-9c67-4fb0-b3cf-3ad63cebf8a5",
+      "docNo": "A.6.1.1.5.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:6e6d714e-4700-4aa8-bd61-6e8f012df6d4",
+      "uuid": "6e6d714e-4700-4aa8-bd61-6e8f012df6d4",
+      "docNo": "A.6.1.1.5.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:fd2cdc13-4035-4c91-b17c-7d1d1d5c5b7b",
+      "uuid": "fd2cdc13-4035-4c91-b17c-7d1d1d5c5b7b",
+      "docNo": "A.6.1.1.5.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:b894cf0e-5a3d-4fe2-bb43-668a1f973857",
+      "uuid": "b894cf0e-5a3d-4fe2-bb43-668a1f973857",
+      "docNo": "A.6.1.1.5.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:4b2e42f3-064c-4cb8-87a8-96512a581841",
+      "uuid": "4b2e42f3-064c-4cb8-87a8-96512a581841",
+      "docNo": "A.6.1.1.5.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:b83be319-7f7e-4cf5-ad70-ac59302422e4",
+      "uuid": "b83be319-7f7e-4cf5-ad70-ac59302422e4",
+      "docNo": "A.6.1.1.5.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:edf76ec6-4b5b-4d06-be3a-21a97096754a",
+      "uuid": "edf76ec6-4b5b-4d06-be3a-21a97096754a",
+      "docNo": "A.6.1.1.6.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:b73aa2a6-aa69-4bf1-91aa-cad8c95f1cce",
+      "uuid": "b73aa2a6-aa69-4bf1-91aa-cad8c95f1cce",
+      "docNo": "A.6.1.1.6.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:b6ff1423-0299-4688-bfa4-f900fd940698",
+      "uuid": "b6ff1423-0299-4688-bfa4-f900fd940698",
+      "docNo": "A.6.1.1.6.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:c47c1559-736e-43af-b8d3-55d0a7b60e8c",
+      "uuid": "c47c1559-736e-43af-b8d3-55d0a7b60e8c",
+      "docNo": "A.6.1.1.6.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:9edcdbb1-02ab-48aa-bd6d-b363bb34559a",
+      "uuid": "9edcdbb1-02ab-48aa-bd6d-b363bb34559a",
+      "docNo": "A.6.1.1.6.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:8f7140b0-0f4c-46a7-9ce0-4dac030e12f6",
+      "uuid": "8f7140b0-0f4c-46a7-9ce0-4dac030e12f6",
+      "docNo": "A.6.1.1.6.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:8bc496da-9dbc-49ea-9539-bc0c68eae4e1",
+      "uuid": "8bc496da-9dbc-49ea-9539-bc0c68eae4e1",
+      "docNo": "A.6.1.1.6.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:39aefad1-cd44-4526-86ed-3f2e1b76d658",
+      "uuid": "39aefad1-cd44-4526-86ed-3f2e1b76d658",
+      "docNo": "A.6.1.1.6.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:f443ef76-7111-479f-ba69-1f0d5e1342fe",
+      "uuid": "f443ef76-7111-479f-ba69-1f0d5e1342fe",
+      "docNo": "A.6.1.1.6.2.6.2.4",
+      "title": "In Progress Invocations"
     },
     {
       "taskKey": "u:0eed3609-62a2-4c5b-ae5b-4f78212252ee",
@@ -857,6 +1355,114 @@
       "uuid": "7ba1cc79-9a9f-460c-85b8-72181788397f",
       "docNo": "A.6.1.1.7.2.6.1.2.2.3.2",
       "title": "Withdraw All SparkLend Positions"
+    },
+    {
+      "taskKey": "u:997d4b26-65c5-4ad3-bbde-3441df9491ff",
+      "uuid": "997d4b26-65c5-4ad3-bbde-3441df9491ff",
+      "docNo": "A.6.1.1.7.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:51b0d96c-ca4c-4a89-8a95-41987d7b6ab7",
+      "uuid": "51b0d96c-ca4c-4a89-8a95-41987d7b6ab7",
+      "docNo": "A.6.1.1.7.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:f72ba911-8c52-402e-a462-e69c13098d34",
+      "uuid": "f72ba911-8c52-402e-a462-e69c13098d34",
+      "docNo": "A.6.1.1.7.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:a86f03fe-0570-4031-b616-3c1a3f03a65d",
+      "uuid": "a86f03fe-0570-4031-b616-3c1a3f03a65d",
+      "docNo": "A.6.1.1.7.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:4cb29356-93cd-418b-af94-7690a20b3883",
+      "uuid": "4cb29356-93cd-418b-af94-7690a20b3883",
+      "docNo": "A.6.1.1.7.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:4eecf3be-1cc1-4981-95d3-e96bc553652b",
+      "uuid": "4eecf3be-1cc1-4981-95d3-e96bc553652b",
+      "docNo": "A.6.1.1.7.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:d48fecab-0528-4d96-b760-49ca8568be85",
+      "uuid": "d48fecab-0528-4d96-b760-49ca8568be85",
+      "docNo": "A.6.1.1.7.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:32d1da62-94e0-4881-95cc-434c65aca77b",
+      "uuid": "32d1da62-94e0-4881-95cc-434c65aca77b",
+      "docNo": "A.6.1.1.7.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:d55dafa1-0e6c-4e2a-9cfe-bcac3ccaa6ac",
+      "uuid": "d55dafa1-0e6c-4e2a-9cfe-bcac3ccaa6ac",
+      "docNo": "A.6.1.1.7.2.6.2.4",
+      "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:56655922-1c77-40f7-83f4-3b9af9dc0c59",
+      "uuid": "56655922-1c77-40f7-83f4-3b9af9dc0c59",
+      "docNo": "A.6.1.1.8.2.6.2.1.2",
+      "title": "Active Instances Directory"
+    },
+    {
+      "taskKey": "u:efae8d35-a014-41fa-8a82-b2a4488e7058",
+      "uuid": "efae8d35-a014-41fa-8a82-b2a4488e7058",
+      "docNo": "A.6.1.1.8.2.6.2.1.3",
+      "title": "Completed Instances Directory"
+    },
+    {
+      "taskKey": "u:86ca0f50-a33b-4068-abd4-3f6a3adb9874",
+      "uuid": "86ca0f50-a33b-4068-abd4-3f6a3adb9874",
+      "docNo": "A.6.1.1.8.2.6.2.1.4",
+      "title": "In Progress Invocations Directory"
+    },
+    {
+      "taskKey": "u:33438a68-430e-4e13-b0bd-caa11b5578d0",
+      "uuid": "33438a68-430e-4e13-b0bd-caa11b5578d0",
+      "docNo": "A.6.1.1.8.2.6.2.1.5.1",
+      "title": "Archived Invocations/Instances"
+    },
+    {
+      "taskKey": "u:8b4a66ad-4e68-4a9b-b1a5-c835ec423cb9",
+      "uuid": "8b4a66ad-4e68-4a9b-b1a5-c835ec423cb9",
+      "docNo": "A.6.1.1.8.2.6.2.1.5.1.1",
+      "title": "Failed Invocations"
+    },
+    {
+      "taskKey": "u:3286bcd1-544a-4cc2-8508-1a8bc0aecea5",
+      "uuid": "3286bcd1-544a-4cc2-8508-1a8bc0aecea5",
+      "docNo": "A.6.1.1.8.2.6.2.1.5.1.2",
+      "title": "Suspended Instances"
+    },
+    {
+      "taskKey": "u:9a3c679d-a269-440e-9069-4bd85b428b3f",
+      "uuid": "9a3c679d-a269-440e-9069-4bd85b428b3f",
+      "docNo": "A.6.1.1.8.2.6.2.2",
+      "title": "Active Instances"
+    },
+    {
+      "taskKey": "u:f12949d0-1f1d-473f-89b1-f833523345af",
+      "uuid": "f12949d0-1f1d-473f-89b1-f833523345af",
+      "docNo": "A.6.1.1.8.2.6.2.3",
+      "title": "Completed Instances"
+    },
+    {
+      "taskKey": "u:f2d93d71-1bf9-4199-8190-e1e0beeb5369",
+      "uuid": "f2d93d71-1bf9-4199-8190-e1e0beeb5369",
+      "docNo": "A.6.1.1.8.2.6.2.4",
+      "title": "In Progress Invocations"
     }
   ]
 }
