@@ -33,8 +33,8 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-16
-- The atlas chatbot can now pull full report data in one step, covering Facilitator and GovOps responsibilities, integrator rewards, and Active Data
+## 2026-07-20
+- MCP now serves reports directly covering Facilitator and GovOps responsibilities, integrator rewards, and Active Data
 
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers
