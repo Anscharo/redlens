@@ -45,6 +45,22 @@ const INCLUDE_PROVENANCE = z
   .describe("Include provenance (source doc_nos / evidence chains / raw params) for each field (default true; set false for a leaner rollup).");
 const provenanceFlag = (a: Record<string, unknown>): boolean => (a.include_provenance as boolean | undefined) ?? true;
 
+// Shared across the row-list report tools that mirror a filterable report page
+// (facilitator/govops responsibilities, rewards, active data): a text filter
+// applied server-side with the SAME field logic the page's header box uses, so
+// a scoped query returns only matching rows instead of the whole report. Broad
+// (every space-separated word must appear somewhere in the row) by default; a
+// fully quoted "…"/'…' value selects phrase/case-sensitive matching.
+const FILTER_PARAM = z
+  .string()
+  .optional()
+  .describe(
+    'Optional text filter over the report rows (same matching as the report page): every space-separated word must appear ' +
+      'somewhere in a row (name, doc_no, agent, party, status, address, …). Wrap in "double quotes" for an exact phrase. ' +
+      "Omit to return the whole report. Use it to scope large reports (e.g. one agent/entity) and keep the response small.",
+  );
+const filterArg = (a: Record<string, unknown>): string | undefined => (a.filter as string | undefined) || undefined;
+
 const READ_ONLY_ATLAS_TOOL: ToolAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -442,8 +458,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "responsibilities[] }; each row = { docNo, uuid, title, duty, category (one of: universal | core-facilitator | " +
       "op-duty | assignment | active-data | process-step), agent?, agents?[], facilitator?, facilitators?[], executor?, " +
       "role? ('Operational'|'Core'), sources?[] }. sources appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_govops_responsibilities",
@@ -455,8 +471,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "{ docNo, uuid, title, duty, category (one of: definition | op-duty | core-duty | assignment | active-data | " +
       "process-step), agent?, agents?[], govops?, executor?, role? ('Operational'|'Core'), sources?[] }. sources " +
       "appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_rewards",
@@ -470,8 +486,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "invocations[] } and each Instance/Invocation = { id, docNo, name, status, rewardCode?/partnerName?, " +
       "rewardAddress?, rewardChain?, cadence?, tracking?, paymentsControllerDocNo?, paymentsResponsibleParty?, " +
       "params? }. params (the raw source tuples) appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a) }),
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_active_data",
@@ -484,8 +500,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "resolution: 'direct'|'chain'|'role', declared, evidence[]}|null, declaredRP, facilitator{name, role, " +
       "evidence[]}|null, process ('Direct Edit'|'Alignment Conserver Changes'), sourceDocNo }. The evidence[] chains " +
       "are populated only with include_provenance:true (empty otherwise); resolved names/roles always stay.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a) }),
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
 ];
 

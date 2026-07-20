@@ -6,7 +6,7 @@ import { atlasHref, actorHref } from "../../lib/routes";
 import { AddressLink, StatusPill } from "./RewardsCells";
 import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
-import { icdSearchFields } from "./rewardsSearch";
+import { icdSearchFields } from "../../lib/rewardsSearch";
 
 function InstanceRow({
   inst,

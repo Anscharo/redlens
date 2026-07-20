@@ -13,6 +13,7 @@ export interface PageContext {
   actorSlug?: string;
   reportName?: string;
   reportTool?: string; // atlas_report_* tool backing this report page, if any
+  reportFilter?: string; // the report page's active text filter (search box), if any
 }
 
 export interface PageContextView extends PageContext {
@@ -98,10 +99,14 @@ export function usePageContext(): PageContextView {
   const reportName = REPORT_NAMES[location];
   if (reportName) {
     const reportTool = REPORT_CHAT_TOOLS[location];
+    // The report's header search box is the shared global query param `q`; pass
+    // it so the chat can scope its report-tool call to what the user is viewing.
+    const reportFilter = (reportTool && searchParams.get("q")?.trim()) || undefined;
     return {
       path: location,
       reportName,
       reportTool,
+      reportFilter,
       short: reportTool ? `Ask about the ${reportName} report` : "Ask the Sky Atlas",
       placeholder: reportTool ? `Ask about the ${reportName} report…` : "Ask about the Sky Atlas…",
       label: reportName,

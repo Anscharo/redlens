@@ -15,6 +15,7 @@ export interface PageContext {
   actorSlug?: string; // radar actor
   reportName?: string;
   reportTool?: string; // client hint: the atlas_report_* tool backing this report page
+  reportFilter?: string; // the report page's active text filter, if any
 }
 
 // The client sends reportTool as a hint; never trust it verbatim in the prompt.
@@ -53,6 +54,12 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
 
   const page = pageContextLine(ctx);
   const reportTool = validReportTool(ctx);
+  // The report page's active text filter, if any — user-typed search-box text.
+  // Sanitize (single line, length-capped, no backticks) before it enters the
+  // prompt, then hand it to the model as the tool's `filter` argument.
+  const reportFilter = reportTool
+    ? (ctx?.reportFilter ?? "").replace(/[`\r\n]+/g, " ").trim().slice(0, 100)
+    : "";
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -96,7 +103,9 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     page
       ? `\n## Current page\nThe user is viewing: ${page}.${
           reportTool
-            ? ` This report is backed by the \`${reportTool}\` tool — a one-call rollup of exactly this report's data. When the user asks about "this report", this page, or its contents, call \`${reportTool}\` to load it rather than reassembling the data from narrower tools.`
+            ? ` This report is backed by the \`${reportTool}\` tool — a one-call rollup of exactly this report's data. When the user asks about "this report", this page, or its contents, call \`${reportTool}\` to load it rather than reassembling the data from narrower tools. That tool takes a \`filter\` argument (same text matching as the page): pass one to scope large reports to the rows in question instead of pulling every row.${
+                reportFilter ? ` The user has filtered this page to "${reportFilter}" — pass \`filter: "${reportFilter}"\` (adjusted to their question) so the answer matches what they see.` : ""
+              }`
             : ""
         } Treat references like "this", "here", or "this primitive" as that ${reportTool ? "report" : "node"} unless they say otherwise.`
       : "",

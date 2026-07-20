@@ -11,10 +11,11 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
   buildActiveDataRows,
   activeDataRowsToCSV,
+  adSearchFields,
   type ActiveDataRow,
   type EvidenceStep,
 } from "../../lib/activeDataIndex";
-import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type SearchField } from "../../lib/reportFilter";
+import { filterRows, hiddenMatches, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
@@ -25,31 +26,8 @@ const entityCodec = urlString(null);
 
 type Row = ActiveDataRow;
 
-// Header-box text filter as labelled fields; `hidden` marks what the table
-// below does NOT render (agent-chain names, declared RP text, source doc),
-// so those matches get explained in the row's floating aside. "sidestream"
-// still finds every row Sidestream touches via its chain.
-const searchFields = (r: Row): SearchField[] => [
-  { label: "title", value: r.activeDataTitle },
-  { label: "doc no", value: r.activeDataDocNo },
-  { label: "controller", value: r.controllerDocNo ?? "" },
-  { label: "controller title", value: r.controllerTitle ?? "", hidden: true },
-  { label: "prime agent", value: r.agent ?? "", despace: true },
-  { label: "process", value: r.process },
-  { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
-  { label: "resp. party", value: r.responsibleParty?.name ?? "", despace: true },
-  // Declared text is visible in the row when it's the RP-cell fallback
-  // (no resolved entity), hidden (tooltip-only) when an entity is shown.
-  { label: "declared rp", value: r.responsibleParty?.declared ?? r.declaredRP ?? "", hidden: !!r.responsibleParty },
-  { label: "facilitator", value: r.facilitator?.name ?? "", despace: true },
-  { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
-  {
-    label: "agent chain",
-    value: [r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName].filter(Boolean).join(", "),
-    hidden: true,
-    despace: true,
-  },
-];
+// adSearchFields (the row search haystack) lives in the lib module so the
+// atlas_report_active_data MCP tool filters rows with the same field logic.
 const SEARCHES =
   "title · doc nos · controller · prime agent · process · responsible party (incl. declared text) · facilitator (incl. role) · agent chain (executor/facilitator/govops)";
 function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] }) {
@@ -166,7 +144,7 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
     [rows, agentFilter, entityFilter],
   );
   const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
-  const shown = useMemo(() => filterRows(filtered, rq, searchFields), [filtered, rq]);
+  const shown = useMemo(() => filterRows(filtered, rq, adSearchFields), [filtered, rq]);
 
   return (
     <div className="px-6 py-6">
@@ -259,7 +237,7 @@ export function ActiveDataReport({ query, mode }: { query: string; mode: ReportM
                   className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors"
                 >
                   <td className="py-2 px-3 align-top relative">
-                    <MatchAside matches={hiddenMatches(searchFields(r), rq)} rq={rq} />
+                    <MatchAside matches={hiddenMatches(adSearchFields(r), rq)} rq={rq} />
                     <AtlasLink
                       to={atlasHref(r.activeDataId)}
                       className="text-sm text-tan hover:underline text-left block"

@@ -24,6 +24,7 @@ import {
 import { parseMeta } from "./meta";
 import { FAC_EDGES, EXEC_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import type { SearchField } from "./reportFilter";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
 // Confirmed non-duty docs whose text otherwise matches the Facilitator
@@ -228,4 +229,26 @@ export function facilitatorRowsToCSV(rows: readonly OFResponsibility[]): string 
       r.role ?? "",
     ]),
   );
+}
+
+// The search haystack for one responsibility row as labelled fields. Shared by
+// the report page (OFCategoryTable renders it + explains hidden-only matches)
+// and the atlas_report_facilitator_responsibilities MCP tool (server-side
+// filtering, so a scoped chat query returns only matching rows). `hidden`/
+// `despace` drive UI match-explanation + de-spaced entity matching; row
+// filtering (reportFilter.rowMatches) reads the values regardless of `hidden`.
+export function ofSearchFields(r: OFResponsibility): SearchField[] {
+  const cat = r.category;
+  const assignment = cat === "assignment";
+  const facVisible = assignment || cat === "op-duty" || cat === "active-data" || cat === "process-step";
+  const primeVisible = cat !== "universal" && cat !== "core-facilitator";
+  return [
+    { label: "doc no", value: mergedDocNos(r, " ") },
+    { label: "title", value: r.title, hidden: assignment },
+    { label: "duty", value: r.duty, hidden: assignment },
+    { label: "role", value: r.role ?? "", hidden: true },
+    { label: "facilitator", value: [r.facilitator, ...(r.facilitators ?? [])].filter(Boolean).join(", "), hidden: !facVisible, despace: true },
+    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
+    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
+  ];
 }
