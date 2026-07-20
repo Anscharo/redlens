@@ -5,6 +5,7 @@
 import { atlasDescribe } from "./tools.ts";
 import { config } from "./config.ts";
 import type { Indexes } from "./indexes.ts";
+import { TOOLS_BY_NAME } from "./tool-registry.ts";
 
 export interface PageContext {
   path?: string; // route, e.g. /atlas/<uuid>
@@ -13,6 +14,16 @@ export interface PageContext {
   nodeDocNo?: string;
   actorSlug?: string; // radar actor
   reportName?: string;
+  reportTool?: string; // client hint: the atlas_report_* tool backing this report page
+}
+
+// The client sends reportTool as a hint; never trust it verbatim in the prompt.
+// Accept it only if it names a real, registered atlas_report_* tool — otherwise
+// a stray/renamed/hostile value can't steer the model at a non-existent tool.
+export function validReportTool(ctx?: PageContext): string | null {
+  const t = ctx?.reportTool;
+  if (!t || !t.startsWith("atlas_report_")) return null;
+  return TOOLS_BY_NAME.has(t) ? t : null;
 }
 
 interface Describe {
@@ -41,6 +52,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     .join("\n");
 
   const page = pageContextLine(ctx);
+  const reportTool = validReportTool(ctx);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -81,7 +93,13 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "- Quote at most 1–2 sentences from any document, always followed by its link. Never paste full document content — link to the reader instead.",
     "- Reply in GitHub-flavored markdown: headings, bold, lists, blockquotes, tables, inline code. Do NOT emit math/KaTeX, images, or HTML widgets.",
     "- Be concise and concrete. Lead with the answer, then support it with cited specifics.",
-    page ? `\n## Current page\nThe user is viewing: ${page}. Treat references like "this", "here", or "this primitive" as that node unless they say otherwise.` : "",
+    page
+      ? `\n## Current page\nThe user is viewing: ${page}.${
+          reportTool
+            ? ` This report is backed by the \`${reportTool}\` tool — a one-call rollup of exactly this report's data. When the user asks about "this report", this page, or its contents, call \`${reportTool}\` to load it rather than reassembling the data from narrower tools.`
+            : ""
+        } Treat references like "this", "here", or "this primitive" as that ${reportTool ? "report" : "node"} unless they say otherwise.`
+      : "",
   ]
     .filter((s) => s !== "")
     .join("\n");
