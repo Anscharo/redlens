@@ -32,6 +32,20 @@ export function buildLookup(glossary: Glossary): GlossaryLookup {
         add(m[1].trim(), entries);
         add(m[2].trim(), entries);
       }
+      // "Sky "-prefixed terms ("Sky Primitives", "Sky Forum", "Sky Staking")
+      // are still the answer to a bare mention of the concept ("what is a
+      // primitive") — register the remainder too, plus a naive singular
+      // ("Primitives" → "Primitive") since the source term is often plural
+      // but the bare mention usually isn't. Requires a space after "Sky" so
+      // single-word proper nouns like "Skylink" are untouched. add()'s
+      // first-writer-wins guard means a genuinely distinct existing term
+      // (there is none today) would keep precedence over this alias.
+      const sky = e.term.match(/^Sky\s+(.+)$/i);
+      if (sky) {
+        const rest = sky[1].trim();
+        add(rest, entries);
+        if (rest.toLowerCase().endsWith("s") && !rest.toLowerCase().endsWith("ss")) add(rest.slice(0, -1), entries);
+      }
     }
   }
   return lookup;
