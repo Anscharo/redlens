@@ -10,7 +10,14 @@ import { atlasQuery, type QueryArgs } from "./query.ts";
 import { atlasQueryShape } from "./query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
-import { atlasReport, type AtlasReportArgs } from "./reports/index.ts";
+import {
+  buildMultisigsReport,
+  buildPrimitiveMatrixReport,
+  buildFacilitatorResponsibilitiesReport,
+  buildGovOpsResponsibilitiesReport,
+  buildRewardsReport,
+  buildActiveDataReport,
+} from "./reports/index.ts";
 import { atlasFirstSeen } from "./first-seen.ts";
 
 export interface AtlasTool {
@@ -19,6 +26,16 @@ export interface AtlasTool {
   shape: z.ZodRawShape;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
 }
+
+// Shared across every atlas_report_* tool: whether to include source doc_nos /
+// evidence chains / raw param tuples. Default true; false yields a leaner rollup
+// with resolved display fields only.
+const INCLUDE_PROVENANCE = z
+  .boolean()
+  .optional()
+  .default(true)
+  .describe("Include provenance (source doc_nos / evidence chains / raw params) for each field (default true; set false for a leaner rollup).");
+const provenanceFlag = (a: Record<string, unknown>): boolean => (a.include_provenance as boolean | undefined) ?? true;
 
 export const ATLAS_TOOLS: AtlasTool[] = [
   {
@@ -311,61 +328,87 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
+  // ── Curated reports (atlas_report_*) ──────────────────────────────────────
+  // Model-ready rollups too expensive to assemble from primitive graph calls.
+  // Each is its own tool so it advertises only its own return shape; every one
+  // takes include_provenance and returns a JSON envelope (row-list reports share
+  // { report, total, returned, truncated, note? } plus one named payload array).
   {
-    name: "atlas_report",
+    name: "atlas_report_multisigs",
     description:
-      "Curated, model-ready reports too expensive to assemble from primitive graph calls. " +
-      "kind='multisigs' returns every multisig in one call: chain, address, threshold, signer " +
-      "organizations with per-org signer counts, signer-modification authorities, purpose, and " +
-      "provenance doc_nos — the complete evidence for a multisig security review. " +
-      "kind='primitive_matrix' returns the agent × primitive-subtype ACTIVATION matrix: for each " +
-      "primitive, which Prime Agents have it engaged (globalActivation Active or Completed) vs " +
-      "Inactive. Classifies each as universal (engaged for every agent), optional (some), or " +
-      "dormant (none engaged). Note: `missing_agents` lists agents where the primitive is Inactive " +
-      "— i.e. present but not engaged — NOT agents that lack the primitive. " +
-      "kind='facilitator_responsibilities' returns every Operational/Core Facilitator " +
-      "responsibility in one call, grouped by category: universal duties (bind all Facilitators), " +
-      "Core/Operational Facilitator duties, per-Executor-Agent assignments, Active Data " +
-      "maintenance where a Facilitator is the Responsible Party, and process-step " +
-      "responsibilities — each with the duty text, the attributed Facilitator/Executor/agent, " +
-      "and (with provenance) the source doc_nos. Use it to answer 'what is a Facilitator " +
-      "responsible for' without reconstructing it from duty_for / *_facilitator_for edges. " +
-      "kind='govops_responsibilities' is the GovOps counterpart: every Operational/Core GovOps " +
-      "responsibility in one call, grouped by category — role definitions, Operational/Core GovOps " +
-      "duties, per-Executor-Agent assignments, Active Data maintenance where GovOps is the " +
-      "Responsible Party, and process-step responsibilities — with the same duty text, attribution, " +
-      "and provenance. Use it to answer 'what is GovOps responsible for'. " +
-      "kind='rewards' returns the integrator reward rollup: for each Prime Agent, its operational " +
-      "chain (executor, govops), and its Distribution Reward + Integration Boost primitives — each " +
-      "with global activation and every Instance/Invocation (status, reward code / partner name, " +
-      "reward address + chain, cadence, tracking, payments controller + responsible party, and " +
-      "with provenance the raw source params). Use for reward-program / integrator questions. " +
-      "kind='active_data' returns one row per Active Data document: its controller, the resolved " +
-      "Responsible Party (with resolution kind — direct/chain/role — and, with provenance, the " +
-      "evidence doc_no chain), the prime→executor→facilitator/govops chain, the approving " +
-      "Facilitator, and the update process (Direct Edit vs Alignment Conserver). Use for " +
-      "'who maintains / is responsible for this Active Data' and data-governance questions. " +
-      "(More kinds — actors, transfers — are being added.)",
-    shape: {
-      kind: z
-        .enum([
-          "multisigs",
-          "primitive_matrix",
-          "facilitator_responsibilities",
-          "govops_responsibilities",
-          "rewards",
-          "active_data",
-        ])
-        .describe(
-          "Which curated report to return: 'multisigs', 'primitive_matrix', 'facilitator_responsibilities', 'govops_responsibilities', 'rewards', or 'active_data'.",
-        ),
-      include_provenance: z
-        .boolean()
-        .optional()
-        .default(true)
-        .describe("Include source doc_nos for each field (default true; set false for a leaner rollup)."),
-    },
-    handler: (ix, a) => atlasReport(ix, a as unknown as AtlasReportArgs),
+      "CURATED REPORT (not raw graph data). Every multisig in one call — the complete evidence for a " +
+      "multisig security review. Returns { report, total, returned, truncated, note?, multisigs[] }; each row = " +
+      "{ id, name, slug, chain, address, threshold ('2/5'), signer_orgs[]{name, entity_type, signer_count, via_role}, " +
+      "signer_org_count, total_signers (null when any org's count is unstated), can_modify_signers[]{name, entity_type}, " +
+      "purpose{doc_no, title}|null, provenance?{defining_doc_no, threshold_doc_no, purpose_doc_no, signer_docs[], " +
+      "modification_docs[]} }. The provenance block is present only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildMultisigsReport(ix, { include_provenance: provenanceFlag(a) }),
+  },
+  {
+    name: "atlas_report_primitive_matrix",
+    description:
+      "CURATED REPORT (not raw graph data). The agent × primitive-subtype ACTIVATION matrix: engaged = Active|Completed " +
+      "globalActivation, Inactive = the slot exists but was never engaged. Each subtype is classed universal (engaged " +
+      "for every agent), optional (some), or dormant (none). Returns { report, activation_note, agents[] (names), " +
+      "agent_count, subtype_count, universal_count, optional_count, dormant_count, truncated, note?, subtypes[], " +
+      "unknown_statuses?[], unknown_status_warning? }; each subtype = { subtype, classification: " +
+      "'universal'|'optional'|'dormant', engaged_count, active_count, inactive_count, completed_count, engaged_agents[], " +
+      "missing_agents[] (Inactive or absent — NOT 'lacks the primitive'), agent_status{agentName: " +
+      "'Active'|'Completed'|'Inactive'}, category_doc_no? }.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildPrimitiveMatrixReport(ix, { include_provenance: provenanceFlag(a) }),
+  },
+  {
+    name: "atlas_report_facilitator_responsibilities",
+    description:
+      "CURATED REPORT (not raw graph data). Every Operational/Core Facilitator responsibility in one call — answers " +
+      "'what is a Facilitator responsible for' without reconstructing it from duty_for / *_facilitator_for / " +
+      "responsible_party_for edges. Returns { report, total, returned, truncated, note?, categories{label: count}, " +
+      "responsibilities[] }; each row = { docNo, uuid, title, duty, category (one of: universal | core-facilitator | " +
+      "op-duty | assignment | active-data | process-step), agent?, agents?[], facilitator?, facilitators?[], executor?, " +
+      "role? ('Operational'|'Core'), sources?[] }. sources appears only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+  },
+  {
+    name: "atlas_report_govops_responsibilities",
+    description:
+      "CURATED REPORT (not raw graph data). The GovOps counterpart of atlas_report_facilitator_responsibilities: every " +
+      "Operational/Core GovOps responsibility in one call — answers 'what is GovOps responsible for'. Returns " +
+      "{ report, total, returned, truncated, note?, categories{label: count}, responsibilities[] }; each row = " +
+      "{ docNo, uuid, title, duty, category (one of: definition | op-duty | core-duty | assignment | active-data | " +
+      "process-step), agent?, agents?[], govops?, executor?, role? ('Operational'|'Core'), sources?[] }. sources " +
+      "appears only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+  },
+  {
+    name: "atlas_report_rewards",
+    description:
+      "CURATED REPORT (not raw graph data). The integrator reward rollup, per Prime Agent — use for reward-program / " +
+      "integrator questions. Returns { report, total, returned, truncated, note?, agents[], ecosystem{stUsdsDr, " +
+      "srUsdsDr, drPrimitive, ibPrimitive, demandSideBufferAddress} }; each agent = { name, docNoPrefix, " +
+      "agentEntity{id,name,slug}|null, chain{executor, govops}|null, dr, ib } where dr/ib (either may be null) = " +
+      "{ kind: 'DR'|'IB', primitiveId, primitiveDocNo, globalActivation, active[], suspended[], completed[], " +
+      "invocations[] } and each Instance/Invocation = { id, docNo, name, status, rewardCode?/partnerName?, " +
+      "rewardAddress?, rewardChain?, cadence?, tracking?, paymentsControllerDocNo?, paymentsResponsibleParty?, " +
+      "params? }. params (the raw source tuples) appears only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a) }),
+  },
+  {
+    name: "atlas_report_active_data",
+    description:
+      "CURATED REPORT (not raw graph data). One row per Active Data document — use for 'who maintains / is responsible " +
+      "for this Active Data' and data-governance questions. Returns { report, total, returned, truncated, note?, " +
+      "active_data[] }; each row = { activeDataId, activeDataDocNo, activeDataTitle, controllerId, controllerDocNo, " +
+      "controllerTitle, agent, chain{executorName, facilitatorName, govopsName, …}|null, responsibleParty{name, id, " +
+      "resolution: 'direct'|'chain'|'role', declared, evidence[]}|null, declaredRP, facilitator{name, role, " +
+      "evidence[]}|null, process ('Direct Edit'|'Alignment Conserver Changes'), sourceDocNo }. The evidence[] chains " +
+      "are populated only with include_provenance:true (empty otherwise); resolved names/roles always stay.",
+    shape: { include_provenance: INCLUDE_PROVENANCE },
+    handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a) }),
   },
 ];
 
