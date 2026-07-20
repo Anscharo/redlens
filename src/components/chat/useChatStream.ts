@@ -193,9 +193,12 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       ]);
       setStreaming(true);
 
-      // Track tool rounds: count a "round" each time a new contiguous run of
-      // tool calls begins after some answer streaming.
-      let lastWasToolCall = false;
+      // Track tool rounds: count a "round" for each contiguous batch of
+      // tool calls. A later tool round may begin after only tool results +
+      // status events (no answer token), so close the batch when every
+      // pending tool_call has received its tool_result.
+      let inToolRound = false;
+      let pendingToolResults = 0;
 
       try {
         const res = await fetch(apiUrl("chat"), {
@@ -252,10 +255,15 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               continue;
             }
             if (ev.type === "tool_call") {
-              if (!lastWasToolCall) patchLast((m) => ({ ...m, rounds: m.rounds + 1 }));
-              lastWasToolCall = true;
-            } else if (ev.type === "token") {
-              lastWasToolCall = false;
+              if (!inToolRound) patchLast((m) => ({ ...m, rounds: m.rounds + 1 }));
+              inToolRound = true;
+              pendingToolResults += 1;
+            } else if (ev.type === "tool_result") {
+              pendingToolResults = Math.max(0, pendingToolResults - 1);
+              if (pendingToolResults === 0) inToolRound = false;
+            } else if (ev.type === "token" || ev.type === "done" || ev.type === "clear") {
+              inToolRound = false;
+              pendingToolResults = 0;
             }
             dispatch(ev);
           }
