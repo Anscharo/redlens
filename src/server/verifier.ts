@@ -6,7 +6,7 @@
 // degrades to "unverified" — verification flakiness must never break chat.
 import { z } from "zod";
 import type OpenAI from "openai";
-import type { JsonCall } from "./llm.ts";
+import { callWithTimeout, type JsonCall } from "./llm.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "./config.ts";
@@ -199,17 +199,15 @@ export async function runVerifier(params: {
   const timeoutMs = params.timeoutMs ?? config.chatVerifierTimeoutMs;
   try {
     // Hard deadline: a hung/slow verifier call must never stall the terminal
-    // done event — the answer already streamed. Timeout → caught below →
-    // "unverified" badge, same as any other verification flakiness.
-    const res = await Promise.race([
-      params.call({
-        model: params.model,
-        messages: buildVerifierPrompt(params),
-        maxTokens: 2000,
-        signal: params.signal,
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("verifier timeout")), timeoutMs)),
-    ]);
+    // done event — the answer already streamed. callWithTimeout CANCELS the
+    // provider request on timeout (so it stops burning tokens), then rejects →
+    // caught below → "unverified" badge, same as any verification flakiness.
+    const res = await callWithTimeout(
+      params.call,
+      { model: params.model, messages: buildVerifierPrompt(params), maxTokens: 2000 },
+      timeoutMs,
+      params.signal,
+    );
     const verdict = parseVerdict(res.text);
     // The call succeeded but the judge's JSON didn't parse — the turn silently
     // degrades to "unverified" with no other record this happened.

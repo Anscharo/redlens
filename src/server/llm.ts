@@ -93,6 +93,36 @@ export type JsonCall = (params: {
   signal?: AbortSignal;
 }) => Promise<{ text: string; usage: { input: number; output: number }; generationId: string | null; latencyMs: number }>;
 
+// Run a JsonCall under a hard deadline that ACTUALLY cancels the provider
+// request on timeout — not just a Promise.race that leaves the call running.
+// The harness's verifier/advisor stream the answer first, so a hung judge must
+// both stop blocking the terminal event AND stop burning tokens after the turn.
+// We abort a controller wired into the call's signal (combined with the caller's
+// signal, so a client disconnect still cancels). On timeout the call rejects
+// (AbortError), which each caller already degrades to unverified / annotate-only.
+export function callWithTimeout(
+  call: JsonCall,
+  args: { model: string; messages: Msg[]; maxTokens?: number },
+  timeoutMs: number,
+  signal?: AbortSignal,
+): ReturnType<JsonCall> {
+  const ac = new AbortController();
+  const combined = signal ? AbortSignal.any([signal, ac.signal]) : ac.signal;
+  let timer: ReturnType<typeof setTimeout>;
+  // On timeout we do BOTH: abort the provider request (so it stops burning
+  // tokens) AND reject now, so we don't hang waiting for the request to honor
+  // the abort — the caller degrades to unverified / annotate-only immediately.
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ac.abort(new Error("llm call timeout"));
+      reject(new Error("llm call timeout"));
+    }, timeoutMs);
+  });
+  return Promise.race([call({ ...args, signal: combined }), timeout]).finally(() =>
+    clearTimeout(timer),
+  ) as ReturnType<JsonCall>;
+}
+
 // Build a JsonCall bound to one turn's observability context. Used for the
 // harness's verifier/advisor roles so their generations land in the SAME trace as
 // the answer stream (chat.ts passes the shared per-turn obs). When PostHog is off
