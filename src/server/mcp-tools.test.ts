@@ -81,6 +81,13 @@ test("tool registry is well-formed: 24 unique tools, valid shapes + handlers", (
     expect(typeof t.description).toBe("string");
     expect(t.description.length).toBeGreaterThan(20);
     expect(typeof t.handler).toBe("function");
+    expect(t.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    });
+    expect(typeof t.annotations?.title).toBe("string");
     // shape must be a valid ZodRawShape (z.object accepts it without throwing).
     expect(() => z.object(t.shape)).not.toThrow();
   }
