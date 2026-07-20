@@ -7,10 +7,10 @@
 // out to one edge per holder — those collapse back to one row here, with the
 // holders accumulated for the filter pills.
 
-import type { AtlasBundle } from "./docs";
-import type { GraphData } from "./graph";
+import type { AtlasBundle } from "./docsTypes";
+import type { GraphData } from "./graphData";
 import type { GraphEntity } from "../types";
-import { stripMarkdownLinks } from "./atlasHelpers";
+import { stripMarkdownLinks } from "./stripMarkdownLinks";
 import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import {
@@ -71,7 +71,7 @@ const ANY_FAC_RE = /facilitator/i;
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_FAC_RE);
 
 export function deriveFacilitatorResponsibilities(
-  { docs }: AtlasBundle,
+  { docs }: Pick<AtlasBundle, "docs">,
   { edges, participants }: GraphData,
 ): OFResponsibility[] {
   const results: OFResponsibility[] = [];

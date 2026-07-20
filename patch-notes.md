@@ -33,10 +33,12 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-17
+## 2026-07-21
 - Added document selection and saved collections: check documents in the reader, filter the tree to just your selection, save it as a named collection when signed in, and share a collection by link
 - Added a cousin documents section to the annotations panel, linking each Prime Agent document to its equivalent under the other Prime Agents
 - Added an agent pill beside the document in the reader, showing which Prime or Executor Agent it belongs to
+## 2026-07-20
+- MCP now serves reports directly covering Facilitator and GovOps responsibilities, integrator rewards, and Active Data
 
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers

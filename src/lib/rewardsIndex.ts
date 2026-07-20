@@ -2,7 +2,7 @@ import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
 import { agentsFromGraph, type AgentRef } from "./activeDataIndex";
 import { parseMeta } from "./meta";
 import { toCSV } from "./csv";
-import type { GraphData } from "./graph";
+import type { GraphData } from "./graphData";
 import type {
   AgentPrimitive,
   EntityRef,

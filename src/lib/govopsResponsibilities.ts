@@ -8,10 +8,10 @@
 // (assignments), duty_for (duties), responsible_party_for (active data), and
 // process_step_responsible_party_for (process steps).
 
-import type { AtlasBundle } from "./docs";
-import type { GraphData } from "./graph";
+import type { AtlasBundle } from "./docsTypes";
+import type { GraphData } from "./graphData";
 import type { GraphEntity } from "../types";
-import { stripMarkdownLinks } from "./atlasHelpers";
+import { stripMarkdownLinks } from "./stripMarkdownLinks";
 import { toCSV } from "./csv";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import {
@@ -75,7 +75,7 @@ const ANY_GOVOPS_RE = /gov\s*ops/i;
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 
 export function deriveGovOpsResponsibilities(
-  { docs }: AtlasBundle,
+  { docs }: Pick<AtlasBundle, "docs">,
   { edges, participants }: GraphData,
 ): OGResponsibility[] {
   const results: OGResponsibility[] = [];
