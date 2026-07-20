@@ -17,6 +17,7 @@ import { buildPrefetch, prefetchRound } from "./prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
 import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
+import { fetchCommons } from "./credits.ts";
 import { captureError } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
@@ -98,6 +99,22 @@ export async function handleChat(req: Request): Promise<Response> {
         window: usage,
       }),
       { status: 429, headers: { "content-type": "application/json", "retry-after": String(retryAfter) } },
+    );
+  }
+
+  // Shared "commons" gate: the account-wide OpenRouter credit balance is one
+  // pool for ALL users. When it's dry, chat is paused for everyone until it's
+  // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
+  // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
+  const commons = await fetchCommons();
+  if (commons && commons.remaining <= 0) {
+    return json(
+      {
+        error: "commons_exhausted",
+        message: "The shared usage pool is out of credits. Chat is paused for everyone until it's topped up.",
+        global: commons,
+      },
+      429,
     );
   }
 

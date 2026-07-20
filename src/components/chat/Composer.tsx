@@ -1,7 +1,8 @@
 import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import { PinIcon, SendIcon } from "./glyphs";
 import { UsageNote } from "./UsageNote";
-import type { UsageWindow } from "./api";
+import { CommonsNote } from "./CommonsNote";
+import type { UsageWindow, CommonsPool } from "./api";
 
 interface ComposerProps {
   draft: string;
@@ -13,11 +14,12 @@ interface ComposerProps {
   placeholder: string;
   chip: string;
   usage: UsageWindow | null;
+  commons: CommonsPool | null;
 }
 
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
 // newlines. While streaming the send button becomes a stop button.
-export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disabled, placeholder, chip, usage }: ComposerProps) {
+export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disabled, placeholder, chip, usage, commons }: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
 
   const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -78,6 +80,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
           )}
         </div>
       </div>
+      <CommonsNote commons={commons} />
       <UsageNote usage={usage} />
     </div>
   );

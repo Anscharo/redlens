@@ -38,6 +38,12 @@ export const config = {
   // constant (EMBED_DIM in embed.ts), NOT env — it's locked to the DB migration.
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
   openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+  // Management ("provisioning") key for the account-wide credits endpoint
+  // (GET /api/v1/credits) that powers the shared "commons" pool meter — one
+  // dollar balance shown to all signed-in users. Distinct from openrouterApiKey
+  // (model calls); the credits endpoint rejects the model key. Unset = the
+  // commons meter is simply absent and the shared-pool gate never fires.
+  openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
 
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns

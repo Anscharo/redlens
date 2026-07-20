@@ -34,7 +34,7 @@ export function ChatPanel({
   const { user, openAuth } = useAuth();
   const authed = !!user;
   const { prefs } = usePrefs();
-  const { usage, refresh } = useUsage(authed);
+  const { usage, commons, refresh } = useUsage(authed);
   const [rateLimited, setRateLimited] = useState(false);
   const { messages, streaming, send, stop } = useChatStream({
     onDone: () => void refresh(),
@@ -191,6 +191,7 @@ export function ChatPanel({
           placeholder={context.placeholder}
           chip={context.chip}
           usage={usage}
+          commons={commons}
         />
       )}
     </section>

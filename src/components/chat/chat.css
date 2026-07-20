@@ -379,6 +379,16 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-usage-text { font: 400 11px/1.4 "Source Code Pro", monospace; color: var(--tan-3); }
 .rlc-usage-text[data-hot="true"] { color: var(--accent); }
 
+/* ── Shared commons pool (account-wide dollar balance) ─────────────────────── */
+.rlc-commons { display: flex; flex-direction: column; gap: 4px; padding: 8px 4px 0; }
+.rlc-commons-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rlc-commons-label { font: 400 11px/1.4 "Source Code Pro", monospace; color: var(--tan-3); }
+.rlc-commons-val { font: 400 11px/1.4 "Source Code Pro", monospace; color: var(--tan-2); white-space: nowrap; }
+.rlc-commons-val[data-low="true"] { color: var(--red); }
+.rlc-commons-bar { height: 4px; border-radius: 2px; background: var(--hover); overflow: hidden; }
+.rlc-commons-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.3s ease-out; }
+.rlc-commons-fill[data-low="true"] { background: var(--red); }
+
 /* ── Empty / signed-out states ─────────────────────────────────────────── */
 .rlc-empty-title { font: 600 17px/1.2 var(--serif, "Lora", serif); color: var(--tan); }
 .rlc-empty-body { font: 400 14.5px/1.55 var(--serif, "Lora", serif); color: var(--tan-3); margin: 0 0 14px; }

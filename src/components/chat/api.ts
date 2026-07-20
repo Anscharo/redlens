@@ -68,3 +68,12 @@ export interface UsageWindow {
   exceeded: boolean;
   windowMinutes: number;
 }
+
+// The shared "commons" dollar pool — one account-wide balance shown to every
+// signed-in user (src/server/credits.ts). Omitted from /api/usage when the
+// feature is off or the credits API is unreachable.
+export interface CommonsPool {
+  used: number; // dollars spent account-wide
+  total: number; // dollars purchased (pool size)
+  remaining: number; // total - used, floored at 0
+}

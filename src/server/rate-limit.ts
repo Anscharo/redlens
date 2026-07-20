@@ -12,6 +12,7 @@
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
 import { getSessionUser } from "./session.ts";
+import { fetchCommons } from "./credits.ts";
 
 export interface WindowUsage {
   tokens: number; // input+output tokens spent in the current bucket
@@ -57,13 +58,16 @@ export async function getWindowUsage(userId: string, nowMs: number = Date.now())
   return { tokens, limit, exceeded: tokens >= limit, resetsAt: new Date(resetsAtMs).toISOString(), windowMinutes };
 }
 
-// GET /api/usage — the per-user window for the chat widget's usage meter. Global
-// pool (OpenRouter credits) is a separate concern, added later.
+// GET /api/usage — the chat widget's usage meter. Two blocks: `window` (the
+// caller's private per-user token window) and `global` (the shared "commons"
+// dollar pool, same number for everyone). Both are signed-in-only (this route
+// already 401s without a session). `global` is omitted when the commons feature
+// is off or the credits API is unreachable — the meter just hides its row.
 export async function handleUsage(req: Request): Promise<Response> {
   const session = await getSessionUser(req);
   if (!session) return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers: { "content-type": "application/json" } });
-  const window = await getWindowUsage(session.user.id);
+  const [window, global] = await Promise.all([getWindowUsage(session.user.id), fetchCommons()]);
   const headers = new Headers({ "content-type": "application/json" });
   if (session.refresh) headers.append("set-cookie", session.refresh);
-  return new Response(JSON.stringify({ window }), { status: 200, headers });
+  return new Response(JSON.stringify({ window, ...(global ? { global } : {}) }), { status: 200, headers });
 }
