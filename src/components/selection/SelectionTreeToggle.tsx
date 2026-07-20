@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useDataSource } from "../../lib/dataSource";
+import { useAuth } from "../chat/auth";
+import { takeResumeSave } from "../../lib/authReturn";
 import { useSelection } from "../../lib/selection";
 import { track } from "../../lib/analytics";
 import { ROUTES } from "../../lib/routes";
@@ -27,6 +29,17 @@ export function SelectionTreeToggle() {
     clear,
   } = useSelection();
   const [showSave, setShowSave] = useState(false);
+  const { user } = useAuth();
+
+  // Reopen the save modal after an OAuth round-trip that began here: openAuth
+  // restored the URL (back to /atlas), and this flag — set only when sign-in was
+  // launched from the modal — flips it back open once we're actually logged in.
+  // `user &&` short-circuits so the one-shot flag isn't consumed while auth is
+  // still resolving (user null on first render, then populates).
+  useEffect(() => {
+    if (user && takeResumeSave()) setShowSave(true);
+  }, [user]);
+
   if (preview) return null;
   const count = ids.size;
   const inReader = location === ROUTES.ATLAS;

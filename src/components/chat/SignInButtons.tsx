@@ -9,6 +9,7 @@ export function SignInButtons({
   variant = "menu",
   source = "chat",
   sansSerif = false,
+  onBeforeSignIn,
 }: {
   variant?: "menu" | "composer";
   source?: string;
@@ -16,11 +17,15 @@ export function SignInButtons({
   // menu's serif. On in the save-collection modal (an app-styled surface); off
   // in the profile dropdown, which stays serif like the rest of that menu.
   sansSerif?: boolean;
+  // Runs just before the full-page OAuth redirect — a hook for a caller to stash
+  // any per-tab state it wants restored on return (e.g. reopen the save modal).
+  onBeforeSignIn?: () => void;
 }) {
   const { openAuth } = useAuth();
 
   const click = (provider: AuthProvider) => {
     track("chat_signin_click", { product: source, provider });
+    onBeforeSignIn?.();
     openAuth(provider);
   };
 

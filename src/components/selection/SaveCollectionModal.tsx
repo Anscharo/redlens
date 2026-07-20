@@ -5,6 +5,7 @@ import { SignInButtons } from "../chat/SignInButtons";
 import { useSelection } from "../../lib/selection";
 import { createCollection, updateCollectionItems, MAX_COLLECTION_NAME_LEN } from "../../lib/collectionsApi";
 import { MAX_COLLECTION_DOCS } from "../../lib/collectionsLimits";
+import { stashResumeSave } from "../../lib/authReturn";
 import { track } from "../../lib/analytics";
 
 interface SaveCollectionModalProps {
@@ -106,7 +107,7 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
             <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
               Sign in to save this selection as a collection
             </h2>
-            <SignInButtons variant="menu" source="collections" sansSerif />
+            <SignInButtons variant="menu" source="collections" sansSerif onBeforeSignIn={stashResumeSave} />
           </>
         ) : !naming ? (
           <>

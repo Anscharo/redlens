@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiUrl, type AuthUser } from "./api";
 import { usersEnabled } from "../../lib/usersEnabled";
+import { stashAuthReturn } from "../../lib/authReturn";
 
 export type AuthProvider = "github" | "google";
 
@@ -41,6 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openAuth = (provider: AuthProvider = "github") => {
+    // Remember where we are so the post-OAuth landing (always the app root) can
+    // send us back here instead of dumping us on the home page.
+    stashAuthReturn(window.location.pathname + window.location.search);
     window.location.href = apiUrl(`auth/${provider}`);
   };
 

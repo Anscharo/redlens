@@ -10,6 +10,7 @@ import { SelectionProvider } from "./lib/selection";
 import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
 import { PreviewHome } from "./components/preview/PreviewHome";
+import { restoreAuthReturn } from "./lib/authReturn";
 
 const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -25,6 +26,10 @@ function Root() {
   if (m) {
     return <PreviewGate id={decodeURIComponent(m[1])} routerBase={`${baseNoSlash}/preview/${m[1]}`} />;
   }
+  // Live app only (preview surfaces returned above): if we just came back from an
+  // OAuth round-trip, rewrite the URL to where sign-in started before the Router
+  // reads it — no flash of the app root. Consume-once, so re-renders don't repeat.
+  restoreAuthReturn();
   return (
     <Router base={baseNoSlash}>
       <DataSourceContext.Provider value={DEFAULT_SOURCE}>
