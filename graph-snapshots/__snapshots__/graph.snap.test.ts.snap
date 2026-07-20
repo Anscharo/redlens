@@ -10773,7 +10773,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 2,
-  "proxies_to": 67,
+  "proxies_to": 64,
   "ranked_delegate_for": 3,
   "responsible_party_for": 63,
   "signer_of": 61,
