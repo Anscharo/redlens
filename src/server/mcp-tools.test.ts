@@ -70,12 +70,12 @@ function makeAtlas() {
 
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
-// ── Registry integrity (all 19 tools) ───────────────────────────────────────
-test("tool registry is well-formed: 19 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(19);
+// ── Registry integrity (all 24 tools) ───────────────────────────────────────
+test("tool registry is well-formed: 24 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(24);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(19);
+  expect(TOOLS_BY_NAME.size).toBe(24);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");
