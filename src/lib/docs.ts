@@ -1,14 +1,11 @@
 import type { AtlasNode } from "../types";
 import { liveAtlasBase, handledStaleMessage } from "./atlasBase";
+import type { AtlasBundle } from "./docsTypes";
 
-export interface AtlasBundle {
-  docs: Record<string, AtlasNode>;
-  /** parentId → children sorted by `order`. Root nodes are keyed by `null`. */
-  byParent: Map<string | null, AtlasNode[]>;
-  /** doc_no → node id (for doc_no-based lookups) */
-  docNoToId: Map<string, string>;
-  atlasCommit: string | null;
-}
+// AtlasBundle moved to the DOM-free ./docsTypes so server-side report builders
+// can import it without this worker/atlasBase layer. Re-exported here so existing
+// `import type { AtlasBundle } from "./docs"` callers keep working.
+export type { AtlasBundle } from "./docsTypes";
 
 // One atlas worker per data-source base, backing TWO promises from a single
 // fetch of both browser docs artifacts: `shallow` resolves early (depth ≤ 5,

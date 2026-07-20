@@ -1,4 +1,11 @@
 {
+  "0xca5183fb9997046fbd9ba8113139bf5a5af122a0": {
+    "chain": "ethereum",
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a"
+  },
   "0x167c1a762b08d7e78dbf8f24e5c3f1ab415021d3": {
     "chain": "ethereum",
     "isContract": false,
@@ -132,30 +139,6 @@
     "etherscanName": "VoteDelegate",
     "isContract": true,
     "isProxy": false
-  },
-  "0x38d1114b4ce3e079cc0f627df6ac2776b5887776": {
-    "chain": "ethereum",
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": false
-  },
-  "5hARLsT1VA2AmuGL2AXUeSyyFG6o2Fcpb9S6aKXNsbeK": {
-    "chain": "solana",
-    "isContract": false,
-    "isProxy": false
-  },
-  "0x4deb1b5372dd3271691a9e80bcbfd98f5aa27f30": {
-    "chain": "avalanche",
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": false
-  },
-  "0xb3d26ef66f53c9546d1365f417a85b0aa69049ee": {
-    "chain": "ethereum",
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a"
   },
   "0x44effc473e81632b12486866aa1678edbb7beec3": {
     "chain": "ethereum",
@@ -468,13 +451,6 @@
     "isContract": false,
     "isProxy": false
   },
-  "0xca5183fb9997046fbd9ba8113139bf5a5af122a0": {
-    "chain": "ethereum",
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a"
-  },
   "0x483413cccd796deddee88e4d3e202425d5e891c6": {
     "chain": "ethereum",
     "etherscanName": "SafeProxy",
@@ -517,6 +493,30 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0xd9db270c1b5e3bd161e8c8503c55ceabee709552"
+  },
+  "0x38d1114b4ce3e079cc0f627df6ac2776b5887776": {
+    "chain": "ethereum",
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": false
+  },
+  "5hARLsT1VA2AmuGL2AXUeSyyFG6o2Fcpb9S6aKXNsbeK": {
+    "chain": "solana",
+    "isContract": false,
+    "isProxy": false
+  },
+  "0x4deb1b5372dd3271691a9e80bcbfd98f5aa27f30": {
+    "chain": "avalanche",
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": false
+  },
+  "0xb3d26ef66f53c9546d1365f417a85b0aa69049ee": {
+    "chain": "ethereum",
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a"
   },
   "0xbb865f94b8a92e57f79fcc89dfd4dcf0d3fdea16": {
     "chain": "ethereum",

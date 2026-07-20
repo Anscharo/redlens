@@ -4,14 +4,12 @@ import type { AtlasBundle } from "./docs";
 import type { Glossary } from "./glossary";
 import { realDepth, depthColor } from "./depth";
 
+// Re-exported from its own DOM-free module so server-side report derivation can
+// import it without pulling this hub's browser-coupled type imports along.
+export { stripMarkdownLinks } from "./stripMarkdownLinks";
+
 const UUID_LINK_RE =
   /\[[^\]]+\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/g;
-
-// Replaces markdown links and images with their visible text. URL slugs often
-// contain prose-like words ("…-due-to-…") that poison text heuristics, so any
-// code matching against atlas prose should strip links with this first.
-export const stripMarkdownLinks = (s: string): string =>
-  s.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
 
 export function extractLinkedIds(node: AtlasNode): string[] {
   const seen = new Set<string>();
