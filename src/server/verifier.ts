@@ -55,6 +55,11 @@ export function computeOverall(checks: CheckReport | null, verdict: Verdict | nu
   const contradicted = verdict.claims.some((c) => c.status === "contradicted");
   if (contradicted || verdict.invented_facts.length > 0 || verdict.ruling_issued) return "fail";
   if (verdict.claims.some((c) => c.status === "unsupported")) return "warn";
+  // An empty claim list means the audit produced nothing to check — typically a
+  // JSON-mode-degraded `{}` verdict, where the schema defaults claims/invented
+  // to []. That is NOT a clean pass: don't bless a substantive answer green when
+  // the verifier didn't actually check it. Degrade to unverified (badge hides).
+  if (verdict.claims.length === 0) return "unverified";
   return "pass";
 }
 

@@ -32,6 +32,8 @@ test("computeOverall: model can add severity, never remove a deterministic failu
   expect(computeOverall(cleanChecks, { ...passVerdict, claims: [{ claim: "y", status: "contradicted", evidence: [], cited_uuid: null, note: null }] })).toBe("fail");
   expect(computeOverall(cleanChecks, { ...passVerdict, invented_facts: ["z"] })).toBe("fail");
   expect(computeOverall(cleanChecks, { ...passVerdict, ruling_issued: true })).toBe("fail");
+  // An empty audit (JSON-degraded `{}` → claims:[]) is unverified, not a green pass.
+  expect(computeOverall(cleanChecks, { ...passVerdict, claims: [] })).toBe("unverified");
 });
 
 test("evidenceFromTranscript labels tool results in order and budgets newest-first", () => {
