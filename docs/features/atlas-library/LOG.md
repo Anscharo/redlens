@@ -144,3 +144,12 @@ Landmark discoveries (verified by census unless noted):
   pointers and doc_nos stay plain (reader ?id= is UUID-only — a doc_no resolver
   would need the atlas bundle; noted as possible follow-up). Patch-notes bullet
   revised (same unreleased feature).
+
+- **(next commit)** "Add DR partner onboarding checklist doc"
+  docs/library/dr-partner-onboarding.md — operational checklist from an ask-atlas
+  deep dive on "what does Operational GovOps collect from Prime + partner to
+  onboard a DR partner". All 28 UUID citations verified against docs.json before
+  publishing (script check, 0 mismatches). Links are full
+  atlas.redline.support/atlas?id=<uuid> URLs with section numbers as link text.
+  First instance of the "chunk digest" doc genre (P2/P3 in the plan) — candidate
+  for a future /library guides section.
