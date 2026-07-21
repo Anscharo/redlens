@@ -121,7 +121,91 @@ feeds C3; exemplars outside processes.json are candidates for its next triage
 ### D. Normative & instrument concepts
 
 <!-- AGENT-NORMATIVE: merge findings here -->
-<!-- AGENT-INSTRUMENTS: merge findings here -->
+
+**D1. Ecosystem Accords** — Def: bilateral/multi-party agreements between Sky Core
+and ecosystem parties, Atlas-recorded and governance-enforceable. Sig: title
+"Ecosystem Accord N: X And Y" under `be46648d` /A.2.8.2; `ecosystem_accord` edges
+(20). Members (all 10): 1 Grove&Spark `9ca40096`, 2 Prime Program (Spark/Moonbow/
+Sky) `aa3b8e65`, 3 Keel `63a88b08`, 4 Obex `6bddc5aa`, 5 Core Council Executor
+Agent 1 `3aa58bdc`, 6 Osero `45125ff8`, 7 Skybase `8a74919c`, 8 Amatsu `9d187ae2`,
+9 Ozone `cb3c159b`, 10 Grove `0cb00b28` (each: Key Details + Substantive Terms).
+Rel: governed by Dispute Resolution (D8); parties are composite_party entities;
+Accord 10 carries the Compensation Formula (E3).
+
+**D2. Executor Accords** — Def: Prime↔Executor operational-insurance agreements —
+a PRIMITIVE, not a document-accord. Sig: primitive/instance subtype
+`executor-accord` (8+8); spec `88017877` /A.2.2.6.1. Rel: mutual-exclusion rule
+with Root Edit (both cannot be deactivated — A.2.2.1.2.4.2.1). Distinction vs D1:
+D1 binds parties bilaterally; D2 codifies an operational relationship inside the
+primitive machine.
+
+**D3. The edit-instrument triad** — three same-sounding but distinct concepts:
+- **Root Edit** (governance primitive): agent self-modification via token-holder
+  vote; spec `78488c6b` /A.2.2.6.2; 8 instances; pipeline Submission → Expert
+  Advisor Review → Facilitator Review → Token Holder Vote → Artifact Update, with
+  Routine/Non-Routine/Emergency protocol variants and edit restrictions.
+- **Artifact Edit Proposal (per-instance record, ×83)**: data-repo stub inside
+  every ICD (B6) — the distributed change-log.
+- **Atlas Edit Proposal (AEP, atlas-level)**: amendments to the core Atlas via the
+  Atlas Edit Weekly/Monthly Cycle `14e99d92` /A.1.11.2 + `d2cbddd2` /A.1.12.2;
+  mandatory template (A.1.12.2.3), Ratification Poll (2 weeks, 240M SKY minimum,
+  binary — A.1.12.2.6); blocked AEPs cannot resubmit unchanged.
+
+**D4. Voting machinery** — Def: the consensus layer. Sig: Weekly Poll (A.1.11.1.2.1)
+→ Executive Vote (A.1.11.1.2.2) → spell execution; Ratification Polls (D3);
+agent-token votes (>1% holding threshold for Root Edit submission);
+governance_channel edges (10). Rel: cycles (C4) schedule it; spells (D5) execute it.
+
+**D5. Spell machinery** — Def: executable governance actions. Sig: A.1.10.2
+executive process subtree; Emergency Spells `b8266c11` /A.1.10.5 (Standby Spells,
+Emergency Drop Spells + Protego authorization); Spell Validators = Aligned
+Delegates (validator_of edges, 27); Registered Spell Checklists registry (13
+cites); StarGuard per-agent execution contracts (22 docs); Prime Spell Security
+Incidents log (Active Data). Rel: emergency tier links C5; misvalidated emergency
+votes are AD breaches (→ normative layer).
+
+**D6. Delegation framework** — Def: voting-power intermediation. Sig: aligned/
+ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned
+Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate
+contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms +
+conflict-of-interest disclosure. Notable rule: a Ranked Delegate who triggers a
+weekly proposal loses rank immediately (Action Tenet A.1.11.2.1.3.0.4.1).
+
+**D7. Safe Harbor Agreement** — Def: the one ON-CHAIN agreement instrument:
+contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` + IPFS-pinned terms; fact
+page A.2.11.1.2.6. Distinction: immutable code vs governance-enforceable prose
+(D1).
+
+**D8. Dispute Resolution** — Def: formal disagreement service for accords &
+terminations. Sig: `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded
+in Active Data "Dispute Resolutions"); conflict-resolution precedence rules
+`e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count: exactly
+1 recorded so far (Grove/Spark facilitator decision, 2025-09-02) — a young system.
+
+**D9. Agent Termination Protocol** — Def: structured agent wind-down. Sig:
+`fe833d0e` /A.1.14.5 (initiate via Root Edit vote → Executor executes → forum
+notice + residual assets → dispute path). Distinct from emergency suspension
+(Sky Core discretionary power, A.1.14.1.5.4).
+
+**D10. Transitional governance family** — three nested layers:
+- **Short-Term Transitionary Measures** (~15+ docs, title-pattern census): interim
+  workarounds pending permanent systems (forum-post AEP submission until
+  Powerhouse; staking rewards pending treasury; Founder Access suspension…).
+- **Scope Bootstrapping** `ba97b4dd` /A.1.15: meta-authority to waive normal
+  process during Endgame transition (precedence rule A.0.1.2.1.2).
+- **Measures For Endgame Transition** `94ed62af` /A.3.7 (incl. the Tau/BEAM
+  parameter hub, 18+14 cites).
+All three are EXPIRY-implying — prime staleness-signal candidates.
+
+**D11. Incubation frameworks** — Def: onboarding pipelines. Sig: Agent Incubation
+`bb0c23c6` /A.2.5, Ecosystem Actor Incubation `b09e86b1` /A.2.6, Integrator
+onboarding A.2.2.4.1.3 + Current/Onboarding Integrator registries (H1), module
+onboarding checklists A.1.10.2.5.1.1.1.3, delegate onboarding (D6). Rel: feeds F1
+actor roles; terminal state = Global Activation (B2).
+
+**D12. Pending transitions** — Def: tracked state-machine progressions. Sig:
+pending_transition edges (9, DB graph); Global Activation sequencing
+A.2.2.1.2.4.1. Rel: lifecycle II.3 glue; overlaps D10 (expiry tracking).
 
 **D0. Locally-established seeds** (agents refine):
 - **Prohibitions** — content signature (prohibit/forbidden/not permitted/may not):
@@ -161,7 +245,9 @@ in DB); addresses.atlas.json annotation layer. Rel: bridges to the entity layer
 (F) and RedLens address artifacts.
 
 **E5. RRC Framework coverage** — Def: per-allocation-instance risk-model coverage
-status ("Covered"/not) on the RRC (Risk & Regulatory Compliance) Dashboard. Sig:
+status ("Covered"/"Pending") on the RRC Dashboard (expansion of "RRC" is not
+defined in-corpus — candidates: Risk & Regulatory Compliance / Relayer Role
+Configuration; flagged as an open question). Sig:
 title "RRC Framework Full Implementation" (×61: Spark 53, Grove 8) + "…Coverage"
 (×53); interim notice `A.2.2.10.1.1.3.2.1.1.2`. Rel: a STATUS overlay on B4
 instances — a validated staleness/coverage signal candidate.
@@ -219,6 +305,18 @@ Active Data suffix on the live variants. Sub-families:
   Types, Top/Mid-Tier Audit Firms.
 Rel: registries are where concepts MATERIALIZE as data — the payment lists are the
 terminal nodes of the Distribution Rewards concept chain.
+
+**H1-liveness census (2026-07-21): 14 of 46 registries are LIVE, 32 are EMPTY
+shells** (no descendants, placeholder content). Empty includes: ALL 17 Distribution
+Reward Payment lists, 8 of 9 Integration Boost Payment lists, Integrator
+Applications, Current/Onboarding Integrators, Active Arrangers, Top-Tier Audit
+Firms (Mid-Tier is populated!). Live: Interpretations, Document Types, Aligned
+Delegates, Spell Checklists, Auxiliary Accounts, Sky Direct Exposures, Allocation
+Instances, Authorized Forum Accounts, Registered Multisigs, Mid-Tier Audit Firms,
+Skybase Core Governance Reward Payments, the two artifact lists.
+**Insight: the Atlas's transactional record-keeping layer is largely unrealized —
+payments are evidently tracked off-Atlas.** This is the strongest staleness/
+emptiness signal found so far, sharper than the empty instance-directory count.
 
 ### I. Cross-link hubs (most-cited docs — the concept anchors)
 
@@ -338,8 +436,10 @@ dirs ×136; Archive Type spec'd but unused).
   HISTORY (existed once) or were they never populated? (atlas_history query.)
 - Payment lists (17+9) per reward instance: extractable into a Payments dataset
   (amounts/dates) for the flows index?
-- "Near-Term Process" (19 cites) — read and classify; likely a transitional-concept
-  hub like Transitionary Measures.
+- ~~"Near-Term Process" (19 cites)~~ RESOLVED: it's the interim Distribution Reward
+  payment rule (Operational GovOps calculates; paid from Demand Side Buffer within
+  7 days of month-end) — a D10-family transitional doc that 19 instance protocols
+  cite. Its "near term" phrasing is undated → stale-date candidate.
 - Map C3's 8 curated categories onto the concept catalog as a validation pass.
 
 <!-- AGENT FINDINGS PENDING: normative layer · programs/economic flows · accords/instruments -->
