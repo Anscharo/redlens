@@ -96,3 +96,11 @@ Branched `atlas-library` off `main` (post risk-report-rendering merge, atlas db8
   library.json: scopes→scopeTree (SCHEMA_V=3 per the immutable-cache rule). Side
   benefit: semantic counts fixed A.1 (948, was 960 — the 12 NR docs no longer
   miscounted under A.1 by the parentId ancestor stack). PlainBar removed.
+
+- **(next commit)** "Self-heal library schema mismatch with one auto-reload"
+  User hit the guard message AGAIN after the scopes→scopeTree change — old-JS tab vs
+  new artifact. Guard was correct but manual. Now: shape mismatch triggers ONE
+  window.location.reload() (sessionStorage latch "library-schema-reloaded" prevents
+  loops; latch cleared on successful load; second failure shows a readable error).
+  Server + fresh-browser verified fine before this — the error only ever appears in
+  tabs spanning a schema change.

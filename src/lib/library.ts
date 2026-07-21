@@ -65,12 +65,21 @@ export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData
     cached = fetchJson<LibraryData>(`${base}library.json?v=${SCHEMA_V}`, "library.json")
       .then((d) => {
         // Version-skew guard: the JS bundle and the atlas artifact update
-        // independently (live updater, long-open tabs across deploys). An
-        // artifact missing fields this UI needs must surface as a readable
-        // load error, not a render crash inside the page.
+        // independently (live updater, long-open tabs across deploys). On a
+        // shape mismatch, self-heal with ONE reload — fresh HTML brings JS and
+        // artifact back in sync. The sessionStorage latch prevents a reload
+        // loop if the mismatch persists (e.g. a server genuinely serving an
+        // old artifact); the second attempt surfaces the readable error.
         if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopeTree) || !Array.isArray(d.toc)) {
-          throw new Error("library.json is from an older build — reload the page to pick up the current version");
+          const LATCH = "library-schema-reloaded";
+          if (typeof window !== "undefined" && !sessionStorage.getItem(LATCH)) {
+            sessionStorage.setItem(LATCH, "1");
+            window.location.reload();
+            return new Promise<LibraryData>(() => {}); // reloading — never resolves
+          }
+          throw new Error("library.json does not match this app version — a redeploy may be in progress; try again shortly");
         }
+        if (typeof window !== "undefined") sessionStorage.removeItem("library-schema-reloaded");
         return d;
       })
       .catch((err) => {
