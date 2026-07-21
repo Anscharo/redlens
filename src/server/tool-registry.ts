@@ -23,16 +23,29 @@ import { atlasFirstSeen } from "./first-seen.ts";
 
 export interface AtlasTool {
   name: string;
+  // What the tool does + its return shape — must stand alone: the /connect
+  // page (a human-facing docs page, tools.json) reads this field bare, with no
+  // `whenToUse` appended. Keep it free of exact restatement of `whenToUse`'s
+  // wording, but it still needs to be a complete, useful description on its own.
   description: string;
   // Short agent-steering line: the QUESTION SHAPE that should make an agent
-  // reach for this tool over the alternatives. `description` says what the tool
-  // does (reference, shared with MCP + /connect); `whenToUse` says when to pick
-  // it (decision-point steer). llm-tools.ts appends it to the tool description
-  // the chat model reads natively; MCP and /connect ignore it.
+  // reach for this tool over the alternatives (decision-point steer — imperative
+  // framing like "call this FIRST" that makes sense mid-tool-selection, not as
+  // human documentation). Appended to `description` via toolDescription() below
+  // for the two agent consumers, chat and MCP; /connect never sees it.
   whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+}
+
+// Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
+// Schema, MCP's tool registration) so they never drift apart. The /connect
+// page's tools.json deliberately does NOT call this — it reads `t.description`
+// bare, since `whenToUse`'s imperative agent-steering phrasing isn't meant for
+// human documentation.
+export function toolDescription(t: AtlasTool): string {
+  return t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description;
 }
 
 // Shared across every atlas_report_* tool: whether to include source doc_nos /
@@ -152,7 +165,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "You need everything reachable from a node along typed edges several hops out — indirect or chained relationships, not just direct neighbors.",
     annotations: readOnlyAtlasTool("Atlas Traverse"),
     description:
-      "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
+      "Traverse the graph from a node, following typed edges up to N hops. Each " +
       "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
       "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it. Results 2+ hops away " +
       "also include `path`: the ordered chain of steps (edge + node) from the start node to that result.",
@@ -170,9 +183,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "You have a NAME (e.g. 'Spark Protocol') and need its entity slug, or want to browse entities by type/subtype. Call this FIRST when you lack a slug the other entity tools need.",
     annotations: readOnlyAtlasTool("Atlas Entities"),
     description:
-      "Find entities by free-text name and/or structural filters — the tool to call FIRST to turn a name like " +
-      "'Spark Protocol' into a slug (atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching " +
-      "(ranked, with a score), and/or filter by `entity_type` / `subtype`. Paginated.",
+      "Find entities by free-text name and/or structural filters — turns a name like 'Spark Protocol' into a slug " +
+      "(atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching (ranked, with a score), and/or " +
+      "filter by `entity_type` / `subtype`. Paginated.",
     shape: {
       q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
       entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
@@ -195,8 +208,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "The question asks for EVERY relationship of a type (all signers, all integration partners) or all edges to/from one resolved entity slug.",
     annotations: readOnlyAtlasTool("Atlas Edges"),
     description:
-      "Enumerate graph edges globally with pagination. Use when a question asks for every relationship of a type " +
-      "(e.g. signer_of, integration_partner_of, active_data_for) or all edges from/to a resolved entity slug. " +
+      "Enumerate graph edges globally with pagination (e.g. signer_of, integration_partner_of, active_data_for). " +
       "Returns resolved endpoint names/types, parsed meta, source doc numbers, and optional provenance docs.",
     shape: {
       edge_type: z.string().optional().describe("Exact edge type filter, e.g. 'signer_of', 'responsible_party_for'."),
@@ -226,11 +238,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "The question is about what an actor actually HAS or does — its instances, responsibilities, or Active Data. Use this instead of searching and reading titles when you need an agent's real holdings, not docs that merely mention it.",
     annotations: readOnlyAtlasTool("Atlas Entity"),
     description:
-      "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
-      "name ('Spark Protocol') — resolved server-side; the response echoes `resolved` + `alternatives`. Returns " +
-      "paginated `nodes` (edge-linked docs + defining-doc subtree), `node_count` + `node_types` (a type histogram " +
-      "over the full set — use it to pick a `type` filter), `responsibilities`, and Active Data it controls. Prime " +
-      "Agents have 2000+ nodes, so page with `limit`/`offset` and narrow with `type`.",
+      "Get Atlas sections related to an entity (agent, role, or actor) — resolves `name` server-side (slug or " +
+      "natural language) and echoes `resolved` + `alternatives`. Returns paginated `nodes` (edge-linked docs + " +
+      "defining-doc subtree), `node_count` + `node_types` (a type histogram — use it to pick a `type` filter), " +
+      "`responsibilities`, and Active Data it controls. Prime Agents have 2000+ nodes — page and narrow by type.",
     shape: {
       name: z.string().describe("Entity slug OR natural-language name (e.g. 'spark', 'Spark Protocol', 'grove foundation')."),
       type: z.string().optional().describe("Restrict `nodes` to one atlas doc type (see `node_types` in the response)."),
@@ -326,7 +337,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas History Stats"),
     description:
       "Summarize Atlas history by month or quarter, with global availability bounds, change-type counts, optional " +
-      "grouping, top changed docs, and top PRs. Use for trend/timeline questions instead of paging raw atlas_history events.",
+      "grouping, top changed docs, and top PRs.",
     shape: {
       since: z.string().optional().describe("ISO date (YYYY-MM-DD). If earlier than available history, the response includes a warning."),
       until: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
@@ -385,11 +396,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas First Seen"),
     description:
       "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
-      "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
-      "every date is derived from atlas_history, never an explicit in-content date. `first_seen_source` names the " +
-      "underlying record: `pr:<number>` for a PR-linked commit, `mip` / `genesis-v2` / `html-era` / `severed` for a " +
-      "pre-git-history reconstruction, or `commit:<short sha>` for a plain git commit with no PR. An entity's first_seen " +
-      "is its defining doc's first_seen.",
+      "slugs and/or doc UUIDs/doc_nos in one call. Every date is derived from atlas_history, never an explicit " +
+      "in-content date. `first_seen_source` names the underlying record: `pr:<number>` for a PR-linked commit, " +
+      "`mip` / `genesis-v2` / `html-era` / `severed` for a pre-git-history reconstruction, or `commit:<short sha>` " +
+      "for a plain git commit with no PR. An entity's first_seen is its defining doc's first_seen.",
     shape: {
       ids: z
         .array(z.string())
@@ -410,8 +420,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +
       "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
-      "Retrieve-then-read: results are lean by default (title, doc_no, snippet, sources) — set enrich=true for " +
-      "full content + ancestor ids (deduped into a top-level `ancestors` map), or fetch specific ids with atlas_get.",
+      "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },

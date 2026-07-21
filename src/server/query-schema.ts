@@ -16,7 +16,7 @@ export const atlasQueryShape = {
     .min(1)
     .max(500)
     .optional()
-    .describe("Restrict to docs changed within the last N commits of HEAD (topological commit_seq). Prefer over since/until for 'recently'."),
+    .describe("Docs changed in the last N commits of HEAD (commit_seq order) — prefer over since/until for 'recently'."),
   since: z.string().optional().describe("ISO date (YYYY-MM-DD) or relative ('30d') — docs changed on/after."),
   until: z.string().optional().describe("ISO date or relative — docs changed on/before."),
   change_type: z
@@ -29,7 +29,7 @@ export const atlasQueryShape = {
   direction: z
     .enum(["out", "in", "both"])
     .optional()
-    .describe("Entity edge direction. Default 'both' — many relationships (active_data_for, responsible_party_for) are doc→entity."),
+    .describe("Entity edge direction (default 'both' — many relationships, e.g. active_data_for, are doc→entity)."),
   k: z.number().int().min(1).max(50).default(10),
   enrich: z
     .boolean()
