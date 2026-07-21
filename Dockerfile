@@ -16,9 +16,16 @@ COPY . .
 
 # Clone the atlas. Railway strips .git from the build context so submodule
 # init cannot work — a direct clone gives us the content we need.
-# Chat + auth ship DISABLED by default; rebuild with --build-arg
-# VITE_CHAT_ENABLED=1 (and set CHAT_ENABLED=1 at runtime) to enable.
-ARG VITE_CHAT_ENABLED=0
+# Chat + auth ship DISABLED by default. One knob controls both halves: set the
+# CHAT_ENABLED service variable to 1 on the environment that should have chat.
+# Railway forwards a service variable as a --build-arg when the ARG is declared,
+# so declaring ARG CHAT_ENABLED both (a) enables the runtime API (config.ts reads
+# CHAT_ENABLED) and (b) flows into VITE_CHAT_ENABLED below, baking the chat bundle
+# into the frontend. No hardcoding to production — any env with CHAT_ENABLED=1
+# gets chat, any without stays off. VITE_CHAT_ENABLED can still be overridden
+# explicitly (e.g. a manual `docker build --build-arg VITE_CHAT_ENABLED=1`).
+ARG CHAT_ENABLED=0
+ARG VITE_CHAT_ENABLED=$CHAT_ENABLED
 # PostHog analytics key. VITE_* vars are inlined by Vite AT BUILD TIME, not read
 # at runtime — so the key must be present in this build environment, not just as a
 # runtime service variable. Railway forwards the matching service variable as a

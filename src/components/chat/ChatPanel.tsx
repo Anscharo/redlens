@@ -16,6 +16,14 @@ const STARTERS = [
   "Trace the governance path for an Atlas amendment.",
 ];
 
+// Starters shown when the chat opens on a report page that has a backing
+// atlas_report_* tool — they steer the user toward querying the report itself.
+const reportStarters = (name: string): string[] => [
+  `Summarize the ${name} report.`,
+  "What are the most notable rows here, and why?",
+  "Where does this report's data come from in the atlas?",
+];
+
 const DRAFT_KEY = "rlc-draft";
 
 export function ChatPanel({
@@ -34,7 +42,7 @@ export function ChatPanel({
   const { user, openAuth } = useAuth();
   const authed = !!user;
   const { prefs } = usePrefs();
-  const { usage, refresh } = useUsage(authed);
+  const { usage, commons, refresh } = useUsage(authed);
   const [rateLimited, setRateLimited] = useState(false);
   const { messages, streaming, send, stop } = useChatStream({
     onDone: () => void refresh(),
@@ -70,12 +78,23 @@ export function ChatPanel({
       nodeDocNo: context.nodeDocNo,
       actorSlug: context.actorSlug,
       reportName: context.reportName,
+      reportTool: context.reportTool,
+      reportFilter: context.reportFilter,
     });
     if (rl) setRateLimited(true);
     else setRateLimited(false);
   };
 
   const empty = messages.length === 0;
+
+  // On a report page backed by a report tool, greet with the report name and
+  // the fact that the agent can pull/query it; otherwise the generic intro.
+  const onReport = !!context.reportTool && !!context.reportName;
+  const emptyTitle = onReport ? `Viewing the ${context.reportName} report` : "Ask the Atlas";
+  const emptyBody = onReport
+    ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away."
+    : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite atlas docs you can open inline.";
+  const starters = onReport ? reportStarters(context.reportName!) : STARTERS;
 
   const anchored = placement === "anchored";
 
@@ -125,14 +144,11 @@ export function ChatPanel({
           <div className="pt-2">
             <div className="flex items-center gap-2 mb-1">
               <SparkMark size={16} />
-              <span className="rlc-empty-title">Ask the Atlas</span>
+              <span className="rlc-empty-title">{emptyTitle}</span>
             </div>
-            <p className="rlc-empty-body">
-              A research agent over the Sky Atlas. It already knows the page you're on — answers cite atlas docs you can
-              open inline.
-            </p>
+            <p className="rlc-empty-body">{emptyBody}</p>
             <div className="flex flex-col gap-[7px]">
-              {STARTERS.map((s, i) => (
+              {starters.map((s, i) => (
                 <button
                   key={s}
                   className="rlc-starter"
@@ -191,6 +207,7 @@ export function ChatPanel({
           placeholder={context.placeholder}
           chip={context.chip}
           usage={usage}
+          commons={commons}
         />
       )}
     </section>

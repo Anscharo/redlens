@@ -1,29 +1,14 @@
-import type { OGResponsibility } from "../../lib/govopsResponsibilities";
-import { mergedDocNos } from "../../lib/dutyCollapse";
+import { ogSearchFields, type OGResponsibility } from "../../lib/govopsResponsibilities";
 import type { Chain } from "../../lib/reportChains";
 import { stripExecutorPrefix } from "../../lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
 
-// The search haystack as labelled fields, with `hidden` tracking exactly what
-// THIS table renders per category — so hidden-only matches can be explained
-// beside the row. Keep in sync with the cells below.
-export function ogSearchFields(r: OGResponsibility): SearchField[] {
-  const cat = r.category;
-  const assignment = cat === "assignment";
-  const govVisible = assignment || cat === "active-data" || cat === "process-step";
-  const primeVisible = cat !== "definition";
-  return [
-    { label: "doc no", value: mergedDocNos(r, " ") },
-    { label: "title", value: r.title, hidden: assignment },
-    { label: "duty", value: r.duty, hidden: assignment },
-    { label: "role", value: r.role ?? "", hidden: true },
-    { label: "govops", value: r.govops ?? "", hidden: !govVisible, despace: true },
-    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
-    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
-  ];
-}
+// ogSearchFields (the row search haystack) lives in the lib module so the
+// atlas_report_govops_responsibilities MCP tool filters rows with the exact
+// same field logic this table renders. Re-exported for existing importers.
+export { ogSearchFields };
 
 export function OGCategoryTable({
   cat,

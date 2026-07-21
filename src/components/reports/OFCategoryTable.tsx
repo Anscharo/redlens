@@ -1,35 +1,20 @@
-import type { OFResponsibility } from "../../lib/facilitatorResponsibilities";
-import { mergedDocNos } from "../../lib/dutyCollapse";
+import { ofSearchFields, type OFResponsibility } from "../../lib/facilitatorResponsibilities";
 import type { Chain } from "../../lib/reportChains";
 import { stripExecutorPrefix } from "../../lib/reportChains";
 import { AgentChips, DocCell } from "./OGReportParts";
-import { EMPTY_QUERY, hiddenMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import { EMPTY_QUERY, hiddenMatches, type ReportQuery } from "../../lib/reportFilter";
 import { Highlight, MatchAside } from "./Highlight";
+
+// ofSearchFields (the row search haystack) lives in the lib module so the
+// atlas_report_facilitator_responsibilities MCP tool filters rows with the
+// exact same field logic this table renders. Re-exported for existing importers.
+export { ofSearchFields };
 
 // Duty rows carry per-row facilitator attribution (fan-out edges) — shown for
 // op-duty, where two orgs hold the role and the split is real information.
 // Universal rows bind every holder, so the column would be constant noise.
 const facNames = (r: OFResponsibility) =>
   r.facilitators?.join(", ") ?? r.facilitator ?? "—";
-
-// The search haystack as labelled fields, with `hidden` tracking exactly what
-// THIS table renders per category — so hidden-only matches can be explained
-// beside the row. Keep in sync with the cells below.
-export function ofSearchFields(r: OFResponsibility): SearchField[] {
-  const cat = r.category;
-  const assignment = cat === "assignment";
-  const facVisible = assignment || cat === "op-duty" || cat === "active-data" || cat === "process-step";
-  const primeVisible = cat !== "universal" && cat !== "core-facilitator";
-  return [
-    { label: "doc no", value: mergedDocNos(r, " ") },
-    { label: "title", value: r.title, hidden: assignment },
-    { label: "duty", value: r.duty, hidden: assignment },
-    { label: "role", value: r.role ?? "", hidden: true },
-    { label: "facilitator", value: [r.facilitator, ...(r.facilitators ?? [])].filter(Boolean).join(", "), hidden: !facVisible, despace: true },
-    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
-    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
-  ];
-}
 
 export function OFCategoryTable({
   cat,

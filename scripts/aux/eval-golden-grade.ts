@@ -2,7 +2,7 @@
 // docs/plans/chatbot-readiness-remediation-plan.md). No network/DB/Bun-SQL
 // dependency — this file is imported by both the live runner
 // (scripts/aux/eval-golden.ts) and its unit tests, and runs fine under vitest.
-import { UUID_RE } from "../../src/lib/patterns.ts";
+import { CITATION_SRC } from "../../src/server/verify-checks.ts";
 
 export type GoldenOutcome = "answered" | "partial" | "honest_decline" | "hallucinated" | "truncated" | "tool_failure";
 
@@ -51,9 +51,9 @@ export interface GoldenGradeResult {
   warnings: string[];
 }
 
-// Composes the canonical UUID_RE (stripping its ^...$ anchors) into the
-// system prompt's citation link format: [Title](/atlas/<uuid>).
-const CITATION_RE = new RegExp(`\\]\\(/atlas/${UUID_RE.source.slice(1, -1)}\\)`, "i");
+// The system prompt's citation link format, shared with the runtime harness
+// (src/server/verify-checks.ts) so grader and live checks can't drift.
+const CITATION_RE = new RegExp(CITATION_SRC, "i");
 
 function containsAny(haystack: string, needles: string[]): boolean {
   return needles.some((n) => haystack.includes(n.toLowerCase()));

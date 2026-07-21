@@ -38,6 +38,12 @@ export const config = {
   // constant (EMBED_DIM in embed.ts), NOT env — it's locked to the DB migration.
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
   openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+  // Management ("provisioning") key for the account-wide credits endpoint
+  // (GET /api/v1/credits) that powers the shared "commons" pool meter — one
+  // dollar balance shown to all signed-in users. Distinct from openrouterApiKey
+  // (model calls); the credits endpoint rejects the model key. Unset = the
+  // commons meter is simply absent and the shared-pool gate never fires.
+  openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
 
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
@@ -59,7 +65,7 @@ export const config = {
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
-  chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
+  chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
@@ -87,10 +93,65 @@ export const config = {
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
+  // Conversationalist sampling temperature. Pinned (provider defaults hover
+  // around 0.7) — a grounded citation machine wants low variance, and pinning
+  // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
+  chatTemperature: Number(process.env.CHAT_TEMPERATURE ?? 0.3),
+  // Output ceiling per completion request (each tool round + the answer). The
+  // rate-limit window only counts tokens after the fact; this caps a runaway/
+  // degenerate generation up front, not the answer length — 4096 turned out
+  // NOT generous enough for exhaustive multi-doc governance answers (the
+  // system prompt explicitly pushes toward citing across many docs/tables),
+  // so a legitimate answer could get cut off mid-citation. Sized well above
+  // that now; chat-orchestrator.ts's lengthCapped check is the real backstop
+  // if a generation still runs away.
+  chatMaxOutputTokens: Number(process.env.CHAT_MAX_OUTPUT_TOKENS ?? 16000),
+  // PostHog AI observability: capture raw prompt/response text on $ai_generation
+  // events (posthogPrivacyMode: false), not just token counts/latency/cost. On by
+  // default per product decision; env escape hatch to dial back to metadata-only
+  // without a redeploy if the content volume/privacy tradeoff needs revisiting.
+  chatCaptureContent: process.env.CHAT_CAPTURE_CONTENT !== "0",
   // Chat transport budget for one tool result fed back to the model. MCP keeps
   // its larger client-facing budget in output-budget.ts; this smaller cap keeps
   // a single broad tool call from eating the live chat context.
   chatToolResultMaxChars: Number(process.env.CHAT_TOOL_RESULT_MAX_CHARS ?? 30_000),
+
+  // Chat reliability harness (docs/plans/chat-reliability-harness.md).
+  // Final claim-audit model — should be a stronger, DIFFERENT-family model than
+  // chatModel (cross-family independence, same rationale as curationClusterModels).
+  // Empty = model verification off; deterministic checks still run.
+  chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
+  // Escalation-only recovery model; chat-tier is fine (recovery planning is
+  // easier than verification). Empty = advisor off.
+  chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
+  // Deterministic checks (free, pure code) — independent of the model slots.
+  chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
+  // Deterministic pre-lookup (glossary + entity match on the user's message)
+  // seeded as a synthetic tool round before the first LLM request — saves a
+  // tool round trip on definition/entity questions. Free, pure code.
+  chatPrefetch: process.env.CHAT_PREFETCH !== "0",
+  // Evidence digest budget for the final audit, newest-round-first.
+  chatVerifierEvidenceMaxChars: Number(process.env.CHAT_VERIFIER_EVIDENCE_MAX_CHARS ?? 60_000),
+  // Hard cap on the verifier call; timeout → null → "unverified" badge (chat
+  // never blocks on the audit — the answer already streamed). The verifier is a
+  // stronger, slower model than the advisor, so its deadline is more generous.
+  chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
+  chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
+  // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
+  // blocks on the advisor). Smoke testing showed chat-tier models can need >5s
+  // for the recovery JSON, so this is env-tunable per deployed advisor model.
+  chatAdvisorTimeoutMs: Number(process.env.CHAT_ADVISOR_TIMEOUT_MS ?? 8000),
+
+  // Per-turn model routing (rules-based — src/server/model-router.ts). Each slot
+  // is a CSV: first entry = primary model, rest = OpenRouter fallback models
+  // tried in order on provider failure. Unset tier slots inherit chatModel +
+  // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL
+  // behaves exactly as before.
+  chatModelFast: (process.env.CHAT_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  // Fallbacks for the default chain (also inherited by unset tiers).
+  chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum

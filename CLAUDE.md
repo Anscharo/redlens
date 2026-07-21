@@ -205,4 +205,8 @@ Remaining items from the full-branch audit (the bug fixes landed in the same PR 
 - **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL.
 - **History metrics backfill** — run `pnpm build:history --full` once migration `006_history_metrics.sql` is applied so existing `atlas_history` rows gain `change_kind` / review counters (new rows get them automatically).
 
+### Chat reliability harness (docs/plans/chat-reliability-harness.md)
+
+- **Wire in `src/server/verifier-slices.ts`** — a sliced verifier (4 concurrent specialist audits + code-validated evidence spans) built to fix measured gaps in the single-prompt verifier (`verifier.ts`, the live path): wrong-doc and number-grounding catch rates, and structural misreads the single verifier missed entirely. Not yet called from `chat-orchestrator.ts`. Measured via `pnpm eval:slices` (`scripts/aux/eval-verifier-slices.ts`) — check that report before swapping it in, and keep its prompt/evidence conventions in sync with `verifier.ts` in the meantime so the swap stays cheap.
+
 ### Other / background

@@ -111,6 +111,22 @@ export function buildNameIndex(entityMap) {
   return index;
 }
 
+// Resolve a registry-table name to an existing entity, falling back to an
+// unambiguous word-boundary prefix match ("Redline" → "Redline Facilitation
+// Group") when there's no exact name/slug hit. Informal tables (forum
+// handles, breach registries) often refer to an entity by its short name
+// while its formal defining doc uses the full name — without this, the two
+// forms silently mint two separate entity nodes for the same real org. Only
+// resolves when exactly one entity matches, so a generic short name can't
+// misfire onto an unrelated longer one.
+export function resolveAliasedEntity(nameIndex, entityMap, name) {
+  const exact = nameIndex.get(normalizeKey(name));
+  if (exact) return exact;
+  const prefix = `${name.toLowerCase()} `;
+  const candidates = [...entityMap.values()].filter((e) => e.name.toLowerCase().startsWith(prefix));
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
 // ---------------------------------------------------------------------------
 // Content extraction helpers
 // ---------------------------------------------------------------------------

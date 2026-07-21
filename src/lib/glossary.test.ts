@@ -55,6 +55,20 @@ describe("buildLookup", () => {
     expect(lookup["aligned delegate"]).toBeDefined();
     expect(Object.keys(lookup)).toHaveLength(1);
   });
+
+  it("'Sky X' terms are also findable by the bare concept, plural and singular", () => {
+    const g: Glossary = { "sky primitives": [entry("Sky Primitives")] };
+    const lookup = buildLookup(g);
+    expect(lookup["sky primitives"]).toBeDefined();
+    expect(lookup["primitives"]).toBe(lookup["sky primitives"]);
+    expect(lookup["primitive"]).toBe(lookup["sky primitives"]);
+  });
+
+  it("does not alias a single-word 'Sky'-prefixed proper noun (no space after Sky)", () => {
+    const g: Glossary = { skylink: [entry("Skylink")] };
+    const lookup = buildLookup(g);
+    expect(Object.keys(lookup)).toEqual(["skylink"]);
+  });
 });
 
 // loadGlossary — a JSON-bodied 4xx/5xx must not be cached as the glossary
