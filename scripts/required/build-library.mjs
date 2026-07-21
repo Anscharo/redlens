@@ -11,8 +11,14 @@ import { loadInputs, computeLibrary } from "../lib/library-shape.mjs";
 const root = path.resolve(import.meta.dirname, "../..");
 const publicDir = path.join(root, "public");
 
-const { _internals, ...library } = computeLibrary(loadInputs(publicDir));
+const full = computeLibrary(loadInputs(publicDir));
+// Ship only what the /library UI reads; groups/primes/executors stay available
+// to the docs renderer (scripts/aux/atlas-shape.mjs) but are superseded in the
+// app by the hierarchical chunkTree.
+const { atlasCommit, totals, docTypes, scopes, neededResearch, toc, chunkTree } = full;
+const library = { atlasCommit, totals, docTypes, scopes, neededResearch, toc, chunkTree };
 fs.writeFileSync(path.join(publicDir, "library.json"), JSON.stringify(library));
+const count = (n) => 1 + (n.children ?? []).reduce((s, c) => s + count(c), 0);
 console.log(
-  `build-library: ${library.totals.docs} docs, ${library.groups.length} groups, ${library.totals.glossaryTerms} terms → public/library.json (atlas ${library.atlasCommit.slice(0, 7)})`,
+  `build-library: ${totals.docs} docs, chunk tree ${chunkTree.reduce((s, g) => s + count(g), 0)} nodes, ${totals.glossaryTerms} terms → public/library.json (atlas ${atlasCommit.slice(0, 7)})`,
 );

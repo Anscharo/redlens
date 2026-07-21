@@ -18,13 +18,14 @@ export interface LibraryNodeRef {
   segments: LibrarySegment[];
 }
 
-export interface LibraryGroup {
-  name: string;
-  roots: string[];
+export interface ChunkNode {
+  /** Present when the chunk maps to a single atlas node (drives the reader link). */
+  id?: string;
+  doc_no?: string;
+  title: string;
   docs: number;
-  bytes: number;
-  /** Component-root weights, largest first. */
-  segments: LibrarySegment[];
+  /** Sub-chunks, largest first. Absent on leaves (below the build threshold). */
+  children?: ChunkNode[];
 }
 
 export interface LibraryTocSection {
@@ -47,11 +48,10 @@ export interface LibraryData {
   totals: { docs: number; bytes: number; glossaryTerms: number };
   docTypes: [string, number][];
   scopes: LibraryNodeRef[];
-  groups: LibraryGroup[];
-  primes: LibraryNodeRef[];
-  executors: LibraryNodeRef[];
   neededResearch: { id: string; doc_no: string; title: string }[];
   toc: LibraryTocScope[];
+  /** Hierarchical chunk taxonomy — groups at the top, semantic subtree below. */
+  chunkTree: ChunkNode[];
 }
 
 // library.json is built by scripts/required/build-library.mjs and served from

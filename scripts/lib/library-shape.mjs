@@ -65,6 +65,58 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
       .map((c) => ({ ...ref(c), docs: subtree(c.id).docs }))
       .sort((a, b) => b.docs - a.docs);
 
+  // ── Semantic tree (doc_no-based) ──────────────────────────────────────────
+  // Inside agent artifacts the heading depth caps at 6 and parentId goes flat
+  // (thousands of nodes parent straight to the depth-capped "Sky Primitives"
+  // node). The real nesting is encoded in the doc_no, so the chunk tree is
+  // built from doc_no segments instead of parentId. Structural suffixes
+  // (.varX) are spec-guaranteed — see CLAUDE.md doc_no rules.
+  const byDocNo = new Map(all.map((n) => [n.doc_no, n]));
+  const semParent = (doc_no) => {
+    let p = doc_no.replace(/\.var\d+$/, "");
+    while (p.includes(".")) {
+      p = p.slice(0, p.lastIndexOf("."));
+      if (byDocNo.has(p)) return p;
+    }
+    return null;
+  };
+  const semChildren = new Map();
+  for (const n of all) {
+    const p = semParent(n.doc_no);
+    if (!p) continue; // scope roots (A.0…A.6) and NR-* have no semantic parent
+    if (!semChildren.has(p)) semChildren.set(p, []);
+    semChildren.get(p).push(n);
+  }
+  const semWeight = new Map();
+  const semSubtree = (doc_no) => {
+    if (semWeight.has(doc_no)) return semWeight.get(doc_no);
+    let docs = 1;
+    for (const c of semChildren.get(doc_no) || []) docs += semSubtree(c.doc_no);
+    semWeight.set(doc_no, docs);
+    return docs;
+  };
+
+  // Recursive chunk node: children sorted largest-first, pruned below
+  // MIN_CHUNK_DOCS so the artifact stays lean while every meaningful
+  // sub-chunk (primitive families, hubs, instance directories…) survives.
+  const MIN_CHUNK_DOCS = 5;
+  const chunkNode = (n) => {
+    const entry = { ...ref(n), docs: semSubtree(n.doc_no) };
+    const kids = (semChildren.get(n.doc_no) || [])
+      .filter((c) => semSubtree(c.doc_no) >= MIN_CHUNK_DOCS)
+      .sort((a, b) => semSubtree(b.doc_no) - semSubtree(a.doc_no));
+    if (kids.length > 0) entry.children = kids.map(chunkNode);
+    return entry;
+  };
+  // Hoist single-child chains at the group root (A.6 → A.6.1 → the two agent
+  // lists) so expanding a group goes straight to the first real branching.
+  const groupChildren = (roots) => {
+    if (roots.length > 1) return roots.map((r) => chunkNode(nodes[r]));
+    let node = chunkNode(nodes[roots[0]]);
+    while (node.children && node.children.length === 1) node = node.children[0];
+    return node.children || [node];
+  };
+
   return {
     atlasCommit,
     totals: { docs: all.length, bytes: all.reduce((s, n) => s + (n.content || "").length, 0), glossaryTerms: terms.length },
@@ -79,6 +131,18 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
     }),
     primes: (children.get(PRIME_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
     executors: (children.get(EXEC_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
+    // Hierarchical chunk tree: curated taxonomy groups at the top, then the
+    // semantic (doc_no-based) tree beneath, pruned at MIN_CHUNK_DOCS.
+    chunkTree: GROUPS.map(([name, roots]) => {
+      const docs = roots.reduce((s, r) => s + semSubtree(nodes[r].doc_no), 0);
+      const single = roots.length === 1 ? nodes[roots[0]] : null;
+      return {
+        title: name,
+        ...(single ? { id: single.id, doc_no: single.doc_no } : {}),
+        docs,
+        children: groupChildren(roots),
+      };
+    }),
     neededResearch: nr.map((n) => ref(n)),
     toc: scopes.map((s) => ({
       ...ref(s), docs: subtree(s.id).docs,
