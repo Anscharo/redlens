@@ -52,8 +52,23 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
   });
   const ix = getIndexes();
 
+  // registerTool is generic over each tool's zod input shape. Letting tsc infer
+  // and instantiate ToolCallback<ZodRawShape> for every tool in this loop pushes
+  // the compiler past its instantiation limit (TS2589: "Type instantiation is
+  // excessively deep and possibly infinite"). It surfaces only on a fresh full
+  // build (the Docker/bun image build) — the incremental dev/CI build slips
+  // under the limit — so it fails the deploy while passing locally. Register
+  // through a non-generic signature so the deep mapped type is never expanded;
+  // the runtime call is byte-for-byte identical (args is already handed straight
+  // to t.handler, which takes Record<string, unknown>).
+  const registerTool = server.registerTool.bind(server) as unknown as (
+    name: string,
+    config: Record<string, unknown>,
+    cb: (args: Record<string, unknown>) => Promise<unknown>,
+  ) => void;
+
   for (const t of ATLAS_TOOLS) {
-    server.registerTool(
+    registerTool(
       t.name,
       {
         description: t.description,
