@@ -39,18 +39,49 @@ This checklist is scoped to DR; the differences are flagged at the end.
       > Non-compliance (determined, suspected, or alleged) lets governance
       > withhold, revoke, or claw back rewards
       > · [A.2.2.4.1.1.2.1 — Consequence For Integrator Non-Compliance](https://atlas.redline.support/atlas?id=a01622fa-e81c-4bcb-8e31-7e66e36f2e57)
-- [ ] **Partner-side tracking inputs** — the contract addresses and/or off-chain
-      data sources through which the partner's USDS balances will be attributed;
-      off-chain data must be verifiable against on-chain data
+- [ ] **Partner-side tracking inputs** — eligibility requires USDS balances to
+      be "marked" with the Reward Code via the agreed Tracking Methodology
+      ([A.2.2.9.1.2.1.1.2 — Marking](https://atlas.redline.support/atlas?id=ec2c6d8a-e10f-471a-8f85-67803159cc37));
+      marked balances stay eligible for ten (10) years from the marking event
+      ([A.2.2.9.1.2.1.1.2.5 — Lifetime](https://atlas.redline.support/atlas?id=c0b77312-5e88-4311-bfe2-d95a1a2c5a7c)).
+      Standard methodologies:
       · [A.2.2.9.1.2.1.1.2.1 — Ethereum Mainnet General Tracking Methodology](https://atlas.redline.support/atlas?id=87fd6861-ba8a-4bde-945e-ee9ad37ae3e2)
       · [A.2.2.9.1.2.1.1.2.3 — Base Tracking Methodology](https://atlas.redline.support/atlas?id=f710bddf-dc1d-483c-9503-483574cb6333)
+      Alternatives are allowed if they "reasonably estimate USDS balances …
+      attributable to the holder of the Reward Code", cannot double-count the
+      same balances for multiple Reward Code holders, and rest on on-chain data
+      or off-chain data "independently verified or attested to by a third party"
+      · [A.2.2.9.1.2.1.1.2.4 — Alternative Tracking Methodologies](https://atlas.redline.support/atlas?id=5eba1c21-4e93-4a0a-aa10-e99bcfa65f16)
+
+## Reward Code assignment — done BY Operational GovOps, not collected from anyone
+
+The Reward Code is not information either party supplies — the Atlas assigns
+this function to OGO itself (delegable):
+
+- [ ] Assign the Reward Code: "Reward Codes are assigned by Operational GovOps.
+      Operational GovOps may contract with another actor to perform this work
+      for them, at their discretion."
+      · [A.2.2.9.1.2.1.1.1.1 — Process](https://atlas.redline.support/atlas?id=e00e28d1-dad1-4cff-8ea4-1290c27d3b07)
+- [ ] Issue it to the approved applicant ("Operational GovOps issues Reward
+      Codes to approved applicants")
+      · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
+- [ ] Draw it from the reserved range of the Prime that will manage the
+      relationship — Primes are "allocated reserved ranges of Reward Codes for
+      use in their Distribution Reward Primitive instances": Skybase `0`,`1`,
+      `1000–1999` · Spark `2–999` · Grove `2000–2999` · Keel `4000–4999`
+      · [A.2.2.9.1.2.1.1.4 — Reward Code Ranges](https://atlas.redline.support/atlas?id=af47ab9b-ee80-4352-89db-9c7d819395c2)
+- [ ] Record it: "Operational GovOps manages the list of Actor Reward Codes" —
+      all current and onboarding Integrators must appear in the registries "so
+      that Prime Agents, through their Operational Executor Agents, can onboard
+      new partners themselves without having to go through a single party"
+      · [A.2.2.9.1.2.1.1.3 — Management](https://atlas.redline.support/atlas?id=75ddec36-c39e-4333-9ec1-2d329128e848)
 
 ## Information to collect — from the Prime Agent
 
-- [ ] **Reward Code assignment** — a unique code from that Prime's reserved
-      range (Skybase `0`,`1`,`1000–1999` · Spark `2–999` · Grove `2000–2999` ·
-      Keel `4000–4999`)
-      · [A.2.2.9.1.2.1.1.4 — Reward Code Ranges](https://atlas.redline.support/atlas?id=af47ab9b-ee80-4352-89db-9c7d819395c2)
+- [ ] **Which Prime manages the relationship** — OGO "coordinates with Prime
+      Agents interested in working with specific applicants"; the managing
+      Prime determines the Reward Code range and hosts the instance
+      · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
 - [ ] **The joint Tracking Methodology** — developed by the Prime together with
       the partner; on-chain (Reward Code tagged on Sky Savings Rate / Token
       Rewards deposits) or off-chain
@@ -80,7 +111,8 @@ This checklist is scoped to DR; the differences are flagged at the end.
 - [ ] Assess the alignment gate (discretionary; no enumerated criteria)
 - [ ] Collect the compliance warranty
 - [ ] Approve (or request revisions), coordinate with the interested Prime
-- [ ] Issue the Reward Code from the Prime's reserved range
+- [ ] Assign + issue the Reward Code (OGO's own act — see "Reward Code
+      assignment" above; drawn from the managing Prime's reserved range)
 
 ### Phase 2 — Tracking plan & onboarding registry (Prime + partner + OGO)
 

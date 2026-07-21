@@ -166,3 +166,14 @@ Landmark discoveries (verified by census unless noted):
   quotes the consequence provision instead of inventing "monitor/escalate".
   RULE FOR ALL FUTURE ATLAS-DERIVED DOCS: every statement is either an exact
   relay (quote/cite) or explicitly labeled as our own procedure-design note.
+
+- **(next commit)** "DR onboarding: Reward Code is assigned BY OGO, not by the Prime"
+  Second user correction on the same doc: I'd framed the Reward Code as collected
+  from the Prime. Atlas is explicit — "Reward Codes are assigned by Operational
+  GovOps" (may contract it out; A.2.2.9.1.2.1.1.1.1), issued to approved
+  applicants, drawn from the managing Prime's RESERVED RANGE (a namespace, not
+  authority; A.2.2.9.1.2.1.1.4), recorded by OGO (Management doc notes the
+  registries exist so Primes/OEAs can onboard without a single party). Doc now
+  has a standalone "Reward Code assignment" section; from-Prime section reduced
+  to managing-Prime identity + tracking methodology + instance params. Also
+  added exact-relay Marking/10-year Lifetime/no-double-counting rules.
