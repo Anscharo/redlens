@@ -177,3 +177,17 @@ Landmark discoveries (verified by census unless noted):
   has a standalone "Reward Code assignment" section; from-Prime section reduced
   to managing-Prime identity + tracking methodology + instance params. Also
   added exact-relay Marking/10-year Lifetime/no-double-counting rules.
+
+- **(next commit)** "DR onboarding: full source audit, quote-or-gap discipline"
+  Third user catch on this doc (leftover "Reward Code" in the instance-params
+  bullet) triggered a full audit: read EVERY cited doc verbatim and rewrote all
+  paraphrases as exact quotes. Fixes: instance-params bullet regrounded (Atlas
+  doesn't enumerate draft fields; provable minimum = name/code/methodology
+  because the Current Integrators rule reads them "from the approved Proposal");
+  OGO review gate criteria corrected (operationalize + accurate + NO DOUBLE
+  COUNTING — the "off-chain verifiable" bit belonged to Alternative Tracking
+  Methodologies, not the review); alignment/compliance/recipient bullets now
+  verbatim; dropped the invented "auxiliary-account registration" gap line
+  (List Of Auxiliary Accounts exists but belongs to the Demand Side Buffer);
+  scope note reworded to only what's quotable; gaps section scoped to audited
+  sections. 38 cited docs, all verified, all quotes read from source.

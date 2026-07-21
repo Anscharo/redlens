@@ -2,14 +2,17 @@
 
 What Operational GovOps must collect from the Prime Agent and from the new partner
 (integrator) to onboard a Distribution Reward partner, and the full onboarding
-sequence. Every requirement links to its source section in the Atlas reader.
-Verified against atlas commit `db87434` (2026-07-21); all 28 citations
-UUID-checked against the live corpus.
+sequence. Every statement is either an exact relay of Atlas text (quoted/cited)
+or explicitly labeled as a gap requiring OGO's own procedure design. Verified
+against atlas commit `db87434` (2026-07-21); every cited UUID checked against
+the corpus and every quoted passage read from source.
 
-Scope note: Distribution Reward and Integration Boost share one Integrator
-Program, one application process, one Reward Code space, and the same registries
-([A.2.2.4.1 — Integrator Program](https://atlas.redline.support/atlas?id=37c38f07-b5a0-40df-939c-a54330ea3c7b)).
-This checklist is scoped to DR; the differences are flagged at the end.
+Scope note: "the Integrator Program … includes the Distribution Reward and
+Integration Boost"
+([A.2.2.4.1 — Integrator Program](https://atlas.redline.support/atlas?id=37c38f07-b5a0-40df-939c-a54330ea3c7b)),
+and the Onboarding/Current Integrator registry definitions cover instances of
+both primitives. This checklist is scoped to DR; differences are flagged at the
+end.
 
 ---
 
@@ -27,14 +30,17 @@ This checklist is scoped to DR; the differences are flagged at the end.
       > Integrators updates) and enough information to run the Alignment and
       > Compliance gates below. Anything more is OGO's own form design — see
       > "Gaps".
-- [ ] **Alignment evidence** — the partner must be aligned with Sky's USDS
-      adoption strategy; the determination is solely OGO's, and Sky Core may
-      revoke a Reward Code at its sole discretion
+- [ ] **Alignment evidence** — "The Integrator must be aligned with Sky's
+      overall strategy regarding promoting adoption of USDS. This determination
+      is made by Operational GovOps. Sky Core may choose whether to maintain an
+      Integrator's Reward Code in its sole and absolute discretion."
       · [A.2.2.4.1.1.1 — Alignment](https://atlas.redline.support/atlas?id=98e98f68-e749-4d0a-8972-7e36ed166326)
-- [ ] **Compliance warranty** — representation of full compliance with all
-      applicable laws and regulations in every jurisdiction where the partner
-      operates (frontend, marketing, promotion, protocol access); participation
-      is contingent on ongoing compliance
+- [ ] **Compliance warranty** — "Integrators represent and warrant that their
+      participation and activities under the Integrator Program are and will
+      remain in full compliance with all applicable laws and regulations",
+      including "frontend operations, marketing, and promotions in the
+      jurisdictions where the Integrator provides access"; "An Integrator's
+      right to participate … is contingent upon its ongoing compliance"
       · [A.2.2.4.1.1.2 — Compliance With Local Laws And Regulations](https://atlas.redline.support/atlas?id=f3b4b43d-b2e5-4f56-aeac-9627d3acc31e)
       > Non-compliance (determined, suspected, or alleged) lets governance
       > withhold, revoke, or claw back rewards
@@ -79,22 +85,37 @@ this function to OGO itself (delegable):
 ## Information to collect — from the Prime Agent
 
 - [ ] **Which Prime manages the relationship** — OGO "coordinates with Prime
-      Agents interested in working with specific applicants"; the managing
-      Prime determines the Reward Code range and hosts the instance
+      Agents interested in working with specific applicants". The managing
+      Prime matters twice over: the Reward Code comes from that Prime's
+      reserved range, and the instance lives in that Prime's artifact
       · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
-- [ ] **The joint Tracking Methodology** — developed by the Prime together with
-      the partner; on-chain (Reward Code tagged on Sky Savings Rate / Token
-      Rewards deposits) or off-chain
-      · [A.2.2.9.1.2.1.1.2.1 — Tracking Methodology](https://atlas.redline.support/atlas?id=87fd6861-ba8a-4bde-945e-ee9ad37ae3e2)
-- [ ] **New DR Instance parameters** — the Instance Configuration content for the
-      invocation: partner name, Reward Code, methodology reference; instance
-      enters `Pending` status
-      · [A.2.2.9.1.2.3 — Instance Invocation Protocol](https://atlas.redline.support/atlas?id=ad3a3f6b-7bc3-4e5f-b1c3-225b5b4cbe15)
-- [ ] **(Nothing to collect on reward sharing)** — the reward (fixed 0.2%/yr
-      · [A.2.2.9.1.2.1.2 — Distribution Reward Rate](https://atlas.redline.support/atlas?id=57384c49-e499-4c69-b22c-8e1f1dd34759))
-      is always paid to the Prime managing the relationship; any sharing with the
-      partner is bilateral and the Atlas requires no disclosure
+      · [A.2.2.9.1.2.1.1.4 — Reward Code Ranges](https://atlas.redline.support/atlas?id=af47ab9b-ee80-4352-89db-9c7d819395c2)
+- [ ] **The Initial Planning Document (tracking plan)** — "The Prime Agent and
+      the third party develop a plan to track USDS utilization attributable to
+      the actor using either on-chain or off-chain data"; the plan is what OGO
+      reviews in Phase 2
+      · [A.2.2.9.1.2.3.1.2 — Process Flow](https://atlas.redline.support/atlas?id=75ff9b92-47e1-454f-864b-b74742df918e)
+- [ ] **The Artifact Edit Draft for the new Instance** — the Prime drafts and
+      finalizes it; the Powerhouse system turns it into the `Artifact Edit
+      Proposal`
+      ([A.2.2.9.1.2.3.3.3 — Required Primitive Inputs](https://atlas.redline.support/atlas?id=6f4e7971-1813-4ff6-9e4f-5953c8cb54af)).
+      > The Atlas does not enumerate the draft's fields. What it provably must
+      > contain: the **Integrator Name**, **Reward Code**, and **Tracking
+      > Methodology** — the Current Integrators update rule sets all three
+      > "from the approved Proposal"
+      > ([A.2.2.9.1.2.3.6.4.1.2](https://atlas.redline.support/atlas?id=1c0708d0-6388-4264-90f2-7a0d0b877012)).
+      Until the vote passes, the partner is an Onboarding Integrator —
+      "specified in an Instance … that is 'Pending', or is not `Active` yet"
+      ([A.2.2.9.1.2.1.4.2 — Onboarding Integrators](https://atlas.redline.support/atlas?id=9a7f47ae-760f-44b5-9b5f-dd4fef86e1cc)).
+- [ ] **(Nothing to collect on reward sharing)** — rewards "are paid to the
+      Prime Agent that manages the relationship with the Integrator. Any
+      sharing of such reward payments with the Integrator is subject to
+      bilateral negotiation" — the Atlas specifies nothing further
       · [A.2.2.4.2 — Reward Recipient And Sharing](https://atlas.redline.support/atlas?id=40395562-d447-4c85-b670-c08d2341bcd2)
+      · rate is globally fixed: "The Distribution Reward rate is set at 0.2%
+      … annualized on all USDS and sUSDS balances associated with the relevant
+      Reward Code"
+      [A.2.2.9.1.2.1.2 — Distribution Reward Rate](https://atlas.redline.support/atlas?id=57384c49-e499-4c69-b22c-8e1f1dd34759)
 
 ---
 
@@ -118,9 +139,13 @@ this function to OGO itself (delegable):
 
 - [ ] Prime + partner jointly develop the tracking plan
       · [A.2.2.9.1.2.3.1.2 — Process Flow](https://atlas.redline.support/atlas?id=75ff9b92-47e1-454f-864b-b74742df918e)
-- [ ] **OGO review gate** — verify BOTH: (1) OGO can operationalize the proposed
-      mechanism, and (2) it accurately reflects USDS usage attributable to the
-      partner; off-chain data verifiable on-chain. Reject → revise → resubmit
+- [ ] **OGO review gate** — "Operational GovOps reviews the `Initial Planning
+      Document` to ensure: Operational GovOps has the ability to operationalize
+      the proposed tracking mechanism, and the proposed tracking mechanism
+      accurately reflects USDS usage attributable to the actor and there is no
+      possibility that rewards could be 'double counted'". Feedback goes into
+      the `Operational GovOps Review Document`; "The Prime Agent incorporates
+      feedback … and edits its `Initial Planning Document` as needed"
       · [A.2.2.9.1.2.3.2.2 — Process Flow (OGO review)](https://atlas.redline.support/atlas?id=ef743f33-32b0-4a51-af00-a9e35c2e1017)
 - [ ] Add row (partner name + Reward Code) to the onboarding registry
       · [A.2.2.9.1.2.1.4.2 — Onboarding Integrators](https://atlas.redline.support/atlas?id=9a7f47ae-760f-44b5-9b5f-dd4fef86e1cc)
@@ -175,20 +200,30 @@ Per the Instance Invocation Protocol
 
 ## DR vs Integration Boost partners
 
-Same program, application, Reward Codes, and registries
+Both are Integrators in the same program and registries
 ([A.2.2.9.1.2.1.4 — Current And Onboarding Integrators](https://atlas.redline.support/atlas?id=f3952cc5-cde2-46b9-b575-034dda83570b)).
-Differences: DR partners are **access frontends** earning a flat 0.2%/yr; IB
-partners are **DeFi protocols holding USDS** earning SSR × unrewarded balance
+Integrators are "actors that offer access to the Sky Protocol via their
+frontends or infrastructure"; "The Integration Boost is provided to DeFi
+protocol partners that allow users to deposit USDS balances" and "is calculated
+as the Sky Savings Rate times the Unrewarded USDS balances" — with a
+"non-binding expectation" of pass-through from Prime → partner → users
 ([A.2.2.9.2.2.1.1 — Integration Boost Partners](https://atlas.redline.support/atlas?id=31cb3b86-0125-4a04-996f-634b75b6cea2)).
-For IB, reporting net USDS balances is itself an accepted tracking methodology
+For IB partners, "the methodology used to report net USDS balances in the
+protocol for the Integration Boost is itself an acceptable Tracking Methodology
+for purposes of the Distribution Reward"
 ([A.2.2.9.2.2.1.4.1](https://atlas.redline.support/atlas?id=a4ca2e70-d013-4c54-8e17-1d6f352ddbc0)).
 
-## Gaps the Atlas leaves to OGO procedure design
+## Gaps — where the Atlas is silent (within the sections audited here)
 
-- No application form/template or enumerated fields
-- No published alignment criteria (pure OGO discretion)
-- No compliance audit mechanism or cadence
-- No reward-sharing disclosure requirement
-- No auxiliary-account / data-endpoint registration requirement
-- No data format or frequency spec for off-chain tracking submissions
-- No SLAs on OGO review or approval timelines
+These are absences OGO must fill with its own procedure design; none of these
+is stated anywhere in the DR primitive or Integrator Program sections:
+
+- Application contents: no form, template, or enumerated fields
+- Alignment: no criteria beyond "This determination is made by Operational
+  GovOps"
+- Compliance: warranty-based only; no audit mechanism or cadence
+- Reward sharing: "subject to bilateral negotiation" — no documentation or
+  disclosure requirement
+- Off-chain tracking submissions: verifiability required, but no data format
+  or frequency specified
+- No timelines/SLAs for OGO review or approval steps
