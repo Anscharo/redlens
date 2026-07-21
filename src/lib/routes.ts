@@ -10,6 +10,7 @@ export const ROUTES = {
   CONNECT: "/connect",
   LIBRARY: "/library",
   LIBRARY_CONTENTS: "/library/contents",
+  LIBRARY_CONCEPTS: "/library/concepts",
   LIBRARY_GLOSSARY: "/library/glossary",
   REPORTS: "/reports",
   REPORTS_OF_RESPONSIBILITIES: "/reports/of-responsibilities",

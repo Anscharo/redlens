@@ -135,3 +135,12 @@ Landmark discoveries (verified by census unless noted):
 - CAUTION: normative agent's counts were pipeline-inferred garbage (claimed
   200–400 ADCs vs real 64) — merged its taxonomy only, corrected all numbers.
   Economic agent's report largely verified against censuses.
+
+- **(next commit)** "Add Concepts tab to /library"
+  Concept catalog is now in-app: /library/concepts renders docs/library/concepts.md
+  via ?raw bundling + react-markdown (RubricPage pattern — curated content ships
+  with deploys, not atlas commits, per the generated-skeleton/curated-flesh
+  principle). Full UUIDs in code spans linkify into the reader; short-form
+  pointers and doc_nos stay plain (reader ?id= is UUID-only — a doc_no resolver
+  would need the atlas bundle; noted as possible follow-up). Patch-notes bullet
+  revised (same unreleased feature).
