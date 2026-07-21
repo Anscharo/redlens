@@ -15,6 +15,12 @@
 // must carry a VERBATIM span, and `validateSpans` re-checks that span against
 // the evidence in code: a span that isn't really there downgrades the claim to
 // unsupported. The model cannot assert support into existence.
+//
+// STATUS: built and measured (see scripts/aux/eval-verifier-slices.ts), not yet
+// wired into chat-orchestrator.ts — runVerifier() (verifier.ts) is still the
+// live path. Swapping it in is planned future work, not abandoned; keep this
+// file and its eval in sync with verifier.ts's prompt/evidence conventions in
+// the meantime so the swap stays cheap when it happens.
 import type OpenAI from "openai";
 import type { JsonCall } from "./llm.ts";
 import type { EvidenceEntry } from "./verifier.ts";

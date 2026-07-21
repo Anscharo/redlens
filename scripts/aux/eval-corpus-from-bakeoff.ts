@@ -24,16 +24,13 @@ import { loadIndexes } from "../../src/server/indexes.ts";
 import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
 import type { EvidenceEntry } from "../../src/server/verifier.ts";
 import { BAKEOFF_QUERIES } from "./eval-bakeoff-queries.ts";
-import { RULING_QUERIES } from "./eval-bakeoff-rulings.ts";
-import { EXTENDED_QUERIES } from "./eval-bakeoff-extended.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "aux", "eval-corpora", "evidence");
-const REPORTS = ["eval-bakeoff.json", "eval-bakeoff-rulings.json", "eval-bakeoff-extended.json", "eval-bakeoff-all.json"]
-  .map((f) => path.join(ROOT, ".cache", f)).filter((p) => fs.existsSync(p));
+const REPORTS = ["eval-bakeoff.json"].map((f) => path.join(ROOT, ".cache", f)).filter((p) => fs.existsSync(p));
 
 const ix = loadIndexes();
-const questionOf = new Map([...BAKEOFF_QUERIES, ...RULING_QUERIES, ...EXTENDED_QUERIES].map((q) => [q.id, q.query]));
+const questionOf = new Map(BAKEOFF_QUERIES.map((q) => [q.id, q.query]));
 
 interface BakeoffRun {
   model: string; id: string; score: number | null;

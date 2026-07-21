@@ -10,8 +10,6 @@
 //   pnpm eval:bakeoff                          default candidate set
 //   pnpm eval:bakeoff --models a,b,c           explicit candidates
 //   pnpm eval:bakeoff --only <id> [--only id2] subset of queries
-//   pnpm eval:bakeoff --set rulings            facilitator-ruling set (STRONG-
-//                                              tier eval; --set all for both)
 //   pnpm eval:bakeoff --judge <model>          override judge (default sonnet-5)
 //   pnpm eval:bakeoff --concurrency N          parallel runs (default 4)
 //   pnpm eval:bakeoff --resume                 keep prior ok runs from the last
@@ -31,8 +29,6 @@ import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
 import { repairCitations } from "../../src/server/citation-repair.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
-import { RULING_QUERIES } from "./eval-bakeoff-rulings.ts";
-import { EXTENDED_QUERIES } from "./eval-bakeoff-extended.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
@@ -51,29 +47,14 @@ const JUDGE = flag("judge")[0] ?? "openai/gpt-5.6-terra"; // outside the candida
 const NO_JUDGE = argv.includes("--no-judge");
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 4);
 const ONLY = new Set(flag("only"));
-// --set core (default) | rulings (facilitator-ruling set — the STRONG-tier
-// eval) | all. Rulings live in eval-bakeoff-rulings.ts.
-const SET = flag("set")[0] ?? "core";
-// Each set gets its own report so a rulings run never clobbers core results.
-const REPORT_PATH = path.join(ROOT, ".cache", SET === "core" ? "eval-bakeoff.json" : `eval-bakeoff-${SET}.json`);
+const REPORT_PATH = path.join(ROOT, ".cache", "eval-bakeoff.json");
 
 if (!config.openrouterApiKey) {
   console.error("OPENROUTER_API_KEY is not set (.env.local) — cannot run the bakeoff.");
   process.exit(1);
 }
 const ix = loadIndexes();
-const QUERY_SETS: Record<string, BakeoffQuery[]> = {
-  core: BAKEOFF_QUERIES,
-  rulings: RULING_QUERIES,
-  extended: EXTENDED_QUERIES,
-  all: [...BAKEOFF_QUERIES, ...RULING_QUERIES, ...EXTENDED_QUERIES],
-};
-const setQueries = QUERY_SETS[SET];
-if (!setQueries) {
-  console.error(`unknown --set ${SET} — use ${Object.keys(QUERY_SETS).join("|")}`);
-  process.exit(1);
-}
-const queries = ONLY.size ? setQueries.filter((q) => ONLY.has(q.id)) : setQueries;
+const queries = ONLY.size ? BAKEOFF_QUERIES.filter((q) => ONLY.has(q.id)) : BAKEOFF_QUERIES;
 
 // --resume: keep prior successful runs from the last report (same judge
 // assumed) and only run the cells that are missing or errored.

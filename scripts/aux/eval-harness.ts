@@ -14,8 +14,7 @@
 // revisions, fabrications before/after, verdict transitions). Answer pairs are
 // saved to the report for quality judging by the reader.
 //
-//   pnpm eval:harness                 # query set: all (core + rulings + extended)
-//   pnpm eval:harness --set rulings   # subset
+//   pnpm eval:harness                 # the core query set
 //   pnpm eval:harness --only did-you-know
 //   CHAT_VERIFIER_MODEL=… CHAT_ADVISOR_MODEL=… pnpm eval:harness   # slot override
 import fs from "node:fs";
@@ -28,32 +27,21 @@ import { makeOpenrouterStream, openrouterJson } from "../../src/server/llm.ts";
 import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
-import { RULING_QUERIES } from "./eval-bakeoff-rulings.ts";
-import { EXTENDED_QUERIES } from "./eval-bakeoff-extended.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const argv = process.argv.slice(2);
 const flag = (n: string) => argv.flatMap((a, i) => (a === `--${n}` && argv[i + 1] ? [argv[i + 1]] : []));
-const SET = flag("set")[0] ?? "all";
 const ONLY = new Set(flag("only"));
 const CONCURRENCY = Number(flag("concurrency")[0] ?? 3);
 const REPORT_PATH = path.join(ROOT, ".cache", "eval-harness.json");
 
-const SETS: Record<string, BakeoffQuery[]> = {
-  core: BAKEOFF_QUERIES, rulings: RULING_QUERIES, extended: EXTENDED_QUERIES,
-  all: [...BAKEOFF_QUERIES, ...RULING_QUERIES, ...EXTENDED_QUERIES],
-};
-if (!SETS[SET]) {
-  console.error(`unknown --set ${SET} — use ${Object.keys(SETS).join("|")}`);
-  process.exit(1);
-}
 if (!config.openrouterApiKey) {
   console.error("OPENROUTER_API_KEY is not set (.env.local).");
   process.exit(1);
 }
-const queries = ONLY.size ? SETS[SET].filter((q) => ONLY.has(q.id)) : SETS[SET];
+const queries = ONLY.size ? BAKEOFF_QUERIES.filter((q) => ONLY.has(q.id)) : BAKEOFF_QUERIES;
 const ix = loadIndexes();
 
 interface Result {
@@ -154,7 +142,7 @@ const save = () => {
 };
 
 console.log(`harness eval — chat=${config.chatModel} verifier=${config.chatVerifierModel || "(none)"} advisor=${config.chatAdvisorModel || "(none)"}`);
-console.log(`${queries.length} queries, set=${SET}\n`);
+console.log(`${queries.length} queries\n`);
 
 let cursor = 0;
 async function worker() {
