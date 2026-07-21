@@ -1,5 +1,20 @@
 # Chat System — End to End
 
+> **This document is descriptive: it records how the chat system actually
+> works today.** The earlier chat documents under `docs/plans/` are
+> *prescriptive* — they laid out what the system could or should become before
+> it was built, and may have drifted from what shipped. Where they disagree
+> with this doc, this doc wins.
+>
+> - [`docs/plans/chatbot-plan.md`](./plans/chatbot-plan.md) — original
+>   full-stack chatbot architecture plan.
+> - [`docs/plans/chatbot-frontend.md`](./plans/chatbot-frontend.md) —
+>   frontend-scoped companion (widget, profile button, usage meter).
+> - [`docs/plans/chat-reliability-harness.md`](./plans/chat-reliability-harness.md)
+>   — multi-model verifier/advisor harness plan.
+> - [`docs/plans/chatbot-readiness-remediation-plan.md`](./plans/chatbot-readiness-remediation-plan.md)
+>   — pre-launch readiness remediation plan.
+
 An agentic, tool-calling RAG assistant over the Sky Atlas. The model never
 answers from memory — every claim must be grounded in Atlas documents it
 retrieves via tools, and citations are machine-verified. The entire chat
