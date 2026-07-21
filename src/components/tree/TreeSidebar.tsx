@@ -10,6 +10,7 @@ import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
 import { useSelectionSet } from "../../lib/selectionFilter";
+import { buildSelectedOnlyNodes } from "../../lib/selectedTree";
 import { useDataSource } from "../../lib/dataSource";
 import { track } from "../../lib/analytics";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
@@ -202,27 +203,13 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         // the reader instead of all rendering as depth-1 red.
         .map((node) => ({ node, hasChildren: false, treeDepth: node.depth }));
     }
-    const result: VisibleNode[] = [];
-    // "Selected only": selected docs stay visible, but keep WORKING chevrons —
-    // expanding a selected node reveals its children so you can browse into the
-    // subtree. Hierarchical walk that shows a node when it's selected OR under an
-    // expanded shown ancestor; the parentDocNo chain keeps depth/chiclet colors
-    // right even where intermediate (unselected) ancestors are hidden.
+    // "Selected only": ONLY selected docs, arranged by selection nesting, with
+    // working chevrons that reveal just the selected descendants. See
+    // buildSelectedOnlyNodes.
     if (selectionSet) {
-      const walkSel = (parentId: string | null, parentDocNo: string | undefined, reveal: boolean) => {
-        for (const node of byParent.get(parentId) ?? []) {
-          const hasChildren = byParent.has(node.id);
-          if (selectionSet.has(node.id) || reveal) {
-            result.push({ node, hasChildren, treeDepth: realDepth(node.doc_no, parentDocNo), parentDocNo });
-            walkSel(node.id, node.doc_no, hasChildren && expandedIds.has(node.id));
-          } else {
-            walkSel(node.id, node.doc_no, false);
-          }
-        }
-      };
-      walkSel(null, undefined, false);
-      return result;
+      return buildSelectedOnlyNodes(byParent, selectionSet, expandedIds);
     }
+    const result: VisibleNode[] = [];
     function walk(parentId: string | null, parentDocNo?: string) {
       for (const node of byParent.get(parentId) ?? []) {
         const hasChildren = byParent.has(node.id);
