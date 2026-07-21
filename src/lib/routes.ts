@@ -60,6 +60,20 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
   [ROUTES.REPORTS_RISK_RULES]:              { label: "risk",    placeholder: "Filter rules — title, doc no, text" },
 };
 
+// Reports whose data is also exposed to the chat agent as a one-call
+// `atlas_report_*` tool. Keyed by report route → tool name. Only these reports
+// get the "I'm viewing this report and can pull/query it" chat treatment; the
+// reports absent here (processes, stale-dates, oea-assessment, risk-rules) have
+// no backing chat tool, so the chat stays in its generic atlas mode there.
+// The tool names are validated server-side (src/server/system-prompt.ts)
+// against the live tool registry before they ever reach the model.
+export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
+  [ROUTES.REPORTS_OF_RESPONSIBILITIES]: "atlas_report_facilitator_responsibilities",
+  [ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES]: "atlas_report_govops_responsibilities",
+  [ROUTES.REPORTS_ACTIVE_DATA]: "atlas_report_active_data",
+  [ROUTES.REPORTS_REWARDS]: "atlas_report_rewards",
+};
+
 // Canonical report id → display title. Single source of truth shared by the
 // reports index (ReportsIndex) and visit-history capture (useReportVisitTracking).
 // Keyed by report id (the /reports/<id> slug); the rubric sub-page is deliberately

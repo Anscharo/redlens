@@ -15,6 +15,7 @@ import { CHAT_TOOLS } from "./llm-tools.ts";
 import { safeParseArgs } from "./llm-tools.ts";
 import { config } from "./config.ts";
 import type { Indexes } from "./indexes.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -50,7 +51,25 @@ export type ChatEvent =
       usage: { input: number; output: number };
       generationId: string | null;
       toolCalls: ToolCallRecord[];
+      // True when the final completion hit config.chatMaxOutputTokens and was
+      // cut off mid-generation (finish_reason "length") rather than ending on
+      // its own — the harness treats this as a hard failure so a truncated
+      // answer never ships silently as if it were complete.
+      lengthCapped: boolean;
+      // Full message array incl. tool results — the verifier's evidence source
+      // and the base for a revision run. INTERNAL: the SSE route strips it
+      // (sanitizeDone) before it ever reaches a client.
+      transcript: Msg[];
     };
+
+// Per-round notification for the orchestrator's pipelined checks. Fired after
+// the round's tool calls all resolved; fire-and-forget — it cannot block or
+// mutate the loop.
+export interface RoundInfo {
+  iter: number;
+  calls: { name: string; args: Record<string, unknown> }[];
+  results: { name: string; ok: boolean; content: string; truncated: boolean }[];
+}
 
 interface PendingCall {
   id: string;
@@ -58,12 +77,37 @@ interface PendingCall {
   args: string;
 }
 
+// The tool-result wire format for a failed call (see llm-tools.ts). Shared
+// with round-checks.ts so the UI's per-call ok badge and the harness's
+// errorResults telemetry can never disagree about what counts as an error.
+export function isErrorResult(content: string): boolean {
+  return content.startsWith('{"error"');
+}
+
+// Injected only on the final iteration, where tool_choice flips to "none" and the
+// model MUST return text. Without it, a model that hasn't found what it wanted
+// tends to narrate one more search ("Let me look up X…") as its answer — which,
+// since it can't call tools, becomes a dangling non-answer the user sees verbatim.
+// This forces a real answer or an honest "not found" instead.
+const FINAL_TURN_INSTRUCTION =
+  "This is your final turn — no more tools are available. Write the complete answer now, using only the evidence already gathered above. Cite sources as instructed. If the gathered evidence does not answer the question, say plainly that the atlas does not appear to cover it and summarize what you did find. Do NOT describe further searches or say you will look something up — just answer.";
+
+// Injected transiently on every mid-loop turn after the first tool round. The
+// chat model tends to over-search — simple single-document questions were
+// burning 4–6 rounds before answering. This nudges "answer as soon as the
+// evidence suffices" without capping rounds for genuinely complex questions.
+// Like FINAL_TURN_INSTRUCTION it rides only the request, never lands in msgs.
+const EARLY_ANSWER_NUDGE =
+  "Check the tool results above before searching again: if they already contain what the question needs, write the final answer now instead of calling more tools. Simple questions about a single document rarely need more than one or two lookups. Only continue if a specific fact you need is still missing — and never re-run a near-identical query.";
+
 export async function* runChat(opts: {
   ix: Indexes;
   messages: Msg[];
   stream: ChatStream;
   signal?: AbortSignal;
   maxIterations?: number;
+  onRoundEnd?: (info: RoundInfo) => void;
+  obs?: ErrorContext;
 }): AsyncGenerator<ChatEvent> {
   const msgs: Msg[] = [...opts.messages];
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
@@ -76,8 +120,14 @@ export async function* runChat(opts: {
     if (opts.signal?.aborted) break;
     const last = iter === max - 1;
 
+    // Transient per-turn steering, never pushed onto msgs (not persisted, not
+    // resent): the final forced-text turn gets the answer-now instruction; any
+    // mid-loop turn after the first tool round gets the early-answer nudge.
+    const steer = last ? FINAL_TURN_INSTRUCTION : iter > 0 ? EARLY_ANSWER_NUDGE : null;
+    const turnMsgs: Msg[] = steer ? [...msgs, { role: "system", content: steer }] : msgs;
+
     const stream = opts.stream({
-      messages: msgs,
+      messages: turnMsgs,
       tools: CHAT_TOOLS,
       toolChoice: last ? "none" : "auto",
       signal: opts.signal,
@@ -130,20 +180,24 @@ export async function* runChat(opts: {
         content: content || null,
         tool_calls: calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args } })),
       });
-      for (const c of calls) {
-        const args = safeParseArgs(c.args);
-        yield { type: "tool_call", name: c.name, args };
-        const result = await execToolDetailed(opts.ix, c.name, c.args);
+      const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
+      for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
+      // Execute the round's calls in parallel (pure latency win); results are
+      // then emitted + pushed in call order for deterministic transcripts.
+      const results = await Promise.all(parsedCalls.map((c) => execToolDetailed(opts.ix, c.name, c.raw, opts.obs)));
+      const roundResults: RoundInfo["results"] = [];
+      for (let i = 0; i < parsedCalls.length; i++) {
+        const c = parsedCalls[i];
+        const result = results[i];
         const toolContent = result.content;
-        const ok = !toolContent.startsWith('{"error"');
-        const record = {
+        const ok = !isErrorResult(toolContent);
+        toolCalls.push({
           name: c.name,
-          args,
+          args: c.args,
           ok,
           bytes: result.returnedChars,
           ...(result.truncated ? { truncated: true, originalBytes: result.originalChars } : {}),
-        };
-        toolCalls.push(record);
+        });
         yield {
           type: "tool_result",
           name: c.name,
@@ -152,16 +206,31 @@ export async function* runChat(opts: {
           ...(result.truncated ? { truncated: true, originalBytes: result.originalChars } : {}),
         };
         msgs.push({ role: "tool", tool_call_id: c.id, content: toolContent });
+        roundResults.push({ name: c.name, ok, content: toolContent, truncated: result.truncated });
+      }
+      try {
+        opts.onRoundEnd?.({ iter, calls: parsedCalls.map((c) => ({ name: c.name, args: c.args })), results: roundResults });
+      } catch (err) {
+        // Observer errors must never break the loop, but are still worth knowing about.
+        captureError(err, opts.obs, { stage: "on_round_end_observer" });
       }
       continue;
     }
 
     // Otherwise this streamed content is the final answer.
-    yield { type: "done", content, usage: { input: usageIn, output: usageOut }, generationId, toolCalls };
+    yield {
+      type: "done",
+      content,
+      usage: { input: usageIn, output: usageOut },
+      generationId,
+      toolCalls,
+      lengthCapped: finishReason === "length",
+      transcript: content ? [...msgs, { role: "assistant", content }] : [...msgs],
+    };
     return;
   }
 
   // Reached only if aborted, or maxIterations somehow exhausted without a text
   // answer. Emit a terminal event so callers can persist + close cleanly.
-  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls };
+  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
 }

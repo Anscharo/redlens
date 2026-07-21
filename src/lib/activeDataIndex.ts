@@ -6,6 +6,7 @@ import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { parseMeta } from "./meta";
 import { toCSV } from "./csv";
 import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
+import type { SearchField } from "./reportFilter";
 
 export interface AgentRef {
   name: string;
@@ -392,4 +393,30 @@ export function activeDataRowsToCSV(
       lastEditDates.get(r.activeDataId) ?? "",
     ]),
   );
+}
+
+// The search haystack for one Active Data row as labelled fields. Shared by the
+// report page (ActiveDataReport) and the atlas_report_active_data MCP tool
+// (server-side filtering). `hidden` marks fields the table doesn't render (they
+// surface as a floating aside on match); row filtering reads all values.
+export function adSearchFields(r: ActiveDataRow): SearchField[] {
+  return [
+    { label: "title", value: r.activeDataTitle },
+    { label: "doc no", value: r.activeDataDocNo },
+    { label: "controller", value: r.controllerDocNo ?? "" },
+    { label: "controller title", value: r.controllerTitle ?? "", hidden: true },
+    { label: "prime agent", value: r.agent ?? "", despace: true },
+    { label: "process", value: r.process },
+    { label: "source doc", value: r.sourceDocNo ?? "", hidden: true },
+    { label: "resp. party", value: r.responsibleParty?.name ?? "", despace: true },
+    { label: "declared rp", value: r.responsibleParty?.declared ?? r.declaredRP ?? "", hidden: !!r.responsibleParty },
+    { label: "facilitator", value: r.facilitator?.name ?? "", despace: true },
+    { label: "fac. role", value: r.facilitator?.role ?? "", hidden: true },
+    {
+      label: "agent chain",
+      value: [r.chain?.executorName, r.chain?.facilitatorName, r.chain?.govopsName].filter(Boolean).join(", "),
+      hidden: true,
+      despace: true,
+    },
+  ];
 }

@@ -10,6 +10,8 @@ import type { ToolResult } from "../tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { buildRewardsIndex } from "../../lib/rewardsIndex.ts";
 import type { AgentPrimitive, RewardsAgent, RewardsIcd } from "../../lib/rewardsTypes.ts";
+import { filterRewardsAgents } from "../../lib/rewardsSearch.ts";
+import { parseReportQuery } from "../../lib/reportFilter.ts";
 import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
 
 // `params` is the raw [value, srcUuid, srcDocNo] tuple map behind each resolved
@@ -32,15 +34,19 @@ function stripAgentParams(a: RewardsAgent): RewardsAgent {
   return { ...a, dr: stripPrimParams(a.dr), ib: stripPrimParams(a.ib) };
 }
 
-export function buildRewardsReport(ix: Indexes, opts: { include_provenance: boolean }): ToolResult {
+export function buildRewardsReport(ix: Indexes, opts: { include_provenance: boolean; filter?: string }): ToolResult {
   const { agents: allAgents, ...ecosystem } = buildRewardsIndex(indexesToDocs(ix), indexesToGraphData(ix));
 
-  const agents = opts.include_provenance ? allAgents : allAgents.map(stripAgentParams);
+  // Filter is agent-level: keep each agent that has ≥1 matching Instance /
+  // Invocation, with its DR/IB buckets narrowed to the matching rows — the same
+  // filterRewardsAgents the /reports/rewards page uses. Empty filter = untouched.
+  const matched = filterRewardsAgents(allAgents, parseReportQuery(opts.filter ?? ""));
+  const agents = opts.include_provenance ? matched : matched.map(stripAgentParams);
 
   const { kept, truncated } = fitToBudget(agents);
   const result: ToolResult = {
     report: "rewards",
-    total: allAgents.length,
+    total: matched.length,
     returned: kept.length,
     truncated,
     agents: kept,

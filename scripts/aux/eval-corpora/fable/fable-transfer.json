@@ -1,0 +1,24 @@
+{
+  "id": "fable-transfer",
+  "question": "Show me the actual transaction records for Distribution Reward payouts — amounts, hashes, and dates.",
+  "answer": "The Atlas does not contain actual transaction records for Distribution Reward payouts. The relevant document — [List Of Distribution Reward Payments](/atlas/055fe10c-2d08-49a1-90c5-e124e2e0b4f9) — is present but unpopulated: its content reads only \"The Distribution Reward Payments are:\" with no amounts, transaction hashes, or dates. So there are no payout amounts, hashes, or dates to show from the retrieved atlas material.",
+  "evidence": [
+    {
+      "label": "[E1]",
+      "tool": "atlas_search",
+      "args": "{\"query\":\"List Of Distribution Reward Payments\",\"k\":6}",
+      "content": "{\"count\":6,\"phrase_filter\":[],\"results\":[{\"id\":\"055fe10c-2d08-49a1-90c5-e124e2e0b4f9\",\"doc_no\":\"A.6.1.1.1.2.5.1.2.1.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.031544957774465976,\"sources\":[\"lexical\",\"semantic\"]},{\"id\":\"09282f1f-f4fa-40b6-9073-6adc42f31569\",\"doc_no\":\"A.6.1.1.4.2.5.1.2.1.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.03125763125763126,\"sources\":[\"lexical\",\"semantic\"]},{\"id\":\"707956cc-62f8-4620-a95f-b45ebf263218\",\"doc_no\":\"A.6.1.1.4.2.5.1.2.6.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.030679156908665108,\"sources\":[\"lexical\",\"semantic\"]},{\"id\":\"4588c98b-1c51-4f8c-8cc5-baab631950ef\",\"doc_no\":\"A.6.1.1.4.2.5.1.2.5.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.030621785881252923,\"sources\":[\"lexical\",\"semantic\"]},{\"id\":\"ad573b24-befc-49f9-be30-6c65f8986c61\",\"doc_no\":\"A.6.1.1.4.2.5.1.2.2.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.02964426877470356,\"sources\":[\"lexical\",\"semantic\"]},{\"id\":\"731c96eb-57a2-434c-852c-2c7f461efb46\",\"doc_no\":\"A.6.1.1.4.2.5.1.2.3.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"snippet\":\"Distrib. Reward Payments are:\",\"score\":0.029631255487269532,\"sources\":[\"lexical\",\"semantic\"]}]}"
+    },
+    {
+      "label": "[E2]",
+      "tool": "atlas_get",
+      "args": "{\"id\":\"A.6.1.1.1.2.5.1.2.1.3.4.0.6.1\"}",
+      "content": "{\"id\":\"055fe10c-2d08-49a1-90c5-e124e2e0b4f9\",\"doc_no\":\"A.6.1.1.1.2.5.1.2.1.3.4.0.6.1\",\"title\":\"List Of Distribution Reward Payments\",\"type\":\"Active Data\",\"depth\":6,\"parentId\":\"1bc21199-26d0-4cdd-8d66-454ac62204b9\",\"order\":3534,\"content\":\"The Distribution Reward Payments are:\",\"addressRefs\":[],\"ancestors\":[{\"id\":\"1bc21199-26d0-4cdd-8d66-454ac62204b9\",\"doc_no\":\"A.6.1.1.1.2\",\"title\":\"Sky Primitives\",\"type\":\"Core\",\"depth\":5},{\"id\":\"dee2f5a4-279a-488c-9a9d-9583e3216fbf\",\"doc_no\":\"A.6.1.1.1\",\"title\":\"Spark\",\"type\":\"Core\",\"depth\":4},{\"id\":\"9fb7f1cc-f60b-4195-892d-5e540f969973\",\"doc_no\":\"A.6.1.1\",\"title\":\"List Of Prime Agent Artifacts\",\"type\":\"Section\",\"depth\":3},{\"id\":\"6889e3e5-1e95-425c-843b-6924b0f164ae\",\"doc_no\":\"A.6.1\",\"title\":\"Agent Artifacts\",\"type\":\"Article\",\"depth\":2},{\"id\":\"4a08ca6c-e652-49e4-9b79-4831b20e600a\",\"doc_no\":\"A.6\",\"title\":\"The Agent Scope\",\"type\":\"Scope\",\"depth\":1}]}"
+    }
+  ],
+  "sourceModel": "anthropic/claude-fable-5 (hand-authored, non-gemma)",
+  "audit": {
+    "verdict": "clean",
+    "notes": "Honest known-gap: cited payment doc is empty; no amounts/hashes/dates invented."
+  }
+}

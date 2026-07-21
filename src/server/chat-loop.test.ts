@@ -30,10 +30,11 @@ async function* emit(chunks: Chunk[]): AsyncIterable<Chunk> {
 
 // A fake LLM that replays `rounds` (one per loop iteration) and records the
 // params it was called with.
-function fakeStream(rounds: Chunk[][], captured: { toolChoice: string }[]): ChatStream {
+type Captured = { toolChoice: string; messages?: OpenAI.Chat.Completions.ChatCompletionMessageParam[] };
+function fakeStream(rounds: Chunk[][], captured: Captured[]): ChatStream {
   let i = 0;
   return (params) => {
-    captured.push({ toolChoice: params.toolChoice });
+    captured.push({ toolChoice: params.toolChoice, messages: params.messages });
     const chunks = rounds[Math.min(i, rounds.length - 1)] ?? [];
     i++;
     return emit(chunks);
@@ -115,8 +116,28 @@ test("tool round records chat-budget truncation metadata", async () => {
   }
 });
 
+test("final turn injects the answer-now instruction, only on the forced-text round", async () => {
+  const captured: Captured[] = [];
+  // Round 0 calls a tool (tool_choice auto); round 1 is the forced-text final.
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [textChunk("Answer."), finishChunk("stop")],
+  ];
+  await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(2);
+  const hasInstruction = (c: Captured) =>
+    (c.messages ?? []).some((m) => m.role === "system" && typeof m.content === "string" && m.content.includes("This is your final turn"));
+  // Not on the tool-calling round…
+  expect(captured[0].toolChoice).toBe("auto");
+  expect(hasInstruction(captured[0])).toBe(false);
+  // …only on the final forced-text round.
+  expect(captured[1].toolChoice).toBe("none");
+  expect(hasInstruction(captured[1])).toBe(true);
+});
+
 test("maxIterations=1 forces tool_choice:none on the only call", async () => {
-  const captured: { toolChoice: string }[] = [];
+  const captured: Captured[] = [];
   // Even if the model WANTS a tool, max=1 means the single call is forced to text.
   const rounds = [[toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")]];
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 1 }));
@@ -126,6 +147,88 @@ test("maxIterations=1 forces tool_choice:none on the only call", async () => {
   // No tool executed; terminal done emitted.
   expect(events.some((e) => e.type === "tool_call")).toBe(false);
   expect(events.at(-1)!.type).toBe("done");
+});
+
+test("early-answer nudge rides mid-loop rounds after the first tool round only", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [toolChunk("atlas_describe", '{"sections":["all"]}'), finishChunk("tool_calls")],
+    [textChunk("Answer."), finishChunk("stop")],
+  ];
+  await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 5 }));
+
+  const hasNudge = (c: Captured) =>
+    (c.messages ?? []).some(
+      (m) => m.role === "system" && typeof m.content === "string" && m.content.includes("write the final answer now instead of calling more tools"),
+    );
+  expect(captured).toHaveLength(3);
+  expect(hasNudge(captured[0])).toBe(false); // first round: let it search freely
+  expect(hasNudge(captured[1])).toBe(true); // evidence exists → nudge
+  expect(hasNudge(captured[2])).toBe(true); // still mid-loop (max 5)
+  // Transient: the nudge never accumulates into the persisted msgs — each
+  // request carries exactly one steering system message.
+  const steeringCount = (captured[2].messages ?? []).filter(
+    (m) => m.role === "system" && typeof m.content === "string" && m.content.includes("final answer now"),
+  ).length;
+  expect(steeringCount).toBe(1);
+});
+
+test("done carries the full transcript: tool round + final answer", async () => {
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [textChunk("Answer."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 3 }));
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  if (done.type === "done") {
+    const roles = done.transcript.map((m) => m.role);
+    expect(roles).toEqual(["user", "assistant", "tool", "assistant"]);
+    const last = done.transcript.at(-1)!;
+    expect(last.role === "assistant" && last.content).toBe("Answer.");
+  }
+});
+
+test("multi-call round: parallel execution keeps call order; onRoundEnd sees calls + results", async () => {
+  const twoCalls: Chunk = {
+    id: "gen-abc",
+    choices: [
+      {
+        index: 0,
+        delta: {
+          tool_calls: [
+            { index: 0, id: "call_a", type: "function", function: { name: "atlas_describe", arguments: "{}" } },
+            { index: 1, id: "call_b", type: "function", function: { name: "atlas_describe", arguments: '{"sections":["doc_types"]}' } },
+          ],
+        },
+        finish_reason: null,
+      },
+    ],
+  } as unknown as Chunk;
+  const rounds = [
+    [twoCalls, finishChunk("tool_calls")],
+    [textChunk("Done."), finishChunk("stop")],
+  ];
+  const roundEnds: Parameters<NonNullable<Parameters<typeof runChat>[0]["onRoundEnd"]>>[0][] = [];
+  const events = await collect(
+    runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 3, onRoundEnd: (info) => roundEnds.push(info) }),
+  );
+
+  // Both tool_call events precede both tool_result events (batch execution)…
+  const kinds = events.filter((e) => e.type === "tool_call" || e.type === "tool_result").map((e) => e.type);
+  expect(kinds).toEqual(["tool_call", "tool_call", "tool_result", "tool_result"]);
+  // …and the transcript pairs each tool message to its call id in call order.
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const toolMsgs = done.transcript.filter((m) => m.role === "tool");
+    expect(toolMsgs.map((m) => m.role === "tool" && m.tool_call_id)).toEqual(["call_a", "call_b"]);
+  }
+  expect(roundEnds).toHaveLength(1);
+  expect(roundEnds[0].iter).toBe(0);
+  expect(roundEnds[0].calls.map((c) => c.name)).toEqual(["atlas_describe", "atlas_describe"]);
+  expect(roundEnds[0].results).toHaveLength(2);
+  expect(roundEnds[0].results.every((r) => r.ok)).toBe(true);
 });
 
 test("aborted signal short-circuits to a terminal done", async () => {
