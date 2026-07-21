@@ -85,6 +85,18 @@ each). **Discovery: 83 "Artifact Edit Proposal" docs are per-instance edit-histo
 stubs living INSIDE artifacts** — a distributed change-log, distinct from the Root
 Edit pipeline (agents' D-group covers the distinction).
 
+**B7. Omni Documents** — Def: each agent's idiosyncratic non-primitive content —
+the ANTI-template (everything the primitive machine doesn't standardize). Sig:
+title "Omni Documents" (8 roots, one per prime, `<prime>.3`). Spark's exemplars:
+Governance Information (forums/Discord/delegation/risk council/emergency),
+Inherited Sky Core infrastructure, Ecosystem Accord references, SubProxy
+management, Savings configuration, Strategic Investments, Arkis Infrastructure,
+Offchain Collateralized Lending, Risk Curation Framework, **"Confidential
+Strategic Integrations and Deployments"** (a declared opacity zone — analyst
+flag). Weight: Spark 428 docs vs Keel 8 — Omni size tracks business complexity,
+not template. Rel: where F1 role wiring + D6 delegation + C5 emergency get
+agent-specific overrides; SRC Membership Registry lives here (H1).
+
 ### C. Procedural concepts
 
 **C1. Operational Process Definitions** — Def: an instance's step-by-step operating
@@ -308,6 +320,79 @@ title "RRC Framework Full Implementation" (×61: Spark 53, Grove 8) + "…Covera
 (×53); interim notice `A.2.2.10.1.1.3.2.1.1.2`. Rel: a STATUS overlay on B4
 instances — a validated staleness/coverage signal candidate.
 
+### E+. Programs & economic machinery (deep-dive merge)
+
+**Ep1. The four reward programs** — each is BOTH a named program and a primitive
+(the Program-vs-Primitive blur is resolved: program = the incentive structure +
+registries + partners; primitive = the per-agent deployment mechanism):
+- **Distribution Reward**: 0.2%/yr on USDS held via a channel; spec `e632c38f`
+  /A.2.2.9.1; 13 instances; integrator registries + reimbursement Active Data;
+  its Routine Protocol is the Atlas's most-cited doc (I).
+- **Integration Boost**: SSR × unrewarded balance (dynamic, SSR-coupled — the
+  key distinction from Distribution Reward's flat rate); spec `73577399`
+  /A.2.2.9.2; 9 instances; mutually exclusive with SSR on the same balance.
+- **Core Governance Reward**: pays primes for governance access provision — both
+  incentive AND performance duty; spec `b22d1c08` /A.2.2.11.1; strategy is
+  per-agent (not formula-driven), 1 instance so far.
+- **Pioneer Chain**: launch-agent chain pioneering; spec `4c7be4c6` /A.2.2.9.3;
+  3 instances — the least mature.
+
+**Ep2. Capital deployment machinery** (supply side):
+- **Allocation System** — THE dominant instance population (114 of 196): agents
+  post Risk Capital, borrow USDS at Base Rate, deploy via per-chain "conduits"
+  (Liquidity Layers, on-chain + off-chain param split, Relayer Role execution,
+  rate-limit lattice E2); spec `9db14ab7` /A.2.2.10.1.
+- **Risk Capital Rental** (`d8086dc0`) — inter-agent capital market: Junior
+  (SEJRC) vs Originated Senior (OSRC) classes; driven by A.3.2 risk models.
+- **ALM Rental** (`bd1f1ce5`) — trades the ALM *obligation* separately from
+  capital: constraint-flexibility, not capital provision.
+
+**Ep3. Rates family** — SSR (`A.3.1.2.2`, BEAM-bounded 200–3000bps), legacy DSR,
+SKY Borrow Rate (piecewise utilization curve /A.4.4.1.3.5.1.2), stUSDS Rate (a
+FORMULA over SSR+borrow+utilization, not a parameter — /A.4.4.1.3.2). Distinction
+locked: parameter (tunable coefficient) vs formula (immutable relationship) vs
+mechanism (contract machinery paying it).
+
+**Ep4. Revenue waterfall** — Treasury Management `6c0af059` /A.2.3: Net Revenue
+(Step 0) → allocation steps → Smart Burn Engine (Step 3, 45%; kicker/splitter
+params, SPLITTER_MOM breaker exempt from GSM delay) → Staking Rewards (Step 4);
+operationalized by the Monthly Settlement Cycle (dual independent calculation +
+reconcile + true-up — an audit-shaped procedure) and tuned by the Operational
+Weekly Cycle. Surplus Buffer /A.3.5.1 is the state variable the waterfall reads.
+
+**Ep5. Fee/rebate loop** — Ecosystem Upkeep Fee (uniform, ∝ token supply) +
+Upkeep Rebate (cross-holding incentive: A holding B's tokens claims rebate) —
+an INTER-AGENT cost-sharing mechanism, unlike user-facing rewards (Ep1).
+
+**Ep6. Budgets** — Def: named spending authorities with accrual/contingency
+rules. Sig: title contains "Budget" — 24 docs, censused: tiered Ranked Delegate
+budgets (400k/175k/48k USDS/yr L1/L2/L3), Resilience Fund (5M/yr), Resilience
+Research (≤2M), Bug Bounty rewards budget, Liquidity Bootstrapping transfers
+(2M + 2.4M to Spark), and **three 0-USDS placeholder budgets** (Governance
+Process Support, Communications Infrastructure, Accessibility) — dormant-concept
+signal. Refines A1: the Budget Controller/Directory/Document TYPES are unused,
+but budgeting operates through plain Core docs — spec'd formalism abandoned,
+practice ad hoc. NR-10 ("AD Budget Management") shows the Atlas knows.
+
+**Ep7. Insurance & defense** — Resilience Fund `ccd36a29` /A.2.9.1.1.1
+(technical committee, application→approval→payout from Surplus Buffer);
+distinct from treasury (allocation) and grants (capacity-building transfers —
+Ecosystem Entity Grants /A.2.13 with recorded Aug-2025 disbursements + tx
+hashes). Grant vs Reward distinction: one-time capacity transfers vs per-user
+incentive flows.
+
+**Ep8. Peg & bridge machinery** — Lite PSM (tin/tout 0%, buf 800M — /A.3.3.2.7.1.1,
+ownership transitioning to Grove per Accord terms); SkyLink bridges per chain
+with rate limits (Solana 5M USDS/day; Avalanche/Plasma initially unlimited) +
+Freezer multisigs (F2); Token SkyLink primitive for pioneer launches.
+
+**Ep9. Risk model framework** — A.3.2's quantitative core (54 math docs, E3):
+implemented models (Lending Markets, Legal Recourse Assets) vs **Pending Risk
+Models** (explicit backlog /A.3.2.1.1.4.3.2); formula chain PD→LGD→EAD→RWA→
+required capital; Smart Contract Risk Rating = min[CAP,(SR+CCR)·LAF·AF] with the
+Lindy Adjustment Factor (log-age discount) — the Atlas quantifies contract
+maturity trust.
+
 ### F. Relational/social concepts (the entity layer)
 
 **F1. Actor role system** — Def: who may act in what capacity. Sig: entity types
@@ -452,7 +537,23 @@ dirs ×136; Archive Type spec'd but unused).
 - Every ICD ⊂ both its primitive concept AND its host agent chunk (dual membership
   is the norm, not the exception)
 
-### II.5 Cross-scope concept duplication (same concept, parallel docs)
+### II.5 Validation cross-check: curated process categories ↔ concept groups
+
+The 132 curated processes (C3) map onto this catalog cleanly — evidence the
+concept taxonomy and the human-validated process taxonomy agree:
+
+| processes.json category (n) | Concept groups |
+|---|---|
+| Settlement & Financial (45) | C4 settlement cycle · F3 funds flows · E-money mechanisms (agent report pending) |
+| Dispute & Emergency (20) | C5 emergency · D8 dispute resolution · Dn5 escalation |
+| Agent & Primitive Lifecycle (16) | B1–B6 lifecycle · D9 termination · D11 incubation |
+| Collateral & Asset Management (16) | E2 rate limits · allocation systems · RWA/arrangers |
+| Personnel & Delegation (13) | D6 delegation · F1 roles · Dn3/Dn4 suspension/derecognition |
+| Executive & Spell Processes (12) | D5 spell machinery |
+| Governance & Voting Cycles (5) | C4 cycles · D4 voting |
+| Artifact & Atlas Governance (5) | D3 edit-instrument triad |
+
+### II.6 Cross-scope concept duplication (same concept, parallel docs)
 
 - SkyLink Freezer Multisigs: one doc in A.1 (governance view) + one in A.4
   (protocol view) per chain.
@@ -480,10 +581,41 @@ dirs ×136; Archive Type spec'd but unused).
   instrument)*: same words, different concepts — the former is a data-repo stub, the
   latter a voted pipeline.
 
+**Distinctions from the deep dives** (merged):
+- *Accord vs Agreement vs Instrument vs Protocol*: accord = named bilateral doc,
+  governance-enforceable; agreement = generic (can be on-chain code — Safe
+  Harbor); instrument = anything that effects governance (primitives, spells,
+  votes); protocol = system-level framework. Governance instruments bind
+  decisions; operational instruments execute them.
+- *Program vs Primitive*: a program is the incentive structure + partner/registry
+  surface; the primitive is its per-agent deployment machine. The four reward
+  programs are both at once; Treasury/Smart Burn are systems, NOT primitives
+  (not instantiable).
+- *Reward vs Grant vs Fee vs Budget*: per-user flow vs capacity transfer vs
+  inter-agent cost share vs named spending authority.
+
 **Dead ends so far**:
 - "Tables" as a concept: only 11 markdown tables corpus-wide — table-ness is not a
   useful signature (Atlas encodes lists as doc trees instead).
 - Doc `depth` as concept proxy: meaningless past 6 (heading cap).
+- "Voting" as a standalone family: dissolves into cycles (C4) + instruments (D4/
+  D5) + duties; no coherent separate group.
+- "Automated vs manual execution": a classification flag, not a concept — the
+  normative question is who decides, which is a duty (Dn1).
+- Reward *normative* logic as separate family: distributes into duties, rate
+  limits, scenarios — inseparable.
+
+**Spec'd-but-unrealized concepts** (the "ghost layer" — strongest staleness set):
+1. Budget Controller/Directory/Document doc types: unused (budgets run as Core
+   docs, Ep6).
+2. Translation, Archive, Original Context Data, Facilitator Action Precedent,
+   Navigation/Focus Hub types: no instances found.
+3. All 26 reward payment registries: empty shells (H1 census).
+4. Three 0-USDS budgets (Ep6).
+5. Pending Risk Models backlog (Ep9), Agent Token staking rewards (mentioned,
+   unspecified), Purpose System funding (article exists, machinery thin).
+6. Executor Agents overall: "not yet operational" per definition — 10-doc
+   artifacts vs primes' hundreds.
 
 **Open questions for the next pass**:
 - The 854 duty_for edges live only in the DB graph — regenerate the duty concept

@@ -104,3 +104,34 @@ Branched `atlas-library` off `main` (post risk-report-rendering merge, atlas db8
   loops; latch cleared on successful load; second failure shows a readable error).
   Server + fresh-browser verified fine before this — the error only ever appears in
   tabs spanning a schema change.
+
+## 2026-07-21 — session 1 continued (concept mining, "go all night" directive)
+
+User directive: exhaustive cross-cutting concept discovery; wrote self-prompt
+(CONCEPT-MINING.md, commit 889895a9) then executed: local censuses (title
+templates ×174, normative language 1301 docs, math 120, registries 46, cite
+hubs), MCP priors (30 Type Specifications, entity/edge inventories), 3 parallel
+ask-atlas deep dives (normative / economic / instruments). Two agents died on
+API errors mid-report; resumed via SendMessage and both delivered.
+
+Deliverable: docs/library/concepts.md — Part I catalog (A meta / B lifecycle /
+C procedural / D instruments+normative / E quantitative / Ep economic programs /
+F entities / G duties / H registries / I cite hubs), Part II indexes (spread
+matrix, signature types, lifecycle, process-category cross-check, containment,
+duplication), Part III distinctions + dead ends + ghost layer.
+
+Landmark discoveries (verified by census unless noted):
+- 32/46 registries are EMPTY shells incl. all 26 reward payment lists — the
+  Atlas's transactional record layer is unrealized.
+- Ghost layer: 6+ spec'd-but-unused doc types (Budget/Translation/Archive…);
+  budgets run as plain Core docs instead (24 docs, incl. three 0-USDS budgets).
+- Most-cited doc = Distribution Reward Routine Protocol (22); true gravity
+  centers are reward routine + Tau/BEAM params + emergency signaling.
+- Normative families chain into a justice pipeline (eligibility→duty→breach→
+  adjudication→suspension→derecognition); all 854 duty_for edges source in A.1.
+- Omni Documents = the anti-template (agent-idiosyncratic; Spark 428 docs incl.
+  "Confidential Strategic Integrations"); resolves atlas-map open question.
+- NR numbering has gaps (6,11,13–16 missing) — resolved/deleted research items.
+- CAUTION: normative agent's counts were pipeline-inferred garbage (claimed
+  200–400 ADCs vs real 64) — merged its taxonomy only, corrected all numbers.
+  Economic agent's report largely verified against censuses.
