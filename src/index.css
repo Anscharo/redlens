@@ -435,6 +435,8 @@ mark {
 .atlas-node.is-selected .atlas-node-select,
 .related-node:hover .atlas-node-select,
 .related-node:focus-within .atlas-node-select,
+.search-result:hover .atlas-node-select,
+.search-result:focus-within .atlas-node-select,
 .atlas-node-select:has(input:checked) {
   opacity: 1;
   pointer-events: auto;
