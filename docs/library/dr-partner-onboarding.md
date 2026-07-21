@@ -19,10 +19,14 @@ This checklist is scoped to DR; the differences are flagged at the end.
       near-term process (long-term: routed through a Prime Agent)
       · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
       · [A.2.2.4.1.2.2 — Long Term Process](https://atlas.redline.support/atlas?id=6283379c-d871-40a9-a915-d716d7df5642)
-      > ⚠ The Atlas does NOT enumerate required application fields. Implied
-      > minimum: legal identity + jurisdiction, contact persons, frontend /
-      > integration details, USDS integration plan, expected volume. OGO should
-      > maintain its own form (governance gap — see "Gaps" below).
+      > The Atlas does NOT enumerate application contents; it says only that
+      > applications are made directly to OGO via a Sky Forum thread that OGO
+      > must create and maintain. To fill the fields the Atlas DOES require
+      > downstream, the application must at minimum yield: the **Integrator
+      > Name** (required registry field in the Onboarding and Current
+      > Integrators updates) and enough information to run the Alignment and
+      > Compliance gates below. Anything more is OGO's own form design — see
+      > "Gaps".
 - [ ] **Alignment evidence** — the partner must be aligned with Sky's USDS
       adoption strategy; the determination is solely OGO's, and Sky Core may
       revoke a Reward Code at its sole discretion
@@ -93,30 +97,44 @@ This checklist is scoped to DR; the differences are flagged at the end.
 
 ### Phase 3 — Instance invocation & vote (Prime + Operational Facilitator)
 
-- [ ] Prime drafts the Artifact Edit adding the DR Instance (name, Reward Code,
-      methodology reference; status `Pending`)
-- [ ] Prime triggers the Artifact Edit Proposal; Operational Facilitator sets up
-      the Snapshot vote; Prime token holders vote
-- [ ] If approved: Operational Facilitator updates the Agent Artifact — Instance
-      status → `Active`
-      · [A.2.2.9.1.2.3 — Instance Invocation Protocol](https://atlas.redline.support/atlas?id=ad3a3f6b-7bc3-4e5f-b1c3-225b5b4cbe15)
+Per the Instance Invocation Protocol
+· [A.2.2.9.1.2.3 — Instance Invocation Protocol](https://atlas.redline.support/atlas?id=ad3a3f6b-7bc3-4e5f-b1c3-225b5b4cbe15):
+
+- [ ] Agent creates the `Artifact Edit Draft` for the new DR Instance
+      · [A.2.2.9.1.2.3.3.3 — Required Primitive Inputs](https://atlas.redline.support/atlas?id=6f4e7971-1813-4ff6-9e4f-5953c8cb54af)
+- [ ] Operational Facilitator reviews the `Artifact Edit Proposal` "to ensure
+      alignment with the Sky Core Atlas and the Agent Artifact" (invocation
+      status: `Proposal Pending Facilitator Review`)
+      · [A.2.2.9.1.2.3.4 — Process Definition For Operational Facilitator Review](https://atlas.redline.support/atlas?id=fd9aac63-00a0-4fc5-ad7c-8bb131322bd7)
+- [ ] "The Operational Facilitator sets up an offchain Snapshot vote. Prime
+      Agent token holders vote on the proposal."
+      · [A.2.2.9.1.2.3.5.2 — Process Flow (Offchain Vote)](https://atlas.redline.support/atlas?id=d0ceb4ed-8f65-45c6-808e-fca702dc2a62)
+- [ ] If approved: "Using the Powerhouse interface, the Operational Facilitator
+      updates the Agent Artifact with the approved Proposal content"; the ICD
+      moves from `In Progress Invocations` to `Active Instances`
+      · [A.2.2.9.1.2.3.6.2 — Process Flow (Artifact Update)](https://atlas.redline.support/atlas?id=3a23ed21-d9ac-4575-9c53-806fddb10f5c)
 
 ### Phase 4 — Final registry updates (OGO)
 
 - [ ] Delete the partner's row from Onboarding Integrators
       · rule: [A.2.2.9.1.2.3.6.4.1.1 — Onboarding Integrators Active Data Update](https://atlas.redline.support/atlas?id=4287ecd9-5ba6-4646-b949-306b494a108c)
-- [ ] Add the partner (name, Reward Code, approved-proposal reference) to
-      Current Integrators
+- [ ] Add the partner to Current Integrators — exact fields per the update rule:
+      `Current Integrators` (integrator name), `Reward Code`, and `Tracking
+      Methodology`, each "from the approved Proposal"
       · [A.2.2.9.1.2.1.4.1 — Current Integrators](https://atlas.redline.support/atlas?id=883f1b52-a6d2-417b-bb24-12917de83b53)
       · [A.2.2.9.1.2.1.4.1.0.6.1 — List Of Current Integrators](https://atlas.redline.support/atlas?id=efbe7903-a76e-40f0-a440-56e463283157)
       · rule: [A.2.2.9.1.2.3.6.4.1.2 — Current Integrators Active Data Update](https://atlas.redline.support/atlas?id=1c0708d0-6388-4264-90f2-7a0d0b877012)
 
 ### Phase 5 — Ongoing operations (OGO)
 
-- [ ] Monthly: calculate the DR per the Tracking Methodology; pay to the Prime's
-      buffer (near-term: paid from the Demand Side Buffer within 7 days of
-      month-end)
-- [ ] Ongoing: monitor compliance; escalate suspected violations
+- [ ] Monthly: "Operational GovOps calculates the Distribution Reward. The
+      Distribution Reward is paid from the Demand Side Buffer … within seven (7)
+      days of the end of every month" (near-term rule)
+      · [A.2.2.9.1.2.1.3.3.1 — Near-Term Process](https://atlas.redline.support/atlas?id=05fb732b-de55-4886-81a7-7c5d4c13d2d2)
+- [ ] On determined, suspected, or alleged violation: governance may "withhold,
+      revoke, or demand immediate repayment" of rewards (no audit mechanism or
+      cadence is specified — see Gaps)
+      · [A.2.2.4.1.1.2.1 — Consequence For Integrator Non-Compliance](https://atlas.redline.support/atlas?id=a01622fa-e81c-4bcb-8e31-7e66e36f2e57)
 - [ ] On removal from the program: delete from Current Integrators AND deactivate
       all of the partner's DR + Integration Boost instances
       · [A.2.2.4.1.1.2.2 — Removal From Integrator Program](https://atlas.redline.support/atlas?id=0bdcef8a-b851-42ed-b2e2-77d85c14dad0)

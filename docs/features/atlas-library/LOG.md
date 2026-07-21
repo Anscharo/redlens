@@ -153,3 +153,16 @@ Landmark discoveries (verified by census unless noted):
   atlas.redline.support/atlas?id=<uuid> URLs with section numbers as link text.
   First instance of the "chunk digest" doc genre (P2/P3 in the plan) — candidate
   for a future /library guides section.
+
+- **(next commit)** "DR onboarding doc: remove invented content, exact-relay pass"
+  USER CORRECTION (standing rule): never present inferred/invented content as
+  Atlas-derived. The "implied minimum" application-fields list was subagent
+  speculation — replaced with what the Atlas actually requires downstream
+  (Integrator Name registry field + the two gates). Also fixed while re-reading
+  source text: Current Integrators registry fields are name/Reward Code/
+  TRACKING METHODOLOGY (not "proposal reference"); Phase 3 rewritten as exact
+  quotes from the invocation pipeline (facilitator review → Snapshot vote →
+  Powerhouse update) with per-step citations; Phase 5 compliance line now
+  quotes the consequence provision instead of inventing "monitor/escalate".
+  RULE FOR ALL FUTURE ATLAS-DERIVED DOCS: every statement is either an exact
+  relay (quote/cite) or explicitly labeled as our own procedure-design note.
