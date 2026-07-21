@@ -7,7 +7,7 @@ import { SegmentedBar } from "./SegmentedBar";
 // Recursive chunk row: plain-text title toggles expansion; a link-out icon
 // (when the chunk maps to one atlas node) deep-links into the reader; the bar
 // is scaled against the largest SIBLING and segmented by the chunk's children.
-function ChunkRow({ node, max, atlasTotal, depth }: { node: ChunkNode; max: number; atlasTotal: number; depth: number }) {
+function ChunkRow({ node, max, atlasTotal, depth, rootDocNo }: { node: ChunkNode; max: number; atlasTotal: number; depth: number; rootDocNo?: boolean }) {
   const [open, setOpen] = useState(false);
   const kids = node.children ?? [];
   const expandable = kids.length > 0;
@@ -43,7 +43,7 @@ function ChunkRow({ node, max, atlasTotal, depth }: { node: ChunkNode; max: numb
               ▸
             </span>
             <span className={`${depth === 0 ? "text-sm" : "text-xs"} truncate`}>
-              {node.doc_no && depth > 0 ? `${node.doc_no} ` : ""}
+              {node.doc_no && (depth > 0 || rootDocNo) ? `${node.doc_no} ` : ""}
               {node.title}
             </span>
           </button>
@@ -79,12 +79,12 @@ function ChunkRow({ node, max, atlasTotal, depth }: { node: ChunkNode; max: numb
   );
 }
 
-export function LibraryChunkTree({ tree, atlasTotal }: { tree: ChunkNode[]; atlasTotal: number }) {
+export function LibraryChunkTree({ tree, atlasTotal, rootDocNo }: { tree: ChunkNode[]; atlasTotal: number; rootDocNo?: boolean }) {
   const max = Math.max(...tree.map((g) => g.docs), 1);
   return (
     <div className="mt-3">
       {tree.map((g) => (
-        <ChunkRow key={g.title} node={g} max={max} atlasTotal={atlasTotal} depth={0} />
+        <ChunkRow key={g.title} node={g} max={max} atlasTotal={atlasTotal} depth={0} rootDocNo={rootDocNo} />
       ))}
     </div>
   );

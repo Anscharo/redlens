@@ -1,5 +1,4 @@
 import type { LibraryData } from "../../lib/library";
-import { LibraryScopeMass } from "./LibraryScopeMass";
 import { LibraryChunkTree } from "./LibraryChunkTree";
 
 export function LibraryShape({ data }: { data: LibraryData }) {
@@ -14,10 +13,11 @@ export function LibraryShape({ data }: { data: LibraryData }) {
           Doc mass by scope
         </h2>
         <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
-          Each bar splits into the scope&apos;s articles, largest first — hover a segment for its name, click a row to
-          expand it.
+          The editorial axis, same chunk semantics as the tree below: expand a scope to descend into its distinct
+          chunks (wrapper levels are skipped — Agent Scope opens straight to the prime/executor artifact lists, then
+          the agents themselves). Bars scale to the largest sibling; % is of the whole Atlas.
         </p>
-        <LibraryScopeMass scopes={data.scopes} atlasTotal={data.totals.docs} />
+        <LibraryChunkTree tree={data.scopeTree} atlasTotal={data.totals.docs} rootDocNo />
       </section>
       <section className="mb-8">
         <h2 className="text-base font-semibold mb-1" style={{ color: "var(--tan)" }}>

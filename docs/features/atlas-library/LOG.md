@@ -84,3 +84,15 @@ Branched `atlas-library` off `main` (post risk-report-rendering merge, atlas db8
   fetched as library.json?v=N — bump in the same commit as any breaking LibraryData
   change (the shape guard remains the backstop). RULE FOR FUTURE SESSIONS: never
   change a per-sha artifact's shape without a cache-key change.
+
+- **(next commit)** "Skip wrapper levels; unify scope view with the chunk tree"
+  User: A.6 (7,459) expanding to only A.6.1 (7,458) with a 3/4 bar was confusing —
+  wanted obvious chunks (Spark, Grove…). Two defects fixed: (1) chunkNode now hoists
+  pass-through levels generally (single pruned child → descend until real branching),
+  so A.6 opens to prime/executor lists, then the agents; (2) deleted the special-case
+  LibraryScopeMass (its children were whole-Atlas-scaled while parents were
+  sibling-scaled — mixed visual grammar). "Doc mass by scope" now renders scopeTree
+  through the same recursive LibraryChunkTree (rootDocNo prop shows A.N on roots).
+  library.json: scopes→scopeTree (SCHEMA_V=3 per the immutable-cache rule). Side
+  benefit: semantic counts fixed A.1 (948, was 960 — the 12 NR docs no longer
+  miscounted under A.1 by the parentId ancestor stack). PlainBar removed.

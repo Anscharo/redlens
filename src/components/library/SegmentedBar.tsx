@@ -51,15 +51,3 @@ export function SegmentedBar({ value, max, segments }: { value: number; max: num
     </div>
   );
 }
-
-/** Plain single-color bar — used for expanded children, scaled against the whole Atlas. */
-export function PlainBar({ value, max }: { value: number; max: number }) {
-  return (
-    <div className="h-2 rounded-sm" style={{ background: "var(--surface)" }}>
-      <div
-        className="h-full rounded-sm"
-        style={{ width: `${Math.max(0.5, (value / max) * 100)}%`, background: "var(--red)", opacity: 0.75 }}
-      />
-    </div>
-  );
-}

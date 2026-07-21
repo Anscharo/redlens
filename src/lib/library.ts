@@ -8,16 +8,6 @@ export interface LibrarySegment {
   docs: number;
 }
 
-export interface LibraryNodeRef {
-  id: string;
-  doc_no: string;
-  title: string;
-  docs: number;
-  bytes: number;
-  /** Direct-child weights, largest first — drives the stacked weight bars. */
-  segments: LibrarySegment[];
-}
-
 export interface ChunkNode {
   /** Present when the chunk maps to a single atlas node (drives the reader link). */
   id?: string;
@@ -47,7 +37,8 @@ export interface LibraryData {
   atlasCommit: string;
   totals: { docs: number; bytes: number; glossaryTerms: number };
   docTypes: [string, number][];
-  scopes: LibraryNodeRef[];
+  /** The seven scopes as recursive chunk nodes (editorial axis). */
+  scopeTree: ChunkNode[];
   neededResearch: { id: string; doc_no: string; title: string }[];
   toc: LibraryTocScope[];
   /** Hierarchical chunk taxonomy — groups at the top, semantic subtree below. */
@@ -65,7 +56,7 @@ export interface LibraryData {
 // returning clients on year-cached old bytes. Bump it in the same commit as
 // any breaking change to LibraryData; the shape guard below is the backstop
 // for a forgotten bump.
-const SCHEMA_V = 2;
+const SCHEMA_V = 3;
 const cache = new Map<string, Promise<LibraryData>>();
 
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {
@@ -77,7 +68,7 @@ export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData
         // independently (live updater, long-open tabs across deploys). An
         // artifact missing fields this UI needs must surface as a readable
         // load error, not a render crash inside the page.
-        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopes) || !Array.isArray(d.toc)) {
+        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopeTree) || !Array.isArray(d.toc)) {
           throw new Error("library.json is from an older build — reload the page to pick up the current version");
         }
         return d;

@@ -100,11 +100,22 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
   // MIN_CHUNK_DOCS so the artifact stays lean while every meaningful
   // sub-chunk (primitive families, hubs, instance directories…) survives.
   const MIN_CHUNK_DOCS = 5;
-  const chunkNode = (n) => {
-    const entry = { ...ref(n), docs: semSubtree(n.doc_no) };
-    const kids = (semChildren.get(n.doc_no) || [])
+  const prunedKids = (doc_no) =>
+    (semChildren.get(doc_no) || [])
       .filter((c) => semSubtree(c.doc_no) >= MIN_CHUNK_DOCS)
       .sort((a, b) => semSubtree(b.doc_no) - semSubtree(a.doc_no));
+  const chunkNode = (n) => {
+    const entry = { ...ref(n), docs: semSubtree(n.doc_no) };
+    // Hoist pass-through levels: a node whose pruned children are a single
+    // wrapper (A.6 → A.6.1 "Agent Artifacts") adds no information — descend
+    // until a real branching (prime list / executor list) so every expansion
+    // reveals distinct chunks, never a child one doc smaller than its parent.
+    let kids = prunedKids(n.doc_no);
+    while (kids.length === 1) {
+      const inner = prunedKids(kids[0].doc_no);
+      if (inner.length === 0) break;
+      kids = inner;
+    }
     if (kids.length > 0) entry.children = kids.map(chunkNode);
     return entry;
   };
@@ -131,6 +142,9 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
     }),
     primes: (children.get(PRIME_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
     executors: (children.get(EXEC_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
+    // Scope-rooted chunk tree for the "Doc mass by scope" view — same recursive
+    // chunk semantics as chunkTree, but along the editorial scope axis.
+    scopeTree: scopes.map(chunkNode),
     // Hierarchical chunk tree: curated taxonomy groups at the top, then the
     // semantic (doc_no-based) tree beneath, pruned at MIN_CHUNK_DOCS.
     chunkTree: GROUPS.map(([name, roots]) => {
