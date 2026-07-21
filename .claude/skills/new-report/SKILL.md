@@ -74,6 +74,37 @@ analytics, counts).
 6. **Result count + empty state.** Show `{filtered.length} <unit>` near the controls, and a
    plain empty-state message when a filter/search yields zero rows (never a blank page).
 
+6a. **CSV rows referencing an atlas doc always carry a `UUID` column** (the raw `doc.id`,
+   never a doc_no — see the doc_no-vs-UUID rule) **plus an `Atlas Link` column** built with
+   `atlasUrl(id)` from `src/lib/routes.ts` (an absolute, window-guarded variant of `atlasHref`
+   — safe to call from a DOM-free `src/lib/*Index.ts` module or a server-side report builder;
+   use `atlasUrlOrEmpty(id)` — same file — for an *optional* reference instead of hand-rolling
+   `id ? atlasUrl(id) : ""`). A row can reference more than one first-class doc (i.e. one with
+   its own Doc No/Title columns — e.g. an Active Data doc + its Controller doc, or an ICD + its
+   Payments Controller) — give each its own `UUID`/`Atlas Link` pair, named to disambiguate
+   (`Active Data UUID`, `Controller UUID`, …). See `staleDatesToCSV` in `src/lib/staleDates.ts`
+   for the reference implementation.
+
+6b. **Never collapse multiple docs into one CSV row** (a joined `"A.3.1; A.4.1"` cell, or a
+   single row standing in for several per-agent replicas). A table/UI view is allowed to group
+   same-titled per-agent-artifact copies into one row for readability (`dutyCollapse.ts`'s
+   `sources`/`mergedDocNos` mechanism, mirrored in `OeaTask.copies`) — but the CSV export must
+   re-expand every such row back to one row per doc, so each row's UUID/Atlas Link points at
+   exactly one doc. Use `expandSources` (`src/lib/dutyCollapse.ts`) when your row type carries
+   a `sources: MergedSource[]` field (`facilitatorRowsToCSV`/`govopsRowsToCSV`); for a
+   differently-shaped collapse (e.g. `oeaRowsToCSV`'s `expandTaskCopies`), build it on the
+   shared `expandCopies(row, copies, applyCopy)` skeleton rather than hand-rolling the
+   guard-and-map again. **Any field narrowed per copy must be narrowed correctly, not fudged**:
+   an expanded row's Agent/Facilitator/etc. must reflect only what that SPECIFIC doc's own
+   data says — never a fallback to the representative row's value (a different physical doc)
+   and never the pre-collapse union pretending to apply to every copy (see `MergedSource.facilitators`
+   in `dutyCollapse.ts` for how `facilitatorResponsibilities.ts` tracks a per-copy value
+   alongside the row-level union when the two can legitimately differ). Because expansion can
+   emit more CSV rows than the on-screen grouped count, compute `DownloadCsvButton`'s
+   `rowCount`/`fullRowCount` from the expanded count, not `rows.length` — use `expandedRowCount`
+   (`src/lib/dutyCollapse.ts`) for `sources`-shaped rows, or `oeaCsvRowCount`
+   (`src/lib/oeaReport.ts`) as the pattern for a differently-shaped collapse.
+
 7. **`track("report_view", { report: "<slug>" })`** once on mount, and
    **`useDocumentTitle("<Title>: Sky Atlas by Redline")`**.
 
@@ -101,6 +132,8 @@ analytics, counts).
 ## Definition of done
 
 - [ ] `DownloadCsvButton` wired with both full + filtered exports via `src/lib/csv.ts` (escaping correct)
+- [ ] CSV rows include a `UUID` + `Atlas Link` (`atlasUrl()`) column per referenced doc
+- [ ] No CSV row merges multiple docs — collapsed table rows are expanded 1-doc-per-row
 - [ ] Filters URL-synced via `useUrlState` + `FilterPills`/`CategoryPills`
 - [ ] Header search filters the report in place (`q` param)
 - [ ] Pure `src/lib/<name>Index.ts` + colocated `.test.ts`

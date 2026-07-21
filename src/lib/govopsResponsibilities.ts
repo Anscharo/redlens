@@ -13,9 +13,11 @@ import type { GraphData } from "./graphData";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./stripMarkdownLinks";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import {
   dutyRowKeyer,
+  expandSources,
   finalizeDutySources,
   mergeDutyDoc,
   mergedDocNos,
@@ -240,13 +242,19 @@ export function deriveGovOpsResponsibilities(
 }
 
 // Exports the given (already-filtered) GovOps responsibility rows as an
-// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened — except a
+// collapsed duty row (one row covering several per-agent doc replicas in the
+// table) is re-expanded to one CSV row per doc, so every row's UUID/Atlas Link
+// points at exactly one doc instead of joining several into one cell.
 export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
+  const expanded = rows.flatMap(expandSources);
   return toCSV(
-    ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
-    rows.map((r) => [
-      mergedDocNos(r, "; "),
+    ["Doc No", "Title", "UUID", "Atlas Link", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
+    expanded.map((r) => [
+      r.docNo,
       r.title,
+      r.uuid,
+      atlasUrl(r.uuid),
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,
       (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),

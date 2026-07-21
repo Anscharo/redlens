@@ -33,6 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-21
+- Every report's CSV download now includes each referenced document's UUID and a direct Atlas link
+- Facilitator, GovOps, and OEA Task Assessment CSV exports no longer merge duty copies into one row — each is listed separately
+
 ## 2026-07-20
 - MCP now serves reports directly covering Facilitator and GovOps responsibilities, integrator rewards, and Active Data
 

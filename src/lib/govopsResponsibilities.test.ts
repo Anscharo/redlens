@@ -248,20 +248,27 @@ describe("deriveGovOpsResponsibilities", () => {
 });
 
 describe("govopsRowsToCSV", () => {
-  it("emits a header, maps the category label, and joins agents with '; '", () => {
+  it("emits a header with UUID/Atlas Link, maps the category label, and joins agents with '; '", () => {
     const rows: OGResponsibility[] = [
       { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", govops: "Soter Labs", role: "Operational", agents: ["Amatsu", "Ozone"] },
       { docNo: "A.2.1", uuid: "u2", title: "A duty", duty: "does the thing", category: "op-duty", govops: "Soter Labs" },
       { docNo: "A.3.1", uuid: "u3", title: "Merged", duty: "shared duty", category: "op-duty", sources: [{ docNo: "A.3.1", uuid: "u3", agent: "Spark" }, { docNo: "A.4.1", uuid: "u4", agent: "Grove" }] },
     ];
     const lines = govopsRowsToCSV(rows).split("\r\n");
-    // A merged row lists every source doc_no, not just the representative.
-    expect(lines[3]).toContain('"A.3.1; A.4.1"');
-    expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","GovOps","Executor","Role"');
+    expect(lines[0]).toBe('"Doc No","Title","UUID","Atlas Link","Category","Duty","Agents","GovOps","Executor","Role"');
+    expect(lines[1]).toContain('"u1"');
     expect(lines[1]).toContain('"Amatsu; Ozone"');
     expect(lines[1]).toContain('"Ozone"'); // executor column
     expect(lines[1]).toContain('"GovOps Assignments (per Executor Agent)"');
     // Row without agents/executor/role leaves those blank.
     expect(lines[2]).toContain('"does the thing","","Soter Labs","",""');
+    // A merged row is re-expanded to one CSV row per source doc, not joined.
+    expect(lines.length).toBe(5); // header + 2 plain rows + 2 expanded from the merge
+    expect(lines[3]).toContain('"A.3.1"');
+    expect(lines[3]).toContain('"u3"');
+    expect(lines[3]).toContain('"Spark"');
+    expect(lines[4]).toContain('"A.4.1"');
+    expect(lines[4]).toContain('"u4"');
+    expect(lines[4]).toContain('"Grove"');
   });
 });

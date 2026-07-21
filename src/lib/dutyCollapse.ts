@@ -14,6 +14,14 @@ export interface MergedSource {
   docNo: string;
   uuid: string;
   agent?: string; // Prime Agent whose artifact subtree holds this copy
+  // Facilitator org(s) this SPECIFIC copy's duty_for edge(s) name — distinct
+  // from the row-level `facilitators` union (facilitatorResponsibilities.ts's
+  // `_facs`), which can genuinely differ per copy: two per-agent-artifact
+  // replicas of the same duty TEXT (dutyCollapseKey masks only the owning
+  // agent's name, not facilitator org names) can still resolve to different
+  // Operational Facilitators per Prime Agent. Only set by the facilitator
+  // report; govops rows never populate this.
+  facilitators?: string[];
 }
 
 // Per-agent-artifact subtree (A.6.1.1.<agent>.*) — the only place duty docs
@@ -129,4 +137,61 @@ export function finalizeDutySources(
 /** A row's doc numbers: every merged copy when 2+ docs collapsed, else the representative alone. */
 export function mergedDocNos(row: { docNo: string; sources?: MergedSource[] }, sep: string): string {
   return row.sources?.map((s) => s.docNo).join(sep) ?? row.docNo;
+}
+
+/**
+ * Re-expand a collapsed row back into one entry per merged doc copy — CSV
+ * exports must give every referenced doc its own UUID/Atlas Link cell, so a
+ * joined "id1; id2" isn't a usable link. Table/search views still use the
+ * collapsed row (mergedDocNos) since a grouped UI row is the point there.
+ * `copies` may be undefined/singleton (nothing collapsed) — in which case the
+ * row is returned unchanged. `applyCopy` narrows whatever per-row fields only
+ * make sense for one specific doc (e.g. which single agent owns it) — shared
+ * here so every collapse-then-CSV-export report (Facilitator/GovOps duty rows
+ * via `expandSources` below, OEA tasks via `oeaReport.ts`'s `expandTaskCopies`)
+ * uses the same guard-and-map skeleton instead of three hand-rolled copies.
+ */
+export function expandCopies<T>(
+  row: T,
+  copies: MergedSource[] | undefined,
+  applyCopy: (row: T, copy: MergedSource) => T,
+): T[] {
+  if (!copies || copies.length <= 1) return [row];
+  return copies.map((c) => applyCopy(row, c));
+}
+
+/**
+ * `expandCopies` specialized for the Facilitator/GovOps `sources: MergedSource[]`
+ * shape: each expanded row's Agent narrows to that specific copy's own owner
+ * (never falling back to the representative's agent — a copy whose owner
+ * couldn't be resolved should show blank, not another doc's agent), and the
+ * merged `agents` list (every covered Prime) no longer applies to a single doc.
+ */
+export function expandSources<
+  T extends {
+    docNo: string;
+    uuid: string;
+    agent?: string;
+    agents?: string[];
+    sources?: MergedSource[];
+    facilitators?: string[];
+  },
+>(row: T): T[] {
+  return expandCopies(row, row.sources, (row, s) => ({
+    ...row,
+    docNo: s.docNo,
+    uuid: s.uuid,
+    agent: s.agent,
+    agents: undefined,
+    // A source's own facilitators narrows the row-level union down to just
+    // this doc's — only set for facilitator rows (govops rows never populate
+    // MergedSource.facilitators, so this is always a no-op there).
+    facilitators: s.facilitators ?? row.facilitators,
+  }));
+}
+
+/** Rows in, CSV rows out: how many `expandSources` will actually emit — for
+ * DownloadCsvButton's row count, which must reflect the expanded total. */
+export function expandedRowCount(rows: readonly { sources?: MergedSource[] }[]): number {
+  return rows.reduce((n, r) => n + (r.sources && r.sources.length > 1 ? r.sources.length : 1), 0);
 }

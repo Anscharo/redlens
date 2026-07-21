@@ -228,7 +228,7 @@ describe("staleDatesToCSV", () => {
   it("flattens the three buckets with a leading Bucket column", () => {
     const csv = staleDatesToCSV(report);
     const lines = csv.split("\r\n");
-    expect(lines[0]).toBe('"Bucket","Doc No","Title","Date Text","Boundary Date","Precision","Days Until Stale","Handoff","Context"');
+    expect(lines[0]).toBe('"Bucket","Doc No","Title","UUID","Atlas Link","Date Text","Boundary Date","Precision","Days Until Stale","Handoff","Context"');
     const total = report.stale.length + report.dueSoon.length + report.upcoming.length;
     expect(lines.length - 1).toBe(total); // one data row per claim
     // Buckets appear in stale → due-soon → upcoming order.

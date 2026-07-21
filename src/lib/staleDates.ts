@@ -8,6 +8,7 @@
 import type { AtlasNode } from "../types";
 import { stripMarkdownLinks } from "./atlasHelpers";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 
 export type DatePrecision = "day" | "month" | "quarter";
 
@@ -156,11 +157,13 @@ export function staleDatesToCSV(report: StaleDatesReport): string {
     ...report.upcoming.map((c): [string, DateClaim] => ["upcoming", c]),
   ];
   return toCSV(
-    ["Bucket", "Doc No", "Title", "Date Text", "Boundary Date", "Precision", "Days Until Stale", "Handoff", "Context"],
+    ["Bucket", "Doc No", "Title", "UUID", "Atlas Link", "Date Text", "Boundary Date", "Precision", "Days Until Stale", "Handoff", "Context"],
     bucketed.map(([bucket, c]) => [
       bucket,
       c.docNo,
       c.title,
+      c.docId,
+      atlasUrl(c.docId),
       c.raw,
       c.dateISO,
       c.precision,
