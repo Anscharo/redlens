@@ -62,3 +62,29 @@ export function buildSelectedOnlyNodes(
   walk(null, undefined, true);
   return result;
 }
+
+// End index (exclusive) of the contiguous run of TRUE descendants of the row at
+// `selectedIndex`, for the selected-only view. There, treeDepth contiguity is
+// unreliable for sizing the cradle — unselected intermediates are dropped, so a
+// following row with deeper treeDepth can belong to a different selected branch,
+// not to the selected node. Walk real ancestry via parentOf (byParent inverted)
+// instead; the run is still contiguous because buildSelectedOnlyNodes is DFS.
+export function selectedDescendantRunEnd(
+  rows: { node: AtlasNode }[],
+  selectedIndex: number,
+  parentOf: Map<string, string | null>,
+): number {
+  const sel = rows[selectedIndex];
+  if (!sel) return selectedIndex + 1;
+  const isDescendant = (id: string): boolean => {
+    let p = parentOf.get(id) ?? null;
+    while (p) {
+      if (p === sel.node.id) return true;
+      p = parentOf.get(p) ?? null;
+    }
+    return false;
+  };
+  let i = selectedIndex + 1;
+  while (i < rows.length && isDescendant(rows[i].node.id)) i++;
+  return i;
+}

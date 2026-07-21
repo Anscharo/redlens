@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { buildSelectedOnlyNodes, selectedDescendantSet } from "./selectedTree";
+import { buildSelectedOnlyNodes, selectedDescendantSet, selectedDescendantRunEnd } from "./selectedTree";
 import { makeNode, makeAtlasBundle } from "../test/fixtures";
+
+// parentOf = byParent inverted (id → parentId), the same map TreeSidebar builds.
+function parentOfFrom(byParent: Map<string | null, ReturnType<typeof makeNode>[]>) {
+  const m = new Map<string, string | null>();
+  for (const [pid, kids] of byParent) for (const k of kids) m.set(k.id, pid);
+  return m;
+}
 
 // A small tree:
 //   parent (A.1)
@@ -77,5 +84,47 @@ describe("buildSelectedOnlyNodes", () => {
     const { bundle } = tree();
     const set = selectedDescendantSet(bundle.byParent, new Set(["grandA"]));
     expect([...set].sort()).toEqual(["childA", "parent"]);
+  });
+});
+
+describe("selectedDescendantRunEnd (cradle sizing)", () => {
+  it("stops at a deeper-but-unrelated selected branch (the cradle-overshoot bug)", () => {
+    // parent (A.1) open+selected with a selected child. A SEPARATE selected branch
+    // sits lower in the flattened list AND deeper in doc_no (A.2.3.4), reached
+    // through unselected intermediates. The old treeDepth>sel.treeDepth check
+    // wrongly swept it into the cradle; the ancestry check must stop before it.
+    const parent = makeNode({ id: "parent", doc_no: "A.1", parentId: null, order: 0 });
+    const childA = makeNode({ id: "childA", doc_no: "A.1.1", parentId: "parent", order: 1 });
+    const oA2 = makeNode({ id: "oA2", doc_no: "A.2", parentId: null, order: 2 });
+    const oA23 = makeNode({ id: "oA23", doc_no: "A.2.3", parentId: "oA2", order: 3 });
+    const deep = makeNode({ id: "deep", doc_no: "A.2.3.4", parentId: "oA23", order: 4 });
+    const bundle = makeAtlasBundle([parent, childA, oA2, oA23, deep]);
+    const parentOf = parentOfFrom(bundle.byParent);
+    const selected = new Set(["parent", "childA", "deep"]);
+    const rows = buildSelectedOnlyNodes(bundle.byParent, selected, new Set(["parent"]));
+    expect(rows.map((r) => r.node.id)).toEqual(["parent", "childA", "deep"]);
+    // `deep` is deeper than parent (treeDepth 3 > 1) but NOT its descendant — the
+    // old logic overshot to include it; the fix stops the cradle after childA.
+    expect(rows[2].treeDepth).toBeGreaterThan(rows[0].treeDepth);
+    expect(selectedDescendantRunEnd(rows, 0, parentOf)).toBe(2); // exclusive end → covers only index 1 (childA)
+  });
+
+  it("covers the whole descendant run, across an unselected gap", () => {
+    const { bundle } = tree();
+    const parentOf = parentOfFrom(bundle.byParent);
+    // parent selected, childA unselected gap, grandA selected; expand both.
+    const selected = new Set(["parent", "grandA"]);
+    const rows = buildSelectedOnlyNodes(bundle.byParent, selected, new Set(["parent", "childA"]));
+    expect(rows.map((r) => r.node.id)).toEqual(["parent", "grandA"]);
+    // grandA IS a true descendant of parent → run covers it.
+    expect(selectedDescendantRunEnd(rows, 0, parentOf)).toBe(2);
+  });
+
+  it("returns selectedIndex+1 (empty run) when the selected node has no visible descendants", () => {
+    const { bundle } = tree();
+    const parentOf = parentOfFrom(bundle.byParent);
+    const rows = buildSelectedOnlyNodes(bundle.byParent, new Set(["parent", "other"]), new Set());
+    // parent(0), other(1) — siblings, neither descends from the other.
+    expect(selectedDescendantRunEnd(rows, 0, parentOf)).toBe(1);
   });
 });

@@ -10,7 +10,7 @@ import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
 import { useSelectionSet } from "../../lib/selectionFilter";
-import { buildSelectedOnlyNodes } from "../../lib/selectedTree";
+import { buildSelectedOnlyNodes, selectedDescendantRunEnd } from "../../lib/selectedTree";
 import { useDataSource } from "../../lib/dataSource";
 import { track } from "../../lib/analytics";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
@@ -237,10 +237,18 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     const sel = selectedIndex >= 0 ? visibleNodes[selectedIndex] : undefined;
     if (!sel) return null;
     let i = selectedIndex + 1;
-    while (i < visibleNodes.length && visibleNodes[i].treeDepth > sel.treeDepth) i++;
+    if (selectionSet) {
+      // Selected-only view: unselected intermediates are dropped, so a deeper
+      // treeDepth no longer implies "descendant of the selection" — a different
+      // selected branch can sit deeper in the flattened list. Size the cradle by
+      // TRUE descendants of the selected node instead (see selectedDescendantRunEnd).
+      i = selectedDescendantRunEnd(visibleNodes, selectedIndex, parentOf);
+    } else {
+      while (i < visibleNodes.length && visibleNodes[i].treeDepth > sel.treeDepth) i++;
+    }
     if (i <= selectedIndex + 1) return null;
     return { start: selectedIndex + 1, end: i - 1, color: depthColor(sel.treeDepth) };
-  }, [visibleNodes, selectedIndex]);
+  }, [visibleNodes, selectedIndex, selectionSet, parentOf]);
 
   useEffect(() => {
     if (clickedRef.current) {
