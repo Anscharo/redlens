@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-20
+- Added a Library section with the shape of the Atlas, a distilled table of contents, and a glossary of defined terms
+
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers
 - Reports now offer a "Download full report" button that always exports the complete dataset, alongside a "Download filtered report" button that appears only while a search or filter is active

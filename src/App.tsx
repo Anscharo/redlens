@@ -76,6 +76,9 @@ const ConnectPage = lazy(() =>
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
+const LibraryPage = lazy(() =>
+  lazyRetry(() => import("./components/library/LibraryPage")).then((m) => ({ default: m.LibraryPage })),
+);
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
 );
@@ -368,6 +371,21 @@ export default function App() {
             <Route path={ROUTES.CONNECT}>
               <Suspense fallback={<Loading />}>
                 <ConnectPage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.LIBRARY_CONTENTS}>
+              <Suspense fallback={<Loading />}>
+                <LibraryPage tab="contents" />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.LIBRARY_GLOSSARY}>
+              <Suspense fallback={<Loading />}>
+                <LibraryPage tab="glossary" />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.LIBRARY}>
+              <Suspense fallback={<Loading />}>
+                <LibraryPage tab="shape" />
               </Suspense>
             </Route>
             <Route path="/admin/:rest*">

@@ -1,0 +1,224 @@
+# Atlas Chunk Map
+
+A living document distilling the Sky Atlas into its functional "chunks" — cohesive units that
+travel together — instead of the raw section tree. Continued across exploration sessions.
+
+- **Atlas commit at last update**: `db87434` (2026-07-20)
+- **Method**: structural queries via the redline-atlas MCP (`atlas_describe`, `atlas_filter`,
+  `atlas_entities`) + doc counts from `vendor/next-gen-atlas/content/`.
+- **Pointers**: every chunk lists its UUID (stable identity) with doc_no as a comment
+  (doc_nos are editorial and change on renumber — never key on them).
+
+**Companion resources** (see `docs/plans/atlas-library.md` for the roadmap):
+
+- `docs/library/toc.md` — generated chunk-aware table of contents (weights + pointers)
+- `docs/library/shape.md` — generated weight diagrams ("the shape of the Atlas")
+- `docs/library/glossary.md` — generated glossary (81 terms)
+- Regenerate all three: `node scripts/aux/atlas-shape.mjs` (after `pnpm build:index && pnpm build:glossary`)
+
+## 1. The shape of the whole
+
+10,780 documents, 7 scopes. Doc mass is wildly uneven — the Atlas is mostly *state*, not *rules*:
+
+| Scope | Docs | Character |
+|---|---|---|
+| A.0 Atlas Preamble | 67 | Definitions + general provisions (rulebook) |
+| A.1 The Governance Scope | 948 | Actor rulebooks + governance processes (rulebook) |
+| A.2 The Support Scope | 1,355 | Primitive spec library + support processes (rulebook/spec) |
+| A.3 The Stability Scope | 658 | Financial machinery rules + parameters (rulebook/params) |
+| A.4 The Protocol Scope | 257 | Token & protocol mechanisms (rulebook/params) |
+| A.5 The Accessibility Scope | 24 | Brand/comms (thin rulebook) |
+| A.6 The Agent Scope | 7,459 | **Agent artifacts — live operational state (69% of the Atlas)** |
+| NR-* Needed Research | 12 | Open research questions |
+
+Key insight: **A.2.2 defines the primitive *classes*; A.6.1 holds the per-agent *object
+instances* of those classes.** Most of the Atlas is the instance side. The 10,319 "Core"-typed
+docs are not one kind of thing — they are rules, spec templates, instance parameters, and
+directory scaffolding that only the chunk context distinguishes.
+
+## 2. Chunk taxonomy
+
+### 2.1 Constitutional chunks (the rulebook spine)
+
+| Chunk | Pointer | doc_no |
+|---|---|---|
+| Definitions (glossary of record) | `c7d62f28-1d64-4632-8cd8-4f2b44c51bba` | A.0.1.1 |
+| General Provisions | `b5c97151-07b9-4679-8896-478ccafa86b9` | A.0.1.2 |
+| Spirit of the Atlas + Interpretations | `86a93dab-2f12-4c3f-9285-bcc4520c851b` | A.1.1 |
+| Atlas Documents (doc-type system, conflict resolution) | `fbd55373-32cc-49a9-a74d-60cfacf6a379` | A.1.2 |
+| Synome Documents (delegated authority) | `f51e410a-f51d-463f-82f2-2bcf289dbbb7` | A.1.3 |
+| Relationship Between Sky Core And Agents | `d607a8e3-17e1-4aab-9e74-11af39767cc7` | A.1.14 |
+| Scope Bootstrapping | `ba97b4dd-c4e0-4d12-8769-423f6ecdc6bf` | A.1.15 |
+
+### 2.2 Actor rulebooks (one chunk per role class)
+
+Each is a self-contained "who may do what, and what disqualifies them" package:
+
+| Chunk | Pointer | doc_no |
+|---|---|---|
+| Alignment Conservers (10 sections incl. adjudication, derecognition) | `df4f9bfd-e743-44b5-9c62-9c5f10b15340` | A.1.5 |
+| Aligned Delegates (incl. Ranked Delegates, kickback prohibition) | `75f0063c-ad70-49e4-b356-9b76097ced7b` | A.1.6 |
+| Facilitators (Operational + Core Executor Facilitator roles) | `1ce24b08-84ff-4524-9710-49bba429c6ef` | A.1.7 |
+| Professional Ecosystem Actors | `d6b43720-243e-4610-8c03-cd515ace6247` | A.1.8 |
+
+### 2.3 Process chunks (recurring cadences & pipelines)
+
+| Chunk | Pointer | doc_no |
+|---|---|---|
+| Weekly Governance Cycle (operational + atlas-edit tracks) | `83edd4e1-692e-4566-a415-b8f272c33c5e` | A.1.11 |
+| Monthly Governance Cycle | `7f2ba62c-9b3b-4df6-aa16-189a749cffa3` | A.1.12 |
+| Updating Active Data | `75e8fd51-a540-4c3a-aaa9-1a38502f89b2` | A.1.13 |
+| Sky Core Governance Security (executive process, delays, emergency spells) | `de0cc370-de9c-48a4-b10e-91782df7abcd` | A.1.10 |
+| Emergency Response System | `1d940c6d-02ce-4c17-8057-cef13c1cc7ad` | A.1.9 |
+| Sky Core Monthly Settlement Cycle | `6f8d5065-d6ff-4add-9a28-eadeffa7ed1a` | A.2.4 |
+| Agent / Ecosystem Actor Incubation | `bb0c23c6-5123-4c35-ac84-fcb018a72cda`, `b09e86b1-0e95-4111-b141-7a980eeaef08` | A.2.5, A.2.6 |
+| Ecosystem Accords (+ dispute resolution + active accord registry) | `104c3543-ce94-4a2f-9968-57f1ee858085` | A.2.8 |
+
+(RedLens already curates a process inventory in `public/processes.json` — cross-reference it
+when refining this category.)
+
+### 2.4 The primitive spec library (class definitions) — A.2.2
+
+Root: `fcde2604-a138-4c1b-9d9a-14895835c907` (A.2.2 Sky Primitives). Contains the meta-rules
+(lifecycle: global activation → instance → invocation; process definition schema) plus **15
+primitives in 7 families**:
+
+| Family | Primitives (pointer / doc_no) |
+|---|---|
+| Genesis | Agent Creation `82b95f6d` /A.2.2.5.1 · Prime Transformation `81411106` /A.2.2.5.2 · Executor Transformation `2f249be5` /A.2.2.5.3 · Agent Token `2047c361` /A.2.2.5.4 |
+| Operational | Executor Accord `88017877` /A.2.2.6.1 · Root Edit `78488c6b` /A.2.2.6.2 · Light Agent `44028423` /A.2.2.6.3 |
+| Ecosystem Upkeep | Upkeep Fee `a21616f4` /A.2.2.7.1 · Upkeep Rebate `569e1c2b` /A.2.2.7.2 |
+| SkyLink | Token SkyLink `4504d2d4` /A.2.2.8.1 |
+| Demand Side Stablecoin | Distribution Reward `e632c38f` /A.2.2.9.1 · Integration Boost `73577399` /A.2.2.9.2 · Pioneer Chain `4c7be4c6` /A.2.2.9.3 |
+| Supply Side Stablecoin | Allocation System `9db14ab7` /A.2.2.10.1 · Risk Capital Rental `d8086dc0` /A.2.2.10.2 · ALM Rental `bd1f1ce5` /A.2.2.10.3 |
+| Core Governance | Core Governance Reward `b22d1c08` /A.2.2.11.1 |
+
+Also here: Primitive Reward Infrastructure (Integrator Program, reward sharing, demand-side
+buffer) `ef3539fe-6d92-491c-a6a5-301a7875888d` /A.2.2.4.
+
+### 2.5 Agent artifact chunks (the object instances) — A.6.1
+
+**The dominant chunk type.** Root: `6889e3e5-1e95-425c-843b-6924b0f164ae` (A.6.1).
+
+8 Prime Agent artifacts (list `9fb7f1cc-f60b-4195-892d-5e540f969973` /A.6.1.1):
+
+| Prime | Pointer | doc_no | Docs |
+|---|---|---|---|
+| Spark | `dee2f5a4-279a-488c-9a9d-9583e3216fbf` | A.6.1.1.1 | 2,284 |
+| Grove | `727b0de6-095b-485e-bf9c-02108a364480` | A.6.1.1.2 | 1,793 |
+| Keel | `bc6aed17-2969-4d04-9af6-c7bf3e4497e6` | A.6.1.1.3 | 906 |
+| Skybase | `c88439b5-f456-4e51-8825-42e0ba83546f` | A.6.1.1.4 | 710 |
+| Obex | `f558e673-cbab-4696-8ca1-3af9b90fe5d4` | A.6.1.1.5 | 499 |
+| Pattern | `dc083d10-74bc-43b6-ab2f-c91efce76e84` | A.6.1.1.6 | 478 |
+| Osero | `eba0dcc7-e135-496f-b866-342deeb91dc4` | A.6.1.1.7 | 436 |
+| Launch Agent 7 | `d0d77316-0b08-447c-b75a-ae7926b07019` | A.6.1.1.8 | 340 |
+
+3 Executor Agent artifacts (list `df62511d-afe5-42db-8bd4-6452c5a0f464` /A.6.1.2, thin —
+each just names its Facilitator + GovOps): Amatsu `c57df14a`, Ozone `565660dd`,
+Core Council Executor Agent 1 `12b14e05`.
+
+**Anatomy of a prime artifact** (identical template ×8 — verified on Spark):
+
+```
+<Prime>                                ← chunk root; entity defining_doc
+├── Introduction
+├── Sky Primitives                     ← per-agent copy of the 15-primitive kit
+│   └── <family> / <primitive>         ← per-primitive operational unit
+│       ├── Primitive Hub Document     ← status + directories (activation, active/completed
+│       │                                 instances, in-progress invocations, archive)
+│       ├── Active Instances
+│       │   └── Instance Config Doc    ← THE SUBCHUNK: Parameters (incl. custom params),
+│       │                                 Operational Process Definition (routine /
+│       │                                 non-routine / emergency protocols), Data Repository
+│       │                                 (planning, GovOps review, artifact edit proposals)
+│       ├── Completed Instances
+│       └── In Progress Invocations
+└── Omni Documents                     ← per-agent mirror of scope-level obligations (TODO §4)
+```
+
+So "an entry in distribution rewards" = an **Instance Configuration Document** under
+`<Prime> → Sky Primitives → Demand Side → Distribution Reward → Active Instances`. The
+instance/invocation entities in the graph (196 `instance_of`, 201 `invoked_by` edges) are
+exactly these subchunks: 114 allocation-system, 13 distribution-reward, 9 integration-boost,
+8 each of the per-prime singletons (agent-creation, agent-token, executor-accord, root-edit,
+upkeep-fee/rebate, prime-transformation), 3 pioneer-chain, 1 core-governance-reward.
+
+### 2.6 Financial machinery chunks — A.3
+
+Per-article chunks: Core Stability Parameters `80f168a3` /A.3.1 · Risk Capital `55999acf`
+/A.3.2 · Asset Liability Management `6478afd5` /A.3.3 · Real World Assets (arranged
+structures, arrangers) `edd96df7` /A.3.4 · Surplus Buffer & Smart Burn Engine `3eb6f099`
+/A.3.5 · SKY Backstop `4d8b0d82` /A.3.6 · Endgame Transition Measures `94ed62af` /A.3.7.
+
+### 2.7 Protocol machinery chunks — A.4
+
+Core Tokens (USDS, SKY) `e5089a2a` /A.4.1 · SkyLink & bridges `f6d2bae6` /A.4.2 · Savings
+Rate & Token Rewards `c64a37d4` /A.4.3 · SKY Staking `b8891a30` /A.4.4 · Agent Token
+Distribution `e2f1f01f` /A.4.5 · Protocol Mechanisms `635afa14` /A.4.6.
+
+### 2.8 Support-scope odds and ends — A.2
+
+Governance Process Support /A.2.1 · Treasury Management /A.2.3 · Communication Channels
+/A.2.7 · Legal Resilience /A.2.9 · Resilience Research /A.2.10 · Security Infrastructure
+/A.2.11 · Purpose System /A.2.12 · Ecosystem Entity Grants /A.2.13.
+
+### 2.9 Cross-cutting overlays (chunks that live *inside* other chunks)
+
+These are doc-*type* systems orthogonal to the tree — each instance attaches to a host doc:
+
+| Overlay | Count | Nature |
+|---|---|---|
+| Active Data (+ 64 Active Data Controllers) | 76 | Mutable operational values with a designated controller — the "state variables" |
+| Annotations | 68 | Commentary attached via `annotates` edges |
+| Action Tenets | 30 | Behavioral directives |
+| Type Specifications | 30 | Schema definitions for doc types |
+| Scenarios / Variations | 6+3 | Worked examples |
+| Needed Research (NR-*) | 12 | Open questions, globally numbered |
+
+### 2.10 The entity layer (chunks that aren't documents at all)
+
+494 entities extracted by RedLens sit *across* the tree: 11 agents, 9 foundations, 31
+multisigs (with a signer/can-modify-signers network: 61 `signer_of`, 29
+`can_modify_signers_of` edges), 13 delegate orgs, ~60 ecosystem actors (individuals,
+integration partners, bridge validators), 10 composite parties, 6 bridges, facilitator/govops
+orgs, and 20 ecosystem-accord edges + 23 funds-transfer edges. The governance chain per prime
+is: prime agent → operational executor → facilitator/govops orgs (browse via `/radar`).
+
+## 3. Observed structural patterns
+
+1. **Spec/instance split**: A.2.2 is the class library; each prime artifact carries a full
+   copy of the 15-primitive kit as scaffolding, populated only where that agent actually uses
+   the primitive. Artifact size ∝ operational activity (Spark 2,284 docs vs LA7 340).
+2. **Hub → Instance → Invocation lifecycle**: every primitive follows the same three-ring
+   directory structure with identical status buckets (active/completed/suspended/failed).
+3. **Rules vs state**: scopes A.0–A.5 are mostly durable rules + parameters; A.6 is mostly
+   live state. Active Data is the formal "mutable state" mechanism inside the rule scopes.
+4. **Depth ≥ 6 flattening**: heading depth caps at 6 while semantic depth keeps going —
+   inside artifacts, `parent_id` degrades (many nodes parent to the depth-5 "Sky Primitives"
+   node). Doc_no is the real nesting signal there; RedLens graph edges compensate.
+
+## 4. Open questions / next explorations
+
+- [ ] **Omni Documents**: what exactly does each prime's Omni Documents section contain, and
+      how does it mirror scope obligations? (`scripts/lib/graph-omni.mjs` already parses them
+      — compare its model to the raw docs.)
+- [ ] Map the **Active Data inventory** (76 docs) to chunks: which chunk does each state
+      variable belong to, and who controls it? (RedLens `/reports` Active Data Index is the
+      starting point.)
+- [ ] Chunk the **instance population per prime**: table of prime × primitive → instance
+      count/status, to show each agent's real operational footprint.
+- [ ] Reconcile this map with the curated **process inventory** (`public/processes.json`) —
+      processes are chunks that cross scope boundaries.
+- [ ] Decide whether "chunk" should become a first-class RedLens concept (e.g. a
+      `chunks.json` build artifact + UI grouping) once the taxonomy stabilizes.
+- [ ] The **multisig/signer network** as a chunk family: 31 multisigs, ownership/modify
+      rights, and how they anchor to artifacts.
+
+## 5. Session log
+
+- **2026-07-20** — Initial map: scope skeleton, doc-mass census, primitive spec library,
+  prime artifact anatomy (verified on Spark), chunk taxonomy v1, entity-layer summary.
+- **2026-07-20 (b)** — Library plan written (`docs/plans/atlas-library.md`); P0 executed:
+  generated TOC/shape/glossary resources + `scripts/aux/atlas-shape.mjs`. Validated the
+  empty-scaffolding staleness heuristic: of 17 active-instance dirs per prime, 8–12 are
+  empty (Spark/Grove most live at 9 empty; Launch Agent 7 most hollow at 12).
