@@ -47,6 +47,7 @@ const MAIN_ALLOWLIST = new Set([
   "search-index.json",
   "relations.json",
   "glossary.json",
+  "library.json",
   "oea-report.json",
   "addresses.atlas.json",
 ]);
