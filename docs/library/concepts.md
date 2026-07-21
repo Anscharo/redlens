@@ -120,7 +120,63 @@ feeds C3; exemplars outside processes.json are candidates for its next triage
 
 ### D. Normative & instrument concepts
 
-<!-- AGENT-NORMATIVE: merge findings here -->
+**The normative-family taxonomy** (from the normative deep-dive, counts corrected
+against local censuses; ⚠ = agent hypothesis not yet verified doc-by-doc):
+
+**Dn1. Duties** — role-subject obligation sentences (must/shall/will + power
+verbs), extracted as `duty_for` edges: **854 in the DB graph, all sourced from
+A.1** (322-edge sample censused: top duty-holders are Facilitator variants and
+Executor Agent GovOps; many duty targets are themselves normative-doc titles —
+duties citing duties). Distinctions: obligation (must) vs permission (may) vs
+discretionary (at discretion of); title-level vs prose duties; universal
+("Facilitators must…") vs qualified ("Core Facilitator must…").
+
+**Dn2. Prohibitions** — negated norms. Censused: 53 docs carry prohibition
+language. Exemplars: Kickbacks Prohibited `45e794a0` /A.1.6.5, counterparty
+engagement ban /A.1.7.8. Distinctions: blanket vs conditional; permanent vs
+status-scoped; self-executing vs adjudicated.
+
+**Dn3. Suspension/deactivation state rules** — reversible capability removal.
+Sig: Global Activation Status docs (×140) + has_status edges (136) + suspension
+docs per actor type. Distinct from Dn4 (permanent).
+
+**Dn4. Derecognition machinery** — permanent removal: the "Swift Action…" title
+family (parallel docs for ACs /A.1.5.8 and ADs /A.1.6.6), AC Derecognition
+/A.1.5.10 (+ its live "Derecognized Alignment Conservers" registry, 11 listed_in
+edges), facilitator-security derecognition /A.1.7.4, AD Breach Registry (Tier
+system: "Tier 2 (Integrity) Breaches" /A.1.6.6.1.2).
+
+**Dn5. Escalation & precedence** — who decides on conflict: Conflict Resolution
+/A.1.2.3 (Atlas-doc precedence), Facilitators' authority chain, dispute paths
+(D8), "Precedence Over Conflicting Provisions" /A.0.1.2.1.2 (bootstrapping
+supremacy).
+
+**Dn6. Conduct standards** — HOW-obligations qualifying duties: "Facilitators
+Must Err On Side Of Caution" (A.1.6.9 AND A.1.7.5 — template family), operational
+security mandates (A.1.5.7, A.1.6.7, A.1.7.3), Highest Standard/broadest-sense
+interpretation rules, Usage Standards (×22 docs, per-instance).
+
+**Dn7. Adjudication & proof** — Adjudication Process `560e1024` /A.1.5.9 (9
+cites), Standard of Proof In Universal Alignment Controversies /A.1.5.4 ("doubt
+resolved against the AC"), evidence rules; NR-1/NR-8 both titled "Systematic
+Basis Of Adjudication, Fact-Finding And Evidence" — the Atlas knows this layer is
+underspecified.
+
+**Dn8. Alignment/eligibility framework** — Universal Alignment requirements
+(A.1.5.3), one-role-at-a-time rule (A.1.5.5), conflict-of-interest disclosure
+(delegate onboarding), misalignment definitions. Rel: triggers Dn4 via Dn7.
+
+**Dn9. Edit restrictions & governance gating** — who may modify what: Artifact
+Edit Restrictions (per root-edit pipeline, incl. "Time-Limited Root Edit
+Restrictions On Removal Of Nested Contributors"), ADC modification rules (the 64
+Active Data Controllers each gate their AD doc), immutability clauses ⚠ (density
+unverified). Rel: G2 stewardship is the mechanism; this is the norm.
+
+**Dn-hub note**: normative concepts chain: eligibility (Dn8) → duties (Dn1) +
+standards (Dn6) → breach (Dn2 violations) → adjudication (Dn7) → suspension
+(Dn3) → derecognition (Dn4), with escalation (Dn5) as the routing layer. This
+pipeline IS the Atlas's justice system — nowhere presented as one system in the
+tree, fully reconstructable from the concept layer.
 
 **D1. Ecosystem Accords** — Def: bilateral/multi-party agreements between Sky Core
 and ecosystem parties, Atlas-recorded and governance-enforceable. Sig: title
