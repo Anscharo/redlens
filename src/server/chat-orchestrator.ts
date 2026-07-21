@@ -363,6 +363,7 @@ export async function* runVerifiedChat(opts: {
     usage: { input: done.usage.input + revDone.usage.input, output: done.usage.output + revDone.usage.output },
     generationId: revDone.generationId ?? done.generationId,
     toolCalls: [...done.toolCalls, ...revDone.toolCalls],
+    lengthCapped: revDone.lengthCapped, // the revised answer is what's finalized
     transcript: revDone.transcript,
   });
 }
