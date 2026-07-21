@@ -268,6 +268,22 @@ test("buildSystemPrompt ignores a spoofed/unknown report tool", () => {
   expect(prompt).toContain("Current page"); // page context still present, just no tool steer
 });
 
+test("buildSystemPrompt surfaces the active report filter as the tool's filter arg", () => {
+  const ix = makeIx();
+  const prompt = buildSystemPrompt(ix, {
+    path: "/reports/rewards",
+    reportName: "Integrator Reward Relationships",
+    reportTool: "atlas_report_rewards",
+    reportFilter: "spark",
+  });
+  expect(prompt).toContain('filter: "spark"');
+  // Sanitized: backticks/newlines stripped, length-capped, and only with a valid tool.
+  const dirty = buildSystemPrompt(ix, { reportName: "R", reportTool: "atlas_report_rewards", reportFilter: "a`b\nc" });
+  expect(dirty).toContain('filter: "a b c"');
+  const noTool = buildSystemPrompt(ix, { path: "/reports/x", reportName: "R", reportFilter: "spark" });
+  expect(noTool).not.toContain('filter: "spark"'); // no backing tool → no filter steer
+});
+
 // ── output budget ────────────────────────────────────────────────────────────
 test("fitToBudget keeps items under budget and flags truncation", () => {
   const items = ["aaaa", "bbbb", "cccc"]; // each ~7 chars serialized

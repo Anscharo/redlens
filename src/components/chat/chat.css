@@ -475,12 +475,13 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
   border: none;
   cursor: pointer;
   color: var(--tan-2);
-  font: 400 15px/1.2 var(--serif, "Lora", serif);
+  /* Light sans-serif for the profile dropdown (was bold/serif Lora). */
+  font: 300 15px/1.2 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   text-align: left;
   transition: background 100ms, color 100ms;
 }
 .rlc-menu-item:hover { background: var(--hover); color: var(--tan); }
-.rlc-menu-name { font: 600 15.5px/1.2 var(--serif, "Lora", serif); color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rlc-menu-name { font: 300 15.5px/1.2 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--tan); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rlc-pref-pill { font: 400 12px/1 "Source Code Pro", monospace; color: var(--tan); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; background: var(--bg); }
 .rlc-switch { width: 30px; height: 17px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); position: relative; flex-shrink: 0; transition: background 120ms, border-color 120ms; }
 .rlc-switch[data-on="true"] { background: var(--red-dim); border-color: var(--red); }

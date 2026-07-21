@@ -24,6 +24,7 @@ const CREDITS_URL = "https://openrouter.ai/api/v1/credits";
 const TTL_MS = 30_000;
 
 let cache: { at: number; pool: CommonsPool | null } | null = null;
+let warnedNoKey = false; // one-time reminder so the log isn't spammed per request
 
 interface CreditsResponse {
   data?: { total_credits?: number; total_usage?: number };
@@ -39,7 +40,16 @@ export async function fetchCommons(
   const key = opts.key ?? config.openrouterManagementKey;
   const fetchImpl = opts.fetchImpl ?? fetch;
   const now = opts.now ?? Date.now();
-  if (!key) return null;
+  // No management key → the shared-pool meter is simply off. Never fail hard:
+  // return null so the widget hides and chat's commons gate never fires. Emit a
+  // single light reminder (not per request) so operators know it's disabled.
+  if (!key) {
+    if (!warnedNoKey) {
+      warnedNoKey = true;
+      console.info("[commons] OPENROUTER_MANAGEMENT_KEY not set — shared credit-pool meter disabled; chat is unaffected.");
+    }
+    return null;
+  }
   if (cache && now - cache.at < TTL_MS) return cache.pool;
 
   let pool: CommonsPool | null = null;

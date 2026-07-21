@@ -79,6 +79,7 @@ export function ChatPanel({
       actorSlug: context.actorSlug,
       reportName: context.reportName,
       reportTool: context.reportTool,
+      reportFilter: context.reportFilter,
     });
     if (rl) setRateLimited(true);
     else setRateLimited(false);

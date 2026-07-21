@@ -8,14 +8,16 @@
 // ./responsibilities.
 import type { Indexes } from "../indexes.ts";
 import type { ToolResult } from "../tools.ts";
-import { deriveGovOpsResponsibilities, CATEGORY_LABELS } from "../../lib/govopsResponsibilities.ts";
+import { deriveGovOpsResponsibilities, ogSearchFields, CATEGORY_LABELS } from "../../lib/govopsResponsibilities.ts";
 import { indexesToDocs, indexesToGraphData } from "./ix-adapter.ts";
 import { buildResponsibilitiesReport } from "./responsibilities.ts";
+import { applyReportFilter } from "./report-filter.ts";
 
 export function buildGovOpsResponsibilitiesReport(
   ix: Indexes,
-  opts: { include_provenance: boolean },
+  opts: { include_provenance: boolean; filter?: string },
 ): ToolResult {
-  const rows = deriveGovOpsResponsibilities({ docs: indexesToDocs(ix) }, indexesToGraphData(ix));
+  const all = deriveGovOpsResponsibilities({ docs: indexesToDocs(ix) }, indexesToGraphData(ix));
+  const rows = applyReportFilter(all, opts.filter, ogSearchFields);
   return buildResponsibilitiesReport("govops_responsibilities", rows, CATEGORY_LABELS, opts.include_provenance);
 }

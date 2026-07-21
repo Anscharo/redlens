@@ -6,7 +6,7 @@
 // blocks on it.
 import { z } from "zod";
 import type OpenAI from "openai";
-import type { JsonCall } from "./llm.ts";
+import { callWithTimeout, type JsonCall } from "./llm.ts";
 import type { Verdict } from "./verifier.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 import { config } from "./config.ts";
@@ -106,10 +106,14 @@ export async function adviseRecovery(params: {
 }): Promise<AdvisorRun> {
   const timeoutMs = params.timeoutMs ?? config.chatAdvisorTimeoutMs;
   try {
-    const res = await Promise.race([
-      params.call({ model: params.model, messages: buildAdvisorPrompt(params), maxTokens: 500, signal: params.signal }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("advisor timeout")), timeoutMs)),
-    ]);
+    // callWithTimeout cancels the provider request on timeout (no post-turn
+    // token burn), then rejects → caught below → annotate-only recovery.
+    const res = await callWithTimeout(
+      params.call,
+      { model: params.model, messages: buildAdvisorPrompt(params), maxTokens: 500 },
+      timeoutMs,
+      params.signal,
+    );
     const recovery = parseRecovery(res.text);
     // The call succeeded but the advisor's JSON didn't parse — silently falls
     // back to annotate-only with no other record this happened.

@@ -14,7 +14,7 @@ import { ofSearchFields } from "./OFCategoryTable";
 import { ogSearchFields } from "./OGCategoryTable";
 import { riskSearchFields } from "./RiskRulesTable";
 import { oeaSearchFields } from "./OeaAssessmentTable";
-import { icdSearchFields } from "./rewardsSearch";
+import { icdSearchFields } from "../../lib/rewardsSearch";
 import type { RewardsAgent, RewardsInstance } from "../../lib/rewardsTypes";
 
 // label → hidden?, for the fields that carry a value (empty fields are noise).

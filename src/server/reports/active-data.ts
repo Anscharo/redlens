@@ -10,8 +10,9 @@
 import type { Indexes } from "../indexes.ts";
 import type { ToolResult } from "../tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
-import { buildActiveDataRows, type ActiveDataRow } from "../../lib/activeDataIndex.ts";
+import { buildActiveDataRows, adSearchFields, type ActiveDataRow } from "../../lib/activeDataIndex.ts";
 import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
+import { applyReportFilter } from "./report-filter.ts";
 
 // The evidence arrays are the provenance layer — the ordered doc_no chain that
 // proves each Responsible Party / Facilitator resolution. Drop them for the
@@ -24,15 +25,16 @@ function stripRowProvenance(r: ActiveDataRow): ActiveDataRow {
   };
 }
 
-export function buildActiveDataReport(ix: Indexes, opts: { include_provenance: boolean }): ToolResult {
+export function buildActiveDataReport(ix: Indexes, opts: { include_provenance: boolean; filter?: string }): ToolResult {
   const allRows = buildActiveDataRows(indexesToDocs(ix), indexesToGraphData(ix));
+  const matched = applyReportFilter(allRows, opts.filter, adSearchFields);
 
-  const rows = opts.include_provenance ? allRows : allRows.map(stripRowProvenance);
+  const rows = opts.include_provenance ? matched : matched.map(stripRowProvenance);
 
   const { kept, truncated } = fitToBudget(rows);
   const result: ToolResult = {
     report: "active_data",
-    total: allRows.length,
+    total: matched.length,
     returned: kept.length,
     truncated,
     active_data: kept,

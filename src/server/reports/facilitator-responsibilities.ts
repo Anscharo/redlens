@@ -7,14 +7,16 @@
 // edges by hand. The shared shaping lives in ./responsibilities.
 import type { Indexes } from "../indexes.ts";
 import type { ToolResult } from "../tools.ts";
-import { deriveFacilitatorResponsibilities, CATEGORY_LABELS } from "../../lib/facilitatorResponsibilities.ts";
+import { deriveFacilitatorResponsibilities, ofSearchFields, CATEGORY_LABELS } from "../../lib/facilitatorResponsibilities.ts";
 import { indexesToDocs, indexesToGraphData } from "./ix-adapter.ts";
 import { buildResponsibilitiesReport } from "./responsibilities.ts";
+import { applyReportFilter } from "./report-filter.ts";
 
 export function buildFacilitatorResponsibilitiesReport(
   ix: Indexes,
-  opts: { include_provenance: boolean },
+  opts: { include_provenance: boolean; filter?: string },
 ): ToolResult {
-  const rows = deriveFacilitatorResponsibilities({ docs: indexesToDocs(ix) }, indexesToGraphData(ix));
+  const all = deriveFacilitatorResponsibilities({ docs: indexesToDocs(ix) }, indexesToGraphData(ix));
+  const rows = applyReportFilter(all, opts.filter, ofSearchFields);
   return buildResponsibilitiesReport("facilitator_responsibilities", rows, CATEGORY_LABELS, opts.include_provenance);
 }
