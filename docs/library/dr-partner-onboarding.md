@@ -18,18 +18,25 @@ end.
 
 ## Information to collect — from the new partner
 
-- [ ] **Application** — submitted directly to Operational GovOps under the current
-      near-term process (long-term: routed through a Prime Agent)
-      · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
-      · [A.2.2.4.1.2.2 — Long Term Process](https://atlas.redline.support/atlas?id=6283379c-d871-40a9-a915-d716d7df5642)
-      > The Atlas does NOT enumerate application contents; it says only that
-      > applications are made directly to OGO via a Sky Forum thread that OGO
-      > must create and maintain. To fill the fields the Atlas DOES require
-      > downstream, the application must at minimum yield: the **Integrator
-      > Name** (required registry field in the Onboarding and Current
-      > Integrators updates) and enough information to run the Alignment and
-      > Compliance gates below. Anything more is OGO's own form design — see
-      > "Gaps".
+- [ ] **Application** — the Atlas defines TWO intake regimes; in both, approval
+      and Reward Code issuance stay with OGO:
+      - **Near term** (current): "applications are made directly to Operational
+        GovOps. Operational GovOps must create and maintain a thread on the Sky
+        Forum for Integrator Applications."
+        · [A.2.2.4.1.2.1 — Near Term Process](https://atlas.redline.support/atlas?id=7fe5dbb2-a07d-4ef9-94de-f54a2d568c57)
+      - **Long term**: "Integrator applications come exclusively through Prime
+        Agents. Prime Agents may establish whatever processes they deem
+        appropriate to receive inbound requests for potential partnerships" —
+        but still "approved by Operational GovOps … Post approval, Operational
+        GovOps issues a Reward Code"
+        · [A.2.2.4.1.2.2 — Long Term Process](https://atlas.redline.support/atlas?id=6283379c-d871-40a9-a915-d716d7df5642)
+        · [A.2.2.9.1.2.3.1.2 — Process Flow](https://atlas.redline.support/atlas?id=75ff9b92-47e1-454f-864b-b74742df918e)
+      > The Atlas does NOT enumerate application contents in either regime. To
+      > fill the fields the Atlas DOES require downstream, the application must
+      > at minimum yield: the **Integrator Name** (required registry field in
+      > the Onboarding and Current Integrators updates) and enough information
+      > to run the Alignment and Compliance gates below. Anything more is OGO's
+      > own form design — see "Gaps".
 - [ ] **Alignment evidence** — "The Integrator must be aligned with Sky's
       overall strategy regarding promoting adoption of USDS. This determination
       is made by Operational GovOps. Sky Core may choose whether to maintain an
@@ -93,7 +100,14 @@ this function to OGO itself (delegable):
 - [ ] **The Initial Planning Document (tracking plan)** — "The Prime Agent and
       the third party develop a plan to track USDS utilization attributable to
       the actor using either on-chain or off-chain data"; the plan is what OGO
-      reviews in Phase 2
+      reviews in Phase 2. Long term, "the plan should include how the Prime
+      Agent will support the prospective Integrator in including the Reward
+      Code in their on-chain infrastructure"
+      · [A.2.2.9.1.2.3.1.2 — Process Flow](https://atlas.redline.support/atlas?id=75ff9b92-47e1-454f-864b-b74742df918e)
+- [ ] **Special case — the Prime itself as the partner**: "The Prime Agent may
+      also be (or choose to be) an Integrator itself and deploy a Reward Code
+      on its frontend to earn the Distribution Reward" — in that case the Prime
+      must itself apply and be approved by OGO like any other integrator
       · [A.2.2.9.1.2.3.1.2 — Process Flow](https://atlas.redline.support/atlas?id=75ff9b92-47e1-454f-864b-b74742df918e)
 - [ ] **The Artifact Edit Draft for the new Instance** — the Prime drafts and
       finalizes it; the Powerhouse system turns it into the `Artifact Edit
@@ -123,7 +137,8 @@ this function to OGO itself (delegable):
 
 ### Phase 1 — Application & approval (partner ↔ OGO)
 
-- [ ] Receive application (Sky Forum thread per the near-term process)
+- [ ] Receive application — near term: via OGO's Sky Forum thread; long term:
+      via the Prime's own intake process, forwarded for OGO approval
       · [A.2.2.4.1.2 — Integrator Applications](https://atlas.redline.support/atlas?id=abc79583-78da-4578-9ae0-51dc322ed1cb)
 - [ ] Record it: add row to the applications register (Active Data, Direct Edit,
       OGO is Responsible Party)

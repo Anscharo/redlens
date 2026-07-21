@@ -191,3 +191,13 @@ Landmark discoveries (verified by census unless noted):
   (List Of Auxiliary Accounts exists but belongs to the Demand Side Buffer);
   scope note reworded to only what's quotable; gaps section scoped to audited
   sections. 38 cited docs, all verified, all quotes read from source.
+
+- **(next commit)** "DR onboarding: two-regime application intake + Prime-as-Integrator"
+  User prompt: the Application bullet presented the Sky Forum thread (near-term
+  only) as THE process. Restructured as two verbatim regimes — near term
+  (direct to OGO forum thread) vs long term (exclusively through Primes, their
+  own intake) — with the full Process Flow confirming OGO approval + code
+  issuance in BOTH. Also added from the full flow text: long-term plans "should
+  include how the Prime will support the Integrator in including the Reward
+  Code in their on-chain infrastructure", and the Prime-as-Integrator path
+  (Prime deploys a code on its own frontend; must apply like anyone).
