@@ -329,7 +329,10 @@ mark {
 .related-node {
   border-radius: 2px;
   margin: 2px;
-  padding: 2px;
+  /* Padding lives here (not a py-4 utility on the element) because this is the
+     element that carries the hover background — the inset must be inside the
+     hover target. */
+  padding: 14px 8px;
   transition: background-color 0.1s;
 }
 .related-node:hover,
@@ -404,6 +407,68 @@ mark {
 .view-children-affordance:focus-visible {
   background-color: var(--hover) !important;
   color: var(--tan) !important;
+}
+
+/* Document selection checkbox — top-right corner of each atlas row. Subtle
+   until checked/hovered so it doesn't compete with the title. */
+.atlas-node-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  /* Hidden by default — no selection "mode" to arm. It reveals on row hover, on
+     the selected row, and whenever it's already checked (see below). Kept
+     non-interactive while hidden so the invisible corner can't toggle. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  /* Below the sticky selected node (.atlas-node.is-selected, z-index 2) so a
+     row's checkbox is occluded as it scrolls under the pinned selected doc,
+     instead of poking through its solid fill. The selected node's own checkbox
+     still shows: that whole article is z-index 2, and this stacks inside it. */
+  z-index: 1;
+}
+.atlas-node:hover .atlas-node-select,
+.atlas-node:focus-within .atlas-node-select,
+.atlas-node.is-selected .atlas-node-select,
+.related-node:hover .atlas-node-select,
+.related-node:focus-within .atlas-node-select,
+.search-result:hover .atlas-node-select,
+.search-result:focus-within .atlas-node-select,
+.atlas-node-select:has(input:checked) {
+  opacity: 1;
+  pointer-events: auto;
+}
+.atlas-node-select input {
+  width: 13px;
+  height: 13px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* Barrier between two docs in the flat selected-only / changed-only reader list
+   that are NOT true neighbors in the full atlas order — a centered ellipsis
+   flanked by a rule covering a third of the width on each side, marking the
+   omitted span. */
+.selection-gap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--tan-3);
+  font-size: 20px;
+  line-height: 1;
+  padding: 8px 0;
+  user-select: none;
+}
+.selection-gap::before,
+.selection-gap::after {
+  content: "";
+  width: 33%;
+  height: 1px;
+  background: color-mix(in srgb, var(--tan-3) 35%, transparent);
 }
 
 /* Atlas tree view */
@@ -611,6 +676,33 @@ button.atlas-node-expand-all:focus-visible {
 }
 .atlas-node.is-selected .atlas-type-pill {
   border-color: var(--tan);
+}
+
+/* Owning-agent pill: sits in the left gutter beside an expanded row's content,
+   aligned under the colored doc number and never wider than it — a tan agent
+   marker. */
+.atlas-agent-pill {
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tan-3);
+  background: transparent;
+  border: 1px solid var(--tan-3);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.4;
+  /* Never exceed the reader column: hug the name on one line, but cap at the
+     available width and wrap to a second (balanced, centered) line when the name
+     is too long. `balance` evens the two lines; `overflow-wrap: anywhere` keeps
+     a single very long token from spilling past the edge. */
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  text-wrap: balance;
 }
 
 .atlas-copy-btn {

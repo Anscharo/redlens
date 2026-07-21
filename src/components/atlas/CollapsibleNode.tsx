@@ -9,6 +9,7 @@ import { revealStore } from "../../lib/revealStore";
 import { PreviewMark } from "../preview/PreviewMark";
 import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
+import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
 
 const DRAG_THRESHOLD_PX = 4;
@@ -19,6 +20,9 @@ const DRAG_THRESHOLD_PX = 4;
 // width — keep in sync with index.css).
 const TITLE_TEXT_OFFSET = 69;
 const CHICLET_W = 15;
+// gap-2 (8) + the toggle chevron (14): the agent pill may extend past the doc
+// numbers to also cover the chevron column, giving a slightly wider cap.
+const CHEVRON_W = 22;
 
 const TITLE_CLASS = "text-lg font-bold";
 
@@ -33,6 +37,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   idPrefix,
   cradle,
   cradleColor,
+  agentName,
+  inSelectedOnly = false,
 }: {
   entry: FlatEntry;
   isSelected: boolean;
@@ -45,6 +51,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
   cradle?: "line" | "foot";
   cradleColor?: string;
+  /** Owning prime/executor agent name — shown as a pill under the doc number
+   *  whenever the row is expanded. Undefined for docs not under an agent. */
+  agentName?: string | null;
+  /** "Selected only" view is active — hides the hidden-descendants affordance.
+   *  Passed as a prop (not read from selection context) so a selection change
+   *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
+  inSelectedOnly?: boolean;
 }) {
   const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
@@ -190,6 +203,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         }
       }}
     >
+      <NodeSelectBox nodeId={node.id} title={node.title} />
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
@@ -231,9 +245,12 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </HeadingTag>
         </div>
       </div>
-      {isSelected && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
+      {isSelected && isExpanded && <div className="atlas-node-meta"><NodeMeta node={node} /></div>}
 
-      {hiddenCount > 0 && onExpandChildren && (
+      {/* In selected-only mode the reader shows a flat list that ignores depth-6
+          gating, so revealing hidden descendants is a no-op — hide the affordance
+          rather than offer a dead button. */}
+      {hiddenCount > 0 && onExpandChildren && !inSelectedOnly && (
         <button
           type="button"
           onClick={(e) => {
@@ -257,12 +274,28 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </svg>
         </button>
       )}
-      {isExpanded && hasContent && (
-        <div
-          className="atlas-node-body"
-          style={{ marginLeft: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length }}
-        >
-          <NodeContent content={node.content} onNavigate={navigate} />
+      {isExpanded && (hasContent || agentName) && (
+        <div className="flex items-start">
+          {/* Left gutter: the owning-agent pill, aligned under the doc-number
+              chiclets and never wider than them — a long name wraps to further
+              (centered) lines within that width. The column reserves the full
+              doc-number indent so the body keeps the exact left edge it had with
+              no pill. */}
+          <div
+            className="shrink-0 pl-3"
+            style={{ width: TITLE_TEXT_OFFSET + CHICLET_W * docNoParts.length, marginTop: 4.5 }}
+          >
+            {agentName && (
+              <span className="atlas-agent-pill" style={{ maxWidth: CHICLET_W * docNoParts.length + CHEVRON_W }}>
+                {agentName}
+              </span>
+            )}
+          </div>
+          {hasContent && (
+            <div className="atlas-node-body flex-1 min-w-0" style={{ marginLeft: 0 }}>
+              <NodeContent content={node.content} onNavigate={navigate} />
+            </div>
+          )}
         </div>
       )}
     </article>

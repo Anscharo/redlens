@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { SparkMark, GitHubMark, GoogleMark, DockRightIcon, FloatIcon } from "./glyphs";
+import { SparkMark, DockRightIcon, FloatIcon } from "./glyphs";
 import { Message } from "./Message";
 import { Composer } from "./Composer";
+import { SignInButtons } from "./SignInButtons";
 import { useChatStream } from "./useChatStream";
 import { useUsage } from "./useUsage";
 import { usePrefs } from "./usePrefs";
@@ -176,26 +177,7 @@ export function ChatPanel({
       </div>
 
       {!authed ? (
-        <div className="rlc-composer flex flex-col gap-[7px]">
-          <button
-            className="rlc-signin w-full justify-center p-[11px]"
-            onClick={() => {
-              track("chat_signin_click", { product: "chat", provider: "github" });
-              openAuth("github");
-            }}
-          >
-            <GitHubMark /> sign in with github to ask
-          </button>
-          <button
-            className="rlc-signin w-full justify-center p-[11px]"
-            onClick={() => {
-              track("chat_signin_click", { product: "chat", provider: "google" });
-              openAuth("google");
-            }}
-          >
-            <GoogleMark /> sign in with google to ask
-          </button>
-        </div>
+        <SignInButtons variant="composer" source="chat" />
       ) : (
         <Composer
           draft={draft}

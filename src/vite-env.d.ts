@@ -3,6 +3,7 @@
 
 declare const __COMMIT_HASH__: string;
 declare const __BUILD_TIME__: string;
+declare const __USERS_ENABLED__: boolean;
 declare const __CHAT_ENABLED__: boolean;
 declare const __REPO_URL__: string;
 
@@ -10,4 +11,8 @@ declare const __REPO_URL__: string;
 // the current live atlas sha, used to build the immutable /api/atlas/<sha>/ base.
 interface Window {
   __ATLAS_SHA__?: string;
+  // Server's real login capability, injected into index.html at serve time
+  // (true only when USERS_ENABLED + CHAT_JWT_SECRET are both set). Read via
+  // src/lib/usersEnabled.ts, never directly.
+  __USERS_ENABLED__?: boolean;
 }

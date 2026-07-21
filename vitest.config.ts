@@ -8,6 +8,7 @@ export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify("test"),
     __BUILD_TIME__: JSON.stringify(new Date(0).toISOString()),
+    __USERS_ENABLED__: JSON.stringify(false),
     __CHAT_ENABLED__: JSON.stringify(false),
     __REPO_URL__: JSON.stringify("https://github.com/test/test"),
   },

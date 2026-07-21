@@ -212,17 +212,24 @@ d. **Open the site** in a browser. Lexical search works immediately. Semantic
    The footer shows the live atlas commit hash and node count once docs.json
    loads.
 
-## 7. (Optional) Enable chat login — GitHub and Google OAuth
+## 7. (Optional) Enable logins + chat — GitHub and Google OAuth
 
-**Skip this whole section unless you want chat.** The reader SPA, `/mcp`, and
-the atlas worker all work with just the step-3/4 variables.
+**Skip this whole section unless you want logins or chat.** The reader SPA,
+`/mcp`, and the atlas worker all work with just the step-3/4 variables.
 
-Chat + auth ship **disabled** by default. Turning it on takes **two** switches:
+Login features (profile button, saved Collections) and chat ship **disabled**
+by default. There are **two feature gates**, each with a build arg + a runtime
+switch:
 
-- **`VITE_CHAT_ENABLED=1`** — a **build arg** baked into the Vite bundle at
-  image build time. Set it via the Dockerfile build arg, not a runtime variable.
-- **`CHAT_ENABLED=1`** — a **runtime** Railway variable that mounts the
-  `/api/auth/*`, `/api/chat`, and `/api/usage` routes.
+- **Logins** — `VITE_USERS_ENABLED=1` (**build arg**, baked into the bundle) +
+  `USERS_ENABLED=1` (**runtime**, mounts `/api/auth/*` and `/api/collections*`).
+- **Chat** — `VITE_CHAT_ENABLED=1` (**build arg**) + `CHAT_ENABLED=1`
+  (**runtime**, mounts `/api/chat` and `/api/usage`).
+
+Chat requires a logged-in session, so it is **AND-gated by the users flags**:
+`CHAT_ENABLED=1` on its own does nothing — you must set the `USERS_ENABLED` /
+`VITE_USERS_ENABLED` pair as well. To enable **only logins** (Collections, no
+chat), set just the users pair. The OAuth/JWT variables below back both.
 
 ### 7a. Generate the JWT session secret → `CHAT_JWT_SECRET`
 
@@ -246,11 +253,13 @@ openssl rand -hex 32
    `https://atlas.redline.support/api/auth/google/callback`
 3. Copy the **Client ID** and **Client secret**.
 
-### 7d. Set the chat variables
+### 7d. Set the login + chat variables
 
 ```bash
-railway variables --set 'VITE_CHAT_ENABLED=1'              --service redlens-atlas
-railway variables --set 'CHAT_ENABLED=1'                   --service redlens-atlas
+railway variables --set 'VITE_USERS_ENABLED=1'             --service redlens-atlas
+railway variables --set 'USERS_ENABLED=1'                  --service redlens-atlas
+railway variables --set 'VITE_CHAT_ENABLED=1'              --service redlens-atlas  # chat only
+railway variables --set 'CHAT_ENABLED=1'                   --service redlens-atlas  # chat only
 railway variables --set 'CHAT_JWT_SECRET=<from 7a>'        --service redlens-atlas
 railway variables --set 'GITHUB_CLIENT_ID=<from 7b>'       --service redlens-atlas
 railway variables --set 'GITHUB_CLIENT_SECRET=<from 7b>'   --service redlens-atlas
@@ -258,17 +267,21 @@ railway variables --set 'GOOGLE_CLIENT_ID=<from 7c>'       --service redlens-atl
 railway variables --set 'GOOGLE_CLIENT_SECRET=<from 7c>'   --service redlens-atlas
 ```
 
+*(For logins without chat, omit the two `*CHAT_ENABLED` lines.)*
+
 | Variable | Purpose |
 |---|---|
-| `VITE_CHAT_ENABLED` | Build arg — bakes the chat widget into the Vite bundle; Railway passes it to Docker automatically |
-| `CHAT_ENABLED` | Runtime switch — mounts `/api/auth/*`, `/api/chat`, `/api/usage` routes |
+| `VITE_USERS_ENABLED` | Build arg — bakes the profile button + Collections UI into the bundle |
+| `USERS_ENABLED` | Runtime switch — mounts `/api/auth/*` + `/api/collections*` routes |
+| `VITE_CHAT_ENABLED` | Build arg — bakes the chat widget into the bundle (needs the users pair too) |
+| `CHAT_ENABLED` | Runtime switch — mounts `/api/chat`, `/api/usage` (AND-gated by `USERS_ENABLED`) |
 | `CHAT_JWT_SECRET` | Signs session cookies |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
 | `OPENROUTER_MANAGEMENT_KEY` | Optional — provisioning key for the account-wide credits endpoint; powers the chat's shared "commons" dollar meter and its at-empty gate. Unset = meter hidden, gate never fires |
 
-*Setting `VITE_CHAT_ENABLED` triggers a full image rebuild so the bundle includes
-the widget. If you later move to a custom domain, also set
+*Setting a `VITE_*_ENABLED` build arg triggers a full image rebuild so the bundle
+includes the widgets. If you later move to a custom domain, also set
 `APP_URL=https://<custom-domain>` and update the provider callback URLs.*
 
 ---
