@@ -424,12 +424,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_multisigs",
     annotations: readOnlyAtlasTool("Atlas Report Multisigs"),
     description:
-      "CURATED REPORT (not raw graph data). Every multisig in one call — the complete evidence for a " +
-      "multisig security review. Returns { report, total, returned, truncated, note?, multisigs[] }; each row = " +
-      "{ id, name, slug, chain, address, threshold ('2/5'), signer_orgs[]{name, entity_type, signer_count, via_role}, " +
-      "signer_org_count, total_signers (null when any org's count is unstated), can_modify_signers[]{name, entity_type}, " +
-      "purpose{doc_no, title}|null, provenance?{defining_doc_no, threshold_doc_no, purpose_doc_no, signer_docs[], " +
-      "modification_docs[]} }. The provenance block is present only with include_provenance:true.",
+      "Curated report (not raw graph calls) — every multisig in one call, the full evidence for a security review. " +
+      "Each row: identity, chain/address, threshold, signer orgs with counts, who can modify signers, purpose. " +
+      "Provenance (source doc_nos) only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE },
     handler: (ix, a) => buildMultisigsReport(ix, { include_provenance: provenanceFlag(a) }),
   },
@@ -437,14 +434,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_primitive_matrix",
     annotations: readOnlyAtlasTool("Atlas Report Primitive Matrix"),
     description:
-      "CURATED REPORT (not raw graph data). The agent × primitive-subtype ACTIVATION matrix: engaged = Active|Completed " +
-      "globalActivation, Inactive = the slot exists but was never engaged. Each subtype is classed universal (engaged " +
-      "for every agent), optional (some), or dormant (none). Returns { report, activation_note, agents[] (names), " +
-      "agent_count, subtype_count, universal_count, optional_count, dormant_count, truncated, note?, subtypes[], " +
-      "unknown_statuses?[], unknown_status_warning? }; each subtype = { subtype, classification: " +
-      "'universal'|'optional'|'dormant', engaged_count, active_count, inactive_count, completed_count, engaged_agents[], " +
-      "missing_agents[] (Inactive or absent — NOT 'lacks the primitive'), agent_status{agentName: " +
-      "'Active'|'Completed'|'Inactive'}, category_doc_no? }.",
+      "Curated report (not raw graph calls) — the agent × primitive-subtype ACTIVATION matrix: engaged = " +
+      "Active|Completed globalActivation, Inactive = the slot exists but was never engaged (never read " +
+      "missing_agents as 'lacks the primitive'). Each subtype classed universal/optional/dormant by how many agents " +
+      "engage it; each row carries per-agent status and engaged-vs-missing agents.",
     shape: { include_provenance: INCLUDE_PROVENANCE },
     handler: (ix, a) => buildPrimitiveMatrixReport(ix, { include_provenance: provenanceFlag(a) }),
   },
@@ -452,12 +445,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_facilitator_responsibilities",
     annotations: readOnlyAtlasTool("Atlas Report Facilitator Responsibilities"),
     description:
-      "CURATED REPORT (not raw graph data). Every Operational/Core Facilitator responsibility in one call — answers " +
+      "Curated report (not raw graph calls) — every Operational/Core Facilitator responsibility in one call, answers " +
       "'what is a Facilitator responsible for' without reconstructing it from duty_for / *_facilitator_for / " +
-      "responsible_party_for edges. Returns { report, total, returned, truncated, note?, categories{label: count}, " +
-      "responsibilities[] }; each row = { docNo, uuid, title, duty, category (one of: universal | core-facilitator | " +
-      "op-duty | assignment | active-data | process-step), agent?, agents?[], facilitator?, facilitators?[], executor?, " +
-      "role? ('Operational'|'Core'), sources?[] }. sources appears only with include_provenance:true.",
+      "responsible_party_for edges. Each row: duty text, category, and the agent/facilitator/executor it's " +
+      "attributed to. Sources only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
@@ -465,12 +456,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_govops_responsibilities",
     annotations: readOnlyAtlasTool("Atlas Report GovOps Responsibilities"),
     description:
-      "CURATED REPORT (not raw graph data). The GovOps counterpart of atlas_report_facilitator_responsibilities: every " +
-      "Operational/Core GovOps responsibility in one call — answers 'what is GovOps responsible for'. Returns " +
-      "{ report, total, returned, truncated, note?, categories{label: count}, responsibilities[] }; each row = " +
-      "{ docNo, uuid, title, duty, category (one of: definition | op-duty | core-duty | assignment | active-data | " +
-      "process-step), agent?, agents?[], govops?, executor?, role? ('Operational'|'Core'), sources?[] }. sources " +
-      "appears only with include_provenance:true.",
+      "Curated report (not raw graph calls) — the GovOps counterpart of atlas_report_facilitator_responsibilities, " +
+      "answers 'what is GovOps responsible for'. Each row: duty text, category, and the agent/GovOps org/executor " +
+      "it's attributed to. Sources only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
@@ -478,14 +466,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_rewards",
     annotations: readOnlyAtlasTool("Atlas Report Rewards"),
     description:
-      "CURATED REPORT (not raw graph data). The integrator reward rollup, per Prime Agent — use for reward-program / " +
-      "integrator questions. Returns { report, total, returned, truncated, note?, agents[], ecosystem{stUsdsDr, " +
-      "srUsdsDr, drPrimitive, ibPrimitive, demandSideBufferAddress} }; each agent = { name, docNoPrefix, " +
-      "agentEntity{id,name,slug}|null, chain{executor, govops}|null, dr, ib } where dr/ib (either may be null) = " +
-      "{ kind: 'DR'|'IB', primitiveId, primitiveDocNo, globalActivation, active[], suspended[], completed[], " +
-      "invocations[] } and each Instance/Invocation = { id, docNo, name, status, rewardCode?/partnerName?, " +
-      "rewardAddress?, rewardChain?, cadence?, tracking?, paymentsControllerDocNo?, paymentsResponsibleParty?, " +
-      "params? }. params (the raw source tuples) appears only with include_provenance:true.",
+      "Curated report (not raw graph calls) — the integrator reward rollup per Prime Agent, for reward-program / " +
+      "integrator questions. Each agent: executor/govops chain, plus DR (Distribution Reward) / IB (Integration " +
+      "Boost) instances with status, reward code or partner, payout address/chain, cadence. Raw param tuples only " +
+      "with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
@@ -493,13 +477,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_active_data",
     annotations: readOnlyAtlasTool("Atlas Report Active Data"),
     description:
-      "CURATED REPORT (not raw graph data). One row per Active Data document — use for 'who maintains / is responsible " +
-      "for this Active Data' and data-governance questions. Returns { report, total, returned, truncated, note?, " +
-      "active_data[] }; each row = { activeDataId, activeDataDocNo, activeDataTitle, controllerId, controllerDocNo, " +
-      "controllerTitle, agent, chain{executorName, facilitatorName, govopsName, …}|null, responsibleParty{name, id, " +
-      "resolution: 'direct'|'chain'|'role', declared, evidence[]}|null, declaredRP, facilitator{name, role, " +
-      "evidence[]}|null, process ('Direct Edit'|'Alignment Conserver Changes'), sourceDocNo }. The evidence[] chains " +
-      "are populated only with include_provenance:true (empty otherwise); resolved names/roles always stay.",
+      "Curated report (not raw graph calls) — one row per Active Data document, for 'who maintains / is responsible " +
+      "for this Active Data'. Each row: the doc, its controller, resolved Responsible Party (direct/chain/role), " +
+      "approving Facilitator, and update process (Direct Edit vs. Alignment Conserver Changes). Evidence chains " +
+      "only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
     handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
