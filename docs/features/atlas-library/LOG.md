@@ -64,3 +64,14 @@ Branched `atlas-library` off `main` (post risk-report-rendering merge, atlas db8
   docs/features/atlas-library/{PROMPT.md,LOG.md} — recovery point for context loss; user
   asked for commit-cadence + logging discipline going forward. Also saved a pointer
   memory (auto-memory: project_atlas_library_branch) so future sessions find this folder.
+
+- **(next commit)** "Guard /library against artifact/app version skew"
+  User hit "page failed to load / reading 'map'": tab open across the chunkTree change —
+  module-cached pre-chunkTree library.json + HMR-swapped new components. Hard refresh
+  fixes the tab; real fix: loadLibrary now validates the artifact shape (chunkTree/
+  scopes/toc arrays) and throws a readable "reload the page" error instead of letting
+  the page crash in the ErrorBoundary. Same skew can happen in prod (JS bundle and
+  atlas artifact update independently). Note: old per-sha bundle dirs (72d03fd, f114a09)
+  predate library.json and lack it — harmless, nothing references them; 404 there would
+  StaleAtlasError→reload by design. Pre-existing oddity (NOT ours): /api/health reports
+  72d03fd while HTML injects db87434 on this dev box.

@@ -63,13 +63,24 @@ const cache = new Map<string, Promise<LibraryData>>();
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {
   let cached = cache.get(base);
   if (!cached) {
-    cached = fetchJson<LibraryData>(`${base}library.json`, "library.json").catch((err) => {
-      cache.delete(base); // don't cache the rejection — retry on next call
-      // Stale pinned sha (404 on /api/atlas/<sha>/) → force-forward reload
-      // instead of surfacing an error, matching glossary.ts/addresses.ts.
-      if (handledStale(err)) return new Promise<LibraryData>(() => {});
-      throw err;
-    });
+    cached = fetchJson<LibraryData>(`${base}library.json`, "library.json")
+      .then((d) => {
+        // Version-skew guard: the JS bundle and the atlas artifact update
+        // independently (live updater, long-open tabs across deploys). An
+        // artifact missing fields this UI needs must surface as a readable
+        // load error, not a render crash inside the page.
+        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopes) || !Array.isArray(d.toc)) {
+          throw new Error("library.json is from an older build — reload the page to pick up the current version");
+        }
+        return d;
+      })
+      .catch((err) => {
+        cache.delete(base); // don't cache the rejection — retry on next call
+        // Stale pinned sha (404 on /api/atlas/<sha>/) → force-forward reload
+        // instead of surfacing an error, matching glossary.ts/addresses.ts.
+        if (handledStale(err)) return new Promise<LibraryData>(() => {});
+        throw err;
+      });
     cache.set(base, cached);
   }
   return cached;
