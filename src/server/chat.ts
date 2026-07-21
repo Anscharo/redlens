@@ -18,7 +18,7 @@ import { windowHistory } from "./chat-history.ts";
 import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
 import { fetchCommons } from "./credits.ts";
-import { captureError } from "./posthog-node.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -86,7 +86,10 @@ export async function handleChat(req: Request): Promise<Response> {
   // Hard rate-limit gate on the user's token window — check BEFORE creating a
   // conversation or spending any LLM tokens. The 429 tells the user exactly how
   // many tokens they've used and when the window resets (+ Retry-After header).
-  const usage = await getWindowUsage(userId);
+  // Fetched alongside the commons pool below (independent calls — same pairing
+  // as handleUsage in rate-limit.ts) so a cold commons cache doesn't stack its
+  // OpenRouter latency on top of the DB round trip.
+  const [usage, commons] = await Promise.all([getWindowUsage(userId), fetchCommons()]);
   if (usage.exceeded) {
     const retryAfter = Math.max(0, Math.ceil((Date.parse(usage.resetsAt) - Date.now()) / 1000));
     return new Response(
@@ -106,7 +109,6 @@ export async function handleChat(req: Request): Promise<Response> {
   // pool for ALL users. When it's dry, chat is paused for everyone until it's
   // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
   // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
-  const commons = await fetchCommons();
   if (commons && commons.remaining <= 0) {
     return json(
       {
@@ -188,7 +190,7 @@ export async function handleChat(req: Request): Promise<Response> {
           }
         }
         // Don't persist an empty assistant row for an aborted turn.
-        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt);
+        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt, obs);
       } catch (err) {
         if (!req.signal.aborted) {
           captureError(err, obs, { stage: "stream_handler" });
@@ -209,7 +211,7 @@ export async function handleChat(req: Request): Promise<Response> {
   return new Response(stream, { headers });
 }
 
-async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number): Promise<void> {
+async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
   const inserted = (await sql`
@@ -218,29 +220,43 @@ async function persistAssistant(convId: string, done: HarnessDone, latencyMs: nu
             ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
     RETURNING id
   `) as { id: string }[];
-  await persistChecks(inserted[0].id, done.checksMeta ?? []);
 
   // Harness (verifier/advisor) tokens count toward the conversation totals and
   // the rate-limit window (via message_checks) — never toward the messages row,
   // which stays conversationalist-only so the two sums don't double-count.
   const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
   const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
-  await sql`
-    UPDATE conversations
-    SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
-        total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
-        query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
-        updated_at = now()
-    WHERE id = ${convId}
-  `;
+
+  // The checks rows and the conversations totals update are independent
+  // writes (neither depends on the other's result) — run them concurrently
+  // instead of stacking round trips on the client's already-completed answer.
+  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time race
+  // against the message_checks migration): the assistant message above is
+  // already durably persisted, so a telemetry-row failure must never surface
+  // as a turn-level error to a client that already has the complete answer.
+  await Promise.all([
+    persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
+      captureError(err, obs, { stage: "persist_checks" });
+    }),
+    sql`
+      UPDATE conversations
+      SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
+          total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
+          query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
+          updated_at = now()
+      WHERE id = ${convId}
+    `,
+  ]);
 }
 
 async function persistChecks(messageId: string, rows: CheckRowMeta[]): Promise<void> {
-  for (const r of rows) {
-    await sql`
-      INSERT INTO message_checks (message_id, kind, model, action, verdict, overall, input_tokens, output_tokens, generation_id, latency_ms)
-      VALUES (${messageId}, ${r.kind}, ${r.model}, ${r.action}, ${r.verdict ?? null}::jsonb, ${r.overall},
-              ${r.inputTokens}, ${r.outputTokens}, ${r.generationId}, ${r.latencyMs})
-    `;
-  }
+  await Promise.all(
+    rows.map(
+      (r) => sql`
+        INSERT INTO message_checks (message_id, kind, model, action, verdict, overall, input_tokens, output_tokens, generation_id, latency_ms)
+        VALUES (${messageId}, ${r.kind}, ${r.model}, ${r.action}, ${r.verdict ?? null}::jsonb, ${r.overall},
+                ${r.inputTokens}, ${r.outputTokens}, ${r.generationId}, ${r.latencyMs})
+      `,
+    ),
+  );
 }

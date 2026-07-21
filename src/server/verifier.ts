@@ -166,6 +166,7 @@ export function buildVerifierPrompt(params: {
     // Soft: an untraced figure may be computed, unit-converted, or a schema
     // fact from [E0] — judge each against the evidence rather than assuming.
     `numbers_not_found_verbatim_in_evidence=${checks.untracedNumbers.join(",") || "none"}`,
+    ...(checks.lengthCapped ? ["answer_length_capped=true — the answer was cut off by the output length limit, it is incomplete"] : []),
   ].join("\n");
   return [
     { role: "system", content: VERIFIER_SYSTEM },

@@ -278,9 +278,13 @@ export interface CheckReport {
   ungroundedQuotes: string[];
   ungroundedAddresses: string[];
   untracedNumbers: string[];
+  // True when the answer was cut off by the output-token cap (chat-loop.ts's
+  // finish_reason "length") rather than ending on its own. Not derivable from
+  // the answer text — set by the caller, defaults false here.
+  lengthCapped: boolean;
   // Hard deterministic failure — invented citation targets, invented/misattributed
-  // doc numbers, invented quotes, or invented addresses. Soft signals (bare
-  // links, uncited paragraphs, untraced numbers) inform, they don't fail.
+  // doc numbers, invented quotes, invented addresses, or a length-capped answer.
+  // Soft signals (bare links, uncited paragraphs, untraced numbers) inform, they don't fail.
   failed: boolean;
 }
 
@@ -301,6 +305,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     ungroundedQuotes,
     ungroundedAddresses,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
+    lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
       invalidDocNos.length > 0 ||

@@ -98,9 +98,14 @@ export const config = {
   // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
   chatTemperature: Number(process.env.CHAT_TEMPERATURE ?? 0.3),
   // Output ceiling per completion request (each tool round + the answer). The
-  // rate-limit window only counts tokens after the fact; this caps a runaway
-  // generation up front. Generous — real answers sit far below it.
-  chatMaxOutputTokens: Number(process.env.CHAT_MAX_OUTPUT_TOKENS ?? 4096),
+  // rate-limit window only counts tokens after the fact; this caps a runaway/
+  // degenerate generation up front, not the answer length — 4096 turned out
+  // NOT generous enough for exhaustive multi-doc governance answers (the
+  // system prompt explicitly pushes toward citing across many docs/tables),
+  // so a legitimate answer could get cut off mid-citation. Sized well above
+  // that now; chat-orchestrator.ts's lengthCapped check is the real backstop
+  // if a generation still runs away.
+  chatMaxOutputTokens: Number(process.env.CHAT_MAX_OUTPUT_TOKENS ?? 16000),
   // PostHog AI observability: capture raw prompt/response text on $ai_generation
   // events (posthogPrivacyMode: false), not just token counts/latency/cost. On by
   // default per product decision; env escape hatch to dial back to metadata-only

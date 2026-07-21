@@ -3,7 +3,9 @@
 // accumulated across a turn via chat-loop's onRoundEnd, it feeds the advisor
 // escalation gate ("retrieval trouble") and the verifier prompt's telemetry
 // section. Model-based round digests are explicitly NOT v1.
-import type { RoundInfo } from "./chat-loop.ts";
+import { isErrorResult, type RoundInfo } from "./chat-loop.ts";
+
+export { isErrorResult };
 
 export interface RoundTelemetry {
   rounds: number;
@@ -12,10 +14,6 @@ export interface RoundTelemetry {
   errorResults: number; // tool returned {"error": …}
   repeatedQueries: number; // near-duplicate re-issues of an earlier call (spinning)
   notes: string[]; // human-readable, one per flagged event — fed to verifier/advisor prompts
-}
-
-export function isErrorResult(content: string): boolean {
-  return content.startsWith('{"error"');
 }
 
 // "Ran fine, found nothing": every array field is empty and no field carries a
@@ -37,9 +35,17 @@ export function isEmptyResult(content: string): boolean {
   const arrays = values.filter(Array.isArray);
   if (arrays.length === 0) return false;
   if (!arrays.every((a) => a.length === 0)) return false;
-  // All arrays empty — treat long strings or nested objects as substance.
+  // All arrays empty — treat ANY populated scalar or nested object as
+  // substance. A single-record lookup (e.g. an address card) legitimately has
+  // only short string/number fields alongside empty relationship arrays; that
+  // is a real result, not "found nothing". A numeric 0 stays non-substantive
+  // (it's almost always an accompanying count, e.g. {"results":[],"total":0}).
   return !values.some(
-    (v) => (typeof v === "string" && v.length > 80) || (v !== null && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0),
+    (v) =>
+      (typeof v === "string" && v.trim().length > 0) ||
+      (typeof v === "number" && v !== 0) ||
+      typeof v === "boolean" ||
+      (v !== null && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0),
   );
 }
 

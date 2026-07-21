@@ -89,12 +89,16 @@ function verifyEvent(
 // Repair the answer's atlas links in code, then fold unrepairable (stripped)
 // links back into the report as hard failures — the link is gone from the
 // shipped text, but a fabricated citation still means an unsupported claim.
-function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair): CheckReport {
+// A length-capped answer (cut off mid-generation) is folded in the same way:
+// it's not a citation problem, but it must equally force `failed` so the
+// escalation gate below sees it and the harness attempts a recovery.
+function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean): CheckReport {
   const checks = runDeterministicChecks(content, toolTexts, ix);
-  if (repair.stripped.length === 0) return checks;
+  if (repair.stripped.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
     invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target)],
+    lengthCapped,
     failed: true,
   };
 }
@@ -122,6 +126,7 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
+    ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
 
@@ -196,17 +201,31 @@ export async function* runVerifiedChat(opts: {
   // Citation repair runs first, on the FULL tool texts (the verifier evidence
   // budget doesn't apply to free string scans): done.content is authoritative
   // client-side, so repaired links replace the streamed ones at done.
+  //
+  // Everything from here down is pure post-processing of an answer that has
+  // ALREADY streamed to the client (token events are long gone). A throw here
+  // must never lose that answer — degrade to "skip verification" (same as the
+  // config-off path above) rather than letting the exception propagate out and
+  // skip persistAssistant entirely.
   const telemetry = checker.telemetry();
   const evidence = evidenceFromTranscript(done.transcript);
-  const toolTexts = toolTextsOf(done.transcript);
-  const repair = repairCitations(done.content, toolTexts, opts.ix);
-  if (repair.content !== done.content) done = { ...done, content: repair.content };
-  const checks = repairedChecks(done.content, toolTexts, opts.ix, repair);
-  checksMeta.push({
-    kind: "round_checks", model: null, action: null,
-    verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, checks: { ...checks, citations: checks.citations.length } },
-    overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
-  });
+  let toolTexts: string[];
+  let checks: CheckReport;
+  try {
+    toolTexts = toolTextsOf(done.transcript);
+    const repair = repairCitations(done.content, toolTexts, opts.ix);
+    if (repair.content !== done.content) done = { ...done, content: repair.content };
+    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped);
+    checksMeta.push({
+      kind: "round_checks", model: null, action: null,
+      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, checks: { ...checks, citations: checks.citations.length } },
+      overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
+    });
+  } catch (err) {
+    captureError(err, opts.obs, { stage: "citation_repair_or_checks" });
+    yield finish(done);
+    return;
+  }
 
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
   // Earlier-turn answers count as grounding for follow-ups (the system prompt
@@ -306,11 +325,21 @@ export async function* runVerifiedChat(opts: {
   }
 
   // ── Re-verify once; the second verdict is final even if amber ─────────────
+  // Same rule as the first pass: revDone.content already streamed to the
+  // client (via token events during the revision loop above) — a throw here
+  // must degrade to "skip the recheck", never lose the revised answer.
   const revEvidence = evidenceFromTranscript(revDone.transcript);
-  const revToolTexts = toolTextsOf(revDone.transcript);
-  const revRepair = repairCitations(revDone.content, revToolTexts, opts.ix);
-  if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-  const revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair);
+  let revChecks: CheckReport;
+  try {
+    const revToolTexts = toolTextsOf(revDone.transcript);
+    const revRepair = repairCitations(revDone.content, revToolTexts, opts.ix);
+    if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
+    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped);
+  } catch (err) {
+    captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
+    yield finish(revDone);
+    return;
+  }
   let revVerdict: Verdict | null = null;
   if (verifierModel && !opts.signal?.aborted) {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };

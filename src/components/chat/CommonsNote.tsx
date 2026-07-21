@@ -4,9 +4,12 @@ import type { CommonsPool } from "./api";
 // user sees. A thin used/remaining bar above the private per-user token meter.
 // Turns red under 10% remaining. Hidden entirely when the feature is off.
 export function CommonsNote({ commons }: { commons: CommonsPool | null }) {
-  if (!commons || !commons.total) return null;
-  const usedPct = Math.min(100, Math.round((commons.used / commons.total) * 100));
-  const low = commons.remaining <= commons.total * 0.1;
+  // null = unknown (feature off / credits API hiccup) → hide. A real total of
+  // 0 (pool drained to nothing) must still render — that's exactly when the
+  // hard gate in chat.ts is pausing chat for everyone and users need to see why.
+  if (!commons) return null;
+  const usedPct = commons.total > 0 ? Math.min(100, Math.round((commons.used / commons.total) * 100)) : 100;
+  const low = commons.total <= 0 || commons.remaining <= commons.total * 0.1;
   return (
     <div
       className="rlc-commons"

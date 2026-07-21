@@ -51,6 +51,11 @@ export type ChatEvent =
       usage: { input: number; output: number };
       generationId: string | null;
       toolCalls: ToolCallRecord[];
+      // True when the final completion hit config.chatMaxOutputTokens and was
+      // cut off mid-generation (finish_reason "length") rather than ending on
+      // its own — the harness treats this as a hard failure so a truncated
+      // answer never ships silently as if it were complete.
+      lengthCapped: boolean;
       // Full message array incl. tool results — the verifier's evidence source
       // and the base for a revision run. INTERNAL: the SSE route strips it
       // (sanitizeDone) before it ever reaches a client.
@@ -70,6 +75,13 @@ interface PendingCall {
   id: string;
   name: string;
   args: string;
+}
+
+// The tool-result wire format for a failed call (see llm-tools.ts). Shared
+// with round-checks.ts so the UI's per-call ok badge and the harness's
+// errorResults telemetry can never disagree about what counts as an error.
+export function isErrorResult(content: string): boolean {
+  return content.startsWith('{"error"');
 }
 
 // Injected only on the final iteration, where tool_choice flips to "none" and the
@@ -178,7 +190,7 @@ export async function* runChat(opts: {
         const c = parsedCalls[i];
         const result = results[i];
         const toolContent = result.content;
-        const ok = !toolContent.startsWith('{"error"');
+        const ok = !isErrorResult(toolContent);
         toolCalls.push({
           name: c.name,
           args: c.args,
@@ -212,6 +224,7 @@ export async function* runChat(opts: {
       usage: { input: usageIn, output: usageOut },
       generationId,
       toolCalls,
+      lengthCapped: finishReason === "length",
       transcript: content ? [...msgs, { role: "assistant", content }] : [...msgs],
     };
     return;
@@ -219,5 +232,5 @@ export async function* runChat(opts: {
 
   // Reached only if aborted, or maxIterations somehow exhausted without a text
   // answer. Emit a terminal event so callers can persist + close cleanly.
-  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls, transcript: [...msgs] };
+  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
 }

@@ -33,7 +33,10 @@ export interface ChatMsg {
 }
 
 export interface SendResult {
-  rateLimited?: { message: string; resetsAt: string };
+  // resetsAt is absent for the shared commons-pool gate (it has no fixed
+  // reset time — cleared by a manual top-up) but present for the per-user
+  // token-window gate.
+  rateLimited?: { message: string; resetsAt?: string };
 }
 
 interface StreamHandlers {
@@ -146,8 +149,11 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         case "tool_result":
           patchLast((m) => {
             const trace = m.trace.slice();
-            // Fill the most recent open row for this tool name.
-            for (let i = trace.length - 1; i >= 0; i--) {
+            // Fill the OLDEST open row for this tool name — the server emits
+            // tool_result events in call order (chat-loop.ts pushes results in
+            // parsedCalls order regardless of Promise.all completion order), so
+            // a forward scan keeps repeated-tool-name rounds correctly paired.
+            for (let i = 0; i < trace.length; i++) {
               if (trace[i].name === ev.name && trace[i].ok === null) {
                 trace[i] = { ...trace[i], ok: ev.ok, bytes: ev.bytes };
                 break;
@@ -227,7 +233,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           setError(message);
           finalizeLast({ content: message });
           setStreaming(false);
-          return { rateLimited: { message, resetsAt: body.resetsAt ?? "" } };
+          return { rateLimited: { message, resetsAt: body.resetsAt } };
         }
         if (!res.ok || !res.body) {
           throw new Error(`chat request failed (${res.status})`);

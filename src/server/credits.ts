@@ -17,6 +17,12 @@ export interface CommonsPool {
   remaining: number; // total - used, floored at 0
 }
 
+// Single choke point for the total/used → remaining invariant, so no caller
+// can construct a pool with a `remaining` that doesn't match total-used.
+function makeCommonsPool(total: number, used: number): CommonsPool {
+  return { used, total, remaining: Math.max(0, total - used) };
+}
+
 const CREDITS_URL = "https://openrouter.ai/api/v1/credits";
 // The credits endpoint is account-global and moves slowly; cache so widget
 // traffic (every panel open + every turn's post-answer refresh, × all users)
@@ -25,6 +31,11 @@ const TTL_MS = 30_000;
 
 let cache: { at: number; pool: CommonsPool | null } | null = null;
 let warnedNoKey = false; // one-time reminder so the log isn't spammed per request
+// De-dupes concurrent callers (a chat POST and a usage GET can land in the
+// same instant) hitting an expired cache at once — without this, every caller
+// that observes the stale/missing cache before the first fetch resolves fires
+// its own request to OpenRouter.
+let inflight: Promise<CommonsPool | null> | null = null;
 
 interface CreditsResponse {
   data?: { total_credits?: number; total_usage?: number };
@@ -51,29 +62,39 @@ export async function fetchCommons(
     return null;
   }
   if (cache && now - cache.at < TTL_MS) return cache.pool;
+  if (inflight) return inflight;
 
-  let pool: CommonsPool | null = null;
-  try {
-    const res = await fetchImpl(CREDITS_URL, {
-      headers: { authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(4000),
-    });
-    if (res.ok) {
-      const body = (await res.json()) as CreditsResponse;
-      const total = Number(body.data?.total_credits);
-      const used = Number(body.data?.total_usage);
-      if (Number.isFinite(total) && Number.isFinite(used)) {
-        pool = { used, total, remaining: Math.max(0, total - used) };
+  inflight = (async () => {
+    let pool: CommonsPool | null = null;
+    try {
+      const res = await fetchImpl(CREDITS_URL, {
+        headers: { authorization: `Bearer ${key}` },
+        signal: AbortSignal.timeout(4000),
+      });
+      if (res.ok) {
+        const body = (await res.json()) as CreditsResponse;
+        const total = body.data?.total_credits;
+        const used = body.data?.total_usage;
+        // typeof, not Number(x) — an explicit API `null` (or a missing field)
+        // must fail to "unknown", not silently coerce to a real 0.
+        if (typeof total === "number" && typeof used === "number" && Number.isFinite(total) && Number.isFinite(used)) {
+          pool = makeCommonsPool(total, used);
+        }
       }
+    } catch {
+      pool = null; // network/timeout/JSON — unknown, not empty
+    } finally {
+      cache = { at: now, pool };
+      inflight = null;
     }
-  } catch {
-    pool = null; // network/timeout/JSON — unknown, not empty
-  }
-  cache = { at: now, pool };
-  return pool;
+    return pool;
+  })();
+  return inflight;
 }
 
-// Test-only: drop the TTL cache so each case fetches fresh.
+// Test-only: drop the TTL cache (and any in-flight request) so each case
+// fetches fresh.
 export function __resetCommonsCache(): void {
   cache = null;
+  inflight = null;
 }
