@@ -58,12 +58,20 @@ export interface LibraryData {
 // the sha-keyed atlas base (same lifecycle as glossary.json): rebuilt by the
 // runtime updater on atlas drift and published into the per-sha bundle.
 // Keyed by data-source base like glossary.ts.
+//
+// SCHEMA_V busts the browser's immutable cache (per-sha URLs ship
+// cache-control: immutable, max-age=1y) when the artifact's SHAPE changes
+// under an unchanged atlas sha — e.g. the flat→chunkTree migration stranded
+// returning clients on year-cached old bytes. Bump it in the same commit as
+// any breaking change to LibraryData; the shape guard below is the backstop
+// for a forgotten bump.
+const SCHEMA_V = 2;
 const cache = new Map<string, Promise<LibraryData>>();
 
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {
   let cached = cache.get(base);
   if (!cached) {
-    cached = fetchJson<LibraryData>(`${base}library.json`, "library.json")
+    cached = fetchJson<LibraryData>(`${base}library.json?v=${SCHEMA_V}`, "library.json")
       .then((d) => {
         // Version-skew guard: the JS bundle and the atlas artifact update
         // independently (live updater, long-open tabs across deploys). An

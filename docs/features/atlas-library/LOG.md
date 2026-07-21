@@ -75,3 +75,12 @@ Branched `atlas-library` off `main` (post risk-report-rendering merge, atlas db8
   predate library.json and lack it — harmless, nothing references them; 404 there would
   StaleAtlasError→reload by design. Pre-existing oddity (NOT ours): /api/health reports
   72d03fd while HTML injects db87434 on this dev box.
+
+- **(next commit)** "Bust immutable cache on library.json schema changes"
+  Previous guard was necessary but not sufficient: user STILL saw the error after
+  refresh because per-sha artifact URLs ship `cache-control: immutable, max-age=1y`
+  and the flat→chunkTree change altered bytes UNDER THE SAME atlas sha → browsers
+  keep the year-cached old artifact. Fix: SCHEMA_V const in src/lib/library.ts,
+  fetched as library.json?v=N — bump in the same commit as any breaking LibraryData
+  change (the shape guard remains the backstop). RULE FOR FUTURE SESSIONS: never
+  change a per-sha artifact's shape without a cache-key change.
