@@ -1,12 +1,21 @@
 import { fetchJson } from "./verify";
 import { liveAtlasBase, handledStale } from "./atlasBase";
 
+export interface LibrarySegment {
+  id: string;
+  doc_no: string;
+  title: string;
+  docs: number;
+}
+
 export interface LibraryNodeRef {
   id: string;
   doc_no: string;
   title: string;
   docs: number;
   bytes: number;
+  /** Direct-child weights, largest first — drives the stacked weight bars. */
+  segments: LibrarySegment[];
 }
 
 export interface LibraryGroup {
@@ -14,6 +23,8 @@ export interface LibraryGroup {
   roots: string[];
   docs: number;
   bytes: number;
+  /** Component-root weights, largest first. */
+  segments: LibrarySegment[];
 }
 
 export interface LibraryTocSection {

@@ -57,17 +57,28 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
   const nr = all.filter((n) => n.doc_no.startsWith("NR")).sort((a, b) => a.order - b.order);
   const ref = ({ id, doc_no, title }) => ({ id, doc_no, title });
 
+  // Segment a node's weight by its direct children (for the stacked weight
+  // bars): largest first. The parent's own doc is folded into the largest
+  // segment implicitly by normalizing against the segment sum at render time.
+  const childSegments = (id) =>
+    (children.get(id) || [])
+      .map((c) => ({ ...ref(c), docs: subtree(c.id).docs }))
+      .sort((a, b) => b.docs - a.docs);
+
   return {
     atlasCommit,
     totals: { docs: all.length, bytes: all.reduce((s, n) => s + (n.content || "").length, 0), glossaryTerms: terms.length },
     docTypes: Object.entries(all.reduce((m, n) => ((m[n.type] = (m[n.type] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]),
-    scopes: scopes.map((s) => ({ ...ref(s), ...subtree(s.id) })),
+    scopes: scopes.map((s) => ({ ...ref(s), ...subtree(s.id), segments: childSegments(s.id) })),
     groups: GROUPS.map(([name, roots]) => {
       const w = roots.map(subtree).reduce((a, b) => ({ docs: a.docs + b.docs, bytes: a.bytes + b.bytes }), { docs: 0, bytes: 0 });
-      return { name, roots, ...w };
+      const segments = roots
+        .map((r) => ({ ...ref(nodes[r]), docs: subtree(r).docs }))
+        .sort((a, b) => b.docs - a.docs);
+      return { name, roots, ...w, segments };
     }),
-    primes: (children.get(PRIME_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id) })),
-    executors: (children.get(EXEC_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id) })),
+    primes: (children.get(PRIME_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
+    executors: (children.get(EXEC_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
     neededResearch: nr.map((n) => ref(n)),
     toc: scopes.map((s) => ({
       ...ref(s), docs: subtree(s.id).docs,
