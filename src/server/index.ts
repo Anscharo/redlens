@@ -22,6 +22,7 @@ import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
 import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
+import { shutdownPosthog } from "./posthog-node.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -236,6 +237,15 @@ const server = Bun.serve({
 });
 
 console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
+
+// Flush batched PostHog `$ai_generation` events before the process exits so a
+// Railway redeploy (SIGTERM) doesn't drop the last window of chat observability.
+// No-op when POSTHOG_KEY is unset. once:true so a double-signal can't re-enter.
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.once(sig, () => {
+    void shutdownPosthog().finally(() => process.exit(0));
+  });
+}
 
 // Seed Postgres from the baked-in atlas artifacts ONLY when the DB has never
 // been initialized (no sync_state row). After the first seed the atlas worker

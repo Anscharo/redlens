@@ -92,3 +92,23 @@ test("include_provenance:false still returns every row (sources omitted)", () =>
   expect(r.total).toBe(3);
   expect(r.responsibilities.every((x: any) => x.sources === undefined)).toBe(true);
 });
+
+test("filter narrows rows to matches and reports the filtered total", () => {
+  // "rebate" appears only in the op-duty row's quote — the shared applyReportFilter
+  // (ogSearchFields) must drop the assignment + active-data rows.
+  const r = buildGovOpsResponsibilitiesReport(makeIx(), { include_provenance: true, filter: "rebate" }) as any;
+  expect(r.total).toBe(1);
+  expect(r.responsibilities).toHaveLength(1);
+  expect(r.responsibilities[0].category).toBe("op-duty");
+});
+
+test("empty filter is a no-op (all rows)", () => {
+  const r = buildGovOpsResponsibilitiesReport(makeIx(), { include_provenance: true, filter: "   " }) as any;
+  expect(r.total).toBe(3);
+});
+
+test("filter matching nothing returns zero rows", () => {
+  const r = buildGovOpsResponsibilitiesReport(makeIx(), { include_provenance: true, filter: "nonexistentxyz" }) as any;
+  expect(r.total).toBe(0);
+  expect(r.responsibilities).toHaveLength(0);
+});

@@ -5,9 +5,10 @@
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
-import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./tool-registry.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription } from "./tool-registry.ts";
 import type { Indexes } from "./indexes.ts";
 import { config } from "./config.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 function toJsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
   const schema = zodToJsonSchema(z.object(shape), { $refStrategy: "none", target: "openApi3" }) as Record<
@@ -20,7 +21,11 @@ function toJsonSchema(shape: z.ZodRawShape): Record<string, unknown> {
 
 export const CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = ATLAS_TOOLS.map((t) => ({
   type: "function",
-  function: { name: t.name, description: t.description, parameters: toJsonSchema(t.shape) },
+  function: {
+    name: t.name,
+    description: toolDescription(t),
+    parameters: toJsonSchema(t.shape),
+  },
 }));
 
 export function safeParseArgs(raw: string): Record<string, unknown> {
@@ -81,7 +86,7 @@ export function applyChatToolBudget(rawJson: string, budget = config.chatToolRes
 // (applies defaults the model omits, e.g. k/mode/enrich), then runs the handler.
 // Returns a JSON string fed back to the model as the tool message, plus chat
 // transport truncation metadata for telemetry.
-export async function execToolDetailed(ix: Indexes, name: string, rawArgs: string): Promise<ChatToolResult> {
+export async function execToolDetailed(ix: Indexes, name: string, rawArgs: string, obs?: ErrorContext): Promise<ChatToolResult> {
   const tool = TOOLS_BY_NAME.get(name);
   if (!tool) return applyChatToolBudget(JSON.stringify({ error: `unknown tool: ${name}` }));
   const parsed = z.object(tool.shape).safeParse(safeParseArgs(rawArgs));
@@ -91,6 +96,9 @@ export async function execToolDetailed(ix: Indexes, name: string, rawArgs: strin
   try {
     return applyChatToolBudget(JSON.stringify(await tool.handler(ix, parsed.data as Record<string, unknown>)));
   } catch (e) {
+    // The model still gets a usable {error} tool result (never breaks the turn),
+    // but a tool handler throwing is a real bug worth alerting on, not silent.
+    captureError(e, obs, { tool: name });
     return applyChatToolBudget(JSON.stringify({ error: (e as Error).message }));
   }
 }

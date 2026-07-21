@@ -16,13 +16,21 @@ COPY . .
 
 # Clone the atlas. Railway strips .git from the build context so submodule
 # init cannot work — a direct clone gives us the content we need.
-# Login features (auth, saved Collections) + chat ship DISABLED by default.
-# Rebuild with --build-arg VITE_USERS_ENABLED=1 (and set USERS_ENABLED=1 at
-# runtime) to enable logins; add --build-arg VITE_CHAT_ENABLED=1 (+ CHAT_ENABLED=1
-# at runtime) for chat. Chat needs a logged-in session, so it also requires the
-# USERS flags — VITE_CHAT_ENABLED=1 alone (without users) leaves chat off.
-ARG VITE_USERS_ENABLED=0
-ARG VITE_CHAT_ENABLED=0
+# Login features (auth, saved Collections) + chat ship DISABLED by default, gated
+# by two runtime service variables: USERS_ENABLED (auth + Collections) and
+# CHAT_ENABLED (chat, which additionally requires users). Railway forwards a
+# service variable as a --build-arg when the matching ARG is declared, so
+# declaring ARG USERS_ENABLED / ARG CHAT_ENABLED both (a) documents the runtime
+# knobs (config.ts reads USERS_ENABLED / CHAT_ENABLED) and (b) flows into the
+# VITE_* build flags below, baking the matching frontend bundle in. No hardcoding
+# to production — any env with USERS_ENABLED=1 gets logins; add CHAT_ENABLED=1 for
+# chat. The VITE_* flags can still be overridden explicitly (e.g. a manual
+# `docker build --build-arg VITE_CHAT_ENABLED=1`). Chat needs a logged-in session,
+# so VITE_CHAT_ENABLED=1 without the USERS flags leaves chat off.
+ARG USERS_ENABLED=0
+ARG CHAT_ENABLED=0
+ARG VITE_USERS_ENABLED=$USERS_ENABLED
+ARG VITE_CHAT_ENABLED=$CHAT_ENABLED
 # PostHog analytics key. VITE_* vars are inlined by Vite AT BUILD TIME, not read
 # at runtime — so the key must be present in this build environment, not just as a
 # runtime service variable. Railway forwards the matching service variable as a

@@ -23,10 +23,29 @@ import { atlasFirstSeen } from "./first-seen.ts";
 
 export interface AtlasTool {
   name: string;
+  // What the tool does + its return shape — must stand alone: the /connect
+  // page (a human-facing docs page, tools.json) reads this field bare, with no
+  // `whenToUse` appended. Keep it free of exact restatement of `whenToUse`'s
+  // wording, but it still needs to be a complete, useful description on its own.
   description: string;
+  // Short agent-steering line: the QUESTION SHAPE that should make an agent
+  // reach for this tool over the alternatives (decision-point steer — imperative
+  // framing like "call this FIRST" that makes sense mid-tool-selection, not as
+  // human documentation). Appended to `description` via toolDescription() below
+  // for the two agent consumers, chat and MCP; /connect never sees it.
+  whenToUse?: string;
   shape: z.ZodRawShape;
   annotations?: ToolAnnotations;
   handler: (ix: Indexes, args: Record<string, unknown>) => ToolResult | Promise<ToolResult>;
+}
+
+// Combines `description` + `whenToUse` for the two AGENT consumers (chat's JSON
+// Schema, MCP's tool registration) so they never drift apart. The /connect
+// page's tools.json deliberately does NOT call this — it reads `t.description`
+// bare, since `whenToUse`'s imperative agent-steering phrasing isn't meant for
+// human documentation.
+export function toolDescription(t: AtlasTool): string {
+  return t.whenToUse ? `${t.description}\n\nWhen to use: ${t.whenToUse}` : t.description;
 }
 
 // Shared across every atlas_report_* tool: whether to include source doc_nos /
@@ -38,6 +57,22 @@ const INCLUDE_PROVENANCE = z
   .default(true)
   .describe("Include provenance (source doc_nos / evidence chains / raw params) for each field (default true; set false for a leaner rollup).");
 const provenanceFlag = (a: Record<string, unknown>): boolean => (a.include_provenance as boolean | undefined) ?? true;
+
+// Shared across the row-list report tools that mirror a filterable report page
+// (facilitator/govops responsibilities, rewards, active data): a text filter
+// applied server-side with the SAME field logic the page's header box uses, so
+// a scoped query returns only matching rows instead of the whole report. Broad
+// (every space-separated word must appear somewhere in the row) by default; a
+// fully quoted "…"/'…' value selects phrase/case-sensitive matching.
+const FILTER_PARAM = z
+  .string()
+  .optional()
+  .describe(
+    'Optional text filter over the report rows (same matching as the report page): every space-separated word must appear ' +
+      'somewhere in a row (name, doc_no, agent, party, status, address, …). Wrap in "double quotes" for an exact phrase. ' +
+      "Omit to return the whole report. Use it to scope large reports (e.g. one agent/entity) and keep the response small.",
+  );
+const filterArg = (a: Record<string, unknown>): string | undefined => (a.filter as string | undefined) || undefined;
 
 const READ_ONLY_ATLAS_TOOL: ToolAnnotations = {
   readOnlyHint: true,
@@ -51,6 +86,8 @@ const readOnlyAtlasTool = (title: string): ToolAnnotations => ({ ...READ_ONLY_AT
 export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_describe",
+    whenToUse:
+      "You need exact schema vocabulary (a type name, an edge type, or how entity types connect) before building a filter or traversal. Not for content.",
     annotations: readOnlyAtlasTool("Atlas Describe"),
     description:
       "Self-describing schema. By default returns doc-type + edge-type + entity-type vocabularies (with counts) and " +
@@ -67,6 +104,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_get",
+    whenToUse:
+      "You already have a UUID or doc_no and need the full document text — typically to read a doc a search surfaced.",
     annotations: readOnlyAtlasTool("Atlas Get"),
     description:
       "Fetch one or many Atlas nodes by UUID or doc_no. Each result includes the full ancestor chain (parent → root). " +
@@ -78,6 +117,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_search",
+    whenToUse:
+      "You only need to find docs by words, with no graph/entity/history dimension. If the question spans dimensions, use atlas_query instead.",
     annotations: readOnlyAtlasTool("Atlas Search"),
     description:
       'Search the Sky Atlas. mode="lexical" uses minisearch BM25 (good for exact terms, IDs, addresses). ' +
@@ -94,6 +135,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_get_address",
+    whenToUse:
+      "The question contains or is about an on-chain address (0x… / base58) and you need its entity, roles, or chain state.",
     annotations: readOnlyAtlasTool("Atlas Get Address"),
     description:
       "Look up an on-chain address. Returns merged atlas + chain metadata (label, chainlog id, etherscan name, " +
@@ -106,6 +149,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_neighbors",
+    whenToUse:
+      "You have one node and need its immediate structural context — parent, siblings, direct children (e.g. 'what else is in this section').",
     annotations: readOnlyAtlasTool("Atlas Neighbors"),
     description: "Return the hierarchical context around a node: parent, N siblings above/below, and direct children.",
     shape: {
@@ -116,9 +161,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_traverse",
+    whenToUse:
+      "You need everything reachable from a node along typed edges several hops out — indirect or chained relationships, not just direct neighbors.",
     annotations: readOnlyAtlasTool("Atlas Traverse"),
     description:
-      "Traverse the graph from a node, following typed edges up to N hops. Use to find all related nodes. Each " +
+      "Traverse the graph from a node, following typed edges up to N hops. Each " +
       "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
       "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it. Results 2+ hops away " +
       "also include `path`: the ordered chain of steps (edge + node) from the start node to that result.",
@@ -132,11 +179,13 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entities",
+    whenToUse:
+      "You have a NAME (e.g. 'Spark Protocol') and need its entity slug, or want to browse entities by type/subtype. Call this FIRST when you lack a slug the other entity tools need.",
     annotations: readOnlyAtlasTool("Atlas Entities"),
     description:
-      "Find entities by free-text name and/or structural filters — the tool to call FIRST to turn a name like " +
-      "'Spark Protocol' into a slug (atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching " +
-      "(ranked, with a score), and/or filter by `entity_type` / `subtype`. Paginated.",
+      "Find entities by free-text name and/or structural filters — turns a name like 'Spark Protocol' into a slug " +
+      "(atlas_describe no longer lists slugs). Pass `q` for fuzzy name matching (ranked, with a score), and/or " +
+      "filter by `entity_type` / `subtype`. Paginated.",
     shape: {
       q: z.string().optional().describe("Free-text name to match (fuzzy, ranked). Omit to list/browse by filter."),
       entity_type: z.string().optional().describe("Filter by entity type (e.g. 'agent', 'instance', 'multisig', 'facilitator_org')."),
@@ -155,10 +204,11 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_edges",
+    whenToUse:
+      "The question asks for EVERY relationship of a type (all signers, all integration partners) or all edges to/from one resolved entity slug.",
     annotations: readOnlyAtlasTool("Atlas Edges"),
     description:
-      "Enumerate graph edges globally with pagination. Use when a question asks for every relationship of a type " +
-      "(e.g. signer_of, integration_partner_of, active_data_for) or all edges from/to a resolved entity slug. " +
+      "Enumerate graph edges globally with pagination (e.g. signer_of, integration_partner_of, active_data_for). " +
       "Returns resolved endpoint names/types, parsed meta, source doc numbers, and optional provenance docs.",
     shape: {
       edge_type: z.string().optional().describe("Exact edge type filter, e.g. 'signer_of', 'responsible_party_for'."),
@@ -184,13 +234,14 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity",
+    whenToUse:
+      "The question is about what an actor actually HAS or does — its instances, responsibilities, or Active Data. Use this instead of searching and reading titles when you need an agent's real holdings, not docs that merely mention it.",
     annotations: readOnlyAtlasTool("Atlas Entity"),
     description:
-      "Get Atlas sections related to an entity (agent, role, or actor). `name` accepts a slug OR a natural-language " +
-      "name ('Spark Protocol') — resolved server-side; the response echoes `resolved` + `alternatives`. Returns " +
-      "paginated `nodes` (edge-linked docs + defining-doc subtree), `node_count` + `node_types` (a type histogram " +
-      "over the full set — use it to pick a `type` filter), `responsibilities`, and Active Data it controls. Prime " +
-      "Agents have 2000+ nodes, so page with `limit`/`offset` and narrow with `type`.",
+      "Get Atlas sections related to an entity (agent, role, or actor) — resolves `name` server-side (slug or " +
+      "natural language) and echoes `resolved` + `alternatives`. Returns paginated `nodes` (edge-linked docs + " +
+      "defining-doc subtree), `node_count` + `node_types` (a type histogram — use it to pick a `type` filter), " +
+      "`responsibilities`, and Active Data it controls. Prime Agents have 2000+ nodes — page and narrow by type.",
     shape: {
       name: z.string().describe("Entity slug OR natural-language name (e.g. 'spark', 'Spark Protocol', 'grove foundation')."),
       type: z.string().optional().describe("Restrict `nodes` to one atlas doc type (see `node_types` in the response)."),
@@ -208,6 +259,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_filter",
+    whenToUse:
+      "You want documents by STRUCTURE — a type, an entity's subtree, a doc_no pattern, or a depth range — rather than by words.",
     annotations: readOnlyAtlasTool("Atlas Filter"),
     description: "Filter Atlas documents by structural attributes. Compose any of: type, entity slug (restricts to entity's artifact subtree), ancestor_id (recursive descendants), doc_no_pattern (SQL LIKE, e.g. '%.0.4.%'), depth_min/max.",
     shape: {
@@ -224,6 +277,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_entity_params",
+    whenToUse:
+      "You need an instance's actual PARAMETER VALUES — rates, thresholds, statuses, signer counts, addresses — as a map. Read configured values here rather than inferring them from prose or a doc title.",
     annotations: readOnlyAtlasTool("Atlas Entity Params"),
     description:
       "Return the immediate Core children of a doc as a parameter map. Useful for any ICD whose params are encoded " +
@@ -245,6 +300,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_history",
+    whenToUse:
+      "The question is why or when ONE specific document changed.",
     annotations: readOnlyAtlasTool("Atlas History"),
     description: "Why was this changed? Returns the change log for one Atlas doc, newest first — git commits (with PR title/author/url and matched summary/description) plus, for docs old enough, reconstructed pre-git origin events: era='mip' (verbiage traced to the pre-2024 MIP-era Atlas), 'genesis' (present in the Atlas v2 launch snapshot, 2024-09-02), or 'severed' (an undated birth in the git-less window before 2025-05-28). Reconstructed rows have no real commit_sha — check `era` before treating `commit_sha` as a GitHub commit. Filter by date range, PR number, or change type.",
     shape: {
@@ -259,6 +316,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_recent_changes",
+    whenToUse:
+      "The question is 'what changed recently' across the atlas, with no specific document in mind.",
     annotations: readOnlyAtlasTool("Atlas Recent Changes"),
     description: "What changed recently? Returns the most recent change events across the whole atlas, optionally filtered by doc type, change type, or entity. Defaults to the last 30 days.",
     shape: {
@@ -273,10 +332,12 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_history_stats",
+    whenToUse:
+      "Trend, timeline, quarterly, or coverage-window questions — use aggregated history instead of paging raw atlas_history events.",
     annotations: readOnlyAtlasTool("Atlas History Stats"),
     description:
       "Summarize Atlas history by month or quarter, with global availability bounds, change-type counts, optional " +
-      "grouping, top changed docs, and top PRs. Use for trend/timeline questions instead of paging raw atlas_history events.",
+      "grouping, top changed docs, and top PRs.",
     shape: {
       since: z.string().optional().describe("ISO date (YYYY-MM-DD). If earlier than available history, the response includes a warning."),
       until: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
@@ -303,6 +364,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_pr",
+    whenToUse:
+      "The question names a specific GitHub PR number and asks what it touched.",
     annotations: readOnlyAtlasTool("Atlas PR"),
     description: "What did PR #N touch? Returns every doc affected by a single GitHub PR against next-gen-atlas, with per-doc summary/description from the PR body.",
     shape: {
@@ -312,6 +375,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_changed_between",
+    whenToUse:
+      "The question compares two atlas versions — what changed between two commits/SHAs.",
     annotations: readOnlyAtlasTool("Atlas Changed Between"),
     description: "Which docs changed between two atlas commits? Pass two short SHAs and get every doc added/modified/moved/removed in that window. Uses commit_seq for exact topological ordering.",
     shape: {
@@ -326,14 +391,15 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_first_seen",
+    whenToUse:
+      "'Since when' for a batch of entities/docs — ONLY when the atlas text gives no explicit date. Cite the source as history-derived, never as an atlas-stated date.",
     annotations: readOnlyAtlasTool("Atlas First Seen"),
     description:
       "Since when has this existed? Bulk lookup of the earliest atlas_history 'added' date for a batch of entity " +
-      "slugs and/or doc UUIDs/doc_nos in one call. Use only when the atlas text itself gives no explicit date — " +
-      "every date is derived from atlas_history, never an explicit in-content date. `first_seen_source` names the " +
-      "underlying record: `pr:<number>` for a PR-linked commit, `mip` / `genesis-v2` / `html-era` / `severed` for a " +
-      "pre-git-history reconstruction, or `commit:<short sha>` for a plain git commit with no PR. An entity's first_seen " +
-      "is its defining doc's first_seen.",
+      "slugs and/or doc UUIDs/doc_nos in one call. Every date is derived from atlas_history, never an explicit " +
+      "in-content date. `first_seen_source` names the underlying record: `pr:<number>` for a PR-linked commit, " +
+      "`mip` / `genesis-v2` / `html-era` / `severed` for a pre-git-history reconstruction, or `commit:<short sha>` " +
+      "for a plain git commit with no PR. An entity's first_seen is its defining doc's first_seen.",
     shape: {
       ids: z
         .array(z.string())
@@ -345,6 +411,8 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   },
   {
     name: "atlas_query",
+    whenToUse:
+      "START HERE for most substantive questions. One call combines search + entity-graph + doc-type + history + status + ancestor scope; prefer one rich atlas_query over chaining narrow tools.",
     annotations: readOnlyAtlasTool("Atlas Query"),
     description:
       "One-call multi-dimensional atlas query. Combines any subset of: semantic/lexical search (q), " +
@@ -352,8 +420,7 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       "doc-type filter (target_type), history window (since/until/change_type), status filter, " +
       "ancestor scope (ancestor_id), and inline instance params (include_params). All active dimensions " +
       "are intersected. Use instead of chaining atlas_search + atlas_get when the question spans dimensions. " +
-      "Retrieve-then-read: results are lean by default (title, doc_no, snippet, sources) — set enrich=true for " +
-      "full content + ancestor ids (deduped into a top-level `ancestors` map), or fetch specific ids with atlas_get.",
+      "Lean results by default — see `enrich`.",
     shape: atlasQueryShape,
     handler: (ix, a) => atlasQuery(ix, a as unknown as QueryArgs),
   },
@@ -366,12 +433,9 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_multisigs",
     annotations: readOnlyAtlasTool("Atlas Report Multisigs"),
     description:
-      "CURATED REPORT (not raw graph data). Every multisig in one call — the complete evidence for a " +
-      "multisig security review. Returns { report, total, returned, truncated, note?, multisigs[] }; each row = " +
-      "{ id, name, slug, chain, address, threshold ('2/5'), signer_orgs[]{name, entity_type, signer_count, via_role}, " +
-      "signer_org_count, total_signers (null when any org's count is unstated), can_modify_signers[]{name, entity_type}, " +
-      "purpose{doc_no, title}|null, provenance?{defining_doc_no, threshold_doc_no, purpose_doc_no, signer_docs[], " +
-      "modification_docs[]} }. The provenance block is present only with include_provenance:true.",
+      "Curated report (not raw graph calls) — every multisig in one call, the full evidence for a security review. " +
+      "Each row: identity, chain/address, threshold, signer orgs with counts, who can modify signers, purpose. " +
+      "Provenance (source doc_nos) only with include_provenance:true.",
     shape: { include_provenance: INCLUDE_PROVENANCE },
     handler: (ix, a) => buildMultisigsReport(ix, { include_provenance: provenanceFlag(a) }),
   },
@@ -379,14 +443,10 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_primitive_matrix",
     annotations: readOnlyAtlasTool("Atlas Report Primitive Matrix"),
     description:
-      "CURATED REPORT (not raw graph data). The agent × primitive-subtype ACTIVATION matrix: engaged = Active|Completed " +
-      "globalActivation, Inactive = the slot exists but was never engaged. Each subtype is classed universal (engaged " +
-      "for every agent), optional (some), or dormant (none). Returns { report, activation_note, agents[] (names), " +
-      "agent_count, subtype_count, universal_count, optional_count, dormant_count, truncated, note?, subtypes[], " +
-      "unknown_statuses?[], unknown_status_warning? }; each subtype = { subtype, classification: " +
-      "'universal'|'optional'|'dormant', engaged_count, active_count, inactive_count, completed_count, engaged_agents[], " +
-      "missing_agents[] (Inactive or absent — NOT 'lacks the primitive'), agent_status{agentName: " +
-      "'Active'|'Completed'|'Inactive'}, category_doc_no? }.",
+      "Curated report (not raw graph calls) — the agent × primitive-subtype ACTIVATION matrix: engaged = " +
+      "Active|Completed globalActivation, Inactive = the slot exists but was never engaged (never read " +
+      "missing_agents as 'lacks the primitive'). Each subtype classed universal/optional/dormant by how many agents " +
+      "engage it; each row carries per-agent status and engaged-vs-missing agents.",
     shape: { include_provenance: INCLUDE_PROVENANCE },
     handler: (ix, a) => buildPrimitiveMatrixReport(ix, { include_provenance: provenanceFlag(a) }),
   },
@@ -394,56 +454,44 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     name: "atlas_report_facilitator_responsibilities",
     annotations: readOnlyAtlasTool("Atlas Report Facilitator Responsibilities"),
     description:
-      "CURATED REPORT (not raw graph data). Every Operational/Core Facilitator responsibility in one call — answers " +
+      "Curated report (not raw graph calls) — every Operational/Core Facilitator responsibility in one call, answers " +
       "'what is a Facilitator responsible for' without reconstructing it from duty_for / *_facilitator_for / " +
-      "responsible_party_for edges. Returns { report, total, returned, truncated, note?, categories{label: count}, " +
-      "responsibilities[] }; each row = { docNo, uuid, title, duty, category (one of: universal | core-facilitator | " +
-      "op-duty | assignment | active-data | process-step), agent?, agents?[], facilitator?, facilitators?[], executor?, " +
-      "role? ('Operational'|'Core'), sources?[] }. sources appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+      "responsible_party_for edges. Each row: duty text, category, and the agent/facilitator/executor it's " +
+      "attributed to. Sources only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildFacilitatorResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_govops_responsibilities",
     annotations: readOnlyAtlasTool("Atlas Report GovOps Responsibilities"),
     description:
-      "CURATED REPORT (not raw graph data). The GovOps counterpart of atlas_report_facilitator_responsibilities: every " +
-      "Operational/Core GovOps responsibility in one call — answers 'what is GovOps responsible for'. Returns " +
-      "{ report, total, returned, truncated, note?, categories{label: count}, responsibilities[] }; each row = " +
-      "{ docNo, uuid, title, duty, category (one of: definition | op-duty | core-duty | assignment | active-data | " +
-      "process-step), agent?, agents?[], govops?, executor?, role? ('Operational'|'Core'), sources?[] }. sources " +
-      "appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a) }),
+      "Curated report (not raw graph calls) — the GovOps counterpart of atlas_report_facilitator_responsibilities, " +
+      "answers 'what is GovOps responsible for'. Each row: duty text, category, and the agent/GovOps org/executor " +
+      "it's attributed to. Sources only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildGovOpsResponsibilitiesReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_rewards",
     annotations: readOnlyAtlasTool("Atlas Report Rewards"),
     description:
-      "CURATED REPORT (not raw graph data). The integrator reward rollup, per Prime Agent — use for reward-program / " +
-      "integrator questions. Returns { report, total, returned, truncated, note?, agents[], ecosystem{stUsdsDr, " +
-      "srUsdsDr, drPrimitive, ibPrimitive, demandSideBufferAddress} }; each agent = { name, docNoPrefix, " +
-      "agentEntity{id,name,slug}|null, chain{executor, govops}|null, dr, ib } where dr/ib (either may be null) = " +
-      "{ kind: 'DR'|'IB', primitiveId, primitiveDocNo, globalActivation, active[], suspended[], completed[], " +
-      "invocations[] } and each Instance/Invocation = { id, docNo, name, status, rewardCode?/partnerName?, " +
-      "rewardAddress?, rewardChain?, cadence?, tracking?, paymentsControllerDocNo?, paymentsResponsibleParty?, " +
-      "params? }. params (the raw source tuples) appears only with include_provenance:true.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a) }),
+      "Curated report (not raw graph calls) — the integrator reward rollup per Prime Agent, for reward-program / " +
+      "integrator questions. Each agent: executor/govops chain, plus DR (Distribution Reward) / IB (Integration " +
+      "Boost) instances with status, reward code or partner, payout address/chain, cadence. Raw param tuples only " +
+      "with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildRewardsReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
   {
     name: "atlas_report_active_data",
     annotations: readOnlyAtlasTool("Atlas Report Active Data"),
     description:
-      "CURATED REPORT (not raw graph data). One row per Active Data document — use for 'who maintains / is responsible " +
-      "for this Active Data' and data-governance questions. Returns { report, total, returned, truncated, note?, " +
-      "active_data[] }; each row = { activeDataId, activeDataDocNo, activeDataTitle, controllerId, controllerDocNo, " +
-      "controllerTitle, agent, chain{executorName, facilitatorName, govopsName, …}|null, responsibleParty{name, id, " +
-      "resolution: 'direct'|'chain'|'role', declared, evidence[]}|null, declaredRP, facilitator{name, role, " +
-      "evidence[]}|null, process ('Direct Edit'|'Alignment Conserver Changes'), sourceDocNo }. The evidence[] chains " +
-      "are populated only with include_provenance:true (empty otherwise); resolved names/roles always stay.",
-    shape: { include_provenance: INCLUDE_PROVENANCE },
-    handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a) }),
+      "Curated report (not raw graph calls) — one row per Active Data document, for 'who maintains / is responsible " +
+      "for this Active Data'. Each row: the doc, its controller, resolved Responsible Party (direct/chain/role), " +
+      "approving Facilitator, and update process (Direct Edit vs. Alignment Conserver Changes). Evidence chains " +
+      "only with include_provenance:true.",
+    shape: { include_provenance: INCLUDE_PROVENANCE, filter: FILTER_PARAM },
+    handler: (ix, a) => buildActiveDataReport(ix, { include_provenance: provenanceFlag(a), filter: filterArg(a) }),
   },
 ];
 

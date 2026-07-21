@@ -9,11 +9,17 @@ import type OpenAI from "openai";
 import { sql } from "./db.ts";
 import { getIndexes } from "./indexes.ts";
 import { getSessionUser } from "./session.ts";
-import { getModel, openrouterStream } from "./llm.ts";
-import { runChat, type ChatEvent } from "./chat-loop.ts";
+import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
+import { routeTier, resolveTierModels } from "./model-router.ts";
+import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
+import { buildPrefetch, prefetchRound } from "./prefetch.ts";
+import { windowHistory } from "./chat-history.ts";
+import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
 import { json } from "./http.ts";
+import { fetchCommons } from "./credits.ts";
+import { captureError, type ErrorContext } from "./posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -78,7 +84,10 @@ export async function handleChat(req: Request): Promise<Response> {
   // Hard rate-limit gate on the user's token window — check BEFORE creating a
   // conversation or spending any LLM tokens. The 429 tells the user exactly how
   // many tokens they've used and when the window resets (+ Retry-After header).
-  const usage = await getWindowUsage(userId);
+  // Fetched alongside the commons pool below (independent calls — same pairing
+  // as handleUsage in rate-limit.ts) so a cold commons cache doesn't stack its
+  // OpenRouter latency on top of the DB round trip.
+  const [usage, commons] = await Promise.all([getWindowUsage(userId), fetchCommons()]);
   if (usage.exceeded) {
     const retryAfter = Math.max(0, Math.ceil((Date.parse(usage.resetsAt) - Date.now()) / 1000));
     return new Response(
@@ -94,6 +103,21 @@ export async function handleChat(req: Request): Promise<Response> {
     );
   }
 
+  // Shared "commons" gate: the account-wide OpenRouter credit balance is one
+  // pool for ALL users. When it's dry, chat is paused for everyone until it's
+  // topped up. null = unknown (key unset or credits API hiccup) → fail OPEN, so
+  // a metering blip never blocks chat; only a real remaining <= 0 pauses it.
+  if (commons && commons.remaining <= 0) {
+    return json(
+      {
+        error: "commons_exhausted",
+        message: "The shared usage pool is out of credits. Chat is paused for everyone until it's topped up.",
+        global: commons,
+      },
+      429,
+    );
+  }
+
   const convId = await resolveConversation(userId, body);
   if (!convId) return json({ error: "conversation_not_found" }, 404);
 
@@ -104,28 +128,72 @@ export async function handleChat(req: Request): Promise<Response> {
   `) as { role: string; content: string }[];
 
   const ix = getIndexes();
+  // The DB keeps the full conversation; the model gets a windowed replay
+  // (recent turns verbatim, older ones truncated, hard char budget) so long
+  // conversations never grow the per-round context without bound.
   const messages: Msg[] = [
     { role: "system", content: buildSystemPrompt(ix, body.pageContext) },
-    ...history.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
+
+  // Deterministic pre-lookup (glossary + entity match, pure code, ~ms): seed a
+  // synthetic tool round after the user message so definition/entity questions
+  // can answer in ONE request instead of tool-round → answer-round. Injects
+  // nothing on a miss; the harness treats it as ordinary turn evidence.
+  const prefetch = config.chatPrefetch ? buildPrefetch(ix, body.message) : null;
+  if (prefetch) messages.push(...prefetchRound(body.message, prefetch));
+
+  // Per-turn tier routing (rules-based, free): pick the model chain before any
+  // LLM work. Follow-up turns (an assistant reply already in history) never
+  // route fast on brevity alone — see model-router.ts.
+  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
+  const models = resolveTierModels(route.tier);
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();
+  // PostHog AI observability: one trace per turn (fresh id, conversation id as
+  // a filterable property). distinctId is the CONVERSATION, not the signed-in
+  // user — semi-anonymous analytics: turns of one conversation stay grouped
+  // together in PostHog, but no user identity is sent (userId stays DB-only,
+  // via conversations.user_id, never leaves the server). The SAME obs feeds the
+  // answer stream, the harness jsonCall (verifier/advisor), and error capture,
+  // so every generation AND every error of the turn lands in one trace. No-op
+  // when POSTHOG_KEY is unset (both factories fall back to the plain client).
+  const obs = {
+    distinctId: convId,
+    traceId: crypto.randomUUID(),
+    properties: { chat_tier: route.tier, chat_route_reason: route.reason },
+  };
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const send = (e: ChatEvent | { type: string; [k: string]: unknown }) =>
+      const send = (e: { type: string } & Record<string, unknown>) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-      send({ type: "meta", conversationId: convId });
+      send({ type: "meta", conversationId: convId, tier: route.tier });
       try {
-        let done: Extract<ChatEvent, { type: "done" }> | null = null;
-        for await (const ev of runChat({ ix, messages, stream: openrouterStream, signal: req.signal })) {
-          send(ev);
-          if (ev.type === "done") done = ev;
+        let done: HarnessDone | null = null;
+        const chatStream = makeOpenrouterStream(obs, models);
+        // runVerifiedChat = runChat wrapped in the reliability harness (status
+        // events, deterministic checks, verifier audit, advisor escalation —
+        // model slots are env-gated, unset = pass-through). done carries the
+        // internal transcript/checksMeta; sanitizeDone strips them off the wire.
+        for await (const ev of runVerifiedChat({
+          ix, messages, stream: chatStream, jsonCall: makeOpenrouterJson(obs),
+          question: body.message, signal: req.signal, obs,
+        })) {
+          if (ev.type === "done") {
+            done = ev as HarnessDone;
+            send(sanitizeDone(done));
+          } else {
+            send(ev);
+          }
         }
         // Don't persist an empty assistant row for an aborted turn.
-        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt);
+        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt, obs);
       } catch (err) {
-        if (!req.signal.aborted) send({ type: "error", message: (err as Error).message });
+        if (!req.signal.aborted) {
+          captureError(err, obs, { stage: "stream_handler" });
+          send({ type: "error", message: (err as Error).message });
+        }
       } finally {
         controller.close();
       }
@@ -141,20 +209,52 @@ export async function handleChat(req: Request): Promise<Response> {
   return new Response(stream, { headers });
 }
 
-async function persistAssistant(convId: string, done: Extract<ChatEvent, { type: "done" }>, latencyMs: number): Promise<void> {
+async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
-  await sql`
+  const inserted = (await sql`
     INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
     VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
             ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
-  `;
-  await sql`
-    UPDATE conversations
-    SET total_input_tokens = total_input_tokens + ${done.usage.input},
-        total_output_tokens = total_output_tokens + ${done.usage.output},
-        query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
-        updated_at = now()
-    WHERE id = ${convId}
-  `;
+    RETURNING id
+  `) as { id: string }[];
+
+  // Harness (verifier/advisor) tokens count toward the conversation totals and
+  // the rate-limit window (via message_checks) — never toward the messages row,
+  // which stays conversationalist-only so the two sums don't double-count.
+  const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
+  const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
+
+  // The checks rows and the conversations totals update are independent
+  // writes (neither depends on the other's result) — run them concurrently
+  // instead of stacking round trips on the client's already-completed answer.
+  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time race
+  // against the message_checks migration): the assistant message above is
+  // already durably persisted, so a telemetry-row failure must never surface
+  // as a turn-level error to a client that already has the complete answer.
+  await Promise.all([
+    persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
+      captureError(err, obs, { stage: "persist_checks" });
+    }),
+    sql`
+      UPDATE conversations
+      SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
+          total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
+          query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
+          updated_at = now()
+      WHERE id = ${convId}
+    `,
+  ]);
+}
+
+async function persistChecks(messageId: string, rows: CheckRowMeta[]): Promise<void> {
+  await Promise.all(
+    rows.map(
+      (r) => sql`
+        INSERT INTO message_checks (message_id, kind, model, action, verdict, overall, input_tokens, output_tokens, generation_id, latency_ms)
+        VALUES (${messageId}, ${r.kind}, ${r.model}, ${r.action}, ${r.verdict ?? null}::jsonb, ${r.overall},
+                ${r.inputTokens}, ${r.outputTokens}, ${r.generationId}, ${r.latencyMs})
+      `,
+    ),
+  );
 }

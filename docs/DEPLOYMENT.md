@@ -278,6 +278,7 @@ railway variables --set 'GOOGLE_CLIENT_SECRET=<from 7c>'   --service redlens-atl
 | `CHAT_JWT_SECRET` | Signs session cookies |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | GitHub OAuth |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
+| `OPENROUTER_MANAGEMENT_KEY` | Optional — provisioning key for the account-wide credits endpoint; powers the chat's shared "commons" dollar meter and its at-empty gate. Unset = meter hidden, gate never fires |
 
 *Setting a `VITE_*_ENABLED` build arg triggers a full image rebuild so the bundle
 includes the widgets. If you later move to a custom domain, also set

@@ -25,6 +25,7 @@ import {
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import type { SearchField } from "./reportFilter";
 import definitionDocs from "./data/govops-definition-docs.json";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
@@ -254,4 +255,24 @@ export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
       r.role ?? "",
     ]),
   );
+}
+
+// The search haystack for one GovOps responsibility row as labelled fields.
+// Shared by the report page (OGCategoryTable) and the
+// atlas_report_govops_responsibilities MCP tool (server-side filtering). See
+// ofSearchFields in facilitatorResponsibilities.ts for the hidden/despace note.
+export function ogSearchFields(r: OGResponsibility): SearchField[] {
+  const cat = r.category;
+  const assignment = cat === "assignment";
+  const govVisible = assignment || cat === "active-data" || cat === "process-step";
+  const primeVisible = cat !== "definition";
+  return [
+    { label: "doc no", value: mergedDocNos(r, " ") },
+    { label: "title", value: r.title, hidden: assignment },
+    { label: "duty", value: r.duty, hidden: assignment },
+    { label: "role", value: r.role ?? "", hidden: true },
+    { label: "govops", value: r.govops ?? "", hidden: !govVisible, despace: true },
+    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
+    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
+  ];
 }

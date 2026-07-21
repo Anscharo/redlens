@@ -6,14 +6,35 @@ export function apiUrl(path: string): string {
   return `/api/${path.replace(/^\/+/, "")}`;
 }
 
-// Mirrors the server's ChatEvent union (src/server/chat-loop.ts) plus the
-// `meta` and `error` envelope events emitted by the route (src/server/chat.ts).
+// Mirrors the server's HarnessEvent union (src/server/chat-orchestrator.ts —
+// ChatEvent plus the reliability-harness `status`/`verify_result` events) and
+// the `meta`/`error` envelope events emitted by the route (src/server/chat.ts).
+export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
+
+export interface VerifyClaim {
+  claim: string;
+  status: "supported" | "unsupported" | "contradicted";
+}
+
 export type ChatEvent =
   | { type: "meta"; conversationId: string }
   | { type: "token"; text: string }
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
+  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  | {
+      type: "verify_result";
+      overall: VerifyOverall;
+      confidence: number | null;
+      action: "annotate" | "revised" | null;
+      claims: VerifyClaim[];
+      invalidCitations: string[];
+      invalidDocNos: string[];
+      docNoMismatches: string[];
+      ungroundedQuotes: string[];
+      ungroundedAddresses: string[];
+    }
   | {
       type: "done";
       content: string;
@@ -46,4 +67,13 @@ export interface UsageWindow {
   resetsAt: string; // ISO timestamp
   exceeded: boolean;
   windowMinutes: number;
+}
+
+// The shared "commons" dollar pool — one account-wide balance shown to every
+// signed-in user (src/server/credits.ts). Omitted from /api/usage when the
+// feature is off or the credits API is unreachable.
+export interface CommonsPool {
+  used: number; // dollars spent account-wide
+  total: number; // dollars purchased (pool size)
+  remaining: number; // total - used, floored at 0
 }

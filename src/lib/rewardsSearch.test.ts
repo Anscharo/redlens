@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { parseReportQuery } from "../../lib/reportFilter";
+import { parseReportQuery } from "./reportFilter";
 import { icdSearchFields, filterPrimitive, filterRewardsAgents } from "./rewardsSearch";
-import type { AgentPrimitive, RewardsAgent, RewardsInstance } from "../../lib/rewardsTypes";
+import type { AgentPrimitive, RewardsAgent, RewardsInstance } from "./rewardsTypes";
 
 const inst = (over: Partial<RewardsInstance>): RewardsInstance => ({
   id: over.id ?? over.name ?? "i", docNo: "A.6.1.1", name: "Instance", status: "Active", ...over,

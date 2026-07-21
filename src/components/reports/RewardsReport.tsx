@@ -18,7 +18,7 @@ import { PrimitiveTable } from "./RewardsPrimitiveTable";
 import { parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
 import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
-import { filterRewardsAgents } from "./rewardsSearch";
+import { filterRewardsAgents } from "../../lib/rewardsSearch";
 
 // Header-box text filter, per ICD row, over the fields in rewardsSearch.ts —
 // so "skybase" surfaces every SkyBase instance and "0x…" finds reward

@@ -4,7 +4,7 @@
 import { test, expect } from "bun:test";
 import { atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasEntityParams } from "./tools-graph.ts";
 import { atlasGet, atlasDescribe } from "./tools.ts";
-import { buildSystemPrompt } from "./system-prompt.ts";
+import { buildSystemPrompt, validReportTool } from "./system-prompt.ts";
 import { matchEntities } from "./entity-resolve.ts";
 import { fitToBudget } from "./output-budget.ts";
 import type { Indexes, AtlasNode, Edge, Entity } from "./indexes.ts";
@@ -241,6 +241,47 @@ test("buildSystemPrompt does not throw (entity_type_graph must be requested)", (
   const ix = makeIx();
   expect(() => buildSystemPrompt(ix)).not.toThrow();
   expect(buildSystemPrompt(ix)).toContain("Sky Atlas by Redline");
+});
+
+// ── report-page tool steering ────────────────────────────────────────────────
+test("validReportTool accepts only registered atlas_report_* tools", () => {
+  expect(validReportTool({ reportTool: "atlas_report_rewards" })).toBe("atlas_report_rewards");
+  expect(validReportTool({ reportTool: "atlas_report_bogus" })).toBeNull(); // report-shaped but not registered
+  expect(validReportTool({ reportTool: "atlas_query" })).toBeNull(); // real tool, wrong family
+  expect(validReportTool({ reportTool: "rm -rf" })).toBeNull(); // arbitrary string
+  expect(validReportTool({})).toBeNull();
+  expect(validReportTool(undefined)).toBeNull();
+});
+
+test("buildSystemPrompt steers to a report page's backing tool", () => {
+  const ix = makeIx();
+  const prompt = buildSystemPrompt(ix, { path: "/reports/rewards", reportName: "Integrator Reward Relationships", reportTool: "atlas_report_rewards" });
+  expect(prompt).toContain("Integrator Reward Relationships");
+  expect(prompt).toContain("`atlas_report_rewards`");
+  expect(prompt).toContain("this report");
+});
+
+test("buildSystemPrompt ignores a spoofed/unknown report tool", () => {
+  const ix = makeIx();
+  const prompt = buildSystemPrompt(ix, { path: "/reports/x", reportName: "Fake", reportTool: "atlas_report_bogus" });
+  expect(prompt).not.toContain("atlas_report_bogus");
+  expect(prompt).toContain("Current page"); // page context still present, just no tool steer
+});
+
+test("buildSystemPrompt surfaces the active report filter as the tool's filter arg", () => {
+  const ix = makeIx();
+  const prompt = buildSystemPrompt(ix, {
+    path: "/reports/rewards",
+    reportName: "Integrator Reward Relationships",
+    reportTool: "atlas_report_rewards",
+    reportFilter: "spark",
+  });
+  expect(prompt).toContain('filter: "spark"');
+  // Sanitized: backticks/newlines stripped, length-capped, and only with a valid tool.
+  const dirty = buildSystemPrompt(ix, { reportName: "R", reportTool: "atlas_report_rewards", reportFilter: "a`b\nc" });
+  expect(dirty).toContain('filter: "a b c"');
+  const noTool = buildSystemPrompt(ix, { path: "/reports/x", reportName: "R", reportFilter: "spark" });
+  expect(noTool).not.toContain('filter: "spark"'); // no backing tool → no filter steer
 });
 
 // ── output budget ────────────────────────────────────────────────────────────

@@ -12,12 +12,30 @@ function tokens(s: string): string[] {
   return (s.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => !STOP.has(t));
 }
 
+// Short-name aliases recorded on entities merged from a registry table row
+// under a different (usually abbreviated) name than their formal defining doc
+// — see resolveAliasedEntity / addAlias in build-graph.mjs. Without these, a
+// merged entity is only findable by its full name, even though the atlas
+// itself uses the short form (e.g. a forum table listing "Redline" for the
+// entity "Redline Facilitation Group").
+export function entityAliases(e: Entity): string[] {
+  if (!e.meta) return [];
+  try {
+    const m = JSON.parse(e.meta) as { aliases?: unknown };
+    return Array.isArray(m.aliases) ? m.aliases.filter((a): a is string => typeof a === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 // Score one entity against the query token set. Rewards matched entity tokens,
 // penalizes entity tokens the query DIDN'T mention, and ignores extra query
-// tokens (so "spark protocol" still nails "spark"). Exact slug/name wins big.
+// tokens (so "spark protocol" still nails "spark"). Exact slug/name/alias wins
+// big.
 function scoreEntity(q: Set<string>, qSlug: string, qRaw: string, e: Entity): number {
   let best = 0;
-  for (const cand of [e.slug, e.name]) {
+  const candidates = [e.slug, e.name, ...entityAliases(e)];
+  for (const cand of candidates) {
     if (!cand) continue;
     const s = tokens(cand);
     if (s.length === 0) continue;
@@ -30,7 +48,8 @@ function scoreEntity(q: Set<string>, qSlug: string, qRaw: string, e: Entity): nu
     if (entityInQuery && s.length === q.size) sc += 3; // exact token-set match
     best = Math.max(best, sc);
   }
-  if (e.slug.toLowerCase() === qSlug || e.slug.toLowerCase() === qRaw || e.name.toLowerCase() === qRaw) best += 100;
+  const lower = candidates.map((c) => c.toLowerCase());
+  if (e.slug.toLowerCase() === qSlug || lower.includes(qRaw)) best += 100;
   return best;
 }
 

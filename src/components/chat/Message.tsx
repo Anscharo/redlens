@@ -2,6 +2,7 @@ import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
 import { ToolTrace } from "./ToolTrace";
+import { VerifyBadge } from "./VerifyBadge";
 import type { ChatMsg } from "./useChatStream";
 
 function UserTurn({ text }: { text: string }) {
@@ -37,12 +38,18 @@ function AssistantTurn({
       {showTrace && <ToolTrace trace={msg.trace} rounds={msg.rounds} />}
       {streaming && empty ? (
         <div className="rlc-thinking">
-          <span className="rlc-twinkle">✦</span> searching the stars…
+          <span className="rlc-twinkle">✦</span> {msg.statusLine ?? "searching the stars…"}
         </div>
       ) : (
         <>
           <AtlasMarkdown content={streaming ? balanceFences(msg.content) : msg.content} onAtlas={onAtlas} />
           {streaming && <span className="rlc-caret" />}
+          {streaming && msg.statusLine && (
+            <div className="rlc-thinking rlc-statusline">
+              <span className="rlc-twinkle">✦</span> {msg.statusLine}
+            </div>
+          )}
+          {msg.verify && <VerifyBadge verify={msg.verify} />}
           {!streaming && msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
         </>
       )}

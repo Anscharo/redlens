@@ -11,6 +11,7 @@ import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
 import { config } from "./config.ts";
 import { MINISEARCH_OPTIONS } from "../lib/searchOptions.ts";
+import { buildLookup, type Glossary, type GlossaryEntry } from "../lib/glossaryLookup.ts";
 
 // One canonical AtlasNode (src/types.ts). Re-exported so existing
 // `import { AtlasNode } from "./indexes.ts"` sites keep working, but there is now
@@ -121,6 +122,10 @@ export interface Indexes {
   edges: Edge[];
   entityBySlug: Map<string, Entity>;
   entityById: Map<string, Entity>;
+  // Alias-flattened glossary lookup (lowercased term/alias → entries), built
+  // from public/glossary.json. Empty when the artifact is missing — consumers
+  // (chat prefetch) degrade to no glossary matches.
+  glossary: Map<string, GlossaryEntry[]>;
   meta: Record<string, string | null>;
 }
 
@@ -137,9 +142,11 @@ export interface Artifacts {
   meta: Record<string, string | null>;
   // Serialized MiniSearch index (build-index `toJSON`). null → build from docs.
   searchIndexJson: string | null;
+  // public/glossary.json terms (build-glossary). null → empty glossary lookup.
+  glossaryTerms: Glossary | null;
 }
 
-const EMPTY_ARTIFACTS: Artifacts = { docs: [], entities: [], edges: [], meta: {}, searchIndexJson: null };
+const EMPTY_ARTIFACTS: Artifacts = { docs: [], entities: [], edges: [], meta: {}, searchIndexJson: null, glossaryTerms: null };
 
 export function readArtifactsFromDisk(): Artifacts {
   let rawDocs: { atlasCommit?: string; nodes: Record<string, AtlasNode> };
@@ -160,12 +167,19 @@ export function readArtifactsFromDisk(): Artifacts {
     searchIndexJson = null;
   }
 
+  let glossaryTerms: Glossary | null = null;
+  try {
+    glossaryTerms = readJson<{ terms: Glossary }>("glossary.json").terms ?? null;
+  } catch {
+    glossaryTerms = null;
+  }
+
   const meta: Record<string, string | null> = {
     atlasCommit: (graphJson.meta?.atlasCommit as string | undefined) ?? rawDocs.atlasCommit ?? null,
     appCommit: null,
     generatedAt: null,
   };
-  return { docs: Object.values(rawDocs.nodes), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson };
+  return { docs: Object.values(rawDocs.nodes), entities: graphJson.entities, edges: graphJson.edges, meta, searchIndexJson, glossaryTerms };
 }
 
 // Pure builder: construct the full in-memory index set from artifact arrays.
@@ -177,6 +191,7 @@ export function buildIndexes(
   edges: Edge[],
   meta: Record<string, string | null>,
   searchIndexJson?: string | null,
+  glossaryTerms?: Glossary | null,
 ): Indexes {
   const docMap = new Map<string, AtlasNode>();
   const byDocNo = new Map<string, AtlasNode>();
@@ -204,6 +219,8 @@ export function buildIndexes(
 
   const { graph, entityBySlug, entityById } = buildGraph(docs, entities, edges);
 
+  const glossary = new Map(Object.entries(buildLookup(glossaryTerms ?? {})));
+
   // Stamp response provenance: appCommit (which build) + generatedAt (when this
   // in-memory index set was built — boot or in-process rebuild). Honor an
   // artifact-supplied value if one is ever present; otherwise fill it here.
@@ -213,7 +230,7 @@ export function buildIndexes(
     generatedAt: meta.generatedAt ?? new Date().toISOString(),
   };
 
-  return { docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, meta: stampedMeta };
+  return { docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, glossary, meta: stampedMeta };
 }
 
 // graphology + entity lookup maps from the entity/edge arrays. Extracted so the
@@ -252,8 +269,8 @@ export function buildGraph(
 
 export function loadIndexes(): Indexes {
   if (state) return state;
-  const { docs, entities, edges, meta, searchIndexJson } = readArtifactsFromDisk();
-  state = buildIndexes(docs, entities, edges, meta, searchIndexJson);
+  const { docs, entities, edges, meta, searchIndexJson, glossaryTerms } = readArtifactsFromDisk();
+  state = buildIndexes(docs, entities, edges, meta, searchIndexJson, glossaryTerms);
   return state;
 }
 
@@ -270,8 +287,8 @@ export function setIndexes(ix: Indexes): void {
 // advances automatically because it's re-read from the rebuilt graph.json (falling
 // back to docs.json) — the convergence signal the drift checker compares against.
 export function rebuildFromDisk(): Indexes {
-  const { docs, entities, edges, meta, searchIndexJson } = readArtifactsFromDisk();
-  const ix = buildIndexes(docs, entities, edges, meta, searchIndexJson);
+  const { docs, entities, edges, meta, searchIndexJson, glossaryTerms } = readArtifactsFromDisk();
+  const ix = buildIndexes(docs, entities, edges, meta, searchIndexJson, glossaryTerms);
   setIndexes(ix);
   return ix;
 }
