@@ -72,6 +72,7 @@
     "@chenglou/pretext": "0.0.5",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@posthog/ai": "8.3.0",
+    "@posthog/mcp": "0.9.1",
     "@uiw/react-color": "2.10.1",
     "@xyflow/react": "12.10.2",
     "arctic": "3.7.0",

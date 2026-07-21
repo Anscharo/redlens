@@ -65,7 +65,7 @@ export const config = {
   queryEmbedCacheSize: Number(process.env.QUERY_EMBED_CACHE_SIZE ?? 512),
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
-  chatModel: process.env.CHAT_MODEL ?? "qwen/qwen3-32b",
+  chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by

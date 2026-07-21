@@ -2,10 +2,12 @@
 // over the in-memory indexes + Postgres. The same registry backs the /api/chat
 // agentic loop, so MCP clients (ask-atlas) and the chatbot see identical tools.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { instrument } from "@posthog/mcp";
 import { getIndexes } from "./indexes.ts";
 import type { ToolResult } from "./tools.ts";
 import { ATLAS_TOOLS, toolDescription } from "./tool-registry.ts";
 import { captureServerEvent } from "./posthog-capture.ts";
+import { getPosthog } from "./posthog-node.ts";
 import { config } from "./config.ts";
 
 function ok(meta: Record<string, string | null>, payload: ToolResult) {
@@ -50,6 +52,8 @@ export function createMcpServer(reqCtx?: McpRequestContext): McpServer {
     name: "redline-sky-atlas",
     version: "2.0.0-railway",
   });
+  const posthog = getPosthog();
+  if (posthog) instrument(server, posthog);
   const ix = getIndexes();
 
   // registerTool is generic over each tool's zod input shape. Letting tsc infer
