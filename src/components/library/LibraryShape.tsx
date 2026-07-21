@@ -1,5 +1,6 @@
 import type { LibraryData, LibraryNodeRef, LibrarySegment } from "../../lib/library";
 import { Link } from "../Link";
+import { Tooltip } from "../Tooltip";
 import { atlasHref } from "../../lib/routes";
 
 // Stacked weight bar: sub-element segments largest→smallest, left→right, in a
@@ -32,17 +33,20 @@ function SegmentedBar({ value, max, segments }: { value: number; max: number; se
           <div className="h-full w-full" style={{ background: "var(--red)" }} />
         ) : (
           segs.map((s, i) => (
-            <div
-              key={s.id}
-              className="h-full"
-              title={`${s.doc_no ? `${s.doc_no} ` : ""}${s.title} — ${s.docs.toLocaleString()} docs`}
-              style={{
-                width: `${(s.docs / segSum) * 100}%`,
-                background: "var(--red)",
-                // Largest segment full strength, fading toward the small tail.
-                opacity: s.isTail ? 0.3 : 1 - (segs.length > 1 ? (i / (segs.length - 1)) * 0.65 : 0),
-              }}
-            />
+            // delay={0}: segments are the whole point of this chart — the
+            // name should appear the instant the pointer lands, unlike the
+            // app-default 800ms used elsewhere.
+            <Tooltip key={s.id} delay={0} content={`${s.doc_no ? `${s.doc_no} ` : ""}${s.title} — ${s.docs.toLocaleString()} docs`}>
+              <div
+                className="h-full"
+                style={{
+                  width: `${(s.docs / segSum) * 100}%`,
+                  background: "var(--red)",
+                  // Largest segment full strength, fading toward the small tail.
+                  opacity: s.isTail ? 0.3 : 1 - (segs.length > 1 ? (i / (segs.length - 1)) * 0.65 : 0),
+                }}
+              />
+            </Tooltip>
           ))
         )}
       </div>
