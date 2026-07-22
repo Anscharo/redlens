@@ -174,11 +174,19 @@ jobs:
 
       - name: Run base coverage for delta
         if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
         run: |
           git worktree add ../redlens-base origin/${{ github.base_ref }}
           cd ../redlens-base
           git submodule update --init --recursive
-          pnpm install --frozen-lockfile
+          # Reuse the PR's already-installed node_modules instead of a fresh
+          # `pnpm install` against the base ref's own lockfile: the base ref may
+          # predate a devDependency the coverage tooling needs (e.g. this PR is
+          # the one that first adds @vitest/coverage-v8), so its own lockfile
+          # can't be trusted to produce a working coverage toolchain. The base
+          # number here is informational only (coverage-areas.mjs's pass/fail
+          # gate is keyed on changed-line coverage, not this delta).
+          ln -s ../redlens/node_modules node_modules
           pnpm build:index && pnpm build:glossary && pnpm build:graph
           pnpm exec vitest run --coverage --config ../redlens/vitest.config.ts
           bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun
