@@ -66,7 +66,9 @@
     "check:pr": "bash scripts/aux/check-atlas-pr.sh",
     "tva": "bash scripts/aux/tva.sh",
     "knip": "knip",
-    "pull-atlas": "git submodule update --init --recursive"
+    "pull-atlas": "git submodule update --init --recursive",
+    "test:coverage": "vitest run --coverage",
+    "coverage:areas": "node scripts/required/coverage-areas.mjs"
   },
   "dependencies": {
     "@chenglou/pretext": "0.0.5",

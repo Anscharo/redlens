@@ -1,0 +1,89 @@
+name: Coverage
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: "Coverage by area"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build atlas artifacts for tests
+        run: pnpm build:index && pnpm build:glossary && pnpm build:graph
+
+      - name: Run base coverage for delta
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git worktree add ../redlens-base origin/${{ github.base_ref }}
+          cd ../redlens-base
+          pnpm install --frozen-lockfile
+          pnpm build:index && pnpm build:glossary && pnpm build:graph
+          pnpm test:coverage
+          pnpm coverage:areas
+          cp coverage/coverage-areas.json ../redlens/base-coverage-areas.json
+        env:
+          REPRO: "1"
+
+      - name: Run coverage
+        run: pnpm test:coverage
+        env:
+          REPRO: "1"
+
+      - name: Summarize coverage areas and enforce changed-code minimum
+        run: pnpm coverage:areas
+        env:
+          COVERAGE_CHANGED_MIN: "95"
+          COVERAGE_BASE_REF: origin/${{ github.base_ref || 'main' }}
+          COVERAGE_BASELINE_JSON: base-coverage-areas.json
+
+      - name: Upload coverage artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage/lcov.info
+            coverage/coverage-areas.json
+            coverage/coverage-summary.md
+          retention-days: 14
+
+      - name: Comment coverage summary
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- redlens-coverage-summary -->';
+            const summary = fs.existsSync('coverage/coverage-summary.md')
+              ? fs.readFileSync('coverage/coverage-summary.md', 'utf8')
+              : 'Coverage summary was not generated.';
+            const body = `${marker}\n${summary}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.data.find((comment) => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
