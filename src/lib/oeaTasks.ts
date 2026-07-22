@@ -14,6 +14,7 @@ import { stripMarkdownLinks } from "./atlasHelpers";
 import { dutySnippet } from "./dutyText";
 import { parseMeta } from "./meta";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import { newDutySources, type MergedSource } from "./dutyCollapse";
 import taskExclusions from "./data/oea-task-exclusions.json";
 
 export type OeaSource = "govops" | "facilitator" | "executor";
@@ -38,6 +39,11 @@ export interface OeaTask {
   sources: OeaSource[];
   agents?: string[]; // covered Prime Agents (collapsed copies)
   automated?: boolean; // process-step RP declared [automated] — rubric special rule
+  // Every doc copy folded into this task (agent-artifact title-collapse, or
+  // an already-collapsed facilitator/govops duty row) — set only when 2+ docs
+  // are covered. Lets CSV exports re-expand one task back into one row per doc
+  // instead of exporting only the representative's UUID. docNo-ordered.
+  copies?: MergedSource[];
 }
 
 // Freshness key: the rating is stale when the assessed text changes.
@@ -86,10 +92,25 @@ function isPrimeAgentArtifactDescendant(docs: AtlasBundle["docs"], uuid: string)
   return false;
 }
 
+// A row's own doc copies: an already-collapsed facilitator/govops duty row
+// carries its merged `sources` (each already tagged with its own duty text);
+// otherwise it's a single doc, keyed off its own uuid/docNo/agent/duty.
+function docCopiesOf(row: {
+  uuid: string;
+  docNo: string;
+  duty: string;
+  agent?: string;
+  agents?: string[];
+  sources?: MergedSource[];
+}): MergedSource[] {
+  if (row.sources && row.sources.length) return row.sources;
+  return newDutySources({ doc_no: row.docNo, id: row.uuid }, row.agent ?? row.agents?.[0], row.duty);
+}
+
 export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTask[] {
   const { docs } = bundle;
   const { edges, participants } = graph;
-  const byKey = new Map<string, OeaTask>();
+  const byKey = new Map<string, OeaTask & { _copies: MergedSource[] }>();
 
   // duty_for quote provenance + process-step [automated] flags, per doc — the
   // derives consume these but don't re-expose the edge meta.
@@ -104,7 +125,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
   }
 
   const add = (
-    row: { uuid: string; docNo: string; title: string; duty: string; agents?: string[]; agent?: string },
+    row: { uuid: string; docNo: string; title: string; duty: string; agents?: string[]; agent?: string; sources?: MergedSource[] },
     category: OeaCategory,
     source: OeaSource,
   ) => {
@@ -116,11 +137,13 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
       collapseByTitle: isPrimeAgentArtifactDescendant(docs, row.uuid),
     });
     const agents = row.agents ?? (row.agent ? [row.agent] : []);
+    const newCopies = docCopiesOf(row);
     const existing = byKey.get(taskKey);
     if (existing) {
       if (!existing.sources.includes(source)) existing.sources.push(source);
       const merged = new Set([...(existing.agents ?? []), ...agents]);
       if (merged.size) existing.agents = [...merged];
+      for (const c of newCopies) if (!existing._copies.some((s) => s.uuid === c.uuid)) existing._copies.push(c);
       // Lowest doc_no stays the representative copy (matches the derives) —
       // the executor slice arrives edge-by-edge in arbitrary order.
       if (row.docNo.localeCompare(existing.docNo, undefined, { numeric: true }) < 0) {
@@ -143,6 +166,7 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
       sources: [source],
       agents: agents.length ? agents : undefined,
       automated: automatedDocs.has(row.uuid) || undefined,
+      _copies: newCopies,
     });
   };
 
@@ -189,7 +213,12 @@ export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTas
     );
   }
 
-  return [...byKey.values()].sort((a, b) =>
-    a.docNo.localeCompare(b.docNo, undefined, { numeric: true }),
-  );
+  return [...byKey.values()]
+    .map(({ _copies, ...task }) => ({
+      ...task,
+      copies: _copies.length > 1
+        ? [..._copies].sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }))
+        : undefined,
+    }))
+    .sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
 }

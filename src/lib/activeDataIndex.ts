@@ -5,6 +5,7 @@
 import type { AtlasNode, GraphEntity, RelationEdge } from "../types";
 import { parseMeta } from "./meta";
 import { toCSV } from "./csv";
+import { atlasUrl, atlasUrlOrEmpty } from "./routes";
 import { EXEC_EDGES, FAC_EDGES, GOV_EDGES } from "./roleEdges";
 import type { SearchField } from "./reportFilter";
 
@@ -374,15 +375,20 @@ export function activeDataRowsToCSV(
 ): string {
   return toCSV(
     [
-      "Active Data Doc", "Active Data Title", "Controller Doc", "Controller Title",
+      "Active Data Doc", "Active Data Title", "Active Data UUID", "Active Data Link",
+      "Controller Doc", "Controller Title", "Controller UUID", "Controller Link",
       "Agent", "Responsible Party", "RP Evidence", "Facilitator", "Facilitator Role",
       "Facilitator Evidence", "Process", "Last Edited",
     ],
     rows.map((r) => [
       r.activeDataDocNo,
       r.activeDataTitle,
+      r.activeDataId,
+      atlasUrl(r.activeDataId),
       r.controllerDocNo ?? "",
       r.controllerTitle ?? "",
+      r.controllerId ?? "",
+      atlasUrlOrEmpty(r.controllerId),
       r.agent ?? "",
       r.responsibleParty?.name ?? r.declaredRP ?? "",
       evidenceChain(r.responsibleParty?.evidence ?? []),

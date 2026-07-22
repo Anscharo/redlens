@@ -92,6 +92,25 @@ export const REPORT_TITLES: Record<string, string> = {
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
 // restores the exact destination URL.
 export const atlasHref = (id: string) => `${ROUTES.ATLAS}?id=${id}`;
+// Local ambient shim: some *Index.ts modules that call atlasUrl (for CSV
+// building) are also imported by src/server/reports/*.ts, which type-checks
+// under tsconfig.server.json's DOM-free `lib` — a bare `window` reference
+// there is a compile error (TS2304), not just a runtime no-op. This
+// module-scoped `declare` shadows the ambient DOM `window` only within this
+// file and is erased at runtime, so the `typeof window` guard below still
+// behaves identically in both the browser and the DOM-free server build.
+declare const window: { location: { origin: string } } | undefined;
+
+// Absolute variant for contexts that leave the app (CSV exports, copied links)
+// where a bare "/atlas?id=…" isn't clickable. Window-guarded so lib modules that
+// build this (e.g. report CSV builders) stay importable from a DOM-free/server
+// context — falls back to the relative href there.
+export const atlasUrl = (id: string) =>
+  `${typeof window !== "undefined" ? window.location.origin : ""}${atlasHref(id)}`;
+// For an optional referenced-doc id (a CSV column that may have no doc to
+// link) — every report with an optional reference should reach for this
+// instead of repeating the `id ? atlasUrl(id) : ""` ternary by hand.
+export const atlasUrlOrEmpty = (id?: string | null) => (id ? atlasUrl(id) : "");
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;

@@ -123,11 +123,11 @@ describe("processRowsToCSV", () => {
     { uuid: "u2", docNo: "A.2.1", title: "Prose flow", category: "risk", shape: "inline", status: "deferred-stub", stepCount: null },
   ];
 
-  it("emits the header (incl. Ignored) and renders a null step count as an empty cell", () => {
+  it("emits the header (incl. UUID/Atlas Link/Ignored) and renders a null step count as an empty cell", () => {
     const lines = processRowsToCSV(rows).split("\r\n");
-    expect(lines[0]).toBe('"Doc No","Title","Category","Shape","Status","Steps","Ignored"');
-    expect(lines[1]).toBe('"A.1.1","Onboard","governance","child","active","4",""');
-    expect(lines[2]).toBe('"A.2.1","Prose flow","risk","inline","deferred-stub","",""');
+    expect(lines[0]).toBe('"Doc No","Title","UUID","Atlas Link","Category","Shape","Status","Steps","Ignored"');
+    expect(lines[1]).toBe('"A.1.1","Onboard","u1","/atlas?id=u1","governance","child","active","4",""');
+    expect(lines[2]).toBe('"A.2.1","Prose flow","u2","/atlas?id=u2","risk","inline","deferred-stub","",""');
   });
 
   it("annotates the Ignored column with the ignore reason (or 'yes' when blank)", () => {
@@ -136,7 +136,7 @@ describe("processRowsToCSV", () => {
       ["u2", { reason: "" }],
     ]);
     const lines = processRowsToCSV(rows, ignores).split("\r\n");
-    expect(lines[1]).toBe('"A.1.1","Onboard","governance","child","active","4","duplicate of A.9"');
-    expect(lines[2]).toBe('"A.2.1","Prose flow","risk","inline","deferred-stub","","yes"');
+    expect(lines[1]).toBe('"A.1.1","Onboard","u1","/atlas?id=u1","governance","child","active","4","duplicate of A.9"');
+    expect(lines[2]).toBe('"A.2.1","Prose flow","u2","/atlas?id=u2","risk","inline","deferred-stub","","yes"');
   });
 });
