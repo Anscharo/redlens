@@ -175,6 +175,7 @@ Selected-node treatment: red left bar, brighter text, plus a subtle muted-red fi
 
 ## Conventions / preferences
 
+- **Two lockfiles, both must stay in sync with `package.json`: `pnpm-lock.yaml` (frontend build/CI, via pnpm) and `bun.lock` (server + the Dockerfile/Railway build, via `bun install --frozen-lockfile`).** Adding/bumping a dependency with only `pnpm add`/`pnpm install` leaves `bun.lock` stale — `bun install --frozen-lockfile` then fails in the Docker build (Railway) even though pnpm-side CI is green. Run `bun install` too (or `pnpm install && bun install`) after any `package.json` dependency change, and check both lockfiles into the same commit.
 - **Use semantic HTML elements**: `h1`–`h6` for headings, `<button>` for actions, `<a>` for navigation, `<article>`/`<section>`/`<header>` for sectioned content. Prefer native elements over `<div>`/`<span>` with ARIA roles when a semantic element fits.
 - **Don't add hover/click logic in JS when CSS will do it.**
 - **The home button is a plain HTML link** (`<a href="/">`), not an `onClick` handler.
