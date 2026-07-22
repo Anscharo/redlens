@@ -143,6 +143,32 @@ describe("matchQuestionEntities", () => {
     const hit = matchQuestionEntities(ix, "tell me about spark")[0];
     expect(hit.agent).toBeNull();
   });
+
+  it("leaves agent null (not throwing) when an agent-scoped entity has malformed meta JSON", () => {
+    const ixBad = buildIndexes(
+      [doc("d-alm", "A.6.1", "Asset Liability Management Rental Primitive")],
+      [
+        entity(
+          "e-alm-bad",
+          "spark-asset-liability-management-rental",
+          "Asset Liability Management Rental Primitive",
+          "d-alm",
+          "primitive",
+          null,
+          null,
+        ),
+      ],
+      [],
+      { atlasCommit: "test" },
+      null,
+      GLOSSARY,
+    );
+    // Overwrite with a raw malformed JSON string (the `entity` helper always
+    // JSON.stringifies a valid object, so this bypasses it to reach the catch).
+    ixBad.entityBySlug.get("spark-asset-liability-management-rental")!.meta = "{not json";
+    const hit = matchQuestionEntities(ixBad, "asset liability management rental primitive")[0];
+    expect(hit.agent).toBeNull();
+  });
 });
 
 describe("buildPrefetch", () => {

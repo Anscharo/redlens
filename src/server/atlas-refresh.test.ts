@@ -1,9 +1,21 @@
 // Run under `bun test` (NOT vitest) — these modules transitively import Bun's
 // `SQL`; vitest.config.ts excludes src/server for that reason.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { buildIndexes, type AtlasNode, type Edge } from "./indexes.ts";
-import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate } from "./atlas-refresh.ts";
+import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, refreshInPlaceFromDisk } from "./atlas-refresh.ts";
 import { atlasQuery } from "./query.ts";
+
+// Captured at module-evaluation time (bun's test-collection sweep imports every
+// test file before any test body runs), so these stay pristine even if another
+// file's test body mocks the same modules and (for whatever reason) leaves the
+// mock dangling past its own test — a `mock.module` call inside a test body
+// can only run once test bodies start executing, strictly after every file's
+// top-level code has already run.
+const REAL_CONFIG = (await import("./config.ts")).config;
+const REAL_INDEXES = { ...(await import("./indexes.ts")) };
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -172,5 +184,72 @@ describe("applyInPlaceUpdate", () => {
     expect(ix.graph.hasDirectedEdge("a", "b")).toBe(false);
     // meta advanced (the convergence signal)
     expect(ix.meta.atlasCommit).toBe("new");
+  });
+});
+
+async function restoreRealModules() {
+  await mock.restore();
+  // Belt-and-suspenders on top of mock.restore(): explicitly re-pin every module
+  // this suite mocks back to its real (module-load-time-captured) implementation,
+  // so a leaked mock can never survive past this file's own tests regardless of
+  // what mock.restore() actually reverts.
+  await mock.module("./config.ts", () => ({ config: REAL_CONFIG }));
+  await mock.module("./indexes.ts", () => ({ ...REAL_INDEXES }));
+}
+
+describe("refreshInPlaceFromDisk", () => {
+  beforeEach(restoreRealModules);
+  afterEach(restoreRealModules);
+
+  it("reads fresh artifacts from disk, patches the live index, and re-serializes search-index.json to public + dist", async () => {
+    const publicDir = fs.mkdtempSync(path.join(os.tmpdir(), "ar-pub-"));
+    const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "ar-dist-"));
+    await mock.module("./config.ts", () => ({ config: { ...REAL_CONFIG, publicDir, distDir } }));
+    await mock.module("./indexes.ts", () => ({
+      ...REAL_INDEXES,
+      readArtifactsFromDisk: () => ({
+        docs: [doc("a", { content: "alpha zebraword" }), doc("fresh", { content: "freshtoken" })],
+        entities: [],
+        edges: [],
+        meta: { atlasCommit: "disksha123" },
+      }),
+    }));
+
+    const ix = buildIndexes([doc("a", { content: "alpha zebraword" }), doc("gone", { content: "bye" })], [], [], { atlasCommit: "old" });
+    const delta = refreshInPlaceFromDisk(ix);
+
+    expect(delta.added.map((d) => d.id)).toEqual(["fresh"]);
+    expect(delta.removed).toEqual(["gone"]);
+    expect(ix.meta.atlasCommit).toBe("disksha123");
+    expect(ix.mini.search("freshtoken").some((r) => r.id === "fresh")).toBe(true);
+
+    const written = JSON.parse(fs.readFileSync(path.join(publicDir, "search-index.json"), "utf8"));
+    expect(written).toBeTruthy();
+    expect(fs.existsSync(path.join(distDir, "search-index.json"))).toBe(true);
+
+    fs.rmSync(publicDir, { recursive: true, force: true });
+    fs.rmSync(distDir, { recursive: true, force: true });
+  });
+
+  it("swallows a dist/ write failure (dev has no dist/) and still returns the delta", async () => {
+    const publicDir = fs.mkdtempSync(path.join(os.tmpdir(), "ar-pub-"));
+    const missingDistDir = path.join(publicDir, "no-such-dist-dir");
+    await mock.module("./config.ts", () => ({ config: { ...REAL_CONFIG, publicDir, distDir: missingDistDir } }));
+    await mock.module("./indexes.ts", () => ({
+      ...REAL_INDEXES,
+      readArtifactsFromDisk: () => ({
+        docs: [doc("solo", { content: "solotoken" })],
+        entities: [],
+        edges: [],
+        meta: { atlasCommit: "sha2" },
+      }),
+    }));
+
+    const ix = buildIndexes([], [], [], { atlasCommit: "old" });
+    const delta = refreshInPlaceFromDisk(ix);
+    expect(delta.added.map((d) => d.id)).toEqual(["solo"]);
+    expect(fs.existsSync(path.join(missingDistDir, "search-index.json"))).toBe(false);
+
+    fs.rmSync(publicDir, { recursive: true, force: true });
   });
 });
