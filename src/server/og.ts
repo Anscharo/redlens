@@ -78,23 +78,27 @@ export function renderOgTags(input: OgInput): string {
   let description = SITE_DESCRIPTION;
   let ogType = "website";
   let canonical = origin + pathname;
+  // Default card: small square site icon. Resolved atlas docs get a generated
+  // large card image instead (see og-image.ts + the /api/og/ route).
+  let image = origin + DEFAULT_IMAGE;
+  let card = "summary";
 
   if (pathname === "/atlas") {
     const id = searchParams.get("id");
     const doc = id ? lookup(id) : undefined;
     if (doc) {
       title = `${doc.title} · ${SITE_NAME}`;
-      const context = [doc.doc_no, doc.type].filter(Boolean).join(" · ");
+      // Description: "<doc_no> — <first ~200 chars of the document>".
       const body = plainSummary(doc.content);
-      description = body ? (context ? `${context} — ${body}` : body) : context || SITE_DESCRIPTION;
+      description = body ? `${doc.doc_no} — ${body}` : doc.doc_no || SITE_DESCRIPTION;
       ogType = "article";
       // Canonical keeps the id so shares resolve to this exact doc; other query
       // params (view/split) are dropped from the canonical URL.
       canonical = `${origin}/atlas?id=${encodeURIComponent(id!)}`;
+      image = `${origin}/api/og/${encodeURIComponent(id!)}.png`;
+      card = "summary_large_image";
     }
   }
-
-  const image = origin + DEFAULT_IMAGE;
 
   return [
     `<title>${escapeHtml(title)}</title>`,
@@ -105,7 +109,7 @@ export function renderOgTags(input: OgInput): string {
     meta("og:description", description),
     meta("og:url", canonical),
     meta("og:image", image),
-    meta("twitter:card", "summary"),
+    meta("twitter:card", card, "name"),
     meta("twitter:title", title, "name"),
     meta("twitter:description", description, "name"),
     meta("twitter:image", image, "name"),

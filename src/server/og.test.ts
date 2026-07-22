@@ -47,6 +47,9 @@ describe("renderOgTags", () => {
     expect(html.match(/<title>/g)?.length).toBe(1);
     expect(html).toContain("<title>Sky Atlas by Redline</title>");
     expect(html).toContain('property="og:type" content="website"');
+    // Non-doc routes keep the small square card + site icon.
+    expect(html).toContain('name="twitter:card" content="summary"');
+    expect(html).toContain('property="og:image" content="https://example.com/icon-mid.png"');
   });
 
   it("uses the doc title + summary for a resolved /atlas?id= link", () => {
@@ -54,9 +57,12 @@ describe("renderOgTags", () => {
     expect(html).toContain("<title>Accessibility Scope · Sky Atlas by Redline</title>");
     expect(html).toContain('property="og:type" content="article"');
     expect(html).toContain('property="og:title" content="Accessibility Scope · Sky Atlas by Redline"');
-    expect(html).toContain("A.1 · Scope —");
+    expect(html).toContain("A.1 — The Accessibility Scope governs how users reach the protocol");
     expect(html).toContain('property="og:url" content="https://example.com/atlas?id=abc"');
     expect(html).toContain('rel="canonical" href="https://example.com/atlas?id=abc"');
+    // Resolved docs advertise the generated large card image.
+    expect(html).toContain('property="og:image" content="https://example.com/api/og/abc.png"');
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
   });
 
   it("falls back to the site default when the id does not resolve", () => {

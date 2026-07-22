@@ -9,6 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
 import { renderOgTags, defaultOgTags } from "./og.ts";
+import { getOgImage } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
@@ -72,6 +73,31 @@ function withCors(res: Response): Response {
 }
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
+
+// Generated OG card image for /api/og/<uuid|doc_no>.png. Resolves the doc from
+// the in-memory indexes and renders (memoized) via og-image.ts. On any miss or
+// render failure, falls back to the static site icon so og:image always
+// resolves to a real image for the crawler.
+async function handleOgImage(pathname: string): Promise<Response> {
+  const idOrDocNo = decodeURIComponent(pathname.slice("/api/og/".length).replace(/\.png$/, ""));
+  let png: Buffer | null = null;
+  try {
+    const node = resolveNode(getIndexes(), idOrDocNo);
+    if (node) png = await getOgImage(node.title);
+  } catch {
+    /* indexes not loaded yet — fall through to the static fallback */
+  }
+  if (png) {
+    return new Response(png, {
+      headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
+    });
+  }
+  const fallback = Bun.file(config.distDir + "/icon-mid.png");
+  if (await fallback.exists()) {
+    return new Response(fallback, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+  }
+  return NOT_FOUND();
+}
 
 const server = Bun.serve({
   port: config.port,
@@ -160,6 +186,9 @@ const server = Bun.serve({
 
     // Immutable per-SHA live atlas artifacts (bundle-store.ts).
     if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
+
+    // Generated Open Graph card image for an atlas doc: /api/og/<uuid|doc_no>.png
+    if (pathname.startsWith("/api/og/")) return handleOgImage(pathname);
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
