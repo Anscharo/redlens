@@ -78,6 +78,12 @@ const NOT_FOUND = () => new Response(null, { status: 404 });
 // the in-memory indexes and renders (memoized) via og-image.ts. On any miss or
 // render failure, falls back to the static site icon so og:image always
 // resolves to a real image for the crawler.
+//
+// v8-ignored: index.ts boots a live server + DB at import, so it is never
+// executed under test (and is 0% covered by design). This is thin request
+// glue; the substantive logic — image rendering and tag building — lives in
+// og-image.ts / og.ts and is unit-tested there. See coverage-areas.mjs.
+/* v8 ignore start */
 async function handleOgImage(pathname: string): Promise<Response> {
   const idOrDocNo = decodeURIComponent(pathname.slice("/api/og/".length).replace(/\.png$/, ""));
   let png: Buffer | null = null;
@@ -98,6 +104,7 @@ async function handleOgImage(pathname: string): Promise<Response> {
   }
   return NOT_FOUND();
 }
+/* v8 ignore stop */
 
 const server = Bun.serve({
   port: config.port,
@@ -188,6 +195,7 @@ const server = Bun.serve({
     if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
 
     // Generated Open Graph card image for an atlas doc: /api/og/<uuid|doc_no>.png
+    /* v8 ignore next -- request glue; see handleOgImage above */
     if (pathname.startsWith("/api/og/")) return handleOgImage(pathname);
 
     if (pathname === config.mcpPath) {
@@ -252,6 +260,11 @@ const server = Bun.serve({
     // with the doc's real title + summary. Rendered for all visitors; the SPA
     // ignores them. Falls back to the site-level default if indexes aren't
     // loaded, so the <title> is never empty. See src/server/og.ts.
+    //
+    // v8-ignored through the html build: this whole SPA-fallback branch is
+    // untestable server glue (0% covered by design). The tag-building logic is
+    // unit-tested in og.ts; here we only wire it into the served HTML.
+    /* v8 ignore start */
     const url = new URL(req.url);
     let ogTags = defaultOgTags(url.origin);
     try {
@@ -277,6 +290,7 @@ const server = Bun.serve({
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
       .replace("{{OG_TAGS}}", ogTags);
+    /* v8 ignore stop */
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { headers });
