@@ -24,6 +24,7 @@ import {
   deriveGovOpsResponsibilities,
   govopsRowsToCSV,
 } from "../../lib/govopsResponsibilities";
+import { expandedRowCount } from "../../lib/dutyCollapse";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
@@ -204,9 +205,9 @@ export function OGReport({ query, mode }: { query: string; mode: ReportMode }) {
           <DownloadCsvButton
             report="gov-ops-responsibilities"
             filename="op-govops-responsibilities.csv"
-            rowCount={filtered.length}
+            rowCount={expandedRowCount(filtered)}
             build={() => govopsRowsToCSV(filtered)}
-            fullRowCount={responsibilities.length}
+            fullRowCount={expandedRowCount(responsibilities)}
             buildFull={() => govopsRowsToCSV(responsibilities)}
             query={query}
             filters={[filterName, cat]}

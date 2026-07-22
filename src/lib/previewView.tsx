@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { useAtlasSubset } from "./atlasSubset";
 
 // Preview view state shared by the sidebar toggle, the sidebar tree, and the
-// reader: "show only changed docs" vs "show all". Default off; only meaningful
-// in preview mode.
+// reader: "show only changed docs" vs "show all". URL-synced as
+// `subset=changed`; only meaningful in preview mode.
 interface PreviewView {
   onlyChanged: boolean;
   setOnlyChanged: (b: boolean) => void;
@@ -15,6 +16,8 @@ export function usePreviewView(): PreviewView {
 }
 
 export function PreviewViewProvider({ children }: { children: ReactNode }) {
-  const [onlyChanged, setOnlyChanged] = useState(false);
+  const [subset, setSubset] = useAtlasSubset();
+  const onlyChanged = subset === "changed";
+  const setOnlyChanged = (next: boolean) => setSubset(next ? "changed" : "all");
   return <PreviewViewContext.Provider value={{ onlyChanged, setOnlyChanged }}>{children}</PreviewViewContext.Provider>;
 }

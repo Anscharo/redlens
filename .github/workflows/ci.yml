@@ -4,15 +4,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
-  lint-and-build:
-    name: "CI: Build Lint and Test"
+  checkout-install:
+    name: "CI: Checkout + install"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: recursive
 
       - uses: pnpm/action-setup@v6
 
@@ -24,6 +25,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Pack installed workspace
+        run: tar -czf workspace-deps.tgz node_modules
+
+      - name: Upload installed workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-deps
+          path: workspace-deps.tgz
+          retention-days: 1
+
+  lint-build:
+    name: "CI: Checkout submodule + lint + build"
+    runs-on: ubuntu-latest
+    needs: checkout-install
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
       - name: Build index
         run: pnpm build:index
 
@@ -33,9 +68,18 @@ jobs:
       - name: Build graph
         run: pnpm build:graph
 
+      - name: Pack atlas artifacts
+        run: tar -czf atlas-artifacts.tgz public/docs.json public/search-index.json public/glossary.json public/graph.json public/relations.json public/addresses.atlas.json
+
+      - name: Upload atlas artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-artifacts
+          path: atlas-artifacts.tgz
+          retention-days: 1
+
       # manifest.json is a build artifact (not committed). manifest.test.ts
       # skips itself when it's absent, so no build:manifest step needed here.
-
       - name: Type check
         run: pnpm build:ts
 
@@ -45,20 +89,169 @@ jobs:
       - name: Check patch notes
         run: pnpm check:patch-notes
 
-      - name: Run tests
+      - name: Bundle
+        run: pnpm exec vite build
+
+  test:
+    name: "CI: Test"
+    runs-on: ubuntu-latest
+    needs: lint-build
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - name: Download atlas artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: atlas-artifacts
+
+      - name: Restore atlas artifacts
+        run: tar -xzf atlas-artifacts.tgz
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run Vitest tests
         run: pnpm test
         env:
           REPRO: "1"
 
+      - name: Run Bun tests
+        run: pnpm test:server
+
       - name: Verify graph snapshots
         run: pnpm test:snap
 
-      - name: Bundle
-        run: pnpm exec vite build
+  coverage:
+    name: "CI: Coverage"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - name: Download atlas artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: atlas-artifacts
+
+      - name: Restore atlas artifacts
+        run: tar -xzf atlas-artifacts.tgz
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run base coverage for delta
+        if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
+        run: |
+          git worktree add ../redlens-base origin/${{ github.base_ref }}
+          cd ../redlens-base
+          git submodule update --init --recursive
+          # Reuse the PR's already-installed node_modules instead of a fresh
+          # `pnpm install` against the base ref's own lockfile: the base ref may
+          # predate a devDependency the coverage tooling needs (e.g. this PR is
+          # the one that first adds @vitest/coverage-v8), so its own lockfile
+          # can't be trusted to produce a working coverage toolchain. The base
+          # number here is informational only (coverage-areas.mjs's pass/fail
+          # gate is keyed on changed-line coverage, not this delta).
+          ln -s ../redlens/node_modules node_modules
+          pnpm build:index && pnpm build:glossary && pnpm build:graph
+          pnpm exec vitest run --coverage --config ../redlens/vitest.config.ts
+          bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun
+          node ../redlens/scripts/required/coverage-areas.mjs
+          cp coverage/coverage-areas.json ../redlens/base-coverage-areas.json
+        env:
+          REPRO: "1"
+
+      - name: Run Vitest coverage
+        run: pnpm test:coverage
+        env:
+          REPRO: "1"
+
+      - name: Run Bun coverage
+        run: pnpm test:server:coverage
+
+      - name: Summarize coverage areas and enforce changed-code minimum
+        run: pnpm coverage:areas
+        env:
+          COVERAGE_CHANGED_MIN: "95"
+          COVERAGE_BASE_REF: origin/${{ github.base_ref || 'main' }}
+          COVERAGE_BASELINE_JSON: base-coverage-areas.json
+
+      - name: Upload coverage artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            coverage/vitest/lcov.info
+            coverage/bun/lcov.info
+            coverage/coverage-areas.json
+            coverage/coverage-summary.md
+          retention-days: 14
+
+      - name: Comment coverage summary
+        # Fork PRs get a read-only GITHUB_TOKEN — issues.createComment/updateComment
+        # would 403 there, failing the job after tests + the coverage gate already
+        # passed. Skip on forks; continue-on-error covers any other transient
+        # failure (rate limit, etc.) since this step is a notification, not a gate.
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- redlens-coverage-summary -->';
+            const summary = fs.existsSync('coverage/coverage-summary.md')
+              ? fs.readFileSync('coverage/coverage-summary.md', 'utf8')
+              : 'Coverage summary was not generated.';
+            const body = `${marker}\n${summary}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({ owner, repo, issue_number, per_page: 100 });
+            const existing = comments.data.find((comment) => comment.user.type === 'Bot' && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
 
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
     runs-on: ubuntu-latest
+    needs: coverage
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -83,6 +276,22 @@ jobs:
           # order; sync degrades gracefully (commit_seq=null) if it's shallow.
           fetch-depth: 0
 
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - name: Download atlas artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: atlas-artifacts
+
+      - name: Restore atlas artifacts
+        run: tar -xzf atlas-artifacts.tgz
+
       - uses: oven-sh/setup-bun@v2
 
       - uses: pnpm/action-setup@v6
@@ -91,14 +300,6 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      # Regenerate the gitignored artifacts the server reads (docs.json, graph.json).
-      # addresses.atlas.json and chain-state.json are committed; history is not needed here.
-      - name: Build atlas artifacts
-        run: pnpm build:index && pnpm build:graph
 
       - name: Type check server
         run: pnpm exec tsc -p tsconfig.server.json --noEmit

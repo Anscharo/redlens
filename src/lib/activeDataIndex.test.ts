@@ -13,6 +13,7 @@ import {
   buildActiveDataRows,
   activeDataRowsToCSV,
 } from "./activeDataIndex";
+import { atlasUrl } from "./routes";
 
 const ROOT = path.resolve(__dirname, "../..");
 const PUBLIC = path.join(ROOT, "public");
@@ -263,10 +264,11 @@ describe("activeDataRowsToCSV", () => {
   });
 
   it("quotes every cell — no bare commas in row content leak the column count", () => {
-    // Active Data Doc, Title, Controller Doc, Controller Title, Agent,
-    // Responsible Party, RP Evidence, Facilitator, Facilitator Role,
-    // Facilitator Evidence, Process, Last Edited = 12 cells.
-    const expectedQuotes = 12 * 2;
+    // Active Data Doc, Title, UUID, Link, Controller Doc, Controller Title,
+    // Controller UUID, Controller Link, Agent, Responsible Party, RP Evidence,
+    // Facilitator, Facilitator Role, Facilitator Evidence, Process, Last Edited
+    // = 16 cells.
+    const expectedQuotes = 16 * 2;
     for (const line of lines.slice(1)) {
       expect((line.match(/"/g) ?? []).length).toBe(expectedQuotes);
     }
@@ -280,8 +282,8 @@ describe("activeDataRowsToCSV", () => {
     const row = { ...rows[0], activeDataTitle: 'Ada "The Great" Lovelace' };
     const dataLine = activeDataRowsToCSV([row]).split("\r\n")[1];
     expect(dataLine).toContain('"Ada ""The Great"" Lovelace"');
-    // still exactly 12 quoted cells' worth of wrapping + the doubled pair (4 extra ")
-    expect((dataLine.match(/"/g) ?? []).length).toBe(12 * 2 + 4);
+    // still exactly 16 quoted cells' worth of wrapping + the doubled pair (4 extra ")
+    expect((dataLine.match(/"/g) ?? []).length).toBe(16 * 2 + 4);
   });
 
   it("each CSV row contains the exact field values shown in the table", () => {
@@ -294,17 +296,21 @@ describe("activeDataRowsToCSV", () => {
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       const cells = parseLine(dataLines[i]);
-      expect(cells, `row ${i}: wrong cell count`).toHaveLength(12);
+      expect(cells, `row ${i}: wrong cell count`).toHaveLength(16);
       const [
-        adDoc, adTitle, ctrlDoc, ctrlTitle, agent,
+        adDoc, adTitle, adUuid, adLink, ctrlDoc, ctrlTitle, ctrlUuid, ctrlLink, agent,
         rp, rpEvidence, fac, facRole, facEvidence,
         process, lastEdited,
       ] = cells;
 
       expect(adDoc, `row ${i} activeDataDocNo`).toBe(r.activeDataDocNo);
       expect(adTitle, `row ${i} activeDataTitle`).toBe(r.activeDataTitle);
+      expect(adUuid, `row ${i} activeDataId`).toBe(r.activeDataId);
+      expect(adLink, `row ${i} activeDataLink`).toBe(atlasUrl(r.activeDataId));
       expect(ctrlDoc, `row ${i} controllerDocNo`).toBe(r.controllerDocNo ?? "");
       expect(ctrlTitle, `row ${i} controllerTitle`).toBe(r.controllerTitle ?? "");
+      expect(ctrlUuid, `row ${i} controllerId`).toBe(r.controllerId ?? "");
+      expect(ctrlLink, `row ${i} controllerLink`).toBe(r.controllerId ? atlasUrl(r.controllerId) : "");
       expect(agent, `row ${i} agent`).toBe(r.agent ?? "");
       // Falls back to the raw declared text when the RP resolves to no entity
       // (descriptive declarations) — same fallback the UI's RP cell shows.
@@ -329,7 +335,7 @@ describe("activeDataRowsToCSV", () => {
     const csv = activeDataRowsToCSV([rowWithEvidence]);
     const cells = parseLine(csv.split("\r\n")[1]);
     const expectedRP = rowWithEvidence.responsibleParty!.evidence.map((s) => s.docNo).join(" → ");
-    expect(cells[6]).toBe(expectedRP);
+    expect(cells[10]).toBe(expectedRP);
   });
 
   it("Last Edited column reflects the dates map passed in", () => {
@@ -337,13 +343,13 @@ describe("activeDataRowsToCSV", () => {
     const dates = new Map([[sampleRow.activeDataId, "2025-03-15"]]);
     const csvWithDates = activeDataRowsToCSV([sampleRow], dates);
     const cells = parseLine(csvWithDates.split("\r\n")[1]);
-    expect(cells).toHaveLength(12);
-    expect(cells[11]).toBe("2025-03-15");
+    expect(cells).toHaveLength(16);
+    expect(cells[15]).toBe("2025-03-15");
   });
 
   it("Last Edited is empty string when no date is available for a row", () => {
     const sampleRow = rows[0];
     const csv = activeDataRowsToCSV([sampleRow], new Map());
-    expect(parseLine(csv.split("\r\n")[1])[11]).toBe("");
+    expect(parseLine(csv.split("\r\n")[1])[15]).toBe("");
   });
 });

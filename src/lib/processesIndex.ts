@@ -1,6 +1,7 @@
 import type { AtlasNode } from "../types";
 import { fetchJson } from "./verify";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 
 // One curated entry from public/processes.json — the hand-validated inventory.
 // Title + doc_no are resolved from docs.json at read time via the entry's uuid.
@@ -177,12 +178,14 @@ export function processRowsToCSV(
   ignores?: ReadonlyMap<string, { reason: string }>,
 ): string {
   return toCSV(
-    ["Doc No", "Title", "Category", "Shape", "Status", "Steps", "Ignored"],
+    ["Doc No", "Title", "UUID", "Atlas Link", "Category", "Shape", "Status", "Steps", "Ignored"],
     rows.map((r) => {
       const ig = ignores?.get(r.uuid);
       return [
         r.docNo,
         r.title,
+        r.uuid,
+        atlasUrl(r.uuid),
         r.category,
         r.shape,
         r.status,

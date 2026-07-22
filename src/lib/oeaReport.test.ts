@@ -73,7 +73,7 @@ describe("oeaRowsToCSV", () => {
   it("emits a header, maps the category label, and blanks unassessed ratings", () => {
     const rows = joinAssessments([task("u:u1", "Do the thing."), task("u:u2", "Other")], artifact([entry("u:u1", "Do the thing.")]));
     const lines = oeaRowsToCSV(rows).split("\r\n");
-    expect(lines[0]).toContain('"Doc No","Title","Category","Status"');
+    expect(lines[0]).toContain('"Doc No","Title","UUID","Atlas Link","Category","Status"');
     // Assessed row carries the ratings + reasoning.
     expect(lines[1]).toContain('"mid"');
     expect(lines[1]).toContain('"weak"');
@@ -85,5 +85,41 @@ describe("oeaRowsToCSV", () => {
   it("escapes a title containing a quote (delegates to shared toCSV)", () => {
     const rows = joinAssessments([{ ...task("u:u1", "x"), title: 'The "Big" Task' } as never], artifact([]));
     expect(oeaRowsToCSV(rows)).toContain('"The ""Big"" Task"');
+  });
+
+  it("re-expands a collapsed task (title-collapsed agent copies) into one CSV row per doc", () => {
+    const collapsed: OeaTask = {
+      ...task("t:weekly settlement|op-duty", "settles weekly"),
+      uuid: "rep", docNo: "A.6.1.1.1.4.1",
+      agents: ["Spark", "Hoku"],
+      copies: [
+        { docNo: "A.6.1.1.1.4.1", uuid: "rep", agent: "Spark" },
+        { docNo: "A.6.1.1.2.4.1", uuid: "copy2", agent: "Hoku" },
+      ],
+    };
+    const rows = joinAssessments([collapsed], artifact([]));
+    const lines = oeaRowsToCSV(rows).split("\r\n");
+    expect(lines.length).toBe(3); // header + 2 expanded rows, not 1 collapsed row
+    expect(lines[1]).toContain('"rep"');
+    expect(lines[1]).toContain('"Spark"');
+    expect(lines[1]).not.toContain("Hoku");
+    expect(lines[2]).toContain('"copy2"');
+    expect(lines[2]).toContain('"Hoku"');
+  });
+
+  it("uses each copy's own duty text for Assessed Text when unassessed, not the representative's", () => {
+    const collapsed: OeaTask = {
+      ...task("t:rebate|op-duty", "reviews Spark's calculation"),
+      uuid: "rep", docNo: "A.6.1.1.1.2.3",
+      agents: ["Spark", "Grove"],
+      copies: [
+        { docNo: "A.6.1.1.1.2.3", uuid: "rep", agent: "Spark", duty: "reviews Spark's calculation" },
+        { docNo: "A.6.1.1.2.2.3", uuid: "copy2", agent: "Grove", duty: "reviews Grove's calculation" },
+      ],
+    };
+    const rows = joinAssessments([collapsed], artifact([]));
+    const lines = oeaRowsToCSV(rows).split("\r\n");
+    expect(lines[1]).toContain("reviews Spark's calculation");
+    expect(lines[2]).toContain("reviews Grove's calculation");
   });
 });

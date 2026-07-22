@@ -4,6 +4,8 @@ import type { Rating, OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAss
 import { normalizeAssessedText, OEA_CATEGORY_LABELS, type OeaTask } from "./oeaTasks";
 import { handledStale, liveAtlasBase } from "./atlasBase";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
+import { expandCopies } from "./dutyCollapse";
 
 export type OeaRowStatus = "fresh" | "stale" | "unassessed";
 
@@ -119,19 +121,41 @@ export function loadOeaReport(base: string = liveAtlasBase()): Promise<OeaReport
   return cached;
 }
 
-// Exports the given (already-filtered) OEA task rows as an RFC-4180 CSV string.
-// Columns mirror the table plus the assessment reasoning revealed on row-expand;
-// unassessed rows leave the rating columns blank.
+// A collapsed task's `copies` re-expanded to one entry per doc, via the same
+// dutyCollapse.ts skeleton the responsibility reports use — each copy's Agents
+// column narrows to that copy's own agent alone, and its Assessed Text (when
+// unassessed — an existing assessment entry is keyed to the whole collapsed
+// task and applies to every copy alike) narrows to that copy's own text
+// instead of the representative's (see expandCopies/expandSources).
+function expandTaskCopies(task: OeaTask): OeaTask[] {
+  return expandCopies(task, task.copies, (task, c) => ({
+    ...task,
+    docNo: c.docNo,
+    uuid: c.uuid,
+    agents: c.agent ? [c.agent] : undefined,
+    assessedText: c.duty ?? task.assessedText,
+  }));
+}
+
+// The row count a CSV export of `rows` will actually produce (post-expansion) —
+// for DownloadCsvButton's disabled-state/analytics count.
+export function oeaCsvRowCount(rows: readonly OeaRow[]): number {
+  return rows.reduce((n, r) => n + expandTaskCopies(r.task).length, 0);
+}
+
 export function oeaRowsToCSV(rows: readonly OeaRow[]): string {
+  const expanded = rows.flatMap((r) => expandTaskCopies(r.task).map((task) => ({ ...r, task })));
   return toCSV(
     [
-      "Doc No", "Title", "Category", "Status",
+      "Doc No", "Title", "UUID", "Atlas Link", "Category", "Status",
       "Precision", "Precision Reasoning", "Incentives", "Incentives Reasoning",
       "Agents", "Assessed Text", "Model",
     ],
-    rows.map((r) => [
+    expanded.map((r) => [
       r.task.docNo,
       r.task.title,
+      r.task.uuid,
+      atlasUrl(r.task.uuid),
       OEA_CATEGORY_LABELS[r.task.category] ?? r.task.category,
       r.status,
       r.entry?.precision.rating ?? "",

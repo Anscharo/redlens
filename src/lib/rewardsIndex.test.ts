@@ -58,7 +58,7 @@ describe("rewardsIndexToCSV", () => {
   it("flattens instances + invocations across DR/IB with kind-specific columns", () => {
     const lines = rewardsIndexToCSV(idx).split("\r\n");
     expect(lines[0]).toBe(
-      '"Agent","Executor","GovOps","Primitive","Primitive Doc","Global Activation","Doc No","Name","Status","Reward Code","Partner Name","Reward Address","Reward Chain","Cadence","Tracking","Payments Controller Doc","Responsible Party","Params"',
+      '"Agent","Executor","GovOps","Primitive","Primitive Doc","Primitive UUID","Primitive Link","Global Activation","Doc No","UUID","Atlas Link","Name","Status","Reward Code","Partner Name","Reward Address","Reward Chain","Cadence","Tracking","Payments Controller Doc","Payments Controller UUID","Payments Controller Link","Responsible Party","Params"',
     );
     expect(lines).toHaveLength(3); // header + 1 DR instance + 1 IB invocation
 

@@ -66,7 +66,10 @@
     "check:pr": "bash scripts/aux/check-atlas-pr.sh",
     "tva": "bash scripts/aux/tva.sh",
     "knip": "knip",
-    "pull-atlas": "git submodule update --init --recursive"
+    "pull-atlas": "git submodule update --init --recursive",
+    "test:coverage": "vitest run --coverage",
+    "test:server:coverage": "bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
+    "coverage:areas": "node scripts/required/coverage-areas.mjs"
   },
   "dependencies": {
     "@chenglou/pretext": "0.0.5",
@@ -113,6 +116,7 @@
     "@types/react-dom": "19.2.3",
     "@types/wcag-contrast": "3.0.3",
     "@vitejs/plugin-react": "6.0.1",
+    "@vitest/coverage-v8": "4.1.5",
     "bun-types": "1.3.14",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "29.1.1",
@@ -131,6 +135,9 @@
     "overrides": {
       "workbox-build": "7.4.1"
     }
+  },
+  "overrides": {
+    "workbox-build": "7.4.1"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

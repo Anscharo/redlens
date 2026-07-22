@@ -12,9 +12,11 @@ import type { GraphData } from "./graphData";
 import type { GraphEntity } from "../types";
 import { stripMarkdownLinks } from "./stripMarkdownLinks";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import {
   dutyRowKeyer,
+  expandSources,
   finalizeDutySources,
   mergeDutyDoc,
   mergedDocNos,
@@ -121,6 +123,12 @@ export function deriveFacilitatorResponsibilities(
   //    edges for one doc collapse with holders accumulated in _facs.
   const rowKey = dutyRowKeyer();
   const dutyByKey = new Map<string, OFResponsibility & { _facs: Set<string>; _sources: MergedSource[] }>();
+  // Per-doc facilitator names, tracked independently of which row a doc ends
+  // up collapsed into — two per-agent-artifact replicas of the identical duty
+  // TEXT can still resolve to different Operational Facilitators per Prime
+  // Agent (dutyCollapseKey masks only the owning agent's name), so the row's
+  // `facilitators` union isn't necessarily accurate for any one merged copy.
+  const facsByDoc = new Map<string, Set<string>>();
   for (const e of edges) {
     if (e.e !== "duty_for" || e.tt !== "doc") continue;
     const n = docs[e.t];
@@ -140,6 +148,11 @@ export function deriveFacilitatorResponsibilities(
     const agent = agentFromDocNo(n.doc_no, agents) ?? undefined;
     const key = rowKey(category, n, agent);
     const facName = entityById.get(e.f)?.name;
+    if (facName) {
+      let set = facsByDoc.get(n.id);
+      if (!set) facsByDoc.set(n.id, (set = new Set()));
+      set.add(facName);
+    }
     const existing = dutyByKey.get(key);
     if (existing) {
       mergeDutyDoc(existing, n, duty, agent);
@@ -153,15 +166,21 @@ export function deriveFacilitatorResponsibilities(
       duty,
       category,
       _facs: new Set(facName ? [facName] : []),
-      _sources: newDutySources(n, agent),
+      _sources: newDutySources(n, agent, duty),
     });
   }
-  for (const { _facs, _sources, ...row } of dutyByKey.values())
+  for (const { _facs, _sources, ...row } of dutyByKey.values()) {
+    const { sources, ...finalized } = finalizeDutySources(_sources, seenDocIds);
     results.push({
       ...row,
       facilitators: _facs.size ? [..._facs] : undefined,
-      ...finalizeDutySources(_sources, seenDocIds),
+      ...finalized,
+      sources: sources?.map((s) => {
+        const facs = facsByDoc.get(s.uuid);
+        return facs?.size ? { ...s, facilitators: [...facs] } : s;
+      }),
     });
+  }
 
   // 3. Active Data — docs whose Responsible Party is declared as a Facilitator.
   //    Keyed on the edge's declared role, NOT the entity type: a facilitator org
@@ -214,13 +233,19 @@ export function deriveFacilitatorResponsibilities(
 }
 
 // Exports the given (already-filtered) facilitator responsibility rows as an
-// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened — except a
+// collapsed duty row (one row covering several per-agent doc replicas in the
+// table) is re-expanded to one CSV row per doc, so every row's UUID/Atlas Link
+// points at exactly one doc instead of joining several into one cell.
 export function facilitatorRowsToCSV(rows: readonly OFResponsibility[]): string {
+  const expanded = rows.flatMap(expandSources);
   return toCSV(
-    ["Doc No", "Title", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
-    rows.map((r) => [
-      mergedDocNos(r, "; "),
+    ["Doc No", "Title", "UUID", "Atlas Link", "Category", "Duty", "Agents", "Facilitators", "Executor", "Role"],
+    expanded.map((r) => [
+      r.docNo,
       r.title,
+      r.uuid,
+      atlasUrl(r.uuid),
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,
       (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),

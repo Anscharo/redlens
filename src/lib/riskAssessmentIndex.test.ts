@@ -69,7 +69,7 @@ describe("joinRisk", () => {
     );
     const csv = riskRowsToCSV(j.rows);
     const lines = csv.split("\r\n");
-    expect(lines[0]).toContain('"Doc No","Title","UUID","Risk Types","Status"');
+    expect(lines[0]).toContain('"Doc No","Title","UUID","Atlas Link","Risk Types","Status"');
     // Assessed row: domain label resolved, rating present.
     expect(lines[1]).toContain('"Peg Maintenance"');
     expect(lines[1]).toContain('"fresh"');

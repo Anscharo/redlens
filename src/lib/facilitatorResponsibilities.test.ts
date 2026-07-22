@@ -39,6 +39,12 @@ for (const n of [
   node({ id: "duty-div-2", doc_no: "A.6.1.1.2.9.5", title: "Modification", content: "The Operational Facilitator can change the signers of the Beta Multisig." }),
   // Operational duty outside an artifact context — fans out to BOTH op orgs.
   node({ id: "duty-op-shared", doc_no: "A.3.7.1.9", title: "Signer Change Authority", content: "The Operational Facilitator can change the signers of the multisig." }),
+  // Per-agent-artifact op duty, identical text, but each copy resolves to a
+  // DIFFERENT Operational Facilitator (Spark's own vs. a second Prime's own) —
+  // the collapsed row's `facilitators` union must not leak onto BOTH expanded
+  // per-doc CSV rows.
+  node({ id: "duty-fac-diff-1", doc_no: "A.6.1.1.1.5.5", title: "Escalation Sync", content: "The Operational Facilitator syncs on escalations." }),
+  node({ id: "duty-fac-diff-2", doc_no: "A.6.1.1.2.5.5", title: "Escalation Sync", content: "The Operational Facilitator syncs on escalations." }),
   // Assignment doc (excluded from duty discovery by build-graph).
   node({ id: "assign-doc", doc_no: "A.6.1.2.1.3", title: "Operational Facilitator", content: "The Operational Facilitator for Operational Executor Agent Amatsu is Endgame Edge." }),
   // ADC whose Responsible Party is declared as a Facilitator role.
@@ -85,6 +91,10 @@ const edges: RelationEdge[] = [
   // Contextless op duty — fanned out to both operational orgs.
   { f: "endgame", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
   { f: "redline", ft: "entity", t: "duty-op-shared", tt: "doc", e: "duty_for", s: ["A.3.7.1.9"], m: dutyMeta("Operational Facilitator", "The Operational Facilitator can change the signers of the multisig.") },
+  // Same duty text, per-agent-artifact copies, but each resolves to its own
+  // agent's Operational Facilitator (not a fan-out — one edge per doc).
+  { f: "endgame", ft: "entity", t: "duty-fac-diff-1", tt: "doc", e: "duty_for", s: ["A.6.1.1.1.5.5"], m: dutyMeta("Operational Facilitator", null) },
+  { f: "redline", ft: "entity", t: "duty-fac-diff-2", tt: "doc", e: "duty_for", s: ["A.6.1.1.2.5.5"], m: dutyMeta("Operational Facilitator", null) },
   // GovOps-declared duty — filtered out by role.
   { f: "soter", ft: "entity", t: "duty-gov", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", "Core GovOps reviews the inputs.") },
   // Active data: declared-as-facilitator vs named-directly.
@@ -137,6 +147,17 @@ describe("deriveFacilitatorResponsibilities", () => {
     expect(new Set(rows[0].facilitators)).toEqual(new Set(["Endgame Edge", "Redline Facilitation Group"]));
   });
 
+  it("tracks each merged copy's OWN facilitator on `sources`, not just the row-level union", () => {
+    const rows = byCat("op-duty").filter((r) => r.title === "Escalation Sync");
+    expect(rows).toHaveLength(1);
+    // Row-level union still covers both — correct for the collapsed table view.
+    expect(new Set(rows[0].facilitators)).toEqual(new Set(["Endgame Edge", "Redline Facilitation Group"]));
+    // But each merged source keeps its OWN specific facilitator, not the union.
+    const byUuid = Object.fromEntries((rows[0].sources ?? []).map((s) => [s.uuid, s.facilitators]));
+    expect(byUuid["duty-fac-diff-1"]).toEqual(["Endgame Edge"]);
+    expect(byUuid["duty-fac-diff-2"]).toEqual(["Redline Facilitation Group"]);
+  });
+
   it("ignores duty_for edges declared for non-Facilitator acting roles", () => {
     expect(results.find((r) => r.uuid === "duty-gov")).toBeUndefined();
   });
@@ -180,16 +201,57 @@ describe("deriveFacilitatorResponsibilities", () => {
 });
 
 describe("facilitatorRowsToCSV", () => {
-  it("emits a header, maps the category label, and joins agents/facilitators with '; '", () => {
+  it("emits a header with UUID/Atlas Link, maps the category label, and joins agents/facilitators with '; '", () => {
     const rows: OFResponsibility[] = [
       { docNo: "A.1.1", uuid: "u1", title: "Assign", duty: "", category: "assignment", executor: "Ozone", facilitator: "Steakhouse", role: "Operational", agents: ["Amatsu", "Ozone"] },
       { docNo: "A.1.7.1", uuid: "u2", title: "Universal duty", duty: "must do the thing", category: "universal", facilitators: ["Steakhouse", "TechOps"] },
     ];
     const lines = facilitatorRowsToCSV(rows).split("\r\n");
-    expect(lines[0]).toBe('"Doc No","Title","Category","Duty","Agents","Facilitators","Executor","Role"');
+    expect(lines[0]).toBe('"Doc No","Title","UUID","Atlas Link","Category","Duty","Agents","Facilitators","Executor","Role"');
+    expect(lines[1]).toContain('"u1"');
     expect(lines[1]).toContain('"Amatsu; Ozone"');
     expect(lines[1]).toContain('"Facilitator Assignments (per Executor Agent)"');
+    expect(lines[2]).toContain('"u2"');
     expect(lines[2]).toContain('"Steakhouse; TechOps"');
     expect(lines[2]).toContain('"Universal — all Facilitators"');
+  });
+
+  it("re-expands a collapsed duty row into one CSV row per merged doc", () => {
+    const rows: OFResponsibility[] = [
+      {
+        docNo: "A.6.1.1.1.2.2",
+        uuid: "rep",
+        title: "Root Edit Proposal Submission",
+        duty: "reviews the proposal",
+        category: "op-duty",
+        agents: ["Amatsu", "Ozone"],
+        sources: [
+          { docNo: "A.6.1.1.1.2.2", uuid: "rep", agent: "Amatsu" },
+          { docNo: "A.6.1.1.2.2.2", uuid: "copy2", agent: "Ozone" },
+        ],
+      },
+    ];
+    const lines = facilitatorRowsToCSV(rows).split("\r\n");
+    expect(lines.length).toBe(3); // header + 2 expanded rows, not 1 merged row
+    expect(lines[1]).toContain('"rep"');
+    expect(lines[1]).toContain('"Amatsu"');
+    expect(lines[1]).not.toContain("Ozone");
+    expect(lines[2]).toContain('"copy2"');
+    expect(lines[2]).toContain('"Ozone"');
+  });
+
+  it("narrows the Facilitators column to each expanded row's own copy, not the merged union", () => {
+    // End-to-end via the real derive: "Escalation Sync" collapses two
+    // per-agent copies with DIFFERENT facilitators (Endgame Edge / Redline).
+    // Each CSV row must show only its own doc's facilitator, never both.
+    const row = byCat("op-duty").find((r) => r.title === "Escalation Sync")!;
+    const lines = facilitatorRowsToCSV([row]).split("\r\n");
+    expect(lines.length).toBe(3); // header + 2 expanded rows
+    const rep = lines.find((l) => l.includes('"duty-fac-diff-1"'))!;
+    const copy = lines.find((l) => l.includes('"duty-fac-diff-2"'))!;
+    expect(rep).toContain('"Endgame Edge"');
+    expect(rep).not.toContain("Redline");
+    expect(copy).toContain('"Redline Facilitation Group"');
+    expect(copy).not.toContain("Endgame");
   });
 });
