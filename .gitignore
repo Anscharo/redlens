@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage/
+base-coverage-areas.json
 *.local
 
 # Atlas-derived artifacts — built ephemerally at container startup / by the
