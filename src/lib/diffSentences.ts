@@ -24,10 +24,18 @@ export const SYMBOL_DENSITY_MAX = 0.25;
  *  `absorbIslands` in ./diffIslands. */
 export const MAX_ISLAND = 4;
 
+/** Below this whole-line change ratio the stored word diff is already
+ *  minimal and readable — refinement (sentence segmentation, promotion)
+ *  never runs. Guards near-noise edits (e.g. "1)" → "1." across a list)
+ *  from being amplified by a pathological sentence split. */
+export const MIN_REFINE_RATIO = 0.05;
+
 // Boundary: whitespace preceded by sentence-ending punctuation, followed by a
 // capital letter. Skipped when the text right before the boundary ends with a
-// known abbreviation ("e.g.", "Dr.", ...) or a single capital initial ("J.").
-const ABBREV_RE = /(?:\b(?:e\.g|i\.e|etc|vs|cf|Dr|Mr|Mrs|Ms|No)|\b[A-Z])\.$/;
+// known abbreviation ("e.g.", "Dr.", ...), a single-letter initial ("J.",
+// "a."), or a 1–2 digit enumerator ("1.", "12." — list numbering, not a
+// sentence end; \b keeps years like "2024." out of the guard).
+const ABBREV_RE = /(?:\b(?:e\.g|i\.e|etc|vs|cf|Dr|Mr|Mrs|Ms|No)|\b[A-Za-z]|\b\d{1,2})\.$/;
 const BOUNDARY_RE = /(?<=[.!?])\s+(?=[A-Z])/g;
 
 /** Split a line into sentences, LOSSLESSLY: `segmentSentences(line).join("")
@@ -46,6 +54,48 @@ export function segmentSentences(line: string): string[] {
   }
   sentences.push(line.slice(start));
   return sentences;
+}
+
+/** Split a sentence into subclauses, LOSSLESSLY: `segmentSubclauses(s).join("")
+ *  === s` always holds. Boundaries: after "," or ";" (the delimiter and any
+ *  following whitespace attach to the PRECEDING unit, same style as
+ *  segmentSentences); a parenthetical `( ... )` is its own standalone unit —
+ *  the text before "(" ends the previous unit, the whole parenthetical
+ *  (through the first ")", nesting ignored) is one unit, text after ")"
+ *  starts a new one. Guard: a "," immediately followed by a digit ("1,000")
+ *  is not a boundary. An unclosed "(" is not a boundary either — the rest of
+ *  the string becomes one trailing unit, so this stays lossless either way. */
+export function segmentSubclauses(sentence: string): string[] {
+  const units: string[] = [];
+  let start = 0;
+  let i = 0;
+  const n = sentence.length;
+  while (i < n) {
+    const ch = sentence[i];
+    if (ch === "(") {
+      if (i > start) {
+        units.push(sentence.slice(start, i));
+        start = i;
+      }
+      const close = sentence.indexOf(")", i);
+      if (close === -1) break; // unclosed — bail, trailing push below covers it
+      units.push(sentence.slice(start, close + 1));
+      start = close + 1;
+      i = start;
+      continue;
+    }
+    if ((ch === "," || ch === ";") && !(ch === "," && /\d/.test(sentence[i + 1] ?? ""))) {
+      let end = i + 1;
+      while (end < n && /\s/.test(sentence[end])) end++;
+      units.push(sentence.slice(start, end));
+      start = end;
+      i = end;
+      continue;
+    }
+    i++;
+  }
+  if (start < n) units.push(sentence.slice(start));
+  return units.length ? units : [sentence];
 }
 
 const KEY_VALUE_RE = /^(?:[-*]\s+)?[A-Za-z][\w ()/-]{0,40}:\s/;
@@ -72,28 +122,18 @@ export function isStructuredLine(line: string): boolean {
   return false;
 }
 
-/** Changed-character ratio and run count for a set of word-diff segments.
- *  Whitespace never counts as content anywhere here — every count strips
- *  `\s` from the FULL segment text first (not just whitespace-only segments,
- *  so embedded spaces inside a multi-word segment are excluded too).
- *
- *  `ratio` = (non-ws chars removed + non-ws chars added) / (non-ws chars of
- *  the old side + non-ws chars of the new side); guarded against div-by-zero.
- *  A spacing-only diff (e.g. a double space collapsed to one) has ratio 0.
- *
- *  `removed`/`added` are the raw non-ws char counts on each side — callers
- *  use them for a both-sides guard (a purely-inserted or purely-deleted
- *  change should never promote, no matter the ratio). A spacing-only diff
- *  has removed = added = 0.
- *
- *  `runs` = number of maximal changed regions. A segment with ZERO non-ws
- *  characters (a whitespace-only "-", "+", or "=") is transparent to run
- *  counting: it neither starts/extends a run (a whitespace-only "-"/"+" is
- *  not "changed content") nor separates two runs (a whitespace-only "="
- *  sitting between two changed regions reads as one contiguous visual
- *  block, e.g. "removedWORD addedWORD" with only a space between them is
- *  ONE run — whereas an unchanged WORD between them, which does have non-ws
- *  content, genuinely separates them into two runs). */
+/** Changed-character ratio and run count for word-diff segments. Whitespace
+ *  never counts as content: every count strips `\s` from the full segment
+ *  text first (not just whitespace-only segments).
+ *  `ratio` = (non-ws removed + added) / (non-ws old side + new side chars),
+ *  guarded against div-by-zero (a spacing-only diff has ratio 0).
+ *  `removed`/`added` = raw non-ws char counts per side, for a both-sides
+ *  promotion guard (a purely-inserted/deleted change never promotes).
+ *  `runs` = number of maximal changed regions. A ZERO-non-ws segment (a
+ *  whitespace-only "-", "+", or "=") is transparent to run counting: it
+ *  neither starts/extends a run nor separates two runs — a whitespace-only
+ *  "=" between two changed regions reads as one contiguous block, while a
+ *  real unchanged WORD between them genuinely separates them into two. */
 export function changeStats(
   segs: WordSegment[],
 ): { ratio: number; runs: number; removed: number; added: number } {

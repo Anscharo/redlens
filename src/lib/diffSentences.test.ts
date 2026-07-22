@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   segmentSentences,
+  segmentSubclauses,
   isStructuredLine,
   changeStats,
   shouldPromote,
@@ -39,6 +40,58 @@ describe("segmentSentences", () => {
 
   it("does not split at a single capital-letter initial", () => {
     expect(segmentSentences("A single letter initial like J. Appleseed signed it.")).toHaveLength(1);
+  });
+
+  it("does not split at a 1-2 digit list enumerator like '1.'", () => {
+    expect(segmentSentences("1. Deploy infrastructure to enable conduits;")).toHaveLength(1);
+    expect(segmentSentences("12. Establish manual reallocation processes; and")).toHaveLength(1);
+  });
+
+  it("still splits after a year-like number ending a sentence", () => {
+    expect(segmentSentences("The plan launched in 2024. Next phase begins soon.")).toHaveLength(2);
+  });
+});
+
+describe("segmentSubclauses", () => {
+  const sampleSentences = [
+    "Alpha, Bravo, Charlie.",
+    "The Facilitator (acting alone) must act.",
+    "1,000 USDS, more text",
+    "No delimiters here at all",
+    "",
+    "Trailing comma at the end,",
+    "An unclosed paren (never ends",
+    "Alpha; Bravo; Charlie",
+  ];
+
+  it("is always lossless: joining the subclauses reconstructs the original sentence exactly", () => {
+    for (const s of sampleSentences) {
+      expect(segmentSubclauses(s).join("")).toBe(s);
+    }
+  });
+
+  it("splits on commas, attaching the delimiter and trailing whitespace to the preceding unit", () => {
+    expect(segmentSubclauses("Alpha, Bravo, Charlie.")).toEqual(["Alpha, ", "Bravo, ", "Charlie."]);
+  });
+
+  it("splits on semicolons the same way", () => {
+    expect(segmentSubclauses("Alpha; Bravo")).toEqual(["Alpha; ", "Bravo"]);
+  });
+
+  it("treats a parenthetical as one standalone unit", () => {
+    expect(segmentSubclauses("The Facilitator (acting alone) must act.")).toEqual([
+      "The Facilitator ",
+      "(acting alone)",
+      " must act.",
+    ]);
+  });
+
+  it("does not split inside a number like '1,000'", () => {
+    expect(segmentSubclauses("1,000 USDS, more text")).toEqual(["1,000 USDS, ", "more text"]);
+  });
+
+  it("returns the whole sentence as one unit when there is nothing to split on", () => {
+    expect(segmentSubclauses("No delimiters here at all")).toEqual(["No delimiters here at all"]);
   });
 });
 

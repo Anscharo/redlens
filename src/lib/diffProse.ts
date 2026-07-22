@@ -1,8 +1,12 @@
 // Render-time refinement of modified-paragraph ("~") diff entries. Promotion
-// runs word -> sentence -> paragraph: island absorption (./diffIslands)
-// first repairs cosmetic word-level "=" gaps so a rewrite reads as one
-// contiguous block, then each sentence pair — and, failing that, the
-// assembled paragraph — gets the same shouldPromote decision
+// runs word -> subclause -> sentence -> paragraph: island absorption
+// (./diffIslands) first repairs cosmetic word-level "=" gaps so a rewrite
+// reads as one contiguous block; a promoted sentence pair then tries
+// subclause-level alignment (./diffSubclause) BEFORE collapsing to a whole
+// swap — exact shared clauses (comma/semicolon/parenthetical units) stay
+// plain text, only the changed ones swap; a whole-sentence swap is the
+// fallback only when no subclause is shared. Every level (word, subclause,
+// sentence, paragraph) uses the same shouldPromote decision
 // (./diffSentences): whitespace-neutral ratio, dual bar (a contiguous run
 // promotes above RATIO_CONTIG; a scattered, >=2-run change promotes above
 // the lower RATIO_SCATTERED), and a change to only one side (pure
@@ -13,9 +17,9 @@
 // classifyDiff or written to storage; the stored DB diff is untouched.
 
 import type { DiffLine, WordSegment } from "./history";
-import { lcsOps, wordDiff, mergeOps } from "./diffCore";
-import { isStructuredLine, segmentSentences, changeStats, shouldPromote } from "./diffSentences";
-import { absorbIslands } from "./diffIslands";
+import { lcsOps, mergeOps } from "./diffCore";
+import { isStructuredLine, segmentSentences, changeStats, shouldPromote, MIN_REFINE_RATIO } from "./diffSentences";
+import { refineSentencePair } from "./diffSubclause";
 
 type SentenceOp = { op: "=" | "-" | "+"; text: string };
 
@@ -46,14 +50,38 @@ function sentenceOps(oldSentences: string[], newSentences: string[]): SentenceOp
   return out;
 }
 
+/** Count maximal runs of non-"=" ops in a sentence-op sequence — i.e. how
+ *  many SEPARATE LOCATIONS in the paragraph changed at sentence granularity.
+ *  Deliberately structural, not content-based: unlike changeStats' runs
+ *  (word/subclause-level), this doesn't grow just because one promoted
+ *  sentence's own internal subclause refinement produced multiple changed
+ *  regions — see the paragraph-level check in refineTilde for why that
+ *  distinction matters. */
+function countSentenceRegions(ops: SentenceOp[]): number {
+  let runs = 0;
+  let inRun = false;
+  for (const o of ops) {
+    if (o.op === "=") {
+      if (inRun) {
+        runs++;
+        inRun = false;
+      }
+    } else inRun = true;
+  }
+  if (inRun) runs++;
+  return runs;
+}
+
 /** Walk sentence ops region-by-region (mirrors pairAdjacentLines in
  *  diffCore): each maximal run of "-" ops followed by "+" ops between "="
- *  ops is one region. Sentences pair 1:1 by position within a region; if ANY
- *  pair's word diff earns promotion (shouldPromote, see ./diffSentences) the
- *  WHOLE region (including unpaired leftovers) collapses to one "-" block +
- *  one "+" block. Otherwise each pair's word-level diff — island-absorbed
- *  for display — is emitted in order, followed by unpaired leftover
- *  sentences as plain "-"/"+" segments. */
+ *  ops is one region. Sentences pair 1:1 by position within a region, each
+ *  refined via refineSentencePair (word diff, then subclause alignment if
+ *  that promotes — see ./diffSubclause). Collapsing an entire region to one
+ *  "-" block + one "+" block requires EVERY pair to have come back a
+ *  genuine fullSwap (no shared subclause at all), plus more than one pair or
+ *  unpaired leftovers — otherwise each pair's own segs are emitted in order
+ *  (a mixed subclause result keeps its internal "=" content), followed by
+ *  unpaired leftover sentences as plain "-"/"+" segments. */
 function buildSegments(ops: SentenceOp[]): WordSegment[] {
   const result: WordSegment[] = [];
   let k = 0;
@@ -69,24 +97,16 @@ function buildSegments(ops: SentenceOp[]): WordSegment[] {
     while (k < ops.length && ops[k].op === "+") additions.push(ops[k++].text);
 
     const pairs = Math.min(removals.length, additions.length);
-    const pairSegs: WordSegment[][] = [];
-    let anyPromote = false;
-    for (let p = 0; p < pairs; p++) {
-      const wd = wordDiff(removals[p], additions[p]);
-      // PRE-absorption stats for the promotion ratio (island chars must not
-      // inflate it); POST-absorption runs for the visual run-shape check.
-      const genuine = changeStats(wd);
-      const absorbed = absorbIslands(wd);
-      const promoteStats = { ...genuine, runs: changeStats(absorbed).runs };
-      if (shouldPromote(promoteStats)) anyPromote = true;
-      pairSegs.push(absorbed);
-    }
+    const decisions: { segs: WordSegment[]; fullSwap: boolean }[] = [];
+    for (let p = 0; p < pairs; p++) decisions.push(refineSentencePair(removals[p], additions[p]));
 
-    if (anyPromote) {
+    const allFullSwap = pairs > 0 && decisions.every((d) => d.fullSwap);
+    const hasLeftovers = removals.length !== additions.length;
+    if (allFullSwap && (pairs > 1 || hasLeftovers)) {
       result.push(["-", removals.join("")]);
       result.push(["+", additions.join("")]);
     } else {
-      for (const wd of pairSegs) result.push(...wd);
+      for (const d of decisions) result.push(...d.segs);
       for (let p = pairs; p < removals.length; p++) result.push(["-", removals[p]]);
       for (let p = pairs; p < additions.length; p++) result.push(["+", additions[p]]);
     }
@@ -120,6 +140,11 @@ function refineTilde(segments: WordSegment[]): DiffLine[] {
 
   if (isStructuredLine(oldLine) || isStructuredLine(newLine)) return original;
 
+  // Near-noise floor: when the stored word diff barely changes the line, it
+  // is already the minimal readable display — never let a pathological
+  // sentence split amplify a tiny edit into a whole-unit swap.
+  if (changeStats(segments).ratio < MIN_REFINE_RATIO) return original;
+
   const ops = sentenceOps(segmentSentences(oldLine), segmentSentences(newLine));
   const raw = buildSegments(ops);
   const merged = mergeOps(raw);
@@ -130,20 +155,19 @@ function refineTilde(segments: WordSegment[]): DiffLine[] {
 
   if (!merged.some(([op]) => op === "=")) return [["-", oldLine], ["+", newLine]];
 
-  // No island absorption here: a promoted sentence already counts as fully
-  // changed, and a leftover "=" island is a few chars — negligible at
-  // paragraph scale — so the raw (pre-absorption) merged stats decide.
-  //
-  // Require SCATTERED changes (runs >= 2) before collapsing the paragraph: a
-  // single contiguous run is already one promoted sentence (or an
-  // adjacent-coalesced group) shown as [=ctx][-old][+new][=ctx] — the
-  // optimal display. RATIO_CONTIG is calibrated for a word/sentence-level
-  // rewrite staying visually intact; at paragraph grain a single swap can
-  // trivially clear 30% just by being one sentence among short ones, and
-  // collapsing would just re-print unchanged context twice for no benefit.
-  // Gating on runs >= 2 forces shouldPromote down its RATIO_SCATTERED branch.
+  // No island absorption: a promoted sentence already counts as fully
+  // changed, and a leftover island is negligible at paragraph scale — the
+  // raw merged stats decide the ratio. But the SHAPE check must be
+  // STRUCTURAL (countSentenceRegions), not changeStats' runs: a single
+  // promoted sentence can now internally decompose into several
+  // subclause-level runs (a swapped clause + a word-edited clause around a
+  // shared "=" clause is already 2) without the PARAGRAPH being scattered —
+  // it's still one sentence, optimally shown as [=ctx][subclause mix][=ctx].
+  // Require >= 2 separate changed SENTENCES before collapsing the whole
+  // paragraph: RATIO_CONTIG's "readable to a higher bar" doesn't transfer to
+  // paragraph grain (one swap can trivially clear 30% among short context).
   const stats = changeStats(merged);
-  if (stats.runs >= 2 && shouldPromote(stats)) return [["-", oldLine], ["+", newLine]];
+  if (countSentenceRegions(ops) >= 2 && shouldPromote(stats)) return [["-", oldLine], ["+", newLine]];
 
   return [["~", merged]];
 }

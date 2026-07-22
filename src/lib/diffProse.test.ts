@@ -284,4 +284,46 @@ describe("refineProseDiff", () => {
       ["+", newLine],
     ]);
   });
+
+  it("keeps a one-character enumerator restyle ('1)' -> '1.') as the stored word diff (near-noise floor)", () => {
+    // Regression: the enumerator period made segmentSentences split the new
+    // side ("1. Deploy..." -> ["1. ", "Deploy..."]), and the resulting 1:2
+    // sentence pairing promoted a 1-char edit to a full-line swap.
+    const oldLine = "1) Deploy infrastructure to enable initial allocation conduits;";
+    const newLine = "1. Deploy infrastructure to enable initial allocation conduits;";
+    const input = tildeInput(oldLine, newLine);
+    expect(refineProseDiff(input)).toEqual(input);
+  });
+
+  it("never promotes below the near-noise floor, whatever the sentence split does", () => {
+    const oldLine = "4) Develop transparent insights into the allocation of the balance sheet.";
+    const newLine = "4. Develop transparent insights into the allocation of the balance sheet.";
+    const input = tildeInput(oldLine, newLine);
+    expect(refineProseDiff(input)).toEqual(input);
+  });
+
+  it("end-to-end: a promoted sentence with a shared comma clause renders the clause as '=' inside the paragraph, not a whole-sentence swap", () => {
+    const s1 = "Intro stays the same.";
+    const s2old = "The Facilitator, acting in good faith, must approve the deposit request.";
+    const s2new = "The Custodian, acting in good faith, must reject the withdrawal notice.";
+    const s3 = "Closing stays the same too.";
+    const oldLine = [s1, s2old, s3].join(" ");
+    const newLine = [s1, s2new, s3].join(" ");
+
+    const result = refineProseDiff(tildeInput(oldLine, newLine));
+    expect(result).toHaveLength(1);
+    expect(result[0][0]).toBe("~");
+    const segs = result[0][1] as WordSegment[];
+    // The shared subclause survives as plain text — not struck and re-added.
+    expect(segs).toContainEqual(["=", "acting in good faith, "]);
+    expect(segs.some(([op, t]) => op === "-" && t.trim() === "The Facilitator,")).toBe(true);
+    expect(segs.some(([op, t]) => op === "+" && t.trim() === "The Custodian,")).toBe(true);
+    // Paragraph-level context sentences are still untouched "=" segments.
+    expect(segs.some(([op, t]) => op === "=" && t.includes("Intro stays the same."))).toBe(true);
+    expect(segs.some(([op, t]) => op === "=" && t.includes("Closing stays the same too."))).toBe(true);
+    const rebuiltOld = segs.filter(([op]) => op === "=" || op === "-").map(([, t]) => t).join("");
+    const rebuiltNew = segs.filter(([op]) => op === "=" || op === "+").map(([, t]) => t).join("");
+    expect(rebuiltOld).toBe(oldLine);
+    expect(rebuiltNew).toBe(newLine);
+  });
 });
