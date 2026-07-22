@@ -1,7 +1,7 @@
 // Dynamic Open Graph card image for atlas documents.
 //
-// Renders a 1200×630 PNG that reads as a sentence — "Read <TITLE> on Sky Atlas
-// by Redline" — in the app's own palette (src/index.css tokens). satori lays
+// Renders a 1200×630 PNG — a red accent rule, the document title, then
+// "Sky Atlas by Redline" — in the app's own palette (src/index.css tokens). satori lays
 // the text out into an SVG (with the bundled Inter fonts), resvg rasterizes it
 // to PNG. Both run fine under Bun. Results are memoized per (title, doc_no):
 // the image is a pure function of those, so the same doc never re-renders.
@@ -18,7 +18,6 @@ const TITLE_MAX = 90; // hard cap so pathological titles can't overflow the card
 
 // Palette (kept in sync with src/index.css).
 const BG = "#160e0d";
-const ACCENT = "#c67267";
 const TAN = "#f3e7ce";
 const TAN_3 = "#b8a48e";
 const RED = "#a63228";
@@ -61,7 +60,6 @@ function footer() {
     props: {
       style: { display: "flex", fontSize: 34, fontWeight: 400, color: TAN_3 },
       children: [
-        span("on "),
         span("Sky Atlas", { color: TAN, fontWeight: 600 }),
         span(" by "),
         span("Redline", { color: RED, fontWeight: 600 }),
@@ -86,10 +84,9 @@ function cardNode(title: string) {
         fontFamily: "Inter",
       },
       children: [
-        // Small red accent rule above the eyebrow — echoes the reader's red bar.
+        // Small red accent rule above the title — echoes the reader's red bar.
         { type: "div", props: { style: { width: "72px", height: "8px", backgroundColor: RED, borderRadius: "4px", marginBottom: "30px" } } },
-        { type: "div", props: { style: { fontSize: 34, fontWeight: 600, color: ACCENT, letterSpacing: "0.2em", textTransform: "uppercase" }, children: "Read" } },
-        { type: "div", props: { style: { display: "flex", fontSize: titleFontSize(shown.length), fontWeight: 700, color: TAN, lineHeight: 1.05, marginTop: "18px", marginBottom: "26px" }, children: shown } },
+        { type: "div", props: { style: { display: "flex", fontSize: titleFontSize(shown.length), fontWeight: 700, color: TAN, lineHeight: 1.13, marginBottom: "26px" }, children: shown } },
         footer(),
       ],
     },
