@@ -223,7 +223,12 @@ jobs:
           retention-days: 14
 
       - name: Comment coverage summary
-        if: ${{ always() && github.event_name == 'pull_request' }}
+        # Fork PRs get a read-only GITHUB_TOKEN — issues.createComment/updateComment
+        # would 403 there, failing the job after tests + the coverage gate already
+        # passed. Skip on forks; continue-on-error covers any other transient
+        # failure (rate limit, etc.) since this step is a notification, not a gate.
+        if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        continue-on-error: true
         uses: actions/github-script@v8
         with:
           script: |

@@ -68,7 +68,13 @@ function changedLines() {
   } catch {
     return new Map();
   }
-  const diff = execFileSync("git", ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "src", "scripts"], { encoding: "utf8" });
+  // Scoped to what the LCOV inputs can actually instrument (vitest's
+  // coverage.include is src/**/*.{ts,tsx} + scripts/lib/**/*.mjs; bun's
+  // coverage only sees modules src/server tests load). A changed file outside
+  // this scope — e.g. a scripts/required/*.mjs build script — would never
+  // appear in either LCOV, so the per-file loop below could never count its
+  // changed lines and the 95% gate would silently pass it as untested.
+  const diff = execFileSync("git", ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "src", "scripts/lib"], { encoding: "utf8" });
   const result = new Map();
   let file = null;
   for (const line of diff.split(/\r?\n/)) {
