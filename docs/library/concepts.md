@@ -5,8 +5,20 @@ NOT follow the tree. Mission + method: `docs/features/atlas-library/CONCEPT-MINI
 Built at atlas `db87434`. Counts are exact when censused (scripted over docs.json /
 relations.json / MCP), "≈" when sampled.
 
-Legend per group: **Def** (membership criterion) · **Sig** (detection signature —
-mechanically re-findable) · **Members/spread** · **Rel** (nesting/overlap).
+Each concept group carries four fields:
+
+- **Definition** — the membership rule: what makes a document belong to this group.
+
+- **Detection signature** — how the group was found and can be mechanically
+  re-found (title pattern, doc type, edge type, content pattern, or curated
+  list) — this is what keeps every group regenerable and falsifiable.
+
+- **Members / Spread** — who is in the group (counts, exemplars with pointers)
+  and where they live across the tree — the evidence that the concept cuts
+  across the Atlas rather than sitting in one branch.
+
+- **Relationships** — how the group connects to other groups: nests inside,
+  contains, instantiates, overlaps.
 
 ---
 
@@ -14,121 +26,177 @@ mechanically re-findable) · **Members/spread** · **Rel** (nesting/overlap).
 
 ### A. Meta-concepts (the Atlas describing itself)
 
-**A1. Document Type System** — Def: the Atlas's own vocabulary of 30 document types.
-Sig: `type: Type Specification`, all under `f65c083f` /A.1.2.2 (registry doc
-`A.1.2.2.2 List Of Document Types And Their Specifications`). Members: 30, all in A.1.
-Rel: contains every overlay concept below; **discovery: several spec'd types have no
-instances in the corpus** — Budget Controller/Directory/Document, Translation, Archive,
-Original Context Data, Facilitator Action Precedent — spec'd-but-unused concepts
-(candidate staleness or future machinery).
+**A1. Document Type System**
 
-**A2. Definitions of Terms** — Def: canonical term definitions collected in
-Definitions sections. Sig: glossary extraction (direct [Core] children of
-`Definitions` sections) → `public/glossary.json`. Members: 81 terms from 3 sites:
-A.0 (56), A.1 (16), A.3 (9). Rel: terms are used corpus-wide; definition sites are
-NOT where the concepts operate (e.g. "Distribution Reward" defined in A.0, operates
-in A.2/A.4/A.6).
+- **Definition** — the Atlas's own vocabulary of 30 document types.
 
-**A3. Interpretations** — Def: recorded rulings on the Spirit of the Atlas. Sig:
-subtree of `55626fc2` /A.1.1.3 List Of Interpretations (+ its Active Data list).
-Rel: registry pattern (H1); normative meta-layer.
+- **Detection signature** — `type: Type Specification`, all under `f65c083f` /A.1.2.2 (registry doc `A.1.2.2.2 List Of Document Types And Their Specifications`).
 
-**A4. Needed Research** — Def: open questions the Atlas assigns itself. Sig:
-`type: Needed Research`, `NR-X` doc_nos. Members: 12. **Discovery: NR numbering has
-gaps** (present: 1,2,3,4,5,7,8,9,10,12,17,18 — missing 6,11,13–16): items were
-resolved/removed; history could recover them. Rel: two NRs share a title
-("Systematic Basis Of Adjudication, Fact-Finding And Evidence" — NR-1, NR-8),
-linking to the Adjudication concept (D-group).
+- **Members** — 30, all in A.1.
 
-**A5. Annotations** — Def: commentary attached to elements. Sig: `type: Annotation`
-(structural suffix `.0.3.X`), `annotates` edges (101). Spread: A.1 (47), A.2 (10),
-A.3 (8), A.0 (2), artifacts (1) — concentrated on the Governance Scope.
+- **Relationships** — contains every overlay concept below; **discovery: several spec'd types have no instances in the corpus** — Budget Controller/Directory/Document, Translation, Archive, Original Context Data, Facilitator Action Precedent — spec'd-but-unused concepts (candidate staleness or future machinery).
 
-**A6. Action Tenets & Precedents** — Def: behavioral directives for Facilitators.
-Sig: `type: Action Tenet` (`.0.4.X`). Members: 30 — only in A.0 (2) + A.1 (28).
-Rel: the paired "Facilitator Action Precedent" type is spec'd but unpopulated (A1).
+**A2. Definitions of Terms**
 
-**A7. Scenarios** — Def: worked governance examples w/ variations. Sig: `type:
-Scenario`/`Scenario Variation` (`.1.X`, `.varX`). Members: 6+3, all in A.1.
+- **Definition** — canonical term definitions collected in Definitions sections.
+
+- **Detection signature** — glossary extraction (direct [Core] children of `Definitions` sections) → `public/glossary.json`.
+
+- **Members** — 81 terms from 3 sites: A.0 (56), A.1 (16), A.3 (9).
+
+- **Relationships** — terms are used corpus-wide; definition sites are NOT where the concepts operate (e.g. "Distribution Reward" defined in A.0, operates in A.2/A.4/A.6).
+
+**A3. Interpretations**
+
+- **Definition** — recorded rulings on the Spirit of the Atlas.
+
+- **Detection signature** — subtree of `55626fc2` /A.1.1.3 List Of Interpretations (+ its Active Data list).
+
+- **Relationships** — registry pattern (H1); normative meta-layer.
+
+**A4. Needed Research**
+
+- **Definition** — open questions the Atlas assigns itself.
+
+- **Detection signature** — `type: Needed Research`, `NR-X` doc_nos.
+
+- **Members** — 12. **Discovery: NR numbering has gaps** (present: 1,2,3,4,5,7,8,9,10,12,17,18 — missing 6,11,13–16): items were resolved/removed; history could recover them.
+
+- **Relationships** — two NRs share a title ("Systematic Basis Of Adjudication, Fact-Finding And Evidence" — NR-1, NR-8), linking to the Adjudication concept (D-group).
+
+**A5. Annotations**
+
+- **Definition** — commentary attached to elements.
+
+- **Detection signature** — `type: Annotation` (structural suffix `.0.3.X`), `annotates` edges (101).
+
+- **Spread** — A.1 (47), A.2 (10), A.3 (8), A.0 (2), artifacts (1) — concentrated on the Governance Scope.
+
+**A6. Action Tenets & Precedents**
+
+- **Definition** — behavioral directives for Facilitators.
+
+- **Detection signature** — `type: Action Tenet` (`.0.4.X`).
+
+- **Members** — 30 — only in A.0 (2) + A.1 (28).
+
+- **Relationships** — the paired "Facilitator Action Precedent" type is spec'd but unpopulated (A1).
+
+**A7. Scenarios**
+
+- **Definition** — worked governance examples w/ variations.
+
+- **Detection signature** — `type: Scenario`/`Scenario Variation` (`.1.X`, `.varX`).
+
+- **Members** — 6+3, all in A.1.
 
 ### B. Lifecycle concepts (the primitive machine)
 
-**B1. Primitive** (class) — Def: reusable capability spec with hub/instances/
-invocations lifecycle. Sig: entity_type `primitive` (15 subtypes × 8 agents = 120
-entities); spec library at `fcde2604` /A.2.2. Rel: contains B2–B6; instantiated
-per-agent in artifacts.
+**B1. Primitive** (class)
 
-**B2. Primitive Hub Document** — Def: per-primitive per-agent status+directory root.
-Sig: title template ("Primitive Hub Document" ×136, "Global Activation Status" ×140,
-"Hub Data Repository" ×136). Rel: contains B3 directories.
+- **Definition** — reusable capability spec with hub/instances/ invocations lifecycle.
 
-**B3. Instance Directories & Status Buckets** — Def: the Active/Completed/
-In-Progress/Suspended/Failed/Archived containers. Sig: title templates (×130–144
-each). Rel: the empty ones are the validated staleness signal (8–12 of 17
-active-instance dirs per prime are empty scaffolding).
+- **Detection signature** — entity_type `primitive` (15 subtypes × 8 agents = 120 entities); spec library at `fcde2604` /A.2.2.
 
-**B4. Instance Configuration Document (ICD)** — Def: THE operational subchunk — an
-instance's parameters + process + data. Sig: title "Single Instance Configuration
-Document" (×48) or named variants ("Amatsu Instance Configuration Document");
-`instance_of` edges (196 instances: 114 allocation-system, 13 distribution-reward,
-9 integration-boost, 8×8 per-prime singletons, 3 pioneer-chain, 1 core-governance).
-Rel: contains Parameters (E1), Operational Process Definition (C1), Data Repository
-(B6).
+- **Relationships** — contains B2–B6; instantiated per-agent in artifacts.
 
-**B5. Invocations** — Def: in-flight runs of an instance. Sig: `invoked_by` (201) /
-`invocation_of` (5) edges; "In Progress Invocations" dirs. Members: 5 tracked
-invocation entities (4 distribution-reward, 1 integration-boost).
+**B2. Primitive Hub Document**
 
-**B6. Data Repository triad** — Def: per-instance record-keeping: Initial Planning →
-Operational GovOps Review → Artifact Edit Proposal. Sig: exact title triple (×83
-each). **Discovery: 83 "Artifact Edit Proposal" docs are per-instance edit-history
-stubs living INSIDE artifacts** — a distributed change-log, distinct from the Root
-Edit pipeline (agents' D-group covers the distinction).
+- **Definition** — per-primitive per-agent status+directory root.
 
-**B7. Omni Documents** — Def: each agent's idiosyncratic non-primitive content —
-the ANTI-template (everything the primitive machine doesn't standardize). Sig:
-title "Omni Documents" (8 roots, one per prime, `<prime>.3`). Spark's exemplars:
-Governance Information (forums/Discord/delegation/risk council/emergency),
-Inherited Sky Core infrastructure, Ecosystem Accord references, SubProxy
-management, Savings configuration, Strategic Investments, Arkis Infrastructure,
-Offchain Collateralized Lending, Risk Curation Framework, **"Confidential
-Strategic Integrations and Deployments"** (a declared opacity zone — analyst
-flag). Weight: Spark 428 docs vs Keel 8 — Omni size tracks business complexity,
-not template. Rel: where F1 role wiring + D6 delegation + C5 emergency get
-agent-specific overrides; SRC Membership Registry lives here (H1).
+- **Detection signature** — title template ("Primitive Hub Document" ×136, "Global Activation Status" ×140, "Hub Data Repository" ×136).
+
+- **Relationships** — contains B3 directories.
+
+**B3. Instance Directories & Status Buckets**
+
+- **Definition** — the Active/Completed/ In-Progress/Suspended/Failed/Archived containers.
+
+- **Detection signature** — title templates (×130–144 each).
+
+- **Relationships** — the empty ones are the validated staleness signal (8–12 of 17 active-instance dirs per prime are empty scaffolding).
+
+**B4. Instance Configuration Document (ICD)**
+
+- **Definition** — THE operational subchunk — an instance's parameters + process + data.
+
+- **Detection signature** — title "Single Instance Configuration Document" (×48) or named variants ("Amatsu Instance Configuration Document"); `instance_of` edges (196 instances: 114 allocation-system, 13 distribution-reward, 9 integration-boost, 8×8 per-prime singletons, 3 pioneer-chain, 1 core-governance).
+
+- **Relationships** — contains Parameters (E1), Operational Process Definition (C1), Data Repository (B6).
+
+**B5. Invocations**
+
+- **Definition** — in-flight runs of an instance.
+
+- **Detection signature** — `invoked_by` (201) / `invocation_of` (5) edges; "In Progress Invocations" dirs.
+
+- **Members** — 5 tracked invocation entities (4 distribution-reward, 1 integration-boost).
+
+**B6. Data Repository triad**
+
+- **Definition** — per-instance record-keeping: Initial Planning → Operational GovOps Review → Artifact Edit Proposal.
+
+- **Detection signature** — exact title triple (×83 each). **Discovery: 83 "Artifact Edit Proposal" docs are per-instance edit-history stubs living INSIDE artifacts** — a distributed change-log, distinct from the Root Edit pipeline (agents' D-group covers the distinction).
+
+**B7. Omni Documents**
+
+- **Definition** — each agent's idiosyncratic non-primitive content — the ANTI-template (everything the primitive machine doesn't standardize).
+
+- **Detection signature** — title "Omni Documents" (8 roots, one per prime, `<prime>.3`). Spark's exemplars: Governance Information (forums/Discord/delegation/risk council/emergency), Inherited Sky Core infrastructure, Ecosystem Accord references, SubProxy management, Savings configuration, Strategic Investments, Arkis Infrastructure, Offchain Collateralized Lending, Risk Curation Framework, **"Confidential Strategic Integrations and Deployments"** (a declared opacity zone — analyst flag). Weight: Spark 428 docs vs Keel 8 — Omni size tracks business complexity, not template.
+
+- **Relationships** — where F1 role wiring + D6 delegation + C5 emergency get agent-specific overrides; SRC Membership Registry lives here (H1).
 
 ### C. Procedural concepts
 
-**C1. Operational Process Definitions** — Def: an instance's step-by-step operating
-procedure. Sig: title (×96) + child protocol triple. Spread: all 8 primes (17/11/15/
-24/7/7/8/7 across primes 1–8). Rel: contains C2.
+**C1. Operational Process Definitions**
 
-**C2. Routine / Non-Routine / Emergency Protocol triple** — Def: the three-tier
-response taxonomy every process carries. Sig: exact titles (×60 each). Rel: the
-Emergency tier links to the Emergency Response System (C5).
+- **Definition** — an instance's step-by-step operating procedure.
 
-**C3. Curated Process Inventory** — Def: human-validated list of every step-by-step
-procedure. Sig: `public/processes.json` (132 processes, 8 categories: Settlement &
-Financial 45, Dispute & Emergency 20, Agent & Primitive Lifecycle 16, Collateral &
-Asset Mgmt 16, Personnel & Delegation 13, Executive & Spell 12, Governance & Voting
-Cycles 5, Artifact & Atlas Governance 5). Rel: the category system is itself a
-validated concept taxonomy; members overlap C1/C2 and D-group instruments.
+- **Detection signature** — title (×96) + child protocol triple.
 
-**C4. Governance Cycles** — Def: recurring cadences. Sig: articles `83edd4e1`
-/A.1.11 (weekly: operational + atlas-edit tracks), `7f2ba62c` /A.1.12 (monthly +
-calendar exceptions), `6f8d5065` /A.2.4 (monthly settlement). Rel: cycles SCHEDULE
-instruments (votes, edits, settlements) defined elsewhere — pure cross-linkers.
+- **Spread** — all 8 primes (17/11/15/ 24/7/7/8/7 across primes 1–8).
 
-**C5. Emergency machinery** — Def: detection→signal→response pipeline. Sig:
-`emergency_response` edges (16); subtree `1d940c6d` /A.1.9; "Emergency Spells"
-`b8266c11` /A.1.10.5; Emergency Protocol tier (C2). Cross-link hub: `A.1.9.1.3.1
-Emergency Response Signal Group` (13 cites) + `A.1.9.1.1 Definition Of Emergency
-Situations` (10 cites). Spread: A.1 core + every instance's emergency protocol.
+- **Relationships** — contains C2.
 
-**C6. Numbered step procedures (raw)** — Def: docs whose content is a literal
-numbered sequence. Sig: content regex (`1.` then `2.` lines) → 44 docs. Rel: subset
-feeds C3; exemplars outside processes.json are candidates for its next triage
-(e.g. `A.1.6.4.4.1 AD Monthly Compensation Cycle`).
+**C2. Routine / Non-Routine / Emergency Protocol triple**
+
+- **Definition** — the three-tier response taxonomy every process carries.
+
+- **Detection signature** — exact titles (×60 each).
+
+- **Relationships** — the Emergency tier links to the Emergency Response System (C5).
+
+**C3. Curated Process Inventory**
+
+- **Definition** — human-validated list of every step-by-step procedure.
+
+- **Detection signature** — `public/processes.json` (132 processes, 8 categories: Settlement & Financial 45, Dispute & Emergency 20, Agent & Primitive Lifecycle 16, Collateral & Asset Mgmt 16, Personnel & Delegation 13, Executive & Spell 12, Governance & Voting Cycles 5, Artifact & Atlas Governance 5).
+
+- **Relationships** — the category system is itself a validated concept taxonomy; members overlap C1/C2 and D-group instruments.
+
+**C4. Governance Cycles**
+
+- **Definition** — recurring cadences.
+
+- **Detection signature** — articles `83edd4e1` /A.1.11 (weekly: operational + atlas-edit tracks), `7f2ba62c` /A.1.12 (monthly + calendar exceptions), `6f8d5065` /A.2.4 (monthly settlement).
+
+- **Relationships** — cycles SCHEDULE instruments (votes, edits, settlements) defined elsewhere — pure cross-linkers.
+
+**C5. Emergency machinery**
+
+- **Definition** — detection→signal→response pipeline.
+
+- **Detection signature** — `emergency_response` edges (16); subtree `1d940c6d` /A.1.9; "Emergency Spells" `b8266c11` /A.1.10.5; Emergency Protocol tier (C2). Cross-link hub: `A.1.9.1.3.1 Emergency Response Signal Group` (13 cites) + `A.1.9.1.1 Definition Of Emergency Situations` (10 cites).
+
+- **Spread** — A.1 core + every instance's emergency protocol.
+
+**C6. Numbered step procedures (raw)**
+
+- **Definition** — docs whose content is a literal numbered sequence.
+
+- **Detection signature** — content regex (`1.` then `2.` lines) → 44 docs.
+
+- **Relationships** — subset feeds C3; exemplars outside processes.json are candidates for its next triage (e.g. `A.1.6.4.4.1 AD Monthly Compensation Cycle`).
 
 ### D. Normative & instrument concepts
 
@@ -148,9 +216,12 @@ language. Exemplars: Kickbacks Prohibited `45e794a0` /A.1.6.5, counterparty
 engagement ban /A.1.7.8. Distinctions: blanket vs conditional; permanent vs
 status-scoped; self-executing vs adjudicated.
 
-**Dn3. Suspension/deactivation state rules** — reversible capability removal.
-Sig: Global Activation Status docs (×140) + has_status edges (136) + suspension
-docs per actor type. Distinct from Dn4 (permanent).
+**Dn3. Suspension/deactivation state rules**
+
+- **Definition** — reversible capability removal. Distinct from Dn4 (permanent).
+
+- **Detection signature** — Global Activation Status docs (×140) + has_status
+  edges (136) + suspension docs per actor type.
 
 **Dn4. Derecognition machinery** — permanent removal: the "Swift Action…" title
 family (parallel docs for ACs /A.1.5.8 and ADs /A.1.6.6), AC Derecognition
@@ -174,15 +245,22 @@ resolved against the AC"), evidence rules; NR-1/NR-8 both titled "Systematic
 Basis Of Adjudication, Fact-Finding And Evidence" — the Atlas knows this layer is
 underspecified.
 
-**Dn8. Alignment/eligibility framework** — Universal Alignment requirements
-(A.1.5.3), one-role-at-a-time rule (A.1.5.5), conflict-of-interest disclosure
-(delegate onboarding), misalignment definitions. Rel: triggers Dn4 via Dn7.
+**Dn8. Alignment/eligibility framework**
 
-**Dn9. Edit restrictions & governance gating** — who may modify what: Artifact
-Edit Restrictions (per root-edit pipeline, incl. "Time-Limited Root Edit
-Restrictions On Removal Of Nested Contributors"), ADC modification rules (the 64
-Active Data Controllers each gate their AD doc), immutability clauses ⚠ (density
-unverified). Rel: G2 stewardship is the mechanism; this is the norm.
+- **Definition** — Universal Alignment requirements (A.1.5.3),
+  one-role-at-a-time rule (A.1.5.5), conflict-of-interest disclosure (delegate
+  onboarding), misalignment definitions.
+
+- **Relationships** — triggers Dn4 via Dn7.
+
+**Dn9. Edit restrictions & governance gating**
+
+- **Definition** — who may modify what: Artifact Edit Restrictions (per
+  root-edit pipeline, incl. "Time-Limited Root Edit Restrictions On Removal Of
+  Nested Contributors"), ADC modification rules (the 64 Active Data Controllers
+  each gate their AD doc), immutability clauses ⚠ (density unverified).
+
+- **Relationships** — G2 stewardship is the mechanism; this is the norm.
 
 **Dn-hub note**: normative concepts chain: eligibility (Dn8) → duties (Dn1) +
 standards (Dn6) → breach (Dn2 violations) → adjudication (Dn7) → suspension
@@ -190,22 +268,21 @@ standards (Dn6) → breach (Dn2 violations) → adjudication (Dn7) → suspensio
 pipeline IS the Atlas's justice system — nowhere presented as one system in the
 tree, fully reconstructable from the concept layer.
 
-**D1. Ecosystem Accords** — Def: bilateral/multi-party agreements between Sky Core
-and ecosystem parties, Atlas-recorded and governance-enforceable. Sig: title
-"Ecosystem Accord N: X And Y" under `be46648d` /A.2.8.2; `ecosystem_accord` edges
-(20). Members (all 10): 1 Grove&Spark `9ca40096`, 2 Prime Program (Spark/Moonbow/
-Sky) `aa3b8e65`, 3 Keel `63a88b08`, 4 Obex `6bddc5aa`, 5 Core Council Executor
-Agent 1 `3aa58bdc`, 6 Osero `45125ff8`, 7 Skybase `8a74919c`, 8 Amatsu `9d187ae2`,
-9 Ozone `cb3c159b`, 10 Grove `0cb00b28` (each: Key Details + Substantive Terms).
-Rel: governed by Dispute Resolution (D8); parties are composite_party entities;
-Accord 10 carries the Compensation Formula (E3).
+**D1. Ecosystem Accords**
 
-**D2. Executor Accords** — Def: Prime↔Executor operational-insurance agreements —
-a PRIMITIVE, not a document-accord. Sig: primitive/instance subtype
-`executor-accord` (8+8); spec `88017877` /A.2.2.6.1. Rel: mutual-exclusion rule
-with Root Edit (both cannot be deactivated — A.2.2.1.2.4.2.1). Distinction vs D1:
-D1 binds parties bilaterally; D2 codifies an operational relationship inside the
-primitive machine.
+- **Definition** — bilateral/multi-party agreements between Sky Core and ecosystem parties, Atlas-recorded and governance-enforceable.
+
+- **Detection signature** — title "Ecosystem Accord N: X And Y" under `be46648d` /A.2.8.2; `ecosystem_accord` edges (20). Members (all 10): 1 Grove&Spark `9ca40096`, 2 Prime Program (Spark/Moonbow/ Sky) `aa3b8e65`, 3 Keel `63a88b08`, 4 Obex `6bddc5aa`, 5 Core Council Executor Agent 1 `3aa58bdc`, 6 Osero `45125ff8`, 7 Skybase `8a74919c`, 8 Amatsu `9d187ae2`, 9 Ozone `cb3c159b`, 10 Grove `0cb00b28` (each: Key Details + Substantive Terms).
+
+- **Relationships** — governed by Dispute Resolution (D8); parties are composite_party entities; Accord 10 carries the Compensation Formula (E3).
+
+**D2. Executor Accords**
+
+- **Definition** — Prime↔Executor operational-insurance agreements — a PRIMITIVE, not a document-accord.
+
+- **Detection signature** — primitive/instance subtype `executor-accord` (8+8); spec `88017877` /A.2.2.6.1.
+
+- **Relationships** — mutual-exclusion rule with Root Edit (both cannot be deactivated — A.2.2.1.2.4.2.1). Distinction vs D1: D1 binds parties bilaterally; D2 codifies an operational relationship inside the primitive machine.
 
 **D3. The edit-instrument triad** — three same-sounding but distinct concepts:
 - **Root Edit** (governance primitive): agent self-modification via token-holder
@@ -219,45 +296,43 @@ primitive machine.
   mandatory template (A.1.12.2.3), Ratification Poll (2 weeks, 240M SKY minimum,
   binary — A.1.12.2.6); blocked AEPs cannot resubmit unchanged.
 
-**D4. Voting machinery** — Def: the consensus layer. Sig: Weekly Poll (A.1.11.1.2.1)
-→ Executive Vote (A.1.11.1.2.2) → spell execution; Ratification Polls (D3);
-agent-token votes (>1% holding threshold for Root Edit submission);
-governance_channel edges (10). Rel: cycles (C4) schedule it; spells (D5) execute it.
+**D4. Voting machinery**
 
-**D5. Spell machinery** — Def: executable governance actions. Sig: A.1.10.2
-executive process subtree; Emergency Spells `b8266c11` /A.1.10.5 (Standby Spells,
-Emergency Drop Spells + Protego authorization); Spell Validators = Aligned
-Delegates (validator_of edges, 27); Registered Spell Checklists registry (13
-cites); StarGuard per-agent execution contracts (22 docs); Prime Spell Security
-Incidents log (Active Data). Rel: emergency tier links C5; misvalidated emergency
-votes are AD breaches (→ normative layer).
+- **Definition** — the consensus layer.
 
-**D6. Delegation framework** — Def: voting-power intermediation. Sig: aligned/
-ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned
-Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate
-contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms +
-conflict-of-interest disclosure ⚠. Triggering rule (corrected 2026-07-22): a
-Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in
-their AD Buffer at trigger time — and "It is inconsequential if, after
-triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank"
-(Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted
-this into a rank-loss penalty — agent-derived error caught by source audit).
+- **Detection signature** — Weekly Poll (A.1.11.1.2.1) → Executive Vote (A.1.11.1.2.2) → spell execution; Ratification Polls (D3); agent-token votes (>1% holding threshold for Root Edit submission); governance_channel edges (10).
 
-**D7. Safe Harbor Agreement** — Def: the one ON-CHAIN agreement instrument:
-contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` + IPFS-pinned terms; fact
-page A.2.11.1.2.6. Distinction: immutable code vs governance-enforceable prose
-(D1).
+- **Relationships** — cycles (C4) schedule it; spells (D5) execute it.
 
-**D8. Dispute Resolution** — Def: formal disagreement service for accords &
-terminations. Sig: `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded
-in Active Data "Dispute Resolutions"); conflict-resolution precedence rules
-`e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count: exactly
-1 recorded so far (Grove/Spark facilitator decision, 2025-09-02) — a young system.
+**D5. Spell machinery**
 
-**D9. Agent Termination Protocol** — Def: structured agent wind-down. Sig:
-`fe833d0e` /A.1.14.5 (initiate via Root Edit vote → Executor executes → forum
-notice + residual assets → dispute path). Distinct from emergency suspension
-(Sky Core discretionary power, A.1.14.1.5.4).
+- **Definition** — executable governance actions.
+
+- **Detection signature** — A.1.10.2 executive process subtree; Emergency Spells `b8266c11` /A.1.10.5 (Standby Spells, Emergency Drop Spells + Protego authorization); Spell Validators = Aligned Delegates (validator_of edges, 27); Registered Spell Checklists registry (13 cites); StarGuard per-agent execution contracts (22 docs); Prime Spell Security Incidents log (Active Data).
+
+- **Relationships** — emergency tier links C5; misvalidated emergency votes are AD breaches (→ normative layer).
+
+**D6. Delegation framework**
+
+- **Definition** — voting-power intermediation.
+
+- **Detection signature** — aligned/ ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms + conflict-of-interest disclosure ⚠. Triggering rule (corrected 2026-07-22): a Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in their AD Buffer at trigger time — and "It is inconsequential if, after triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank" (Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted this into a rank-loss penalty — agent-derived error caught by source audit).
+
+**D7. Safe Harbor Agreement**
+
+- **Definition** — the one ON-CHAIN agreement instrument: contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` + IPFS-pinned terms; fact page A.2.11.1.2.6. Distinction: immutable code vs governance-enforceable prose (D1).
+
+**D8. Dispute Resolution**
+
+- **Definition** — formal disagreement service for accords & terminations.
+
+- **Detection signature** — `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded in Active Data "Dispute Resolutions"); conflict-resolution precedence rules `e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count: exactly 1 recorded so far (Grove/Spark facilitator decision, 2025-09-02) — a young system.
+
+**D9. Agent Termination Protocol**
+
+- **Definition** — structured agent wind-down.
+
+- **Detection signature** — `fe833d0e` /A.1.14.5 (initiate via Root Edit vote → Executor executes → forum notice + residual assets → dispute path). Distinct from emergency suspension (Sky Core discretionary power, A.1.14.1.5.4).
 
 **D10. Transitional governance family** — three nested layers:
 - **Short-Term Transitionary Measures** (20 docs titled "…Transitionary
@@ -270,15 +345,21 @@ notice + residual assets → dispute path). Distinct from emergency suspension
   parameter hub, 18+14 cites).
 All three are EXPIRY-implying — prime staleness-signal candidates.
 
-**D11. Incubation frameworks** — Def: onboarding pipelines. Sig: Agent Incubation
-`bb0c23c6` /A.2.5, Ecosystem Actor Incubation `b09e86b1` /A.2.6, Integrator
-onboarding A.2.2.4.1.3 + Current/Onboarding Integrator registries (H1), module
-onboarding checklists A.1.10.2.5.1.1.1.3, delegate onboarding (D6). Rel: feeds F1
-actor roles; terminal state = Global Activation (B2).
+**D11. Incubation frameworks**
 
-**D12. Pending transitions** — Def: tracked state-machine progressions. Sig:
-pending_transition edges (9, DB graph); Global Activation sequencing
-A.2.2.1.2.4.1. Rel: lifecycle II.3 glue; overlaps D10 (expiry tracking).
+- **Definition** — onboarding pipelines.
+
+- **Detection signature** — Agent Incubation `bb0c23c6` /A.2.5, Ecosystem Actor Incubation `b09e86b1` /A.2.6, Integrator onboarding A.2.2.4.1.3 + Current/Onboarding Integrator registries (H1), module onboarding checklists A.1.10.2.5.1.1.1.3, delegate onboarding (D6).
+
+- **Relationships** — feeds F1 actor roles; terminal state = Global Activation (B2).
+
+**D12. Pending transitions**
+
+- **Definition** — tracked state-machine progressions.
+
+- **Detection signature** — pending_transition edges (9, DB graph); Global Activation sequencing A.2.2.1.2.4.1.
+
+- **Relationships** — lifecycle II.3 glue; overlaps D10 (expiry tracking).
 
 **D0. Locally-established seeds** (agents refine):
 - **Prohibitions** — content signature (prohibit/forbidden/not permitted/may not):
@@ -293,37 +374,47 @@ A.2.2.1.2.4.1. Rel: lifecycle II.3 glue; overlaps D10 (expiry tracking).
 
 ### E. Quantitative concepts
 
-**E1. Parameter Sets** — Def: named tunable values grouped per instance/mechanism.
-Sig: title "Parameters" (×210), "Custom Instance Parameters" (×68), "Off-chain
-Operational Parameters" (×118), "Instance-specific Operational Parameters" (×20);
-Core Stability Parameters `86c75c9c` /A.3.1.2. Spread: overwhelmingly inside ICDs.
+**E1. Parameter Sets**
 
-**E2. Rate Limit family** — Def: flow-control constraints on allocation systems.
-Sig: titles "Rate Limits" (×129), Inflow (×54)/Outflow (×52)/Withdrawal (×43)/
-Deposit (×41) + "Rate Limit IDs" (×104), "Inflow/Outflow RateLimitID" (×38 each).
-Spread: Spark (59) + Grove (51) dominate; A.4 (3). Rel: nested in ICDs (B4);
-normative constraints (D) expressed as numbers (E).
+- **Definition** — named tunable values grouped per instance/mechanism.
 
-**E3. Formulas** — Def: mathematical definitions (LaTeX/inline math). Sig: content
-regex (\frac, \sum, \times, \text{}) → 120 docs; **54 of them concentrate in
-`55999acf` /A.3.2 Risk Capital** (probability-of-default model chain: Distance To
-Default, Leverage Adjusted Drift To Risk Ratio…), remainder: A.4.4 staking (3),
-A.2.8 accord compensation (2, e.g. `A.2.8.2.10.2.1.2 Compensation Formula`), spell
-validation math (A.1.10.2). Rel: formulas parameterized by E1 values.
+- **Detection signature** — title "Parameters" (×210), "Custom Instance Parameters" (×68), "Off-chain Operational Parameters" (×118), "Instance-specific Operational Parameters" (×20); Core Stability Parameters `86c75c9c` /A.3.1.2.
 
-**E4. On-chain object descriptors** — Def: address-bearing docs binding concepts to
-chain state. Sig: "Contract Addresses" (×125), "Token Address" (×106), "Underlying
-Asset Address" (×101), "Address" (×26); `has_address` edges (261 in relations, 278
-in DB); addresses.atlas.json annotation layer. Rel: bridges to the entity layer
-(F) and RedLens address artifacts.
+- **Spread** — overwhelmingly inside ICDs.
 
-**E5. RRC Framework coverage** — Def: per-allocation-instance risk-model coverage
-status ("Covered"/"Pending") on the RRC Dashboard (expansion of "RRC" is not
-defined in-corpus — candidates: Risk & Regulatory Compliance / Relayer Role
-Configuration; flagged as an open question). Sig:
-title "RRC Framework Full Implementation" (×61: Spark 53, Grove 8) + "…Coverage"
-(×53); interim notice `A.2.2.10.1.1.3.2.1.1.2`. Rel: a STATUS overlay on B4
-instances — a validated staleness/coverage signal candidate.
+**E2. Rate Limit family**
+
+- **Definition** — flow-control constraints on allocation systems.
+
+- **Detection signature** — titles "Rate Limits" (×129), Inflow (×54)/Outflow (×52)/Withdrawal (×43)/ Deposit (×41) + "Rate Limit IDs" (×104), "Inflow/Outflow RateLimitID" (×38 each).
+
+- **Spread** — Spark (59) + Grove (51) dominate; A.4 (3).
+
+- **Relationships** — nested in ICDs (B4); normative constraints (D) expressed as numbers (E).
+
+**E3. Formulas**
+
+- **Definition** — mathematical definitions (LaTeX/inline math).
+
+- **Detection signature** — content regex (\frac, \sum, \times, \text{}) → 120 docs; **54 of them concentrate in `55999acf` /A.3.2 Risk Capital** (probability-of-default model chain: Distance To Default, Leverage Adjusted Drift To Risk Ratio…), remainder: A.4.4 staking (3), A.2.8 accord compensation (2, e.g. `A.2.8.2.10.2.1.2 Compensation Formula`), spell validation math (A.1.10.2).
+
+- **Relationships** — formulas parameterized by E1 values.
+
+**E4. On-chain object descriptors**
+
+- **Definition** — address-bearing docs binding concepts to chain state.
+
+- **Detection signature** — "Contract Addresses" (×125), "Token Address" (×106), "Underlying Asset Address" (×101), "Address" (×26); `has_address` edges (261 in relations, 278 in DB); addresses.atlas.json annotation layer.
+
+- **Relationships** — bridges to the entity layer (F) and RedLens address artifacts.
+
+**E5. RRC Framework coverage**
+
+- **Definition** — per-allocation-instance risk-model coverage status ("Covered"/"Pending") on the RRC Dashboard (expansion of "RRC" is not defined in-corpus — candidates: Risk & Regulatory Compliance / Relayer Role Configuration; flagged as an open question).
+
+- **Detection signature** — title "RRC Framework Full Implementation" (×61: Spark 53, Grove 8) + "…Coverage" (×53); interim notice `A.2.2.10.1.1.3.2.1.1.2`.
+
+- **Relationships** — a STATUS overlay on B4 instances — a validated staleness/coverage signal candidate.
 
 ### E+. Programs & economic machinery (deep-dive merge)
 
@@ -369,15 +460,11 @@ Weekly Cycle. Surplus Buffer /A.3.5.1 is the state variable the waterfall reads.
 Upkeep Rebate (cross-holding incentive: A holding B's tokens claims rebate) —
 an INTER-AGENT cost-sharing mechanism, unlike user-facing rewards (Ep1).
 
-**Ep6. Budgets** — Def: named spending authorities with accrual/contingency
-rules. Sig: title contains "Budget" — 24 docs, censused: tiered Ranked Delegate
-budgets (400k/175k/48k USDS/yr L1/L2/L3), Resilience Fund (5M/yr), Resilience
-Research (≤2M), Bug Bounty rewards budget, Liquidity Bootstrapping transfers
-(2M + 2.4M to Spark), and **three 0-USDS placeholder budgets** (Governance
-Process Support, Communications Infrastructure, Accessibility) — dormant-concept
-signal. Refines A1: the Budget Controller/Directory/Document TYPES are unused,
-but budgeting operates through plain Core docs — spec'd formalism abandoned,
-practice ad hoc. NR-10 ("AD Budget Management") shows the Atlas knows.
+**Ep6. Budgets**
+
+- **Definition** — named spending authorities with accrual/contingency rules.
+
+- **Detection signature** — title contains "Budget" — 24 docs, censused: tiered Ranked Delegate budgets (400k/175k/48k USDS/yr L1/L2/L3), Resilience Fund (5M/yr), Resilience Research (≤2M), Bug Bounty rewards budget, Liquidity Bootstrapping transfers (2M + 2.4M to Spark), and **three 0-USDS placeholder budgets** (Governance Process Support, Communications Infrastructure, Accessibility) — dormant-concept signal. Refines A1: the Budget Controller/Directory/Document TYPES are unused, but budgeting operates through plain Core docs — spec'd formalism abandoned, practice ad hoc. NR-10 ("AD Budget Management") shows the Atlas knows.
 
 **Ep7. Insurance & defense** — Resilience Fund `ccd36a29` /A.2.9.1.1.1
 (technical committee, application→approval→payout from Surplus Buffer);
@@ -400,57 +487,57 @@ maturity trust.
 
 ### F. Relational/social concepts (the entity layer)
 
-**F1. Actor role system** — Def: who may act in what capacity. Sig: entity types
-(11 agents, 3 facilitator_orgs, 2 govops_orgs, 13 delegate_orgs, 9 foundations,
-6 dev companies, 10 composite parties, ~60 ecosystem actors incl. 7 bridge
-validators, 3 src_members) + role edges (prime_agent_for, *_facilitator_for,
-*_govops_for, aligned/ranked_delegate_for, erg_member_for, authorized_rep_for,
-holds_role_for, validator_of). Rel: rulebooks for each role live in A.1 (actor
-rulebook chunks); operational assignments live in artifacts.
+**F1. Actor role system**
 
-**F2. Multisig governance** — Def: the signer network. Sig: 31 multisig entities;
-edges signer_of (56), can_modify_signers_of (27); titles "Signers" (×21), "Required
-Number Of Signers" (×20), "Modification" (×25); registry `A.2.11.1.3.4.2 List Of
-Registered Multisigs`. Named family: SkyLink Freezer Multisigs per chain (Ethereum/
-Solana/Avalanche/Plasma — each with a doc in A.1 AND A.4: cross-scope duplication).
-**Relayer Role** (×33 docs + 125 mentions): ALM multisig role within allocation
-instances, chain-suffixed (Mainnet/Base/Arbitrum…).
+- **Definition** — who may act in what capacity.
 
-**F3. Funds-flow concepts** — Def: who pays whom. Sig: funds_transfer (23),
-funds_authorization (5), funds_data_gap (1) edges; payment-list registries (H1).
-Rel: agents' economic-flows findings merge here.
+- **Detection signature** — entity types (11 agents, 3 facilitator_orgs, 2 govops_orgs, 13 delegate_orgs, 9 foundations, 6 dev companies, 10 composite parties, ~60 ecosystem actors incl. 7 bridge validators, 3 src_members) + role edges (prime_agent_for, *_facilitator_for, *_govops_for, aligned/ranked_delegate_for, erg_member_for, authorized_rep_for, holds_role_for, validator_of).
+
+- **Relationships** — rulebooks for each role live in A.1 (actor rulebook chunks); operational assignments live in artifacts.
+
+**F2. Multisig governance**
+
+- **Definition** — the signer network.
+
+- **Detection signature** — 31 multisig entities; edges signer_of (56), can_modify_signers_of (27); titles "Signers" (×21), "Required Number Of Signers" (×20), "Modification" (×25); registry `A.2.11.1.3.4.2 List Of Registered Multisigs`. Named family: SkyLink Freezer Multisigs per chain (Ethereum/ Solana/Avalanche/Plasma — each with a doc in A.1 AND A.4: cross-scope duplication). **Relayer Role** (×33 docs + 125 mentions): ALM multisig role within allocation instances, chain-suffixed (Mainnet/Base/Arbitrum…).
+
+**F3. Funds-flow concepts**
+
+- **Definition** — who pays whom.
+
+- **Detection signature** — funds_transfer (23), funds_authorization (5), funds_data_gap (1) edges; payment-list registries (H1).
+
+- **Relationships** — agents' economic-flows findings merge here.
 
 ### G. Duties & responsibilities
 
-**G1. Duty assignments** — Def: obligations extracted per party. Sig: `duty_for`
-edges — 854 in the DB graph (NOT present in relations.json; they live in the
-server-side graph only — detection note for regenerability), plus
-process_step_responsible_party_for (32), responsible_party_for (63/64). Rel: RedLens
-reports (Op Facilitator / GovOps Responsibilities, OEA Assessment) are validated
-curations of this concept.
+**G1. Duty assignments**
 
-**G2. Active Data stewardship** — Def: mutable operational values with a designated
-controller. Sig: `type: Active Data` (76) + `Active Data Controller` (64) +
-active_data_for edges (76); structural suffix `.0.6.X`. Spread: **artifacts hold
-the majority (54 AD + 42 ADC)**; A.2 (13+13), A.1 (7+7), A.3 (2+2). Rel: every
-registry (H1) with live content is an Active Data doc; Updating Active Data
-procedure at `75e8fd51` /A.1.13.
+- **Definition** — obligations extracted per party.
+
+- **Detection signature** — `duty_for` edges — 854 in the DB graph (NOT present in relations.json; they live in the server-side graph only — detection note for regenerability), plus process_step_responsible_party_for (32), responsible_party_for (63/64).
+
+- **Relationships** — RedLens reports (Op Facilitator / GovOps Responsibilities, OEA Assessment) are validated curations of this concept.
+
+**G2. Active Data stewardship**
+
+- **Definition** — mutable operational values with a designated controller.
+
+- **Detection signature** — `type: Active Data` (76) + `Active Data Controller` (64) + active_data_for edges (76); structural suffix `.0.6.X`.
+
+- **Spread** — **artifacts hold the majority (54 AD + 42 ADC)**; A.2 (13+13), A.1 (7+7), A.3 (2+2).
+
+- **Relationships** — every registry (H1) with live content is an Active Data doc; Updating Active Data procedure at `75e8fd51` /A.1.13.
 
 ### H. Registry concepts
 
-**H1. Registries ("List Of …")** — Def: enumerable live collections the Atlas
-maintains. Sig: title prefix "List Of" (46 docs) + listed_in edges (47) + `.0.6.X`
-Active Data suffix on the live variants. Sub-families:
-- Party registries: Recognized Aligned Delegates, Derecognized Alignment Conservers
-  (11 listed_in), AD Breach Registry, Authorized Forum Accounts (15), Active
-  Arrangers, Registered Multisigs, SRC Membership Registry.
-- Program registries: Current/Onboarding Integrators, Integrator Applications,
-  Distribution Reward Payments (×17 lists!), Integration Boost Payments (×9),
-  Allocation Instances, Sky Direct Exposures, Auxiliary Accounts.
-- Governance registries: Interpretations, Registered Spell Checklists, Document
-  Types, Top/Mid-Tier Audit Firms.
-Rel: registries are where concepts MATERIALIZE as data — the payment lists are the
-terminal nodes of the Distribution Rewards concept chain.
+**H1. Registries ("List Of …")**
+
+- **Definition** — enumerable live collections the Atlas maintains.
+
+- **Detection signature** — title prefix "List Of" (46 docs) + listed_in edges (47) + `.0.6.X` Active Data suffix on the live variants. Sub-families: - Party registries: Recognized Aligned Delegates, Derecognized Alignment Conservers (11 listed_in), AD Breach Registry, Authorized Forum Accounts (15), Active Arrangers, Registered Multisigs, SRC Membership Registry. - Program registries: Current/Onboarding Integrators, Integrator Applications, Distribution Reward Payments (×17 lists!), Integration Boost Payments (×9), Allocation Instances, Sky Direct Exposures, Auxiliary Accounts. - Governance registries: Interpretations, Registered Spell Checklists, Document Types, Top/Mid-Tier Audit Firms.
+
+- **Relationships** — registries are where concepts MATERIALIZE as data — the payment lists are the terminal nodes of the Distribution Rewards concept chain.
 
 **H1-liveness census (2026-07-21): 14 of 46 registries are LIVE, 32 are EMPTY
 shells** (no descendants, placeholder content). Empty includes: ALL 17 Distribution

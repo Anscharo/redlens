@@ -222,3 +222,10 @@ rule-characterizations dangerous.
   LibraryMarkdown.tsx (components map + UUID linkification); LibraryConcepts.tsx
   now exports thin LibraryConcepts + LibraryAudit wrappers. Route + tab wired.
   No patch-notes change (same unreleased Library feature).
+
+- **(next commit)** "Concepts formatting: expand Def/Sig/Rel into full labeled fields"
+  User couldn't parse the terse Def/Sig/Rel legend. Script-transformed all 42
+  templated entries (.cache/expand-concepts.mjs, one-shot): each field now its
+  own indented list item with bold full word, blank line between fields; 3
+  non-templated Dn blocks converted by hand; legend expanded into a 4-bullet
+  plain-language explanation. No content changes — formatting only.
