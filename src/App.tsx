@@ -383,6 +383,11 @@ export default function App() {
                 <LibraryPage tab="concepts" />
               </Suspense>
             </Route>
+            <Route path={ROUTES.LIBRARY_AUDIT}>
+              <Suspense fallback={<Loading />}>
+                <LibraryPage tab="audit" />
+              </Suspense>
+            </Route>
             <Route path={ROUTES.LIBRARY_GLOSSARY}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="glossary" />

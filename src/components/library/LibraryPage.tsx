@@ -6,14 +6,15 @@ import { loadLibrary, type LibraryData } from "../../lib/library";
 import { LibraryShape } from "./LibraryShape";
 import { LibraryContents } from "./LibraryContents";
 import { LibraryGlossary } from "./LibraryGlossary";
-import { LibraryConcepts } from "./LibraryConcepts";
+import { LibraryConcepts, LibraryAudit } from "./LibraryConcepts";
 
-export type LibraryTab = "shape" | "contents" | "concepts" | "glossary";
+export type LibraryTab = "shape" | "contents" | "concepts" | "audit" | "glossary";
 
 const TABS: { tab: LibraryTab; label: string; to: string }[] = [
   { tab: "shape", label: "Shape", to: ROUTES.LIBRARY },
   { tab: "contents", label: "Contents", to: ROUTES.LIBRARY_CONTENTS },
   { tab: "concepts", label: "Concepts", to: ROUTES.LIBRARY_CONCEPTS },
+  { tab: "audit", label: "Audit", to: ROUTES.LIBRARY_AUDIT },
   { tab: "glossary", label: "Glossary", to: ROUTES.LIBRARY_GLOSSARY },
 ];
 
@@ -62,6 +63,8 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
           <LibraryGlossary />
         ) : tab === "concepts" ? (
           <LibraryConcepts />
+        ) : tab === "audit" ? (
+          <LibraryAudit />
         ) : error ? (
           <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
             library data failed to load: {error}

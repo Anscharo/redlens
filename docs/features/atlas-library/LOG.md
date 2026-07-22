@@ -215,3 +215,10 @@ Delegate rule was INVERTED by the instruments agent (tenet: rank loss after
 triggering is inconsequential; catalog claimed a rank-loss penalty — fixed
 with visible correction note). Calibration: agent pointers reliable, agent
 rule-characterizations dangerous.
+
+- **(next commit)** "Add Audit tab to /library"
+  User wants the audit plan readable in-app: /library/audit renders
+  CONCEPTS-AUDIT.md. Refactored the ?raw markdown rendering into shared
+  LibraryMarkdown.tsx (components map + UUID linkification); LibraryConcepts.tsx
+  now exports thin LibraryConcepts + LibraryAudit wrappers. Route + tab wired.
+  No patch-notes change (same unreleased Library feature).
