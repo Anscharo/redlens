@@ -236,8 +236,12 @@ votes are AD breaches (→ normative layer).
 ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned
 Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate
 contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms +
-conflict-of-interest disclosure. Notable rule: a Ranked Delegate who triggers a
-weekly proposal loses rank immediately (Action Tenet A.1.11.2.1.3.0.4.1).
+conflict-of-interest disclosure ⚠. Triggering rule (corrected 2026-07-22): a
+Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in
+their AD Buffer at trigger time — and "It is inconsequential if, after
+triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank"
+(Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted
+this into a rank-loss penalty — agent-derived error caught by source audit).
 
 **D7. Safe Harbor Agreement** — Def: the one ON-CHAIN agreement instrument:
 contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` + IPFS-pinned terms; fact
@@ -256,7 +260,8 @@ notice + residual assets → dispute path). Distinct from emergency suspension
 (Sky Core discretionary power, A.1.14.1.5.4).
 
 **D10. Transitional governance family** — three nested layers:
-- **Short-Term Transitionary Measures** (~15+ docs, title-pattern census): interim
+- **Short-Term Transitionary Measures** (20 docs titled "…Transitionary
+  Measure(s)", censused 2026-07-22): interim
   workarounds pending permanent systems (forum-post AEP submission until
   Powerhouse; staking rewards pending treasury; Founder Access suspension…).
 - **Scope Bootstrapping** `ba97b4dd` /A.1.15: meta-authority to waive normal

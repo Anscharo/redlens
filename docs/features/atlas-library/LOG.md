@@ -201,3 +201,17 @@ Landmark discoveries (verified by census unless noted):
   include how the Prime will support the Integrator in including the Reward
   Code in their on-chain infrastructure", and the Prime-as-Integrator path
   (Prime deploys a code on its own frontend; must apply like anyone).
+
+## 2026-07-22 — concepts.md audit plan
+
+User asked for a scrutinize/leave/rewrite triage of the concept catalog.
+Wrote docs/features/atlas-library/CONCEPTS-AUDIT.md: 4-tier evidence rubric
+(T1 censused → T4 agent-unverified), verdicts per section, prioritized check
+worklist, process changes (verify-concepts.mjs, agent-reports-are-leads rule).
+Calibration spot-checks run first: accord UUIDs 10/10 ✅, Safe Harbor address ✅,
+SSR bounds ✅, Solana rate limit ✅ — but TWO failures: transitionary-measures
+count was an uncensused guess ("~15+", actual 20; fixed) and the D6 Ranked
+Delegate rule was INVERTED by the instruments agent (tenet: rank loss after
+triggering is inconsequential; catalog claimed a rank-loss penalty — fixed
+with visible correction note). Calibration: agent pointers reliable, agent
+rule-characterizations dangerous.
