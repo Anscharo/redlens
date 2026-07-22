@@ -34,6 +34,7 @@
 -->
 
 ## 2026-07-22
+- Linked the preview Changed only filter in the URL
 - Added document selection and saved collections: check documents in the reader or in search results, filter the tree to just your selection, save it as a named collection when signed in, and share a collection by link
 - Added a cousin documents section to the annotations panel, linking each Prime Agent document to its equivalent under the other Prime Agents
 - Added an agent pill beside the document in the reader, showing which Prime or Executor Agent it belongs to

@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useUrlState, urlBool } from "../hooks/useUrlState";
+import { useAtlasSubset } from "./atlasSubset";
 import { loadSelection, saveSelection, STORAGE_KEY } from "./selectionStore";
 
 // "Document Selection" state: the set of doc ids a user has picked (for a
 // collection/export flow), plus the "selected only" view toggle and the
 // currently active collection (if any). Persisted to localStorage; the
-// selected-only toggle is URL-synced like other view filters.
+// selected-only toggle is URL-synced as `subset=selected`, matching the
+// preview `subset=changed` filter namespace.
 interface Selection {
   ids: Set<string>;
   /** Toggle a single doc's membership (the per-document checkbox). */
@@ -54,7 +55,9 @@ export function useSelection(): Selection {
 
 export function SelectionProvider({ children }: { children: ReactNode }) {
   const [ids, setIds] = useState<Set<string>>(() => new Set(loadSelection()));
-  const [selectedOnly, setSelectedOnly] = useUrlState("selectedOnly", urlBool(false));
+  const [subset, setSubset] = useAtlasSubset();
+  const selectedOnly = subset === "selected";
+  const setSelectedOnly = useCallback((v: boolean) => setSubset(v ? "selected" : "all"), [setSubset]);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
   const [activeCollectionName, setActiveCollectionName] = useState<string | null>(null);
 

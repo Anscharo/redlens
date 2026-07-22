@@ -36,10 +36,10 @@ export function CollectionsPage() {
     setActiveCollectionId(c.id);
     setActiveCollectionName(c.name);
     track("collection_open", { id: c.id, count: c.ids.length });
-    // Carry the selected-only flag in the destination URL: selectedOnly is
+    // Carry the selected subset in the destination URL: subset=selected is
     // decoded from the current URL by SelectionProvider, so setting it here
     // (still on /collections) would be dropped by the navigation to /atlas.
-    navigate(`${ROUTES.ATLAS}?selectedOnly=1`);
+    navigate(`${ROUTES.ATLAS}?subset=selected`);
   };
 
   const deleteCollection = async (c: Collection) => {
