@@ -177,6 +177,7 @@ jobs:
         run: |
           git worktree add ../redlens-base origin/${{ github.base_ref }}
           cd ../redlens-base
+          git submodule update --init --recursive
           pnpm install --frozen-lockfile
           pnpm build:index && pnpm build:glossary && pnpm build:graph
           pnpm exec vitest run --coverage --config ../redlens/vitest.config.ts
