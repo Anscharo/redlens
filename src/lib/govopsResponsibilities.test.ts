@@ -139,9 +139,29 @@ describe("deriveGovOpsResponsibilities", () => {
     expect(new Set(rebate[0].agents)).toEqual(new Set(["Spark", "Grove"]));
     // Every merged copy stays reachable — the row links all of them.
     expect(rebate[0].sources).toEqual([
-      { docNo: "A.6.1.1.1.2.3", uuid: "duty-op-1", agent: "Spark" },
-      { docNo: "A.6.1.1.2.2.3", uuid: "duty-op-2", agent: "Grove" },
+      {
+        docNo: "A.6.1.1.1.2.3",
+        uuid: "duty-op-1",
+        agent: "Spark",
+        duty: "Operational GovOps reviews Spark’s calculation of the rebate before executing.",
+      },
+      {
+        docNo: "A.6.1.1.2.2.3",
+        uuid: "duty-op-2",
+        agent: "Grove",
+        duty: "Operational GovOps reviews Grove's calculation of the rebate before executing",
+      },
     ]);
+  });
+
+  it("preserves each merged copy's own duty text through CSV expansion, not the representative's", () => {
+    const op = byCat("op-duty");
+    const rebate = op.filter((r) => /reviews rebate/i.test(r.title));
+    const lines = govopsRowsToCSV(rebate).split("\r\n");
+    const sparkRow = lines.find((l) => l.includes('"duty-op-1"'));
+    const groveRow = lines.find((l) => l.includes('"duty-op-2"'));
+    expect(sparkRow).toContain("Spark’s calculation");
+    expect(groveRow).toContain("Grove's calculation");
   });
 
   it("omits sources on rows that merged nothing", () => {

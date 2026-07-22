@@ -123,9 +123,18 @@ export function loadOeaReport(base: string = liveAtlasBase()): Promise<OeaReport
 
 // A collapsed task's `copies` re-expanded to one entry per doc, via the same
 // dutyCollapse.ts skeleton the responsibility reports use — each copy's Agents
-// column narrows to that copy's own agent alone (see expandCopies/expandSources).
+// column narrows to that copy's own agent alone, and its Assessed Text (when
+// unassessed — an existing assessment entry is keyed to the whole collapsed
+// task and applies to every copy alike) narrows to that copy's own text
+// instead of the representative's (see expandCopies/expandSources).
 function expandTaskCopies(task: OeaTask): OeaTask[] {
-  return expandCopies(task, task.copies, (task, c) => ({ ...task, docNo: c.docNo, uuid: c.uuid, agents: c.agent ? [c.agent] : undefined }));
+  return expandCopies(task, task.copies, (task, c) => ({
+    ...task,
+    docNo: c.docNo,
+    uuid: c.uuid,
+    agents: c.agent ? [c.agent] : undefined,
+    assessedText: c.duty ?? task.assessedText,
+  }));
 }
 
 // The row count a CSV export of `rows` will actually produce (post-expansion) —

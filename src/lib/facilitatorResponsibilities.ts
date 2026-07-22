@@ -166,7 +166,7 @@ export function deriveFacilitatorResponsibilities(
       duty,
       category,
       _facs: new Set(facName ? [facName] : []),
-      _sources: newDutySources(n, agent),
+      _sources: newDutySources(n, agent, duty),
     });
   }
   for (const { _facs, _sources, ...row } of dutyByKey.values()) {

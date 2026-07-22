@@ -184,7 +184,7 @@ export function deriveGovOpsResponsibilities(
       duty,
       category,
       govops: entityById.get(e.f)?.name,
-      _sources: newDutySources(n, agent),
+      _sources: newDutySources(n, agent, duty),
     });
   }
   for (const { _sources, ...row } of dutyByKey.values())

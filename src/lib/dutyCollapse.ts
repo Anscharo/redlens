@@ -22,6 +22,14 @@ export interface MergedSource {
   // Operational Facilitators per Prime Agent. Only set by the facilitator
   // report; govops rows never populate this.
   facilitators?: string[];
+  // This SPECIFIC copy's own duty/assessed text — distinct from the row-level
+  // `duty` (the representative copy's text): per-agent replicas collapse on
+  // NORMALIZED content (dutyCollapseKey masks only the owning agent's name and
+  // doc-number citation targets), so the raw text genuinely differs copy to
+  // copy ("reviews Spark's calculation" vs "reviews Grove's calculation",
+  // citations into each agent's own subtree). Expansion must show each doc its
+  // own text, not whichever copy happened to become the representative.
+  duty?: string;
 }
 
 // Per-agent-artifact subtree (A.6.1.1.<agent>.*) — the only place duty docs
@@ -100,12 +108,14 @@ export interface CollapsedDutyRow {
 }
 
 /** The initial sources list for a freshly created duty row. */
-export function newDutySources(n: { doc_no: string; id: string }, agent?: string): MergedSource[] {
-  return [{ docNo: n.doc_no, uuid: n.id, agent }];
+export function newDutySources(n: { doc_no: string; id: string }, agent?: string, duty?: string): MergedSource[] {
+  return [{ docNo: n.doc_no, uuid: n.id, agent, duty }];
 }
 
 // Fold another copy of a duty into an existing row: the lowest doc_no stays
-// the representative, and every distinct doc is recorded as a source.
+// the representative, and every distinct doc is recorded as a source —
+// including its OWN duty text, so expansion can recover it later even though
+// only the representative's duty survives onto the row itself.
 export function mergeDutyDoc(
   row: CollapsedDutyRow,
   n: { doc_no: string; id: string },
@@ -117,7 +127,7 @@ export function mergeDutyDoc(
     row.uuid = n.id;
     row.duty = duty;
   }
-  if (!row._sources.some((s) => s.uuid === n.id)) row._sources.push({ docNo: n.doc_no, uuid: n.id, agent });
+  if (!row._sources.some((s) => s.uuid === n.id)) row._sources.push({ docNo: n.doc_no, uuid: n.id, agent, duty });
 }
 
 // Shape the accumulated sources for the emitted row: covered agents are
@@ -164,13 +174,18 @@ export function expandCopies<T>(
  * `expandCopies` specialized for the Facilitator/GovOps `sources: MergedSource[]`
  * shape: each expanded row's Agent narrows to that specific copy's own owner
  * (never falling back to the representative's agent — a copy whose owner
- * couldn't be resolved should show blank, not another doc's agent), and the
- * merged `agents` list (every covered Prime) no longer applies to a single doc.
+ * couldn't be resolved should show blank, not another doc's agent), the
+ * merged `agents` list (every covered Prime) no longer applies to a single doc,
+ * and `duty` narrows to that copy's own text (collapse only requires the
+ * NORMALIZED content to match — the raw per-copy text can genuinely differ,
+ * e.g. by which agent it names or which subtree it cites into — so every
+ * copy must carry its own text through to CSV, not the representative's).
  */
 export function expandSources<
   T extends {
     docNo: string;
     uuid: string;
+    duty: string;
     agent?: string;
     agents?: string[];
     sources?: MergedSource[];
@@ -183,6 +198,7 @@ export function expandSources<
     uuid: s.uuid,
     agent: s.agent,
     agents: undefined,
+    duty: s.duty ?? row.duty,
     // A source's own facilitators narrows the row-level union down to just
     // this doc's — only set for facilitator rows (govops rows never populate
     // MergedSource.facilitators, so this is always a no-op there).

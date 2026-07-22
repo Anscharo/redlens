@@ -93,11 +93,18 @@ function isPrimeAgentArtifactDescendant(docs: AtlasBundle["docs"], uuid: string)
 }
 
 // A row's own doc copies: an already-collapsed facilitator/govops duty row
-// carries its merged `sources`; otherwise it's a single doc, keyed off its own
-// uuid/docNo/agent.
-function docCopiesOf(row: { uuid: string; docNo: string; agent?: string; agents?: string[]; sources?: MergedSource[] }): MergedSource[] {
+// carries its merged `sources` (each already tagged with its own duty text);
+// otherwise it's a single doc, keyed off its own uuid/docNo/agent/duty.
+function docCopiesOf(row: {
+  uuid: string;
+  docNo: string;
+  duty: string;
+  agent?: string;
+  agents?: string[];
+  sources?: MergedSource[];
+}): MergedSource[] {
   if (row.sources && row.sources.length) return row.sources;
-  return newDutySources({ doc_no: row.docNo, id: row.uuid }, row.agent ?? row.agents?.[0]);
+  return newDutySources({ doc_no: row.docNo, id: row.uuid }, row.agent ?? row.agents?.[0], row.duty);
 }
 
 export function enumerateOeaTasks(bundle: AtlasBundle, graph: GraphData): OeaTask[] {

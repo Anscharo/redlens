@@ -106,4 +106,20 @@ describe("oeaRowsToCSV", () => {
     expect(lines[2]).toContain('"copy2"');
     expect(lines[2]).toContain('"Hoku"');
   });
+
+  it("uses each copy's own duty text for Assessed Text when unassessed, not the representative's", () => {
+    const collapsed: OeaTask = {
+      ...task("t:rebate|op-duty", "reviews Spark's calculation"),
+      uuid: "rep", docNo: "A.6.1.1.1.2.3",
+      agents: ["Spark", "Grove"],
+      copies: [
+        { docNo: "A.6.1.1.1.2.3", uuid: "rep", agent: "Spark", duty: "reviews Spark's calculation" },
+        { docNo: "A.6.1.1.2.2.3", uuid: "copy2", agent: "Grove", duty: "reviews Grove's calculation" },
+      ],
+    };
+    const rows = joinAssessments([collapsed], artifact([]));
+    const lines = oeaRowsToCSV(rows).split("\r\n");
+    expect(lines[1]).toContain("reviews Spark's calculation");
+    expect(lines[2]).toContain("reviews Grove's calculation");
+  });
 });

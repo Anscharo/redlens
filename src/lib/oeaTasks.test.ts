@@ -119,11 +119,11 @@ describe("enumerateOeaTasks", () => {
     expect(rows[0].quoted).toBe(false); // title-only match rates the snippet
   });
 
-  it("retains every collapsed copy's own doc_no/uuid on `copies`, docNo-ordered", () => {
+  it("retains every collapsed copy's own doc_no/uuid/duty on `copies`, docNo-ordered", () => {
     const rows = tasks.filter((t) => t.title === "Weekly Settlement");
     expect(rows[0].copies).toEqual([
-      { docNo: "A.6.1.1.1.4.1", uuid: "exec-copy-1", agent: "Spark" },
-      { docNo: "A.6.1.1.2.4.1", uuid: "exec-copy-2", agent: undefined },
+      { docNo: "A.6.1.1.1.4.1", uuid: "exec-copy-1", agent: "Spark", duty: "The Operational Executor Agent settles weekly." },
+      { docNo: "A.6.1.1.2.4.1", uuid: "exec-copy-2", agent: undefined, duty: "The Operational Executor Agent settles weekly." },
     ]);
     // An uncollapsed task (single doc) carries no `copies` at all.
     expect(byUuid("duty-gov-op")[0].copies).toBeUndefined();
