@@ -28,6 +28,7 @@ function setup(overrides: Partial<Parameters<typeof RightPanel>[0]> = {}) {
   const props = {
     id: "node-1",
     linkedNodes: [],
+    cousinDocs: [],
     targetAddresses: {},
     chainValues: {},
     annotationCount: 0,
@@ -60,7 +61,19 @@ describe("RightPanel tablist", () => {
 
   it("shows the annotation count badge when there are linked docs", () => {
     setup({ linkedNodes: [makeNode(), makeNode()], annotationCount: 2 });
-    expect(screen.getByText(/2 linked documents/)).toBeInTheDocument();
+    expect(screen.getByText(/linked documents · 2/)).toBeInTheDocument();
+  });
+
+  it("labels equivalent cousin documents by agent", () => {
+    setup({
+      cousinDocs: [{ node: makeNode({ title: "Grove Agent Artifact" }), agent: "Grove" }],
+      annotationCount: 1,
+    });
+    expect(screen.getByText(/cousin documents · 1/)).toBeInTheDocument();
+    // Agent shown as the reader's agent pill (just the name), not "<name> agent".
+    const pill = screen.getByText("Grove");
+    expect(pill).toBeInTheDocument();
+    expect(pill).toHaveClass("atlas-agent-pill");
   });
 });
 

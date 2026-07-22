@@ -6,6 +6,7 @@ import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { GlossaryEntry } from "../../lib/glossary";
+import type { CousinDoc } from "../../lib/cousins";
 
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_MIN = 260;
@@ -15,6 +16,7 @@ const RIGHT_PANEL_DEFAULT = 420;
 export function AtlasAnnotations({
   id,
   linkedNodes,
+  cousinDocs,
   targetAddresses,
   chainValues,
   glossaryTerms,
@@ -23,9 +25,12 @@ export function AtlasAnnotations({
   onTabChange,
   onNavigate,
   onNavigateByDocNo,
+  selectable,
+  byParent,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
+  cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   glossaryTerms: GlossaryEntry[][];
@@ -34,6 +39,8 @@ export function AtlasAnnotations({
   onTabChange: (v: "annotations" | "glossary" | "history") => void;
   onNavigate: (id: string) => void;
   onNavigateByDocNo: (docNo: string) => void;
+  selectable?: boolean;
+  byParent?: Map<string | null, AtlasNode[]>;
 }) {
   const graphEdges = useGraphEdges(id);
   const [rightWidth, setRightWidth] = useState(() => {
@@ -75,6 +82,7 @@ export function AtlasAnnotations({
         <RightPanel
           id={id}
           linkedNodes={linkedNodes}
+          cousinDocs={cousinDocs}
           targetAddresses={targetAddresses}
           chainValues={chainValues}
           annotationCount={annotationCount}
@@ -84,6 +92,8 @@ export function AtlasAnnotations({
           onNavigateByDocNo={onNavigateByDocNo}
           tab={tab}
           onTabChange={onTabChange}
+          selectable={selectable}
+          byParent={byParent}
         />
       </ErrorBoundary>
     </div>

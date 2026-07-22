@@ -4,6 +4,16 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const port = Number(process.env.PORT ?? 3000);
+
+// Login/chat gating, resolved once. `usersRequested` is the raw operator intent;
+// the surface only becomes available (`usersEnabled`) when a JWT secret also
+// exists to sign sessions. Chat additionally needs its own flag, and is gated by
+// the same prerequisites (a chat session is a logged-in session).
+const usersRequested = process.env.USERS_ENABLED === "1" || process.env.USERS_ENABLED === "true";
+const hasJwtSecret = (process.env.CHAT_JWT_SECRET ?? "") !== "";
+const usersEnabled = usersRequested && hasJwtSecret;
+const chatEnabled =
+  (process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true") && usersEnabled;
 const appUrl =
   process.env.APP_URL ??
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
@@ -11,12 +21,24 @@ const appUrl =
 export const config = {
   port,
 
-  // Master switch for the chat + OAuth surface (/api/auth/*, /api/chat,
-  // /api/usage). OFF by default so the merged image exposes nothing until it's
-  // explicitly enabled; pair with the frontend's VITE_CHAT_ENABLED build flag.
-  // When off, the routes 404 and the missing OAuth/JWT/DB vars below never
-  // matter — the static SPA + /mcp keep serving normally.
-  chatEnabled: process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true",
+  // Whether the operator ASKED for logins (raw switch), independent of whether
+  // the prerequisites are in place. The surface only actually turns on when a
+  // JWT secret also exists (usersEnabled below) — this raw flag is kept so
+  // startup can warn about a requested-but-misconfigured login surface.
+  usersRequested,
+
+  // Master switch for the login/OAuth surface (/api/auth/*, /api/collections*).
+  // Requires USERS_ENABLED=1 AND a CHAT_JWT_SECRET to sign sessions: without the
+  // secret, session signing throws right after a successful OAuth exchange, so we
+  // keep the WHOLE surface off (routes 404) rather than half-mounted. Pair with
+  // the frontend's VITE_USERS_ENABLED build flag; the reader + /mcp serve normally
+  // regardless.
+  usersEnabled,
+
+  // The chat surface (/api/chat, /api/usage). Chat needs a logged-in session, so
+  // it is AND-gated by usersEnabled — CHAT_ENABLED=1 without USERS_ENABLED=1 +
+  // CHAT_JWT_SECRET leaves chat off. Pair with the frontend's VITE_CHAT_ENABLED.
+  chatEnabled,
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.

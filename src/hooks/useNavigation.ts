@@ -24,6 +24,10 @@ export function useNavigation({
       if (split) params.set("split", split);
       const view = currentParam("view");
       if (view) params.set("view", view);
+      // Keep the selected-only filter active across doc clicks: opening a doc
+      // from the filtered list should stay in selected view, not jump to All.
+      const selectedOnly = currentParam("selectedOnly");
+      if (selectedOnly) params.set("selectedOnly", selectedOnly);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate],
@@ -37,6 +41,8 @@ export function useNavigation({
       if (v !== "annotations") params.set("view", v);
       const split = currentParam("split");
       if (split) params.set("split", split);
+      const selectedOnly = currentParam("selectedOnly");
+      if (selectedOnly) params.set("selectedOnly", selectedOnly);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate, nodeId],

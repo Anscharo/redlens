@@ -9,22 +9,27 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json ./
-RUN bun install
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY . .
 
 # Clone the atlas. Railway strips .git from the build context so submodule
 # init cannot work — a direct clone gives us the content we need.
-# Chat + auth ship DISABLED by default. One knob controls both halves: set the
-# CHAT_ENABLED service variable to 1 on the environment that should have chat.
-# Railway forwards a service variable as a --build-arg when the ARG is declared,
-# so declaring ARG CHAT_ENABLED both (a) enables the runtime API (config.ts reads
-# CHAT_ENABLED) and (b) flows into VITE_CHAT_ENABLED below, baking the chat bundle
-# into the frontend. No hardcoding to production — any env with CHAT_ENABLED=1
-# gets chat, any without stays off. VITE_CHAT_ENABLED can still be overridden
-# explicitly (e.g. a manual `docker build --build-arg VITE_CHAT_ENABLED=1`).
+# Login features (auth, saved Collections) + chat ship DISABLED by default, gated
+# by two runtime service variables: USERS_ENABLED (auth + Collections) and
+# CHAT_ENABLED (chat, which additionally requires users). Railway forwards a
+# service variable as a --build-arg when the matching ARG is declared, so
+# declaring ARG USERS_ENABLED / ARG CHAT_ENABLED both (a) documents the runtime
+# knobs (config.ts reads USERS_ENABLED / CHAT_ENABLED) and (b) flows into the
+# VITE_* build flags below, baking the matching frontend bundle in. No hardcoding
+# to production — any env with USERS_ENABLED=1 gets logins; add CHAT_ENABLED=1 for
+# chat. The VITE_* flags can still be overridden explicitly (e.g. a manual
+# `docker build --build-arg VITE_CHAT_ENABLED=1`). Chat needs a logged-in session,
+# so VITE_CHAT_ENABLED=1 without the USERS flags leaves chat off.
+ARG USERS_ENABLED=0
 ARG CHAT_ENABLED=0
+ARG VITE_USERS_ENABLED=$USERS_ENABLED
 ARG VITE_CHAT_ENABLED=$CHAT_ENABLED
 # PostHog analytics key. VITE_* vars are inlined by Vite AT BUILD TIME, not read
 # at runtime — so the key must be present in this build environment, not just as a
@@ -45,8 +50,8 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:oea-report \
  && bun run build:bundle \
  && bun run build:tools \
- && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
- && VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY VITE_PREVIEW_ENABLED=$VITE_PREVIEW_ENABLED bun run build:vite \
+ && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
+ && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY VITE_PREVIEW_ENABLED=$VITE_PREVIEW_ENABLED bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json dist/oea-report.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────

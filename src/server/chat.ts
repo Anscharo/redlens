@@ -17,6 +17,7 @@ import { buildPrefetch, prefetchRound } from "./prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
 import { config } from "./config.ts";
 import { getWindowUsage } from "./rate-limit.ts";
+import { json } from "./http.ts";
 import { fetchCommons } from "./credits.ts";
 import { captureError, type ErrorContext } from "./posthog-node.ts";
 
@@ -38,9 +39,6 @@ export function messageExceedsLimit(message: string, limitBytes = MAX_MESSAGE_BY
   return Buffer.byteLength(message, "utf8") > limitBytes;
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-}
 
 // Resolve the target conversation: verify ownership of an existing one, or open
 // a new row. Returns null if the id was supplied but isn't the caller's.

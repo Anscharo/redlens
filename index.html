@@ -11,6 +11,11 @@
          Empty (cold boot / no injection) → loaders fall back to flat BASE_URL. -->
     <script>
       window.__ATLAS_SHA__ = "{{ATLAS_SHA}}";
+      // Server's real login capability (true only when USERS_ENABLED + a JWT
+      // secret are both set), substituted at serve time like the sha above. The
+      // quoted-compare keeps an UNreplaced placeholder (static/no-server hosting)
+      // a safe `false` instead of a syntax error. See src/lib/usersEnabled.ts.
+      window.__USERS_ENABLED__ = "{{USERS_ENABLED}}" === "true";
     </script>
     <script>
       (function () {

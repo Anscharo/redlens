@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { AtlasNode, AddressInfo } from "../../types";
 import type { ChainValue } from "../../lib/chainstate";
 import type { EdgeResult } from "../../lib/graph";
+import type { CousinDoc } from "../../lib/cousins";
 import type { GlossaryEntry } from "../../lib/glossary";
 import { RelatedNode } from "../RelatedNode";
 import { AddressCard } from "../AddressCard";
@@ -15,9 +16,12 @@ type RightTab = "annotations" | "glossary" | "history";
 
 const HIDE = new Set(["parent_of", "mentions", "proxies_to", "cites"]);
 
+const SECTION_HEAD = "text-sm mono text-tan-2 font-semibold tracking-wide";
+
 export function RightPanel({
   id,
   linkedNodes,
+  cousinDocs,
   targetAddresses,
   chainValues,
   annotationCount,
@@ -27,9 +31,12 @@ export function RightPanel({
   onNavigateByDocNo,
   tab,
   onTabChange,
+  selectable,
+  byParent,
 }: {
   id: string;
   linkedNodes: AtlasNode[];
+  cousinDocs: CousinDoc[];
   targetAddresses: Record<string, AddressInfo>;
   chainValues: Record<string, Record<string, ChainValue>>;
   annotationCount: number;
@@ -39,6 +46,11 @@ export function RightPanel({
   onNavigateByDocNo: (docNo: string) => void;
   tab: RightTab;
   onTabChange: (t: RightTab) => void;
+  /** Show self-subscribing selection checkboxes on related cards. The checkbox
+   *  state lives in each card's RelatedSelectBox, so a selection toggle doesn't
+   *  re-render this panel (or the sibling reader) — only the checkbox itself. */
+  selectable?: boolean;
+  byParent?: Map<string | null, AtlasNode[]>;
 }) {
   const { preview } = useDataSource();
 
@@ -50,6 +62,8 @@ export function RightPanel({
     },
     [onNavigate],
   );
+  const navLinked = useCallback((nid: string) => annNav("linked_doc", nid), [annNav]);
+  const navCousin = useCallback((nid: string) => annNav("cousin_doc", nid), [annNav]);
   const annNavDoc = useCallback(
     (kind: string, docNo: string) => {
       track("reader_annotation_nav", { kind, doc_no: docNo });
@@ -114,19 +128,48 @@ export function RightPanel({
         {tab === "annotations" ? (
           <div className="px-4 py-5"> 
             {linkedNodes.length > 0 ? (
-              <>
-                <p className="text-xs mono mb-4 text-tan-3">
-                  {linkedNodes.length} linked document{linkedNodes.length !== 1 ? "s" : ""}
+              <section>
+                <p className={`${SECTION_HEAD} mb-4`}>
+                  linked documents · {linkedNodes.length}
                 </p>
                 {linkedNodes.map((node) => (
-                  <RelatedNode key={node.id} node={node} onNavigate={(nid) => annNav("linked_doc", nid)} />
+                  <RelatedNode
+                    key={node.id}
+                    node={node}
+                    onNavigate={navLinked}
+                    selectable={selectable}
+                    byParent={byParent}
+                  />
                 ))}
-              </>
+              </section>
+            ) : null}
+
+            {cousinDocs.length > 0 ? (
+              <section className="mt-8 pt-5 border-t border-border">
+                <p className={`${SECTION_HEAD} mb-2`}>
+                  cousin documents · {cousinDocs.length}
+                </p>
+                <p className="text-xs leading-relaxed mb-4 text-tan-3">
+                  Equivalent documents under the other Prime Agents.
+                </p>
+                <div className="flex flex-col gap-[10px]">
+                  {cousinDocs.map(({ node, agent }) => (
+                    <RelatedNode
+                      key={node.id}
+                      node={node}
+                      eyebrow={<span className="atlas-agent-pill">{agent}</span>}
+                      onNavigate={navCousin}
+                      selectable={selectable}
+                      byParent={byParent}
+                    />
+                  ))}
+                </div>
+              </section>
             ) : null}
 
             {citedBy.length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-3 text-tan-3">cited by · {citedBy.length}</p>
+                <p className={`${SECTION_HEAD} mb-3`}>cited by · {citedBy.length}</p>
                 <div className="space-y-1">
                   {citedBy.map((e, i) => (
                     <button
@@ -143,7 +186,7 @@ export function RightPanel({
 
             {graphRels.length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-3 text-tan-3">relations · {graphRels.length}</p>
+                <p className={`${SECTION_HEAD} mb-3`}>relations · {graphRels.length}</p>
                 <div className="space-y-2">
                   {graphRels.filter(({ edge, isOut }) => !isSelfNav(edge, isOut)).map(({ edge: e, isOut }, i) => {
                     const otherId = (isOut ? e.t : e.f) ?? "";
@@ -197,7 +240,7 @@ export function RightPanel({
 
             {Object.keys(targetAddresses).length > 0 && (
               <div className="mt-8">
-                <p className="text-xs mono mb-4 text-tan-3">
+                <p className={`${SECTION_HEAD} mb-4`}>
                   addresses · {Object.keys(targetAddresses).length}
                 </p>
                 {Object.entries(targetAddresses).map(([address, info]) => (
