@@ -27,7 +27,7 @@ export function SharedCollectionOpener({ id }: { id: string }) {
         replace(c.ids);
         setActiveCollectionName(c.name);
         track("collection_open_shared", { id: c.id, count: c.ids.length });
-        navigate(`${ROUTES.ATLAS}?selectedOnly=1`, { replace: true });
+        navigate(`${ROUTES.ATLAS}?subset=selected`, { replace: true });
       })
       .catch(() => alive && setError("This shared collection could not be found."));
     return () => {

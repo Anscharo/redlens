@@ -24,10 +24,10 @@ export function useNavigation({
       if (split) params.set("split", split);
       const view = currentParam("view");
       if (view) params.set("view", view);
-      // Keep the selected-only filter active across doc clicks: opening a doc
-      // from the filtered list should stay in selected view, not jump to All.
-      const selectedOnly = currentParam("selectedOnly");
-      if (selectedOnly) params.set("selectedOnly", selectedOnly);
+      // Keep subset filters active across doc clicks: opening a doc from a
+      // filtered list should stay filtered, not jump to All.
+      const subset = currentParam("subset");
+      if (subset) params.set("subset", subset);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate],
@@ -41,8 +41,8 @@ export function useNavigation({
       if (v !== "annotations") params.set("view", v);
       const split = currentParam("split");
       if (split) params.set("split", split);
-      const selectedOnly = currentParam("selectedOnly");
-      if (selectedOnly) params.set("selectedOnly", selectedOnly);
+      const subset = currentParam("subset");
+      if (subset) params.set("subset", subset);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate, nodeId],
