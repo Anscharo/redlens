@@ -7,7 +7,8 @@
 // In-memory indexes load once at boot before serving.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
-import { loadIndexes, getIndexes } from "./indexes.ts";
+import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
+import { renderOgTags, defaultOgTags } from "./og.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
@@ -218,10 +219,26 @@ const server = Bun.serve({
     // Preview routes also get noindex — unreviewed (possibly fork) content must
     // never be search-indexed under our domain.
     let sha = "";
+    // Per-document Open Graph / Twitter card tags so pasted atlas links unfurl
+    // with the doc's real title + summary. Rendered for all visitors; the SPA
+    // ignores them. Falls back to the site-level default if indexes aren't
+    // loaded, so the <title> is never empty. See src/server/og.ts.
+    const url = new URL(req.url);
+    let ogTags = defaultOgTags(url.origin);
     try {
-      sha = getIndexes().meta.atlasCommit ?? "";
+      const ix = getIndexes();
+      sha = ix.meta.atlasCommit ?? "";
+      ogTags = renderOgTags({
+        pathname,
+        searchParams: url.searchParams,
+        origin: url.origin,
+        lookup: (idOrDocNo) => {
+          const n = resolveNode(ix, idOrDocNo);
+          return n ? { title: n.title, doc_no: n.doc_no, type: n.type, content: n.content } : undefined;
+        },
+      });
     } catch {
-      /* indexes not loaded yet */
+      /* indexes not loaded yet — keep the site-level default */
     }
     // Inject the server's REAL login capability (usersEnabled requires a JWT
     // secret) so the frontend shows the profile/collections UI only when a
@@ -229,7 +246,8 @@ const server = Bun.serve({
     // with VITE_USERS_ENABLED. See src/lib/usersEnabled.ts.
     const html = (await Bun.file(config.distDir + "/index.html").text())
       .replace("{{ATLAS_SHA}}", sha)
-      .replace("{{USERS_ENABLED}}", String(config.usersEnabled));
+      .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
+      .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { headers });

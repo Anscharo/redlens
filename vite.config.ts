@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { renderOgTags } from "./src/server/og.ts";
 
 const commitHash = (() => {
   try {
@@ -86,17 +87,34 @@ export default defineConfig(() => {
       // the placeholder is left intact for the Bun server to replace at serve time.
       name: "inject-atlas-sha-dev",
       apply: "serve",
-      transformIndexHtml(html) {
+      transformIndexHtml(html, ctx) {
         let sha = "";
+        let docNodes: Record<string, { id: string; doc_no: string; title: string; type: string; content: string }> = {};
         try {
-          sha = JSON.parse(readFileSync("public/docs.json", "utf8")).atlasCommit ?? "";
+          const parsed = JSON.parse(readFileSync("public/docs.json", "utf8"));
+          sha = parsed.atlasCommit ?? "";
+          docNodes = parsed.nodes ?? {};
         } catch {
           /* artifacts not built yet — empty sha → flat BASE_URL fallback */
         }
+        // Mirror the Bun server's per-request OG injection so dev unfurls the
+        // same way. ctx.originalUrl is the requested path+query; resolve ?id=
+        // (UUID or doc_no) against the local docs.json.
+        const reqUrl = new URL(ctx.originalUrl ?? "/", "http://localhost");
+        const byDocNo = new Map(Object.values(docNodes).map((n) => [n.doc_no, n]));
+        const ogTags = renderOgTags({
+          pathname: reqUrl.pathname,
+          searchParams: reqUrl.searchParams,
+          origin: reqUrl.origin,
+          lookup: (idOrDocNo) => docNodes[idOrDocNo] ?? byDocNo.get(idOrDocNo),
+        });
         // Dev has no Bun-served HTML, so substitute the login flag here too. The
         // real JWT-secret check lives server-side; in dev the build flag is a
         // good-enough proxy (dev.mjs forwards both together).
-        return html.replaceAll("{{ATLAS_SHA}}", sha).replaceAll("{{USERS_ENABLED}}", String(usersEnabled));
+        return html
+          .replaceAll("{{ATLAS_SHA}}", sha)
+          .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
+          .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },
     tailwindcss(),
