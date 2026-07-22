@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
-import { useLocation, useSearchParams, Switch, Route } from "wouter";
+import { useLocation, useSearchParams, Switch, Route, Redirect } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
@@ -373,30 +373,36 @@ export default function App() {
                 <ConnectPage />
               </Suspense>
             </Route>
-            <Route path={ROUTES.LIBRARY_CONTENTS}>
+            <Route path={ROUTES.REPORTS_LIBRARY_CONTENTS}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="contents" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.LIBRARY_CONCEPTS}>
+            <Route path={ROUTES.REPORTS_LIBRARY_CONCEPTS}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="concepts" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.LIBRARY_AUDIT}>
+            <Route path={ROUTES.REPORTS_LIBRARY_AUDIT}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="audit" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.LIBRARY_GLOSSARY}>
+            <Route path={ROUTES.REPORTS_LIBRARY_GLOSSARY}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="glossary" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.LIBRARY}>
+            <Route path={ROUTES.REPORTS_LIBRARY}>
               <Suspense fallback={<Loading />}>
                 <LibraryPage tab="shape" />
               </Suspense>
+            </Route>
+            {/* Legacy /library URLs (pre-report move) → /reports/library */}
+            <Route path="/library/:tab*">
+              {(params: { tab?: string }) => (
+                <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params.tab ? `/${params.tab}` : ""}`} replace />
+              )}
             </Route>
             <Route path="/admin/:rest*">
               <Suspense fallback={<Loading />}>

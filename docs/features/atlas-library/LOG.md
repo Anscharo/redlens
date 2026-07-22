@@ -229,3 +229,18 @@ rule-characterizations dangerous.
   own indented list item with bold full word, blank line between fields; 3
   non-templated Dn blocks converted by hand; legend expanded into a 4-bullet
   plain-language explanation. No content changes — formatting only.
+
+- **(next commit)** "Move Library under /reports as the Atlas Library report"
+  User request; done per .claude/skills/new-report/SKILL.md checklist. Routes
+  /library* → /reports/library* (legacy URLs redirect via wouter Redirect);
+  ReportId "library"; REPORT_TITLES entry; ReportsIndex card (General Reports);
+  report_view tracked on mount; title "Atlas Library: ..."; DownloadCsvButton
+  on Shape (full chunk-tree export via new pure flattenChunkTree/
+  libraryChunksToCSV in src/lib/library.ts + colocated library.test.ts, 3
+  tests passing). Homepage card retargeted. Patch bullet revised (same
+  unreleased feature). CONSCIOUS CHECKLIST DEVIATIONS (rubric-page precedent
+  for prose content): no FilterPills/useUrlState filters and no q-param
+  in-report search yet (tabs are prose/tree, not tabular rows) — hence no
+  filtered-CSV state (button correctly hides) and no REPORT_SCOPE_CONFIG
+  entry. Revisit if the Shape tree grows filtering. PROMPT.md file-inventory
+  routes line now outdated on /library paths — superseded by this LOG entry.

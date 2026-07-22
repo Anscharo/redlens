@@ -34,7 +34,7 @@
 -->
 
 ## 2026-07-20
-- Added a Library section with the shape of the Atlas, a distilled table of contents, a concept catalog, and a glossary of defined terms
+- Added an Atlas Library report with the shape of the Atlas, a distilled table of contents, a concept catalog, a glossary of defined terms, and CSV export of the chunk breakdown
 
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers

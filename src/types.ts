@@ -6,7 +6,8 @@ export type ReportId =
   | "processes"
   | "stale-dates"
   | "oea-assessment"
-  | "risk-rules";
+  | "risk-rules"
+  | "library";
 
 export interface AtlasNode {
   id: string;

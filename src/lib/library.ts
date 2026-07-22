@@ -1,5 +1,6 @@
 import { fetchJson } from "./verify";
 import { liveAtlasBase, handledStale } from "./atlasBase";
+import { toCSV } from "./csv";
 
 export interface LibrarySegment {
   id: string;
@@ -43,6 +44,42 @@ export interface LibraryData {
   toc: LibraryTocScope[];
   /** Hierarchical chunk taxonomy — groups at the top, semantic subtree below. */
   chunkTree: ChunkNode[];
+}
+
+export interface ChunkRow {
+  path: string; // "Agent artifacts › List Of Prime Agent Artifacts › Spark"
+  doc_no: string;
+  title: string;
+  depth: number;
+  docs: number;
+  pctOfAtlas: number; // 0–100, one decimal
+}
+
+/** Depth-first flatten of the chunk tree into stable, CSV-ready rows. */
+export function flattenChunkTree(tree: ChunkNode[], atlasTotal: number): ChunkRow[] {
+  const rows: ChunkRow[] = [];
+  const walk = (node: ChunkNode, ancestors: string[], depth: number) => {
+    const path = [...ancestors, node.title].join(" › ");
+    rows.push({
+      path,
+      doc_no: node.doc_no ?? "",
+      title: node.title,
+      depth,
+      docs: node.docs,
+      pctOfAtlas: Math.round((node.docs / atlasTotal) * 1000) / 10,
+    });
+    for (const c of node.children ?? []) walk(c, [...ancestors, node.title], depth + 1);
+  };
+  for (const g of tree) walk(g, [], 0);
+  return rows;
+}
+
+export function libraryChunksToCSV(tree: ChunkNode[], atlasTotal: number): string {
+  const rows = flattenChunkTree(tree, atlasTotal);
+  return toCSV(
+    ["path", "doc_no", "title", "depth", "docs", "pct_of_atlas"],
+    rows.map((r) => [r.path, r.doc_no, r.title, r.depth, r.docs, r.pctOfAtlas]),
+  );
 }
 
 // library.json is built by scripts/required/build-library.mjs and served from

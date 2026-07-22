@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
+import { track } from "../../lib/analytics";
 import { loadLibrary, type LibraryData } from "../../lib/library";
 import { LibraryShape } from "./LibraryShape";
 import { LibraryContents } from "./LibraryContents";
@@ -11,17 +12,20 @@ import { LibraryConcepts, LibraryAudit } from "./LibraryConcepts";
 export type LibraryTab = "shape" | "contents" | "concepts" | "audit" | "glossary";
 
 const TABS: { tab: LibraryTab; label: string; to: string }[] = [
-  { tab: "shape", label: "Shape", to: ROUTES.LIBRARY },
-  { tab: "contents", label: "Contents", to: ROUTES.LIBRARY_CONTENTS },
-  { tab: "concepts", label: "Concepts", to: ROUTES.LIBRARY_CONCEPTS },
-  { tab: "audit", label: "Audit", to: ROUTES.LIBRARY_AUDIT },
-  { tab: "glossary", label: "Glossary", to: ROUTES.LIBRARY_GLOSSARY },
+  { tab: "shape", label: "Shape", to: ROUTES.REPORTS_LIBRARY },
+  { tab: "contents", label: "Contents", to: ROUTES.REPORTS_LIBRARY_CONTENTS },
+  { tab: "concepts", label: "Concepts", to: ROUTES.REPORTS_LIBRARY_CONCEPTS },
+  { tab: "audit", label: "Audit", to: ROUTES.REPORTS_LIBRARY_AUDIT },
+  { tab: "glossary", label: "Glossary", to: ROUTES.REPORTS_LIBRARY_GLOSSARY },
 ];
 
 export function LibraryPage({ tab }: { tab: LibraryTab }) {
-  useDocumentTitle("Library — Sky Atlas by Redline");
+  useDocumentTitle("Atlas Library: Sky Atlas by Redline");
   const [data, setData] = useState<LibraryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    track("report_view", { report: "library" });
+  }, []);
   useEffect(() => {
     let on = true;
     loadLibrary()

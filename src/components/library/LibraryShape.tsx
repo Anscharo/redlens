@@ -1,13 +1,28 @@
 import type { LibraryData } from "../../lib/library";
+import { flattenChunkTree, libraryChunksToCSV } from "../../lib/library";
 import { LibraryChunkTree } from "./LibraryChunkTree";
+import { DownloadCsvButton } from "../reports/DownloadCsvButton";
 
 export function LibraryShape({ data }: { data: LibraryData }) {
+  const chunkRowCount = flattenChunkTree(data.chunkTree, data.totals.docs).length;
+  const buildCsv = () => libraryChunksToCSV(data.chunkTree, data.totals.docs);
   return (
     <div>
-      <p className="mono text-xs text-tan-3 mb-6">
-        {data.totals.docs.toLocaleString()} docs · {Math.round(data.totals.bytes / 1024)} KB of content ·{" "}
-        {data.totals.glossaryTerms} glossary terms · atlas {data.atlasCommit.slice(0, 7)}
-      </p>
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <p className="mono text-xs text-tan-3">
+          {data.totals.docs.toLocaleString()} docs · {Math.round(data.totals.bytes / 1024)} KB of content ·{" "}
+          {data.totals.glossaryTerms} glossary terms · atlas {data.atlasCommit.slice(0, 7)}
+        </p>
+        <DownloadCsvButton
+          report="library"
+          filename="atlas-library-chunks.csv"
+          rowCount={chunkRowCount}
+          build={buildCsv}
+          fullRowCount={chunkRowCount}
+          buildFull={buildCsv}
+          query=""
+        />
+      </div>
       <section className="mb-8">
         <h2 className="text-base font-semibold mb-1" style={{ color: "var(--tan)" }}>
           Doc mass by scope

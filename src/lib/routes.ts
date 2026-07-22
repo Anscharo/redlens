@@ -8,12 +8,12 @@ export const ROUTES = {
   PROVENANCE: "/provenance",
   UPDATES: "/updates",
   CONNECT: "/connect",
-  LIBRARY: "/library",
-  LIBRARY_CONTENTS: "/library/contents",
-  LIBRARY_CONCEPTS: "/library/concepts",
-  LIBRARY_AUDIT: "/library/audit",
-  LIBRARY_GLOSSARY: "/library/glossary",
   REPORTS: "/reports",
+  REPORTS_LIBRARY: "/reports/library",
+  REPORTS_LIBRARY_CONTENTS: "/reports/library/contents",
+  REPORTS_LIBRARY_CONCEPTS: "/reports/library/concepts",
+  REPORTS_LIBRARY_AUDIT: "/reports/library/audit",
+  REPORTS_LIBRARY_GLOSSARY: "/reports/library/glossary",
   REPORTS_OF_RESPONSIBILITIES: "/reports/of-responsibilities",
   REPORTS_GOVOPS_RESPONSIBILITIES: "/reports/gov-ops-responsibilities",
   REPORTS_ACTIVE_DATA: "/reports/active-data",
@@ -76,6 +76,7 @@ export const REPORT_TITLES: Record<string, string> = {
   "risk-rules": "Risk Rules Assessment",
   "stale-dates": "Stale Dates",
   processes: "Atlas Processes",
+  library: "Atlas Library",
 };
 
 // URL builders for SPA links. Use these with wouter's <Link to={...}> so back-button
