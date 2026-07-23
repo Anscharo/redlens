@@ -4,6 +4,10 @@ import { handleAuth, upsertUser } from "./auth.ts";
 
 const realFetch = globalThis.fetch;
 
+// For testing OAuth with configured credentials, we need to set env vars
+// BEFORE importing auth.ts. This is done in a separate file (auth-configured.test.ts)
+// using dynamic imports, since the module has already been loaded here.
+
 describe("handleAuth OAuth flows and error paths", () => {
   beforeEach(() => {
     // Comprehensive mock for GitHub and Google API flows
