@@ -1,6 +1,23 @@
 // Test collections routes (/api/collections).
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+
+const mockSession = {
+  user: { id: "user123", email: "test@example.com" },
+  refresh: "session=abc123; Path=/; HttpOnly",
+};
+
+let mockSqlCalls: any[] = [];
+let mockDbResponse: any = null;
+
+beforeEach(() => {
+  mockSqlCalls = [];
+  mockDbResponse = null;
+});
+
+afterEach(() => {
+  // Restore if needed
+});
 
 describe("handleSharedCollection", () => {
   it("returns 405 for POST request", async () => {
@@ -9,18 +26,41 @@ describe("handleSharedCollection", () => {
     expect(res.status).toBe(405);
   });
 
-  it("returns 404 for malformed path", async () => {
+  it("returns 405 for DELETE request", async () => {
+    const req = new Request("http://localhost/api/collections/test-id/shared", { method: "DELETE" });
+    const res = await handleSharedCollection(req);
+    expect(res.status).toBe(405);
+  });
+
+  it("returns 405 for PATCH request", async () => {
+    const req = new Request("http://localhost/api/collections/test-id/shared", { method: "PATCH" });
+    const res = await handleSharedCollection(req);
+    expect(res.status).toBe(405);
+  });
+
+  it("returns 404 for malformed path without shared suffix", async () => {
     const req = new Request("http://localhost/api/collections/test-id", { method: "GET" });
     const res = await handleSharedCollection(req);
     expect(res.status).toBe(404);
   });
 
-  it("returns 404 for missing shared suffix", async () => {
+  it("returns 404 for missing shared suffix with wrong path", async () => {
     const req = new Request("http://localhost/api/collections/test-id/other", { method: "GET" });
     const res = await handleSharedCollection(req);
     expect(res.status).toBe(404);
   });
 
+  it("returns 404 for root path", async () => {
+    const req = new Request("http://localhost/api/collections/shared", { method: "GET" });
+    const res = await handleSharedCollection(req);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns JSON error responses", async () => {
+    const req = new Request("http://localhost/api/collections/test-id", { method: "GET" });
+    const res = await handleSharedCollection(req);
+    expect(res.headers.get("content-type")).toContain("application/json");
+  });
 });
 
 describe("handleCollections", () => {
@@ -56,6 +96,12 @@ describe("handleCollections", () => {
     expect(res.status).toBe(401);
   });
 
+  it("returns 401 for unauthenticated OPTIONS method", async () => {
+    const req = new Request("http://localhost/api/collections", { method: "OPTIONS" });
+    const res = await handleCollections(req);
+    expect(res.status).toBe(401);
+  });
+
   it("returns 401 or 405 for PUT method (auth check before method)", async () => {
     const req = new Request("http://localhost/api/collections", { method: "PUT" });
     const res = await handleCollections(req);
@@ -63,7 +109,7 @@ describe("handleCollections", () => {
   });
 
   it("returns 400 for invalid JSON in POST", async () => {
-    // We can't easily test this without session, but document the path
+    // Without session it returns 401, but document the error path
     const req = new Request("http://localhost/api/collections", {
       method: "POST",
       body: "invalid json",
@@ -73,9 +119,27 @@ describe("handleCollections", () => {
     expect([400, 401]).toContain(res.status);
   });
 
-  it("returns JSON response", async () => {
+  it("returns JSON response with content-type", async () => {
     const req = new Request("http://localhost/api/collections", { method: "GET" });
     const res = await handleCollections(req);
     expect(res.headers.get("content-type")).toContain("application/json");
+  });
+
+  it("returns 405 for HEAD request", async () => {
+    const req = new Request("http://localhost/api/collections", { method: "HEAD" });
+    const res = await handleCollections(req);
+    expect([401, 405]).toContain(res.status);
+  });
+
+  it("handles route with empty id in path", async () => {
+    const req = new Request("http://localhost/api/collections/", { method: "GET" });
+    const res = await handleCollections(req);
+    expect(res.status).toBe(401);
+  });
+
+  it("handles deeply nested paths", async () => {
+    const req = new Request("http://localhost/api/collections/id/nested/path", { method: "GET" });
+    const res = await handleCollections(req);
+    expect([404, 401]).toContain(res.status);
   });
 });

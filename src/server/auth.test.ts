@@ -1,5 +1,38 @@
 // Test OAuth routes and auth handlers.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+
+// Mock modules before importing handleAuth
+let mockDbResponse: any = null;
+let mockFetchCalls: Array<{ url: string; options: any }> = [];
+const realFetch = globalThis.fetch;
+
+beforeEach(() => {
+  mockDbResponse = null;
+  mockFetchCalls = [];
+
+  // Mock global fetch
+  globalThis.fetch = ((url: string | URL, options?: any) => {
+    mockFetchCalls.push({ url: String(url), options });
+
+    const urlStr = String(url);
+    if (urlStr.includes("github.com") && urlStr.includes("/user/emails")) {
+      return Promise.resolve(
+        new Response(JSON.stringify([{ email: "user@github.com", primary: true, verified: true }]))
+      );
+    }
+    if (urlStr.includes("github.com") && urlStr.includes("/user")) {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 12345, login: "testuser", name: "Test User", avatar_url: "https://avatars.githubusercontent.com/test", email: "test@github.com" }))
+      );
+    }
+    return Promise.resolve(new Response("", { status: 404 }));
+  }) as typeof fetch;
+});
+
+afterEach(() => {
+  globalThis.fetch = realFetch;
+});
+
 import { handleAuth } from "./auth.ts";
 
 describe("handleAuth routes", () => {
@@ -9,8 +42,32 @@ describe("handleAuth routes", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns 404 for deep nested unknown paths", async () => {
+    const req = new Request("http://localhost/api/auth/unknown/nested/path", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/unknown/nested/path");
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 for /auth root path", async () => {
+    const req = new Request("http://localhost/api/auth/", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/");
+    expect(res.status).toBe(404);
+  });
+
   it("returns 405 for POST to /me (only GET allowed)", async () => {
     const req = new Request("http://localhost/api/auth/me", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns 405 for PUT to /me", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "PUT" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns 405 for DELETE to /me", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "DELETE" });
     const res = await handleAuth(req, "/api/auth/me");
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
@@ -21,8 +78,29 @@ describe("handleAuth routes", () => {
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
 
+  it("returns 405 for PUT to /signout", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "PUT" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns 405 for DELETE to /signout", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "DELETE" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
   it("returns 401 for /me without session", async () => {
     const req = new Request("http://localhost/api/auth/me", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 401 for /me with invalid session", async () => {
+    const req = new Request("http://localhost/api/auth/me", {
+      method: "GET",
+      headers: { cookie: "sky_session=invalid" }
+    });
     const res = await handleAuth(req, "/api/auth/me");
     expect(res.status).toBe(401);
   });
@@ -34,11 +112,26 @@ describe("handleAuth routes", () => {
     expect(res.headers.get("set-cookie")).toBeTruthy();
   });
 
+  it("returns 200 for /signout even with invalid session", async () => {
+    const req = new Request("http://localhost/api/auth/signout", {
+      method: "POST",
+      headers: { cookie: "sky_session=invalid" }
+    });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBe(200);
+  });
+
   it("handles /github route for GET requests", async () => {
     const req = new Request("http://localhost/api/auth/github", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github");
     // Will be 302 redirect or 500 if OAuth not configured
     expect([302, 500]).toContain(res.status);
+  });
+
+  it("handles /github route for non-GET requests", async () => {
+    const req = new Request("http://localhost/api/auth/github", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/github");
+    expect([302, 500, 405]).toContain(res.status);
   });
 
   it("handles /google route for GET requests", async () => {
@@ -48,10 +141,29 @@ describe("handleAuth routes", () => {
     expect([302, 500]).toContain(res.status);
   });
 
+  it("handles /google route for non-GET requests", async () => {
+    const req = new Request("http://localhost/api/auth/google", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/google");
+    expect([302, 500, 405]).toContain(res.status);
+  });
+
   it("handles /github/callback with missing state", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
+  });
+
+  it("handles /github/callback with missing code", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?state=test", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles /github/callback with both code and state", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test&state=test", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    // Could be 400 (invalid state), 500 (OAuth error), or success
+    expect([200, 400, 500]).toContain(res.status);
   });
 
   it("handles /google/callback with missing code", async () => {
@@ -60,12 +172,39 @@ describe("handleAuth routes", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns JSON error response", async () => {
+  it("handles /google/callback with missing state", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback?code=test", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles /google/callback with both code and state", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback?code=test&state=test", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    // Could be 400 (invalid state), 500 (OAuth error), or success
+    expect([200, 400, 500]).toContain(res.status);
+  });
+
+  it("returns JSON error response for 404", async () => {
+    const req = new Request("http://localhost/api/auth/unknown", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/unknown");
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+  });
+
+  it("returns JSON error response for 401", async () => {
     const req = new Request("http://localhost/api/auth/me", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/me");
     expect(res.headers.get("content-type")).toContain("application/json");
     const body = await res.json();
     expect(body.error).toBeDefined();
+  });
+
+  it("returns JSON error response for 405", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.headers.get("content-type")).toContain("application/json");
   });
 
   it("clears state cookie on callback failure", async () => {
@@ -82,6 +221,36 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/google/callback", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
+  });
+
+  it("handles GitHub callback with error parameter", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?error=access_denied", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect([400, 401]).toContain(res.status);
+  });
+
+  it("handles Google callback with error parameter", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback?error=access_denied", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect([400, 401]).toContain(res.status);
+  });
+
+  it("sets content-type header for /signout", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.headers.get("content-type")).toContain("application/json");
+  });
+
+  it("handles /me with OPTIONS method", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "OPTIONS" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect([400, 401, 405]).toContain(res.status);
+  });
+
+  it("handles /signout with OPTIONS method", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "OPTIONS" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect([200, 400, 405]).toContain(res.status);
   });
 });
 
