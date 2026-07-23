@@ -3,7 +3,7 @@
 // sync) — its route components, search hook (which spins up a real search
 // Worker), and data-fetching children (Footer, PreviewBanner) are mocked so
 // this test can mount the shell in jsdom without a worker or network.
-import { it, expect, describe, afterEach, vi } from "vitest";
+import { it, expect, describe, afterEach, beforeEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Router } from "wouter";
@@ -48,9 +48,27 @@ function wrap(path = "/") {
   return ({ children }: { children: React.ReactNode }) => <Router hook={hook}>{children}</Router>;
 }
 
+// Drawer (part of the shell) reads window.matchMedia on mount; jsdom lacks it.
+// Without this stub App throws during render, ErrorBoundary swallows it, and the
+// mocked outer content below still renders — so the test would pass while App is
+// actually crashing. Stub it so the shell mounts for real.
+beforeEach(() => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("App", () => {
@@ -62,6 +80,8 @@ describe("App", () => {
     expect(await screen.findByTestId("home-page")).toBeInTheDocument();
     // Chat is disabled in the test build (__CHAT_ENABLED__ = false).
     expect(screen.queryByTestId("chat-widget")).toBeNull();
+    // Guard: the shell mounted for real, not into an ErrorBoundary fallback.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("renders the atlas reader route", async () => {

@@ -33,17 +33,20 @@ export const areas = [
   { id: "react-reports", label: "React · Reports", match: [/^src\/components\/reports\//] },
   { id: "react-reader-history", label: "React · Reader (history)", match: [/^src\/components\/history\//] },
   {
-    id: "react-reader-tree",
-    label: "React · Reader (tree)",
-    match: [
-      /^src\/components\/tree\//,
-      /^src\/components\/atlas\/(AtlasView|AtlasReader|CollapsibleNode|JuniorPane|useDepth6Expand)\.tsx?$/,
-    ],
-  },
-  {
     id: "react-reader-panel",
     label: "React · Reader (panel)",
+    // Right-panel views. Listed before reader-tree so tree can claim the rest of atlas/.
     match: [/^src\/components\/atlas\/(RightPanel|AtlasAnnotations|NodeMeta|NodeSelectBox|AtlasActionsContext)\.tsx$/],
+  },
+  {
+    id: "react-reader-tree",
+    label: "React · Reader (tree)",
+    // The tree sidebar plus everything else under atlas/ — the reader views
+    // (AtlasView/AtlasReader/CollapsibleNode/JuniorPane) and their hooks
+    // (useDepth6Expand, useAtlasScroll, useExpandAll, and any future atlas hook).
+    // Panel files are matched above; this deliberately catches the whole dir so
+    // reader hooks don't leak into react-general.
+    match: [/^src\/components\/tree\//, /^src\/components\/atlas\//],
   },
   {
     id: "react-reader-content",
