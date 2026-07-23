@@ -504,6 +504,114 @@ describe("handleAuth OAuth flows and error paths", () => {
     expect([200, 404, 405].includes(res.status)).toBe(true);
   });
 
+  it("handles /github/callback with PATCH method", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback", { method: "PATCH" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles /google/callback with PATCH method", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback", { method: "PATCH" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles /me with PATCH method", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "PATCH" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("handles /signout with PATCH method", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "PATCH" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns error for /github with JSON content-type", async () => {
+    const req = new Request("http://localhost/api/auth/github", {
+      method: "GET",
+      headers: { "content-type": "application/json" }
+    });
+    const res = await handleAuth(req, "/api/auth/github");
+    expect([302, 500].includes(res.status)).toBe(true);
+  });
+
+  it("returns error for /google with JSON content-type", async () => {
+    const req = new Request("http://localhost/api/auth/google", {
+      method: "GET",
+      headers: { "content-type": "application/json" }
+    });
+    const res = await handleAuth(req, "/api/auth/google");
+    expect([302, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles /github/callback with URL-encoded parameters", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test%20code&state=test%20state", {
+      method: "GET"
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles /google/callback with URL-encoded parameters", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback?code=test%20code&state=test%20state", {
+      method: "GET"
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles multiple state parameters in query string", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test&state=first&state=second", {
+      method: "GET"
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles HEAD request to /api/auth/github", async () => {
+    const req = new Request("http://localhost/api/auth/github", { method: "HEAD" });
+    const res = await handleAuth(req, "/api/auth/github");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles HEAD request to /api/auth/google", async () => {
+    const req = new Request("http://localhost/api/auth/google", { method: "HEAD" });
+    const res = await handleAuth(req, "/api/auth/google");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles callback with state cookie in various formats", async () => {
+    const state = "uuid-format-state-value";
+    const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}; path=/` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect([200, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles /me endpoint with multiple cookies", async () => {
+    const req = new Request("http://localhost/api/auth/me", {
+      method: "GET",
+      headers: { cookie: "other=value; sky_session=invalid; another=value2" }
+    });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("handles /signout with various content-types", async () => {
+    for (const contentType of ["application/json", "text/plain", "application/x-www-form-urlencoded"]) {
+      const req = new Request("http://localhost/api/auth/signout", {
+        method: "POST",
+        headers: { "content-type": contentType }
+      });
+      const res = await handleAuth(req, "/api/auth/signout");
+      expect(res.status).toBe(200);
+    }
+  });
+
   it("handles /github/callback with only code parameter", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=abc123", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github/callback");
