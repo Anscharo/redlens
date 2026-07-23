@@ -18,7 +18,10 @@ const SITE_TITLE = "Sky Atlas by Redline";
 const SITE_DESCRIPTION =
   "A search-first interface for the Sky ecosystem's next-gen atlas — documents, on-chain addresses, relationships, and history.";
 const DEFAULT_IMAGE = "/icon-mid.png";
-const DESCRIPTION_MAX = 200;
+// og:description hard cap, measured on the whole string INCLUDING the
+// "<doc_no> — " prefix. The description ends at the first sentence or this
+// many characters, whichever comes first.
+const DESCRIPTION_MAX = 140;
 
 export interface OgDoc {
   title: string;
@@ -64,6 +67,24 @@ export function plainSummary(content: string, max = DESCRIPTION_MAX): string {
   return s;
 }
 
+// Build the og:description as "<doc_no> — <body>", ending at the first sentence
+// or DESCRIPTION_MAX characters (measured on the whole string, prefix included),
+// whichever comes first. Sentence detection runs on `body` only, so periods
+// inside the doc number (e.g. "A.2.2.8.1") don't count as sentence ends.
+export function clampDescription(docNo: string, body: string, max = DESCRIPTION_MAX): string {
+  const text = body.trim();
+  if (!text) return docNo || SITE_DESCRIPTION;
+  const prefix = `${docNo} — `;
+  // First sentence: up to and including the first . ! or ? at a word/line end.
+  const m = text.match(/[.!?](?=\s|$)/);
+  const firstSentence = m ? text.slice(0, m.index! + 1) : text;
+  const candidate = prefix + firstSentence;
+  if (candidate.length <= max) return candidate;
+  // 140 comes first (or the first sentence runs past it): hard-cap on a word
+  // boundary with an ellipsis.
+  return (prefix + text).slice(0, max).replace(/\s+\S*$/, "").trimEnd() + "…";
+}
+
 function meta(property: string, content: string, attr: "property" | "name" = "property"): string {
   return `<meta ${attr}="${property}" content="${escapeHtml(content)}" />`;
 }
@@ -88,9 +109,8 @@ export function renderOgTags(input: OgInput): string {
     const doc = id ? lookup(id) : undefined;
     if (doc) {
       title = `${doc.title} · ${SITE_NAME}`;
-      // Description: "<doc_no> — <first ~200 chars of the document>".
-      const body = plainSummary(doc.content);
-      description = body ? `${doc.doc_no} — ${body}` : doc.doc_no || SITE_DESCRIPTION;
+      // Description: "<doc_no> — <first sentence or 140 chars, whichever first>".
+      description = clampDescription(doc.doc_no, plainSummary(doc.content, Number.POSITIVE_INFINITY));
       ogType = "article";
       // Canonical keeps the id so shares resolve to this exact doc; other query
       // params (view/split) are dropped from the canonical URL.
