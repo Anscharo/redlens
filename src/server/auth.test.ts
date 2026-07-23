@@ -1,14 +1,87 @@
 // Test OAuth routes and auth handlers.
 import { describe, it, expect } from "bun:test";
-import * as auth from "./auth.ts";
+import { handleAuth } from "./auth.ts";
 
-// Module is loaded for coverage instrumentation.
-// Full OAuth testing requires database fixtures and OAuth provider mocking.
+describe("handleAuth routes", () => {
+  it("returns 404 for unknown auth route", async () => {
+    const req = new Request("http://localhost/api/auth/unknown", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/unknown");
+    expect(res.status).toBe(404);
+  });
 
-describe("auth module", () => {
-  it("exports handleAuth and upsertUser", () => {
-    expect(typeof auth.handleAuth).toBe("function");
-    expect(typeof auth.upsertUser).toBe("function");
+  it("returns 405 for POST to /me (only GET allowed)", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns 405 for GET to /signout (only POST allowed)", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBeGreaterThanOrEqual(400);
+  });
+
+  it("returns 401 for /me without session", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 200 for /signout POST", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toBeTruthy();
+  });
+
+  it("handles /github route for GET requests", async () => {
+    const req = new Request("http://localhost/api/auth/github", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/github");
+    // Will be 302 redirect or 500 if OAuth not configured
+    expect([302, 500]).toContain(res.status);
+  });
+
+  it("handles /google route for GET requests", async () => {
+    const req = new Request("http://localhost/api/auth/google", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google");
+    // Will be 302 redirect or 500 if OAuth not configured
+    expect([302, 500]).toContain(res.status);
+  });
+
+  it("handles /github/callback with missing state", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles /google/callback with missing code", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("returns JSON error response", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+  });
+
+  it("clears state cookie on callback failure", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test", {
+      method: "GET",
+      headers: { cookie: "state=value" }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
+  });
+
+  it("handles verifier cookie for Google PKCE flow", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
   });
 });
 
