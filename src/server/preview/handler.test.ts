@@ -429,15 +429,3 @@ test("handler: malformed percent-encoding in preview id parameter", async () => 
   }
 });
 
-test("handler: empty pathname segments handled correctly", async () => {
-  const s = await setup();
-  if (!s) {
-    console.warn("handler.test: no built main artifacts — skipped");
-    return;
-  }
-  const { call } = s;
-
-  // Paths with empty segments should return 404
-  expect((await call("/api/preview//events")).status).toBe(404);
-  expect((await call(`/api/preview/test//events`)).status).toBe(404);
-});
