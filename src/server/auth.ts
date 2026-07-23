@@ -193,5 +193,18 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
     return json({ ok: true }, 200, [clearSessionCookie()]);
   }
 
+  // Self-serve account deletion. Removing the users row cascades (ON DELETE
+  // CASCADE) to the user's conversations → messages and collections →
+  // collection_items, so this one statement erases all of their stored data.
+  // Requires an authenticated session; the session cookie is cleared on the way
+  // out (the JWT is stateless, but it now points at a row that no longer exists,
+  // so /api/auth/me returns 401 regardless).
+  if (sub === "me" && req.method === "DELETE") {
+    const session = await getSessionUser(req);
+    if (!session) return json({ error: "unauthenticated" }, 401);
+    await sql`DELETE FROM users WHERE id = ${session.user.id}`;
+    return json({ ok: true }, 200, [clearSessionCookie()]);
+  }
+
   return json({ error: "not_found" }, 404);
 }

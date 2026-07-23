@@ -10,6 +10,7 @@ interface AuthState {
   loading: boolean;
   openAuth: (provider?: AuthProvider) => void; // full-page redirect to OAuth
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<boolean>; // erase account + all data; true on success
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -57,7 +58,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  return <AuthContext.Provider value={{ user, loading, openAuth, signOut }}>{children}</AuthContext.Provider>;
+  // Permanently delete the account and all associated data (chats, Collections).
+  // The server clears the session cookie; we drop local state on success so the UI
+  // returns to the signed-out view. Returns false on failure so the caller can
+  // keep the user signed in and surface an error.
+  const deleteAccount = async (): Promise<boolean> => {
+    try {
+      const res = await fetch(apiUrl("auth/me"), { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) return false;
+      setUser(null);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, openAuth, signOut, deleteAccount }}>{children}</AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthState {
