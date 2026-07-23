@@ -276,3 +276,10 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   in ROOT unit space with placement converted per-parent (mixing spaces
   produced phantom empty bands); square capped at 480px so the info panel
   fits beside it in the 768px report column. Patch bullet revised.
+
+- **cee2a2bb + 3b34fb1d + fix**: treemap chunk map shipped; remote had a main
+  merge (b3266433: TS7, OG cards, collections, chat harness) — rebased onto it,
+  resolved patch-notes conflict (upstream re-dated wave to 2026-07-26; kept
+  their date + our revised bullet), and fixed a merge-mangled legacy /library
+  redirect in App.tsx (missing closing tags — build was broken on the remote
+  branch until this). All pushed to PR #194.
