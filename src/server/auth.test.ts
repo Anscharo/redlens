@@ -248,7 +248,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("clears state cookie on callback failure", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test", {
       method: "GET",
-      headers: { cookie: "state=value" }
+      headers: { cookie: "sky_oauth_state=value" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     const setCookie = res.headers.get("set-cookie");
@@ -289,7 +289,7 @@ describe("handleAuth OAuth flows and error paths", () => {
     const state = "test-state-uuid";
     const req = new Request(`http://localhost/api/auth/github/callback?code=test-code&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}` }
+      headers: { cookie: `sky_oauth_state=${state}` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     // Will attempt OAuth exchange; may fail with mocked response
@@ -301,7 +301,7 @@ describe("handleAuth OAuth flows and error paths", () => {
     const verifier = "test-verifier-code";
     const req = new Request(`http://localhost/api/auth/google/callback?code=test-code&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}; verifier=${verifier}` }
+      headers: { cookie: `sky_oauth_state=${state}; sky_oauth_verifier=${verifier}` }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     // Will attempt OAuth exchange
@@ -312,7 +312,7 @@ describe("handleAuth OAuth flows and error paths", () => {
     const state = "test-state";
     const req = new Request(`http://localhost/api/auth/google/callback?code=test&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}` }
+      headers: { cookie: `sky_oauth_state=${state}` }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
@@ -322,7 +322,7 @@ describe("handleAuth OAuth flows and error paths", () => {
     const state = "test-state";
     const req = new Request(`http://localhost/api/auth/github/callback?code=&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}` }
+      headers: { cookie: `sky_oauth_state=${state}` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
@@ -331,7 +331,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles callback with empty state parameter", async () => {
     const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=`, {
       method: "GET",
-      headers: { cookie: `state=something` }
+      headers: { cookie: `sky_oauth_state=something` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
@@ -448,7 +448,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles /github/callback with mismatched state", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=wrong", {
       method: "GET",
-      headers: { cookie: "state=correct" }
+      headers: { cookie: "sky_oauth_state=correct" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
@@ -457,7 +457,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles /google/callback with mismatched state", async () => {
     const req = new Request("http://localhost/api/auth/google/callback?code=test&state=wrong", {
       method: "GET",
-      headers: { cookie: "state=correct" }
+      headers: { cookie: "sky_oauth_state=correct" }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
@@ -466,7 +466,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles /google/callback without verifier cookie", async () => {
     const req = new Request("http://localhost/api/auth/google/callback?code=test&state=correct", {
       method: "GET",
-      headers: { cookie: "state=correct" }
+      headers: { cookie: "sky_oauth_state=correct" }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
@@ -475,7 +475,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles /github/callback with different cookie names", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=value", {
       method: "GET",
-      headers: { cookie: "other=value; state=value" }
+      headers: { cookie: "other=value; sky_oauth_state=value" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect([200, 400, 500].includes(res.status)).toBe(true);
@@ -484,7 +484,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles /google/callback with different cookie names", async () => {
     const req = new Request("http://localhost/api/auth/google/callback?code=test&state=value", {
       method: "GET",
-      headers: { cookie: "other=value; state=value" }
+      headers: { cookie: "other=value; sky_oauth_state=value" }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect([200, 400, 500].includes(res.status)).toBe(true);
@@ -590,7 +590,7 @@ describe("handleAuth OAuth flows and error paths", () => {
     const state = "uuid-format-state-value";
     const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}; path=/` }
+      headers: { cookie: `sky_oauth_state=${state}; path=/` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect([200, 400, 500].includes(res.status)).toBe(true);
@@ -663,7 +663,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles GitHub callback with special characters in state", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=test%20space", {
       method: "GET",
-      headers: { cookie: "state=test space" }
+      headers: { cookie: "sky_oauth_state=test space" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect([200, 400, 500].includes(res.status)).toBe(true);
@@ -690,7 +690,7 @@ describe("handleAuth OAuth flows and error paths", () => {
   it("handles multiple cookies in cookie header", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=value", {
       method: "GET",
-      headers: { cookie: "other=val; state=value; another=val2" }
+      headers: { cookie: "other=val; sky_oauth_state=value; another=val2" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect([200, 400, 500].includes(res.status)).toBe(true);
@@ -820,7 +820,7 @@ describe("Authentication flow", () => {
     const code = "test-code-456";
     const req = new Request(`http://localhost/api/auth/github/callback?code=${code}&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}` }
+      headers: { cookie: `sky_oauth_state=${state}` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     // Should redirect on success or return error if OAuth exchange fails
@@ -833,7 +833,7 @@ describe("Authentication flow", () => {
     const verifier = "test-verifier-google";
     const req = new Request(`http://localhost/api/auth/google/callback?code=${code}&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}; verifier=${verifier}` }
+      headers: { cookie: `sky_oauth_state=${state}; sky_oauth_verifier=${verifier}` }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     // Should redirect on success or return error if OAuth exchange fails
@@ -843,7 +843,7 @@ describe("Authentication flow", () => {
   it("handles GitHub callback state mismatch", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=state1", {
       method: "GET",
-      headers: { cookie: "state=state2" }
+      headers: { cookie: "sky_oauth_state=state2" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
@@ -852,7 +852,7 @@ describe("Authentication flow", () => {
   it("handles Google callback state mismatch", async () => {
     const req = new Request("http://localhost/api/auth/google/callback?code=test&state=state1", {
       method: "GET",
-      headers: { cookie: "state=state2; verifier=test" }
+      headers: { cookie: "sky_oauth_state=state2; sky_oauth_verifier=test" }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
@@ -862,7 +862,7 @@ describe("Authentication flow", () => {
     const state = "test-state";
     const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}; other=value` }
+      headers: { cookie: `sky_oauth_state=${state}; other=value` }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
     // GitHub doesn't require verifier, should process normally
@@ -873,7 +873,7 @@ describe("Authentication flow", () => {
     const state = "test-state-google";
     const req = new Request(`http://localhost/api/auth/google/callback?code=test&state=${state}`, {
       method: "GET",
-      headers: { cookie: `state=${state}` }
+      headers: { cookie: `sky_oauth_state=${state}` }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
     // Google requires verifier, should return 400
