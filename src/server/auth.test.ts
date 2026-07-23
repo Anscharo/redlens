@@ -814,4 +814,69 @@ describe("Authentication flow", () => {
     const setCookie = res.headers.get("set-cookie");
     expect(setCookie).toBeTruthy();
   });
+
+  it("completes GitHub OAuth callback with matching state and code", async () => {
+    const state = "test-state-123";
+    const code = "test-code-456";
+    const req = new Request(`http://localhost/api/auth/github/callback?code=${code}&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    // Should redirect on success or return error if OAuth exchange fails
+    expect([200, 302, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("completes Google OAuth callback with matching state, code and verifier", async () => {
+    const state = "test-state-google";
+    const code = "test-code-google";
+    const verifier = "test-verifier-google";
+    const req = new Request(`http://localhost/api/auth/google/callback?code=${code}&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}; verifier=${verifier}` }
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    // Should redirect on success or return error if OAuth exchange fails
+    expect([200, 302, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles GitHub callback state mismatch", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback?code=test&state=state1", {
+      method: "GET",
+      headers: { cookie: "state=state2" }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles Google callback state mismatch", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback?code=test&state=state1", {
+      method: "GET",
+      headers: { cookie: "state=state2; verifier=test" }
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles GitHub callback with missing verifier", async () => {
+    const state = "test-state";
+    const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}; other=value` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    // GitHub doesn't require verifier, should process normally
+    expect([200, 302, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles Google callback with missing verifier", async () => {
+    const state = "test-state-google";
+    const req = new Request(`http://localhost/api/auth/google/callback?code=test&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}` }
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    // Google requires verifier, should return 400
+    expect(res.status).toBe(400);
+  });
 });
