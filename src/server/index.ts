@@ -89,7 +89,7 @@ async function handleOgImage(pathname: string): Promise<Response> {
   let png: Buffer | null = null;
   try {
     const node = resolveNode(getIndexes(), idOrDocNo);
-    if (node) png = await getOgImage(node.title);
+    if (node) png = await getOgImage(node.title, node.doc_no);
   } catch {
     /* indexes not loaded yet — fall through to the static fallback */
   }

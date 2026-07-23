@@ -24,12 +24,19 @@ describe("titleFontSize", () => {
 
 describe("getOgImage", () => {
   it("renders a valid PNG and memoizes repeat calls", async () => {
-    const a = await getOgImage("Accessibility Scope");
+    const a = await getOgImage("Accessibility Scope", "A.1");
     expect(a).not.toBeNull();
     // PNG magic bytes.
     expect(a!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
     expect(a!.length).toBeGreaterThan(1000);
-    const b = await getOgImage("Accessibility Scope");
+    const b = await getOgImage("Accessibility Scope", "A.1");
     expect(b).toBe(a!); // same cached buffer instance
+  });
+
+  it("keys the cache on the doc number too", async () => {
+    const a = await getOgImage("Accessibility Scope", "A.1");
+    const c = await getOgImage("Accessibility Scope", "A.2"); // different doc_no
+    expect(c).not.toBe(a!); // not served from the A.1 cache entry
+    expect(c!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   });
 });
