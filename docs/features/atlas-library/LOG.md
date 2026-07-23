@@ -249,3 +249,16 @@ rule-characterizations dangerous.
 
 Branch atlas-library pushed to origin (github-darkstar alias, darkstar-covenant).
 PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
+
+- **(next commit)** "Chunk tree: full child listing + label tooltips"
+  User caught two defects on A.2.2.10.1.2: (1) truncated labels had no
+  full-name affordance — labels now wrapped in Tooltip (delay=300, full
+  doc_no + title + doc count); (2) bar segments promised "smaller sections"
+  mass that expansion never revealed (children <5 docs were pruned from the
+  DATA but still drawn in the bar). Rule adopted: a bar's composition must be
+  fully expandable. chunkNode now emits EVERY direct child; MIN_CHUNK_DOCS
+  only stops recursion (small children are leaf entries). Artifact: 1,733 →
+  7,749 nodes, ~35KB → ~508KB gz (lazy-loaded on the library route only;
+  tunable if it hurts). Remainder tail only renders if ≥5 unaccounted docs
+  (now only hoisted-wrapper self-docs remain, so effectively gone).
+  SCHEMA_V=4 (bytes changed under same sha — immutable-cache rule).

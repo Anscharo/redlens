@@ -96,27 +96,33 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
     return docs;
   };
 
-  // Recursive chunk node: children sorted largest-first, pruned below
-  // MIN_CHUNK_DOCS so the artifact stays lean while every meaningful
-  // sub-chunk (primitive families, hubs, instance directories…) survives.
+  // Recursive chunk node. Every direct child is included — a bar's visible
+  // composition must be fully expandable (no phantom "smaller sections" mass
+  // that can't be opened). MIN_CHUNK_DOCS only limits RECURSION: children
+  // below it are emitted as leaf entries (their own sub-structure, if any,
+  // is not descended into), keeping the artifact bounded.
   const MIN_CHUNK_DOCS = 5;
-  const prunedKids = (doc_no) =>
+  const sortedKids = (doc_no) =>
     (semChildren.get(doc_no) || [])
-      .filter((c) => semSubtree(c.doc_no) >= MIN_CHUNK_DOCS)
+      .slice()
       .sort((a, b) => semSubtree(b.doc_no) - semSubtree(a.doc_no));
   const chunkNode = (n) => {
     const entry = { ...ref(n), docs: semSubtree(n.doc_no) };
-    // Hoist pass-through levels: a node whose pruned children are a single
-    // wrapper (A.6 → A.6.1 "Agent Artifacts") adds no information — descend
-    // until a real branching (prime list / executor list) so every expansion
-    // reveals distinct chunks, never a child one doc smaller than its parent.
-    let kids = prunedKids(n.doc_no);
+    // Hoist pass-through levels: a node whose only child is a wrapper
+    // (A.6 → A.6.1 "Agent Artifacts") adds no information — descend until a
+    // real branching (prime list / executor list) so every expansion reveals
+    // distinct chunks, never a child one doc smaller than its parent.
+    let kids = sortedKids(n.doc_no);
     while (kids.length === 1) {
-      const inner = prunedKids(kids[0].doc_no);
+      const inner = sortedKids(kids[0].doc_no);
       if (inner.length === 0) break;
       kids = inner;
     }
-    if (kids.length > 0) entry.children = kids.map(chunkNode);
+    if (kids.length > 0) {
+      entry.children = kids.map((c) =>
+        semSubtree(c.doc_no) >= MIN_CHUNK_DOCS ? chunkNode(c) : { ...ref(c), docs: semSubtree(c.doc_no) },
+      );
+    }
     return entry;
   };
   // Hoist single-child chains at the group root (A.6 → A.6.1 → the two agent

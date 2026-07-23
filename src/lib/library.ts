@@ -93,7 +93,7 @@ export function libraryChunksToCSV(tree: ChunkNode[], atlasTotal: number): strin
 // returning clients on year-cached old bytes. Bump it in the same commit as
 // any breaking change to LibraryData; the shape guard below is the backstop
 // for a forgotten bump.
-const SCHEMA_V = 3;
+const SCHEMA_V = 4;
 const cache = new Map<string, Promise<LibraryData>>();
 
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {

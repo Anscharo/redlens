@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ChunkNode } from "../../lib/library";
 import { Link } from "../Link";
+import { Tooltip } from "../Tooltip";
 import { atlasHref } from "../../lib/routes";
 import { SegmentedBar } from "./SegmentedBar";
 
@@ -12,13 +13,14 @@ function ChunkRow({ node, max, atlasTotal, depth, rootDocNo }: { node: ChunkNode
   const kids = node.children ?? [];
   const expandable = kids.length > 0;
   const childSum = kids.reduce((s, c) => s + c.docs, 0);
+  // Since the build emits EVERY child, the only unaccounted mass is the
+  // section's own doc (plus hoisted wrapper docs) — a handful at most. Bar
+  // segments therefore mirror the expansion exactly; no phantom tail.
   const remainder = node.docs - childSum;
-  // Bar segments mirror what expanding reveals; the un-broken-out remainder
-  // (docs below the build's chunk threshold) renders as a faint tail.
   const segments = expandable
     ? [
         ...kids.map((c) => ({ id: c.id ?? c.title, doc_no: c.doc_no ?? "", title: c.title, docs: c.docs })),
-        ...(remainder > 0 ? [{ id: "__rest", doc_no: "", title: "smaller sections", docs: remainder }] : []),
+        ...(remainder >= 5 ? [{ id: "__rest", doc_no: "", title: "smaller sections", docs: remainder }] : []),
       ]
     : [];
   const pct = ((node.docs / atlasTotal) * 100).toFixed(node.docs / atlasTotal >= 0.1 ? 0 : 1);
@@ -42,10 +44,15 @@ function ChunkRow({ node, max, atlasTotal, depth, rootDocNo }: { node: ChunkNode
             >
               ▸
             </span>
-            <span className={`${depth === 0 ? "text-sm" : "text-xs"} truncate`}>
-              {node.doc_no && (depth > 0 || rootDocNo) ? `${node.doc_no} ` : ""}
-              {node.title}
-            </span>
+            {/* Titles can truncate at deep indents — the tooltip always
+                carries the full doc_no + title (delay=300: label hover, not
+                the instant chart-segment case). */}
+            <Tooltip delay={300} content={`${node.doc_no ? `${node.doc_no} ` : ""}${node.title} — ${node.docs.toLocaleString()} docs`}>
+              <span className={`${depth === 0 ? "text-sm" : "text-xs"} truncate`}>
+                {node.doc_no && (depth > 0 || rootDocNo) ? `${node.doc_no} ` : ""}
+                {node.title}
+              </span>
+            </Tooltip>
           </button>
           {node.id && (
             <Link
