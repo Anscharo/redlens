@@ -122,7 +122,7 @@ export default defineConfig(() => {
               const p: string[] = [];
               if (has("GITHUB_CLIENT_ID") && has("GITHUB_CLIENT_SECRET")) p.push("github");
               if (has("GOOGLE_CLIENT_ID") && has("GOOGLE_CLIENT_SECRET")) p.push("google");
-              return p.length ? p : ["github", "google"];
+              return p; // empty = no provider configured → no buttons (matches prod)
             })();
         return html
           .replaceAll("{{ATLAS_SHA}}", sha)

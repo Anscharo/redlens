@@ -92,6 +92,13 @@ export async function upsertUser(
   return { id: rows[0].id, provider };
 }
 
+// Permanently delete a user and everything owned by them. ON DELETE CASCADE on
+// conversations/collections (→ messages/collection_items, migrations 003/014)
+// means this one statement erases all of their stored data.
+export async function deleteAccount(userId: string): Promise<void> {
+  await sql`DELETE FROM users WHERE id = ${userId}`;
+}
+
 export async function handleAuth(req: Request, pathname: string): Promise<Response> {
   const sub = pathname.slice("/api/auth/".length);
 
@@ -202,7 +209,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
   if (sub === "me" && req.method === "DELETE") {
     const session = await getSessionUser(req);
     if (!session) return json({ error: "unauthenticated" }, 401);
-    await sql`DELETE FROM users WHERE id = ${session.user.id}`;
+    await deleteAccount(session.user.id);
     return json({ ok: true }, 200, [clearSessionCookie()]);
   }
 

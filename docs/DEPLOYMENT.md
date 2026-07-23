@@ -325,9 +325,13 @@ On save, copy the generated **Client ID**
 `GOOGLE_CLIENT_SECRET`.
 
 *One client can serve all environments — add each redirect URI as its own entry
-(Google matches them exactly). The staging host is under `up.railway.app`, not
-`redline.support`, so it needs no Authorized-domain entry; Authorized domains
-only governs the branding links, which stay on `redline.support`.*
+(Google matches them exactly). **Caveat for publishing:** once you move the app
+to **In production**, Google's brand verification expects every redirect-URI host
+to fall under an **Authorized domain**, and you can't add `up.railway.app` (you
+don't own it, so it can't be verified). Two clean options: keep a **separate
+OAuth client for staging that stays in Testing mode** (test users only, no brand
+verification), or put staging on a `redline.support` subdomain you can verify.
+The production client should carry only `redline.support` redirect URIs.*
 
 **Privacy policy — required to publish.** While in **Testing** (≤100 test
 users) you can sign in immediately; the consent screen just shows an

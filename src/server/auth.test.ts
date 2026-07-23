@@ -13,7 +13,7 @@ mock.module("./db.ts", () => ({
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
 }));
 
-const { upsertUser } = await import("./auth.ts");
+const { upsertUser, deleteAccount, handleAuth } = await import("./auth.ts");
 
 afterAll(() => {
   mock.restore();
@@ -43,5 +43,21 @@ describe("upsertUser", () => {
 
     expect(user).toEqual({ id: "user-1", provider: "google" });
     expect(inserted).toEqual(["google", "sub-1", null, null, null]);
+  });
+});
+
+describe("deleteAccount", () => {
+  it("issues a DELETE scoped to the given user id", async () => {
+    await deleteAccount("user-1");
+    expect(inserted).toEqual(["user-1"]);
+  });
+});
+
+describe("DELETE /api/auth/me", () => {
+  it("401s and runs no delete when there is no session", async () => {
+    // No CHAT_JWT_SECRET / cookie in the test env → getSessionUser returns null.
+    const res = await handleAuth(new Request("http://x/api/auth/me", { method: "DELETE" }), "/api/auth/me");
+    expect(res.status).toBe(401);
+    expect(inserted).toEqual([]); // no SQL touched the DB
   });
 });

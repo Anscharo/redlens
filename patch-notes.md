@@ -35,6 +35,8 @@
 
 ## 2026-07-23
 - Made history diffs easier to read: heavily rewritten sentences and paragraphs now show as clean before/after blocks instead of interleaved word-by-word changes
+- Added a privacy policy, linked from the footer
+- Added a Delete account option in the profile menu that removes your account, chats, and saved collections
 
 ## 2026-07-22
 - Shared links now unfurl with a generated preview card — documents, radar actors, reports, the connect page, and previews each get their own — on Twitter, Slack, Discord, and other platforms

@@ -11,17 +11,18 @@ const ALL: AuthProvider[] = ["github", "google"];
 // set). An environment that configures only one provider therefore shows only
 // that provider's sign-in.
 //
-// Returns [] when logins are off. If the flag is missing or still the unreplaced
-// placeholder (static/no-server hosting, where usersEnabled() is already false),
-// we fall back to both providers so a mis-injected value never hides a working
-// sign-in — usersEnabled() is the outer gate.
+// Returns [] when logins are off. Only a genuinely absent flag (undefined) or the
+// still-unreplaced placeholder (static/no-server hosting, where usersEnabled() is
+// already false) falls back to both providers, so a mis-injected value never
+// hides a working sign-in. An intentionally-empty CSV ("") — which the server
+// injects when USERS_ENABLED is on but no provider pair is configured — means
+// "no providers", so we return [] (no buttons) rather than falling back to both.
 export function authProviders(): AuthProvider[] {
   if (!usersEnabled()) return [];
   const raw = typeof window !== "undefined" ? window.__AUTH_PROVIDERS__ : undefined;
-  if (!raw || raw.startsWith("{{")) return [...ALL];
-  const picked = raw
+  if (raw === undefined || raw.startsWith("{{")) return [...ALL];
+  return raw
     .split(",")
     .map((s) => s.trim())
     .filter((s): s is AuthProvider => (ALL as string[]).includes(s));
-  return picked.length ? picked : [...ALL];
 }

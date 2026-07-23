@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiUrl, type AuthUser } from "./api";
 import { usersEnabled } from "../../lib/usersEnabled";
+import { authProviders } from "../../lib/authProviders";
 import { stashAuthReturn } from "../../lib/authReturn";
 
 export type AuthProvider = "github" | "google";
@@ -42,11 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const openAuth = (provider: AuthProvider = "github") => {
+  const openAuth = (provider?: AuthProvider) => {
+    // Default to the environment's configured provider, not always GitHub — in a
+    // Google-only deployment the no-arg callers (e.g. chat 401 recovery) would
+    // otherwise redirect to /api/auth/github, which the server rejects as
+    // oauth_not_configured. Fall back to "github" only if the list is empty.
+    const target = provider ?? authProviders()[0] ?? "github";
     // Remember where we are so the post-OAuth landing (always the app root) can
     // send us back here instead of dumping us on the home page.
     stashAuthReturn(window.location.pathname + window.location.search);
-    window.location.href = apiUrl(`auth/${provider}`);
+    window.location.href = apiUrl(`auth/${target}`);
   };
 
   const signOut = async () => {
