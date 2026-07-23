@@ -280,13 +280,13 @@ client. Below is **every field the console asks for and the value to enter**.
 | Field | Value |
 |---|---|
 | App name | `Sky Atlas by Redline` |
-| User support email | Your support address (e.g. `anscharo@proton.me`) |
+| User support email | Your support address (e.g. `support@redline.support`) — shown publicly on the consent screen |
 | App logo | Optional — skip, or upload `public/icon-SMALL.png` |
 | Application home page | `https://atlas.redline.support` |
 | Application privacy policy link | `https://atlas.redline.support/privacy` |
 | Application terms of service link | Optional — leave blank |
 | Authorized domains | `redline.support` |
-| Developer contact information | Your email (e.g. `anscharo@proton.me`) |
+| Developer contact information | Your email (e.g. `support@redline.support`) |
 
 *The home-page / privacy / terms links require the **Authorized domain** to be
 set first, and each link's host must fall under it (`redline.support`).*
@@ -318,7 +318,7 @@ left empty — but set them so the consent screen shows the correct summary.*
 | Application type | **Web application** |
 | Name | Any label, e.g. `redlens-atlas web` |
 | Authorized JavaScript origins | Optional — **leave empty** (server-side redirect flow, no browser SDK) |
-| Authorized redirect URIs | `https://atlas.redline.support/api/auth/google/callback` — add `http://localhost:3000/api/auth/google/callback` too for local dev |
+| Authorized redirect URIs | One per environment (add all you use): `https://atlas.redline.support/api/auth/google/callback` (production) · `https://redlens-development.up.railway.app/api/auth/google/callback` (dev/staging) · `http://localhost:3000/api/auth/google/callback` (local dev) |
 
 On save, copy the generated **Client ID**
 (`…apps.googleusercontent.com`) → `GOOGLE_CLIENT_ID` and **Client secret** →
