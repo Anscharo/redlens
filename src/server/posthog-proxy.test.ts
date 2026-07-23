@@ -75,4 +75,14 @@ describe("handlePosthogProxy", () => {
     expect(res.status).toBe(404);
     expect(calls).toHaveLength(0);
   });
+
+  it("returns 502 when the upstream fetch throws (unreachable/aborted)", async () => {
+    globalThis.fetch = (() => {
+      throw new Error("fetch failed");
+    }) as unknown as typeof fetch;
+    const req = new Request("http://app.example/z/e/", { method: "GET" });
+    const res = await handlePosthogProxy(req, "/z/e/");
+    expect(res.status).toBe(502);
+    expect(await res.text()).toBe("analytics proxy unavailable");
+  });
 });
