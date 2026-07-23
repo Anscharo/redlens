@@ -553,6 +553,12 @@
       "title": "Peg Defense Obligations"
     },
     {
+      "taskKey": "u:17630a67-b287-4f44-bc60-f2a4f5d16cfa",
+      "uuid": "17630a67-b287-4f44-bc60-f2a4f5d16cfa",
+      "docNo": "A.3.7.1.2.1.7",
+      "title": "ALLOCATOR-PRYSM-A Parameters"
+    },
+    {
       "taskKey": "u:9c06226e-b9ed-49e7-8d82-557b9414b294",
       "uuid": "9c06226e-b9ed-49e7-8d82-557b9414b294",
       "docNo": "A.3.7.1.6.6.2",
