@@ -9,22 +9,29 @@
 // stale-on-error branch (cached value returned after a failed refresh) is the
 // same code path as the cache-hit return and isn't separately reachable here.
 
-import { test, expect, afterAll } from "bun:test";
+import { test, expect, beforeAll, afterAll } from "bun:test";
 
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
 const realFetch = globalThis.fetch;
+// Installed in beforeAll (execution time), not at module top level: `bun test`
+// imports every test file's top-level code before running any test body, so a
+// bare top-level `globalThis.fetch = …` here would race any other file's own
+// top-level fetch swap — whichever module happens to be imported last during
+// that collection pass wins process-wide. beforeAll runs right before this
+// file's own tests instead, immune to collection-order.
+let fetchCalls = 0;
+let nextResponse: () => Promise<Response>;
+beforeAll(() => {
+  // @ts-expect-error — minimal fetch stub, only the pulls path is exercised.
+  globalThis.fetch = (input: RequestInfo | URL) => {
+    fetchCalls++;
+    expect(String(input)).toContain("/repos/sky-ecosystem/next-gen-atlas/pulls");
+    return nextResponse();
+  };
+});
 afterAll(() => {
   globalThis.fetch = realFetch;
 });
-
-let fetchCalls = 0;
-let nextResponse: () => Promise<Response>;
-// @ts-expect-error — minimal fetch stub, only the pulls path is exercised.
-globalThis.fetch = (input: RequestInfo | URL) => {
-  fetchCalls++;
-  expect(String(input)).toContain("/repos/sky-ecosystem/next-gen-atlas/pulls");
-  return nextResponse();
-};
 
 const { handlePreview } = await import("./handler.ts");
 const call = (p: string) => Promise.resolve(handlePreview(new Request("http://x" + p), stubServer, p));
