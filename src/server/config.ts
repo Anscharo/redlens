@@ -14,6 +14,17 @@ const hasJwtSecret = (process.env.CHAT_JWT_SECRET ?? "") !== "";
 const usersEnabled = usersRequested && hasJwtSecret;
 const chatEnabled =
   (process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true") && usersEnabled;
+
+// Per-provider OAuth availability. A provider is available when BOTH its client
+// id and secret are set (matching the /api/auth/* route guards) AND the login
+// surface is on. This is how an environment restricts itself to a single
+// provider: configure only GitHub's pair, or only Google's, and only that
+// button renders / only that route works. Setting neither leaves the surface
+// on but with no way in — checkAuthConfig() warns about that at boot.
+const githubAuthEnabled =
+  usersEnabled && (process.env.GITHUB_CLIENT_ID ?? "") !== "" && (process.env.GITHUB_CLIENT_SECRET ?? "") !== "";
+const googleAuthEnabled =
+  usersEnabled && (process.env.GOOGLE_CLIENT_ID ?? "") !== "" && (process.env.GOOGLE_CLIENT_SECRET ?? "") !== "";
 const appUrl =
   process.env.APP_URL ??
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
@@ -39,6 +50,13 @@ export const config = {
   // it is AND-gated by usersEnabled — CHAT_ENABLED=1 without USERS_ENABLED=1 +
   // CHAT_JWT_SECRET leaves chat off. Pair with the frontend's VITE_CHAT_ENABLED.
   chatEnabled,
+
+  // Which OAuth providers this environment offers (each true only when its
+  // credentials are present and the login surface is on). Injected into the HTML
+  // so the frontend renders exactly the configured buttons — an environment with
+  // only one provider's credentials shows only that provider's sign-in.
+  githubAuthEnabled,
+  googleAuthEnabled,
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.

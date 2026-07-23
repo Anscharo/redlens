@@ -96,7 +96,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
   const sub = pathname.slice("/api/auth/".length);
 
   if (sub === "github" && req.method === "GET") {
-    if (!config.githubClientId || !config.githubClientSecret) return json({ error: "oauth_not_configured" }, 500);
+    if (!config.githubAuthEnabled) return json({ error: "oauth_not_configured" }, 500);
     const state = crypto.randomUUID();
     return redirect(github().createAuthorizationURL(state, GITHUB_SCOPES).toString(), [stateCookie(state)]);
   }
@@ -126,7 +126,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
   }
 
   if (sub === "google" && req.method === "GET") {
-    if (!config.googleClientId || !config.googleClientSecret) return json({ error: "oauth_not_configured" }, 500);
+    if (!config.googleAuthEnabled) return json({ error: "oauth_not_configured" }, 500);
     // Google requires PKCE: the code_verifier rides a cookie across the round-trip.
     // arctic's generateCodeVerifier() yields an RFC 7636-compliant value (a UUID would be rejected).
     const state = crypto.randomUUID();
