@@ -101,3 +101,141 @@ test("handler: diffCache evicts FIFO once it exceeds DIFF_CACHE_MAX", async () =
   }
   expect(diffCache.size).toBeLessThanOrEqual(DIFF_CACHE_MAX);
 }, 30_000);
+
+test("handler: makeUnsubGate handles cancellation before resolution", async () => {
+  const { makeUnsubGate } = await import("./handler.ts");
+  const gate = makeUnsubGate();
+
+  let unsubCalled = false;
+  gate.cancel();
+  gate.resolve(() => {
+    unsubCalled = true;
+  });
+
+  expect(unsubCalled).toBe(true);
+});
+
+test("handler: makeUnsubGate handles resolution before cancellation", async () => {
+  const { makeUnsubGate } = await import("./handler.ts");
+  const gate = makeUnsubGate();
+
+  let unsubCalled = false;
+  gate.resolve(() => {
+    unsubCalled = true;
+  });
+  gate.cancel();
+
+  expect(unsubCalled).toBe(true);
+});
+
+test("handler: makeUnsubGate cancels idempotently", async () => {
+  const { makeUnsubGate } = await import("./handler.ts");
+  const gate = makeUnsubGate();
+
+  let callCount = 0;
+  gate.resolve(() => {
+    callCount++;
+  });
+
+  gate.cancel();
+  gate.cancel();
+  gate.cancel();
+
+  expect(callCount).toBe(1);
+});
+
+test("handler: invalid SHA format returns 404", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  expect((await call("/api/preview/not-a-sha/diff.json")).status).toBe(404);
+  expect((await call("/api/preview/12345/docs.json")).status).toBe(404);
+  expect((await call("/api/preview/gggggggggggggggggggggggggggggggggggggg/meta.json")).status).toBe(404);
+});
+
+test("handler: unknown artifact paths return 404", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  expect((await call(`/api/preview/${SHA}/unknown-artifact.json`)).status).toBe(404);
+  expect((await call(`/api/preview/${SHA}/glossary.json`)).status).toBe(404);
+  expect((await call(`/api/preview/${SHA}/graph.json`)).status).toBe(404);
+});
+
+test("handler: CORS headers are present in responses", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  const res = await call(`/api/preview/${SHA}/meta.json`);
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  expect(res.headers.get("x-robots-tag")).toBe("noindex");
+});
+
+test("handler: /preview/list endpoint returns JSON array", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  const res = await call("/api/preview/list");
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("application/json");
+  const body = await res.json();
+  expect(Array.isArray(body)).toBe(true);
+});
+
+test("handler: /preview/open-prs endpoint returns JSON array", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  const res = await call("/api/preview/open-prs");
+  expect(res.status).toBe(200);
+  expect(res.headers.get("content-type")).toContain("application/json");
+  const body = await res.json();
+  expect(Array.isArray(body)).toBe(true);
+});
+
+test("handler: wrong number of path segments returns 404", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  expect((await call("/api/preview/")).status).toBe(404);
+  expect((await call(`/api/preview/${SHA}`)).status).toBe(404);
+  expect((await call(`/api/preview/${SHA}/sub/path`)).status).toBe(404);
+  expect((await call(`/api/preview/${SHA}/a/b/c`)).status).toBe(404);
+});
+
+test("handler: /events endpoint returns SSE response", async () => {
+  const s = await setup();
+  if (!s) {
+    console.warn("handler.test: no built main artifacts — skipped");
+    return;
+  }
+  const { call } = s;
+
+  const res = await call("/api/preview/main/events");
+  expect(res.status).toBeGreaterThanOrEqual(200);
+  expect(res.headers.get("content-type")).toBe("text/event-stream");
+});
