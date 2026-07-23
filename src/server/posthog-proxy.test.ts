@@ -75,4 +75,26 @@ describe("handlePosthogProxy", () => {
     expect(res.status).toBe(404);
     expect(calls).toHaveLength(0);
   });
+
+  it("returns 502 when upstream fetch fails", async () => {
+    globalThis.fetch = (() => {
+      throw new Error("Network error");
+    }) as unknown as typeof fetch;
+
+    const req = new Request("http://app.example/z/e/", { method: "POST", body: "data" });
+    const res = await handlePosthogProxy(req, "/z/e/");
+    expect(res.status).toBe(502);
+  });
+
+  it("returns 502 when upstream request times out", async () => {
+    globalThis.fetch = (() => {
+      const ac = new AbortController();
+      ac.abort();
+      throw new Error("Request timeout");
+    }) as unknown as typeof fetch;
+
+    const req = new Request("http://app.example/z/e/", { method: "POST", body: "data" });
+    const res = await handlePosthogProxy(req, "/z/e/");
+    expect(res.status).toBe(502);
+  });
 });
