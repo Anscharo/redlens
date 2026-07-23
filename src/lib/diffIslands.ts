@@ -16,15 +16,20 @@ function isAbsorbableIsland(seg: WordSegment): boolean {
 }
 
 /** Fold every "=" island (at most MAX_ISLAND non-ws chars — this also
- *  covers whitespace-only "=" segments, length 0) that sits between two
- *  changed ("-"/"+") segments into one merged "-" block (the span's old-side
- *  reconstruction) followed by one merged "+" block (its new-side
- *  reconstruction). Iterates to a fixpoint: re-merging after each fold can
- *  leave two same-op segments newly adjacent, fusing them and putting
- *  another island within reach. Reconstruction is exactly preserved
- *  throughout — an "=" segment's text already appears in both the old-side
- *  ("="+"-") and new-side ("="+"+") reconstruction; folding it into a "-"
- *  and a "+" only moves WHERE it contributes from, not whether. */
+ *  covers whitespace-only "=" segments, length 0) that sits between a "-"
+ *  and a "+" (a genuine replacement region, in either order) into one merged
+ *  "-" block (the span's old-side reconstruction) followed by one merged "+"
+ *  block (its new-side reconstruction). The two neighbors must be
+ *  OPPOSITE-sided: an island between two same-sided edits (e.g. a pure
+ *  deletion "- Alpha = the - Bravo") is genuinely unchanged context, and
+ *  folding it would emit the island on the empty side — inventing an
+ *  addition (or deletion) that never happened, which also defeats the
+ *  single-sided promotion guard downstream. Iterates to a fixpoint:
+ *  re-merging after each fold can leave two same-op segments newly adjacent,
+ *  fusing them and putting another island within reach. Reconstruction is
+ *  exactly preserved throughout — an "=" segment's text already appears in
+ *  both the old-side ("="+"-") and new-side ("="+"+") reconstruction; folding
+ *  it into a "-" and a "+" only moves WHERE it contributes from, not whether. */
 export function absorbIslands(segs: WordSegment[]): WordSegment[] {
   let current = mergeOps(segs);
   for (;;) {
@@ -34,7 +39,10 @@ export function absorbIslands(segs: WordSegment[]): WordSegment[] {
         i < current.length - 1 &&
         isAbsorbableIsland(seg) &&
         current[i - 1][0] !== "=" &&
-        current[i + 1][0] !== "=",
+        current[i + 1][0] !== "=" &&
+        // Only fold inside a true replacement (one "-" side, one "+" side).
+        // Same-sided neighbors mean the island is real unchanged context.
+        current[i - 1][0] !== current[i + 1][0],
     );
     if (idx === -1) return current;
 

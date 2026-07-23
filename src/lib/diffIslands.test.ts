@@ -92,4 +92,35 @@ describe("absorbIslands", () => {
     const segs: WordSegment[] = [["=", "nothing changed here"]];
     expect(absorbIslands(segs)).toEqual(segs);
   });
+
+  it("does NOT absorb an island between two same-sided deletions (pure delete stays inline)", () => {
+    // "Alpha the Bravo stays." -> "the stays." is a PURE deletion: "the" is
+    // retained context, not an addition. Folding it would emit a phantom "+ the".
+    const oldLine = "Alpha the Bravo stays.";
+    const newLine = "the stays.";
+    const wd = wordDiff(oldLine, newLine);
+    expect(wd.some(([op]) => op === "+")).toBe(false); // pre-absorption: no additions
+    const absorbed = absorbIslands(wd);
+    // The absorb step must not invent an addition where the source had none.
+    expect(absorbed.some(([op]) => op === "+")).toBe(false);
+    expect(reconstruct(absorbed)).toEqual({ old: oldLine, new: newLine });
+  });
+
+  it("does NOT absorb an island between two same-sided insertions (pure insert stays inline)", () => {
+    // Mirror case: an inserted region around a retained "the" must not invent a
+    // phantom "- the" on the old side.
+    const segs: WordSegment[] = [["+", "Alpha "], ["=", "the"], ["+", " Bravo"]];
+    const absorbed = absorbIslands(segs);
+    expect(absorbed.some(([op]) => op === "-")).toBe(false);
+    expect(reconstruct(absorbed)).toEqual({ old: "the", new: "Alpha the Bravo" });
+  });
+
+  it("still absorbs an island between opposite-sided edits (delete then insert)", () => {
+    // The genuine replacement case is unaffected by the same-sided guard.
+    const segs: WordSegment[] = [["-", "old"], ["=", " the "], ["+", "new"]];
+    expect(absorbIslands(segs)).toEqual([
+      ["-", "old the "],
+      ["+", " the new"],
+    ]);
+  });
 });
