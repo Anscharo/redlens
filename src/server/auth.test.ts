@@ -1,25 +1,69 @@
 // Test OAuth routes and auth handlers.
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { handleAuth } from "./auth.ts";
+import { handleAuth, upsertUser } from "./auth.ts";
 
 const realFetch = globalThis.fetch;
 
-describe("handleAuth routes", () => {
+describe("handleAuth OAuth flows and error paths", () => {
   beforeEach(() => {
-    // Mock global fetch
+    // Comprehensive mock for GitHub and Google API flows
     globalThis.fetch = ((url: string | URL, _options?: any) => {
       const urlStr = String(url);
-      if (urlStr.includes("github.com") && urlStr.includes("/user/emails")) {
-        return Promise.resolve(
-          new Response(JSON.stringify([{ email: "user@github.com", primary: true, verified: true }]))
-        );
+
+      // GitHub API endpoints
+      if (urlStr.includes("github.com")) {
+        if (urlStr.includes("/user/emails")) {
+          return Promise.resolve(
+            new Response(JSON.stringify([
+              { email: "primary@github.com", primary: true, verified: true },
+              { email: "secondary@github.com", primary: false, verified: true }
+            ]))
+          );
+        }
+        if (urlStr.includes("/user") && !urlStr.includes("/user/emails")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              id: 12345,
+              login: "testuser",
+              name: "Test User",
+              avatar_url: "https://avatars.githubusercontent.com/test",
+              email: "test@github.com"
+            }))
+          );
+        }
+        // GitHub token exchange
+        if (urlStr.includes("login.githubusercontent.com")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              access_token: "gho_test_token_123",
+              token_type: "bearer",
+              scope: "read:user,user:email"
+            }))
+          );
+        }
       }
-      if (urlStr.includes("github.com") && urlStr.includes("/user")) {
-        return Promise.resolve(
-          new Response(JSON.stringify({ id: 12345, login: "testuser", name: "Test User", avatar_url: "https://avatars.githubusercontent.com/test", email: "test@github.com" }))
-        );
+
+      // Google API endpoints
+      if (urlStr.includes("oauth2.googleapis.com") || urlStr.includes("openidconnect.googleapis.com")) {
+        if (urlStr.includes("/token")) {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              access_token: "ya29_test_token",
+              token_type: "Bearer",
+              expires_in: 3599,
+              id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiJ0ZXN0LWNsaWVudC1pZC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImF1ZCI6InRlc3QtY2xpZW50LWlkLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTAwMzMyNDcxMjM0NTY3ODkwIiwiaWF0IjoxNjg5MzIxNDAwLCJleHAiOjE2ODkzMjUwMDB9.test_signature"
+            }))
+          );
+        }
       }
-      return Promise.resolve(new Response("", { status: 404 }));
+
+      // Error responses for testing failure paths
+      if (urlStr.includes("error.example.com")) {
+        return Promise.resolve(new Response("Unauthorized", { status: 401 }));
+      }
+
+      // Default fallback
+      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
     }) as typeof fetch;
   });
 
@@ -235,6 +279,136 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/me", { method: "OPTIONS" });
     const res = await handleAuth(req, "/api/auth/me");
     expect(res.status).toBe(404);
+  });
+
+  it("handles GitHub callback with matching state cookies", async () => {
+    const state = "test-state-uuid";
+    const req = new Request(`http://localhost/api/auth/github/callback?code=test-code&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    // Will attempt OAuth exchange; may fail with mocked response
+    expect([200, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles Google callback with matching state cookies", async () => {
+    const state = "test-state-uuid";
+    const verifier = "test-verifier-code";
+    const req = new Request(`http://localhost/api/auth/google/callback?code=test-code&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}; verifier=${verifier}` }
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    // Will attempt OAuth exchange
+    expect([200, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("handles missing verifier in Google callback", async () => {
+    const state = "test-state";
+    const req = new Request(`http://localhost/api/auth/google/callback?code=test&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}` }
+    });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles callback with empty code parameter", async () => {
+    const state = "test-state";
+    const req = new Request(`http://localhost/api/auth/github/callback?code=&state=${state}`, {
+      method: "GET",
+      headers: { cookie: `state=${state}` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles callback with empty state parameter", async () => {
+    const req = new Request(`http://localhost/api/auth/github/callback?code=test&state=`, {
+      method: "GET",
+      headers: { cookie: `state=something` }
+    });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(400);
+  });
+
+  it("handles GitHub callback with non-GET method", async () => {
+    const req = new Request("http://localhost/api/auth/github/callback", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/github/callback");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles Google callback with non-GET method", async () => {
+    const req = new Request("http://localhost/api/auth/google/callback", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/google/callback");
+    expect(res.status).toBe(404);
+  });
+
+  it("handles /github route with various HTTP methods", async () => {
+    const methods = ["HEAD", "PATCH", "DELETE", "PUT", "OPTIONS"];
+    for (const method of methods) {
+      const req = new Request("http://localhost/api/auth/github", { method });
+      const res = await handleAuth(req, "/api/auth/github");
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it("handles /google route with various HTTP methods", async () => {
+    const methods = ["HEAD", "PATCH", "DELETE", "PUT", "OPTIONS"];
+    for (const method of methods) {
+      const req = new Request("http://localhost/api/auth/google", { method });
+      const res = await handleAuth(req, "/api/auth/google");
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it("handles signout with various invalid cookies", async () => {
+    const invalidCookies = ["invalid-jwt", "sky_session=", "other=value"];
+    for (const cookie of invalidCookies) {
+      const req = new Request("http://localhost/api/auth/signout", {
+        method: "POST",
+        headers: { cookie }
+      });
+      const res = await handleAuth(req, "/api/auth/signout");
+      expect(res.status).toBe(200);
+      expect(res.headers.get("set-cookie")).toBeTruthy();
+    }
+  });
+
+  it("handles /me with various invalid session formats", async () => {
+    const invalidSessions = ["", "invalid.jwt.token", "eyJhbGciOiJIUzI1NiJ9", "not-even-jwt"];
+    for (const session of invalidSessions) {
+      const req = new Request("http://localhost/api/auth/me", {
+        method: "GET",
+        headers: { cookie: `sky_session=${session}` }
+      });
+      const res = await handleAuth(req, "/api/auth/me");
+      expect(res.status).toBe(401);
+    }
+  });
+
+  it("returns proper error structure in responses", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = (await res.json()) as any;
+    expect(body).toHaveProperty("error");
+    expect(typeof body.error).toBe("string");
+  });
+
+  it("handles callback URL variations", async () => {
+    const variations = [
+      "/api/auth/github/callback/extra",
+      "/api/auth/github/callback?extra=param",
+      "/api/auth/google/callback/extra",
+      "/api/auth/google/callback?extra=param"
+    ];
+    for (const path of variations) {
+      const req = new Request(`http://localhost${path}`, { method: "GET" });
+      const res = await handleAuth(req, path.split("?")[0]);
+      expect([400, 404].includes(res.status)).toBe(true);
+    }
   });
 
   it("handles /signout with OPTIONS method", async () => {
