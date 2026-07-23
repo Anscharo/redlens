@@ -1,6 +1,30 @@
 // Test MCP server creation and utilities.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeAll } from "bun:test";
 import { createMcpServer, type McpRequestContext } from "./mcp.ts";
+import { setIndexes } from "./indexes.ts";
+import MiniSearch from "minisearch";
+import { MultiDirectedGraph } from "graphology";
+
+beforeAll(() => {
+  // Initialize minimal indexes for tests
+  const emptyGraph = new MultiDirectedGraph();
+  const emptySearch = new MiniSearch({ fields: ["content"] });
+  setIndexes({
+    docMap: new Map(),
+    byDocNo: new Map(),
+    childrenIndex: new Map(),
+    entities: [],
+    edges: [],
+    graph: emptyGraph,
+    search: emptySearch,
+    meta: {
+      atlasCommit: "test-commit-sha",
+      buildTime: new Date().toISOString(),
+      version: "1.0.0",
+    },
+    glossary: new Map(),
+  });
+});
 
 describe("createMcpServer", () => {
   it("creates MCP server without context", () => {
