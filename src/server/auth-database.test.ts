@@ -95,7 +95,7 @@ describe("handleAuth OAuth callback flows with proper token responses", () => {
       `http://localhost/api/auth/github/callback?code=${code}&state=${state}`,
       {
         method: "GET",
-        headers: { cookie: `state=${state}` }
+        headers: { cookie: `sky_oauth_state=${state}` }
       }
     );
 
@@ -113,7 +113,7 @@ describe("handleAuth OAuth callback flows with proper token responses", () => {
       `http://localhost/api/auth/google/callback?code=${code}&state=${state}`,
       {
         method: "GET",
-        headers: { cookie: `state=${state}; verifier=${verifier}` }
+        headers: { cookie: `sky_oauth_state=${state}; sky_oauth_verifier=${verifier}` }
       }
     );
 
@@ -127,7 +127,7 @@ describe("handleAuth OAuth callback flows with proper token responses", () => {
       `http://localhost/api/auth/github/callback?code=test-code&state=${state}`,
       {
         method: "GET",
-        headers: { cookie: `state=${state}` }
+        headers: { cookie: `sky_oauth_state=${state}` }
       }
     );
 
@@ -143,11 +143,20 @@ describe("handleAuth OAuth callback flows with proper token responses", () => {
       `http://localhost/api/auth/google/callback?code=test-code&state=${state}`,
       {
         method: "GET",
-        headers: { cookie: `state=${state}; verifier=${verifier}` }
+        headers: { cookie: `sky_oauth_state=${state}; sky_oauth_verifier=${verifier}` }
       }
     );
 
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect([200, 302, 400, 500].includes(res.status)).toBe(true);
+  });
+
+  it("GET /auth/google endpoint calls generateCodeVerifier and redirects", async () => {
+    const req = new Request("http://localhost/api/auth/google", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/google");
+    // Should return a redirect (302) with state and verifier cookies
+    expect(res.status).toBe(302);
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
   });
 });
