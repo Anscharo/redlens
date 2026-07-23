@@ -26,7 +26,6 @@ const DESCRIPTION_MAX = 140;
 export interface OgDoc {
   title: string;
   doc_no: string;
-  type: string;
   content: string;
 }
 
@@ -129,6 +128,9 @@ export function renderOgTags(input: OgInput): string {
     meta("og:description", description),
     meta("og:url", canonical),
     meta("og:image", image),
+    // Dimensions only for the generated large card (the site-icon default is
+    // not 1200×630) — lets crawlers lay the card out without a measure round-trip.
+    ...(card === "summary_large_image" ? [meta("og:image:width", "1200"), meta("og:image:height", "630")] : []),
     meta("twitter:card", card, "name"),
     meta("twitter:title", title, "name"),
     meta("twitter:description", description, "name"),

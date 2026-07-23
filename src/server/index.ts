@@ -276,7 +276,7 @@ const server = Bun.serve({
         origin: url.origin,
         lookup: (idOrDocNo) => {
           const n = resolveNode(ix, idOrDocNo);
-          return n ? { title: n.title, doc_no: n.doc_no, type: n.type, content: n.content } : undefined;
+          return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
         },
       });
     } catch {

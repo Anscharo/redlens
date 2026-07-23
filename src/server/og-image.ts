@@ -109,11 +109,14 @@ export async function renderOgImage(title: string, docNo = ""): Promise<Buffer |
   }
 }
 
-// Small memo cache (~40 KB each). Key = UUID prefix + doc number + title, so a
-// doc keeps a stable identity but a title/number edit (UUID unchanged) produces
-// a fresh key and card rather than serving the stale one.
+// LRU memo cache (~40 KB each → ~40 MB at cap). Key = UUID prefix + doc number
+// + title, so a doc keeps a stable identity but a title/number edit (UUID
+// unchanged) produces a fresh key and card rather than serving the stale one.
+// Sized above a typical atlas doc count so a crawler walking every card URL
+// doesn't thrash it; on a hit the entry is re-inserted so eviction is true LRU
+// (Map iteration order = insertion order), not FIFO.
 const cache = new Map<string, Buffer>();
-const CACHE_MAX = 256;
+const CACHE_MAX = 2048;
 
 export function ogCacheKey(id: string, title: string, docNo = ""): string {
   return `${id.slice(0, 10)}|${docNo}|${title}`;
@@ -122,7 +125,11 @@ export function ogCacheKey(id: string, title: string, docNo = ""): string {
 export async function getOgImage(id: string, title: string, docNo = ""): Promise<Buffer | null> {
   const key = ogCacheKey(id, title, docNo);
   const hit = cache.get(key);
-  if (hit) return hit;
+  if (hit) {
+    cache.delete(key); // move to most-recently-used (end of iteration order)
+    cache.set(key, hit);
+    return hit;
+  }
   const png = await renderOgImage(title, docNo);
   if (png) {
     if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);

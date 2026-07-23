@@ -4,7 +4,6 @@ import { renderOgTags, plainSummary, clampDescription, escapeHtml, defaultOgTags
 const DOC: OgDoc = {
   title: "Accessibility Scope",
   doc_no: "A.1",
-  type: "Scope",
   content: "The <!-- UUID: x --> **Accessibility Scope** governs how [users](u) reach the protocol.\n\n| a | b |\n|---|---|",
 };
 
@@ -82,9 +81,10 @@ describe("renderOgTags", () => {
     expect(html.match(/<title>/g)?.length).toBe(1);
     expect(html).toContain("<title>Sky Atlas by Redline</title>");
     expect(html).toContain('property="og:type" content="website"');
-    // Non-doc routes keep the small square card + site icon.
+    // Non-doc routes keep the small square card + site icon (no dimensions).
     expect(html).toContain('name="twitter:card" content="summary"');
     expect(html).toContain('property="og:image" content="https://example.com/icon-mid.png"');
+    expect(html).not.toContain("og:image:width");
   });
 
   it("uses the doc title + summary for a resolved /atlas?id= link", () => {
@@ -95,9 +95,11 @@ describe("renderOgTags", () => {
     expect(html).toContain("A.1 — The Accessibility Scope governs how users reach the protocol");
     expect(html).toContain('property="og:url" content="https://example.com/atlas?id=abc"');
     expect(html).toContain('rel="canonical" href="https://example.com/atlas?id=abc"');
-    // Resolved docs advertise the generated large card image.
+    // Resolved docs advertise the generated large card image + its dimensions.
     expect(html).toContain('property="og:image" content="https://example.com/api/og/abc.png"');
     expect(html).toContain('name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('property="og:image:width" content="1200"');
+    expect(html).toContain('property="og:image:height" content="630"');
   });
 
   it("falls back to the site default when the id does not resolve", () => {
