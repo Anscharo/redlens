@@ -1,0 +1,46 @@
+import { describe, expect, it } from "bun:test";
+import { broadcastAtlasUpdate, registerSSEClient } from "./sse.ts";
+
+describe("SSE client registry", () => {
+  it("broadcasts atlas-update events to registered clients", () => {
+    const chunks: string[] = [];
+    const unregister = registerSSEClient((chunk) => chunks.push(chunk), () => {});
+
+    try {
+      broadcastAtlasUpdate("abc123");
+      expect(chunks).toEqual(['event: atlas-update\ndata: {"atlas_sha":"abc123"}\n\n']);
+    } finally {
+      unregister();
+    }
+  });
+
+  it("does not send events after unregister", () => {
+    const chunks: string[] = [];
+    const unregister = registerSSEClient((chunk) => chunks.push(chunk), () => {});
+
+    unregister();
+    broadcastAtlasUpdate("def456");
+
+    expect(chunks).toEqual([]);
+  });
+
+  it("drops clients whose enqueue throws", () => {
+    const chunks: string[] = [];
+    registerSSEClient(() => {
+      throw new Error("broken stream");
+    }, () => {});
+    const unregisterHealthy = registerSSEClient((chunk) => chunks.push(chunk), () => {});
+
+    try {
+      broadcastAtlasUpdate("first");
+      broadcastAtlasUpdate("second");
+
+      expect(chunks).toEqual([
+        'event: atlas-update\ndata: {"atlas_sha":"first"}\n\n',
+        'event: atlas-update\ndata: {"atlas_sha":"second"}\n\n',
+      ]);
+    } finally {
+      unregisterHealthy();
+    }
+  });
+});
