@@ -2,7 +2,7 @@
 // Facilitator). Pure string shaping — row derivation stays in each report's
 // own module.
 
-import { stripMarkdownLinks } from "./atlasHelpers";
+import { stripMarkdownLinks } from "./stripMarkdownLinks";
 
 // Content snippet for a duty row with no matched quote (title-discovered
 // duties). `preferRe` names the report's role so the snippet opens with the

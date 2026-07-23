@@ -26,7 +26,7 @@ const invocations = relations.entities.filter((e) => e.et === "invocation");
 const primitives = relations.entities.filter((e) => e.et === "primitive");
 
 const results = deriveFacilitatorResponsibilities(
-  { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null },
+  { docs },
   { participants, instances, invocations, primitives, edges: relations.edges },
 );
 

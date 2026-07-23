@@ -24,6 +24,7 @@ import {
   deriveFacilitatorResponsibilities,
   facilitatorRowsToCSV,
 } from "../../lib/facilitatorResponsibilities";
+import { expandedRowCount } from "../../lib/dutyCollapse";
 import { FilterPills, PrimePills } from "./FilterPills";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
@@ -198,9 +199,9 @@ export function OFReport({ query, mode }: { query: string; mode: ReportMode }) {
           <DownloadCsvButton
             report="of-responsibilities"
             filename="op-facilitator-responsibilities.csv"
-            rowCount={filtered.length}
+            rowCount={expandedRowCount(filtered)}
             build={() => facilitatorRowsToCSV(filtered)}
-            fullRowCount={responsibilities.length}
+            fullRowCount={expandedRowCount(responsibilities)}
             buildFull={() => facilitatorRowsToCSV(responsibilities)}
             query={query}
             filters={[filterName, cat]}

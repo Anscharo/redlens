@@ -7,7 +7,7 @@ import { track } from "../../lib/analytics";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { OEA_CATEGORY_LABELS, type OeaCategory } from "../../lib/oeaTasks";
 import type { Rating } from "../../lib/oeaAssessment";
-import { loadOeaReport, summarize, oeaRowsToCSV, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
+import { loadOeaReport, summarize, oeaRowsToCSV, oeaCsvRowCount, type OeaRow, type OeaRowStatus } from "../../lib/oeaReport";
 import { CategoryPills, categoryCodec } from "./CategoryPills";
 import { DownloadCsvButton } from "./DownloadCsvButton";
 import { OeaTable, oeaSearchFields } from "./OeaAssessmentTable";
@@ -132,9 +132,9 @@ export function OeaAssessmentReport({ query, mode }: { query: string; mode: Repo
             <DownloadCsvButton
               report="oea-assessment"
               filename="oea-task-assessment.csv"
-              rowCount={shown.length}
+              rowCount={oeaCsvRowCount(shown)}
               build={() => oeaRowsToCSV(shown)}
-              fullRowCount={rows.length}
+              fullRowCount={oeaCsvRowCount(rows)}
               buildFull={() => oeaRowsToCSV(rows)}
               query={query}
               filters={[cat, status, precision, incentives]}

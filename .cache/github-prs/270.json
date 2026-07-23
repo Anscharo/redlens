@@ -1,0 +1,10 @@
+{
+  "number": 270,
+  "title": "Atlas Edit Proposal — 2026-06-29",
+  "body": "## Summary\n\n- **Add 100% Capital Ratio Requirement For Unauthorized Exposures** — Adds a rule that an underlying asset of a lending market not included in the pro-forma Required Risk Capital estimate approved by the Core Council Risk Advisor carries a 100% Capital Ratio Requirement, applied per-exposure.\n\n- **Transition Galaxy Warehouse Out Of Interim Deployment** — The Galaxy Warehouse instance is no longer governed by Interim Deployment parameters. Its Capital Ratio Requirement of 2% and maximum exposure of 500,000,000 USD are now recorded in the Risk Framework.\n\n- **Credit Grove For Owed Prime Revenue** — Records that Grove is owed 2,528,000 USDS from the true-up of prior Monthly Settlement Cycles; until this amount is paid through the next Monthly Settlement Cycle, the credit counts toward Grove's Total Risk Capital.\n\n- **Add Grove Token Reward Distribution Schedule** — Specifies the token distribution schedule for GROVE token rewards.\n\n- **Convert Inline Checklist URLs To Cross-References** — Replaces inline Spell-checklist GitHub URLs across the Spell process documents with cross-references to the Registered Spell Checklists document.\n",
+  "author": "adamgfraser",
+  "url": "https://github.com/sky-ecosystem/next-gen-atlas/pull/270",
+  "commentCount": 0,
+  "reviewCount": 1,
+  "approvalCount": 1
+}

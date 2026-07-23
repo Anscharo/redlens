@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { renderOgTags } from "./src/server/og.ts";
 
 const commitHash = (() => {
   try {
@@ -33,14 +34,17 @@ const buildTime = new Date().toISOString();
 const base = "/";
 
 export default defineConfig(() => {
-  // The chat widget + auth/profile button need the Bun /api backend, which only
-  // exists on Railway (and locally via the dev proxy). They ship DISABLED by
-  // default everywhere — GH Pages, CF Pages, Railway, and dev alike — so merging
-  // this branch adds nothing user-visible. Flip the bundle on by building with
-  // VITE_CHAT_ENABLED=1 (and pair it with the server's CHAT_ENABLED=1). Any other
-  // value (or unset) leaves chat off; a missing var never breaks the build.
-  const chatEnabled =
-    process.env.VITE_CHAT_ENABLED === "1" || process.env.VITE_CHAT_ENABLED === "true";
+  // Login-gated features (auth/profile button, saved Collections) and the chat
+  // widget all need the Bun /api backend, which only exists on Railway (and
+  // locally via the dev proxy). Two build flags:
+  //   VITE_USERS_ENABLED=1 → login-required UI (profile button, save-collection)
+  //   VITE_CHAT_ENABLED=1  → the chat widget
+  // Chat needs a logged-in session, so chat is AND-gated by users: enabling chat
+  // without users leaves chat off. Both default off everywhere (GH Pages, CF
+  // Pages, Railway, dev) — a missing var never breaks the build.
+  const truthy = (v: string | undefined) => v === "1" || v === "true";
+  const usersEnabled = truthy(process.env.VITE_USERS_ENABLED);
+  const chatEnabled = truthy(process.env.VITE_CHAT_ENABLED) && usersEnabled;
 
   return {
     base,
@@ -83,14 +87,34 @@ export default defineConfig(() => {
       // the placeholder is left intact for the Bun server to replace at serve time.
       name: "inject-atlas-sha-dev",
       apply: "serve",
-      transformIndexHtml(html) {
+      transformIndexHtml(html, ctx) {
         let sha = "";
+        let docNodes: Record<string, { id: string; doc_no: string; title: string; type: string; content: string }> = {};
         try {
-          sha = JSON.parse(readFileSync("public/docs.json", "utf8")).atlasCommit ?? "";
+          const parsed = JSON.parse(readFileSync("public/docs.json", "utf8"));
+          sha = parsed.atlasCommit ?? "";
+          docNodes = parsed.nodes ?? {};
         } catch {
           /* artifacts not built yet — empty sha → flat BASE_URL fallback */
         }
-        return html.replaceAll("{{ATLAS_SHA}}", sha);
+        // Mirror the Bun server's per-request OG injection so dev unfurls the
+        // same way. ctx.originalUrl is the requested path+query; resolve ?id=
+        // (UUID or doc_no) against the local docs.json.
+        const reqUrl = new URL(ctx.originalUrl ?? "/", "http://localhost");
+        const byDocNo = new Map(Object.values(docNodes).map((n) => [n.doc_no, n]));
+        const ogTags = renderOgTags({
+          pathname: reqUrl.pathname,
+          searchParams: reqUrl.searchParams,
+          origin: reqUrl.origin,
+          lookup: (idOrDocNo) => docNodes[idOrDocNo] ?? byDocNo.get(idOrDocNo),
+        });
+        // Dev has no Bun-served HTML, so substitute the login flag here too. The
+        // real JWT-secret check lives server-side; in dev the build flag is a
+        // good-enough proxy (dev.mjs forwards both together).
+        return html
+          .replaceAll("{{ATLAS_SHA}}", sha)
+          .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
+          .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },
     tailwindcss(),
@@ -197,6 +221,7 @@ export default defineConfig(() => {
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
       __BUILD_TIME__: JSON.stringify(buildTime),
+      __USERS_ENABLED__: JSON.stringify(usersEnabled),
       __CHAT_ENABLED__: JSON.stringify(chatEnabled),
       __REPO_URL__: JSON.stringify(repoUrl),
     },

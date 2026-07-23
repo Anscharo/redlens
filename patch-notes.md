@@ -33,8 +33,23 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-20
+## 2026-07-26
 - Added an Atlas Library report with the shape of the Atlas, a distilled table of contents, a concept catalog, a glossary of defined terms, and CSV export of the chunk breakdown
+
+## 2026-07-23
+- Made history diffs easier to read: heavily rewritten sentences and paragraphs now show as clean before/after blocks instead of interleaved word-by-word changes
+
+## 2026-07-22
+- Shared links now unfurl with a generated preview card — documents, radar actors, reports, the connect page, and previews each get their own — on Twitter, Slack, Discord, and other platforms
+- Linked the preview Changed only filter in the URL
+- Added document selection and saved collections: check documents in the reader or in search results, filter the tree to just your selection, save it as a named collection when signed in, and share a collection by link
+- Added a cousin documents section to the annotations panel, linking each Prime Agent document to its equivalent under the other Prime Agents
+- Added an agent pill beside the document in the reader, showing which Prime or Executor Agent it belongs to
+- Every report's CSV download now includes each referenced document's UUID and a direct Atlas link
+- Facilitator, GovOps, and OEA Task Assessment CSV exports no longer merge duty copies into one row — each is listed separately
+
+## 2026-07-20
+- MCP now serves reports directly covering Facilitator and GovOps responsibilities, integrator rewards, and Active Data
 
 ## 2026-07-15
 - On-chain addresses in the Risk Rules report's rule quotes now link to their block explorers

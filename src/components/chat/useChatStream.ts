@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type ToolCallRecord } from "./api";
+import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 
 export interface TraceRow {
@@ -9,6 +9,18 @@ export interface TraceRow {
   bytes: number | null;
 }
 
+// Reliability-harness verdict for one assistant message. "checking" while the
+// audit is in flight; "revised" when the answer was replaced after escalation.
+export interface VerifyState {
+  status: VerifyOverall | "checking" | "revised";
+  claims: VerifyClaim[];
+  invalidCitations: string[];
+  invalidDocNos: string[];
+  docNoMismatches: string[];
+  ungroundedQuotes: string[];
+  ungroundedAddresses: string[];
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -16,10 +28,15 @@ export interface ChatMsg {
   rounds: number;
   sources: ToolCallRecord[]; // authoritative tool calls from `done`
   done: boolean;
+  verify?: VerifyState;
+  statusLine?: string | null; // transient harness status ticker (streaming only)
 }
 
 export interface SendResult {
-  rateLimited?: { message: string; resetsAt: string };
+  // resetsAt is absent for the shared commons-pool gate (it has no fixed
+  // reset time — cleared by a manual top-up) but present for the per-user
+  // token-window gate.
+  rateLimited?: { message: string; resetsAt?: string };
 }
 
 interface StreamHandlers {
@@ -47,12 +64,33 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     });
   }, []);
 
+  // Terminate the last assistant message: mark done, drop the transient status
+  // ticker, and resolve a still-"checking" verify chip so it can't pulse
+  // forever when the stream ends by abort/error before verification resolves
+  // (the "done" event has its own copy of this guard).
+  const finalizeLast = useCallback(
+    (extra: Partial<ChatMsg> = {}) => {
+      patchLast((m) =>
+        m.role === "assistant"
+          ? {
+              ...m,
+              done: true,
+              statusLine: null,
+              ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
+              ...extra,
+            }
+          : m,
+      );
+    },
+    [patchLast],
+  );
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setStreaming(false);
-    patchLast((m) => (m.role === "assistant" ? { ...m, done: true } : m));
-  }, [patchLast]);
+    finalizeLast();
+  }, [finalizeLast]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
@@ -70,7 +108,31 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           convIdRef.current = ev.conversationId;
           break;
         case "token":
-          patchLast((m) => ({ ...m, content: m.content + ev.text }));
+          // Answer is streaming — the status ticker yields to the live text.
+          patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
+          break;
+        case "status":
+          patchLast((m) => ({
+            ...m,
+            statusLine: ev.detail ?? `${ev.stage}…`,
+            ...(ev.stage === "checking" && !m.verify
+              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
+              : {}),
+          }));
+          break;
+        case "verify_result":
+          patchLast((m) => ({
+            ...m,
+            verify: {
+              status: ev.action === "revised" ? "revised" : ev.overall,
+              claims: ev.claims,
+              invalidCitations: ev.invalidCitations,
+              invalidDocNos: ev.invalidDocNos,
+              docNoMismatches: ev.docNoMismatches,
+              ungroundedQuotes: ev.ungroundedQuotes,
+              ungroundedAddresses: ev.ungroundedAddresses,
+            },
+          }));
           break;
         case "clear":
           // The round just streamed turned out to be a tool round — discard
@@ -87,8 +149,11 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         case "tool_result":
           patchLast((m) => {
             const trace = m.trace.slice();
-            // Fill the most recent open row for this tool name.
-            for (let i = trace.length - 1; i >= 0; i--) {
+            // Fill the OLDEST open row for this tool name — the server emits
+            // tool_result events in call order (chat-loop.ts pushes results in
+            // parsedCalls order regardless of Promise.all completion order), so
+            // a forward scan keeps repeated-tool-name rounds correctly paired.
+            for (let i = 0; i < trace.length; i++) {
               if (trace[i].name === ev.name && trace[i].ok === null) {
                 trace[i] = { ...trace[i], ok: ev.ok, bytes: ev.bytes };
                 break;
@@ -103,15 +168,19 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             content: ev.content, // authoritative final answer
             sources: ev.toolCalls,
             done: true,
+            statusLine: null,
+            // A "checking" chip that never resolved (verifier off/failed
+            // silently) must not spin forever.
+            ...(m.verify?.status === "checking" ? { verify: undefined } : {}),
           }));
           break;
         case "error":
           setError(ev.message);
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
           break;
       }
     },
-    [patchLast],
+    [patchLast, finalizeLast],
   );
 
   const send = useCallback(
@@ -130,9 +199,12 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       ]);
       setStreaming(true);
 
-      // Track tool rounds: count a "round" each time a new contiguous run of
-      // tool calls begins after some answer streaming.
-      let lastWasToolCall = false;
+      // Track tool rounds: count a "round" for each contiguous batch of
+      // tool calls. A later tool round may begin after only tool results +
+      // status events (no answer token), so close the batch when every
+      // pending tool_call has received its tool_result.
+      let inToolRound = false;
+      let pendingToolResults = 0;
 
       try {
         const res = await fetch(apiUrl("chat"), {
@@ -148,7 +220,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
 
         if (res.status === 401) {
           handlers.onAuthError?.();
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
           setStreaming(false);
           return {};
         }
@@ -159,9 +231,9 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           };
           const message = body.message ?? "Usage limit reached.";
           setError(message);
-          patchLast((m) => ({ ...m, content: message, done: true }));
+          finalizeLast({ content: message });
           setStreaming(false);
-          return { rateLimited: { message, resetsAt: body.resetsAt ?? "" } };
+          return { rateLimited: { message, resetsAt: body.resetsAt } };
         }
         if (!res.ok || !res.body) {
           throw new Error(`chat request failed (${res.status})`);
@@ -189,10 +261,15 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               continue;
             }
             if (ev.type === "tool_call") {
-              if (!lastWasToolCall) patchLast((m) => ({ ...m, rounds: m.rounds + 1 }));
-              lastWasToolCall = true;
-            } else if (ev.type === "token") {
-              lastWasToolCall = false;
+              if (!inToolRound) patchLast((m) => ({ ...m, rounds: m.rounds + 1 }));
+              inToolRound = true;
+              pendingToolResults += 1;
+            } else if (ev.type === "tool_result") {
+              pendingToolResults = Math.max(0, pendingToolResults - 1);
+              if (pendingToolResults === 0) inToolRound = false;
+            } else if (ev.type === "token" || ev.type === "done" || ev.type === "clear") {
+              inToolRound = false;
+              pendingToolResults = 0;
             }
             dispatch(ev);
           }
@@ -201,7 +278,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {
           setError((err as Error).message);
-          patchLast((m) => ({ ...m, done: true }));
+          finalizeLast();
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
@@ -210,7 +287,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       }
       return {};
     },
-    [streaming, dispatch, patchLast, handlers],
+    [streaming, dispatch, patchLast, finalizeLast, handlers],
   );
 
   return { messages, streaming, error, send, stop, reset };

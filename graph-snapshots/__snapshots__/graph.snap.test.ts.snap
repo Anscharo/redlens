@@ -10763,7 +10763,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "integration_partner_of": 10,
   "invocation_of": 5,
   "invoked_by": 201,
-  "listed_in": 50,
+  "listed_in": 51,
   "located_at": 193,
   "mentions": 639,
   "operational_executor_agent_for": 8,

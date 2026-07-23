@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage/
+base-coverage-areas.json
 *.local
 
 # Atlas-derived artifacts — built ephemerally at container startup / by the
@@ -73,6 +75,10 @@ playwright/.cache/
 .cache/atlas-rag/meta.json
 .cache/atlas-rag/vectors.bin
 .cache/processes-audit.json
+# Chat/model eval report outputs — regenerable by re-running the evals; the
+# durable corpus they grade against lives in scripts/aux/eval-corpora/ (committed).
+.cache/eval-*.json
+.cache/audit-run*.log
 .cache/audit-html-cases.json
 .cache/audit-html-report.json
 .cache/forward-reverse-diff.json

@@ -9,9 +9,12 @@ import { revealStore } from "../../lib/revealStore";
 import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { usePreviewDiff } from "../../lib/previewDiff";
+import { useSelectionSet } from "../../lib/selectionFilter";
+import { buildSelectedOnlyNodes, selectedDescendantRunEnd } from "../../lib/selectedTree";
 import { useDataSource } from "../../lib/dataSource";
 import { track } from "../../lib/analytics";
 import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
+import { SelectionTreeToggle } from "../selection/SelectionTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
 
 // Expand every ancestor of `doc_no` so the node's row is visible. Returns
@@ -134,6 +137,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   }, []);
 
   const changedSet = usePreviewChangedSet();
+  const selectionSet = useSelectionSet();
   const diff = usePreviewDiff();
   // Only preview mode has a diff; gate the rollup/flash/marks so the live reader
   // pays nothing for them (no per-row badge mounts, no reveal-flash effect).
@@ -188,13 +192,22 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const visibleNodes = useMemo(() => {
     if (!bundle) return [];
     const { byParent, docs } = bundle;
-    // "Changed only": flat list of just the changed/added docs, in document
-    // order — no hierarchy, no ancestors, nothing to expand.
+    // "Changed only" (preview): a flat list of just the changed docs, in
+    // document order — no hierarchy, nothing to expand.
     if (changedSet) {
       return Object.values(docs)
         .filter((n) => changedSet.has(n.id))
         .sort((a, b) => a.order - b.order)
-        .map((node) => ({ node, hasChildren: false, treeDepth: 1 }));
+        // Use the node's real depth (not a flat 1) so chiclet colors — and NR-X
+        // chiclets in particular, whose number is colored by this depth — match
+        // the reader instead of all rendering as depth-1 red.
+        .map((node) => ({ node, hasChildren: false, treeDepth: node.depth }));
+    }
+    // "Selected only": ONLY selected docs, arranged by selection nesting, with
+    // working chevrons that reveal just the selected descendants. See
+    // buildSelectedOnlyNodes.
+    if (selectionSet) {
+      return buildSelectedOnlyNodes(byParent, selectionSet, expandedIds);
     }
     const result: VisibleNode[] = [];
     function walk(parentId: string | null, parentDocNo?: string) {
@@ -206,7 +219,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     }
     walk(null);
     return result;
-  }, [bundle, expandedIds, changedSet]);
+  }, [bundle, expandedIds, changedSet, selectionSet]);
 
   const selectedIndex = useMemo(
     () => (nodeId ? visibleNodes.findIndex((v) => v.node.id === nodeId) : -1),
@@ -224,10 +237,18 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     const sel = selectedIndex >= 0 ? visibleNodes[selectedIndex] : undefined;
     if (!sel) return null;
     let i = selectedIndex + 1;
-    while (i < visibleNodes.length && visibleNodes[i].treeDepth > sel.treeDepth) i++;
+    if (selectionSet) {
+      // Selected-only view: unselected intermediates are dropped, so a deeper
+      // treeDepth no longer implies "descendant of the selection" — a different
+      // selected branch can sit deeper in the flattened list. Size the cradle by
+      // TRUE descendants of the selected node instead (see selectedDescendantRunEnd).
+      i = selectedDescendantRunEnd(visibleNodes, selectedIndex, parentOf);
+    } else {
+      while (i < visibleNodes.length && visibleNodes[i].treeDepth > sel.treeDepth) i++;
+    }
     if (i <= selectedIndex + 1) return null;
     return { start: selectedIndex + 1, end: i - 1, color: depthColor(sel.treeDepth) };
-  }, [visibleNodes, selectedIndex]);
+  }, [visibleNodes, selectedIndex, selectionSet, parentOf]);
 
   useEffect(() => {
     if (clickedRef.current) {
@@ -379,6 +400,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       aria-label="Atlas tree"
     >
       <PreviewTreeToggle />
+      <SelectionTreeToggle />
       <List
         listRef={listRef}
         rowCount={visibleNodes.length}

@@ -2,7 +2,8 @@ import type { AtlasNode, RelationEdge, GraphEntity } from "../types";
 import { agentsFromGraph, type AgentRef } from "./activeDataIndex";
 import { parseMeta } from "./meta";
 import { toCSV } from "./csv";
-import type { GraphData } from "./graph";
+import { atlasUrl, atlasUrlOrEmpty } from "./routes";
+import type { GraphData } from "./graphData";
 import type {
   AgentPrimitive,
   EntityRef,
@@ -308,11 +309,14 @@ export function rewardsIndexToCSV(idx: RewardsIndex): string {
       const kindLabel = prim.kind === "DR" ? "Distribution Reward" : "Integration Boost";
       for (const icd of [...prim.active, ...prim.suspended, ...prim.completed, ...prim.invocations]) {
         rows.push([
-          a.name, exec, govops, kindLabel, prim.primitiveDocNo, prim.globalActivation ?? "",
-          icd.docNo, icd.name, icd.status,
+          a.name, exec, govops, kindLabel, prim.primitiveDocNo, prim.primitiveId, atlasUrl(prim.primitiveId),
+          prim.globalActivation ?? "",
+          icd.docNo, icd.id, atlasUrl(icd.id), icd.name, icd.status,
           icd.rewardCode ?? "", icd.partnerName ?? "", icd.rewardAddress ?? "", icd.rewardChain ?? "",
           icd.cadence ?? "", icd.tracking ?? "",
-          icd.paymentsControllerDocNo ?? "", icd.paymentsResponsibleParty?.name ?? "",
+          icd.paymentsControllerDocNo ?? "", icd.paymentsControllerId ?? "",
+          atlasUrlOrEmpty(icd.paymentsControllerId),
+          icd.paymentsResponsibleParty?.name ?? "",
           paramsToString(icd.params),
         ]);
       }
@@ -320,9 +324,10 @@ export function rewardsIndexToCSV(idx: RewardsIndex): string {
   }
   return toCSV(
     [
-      "Agent", "Executor", "GovOps", "Primitive", "Primitive Doc", "Global Activation",
-      "Doc No", "Name", "Status", "Reward Code", "Partner Name", "Reward Address",
-      "Reward Chain", "Cadence", "Tracking", "Payments Controller Doc", "Responsible Party", "Params",
+      "Agent", "Executor", "GovOps", "Primitive", "Primitive Doc", "Primitive UUID", "Primitive Link", "Global Activation",
+      "Doc No", "UUID", "Atlas Link", "Name", "Status", "Reward Code", "Partner Name", "Reward Address",
+      "Reward Chain", "Cadence", "Tracking", "Payments Controller Doc", "Payments Controller UUID",
+      "Payments Controller Link", "Responsible Party", "Params",
     ],
     rows,
   );

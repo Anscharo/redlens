@@ -8,6 +8,7 @@
 
 import { fetchJson } from "./verify";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 import type { Rating } from "./oeaAssessment";
 import { normalizeAssessedText } from "./oeaTasks";
 import { RISK_DOMAIN_LABELS, type RiskCandidate, type RiskDomain } from "./riskRules";
@@ -116,7 +117,7 @@ export function summarizeRisk(rows: RiskRow[]): RiskSummary {
 }
 
 const RISK_CSV_HEADERS = [
-  "Doc No", "Title", "UUID", "Risk Types", "Status",
+  "Doc No", "Title", "UUID", "Atlas Link", "Risk Types", "Status",
   "Precision", "Precision Reasoning", "Incentives", "Incentives Reasoning",
   "Metrics", "Description", "Quote",
 ] as const;
@@ -135,6 +136,7 @@ export function riskRowsToCSV(rows: readonly RiskRow[]): string {
       r.candidate.docNo,
       r.candidate.title,
       r.candidate.uuid,
+      atlasUrl(r.candidate.uuid),
       domainLabels(r.triage.domains),
       r.status,
       r.entry?.preciseness ?? "",

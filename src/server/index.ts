@@ -7,13 +7,16 @@
 // In-memory indexes load once at boot before serving.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
-import { loadIndexes, getIndexes } from "./indexes.ts";
+import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
+import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
+import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { handleChat } from "./chat.ts";
+import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -21,6 +24,7 @@ import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
 import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
+import { shutdownPosthog } from "./posthog-node.ts";
 
 const t0 = performance.now();
 const ix = loadIndexes();
@@ -28,6 +32,32 @@ console.log(
   `indexes: ${ix.docMap.size} docs, ${ix.entities.length} entities, ${ix.edges.length} edges ` +
     `(${Math.round(performance.now() - t0)}ms)`,
 );
+
+// Fail-loud at boot when logins were requested (USERS_ENABLED=1) but a hard
+// prerequisite is missing — so the surface stays OFF (see config.usersEnabled)
+// instead of half-working. Without this, a missing CHAT_JWT_SECRET only surfaced
+// as an opaque per-request 400 mid-OAuth (signing throws right after a
+// *successful* code exchange). Warn, don't exit: the reader/MCP serve fine.
+function checkAuthConfig(): void {
+  if (!config.usersRequested) return;
+  const problems: string[] = [];
+  if (!config.jwtSecret) problems.push("CHAT_JWT_SECRET unset — sessions can't be signed (the login surface stays disabled)");
+  const github = config.githubClientId && config.githubClientSecret;
+  const google = config.googleClientId && config.googleClientSecret;
+  if (!github && !google) {
+    problems.push("no OAuth provider configured — set GITHUB_CLIENT_ID + GITHUB_CLIENT_SECRET and/or the GOOGLE_ pair");
+  } else {
+    if (config.githubClientId && !config.githubClientSecret) problems.push("GITHUB_CLIENT_ID set but GITHUB_CLIENT_SECRET missing");
+    if (config.githubClientSecret && !config.githubClientId) problems.push("GITHUB_CLIENT_SECRET set but GITHUB_CLIENT_ID missing");
+    if (config.googleClientId && !config.googleClientSecret) problems.push("GOOGLE_CLIENT_ID set but GOOGLE_CLIENT_SECRET missing");
+    if (config.googleClientSecret && !config.googleClientId) problems.push("GOOGLE_CLIENT_SECRET set but GOOGLE_CLIENT_ID missing");
+  }
+  if (!problems.length) return;
+  console.warn(`⚠️  USERS_ENABLED is set but the login surface is OFF (usersEnabled=${config.usersEnabled}) — incomplete config:`);
+  for (const p of problems) console.warn(`   • ${p}`);
+  console.warn(`   redirect URI in use: ${config.appUrl}/api/auth/<provider>/callback`);
+}
+checkAuthConfig();
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -43,6 +73,46 @@ function withCors(res: Response): Response {
 }
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
+
+// Generated OG card images. Two routes:
+//   /api/og/<uuid|doc_no>.png[?preview=<label>] — a document card (resolved
+//     from the in-memory indexes; `preview` marks a doc viewed inside a preview)
+//   /api/og.png?kind=…&…                        — a route card (radar, reports,
+//     report, connect, preview, default) rendered from query params, no lookup
+// Both memoize via og-image.ts and fall back to the static site icon so
+// og:image always resolves to a real image for the crawler.
+//
+// v8-ignored: index.ts boots a live server + DB at import, so it is never
+// executed under test (and is 0% covered by design). This is thin request
+// glue; the substantive logic — image rendering and tag building — lives in
+// og-image.ts / og.ts and is unit-tested there. See coverage-areas.mjs.
+/* v8 ignore start */
+const OG_HEADERS = { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" };
+
+async function ogFallback(): Promise<Response> {
+  const fallback = Bun.file(config.distDir + "/icon-mid.png");
+  if (await fallback.exists()) return new Response(fallback, { headers: OG_HEADERS });
+  return NOT_FOUND();
+}
+
+async function handleOgImage(url: URL): Promise<Response> {
+  const idOrDocNo = decodeURIComponent(url.pathname.slice("/api/og/".length).replace(/\.png$/, ""));
+  const preview = url.searchParams.get("preview") ?? "";
+  let png: Buffer | null = null;
+  try {
+    const node = resolveNode(getIndexes(), idOrDocNo);
+    if (node) png = await getOgImage(node.id, node.title, node.doc_no, preview);
+  } catch {
+    /* indexes not loaded yet — fall through to the static fallback */
+  }
+  return png ? new Response(png, { headers: OG_HEADERS }) : ogFallback();
+}
+
+async function handleOgCard(url: URL): Promise<Response> {
+  const png = await getCardImage(cardFromQuery(url.searchParams));
+  return png ? new Response(png, { headers: OG_HEADERS }) : ogFallback();
+}
+/* v8 ignore stop */
 
 const server = Bun.serve({
   port: config.port,
@@ -102,9 +172,16 @@ const server = Bun.serve({
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
-    "/api/auth/*": (req) => config.chatEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
+    // Auth + collections need only a logged-in session (usersEnabled); chat +
+    // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
+    "/api/auth/*": (req) => config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    // Public share read is unauthenticated (anyone with the link) — declared
+    // before the auth-gated :id route so the more specific path wins.
+    "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
+    "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
@@ -124,6 +201,12 @@ const server = Bun.serve({
 
     // Immutable per-SHA live atlas artifacts (bundle-store.ts).
     if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
+
+    // Generated Open Graph card images (doc card vs. route card).
+    /* v8 ignore start -- request glue; see handleOgImage/handleOgCard above */
+    if (pathname === "/api/og.png") return handleOgCard(new URL(req.url));
+    if (pathname.startsWith("/api/og/")) return handleOgImage(new URL(req.url));
+    /* v8 ignore stop */
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
@@ -183,19 +266,65 @@ const server = Bun.serve({
     // Preview routes also get noindex — unreviewed (possibly fork) content must
     // never be search-indexed under our domain.
     let sha = "";
+    // Per-document Open Graph / Twitter card tags so pasted atlas links unfurl
+    // with the doc's real title + summary. Rendered for all visitors; the SPA
+    // ignores them. Falls back to the site-level default if indexes aren't
+    // loaded, so the <title> is never empty. See src/server/og.ts.
+    //
+    // v8-ignored through the html build: this whole SPA-fallback branch is
+    // untestable server glue (0% covered by design). The tag-building logic is
+    // unit-tested in og.ts; here we only wire it into the served HTML.
+    /* v8 ignore start */
+    const url = new URL(req.url);
+    let ogTags = defaultOgTags(url.origin);
+    // Soft 404: a dynamic route whose key doesn't resolve (e.g. an unknown
+    // /radar/<slug>) still serves the SPA HTML (so the app renders its own
+    // not-found view) but with a 404 status, so crawlers/tools don't treat a
+    // garbage URL as a real page. Requires loaded indexes to check the slug.
+    let notFound = false;
     try {
-      sha = getIndexes().meta.atlasCommit ?? "";
+      const ix = getIndexes();
+      sha = ix.meta.atlasCommit ?? "";
+      const actor = (slug: string) => ix.entityBySlug.get(slug)?.name;
+      notFound = isUnknownRoute(pathname, actor);
+      ogTags = renderOgTags({
+        pathname,
+        searchParams: url.searchParams,
+        origin: url.origin,
+        lookup: (idOrDocNo) => {
+          const n = resolveNode(ix, idOrDocNo);
+          return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
+        },
+        actor,
+      });
     } catch {
-      /* indexes not loaded yet */
+      /* indexes not loaded yet — keep the site-level default */
     }
-    const html = (await Bun.file(config.distDir + "/index.html").text()).replace("{{ATLAS_SHA}}", sha);
+    // Inject the server's REAL login capability (usersEnabled requires a JWT
+    // secret) so the frontend shows the profile/collections UI only when a
+    // sign-in can actually succeed — not merely because the bundle was built
+    // with VITE_USERS_ENABLED. See src/lib/usersEnabled.ts.
+    const html = (await Bun.file(config.distDir + "/index.html").text())
+      .replace("{{ATLAS_SHA}}", sha)
+      .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
+      .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
-    return new Response(html, { headers });
+    return new Response(html, { status: notFound ? 404 : 200, headers });
+    /* v8 ignore stop */
   },
 });
 
 console.log(`listening on :${server.port}  (mcp: POST ${config.mcpPath})`);
+
+// Flush batched PostHog `$ai_generation` events before the process exits so a
+// Railway redeploy (SIGTERM) doesn't drop the last window of chat observability.
+// No-op when POSTHOG_KEY is unset. once:true so a double-signal can't re-enter.
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.once(sig, () => {
+    void shutdownPosthog().finally(() => process.exit(0));
+  });
+}
 
 // Seed Postgres from the baked-in atlas artifacts ONLY when the DB has never
 // been initialized (no sync_state row). After the first seed the atlas worker

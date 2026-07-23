@@ -1,5 +1,5 @@
-import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "../../lib/rewardsIndex";
-import { rowMatches, type ReportQuery, type SearchField } from "../../lib/reportFilter";
+import type { AgentPrimitive, RewardsAgent, RewardsInstance, RewardsInvocation } from "./rewardsIndex";
+import { rowMatches, type ReportQuery, type SearchField } from "./reportFilter";
 
 // The Rewards report's per-ICD search haystack as labelled fields. `hidden`
 // marks what PrimitiveTable does NOT render (tracking methodology text and

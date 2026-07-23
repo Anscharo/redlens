@@ -28,7 +28,7 @@ const invocations = relations.entities.filter((e) => e.et === "invocation");
 const primitives = relations.entities.filter((e) => e.et === "primitive");
 
 const results = deriveGovOpsResponsibilities(
-  { docs, byParent: new Map(), docNoToId: new Map(), atlasCommit: null },
+  { docs },
   { participants, instances, invocations, primitives, edges: relations.edges },
 );
 
@@ -92,7 +92,9 @@ describe("deriveGovOpsResponsibilities (real artifacts)", () => {
   });
 
   it("captures multisig signer-modification duties (narrow phrase, not a bare verb)", () => {
-    expect(results.some((r) => r.docNo === "A.1.10.4.1.1.5")).toBe(true); // Ethereum SkyLink Freezer Multisig Modification
+    // Ethereum SkyLink Freezer Multisig Modification (doc_no A.4.2.2.1.5, renumbered
+    // from A.1.10.4.1.1.5). Assert the stable UUID — doc_nos are editorial and drift.
+    expect(results.some((r) => r.uuid === "af5b97be-bf52-431d-8fa9-9b1c6164e328")).toBe(true);
   });
 
   it("does not collapse same-title agent-artifact duties whose text genuinely differs", () => {

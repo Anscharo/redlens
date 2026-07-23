@@ -82,6 +82,14 @@ const LibraryPage = lazy(() =>
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
 );
+const CollectionsPage = lazy(() =>
+  lazyRetry(() => import("./components/collections/CollectionsPage")).then((m) => ({ default: m.CollectionsPage })),
+);
+const SharedCollectionOpener = lazy(() =>
+  lazyRetry(() => import("./components/collections/SharedCollectionOpener")).then((m) => ({
+    default: m.SharedCollectionOpener,
+  })),
+);
 
 const splitCodec = urlString(null);
 
@@ -195,7 +203,9 @@ export default function App() {
   // overflow-hidden wrappers are dropped, so the browser's native
   // history.scrollRestoration handles back/forward for free.
   const windowScroll =
-    location.startsWith(ROUTES.REPORTS) || location.startsWith(ROUTES.RADAR);
+    location.startsWith(ROUTES.REPORTS) ||
+    location.startsWith(ROUTES.RADAR) ||
+    location === ROUTES.COLLECTIONS;
 
   return (
     <div
@@ -402,6 +412,16 @@ export default function App() {
             <Route path="/library/:tab*">
               {(params: { tab?: string }) => (
                 <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params.tab ? `/${params.tab}` : ""}`} replace />
+            <Route path={ROUTES.COLLECTIONS}>
+              <Suspense fallback={<Loading />}>
+                <CollectionsPage />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.SHARED_COLLECTION}>
+              {(params: { id: string }) => (
+                <Suspense fallback={<Loading />}>
+                  <SharedCollectionOpener id={params.id} />
+                </Suspense>
               )}
             </Route>
             <Route path="/admin/:rest*">

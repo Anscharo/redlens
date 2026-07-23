@@ -175,6 +175,7 @@ Selected-node treatment: red left bar, brighter text, plus a subtle muted-red fi
 
 ## Conventions / preferences
 
+- **Two lockfiles, both must stay in sync with `package.json`: `pnpm-lock.yaml` (frontend build/CI, via pnpm) and `bun.lock` (server + the Dockerfile/Railway build, via `bun install --frozen-lockfile`).** Adding/bumping a dependency with only `pnpm add`/`pnpm install` leaves `bun.lock` stale — `bun install --frozen-lockfile` then fails in the Docker build (Railway) even though pnpm-side CI is green. Run `bun install` too (or `pnpm install && bun install`) after any `package.json` dependency change, and check both lockfiles into the same commit.
 - **Use semantic HTML elements**: `h1`–`h6` for headings, `<button>` for actions, `<a>` for navigation, `<article>`/`<section>`/`<header>` for sectioned content. Prefer native elements over `<div>`/`<span>` with ARIA roles when a semantic element fits.
 - **Don't add hover/click logic in JS when CSS will do it.**
 - **The home button is a plain HTML link** (`<a href="/">`), not an `onClick` handler.
@@ -204,5 +205,9 @@ Remaining items from the full-branch audit (the bug fixes landed in the same PR 
 - **JuniorPane descendant slice → parent links** — `src/components/atlas/JuniorPane.tsx` selects descendants by doc_no prefix (now annotated `// fragile: doc_no prefix`). Migrate to parent-link traversal over `flatNodes` when convenient.
 - **Manual browser verification of the audit fixes** — not runnable in the headless audit environment: glossary tab recovers after a transient `glossary.json` failure; search shows an error state (not an eternal spinner) when `search-index.json` is missing; `/admin/palette` Copy Snippet includes saved overrides after a reload; JuniorPane breadcrumb middle-click opens the right URL.
 - **History metrics backfill** — run `pnpm build:history --full` once migration `006_history_metrics.sql` is applied so existing `atlas_history` rows gain `change_kind` / review counters (new rows get them automatically).
+
+### Chat reliability harness (docs/plans/chat-reliability-harness.md)
+
+- **Wire in `src/server/verifier-slices.ts`** — a sliced verifier (4 concurrent specialist audits + code-validated evidence spans) built to fix measured gaps in the single-prompt verifier (`verifier.ts`, the live path): wrong-doc and number-grounding catch rates, and structural misreads the single verifier missed entirely. Not yet called from `chat-orchestrator.ts`. Measured via `pnpm eval:slices` (`scripts/aux/eval-verifier-slices.ts`) — check that report before swapping it in, and keep its prompt/evidence conventions in sync with `verifier.ts` in the meantime so the swap stays cheap.
 
 ### Other / background

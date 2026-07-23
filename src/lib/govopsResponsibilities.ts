@@ -8,14 +8,16 @@
 // (assignments), duty_for (duties), responsible_party_for (active data), and
 // process_step_responsible_party_for (process steps).
 
-import type { AtlasBundle } from "./docs";
-import type { GraphData } from "./graph";
+import type { AtlasBundle } from "./docsTypes";
+import type { GraphData } from "./graphData";
 import type { GraphEntity } from "../types";
-import { stripMarkdownLinks } from "./atlasHelpers";
+import { stripMarkdownLinks } from "./stripMarkdownLinks";
 import { toCSV } from "./csv";
+import { atlasUrl } from "./routes";
 import { dutySnippet as sharedDutySnippet, firstLine } from "./dutyText";
 import {
   dutyRowKeyer,
+  expandSources,
   finalizeDutySources,
   mergeDutyDoc,
   mergedDocNos,
@@ -25,6 +27,7 @@ import {
 import { parseMeta } from "./meta";
 import { GOV_EDGES } from "./roleEdges";
 import { agentsFromGraph, agentFromDocNo } from "./activeDataIndex";
+import type { SearchField } from "./reportFilter";
 import definitionDocs from "./data/govops-definition-docs.json";
 import dutyExclusions from "./data/duty-known-exclusions.json";
 
@@ -75,7 +78,7 @@ const ANY_GOVOPS_RE = /gov\s*ops/i;
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 
 export function deriveGovOpsResponsibilities(
-  { docs }: AtlasBundle,
+  { docs }: Pick<AtlasBundle, "docs">,
   { edges, participants }: GraphData,
 ): OGResponsibility[] {
   const results: OGResponsibility[] = [];
@@ -181,7 +184,7 @@ export function deriveGovOpsResponsibilities(
       duty,
       category,
       govops: entityById.get(e.f)?.name,
-      _sources: newDutySources(n, agent),
+      _sources: newDutySources(n, agent, duty),
     });
   }
   for (const { _sources, ...row } of dutyByKey.values())
@@ -239,13 +242,19 @@ export function deriveGovOpsResponsibilities(
 }
 
 // Exports the given (already-filtered) GovOps responsibility rows as an
-// RFC-4180 CSV string. Columns mirror the grouped table, flattened.
+// RFC-4180 CSV string. Columns mirror the grouped table, flattened — except a
+// collapsed duty row (one row covering several per-agent doc replicas in the
+// table) is re-expanded to one CSV row per doc, so every row's UUID/Atlas Link
+// points at exactly one doc instead of joining several into one cell.
 export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
+  const expanded = rows.flatMap(expandSources);
   return toCSV(
-    ["Doc No", "Title", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
-    rows.map((r) => [
-      mergedDocNos(r, "; "),
+    ["Doc No", "Title", "UUID", "Atlas Link", "Category", "Duty", "Agents", "GovOps", "Executor", "Role"],
+    expanded.map((r) => [
+      r.docNo,
       r.title,
+      r.uuid,
+      atlasUrl(r.uuid),
       CATEGORY_LABELS[r.category] ?? r.category,
       r.duty,
       (r.agents ?? (r.agent ? [r.agent] : [])).join("; "),
@@ -254,4 +263,24 @@ export function govopsRowsToCSV(rows: readonly OGResponsibility[]): string {
       r.role ?? "",
     ]),
   );
+}
+
+// The search haystack for one GovOps responsibility row as labelled fields.
+// Shared by the report page (OGCategoryTable) and the
+// atlas_report_govops_responsibilities MCP tool (server-side filtering). See
+// ofSearchFields in facilitatorResponsibilities.ts for the hidden/despace note.
+export function ogSearchFields(r: OGResponsibility): SearchField[] {
+  const cat = r.category;
+  const assignment = cat === "assignment";
+  const govVisible = assignment || cat === "active-data" || cat === "process-step";
+  const primeVisible = cat !== "definition";
+  return [
+    { label: "doc no", value: mergedDocNos(r, " ") },
+    { label: "title", value: r.title, hidden: assignment },
+    { label: "duty", value: r.duty, hidden: assignment },
+    { label: "role", value: r.role ?? "", hidden: true },
+    { label: "govops", value: r.govops ?? "", hidden: !govVisible, despace: true },
+    { label: "executor", value: r.executor ?? "", hidden: !assignment, despace: true },
+    { label: "prime agent", value: [r.agent, ...(r.agents ?? [])].filter(Boolean).join(", "), hidden: !primeVisible, despace: true },
+  ];
 }

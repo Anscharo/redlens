@@ -24,6 +24,10 @@ export function useNavigation({
       if (split) params.set("split", split);
       const view = currentParam("view");
       if (view) params.set("view", view);
+      // Keep subset filters active across doc clicks: opening a doc from a
+      // filtered list should stay filtered, not jump to All.
+      const subset = currentParam("subset");
+      if (subset) params.set("subset", subset);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate],
@@ -37,6 +41,8 @@ export function useNavigation({
       if (v !== "annotations") params.set("view", v);
       const split = currentParam("split");
       if (split) params.set("split", split);
+      const subset = currentParam("subset");
+      if (subset) params.set("subset", subset);
       navigate(`${ROUTES.ATLAS}?${params}`);
     },
     [navigate, nodeId],

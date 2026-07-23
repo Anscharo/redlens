@@ -3,8 +3,10 @@ import { buildLookup, type GlossaryEntry } from "../lib/glossary";
 import { extractLinkedIds, type LoadedData } from "../lib/atlasHelpers";
 import { type AtlasNode, type AddressInfo } from "../types";
 import { type ChainValue } from "../lib/chainstate";
+import { findCousinDocs, type CousinDoc } from "../lib/cousins";
+import type { GraphData } from "../lib/graph";
 
-export function useNodeAnnotations(id: string, data: LoadedData | null) {
+export function useNodeAnnotations(id: string, data: LoadedData | null, graph: GraphData | null) {
   const glossaryLookup = useMemo(
     () => (data?.glossary ? buildLookup(data.glossary) : {}),
     [data],
@@ -16,6 +18,7 @@ export function useNodeAnnotations(id: string, data: LoadedData | null) {
       targetAddresses: {} as Record<string, AddressInfo>,
       chainValues: {} as Record<string, Record<string, ChainValue>>,
       glossaryTerms: [] as GlossaryEntry[][],
+      cousinDocs: [] as CousinDoc[],
     };
     if (!data || !id) return empty;
     const { docs } = data.atlas;
@@ -23,7 +26,9 @@ export function useNodeAnnotations(id: string, data: LoadedData | null) {
     if (!target) return empty;
     const linkedNodes = extractLinkedIds(target)
       .map((lid) => docs[lid])
-      .filter((n): n is AtlasNode => !!n);
+      .filter((n): n is AtlasNode => !!n)
+      .sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+    const cousinDocs = graph ? findCousinDocs(id, data.atlas, graph) : [];
     const targetAddresses: Record<string, AddressInfo> = {};
     const cv: Record<string, Record<string, ChainValue>> = {};
     for (const ref of target.addressRefs ?? []) {
@@ -42,6 +47,6 @@ export function useNodeAnnotations(id: string, data: LoadedData | null) {
       }
     }
     glossaryTerms.sort((a, b) => a[0].term.localeCompare(b[0].term));
-    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms };
-  }, [data, id, glossaryLookup]);
+    return { linkedNodes, targetAddresses, chainValues: cv, glossaryTerms, cousinDocs };
+  }, [data, id, glossaryLookup, graph]);
 }

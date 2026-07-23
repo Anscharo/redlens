@@ -26,7 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { slugify, normalizeKey, buildNameIndex, makeEntity } from "../lib/graph-patterns.mjs";
+import { slugify, normalizeKey, buildNameIndex, resolveAliasedEntity, makeEntity } from "../lib/graph-patterns.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
@@ -436,6 +436,18 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     edges.push({ fromId, fromType, toId, toType, edgeType, meta: meta ? JSON.stringify(meta) : undefined });
   }
 
+  // Record a short-name alias ("Redline") on an entity resolved by its full
+  // name ("Redline Facilitation Group") via resolveAliasedEntity's prefix
+  // fallback, so entity search (entity-resolve.ts scoreEntity) can still find
+  // it on the short form once the two rows have merged into one entity.
+  function addAlias(entity, alias) {
+    const m = JSON.parse(entity.meta ?? "{}");
+    const aliases = new Set(m.aliases ?? []);
+    aliases.add(alias);
+    m.aliases = [...aliases];
+    entity.meta = JSON.stringify(m);
+  }
+
   let enriched = 0, created = 0, derecognized = 0, srcMembers = 0;
   const skyGovernance = entityMap.get("sky-governance");
 
@@ -567,12 +579,16 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     for (const row of parseMarkdownTable(forumDoc.content ?? "")) {
       const name = row["Entity Name"]?.trim();
       if (!name || name === "N/A") continue;
-      let entity = nameIndex.get(normalizeKey(name));
+      let entity = resolveAliasedEntity(nameIndex, entityMap, name);
       if (!entity) {
         entity = addTableEntity(slugify(name), name, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
           source: "forum_accounts_table",
         });
         registerInIndex(entity);
+      } else {
+        nameIndex.set(normalizeKey(name), entity); // cache the short-name alias too
+        if (normalizeKey(name) !== normalizeKey(entity.name) && normalizeKey(name) !== normalizeKey(entity.slug))
+          addAlias(entity, name);
       }
       const handle = row["Entity Handle"]?.trim();
       const role = row["Role"]?.trim();
@@ -591,7 +607,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
         .trim();
       if (!repsRaw || repsRaw === "N/A") continue;
       for (const handleName of repsRaw.split(/,\s*/).map((s) => s.trim()).filter(Boolean)) {
-        let rep = nameIndex.get(normalizeKey(handleName));
+        let rep = resolveAliasedEntity(nameIndex, entityMap, handleName);
         if (!rep) {
           rep = addTableEntity(slugify(handleName), handleName, "ecosystem_actor", 1, FORUM_ACCOUNTS_UUID, {
             source: "forum_accounts_table",
@@ -599,6 +615,10 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
           });
           rep.subtype = "individual";
           registerInIndex(rep);
+        } else {
+          nameIndex.set(normalizeKey(handleName), rep); // cache the short-name alias too
+          if (normalizeKey(handleName) !== normalizeKey(rep.name) && normalizeKey(handleName) !== normalizeKey(rep.slug))
+            addAlias(rep, handleName);
         }
         if (rep.id === entity.id) continue;
         addTableEdge(rep.id, "entity", entity.id, "entity", "authorized_rep_for", {

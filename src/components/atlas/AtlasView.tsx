@@ -11,6 +11,8 @@ import { useNodeAnnotations } from "../../hooks/useNodeAnnotations";
 import { useDocViewTracking } from "../../hooks/useDocViewTracking";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { loadGraph } from "../../lib/graph";
+import { buildOwningAgentMap } from "../../lib/owningAgent";
+import { useDataSource } from "../../lib/dataSource";
 import {
   buildAncestorsWithSelf,
   ATLAS_GRID_STYLE,
@@ -37,8 +39,14 @@ export function AtlasView({
   // soft: the relations panel is an enrichment — a graph load failure must not
   // blank the whole reader (the doc content still renders without it).
   const graph = useLoaded(loadGraph, { soft: true });
+  // loadGraph reads the live-atlas base, so its node ids/relations describe the
+  // live atlas — not the preview bundle `data` came from. Cousins resolve graph
+  // entities against `data.atlas.docs`, so a live graph in preview would link to
+  // the wrong docs (or miss preview-only ones). Hide cousins in preview, same as
+  // useGraphEdges hides the graph-relations section.
+  const { preview } = useDataSource();
   const { selectedId, handleNavigate } = useAtlasSelection(id, onNavigate);
-  const { linkedNodes, targetAddresses, chainValues, glossaryTerms } = useNodeAnnotations(id, data);
+  const { linkedNodes, targetAddresses, chainValues, glossaryTerms, cousinDocs } = useNodeAnnotations(id, data, preview ? null : graph);
 
   // Atlas-aware analytics: one doc_view per node (live + preview alike).
   useDocViewTracking(data?.atlas ?? null, id, graph);
@@ -51,6 +59,15 @@ export function AtlasView({
     if (!data || !id) return [];
     return buildAncestorsWithSelf(data.atlas.docs, data.atlas.docNoToId, id);
   }, [data, id]);
+
+  // Per-doc owning prime/executor agent, shown as a pill under a doc's number
+  // whenever it's expanded in the reader. Built once per atlas/graph load.
+  // Preview yields an empty map for the same reason cousins/graph relations are
+  // hidden: the live graph's ids don't match preview docs.
+  const agentByDoc = useMemo(
+    () => (data ? buildOwningAgentMap(data.atlas, preview ? null : graph) : null),
+    [data, graph, preview],
+  );
 
   if (!data) {
     return <Loading />;
@@ -67,7 +84,7 @@ export function AtlasView({
   }
 
   const addressCount = Object.keys(targetAddresses).length;
-  const annotationCount = linkedNodes.length + addressCount;
+  const annotationCount = linkedNodes.length + cousinDocs.length + addressCount;
 
   return (
     <AtlasActionsContext.Provider value={{ navigate: handleNavigate, toggle: () => {}, splitNavigate: onSplitChange }}>
@@ -83,11 +100,13 @@ export function AtlasView({
             splitId={splitId}
             onSplitChange={onSplitChange}
             data={data}
+            agentByDoc={agentByDoc}
           />
           {id && (
             <AtlasAnnotations
               id={id}
               linkedNodes={linkedNodes}
+              cousinDocs={cousinDocs}
               targetAddresses={targetAddresses}
               chainValues={chainValues}
               glossaryTerms={glossaryTerms}
@@ -99,6 +118,8 @@ export function AtlasView({
                 const uuid = data.atlas.docNoToId.get(docNo);
                 if (uuid) onNavigate(uuid);
               }}
+              selectable={!preview}
+              byParent={data.atlas.byParent}
             />
           )}
         </div>
