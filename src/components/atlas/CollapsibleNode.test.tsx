@@ -138,4 +138,86 @@ describe("CollapsibleNode expand-all toggle", () => {
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
     expect(expandAll).toHaveBeenCalledWith(baseNode.id, true);
   });
+
+  it("alt-clicking the regular (chevron) toggle also triggers expand-all when available", () => {
+    // jsdom has no Element.animate — stub it so the WAAPI feedback path runs
+    // (the animate()-present branch in doExpandAll) instead of the plain-call
+    // fallback, and the deferred rAF(rAF(expandAll)) call resolves.
+    const cancel = vi.fn();
+    (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = vi
+      .fn()
+      .mockReturnValue({ cancel });
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+
+    const { container, expandAll } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      isSubtreeExpanded: false,
+    });
+    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
+    fireEvent.click(chevronToggle, { altKey: true });
+    expect(expandAll).toHaveBeenCalledWith(baseNode.id, true);
+
+    rafSpy.mockRestore();
+    delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+  });
+
+  it("plain-clicking the chevron toggle (no altKey) still just toggles, not expand-all", () => {
+    const { onToggle, expandAll, container } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+    });
+    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
+    fireEvent.click(chevronToggle);
+    expect(onToggle).toHaveBeenCalledWith(baseNode.id);
+    expect(expandAll).not.toHaveBeenCalled();
+  });
+});
+
+describe("CollapsibleNode keyboard interaction", () => {
+  it("Enter navigates when the row is not selected", () => {
+    const { container, onNavigate, onToggle } = setup({ isSelected: false });
+    fireEvent.keyDown(container.querySelector(".atlas-node")!, { key: "Enter" });
+    expect(onNavigate).toHaveBeenCalledWith(baseNode.id);
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("Space toggles when the row is selected and has content", () => {
+    const { container, onToggle, onNavigate } = setup({ isSelected: true });
+    fireEvent.keyDown(container.querySelector(".atlas-node")!, { key: " " });
+    expect(onToggle).toHaveBeenCalledWith(baseNode.id);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it("ignores other keys", () => {
+    const { container, onToggle, onNavigate } = setup({ isSelected: true });
+    fireEvent.keyDown(container.querySelector(".atlas-node")!, { key: "Tab" });
+    expect(onToggle).not.toHaveBeenCalled();
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("CollapsibleNode NR-X doc numbers", () => {
+  it("renders an NR-X token via the NR chiclet layout instead of dot-split parts", () => {
+    const nrNode = makeNode({ id: "uuid-nr", doc_no: "NR-42" });
+    const nrEntry = makeFlatEntry({ node: nrNode });
+    const onNavigate = vi.fn();
+    const { container } = render(
+      <AtlasActionsContext.Provider
+        value={{ navigate: onNavigate, toggle: vi.fn(), splitNavigate: vi.fn() }}
+      >
+        <CollapsibleNode entry={nrEntry} isSelected={false} isExpanded={false} />
+      </AtlasActionsContext.Provider>,
+    );
+    const chiclets = container.querySelectorAll(".atlas-chiclet");
+    // "NR-42" → chars ["N","R","-","4","2"], not split on "." (which would be a
+    // single one-part token since there's no dot).
+    expect(chiclets.length).toBe(5);
+    expect(Array.from(chiclets).map((c) => c.textContent).join("")).toBe("NR-42");
+  });
 });

@@ -2,6 +2,11 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// When imported (by the proof test) rather than run as a CLI, skip the lcov
+// reading + process.exit main block below — only the exported area helpers load.
+const isMain = Boolean(process.argv[1]) && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 const repo = process.cwd();
 const lcovPaths = (process.env.COVERAGE_LCOV ?? "coverage/vitest/lcov.info,coverage/bun/lcov.info")
@@ -14,8 +19,56 @@ const baseRef = process.env.COVERAGE_BASE_REF ?? process.env.GITHUB_BASE_REF ?? 
 const baselinePath = process.env.COVERAGE_BASELINE_JSON;
 const minChanged = Number(process.env.COVERAGE_CHANGED_MIN ?? "95");
 
-const areas = [
-  { id: "react", label: "React app", match: [/^src\/(components|hooks)\/.*\.tsx$/, /^src\/(App|main)\.tsx$/] },
+// React code (components / hooks / context) is split into per-product meters so
+// each product's test coverage is tracked on its own. Ordering is load-bearing:
+// areaFor() returns the FIRST area whose pattern matches, so specific product
+// buckets are listed before the broad `react-general` catch-all, and the React
+// buckets sit before `general-utils` (whose `^src/lib/` would otherwise swallow
+// the lib/*.tsx context providers). The set of React bucket ids below is proved
+// to be a total + disjoint partition of the React file set by
+// scripts_tests/coverage-areas.test.ts — keep the two in sync.
+export const areas = [
+  // ---- React product meters ----
+  { id: "react-radar", label: "React · Radar", match: [/^src\/components\/radar\//] },
+  { id: "react-reports", label: "React · Reports", match: [/^src\/components\/reports\//] },
+  { id: "react-reader-history", label: "React · Reader (history)", match: [/^src\/components\/history\//] },
+  {
+    id: "react-reader-tree",
+    label: "React · Reader (tree)",
+    match: [
+      /^src\/components\/tree\//,
+      /^src\/components\/atlas\/(AtlasView|AtlasReader|CollapsibleNode|JuniorPane|useDepth6Expand)\.tsx?$/,
+    ],
+  },
+  {
+    id: "react-reader-panel",
+    label: "React · Reader (panel)",
+    match: [/^src\/components\/atlas\/(RightPanel|AtlasAnnotations|NodeMeta|NodeSelectBox|AtlasActionsContext)\.tsx$/],
+  },
+  {
+    id: "react-reader-content",
+    label: "React · Reader (content)",
+    match: [/^src\/components\/(NodeContent|NodeContentInner|AddressCard|RelatedNode|RelatedSelectBox|DocNoChiclets|Breadcrumbs|AtlasLink)\.tsx$/],
+  },
+  {
+    id: "react-reader-search",
+    label: "React · Reader (search)",
+    match: [/^src\/components\/(SearchBar|SearchResults|SearchResult|SearchResultSelectBox|SearchHints|RecentSearches)\.tsx$/],
+  },
+  { id: "react-chat", label: "React · Chat", match: [/^src\/components\/chat\//] },
+  // Collections = the saved-collections feature + its selection-mode UI (they ship together).
+  { id: "react-collections", label: "React · Collections", match: [/^src\/components\/(collections|selection)\//] },
+  {
+    id: "react-general",
+    label: "React · General",
+    match: [
+      /^src\/components\//, // remaining components: preview, constellations, app shell
+      /^src\/hooks\//, // all hooks (.ts + .tsx) — cross-cutting, not owned by one product
+      /^src\/(App|main)\.tsx$/,
+      /^src\/lib\/(dataSource|previewView|previewDiff|selection)\.tsx$/, // context providers
+    ],
+  },
+  // ---- Non-React ----
   { id: "frontend-workers", label: "Front-end workers", match: [/^src\/workers\//] },
   { id: "backend-routes", label: "Backend routes", match: [/^src\/server\/(index|http|sse|auth|mcp|posthog-proxy)\.ts$/, /^src\/server\/preview\/handler\.ts$/] },
   { id: "backend-workers", label: "Backend workers", match: [/^src\/server\/(atlas-updater|atlas-refresh|sync|sync-embeddings|prefetch)\.ts$/, /^src\/server\/preview\/(sweeper|build)\.ts$/, /^scripts\/required\/atlas-worker\.mjs$/] },
@@ -23,12 +76,17 @@ const areas = [
   { id: "general-utils", label: "General utils/units", match: [/^src\/lib\//, /^scripts\/lib\//] },
 ];
 
-function areaFor(file) {
-  const matches = areas.filter((area) => area.match.some((re) => re.test(file))).map((area) => area.id);
-  if (matches.includes("backend-routes")) return "backend-routes";
-  if (matches.includes("backend-workers")) return "backend-workers";
-  if (matches.includes("backend-core")) return "backend-core";
-  return matches[0] ?? "uncategorized";
+// Ids of the React product meters, in display order. The proof test asserts every
+// React source file (components + hooks + context, .ts/.tsx, minus tests) maps to
+// exactly one of these.
+export const reactAreaIds = areas.filter((a) => a.id.startsWith("react-")).map((a) => a.id);
+
+// First match wins. Specific areas precede broad ones in `areas`, so a plain
+// ordered scan yields the correct bucket (e.g. backend-routes before backend-core,
+// react-reader-* before react-general before general-utils).
+export function areaFor(file) {
+  const area = areas.find((a) => a.match.some((re) => re.test(file)));
+  return area?.id ?? "uncategorized";
 }
 
 function pct(covered, total) {
@@ -92,6 +150,9 @@ function changedLines() {
   return result;
 }
 
+if (isMain) runMain();
+
+function runMain() {
 const missingLcov = lcovPaths.filter((lcovPath) => !existsSync(lcovPath));
 if (missingLcov.length) {
   console.error(`Missing coverage LCOV file(s): ${missingLcov.join(", ")}. Run coverage before coverage:areas.`);
@@ -163,3 +224,4 @@ writeFileSync(outMd, [
 ].join("\n"));
 console.log(readFileSync(outMd, "utf8"));
 if (failed.length) process.exit(1);
+}
