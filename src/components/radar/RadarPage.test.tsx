@@ -42,7 +42,7 @@ vi.mock("../../lib/docs", () => ({ loadDocs: () => DOCS_P }));
 vi.mock("../../lib/graph", () => ({ loadGraph: () => GRAPH_P }));
 
 // recordVisit hits IndexedDB (absent in jsdom) — neutralise it.
-const recordVisit = vi.fn(() => Promise.resolve());
+const recordVisit = vi.fn((..._a: unknown[]) => Promise.resolve());
 vi.mock("../../lib/visitHistory", () => ({ recordVisit: (...a: unknown[]) => recordVisit(...a) }));
 
 // Index builders return controlled shapes so RadarPage's own logic is what we test.

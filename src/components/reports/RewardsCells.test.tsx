@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 describe("EntityChip", () => {
   it("links to the actor's radar page with its display name", () => {
-    render(<EntityChip e={{ slug: "sky-base", name: "Sky Base" }} />);
+    render(<EntityChip e={{ id: "sky-base", slug: "sky-base", name: "Sky Base" }} />);
     const link = screen.getByRole("link", { name: "Sky Base" });
     expect(link).toHaveAttribute("href", "/radar/sky-base");
   });

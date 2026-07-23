@@ -115,7 +115,7 @@ describe("useDocViewTracking", () => {
     const { useDocViewTracking } = await import("./useDocViewTracking");
     const { rerender } = renderHook(
       ({ id, graph }: { id: string; graph: unknown }) => useDocViewTracking(atlas, id, graph as never),
-      { wrapper: wrapperFor("/atlas"), initialProps: { id: "id-1", graph: null } },
+      { wrapper: wrapperFor("/atlas"), initialProps: { id: "id-1", graph: null as unknown } },
     );
     expect(recordVisit).toHaveBeenCalledTimes(1);
     // graph-only change: eslint-disabled dep array omits graph, so no re-fire

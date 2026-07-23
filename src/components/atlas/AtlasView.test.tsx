@@ -171,7 +171,7 @@ describe("AtlasView normal render", () => {
     setupMocks({
       data,
       annotations: {
-        linkedNodes: [makeNode(), makeNode()],
+        linkedNodes: [makeNode(), makeNode()] as never[],
         targetAddresses: { "0xabc": {} as never },
         chainValues: {},
         glossaryTerms: [],

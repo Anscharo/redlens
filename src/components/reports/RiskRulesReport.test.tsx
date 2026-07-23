@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { RiskRow, RiskJoin } from "../../lib/riskAssessmentIndex";
+import type { RiskDomain } from "../../lib/riskRules";
 
 Element.prototype.scrollIntoView = vi.fn();
 globalThis.ResizeObserver ??= class {
@@ -37,7 +38,7 @@ function makeRow(over: Partial<RiskRow["candidate"]>, triageOver: Partial<RiskRo
     docNo: "A.3.1.1",
     title: "Debt Ceiling Rule",
     quote: "The debt ceiling shall not exceed the risk capital limit.",
-    domains: ["alloc"] as const,
+    domains: ["alloc" as RiskDomain],
     anchored: true,
     stub: false,
     hasMetrics: true,

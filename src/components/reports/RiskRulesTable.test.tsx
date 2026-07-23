@@ -73,6 +73,7 @@ const ROW_UNASSESSED: RiskRow = {
     domains: ["sc"],
     anchored: true,
     stub: true,
+    hasMetrics: false,
   },
   triage: {
     taskKey: "u:uuid-2",

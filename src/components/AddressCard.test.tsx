@@ -98,7 +98,7 @@ describe("AddressCard", () => {
           DOMAIN_SEPARATOR: "0xabc",
           PERMIT_TYPEHASH: "0xdef",
           live: true,
-          decimals: 18,
+          decimals: "18",
         }}
       />,
     );
@@ -125,7 +125,7 @@ describe("AddressCard", () => {
           live: true,
           dead: false,
           list: ["a", "b"],
-          meta: { x: 1 },
+          meta: { x: "1" },
         }}
       />,
     );
@@ -134,6 +134,6 @@ describe("AddressCard", () => {
     expect(screen.getByText("true")).toBeInTheDocument();
     expect(screen.getByText("false")).toBeInTheDocument();
     expect(screen.getByText("a, b")).toBeInTheDocument();
-    expect(screen.getByText('{"x":1}')).toBeInTheDocument();
+    expect(screen.getByText('{"x":"1"}')).toBeInTheDocument();
   });
 });
