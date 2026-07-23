@@ -9,7 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
 import { renderOgTags, defaultOgTags } from "./og.ts";
-import { getOgImage } from "./og-image.ts";
+import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
@@ -74,35 +74,43 @@ function withCors(res: Response): Response {
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
 
-// Generated OG card image for /api/og/<uuid|doc_no>.png. Resolves the doc from
-// the in-memory indexes and renders (memoized) via og-image.ts. On any miss or
-// render failure, falls back to the static site icon so og:image always
-// resolves to a real image for the crawler.
+// Generated OG card images. Two routes:
+//   /api/og/<uuid|doc_no>.png[?preview=<label>] — a document card (resolved
+//     from the in-memory indexes; `preview` marks a doc viewed inside a preview)
+//   /api/og.png?kind=…&…                        — a route card (radar, reports,
+//     report, connect, preview, default) rendered from query params, no lookup
+// Both memoize via og-image.ts and fall back to the static site icon so
+// og:image always resolves to a real image for the crawler.
 //
 // v8-ignored: index.ts boots a live server + DB at import, so it is never
 // executed under test (and is 0% covered by design). This is thin request
 // glue; the substantive logic — image rendering and tag building — lives in
 // og-image.ts / og.ts and is unit-tested there. See coverage-areas.mjs.
 /* v8 ignore start */
-async function handleOgImage(pathname: string): Promise<Response> {
-  const idOrDocNo = decodeURIComponent(pathname.slice("/api/og/".length).replace(/\.png$/, ""));
+const OG_HEADERS = { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" };
+
+async function ogFallback(): Promise<Response> {
+  const fallback = Bun.file(config.distDir + "/icon-mid.png");
+  if (await fallback.exists()) return new Response(fallback, { headers: OG_HEADERS });
+  return NOT_FOUND();
+}
+
+async function handleOgImage(url: URL): Promise<Response> {
+  const idOrDocNo = decodeURIComponent(url.pathname.slice("/api/og/".length).replace(/\.png$/, ""));
+  const preview = url.searchParams.get("preview") ?? "";
   let png: Buffer | null = null;
   try {
     const node = resolveNode(getIndexes(), idOrDocNo);
-    if (node) png = await getOgImage(node.id, node.title, node.doc_no);
+    if (node) png = await getOgImage(node.id, node.title, node.doc_no, preview);
   } catch {
     /* indexes not loaded yet — fall through to the static fallback */
   }
-  if (png) {
-    return new Response(png, {
-      headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" },
-    });
-  }
-  const fallback = Bun.file(config.distDir + "/icon-mid.png");
-  if (await fallback.exists()) {
-    return new Response(fallback, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
-  }
-  return NOT_FOUND();
+  return png ? new Response(png, { headers: OG_HEADERS }) : ogFallback();
+}
+
+async function handleOgCard(url: URL): Promise<Response> {
+  const png = await getCardImage(cardFromQuery(url.searchParams));
+  return png ? new Response(png, { headers: OG_HEADERS }) : ogFallback();
 }
 /* v8 ignore stop */
 
@@ -194,9 +202,11 @@ const server = Bun.serve({
     // Immutable per-SHA live atlas artifacts (bundle-store.ts).
     if (pathname.startsWith("/api/atlas/")) return handleAtlasStatic(req, pathname);
 
-    // Generated Open Graph card image for an atlas doc: /api/og/<uuid|doc_no>.png
-    /* v8 ignore next -- request glue; see handleOgImage above */
-    if (pathname.startsWith("/api/og/")) return handleOgImage(pathname);
+    // Generated Open Graph card images (doc card vs. route card).
+    /* v8 ignore start -- request glue; see handleOgImage/handleOgCard above */
+    if (pathname === "/api/og.png") return handleOgCard(new URL(req.url));
+    if (pathname.startsWith("/api/og/")) return handleOgImage(new URL(req.url));
+    /* v8 ignore stop */
 
     if (pathname === config.mcpPath) {
       if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405, headers: CORS });
@@ -278,6 +288,7 @@ const server = Bun.serve({
           const n = resolveNode(ix, idOrDocNo);
           return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
         },
+        actor: (slug) => ix.entityBySlug.get(slug)?.name,
       });
     } catch {
       /* indexes not loaded yet — keep the site-level default */

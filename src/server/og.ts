@@ -11,13 +11,14 @@
 //
 // Query-string routing is intentional for now: the crawler-facing part is 100%
 // about the meta tags, and the server sees the full URL either way. Atlas doc
-// links are /atlas?id=<uuid|doc_no>; every other route gets the site default.
+// links are /atlas?id=<uuid|doc_no>; other routes get their own card too.
+
+import { ROUTES, REPORT_TITLES } from "../lib/routes.ts";
 
 const SITE_NAME = "Sky Atlas by Redline";
 const SITE_TITLE = "Sky Atlas by Redline";
 const SITE_DESCRIPTION =
   "A search-first interface for the Sky ecosystem's next-gen atlas — documents, on-chain addresses, relationships, and history.";
-const DEFAULT_IMAGE = "/icon-mid.png";
 // og:description hard cap, measured on the whole string INCLUDING the
 // "<doc_no> — " prefix. The description ends at the first sentence or this
 // many characters, whichever comes first.
@@ -34,8 +35,10 @@ export interface OgInput {
   searchParams: URLSearchParams;
   origin: string;
   // Resolve a ?id= value (UUID or doc_no) to a node, or undefined if unknown /
-  // indexes not loaded. Kept as an injected fn so this stays pure + testable.
+  // indexes not loaded. Kept as injected fns so this stays pure + testable.
   lookup: (idOrDocNo: string) => OgDoc | undefined;
+  // Resolve a radar actor slug to its display name (undefined → de-slugified).
+  actor?: (slug: string) => string | undefined;
 }
 
 // Escape a string for safe interpolation into both HTML text and double-quoted
@@ -88,54 +91,149 @@ function meta(property: string, content: string, attr: "property" | "name" = "pr
   return `<meta ${attr}="${property}" content="${escapeHtml(content)}" />`;
 }
 
-// Build the full head block: one <title> plus og:* / twitter:* tags. Callers
-// replace the {{OG_TAGS}} placeholder (which stands in for the <title>) with
-// this, so there's always exactly one <title> element.
-export function renderOgTags(input: OgInput): string {
-  const { pathname, searchParams, origin, lookup } = input;
+interface RouteDesc {
+  title: string;
+  description: string;
+  ogType: string;
+  canonical: string;
+  image: string; // absolute og:image URL (a generated 1200×630 card)
+}
 
-  let title = SITE_TITLE;
-  let description = SITE_DESCRIPTION;
-  let ogType = "website";
-  let canonical = origin + pathname;
-  // Default card: small square site icon. Resolved atlas docs get a generated
-  // large card image instead (see og-image.ts + the /api/og/ route).
-  let image = origin + DEFAULT_IMAGE;
-  let card = "summary";
+const ogCardUrl = (origin: string, query: string) => `${origin}/api/og.png?${query}`;
 
-  if (pathname === "/atlas") {
+// "op-facilitators" → "Op Facilitators". Fallback actor label when the slug
+// can't be resolved to a real display name.
+function deslug(s: string): string {
+  return s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Map a request (path + query) to its card + meta text. Every route resolves to
+// a generated 1200×630 card; unmatched routes get the site-default wordmark.
+function describeRoute(input: OgInput): RouteDesc {
+  const { searchParams, origin, lookup, actor } = input;
+  const canonical = origin + input.pathname;
+
+  // Preview prefix: /preview/<id>/<inner…>. Peel it off so the inner route still
+  // gets its own card, marked as a preview.
+  let previewLabel = "";
+  let pathname = input.pathname;
+  if (pathname.startsWith("/preview/")) {
+    const rest = pathname.slice("/preview/".length);
+    const slash = rest.indexOf("/");
+    const id = decodeURIComponent(slash === -1 ? rest : rest.slice(0, slash));
+    previewLabel = /^\d+$/.test(id) ? `PR #${id}` : id;
+    pathname = slash === -1 ? "/" : rest.slice(slash);
+  }
+
+  // Atlas document (live, or a doc viewed inside a preview).
+  if (pathname === ROUTES.ATLAS) {
     const id = searchParams.get("id");
     const doc = id ? lookup(id) : undefined;
     if (doc) {
-      title = `${doc.title} · ${SITE_NAME}`;
-      // Description: "<doc_no> — <first sentence or 140 chars, whichever first>".
-      description = clampDescription(doc.doc_no, plainSummary(doc.content, Number.POSITIVE_INFINITY));
-      ogType = "article";
-      // Canonical keeps the id so shares resolve to this exact doc; other query
-      // params (view/split) are dropped from the canonical URL.
-      canonical = `${origin}/atlas?id=${encodeURIComponent(id!)}`;
-      image = `${origin}/api/og/${encodeURIComponent(id!)}.png`;
-      card = "summary_large_image";
+      const title = `${previewLabel ? "Preview · " : ""}${doc.title} · ${SITE_NAME}`;
+      const description = clampDescription(doc.doc_no, plainSummary(doc.content, Number.POSITIVE_INFINITY));
+      const image = previewLabel
+        ? `${origin}/api/og/${encodeURIComponent(id!)}.png?preview=${encodeURIComponent(previewLabel)}`
+        : `${origin}/api/og/${encodeURIComponent(id!)}.png`;
+      // Live docs canonicalize to the bare doc URL; preview docs keep their URL.
+      return { title, description, ogType: "article", canonical: previewLabel ? canonical : `${origin}/atlas?id=${encodeURIComponent(id!)}`, image };
     }
   }
 
+  // Preview landing (or a preview whose inner route isn't a resolvable doc).
+  if (previewLabel) {
+    return {
+      title: `Previewing ${previewLabel} · Sky Atlas`,
+      description: `Previewing a proposed change to the Sky Atlas (${previewLabel}).`,
+      ogType: "website",
+      canonical,
+      image: ogCardUrl(origin, `kind=preview&label=${encodeURIComponent(previewLabel)}`),
+    };
+  }
+
+  // Radar actor page.
+  if (pathname.startsWith(`${ROUTES.RADAR}/`)) {
+    const slug = decodeURIComponent(pathname.slice(ROUTES.RADAR.length + 1).split("/")[0]);
+    const agent = actor?.(slug) || deslug(slug);
+    return {
+      title: `${agent} · Radar · Sky Atlas`,
+      description: `${agent} on the Sky Atlas radar — chain, responsibilities, instances, and governance relationships.`,
+      ogType: "profile",
+      canonical,
+      image: ogCardUrl(origin, `kind=radar-actor&name=${encodeURIComponent(agent)}`),
+    };
+  }
+  if (pathname === ROUTES.RADAR) {
+    return {
+      title: "Radar · Sky Atlas by Redline",
+      description: "Entity-focused view of the Sky ecosystem — agents, their responsibilities, and governance relationships.",
+      ogType: "website",
+      canonical,
+      image: ogCardUrl(origin, "kind=radar"),
+    };
+  }
+
+  // A specific report (named slug), else the reports index.
+  if (pathname.startsWith(`${ROUTES.REPORTS}/`)) {
+    const slug = pathname.slice(ROUTES.REPORTS.length + 1).split("/")[0];
+    const name = REPORT_TITLES[slug];
+    if (name) {
+      return {
+        title: `${name} · Sky Atlas Reports`,
+        description: `${name} — a structured report over the Sky Atlas.`,
+        ogType: "website",
+        canonical,
+        image: ogCardUrl(origin, `kind=report&name=${encodeURIComponent(name)}`),
+      };
+    }
+  }
+  if (pathname === ROUTES.REPORTS || pathname.startsWith(`${ROUTES.REPORTS}/`)) {
+    return {
+      title: "Reports · Sky Atlas by Redline",
+      description: "Structured reports over the Sky Atlas — responsibilities, active data, rewards, processes, and more.",
+      ogType: "website",
+      canonical,
+      image: ogCardUrl(origin, "kind=reports"),
+    };
+  }
+
+  // Connect (MCP) page.
+  if (pathname === ROUTES.CONNECT) {
+    return {
+      title: "Connect · Sky Atlas by Redline",
+      description: "Connect to the Redline Sky Atlas MCP server.",
+      ogType: "website",
+      canonical,
+      image: ogCardUrl(origin, "kind=connect"),
+    };
+  }
+
+  // Everything else: the site-default wordmark card.
+  return { title: SITE_TITLE, description: SITE_DESCRIPTION, ogType: "website", canonical, image: ogCardUrl(origin, "kind=default") };
+}
+
+// Build the full head block: one <title> plus og:* / twitter:* tags. Callers
+// replace the {{OG_TAGS}} placeholder (which stands in for the <title>) with
+// this, so there's always exactly one <title> element. Every route resolves to
+// a generated 1200×630 card, so the dimensions are always emitted.
+export function renderOgTags(input: OgInput): string {
+  const d = describeRoute(input);
   return [
-    `<title>${escapeHtml(title)}</title>`,
-    meta("description", description, "name"),
+    `<title>${escapeHtml(d.title)}</title>`,
+    meta("description", d.description, "name"),
     meta("og:site_name", SITE_NAME),
-    meta("og:type", ogType),
-    meta("og:title", title),
-    meta("og:description", description),
-    meta("og:url", canonical),
-    meta("og:image", image),
-    // Dimensions only for the generated large card (the site-icon default is
-    // not 1200×630) — lets crawlers lay the card out without a measure round-trip.
-    ...(card === "summary_large_image" ? [meta("og:image:width", "1200"), meta("og:image:height", "630")] : []),
-    meta("twitter:card", card, "name"),
-    meta("twitter:title", title, "name"),
-    meta("twitter:description", description, "name"),
-    meta("twitter:image", image, "name"),
-    `<link rel="canonical" href="${escapeHtml(canonical)}" />`,
+    meta("og:type", d.ogType),
+    meta("og:title", d.title),
+    meta("og:description", d.description),
+    meta("og:url", d.canonical),
+    meta("og:image", d.image),
+    meta("og:image:width", "1200"),
+    meta("og:image:height", "630"),
+    meta("twitter:card", "summary_large_image", "name"),
+    meta("twitter:title", d.title, "name"),
+    meta("twitter:description", d.description, "name"),
+    meta("twitter:image", d.image, "name"),
+    `<link rel="canonical" href="${escapeHtml(d.canonical)}" />`,
   ].join("\n    ");
 }
 

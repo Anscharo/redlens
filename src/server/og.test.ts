@@ -7,12 +7,18 @@ const DOC: OgDoc = {
   content: "The <!-- UUID: x --> **Accessibility Scope** governs how [users](u) reach the protocol.\n\n| a | b |\n|---|---|",
 };
 
-function tags(pathname: string, query = "", lookup: (id: string) => OgDoc | undefined = () => undefined) {
+function tags(
+  pathname: string,
+  query = "",
+  lookup: (id: string) => OgDoc | undefined = () => undefined,
+  actor?: (slug: string) => string | undefined,
+) {
   return renderOgTags({
     pathname,
     searchParams: new URLSearchParams(query),
     origin: "https://example.com",
     lookup,
+    actor,
   });
 }
 
@@ -81,10 +87,10 @@ describe("renderOgTags", () => {
     expect(html.match(/<title>/g)?.length).toBe(1);
     expect(html).toContain("<title>Sky Atlas by Redline</title>");
     expect(html).toContain('property="og:type" content="website"');
-    // Non-doc routes keep the small square card + site icon (no dimensions).
-    expect(html).toContain('name="twitter:card" content="summary"');
-    expect(html).toContain('property="og:image" content="https://example.com/icon-mid.png"');
-    expect(html).not.toContain("og:image:width");
+    // Every route now gets a generated large card + dimensions.
+    expect(html).toContain('name="twitter:card" content="summary_large_image"');
+    expect(html).toContain('property="og:image" content="https://example.com/api/og.png?kind=default"');
+    expect(html).toContain('property="og:image:width" content="1200"');
   });
 
   it("uses the doc title + summary for a resolved /atlas?id= link", () => {
@@ -102,10 +108,63 @@ describe("renderOgTags", () => {
     expect(html).toContain('property="og:image:height" content="630"');
   });
 
-  it("falls back to the site default when the id does not resolve", () => {
+  it("falls back to the default card when the id does not resolve", () => {
     const html = tags("/atlas", "id=missing");
     expect(html).toContain("<title>Sky Atlas by Redline</title>");
     expect(html).toContain('property="og:type" content="website"');
+    expect(html).toContain("api/og.png?kind=default");
+  });
+
+  it("radar index + actor pages get their own cards", () => {
+    const idx = tags("/radar");
+    expect(idx).toContain("<title>Radar · Sky Atlas by Redline</title>");
+    expect(idx).toContain('property="og:image" content="https://example.com/api/og.png?kind=radar"');
+
+    // Actor name resolved via the injected lookup.
+    const actor = tags("/radar/spark-protocol", "", () => undefined, (s) => (s === "spark-protocol" ? "Spark Protocol" : undefined));
+    expect(actor).toContain("<title>Spark Protocol · Radar · Sky Atlas</title>");
+    expect(actor).toContain('property="og:type" content="profile"');
+    expect(actor).toContain("api/og.png?kind=radar-actor&amp;name=Spark%20Protocol");
+
+    // Unresolved slug → de-slugified label.
+    const fallback = tags("/radar/some-actor");
+    expect(fallback).toContain("Some Actor · Radar · Sky Atlas");
+  });
+
+  it("reports index + named report get their own cards", () => {
+    const idx = tags("/reports");
+    expect(idx).toContain("<title>Reports · Sky Atlas by Redline</title>");
+    expect(idx).toContain("api/og.png?kind=reports");
+
+    const rep = tags("/reports/stale-dates");
+    expect(rep).toContain("<title>Stale Dates · Sky Atlas Reports</title>");
+    expect(rep).toContain("api/og.png?kind=report&amp;name=Stale%20Dates");
+
+    // Unknown report sub-page → reports index card.
+    const rubric = tags("/reports/risk-rules/rubric");
+    expect(rubric).toContain("api/og.png?kind=report&amp;name=Risk%20Rules%20Assessment");
+  });
+
+  it("connect page gets its own card", () => {
+    const html = tags("/connect");
+    expect(html).toContain("<title>Connect · Sky Atlas by Redline</title>");
+    expect(html).toContain("api/og.png?kind=connect");
+  });
+
+  it("preview landing gets a preview card labeled by PR number or ref", () => {
+    const pr = tags("/preview/184");
+    expect(pr).toContain("<title>Previewing PR #184 · Sky Atlas</title>");
+    expect(pr).toContain("api/og.png?kind=preview&amp;label=PR%20%23184");
+
+    const branch = tags("/preview/my-branch");
+    expect(branch).toContain("Previewing my-branch · Sky Atlas");
+  });
+
+  it("a doc viewed inside a preview is marked as a preview", () => {
+    const html = tags("/preview/184/atlas", "id=abc", () => DOC);
+    expect(html).toContain("<title>Preview · Accessibility Scope · Sky Atlas by Redline</title>");
+    // Doc card route carries the preview label so the image says PREVIEW.
+    expect(html).toContain("api/og/abc.png?preview=PR%20%23184");
   });
 
   it("ignores view/split query params in the canonical URL", () => {

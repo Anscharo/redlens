@@ -1,5 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { truncateTitle, titleFontSize, getOgImage, ogCacheKey } from "./og-image.ts";
+import { truncateTitle, titleFontSize, getOgImage, getCardImage, cardFromQuery, renderCard, ogCacheKey, type CardSpec } from "./og-image.ts";
+
+const PNG_MAGIC = "89504e470d0a1a0a";
 
 describe("truncateTitle", () => {
   it("leaves short titles unchanged", () => {
@@ -44,7 +46,62 @@ describe("getOgImage", () => {
     expect(retitled!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
   });
 
-  it("ogCacheKey combines UUID prefix, doc number, and title", () => {
-    expect(ogCacheKey(UUID, "Title", "A.1")).toBe("56b15d7d-c|A.1|Title");
+  it("ogCacheKey combines UUID prefix, doc number, preview, and title", () => {
+    expect(ogCacheKey(UUID, "Title", "A.1")).toBe("56b15d7d-c|A.1||Title");
+    expect(ogCacheKey(UUID, "Title", "A.1", "PR #1")).toBe("56b15d7d-c|A.1|PR #1|Title");
+  });
+
+  it("a preview doc card re-renders vs the live one", async () => {
+    const live = await getOgImage(UUID, "Accessibility Scope", "A.1");
+    const prev = await getOgImage(UUID, "Accessibility Scope", "A.1", "PR #184");
+    expect(prev).not.toBe(live!);
+  });
+});
+
+describe("cardFromQuery", () => {
+  const spec = (q: string) => cardFromQuery(new URLSearchParams(q));
+  it("maps each kind (and defaults on unknown/missing)", () => {
+    expect(spec("kind=radar")).toEqual({ kind: "radar" });
+    expect(spec("kind=radar-actor&name=Spark")).toEqual({ kind: "radarActor", agent: "Spark" });
+    expect(spec("kind=reports")).toEqual({ kind: "reports" });
+    expect(spec("kind=report&name=Stale Dates")).toEqual({ kind: "report", name: "Stale Dates" });
+    expect(spec("kind=connect")).toEqual({ kind: "connect" });
+    expect(spec("kind=preview&label=PR #1")).toEqual({ kind: "preview", label: "PR #1" });
+    expect(spec("")).toEqual({ kind: "default" });
+    expect(spec("kind=nonsense")).toEqual({ kind: "default" });
+  });
+});
+
+describe("renderCard / getCardImage", () => {
+  const KINDS: CardSpec[] = [
+    { kind: "default" },
+    { kind: "radar" },
+    { kind: "radarActor", agent: "Spark Protocol" },
+    { kind: "radarActor", agent: "" }, // empty → placeholder branch
+    { kind: "reports" },
+    { kind: "report", name: "Integrator Reward Relationships" },
+    { kind: "report", name: "" },
+    { kind: "connect" },
+    { kind: "preview", label: "PR #184" },
+    { kind: "preview", label: "" },
+    { kind: "doc", docNo: "A.1", title: "Accessibility Scope" },
+    { kind: "doc", docNo: "", title: "No Number" }, // no eyebrow branch
+    { kind: "doc", docNo: "A.1", title: "Scope", preview: "PR #184" }, // preview eyebrow branch
+  ];
+
+  it("renders a valid PNG for every card kind", async () => {
+    for (const spec of KINDS) {
+      const png = await renderCard(spec);
+      expect(png).not.toBeNull();
+      expect(png!.subarray(0, 8).toString("hex")).toBe(PNG_MAGIC);
+    }
+  });
+
+  it("getCardImage memoizes by spec", async () => {
+    const a = await getCardImage({ kind: "radar" });
+    const b = await getCardImage({ kind: "radar" });
+    expect(b).toBe(a!);
+    const c = await getCardImage({ kind: "reports" });
+    expect(c).not.toBe(a!);
   });
 });
