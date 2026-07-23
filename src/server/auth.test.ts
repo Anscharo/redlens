@@ -7,7 +7,7 @@ const realFetch = globalThis.fetch;
 describe("handleAuth routes", () => {
   beforeEach(() => {
     // Mock global fetch
-    globalThis.fetch = ((url: string | URL, options?: any) => {
+    globalThis.fetch = ((url: string | URL, _options?: any) => {
       const urlStr = String(url);
       if (urlStr.includes("github.com") && urlStr.includes("/user/emails")) {
         return Promise.resolve(
