@@ -3,8 +3,7 @@
 _Last updated: 23 July 2026_
 
 This is the privacy policy for the Sky Atlas reader at **atlas.redline.support**
-("the app"). It is written to be short and plain. If anything here is unclear,
-email us at **anscharo@proton.me**.
+("the app"). It is written to be short and plain.
 
 The short version: you can read the atlas without an account and without giving
 us anything personal. If you sign in and use the chatbot, we store your
@@ -15,7 +14,8 @@ conversations and your basic account details so the feature works.
 ## 1. Data that is NOT linked to you
 
 We collect some anonymous product data to understand what's used and to keep the
-app working. It is not tied to your name, email, or account.
+app working. It is not tied to your name, email, account, IP address, or
+anything else traceable back to you.
 
 - **Usage analytics** — which pages and features are opened, and anonymous click
   events. Cookieless, and we strip your IP address and disable location lookup
@@ -64,14 +64,14 @@ each one needs.
 ## 5. How long we keep data
 
 Anonymous analytics is retained by our analytics provider on a rolling basis.
-Account details, chats, and Collections are kept until you delete them or ask us
-to delete your account.
+Account details, chats, and Collections are kept until you delete them (see
+section 6).
 
 ## 6. Your choices and rights
 
-- **See or delete your data** — email **anscharo@proton.me** and we'll help.
-- **Delete your account** — deleting your account also deletes all of your chats
-  and Collections.
+- **Delete your account and data** — open your profile menu and go to
+  **Preferences → Delete account**. This permanently deletes your account along
+  with all of your chats and Collections.
 - You can use the atlas reader without signing in at all; the chatbot and saved
   Collections are the only features that need an account.
 
@@ -82,4 +82,5 @@ app after a change means you accept the updated policy.
 
 ## 8. Contact
 
-Questions about privacy or your data: **anscharo@proton.me**.
+Questions about privacy or your data: open an issue on the app's
+[GitHub repository](https://github.com/Anscharo/redlens).
