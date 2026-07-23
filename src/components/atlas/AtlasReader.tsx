@@ -14,6 +14,12 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
+import {
+  SubtreeVisibilityDemo,
+  type SubtreeVisibilityMode,
+} from "./SubtreeVisibilityDemo";
+import { deriveSubtreeVisualState } from "./subtreeState";
+import type { SubtreeVisualState } from "./subtreeState";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
 import { useSelection } from "../../lib/selection";
@@ -23,6 +29,12 @@ import {
   ATLAS_LEFT_PANE_STYLE,
   type LoadedData,
 } from "../../lib/atlasHelpers";
+
+type HiddenSubtreeSnapshot = {
+  userToggles: Set<string>;
+  expandedParents: Set<string>;
+  bulkExpandedRoots: Set<string>;
+};
 
 // memo boundary: AtlasView re-renders on annotation-tab switches and other
 // panel state the reader doesn't care about. All props here are stable refs
@@ -47,7 +59,11 @@ export const AtlasReader = memo(function AtlasReader({
 }) {
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
+  const [hiddenSubtrees, setHiddenSubtrees] = useState<Set<string>>(new Set());
+  const [bulkExpandedRoots, setBulkExpandedRoots] = useState<Set<string>>(new Set());
+  const [subtreeVisibilityMode, setSubtreeVisibilityMode] = useState<SubtreeVisibilityMode>("shift-hide-open");
   const seenExpanded = useRef<Set<string>>(new Set());
+  const hiddenSnapshotsRef = useRef<Map<string, HiddenSubtreeSnapshot>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,45 +93,137 @@ export const AtlasReader = memo(function AtlasReader({
 
   const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
 
-  const { expandedParents, hiddenCount, expandParent, setParentsExpanded, entryById } = useDepth6Expand(
-    data.flatNodes,
-    id,
-  );
+  const setNodeExpanded = useCallback((nodeId: string, expand: boolean) => {
+    setUserToggles((prev) => {
+      const next = new Set(prev);
+      const auto = expandedSet.has(nodeId);
+      const shouldToggle = expand ? !auto : auto;
+      if (shouldToggle) next.add(nodeId);
+      else next.delete(nodeId);
+      return next;
+    });
+  }, [expandedSet]);
+
+  const {
+    expandedParents,
+    hiddenCount,
+    expandParent,
+    setParentsExpanded,
+    restoreParentsExpanded,
+    entryById,
+  } = useDepth6Expand(data.flatNodes, id);
+
+  useEffect(() => {
+    if (!id) return;
+    setHiddenSubtrees((prev) => {
+      if (!prev.size) return prev;
+      const next = new Set(prev);
+      let cur = entryById.get(id);
+      while (cur) {
+        next.delete(cur.node.id);
+        const parentId = cur.node.parentId;
+        if (!parentId) break;
+        cur = entryById.get(parentId);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [id, entryById]);
+
+  const descendantCount = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (let i = data.flatNodes.length - 1; i >= 0; i--) {
+      const { node } = data.flatNodes[i];
+      const children = data.atlas.byParent.get(node.id) ?? [];
+      let count = children.length;
+      for (const child of children) count += counts.get(child.id) ?? 0;
+      counts.set(node.id, count);
+    }
+    return counts;
+  }, [data]);
+
+  const hasHiddenAncestor = useCallback((nodeId: string) => {
+    let parentId = data.atlas.docs[nodeId]?.parentId ?? null;
+    while (parentId) {
+      if (hiddenSubtrees.has(parentId)) return true;
+      parentId = data.atlas.docs[parentId]?.parentId ?? null;
+    }
+    return false;
+  }, [data, hiddenSubtrees]);
+
+  const handleHideSubtree = useCallback((rootId: string, hidden: boolean, options?: { restore?: boolean }) => {
+    const subtreeIds = collectSubtree(data.atlas.byParent, rootId);
+    if (hidden) {
+      hiddenSnapshotsRef.current.set(rootId, {
+        userToggles: new Set(userToggles),
+        expandedParents: new Set(expandedParents),
+        bulkExpandedRoots: new Set(bulkExpandedRoots),
+      });
+    }
+    setHiddenSubtrees((prev) => {
+      const next = new Set(prev);
+      for (const nid of subtreeIds) {
+        if (nid !== rootId) next.delete(nid);
+      }
+      if (hidden) next.add(rootId);
+      else next.delete(rootId);
+      return next;
+    });
+    if (!hidden) {
+      const snapshot = hiddenSnapshotsRef.current.get(rootId);
+      hiddenSnapshotsRef.current.delete(rootId);
+      if (options?.restore && snapshot) {
+        setUserToggles(new Set(snapshot.userToggles));
+        restoreParentsExpanded(snapshot.expandedParents);
+        setBulkExpandedRoots(new Set(snapshot.bulkExpandedRoots));
+      }
+    }
+    if (hidden) setNodeExpanded(rootId, false);
+  }, [data, userToggles, expandedParents, bulkExpandedRoots, restoreParentsExpanded, setNodeExpanded]);
+
+  const handleSetSubtreeVisualState = useCallback((
+    rootId: string,
+    state: SubtreeVisualState,
+    options?: { restore?: boolean },
+  ) => {
+    if (options?.restore) {
+      handleHideSubtree(rootId, false, options);
+      return;
+    }
+    const ids = collectSubtree(data.atlas.byParent, rootId);
+    if (state === "hidden") {
+      handleHideSubtree(rootId, true);
+      setBulkExpandedRoots((prev) => {
+        if (!prev.has(rootId)) return prev;
+        const next = new Set(prev);
+        next.delete(rootId);
+        return next;
+      });
+      setParentsExpanded(ids, false);
+      return;
+    }
+    handleHideSubtree(rootId, false);
+    setBulkExpandedRoots((prev) => {
+      const expand = state === "expanded";
+      if (expand ? prev.has(rootId) : !prev.has(rootId)) return prev;
+      const next = new Set(prev);
+      if (expand) next.add(rootId);
+      else next.delete(rootId);
+      return next;
+    });
+    expandAll(rootId, state === "expanded");
+    setParentsExpanded(ids, true);
+  }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
 
   const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
   const handleExpandParent = useCallback((nodeId: string) => {
+    handleSetSubtreeVisualState(nodeId, "expanded");
     expandParent(nodeId);
     triggerExpandingAnim();
-  }, [expandParent, triggerExpandingAnim]);
+  }, [handleSetSubtreeVisualState, expandParent, triggerExpandingAnim]);
 
-  // Expand-all (double chevron) must also un-gate hidden depth-6+ descendants:
-  // expandAll only flips content-toggle state, but gated children stay filtered
-  // out of docList until their parent is in expandedParents. Reveal the whole
-  // subtree on expand, re-gate it on collapse, so » truly opens everything.
   const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
-    expandAll(rootId, expand);
-    const ids = collectSubtree(data.atlas.byParent, rootId);
-    if (expand) {
-      setParentsExpanded(ids, true);
-      return;
-    }
-    // Collapsing a bulk-expanded ancestor must not re-gate the current
-    // selection's own revealed path — otherwise a depth-6+ selected node
-    // disappears from docList until the user navigates away and back (the
-    // auto-reveal effect only re-fires on `id` change).
-    const protectedIds = new Set<string>();
-    let cur = entryById.get(id);
-    while (cur && cur.depth >= 6) {
-      const parentId = cur.node.parentId;
-      if (!parentId) break;
-      protectedIds.add(parentId);
-      cur = entryById.get(parentId);
-    }
-    setParentsExpanded(
-      ids.filter((nid) => !protectedIds.has(nid)),
-      false,
-    );
-  }, [expandAll, setParentsExpanded, data, id, entryById]);
+    handleSetSubtreeVisualState(rootId, expand ? "expanded" : "collapsed");
+  }, [handleSetSubtreeVisualState]);
 
   useAtlasScroll(id, data, expandedParents);
 
@@ -156,6 +264,7 @@ export const AtlasReader = memo(function AtlasReader({
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
         if (!filterSet.has(entry.node.id)) return;
+        if (hasHiddenAncestor(entry.node.id)) return;
         kept.push({ entry, i, gap: prev >= 0 && i - prev > 1 });
         prev = i;
       });
@@ -201,6 +310,12 @@ export const AtlasReader = memo(function AtlasReader({
         }
         const inCradle = cradleFrom >= 0 && i >= cradleFrom && i <= cradleTo;
         const cradle = inCradle ? (k === lastCradleKept ? ("foot" as const) : ("line" as const)) : undefined;
+        const hasExplicitHidden = hiddenSubtrees.has(entry.node.id);
+        const subtreeState = deriveSubtreeVisualState({
+          hasExplicitHidden,
+          hasGatedHidden: false,
+          isExpanded: bulkExpandedRoots.has(entry.node.id) || fullyExpanded.has(entry.node.id),
+        });
         block.push(
           <CollapsibleNode
             key={entry.node.id}
@@ -208,8 +323,14 @@ export const AtlasReader = memo(function AtlasReader({
             isSelected={entry.node.id === selectedId}
             isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
             hasChildren={filteredParentIds.has(entry.node.id)}
-            isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
-            hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
+            subtreeState={subtreeState}
+            hasExplicitHiddenSubtree={hasExplicitHidden}
+            hiddenCount={
+              hasExplicitHidden
+                ? descendantCount.get(entry.node.id) ?? 0
+                : 0
+            }
+            subtreeVisibilityMode={subtreeVisibilityMode}
             onExpandChildren={handleExpandParent}
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
@@ -237,9 +358,10 @@ export const AtlasReader = memo(function AtlasReader({
 
     // filterSet is null here (the flat filtered view returned above): honor the
     // normal depth-6 gating.
-    const visible = data.flatNodes.filter(
-      (entry) => !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")),
-    );
+    const visible = data.flatNodes.filter((entry) => {
+      if (hasHiddenAncestor(entry.node.id)) return false;
+      return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
+    });
     // Cradle: the selected node's visible descendants are the contiguous run
     // of deeper entries right after it (flatNodes is DFS document order).
     // They get a left rail in the selected node's color, closed under the
@@ -260,7 +382,16 @@ export const AtlasReader = memo(function AtlasReader({
       }
     }
     const items: ReactElement[] = visible.map((entry, idx) => {
-      const gatedCount = expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0);
+      const hasExplicitHidden = hiddenSubtrees.has(entry.node.id);
+      const hasGatedHidden = !hasExplicitHidden && !expandedParents.has(entry.node.id) && (hiddenCount.get(entry.node.id) ?? 0) > 0;
+      const subtreeState = deriveSubtreeVisualState({
+        hasExplicitHidden,
+        hasGatedHidden,
+        isExpanded: bulkExpandedRoots.has(entry.node.id) || fullyExpanded.has(entry.node.id),
+      });
+      const gatedCount = hasExplicitHidden
+        ? descendantCount.get(entry.node.id) ?? 0
+        : hasGatedHidden ? hiddenCount.get(entry.node.id) ?? 0 : 0;
       const cradle =
         cradleStart >= 0 && idx >= cradleStart && idx <= cradleEnd
           ? idx === cradleEnd
@@ -274,8 +405,10 @@ export const AtlasReader = memo(function AtlasReader({
           isSelected={entry.node.id === selectedId}
           isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
           hasChildren={data.atlas.byParent.has(entry.node.id)}
-          isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
+          subtreeState={subtreeState}
+          hasExplicitHiddenSubtree={hasExplicitHidden}
           hiddenCount={gatedCount}
+          subtreeVisibilityMode={subtreeVisibilityMode}
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
@@ -301,14 +434,22 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, bulkExpandedRoots, descendantCount, subtreeVisibilityMode, hasHiddenAncestor]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection
   // change). All members are stable callbacks, so memoize the object too.
   const actions = useMemo(
-    () => ({ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }),
-    [navigate, handleToggle, splitNavigate, handleExpandAll, handleSelectSubtree],
+    () => ({
+      navigate,
+      toggle: handleToggle,
+      splitNavigate,
+      expandAll: handleExpandAll,
+      hideSubtree: handleHideSubtree,
+      setSubtreeVisualState: handleSetSubtreeVisualState,
+      selectSubtree: handleSelectSubtree,
+    }),
+    [navigate, handleToggle, splitNavigate, handleExpandAll, handleHideSubtree, handleSetSubtreeVisualState, handleSelectSubtree],
   );
 
   return (
@@ -347,6 +488,7 @@ export const AtlasReader = memo(function AtlasReader({
             </ErrorBoundary>
           </div>
         </div>
+        <SubtreeVisibilityDemo mode={subtreeVisibilityMode} onModeChange={setSubtreeVisibilityMode} />
         {splitId && (
           <ErrorBoundary resetKey={splitId} fallback={(error) => <PanelError error={error} />}>
             <JuniorPane

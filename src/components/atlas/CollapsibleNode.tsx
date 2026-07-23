@@ -11,6 +11,11 @@ import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
 import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
+import type { SubtreeVisibilityMode } from "./SubtreeVisibilityDemo";
+import {
+  nextSubtreeTransition,
+  type SubtreeVisualState,
+} from "./subtreeState";
 
 const DRAG_THRESHOLD_PX = 4;
 
@@ -31,8 +36,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hasChildren = false,
-  isSubtreeExpanded = false,
+  subtreeState = "collapsed",
+  hasExplicitHiddenSubtree = false,
   hiddenCount = 0,
+  subtreeVisibilityMode = "shift-hide-open",
   onExpandChildren,
   idPrefix,
   cradle,
@@ -44,8 +51,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected: boolean;
   isExpanded: boolean;
   hasChildren?: boolean;
-  isSubtreeExpanded?: boolean;
+  subtreeState?: SubtreeVisualState;
+  hasExplicitHiddenSubtree?: boolean;
   hiddenCount?: number;
+  subtreeVisibilityMode?: SubtreeVisibilityMode;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
@@ -59,7 +68,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
    *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
   inSelectedOnly?: boolean;
 }) {
-  const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, expandAll, setSubtreeVisualState } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -82,7 +91,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
-  const showExpandAll = hasChildren && !!expandAll;
+  const isSubtreeExpanded = subtreeState === "expanded";
+  const isSubtreeHidden = subtreeState === "hidden";
+  const showExpandAll = hasChildren && (!!setSubtreeVisualState || !!expandAll);
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
   const doToggle = () => {
     track("reader_node_toggle", { node_id: node.id, action: isExpanded ? "collapse" : "expand" });
@@ -98,12 +109,26 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const expandAllRef = useRef<HTMLButtonElement>(null);
   const spinRef = useRef<Animation | null>(null);
   const pulseRef = useRef<Animation | null>(null);
-  const doExpandAll = () => {
-    track("reader_expand_all", { node_id: node.id, action: isSubtreeExpanded ? "collapse" : "expand" });
-    const willOpen = !isSubtreeExpanded;
+  const doExpandAll = (event?: React.MouseEvent) => {
+    const transition = nextSubtreeTransition({
+      mode: subtreeVisibilityMode,
+      state: subtreeState,
+      shiftKey: !!event?.shiftKey,
+      hasExplicitHidden: hasExplicitHiddenSubtree,
+    });
+    track("reader_expand_all", { node_id: node.id, action: transition });
+    if (setSubtreeVisualState) {
+      if (transition === "restore") {
+        setSubtreeVisualState(node.id, "expanded", { restore: true });
+      } else {
+        setSubtreeVisualState(node.id, transition);
+      }
+      return;
+    }
+    const willOpen = transition === "expanded";
     const btn = expandAllRef.current;
     if (btn?.animate) {
-      const from = isSubtreeExpanded ? 90 : 0;
+      const from = isSubtreeHidden ? -90 : isSubtreeExpanded ? 90 : 0;
       const to = willOpen ? 90 : 0;
       spinRef.current?.cancel();
       // rotate (transform) held via fill:forwards until CSS .is-open catches up
@@ -143,7 +168,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     pulseRef.current = null;
     spinRef.current?.cancel();
     spinRef.current = null;
-  }, [isSubtreeExpanded]);
+  }, [isSubtreeExpanded, isSubtreeHidden]);
 
   return (
     <article
@@ -226,9 +251,25 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           <button
             ref={expandAllRef}
             type="button"
-            className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
-            aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
-            title={isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"}
+            className={`atlas-node-toggle atlas-node-expand-all${
+              isSubtreeHidden ? " is-hidden" : isSubtreeExpanded ? " is-open" : ""
+            }`}
+            aria-label={`${
+              isSubtreeHidden ? "Expand hidden" : isSubtreeExpanded ? "Collapse" : "Expand"
+            } all sections under ${node.doc_no}`}
+            title={
+              isSubtreeHidden
+                ? subtreeVisibilityMode === "shift-hide-restore"
+                  ? "restore hidden descendants"
+                  : "expand hidden descendants"
+                : subtreeVisibilityMode === "cycle"
+                  ? isSubtreeExpanded
+                    ? "hide descendants"
+                    : "expand all beneath"
+                  : isSubtreeExpanded
+                    ? "collapse all beneath (shift-click: hide descendants)"
+                    : "expand all beneath (shift-click: hide descendants)"
+            }
             onClick={doExpandAll}
           >
             »
