@@ -1,39 +1,31 @@
 // Test OAuth routes and auth handlers.
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-
-// Mock modules before importing handleAuth
-let mockFetchCalls: Array<{ url: string; options: any }> = [];
-const realFetch = globalThis.fetch;
-
-beforeEach(() => {
-  mockFetchCalls = [];
-
-  // Mock global fetch
-  globalThis.fetch = ((url: string | URL, options?: any) => {
-    mockFetchCalls.push({ url: String(url), options });
-
-    const urlStr = String(url);
-    if (urlStr.includes("github.com") && urlStr.includes("/user/emails")) {
-      return Promise.resolve(
-        new Response(JSON.stringify([{ email: "user@github.com", primary: true, verified: true }]))
-      );
-    }
-    if (urlStr.includes("github.com") && urlStr.includes("/user")) {
-      return Promise.resolve(
-        new Response(JSON.stringify({ id: 12345, login: "testuser", name: "Test User", avatar_url: "https://avatars.githubusercontent.com/test", email: "test@github.com" }))
-      );
-    }
-    return Promise.resolve(new Response("", { status: 404 }));
-  }) as typeof fetch;
-});
-
-afterEach(() => {
-  globalThis.fetch = realFetch;
-});
-
 import { handleAuth } from "./auth.ts";
 
+const realFetch = globalThis.fetch;
+
 describe("handleAuth routes", () => {
+  beforeEach(() => {
+    // Mock global fetch
+    globalThis.fetch = ((url: string | URL, options?: any) => {
+      const urlStr = String(url);
+      if (urlStr.includes("github.com") && urlStr.includes("/user/emails")) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ email: "user@github.com", primary: true, verified: true }]))
+        );
+      }
+      if (urlStr.includes("github.com") && urlStr.includes("/user")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 12345, login: "testuser", name: "Test User", avatar_url: "https://avatars.githubusercontent.com/test", email: "test@github.com" }))
+        );
+      }
+      return Promise.resolve(new Response("", { status: 404 }));
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
   it("returns 404 for unknown auth route", async () => {
     const req = new Request("http://localhost/api/auth/unknown", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/unknown");
@@ -123,26 +115,26 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/github", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github");
     // Will be 302 redirect or 500 if OAuth not configured
-    expect([302, 500]).toContain(res.status);
+    expect([302, 500].includes(res.status)).toBe(true);
   });
 
   it("handles /github route for non-GET requests", async () => {
     const req = new Request("http://localhost/api/auth/github", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/github");
-    expect([302, 500, 405]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /google route for GET requests", async () => {
     const req = new Request("http://localhost/api/auth/google", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google");
     // Will be 302 redirect or 500 if OAuth not configured
-    expect([302, 500]).toContain(res.status);
+    expect([302, 500].includes(res.status)).toBe(true);
   });
 
   it("handles /google route for non-GET requests", async () => {
     const req = new Request("http://localhost/api/auth/google", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/google");
-    expect([302, 500, 405]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /github/callback with missing state", async () => {
@@ -161,7 +153,7 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test&state=test", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github/callback");
     // Could be 400 (invalid state), 500 (OAuth error), or success
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 
   it("handles /google/callback with missing code", async () => {
@@ -180,7 +172,7 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/google/callback?code=test&state=test", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google/callback");
     // Could be 400 (invalid state), 500 (OAuth error), or success
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 
   it("returns JSON error response for 404", async () => {
@@ -224,13 +216,13 @@ describe("handleAuth routes", () => {
   it("handles GitHub callback with error parameter", async () => {
     const req = new Request("http://localhost/api/auth/github/callback?error=access_denied", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github/callback");
-    expect([400, 401]).toContain(res.status);
+    expect([400, 401].includes(res.status)).toBe(true);
   });
 
   it("handles Google callback with error parameter", async () => {
     const req = new Request("http://localhost/api/auth/google/callback?error=access_denied", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google/callback");
-    expect([400, 401]).toContain(res.status);
+    expect([400, 401].includes(res.status)).toBe(true);
   });
 
   it("sets content-type header for /signout", async () => {
@@ -242,13 +234,13 @@ describe("handleAuth routes", () => {
   it("handles /me with OPTIONS method", async () => {
     const req = new Request("http://localhost/api/auth/me", { method: "OPTIONS" });
     const res = await handleAuth(req, "/api/auth/me");
-    expect([400, 401, 405]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /signout with OPTIONS method", async () => {
     const req = new Request("http://localhost/api/auth/signout", { method: "OPTIONS" });
     const res = await handleAuth(req, "/api/auth/signout");
-    expect([200, 400, 405]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /github/callback with empty query string", async () => {
@@ -266,13 +258,13 @@ describe("handleAuth routes", () => {
   it("handles /github with POST method", async () => {
     const req = new Request("http://localhost/api/auth/github", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/github");
-    expect([405, 500]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /google with POST method", async () => {
     const req = new Request("http://localhost/api/auth/google", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/google");
-    expect([405, 500]).toContain(res.status);
+    expect(res.status).toBe(404);
   });
 
   it("handles /github/callback with mismatched state", async () => {
@@ -308,7 +300,7 @@ describe("handleAuth routes", () => {
       headers: { cookie: "other=value; state=value" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 
   it("handles /google/callback with different cookie names", async () => {
@@ -317,7 +309,7 @@ describe("handleAuth routes", () => {
       headers: { cookie: "other=value; state=value" }
     });
     const res = await handleAuth(req, "/api/auth/google/callback");
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 
   it("handles pathname variations with extra slashes", async () => {
@@ -335,7 +327,7 @@ describe("handleAuth routes", () => {
   it("handles /signout with trailing slash", async () => {
     const req = new Request("http://localhost/api/auth/signout/", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/signout/");
-    expect([200, 404, 405]).toContain(res.status);
+    expect([200, 404, 405].includes(res.status)).toBe(true);
   });
 
   it("handles /github/callback with only code parameter", async () => {
@@ -388,7 +380,7 @@ describe("handleAuth routes", () => {
       headers: { cookie: "state=test space" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 
   it("handles POST to paths that expect GET", async () => {
@@ -396,7 +388,7 @@ describe("handleAuth routes", () => {
     for (const path of paths) {
       const req = new Request(`http://localhost${path}`, { method: "POST" });
       const res = await handleAuth(req, path);
-      expect([405, 500]).toContain(res.status);
+      expect(res.status).toBe(404);
     }
   });
 
@@ -405,7 +397,7 @@ describe("handleAuth routes", () => {
     for (const path of paths) {
       const req = new Request(`http://localhost${path}`, { method: "PATCH" });
       const res = await handleAuth(req, path);
-      expect([400, 401, 404, 405]).toContain(res.status);
+      expect([400, 401, 404, 405].includes(res.status)).toBe(true);
     }
   });
 
@@ -415,7 +407,7 @@ describe("handleAuth routes", () => {
       headers: { cookie: "other=val; state=value; another=val2" }
     });
     const res = await handleAuth(req, "/api/auth/github/callback");
-    expect([200, 400, 500]).toContain(res.status);
+    expect([200, 400, 500].includes(res.status)).toBe(true);
   });
 });
 
@@ -480,7 +472,7 @@ describe("Authentication flow", () => {
   it("handles GitHub OAuth redirect to authorization URL", async () => {
     const req = new Request("http://localhost/api/auth/github", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github");
-    expect([302, 500]).toContain(res.status);
+    expect([302, 500].includes(res.status)).toBe(true);
     if (res.status === 302) {
       const location = res.headers.get("location");
       expect(location).toBeTruthy();
@@ -491,7 +483,7 @@ describe("Authentication flow", () => {
   it("handles Google OAuth redirect to authorization URL", async () => {
     const req = new Request("http://localhost/api/auth/google", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google");
-    expect([302, 500]).toContain(res.status);
+    expect([302, 500].includes(res.status)).toBe(true);
     if (res.status === 302) {
       const location = res.headers.get("location");
       expect(location).toBeTruthy();
@@ -532,7 +524,7 @@ describe("Authentication flow", () => {
   it("accepts POST to /api/auth/signout", async () => {
     const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
     const res = await handleAuth(req, "/api/auth/signout");
-    expect([200, 302]).toContain(res.status);
+    expect([200, 302].includes(res.status)).toBe(true);
     const setCookie = res.headers.get("set-cookie");
     expect(setCookie).toBeTruthy();
   });

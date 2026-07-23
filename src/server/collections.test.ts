@@ -2,14 +2,13 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 
-beforeEach(() => {
-});
-
-afterEach(() => {
-  // Restore if needed
-});
-
 describe("handleSharedCollection", () => {
+  beforeEach(() => {
+  });
+
+  afterEach(() => {
+    // Restore if needed
+  });
   it("returns 405 for POST request", async () => {
     const req = new Request("http://localhost/api/collections/test-id/shared", { method: "POST" });
     const res = await handleSharedCollection(req);
@@ -95,7 +94,7 @@ describe("handleCollections", () => {
   it("returns 401 or 405 for PUT method (auth check before method)", async () => {
     const req = new Request("http://localhost/api/collections", { method: "PUT" });
     const res = await handleCollections(req);
-    expect([401, 405]).toContain(res.status);
+    expect([401, 405].includes(res.status)).toBe(true);
   });
 
   it("returns 400 for invalid JSON in POST", async () => {
@@ -106,7 +105,7 @@ describe("handleCollections", () => {
       headers: { "content-type": "application/json" }
     });
     const res = await handleCollections(req);
-    expect([400, 401]).toContain(res.status);
+    expect([400, 401].includes(res.status)).toBe(true);
   });
 
   it("returns JSON response with content-type", async () => {
@@ -118,7 +117,7 @@ describe("handleCollections", () => {
   it("returns 405 for HEAD request", async () => {
     const req = new Request("http://localhost/api/collections", { method: "HEAD" });
     const res = await handleCollections(req);
-    expect([401, 405]).toContain(res.status);
+    expect([401, 405].includes(res.status)).toBe(true);
   });
 
   it("handles route with empty id in path", async () => {
@@ -130,6 +129,6 @@ describe("handleCollections", () => {
   it("handles deeply nested paths", async () => {
     const req = new Request("http://localhost/api/collections/id/nested/path", { method: "GET" });
     const res = await handleCollections(req);
-    expect([404, 401]).toContain(res.status);
+    expect([404, 401].includes(res.status)).toBe(true);
   });
 });
