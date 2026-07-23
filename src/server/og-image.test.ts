@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { truncateTitle, titleFontSize, getOgImage } from "./og-image.ts";
+import { truncateTitle, titleFontSize, getOgImage, ogCacheKey } from "./og-image.ts";
 
 describe("truncateTitle", () => {
   it("leaves short titles unchanged", () => {
@@ -23,20 +23,28 @@ describe("titleFontSize", () => {
 });
 
 describe("getOgImage", () => {
+  const UUID = "56b15d7d-cdd4-4594-bd95-4f094564ac04";
+
   it("renders a valid PNG and memoizes repeat calls", async () => {
-    const a = await getOgImage("Accessibility Scope", "A.1");
+    const a = await getOgImage(UUID, "Accessibility Scope", "A.1");
     expect(a).not.toBeNull();
     // PNG magic bytes.
     expect(a!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
     expect(a!.length).toBeGreaterThan(1000);
-    const b = await getOgImage("Accessibility Scope", "A.1");
+    const b = await getOgImage(UUID, "Accessibility Scope", "A.1");
     expect(b).toBe(a!); // same cached buffer instance
   });
 
-  it("keys the cache on the doc number too", async () => {
-    const a = await getOgImage("Accessibility Scope", "A.1");
-    const c = await getOgImage("Accessibility Scope", "A.2"); // different doc_no
-    expect(c).not.toBe(a!); // not served from the A.1 cache entry
-    expect(c!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  it("re-renders when the title or doc number changes (UUID unchanged)", async () => {
+    const a = await getOgImage(UUID, "Accessibility Scope", "A.1");
+    const retitled = await getOgImage(UUID, "Accessibility Scope Renamed", "A.1");
+    const renumbered = await getOgImage(UUID, "Accessibility Scope", "A.2");
+    expect(retitled).not.toBe(a!); // title edit → fresh card, not the stale one
+    expect(renumbered).not.toBe(a!); // doc_no edit → fresh card
+    expect(retitled!.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  });
+
+  it("ogCacheKey combines UUID prefix, doc number, and title", () => {
+    expect(ogCacheKey(UUID, "Title", "A.1")).toBe("56b15d7d-c|A.1|Title");
   });
 });
