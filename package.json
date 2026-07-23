@@ -60,7 +60,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:server": "bun test $(pwd)/src/server/*.test.ts $(pwd)/scripts/aux/eval-verifier-mutations.test.ts",
-    "test:server:coverage": "GITHUB_CLIENT_ID=test-id GITHUB_CLIENT_SECRET=test-secret GOOGLE_CLIENT_ID=test-gid GOOGLE_CLIENT_SECRET=test-gsecret bun test $(pwd)/src/server/*.test.ts $(pwd)/scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
+    "test:server:coverage": "GITHUB_CLIENT_ID=test-id GITHUB_CLIENT_SECRET=test-secret GOOGLE_CLIENT_ID=test-gid GOOGLE_CLIENT_SECRET=test-gsecret bun test $(pwd)/src/server/*.test.ts $(pwd)/src/server/**/*.test.ts $(pwd)/scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "test:e2e": "playwright test",
