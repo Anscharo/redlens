@@ -1,6 +1,7 @@
 // Test OAuth routes and auth handlers.
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { handleAuth, upsertUser } from "./auth.ts";
+import { signSession } from "./session.ts";
 
 const realFetch = globalThis.fetch;
 
@@ -895,5 +896,51 @@ describe("Authentication flow", () => {
     const res = await handleAuth(req, "/api/auth/google/callback");
     // Google requires verifier, should return 400
     expect(res.status).toBe(400);
+  });
+});
+
+// Additional /me and /signout tests with proper session setup
+describe("/me endpoint with session", () => {
+  it("GET /me returns 401 when session is missing", async () => {
+    const req = new Request("http://localhost/api/auth/me", { method: "GET" });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as any;
+    expect(body.error).toBeDefined();
+  });
+
+  it("GET /me returns JSON response with error field", async () => {
+    const req = new Request("http://localhost/api/auth/me", {
+      method: "GET",
+      headers: { cookie: "sky_session=invalid.token" }
+    });
+    const res = await handleAuth(req, "/api/auth/me");
+    expect(res.status).toBe(401);
+    const body = (await res.json()) as any;
+    expect(typeof body.error).toBe("string");
+  });
+
+  it("POST to /signout returns 200", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.status).toBe(200);
+  });
+
+  it("POST to /signout includes set-cookie header", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    const setCookie = res.headers.get("set-cookie");
+    expect(setCookie).toBeTruthy();
+    if (setCookie) {
+      expect(setCookie).toContain("sky_session");
+    }
+  });
+
+  it("POST to /signout returns JSON", async () => {
+    const req = new Request("http://localhost/api/auth/signout", { method: "POST" });
+    const res = await handleAuth(req, "/api/auth/signout");
+    expect(res.headers.get("content-type")).toContain("application/json");
+    const body = (await res.json()) as any;
+    expect(body.ok).toBe(true);
   });
 });
