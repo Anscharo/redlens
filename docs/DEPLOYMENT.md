@@ -324,6 +324,11 @@ On save, copy the generated **Client ID**
 (`…apps.googleusercontent.com`) → `GOOGLE_CLIENT_ID` and **Client secret** →
 `GOOGLE_CLIENT_SECRET`.
 
+*One client can serve all environments — add each redirect URI as its own entry
+(Google matches them exactly). The staging host is under `up.railway.app`, not
+`redline.support`, so it needs no Authorized-domain entry; Authorized domains
+only governs the branding links, which stay on `redline.support`.*
+
 **Privacy policy — required to publish.** While in **Testing** (≤100 test
 users) you can sign in immediately; the consent screen just shows an
 "unverified app" notice. To move to **In production** so any Google user can
