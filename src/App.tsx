@@ -412,6 +412,8 @@ export default function App() {
             <Route path="/library/:tab*">
               {(params: { tab?: string }) => (
                 <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params.tab ? `/${params.tab}` : ""}`} replace />
+              )}
+            </Route>
             <Route path={ROUTES.COLLECTIONS}>
               <Suspense fallback={<Loading />}>
                 <CollectionsPage />
