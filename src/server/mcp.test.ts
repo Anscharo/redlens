@@ -16,7 +16,9 @@ beforeAll(() => {
     entities: [],
     edges: [],
     graph: emptyGraph,
-    search: emptySearch,
+    mini: emptySearch,
+    entityBySlug: new Map(),
+    entityById: new Map(),
     meta: {
       atlasCommit: "test-commit-sha",
       buildTime: new Date().toISOString(),

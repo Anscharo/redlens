@@ -2,12 +2,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 
 // Mock modules before importing handleAuth
-let mockDbResponse: any = null;
 let mockFetchCalls: Array<{ url: string; options: any }> = [];
 const realFetch = globalThis.fetch;
 
 beforeEach(() => {
-  mockDbResponse = null;
   mockFetchCalls = [];
 
   // Mock global fetch
@@ -189,7 +187,7 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/unknown", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/unknown");
     expect(res.headers.get("content-type")).toContain("application/json");
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBeDefined();
   });
 
@@ -197,7 +195,7 @@ describe("handleAuth routes", () => {
     const req = new Request("http://localhost/api/auth/me", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/me");
     expect(res.headers.get("content-type")).toContain("application/json");
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBeDefined();
   });
 
@@ -505,7 +503,7 @@ describe("Authentication flow", () => {
     const req = new Request("http://localhost/api/auth/github/callback?code=test123", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/github/callback");
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBeDefined();
   });
 
@@ -513,7 +511,7 @@ describe("Authentication flow", () => {
     const req = new Request("http://localhost/api/auth/google/callback?state=test", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/google/callback");
     expect(res.status).toBe(400);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBeDefined();
   });
 
@@ -527,7 +525,7 @@ describe("Authentication flow", () => {
     const req = new Request("http://localhost/api/auth/invalid-path", { method: "GET" });
     const res = await handleAuth(req, "/api/auth/invalid-path");
     expect(res.status).toBe(404);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.error).toBeDefined();
   });
 

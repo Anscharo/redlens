@@ -94,15 +94,14 @@ describe("SSE client registry", () => {
   });
 
   it("broadcastAtlasUpdate handles client errors gracefully", () => {
-    let errorCount = 0;
     registerSSEClient(
-      (chunk) => {
+      (_chunk) => {
         throw new Error("Client error");
       },
       () => { }
     );
     registerSSEClient(
-      (chunk) => { /* second client ok */ },
+      (_chunk) => { /* second client ok */ },
       () => { }
     );
 
@@ -111,7 +110,6 @@ describe("SSE client registry", () => {
   });
 
   it("registerSSEClient stores client with unique id", () => {
-    const ids = new Set<number>();
     for (let i = 0; i < 5; i++) {
       const unregister = registerSSEClient(
         () => { },
@@ -257,7 +255,7 @@ describe("SSE client registry", () => {
     const client2: string[] = [];
     const client3: string[] = [];
 
-    const unregister1 = registerSSEClient(
+    registerSSEClient(
       (chunk) => client1.push(chunk),
       () => { }
     );
@@ -265,7 +263,7 @@ describe("SSE client registry", () => {
       (chunk) => client2.push(chunk),
       () => { }
     );
-    const unregister3 = registerSSEClient(
+    registerSSEClient(
       (chunk) => client3.push(chunk),
       () => { }
     );

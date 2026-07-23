@@ -2,17 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 
-const mockSession = {
-  user: { id: "user123", email: "test@example.com" },
-  refresh: "session=abc123; Path=/; HttpOnly",
-};
-
-let mockSqlCalls: any[] = [];
-let mockDbResponse: any = null;
-
 beforeEach(() => {
-  mockSqlCalls = [];
-  mockDbResponse = null;
 });
 
 afterEach(() => {
