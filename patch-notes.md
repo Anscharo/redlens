@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-23
+- Made history diffs easier to read: heavily rewritten sentences and paragraphs now show as clean before/after blocks instead of interleaved word-by-word changes
+
 ## 2026-07-22
 - Linked the preview Changed only filter in the URL
 - Added document selection and saved collections: check documents in the reader or in search results, filter the tree to just your selection, save it as a named collection when signed in, and share a collection by link

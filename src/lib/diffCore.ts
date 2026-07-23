@@ -40,7 +40,7 @@ export function lcsOps(a: string[], b: string[]): [string, string][] {
 }
 
 /** Merge consecutive same-op tokens into single segments. */
-function mergeOps(raw: [string, string][]): WordSegment[] {
+export function mergeOps(raw: [string, string][]): WordSegment[] {
   const merged: WordSegment[] = [];
   for (const [op, tok] of raw) {
     const last = merged[merged.length - 1];
