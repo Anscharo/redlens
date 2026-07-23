@@ -1,6 +1,7 @@
 import type { LibraryData } from "../../lib/library";
 import { flattenChunkTree, libraryChunksToCSV } from "../../lib/library";
 import { LibraryChunkTree } from "./LibraryChunkTree";
+import { LibraryTreemap } from "./LibraryTreemap";
 import { DownloadCsvButton } from "../reports/DownloadCsvButton";
 
 export function LibraryShape({ data }: { data: LibraryData }) {
@@ -23,6 +24,16 @@ export function LibraryShape({ data }: { data: LibraryData }) {
           query=""
         />
       </div>
+      <section className="mb-8">
+        <h2 className="text-base font-semibold mb-1" style={{ color: "var(--tan)" }}>
+          Chunk map
+        </h2>
+        <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
+          The whole Atlas as one square. Each chunk&apos;s area is its share of the corpus; its
+          largest sub-chunk sits in its top-left, recursively. Hover for details.
+        </p>
+        <LibraryTreemap tree={data.chunkTree} atlasTotal={data.totals.docs} />
+      </section>
       <section className="mb-8">
         <h2 className="text-base font-semibold mb-1" style={{ color: "var(--tan)" }}>
           Doc mass by scope

@@ -262,3 +262,17 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   tunable if it hurts). Remainder tail only renders if ≥5 unaccounted docs
   (now only hoisted-wrapper self-docs remain, so effectively gone).
   SCHEMA_V=4 (bytes changed under same sha — immutable-cache rule).
+
+- **(next commit)** "Add nested treemap chunk map to Shape"
+  User spec: big square, largest chunk as square in upper-left, recursive,
+  area ∝ size, hover = border + info bar to the right, placed above Doc mass
+  by scope. Implemented as a squarified treemap (Bruls) — pure layout in
+  src/lib/treemap.ts (+ tests: fill exactness, largest-at-origin, maxDepth),
+  rendering in LibraryTreemap.tsx (4 levels deep, minArea cutoff; single
+  sequential --red deepening per depth per dataviz guidance — geometry+labels
+  carry identity, not hues; mouseover-bubbling hover so the deepest rect
+  claims it; info panel: breadcrumb, doc_no+title, docs, % of Atlas,
+  sub-chunk count, reader link). Fixed during build: nested rects must stay
+  in ROOT unit space with placement converted per-parent (mixing spaces
+  produced phantom empty bands); square capped at 480px so the info panel
+  fits beside it in the 768px report column. Patch bullet revised.

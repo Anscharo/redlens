@@ -34,7 +34,7 @@
 -->
 
 ## 2026-07-26
-- Added an Atlas Library report with the shape of the Atlas, a distilled table of contents, a concept catalog, a glossary of defined terms, and CSV export of the chunk breakdown
+- Added an Atlas Library report with a visual chunk map of the Atlas, weight bars, a distilled table of contents, a concept catalog, a glossary of defined terms, and CSV export of the chunk breakdown
 
 ## 2026-07-23
 - Made history diffs easier to read: heavily rewritten sentences and paragraphs now show as clean before/after blocks instead of interleaved word-by-word changes
