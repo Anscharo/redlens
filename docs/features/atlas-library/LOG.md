@@ -244,3 +244,8 @@ rule-characterizations dangerous.
   filtered-CSV state (button correctly hides) and no REPORT_SCOPE_CONFIG
   entry. Revisit if the Shape tree grows filtering. PROMPT.md file-inventory
   routes line now outdated on /library paths — superseded by this LOG entry.
+
+## 2026-07-23 — pushed & PR opened
+
+Branch atlas-library pushed to origin (github-darkstar alias, darkstar-covenant).
+PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
