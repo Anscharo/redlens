@@ -33,7 +33,13 @@
         } catch (e) {}
       })();
     </script>
-    <title>Sky Atlas by Redline</title>
+    <!-- Open Graph / Twitter card tags plus the page title element,
+         substituted per-request at serve time (Bun in prod, the Vite dev
+         plugin in dev). Doc links (/atlas?id=…) unfurl with the document's own
+         title + summary; every other route gets the site default. See
+         src/server/og.ts. An UNreplaced placeholder (static/no-server hosting)
+         still leaves a valid head. -->
+    {{OG_TAGS}}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Non-render-blocking: loads as print then swaps to all on load -->
