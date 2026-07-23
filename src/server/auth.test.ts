@@ -10,18 +10,35 @@ const realFetch = globalThis.fetch;
 
 describe("handleAuth OAuth flows and error paths", () => {
   beforeEach(() => {
-    // Comprehensive mock for GitHub and Google API flows
-    globalThis.fetch = ((url: string | URL, _options?: any) => {
-      const urlStr = String(url);
+    // Mock fetch for OAuth and API calls
+    globalThis.fetch = ((url: string | URL, options?: any) => {
+      const urlStr = String(url).toLowerCase();
 
-      // GitHub API endpoints
-      if (urlStr.includes("github.com")) {
+      // GitHub token exchange: POST to https://github.com/login/oauth/access_token
+      if (urlStr.includes("github.com") && urlStr.includes("/login/oauth/access_token")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({
+            access_token: "gho_test_token_123",
+            token_type: "bearer",
+            scope: "read:user,user:email"
+          }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          })
+        );
+      }
+
+      // GitHub user endpoints
+      if (urlStr.includes("api.github.com")) {
         if (urlStr.includes("/user/emails")) {
           return Promise.resolve(
             new Response(JSON.stringify([
               { email: "primary@github.com", primary: true, verified: true },
               { email: "secondary@github.com", primary: false, verified: true }
-            ]))
+            ]), {
+              status: 200,
+              headers: { "content-type": "application/json" }
+            })
           );
         }
         if (urlStr.includes("/user") && !urlStr.includes("/user/emails")) {
@@ -32,33 +49,27 @@ describe("handleAuth OAuth flows and error paths", () => {
               name: "Test User",
               avatar_url: "https://avatars.githubusercontent.com/test",
               email: "test@github.com"
-            }))
-          );
-        }
-        // GitHub token exchange
-        if (urlStr.includes("login.githubusercontent.com")) {
-          return Promise.resolve(
-            new Response(JSON.stringify({
-              access_token: "gho_test_token_123",
-              token_type: "bearer",
-              scope: "read:user,user:email"
-            }))
+            }), {
+              status: 200,
+              headers: { "content-type": "application/json" }
+            })
           );
         }
       }
 
-      // Google API endpoints
-      if (urlStr.includes("oauth2.googleapis.com") || urlStr.includes("openidconnect.googleapis.com")) {
-        if (urlStr.includes("/token")) {
-          return Promise.resolve(
-            new Response(JSON.stringify({
-              access_token: "ya29_test_token",
-              token_type: "Bearer",
-              expires_in: 3599,
-              id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiJ0ZXN0LWNsaWVudC1pZC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImF1ZCI6InRlc3QtY2xpZW50LWlkLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTAwMzMyNDcxMjM0NTY3ODkwIiwiaWF0IjoxNjg5MzIxNDAwLCJleHAiOjE2ODkzMjUwMDB9.test_signature"
-            }))
-          );
-        }
+      // Google token exchange: POST to https://oauth2.googleapis.com/token
+      if (urlStr.includes("oauth2.googleapis.com") && urlStr.includes("/token")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({
+            access_token: "ya29_test_token",
+            token_type: "Bearer",
+            expires_in: 3599,
+            id_token: "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiJ0ZXN0LWNsaWVudC1pZC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsImF1ZCI6InRlc3QtY2xpZW50LWlkLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwic3ViIjoiMTAwMzMyNDcxMjM0NTY3ODkwIiwiaWF0IjoxNjg5MzIxNDAwLCJleHAiOjE2ODkzMjUwMDB9.test_signature"
+          }), {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          })
+        );
       }
 
       // Error responses for testing failure paths
@@ -67,7 +78,13 @@ describe("handleAuth OAuth flows and error paths", () => {
       }
 
       // Default fallback
-      return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({
+        access_token: "test_token",
+        token_type: "bearer"
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      }));
     }) as typeof fetch;
   });
 
