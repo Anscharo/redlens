@@ -67,4 +67,58 @@ describe("JuniorPane descendant slice", () => {
     fireEvent.click(screen.getByRole("heading", { name: "Child Title" }), { shiftKey: true });
     expect(onShiftNavigate).toHaveBeenCalledWith("child");
   });
+
+  it("toggles the split node's own body collapsed/expanded on title click", () => {
+    const { container } = setup();
+    // The split node is the only selected (isSelected) entry, so it's the only
+    // one whose title-bar click can toggle (vs. navigate) — see CollapsibleNode.
+    expect(container.querySelector(".atlas-node-body")).not.toBeNull();
+    const splitHeading = screen.getByRole("heading", { name: "Split Title" });
+    fireEvent.mouseDown(splitHeading, { clientX: 10, clientY: 10 });
+    fireEvent.click(splitHeading, { clientX: 10, clientY: 10 });
+    expect(container.querySelector(".atlas-node-body")).toBeNull();
+  });
+});
+
+describe("JuniorPane with an unknown splitId", () => {
+  it("renders nothing above and a bare 'no more descendants' note, without crashing", () => {
+    const onShiftNavigate = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <JuniorPane splitId="missing" data={data()} onShiftNavigate={onShiftNavigate} onClose={onClose} />,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(document.body.textContent).toContain("no more descendants of");
+  });
+});
+
+describe("JuniorPane 'view all descendants' affordance", () => {
+  it("shows the fill button beyond the depth limit and reveals deeper descendants on click", () => {
+    // split(depth1) → d2 → d3 → d4 → d5 → d6 → d7 (maxDepth = 1+6 = 7, still shown)
+    // → d8 (beyond maxDepth — hidden until "view all descendants" is clicked).
+    const split = makeNode({ id: "split", doc_no: "A.1", title: "Split Title", depth: 1, parentId: null });
+    let parentId = "split";
+    const chain = [split];
+    for (let depth = 2; depth <= 8; depth++) {
+      const n = makeNode({ id: `d${depth}`, doc_no: `A.1.${depth}`, title: `D${depth} Title`, depth, parentId });
+      chain.push(n);
+      parentId = n.id;
+    }
+    const loaded = makeLoadedData({
+      atlas: makeAtlasBundle(chain),
+      flatNodes: chain.map((node) => makeFlatEntry({ node, depth: node.depth })),
+    });
+    const onShiftNavigate = vi.fn();
+    render(<JuniorPane splitId="split" data={loaded} onShiftNavigate={onShiftNavigate} onClose={() => {}} />);
+
+    expect(screen.getByRole("heading", { name: "D7 Title" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "D8 Title" })).toBeNull();
+    const fillButton = screen.getByRole("button", { name: /view all descendants of A\.1/ });
+
+    fireEvent.click(fillButton);
+
+    expect(screen.getByRole("heading", { name: "D8 Title" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view all descendants of A\.1/ })).toBeNull();
+    expect(screen.getByText("no more descendants of A.1 to view")).toBeInTheDocument();
+  });
 });
