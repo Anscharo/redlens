@@ -8,7 +8,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
-import { renderOgTags, defaultOgTags } from "./og.ts";
+import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
@@ -277,9 +277,16 @@ const server = Bun.serve({
     /* v8 ignore start */
     const url = new URL(req.url);
     let ogTags = defaultOgTags(url.origin);
+    // Soft 404: a dynamic route whose key doesn't resolve (e.g. an unknown
+    // /radar/<slug>) still serves the SPA HTML (so the app renders its own
+    // not-found view) but with a 404 status, so crawlers/tools don't treat a
+    // garbage URL as a real page. Requires loaded indexes to check the slug.
+    let notFound = false;
     try {
       const ix = getIndexes();
       sha = ix.meta.atlasCommit ?? "";
+      const actor = (slug: string) => ix.entityBySlug.get(slug)?.name;
+      notFound = isUnknownRoute(pathname, actor);
       ogTags = renderOgTags({
         pathname,
         searchParams: url.searchParams,
@@ -288,7 +295,7 @@ const server = Bun.serve({
           const n = resolveNode(ix, idOrDocNo);
           return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
         },
-        actor: (slug) => ix.entityBySlug.get(slug)?.name,
+        actor,
       });
     } catch {
       /* indexes not loaded yet — keep the site-level default */
@@ -301,10 +308,10 @@ const server = Bun.serve({
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
       .replace("{{OG_TAGS}}", ogTags);
-    /* v8 ignore stop */
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
-    return new Response(html, { headers });
+    return new Response(html, { status: notFound ? 404 : 200, headers });
+    /* v8 ignore stop */
   },
 });
 

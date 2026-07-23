@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { renderOgTags, plainSummary, clampDescription, escapeHtml, defaultOgTags, type OgDoc } from "./og.ts";
+import { renderOgTags, plainSummary, clampDescription, escapeHtml, defaultOgTags, isUnknownRoute, type OgDoc } from "./og.ts";
 
 const DOC: OgDoc = {
   title: "Accessibility Scope",
@@ -81,6 +81,18 @@ describe("clampDescription", () => {
   });
 });
 
+describe("isUnknownRoute", () => {
+  const actor = (s: string) => (s === "spark" ? "Spark" : undefined);
+  it("is true only for an unresolved radar actor slug", () => {
+    expect(isUnknownRoute("/radar/redline", actor)).toBe(true); // no such actor
+    expect(isUnknownRoute("/radar/spark", actor)).toBe(false); // resolves
+    expect(isUnknownRoute("/radar", actor)).toBe(false); // index, not an actor route
+    expect(isUnknownRoute("/atlas", actor)).toBe(false); // unrelated route
+    expect(isUnknownRoute("/preview/184/radar/redline", actor)).toBe(true); // unwrapped
+    expect(isUnknownRoute("/radar/redline")).toBe(true); // no resolver → unknown
+  });
+});
+
 describe("renderOgTags", () => {
   it("emits exactly one <title> for the site default", () => {
     const html = tags("/");
@@ -126,9 +138,11 @@ describe("renderOgTags", () => {
     expect(actor).toContain('property="og:type" content="profile"');
     expect(actor).toContain("api/og.png?kind=radar-actor&amp;name=Spark%20Protocol");
 
-    // Unresolved slug → de-slugified label.
-    const fallback = tags("/radar/some-actor");
-    expect(fallback).toContain("Some Actor · Radar · Sky Atlas");
+    // Unresolved slug → NOT an actor card; falls through to the site default.
+    const fallback = tags("/radar/redline");
+    expect(fallback).toContain("<title>Sky Atlas by Redline</title>");
+    expect(fallback).toContain("api/og.png?kind=default");
+    expect(fallback).not.toContain("kind=radar-actor");
   });
 
   it("reports index + named report get their own cards", () => {

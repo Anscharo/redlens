@@ -101,10 +101,28 @@ interface RouteDesc {
 
 const ogCardUrl = (origin: string, query: string) => `${origin}/api/og.png?${query}`;
 
-// "op-facilitators" → "Op Facilitators". Fallback actor label when the slug
-// can't be resolved to a real display name.
-function deslug(s: string): string {
-  return s.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+// Peel a /preview/<id>/<inner…> prefix: returns the inner route path plus a
+// display label ("PR #123" for a numeric id, else the id verbatim).
+function stripPreview(pathname: string): { previewLabel: string; inner: string } {
+  if (!pathname.startsWith("/preview/")) return { previewLabel: "", inner: pathname };
+  const rest = pathname.slice("/preview/".length);
+  const slash = rest.indexOf("/");
+  const id = decodeURIComponent(slash === -1 ? rest : rest.slice(0, slash));
+  return { previewLabel: /^\d+$/.test(id) ? `PR #${id}` : id, inner: slash === -1 ? "/" : rest.slice(slash) };
+}
+
+// The radar-actor slug of a path, or "" if it isn't a /radar/<slug> route.
+function radarActorSlug(inner: string): string {
+  if (!inner.startsWith(`${ROUTES.RADAR}/`)) return "";
+  return decodeURIComponent(inner.slice(ROUTES.RADAR.length + 1).split("/")[0]);
+}
+
+// A dynamic route whose key doesn't resolve — currently an unknown radar actor
+// slug. The server uses this to return a soft 404 instead of a fabricated card.
+// Preview-wrapped paths are unwrapped first.
+export function isUnknownRoute(pathname: string, actor?: (slug: string) => string | undefined): boolean {
+  const slug = radarActorSlug(stripPreview(pathname).inner);
+  return slug !== "" && !actor?.(slug);
 }
 
 // Map a request (path + query) to its card + meta text. Every route resolves to
@@ -112,18 +130,9 @@ function deslug(s: string): string {
 function describeRoute(input: OgInput): RouteDesc {
   const { searchParams, origin, lookup, actor } = input;
   const canonical = origin + input.pathname;
-
-  // Preview prefix: /preview/<id>/<inner…>. Peel it off so the inner route still
-  // gets its own card, marked as a preview.
-  let previewLabel = "";
-  let pathname = input.pathname;
-  if (pathname.startsWith("/preview/")) {
-    const rest = pathname.slice("/preview/".length);
-    const slash = rest.indexOf("/");
-    const id = decodeURIComponent(slash === -1 ? rest : rest.slice(0, slash));
-    previewLabel = /^\d+$/.test(id) ? `PR #${id}` : id;
-    pathname = slash === -1 ? "/" : rest.slice(slash);
-  }
+  // Preview prefix: peel it off so the inner route still gets its own card,
+  // marked as a preview.
+  const { previewLabel, inner: pathname } = stripPreview(input.pathname);
 
   // Atlas document (live, or a doc viewed inside a preview).
   if (pathname === ROUTES.ATLAS) {
@@ -151,17 +160,20 @@ function describeRoute(input: OgInput): RouteDesc {
     };
   }
 
-  // Radar actor page.
-  if (pathname.startsWith(`${ROUTES.RADAR}/`)) {
-    const slug = decodeURIComponent(pathname.slice(ROUTES.RADAR.length + 1).split("/")[0]);
-    const agent = actor?.(slug) || deslug(slug);
-    return {
-      title: `${agent} · Radar · Sky Atlas`,
-      description: `${agent} on the Sky Atlas radar — chain, responsibilities, instances, and governance relationships.`,
-      ogType: "profile",
-      canonical,
-      image: ogCardUrl(origin, `kind=radar-actor&name=${encodeURIComponent(agent)}`),
-    };
+  // Radar actor page — only a resolvable actor gets an actor card; an unknown
+  // slug falls through to the site default (and the server soft-404s it).
+  const actorSlug = radarActorSlug(pathname);
+  if (actorSlug) {
+    const agent = actor?.(actorSlug);
+    if (agent) {
+      return {
+        title: `${agent} · Radar · Sky Atlas`,
+        description: `${agent} on the Sky Atlas radar — chain, responsibilities, instances, and governance relationships.`,
+        ogType: "profile",
+        canonical,
+        image: ogCardUrl(origin, `kind=radar-actor&name=${encodeURIComponent(agent)}`),
+      };
+    }
   }
   if (pathname === ROUTES.RADAR) {
     return {
