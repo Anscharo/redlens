@@ -55,6 +55,30 @@
       "title": "Agent Spell Reviewer Checklist"
     },
     {
+      "taskKey": "u:93f5b36b-06a7-4282-9fd7-14e0cbafd08e",
+      "uuid": "93f5b36b-06a7-4282-9fd7-14e0cbafd08e",
+      "docNo": "A.1.10.2.5.1.3.2.0.6.1",
+      "title": "Registered Spell Checklists"
+    },
+    {
+      "taskKey": "u:642c4577-3d39-4a05-a15a-94bdd7e09f50",
+      "uuid": "642c4577-3d39-4a05-a15a-94bdd7e09f50",
+      "docNo": "A.1.10.2.5.2",
+      "title": "Operational Reference Materials"
+    },
+    {
+      "taskKey": "u:3c374c29-b5c2-4812-bb99-de17f9116fa2",
+      "uuid": "3c374c29-b5c2-4812-bb99-de17f9116fa2",
+      "docNo": "A.1.10.2.5.2.1.2",
+      "title": "Technical Scope Template Update Process"
+    },
+    {
+      "taskKey": "u:d27661ef-2870-4837-819d-992042ceefe0",
+      "uuid": "d27661ef-2870-4837-819d-992042ceefe0",
+      "docNo": "A.1.10.2.5.2.2.2",
+      "title": "Deployment Checklist Update Process"
+    },
+    {
       "taskKey": "u:b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
       "uuid": "b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
       "docNo": "A.1.10.3.2.14",
@@ -469,10 +493,34 @@
       "title": "Set Trigger For RateLimit Increase"
     },
     {
+      "taskKey": "u:a30447be-5214-4398-82aa-7306eeabd6f5",
+      "uuid": "a30447be-5214-4398-82aa-7306eeabd6f5",
+      "docNo": "A.2.2.10.1.1.2.1.3.2",
+      "title": "Notional Total Risk Capital (TRC) Coverage Strategy"
+    },
+    {
       "taskKey": "u:4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
       "uuid": "4eac2c9e-2718-4881-a3f1-ed10fb3f4d13",
       "docNo": "A.2.2.10.1.1.3.2.1.1",
       "title": "Sky Core Required Risk Capital (RRC) Dashboard"
+    },
+    {
+      "taskKey": "u:d034533f-9b6f-411c-8b60-3bccb374765f",
+      "uuid": "d034533f-9b6f-411c-8b60-3bccb374765f",
+      "docNo": "A.2.2.10.1.1.3.2.1.2.2",
+      "title": "Minimum Capabilities of Prime TRC Management Systems"
+    },
+    {
+      "taskKey": "u:4887e971-be6c-4f98-9137-7cdec3ed0fa0",
+      "uuid": "4887e971-be6c-4f98-9137-7cdec3ed0fa0",
+      "docNo": "A.2.2.10.1.1.3.2.1.2.3.2",
+      "title": "TRC Report Contents"
+    },
+    {
+      "taskKey": "u:1ac3e606-f1c7-4a20-a9b6-a425920e98d3",
+      "uuid": "1ac3e606-f1c7-4a20-a9b6-a425920e98d3",
+      "docNo": "A.2.2.10.1.1.3.2.1.3.2.1",
+      "title": "Core GovOps TRC Report Validation Process"
     },
     {
       "taskKey": "u:d8086dc0-7e77-4c6b-98c7-5fc41337a1ce",
@@ -511,10 +559,46 @@
       "title": "Risk Capital Share"
     },
     {
+      "taskKey": "u:d16483ff-b83e-490f-a620-1b58cc679c7f",
+      "uuid": "d16483ff-b83e-490f-a620-1b58cc679c7f",
+      "docNo": "A.3.1.2.2.1",
+      "title": "Relationship To Base Rate"
+    },
+    {
+      "taskKey": "u:4e49c66c-3361-48bb-9a18-a0217278488e",
+      "uuid": "4e49c66c-3361-48bb-9a18-a0217278488e",
+      "docNo": "A.3.1.2.3.1",
+      "title": "Relationship To Base Rate"
+    },
+    {
+      "taskKey": "u:e15caed7-276c-4489-95dc-9ba628566bf4",
+      "uuid": "e15caed7-276c-4489-95dc-9ba628566bf4",
+      "docNo": "A.3.1.2.3.4",
+      "title": "Spark"
+    },
+    {
+      "taskKey": "u:e1b694de-1ee3-4502-a9c9-52eea9539804",
+      "uuid": "e1b694de-1ee3-4502-a9c9-52eea9539804",
+      "docNo": "A.3.1.2.6",
+      "title": "Sky Spread"
+    },
+    {
+      "taskKey": "u:268af0e9-be3d-458e-9ccd-5a560abc7540",
+      "uuid": "268af0e9-be3d-458e-9ccd-5a560abc7540",
+      "docNo": "A.3.2.1.1.3.2",
+      "title": "Inability To Calculate Types Of RRC"
+    },
+    {
+      "taskKey": "u:6f6b25d6-f73c-4733-ba37-12a0a411433c",
+      "uuid": "6f6b25d6-f73c-4733-ba37-12a0a411433c",
+      "docNo": "A.3.2.1.2.1",
+      "title": "Total Risk Capital Definition"
+    },
+    {
       "taskKey": "u:00f61aa6-7bb4-4c7f-9492-2e2b2b4e78b2",
       "uuid": "00f61aa6-7bb4-4c7f-9492-2e2b2b4e78b2",
       "docNo": "A.3.2.1.2.2.1.1.2",
-      "title": "Prime-External Junior Risk Capital (SEJRC)"
+      "title": "Prime-External Junior Risk Capital (PEJRC)"
     },
     {
       "taskKey": "u:6bba2076-5d5b-43fd-82c6-df6a35f67355",
@@ -523,10 +607,40 @@
       "title": "Senior Risk Capital"
     },
     {
+      "taskKey": "u:ff374833-920c-40f6-ae6c-a71d33d99b82",
+      "uuid": "ff374833-920c-40f6-ae6c-a71d33d99b82",
+      "docNo": "A.3.2.1.2.3.1.1",
+      "title": "External Per Internal Ratio"
+    },
+    {
+      "taskKey": "u:fbc9a273-d217-4d52-8b3e-b496580f27a2",
+      "uuid": "fbc9a273-d217-4d52-8b3e-b496580f27a2",
+      "docNo": "A.3.2.1.2.3.1.2",
+      "title": "Senior Per Junior Ratio"
+    },
+    {
       "taskKey": "u:672d377f-067e-4742-a987-b2c6258f9c99",
       "uuid": "672d377f-067e-4742-a987-b2c6258f9c99",
       "docNo": "A.3.2.2.1.1.1.5.3.1",
       "title": "Instance Financial CRRs For Specific Assets"
+    },
+    {
+      "taskKey": "u:73f2410b-3579-4c68-ae36-e4a4713a6e4b",
+      "uuid": "73f2410b-3579-4c68-ae36-e4a4713a6e4b",
+      "docNo": "A.3.2.2.2.1.1",
+      "title": "Tip Junior Risk Capital Percentage"
+    },
+    {
+      "taskKey": "u:3ed32706-c072-42b5-b1e5-187bddf8dc37",
+      "uuid": "3ed32706-c072-42b5-b1e5-187bddf8dc37",
+      "docNo": "A.3.2.2.2.2.1",
+      "title": "External Per Internal (EPI) Ratio Value"
+    },
+    {
+      "taskKey": "u:8578e240-3fe8-41c0-8b2c-15ec9a7181ab",
+      "uuid": "8578e240-3fe8-41c0-8b2c-15ec9a7181ab",
+      "docNo": "A.3.2.2.2.2.2",
+      "title": "Senior Per Junior (SPJ) Ratio Values"
     },
     {
       "taskKey": "u:d47ffd80-c463-49b3-b4a9-60bb6d2b114e",
@@ -535,16 +649,46 @@
       "title": "Prime External JRC Rental System Implementation"
     },
     {
+      "taskKey": "u:cb9bb5b1-50a7-49d8-8ff6-27269061f87e",
+      "uuid": "cb9bb5b1-50a7-49d8-8ff6-27269061f87e",
+      "docNo": "A.3.2.2.4.2.3.2",
+      "title": "Monthly srUSDS Yield"
+    },
+    {
+      "taskKey": "u:c160f99c-c3d8-41e9-a3d1-cde514b7a2da",
+      "uuid": "c160f99c-c3d8-41e9-a3d1-cde514b7a2da",
+      "docNo": "A.3.2.2.4.2.3.3.1",
+      "title": "Sky Spread"
+    },
+    {
       "taskKey": "u:268b4b1f-9a19-42f8-b7c6-d8dc01e32517",
       "uuid": "268b4b1f-9a19-42f8-b7c6-d8dc01e32517",
       "docNo": "A.3.2.2.4.4",
       "title": "Originated Senior Risk Capital (OSRC) Rental Implementation"
     },
     {
+      "taskKey": "u:dab711a4-e932-4e2e-bed5-3f459f89cde6",
+      "uuid": "dab711a4-e932-4e2e-bed5-3f459f89cde6",
+      "docNo": "A.3.2.2.4.4.2",
+      "title": "SRC Accounting & Enablement"
+    },
+    {
       "taskKey": "u:b74ba49a-de9e-4c4c-866c-b04d9dd208f7",
       "uuid": "b74ba49a-de9e-4c4c-866c-b04d9dd208f7",
       "docNo": "A.3.3.2.2.2.1",
       "title": "Reporting Of Failures To Satisfy Actively Stabilizing Collateral Requirement"
+    },
+    {
+      "taskKey": "u:693330d6-9072-4054-bd61-d788537e34e8",
+      "uuid": "693330d6-9072-4054-bd61-d788537e34e8",
+      "docNo": "A.3.3.2.2.4.1",
+      "title": "Calculation"
+    },
+    {
+      "taskKey": "u:2edd1333-6ca6-4c10-9d71-80b85d4a4265",
+      "uuid": "2edd1333-6ca6-4c10-9d71-80b85d4a4265",
+      "docNo": "A.3.3.2.2.4.1.3",
+      "title": "Secured Overnight Financing Rate"
     },
     {
       "taskKey": "u:816e01d2-76a7-45ea-a770-22e4d3bc1247",
@@ -773,6 +917,12 @@
       "uuid": "8b9fa488-8005-488a-8537-11a8bdcb205b",
       "docNo": "A.6.1.1.1.2.6.1.2.1.1.3.6.2",
       "title": "Avalanche USDC Withdrawal Maximum"
+    },
+    {
+      "taskKey": "u:8286092a-69f2-46af-a989-c694a1756753",
+      "uuid": "8286092a-69f2-46af-a989-c694a1756753",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.2",
+      "title": "Core Operator Relayer Multisig"
     },
     {
       "taskKey": "u:36a496db-20c1-4d34-810e-518c4f99a755",

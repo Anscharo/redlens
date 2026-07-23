@@ -9027,6 +9027,150 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Morpho U
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - PYUSD To USDC Via Paxos 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the PYUSD To USDC Via Paxos Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Paxos",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "PYUSD",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDC",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0x2f7BE67e11A4D621E36f1A8371b0a5Fe16dE6B20\`",
+    "title": "Paxos Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 PYUSD
+- \`slope\`: 200,000,000 PYUSD per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - PYUSD To USDG Via Paxos 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the PYUSD To USDG Via Paxos Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Paxos",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "PYUSD",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDG",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0x227B1912C2fFE1353EA3A603F1C05F030Cc262Ff\`",
+    "title": "Paxos Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 PYUSD
+- \`slope\`: 50,000,000 PYUSD per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Spark Blue Chip USDT Vault 1`] = `
 [
   {
@@ -10111,150 +10255,6 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Supersta
 ]
 `;
 
-exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer PYUSD to Paxos (receive USDC) 1`] = `
-[
-  {
-    "content": "**\`Pending\`**",
-    "title": "RRC Framework Full Implementation",
-  },
-  {
-    "content": "The documents herein define the parameters of the Transfer PYUSD to Paxos (receive USDC) of the Allocation System Primitive.",
-    "title": "Parameters",
-  },
-  {
-    "content": "The documents herein define the Instance identifiers",
-    "title": "Instance Identifiers",
-  },
-  {
-    "content": "Ethereum Mainnet",
-    "title": "Network",
-  },
-  {
-    "content": "Paxos",
-    "title": "Target Protocol",
-  },
-  {
-    "content": "PYUSD",
-    "title": "Asset Supplied By Spark Liquidity Layer",
-  },
-  {
-    "content": "USDC",
-    "title": "Token to Receive",
-  },
-  {
-    "content": "The documents herein define the Instance contract addresses.",
-    "title": "Contract Addresses",
-  },
-  {
-    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
-    "title": "Token Address",
-  },
-  {
-    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
-    "title": "Underlying Asset Address",
-  },
-  {
-    "content": "\`0x2f7BE67e11A4D621E36f1A8371b0a5Fe16dE6B20\`",
-    "title": "Paxos Deposit Address",
-  },
-  {
-    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-    "title": "Rate Limit IDs",
-  },
-  {
-    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
-    "title": "Rate Limits",
-  },
-  {
-    "content": "The transferAssets rate limits are:
-
-- \`maxAmount\`: 5,000,000 PYUSD
-- \`slope\`: 200,000,000 PYUSD per day",
-    "title": "TransferAssets Rate Limits",
-  },
-  {
-    "content": "The documents herein contain specific off-chain parameters for this Instance.",
-    "title": "Off-chain Operational Parameters",
-  },
-  {
-    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
-    "title": "Instance-specific Operational Processes",
-  },
-]
-`;
-
-exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer PYUSD to Paxos (receive USDG) 1`] = `
-[
-  {
-    "content": "**\`Pending\`**",
-    "title": "RRC Framework Full Implementation",
-  },
-  {
-    "content": "The documents herein define the parameters of the Transfer PYUSD to Paxos (receive USDG) of the Allocation System Primitive.",
-    "title": "Parameters",
-  },
-  {
-    "content": "The documents herein define the Instance identifiers",
-    "title": "Instance Identifiers",
-  },
-  {
-    "content": "Ethereum Mainnet",
-    "title": "Network",
-  },
-  {
-    "content": "Paxos",
-    "title": "Target Protocol",
-  },
-  {
-    "content": "PYUSD",
-    "title": "Asset Supplied By Spark Liquidity Layer",
-  },
-  {
-    "content": "USDG",
-    "title": "Token to Receive",
-  },
-  {
-    "content": "The documents herein define the Instance contract addresses.",
-    "title": "Contract Addresses",
-  },
-  {
-    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
-    "title": "Token Address",
-  },
-  {
-    "content": "\`0x6c3ea9036406852006290770bedfcaba0e23a0e8\`",
-    "title": "Underlying Asset Address",
-  },
-  {
-    "content": "\`0x227B1912C2fFE1353EA3A603F1C05F030Cc262Ff\`",
-    "title": "Paxos Deposit Address",
-  },
-  {
-    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-    "title": "Rate Limit IDs",
-  },
-  {
-    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
-    "title": "Rate Limits",
-  },
-  {
-    "content": "The transferAssets rate limits are:
-
-- \`maxAmount\`: 5,000,000 PYUSD
-- \`slope\`: 50,000,000 PYUSD per day",
-    "title": "TransferAssets Rate Limits",
-  },
-  {
-    "content": "The documents herein contain specific off-chain parameters for this Instance.",
-    "title": "Off-chain Operational Parameters",
-  },
-  {
-    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
-    "title": "Instance-specific Operational Processes",
-  },
-]
-`;
-
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDC to Binance (receive USDT) 1`] = `
 [
   {
@@ -10329,150 +10329,6 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer
 ]
 `;
 
-exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDC to Paxos (receive PYUSD) 1`] = `
-[
-  {
-    "content": "**\`Pending\`**",
-    "title": "RRC Framework Full Implementation",
-  },
-  {
-    "content": "The documents herein define the parameters of the Transfer USDC to Paxos (receive PYUSD) of the Allocation System Primitive.",
-    "title": "Parameters",
-  },
-  {
-    "content": "The documents herein define the Instance identifiers",
-    "title": "Instance Identifiers",
-  },
-  {
-    "content": "Ethereum Mainnet",
-    "title": "Network",
-  },
-  {
-    "content": "Paxos",
-    "title": "Target Protocol",
-  },
-  {
-    "content": "USDC",
-    "title": "Asset Supplied By Spark Liquidity Layer",
-  },
-  {
-    "content": "PYUSD",
-    "title": "Token to Receive",
-  },
-  {
-    "content": "The documents herein define the Instance contract addresses.",
-    "title": "Contract Addresses",
-  },
-  {
-    "content": "\`0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\`",
-    "title": "Token Address",
-  },
-  {
-    "content": "\`0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\`",
-    "title": "Underlying Asset Address",
-  },
-  {
-    "content": "\`0xFb1F749024b4544c425f5CAf6641959da31EdF37\`",
-    "title": "Paxos Deposit Address",
-  },
-  {
-    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-    "title": "Rate Limit IDs",
-  },
-  {
-    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
-    "title": "Rate Limits",
-  },
-  {
-    "content": "The transferAssets rate limits are:
-
-- \`maxAmount\`: 5,000,000 USDC
-- \`slope\`: 50,000,000 USDC per day",
-    "title": "TransferAssets Rate Limits",
-  },
-  {
-    "content": "The documents herein contain specific off-chain parameters for this Instance.",
-    "title": "Off-chain Operational Parameters",
-  },
-  {
-    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
-    "title": "Instance-specific Operational Processes",
-  },
-]
-`;
-
-exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDG to Paxos (receive PYUSD) 1`] = `
-[
-  {
-    "content": "**\`Pending\`**",
-    "title": "RRC Framework Full Implementation",
-  },
-  {
-    "content": "The documents herein define the parameters of the Transfer USDG to Paxos (receive PYUSD) of the Allocation System Primitive.",
-    "title": "Parameters",
-  },
-  {
-    "content": "The documents herein define the Instance identifiers",
-    "title": "Instance Identifiers",
-  },
-  {
-    "content": "Ethereum Mainnet",
-    "title": "Network",
-  },
-  {
-    "content": "Paxos",
-    "title": "Target Protocol",
-  },
-  {
-    "content": "USDG",
-    "title": "Asset Supplied By Spark Liquidity Layer",
-  },
-  {
-    "content": "PYUSD",
-    "title": "Token to Receive",
-  },
-  {
-    "content": "The documents herein define the Instance contract addresses.",
-    "title": "Contract Addresses",
-  },
-  {
-    "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
-    "title": "Token Address",
-  },
-  {
-    "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
-    "title": "Underlying Asset Address",
-  },
-  {
-    "content": "\`0x035b322D0e79de7c8733CdDA5a7EF8b51a6cfcfa\`",
-    "title": "Paxos Deposit Address",
-  },
-  {
-    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-    "title": "Rate Limit IDs",
-  },
-  {
-    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
-    "title": "Rate Limits",
-  },
-  {
-    "content": "The transferAssets rate limits are:
-
-- \`maxAmount\`: 5,000,000 USDG
-- \`slope\`: 100,000,000 USDG per day",
-    "title": "TransferAssets Rate Limits",
-  },
-  {
-    "content": "The documents herein contain specific off-chain parameters for this Instance.",
-    "title": "Off-chain Operational Parameters",
-  },
-  {
-    "content": "",
-    "title": "Instance-specific Operational Processes",
-  },
-]
-`;
-
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer USDT to Binance (receive USDC) 1`] = `
 [
   {
@@ -10542,6 +10398,150 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Transfer
   },
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - USDC To PYUSD Via Paxos 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the USDC To PYUSD Via Paxos Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Paxos",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "PYUSD",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0xFb1F749024b4544c425f5CAf6641959da31EdF37\`",
+    "title": "Paxos Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 USDC
+- \`slope\`: 50,000,000 USDC per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - USDG To PYUSD Via Paxos 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the USDG To PYUSD Via Paxos Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Paxos",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDG",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "PYUSD",
+    "title": "Token to Receive",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0xe343167631d89B6Ffc58B88d6b7fB0228795491D\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0x035b322D0e79de7c8733CdDA5a7EF8b51a6cfcfa\`",
+    "title": "Paxos Deposit Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current TransferAsset rate limits for this conduit's transferAssets operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The transferAssets rate limits are:
+
+- \`maxAmount\`: 5,000,000 USDG
+- \`slope\`: 100,000,000 USDG per day",
+    "title": "TransferAssets Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "",
     "title": "Instance-specific Operational Processes",
   },
 ]
@@ -10745,7 +10745,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 1982,
+  "cites": 1988,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
@@ -12168,6 +12168,42 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - PYUSD To USDC Via Paxos",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "PYUSD",
+      "Network": "Ethereum Mainnet",
+      "Paxos Deposit Address": "0x2f7BE67e11A4D621E36f1A8371b0a5Fe16dE6B20",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Paxos",
+      "Token Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
+      "Token to Receive": "USDC",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 PYUSD",
+      "TransferAssets Rate Limits / slope": "200,000,000 PYUSD per day",
+      "Underlying Asset Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-pyusd-to-usdc-via-paxos",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - PYUSD To USDG Via Paxos",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "PYUSD",
+      "Network": "Ethereum Mainnet",
+      "Paxos Deposit Address": "0x227B1912C2fFE1353EA3A603F1C05F030Cc262Ff",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Paxos",
+      "Token Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
+      "Token to Receive": "USDG",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 PYUSD",
+      "TransferAssets Rate Limits / slope": "50,000,000 PYUSD per day",
+      "Underlying Asset Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-pyusd-to-usdg-via-paxos",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Spark Blue Chip USDT Vault",
     "params": {
       "Allocator Role Address": "0xe5c6318456a7Cb6f74f93B4eee4616dB5fcef699",
@@ -12383,42 +12419,6 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
-    "name": "Ethereum Mainnet - Transfer PYUSD to Paxos (receive USDC)",
-    "params": {
-      "Asset Supplied By Spark Liquidity Layer": "PYUSD",
-      "Network": "Ethereum Mainnet",
-      "Paxos Deposit Address": "0x2f7BE67e11A4D621E36f1A8371b0a5Fe16dE6B20",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Target Protocol": "Paxos",
-      "Token Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
-      "Token to Receive": "USDC",
-      "TransferAssets Rate Limits / maxAmount": "5,000,000 PYUSD",
-      "TransferAssets Rate Limits / slope": "200,000,000 PYUSD per day",
-      "Underlying Asset Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
-    },
-    "slug": "spark-allocation-system-ethereum-mainnet-transfer-pyusd-to-paxos-receive-usdc",
-    "status": "Active",
-  },
-  {
-    "agent": "A.6.1.1.1",
-    "name": "Ethereum Mainnet - Transfer PYUSD to Paxos (receive USDG)",
-    "params": {
-      "Asset Supplied By Spark Liquidity Layer": "PYUSD",
-      "Network": "Ethereum Mainnet",
-      "Paxos Deposit Address": "0x227B1912C2fFE1353EA3A603F1C05F030Cc262Ff",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Target Protocol": "Paxos",
-      "Token Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
-      "Token to Receive": "USDG",
-      "TransferAssets Rate Limits / maxAmount": "5,000,000 PYUSD",
-      "TransferAssets Rate Limits / slope": "50,000,000 PYUSD per day",
-      "Underlying Asset Address": "0x6c3ea9036406852006290770bedfcaba0e23a0e8",
-    },
-    "slug": "spark-allocation-system-ethereum-mainnet-transfer-pyusd-to-paxos-receive-usdg",
-    "status": "Active",
-  },
-  {
-    "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Transfer USDC to Binance (receive USDT)",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDC",
@@ -12435,42 +12435,6 @@ exports[`instances > allocation-system instances 1`] = `
       "Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdc-to-binance-receive-usdt",
-    "status": "Active",
-  },
-  {
-    "agent": "A.6.1.1.1",
-    "name": "Ethereum Mainnet - Transfer USDC to Paxos (receive PYUSD)",
-    "params": {
-      "Asset Supplied By Spark Liquidity Layer": "USDC",
-      "Network": "Ethereum Mainnet",
-      "Paxos Deposit Address": "0xFb1F749024b4544c425f5CAf6641959da31EdF37",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Target Protocol": "Paxos",
-      "Token Address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-      "Token to Receive": "PYUSD",
-      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDC",
-      "TransferAssets Rate Limits / slope": "50,000,000 USDC per day",
-      "Underlying Asset Address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
-    },
-    "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdc-to-paxos-receive-pyusd",
-    "status": "Active",
-  },
-  {
-    "agent": "A.6.1.1.1",
-    "name": "Ethereum Mainnet - Transfer USDG to Paxos (receive PYUSD)",
-    "params": {
-      "Asset Supplied By Spark Liquidity Layer": "USDG",
-      "Network": "Ethereum Mainnet",
-      "Paxos Deposit Address": "0x035b322D0e79de7c8733CdDA5a7EF8b51a6cfcfa",
-      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
-      "Target Protocol": "Paxos",
-      "Token Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
-      "Token to Receive": "PYUSD",
-      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDG",
-      "TransferAssets Rate Limits / slope": "100,000,000 USDG per day",
-      "Underlying Asset Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
-    },
-    "slug": "spark-allocation-system-ethereum-mainnet-transfer-usdg-to-paxos-receive-pyusd",
     "status": "Active",
   },
   {
@@ -12543,6 +12507,42 @@ exports[`instances > allocation-system instances 1`] = `
       "Token Address": "0x00836Fe54625BE242BcFA286207795405ca4fD10",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-uniswap-v4-usdt-usds-pool",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - USDC To PYUSD Via Paxos",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDC",
+      "Network": "Ethereum Mainnet",
+      "Paxos Deposit Address": "0xFb1F749024b4544c425f5CAf6641959da31EdF37",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Paxos",
+      "Token Address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "Token to Receive": "PYUSD",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDC",
+      "TransferAssets Rate Limits / slope": "50,000,000 USDC per day",
+      "Underlying Asset Address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-usdc-to-pyusd-via-paxos",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - USDG To PYUSD Via Paxos",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDG",
+      "Network": "Ethereum Mainnet",
+      "Paxos Deposit Address": "0x035b322D0e79de7c8733CdDA5a7EF8b51a6cfcfa",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Target Protocol": "Paxos",
+      "Token Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
+      "Token to Receive": "PYUSD",
+      "TransferAssets Rate Limits / maxAmount": "5,000,000 USDG",
+      "TransferAssets Rate Limits / slope": "100,000,000 USDG per day",
+      "Underlying Asset Address": "0xe343167631d89B6Ffc58B88d6b7fB0228795491D",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-usdg-to-pyusd-via-paxos",
     "status": "Active",
   },
   {
