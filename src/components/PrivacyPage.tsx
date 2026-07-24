@@ -15,9 +15,6 @@ const components: Components = {
   h2: ({ children }) => (
     <h2 className="text-base font-semibold mt-8 mb-3" style={{ color: "var(--tan)" }}>{children}</h2>
   ),
-  h3: ({ children }) => (
-    <h3 className="text-sm font-semibold mt-5 mb-2" style={{ color: "var(--tan)" }}>{children}</h3>
-  ),
   p: ({ children }) => <p className="my-3 leading-relaxed">{children}</p>,
   ul: ({ children }) => <ul className="list-disc pl-6 my-3 space-y-1.5">{children}</ul>,
   li: ({ children }) => <li className="leading-relaxed">{children}</li>,
@@ -26,17 +23,6 @@ const components: Components = {
   ),
   hr: () => <hr className="my-6 border-[var(--border)]" />,
   strong: ({ children }) => <strong style={{ color: "var(--tan)" }}>{children}</strong>,
-  table: ({ children }) => (
-    <div className="overflow-x-auto my-4">
-      <table className="text-sm border-collapse">{children}</table>
-    </div>
-  ),
-  th: ({ children }) => (
-    <th className="text-left px-3 py-1.5 border-b border-[var(--border)] font-semibold" style={{ color: "var(--tan)" }}>
-      {children}
-    </th>
-  ),
-  td: ({ children }) => <td className="px-3 py-1.5 border-b border-[var(--border)] align-top">{children}</td>,
 };
 
 export function PrivacyPage() {

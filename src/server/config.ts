@@ -25,6 +25,12 @@ const githubAuthEnabled =
   usersEnabled && (process.env.GITHUB_CLIENT_ID ?? "") !== "" && (process.env.GITHUB_CLIENT_SECRET ?? "") !== "";
 const googleAuthEnabled =
   usersEnabled && (process.env.GOOGLE_CLIENT_ID ?? "") !== "" && (process.env.GOOGLE_CLIENT_SECRET ?? "") !== "";
+// CSV of the providers this environment offers, injected into index.html
+// ({{AUTH_PROVIDERS}}) so the frontend renders exactly the configured buttons.
+// Empty when the login surface is off or no provider is configured.
+const authProvidersCsv = [githubAuthEnabled ? "github" : null, googleAuthEnabled ? "google" : null]
+  .filter(Boolean)
+  .join(",");
 const appUrl =
   process.env.APP_URL ??
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
@@ -57,6 +63,7 @@ export const config = {
   // only one provider's credentials shows only that provider's sign-in.
   githubAuthEnabled,
   googleAuthEnabled,
+  authProvidersCsv,
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.

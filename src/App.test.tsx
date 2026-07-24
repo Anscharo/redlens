@@ -88,4 +88,10 @@ describe("App", () => {
     render(<App />, { wrapper: wrap("/atlas?id=some-uuid") });
     expect(await screen.findByTestId("atlas-view")).toBeInTheDocument();
   });
+
+  it("renders the privacy policy route", async () => {
+    render(<App />, { wrapper: wrap("/privacy") });
+    // PrivacyPage is a real (unmocked) lazy route — its h1 proves the Route mounts.
+    expect(await screen.findByRole("heading", { level: 1, name: /privacy policy/i })).toBeInTheDocument();
+  });
 });

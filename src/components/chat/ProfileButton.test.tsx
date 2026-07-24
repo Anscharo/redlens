@@ -5,7 +5,8 @@ import "@testing-library/jest-dom/vitest";
 
 let user: { name: string | null; avatarUrl: string } | null = null;
 const signOut = vi.fn();
-vi.mock("./auth", () => ({ useAuth: () => ({ user, signOut }) }));
+const deleteAccount = vi.fn(() => Promise.resolve(true));
+vi.mock("./auth", () => ({ useAuth: () => ({ user, signOut, deleteAccount }) }));
 
 let prefs = { traces: false, reduceMotion: false };
 const setPref = vi.fn((k: string, v: boolean) => {
@@ -107,5 +108,26 @@ describe("ProfileButton signed in", () => {
     expect(traceSwitch).toHaveAttribute("aria-checked", "false");
     fireEvent.click(traceSwitch);
     expect(setPref).toHaveBeenCalledWith("traces", true);
+  });
+
+  it("deletes the account from the Preferences panel after confirmation", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    expect(deleteAccount).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).toBeNull(); // menu closes on delete
+  });
+
+  it("does not delete when the confirmation is dismissed", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    expect(deleteAccount).not.toHaveBeenCalled();
   });
 });

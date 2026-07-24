@@ -59,16 +59,6 @@ function checkAuthConfig(): void {
 }
 checkAuthConfig();
 
-// CSV of the OAuth providers this environment offers, injected into index.html
-// ({{AUTH_PROVIDERS}}) so the frontend renders exactly the configured buttons.
-// Empty when the login surface is off or no provider is configured.
-function authProvidersCsv(): string {
-  const providers: string[] = [];
-  if (config.githubAuthEnabled) providers.push("github");
-  if (config.googleAuthEnabled) providers.push("google");
-  return providers.join(",");
-}
-
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -317,7 +307,7 @@ const server = Bun.serve({
     const html = (await Bun.file(config.distDir + "/index.html").text())
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
-      .replace("{{AUTH_PROVIDERS}}", authProvidersCsv())
+      .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
