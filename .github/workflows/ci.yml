@@ -137,10 +137,100 @@ jobs:
       - name: Verify graph snapshots
         run: pnpm test:snap
 
-  coverage:
-    name: "CI: Coverage"
+  coverage-vitest:
+    name: "CI: Coverage (Vitest)"
     runs-on: ubuntu-latest
     needs: test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - name: Download atlas artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: atlas-artifacts
+
+      - name: Restore atlas artifacts
+        run: tar -xzf atlas-artifacts.tgz
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run Vitest coverage
+        run: pnpm test:coverage
+        env:
+          REPRO: "1"
+
+      - name: Upload Vitest coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-vitest
+          path: coverage/vitest/lcov.info
+          retention-days: 14
+
+  coverage-bun:
+    name: "CI: Coverage (Bun)"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Download installed workspace
+        uses: actions/download-artifact@v5
+        with:
+          name: workspace-deps
+
+      - name: Restore installed workspace
+        run: tar -xzf workspace-deps.tgz
+
+      - name: Download atlas artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: atlas-artifacts
+
+      - name: Restore atlas artifacts
+        run: tar -xzf atlas-artifacts.tgz
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Run Bun coverage
+        run: pnpm test:server:coverage
+
+      - name: Upload Bun coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-bun
+          path: coverage/bun/lcov.info
+          retention-days: 14
+
+  coverage:
+    name: "CI: Coverage summary"
+    runs-on: ubuntu-latest
+    needs: [coverage-vitest, coverage-bun]
     steps:
       - uses: actions/checkout@v5
         with:
@@ -195,13 +285,17 @@ jobs:
         env:
           REPRO: "1"
 
-      - name: Run Vitest coverage
-        run: pnpm test:coverage
-        env:
-          REPRO: "1"
+      - name: Download Vitest coverage
+        uses: actions/download-artifact@v5
+        with:
+          name: coverage-vitest
+          path: coverage/vitest
 
-      - name: Run Bun coverage
-        run: pnpm test:server:coverage
+      - name: Download Bun coverage
+        uses: actions/download-artifact@v5
+        with:
+          name: coverage-bun
+          path: coverage/bun
 
       - name: Summarize coverage areas and enforce changed-code minimum
         run: pnpm coverage:areas
@@ -251,7 +345,7 @@ jobs:
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
     runs-on: ubuntu-latest
-    needs: coverage
+    needs: test
     services:
       postgres:
         image: pgvector/pgvector:pg16
