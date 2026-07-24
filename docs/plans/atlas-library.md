@@ -69,6 +69,10 @@ time). Until the UI exists they are readable in the repo/GitHub.
 - `docs/library/shape.md` — generated weight tables/diagrams (the "shape of the Atlas").
 - `.cache/atlas-shape.json` — raw computed stats backing both (regenerable, not committed).
 
+(Removed post-P2 along with `scripts/aux/atlas-shape.mjs`: nothing read the generated
+markdown once `/library` shipped against `library.json`/`glossary.json` directly, and it
+wasn't wired into any build script, so it went stale. See `docs/atlas-map.md`.)
+
 ## Staleness / liveness heuristics
 
 The signals we can compute **today** (roughly in order of reliability):
