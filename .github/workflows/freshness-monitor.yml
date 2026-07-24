@@ -1,0 +1,47 @@
+# Freshness monitor — external watchdog for the Railway atlas worker.
+#
+# Polls /api/freshness every 30 minutes. That endpoint is status-coded: 200
+# for "ok"/"syncing" (healthy), 503 for "stuck"/"stale"/"schema_behind"/
+# "degraded". A non-2xx response fails this job, and GitHub emails the repo
+# owner on workflow failure — so this is the built-in external monitor for
+# "the atlas worker stopped touching sync_state.synced_at" and similar
+# degradation, without standing up a third-party uptime service.
+#
+# No secrets, no checkout — just an unauthenticated GET against the public
+# endpoint.
+
+name: freshness-monitor
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Retry once after a minute so a single network blip doesn't page —
+      # only two consecutive failures fail the job.
+      - name: Check /api/freshness
+        run: |
+          for attempt in 1 2; do
+            CODE=$(curl -sS -o body.json -w "%{http_code}" https://atlas.redline.support/api/freshness || echo "000")
+            echo "attempt ${attempt}: HTTP ${CODE}"
+            echo "response body:"
+            cat body.json || true
+            echo
+
+            if [ "$CODE" -ge 200 ] && [ "$CODE" -lt 300 ]; then
+              echo "freshness check passed"
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 1 ]; then
+              echo "retrying in 60s…"
+              sleep 60
+            fi
+          done
+
+          echo "freshness check failed after 2 attempts"
+          exit 1
