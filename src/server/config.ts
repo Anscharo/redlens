@@ -67,7 +67,16 @@ export const config = {
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
+  // With MORE THAN ONE domain attached to the service (apex + subdomain),
+  // RAILWAY_PUBLIC_DOMAIN is ambiguous — pin APP_URL explicitly or OAuth builds
+  // its redirect URI against whichever domain Railway happened to pick.
   appUrl,
+
+  // Canonical-host redirect (canonical.ts): GET/HEAD requests on any host other
+  // than appUrl's are 301'd to appUrl, so multi-domain deployments can't start
+  // an OAuth flow (or set host-only cookies) on a non-canonical host. Active
+  // only when appUrl is https; CANONICAL_HOST_REDIRECT=0 opts out.
+  canonicalHostRedirect: process.env.CANONICAL_HOST_REDIRECT !== "0",
 
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",

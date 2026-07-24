@@ -15,6 +15,7 @@ import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
+import { canonicalRedirect } from "./canonical.ts";
 import { handleChat } from "./chat.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
@@ -174,7 +175,10 @@ const server = Bun.serve({
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
-    "/api/auth/*": (req) => config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND(),
+    // OAuth must run on the canonical host (registered callback + host-only
+    // state cookie), so a sign-in started on any other attached domain is
+    // bounced to appUrl before the flow begins — see canonical.ts.
+    "/api/auth/*": (req) => canonicalRedirect(req as Request) ?? (config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND()),
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
     // Public share read is unauthenticated (anyone with the link) — declared
@@ -187,6 +191,14 @@ const server = Bun.serve({
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
   async fetch(req: Request, server) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+
+    // Funnel page loads / static GETs on non-canonical attached domains to the
+    // canonical origin (canonical.ts). The declared routes above (health,
+    // history, SSE, …) are deliberately untouched: /api/health must answer on
+    // whatever host the platform healthcheck uses.
+    const canon = canonicalRedirect(req);
+    if (canon) return canon;
+
     const { pathname } = new URL(req.url);
 
     // First-party PostHog reverse proxy (strips IP headers; see posthog-proxy.ts).
