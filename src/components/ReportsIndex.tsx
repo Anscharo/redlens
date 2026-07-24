@@ -56,7 +56,7 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
       ),
       card(
         "library",
-        "The Atlas as functional chunks: hierarchical weight maps of scopes, agent artifacts, and primitives, a distilled table of contents, a cross-cutting concept catalog with its audit trail, and the glossary of defined terms.",
+        "The Atlas as functional chunks: hierarchical weight maps of scopes, agent artifacts, and primitives, a cross-cutting concept catalog with its audit trail, and the glossary of defined terms.",
       ),
     ],
   },

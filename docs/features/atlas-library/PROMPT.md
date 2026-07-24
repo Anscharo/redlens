@@ -51,23 +51,27 @@ Companion docs (read on demand, all committed on this branch):
   anatomy, entity layer, staleness findings, session log).
 - `docs/plans/atlas-library.md` — the product plan: /library four faces (Shape, Contents,
   Chunk pages, Glossary), 7 staleness signals, phases P0–P4, open questions.
-- `docs/library/{toc,shape,glossary}.md` — generated repo companions
-  (`node scripts/aux/atlas-shape.mjs` regenerates; requires build:index + build:glossary first).
+- The P0 seed markdown (`docs/library/{toc,shape,glossary}.md` via `scripts/aux/atlas-shape.mjs`)
+  was removed post-P2: nothing read it once `/library` shipped against `library.json` +
+  `glossary.json` directly, and it wasn't wired into any build script, so it went stale on
+  arrival. The Shape/Contents/Glossary tabs are the live replacement.
 
 ## File inventory (this feature)
 
 - `scripts/lib/library-shape.mjs` — shared compute: GROUPS taxonomy, subtree weights,
   semantic doc_no tree, `chunkTree`, toc. Consumed by both scripts below.
 - `scripts/required/build-library.mjs` — build pass → `public/library.json`
-  (fields: atlasCommit, totals, docTypes, scopes, neededResearch, toc, chunkTree).
-- `scripts/aux/atlas-shape.mjs` — renders `docs/library/*.md` + `.cache/atlas-shape.json`.
+  (fields: atlasCommit, totals, docTypes, scopeTree, neededResearch, chunkTree).
 - `src/lib/library.ts` — types + sha-keyed cached loader.
-- `src/components/library/` — `LibraryPage.tsx` (tabs), `LibraryShape.tsx` (Shape page),
-  `LibraryScopeMass.tsx` (expandable scope rows), `LibraryChunkTree.tsx` (recursive
-  bars-with-sub-bars), `SegmentedBar.tsx` (SegmentedBar + PlainBar), `LibraryContents.tsx`,
-  `LibraryGlossary.tsx`.
-- Routes `/library`, `/library/contents`, `/library/glossary` in `src/lib/routes.ts` +
-  `src/App.tsx`; homepage card in `HomePage.tsx`; patch-notes bullet (2026-07-20).
+- `src/components/library/` — `LibraryPage.tsx` (tabs), `LibraryShape.tsx` (Shape page:
+  treemap, scope/chunk trees, overlays, Needed Research list), `LibraryChunkTree.tsx`
+  (recursive bars-with-sub-bars), `SegmentedBar.tsx` (SegmentedBar + PlainBar),
+  `LibraryGlossary.tsx`. (The Contents tab + `LibraryContents.tsx` + the `toc` artifact
+  field were removed 2026-07-24 — superseded by Shape's "Doc mass by scope"; its Needed
+  Research list moved into Shape. `/reports/library/contents` redirects to the report root.)
+- Routes `/reports/library{,/concepts,/audit,/glossary}` in `src/lib/routes.ts` +
+  `src/App.tsx` (legacy `/library/*` redirects); homepage card in `HomePage.tsx`;
+  patch-notes bullet (2026-07-20).
 - Pipeline touchpoints listed in decision 3.
 
 ## Working practices (the user asked for these explicitly)

@@ -5,15 +5,13 @@ import { ROUTES } from "../../lib/routes";
 import { track } from "../../lib/analytics";
 import { loadLibrary, type LibraryData } from "../../lib/library";
 import { LibraryShape } from "./LibraryShape";
-import { LibraryContents } from "./LibraryContents";
 import { LibraryGlossary } from "./LibraryGlossary";
 import { LibraryConcepts, LibraryAudit } from "./LibraryConcepts";
 
-export type LibraryTab = "shape" | "contents" | "concepts" | "audit" | "glossary";
+export type LibraryTab = "shape" | "concepts" | "audit" | "glossary";
 
 const TABS: { tab: LibraryTab; label: string; to: string }[] = [
   { tab: "shape", label: "Shape", to: ROUTES.REPORTS_LIBRARY },
-  { tab: "contents", label: "Contents", to: ROUTES.REPORTS_LIBRARY_CONTENTS },
   { tab: "concepts", label: "Concepts", to: ROUTES.REPORTS_LIBRARY_CONCEPTS },
   { tab: "audit", label: "Audit", to: ROUTES.REPORTS_LIBRARY_AUDIT },
   { tab: "glossary", label: "Glossary", to: ROUTES.REPORTS_LIBRARY_GLOSSARY },
@@ -75,10 +73,8 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
           </p>
         ) : !data ? (
           <p className="text-sm mono text-tan-3">loading…</p>
-        ) : tab === "shape" ? (
-          <LibraryShape data={data} />
         ) : (
-          <LibraryContents toc={data.toc} neededResearch={data.neededResearch} />
+          <LibraryShape data={data} />
         )}
       </div>
     </div>

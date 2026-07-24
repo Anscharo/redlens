@@ -283,3 +283,22 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   their date + our revised bullet), and fixed a merge-mangled legacy /library
   redirect in App.tsx (missing closing tags — build was broken on the remote
   branch until this). All pushed to PR #194.
+
+- **Branch cleanup pass** (derived-artifact audit): removed `scripts/aux/atlas-shape.mjs`
+  and its outputs `docs/library/{toc,shape,glossary}.md`. They were never wired into any
+  pnpm script and nothing in the app read them — `/library`'s Shape/Contents/Glossary tabs
+  already read `library.json`/`glossary.json` directly (confirmed by grep before deleting).
+  Updated the stale references in `docs/atlas-map.md`, `docs/plans/atlas-library.md`,
+  `PROMPT.md`, and the two `scripts/lib|required` header comments that pointed at the
+  deleted script.
+
+- **Removed the Contents tab** (user decision: superseded by Shape's "Doc mass by scope",
+  which gives the same scope→article→section drill-down with weights and reader links).
+  Its one non-redundant piece — the linked Needed Research list — moved into the Shape tab
+  below Overlay chunks. Deleted `LibraryContents.tsx`; dropped `toc` from `library.json`
+  (types, guard) and bumped `SCHEMA_V` 4→5; pruned the now-consumer-less parentId-based
+  `subtree`/`childSegments`/`scopes`/`groups`/`primes`/`executors`/`_internals` compute
+  from `library-shape.mjs` (chunk trees run on the semantic doc_no tree; the field-pick in
+  `build-library.mjs` is gone — computeLibrary returns exactly the shipped shape).
+  `/reports/library/contents` now redirects to `/reports/library`. Revised the unreleased
+  patch-notes bullet + reports-index card copy (no new bullet — same unreleased feature).

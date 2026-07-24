@@ -12,7 +12,6 @@ export const ROUTES = {
   SHARED_COLLECTION: "/c/:id",
   REPORTS: "/reports",
   REPORTS_LIBRARY: "/reports/library",
-  REPORTS_LIBRARY_CONTENTS: "/reports/library/contents",
   REPORTS_LIBRARY_CONCEPTS: "/reports/library/concepts",
   REPORTS_LIBRARY_AUDIT: "/reports/library/audit",
   REPORTS_LIBRARY_GLOSSARY: "/reports/library/glossary",

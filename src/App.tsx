@@ -383,10 +383,9 @@ export default function App() {
                 <ConnectPage />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_LIBRARY_CONTENTS}>
-              <Suspense fallback={<Loading />}>
-                <LibraryPage tab="contents" />
-              </Suspense>
+            {/* Contents tab removed (superseded by Shape's "Doc mass by scope") — keep old links working */}
+            <Route path="/reports/library/contents">
+              <Redirect to={ROUTES.REPORTS_LIBRARY} replace />
             </Route>
             <Route path={ROUTES.REPORTS_LIBRARY_CONCEPTS}>
               <Suspense fallback={<Loading />}>

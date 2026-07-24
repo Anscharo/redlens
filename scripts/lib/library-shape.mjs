@@ -1,7 +1,5 @@
-// Shared compute for the Atlas Library artifact (public/library.json) and the
-// repo-doc renderings in docs/library/. Consumed by:
-//   scripts/required/build-library.mjs  (build pass → public/library.json)
-//   scripts/aux/atlas-shape.mjs         (docs/library/*.md companions)
+// Shared compute for the Atlas Library artifact (public/library.json), consumed
+// by scripts/required/build-library.mjs.
 // No timestamps in the returned data — library.json ships in the reproducible
 // build (REPRO=1 pnpm test requires byte-identical artifacts).
 import fs from "node:fs";
@@ -21,9 +19,6 @@ const GROUPS = [
   ["Agent artifacts", ["4a08ca6c-e652-49e4-9b79-4831b20e600a" /* A.6 */]],
 ];
 
-const PRIME_LIST = "9fb7f1cc-f60b-4195-892d-5e540f969973"; // A.6.1.1 List Of Prime Agent Artifacts
-const EXEC_LIST = "df62511d-afe5-42db-8bd4-6452c5a0f464"; // A.6.1.2 List Of Executor Agent Artifacts
-
 export function loadInputs(publicDir) {
   const { atlasCommit, nodes } = JSON.parse(fs.readFileSync(path.join(publicDir, "docs.json"), "utf8"));
   const glossary = JSON.parse(fs.readFileSync(path.join(publicDir, "glossary.json"), "utf8"));
@@ -32,38 +27,9 @@ export function loadInputs(publicDir) {
 
 export function computeLibrary({ atlasCommit, nodes, terms }) {
   const all = Object.values(nodes);
-  const children = new Map();
-  for (const n of all) {
-    if (!n.parentId) continue;
-    if (!children.has(n.parentId)) children.set(n.parentId, []);
-    children.get(n.parentId).push(n);
-  }
-  for (const kids of children.values()) kids.sort((a, b) => a.order - b.order);
-
-  function subtree(id) {
-    let docs = 0, bytes = 0;
-    const stack = [id];
-    while (stack.length) {
-      const cur = stack.pop();
-      const n = nodes[cur];
-      docs += 1;
-      bytes += (n.content || "").length;
-      for (const k of children.get(cur) || []) stack.push(k.id);
-    }
-    return { docs, bytes };
-  }
-
   const scopes = all.filter((n) => n.type === "Scope").sort((a, b) => a.order - b.order);
   const nr = all.filter((n) => n.doc_no.startsWith("NR")).sort((a, b) => a.order - b.order);
   const ref = ({ id, doc_no, title }) => ({ id, doc_no, title });
-
-  // Segment a node's weight by its direct children (for the stacked weight
-  // bars): largest first. The parent's own doc is folded into the largest
-  // segment implicitly by normalizing against the segment sum at render time.
-  const childSegments = (id) =>
-    (children.get(id) || [])
-      .map((c) => ({ ...ref(c), docs: subtree(c.id).docs }))
-      .sort((a, b) => b.docs - a.docs);
 
   // ── Semantic tree (doc_no-based) ──────────────────────────────────────────
   // Inside agent artifacts the heading depth caps at 6 and parentId goes flat
@@ -138,16 +104,6 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
     atlasCommit,
     totals: { docs: all.length, bytes: all.reduce((s, n) => s + (n.content || "").length, 0), glossaryTerms: terms.length },
     docTypes: Object.entries(all.reduce((m, n) => ((m[n.type] = (m[n.type] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]),
-    scopes: scopes.map((s) => ({ ...ref(s), ...subtree(s.id), segments: childSegments(s.id) })),
-    groups: GROUPS.map(([name, roots]) => {
-      const w = roots.map(subtree).reduce((a, b) => ({ docs: a.docs + b.docs, bytes: a.bytes + b.bytes }), { docs: 0, bytes: 0 });
-      const segments = roots
-        .map((r) => ({ ...ref(nodes[r]), docs: subtree(r).docs }))
-        .sort((a, b) => b.docs - a.docs);
-      return { name, roots, ...w, segments };
-    }),
-    primes: (children.get(PRIME_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
-    executors: (children.get(EXEC_LIST) || []).map((p) => ({ ...ref(p), ...subtree(p.id), segments: childSegments(p.id) })),
     // Scope-rooted chunk tree for the "Doc mass by scope" view — same recursive
     // chunk semantics as chunkTree, but along the editorial scope axis.
     scopeTree: scopes.map(chunkNode),
@@ -164,14 +120,5 @@ export function computeLibrary({ atlasCommit, nodes, terms }) {
       };
     }),
     neededResearch: nr.map((n) => ref(n)),
-    toc: scopes.map((s) => ({
-      ...ref(s), docs: subtree(s.id).docs,
-      articles: (children.get(s.id) || []).map((a) => ({
-        ...ref(a), docs: subtree(a.id).docs,
-        sections: (children.get(a.id) || []).filter((x) => x.type === "Section").map((sec) => ({ ...ref(sec), docs: subtree(sec.id).docs })),
-      })),
-    })),
-    // Exposed for the docs renderer (not serialized into library.json by build-library).
-    _internals: { children, subtree, scopes, nr },
   };
 }

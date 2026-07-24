@@ -19,21 +19,6 @@ export interface ChunkNode {
   children?: ChunkNode[];
 }
 
-export interface LibraryTocSection {
-  id: string;
-  doc_no: string;
-  title: string;
-  docs: number;
-}
-
-export interface LibraryTocArticle extends LibraryTocSection {
-  sections: LibraryTocSection[];
-}
-
-export interface LibraryTocScope extends LibraryTocSection {
-  articles: LibraryTocArticle[];
-}
-
 export interface LibraryData {
   atlasCommit: string;
   totals: { docs: number; bytes: number; glossaryTerms: number };
@@ -41,7 +26,6 @@ export interface LibraryData {
   /** The seven scopes as recursive chunk nodes (editorial axis). */
   scopeTree: ChunkNode[];
   neededResearch: { id: string; doc_no: string; title: string }[];
-  toc: LibraryTocScope[];
   /** Hierarchical chunk taxonomy — groups at the top, semantic subtree below. */
   chunkTree: ChunkNode[];
 }
@@ -93,7 +77,7 @@ export function libraryChunksToCSV(tree: ChunkNode[], atlasTotal: number): strin
 // returning clients on year-cached old bytes. Bump it in the same commit as
 // any breaking change to LibraryData; the shape guard below is the backstop
 // for a forgotten bump.
-const SCHEMA_V = 4;
+const SCHEMA_V = 5;
 const cache = new Map<string, Promise<LibraryData>>();
 
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {
@@ -107,7 +91,7 @@ export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData
         // artifact back in sync. The sessionStorage latch prevents a reload
         // loop if the mismatch persists (e.g. a server genuinely serving an
         // old artifact); the second attempt surfaces the readable error.
-        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopeTree) || !Array.isArray(d.toc)) {
+        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopeTree) || !Array.isArray(d.neededResearch)) {
           const LATCH = "library-schema-reloaded";
           if (typeof window !== "undefined" && !sessionStorage.getItem(LATCH)) {
             sessionStorage.setItem(LATCH, "1");

@@ -3,6 +3,8 @@ import { flattenChunkTree, libraryChunksToCSV } from "../../lib/library";
 import { LibraryChunkTree } from "./LibraryChunkTree";
 import { LibraryTreemap } from "./LibraryTreemap";
 import { DownloadCsvButton } from "../reports/DownloadCsvButton";
+import { Link } from "../Link";
+import { atlasHref } from "../../lib/routes";
 
 export function LibraryShape({ data }: { data: LibraryData }) {
   const chunkRowCount = flattenChunkTree(data.chunkTree, data.totals.docs).length;
@@ -70,6 +72,23 @@ export function LibraryShape({ data }: { data: LibraryData }) {
             </span>
           ))}
         </div>
+      </section>
+      <section className="mb-8">
+        <h2 className="text-base font-semibold mb-1" style={{ color: "var(--tan)" }}>
+          Needed Research
+        </h2>
+        <p className="text-xs mb-3" style={{ color: "var(--tan-3)" }}>
+          Open research questions the Atlas poses to itself — globally numbered, outside the scope tree.
+        </p>
+        <ul className="ml-1">
+          {data.neededResearch.map((n) => (
+            <li key={n.id} className="mb-0.5">
+              <Link to={atlasHref(n.id)} className="text-sm link-accent">
+                {n.doc_no} {n.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );
