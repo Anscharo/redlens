@@ -433,24 +433,13 @@ export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void
 // this server (it IS the single-replica freshness mechanism); ATLAS_UPDATE_ENABLED=0
 // is a kill switch to disable it out-of-band (no redeploy) if it ever misbehaves.
 // Uses a self-scheduling timer (not setInterval) so ticks never overlap.
-export function startUpdater(): void {
-  const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
-  if (disabled) {
-    console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");
-    return;
-  }
-  updaterEnabled = true;
-
-  // Default 30s: polling sync_state is a cheap DB query, not a network call to GitHub.
-  const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 30_000);
-  const log = (m: string) => console.log(`atlas-updater: ${m}`);
-
-  log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
-
-  // Wire the real implementations. applyInPlace's delta log line and
-  // fullRebuild's writeSearchIndex call live in these closures (moving out of
-  // runTick keeps the pure orchestration free of disk/log side-effect detail).
-  const deps: TickDeps = {
+// Wire the real implementations. applyInPlace's delta log line and
+// fullRebuild's writeSearchIndex call live in these closures (moving out of
+// runTick keeps the pure orchestration free of disk/log side-effect detail).
+// Extracted from startUpdater so the wiring itself is unit-testable without
+// starting the self-scheduling timer loop.
+export function makeTickDeps(log: (m: string) => void, intervalMs: number): TickDeps {
+  return {
     getUpstream: getDbAtlasSha,
     getLiveSha: () => getIndexes().meta.atlasCommit ?? null,
     refreshFromDb: () => runRefreshFromDb(log),
@@ -470,6 +459,23 @@ export function startUpdater(): void {
     now: () => Date.now(),
     intervalMs,
   };
+}
+
+export function startUpdater(): void {
+  const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
+  if (disabled) {
+    console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");
+    return;
+  }
+  updaterEnabled = true;
+
+  // Default 30s: polling sync_state is a cheap DB query, not a network call to GitHub.
+  const intervalMs = Number(process.env.ATLAS_UPDATE_INTERVAL_MS ?? 30_000);
+  const log = (m: string) => console.log(`atlas-updater: ${m}`);
+
+  log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
+
+  const deps: TickDeps = makeTickDeps(log, intervalMs);
 
   // Schedule the next tick. The arrow + .catch() guarantees the self-scheduling
   // loop can NEVER surface an unhandled rejection or die: tick() is fully

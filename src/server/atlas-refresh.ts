@@ -139,11 +139,11 @@ export function applyInPlaceUpdate(
 // fallback build converges live to the new sha while serving no search index
 // at all (publishBundle then skips the missing allowlisted artifact and the
 // browser search worker 404s).
-export function writeSearchIndex(ix: Indexes): void {
+export function writeSearchIndex(ix: Indexes, publicDir = config.publicDir, distDir = config.distDir): void {
   const idxJson = JSON.stringify(ix.mini.toJSON());
-  writeFileSync(join(config.publicDir, "search-index.json"), idxJson);
+  writeFileSync(join(publicDir, "search-index.json"), idxJson);
   try {
-    writeFileSync(join(config.distDir, "search-index.json"), idxJson);
+    writeFileSync(join(distDir, "search-index.json"), idxJson);
   } catch {
     /* dev: no dist/ */
   }

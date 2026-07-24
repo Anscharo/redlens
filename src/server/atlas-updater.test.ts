@@ -11,9 +11,13 @@ import {
   shouldRetryPublish,
   dropStaleSearchIndex,
   runTick,
+  makeTickDeps,
+  isUpdaterEnabled,
+  startUpdater,
   type TickDeps,
   type UpdaterState,
 } from "./atlas-updater.ts";
+import { getIndexes } from "./indexes.ts";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -273,6 +277,32 @@ describe("runTick", () => {
     expect(state.pendingPublishSinceMs).toBeNull();
   });
 
+  it("top-of-tick retry fails → original park time preserved, no broadcast, error logged", async () => {
+    const state = freshState({ pendingPublishSha: A, pendingPublishSinceMs: 1000 });
+    const calls: string[] = [];
+    const logs: string[] = [];
+    // Already converged (live === upstream); only the top-of-tick retry fires.
+    const deps: TickDeps = {
+      ...fakeDeps(calls, {
+        upstream: A,
+        live: A,
+        now: 2000,
+        publishImpl: () => {
+          throw new Error("still down");
+        },
+      }),
+      log: (m: string) => logs.push(m),
+    };
+
+    await runTick(deps, state);
+
+    expect(state.pendingPublishSha).toBe(A);
+    // The ??= must not overwrite the original park time with the retry's "now".
+    expect(state.pendingPublishSinceMs).toBe(1000);
+    expect(calls).not.toContain("broadcast");
+    expect(logs.some((l) => l.includes("publish-bundle retry error"))).toBe(true);
+  });
+
   it("applyInPlace throws → fullRebuild called and still converges", async () => {
     const state = freshState();
     const calls: string[] = [];
@@ -310,5 +340,70 @@ describe("runTick", () => {
     expect(state.nextAttemptAt).toBeGreaterThan(T);
     expect(state.lastError).toBe("did not converge after rebuild");
     expect(calls).not.toContain("publish");
+  });
+});
+
+describe("makeTickDeps", () => {
+  it("wires safe members to real behavior", async () => {
+    const logged: string[] = [];
+    const deps = makeTickDeps((m) => logged.push(m), 12345);
+
+    expect(deps.intervalMs).toBe(12345);
+    expect(typeof deps.now()).toBe("number");
+    expect(Math.abs(deps.now() - Date.now())).toBeLessThan(2000);
+
+    deps.log("x");
+    expect(logged).toContain("x");
+
+    // sse.ts broadcastAtlasUpdate iterates an empty client map — safe no-op.
+    expect(() => deps.broadcast("abc")).not.toThrow();
+
+    // getIndexes() throws "indexes not loaded" when loadIndexes()/setIndexes()
+    // has never run in this process (see indexes.ts) — real documented
+    // behavior, not a test-only stub. Sibling suites (mcp.test.ts et al.) can
+    // leave module-level indexes state loaded depending on bun's test file
+    // scheduling order, so branch on the actual current state rather than
+    // assuming "never loaded" — either branch asserts real delegation to
+    // getIndexes(), never a fake return value.
+    let loaded = true;
+    try {
+      getIndexes();
+    } catch {
+      loaded = false;
+    }
+    if (!loaded) {
+      expect(() => deps.getLiveSha()).toThrow("indexes not loaded");
+      expect(() => deps.applyInPlace()).toThrow("indexes not loaded");
+    } else {
+      // applyInPlace performs real disk I/O (refreshInPlaceFromDisk reads
+      // artifacts from disk and rewrites search-index.json) — do not invoke
+      // it here. getLiveSha is read-only, so assert it genuinely delegates
+      // to the live getIndexes() snapshot's atlasCommit.
+      expect(deps.getLiveSha()).toBe(getIndexes().meta.atlasCommit ?? null);
+    }
+
+    // runRefreshFromDb catches all its own errors and resolves null rather
+    // than rejecting — even without a reachable DB.
+    const result = await deps.refreshFromDb();
+    expect(result).toBeNull();
+  });
+});
+
+// NOTE: this test mutates module-level state (isUpdaterEnabled's backing
+// flag via startUpdater) and must stay LAST in this file — no test after it
+// may assume isUpdaterEnabled() === false.
+describe("isUpdaterEnabled + startUpdater (module state — keep last)", () => {
+  it("flips from disabled to enabled after startUpdater()", () => {
+    expect(isUpdaterEnabled()).toBe(false);
+
+    const prev = process.env.ATLAS_UPDATE_INTERVAL_MS;
+    process.env.ATLAS_UPDATE_INTERVAL_MS = "3600000"; // 1h — unref'd timer never fires in test process
+    try {
+      startUpdater();
+      expect(isUpdaterEnabled()).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.ATLAS_UPDATE_INTERVAL_MS;
+      else process.env.ATLAS_UPDATE_INTERVAL_MS = prev;
+    }
   });
 });
