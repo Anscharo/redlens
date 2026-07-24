@@ -314,3 +314,39 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   tab's ?raw import — it belongs with the app content, import path updated). This LOG
   stays here until the branch merges (user decision). Older entries above reference the
   pre-move paths; this note is the forwarding pointer.
+
+- **Folded `library.json` away — shape is now computed client-side.** Measured the
+  artifact at 2.0 MB raw / 528 KB gz (38% of docs.json gz) while being a pure projection
+  of docs.json + a glossary term count — for the common reader→library path it *added*
+  transfer. Ported `scripts/lib/library-shape.mjs` → `src/lib/libraryShape.ts`
+  (byte-identical output verified against the artifact before deletion); `loadLibrary`
+  now derives `LibraryData` from `loadAtlas` + `loadGlossary` per base (library works
+  over previews now — previews never bundled library.json). Deleted `build-library.mjs`,
+  `library-shape.mjs`, the `SCHEMA_V`/skew-reload machinery, and the wiring in
+  package.json build chain, Dockerfile, dev-preflight, build-manifest, bundle-store
+  allowlist, atlas-updater refresh, .gitignore. Added `libraryShape.test.ts` (semantic
+  tree, gap-skipping, hoisting, NR, pruning) — which surfaced a carried quirk, now
+  documented + locked: `.varX` docs attach to the scenario's parent, not the scenario
+  (3 real docs; the `.var` strip + slice-before-check loop). Behavior kept identical
+  pending a deliberate fix. Skill locked-decision #3 rewritten to match. Next (user-
+  approved direction): a trimmed `atlas_describe` "shape" section on the MCP server
+  reusing `computeLibrary` against server `Indexes` — fills the doc-mass/orientation
+  gap and the parentId-flat blind spot in server subtree reasoning.
+
+- **MCP `atlas_describe` stats section** (the follow-up above, done; named `stats`,
+  not "shape", per user). New opt-in
+  section (`sections: ["stats"]`, in "all"): totals + per-scope masses + the curated
+  groups trimmed to 2 levels / top-12 children per node, with a 0.2%-of-atlas floor
+  per row — the sub-0.2% long tail (174 sliver rows, ~15 KB) folds into `(+N smaller)`
+  rollups (masses still sum) — and `child_count` at the depth cap. Implementation:
+  `src/server/tools-stats.ts` reuses `computeLibrary` against `ix.docMap` (ChunkNode/
+  LibraryData types moved into `src/lib/libraryShape.ts` so the server imports no
+  DOM code; `library.ts` re-exports), WeakMap-memoized per Indexes (updater swap
+  invalidates), GROUPS exported. Server degrades on missing GROUPS roots (drops them)
+  where the frontend stays loud — deliberate divergence, noted in code. Glossary term
+  count identity-dedupes the alias-flattened lookup. Real-data smoke: ~13 ms compute,
+  8.8 KB payload (111 rows); per-prime masses now one call (Spark:2284, Grove:1793, …) —
+  previously not derivable server-side at all (atlas_filter walks flat parentId).
+  Registry whenToUse/description updated; fixture in tools-graph.test.ts gained
+  glossary/meta; new tools-stats.test.ts (totals, alias dedupe, pct floor, rollup,
+  depth cap, opt-in-ness).

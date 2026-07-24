@@ -1,33 +1,19 @@
-import { fetchJson } from "./verify";
-import { liveAtlasBase, handledStale } from "./atlasBase";
+import { liveAtlasBase } from "./atlasBase";
+import { loadAtlas } from "./docs";
+import { loadGlossary } from "./glossary";
+import { computeLibrary } from "./libraryShape";
 import { toCSV } from "./csv";
+
+// ChunkNode/LibraryData live in libraryShape.ts (DOM-free, server-importable);
+// re-exported here so frontend imports keep one entry point.
+export type { ChunkNode, LibraryData } from "./libraryShape";
+import type { ChunkNode, LibraryData } from "./libraryShape";
 
 export interface LibrarySegment {
   id: string;
   doc_no: string;
   title: string;
   docs: number;
-}
-
-export interface ChunkNode {
-  /** Present when the chunk maps to a single atlas node (drives the reader link). */
-  id?: string;
-  doc_no?: string;
-  title: string;
-  docs: number;
-  /** Sub-chunks, largest first. Absent on leaves (below the build threshold). */
-  children?: ChunkNode[];
-}
-
-export interface LibraryData {
-  atlasCommit: string;
-  totals: { docs: number; bytes: number; glossaryTerms: number };
-  docTypes: [string, number][];
-  /** The seven scopes as recursive chunk nodes (editorial axis). */
-  scopeTree: ChunkNode[];
-  neededResearch: { id: string; doc_no: string; title: string }[];
-  /** Hierarchical chunk taxonomy — groups at the top, semantic subtree below. */
-  chunkTree: ChunkNode[];
 }
 
 export interface ChunkRow {
@@ -66,48 +52,27 @@ export function libraryChunksToCSV(tree: ChunkNode[], atlasTotal: number): strin
   );
 }
 
-// library.json is built by scripts/required/build-library.mjs and served from
-// the sha-keyed atlas base (same lifecycle as glossary.json): rebuilt by the
-// runtime updater on atlas drift and published into the per-sha bundle.
-// Keyed by data-source base like glossary.ts.
-//
-// SCHEMA_V busts the browser's immutable cache (per-sha URLs ship
-// cache-control: immutable, max-age=1y) when the artifact's SHAPE changes
-// under an unchanged atlas sha — e.g. the flat→chunkTree migration stranded
-// returning clients on year-cached old bytes. Bump it in the same commit as
-// any breaking change to LibraryData; the shape guard below is the backstop
-// for a forgotten bump.
-const SCHEMA_V = 5;
+// Derived in place from the docs bundle + glossary — there is no library.json
+// artifact (it was a pure 2 MB projection of docs.json; see libraryShape.ts).
+// loadAtlas/loadGlossary handle per-base caching and stale-sha reloads, and
+// because the compute lives in the JS bundle there is no artifact/bundle
+// version skew to guard against. Keyed by data-source base, so the library
+// works over previews too.
 const cache = new Map<string, Promise<LibraryData>>();
 
 export function loadLibrary(base: string = liveAtlasBase()): Promise<LibraryData> {
   let cached = cache.get(base);
   if (!cached) {
-    cached = fetchJson<LibraryData>(`${base}library.json?v=${SCHEMA_V}`, "library.json")
-      .then((d) => {
-        // Version-skew guard: the JS bundle and the atlas artifact update
-        // independently (live updater, long-open tabs across deploys). On a
-        // shape mismatch, self-heal with ONE reload — fresh HTML brings JS and
-        // artifact back in sync. The sessionStorage latch prevents a reload
-        // loop if the mismatch persists (e.g. a server genuinely serving an
-        // old artifact); the second attempt surfaces the readable error.
-        if (!Array.isArray(d.chunkTree) || !Array.isArray(d.scopeTree) || !Array.isArray(d.neededResearch)) {
-          const LATCH = "library-schema-reloaded";
-          if (typeof window !== "undefined" && !sessionStorage.getItem(LATCH)) {
-            sessionStorage.setItem(LATCH, "1");
-            window.location.reload();
-            return new Promise<LibraryData>(() => {}); // reloading — never resolves
-          }
-          throw new Error("library.json does not match this app version — a redeploy may be in progress; try again shortly");
-        }
-        if (typeof window !== "undefined") sessionStorage.removeItem("library-schema-reloaded");
-        return d;
-      })
+    cached = Promise.all([loadAtlas(base), loadGlossary(base)])
+      .then(([bundle, glossary]) =>
+        computeLibrary({
+          atlasCommit: bundle.atlasCommit ?? "unknown",
+          nodes: bundle.docs,
+          glossaryTerms: Object.values(glossary).flat().length,
+        }),
+      )
       .catch((err) => {
         cache.delete(base); // don't cache the rejection — retry on next call
-        // Stale pinned sha (404 on /api/atlas/<sha>/) → force-forward reload
-        // instead of surfacing an error, matching glossary.ts/addresses.ts.
-        if (handledStale(err)) return new Promise<LibraryData>(() => {});
         throw err;
       });
     cache.set(base, cached);

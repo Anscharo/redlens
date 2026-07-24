@@ -8,6 +8,7 @@
 import { type Indexes, ancestorChain, resolveNode, type AtlasNode } from "./indexes.ts";
 import { runLexical, runSemantic, rrfMerge, buildSnippet, extractPhrases, matchesPhrases, type MergedHit } from "./search.ts";
 import { fitToBudget, TRUNCATION_HINT } from "./output-budget.ts";
+import { statsSection } from "./tools-stats.ts";
 import { sql } from "./db.ts";
 import { normalizeAddress } from "../../scripts/lib/address-chains.mjs";
 
@@ -19,7 +20,7 @@ export interface ToolResult {
 // Default sections are the cheap, always-useful vocab; the heavier
 // entity_type_graph + type_specifications are opt-in via `sections`.
 const DEFAULT_SECTIONS = new Set(["doc_types", "edge_types", "entity_types"]);
-const ALL_SECTIONS = ["doc_types", "edge_types", "entity_types", "entity_type_graph", "type_specifications"];
+const ALL_SECTIONS = ["doc_types", "edge_types", "entity_types", "entity_type_graph", "type_specifications", "stats"];
 
 export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
   // Provided sections → exactly those (or everything for 'all'); omitted → defaults.
@@ -78,6 +79,7 @@ export function atlasDescribe(ix: Indexes, sections?: string[]): ToolResult {
     });
   if (want("type_specifications"))
     out.type_specifications = typeSpecs.sort((a, b) => a.doc_no.localeCompare(b.doc_no, "en", { numeric: true }));
+  if (want("stats")) out.stats = statsSection(ix);
   return out;
 }
 

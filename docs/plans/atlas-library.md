@@ -37,6 +37,14 @@ scholarship accumulates in git.
 
 ### `public/library.json` — the chunk registry (P1)
 
+> **Update 2026-07-24:** the artifact was folded away. The shipped shape data
+> (chunk trees, weights, totals) measured 2 MB as an artifact while being a pure
+> projection of `docs.json`, so it is now computed client-side per data-source
+> base (`src/lib/libraryShape.ts`, called from `loadLibrary`) — the Stale Dates
+> pattern. The registry design below still describes the P1+ *chunk* model
+> (slugs, relations, staleness); if/when that lands it should stay a computed
+> module or a trimmed server-side section, not a shipped multi-MB artifact.
+
 Built by a new pass `scripts/required/build-library.mjs` (prototype starts life as
 `scripts/aux/atlas-shape.mjs`). For each chunk:
 

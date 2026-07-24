@@ -193,8 +193,6 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     // 4. build-glossary + report views (read docs.json/relations.json)
     const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
     if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
-    const { code: lib } = await spawnCollect("bun", ["scripts/required/build-library.mjs"], false);
-    if (lib !== 0) throw new Error(`build-library exited ${lib}`);
     const { code: oea } = await spawnCollect("bun", ["scripts/required/build-oea-report.ts"], false);
     if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
 

@@ -5,7 +5,7 @@ description: >
   /reports/library section (Shape, Concepts, Audit, Glossary) and its research
   docs. Triggered by phrases like "analyst library", "atlas library", "concept
   mining", "concept catalog", "chunk digest", "onboarding checklist", or any
-  work on docs/library/*, scripts/lib/library-shape.mjs, or
+  work on docs/library/*, src/lib/libraryShape.ts, or
   src/components/library/*. Covers the locked design decisions, the
   quote-or-gap evidence discipline, the concept-mining method ladder, and the
   session practices for this feature.
@@ -34,8 +34,8 @@ escapes the two bad consumption modes — monolith scroll and atom-pile.
   quality bar: an operational checklist where every statement is an exact relay (quote/cite,
   UUID-verified) or an explicitly labeled gap. Three user-caught errors forged this form —
   match it before publishing anything Atlas-derived.
-- `public/library.json` — the computed artifact (`pnpm build:library`,
-  `scripts/lib/library-shape.mjs` + `scripts/required/build-library.mjs`).
+- `src/lib/libraryShape.ts` — the shape compute (chunk trees, weights, totals),
+  derived client-side by `loadLibrary` (`src/lib/library.ts`).
 
 ## Locked decisions — do not relitigate
 
@@ -47,18 +47,21 @@ escapes the two bad consumption modes — monolith scroll and atom-pile.
    `scripts/lib/library-shape.mjs`). UUIDs are identity; doc_nos only in comments — except
    the spec-guaranteed structural suffixes (`.0.3.X`, `.0.4.X`, `.1.X`, `.varX`, `.0.6.X`,
    `NR-X`).
-3. **`library.json` is a first-class atlas-versioned artifact** — same lifecycle as
-   `glossary.json`: gitignored, in the `pnpm build` chain + Dockerfile + dev preflight +
-   the runtime updater's refresh, allowlisted in the per-sha bundle, digested in the
-   manifest, loaded via `liveAtlasBase()` with `handledStale` (`src/lib/library.ts`).
-   Timestamp-free (REPRO builds must be byte-identical). Breaking shape changes bump
-   `SCHEMA_V` in `src/lib/library.ts` in the same commit.
+3. **The library shape is computed client-side, not shipped as an artifact.** There
+   WAS a `public/library.json` (full artifact lifecycle + `SCHEMA_V` skew guard); it
+   was folded away 2026-07-24 once measured at 2 MB — a pure projection of docs.json
+   that cost more to ship than to compute (Stale Dates pattern). `loadLibrary`
+   (`src/lib/library.ts`) now derives `LibraryData` from `loadAtlas` + `loadGlossary`
+   per data-source base — which also makes the library work over previews. The
+   compute (`src/lib/libraryShape.ts`, `computeLibrary`) is pure and server-importable;
+   the MCP `atlas_describe` "stats" section reuses it, trimmed (`src/server/tools-stats.ts`).
 4. **Generated skeleton, curated flesh.** Structure/weights are computed by build passes;
    scholarly prose is authored markdown checked into git.
-5. The curated taxonomy (UUID roots) is `GROUPS` in `library-shape.mjs`; recursion prunes
-   at `MIN_CHUNK_DOCS = 5`; single-child chains hoist at group roots. Known accepted risk:
-   an atlas restructure that removes a root UUID throws — the census/baseline drift guard
-   is planned P1 work.
+5. The curated taxonomy (UUID roots) is `GROUPS` in `src/lib/libraryShape.ts`; recursion
+   prunes at `MIN_CHUNK_DOCS = 5`; single-child chains hoist at group roots. Known accepted
+   risk: an atlas restructure that removes a root UUID throws — the census/baseline drift
+   guard is planned P1 work. Known carried quirk: `.varX` docs attach to the scenario's
+   parent, not the scenario (3 docs; locked in `libraryShape.test.ts` until deliberately fixed).
 
 ## Evidence discipline (standing rules, user-imposed)
 
@@ -110,8 +113,8 @@ unilaterally.
   commit — it is the recovery point for context-less future sessions.
 - Patch-notes: one bullet per user-visible feature; follow-ups to the same unreleased
   feature revise the existing bullet, never add one.
-- `pnpm exec tsc -b` clean; verify UI by screenshot against the dev server; if
-  `library.json` changes shape, update types + `SCHEMA_V` + LOG and re-verify REPRO
-  byte-stability (build twice → same sha256).
+- `pnpm exec tsc -b` clean; verify UI by screenshot against the dev server; shape
+  changes to `LibraryData` update the types in `src/lib/library.ts` + the
+  `libraryShape.test.ts` expectations in the same commit.
 - Max ~150 lines/file, ≤3 components/file; `node:` import prefix; semantic HTML; CSS over
   JS for hover/click.

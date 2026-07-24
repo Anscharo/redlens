@@ -87,18 +87,19 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_describe",
     whenToUse:
-      "You need exact schema vocabulary (a type name, an edge type, or how entity types connect) before building a filter or traversal. Not for content.",
+      "You need exact schema vocabulary (a type name, an edge type, or how entity types connect) before building a filter or traversal, or corpus size/mass stats (sections: ['stats']). Not for content.",
     annotations: readOnlyAtlasTool("Atlas Describe"),
     description:
       "Self-describing schema. By default returns doc-type + edge-type + entity-type vocabularies (with counts) and " +
-      "doc/entity totals. The heavier entity_type_graph (how entity types connect — traversal chains like " +
-      "facilitator → executor → prime) and type_specifications are opt-in: pass `sections` with those names (or " +
-      "'all'). Use atlas_entities to look up individual entities.",
+      "doc/entity totals. Heavier sections are opt-in via `sections` (or 'all'): entity_type_graph (how entity " +
+      "types connect — traversal chains like facilitator → executor → prime), type_specifications, and stats " +
+      "(doc-mass map: scopes + curated chunk groups with subtree weights — answers 'which part of the atlas is " +
+      "biggest / how big is X's artifact'). Use atlas_entities to look up individual entities.",
     shape: {
       sections: z
         .array(z.string())
         .optional()
-        .describe("Extra sections to include: 'entity_type_graph', 'type_specifications', or 'all'. Omit for the default vocab."),
+        .describe("Extra sections to include: 'entity_type_graph', 'type_specifications', 'stats', or 'all'. Omit for the default vocab."),
     },
     handler: (ix, a) => atlasDescribe(ix, a.sections as string[] | undefined),
   },
