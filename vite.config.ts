@@ -111,9 +111,23 @@ export default defineConfig(() => {
         // Dev has no Bun-served HTML, so substitute the login flag here too. The
         // real JWT-secret check lives server-side; in dev the build flag is a
         // good-enough proxy (dev.mjs forwards both together).
+        //
+        // Provider list: mirror the server's credential-based gating off the same
+        // env vars (dev.mjs forwards them) so a single-provider dev setup renders a
+        // single button; default to both when usersEnabled but nothing configured.
+        const has = (k: string) => (process.env[k] ?? "") !== "";
+        const devProviders = !usersEnabled
+          ? []
+          : (() => {
+              const p: string[] = [];
+              if (has("GITHUB_CLIENT_ID") && has("GITHUB_CLIENT_SECRET")) p.push("github");
+              if (has("GOOGLE_CLIENT_ID") && has("GOOGLE_CLIENT_SECRET")) p.push("google");
+              return p; // empty = no provider configured → no buttons (matches prod)
+            })();
         return html
           .replaceAll("{{ATLAS_SHA}}", sha)
           .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
+          .replaceAll("{{AUTH_PROVIDERS}}", devProviders.join(","))
           .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },

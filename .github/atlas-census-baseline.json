@@ -133,8 +133,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 7699,
-      "uncovered": 5917,
+      "total": 7689,
+      "uncovered": 5903,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -272,7 +272,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1453,
+      "total": 1457,
       "uncovered": 0,
       "samples": []
     },
