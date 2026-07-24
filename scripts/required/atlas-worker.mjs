@@ -29,6 +29,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { SQL } from "bun";
+import { touchSyncHeartbeat } from "../lib/worker-heartbeat.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const SUBMODULE = path.join(ROOT, "vendor/next-gen-atlas");
@@ -121,6 +122,7 @@ async function main() {
 
   if (!full && alreadyCurrent && noStaleEmbeds) {
     console.log(`atlas-worker: already current at ${(syncState ?? "").slice(0, 12)} — nothing to do`);
+    await touchSyncHeartbeat(db);
     await db.close();
     process.exit(0);
   }

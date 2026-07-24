@@ -194,10 +194,21 @@ a. **Health check:**
    #     | "schema_behind"           (DB schema older than this image requires)
    #     | "degraded"                (DB unreachable)
    ```
-   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 48h —
-   matches the few-times-a-week atlas cadence), `ATLAS_STUCK_SECONDS` (default
-   30m), `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
+   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 1h)
+   — `sync_state.synced_at` doubles as the worker heartbeat: every 12-min cron
+   tick touches it, including no-op runs where the atlas SHA hasn't advanced
+   (the worker's lightweight-check fast exit still issues an `UPDATE
+   sync_state SET synced_at = now()` before returning), so "stale" now
+   genuinely means the worker hasn't run in over an hour, not just that the
+   atlas hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
+   `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
    (default 3).
+
+   **Built-in external monitor:** `.github/workflows/freshness-monitor.yml`
+   curls `/api/freshness` every 30 minutes (plus `workflow_dispatch`). A
+   non-2xx response fails the job, and GitHub emails the repo owner on
+   workflow failure — so this doubles as alerting without a third-party
+   uptime service. No secrets or checkout required.
 
 b. **Web service boot logs** — look for `db: connected`, `migrations: …`,
    `sync:atlas — done`, and `listening on :3000`. Migrations run at web boot
