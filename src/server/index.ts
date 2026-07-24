@@ -307,6 +307,7 @@ const server = Bun.serve({
     const html = (await Bun.file(config.distDir + "/index.html").text())
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
+      .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
     if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";

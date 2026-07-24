@@ -15,6 +15,9 @@ const { track, openAuth, refresh, send, stop } = vi.hoisted(() => ({
   stop: vi.fn(),
 }));
 vi.mock("../../lib/analytics", () => ({ track }));
+// SignInButtons (rendered in the signed-out composer) gates on authProviders();
+// under vitest the real one returns [] (usersEnabled() is false), so stub it.
+vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 
 let authUser: { name: string | null; avatarUrl: string } | null = { name: "Ada", avatarUrl: "a.png" };
 vi.mock("./auth", () => ({ useAuth: () => ({ user: authUser, openAuth }) }));

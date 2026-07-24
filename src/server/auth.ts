@@ -92,11 +92,18 @@ export async function upsertUser(
   return { id: rows[0].id, provider };
 }
 
+// Permanently delete a user and everything owned by them. ON DELETE CASCADE on
+// conversations/collections (→ messages/collection_items, migrations 003/014)
+// means this one statement erases all of their stored data.
+export async function deleteAccount(userId: string): Promise<void> {
+  await sql`DELETE FROM users WHERE id = ${userId}`;
+}
+
 export async function handleAuth(req: Request, pathname: string): Promise<Response> {
   const sub = pathname.slice("/api/auth/".length);
 
   if (sub === "github" && req.method === "GET") {
-    if (!config.githubClientId || !config.githubClientSecret) return json({ error: "oauth_not_configured" }, 500);
+    if (!config.githubAuthEnabled) return json({ error: "oauth_not_configured" }, 500);
     const state = crypto.randomUUID();
     return redirect(github().createAuthorizationURL(state, GITHUB_SCOPES).toString(), [stateCookie(state)]);
   }
@@ -126,7 +133,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
   }
 
   if (sub === "google" && req.method === "GET") {
-    if (!config.googleClientId || !config.googleClientSecret) return json({ error: "oauth_not_configured" }, 500);
+    if (!config.googleAuthEnabled) return json({ error: "oauth_not_configured" }, 500);
     // Google requires PKCE: the code_verifier rides a cookie across the round-trip.
     // arctic's generateCodeVerifier() yields an RFC 7636-compliant value (a UUID would be rejected).
     const state = crypto.randomUUID();
@@ -190,6 +197,19 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
   }
 
   if (sub === "signout" && req.method === "POST") {
+    return json({ ok: true }, 200, [clearSessionCookie()]);
+  }
+
+  // Self-serve account deletion. Removing the users row cascades (ON DELETE
+  // CASCADE) to the user's conversations → messages and collections →
+  // collection_items, so this one statement erases all of their stored data.
+  // Requires an authenticated session; the session cookie is cleared on the way
+  // out (the JWT is stateless, but it now points at a row that no longer exists,
+  // so /api/auth/me returns 401 regardless).
+  if (sub === "me" && req.method === "DELETE") {
+    const session = await getSessionUser(req);
+    if (!session) return json({ error: "unauthenticated" }, 401);
+    await deleteAccount(session.user.id);
     return json({ ok: true }, 200, [clearSessionCookie()]);
   }
 

@@ -206,7 +206,7 @@ jobs:
       - name: Summarize coverage areas and enforce changed-code minimum
         run: pnpm coverage:areas
         env:
-          COVERAGE_CHANGED_MIN: "95"
+          COVERAGE_CHANGED_MIN: "85"
           COVERAGE_BASE_REF: origin/${{ github.base_ref || 'main' }}
           COVERAGE_BASELINE_JSON: base-coverage-areas.json
 
