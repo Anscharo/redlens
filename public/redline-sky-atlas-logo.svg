@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320" role="img" aria-labelledby="title desc">
+  <title id="title">Redline Sky Atlas logo</title>
+  <desc id="desc">A Redline-styled observatory lens around a Sky prism star beside the words Redline Sky Atlas.</desc>
+  <defs>
+    <radialGradient id="lensGlow" cx="50%" cy="50%" r="58%">
+      <stop offset="0" stop-color="#f3e7ce" stop-opacity="0.82"/>
+      <stop offset="0.28" stop-color="#c67267" stop-opacity="0.52"/>
+      <stop offset="0.62" stop-color="#a63228" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#160e0d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="skyCore" cx="48%" cy="45%" r="66%">
+      <stop offset="0" stop-color="#f3e7ce"/>
+      <stop offset="0.2" stop-color="#ff7a45"/>
+      <stop offset="0.42" stop-color="#a63228"/>
+      <stop offset="0.66" stop-color="#863bff"/>
+      <stop offset="1" stop-color="#47bfff"/>
+    </radialGradient>
+    <linearGradient id="redlineStroke" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#c67267"/>
+      <stop offset="0.56" stop-color="#a63228"/>
+      <stop offset="1" stop-color="#753021"/>
+    </linearGradient>
+    <linearGradient id="tanText" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff6df"/>
+      <stop offset="1" stop-color="#e4d1b9"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="960" height="320" rx="44" fill="#0e0907"/>
+  <path d="M54 242C178 183 284 164 406 181c136 19 252 9 385-54 42-20 76-31 112-35" fill="none" stroke="#3d2c28" stroke-width="1.5" stroke-linecap="round" opacity="0.65"/>
+  <path d="M64 252C188 193 292 176 410 192c139 19 252 9 388-56 43-20 76-30 101-33" fill="none" stroke="#a63228" stroke-width="4" stroke-linecap="round" opacity="0.62"/>
+
+  <g transform="translate(54 50)" filter="url(#softShadow)">
+    <circle cx="110" cy="110" r="104" fill="url(#lensGlow)"/>
+    <circle cx="110" cy="110" r="94" fill="#160e0d" stroke="#3d2c28" stroke-width="10"/>
+    <circle cx="110" cy="110" r="83" fill="none" stroke="url(#redlineStroke)" stroke-width="8"/>
+    <circle cx="110" cy="110" r="61" fill="#0e0907" stroke="#5a3a32" stroke-width="2"/>
+    <circle cx="110" cy="110" r="43" fill="url(#skyCore)"/>
+    <path d="M110 67 126 107 110 153 94 107Z" fill="#f3e7ce" opacity="0.52"/>
+    <path d="M67 110 107 94 153 110 107 126Z" fill="#47bfff" opacity="0.42"/>
+    <path d="M80 80 110 67 94 107Z" fill="#863bff" opacity="0.7"/>
+    <path d="M140 80 126 107 110 67Z" fill="#ff7a45" opacity="0.82"/>
+    <path d="M140 140 110 153 126 107Z" fill="#a63228" opacity="0.8"/>
+    <path d="M80 140 94 107 110 153Z" fill="#c61f7c" opacity="0.62"/>
+    <circle cx="110" cy="110" r="43" fill="none" stroke="#f3e7ce" stroke-width="1.5" opacity="0.55"/>
+    <path d="M56 110h108M110 56v108" stroke="#f3e7ce" stroke-width="1.5" stroke-linecap="round" opacity="0.36"/>
+    <path d="M26 110h34M160 110h34M110 26v34M110 160v34" stroke="#c67267" stroke-width="3" stroke-linecap="round" opacity="0.82"/>
+  </g>
+
+  <g transform="translate(302 92)">
+    <text x="0" y="66" fill="url(#tanText)" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="70" font-weight="800" letter-spacing="-3.2">Redline</text>
+    <path d="M4 86H314" stroke="url(#redlineStroke)" stroke-width="8" stroke-linecap="round"/>
+    <text x="0" y="142" fill="#e4d1b9" font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="56" font-weight="650" letter-spacing="-1.8">Sky Atlas</text>
+    <text x="4" y="174" fill="#9a8a80" font-family="'Source Code Pro', ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="600" letter-spacing="3.4">SEARCH • RELATIONS • HISTORY</text>
+  </g>
+</svg>
