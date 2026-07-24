@@ -178,7 +178,9 @@ const server = Bun.serve({
     // OAuth must run on the canonical host (registered callback + host-only
     // state cookie), so a sign-in started on any other attached domain is
     // bounced to appUrl before the flow begins — see canonical.ts.
+    /* v8 ignore start -- request glue; canonicalRedirect is unit-tested in canonical.test.ts */
     "/api/auth/*": (req) => canonicalRedirect(req as Request) ?? (config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND()),
+    /* v8 ignore stop */
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
     // Public share read is unauthenticated (anyone with the link) — declared
@@ -196,8 +198,10 @@ const server = Bun.serve({
     // canonical origin (canonical.ts). The declared routes above (health,
     // history, SSE, …) are deliberately untouched: /api/health must answer on
     // whatever host the platform healthcheck uses.
+    /* v8 ignore start -- request glue; canonicalRedirect is unit-tested in canonical.test.ts */
     const canon = canonicalRedirect(req);
     if (canon) return canon;
+    /* v8 ignore stop */
 
     const { pathname } = new URL(req.url);
 
