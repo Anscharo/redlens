@@ -302,3 +302,15 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   `build-library.mjs` is gone — computeLibrary returns exactly the shipped shape).
   `/reports/library/contents` now redirects to `/reports/library`. Revised the unreleased
   patch-notes bullet + reports-index card copy (no new bullet — same unreleased feature).
+
+- **Dev-doc consolidation → `analyst-library` skill.** The session docs in this folder
+  dissolved into `.claude/skills/analyst-library/SKILL.md` (auto-surfaced to every future
+  session): CONCEPT-MINING.md (mission/method ladder/quality bar) and PROMPT.md's durable
+  halves (locked decisions, session practices, the DR-saga standing rules) — both files
+  deleted (a spent one-off prompt is deleted, not archived, per the plans-archive README).
+  Moves: `docs/library/dr-partner-onboarding.md` → the skill's
+  `references/dr-partner-onboarding.md` (worked exemplar of quote-or-gap);
+  CONCEPTS-AUDIT.md → `docs/library/concepts-audit.md` (it ships in-app via the Audit
+  tab's ?raw import — it belongs with the app content, import path updated). This LOG
+  stays here until the branch merges (user decision). Older entries above reference the
+  pre-move paths; this note is the forwarding pointer.

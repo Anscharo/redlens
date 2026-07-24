@@ -1,9 +1,9 @@
 # Atlas Concept Catalog
 
 The cross-cutting conceptual groupings of the Sky Atlas — the organization that does
-NOT follow the tree. Mission + method: `docs/features/atlas-library/CONCEPT-MINING.md`.
-Built at atlas `db87434`. Counts are exact when censused (scripted over docs.json /
-relations.json / MCP), "≈" when sampled.
+NOT follow the tree. Mission + method: the `analyst-library` skill
+(`.claude/skills/analyst-library/SKILL.md`). Built at atlas `db87434`. Counts are exact
+when censused (scripted over docs.json / relations.json / MCP), "≈" when sampled.
 
 Each concept group carries four fields:
 

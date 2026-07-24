@@ -1,5 +1,5 @@
 import conceptsRaw from "../../../docs/library/concepts.md?raw";
-import auditRaw from "../../../docs/features/atlas-library/CONCEPTS-AUDIT.md?raw";
+import auditRaw from "../../../docs/library/concepts-audit.md?raw";
 import { LibraryMarkdown } from "./LibraryMarkdown";
 
 // Curated research docs, bundled at build time (they ship with deploys, not
