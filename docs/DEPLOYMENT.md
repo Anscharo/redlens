@@ -372,6 +372,19 @@ railway variables --set 'GOOGLE_CLIENT_SECRET=<from 7c>'   --service redlens-atl
 includes the widgets. If you later move to a custom domain, also set
 `APP_URL=https://<custom-domain>` and update the provider callback URLs.*
 
+> **⚠️ APP_URL is mandatory once the service has more than one domain attached**
+> (e.g. the apex `redline.support` alongside `atlas.redline.support`).
+> `RAILWAY_PUBLIC_DOMAIN` is ambiguous with multiple domains — Railway picks one,
+> and if it picks a domain other than the one registered with the OAuth
+> providers, every sign-in fails with "The redirect_uri is not associated with
+> this application". Pin it:
+> `railway variables --set 'APP_URL=https://atlas.redline.support' --service redlens-atlas`.
+> With `APP_URL` set (https), the server also 301s GET/HEAD requests on any
+> other attached host to the canonical origin (`src/server/canonical.ts`) —
+> required for OAuth anyway, since the CSRF state cookie is host-only and a flow
+> started on the apex could never complete on the subdomain. Escape hatch:
+> `CANONICAL_HOST_REDIRECT=0`.
+
 ---
 
 # Part 2 — GitHub (atlas-update workflow)
@@ -478,7 +491,11 @@ instance in the same Railway project.
 **OAuth fails with a redirect-URI mismatch**
 → The callback URL registered with the provider must exactly match
 `https://<your-domain>/api/auth/<provider>/callback`. On a custom domain set
-`APP_URL` (step 7d) and re-check the provider config.
+`APP_URL` (step 7d) and re-check the provider config. Check the actual
+`redirect_uri` query param in the provider's authorize URL from the failing
+sign-in — if its host is a different domain of the same service (the apex, or
+the `up.railway.app` default), `APP_URL` is unset and `RAILWAY_PUBLIC_DOMAIN`
+resolved to the wrong attached domain (see the warning in step 7d).
 
 **"pnpm could not be found" / wrong start command**
 → Railway auto-detected the pnpm workspace and set its own start command,
