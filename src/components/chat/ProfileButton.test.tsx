@@ -13,6 +13,9 @@ const setPref = vi.fn((k: string, v: boolean) => {
 });
 vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs, setPref }) }));
 vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
+// The signed-out menu renders SignInButtons, which gates on authProviders();
+// under vitest the real one returns [] (usersEnabled() is false), so stub it.
+vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 
 import { ProfileButton } from "./ProfileButton";
 
