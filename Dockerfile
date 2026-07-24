@@ -47,13 +47,12 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:index \
  && bun run build:graph \
  && bun run build:glossary \
- && bun run build:library \
  && bun run build:oea-report \
  && bun run build:bundle \
  && bun run build:tools \
  && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
  && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY VITE_PREVIEW_ENABLED=$VITE_PREVIEW_ENABLED bun run build:vite \
- && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json dist/library.json  dist/oea-report.json
+ && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json dist/oea-report.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────
 # Lean image — no git, no atlas source, no build toolchain.

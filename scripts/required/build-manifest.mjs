@@ -45,7 +45,6 @@ const ARTIFACTS = [
   // run, which would change the manifest hash even when atlas content is unchanged.
   // Block number is read from chain-state.json directly by sync-d1.mjs at sync time.
   "glossary.json",
-  "library.json",
   "relations.json",
   "oea-report.json",
   // Reproducibility check

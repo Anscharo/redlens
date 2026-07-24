@@ -150,17 +150,13 @@ function ensureArtifacts() {
       log("OEA report artifact missing — building it from existing docs + graph…");
       if (run("pnpm", ["build:oea-report"]).status !== 0) fail("`pnpm build:oea-report` failed — see output above.");
     }
-    if (!existsSync("public/library.json") && existsSync("public/glossary.json")) {
-      log("Library artifact missing — building it from existing docs + glossary…");
-      if (run("pnpm", ["build:library"]).status !== 0) fail("`pnpm build:library` failed — see output above.");
-    }
     return;
   }
   if (!existsSync("vendor/next-gen-atlas/content")) {
     fail("Atlas submodule isn't populated. Run `pnpm pull-atlas` first, then `pnpm dev`.");
   }
-  log("Atlas artifacts missing — building (index → graph → glossary → library → oea-report)…");
-  for (const t of ["build:index", "build:graph", "build:glossary", "build:library", "build:oea-report"]) {
+  log("Atlas artifacts missing — building (index → graph → glossary → oea-report)…");
+  for (const t of ["build:index", "build:graph", "build:glossary", "build:oea-report"]) {
     if (run("pnpm", [t]).status !== 0) fail(`\`pnpm ${t}\` failed — see output above.`);
   }
 }
