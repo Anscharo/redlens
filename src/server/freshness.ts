@@ -16,7 +16,7 @@
 import { sql } from "./db.ts";
 import { getIndexes } from "./indexes.ts";
 import { migrationFiles } from "./migrate.ts";
-import { getUpdaterState, isUpdaterEnabled } from "./atlas-updater.ts";
+import { getUpdaterState, isUpdaterEnabled, type UpdaterState } from "./atlas-updater.ts";
 
 // The worker cron runs every 12 minutes and (as of the sync_state.synced_at
 // touch-on-every-run change) advances synced_at on every run, including
@@ -29,6 +29,14 @@ const STALE_SECONDS = Number(process.env.ATLAS_STALE_SECONDS ?? 3600);
 // Much shorter than STALE: a live process failing to converge is an active
 // problem, where a quiet worker is not. Covers a poison-commit retry loop.
 const STUCK_SECONDS = Number(process.env.ATLAS_STUCK_SECONDS ?? 30 * 60);
+
+// How long the updater loop may go without a tick before it's treated as dead
+// (vs. just booted). 10 poll intervals at the default 30s cadence. A disabled
+// updater (ATLAS_UPDATE_ENABLED=0) or a loop that silently stopped ticking
+// would otherwise leave a later-diverged db sha reporting "syncing" 200
+// forever — nothing ever advances divergedAgeSeconds past STUCK without a
+// live tick loop to run nextDivergedSince.
+const UPDATER_DEAD_SECONDS = Number(process.env.ATLAS_UPDATER_DEAD_SECONDS ?? 300);
 
 // The latest migration bundled in this image = the schema the running code
 // requires. Computed once at module load (shares migrate.ts's file listing).
@@ -46,6 +54,15 @@ export interface FreshnessInput {
   requiredSchema?: string;
   staleSeconds?: number;
   stuckSeconds?: number;
+  // ms-age of the oldest still-pending publishBundle() failure (see
+  // UpdaterState.pendingPublishSinceMs); null/omitted = nothing pending.
+  // A publish that never succeeds leaves live===db converged forever while
+  // clients on the new sha 404/reload-loop — this is the only signal that
+  // catches that case, since the liveSha!==dbSha branch never sees it.
+  pendingPublishAgeSeconds?: number | null;
+  // False when the updater is disabled or its tick loop has gone silent past
+  // UPDATER_DEAD_SECONDS. Omitted/true = old behavior (assume alive).
+  updaterAlive?: boolean;
 }
 
 export interface FreshnessSnapshot extends FreshnessInput {
@@ -82,20 +99,69 @@ export function deriveFreshnessStatus(i: FreshnessInput): FreshnessStatus {
   if (i.schemaVersion !== null && required !== "" && i.schemaVersion < required) return "schema_behind";
   if (i.ageSeconds !== null && i.ageSeconds > stale) return "stale";
   if (i.liveSha !== i.dbSha) {
+    // A dead/disabled updater can never converge or advance divergedAgeSeconds
+    // past stuck on its own — report it as stuck immediately rather than
+    // "syncing" forever.
+    if (i.updaterAlive === false) return "stuck";
     if (i.divergedAgeSeconds !== null && i.divergedAgeSeconds > stuck) return "stuck";
     return "syncing";
   }
+  // Converged, but a publish from an earlier convergence never made it to
+  // disk — clients are still 404ing/reload-looping on that sha.
+  if (i.pendingPublishAgeSeconds != null && i.pendingPublishAgeSeconds > stuck) return "stuck";
   return "ok";
+}
+
+// Pure assembly of the snapshot from already-fetched inputs (unit-tested
+// without a DB): computes the *AgeSeconds fields + updaterAlive from the raw
+// state, builds FreshnessInput, derives status, and shapes the response.
+// evaluateFreshness is now just "do the SQL reads, call this."
+export function assembleFreshness(a: {
+  liveSha: string | null;
+  dbSha: string | null;
+  ageSeconds: number | null;
+  schemaVersion: string | null;
+  dbReachable: boolean;
+  docs: number;
+  upd: Readonly<UpdaterState>;
+  updaterEnabled: boolean;
+  now: number;
+}): FreshnessSnapshot {
+  const divergedAgeSeconds = msAgeSeconds(a.now, a.upd.divergedSinceMs);
+  const lastTickAgeSeconds = msAgeSeconds(a.now, a.upd.lastTickMs);
+  const pendingPublishAgeSeconds = msAgeSeconds(a.now, a.upd.pendingPublishSinceMs);
+  // null lastTick = the process just booted and hasn't ticked yet — give it
+  // grace rather than immediately reporting a dead updater.
+  const updaterAlive = a.updaterEnabled && (lastTickAgeSeconds === null || lastTickAgeSeconds <= UPDATER_DEAD_SECONDS);
+
+  const input: FreshnessInput = {
+    liveSha: a.liveSha,
+    dbSha: a.dbSha,
+    ageSeconds: a.ageSeconds,
+    divergedAgeSeconds,
+    schemaVersion: a.schemaVersion,
+    dbReachable: a.dbReachable,
+    pendingPublishAgeSeconds,
+    updaterAlive,
+  };
+  return {
+    ...input,
+    status: deriveFreshnessStatus(input),
+    requiredSchema: REQUIRED_SCHEMA,
+    docs: a.docs,
+    consecutiveFailures: a.upd.consecutiveFailures,
+    lastError: a.upd.lastError,
+    updaterEnabled: a.updaterEnabled,
+    lastTickAgeSeconds,
+    pendingPublishSha: a.upd.pendingPublishSha,
+  };
 }
 
 export async function evaluateFreshness(now: number = Date.now()): Promise<FreshnessSnapshot> {
   const ix = getIndexes();
   const liveSha = ix.meta.atlasCommit ?? null;
   const docs = ix.docMap.size;
-
   const upd = getUpdaterState();
-  const divergedAgeSeconds = msAgeSeconds(now, upd.divergedSinceMs);
-  const lastTickAgeSeconds = msAgeSeconds(now, upd.lastTickMs);
 
   let dbSha: string | null = null;
   let ageSeconds: number | null = null;
@@ -127,18 +193,7 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
     }
   }
 
-  const input: FreshnessInput = { liveSha, dbSha, ageSeconds, divergedAgeSeconds, schemaVersion, dbReachable };
-  return {
-    ...input,
-    status: deriveFreshnessStatus(input),
-    requiredSchema: REQUIRED_SCHEMA,
-    docs,
-    consecutiveFailures: upd.consecutiveFailures,
-    lastError: upd.lastError,
-    updaterEnabled: isUpdaterEnabled(),
-    lastTickAgeSeconds,
-    pendingPublishSha: upd.pendingPublishSha,
-  };
+  return assembleFreshness({ liveSha, dbSha, ageSeconds, schemaVersion, dbReachable, docs, upd, updaterEnabled: isUpdaterEnabled(), now });
 }
 
 // ok/syncing are healthy; stuck/stale/schema_behind/degraded are worth paging on.

@@ -1,6 +1,7 @@
 // Run under `bun test` (NOT vitest) — imports Bun SQL transitively via ./db.ts.
 import { describe, it, expect } from "bun:test";
-import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds } from "./freshness.ts";
+import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds, assembleFreshness, REQUIRED_SCHEMA } from "./freshness.ts";
+import type { UpdaterState } from "./atlas-updater.ts";
 
 const REQUIRED = "008_preview_trust.sql";
 const base = {
@@ -62,6 +63,108 @@ describe("deriveFreshnessStatus", () => {
 
   it("null ageSeconds (never synced) is not treated as stale", () => {
     expect(deriveFreshnessStatus({ ...base, ageSeconds: null, liveSha: "x", dbSha: "x" })).toBe("ok");
+  });
+
+  it("omitted updaterAlive/pendingPublishAgeSeconds behave like the old (pre-fix) inputs", () => {
+    // Converged, no diverged/pending-publish info at all — still ok.
+    expect(deriveFreshnessStatus(base)).toBe("ok");
+    // Diverged with omitted updaterAlive falls back to the divergedAgeSeconds check.
+    expect(deriveFreshnessStatus({ ...base, liveSha: "old", dbSha: "new", divergedAgeSeconds: 30 })).toBe("syncing");
+  });
+
+  it("updaterAlive: false forces stuck even with a fresh divergence", () => {
+    expect(
+      deriveFreshnessStatus({ ...base, liveSha: "old", dbSha: "new", divergedAgeSeconds: 1, updaterAlive: false }),
+    ).toBe("stuck");
+  });
+
+  it("pendingPublishAgeSeconds past stuck flips a converged 'ok' to stuck", () => {
+    expect(deriveFreshnessStatus({ ...base, pendingPublishAgeSeconds: 30 * 60 + 1 })).toBe("stuck");
+  });
+
+  it("pendingPublishAgeSeconds within the stuck window stays ok", () => {
+    expect(deriveFreshnessStatus({ ...base, pendingPublishAgeSeconds: 10 })).toBe("ok");
+  });
+});
+
+describe("assembleFreshness", () => {
+  const T = 10_000_000;
+  function updState(overrides: Partial<UpdaterState> = {}): Readonly<UpdaterState> {
+    return {
+      building: false,
+      consecutiveFailures: 0,
+      lastError: null,
+      divergedSinceMs: null,
+      lastSuccessMs: null,
+      nextAttemptAt: 0,
+      failingTarget: null,
+      pendingPublishSha: null,
+      pendingPublishSinceMs: null,
+      lastTickMs: T,
+      ...overrides,
+    };
+  }
+  const okInputs = {
+    liveSha: "abc",
+    dbSha: "abc",
+    ageSeconds: 60,
+    schemaVersion: REQUIRED_SCHEMA,
+    dbReachable: true,
+    docs: 100,
+    updaterEnabled: true,
+    now: T,
+  };
+
+  it("ok case: converged, live updater, nothing pending", () => {
+    const snap = assembleFreshness({ ...okInputs, upd: updState() });
+    expect(snap.status).toBe("ok");
+    expect(snap.updaterAlive).toBe(true);
+    expect(snap.pendingPublishAgeSeconds).toBeNull();
+  });
+
+  it("pending-publish-past-stuck case → stuck", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      upd: updState({ pendingPublishSinceMs: T - (31 * 60 * 1000) }),
+    });
+    expect(snap.status).toBe("stuck");
+    expect(snap.pendingPublishAgeSeconds).toBeGreaterThan(30 * 60);
+  });
+
+  it("disabled updater with drift → stuck", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      liveSha: "old",
+      dbSha: "new",
+      updaterEnabled: false,
+      upd: updState({ divergedSinceMs: T - 1000 }),
+    });
+    expect(snap.updaterAlive).toBe(false);
+    expect(snap.status).toBe("stuck");
+  });
+
+  it("enabled but lastTick too old, with drift → stuck", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      liveSha: "old",
+      dbSha: "new",
+      updaterEnabled: true,
+      upd: updState({ divergedSinceMs: T - 1000, lastTickMs: T - (301 * 1000) }),
+    });
+    expect(snap.updaterAlive).toBe(false);
+    expect(snap.status).toBe("stuck");
+  });
+
+  it("null lastTick (just booted) gets grace → syncing, not stuck", () => {
+    const snap = assembleFreshness({
+      ...okInputs,
+      liveSha: "old",
+      dbSha: "new",
+      updaterEnabled: true,
+      upd: updState({ divergedSinceMs: T - 1000, lastTickMs: null }),
+    });
+    expect(snap.updaterAlive).toBe(true);
+    expect(snap.status).toBe("syncing");
   });
 });
 

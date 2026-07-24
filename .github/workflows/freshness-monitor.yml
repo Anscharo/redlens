@@ -22,11 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Retry once after a minute so a single network blip doesn't page —
-      # only two consecutive failures fail the job.
+      # only two consecutive failures fail the job. --connect-timeout/--max-time
+      # ensure a hung server fails this attempt promptly instead of stalling
+      # to the Actions job timeout.
       - name: Check /api/freshness
         run: |
           for attempt in 1 2; do
-            CODE=$(curl -sS -o body.json -w "%{http_code}" https://atlas.redline.support/api/freshness || echo "000")
+            CODE=$(curl -sS --connect-timeout 10 --max-time 60 -o body.json -w "%{http_code}" https://atlas.redline.support/api/freshness || echo "000")
             echo "attempt ${attempt}: HTTP ${CODE}"
             echo "response body:"
             cat body.json || true

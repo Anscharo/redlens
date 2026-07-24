@@ -17,7 +17,7 @@ import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./indexes.ts";
-import { refreshInPlaceFromDisk } from "./atlas-refresh.ts";
+import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
 import type { AtlasNode, DocMetaRow } from "./indexes.ts";
@@ -104,6 +104,14 @@ export interface UpdaterState {
   // until it succeeds, since decide() will never re-trigger a build for a sha
   // that's already live (live === db after convergence).
   pendingPublishSha: string | null;
+  // ms epoch when a publishBundle() call first failed and parked a sha in
+  // pendingPublishSha; null while nothing is pending. Deliberately keeps the
+  // ORIGINAL park time across retries — including when a newer, superseding
+  // sha replaces the pending one — because the user-facing outage (clients
+  // 404ing / reload-looping on a sha that was never published) is continuous
+  // from the first failure, not reset by each retry attempt. Drives the
+  // freshness "stuck" alarm via pendingPublishAgeSeconds.
+  pendingPublishSinceMs: number | null;
   // ms epoch at the top of the most recent tick's try block — a liveness
   // signal for freshness.ts independent of whether that tick found drift.
   lastTickMs: number | null;
@@ -117,6 +125,7 @@ const updaterState: UpdaterState = {
   nextAttemptAt: 0,
   failingTarget: null,
   pendingPublishSha: null,
+  pendingPublishSinceMs: null,
   lastTickMs: null,
 };
 export function getUpdaterState(): Readonly<UpdaterState> {
@@ -293,6 +302,133 @@ export function startBootEmbeddings(): void {
   })();
 }
 
+// Every effect a tick performs, injected so runTick is testable without
+// module mocking (bun's mock.module is process-global in this codebase and
+// contaminates sibling test suites — see the coverage-DI note above the
+// exports). startUpdater() wires these to the real implementations; tests
+// pass fakes that record calls.
+export interface TickDeps {
+  getUpstream(): Promise<string | null>;
+  getLiveSha(): string | null;
+  refreshFromDb(): Promise<string | null>;
+  // Patches the live indexes in place from the freshly-built disk artifacts.
+  // Throws on failure; returns the live atlasCommit sha after a successful patch.
+  applyInPlace(): string | null;
+  // Full rebuild-from-disk fallback, including re-emitting search-index.json
+  // (rebuildFromDisk() only builds MiniSearch in memory — see writeSearchIndex's
+  // header comment). Returns the live atlasCommit sha after the rebuild.
+  fullRebuild(): string | null;
+  publish(sha: string): Promise<void>;
+  broadcast(sha: string): void;
+  log(m: string): void;
+  now(): number;
+  intervalMs: number;
+}
+
+// The full tick body, extracted from startUpdater's closure so it can run
+// against fake deps + a throwaway state object in tests. Behavior-identical
+// to the original inline tick(): same field mutations, same ordering, same
+// log lines. Mutates `state` in place (see UpdaterState header — this is the
+// single source of truth read by freshness.ts).
+export async function runTick(deps: TickDeps, state: UpdaterState): Promise<void> {
+  state.lastTickMs = deps.now();
+
+  // Retry a previously-failed publishBundle before anything else. This is
+  // the only path that can clear pendingPublishSha once live === db has
+  // converged — decide() will never re-trigger a build in that state, so
+  // without this retry a failed publish would never get another attempt
+  // until the NEXT atlas commit (see the pendingPublishSha field comment).
+  if (shouldRetryPublish(state)) {
+    const sha = state.pendingPublishSha as string;
+    let ok = true;
+    try {
+      await deps.publish(sha);
+      deps.log(`publish-bundle retry succeeded for ${short(sha)}`);
+    } catch (e) {
+      ok = false;
+      deps.log(`publish-bundle retry error: ${(e as Error).message}`);
+    }
+    const outcome = publishOutcome(sha, ok);
+    state.pendingPublishSha = outcome.pendingPublishSha;
+    if (ok) state.pendingPublishSinceMs = null;
+    else state.pendingPublishSinceMs ??= deps.now();
+    if (outcome.broadcast) deps.broadcast(sha);
+  }
+
+  const upstream = await deps.getUpstream();
+  const live = deps.getLiveSha();
+
+  // Divergence clock (drives the stuck alarm) — see nextDivergedSince.
+  state.divergedSinceMs = nextDivergedSince(state.divergedSinceMs, upstream, live, deps.now());
+
+  // A fresh upstream target resets backoff — it deserves an immediate try.
+  if (upstream && upstream !== state.failingTarget) {
+    state.failingTarget = null;
+    state.consecutiveFailures = 0;
+    state.nextAttemptAt = 0;
+  }
+
+  if (decide({ upstream, live, building: state.building, now: deps.now(), nextAttemptAt: state.nextAttemptAt }) === "build") {
+    state.building = true;
+    deps.log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
+
+    const builtSha = await deps.refreshFromDb();
+    let converged = false;
+    let newSha: string | null = null;
+    if (builtSha) {
+      try {
+        newSha = deps.applyInPlace();
+      } catch (e) {
+        deps.log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
+        newSha = deps.fullRebuild();
+      }
+      converged = newSha === builtSha;
+      if (!converged) deps.log(`WARNING built ${short(builtSha)} but live is ${short(newSha)}`);
+    }
+
+    if (converged) {
+      state.consecutiveFailures = 0;
+      state.failingTarget = null;
+      state.nextAttemptAt = 0;
+      state.lastError = null;
+      state.lastSuccessMs = deps.now();
+      state.divergedSinceMs = null;
+      deps.log(`updated → live now ${short(builtSha)}`);
+      if (builtSha) {
+        // Publish the immutable per-SHA bundle (fresh .gz from current
+        // public/*.json — including the search-index.json just rewritten by
+        // refreshInPlaceFromDisk) BEFORE telling clients to fetch it. On
+        // failure, do NOT broadcast (clients would 404 on the new sha and
+        // reload-loop — see atlasBase.ts reloadOnce) — instead park it in
+        // pendingPublishSha for the top-of-tick retry above. This new
+        // convergence supersedes whatever sha was previously pending.
+        let ok = true;
+        try {
+          await deps.publish(builtSha);
+        } catch (e) {
+          ok = false;
+          deps.log(`publish-bundle error: ${(e as Error).message}`);
+        }
+        const outcome = publishOutcome(builtSha, ok);
+        state.pendingPublishSha = outcome.pendingPublishSha;
+        if (ok) state.pendingPublishSinceMs = null;
+        else state.pendingPublishSinceMs ??= deps.now();
+        if (outcome.broadcast) deps.broadcast(builtSha);
+      }
+    } else {
+      // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
+      state.failingTarget = upstream;
+      state.consecutiveFailures++;
+      const wait = backoffMs(state.consecutiveFailures, deps.intervalMs);
+      state.nextAttemptAt = deps.now() + wait;
+      state.lastError = builtSha ? "did not converge after rebuild" : "refresh-from-db refused/failed";
+      const level = state.consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
+      deps.log(`${level}: build for ${short(upstream)} failed (attempt ${state.consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
+    }
+    state.building = false;
+  }
+}
+
 // Start the periodic DB-drift checker. ON by default in every real deploy of
 // this server (it IS the single-replica freshness mechanism); ATLAS_UPDATE_ENABLED=0
 // is a kill switch to disable it out-of-band (no redeploy) if it ever misbehaves.
@@ -311,6 +447,30 @@ export function startUpdater(): void {
 
   log(`enabled, interval ${Math.round(intervalMs / 1000)}s (DB-driven)`);
 
+  // Wire the real implementations. applyInPlace's delta log line and
+  // fullRebuild's writeSearchIndex call live in these closures (moving out of
+  // runTick keeps the pure orchestration free of disk/log side-effect detail).
+  const deps: TickDeps = {
+    getUpstream: getDbAtlasSha,
+    getLiveSha: () => getIndexes().meta.atlasCommit ?? null,
+    refreshFromDb: () => runRefreshFromDb(log),
+    applyInPlace: () => {
+      const d = refreshInPlaceFromDisk(getIndexes());
+      log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
+      return getIndexes().meta.atlasCommit ?? null;
+    },
+    fullRebuild: () => {
+      const ix = rebuildFromDisk();
+      writeSearchIndex(ix);
+      return ix.meta.atlasCommit ?? null;
+    },
+    publish: (sha) => publishBundle(MAIN_STORE, sha, config.publicDir),
+    broadcast: (sha) => broadcastAtlasUpdate(sha),
+    log,
+    now: () => Date.now(),
+    intervalMs,
+  };
+
   // Schedule the next tick. The arrow + .catch() guarantees the self-scheduling
   // loop can NEVER surface an unhandled rejection or die: tick() is fully
   // try/catch/finally today, but passing it bare to setTimeout would drop a
@@ -320,100 +480,7 @@ export function startUpdater(): void {
 
   async function tick(): Promise<void> {
     try {
-      updaterState.lastTickMs = Date.now();
-
-      // Retry a previously-failed publishBundle before anything else. This is
-      // the only path that can clear pendingPublishSha once live === db has
-      // converged — decide() will never re-trigger a build in that state, so
-      // without this retry a failed publish would never get another attempt
-      // until the NEXT atlas commit (see the pendingPublishSha field comment).
-      if (shouldRetryPublish(updaterState)) {
-        const sha = updaterState.pendingPublishSha as string;
-        let ok = true;
-        try {
-          await publishBundle(MAIN_STORE, sha, config.publicDir);
-          log(`publish-bundle retry succeeded for ${short(sha)}`);
-        } catch (e) {
-          ok = false;
-          log(`publish-bundle retry error: ${(e as Error).message}`);
-        }
-        const outcome = publishOutcome(sha, ok);
-        updaterState.pendingPublishSha = outcome.pendingPublishSha;
-        if (outcome.broadcast) broadcastAtlasUpdate(sha);
-      }
-
-      const upstream = await getDbAtlasSha();
-      const live = getIndexes().meta.atlasCommit ?? null;
-
-      // Divergence clock (drives the stuck alarm) — see nextDivergedSince.
-      updaterState.divergedSinceMs = nextDivergedSince(updaterState.divergedSinceMs, upstream, live, Date.now());
-
-      // A fresh upstream target resets backoff — it deserves an immediate try.
-      if (upstream && upstream !== updaterState.failingTarget) {
-        updaterState.failingTarget = null;
-        updaterState.consecutiveFailures = 0;
-        updaterState.nextAttemptAt = 0;
-      }
-
-      if (decide({ upstream, live, building: updaterState.building, now: Date.now(), nextAttemptAt: updaterState.nextAttemptAt }) === "build") {
-        updaterState.building = true;
-        log(`drift: db ${short(upstream)} ≠ live ${short(live)} — rebuilding from DB`);
-
-        const builtSha = await runRefreshFromDb(log);
-        let converged = false;
-        if (builtSha) {
-          let newSha: string | null;
-          try {
-            const d = refreshInPlaceFromDisk(getIndexes());
-            newSha = getIndexes().meta.atlasCommit ?? null;
-            log(`in-place: +${d.added.length} ~${d.changed.length} -${d.removed.length} docs`);
-          } catch (e) {
-            log(`in-place failed (${(e as Error).message}) — full rebuild fallback`);
-            newSha = rebuildFromDisk().meta.atlasCommit ?? null;
-          }
-          converged = newSha === builtSha;
-          if (!converged) log(`WARNING built ${short(builtSha)} but live is ${short(newSha)}`);
-        }
-
-        if (converged) {
-          updaterState.consecutiveFailures = 0;
-          updaterState.failingTarget = null;
-          updaterState.nextAttemptAt = 0;
-          updaterState.lastError = null;
-          updaterState.lastSuccessMs = Date.now();
-          updaterState.divergedSinceMs = null;
-          log(`updated → live now ${short(builtSha)}`);
-          if (builtSha) {
-            // Publish the immutable per-SHA bundle (fresh .gz from current
-            // public/*.json — including the search-index.json just rewritten by
-            // refreshInPlaceFromDisk) BEFORE telling clients to fetch it. On
-            // failure, do NOT broadcast (clients would 404 on the new sha and
-            // reload-loop — see atlasBase.ts reloadOnce) — instead park it in
-            // pendingPublishSha for the top-of-tick retry above. This new
-            // convergence supersedes whatever sha was previously pending.
-            let ok = true;
-            try {
-              await publishBundle(MAIN_STORE, builtSha, config.publicDir);
-            } catch (e) {
-              ok = false;
-              log(`publish-bundle error: ${(e as Error).message}`);
-            }
-            const outcome = publishOutcome(builtSha, ok);
-            updaterState.pendingPublishSha = outcome.pendingPublishSha;
-            if (outcome.broadcast) broadcastAtlasUpdate(builtSha);
-          }
-        } else {
-          // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
-          updaterState.failingTarget = upstream;
-          updaterState.consecutiveFailures++;
-          const wait = backoffMs(updaterState.consecutiveFailures, intervalMs);
-          updaterState.nextAttemptAt = Date.now() + wait;
-          updaterState.lastError = builtSha ? "did not converge after rebuild" : "refresh-from-db refused/failed";
-          const level = updaterState.consecutiveFailures >= ESCALATE_AFTER ? "ERROR" : "warn";
-          log(`${level}: build for ${short(upstream)} failed (attempt ${updaterState.consecutiveFailures}); retry in ${Math.round(wait / 1000)}s`);
-        }
-        updaterState.building = false;
-      }
+      await runTick(deps, updaterState);
     } catch (e) {
       updaterState.building = false;
       log(`tick error: ${(e as Error).message}`);

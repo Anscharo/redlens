@@ -130,12 +130,16 @@ export function applyInPlaceUpdate(
   return delta;
 }
 
-// Disk orchestration: read the freshly-built artifacts, apply in place, then
-// re-serialize the patched index to public/ + dist/ for the browser (the
-// subprocess skipped building it).
-export function refreshInPlaceFromDisk(ix: Indexes): DocDelta {
-  const { docs, entities, edges, meta } = readArtifactsFromDisk();
-  const delta = applyInPlaceUpdate(ix, docs, entities, edges, meta);
+// Serialize the live MiniSearch index to public/ + (best-effort) dist/. Shared
+// by the happy path (refreshInPlaceFromDisk, right after patching) and the
+// updater's full-rebuild fallback (atlas-updater.ts): rebuildFromDisk() only
+// reconstructs MiniSearch in memory from docs.json, it never touches
+// search-index.json on disk, and runRefreshFromDb() deletes the stale copy
+// up front (dropStaleSearchIndex) — so without an explicit re-emit here, a
+// fallback build converges live to the new sha while serving no search index
+// at all (publishBundle then skips the missing allowlisted artifact and the
+// browser search worker 404s).
+export function writeSearchIndex(ix: Indexes): void {
   const idxJson = JSON.stringify(ix.mini.toJSON());
   writeFileSync(join(config.publicDir, "search-index.json"), idxJson);
   try {
@@ -143,5 +147,14 @@ export function refreshInPlaceFromDisk(ix: Indexes): DocDelta {
   } catch {
     /* dev: no dist/ */
   }
+}
+
+// Disk orchestration: read the freshly-built artifacts, apply in place, then
+// re-serialize the patched index to public/ + dist/ for the browser (the
+// subprocess skipped building it).
+export function refreshInPlaceFromDisk(ix: Indexes): DocDelta {
+  const { docs, entities, edges, meta } = readArtifactsFromDisk();
+  const delta = applyInPlaceUpdate(ix, docs, entities, edges, meta);
+  writeSearchIndex(ix);
   return delta;
 }
