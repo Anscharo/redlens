@@ -16,11 +16,14 @@
 import { sql } from "./db.ts";
 import { getIndexes } from "./indexes.ts";
 import { migrationFiles } from "./migrate.ts";
-import { getUpdaterState } from "./atlas-updater.ts";
+import { getUpdaterState, isUpdaterEnabled } from "./atlas-updater.ts";
 
-// The atlas updates a few times a week, so a generous window catches a dead
-// worker within ~2 days without false alarms on a normal quiet stretch.
-const STALE_SECONDS = Number(process.env.ATLAS_STALE_SECONDS ?? 48 * 3600);
+// The worker cron runs every 12 minutes and (as of the sync_state.synced_at
+// touch-on-every-run change) advances synced_at on every run, including
+// no-ops — not just on structural syncs like it used to. So >1h of silence
+// means the worker is genuinely dead, not just quiet; the old 48h window
+// existed only to tolerate long stretches with no structural sync.
+const STALE_SECONDS = Number(process.env.ATLAS_STALE_SECONDS ?? 3600);
 
 // How long live may lag db before the updater is "stuck" (vs benignly syncing).
 // Much shorter than STALE: a live process failing to converge is an active
@@ -51,6 +54,10 @@ export interface FreshnessSnapshot extends FreshnessInput {
   docs: number;
   consecutiveFailures: number;
   lastError: string | null;
+  // Informational only — not inputs to deriveFreshnessStatus.
+  updaterEnabled: boolean;
+  lastTickAgeSeconds: number | null;
+  pendingPublishSha: string | null;
 }
 
 // Pure status derivation (unit-tested without a DB). Precedence, worst first:
@@ -82,6 +89,9 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
   const upd = getUpdaterState();
   const divergedAgeSeconds = upd.divergedSinceMs !== null
     ? Math.max(0, Math.round((now - upd.divergedSinceMs) / 1000))
+    : null;
+  const lastTickAgeSeconds = upd.lastTickMs !== null
+    ? Math.max(0, Math.round((now - upd.lastTickMs) / 1000))
     : null;
 
   let dbSha: string | null = null;
@@ -122,6 +132,9 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
     docs,
     consecutiveFailures: upd.consecutiveFailures,
     lastError: upd.lastError,
+    updaterEnabled: isUpdaterEnabled(),
+    lastTickAgeSeconds,
+    pendingPublishSha: upd.pendingPublishSha,
   };
 }
 
