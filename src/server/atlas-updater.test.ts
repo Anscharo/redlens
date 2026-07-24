@@ -1,6 +1,16 @@
 // Run under `bun test` (NOT vitest) — see vitest.config.ts exclude of src/server.
 import { describe, it, expect } from "bun:test";
-import { decide, backoffMs, nextDivergedSince } from "./atlas-updater.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import {
+  decide,
+  backoffMs,
+  nextDivergedSince,
+  publishOutcome,
+  shouldRetryPublish,
+  dropStaleSearchIndex,
+} from "./atlas-updater.ts";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -65,5 +75,57 @@ describe("backoffMs", () => {
 
   it("caps so a persistent failure retries slowly, not every interval forever", () => {
     expect(backoffMs(100, 30_000)).toBe(30 * 60_000); // default cap
+  });
+});
+
+describe("publishOutcome", () => {
+  it("success clears the pending slot and broadcasts", () => {
+    expect(publishOutcome(A, true)).toEqual({ pendingPublishSha: null, broadcast: true });
+  });
+
+  it("failure parks the sha for retry and does not broadcast", () => {
+    // Invariant this encodes: never broadcast a sha whose bundle isn't on disk.
+    expect(publishOutcome(A, false)).toEqual({ pendingPublishSha: A, broadcast: false });
+  });
+});
+
+describe("shouldRetryPublish", () => {
+  it("retries when idle and a sha is pending", () => {
+    expect(shouldRetryPublish({ building: false, pendingPublishSha: A })).toBe(true);
+  });
+
+  it("does not retry while a build is in flight", () => {
+    expect(shouldRetryPublish({ building: true, pendingPublishSha: A })).toBe(false);
+  });
+
+  it("does not retry when nothing is pending", () => {
+    expect(shouldRetryPublish({ building: false, pendingPublishSha: null })).toBe(false);
+  });
+});
+
+describe("dropStaleSearchIndex", () => {
+  it("deletes an existing search-index.json and returns true", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
+    const p = path.join(dir, "search-index.json");
+    fs.writeFileSync(p, "{}");
+
+    expect(dropStaleSearchIndex(dir)).toBe(true);
+    expect(fs.existsSync(p)).toBe(false);
+  });
+
+  it("returns false when the file is absent", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
+
+    expect(dropStaleSearchIndex(dir)).toBe(false);
+  });
+
+  it("leaves other public/ files untouched", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-test-"));
+    fs.writeFileSync(path.join(dir, "search-index.json"), "{}");
+    fs.writeFileSync(path.join(dir, "docs.json"), "{}");
+
+    dropStaleSearchIndex(dir);
+
+    expect(fs.existsSync(path.join(dir, "docs.json"))).toBe(true);
   });
 });

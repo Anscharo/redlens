@@ -1,6 +1,6 @@
 // Run under `bun test` (NOT vitest) — imports Bun SQL transitively via ./db.ts.
 import { describe, it, expect } from "bun:test";
-import { deriveFreshnessStatus, freshnessHttpStatus } from "./freshness.ts";
+import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds } from "./freshness.ts";
 
 const REQUIRED = "008_preview_trust.sql";
 const base = {
@@ -62,6 +62,20 @@ describe("deriveFreshnessStatus", () => {
 
   it("null ageSeconds (never synced) is not treated as stale", () => {
     expect(deriveFreshnessStatus({ ...base, ageSeconds: null, liveSha: "x", dbSha: "x" })).toBe("ok");
+  });
+});
+
+describe("msAgeSeconds", () => {
+  it("passes null through", () => {
+    expect(msAgeSeconds(1_000_000, null)).toBe(null);
+  });
+
+  it("rounds a normal ms delta to seconds", () => {
+    expect(msAgeSeconds(10_000, 3_800)).toBe(6); // (10000-3800)/1000 = 6.2 -> 6
+  });
+
+  it("clamps at 0 on clock skew (thenMs in the future)", () => {
+    expect(msAgeSeconds(1_000, 5_000)).toBe(0);
   });
 });
 

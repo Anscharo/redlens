@@ -60,6 +60,13 @@ export interface FreshnessSnapshot extends FreshnessInput {
   pendingPublishSha: string | null;
 }
 
+// Pure ms-epoch-to-age-seconds conversion (unit-tested), shared by
+// divergedAgeSeconds and lastTickAgeSeconds. Clamps at 0 so a slightly-future
+// timestamp (clock skew) never reports a negative age.
+export function msAgeSeconds(now: number, thenMs: number | null): number | null {
+  return thenMs !== null ? Math.max(0, Math.round((now - thenMs) / 1000)) : null;
+}
+
 // Pure status derivation (unit-tested without a DB). Precedence, worst first:
 // an unreachable DB or a schema the code is ahead of is a hard fault; staleness
 // (dead worker) next; an updater that has failed to converge past STUCK is a
@@ -87,12 +94,8 @@ export async function evaluateFreshness(now: number = Date.now()): Promise<Fresh
   const docs = ix.docMap.size;
 
   const upd = getUpdaterState();
-  const divergedAgeSeconds = upd.divergedSinceMs !== null
-    ? Math.max(0, Math.round((now - upd.divergedSinceMs) / 1000))
-    : null;
-  const lastTickAgeSeconds = upd.lastTickMs !== null
-    ? Math.max(0, Math.round((now - upd.lastTickMs) / 1000))
-    : null;
+  const divergedAgeSeconds = msAgeSeconds(now, upd.divergedSinceMs);
+  const lastTickAgeSeconds = msAgeSeconds(now, upd.lastTickMs);
 
   let dbSha: string | null = null;
   let ageSeconds: number | null = null;

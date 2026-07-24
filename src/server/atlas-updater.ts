@@ -24,6 +24,23 @@ import type { AtlasNode, DocMetaRow } from "./indexes.ts";
 
 export type Decision = "idle" | "build";
 
+// Pure state transition after an attempted publishBundle() call (unit-tested).
+// Encodes the invariant that we never broadcast a sha whose bundle isn't on
+// disk: success clears the pending slot and fans out to clients; failure
+// parks the sha in pendingPublishSha for the next retry instead.
+export function publishOutcome(
+  builtSha: string,
+  ok: boolean,
+): { pendingPublishSha: string | null; broadcast: boolean } {
+  return ok ? { pendingPublishSha: null, broadcast: true } : { pendingPublishSha: builtSha, broadcast: false };
+}
+
+// Pure retry gate for the top-of-tick publish retry (unit-tested): only when
+// no build is in flight and a previous publish attempt is still pending.
+export function shouldRetryPublish(s: { building: boolean; pendingPublishSha: string | null }): boolean {
+  return !s.building && s.pendingPublishSha !== null;
+}
+
 // Pure trigger decision (unit-tested). Builds when there is drift and we are
 // not already building and the backoff window has elapsed. `now`/`nextAttemptAt`
 // (ms epoch) gate retries: a failed/non-converged build sets nextAttemptAt into
@@ -145,6 +162,20 @@ export async function getDbAtlasSha(): Promise<string | null> {
 
 interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
 
+// public/search-index.json is stale-by-construction after a DB refresh (it
+// still reflects the PREVIOUS atlas sha): the happy path (refreshInPlaceFromDisk)
+// rewrites it next, but if that throws, the rebuildFromDisk() fallback loads
+// it verbatim (buildIndexes prefers a serialized index with no sha check) and
+// would silently converge on the new sha while serving the old search index.
+// Deleting it here forces the fallback to build MiniSearch from docs instead
+// — slower, but never stale. Returns whether a file was actually deleted.
+export function dropStaleSearchIndex(publicDir: string): boolean {
+  const p = join(publicDir, "search-index.json");
+  if (!existsSync(p)) return false;
+  unlinkSync(p);
+  return true;
+}
+
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
 // run build-graph and build-glossary subprocesses (they read docs.json), then
 // mirror all public/*.json → dist/. Returns the atlas sha actually built (read
@@ -228,16 +259,9 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
       log(`refresh-from-db: mirrored ${n} json → dist/`);
     }
 
-    // public/search-index.json is now stale-by-construction (it still reflects
-    // the PREVIOUS atlas sha): the happy path (refreshInPlaceFromDisk) rewrites
-    // it next, but if that throws, the rebuildFromDisk() fallback loads it
-    // verbatim (buildIndexes prefers a serialized index with no sha check) and
-    // would silently converge on the new sha while serving the old search
-    // index. Deleting it here forces the fallback to build MiniSearch from
-    // docs instead — slower, but never stale. Unconditional (not gated on
-    // distDir existing) since it's a public/ artifact, not a dist/ mirror.
-    const publicSi = join(config.publicDir, "search-index.json");
-    if (existsSync(publicSi)) unlinkSync(publicSi);
+    // Unconditional (not gated on distDir existing) since it's a public/
+    // artifact, not a dist/ mirror.
+    dropStaleSearchIndex(config.publicDir);
 
     return dbSha;
   } catch (e) {
@@ -303,16 +327,19 @@ export function startUpdater(): void {
       // converged — decide() will never re-trigger a build in that state, so
       // without this retry a failed publish would never get another attempt
       // until the NEXT atlas commit (see the pendingPublishSha field comment).
-      if (!updaterState.building && updaterState.pendingPublishSha) {
-        const sha = updaterState.pendingPublishSha;
+      if (shouldRetryPublish(updaterState)) {
+        const sha = updaterState.pendingPublishSha as string;
+        let ok = true;
         try {
           await publishBundle(MAIN_STORE, sha, config.publicDir);
           log(`publish-bundle retry succeeded for ${short(sha)}`);
-          broadcastAtlasUpdate(sha);
-          updaterState.pendingPublishSha = null;
         } catch (e) {
+          ok = false;
           log(`publish-bundle retry error: ${(e as Error).message}`);
         }
+        const outcome = publishOutcome(sha, ok);
+        updaterState.pendingPublishSha = outcome.pendingPublishSha;
+        if (outcome.broadcast) broadcastAtlasUpdate(sha);
       }
 
       const upstream = await getDbAtlasSha();
@@ -364,14 +391,16 @@ export function startUpdater(): void {
             // reload-loop — see atlasBase.ts reloadOnce) — instead park it in
             // pendingPublishSha for the top-of-tick retry above. This new
             // convergence supersedes whatever sha was previously pending.
+            let ok = true;
             try {
               await publishBundle(MAIN_STORE, builtSha, config.publicDir);
-              updaterState.pendingPublishSha = null;
-              broadcastAtlasUpdate(builtSha);
             } catch (e) {
+              ok = false;
               log(`publish-bundle error: ${(e as Error).message}`);
-              updaterState.pendingPublishSha = builtSha;
             }
+            const outcome = publishOutcome(builtSha, ok);
+            updaterState.pendingPublishSha = outcome.pendingPublishSha;
+            if (outcome.broadcast) broadcastAtlasUpdate(builtSha);
           }
         } else {
           // ① + ⑤ bounded retry with backoff + escalation — never a permanent skip.
