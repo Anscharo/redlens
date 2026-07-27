@@ -54,18 +54,31 @@ for (const slug of CENSUS_SLUGS) {
   const prevMembers = baseline?.[slug]?.members ?? null;
   if (!prevMembers) continue; // no baseline entry yet for this slug — nothing to diff
 
-  const prevByUuid = new Map(prevMembers.map((m) => [m.uuid, m]));
-  const curByUuid = new Map(members.map((m) => [m.uuid, m]));
+  // Buckets are per-uuid SETS, not single values: a census may legitimately
+  // place one doc in several buckets (normative-title-families does — a
+  // derecognition-for-opsec-breach doc is genuinely both), and keying a bare
+  // uuid→member map would then report those overlaps as bucket churn.
+  const bucketsByUuid = (list) => {
+    const m = new Map();
+    for (const x of list) {
+      if (!m.has(x.uuid)) m.set(x.uuid, { member: x, buckets: new Set() });
+      m.get(x.uuid).buckets.add(x.bucket ?? null);
+    }
+    return m;
+  };
+  const prevByUuid = bucketsByUuid(prevMembers);
+  const curByUuid = bucketsByUuid(members);
+  const fmt = (s) => JSON.stringify([...s].sort());
 
-  for (const m of members) {
-    const prev = prevByUuid.get(m.uuid);
+  for (const [uuid, { member: m, buckets }] of curByUuid) {
+    const prev = prevByUuid.get(uuid);
     if (!prev) {
       console.warn(`[drift] concepts-census: ${slug}: NEW member — ${m.doc_no} "${m.title}" (${m.uuid})`);
       drift++;
-    } else if ((prev.bucket ?? null) !== (m.bucket ?? null)) {
+    } else if (fmt(prev.buckets) !== fmt(buckets)) {
       console.warn(
         `[drift] concepts-census: ${slug}: ${m.doc_no} "${m.title}" (${m.uuid}) changed bucket ` +
-          `${JSON.stringify(prev.bucket ?? null)} → ${JSON.stringify(m.bucket ?? null)}`,
+          `${fmt(prev.buckets)} → ${fmt(buckets)}`,
       );
       drift++;
     }
