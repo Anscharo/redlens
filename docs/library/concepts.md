@@ -10,8 +10,10 @@ guard (`pnpm census:concepts`, `src/lib/conceptsCensus.ts`) — a `:::census
 of a number frozen at whatever atlas commit last touched the prose.
 
 **Epistemic labels** — every group below now carries a `[T1]`–`[T4]` tag (per
-`docs/library/concepts-audit.md`'s rewrite plan), naming the strongest
-evidence tier backing it: **[T1]** script-censused (re-run per atlas bump,
+`docs/library/concepts-audit.md`'s rewrite plan). Each tag names exactly ONE
+tier — never a combined `[T3/T4]`-style range; where one section mixes
+evidence strengths, each span carries its own separate tag. The tier is the
+strongest evidence backing that span: **[T1]** script-censused (re-run per atlas bump,
 several wired to a live `:::census` block); **[T2]** source-read (an agent
 verified the claim against the Atlas doc's verbatim content); **[T3]**
 agent-derived, since corroborated (a subagent claim later checked and
@@ -111,7 +113,7 @@ Each concept group carries four fields:
 
 ### B. Lifecycle concepts (the primitive machine)
 
-*[T1] — title-template and entity/instance counts are script-censused; Omni Documents contents were source-read.*
+*[T1] — title-template and entity/instance counts are script-censused. (B7's contents are separately labeled on its heading.)*
 
 **B1. Primitive** (class)
 
@@ -163,7 +165,7 @@ Each concept group carries four fields:
 
 - **Detection signature** — exact title triple (×83 each). **Discovery: 83 "Artifact Edit Proposal" docs are per-instance edit-history stubs living INSIDE artifacts** — a distributed change-log, distinct from the Root Edit pipeline (agents' D-group covers the distinction).
 
-**B7. Omni Documents**
+**B7. Omni Documents** [T2]
 
 - **Definition** — each agent's idiosyncratic non-primitive content — the ANTI-template (everything the primitive machine doesn't standardize).
 
@@ -227,7 +229,9 @@ Each concept group carries four fields:
 
 ### D. Normative & instrument concepts
 
-*[T2] for D1–D12 (source-read; several numeric details are flagged `[T3/T4 — scrutinize]` inline per concepts-audit.md's checklist and have not yet been re-verified against source). The Dn1–Dn9 normative-family block immediately below is `[T1]` — rewritten census-first, see its own note.*
+*Tier labels are per-item, one tier per tag, on each heading below. D1–D8's
+rule and numeric details were source-verified in the 2026-07-27 sweep (inline
+`[T2 ✓]` marks); the Dn1–Dn9 block carries its own labels at its note.*
 
 **The normative-family taxonomy** — *rewritten census-first 2026-07-27*
 (concepts-audit.md rewrite item 1). The previous version of this block was the
@@ -237,8 +241,9 @@ real 64), so the frame itself was re-derived rather than re-cited. Every family
 below survived because a detection pass **actually run** over `public/docs.json`
 + `public/relations.json` found it; each carries its signature, its live count,
 and one exemplar quoted verbatim from `vendor/next-gen-atlas/content/**` with a
-UUID. `[T1]` throughout, `[T2]` for the exemplar quotes (read from source in
-this pass).
+UUID. Signatures and live counts are `[T1]` (censused, re-run per atlas
+bump). Each family's exemplar quote is separately `[T2]` (read from source
+in this pass).
 
 Seven of the nine title-derived families are wired to the standing
 `normative-title-families` census below, so their counts re-run per atlas bump
@@ -527,7 +532,7 @@ breach definition, graduated response, terminal measure — different subject
 (agent capital adequacy, not actor conduct) and different vocabulary (no
 "misalignment", no adjudication).
 
-**D1. Ecosystem Accords**
+**D1. Ecosystem Accords** [T2]
 
 - **Definition** — bilateral/multi-party agreements between Sky Core and ecosystem parties, Atlas-recorded and governance-enforceable.
 
@@ -535,7 +540,7 @@ breach definition, graduated response, terminal measure — different subject
 
 - **Relationships** — governed by Dispute Resolution (D8); parties are composite_party entities; Accord 10 carries the Compensation Formula (E3).
 
-**D2. Executor Accords**
+**D2. Executor Accords** [T2]
 
 - **Definition** — Prime↔Executor operational-insurance agreements — a PRIMITIVE, not a document-accord.
 
@@ -543,7 +548,7 @@ breach definition, graduated response, terminal measure — different subject
 
 - **Relationships** — **corrected 2026-07-27**: an earlier version called this a "mutual-exclusion rule with Root Edit (both cannot be deactivated)". The source rule (`a4797404` /A.2.2.1.2.4.2.1.2 Prohibition On Deactivating Executor Accord And Root Edit Primitives) is stronger and not a mutual exclusion: "Agents must have active Executor Accord and Root Edit Primitives at all times. Once Globally Activated, these Primitives cannot be deactivated" — i.e. *neither* may ever be deactivated individually; wind-down must go through the Agent Termination Protocol (D9) instead. Distinction vs D1: D1 binds parties bilaterally; D2 codifies an operational relationship inside the primitive machine.
 
-**D3. The edit-instrument triad** — three same-sounding but distinct concepts:
+**D3. The edit-instrument triad** [T2] — three same-sounding but distinct concepts:
 - **Root Edit** (governance primitive): agent self-modification via token-holder
   vote; spec `78488c6b` /A.2.2.6.2; 8 instances; pipeline Submission → Expert
   Advisor Review → Facilitator Review → Token Holder Vote → Artifact Update, with
@@ -562,7 +567,7 @@ breach definition, graduated response, terminal measure — different subject
   `523bfc8f` /A.1.12.2.1.7.2.0.4.1; amend-and-resubmit path `90932951`
   /A.1.12.2.1.7.2).
 
-**D4. Voting machinery**
+**D4. Voting machinery** [T2]
 
 - **Definition** — the consensus layer.
 
@@ -570,7 +575,7 @@ breach definition, graduated response, terminal measure — different subject
 
 - **Relationships** — cycles (C4) schedule it; spells (D5) execute it.
 
-**D5. Spell machinery**
+**D5. Spell machinery** [T2]
 
 - **Definition** — executable governance actions.
 
@@ -578,29 +583,29 @@ breach definition, graduated response, terminal measure — different subject
 
 - **Relationships** — emergency tier links C5; misvalidated emergency votes are AD breaches (→ normative layer).
 
-**D6. Delegation framework**
+**D6. Delegation framework** [T2]
 
 - **Definition** — voting-power intermediation.
 
 - **Detection signature** — aligned/ ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms + conflict-of-interest disclosure [T2 ✓ 2026-07-27, ⚠ resolved — but note these are rules of *Spark's* delegate framework, not universal AD rules]: "Delegates are appointed by the Spark Foundation to fixed six (6) month terms aligned to calendar half-years" with automatic offboarding absent re-approval (`c612d4e4` /A.6.1.1.1.3.1.3.4.3 + `02deeacc` /.5.5); onboarding includes "conflict-of-interest collection" by the Spark Foundation (`d08b9b32` /A.6.1.1.1.3.1.3.4.1), and "Abstain" may be used "solely in cases where the Delegate has a documented conflict of interest for the specific proposal" (`16eb44b8` /A.6.1.1.1.3.1.3.3.4). Triggering rule (corrected 2026-07-22): a Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in their AD Buffer at trigger time — and "It is inconsequential if, after triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank" (Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted this into a rank-loss penalty — agent-derived error caught by source audit).
 
-**D7. Safe Harbor Agreement**
+**D7. Safe Harbor Agreement** [T2]
 
 - **Definition** — the one ON-CHAIN agreement instrument [T2 ✓ 2026-07-27]: contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` (verbatim at `0f541963` /A.2.11.1.2.2.2 Agreement Address); the `agreementURI` IPFS terms verbatim at `0064ee74` /A.2.11.1.2.2.3.1: `https://bafkreiernns2f4nv2uzvwtzjc2jboyivsu2mixz33y3xo7cvtllsuao6jy.ipfs.w3s.link/` ("The agreement located at the IPFS address shown in the smart contract … is the definitive version" — /A.2.11.1.2.1); fact page `258e85f5` /A.2.11.1.2.6 Agreement Fact Page. Distinction: immutable code vs governance-enforceable prose (D1).
 
-**D8. Dispute Resolution**
+**D8. Dispute Resolution** [T2]
 
 - **Definition** — formal disagreement service for accords & terminations.
 
 - **Detection signature** — `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded in Active Data "Dispute Resolutions"); conflict-resolution precedence rules `e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count [T2 ✓ 2026-07-27]: exactly 1 recorded — the Active Data doc `c48614bb` /A.2.8.1.2.0.6.1 "Dispute Resolutions" lists a single entry, "Dispute Between Spark And Grove Regarding Effective Date Of Their Ecosystem Accord (September 2, 2025) - Facilitator Decision" — a young system.
 
-**D9. Agent Termination Protocol**
+**D9. Agent Termination Protocol** [T3]
 
 - **Definition** — structured agent wind-down.
 
 - **Detection signature** — `fe833d0e` /A.1.14.5 (initiate via Root Edit vote → Executor executes → forum notice + residual assets → dispute path). Distinct from emergency suspension (Sky Core discretionary power, A.1.14.1.5.4).
 
-**D10. Transitional governance family** — three nested layers:
+**D10. Transitional governance family** [T1] — three nested layers:
 - **Short-Term Transitionary Measures** — interim workarounds pending permanent
   systems (forum-post AEP submission until Powerhouse; staking rewards pending
   treasury; Founder Access suspension…). Member list below.
@@ -612,7 +617,7 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 :::census transitionary-measures
 
-**D11. Incubation frameworks**
+**D11. Incubation frameworks** [T3]
 
 - **Definition** — onboarding pipelines.
 
@@ -620,7 +625,7 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 - **Relationships** — feeds F1 actor roles; terminal state = Global Activation (B2).
 
-**D12. Pending transitions**
+**D12. Pending transitions** [T1]
 
 - **Definition** — tracked state-machine progressions.
 
@@ -689,13 +694,13 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 ### E+. Programs & economic machinery (deep-dive merge)
 
-*[T3] baseline; the Ep9/Ep4/Ep8 formula- and value-verification sweep
-(concepts-audit.md checks #1–2) ran 2026-07-27 against the checked-out atlas
-commit — items it touched are upgraded to [T2 ✓ 2026-07-27] inline, and the
-two claims it falsified carry visible correction notes (Ep4 Step-3 split, Ep8
-Avalanche/Plasma rate limits). Numbers NOT carrying a ✓ remain leads.*
+*Tier labels are per-section, one tier per tag, on each heading below. The
+2026-07-27 sweep (concepts-audit.md checks #1–2) source-verified Ep3, Ep4,
+Ep8 and Ep9 — falsified claims carry visible correction notes (Ep4 Step-3
+split, Ep8 Avalanche/Plasma rate limits). In [T3] sections, numbers not
+carrying a ✓ remain leads.*
 
-**Ep1. The four reward programs** — each is BOTH a named program and a primitive
+**Ep1. The four reward programs** [T3] — each is BOTH a named program and a primitive
 (the Program-vs-Primitive blur is resolved: program = the incentive structure +
 registries + partners; primitive = the per-agent deployment mechanism):
 - **Distribution Reward**: 0.2%/yr on USDS held via a channel; spec `e632c38f`
@@ -710,7 +715,7 @@ registries + partners; primitive = the per-agent deployment mechanism):
 - **Pioneer Chain**: launch-agent chain pioneering; spec `4c7be4c6` /A.2.2.9.3;
   3 instances — the least mature.
 
-**Ep2. Capital deployment machinery** (supply side):
+**Ep2. Capital deployment machinery** [T3] (supply side):
 - **Allocation System** — THE dominant instance population (114 of 196): agents
   post Risk Capital, borrow USDS at Base Rate, deploy via per-chain "conduits"
   (Liquidity Layers, on-chain + off-chain param split, Relayer Role execution,
@@ -720,7 +725,7 @@ registries + partners; primitive = the per-agent deployment mechanism):
 - **ALM Rental** (`bd1f1ce5`) — trades the ALM *obligation* separately from
   capital: constraint-flexibility, not capital provision.
 
-**Ep3. Rates family** — SSR (`A.3.1.2.2`, BEAM-bounded 200–3000bps), legacy DSR,
+**Ep3. Rates family** [T2] — SSR (`A.3.1.2.2`, BEAM-bounded 200–3000bps), legacy DSR,
 SKY Borrow Rate (piecewise utilization curve — [T2 ✓ 2026-07-27] source-verified
 at `05e97d4d` /A.4.4.1.3.5.1.2 Rate Setting Formula: two branches around Target
 Utilization, `SKY Borrow Minimum Rate + Utilization / Target Utilization * Slope 1`
@@ -733,7 +738,7 @@ Rfactor * f(Utilization)` — note the Rfactor deduction term the earlier
 locked: parameter (tunable coefficient) vs formula (immutable relationship) vs
 mechanism (contract machinery paying it).
 
-**Ep4. Revenue waterfall** — Treasury Management `6c0af059` /A.2.3: Net Revenue
+**Ep4. Revenue waterfall** [T2] — Treasury Management `6c0af059` /A.2.3: Net Revenue
 (Step 0) → allocation steps → Smart Burn Engine (Step 3) → Staking Rewards
 (Step 4). Step-3 split [T2 ✓ 2026-07-27, corrected]: an earlier version said
 "Step 3, 45%"; the source (`5ce73730` /A.2.3.1.2.4) actually allocates Step 3
@@ -751,24 +756,24 @@ operationalized by the Monthly Settlement Cycle (dual independent calculation +
 reconcile + true-up — an audit-shaped procedure) and tuned by the Operational
 Weekly Cycle. Surplus Buffer /A.3.5.1 is the state variable the waterfall reads.
 
-**Ep5. Fee/rebate loop** — Ecosystem Upkeep Fee (uniform, ∝ token supply) +
+**Ep5. Fee/rebate loop** [T3] — Ecosystem Upkeep Fee (uniform, ∝ token supply) +
 Upkeep Rebate (cross-holding incentive: A holding B's tokens claims rebate) —
 an INTER-AGENT cost-sharing mechanism, unlike user-facing rewards (Ep1).
 
-**Ep6. Budgets**
+**Ep6. Budgets** [T1]
 
 - **Definition** — named spending authorities with accrual/contingency rules.
 
 - **Detection signature** — title contains "Budget" — 24 docs, censused: tiered Ranked Delegate budgets (400k/175k/48k USDS/yr L1/L2/L3), Resilience Fund (5M/yr), Resilience Research (≤2M), Bug Bounty rewards budget, Liquidity Bootstrapping transfers (2M + 2.4M to Spark), and **three 0-USDS placeholder budgets** (Governance Process Support, Communications Infrastructure, Accessibility) — dormant-concept signal. Refines A1: the Budget Controller/Directory/Document TYPES are unused, but budgeting operates through plain Core docs — spec'd formalism abandoned, practice ad hoc. NR-10 ("AD Budget Management") shows the Atlas knows.
 
-**Ep7. Insurance & defense** — Resilience Fund `ccd36a29` /A.2.9.1.1.1
+**Ep7. Insurance & defense** [T3] — Resilience Fund `ccd36a29` /A.2.9.1.1.1
 (technical committee, application→approval→payout from Surplus Buffer);
 distinct from treasury (allocation) and grants (capacity-building transfers —
 Ecosystem Entity Grants /A.2.13 with recorded Aug-2025 disbursements + tx
 hashes). Grant vs Reward distinction: one-time capacity transfers vs per-user
 incentive flows.
 
-**Ep8. Peg & bridge machinery** — Lite PSM [T2 ✓ 2026-07-27]: `tin` 0%, `tout`
+**Ep8. Peg & bridge machinery** [T2] — Lite PSM [T2 ✓ 2026-07-27]: `tin` 0%, `tout`
 0%, `buf` 800,000,000 **DAI** (verbatim at `8694e11a` /A.3.3.2.7.1.1.2 Parameter
 Values — the unit is DAI, not USDS); "Control of the Lite PSM is being
 transitioned to Grove" (`39473e1a` /A.3.3.2.7.1.1 — an earlier version said
@@ -784,7 +789,7 @@ otherwise: Avalanche's USDS rate limit is **0 USDS per day** (`6d550b28`
 Weekly Cycle without a prior Governance Poll. Plus Freezer multisigs (F2);
 Token SkyLink primitive for pioneer launches.
 
-**Ep9. Risk model framework** — A.3.2's quantitative core (54 math docs, E3):
+**Ep9. Risk model framework** [T2] — A.3.2's quantitative core (54 math docs, E3):
 implemented models (Lending Markets, Legal Recourse Assets) vs **Pending Risk
 Models** (explicit backlog /A.3.2.1.1.4.3.2). Formula chain **corrected
 2026-07-27**: an earlier version gave "PD→LGD→EAD→RWA→required capital", which
@@ -977,7 +982,9 @@ concept taxonomy and the human-validated process taxonomy agree:
 
 ### II.6 Cross-scope concept duplication (same concept, parallel docs)
 
-*[T1] for the census below (mechanical set-diff); [T2] for the curated exemplars, hand-picked and read from the census output.*
+*[T1] — the census below (mechanical set-diff).*
+
+*[T2] — the curated exemplars, hand-picked and read from the census output.*
 
 Hand-picked exemplars, all present in the full census below: SkyLink Freezer
 Multisigs (one doc per chain in the A.1 governance view, its exact-title
