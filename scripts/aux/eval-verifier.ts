@@ -15,12 +15,12 @@
 // catch ≥ 0.9, FPR ≤ 0.1.
 import fs from "node:fs";
 import path from "node:path";
-import { loadIndexes } from "../../src/server/indexes.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
-import { openrouterJson } from "../../src/server/llm.ts";
-import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
-import { computeOverall, runVerifier, type VerifyOverall } from "../../src/server/verifier.ts";
-import type { RoundTelemetry } from "../../src/server/round-checks.ts";
+import { openrouterJson } from "../../src/server/chat/llm.ts";
+import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import { computeOverall, runVerifier, type VerifyOverall } from "../../src/server/chat/verify/verifier.ts";
+import type { RoundTelemetry } from "../../src/server/chat/verify/round-checks.ts";
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");

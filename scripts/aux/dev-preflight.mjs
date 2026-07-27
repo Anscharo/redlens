@@ -174,7 +174,7 @@ function ensureBundle() {
 }
 
 // The /connect page's tool list (public/tools.json) — generated straight from
-// src/server/tool-registry.ts, not atlas content, so it doesn't depend on
+// src/server/chat/tools/tool-registry.ts, not atlas content, so it doesn't depend on
 // docs.json/the worker at all. Cheap; just keep it fresh every boot.
 function ensureToolsCatalog() {
   if (truthy(process.env.DEV_NO_BUILD)) return;

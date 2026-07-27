@@ -9,7 +9,7 @@
 //
 // Kept generic (a full GraphData + AtlasBundle) so the remaining planned ports
 // (rewards, active_data, actors) share this one adapter.
-import type { Indexes, Entity, Edge, AtlasNode } from "../indexes.ts";
+import type { Indexes, Entity, Edge, AtlasNode } from "../retrieval/indexes.ts";
 import type { GraphData } from "../../lib/graphData.ts";
 import type { GraphEntity, RelationEdge } from "../../types.ts";
 import { parseDocNos } from "./util.ts";

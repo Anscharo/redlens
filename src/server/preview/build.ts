@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { config } from "../config.ts";
-import { getIndexes } from "../indexes.ts";
+import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
 import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
 import { contentDiff } from "./patch-diff.ts";

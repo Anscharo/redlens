@@ -8,9 +8,9 @@
 //   edge  signer_of              signer entity → multisig   meta { signer_count, via_role? }
 //   edge  can_modify_signers_of  entity → multisig
 //   entity.defining_doc_id       root doc UUID
-import type { Indexes, Edge } from "../indexes.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
-import type { ToolResult } from "../tools.ts";
+import type { Indexes, Edge } from "../retrieval/indexes.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
 import { parseMeta, parseDocNos } from "./util.ts";
 
 interface SignerOrg {

@@ -19,7 +19,7 @@ import crypto from "node:crypto";
 import type { AtlasNode, RelationEdge, GraphEntity } from "../../src/types";
 import { enumerateOeaTasks, normalizeAssessedText, type OeaTask } from "../../src/lib/oeaTasks";
 import type { Assessment, OeaAssessmentArtifact, OeaAssessmentEntry } from "../../src/lib/oeaAssessment";
-import { getClient } from "../../src/server/llm";
+import { getClient } from "../../src/server/chat/llm";
 import { loadRubric, buildSystemPrompt, buildUserPrompt, MECHANISM_CATALOG } from "./assess-oea-prompt";
 import { validateAssessment, downgradeToWeak } from "./assess-oea-validate";
 import { buildPrefixIndex, withRetry } from "./assess-common";

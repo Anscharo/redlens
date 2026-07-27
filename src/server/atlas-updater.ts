@@ -16,11 +16,11 @@ import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from
 import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
-import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./indexes.ts";
+import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
-import type { AtlasNode, DocMetaRow } from "./indexes.ts";
+import type { AtlasNode, DocMetaRow } from "./retrieval/indexes.ts";
 
 export type Decision = "idle" | "build";
 

@@ -150,7 +150,7 @@ External knowledge is saved to `.claude/agents/ask-atlas/EXTERNAL.md` and surviv
 
 ### Hosted MCP server
 
-The live MCP server runs as part of the Railway app (`src/server/`) — a stateless streamable-HTTP transport mounted at `/mcp`, backed by the in-memory atlas indexes + Postgres, exposing the full atlas tool set (`atlas_search`, `atlas_get`, `atlas_describe`, `atlas_entities`, `atlas_get_address`, `atlas_neighbors`, `atlas_traverse`, `atlas_entity`, `atlas_filter`, `atlas_entity_params`, `atlas_history`, `atlas_recent_changes`, `atlas_pr`, `atlas_changed_between`, `atlas_query`). It's public and read-only — no API key or auth. The same tool registry (`src/server/tool-registry.ts`) backs both MCP clients and the `/api/chat` agentic loop, so they never drift.
+The live MCP server runs as part of the Railway app (`src/server/`) — a stateless streamable-HTTP transport mounted at `/mcp`, backed by the in-memory atlas indexes + Postgres, exposing the full atlas tool set (`atlas_search`, `atlas_get`, `atlas_describe`, `atlas_entities`, `atlas_get_address`, `atlas_neighbors`, `atlas_traverse`, `atlas_entity`, `atlas_filter`, `atlas_entity_params`, `atlas_history`, `atlas_recent_changes`, `atlas_pr`, `atlas_changed_between`, `atlas_query`). It's public and read-only — no API key or auth. The same tool registry (`src/server/chat/tools/tool-registry.ts`) backs both MCP clients and the `/api/chat` agentic loop, so they never drift.
 
 **Endpoint:** `https://atlas.redline.support/mcp` (see `.mcp.json`)
 

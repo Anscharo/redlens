@@ -109,8 +109,8 @@ log(`candidate/subject HTML timelines: ${Object.keys(out.cases).length} cases`);
 if (!NO_DB && seedCloseUuidByCase.size) {
   log(`fetching post-migration history for ${seedCloseUuidByCase.size} seed-close subjects…`);
   const { sql, waitForDb } = await import("../../src/server/db.ts");
-  const { gitCommitSeq } = await import("../../src/server/history-db.ts");
-  const { fetchPostMigrationHistory } = await import("../../src/server/history-timeline-db.ts");
+  const { gitCommitSeq } = await import("../../src/server/history/history-db.ts");
+  const { fetchPostMigrationHistory } = await import("../../src/server/history/history-timeline-db.ts");
   await waitForDb();
   const seqByCommit = gitCommitSeq();
   const migrationSha7 = (data.meta?.migrationSha || "").slice(0, 7);

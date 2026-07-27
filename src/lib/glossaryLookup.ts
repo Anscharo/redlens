@@ -1,5 +1,5 @@
 // Pure glossary types + alias-flattening lookup builder. Shared by the frontend
-// loader (src/lib/glossary.ts) and the server indexes (src/server/indexes.ts) —
+// loader (src/lib/glossary.ts) and the server indexes (src/server/retrieval/indexes.ts) —
 // no fetch, no browser globals, so the server can import it directly.
 export interface GlossaryEntry {
   term: string;

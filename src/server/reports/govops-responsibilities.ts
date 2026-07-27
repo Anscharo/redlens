@@ -6,8 +6,8 @@
 // call, instead of the model reconstructing it from duty_for / *_govops_for /
 // responsible_party_for edges by hand. The shared shaping lives in
 // ./responsibilities.
-import type { Indexes } from "../indexes.ts";
-import type { ToolResult } from "../tools.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
 import { deriveGovOpsResponsibilities, ogSearchFields, CATEGORY_LABELS } from "../../lib/govopsResponsibilities.ts";
 import { indexesToDocs, indexesToGraphData } from "./ix-adapter.ts";
 import { buildResponsibilitiesReport } from "./responsibilities.ts";

@@ -7,9 +7,9 @@
 //
 // (The UI additionally decorates rows with last-edit dates from history; that's
 // client-side and NOT part of buildActiveDataRows, so it isn't included here.)
-import type { Indexes } from "../indexes.ts";
-import type { ToolResult } from "../tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildActiveDataRows, adSearchFields, type ActiveDataRow } from "../../lib/activeDataIndex.ts";
 import { indexesToGraphData, indexesToDocs } from "./ix-adapter.ts";
 import { applyReportFilter } from "./report-filter.ts";

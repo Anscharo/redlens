@@ -11,9 +11,9 @@
 // Source (build-graph): entity et=primitive, subtype=<category slug>,
 // meta { agent_doc_id, primitive_category_doc_id, status }. agent_doc_id === the
 // Prime Agent entity's defining_doc_id. Denominator = all Prime Agents.
-import type { Indexes } from "../indexes.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
-import type { ToolResult } from "../tools.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
 import { parseMeta } from "./util.ts";
 
 type Activation = "Active" | "Inactive" | "Completed";
