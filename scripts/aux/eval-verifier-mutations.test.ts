@@ -1,7 +1,7 @@
 // Pure tests for the verifier-eval tamper functions.
 import { test, expect } from "bun:test";
-import { loadIndexes } from "../../src/server/indexes.ts";
-import { extractCitations, findInvalidCitationUuids } from "../../src/server/verify-checks.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+import { extractCitations, findInvalidCitationUuids } from "../../src/server/chat/verify/verify-checks.ts";
 import { buildMutations, mutateNumber, mutateUnknownUuid, mutateWrongDoc } from "./eval-verifier-mutations.ts";
 
 const ix = loadIndexes();

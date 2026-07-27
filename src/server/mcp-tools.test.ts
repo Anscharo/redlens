@@ -9,8 +9,8 @@
 // job, not here.
 import { test, expect } from "bun:test";
 import { z } from "zod";
-import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./tool-registry.ts";
-import { buildIndexes, type AtlasNode, type Edge, type Entity } from "./indexes.ts";
+import { ATLAS_TOOLS, TOOLS_BY_NAME } from "./chat/tools/tool-registry.ts";
+import { buildIndexes, type AtlasNode, type Edge, type Entity } from "./retrieval/indexes.ts";
 
 // ── Fixture ──────────────────────────────────────────────────────────────
 //  A (Scope)

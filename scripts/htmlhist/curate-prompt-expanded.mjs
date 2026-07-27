@@ -2,7 +2,7 @@
 // the ones that survived content-similarity matching, forward-tracing, LLM cross-
 // checks, and frontier-model escalation without a confident resolution. Adds a
 // TIMELINE dimension (when things happened, from history-timeline.mjs) the existing
-// propose prompt (src/server/history-curate.ts) doesn't have, and a third verdict
+// propose prompt (src/server/history/history-curate.ts) doesn't have, and a third verdict
 // ("widen") so a case where the truth isn't among the shown candidates doesn't get
 // force-matched or wrongly marked "born". Pure string templating, no LLM call — this
 // assembles ready-to-paste system/user text for a human/agent to run elsewhere.

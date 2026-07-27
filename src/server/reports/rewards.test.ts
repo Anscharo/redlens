@@ -6,7 +6,7 @@
 // and one Distribution Reward primitive holding a single active Instance.
 import { test, expect } from "bun:test";
 import { buildRewardsReport } from "./rewards.ts";
-import type { Indexes, AtlasNode, Edge, Entity } from "../indexes.ts";
+import type { Indexes, AtlasNode, Edge, Entity } from "../retrieval/indexes.ts";
 
 function node(id: string, doc_no: string, title: string, content = ""): AtlasNode {
   return { id, doc_no, title, type: "Core", depth: 3, parentId: null, order: 0, content, contentHash: `h-${id}`, addressRefs: [] } as AtlasNode;

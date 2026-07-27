@@ -2,7 +2,7 @@
 // is excluded from vitest). Hand-built Indexes fixture.
 import { test, expect } from "bun:test";
 import { buildPrimitiveMatrixReport } from "./primitive-matrix.ts";
-import type { Indexes, AtlasNode, Entity } from "../indexes.ts";
+import type { Indexes, AtlasNode, Entity } from "../retrieval/indexes.ts";
 
 // Two Prime Agents (Alpha @ A.6.1.1.1, Bravo @ A.6.1.1.2).
 //   agent-creation:      Completed for both        → universal (engaged 2/2)

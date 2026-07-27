@@ -6,7 +6,7 @@
 // one active-data responsibility.
 import { test, expect } from "bun:test";
 import { buildFacilitatorResponsibilitiesReport } from "./facilitator-responsibilities.ts";
-import type { Indexes, AtlasNode, Edge, Entity } from "../indexes.ts";
+import type { Indexes, AtlasNode, Edge, Entity } from "../retrieval/indexes.ts";
 
 function node(id: string, doc_no: string, title: string, type = "Core", content = ""): AtlasNode {
   return { id, doc_no, title, type, depth: 3, parentId: null, order: 0, content, contentHash: `h-${id}`, addressRefs: [] } as AtlasNode;

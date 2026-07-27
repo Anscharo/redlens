@@ -24,7 +24,7 @@ import { execSync } from "node:child_process";
 import { loadHtmlAt } from "./atlas-html.mjs";
 import { runAutoCurate } from "./auto-curate-run.mjs";
 import { writeAutoDecisions, reportAutoCuration, writeProposals, loadLlmCache, writeLlmCache } from "./auto-curate-io.mjs";
-import { proposePredecessor, proposeClusterAssignment } from "../../src/server/history-curate.ts";
+import { proposePredecessor, proposeClusterAssignment } from "../../src/server/history/history-curate.ts";
 import { config } from "../../src/server/config.ts";
 
 const ROOT = process.cwd();

@@ -7,7 +7,7 @@
 // Postgres (constructing the lazy SQL client doesn't connect).
 import fs from "node:fs";
 import path from "node:path";
-import { ATLAS_TOOLS } from "../../src/server/tool-registry.ts";
+import { ATLAS_TOOLS } from "../../src/server/chat/tools/tool-registry.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const OUT = path.join(ROOT, "public", "tools.json");

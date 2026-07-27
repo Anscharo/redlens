@@ -8,10 +8,10 @@
 // all consume it with zero changes (evidenceFromTranscript walks tool messages
 // generically).
 import type OpenAI from "openai";
-import type { Indexes, Entity } from "./indexes.ts";
+import type { Indexes, Entity } from "./retrieval/indexes.ts";
 import type { GlossaryEntry } from "../lib/glossaryLookup.ts";
-import { matchEntities, entityAliases } from "./entity-resolve.ts";
-import { entityKindLabel } from "./entity-kind.ts";
+import { matchEntities, entityAliases } from "./retrieval/entity-resolve.ts";
+import { entityKindLabel } from "./retrieval/entity-kind.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 

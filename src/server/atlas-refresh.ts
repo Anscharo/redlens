@@ -21,10 +21,10 @@
 //      `discard`/`replace` exclude docs from results immediately, before cleanup.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { contentHash } from "./embed-text.ts";
+import { contentHash } from "./retrieval/embed-text.ts";
 import { config } from "./config.ts";
-import { buildGraph, readArtifactsFromDisk } from "./indexes.ts";
-import type { AtlasNode, Edge, Entity, Indexes } from "./indexes.ts";
+import { buildGraph, readArtifactsFromDisk } from "./retrieval/indexes.ts";
+import type { AtlasNode, Edge, Entity, Indexes } from "./retrieval/indexes.ts";
 
 export interface DocDelta {
   added: AtlasNode[];

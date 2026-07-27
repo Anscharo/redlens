@@ -5,9 +5,9 @@
 // each agent's operational chain, primitive activation, and every Instance /
 // Invocation with its resolved params — in one call, instead of the model
 // stitching it together from instance entities + active_data_for edges by hand.
-import type { Indexes } from "../indexes.ts";
-import type { ToolResult } from "../tools.ts";
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
+import type { Indexes } from "../retrieval/indexes.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { buildRewardsIndex } from "../../lib/rewardsIndex.ts";
 import type { AgentPrimitive, RewardsAgent, RewardsIcd } from "../../lib/rewardsTypes.ts";
 import { filterRewardsAgents } from "../../lib/rewardsSearch.ts";

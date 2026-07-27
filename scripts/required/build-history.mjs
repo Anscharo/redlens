@@ -41,7 +41,7 @@ import {
   preEraRows,
   readHistoryCursor,
   upsertHistory,
-} from "../../src/server/history-db.ts";
+} from "../../src/server/history/history-db.ts";
 
 // Two sinks: default writes history straight to Postgres (atlas_history);
 // `--out-json` writes the legacy per-node public/history/<uuid>.json files

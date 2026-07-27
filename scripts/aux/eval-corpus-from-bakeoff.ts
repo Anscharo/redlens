@@ -20,9 +20,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../../src/server/config.ts";
-import { loadIndexes } from "../../src/server/indexes.ts";
-import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
-import type { EvidenceEntry } from "../../src/server/verifier.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import type { EvidenceEntry } from "../../src/server/chat/verify/verifier.ts";
 import { BAKEOFF_QUERIES } from "./eval-bakeoff-queries.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");

@@ -8,9 +8,9 @@ import { join } from "node:path";
 import { sql, toVectorLiteral } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
-import { buildEmbedText, contentHash } from "./embed-text.ts";
-import { embedBatch, EMBED_DIM } from "./embed.ts";
-import type { AtlasNode } from "./indexes.ts";
+import { buildEmbedText, contentHash } from "./retrieval/embed-text.ts";
+import { embedBatch, EMBED_DIM } from "./retrieval/embed.ts";
+import type { AtlasNode } from "./retrieval/indexes.ts";
 
 // Per-request embedding batch size (how many texts per OpenRouter call). There
 // is no total cap: the content_hash diff already bounds each run to new/changed

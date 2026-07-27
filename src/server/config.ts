@@ -199,7 +199,7 @@ export const config = {
   // for the recovery JSON, so this is env-tunable per deployed advisor model.
   chatAdvisorTimeoutMs: Number(process.env.CHAT_ADVISOR_TIMEOUT_MS ?? 8000),
 
-  // Per-turn model routing (rules-based — src/server/model-router.ts). Each slot
+  // Per-turn model routing (rules-based — src/server/chat/model-router.ts). Each slot
   // is a CSV: first entry = primary model, rest = OpenRouter fallback models
   // tried in order on provider failure. Unset tier slots inherit chatModel +
   // chatModelFallbacks, so with nothing set routing is a no-op and CHAT_MODEL

@@ -75,7 +75,31 @@ export const areas = [
   { id: "frontend-workers", label: "Front-end workers", match: [/^src\/workers\//] },
   { id: "backend-routes", label: "Backend routes", match: [/^src\/server\/(index|http|sse|auth|mcp|posthog-proxy)\.ts$/, /^src\/server\/preview\/handler\.ts$/] },
   { id: "backend-workers", label: "Backend workers", match: [/^src\/server\/(atlas-updater|atlas-refresh|sync|sync-embeddings|prefetch)\.ts$/, /^src\/server\/preview\/(sweeper|build)\.ts$/, /^scripts\/required\/atlas-worker\.mjs$/] },
-  { id: "backend-core", label: "Backend core", match: [/^src\/server\//] },
+  // ---- Backend product meters ----
+  // `backend-core` used to be a single ~5k-line catch-all over ALL of src/server/.
+  // The product files now live in per-product FOLDERS (src/server/{chat,chat/tools,
+  // chat/verify,retrieval,history}/), so each meter is just a folder prefix and the
+  // set of files stays honest as code is added/moved. Ordering is load-bearing
+  // (areaFor returns the FIRST match): these sit AFTER backend-routes + backend-workers
+  // (so preview/handler.ts stays a route and preview/{build,sweeper}.ts stay workers),
+  // chat/tools + chat/verify precede the broad chat/ prefix, and the whole set sits
+  // BEFORE the backend-core misc catch-all. Proved a total partition of src/server/
+  // by scripts_tests/coverage-areas.test.ts — keep in sync.
+  { id: "backend-preview", label: "Backend · PR review (preview)", match: [/^src\/server\/preview\//] },
+  { id: "backend-history", label: "Backend · History", match: [/^src\/server\/history\//] },
+  // The LLM tool layer the chat agent calls: registry + graph/history tool impls.
+  { id: "backend-chat-tools", label: "Backend · Chat/AI (tools)", match: [/^src\/server\/chat\/tools\//] },
+  // Answer grounding: verifier(s), verify-checks, citation repair + stream gate, round checks, advisor.
+  { id: "backend-chat-verify", label: "Backend · Chat/AI (verify)", match: [/^src\/server\/chat\/verify\//] },
+  // Conversation orchestration + LLM plumbing. Listed after chat/tools + chat/verify
+  // so those claim their nested files; this catches the rest of chat/.
+  { id: "backend-chat", label: "Backend · Chat/AI (core)", match: [/^src\/server\/chat\//] },
+  // RAG/search retrieval: query build, indexes, keyword search, embeddings, entity/doc resolve.
+  { id: "backend-retrieval", label: "Backend · Retrieval", match: [/^src\/server\/retrieval\//] },
+  { id: "backend-reports", label: "Backend · Reports", match: [/^src\/server\/reports\//] },
+  // Misc catch-all — everything else at src/server/ root (config, og/og-image, bundle-store,
+  // collections, session, rate-limit, migrate, db, posthog-*, atlas-static, stream helpers). Keep last.
+  { id: "backend-core", label: "Backend · Core (misc)", match: [/^src\/server\//] },
   { id: "general-utils", label: "General utils/units", match: [/^src\/lib\//, /^scripts\/lib\//] },
 ];
 
@@ -83,6 +107,12 @@ export const areas = [
 // React source file (components + hooks + context, .ts/.tsx, minus tests) maps to
 // exactly one of these.
 export const reactAreaIds = areas.filter((a) => a.id.startsWith("react-")).map((a) => a.id);
+
+// Ids of the backend meters (routes, workers, and the product split of the former
+// backend-core), in display order. The proof test asserts every src/server file maps
+// to exactly one of these and none leak to general-utils/uncategorized. `backend-core`
+// is the misc catch-all, so totality holds automatically for any new src/server file.
+export const backendAreaIds = areas.filter((a) => a.id.startsWith("backend-")).map((a) => a.id);
 
 // First match wins. Specific areas precede broad ones in `areas`, so a plain
 // ordered scan yields the correct bucket (e.g. backend-routes before backend-core,

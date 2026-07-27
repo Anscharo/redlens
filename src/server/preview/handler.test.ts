@@ -13,7 +13,7 @@ const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
 async function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h-"));
   process.env.PREVIEW_DIR = dir;
-  const { loadIndexes, setIndexes, getIndexes } = await import("../indexes.ts");
+  const { loadIndexes, setIndexes, getIndexes } = await import("../retrieval/indexes.ts");
   setIndexes(loadIndexes());
   const ix = getIndexes();
   if (ix.docMap.size === 0) return null; // no built artifacts → skip

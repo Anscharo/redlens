@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { config } from "../config.ts";
-import { getIndexes } from "../indexes.ts";
+import { getIndexes } from "../retrieval/indexes.ts";
 import { PREVIEW_DIR, bundleReady, readMeta, remove, evictLru } from "./cache.ts";
 import { blockedShas } from "./db.ts";
 import { inflightShas } from "./build.ts";
