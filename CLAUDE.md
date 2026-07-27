@@ -4,15 +4,6 @@ A search-first interface for the Sky ecosystem's [next-gen-atlas](https://github
 
 **Atlas Markdown syntax reference**: `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md` — canonical spec for heading format, document numbering, document types, extra fields, and nesting rules. Read this before touching the parser.
 
-## Stack
-
-- **Build/dev**: Vite + pnpm + TypeScript
-- **UI**: React 19 + Tailwind v4 (via `@tailwindcss/vite`)
-- **Search**: MiniSearch (full-content index, runs in a Web Worker)
-- **Markdown**: react-markdown + remark-gfm + remark-math + rehype-katex (KaTeX)
-- **Custom rehype plugin**: linkifies on-chain addresses to block explorers
-- **Graph**: graphology (in a Web Worker) for node relations
-
 ## Commands
 
 ```bash
@@ -54,20 +45,7 @@ Escape hatches: `DEV_NO_INSTALL=1` (skip the install check), `DEV_NO_WORKER=1` (
 
 ### Process inventory scripts
 
-The curated process inventory (`public/processes.json` + `public/processes-ignored.json`) is reconciled against atlas drift via a separate set of scripts. They split cleanly into human entry-points and machine entry-points.
-
-**For humans to run:**
-
-- **`pnpm processes:triage [--dry-run] [--issue N]`** — the canonical human entry point. Wrapper around `scripts/aux/processes-triage.sh`: clean-tree preflight → sync `main` → new branch `processes-triage/YYYY-MM-DD` → launch interactive Claude with the `processes-triage` skill (git/gh write tools blocked) → on exit, commit only `public/processes*.json`, push, open PR. `--dry-run` skips git ops + allows running from any branch. `--issue N` appends `Closes #N` to the PR body (issue body/comments are deliberately not read — the skill regenerates the authoritative audit locally).
-- **`pnpm processes:apply-decisions <decisions.json>`** — apply a `[{ uuid, verdict: "add"|"ignore", ... }]` decisions file to the inventory. Consumed by the `processes-triage` skill (large-batch path) and by the curation UI on `/reports/processes` (which exports this exact shape).
-
-**For workflows / CI to call (humans rarely run directly):**
-
-- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Humans run it manually to refresh the audit cache before triage.
-
-**One-shot / rarely needed:**
-
-- **`pnpm processes:bootstrap`** — rebuild `public/processes.json` from scratch using `docs/process-inventory.md`. Only used for the initial seed; not part of the steady-state cycle.
+The curated process inventory (`public/processes.json` + `public/processes-ignored.json`) is reconciled against atlas drift by the `processes:*` scripts, which are off the `pnpm build` chain. See `.claude/skills/processes-triage/SKILL.md` ("Entry points") for which are human entry-points vs CI-only, and the triage runbook.
 
 ## Architecture
 
@@ -111,43 +89,15 @@ See `.claude/skills/address-extraction/SKILL.md` for the full reference: EVM/Sol
 
 `App.tsx` is the shell (routing, URL sync, layout). The main atlas view is `src/components/atlas/AtlasView.tsx`.
 
-**Workers:**
+Three workers: `search.worker.ts` (MiniSearch), `atlas.worker.ts` (tree view), `graph.worker.ts` (graphology `MultiDirectedGraph` over `relations.json`). The atlas view is `src/components/atlas/`, the entity view `src/components/radar/` (`/radar`, `/radar/:slug`), reports `src/components/reports/`.
 
-- **`src/workers/search.worker.ts`** — loads `docs.json` + `search-index.json`, runs MiniSearch queries, generates highlighted snippets. Phrase post-filter: `"quoted"` phrases are stripped before the MiniSearch query, then every hit is checked for literal substring containment.
-- **`src/workers/atlas.worker.ts`** — loads and parses `docs.json` for the atlas tree view.
-- **`src/workers/graph.worker.ts`** — loads `relations.json` into a graphology `MultiDirectedGraph`; answers edge queries, BFS neighbor/subgraph requests for the main thread.
+Non-obvious behaviours:
 
-**Atlas view (`src/components/atlas/`):**
-
-- **`AtlasView.tsx`** — main atlas page. Loads atlas + addresses + chain-state + glossary in parallel. Renders a flat virtualized list via `CollapsibleNode`. Computes `linkedNodes`, `targetAddresses`, `glossaryTerms` in a single `useMemo` keyed on `[data, id]`. Passes everything to `RightPanel`.
-- **`CollapsibleNode.tsx`** — single row in the atlas tree. Expand/collapse, depth-based indent, renders node content via `NodeContent`. Nodes at depth ≥ 6 are hidden behind a "view all descendants" button until expanded.
-- **`RightPanel.tsx`** — right annotations panel. Three tabs: `annotations` (linked docs, graph relations, addresses), `glossary` (terms found in this section), `history`. All data arrives as props from `AtlasView`. Tab state is URL-synced via `?view=glossary` / `?view=history`.
-
-**Shared components (`src/components/`):**
-
-- **`NodeContent.tsx`** / **`NodeContentInner.tsx`** — markdown rendering. `rehypeEthAddresses` plugin linkifies on-chain addresses; KaTeX loaded lazily on demand. `onNavigate` via React context. UUID hrefs intercepted for SPA navigation.
-- **`RelatedNode.tsx`** — linked-node card in the right panel.
-- **`AddressCard.tsx`** — address card with entity label, aliases, explorer link, role pills.
-- **`SearchBar.tsx`** — header: home link, search input, scope filter pills.
-- **`SearchResults.tsx`** / **`SearchResult.tsx`** — result list and individual result card.
-- **`SearchHints.tsx`** — idle-state syntax cheat sheet.
-
-**Hooks / lib:**
-
-- **`src/hooks/useSearch.ts`** — debounced search hook with pending-id race guard.
-- **`src/lib/docs.ts`** — `loadAtlas()` module-level Promise cache for `docs.json`.
-- **`src/lib/addresses.ts`** — `loadAddresses()` module-level cache for `addresses.json`.
-- **`src/lib/glossary.ts`** — `loadGlossary()` + `buildLookup()`. Lookup flattens parenthetical aliases (`"Accessibility Scope (ACC)"` → keys for both `"accessibility scope"` and `"acc"`).
-- **`src/lib/graph.ts`** — `loadGraph()` (cached graph data for reports/radar), `getEdges(id)` — async wrapper that messages the graph worker for a node's edges.
-- **`src/lib/atlasHelpers.ts`** — shared helpers (`extractLinkedIds`, `buildAncestors`) and the `LoadedData` interface.
-
-**Radar (`src/components/radar/`):**
-
-Entity-focused view at `/radar` (index) and `/radar/:slug` (actor page). Builds actor profiles from the graph — chain (prime → executor → facilitator/govops), active data responsibilities, reward instances, primitive instances with params, and governance relationships. Key files: `RadarPage.tsx` (routing + data loading), `ActorDashboard.tsx` (layout), `ActorInstances.tsx`, `ActorChain.tsx`, `ActorResponsibilities.tsx`. Data logic lives in `src/lib/actorIndex.ts` (`buildActorProfile`, `buildSidebarActors`).
-
-**Reports (`src/components/reports/`):**
-
-Reports at `/reports/*`: Op Facilitator Responsibilities, Active Data Index, Integrator Reward Relationships, Atlas Processes, Stale Dates. Data logic is separated into pure modules (`src/lib/facilitatorResponsibilities.ts`, `src/lib/activeDataIndex.ts`, `src/lib/rewardsIndex.ts`, `src/lib/staleDates.ts`) so they're testable without React. Stale Dates recomputes client-side from `docs.json` + the actual date on every visit (no build step or worker involvement — it can't serve a stale view).
+- **Search phrase post-filter** — `"quoted"` phrases are stripped before the MiniSearch query, then every hit is re-checked for literal substring containment.
+- **Depth ≥ 6 nodes are hidden** behind a "view all descendants" button until expanded (`CollapsibleNode.tsx`) — a consequence of the depth cap above.
+- **Glossary lookup flattens parenthetical aliases** — `"Accessibility Scope (ACC)"` yields keys for both `"accessibility scope"` and `"acc"`.
+- **Report data logic lives in pure `src/lib/*` modules, not in the components**, so it's testable without React. Keep it that way when adding one.
+- **Stale Dates recomputes client-side** from `docs.json` + the actual date on every visit — no build step, no worker — so it can't serve a stale view.
 
 **When adding a new report** (a new `/reports/<slug>` route, `ReportId`, `src/components/reports/*` page, or `src/lib/*Index.ts` module), read and follow `.claude/skills/new-report/SKILL.md` (skill: `new-report`) — the checklist for CSV export, URL-synced filtering, in-report search, analytics, result counts, and registration that every report must satisfy.
 
@@ -163,13 +113,7 @@ Vitest snapshot tests that record the current state of `relations.json`. Run `pn
 
 ### Styling
 
-Color tokens live as CSS variables in `src/index.css`:
-
-- `--bg #160e0d` (charcoal w/ red undertone), `--surface`, `--hover #3a1f1a`
-- `--red #a63228`, `--accent #c67267` (links/focus, browner-pinker — _not_ the original error-looking red)
-- `--tan #f3e7ce` / `--tan-2` / `--tan-3` (tans/browns)
-- Fonts: Inter (body), Source Code Pro (mono)
-- KaTeX is overridden to use `--tan` color
+Color tokens live as CSS variables in `src/index.css` (charcoal-with-red-undertone bg, red/accent, tans); the `ui-look-and-feel` skill covers the full token system and the `/admin/palette` editor. The one value worth stating here: `--accent` (links/focus) is deliberately browner-pinker — _not_ the original error-looking red.
 
 Selected-node treatment: red left bar, brighter text, plus a subtle muted-red fill (`--bg`) that sits against the deeper reader/sidebar bg (`--bg-deep`). (Earlier guidance said "never add a background to the selected node" — that was reversed intentionally once the reader adopted the deep bg; the soft `--bg` tint is now the selected marker alongside the bar.)
 

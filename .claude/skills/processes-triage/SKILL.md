@@ -18,6 +18,23 @@ metadata:
 
 The curated process inventory lives in `public/processes.json` (55 hand-validated process nodes from `docs/process-inventory.md`). When the atlas changes, `scripts/required/check-processes-dirty.mjs` surfaces three categories of drift; this skill is the runbook for reconciling them locally.
 
+## Entry points
+
+The inventory is reconciled against atlas drift by a set of scripts separate from the `pnpm build` chain. They split cleanly into human entry-points and machine entry-points.
+
+**For humans to run:**
+
+- **`pnpm processes:triage [--dry-run] [--issue N]`** — the canonical human entry point. Wrapper around `scripts/aux/processes-triage.sh`: clean-tree preflight → sync `main` → new branch `processes-triage/YYYY-MM-DD` → launch interactive Claude with this skill (git/gh write tools blocked) → on exit, commit only `public/processes*.json`, push, open PR. `--dry-run` skips git ops + allows running from any branch. `--issue N` appends `Closes #N` to the PR body (issue body/comments are deliberately not read — this skill regenerates the authoritative audit locally).
+- **`pnpm processes:apply-decisions <decisions.json>`** — apply a `[{ uuid, verdict: "add"|"ignore", ... }]` decisions file to the inventory. Consumed by this skill's large-batch path (§3) and by the curation UI on `/reports/processes` (which exports this exact shape).
+
+**For workflows / CI to call (humans rarely run directly):**
+
+- **`pnpm processes:check`** — runs `scripts/required/check-processes-dirty.mjs`: auto-applies title/doc_no snapshot drift in place, writes `.cache/processes-audit.{json,md}`, emits GH Actions outputs (`dirty`, `missing`, `candidates`). **Always exits 0** so it never blocks builds or deployments. Humans run it manually to refresh the audit cache before triage.
+
+**One-shot / rarely needed:**
+
+- **`pnpm processes:bootstrap`** — rebuild `public/processes.json` from scratch using `docs/process-inventory.md`. Only used for the initial seed; not part of the steady-state cycle.
+
 ## Inputs
 
 - `public/processes.json` — curated list (source of truth)
