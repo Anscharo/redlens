@@ -1,7 +1,15 @@
 // Run under `bun test` (NOT vitest) — imports Bun SQL transitively via ./db.ts.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, mock, beforeEach, afterAll } from "bun:test";
 import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds, assembleFreshness, REQUIRED_SCHEMA } from "./freshness.ts";
 import type { UpdaterState } from "../atlas-updater.ts";
+import { buildIndexes, rebuildFromDisk } from "../retrieval/indexes.ts";
+
+// The evaluateFreshness block installs fixture indexes via setIndexes(); restore
+// the real on-disk set afterward so later test files don't inherit a fixture
+// docMap (bun's module state is process-global).
+afterAll(() => {
+  rebuildFromDisk();
+});
 
 const REQUIRED = "008_preview_trust.sql";
 const base = {
@@ -190,5 +198,91 @@ describe("freshnessHttpStatus", () => {
     expect(freshnessHttpStatus("stale")).toBe(503);
     expect(freshnessHttpStatus("schema_behind")).toBe(503);
     expect(freshnessHttpStatus("degraded")).toBe(503);
+  });
+});
+
+describe("evaluateFreshness", () => {
+  beforeEach(() => {
+    mock.restore();
+  });
+
+  function seedIndexes(atlasCommit: string) {
+    const ix = buildIndexes(
+      [{ id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "", order: 0, addressRefs: [] }],
+      [],
+      [],
+      { atlasCommit },
+    );
+    // setIndexes/getIndexes share module-level state — real module, no mocking needed.
+    const { setIndexes } = require("../retrieval/indexes.ts");
+    setIndexes(ix);
+  }
+
+  it("queries sync_state + schema_migrations and reports ok when converged", async () => {
+    seedIndexes(REQUIRED_SCHEMA);
+    mock.module("../db.ts", () => ({
+      sql: Object.assign((strings: TemplateStringsArray) => {
+        const q = strings[0] ?? "";
+        if (q.includes("sync_state")) {
+          return Promise.resolve([{ atlas_sha: REQUIRED_SCHEMA, synced_at: new Date().toISOString() }]);
+        }
+        if (q.includes("schema_migrations")) {
+          return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
+        }
+        return Promise.resolve([]);
+      }, { mock: true }),
+    }));
+    const { evaluateFreshness } = await import("./freshness.ts");
+    const snap = await evaluateFreshness(Date.now());
+    expect(snap.dbReachable).toBe(true);
+    expect(snap.liveSha).toBe(REQUIRED_SCHEMA);
+    expect(snap.dbSha).toBe(REQUIRED_SCHEMA);
+    expect(snap.docs).toBe(1);
+    expect(snap.status).toBe("ok");
+  });
+
+  it("marks dbReachable false and status degraded when the sync_state query throws", async () => {
+    seedIndexes("abc");
+    mock.module("../db.ts", () => ({
+      sql: Object.assign(() => Promise.reject(new Error("connection refused")), { mock: true }),
+    }));
+    const { evaluateFreshness } = await import("./freshness.ts");
+    const snap = await evaluateFreshness(Date.now());
+    expect(snap.dbReachable).toBe(false);
+    expect(snap.schemaVersion).toBeNull();
+    expect(snap.status).toBe("degraded");
+  });
+
+  it("leaves schemaVersion null (not degraded) when only the schema_migrations query throws", async () => {
+    seedIndexes("abc");
+    mock.module("../db.ts", () => ({
+      sql: Object.assign((strings: TemplateStringsArray) => {
+        const q = strings[0] ?? "";
+        if (q.includes("sync_state")) {
+          return Promise.resolve([{ atlas_sha: "abc", synced_at: new Date().toISOString() }]);
+        }
+        return Promise.reject(new Error("no such table"));
+      }, { mock: true }),
+    }));
+    const { evaluateFreshness } = await import("./freshness.ts");
+    const snap = await evaluateFreshness(Date.now());
+    expect(snap.dbReachable).toBe(true);
+    expect(snap.schemaVersion).toBeNull();
+  });
+
+  it("handles an empty sync_state row (never synced) without throwing", async () => {
+    seedIndexes("abc");
+    mock.module("../db.ts", () => ({
+      sql: Object.assign((strings: TemplateStringsArray) => {
+        const q = strings[0] ?? "";
+        if (q.includes("sync_state")) return Promise.resolve([]);
+        if (q.includes("schema_migrations")) return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
+        return Promise.resolve([]);
+      }, { mock: true }),
+    }));
+    const { evaluateFreshness } = await import("./freshness.ts");
+    const snap = await evaluateFreshness(Date.now());
+    expect(snap.dbSha).toBeNull();
+    expect(snap.ageSeconds).toBeNull();
   });
 });

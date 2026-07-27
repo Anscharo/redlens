@@ -129,6 +129,19 @@ test("buildAddrRows keeps Solana case, lowercases EVM, and joins chain-state by 
   expect(evm.chain_state).toMatchObject({ block: 9, balance: 2 });
 });
 
+test("buildChainStateByAddr handles the flat (no `chains`) shape — top-level values/block", () => {
+  const cs = buildChainStateByAddr({
+    block: 42,
+    values: { [EVM_UPPER]: { balance: 3 } },
+  });
+  expect(cs[EVM_UPPER.toLowerCase()]).toMatchObject({ block: 42, values: { balance: 3 } });
+});
+
+test("buildChainStateByAddr on the flat shape defaults block to null when omitted", () => {
+  const cs = buildChainStateByAddr({ values: { [EVM_UPPER]: { balance: 1 } } });
+  expect(cs[EVM_UPPER.toLowerCase()].block).toBeNull();
+});
+
 test("buildAddrRows dedupes case-variant EVM addresses by (address, chain) — no duplicate PK", () => {
   const rows = buildAddrRows(
     {

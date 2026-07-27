@@ -30,4 +30,11 @@ describe("entityKindLabel", () => {
     expect(entityKindLabel("mystery_type", null)).toBe("mystery_type");
     expect(entityKindLabel("agent", "mystery_subtype")).toBe("mystery_subtype Agent");
   });
+
+  it("ignores a subtype on an entity_type outside the subtype-composing groups (agent/ecosystem_actor/slug types)", () => {
+    // multisig has a subtype value in this hypothetical, but multisig isn't
+    // agent, ecosystem_actor, or in SLUG_SUBTYPE_TYPES — the bare type label
+    // wins, the subtype is silently dropped.
+    expect(entityKindLabel("multisig", "some_subtype")).toBe("Multisig");
+  });
 });

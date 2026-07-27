@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
-import { eventToRow, HISTORY_COLS, upsertAtlasPrs } from "./history-db.ts";
+import { eventToRow, HISTORY_COLS, upsertAtlasPrs, upsertHistory, readHistoryCursor, gitCommitSeq } from "./history-db.ts";
 import * as db from "./history-db.ts"; // namespace ref so a not-yet-built export is `undefined`, not a link error
 
 const NEW_COLS = ["era", "seam", "extracted_from", "merged_into", "move_kind"] as const;
@@ -236,5 +236,77 @@ describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () =>
   it("produces rows whose keys are exactly HISTORY_COLS (upsert-shaped)", () => {
     const rows = (db as any).htmlEraRows(artifact, seq) as any[];
     for (const r of rows) expect(Object.keys(r).sort()).toEqual([...HISTORY_COLS].sort());
+  });
+});
+
+describe("gitCommitSeq", () => {
+  it("returns a non-empty map of 7-char short shas to a 1-based topological order", () => {
+    const m = gitCommitSeq();
+    expect(m.size).toBeGreaterThan(0);
+    for (const [sha, order] of m) {
+      expect(sha).toHaveLength(7);
+      expect(order).toBeGreaterThan(0);
+    }
+    // Oldest commit is seq 1; the reverse log walk is monotonic.
+    expect([...m.values()].includes(1)).toBe(true);
+  });
+});
+
+describe("upsertHistory", () => {
+  it("writes zero rows without issuing any unsafe() call", async () => {
+    const calls: Array<{ query: string; params: unknown[] }> = [];
+    const fakeSql = { unsafe: (query: string, params: unknown[]) => { calls.push({ query, params }); return Promise.resolve([]); } };
+    await upsertHistory(fakeSql as any, []);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("upserts atlas_prs first, then atlas_history, with a jsonb-cast diff column and dedups PRs across rows", async () => {
+    const calls: Array<{ query: string; params: unknown[] }> = [];
+    const fakeSql = { unsafe: (query: string, params: unknown[]) => { calls.push({ query, params }); return Promise.resolve([]); } };
+    const rows = [
+      eventToRow("d1", { commitHash: "aaa1111", changeType: "added", pr: 5, prTitle: "T", diff: [["+", "x"]] as any }, new Map())!,
+      eventToRow("d2", { commitHash: "bbb2222", changeType: "modified", pr: 5, prTitle: "T2" }, new Map())!,
+    ];
+    await upsertHistory(fakeSql as any, rows);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].query).toContain("INSERT INTO atlas_prs");
+    expect(calls[0].params).toEqual([5, "T2", null, null, null, null, null]); // later row's pr_title wins (Map overwrite)
+    expect(calls[1].query).toContain("INSERT INTO atlas_history");
+    expect(calls[1].query).toContain("::jsonb");
+    expect(calls[1].query).toContain("ON CONFLICT (doc_id, commit_sha, change_type) DO UPDATE SET");
+  });
+
+  it("chunks rows across multiple unsafe() calls when chunkSize is smaller than the row count", async () => {
+    const calls: Array<{ query: string; params: unknown[] }> = [];
+    const fakeSql = { unsafe: (query: string, params: unknown[]) => { calls.push({ query, params }); return Promise.resolve([]); } };
+    const rows = [
+      eventToRow("d1", { commitHash: "aaa1111", changeType: "added" }, new Map())!,
+      eventToRow("d2", { commitHash: "bbb2222", changeType: "added" }, new Map())!,
+      eventToRow("d3", { commitHash: "ccc3333", changeType: "added" }, new Map())!,
+    ];
+    await upsertHistory(fakeSql as any, rows, 1);
+    // No PRs on any row → upsertAtlasPrs makes zero calls; atlas_history chunks 3 rows into 3 calls.
+    const historyCalls = calls.filter((c) => c.query.includes("INSERT INTO atlas_history"));
+    expect(historyCalls).toHaveLength(3);
+  });
+});
+
+describe("readHistoryCursor", () => {
+  it("returns the commit_sha of the highest commit_seq row", async () => {
+    const fakeSql = Object.assign(() => Promise.resolve([{ commit_sha: "aaa1111" }]), {});
+    const result = await readHistoryCursor(fakeSql as any);
+    expect(result).toBe("aaa1111");
+  });
+
+  it("returns null when the table is empty", async () => {
+    const fakeSql = Object.assign(() => Promise.resolve([]), {});
+    const result = await readHistoryCursor(fakeSql as any);
+    expect(result).toBeNull();
+  });
+
+  it("returns null (not throw) when the query fails", async () => {
+    const fakeSql = Object.assign(() => Promise.reject(new Error("no such table")), {});
+    const result = await readHistoryCursor(fakeSql as any);
+    expect(result).toBeNull();
   });
 });
