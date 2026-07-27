@@ -25,7 +25,20 @@ class FakeMcpServer {
 
 mock.module("@modelcontextprotocol/sdk/server/mcp.js", () => ({ McpServer: FakeMcpServer }));
 mock.module("@posthog/mcp", () => ({ instrument: mock(() => undefined) }));
-mock.module("./posthog-node.ts", () => ({ getPosthog: () => null }));
+// A COMPLETE stand-in for posthog-node: bun's mock.module replaces the module in
+// the shared registry for the rest of the process, so any test file loaded after
+// this one (the chat/verify + chat/tools suites, after the move reordered bun's
+// file discovery) resolves its posthog-node imports through this stub. A partial
+// stub ({ getPosthog }) made those files fail to load with "Export named
+// 'captureError' not found". Mirror every runtime export; all are no-ops, which
+// matches the real module's behaviour under test (no POSTHOG key → getPosthog()
+// is null and captureError/captureEvent early-return anyway).
+mock.module("./posthog-node.ts", () => ({
+  getPosthog: () => null,
+  captureError: () => {},
+  captureEvent: () => {},
+  shutdownPosthog: async () => {},
+}));
 
 const { createMcpServer } = await import("./mcp.ts");
 
