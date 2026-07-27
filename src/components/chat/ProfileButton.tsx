@@ -10,7 +10,7 @@ import { Link } from "../Link";
 // + reduce-motion switches, persisted to localStorage), and Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const { prefs, setPref } = usePrefs();
   const [open, setOpen] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
@@ -100,6 +100,20 @@ export function ProfileButton() {
                   surfaced from local storage · syncs per-browser
                 </div>
               </div>
+              <div className="border-t border-border" />
+              <button
+                className="rlc-menu-item text-[12.5px] text-red"
+                onClick={() => {
+                  // Confirm before an irreversible wipe of chats + Collections.
+                  if (!window.confirm("Delete your account and all your chats and Collections? This can't be undone.")) return;
+                  setOpen(false);
+                  void deleteAccount().then((ok) => {
+                    if (!ok) window.alert("Couldn't delete your account. Please try again.");
+                  });
+                }}
+              >
+                <span>Delete account</span>
+              </button>
             </>
           )}
         </div>

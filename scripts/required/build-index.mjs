@@ -195,7 +195,7 @@ if (idx) fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringif
 // `contentHash` stays server-only; `order` is KEPT (a depth split breaks the
 // array-position-as-order assumption, so buildMaps needs the explicit field).
 // docs.json itself remains the full internal/server artifact (id-keyed, with content).
-const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with writeDocsSplit() in src/server/indexes.ts
+const SHALLOW_MAX_DEPTH = 5; // KEEP IN SYNC with writeDocsSplit() in src/server/retrieval/indexes.ts
 const toBrowserNode = (n) => ({
   id: n.id,
   doc_no: n.doc_no,

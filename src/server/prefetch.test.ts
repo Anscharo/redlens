@@ -2,7 +2,7 @@
 // entity containment) seeded as a synthetic tool round before the first LLM
 // request. Pure in-memory indexes — no network, no DB.
 import { describe, it, expect } from "bun:test";
-import { buildIndexes, type AtlasNode, type Entity } from "./indexes.ts";
+import { buildIndexes, type AtlasNode, type Entity } from "./retrieval/indexes.ts";
 import type { Glossary, GlossaryEntry } from "../lib/glossaryLookup.ts";
 import { buildPrefetch, matchGlossary, matchQuestionEntities, prefetchRound, PREFETCH_TOOL_NAME } from "./prefetch.ts";
 

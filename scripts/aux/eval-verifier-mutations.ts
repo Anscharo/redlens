@@ -2,9 +2,9 @@
 // written by `pnpm eval:golden --save-evidence`). Each mutation plants one
 // known defect class in a known-good answer; eval-verifier.ts then measures
 // whether the harness catches it. No I/O, no model — unit-testable.
-import type { Indexes } from "../../src/server/indexes.ts";
-import type { EvidenceEntry } from "../../src/server/verifier.ts";
-import { extractCitations } from "../../src/server/verify-checks.ts";
+import type { Indexes } from "../../src/server/retrieval/indexes.ts";
+import type { EvidenceEntry } from "../../src/server/chat/verify/verifier.ts";
+import { extractCitations } from "../../src/server/chat/verify/verify-checks.ts";
 
 export interface SavedRun {
   id: string;

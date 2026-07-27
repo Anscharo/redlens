@@ -71,3 +71,51 @@ describe("useDepth6Expand expandParent", () => {
     expect(result.current.expandedParents).toBe(before);
   });
 });
+
+describe("useDepth6Expand auto-expansion edge cases", () => {
+  it("does nothing when navigating to an id absent from entryById", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), "ghost"));
+    expect(result.current.expandedParents.size).toBe(0);
+  });
+
+  it("stops walking up when a depth-6+ node has no parentId", () => {
+    const root6 = makeNode({ id: "root6", depth: 6, parentId: null, doc_no: "A.1.1.1.1.1.1" });
+    const flat = [root6].map((node) => makeFlatEntry({ node, depth: node.depth }));
+    const { result } = renderHook(() => useDepth6Expand(flat, "root6"));
+    // No parent to add, and root6 itself gates nothing — expandedParents stays empty.
+    expect(result.current.expandedParents.size).toBe(0);
+  });
+
+  it("stops walking up when the parent id isn't in entryById (dangling parent)", () => {
+    const orphan = makeNode({ id: "orphan", depth: 7, parentId: "phantom", doc_no: "A.1.1.1.1.1.1.1" });
+    const flat = [orphan].map((node) => makeFlatEntry({ node, depth: node.depth }));
+    const { result } = renderHook(() => useDepth6Expand(flat, "orphan"));
+    // "phantom" gets added (best-effort) even though it has no entry to continue from.
+    expect(result.current.expandedParents.has("phantom")).toBe(true);
+  });
+});
+
+describe("useDepth6Expand setParentsExpanded (bulk reveal/re-gate)", () => {
+  it("reveals a batch of ids at once", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), ""));
+    act(() => result.current.setParentsExpanded(["gp", "c1"], true));
+    expect(result.current.expandedParents.has("gp")).toBe(true);
+    expect(result.current.expandedParents.has("c1")).toBe(true);
+  });
+
+  it("is a no-op (same reference) when the ids are already in the requested state", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), ""));
+    act(() => result.current.setParentsExpanded(["gp"], true));
+    const before = result.current.expandedParents;
+    act(() => result.current.setParentsExpanded(["gp"], true));
+    expect(result.current.expandedParents).toBe(before);
+  });
+
+  it("re-gates (hides) a previously revealed batch", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), ""));
+    act(() => result.current.setParentsExpanded(["gp", "c1"], true));
+    act(() => result.current.setParentsExpanded(["gp", "c1"], false));
+    expect(result.current.expandedParents.has("gp")).toBe(false);
+    expect(result.current.expandedParents.has("c1")).toBe(false);
+  });
+});

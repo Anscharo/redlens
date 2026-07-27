@@ -16,6 +16,11 @@
       // quoted-compare keeps an UNreplaced placeholder (static/no-server hosting)
       // a safe `false` instead of a syntax error. See src/lib/usersEnabled.ts.
       window.__USERS_ENABLED__ = "{{USERS_ENABLED}}" === "true";
+      // Which OAuth providers this environment offers, substituted at serve time
+      // like the flag above (a CSV, e.g. "github" or "github,google"). Lets one
+      // environment expose a single provider. An UNreplaced placeholder still
+      // begins with "{{" → treated as "not injected" (see src/lib/authProviders.ts).
+      window.__AUTH_PROVIDERS__ = "{{AUTH_PROVIDERS}}";
     </script>
     <script>
       (function () {
@@ -33,7 +38,13 @@
         } catch (e) {}
       })();
     </script>
-    <title>Sky Atlas by Redline</title>
+    <!-- Open Graph / Twitter card tags plus the page title element,
+         substituted per-request at serve time (Bun in prod, the Vite dev
+         plugin in dev). Doc links (/atlas?id=…) unfurl with the document's own
+         title + summary; every other route gets the site default. See
+         src/server/og.ts. An UNreplaced placeholder (static/no-server hosting)
+         still leaves a valid head. -->
+    {{OG_TAGS}}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Non-render-blocking: loads as print then swaps to all on load -->

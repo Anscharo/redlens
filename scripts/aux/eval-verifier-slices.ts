@@ -1,4 +1,4 @@
-// Sliced-verifier bakeoff — measures each specialist (src/server/verifier-slices.ts)
+// Sliced-verifier bakeoff — measures each specialist (src/server/chat/verify/verifier-slices.ts)
 // against the mutation class it is built for, plus the REAL audited defects.
 // verifier-slices.ts is not wired into chat-orchestrator.ts yet (runVerifier()
 // in verifier.ts is still the live path) — this eval is how its case for
@@ -20,11 +20,11 @@
 //   pnpm eval:slices --models a,b --limit 8
 import fs from "node:fs";
 import path from "node:path";
-import { loadIndexes } from "../../src/server/indexes.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
-import { openrouterJson } from "../../src/server/llm.ts";
-import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
-import { runSlice, type SliceName, type SliceClaim } from "../../src/server/verifier-slices.ts";
+import { openrouterJson } from "../../src/server/chat/llm.ts";
+import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import { runSlice, type SliceName, type SliceClaim } from "../../src/server/chat/verify/verifier-slices.ts";
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");

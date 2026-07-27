@@ -4,9 +4,26 @@
 // re-throws during render so an ErrorBoundary catches it; `{ soft: true }` swallows
 // it and returns null so an enrichment failure doesn't blank the page.
 import React from "react";
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { useLoaded } from "./useAtlasData";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
+import { render, screen, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { useLoaded, useAtlasData } from "./useAtlasData";
+
+// --- Mocks for the useAtlasData() loader orchestration -----------------------
+const loaders = vi.hoisted(() => ({
+  loadAtlas: vi.fn(),
+  loadAtlasShallow: vi.fn(),
+  loadAddresses: vi.fn(),
+  loadChainState: vi.fn(),
+  loadGlossary: vi.fn(),
+  setAddressMap: vi.fn(),
+  base: "",
+}));
+vi.mock("../lib/docs", () => ({ loadAtlas: loaders.loadAtlas, loadAtlasShallow: loaders.loadAtlasShallow }));
+vi.mock("../lib/addresses", () => ({ loadAddresses: loaders.loadAddresses }));
+vi.mock("../lib/chainstate", () => ({ loadChainState: loaders.loadChainState }));
+vi.mock("../lib/glossary", () => ({ loadGlossary: loaders.loadGlossary }));
+vi.mock("../lib/addressMap", () => ({ setAddressMap: loaders.setAddressMap }));
+vi.mock("../lib/dataSource", () => ({ useDataSource: () => ({ base: loaders.base }) }));
 
 class Boundary extends React.Component<{ children: React.ReactNode }, { err: Error | null }> {
   state = { err: null as Error | null };
@@ -59,5 +76,60 @@ describe("useLoaded", () => {
     await Promise.resolve();
     expect(screen.queryByText(/caught:/)).toBeNull();
     expect(screen.getByTestId("val").textContent).toBe("null");
+  });
+});
+
+describe("useAtlasData", () => {
+  const shallowAtlas = { byParent: new Map() } as never;
+  const fullAtlas = { byParent: new Map() } as never;
+
+  beforeEach(() => {
+    loaders.base = "";
+    loaders.loadAtlasShallow.mockResolvedValue(shallowAtlas);
+    loaders.loadAtlas.mockResolvedValue(fullAtlas);
+    loaders.loadAddresses.mockResolvedValue({ "0xabc": { chain: "ethereum" } });
+    loaders.loadChainState.mockResolvedValue({ values: {} });
+    loaders.loadGlossary.mockResolvedValue({ term: [] });
+    loaders.setAddressMap.mockClear();
+  });
+
+  it("phase 1 shows a shallow (incomplete, enrichment-null) bundle, then phase 2 completes it with enrichments", async () => {
+    const { result } = renderHook(() => useAtlasData());
+    // Eventually the full phase-2 bundle lands: complete + enrichments populated.
+    await waitFor(() => expect(result.current?.complete).toBe(true));
+    expect(result.current?.addresses).toEqual({ "0xabc": { chain: "ethereum" } });
+    expect(result.current?.chainState).toEqual({ values: {} });
+    expect(result.current?.glossary).toEqual({ term: [] });
+    // Address map hydrated from the resolved addresses.
+    expect(loaders.setAddressMap).toHaveBeenCalledWith({ "0xabc": { chain: "ethereum" } });
+  });
+
+  it("tolerates enrichment failures: still completes with null enrichments and no setAddressMap", async () => {
+    loaders.loadAddresses.mockRejectedValue(new Error("no addresses.json"));
+    loaders.loadChainState.mockRejectedValue(new Error("no chain-state.json"));
+    loaders.loadGlossary.mockRejectedValue(new Error("no glossary.json"));
+    const { result } = renderHook(() => useAtlasData());
+    await waitFor(() => expect(result.current?.complete).toBe(true));
+    expect(result.current?.addresses).toBeNull();
+    expect(result.current?.glossary).toBeNull();
+    expect(loaders.setAddressMap).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when the load-bearing docs fetch rejects (stays on shallow/null)", async () => {
+    loaders.loadAtlasShallow.mockRejectedValue(new Error("no docs-shallow.json"));
+    loaders.loadAtlas.mockRejectedValue(new Error("no docs-deep.json"));
+    const { result } = renderHook(() => useAtlasData());
+    // Both phases rejected → data stays null, no unhandled rejection / throw.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(result.current).toBeNull();
+  });
+
+  it("passes the data-source base through to every loader", async () => {
+    loaders.base = "/preview/abc";
+    renderHook(() => useAtlasData());
+    await waitFor(() => expect(loaders.loadAtlas).toHaveBeenCalledWith("/preview/abc"));
+    expect(loaders.loadAtlasShallow).toHaveBeenCalledWith("/preview/abc");
+    expect(loaders.loadGlossary).toHaveBeenCalledWith("/preview/abc");
   });
 });

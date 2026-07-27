@@ -6,6 +6,7 @@ export const ROUTES = {
   CONSTELLATIONS: "/constellations",
   SEARCH_HINTS: "/search-hints",
   PROVENANCE: "/provenance",
+  PRIVACY: "/privacy",
   UPDATES: "/updates",
   CONNECT: "/connect",
   COLLECTIONS: "/collections",
@@ -65,7 +66,7 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
 // get the "I'm viewing this report and can pull/query it" chat treatment; the
 // reports absent here (processes, stale-dates, oea-assessment, risk-rules) have
 // no backing chat tool, so the chat stays in its generic atlas mode there.
-// The tool names are validated server-side (src/server/system-prompt.ts)
+// The tool names are validated server-side (src/server/chat/system-prompt.ts)
 // against the live tool registry before they ever reach the model.
 export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {
   [ROUTES.REPORTS_OF_RESPONSIBILITIES]: "atlas_report_facilitator_responsibilities",

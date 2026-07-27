@@ -20,13 +20,13 @@
 // DATABASE_URL for a faithful run (history queries degrade to tool errors).
 import fs from "node:fs";
 import path from "node:path";
-import { loadIndexes } from "../../src/server/indexes.ts";
-import { buildSystemPrompt } from "../../src/server/system-prompt.ts";
-import { runChat, type ChatEvent } from "../../src/server/chat-loop.ts";
-import { makeOpenrouterStream, openrouterJson } from "../../src/server/llm.ts";
-import { evidenceFromTranscript } from "../../src/server/verifier.ts";
-import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
-import { repairCitations } from "../../src/server/citation-repair.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
+import { runChat, type ChatEvent } from "../../src/server/chat/chat-loop.ts";
+import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
+import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
+import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
+import { repairCitations } from "../../src/server/chat/verify/citation-repair.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
 

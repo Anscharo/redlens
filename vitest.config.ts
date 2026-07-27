@@ -1,6 +1,16 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // vitest doesn't run vite-plugin-pwa, so `virtual:pwa-register/react` (imported
+  // by src/hooks/useSWUpdate.ts) is otherwise unresolvable. Point it at a test
+  // stub so the hook can load and be mocked. Real values come from the plugin at
+  // build time; the stub only needs to satisfy the module graph.
+  resolve: {
+    alias: {
+      "virtual:pwa-register/react": fileURLToPath(new URL("./src/test/pwa-register-stub.ts", import.meta.url)),
+    },
+  },
   // Mirrors vite.config.ts's build-time constants (declared in src/vite-env.d.ts).
   // vitest doesn't load vite.config.ts, so components that reference them
   // (Footer, analytics, chat auth) would otherwise throw ReferenceError —

@@ -1,9 +1,12 @@
 // Run under `bun test` (NOT vitest) — these modules transitively import Bun's
 // `SQL`; vitest.config.ts excludes src/server for that reason.
 import { describe, it, expect } from "bun:test";
-import { buildIndexes, type AtlasNode, type Edge } from "./indexes.ts";
-import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate } from "./atlas-refresh.ts";
-import { atlasQuery } from "./query.ts";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./retrieval/indexes.ts";
+import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex } from "./atlas-refresh.ts";
+import { atlasQuery } from "./retrieval/query.ts";
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -172,5 +175,32 @@ describe("applyInPlaceUpdate", () => {
     expect(ix.graph.hasDirectedEdge("a", "b")).toBe(false);
     // meta advanced (the convergence signal)
     expect(ix.meta.atlasCommit).toBe("new");
+  });
+});
+
+describe("writeSearchIndex", () => {
+  const fakeIx = { mini: { toJSON: () => ({ marker: 1 }) } } as unknown as Indexes;
+
+  it("writes identical serialized JSON to both publicDir and distDir", () => {
+    const publicDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-refresh-public-"));
+    const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-refresh-dist-"));
+
+    writeSearchIndex(fakeIx, publicDir, distDir);
+
+    const publicJson = fs.readFileSync(path.join(publicDir, "search-index.json"), "utf8");
+    const distJson = fs.readFileSync(path.join(distDir, "search-index.json"), "utf8");
+    expect(publicJson).toBe(JSON.stringify({ marker: 1 }));
+    expect(distJson).toBe(publicJson);
+  });
+
+  it("still writes publicDir and does not throw when distDir does not exist (best-effort dist mirror)", () => {
+    const publicDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-refresh-public-"));
+    const missingDistDir = path.join(publicDir, "no-such-dir", "nested");
+
+    expect(() => writeSearchIndex(fakeIx, publicDir, missingDistDir)).not.toThrow();
+
+    const publicJson = fs.readFileSync(path.join(publicDir, "search-index.json"), "utf8");
+    expect(publicJson).toBe(JSON.stringify({ marker: 1 }));
+    expect(fs.existsSync(missingDistDir)).toBe(false);
   });
 });

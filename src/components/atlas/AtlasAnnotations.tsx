@@ -11,7 +11,7 @@ import type { CousinDoc } from "../../lib/cousins";
 const RIGHT_PANEL_KEY = "redline-sky-atlas:right-panel-width";
 const RIGHT_PANEL_MIN = 260;
 const RIGHT_PANEL_MAX = 800;
-const RIGHT_PANEL_DEFAULT = 420;
+const RIGHT_PANEL_DEFAULT = 520;
 
 export function AtlasAnnotations({
   id,

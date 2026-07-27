@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import type { DiffLine, WordSegment } from "../../lib/history";
+import { refineProseDiff } from "../../lib/diffProse";
 
 const DIFF_LINE_BG: Record<string, string> = {
   "+": "var(--diff-added-bg)",
@@ -52,6 +54,9 @@ function IntralineDiff({ segments }: { segments: WordSegment[] }) {
 }
 
 export function DiffView({ lines }: { lines: DiffLine[] }) {
+  // Hooks must run unconditionally — refineProseDiff itself tolerates
+  // non-array input (returns []), so this stays safe ahead of the guard below.
+  const refined = useMemo(() => refineProseDiff(lines), [lines]);
   // Defensive: a malformed payload (e.g. a legacy double-encoded jsonb diff
   // that arrives as a string) must degrade, not crash the whole history tab.
   if (!Array.isArray(lines)) return null;
@@ -60,7 +65,7 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
       className="mt-2 rounded overflow-x-auto mono text-[11px] leading-relaxed"
       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
     >
-      {lines.map((line, i) => {
+      {refined.map((line, i) => {
         const op = line[0];
 
         if (op === "…") {

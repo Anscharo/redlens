@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { renderOgTags } from "./src/server/og.ts";
 
 const commitHash = (() => {
   try {
@@ -86,17 +87,48 @@ export default defineConfig(() => {
       // the placeholder is left intact for the Bun server to replace at serve time.
       name: "inject-atlas-sha-dev",
       apply: "serve",
-      transformIndexHtml(html) {
+      transformIndexHtml(html, ctx) {
         let sha = "";
+        let docNodes: Record<string, { id: string; doc_no: string; title: string; type: string; content: string }> = {};
         try {
-          sha = JSON.parse(readFileSync("public/docs.json", "utf8")).atlasCommit ?? "";
+          const parsed = JSON.parse(readFileSync("public/docs.json", "utf8"));
+          sha = parsed.atlasCommit ?? "";
+          docNodes = parsed.nodes ?? {};
         } catch {
           /* artifacts not built yet — empty sha → flat BASE_URL fallback */
         }
+        // Mirror the Bun server's per-request OG injection so dev unfurls the
+        // same way. ctx.originalUrl is the requested path+query; resolve ?id=
+        // (UUID or doc_no) against the local docs.json.
+        const reqUrl = new URL(ctx.originalUrl ?? "/", "http://localhost");
+        const byDocNo = new Map(Object.values(docNodes).map((n) => [n.doc_no, n]));
+        const ogTags = renderOgTags({
+          pathname: reqUrl.pathname,
+          searchParams: reqUrl.searchParams,
+          origin: reqUrl.origin,
+          lookup: (idOrDocNo) => docNodes[idOrDocNo] ?? byDocNo.get(idOrDocNo),
+        });
         // Dev has no Bun-served HTML, so substitute the login flag here too. The
         // real JWT-secret check lives server-side; in dev the build flag is a
         // good-enough proxy (dev.mjs forwards both together).
-        return html.replaceAll("{{ATLAS_SHA}}", sha).replaceAll("{{USERS_ENABLED}}", String(usersEnabled));
+        //
+        // Provider list: mirror the server's credential-based gating off the same
+        // env vars (dev.mjs forwards them) so a single-provider dev setup renders a
+        // single button; default to both when usersEnabled but nothing configured.
+        const has = (k: string) => (process.env[k] ?? "") !== "";
+        const devProviders = !usersEnabled
+          ? []
+          : (() => {
+              const p: string[] = [];
+              if (has("GITHUB_CLIENT_ID") && has("GITHUB_CLIENT_SECRET")) p.push("github");
+              if (has("GOOGLE_CLIENT_ID") && has("GOOGLE_CLIENT_SECRET")) p.push("google");
+              return p; // empty = no provider configured → no buttons (matches prod)
+            })();
+        return html
+          .replaceAll("{{ATLAS_SHA}}", sha)
+          .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
+          .replaceAll("{{AUTH_PROVIDERS}}", devProviders.join(","))
+          .replaceAll("{{OG_TAGS}}", ogTags);
       },
     },
     tailwindcss(),

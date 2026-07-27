@@ -9,7 +9,7 @@
 // stale-on-error branch (cached value returned after a failed refresh) is the
 // same code path as the cache-hit return and isn't separately reachable here.
 
-import { test, expect, afterAll } from "bun:test";
+import { test, expect, afterAll, beforeAll } from "bun:test";
 
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
 const realFetch = globalThis.fetch;
@@ -19,14 +19,17 @@ afterAll(() => {
 
 let fetchCalls = 0;
 let nextResponse: () => Promise<Response>;
-// @ts-expect-error — minimal fetch stub, only the pulls path is exercised.
-globalThis.fetch = (input: RequestInfo | URL) => {
-  fetchCalls++;
-  expect(String(input)).toContain("/repos/sky-ecosystem/next-gen-atlas/pulls");
-  return nextResponse();
-};
+let handlePreview: (req: Request, server: typeof stubServer, pathname: string) => Response | Promise<Response>;
+beforeAll(async () => {
+  // @ts-expect-error — minimal fetch stub, only the pulls path is exercised.
+  globalThis.fetch = (input: RequestInfo | URL) => {
+    fetchCalls++;
+    expect(String(input)).toContain("/repos/sky-ecosystem/next-gen-atlas/pulls");
+    return nextResponse();
+  };
+  ({ handlePreview } = await import("./handler.ts"));
+});
 
-const { handlePreview } = await import("./handler.ts");
 const call = (p: string) => Promise.resolve(handlePreview(new Request("http://x" + p), stubServer, p));
 const ghJson = (body: unknown, ok = true) =>
   Promise.resolve({ ok, json: () => Promise.resolve(body) } as Response);

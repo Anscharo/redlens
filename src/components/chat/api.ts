@@ -6,9 +6,9 @@ export function apiUrl(path: string): string {
   return `/api/${path.replace(/^\/+/, "")}`;
 }
 
-// Mirrors the server's HarnessEvent union (src/server/chat-orchestrator.ts —
+// Mirrors the server's HarnessEvent union (src/server/chat/chat-orchestrator.ts —
 // ChatEvent plus the reliability-harness `status`/`verify_result` events) and
-// the `meta`/`error` envelope events emitted by the route (src/server/chat.ts).
+// the `meta`/`error` envelope events emitted by the route (src/server/chat/chat.ts).
 export type VerifyOverall = "pass" | "warn" | "fail" | "unverified";
 
 export interface VerifyClaim {
@@ -70,7 +70,7 @@ export interface UsageWindow {
 }
 
 // The shared "commons" dollar pool — one account-wide balance shown to every
-// signed-in user (src/server/credits.ts). Omitted from /api/usage when the
+// signed-in user (src/server/chat/credits.ts). Omitted from /api/usage when the
 // feature is off or the credits API is unreachable.
 export interface CommonsPool {
   used: number; // dollars spent account-wide
