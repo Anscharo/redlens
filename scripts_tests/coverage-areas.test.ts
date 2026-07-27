@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { areaFor, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
+import { areaFor, backendAreaIds, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
 
 // The scope of "React code" the coverage meters must partition: components,
 // hooks, and context providers — .ts and .tsx, minus test files. If this set
@@ -68,5 +68,49 @@ describe("coverage areas — React partition", () => {
     expect(reactAreaIds).not.toContain(areaFor("src/lib/csv.ts"));
     expect(areaFor("src/lib/csv.ts")).toBe("general-utils");
     expect(areaFor("src/workers/search.worker.ts")).toBe("frontend-workers");
+  });
+});
+
+// The backend scope the meters must partition: every non-test source file under
+// src/server/. The former single `backend-core` meter was split into per-product
+// meters; if this set ever leaks a src/server file to general-utils/uncategorized
+// (or a product meter goes empty), a product's coverage number silently lies.
+const backendFiles = walk("src/server").filter((f) => !f.endsWith(".d.ts"));
+
+describe("coverage areas — backend partition", () => {
+  it("has a non-empty backend file set", () => {
+    expect(backendFiles.length).toBeGreaterThan(50);
+  });
+
+  it("maps every src/server file to exactly one backend meter (totality)", () => {
+    const stray = backendFiles.filter((f) => !backendAreaIds.includes(areaFor(f)));
+    expect(stray).toEqual([]);
+  });
+
+  it("never routes a src/server file to general-utils or uncategorized", () => {
+    const leaked = backendFiles.filter((f) => ["general-utils", "uncategorized"].includes(areaFor(f)));
+    expect(leaked).toEqual([]);
+  });
+
+  it("leaves no backend meter empty", () => {
+    const populated = new Set(backendFiles.map((f) => areaFor(f)));
+    const empty = backendAreaIds.filter((id) => !populated.has(id));
+    expect(empty).toEqual([]);
+  });
+
+  it("routes representative files to their product meter, and keeps routes/workers ahead of the split", () => {
+    // Product buckets.
+    expect(areaFor("src/server/chat-orchestrator.ts")).toBe("backend-chat");
+    expect(areaFor("src/server/tool-registry.ts")).toBe("backend-chat-tools");
+    expect(areaFor("src/server/verifier.ts")).toBe("backend-chat-verify");
+    expect(areaFor("src/server/query.ts")).toBe("backend-retrieval");
+    expect(areaFor("src/server/history-db.ts")).toBe("backend-history");
+    expect(areaFor("src/server/preview/identity.ts")).toBe("backend-preview");
+    expect(areaFor("src/server/reports/multisigs.ts")).toBe("backend-reports");
+    expect(areaFor("src/server/config.ts")).toBe("backend-core");
+    // First-match ordering: preview/ files owned by routes/workers must NOT fall to backend-preview.
+    expect(areaFor("src/server/preview/handler.ts")).toBe("backend-routes");
+    expect(areaFor("src/server/preview/build.ts")).toBe("backend-workers");
+    expect(areaFor("src/server/preview/sweeper.ts")).toBe("backend-workers");
   });
 });
