@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { loadGlossary, type GlossaryEntry } from "../../lib/glossary";
 import { Link } from "../Link";
 import { atlasHref } from "../../lib/routes";
+import { useDataSource } from "../../lib/dataSource";
 
 export function LibraryGlossary() {
+  const { base } = useDataSource();
   const [terms, setTerms] = useState<GlossaryEntry[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
     let on = true;
-    loadGlossary()
+    loadGlossary(base)
       .then((g) => {
         if (!on) return;
         const flat = Object.values(g).flat();
@@ -19,7 +21,7 @@ export function LibraryGlossary() {
     return () => {
       on = false;
     };
-  }, []);
+  }, [base]);
 
   if (error) return <p className="text-sm mono" style={{ color: "var(--error-text)" }}>glossary failed to load</p>;
   if (!terms) return <p className="text-sm mono text-tan-3">loading…</p>;
