@@ -102,14 +102,34 @@ describe("transitionary-measures", () => {
 });
 
 describe("formula-docs", () => {
-  it("matches the four LaTeX commands and tallies the A.3.2 subset", () => {
+  const RISK_CAPITAL_UUID = "55999acf-75fe-4adf-8584-9746ef50d3e4";
+
+  it("matches the four LaTeX commands and tallies the risk-capital subset by UUID, not the doc_no literal", () => {
     const nodes = [
+      mk("A.3.2", "Risk Capital", "Core", "x", RISK_CAPITAL_UUID),
       mk("A.3.2.1", "Formula One", "Core", "$$\\frac{a}{b}$$"),
       mk("A.4.1", "Formula Two", "Core", "\\sum_{i} x_i"),
       mk("A.4.2", "Not A Formula", "Core", "plain prose, no math"),
     ];
     const out = computeConceptsCensus(byId(nodes));
     expect(out["formula-docs"].counts).toEqual({ total: 2, "A.3.2": 1 });
+  });
+
+  it("still tallies the subset correctly under a renumbered doc_no, since it's UUID-anchored", () => {
+    const nodes = [
+      mk("B.9", "Risk Capital", "Core", "x", RISK_CAPITAL_UUID), // renumbered away from "A.3.2"
+      mk("B.9.1", "Formula One", "Core", "$$\\frac{a}{b}$$"),
+      mk("A.4.1", "Formula Two", "Core", "\\sum_{i} x_i"),
+    ];
+    const out = computeConceptsCensus(byId(nodes));
+    expect(out["formula-docs"].counts).toEqual({ total: 2, "A.3.2": 1 });
+  });
+
+  it("degrades to 0 (not a crash) when the Risk Capital node is absent from the bundle", () => {
+    const nodes = [mk("A.4.1", "Formula Two", "Core", "\\sum_{i} x_i")];
+    const out = computeConceptsCensus(byId(nodes));
+    expect(out["formula-docs"].counts).toEqual({ total: 1, "A.3.2": 0 });
+    expect(out["formula-docs"].notes).toMatch(/not found/);
   });
 });
 

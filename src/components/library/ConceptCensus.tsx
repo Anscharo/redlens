@@ -4,6 +4,7 @@ import { computeConceptsCensus, type CensusResult, type CensusSlug } from "../..
 import { track } from "../../lib/analytics";
 import { toCSV } from "../../lib/csv";
 import { downloadCSV } from "../../lib/csvDownload";
+import { useDataSource } from "../../lib/dataSource";
 import { ConceptCensusMembers } from "./ConceptCensusMembers";
 
 // Interleaved into docs/library/concepts.md via a `:::census <slug>` marker
@@ -12,33 +13,40 @@ import { ConceptCensusMembers } from "./ConceptCensusMembers";
 // count, per the byte-reproducible-⇒-data admission rule in the atlas
 // library plan. Computed client-side from loadAtlas() (no new artifact),
 // mirroring loadLibrary()'s pattern — see src/lib/conceptsCensus.ts.
-let censusPromise: Promise<Record<CensusSlug, CensusResult>> | null = null;
-function loadCensus(): Promise<Record<CensusSlug, CensusResult>> {
+//
+// Keyed by data-source base: under /preview/<id>/… useDataSource() supplies a
+// non-live base, and a single unkeyed promise would leak the first-loaded
+// (often live) bundle into every preview render instead of the preview data.
+const censusPromises = new Map<string, Promise<Record<CensusSlug, CensusResult>>>();
+function loadCensus(base: string): Promise<Record<CensusSlug, CensusResult>> {
+  let censusPromise = censusPromises.get(base);
   if (!censusPromise) {
-    censusPromise = loadAtlas()
+    censusPromise = loadAtlas(base)
       .then((bundle) => computeConceptsCensus(bundle.docs))
       .catch((err) => {
-        censusPromise = null; // don't cache the rejection — retry on next call
+        censusPromises.delete(base); // don't cache the rejection — retry on next call
         throw err;
       });
+    censusPromises.set(base, censusPromise);
   }
   return censusPromise;
 }
 
 export function ConceptCensus({ slug }: { slug: string }) {
+  const { base } = useDataSource();
   const [all, setAll] = useState<Record<CensusSlug, CensusResult> | null>(null);
   const [error, setError] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let on = true;
-    loadCensus()
+    loadCensus(base)
       .then((c) => on && setAll(c))
       .catch(() => on && setError(true));
     return () => {
       on = false;
     };
-  }, []);
+  }, [base]);
 
   if (error) {
     return <p className="text-xs mono" style={{ color: "var(--error-text)" }}>census failed to load</p>;
