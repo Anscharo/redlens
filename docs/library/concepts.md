@@ -4,7 +4,7 @@ The cross-cutting conceptual groupings of the Sky Atlas — the organization tha
 NOT follow the tree. Mission + method: the `analyst-library` skill
 (`.claude/skills/analyst-library/SKILL.md`). Signatures re-run live against the
 checked-out atlas commit; prose interpretations are dated at the pass that wrote
-them. Nine of the mechanical signatures below are backed by a standing drift
+them. Ten of the mechanical signatures below are backed by a standing drift
 guard (`pnpm census:concepts`, `src/lib/conceptsCensus.ts`) — a `:::census
 <slug>` block renders the live count + member list right in this doc instead
 of a number frozen at whatever atlas commit last touched the prose.
@@ -227,90 +227,311 @@ Each concept group carries four fields:
 
 ### D. Normative & instrument concepts
 
-*[T2] for D1–D12 (source-read; several numeric details are flagged `[T3/T4 — scrutinize]` inline per concepts-audit.md's checklist and have not yet been re-verified against source). The Dn1–Dn9 normative-family block immediately below is `[T4]` — see its own note.*
+*[T2] for D1–D12 (source-read; several numeric details are flagged `[T3/T4 — scrutinize]` inline per concepts-audit.md's checklist and have not yet been re-verified against source). The Dn1–Dn9 normative-family block immediately below is `[T1]` — rewritten census-first, see its own note.*
 
-**The normative-family taxonomy** (from the normative deep-dive, counts corrected
-against local censuses; ⚠ = agent hypothesis not yet verified doc-by-doc):
+**The normative-family taxonomy** — *rewritten census-first 2026-07-27*
+(concepts-audit.md rewrite item 1). The previous version of this block was the
+normative-deep-dive agent's frame with corrected numbers bolted on; that agent's
+counts were provably wrong (it claimed 200–400 Active Data Controllers against a
+real 64), so the frame itself was re-derived rather than re-cited. Every family
+below survived because a detection pass **actually run** over `public/docs.json`
++ `public/relations.json` found it; each carries its signature, its live count,
+and one exemplar quoted verbatim from `vendor/next-gen-atlas/content/**` with a
+UUID. `[T1]` throughout, `[T2]` for the exemplar quotes (read from source in
+this pass).
 
-*[T4] — this is the suspect agent's frame with corrected numbers bolted on
-(concepts-audit.md's own verdict). A census-first rewrite (derive each Dn
-family from a scripted detection pass, quote one exemplar per family, drop
-any family that can't be mechanically detected) is recommended but out of
-scope for this pass — see concepts-audit.md's rewrite item 1. Treat the
-"justice pipeline" synthesis as our interpretation, not Atlas text.*
+Seven of the nine title-derived families are wired to the standing
+`normative-title-families` census below, so their counts re-run per atlas bump
+instead of aging in prose.
 
-**Dn1. Duties** — role-subject obligation sentences (must/shall/will + power
-verbs), extracted as `duty_for` edges: **854 in the DB graph, all sourced from
-A.1** (322-edge sample censused: top duty-holders are Facilitator variants and
-Executor Agent GovOps; many duty targets are themselves normative-doc titles —
-duties citing duties). Distinctions: obligation (must) vs permission (may) vs
-discretionary (at discretion of); title-level vs prose duties; universal
-("Facilitators must…") vs qualified ("Core Facilitator must…").
+**What did not survive the rewrite** — corrections stay visible:
 
-**Dn2. Prohibitions** — negated norms. Exemplars: Kickbacks Prohibited
-`45e794a0` /A.1.6.5, counterparty engagement ban /A.1.7.8. Distinctions:
-blanket vs conditional; permanent vs status-scoped; self-executing vs
-adjudicated.
+- **Dn5 (escalation & precedence) was demoted** to a labeled interpretation note
+  (below Dn9): no general mechanical signature exists. Title matching yields
+  1 "Conflict Resolution" + 1 "Precedence Over Conflicting Provisions" + 3
+  "Escalat*" docs (2 of them Risk-scope penalty triggers, a different sense);
+  a content regex for precedence language (`takes precedence|shall prevail|
+  supersedes`) returns 13 docs spanning at least three unrelated senses. That is
+  a hand-curated pointer list, not a family, and it is now labeled as one.
+- **Dn3's inherited signature was wrong**, not just imprecise. "Global
+  Activation Status docs (×140) + has_status edges (136)" measures the primitive
+  lifecycle machine (group B2): every `has_status` edge runs from a primitive
+  doc to *its own* "Global Activation Status" child, and 136 of the 141 `Suspen*`
+  titles are the empty "Suspended Instances" lifecycle buckets already counted by
+  the `empty-scaffolding` census. The real normative-suspension family is 5 docs.
+- **Dn1's "all sourced from A.1" was false** — corrected below from the full
+  854-edge set (five scopes).
+- **Dn6's "Usage Standards (×22 docs)" was dropped from this family.** The 33
+  live `Usage Standards` docs are per-multisig operating constraints (read:
+  A.1.10.4.1.1.1 SparkLend Multisig Usage Standards — "The SparkLend Security
+  Access Multisig can only be used in urgent or emergency situations"), i.e. the
+  multisig/ICD layer, not actor conduct.
+- **Dn9's ADC claim was dropped**: the 64 Active Data Controllers are real (type
+  census) but they are a stewardship fact (G2), not an edit restriction. The
+  unverified "immutability clause density ⚠" is replaced by the actual count.
+
+**Dn1. Duties** — role-subject obligations.
+
+- **Definition** — a sentence in which a named governance role is the subject of
+  an obligation/authorization verb, materialized by the build pipeline as a
+  `duty_for` edge from the role entity to the doc that states the duty.
+
+- **Detection signature** *(one-off pass over `public/relations.json`; not
+  censused — `conceptsCensus.ts` is docs-bundle-only by design)* — all edges with
+  `e == "duty_for"`, grouped by the edge's `role_declared`/`match` metadata and
+  by the scope of the source doc_no.
+
+- **Members / Spread** — **854 edges over 635 distinct docs, held by 8 role
+  entities**: Core Facilitator 199, Operational GovOps 171, Core GovOps 134,
+  Facilitator 120, Operational Facilitator 105, Executor Agent 63, Operational
+  Executor Agent 41, Core Executor Agent 21. Match kinds: active 705, passive 77,
+  title 35, phrase 24, org 13. Scope spread A.1 347 · A.2 245 · A.6 181 · A.3 49 ·
+  A.4 32 — **correcting the previous entry's claim that all 854 are sourced from
+  A.1**, which was true only of the 322-edge sample it was read off.
+
+- **Exemplar** — A.1.3.2.2 Review Obligation `907407a8-123f-47bd-a120-9ce8f15c6c48`
+  (two duty_for edges: Core GovOps, Core Facilitator): *"Core GovOps, the Core
+  Facilitator, and the Aligned Delegates must review modifications to Synome
+  Documents made by the Synome Editor for conformance with the Atlas Documents…"*
+
+- **Relationships** — the same edge set backs group G1; the duty layer is what
+  Dn6 qualifies and Dn7 adjudicates.
+
+**Dn2. Prohibitions** — negated norms.
+
+- **Definition** — a rule stated as a bar on conduct rather than a requirement.
+
+- **Detection signature** — two passes, deliberately kept apart: **title**
+  `/Prohibit/` (the docs the Atlas *names* as prohibitions) and **content**
+  keyword (`prohibit(ed/s/ion)|forbidden|not permitted|may not`), the
+  lower-precision reach measure. Both censused below.
+
+- **Members / Spread** — 11 title-named prohibitions; two clusters: conduct bans
+  in A.1.6/A.1.7 (kickbacks, counterparty engagement, GitHub-merge and
+  post-deployment-suggestion bans in the spell pipeline) and the four structural
+  "Prohibition On Deactivating …" rules under A.2.2.1.2.4.2.1 (Genesis, Executor
+  Accord + Root Edit, Upkeep Rebate, Ecosystem Upkeep Fee primitives), plus two
+  Risk exposure-limit prohibitions in A.3.2. The content census (~52 docs) is the
+  wider, noisier reach.
+
+- **Exemplar** — A.1.6.5 Kickbacks Prohibited
+  `45e794a0-5092-4dea-a0de-6f373228f760`: *"Aligned Delegates are not allowed to
+  provide "kickbacks" from their compensation to SKY holders who delegate to
+  them. Violation of this requirement constitutes misalignment."*
+
+- **Relationships** — breach of a Dn2 rule is misalignment (Dn8), routed to Dn7.
 
 :::census prohibition-language
 
-**Dn3. Suspension/deactivation state rules**
+**Dn3. Suspension state rules** — reversible removal.
 
-- **Definition** — reversible capability removal. Distinct from Dn4 (permanent).
+- **Definition** — rules governing a *reversible* loss of operational capability
+  (a status an actor or instance can return from). Distinct from Dn4, which is
+  permanent.
 
-- **Detection signature** — Global Activation Status docs (×140) + has_status
-  edges (136) + suspension docs per actor type.
+- **Detection signature** — title `/Suspen/` **minus** the lifecycle status-bucket
+  titles (`Suspended Instances` etc., which are group-B scaffolding). Censused as
+  the `suspension-rule` bucket below.
 
-**Dn4. Derecognition machinery** — permanent removal: the "Swift Action…" title
-family (parallel docs for ACs /A.1.5.8 and ADs /A.1.6.6), AC Derecognition
-/A.1.5.10 (+ its live "Derecognized Alignment Conservers" registry, 11 listed_in
-edges), facilitator-security derecognition /A.1.7.4, AD Breach Registry (Tier
-system: "Tier 2 (Integrity) Breaches" /A.1.6.6.1.2).
+- **Members / Spread** — **5 docs**, in two senses: actor-side emergency
+  suspension of an agent artifact (A.1.14.1.5.3 Intent to Suspend Notice Process,
+  A.1.14.1.5.4.1/.2 Emergency Suspension Resolution / Review Process) and
+  instance-side status definition (A.2.2.1.3.2.2 Suspended Instance Status), plus
+  the one-off A.2.2.1.1.3.2.1 Short Term Suspension of "Founder Access" (also a
+  D10 transitionary measure). The 140 `Global Activation Status` docs and 136
+  `has_status` edges belong to the lifecycle machine (B2), not here.
 
-**Dn5. Escalation & precedence** — who decides on conflict: Conflict Resolution
-/A.1.2.3 (Atlas-doc precedence), Facilitators' authority chain, dispute paths
-(D8), "Precedence Over Conflicting Provisions" /A.0.1.2.1.2 (bootstrapping
-supremacy).
+- **Exemplar** — A.2.2.1.3.2.2 Suspended Instance Status
+  `3e5de640-5bc2-4953-a233-913e3337b4bb`: *"The instance Status of `Suspended`
+  indicates that an instance of a Primitive was `Active` at one point in time and
+  may be `Active` again, but is not currently operational."*
 
-**Dn6. Conduct standards** — HOW-obligations qualifying duties: "Facilitators
-Must Err On Side Of Caution" (A.1.6.9 AND A.1.7.5 — template family), operational
-security mandates (A.1.5.7, A.1.6.7, A.1.7.3), Highest Standard/broadest-sense
-interpretation rules, Usage Standards (×22 docs, per-instance).
+- **Relationships** — the reversible counterpart of Dn4; the instance sense is
+  the B2 status vocabulary read normatively.
 
-**Dn7. Adjudication & proof** — Adjudication Process `560e1024` /A.1.5.9 (9
-cites), Standard of Proof In Universal Alignment Controversies /A.1.5.4 ("doubt
-resolved against the AC"), evidence rules; NR-1/NR-8 both titled "Systematic
-Basis Of Adjudication, Fact-Finding And Evidence" — the Atlas knows this layer is
-underspecified.
+**Dn4. Derecognition machinery** — permanent removal.
 
-**Dn8. Alignment/eligibility framework**
+- **Definition** — permanent removal of an actor from a governance role, and the
+  notice/recording machinery around it.
 
-- **Definition** — Universal Alignment requirements (A.1.5.3),
-  one-role-at-a-time rule (A.1.5.5), conflict-of-interest disclosure (delegate
-  onboarding), misalignment definitions.
+- **Detection signature** — title `/Derecogni/` or `^Swift Action` (censused
+  below); corroborated by `listed_in` edges into the derecognition registries in
+  `relations.json`.
 
-- **Relationships** — triggers Dn4 via Dn7.
+- **Members / Spread** — **14 title-named docs** spanning the whole path: the
+  trigger ("Swift Action Is Required From Facilitators To Redress AC/AD
+  Misalignment", A.1.5.8 and A.1.6.6 — an exact-title parallel pair), the
+  mandated outcome (A.1.5.9.2.2 Mandated Derecognition For Severe Breaches, plus
+  three "Promptly Derecognized — Mandated Timeline…" action tenets for AC, AD and
+  Facilitator), the process (A.1.5.10 AC Derecognition → .1 Notice → .2
+  Recording), the opsec-breach route (A.1.6.8, A.1.7.4) and two Needed Research
+  gaps (NR-5 Derecognition Procedure, NR-9 Derecognition Uncertainty Due To
+  Anonymous Actors). 30 docs mention derecognition in content. Registry evidence:
+  11 `listed_in` edges into "Derecognized Alignment Conservers" (a live Active
+  Data table, 11 dated rows 2023-06-08 → 2026-06-11, each with a forum reasoning
+  post) and 9 into the "Aligned Delegate Breach Registry".
 
-**Dn9. Edit restrictions & governance gating**
+- **Exemplar** — A.1.5.10 AC Derecognition
+  `ac998664-5b5e-4ea5-813b-dc3105ea6cf2`: *"Derecognition is the ultimate
+  accountability measure for misalignment and entails permanently removing the
+  individual or entity from their role as an Alignment Conserver. An
+  individual/entity who has been derecognized from a Facilitator role is not
+  eligible to serve as an Aligned Delegate, and vice versa."*
 
-- **Definition** — who may modify what: Artifact Edit Restrictions (per
-  root-edit pipeline, incl. "Time-Limited Root Edit Restrictions On Removal Of
-  Nested Contributors"), ADC modification rules (the 64 Active Data Controllers
-  each gate their AD doc), immutability clauses ⚠ (density unverified).
+- **Relationships** — the only normative family with a populated outcome
+  registry (H1); reached from Dn8 via Dn7.
 
-- **Relationships** — G2 stewardship is the mechanism; this is the norm.
+**Dn6. Conduct standards** — HOW-obligations.
 
-**Dn-hub note**: normative concepts chain: eligibility (Dn8) → duties (Dn1) +
-standards (Dn6) → breach (Dn2 violations) → adjudication (Dn7) → suspension
-(Dn3) → derecognition (Dn4), with escalation (Dn5) as the routing layer. This
-pipeline IS the Atlas's justice system — nowhere presented as one system in the
-tree, fully reconstructable from the concept layer.
+- **Definition** — standards qualifying *how* a role must discharge its duties
+  (care, secrecy, caution), as opposed to *what* it must do (Dn1).
+
+- **Detection signature** — title `/Operational Security/` or `/Err On (The)
+  Side Of Caution/` (censused below).
+
+- **Members / Spread** — **12 docs**. The core is a three-way parallel mandate
+  running across the actor articles — A.1.5.7 (ACs: anonymity + high opsec),
+  A.1.6.7 (ADs: mandate to maintain high opsec), A.1.7.3 (Facilitators: same) —
+  each paired with its derecognition consequence (A.1.6.8, A.1.7.4) and, twice
+  over, with an identically titled "Facilitators Must Err On Side Of Caution"
+  (A.1.6.9 and A.1.7.5 — one of the cleanest cross-scope duplications in the
+  corpus). Outliers: NR-4 (opsec protocols research track), A.2.9.1.3 (ecosystem
+  actors), A.6.1.1.1.3.1.3.7.1 (Spark artifact).
+
+- **Exemplar** — A.1.6.9 Facilitators Must Err On Side Of Caution
+  `09efe31d-28ae-47cc-a81e-caf4f669df95`: *"Facilitators are required to err on
+  the side of caution and take action whenever there is any real possibility that
+  the operational security of an Aligned Delegate (AD) is compromised. …Abuse of
+  this power is severe misalignment."*
+
+- **Relationships** — qualifies Dn1; its own abuse is a Dn8 misalignment, closing
+  a loop back into Dn7.
+
+**Dn7. Adjudication & proof** — the fact-finding layer.
+
+- **Definition** — who decides whether a norm was breached, and to what standard.
+
+- **Detection signature** — title `/Adjudicat/` or `/Standard of Proof/`
+  (censused below); subtree size read from `docs.json`.
+
+- **Members / Spread** — **5 title-named docs** over a 13-doc subtree: A.1.5.9
+  Adjudication Process (the hub, with A.1.5.9.2.1 Graduated Response Framework
+  For Breaches By Aligned Delegates, A.1.5.9.2.2 Mandated Derecognition For
+  Severe Breaches, A.1.5.9.4 for when the Core Facilitator is himself the subject
+  of an allegation), A.1.5.4 Standard of Proof, A.2.8.1.1.2.3.2 Adjudication By
+  Core Facilitator (the dispute-resolution path, D8) — and **two identically
+  titled Needed Research docs**, NR-1 and NR-8 "Systematic Basis Of Adjudication,
+  Fact-Finding And Evidence": the Atlas records this layer as underspecified,
+  twice.
+
+- **Exemplar** — A.1.5.4 Standard of Proof In Universal Alignment Controversies
+  `034a9ad7-5d4d-40db-bef8-cad80c0a01e2`, in full: *"Alignment Conservers are
+  held to the highest standard when judging whether their actions are Universally
+  Aligned."* (A one-sentence doc — worth noting against the previous entry's
+  gloss "doubt resolved against the AC", which is a *reading* of the
+  highest-standard rule plus its action tenet A.1.5.4.0.4.1, not Atlas text.)
+
+- **Relationships** — the hinge between Dn8/Dn2 breach and Dn4 outcome.
+
+**Dn8. Alignment & misalignment** — the eligibility substrate.
+
+- **Definition** — the Universal Alignment requirement and its negative,
+  misalignment: the standard against which every other normative family is
+  measured.
+
+- **Detection signature** — title `/Universal Alignment/` or `/Misalign/`
+  (censused below).
+
+- **Members / Spread** — **22 docs, the widest normative family**, and unusually
+  spread: definitional (A.0.1.1.4 Universal Alignment, .5 Assumption, .11
+  Misalignment, .12 Slippery Slope Misalignment), requirement-setting (A.1.5.3,
+  A.1.1.1 with the Spirit of the Atlas), procedural triggers scattered far from
+  A.1.5 — A.1.11.2.3 Rejecting A Proposal For Misalignment, A.1.12.2.1.7.1
+  Procedure For Blocking AEP For Misalignment, A.1.10.5.2.3.3.2 / A.1.10.5.3.2.3.2
+  Misalignment To Vote For Unvalidated Standby / Emergency Drop Spell,
+  A.1.14.1.5.4 Emergency Process For Misaligned Agent Artifacts — plus NR-17
+  (misalignment of ecosystem actors: an acknowledged gap). 23 docs use the phrase
+  "Universal Alignment" in content.
+
+- **Exemplar** — A.1.5.3 Universal Alignment Requirements
+  `403a05ce-f8e0-4ecf-8a56-026c0acd0d8a`: *"Alignment Conservers must operate
+  only within the clearly delineated processes and frameworks of the Immutable
+  Documents. ACs are strictly prohibited from colluding or secretly organizing to
+  circumvent or undermine the Spirit of the Atlas. Any action of an Alignment
+  Conserver that disrupts the governance dynamic of Sky is considered
+  misalignment, as is any inaction that allows such violations to occur."*
+
+- **Relationships** — the predicate every other family resolves to: Dn2 violation
+  "constitutes misalignment", Dn6 abuse is "severe misalignment", Dn4 is the
+  "ultimate accountability measure for misalignment".
+
+**Dn9. Edit restrictions** — gating who may modify an artifact.
+
+- **Definition** — rules restricting artifact modification beyond the normal
+  root-edit pipeline.
+
+- **Detection signature** — title `/Edit Restrictions?/` (censused below).
+
+- **Members / Spread** — **10 docs, all in A.6 agent artifacts**: the exact title
+  "Artifact Edit Restrictions" appears once per agent artifact (8), of which two
+  (Spark A.6.1.1.1 and Grove A.6.1.1.2) carry a child
+  "Time-Limited Root Edit Restrictions On Removal Of Nested Contributors". Note
+  the phrase never occurs in doc *content* — this family is title-shaped only.
+  Adjacent but distinct: 5 `/Immutab/`-titled docs (A.1.2.2.1.1 Immutable
+  Document Category and four action tenets stating Immutable Documents can be
+  amended during the Endgame transition).
+
+- **Exemplar** — A.6.1.1.1.2.2.2.2.1.2.1.6.1 Time-Limited Root Edit Restrictions
+  On Removal Of Nested Contributors `cc60f445-1ed9-479e-9b44-00de9884a7b5`, in
+  full: *"For a period of three years after June 4, 2025, any Artifact Edit that
+  would have the effect of removing a Nested Contributor must be approved by a
+  vote of SKY holders in addition to a vote of SPK holders to be effective."*
+  (Dated and expiring — a D10-adjacent staleness signal.)
+
+- **Relationships** — gates D3's Root Edit pipeline; G2 stewardship is the
+  mechanism, this is the norm.
+
+:::census normative-title-families
+
+**Dn5 (demoted). Escalation & precedence — our pointer list, not a family.**
+No mechanical signature survives (see "what did not survive" above), so this is
+recorded as a curated four-doc pointer list, each title read: A.1.2.3 Conflict
+Resolution `e883ceb7` (how contradictions between Atlas Documents are resolved),
+A.0.1.2.1.2 Precedence Over Conflicting Provisions `fe58827d` (the Core Council
+bootstrapping supremacy rule), A.1.3.1.4 Supremacy Of Atlas Documents `614e00fe`,
+A.1.14.1.3 Pre-Eminence Of The Sky Core Atlas `0f55f573`. The Risk scope carries
+its own unrelated escalation ladder (A.3.2.2.7.2.3 Escalation To Sky Governance +
+Triggers For Escalation) — see the second-pipeline note below.
+
+**Dn-hub note — OUR INTERPRETATION, NOT ATLAS STRUCTURE.** The families above
+chain into what reads as a justice pipeline: eligibility/alignment (Dn8) →
+duties (Dn1) qualified by conduct standards (Dn6) → breach (Dn2 violation,
+misalignment) → adjudication (Dn7) → suspension (Dn3) or derecognition (Dn4),
+with precedence/escalation (the demoted Dn5 pointers) as a routing layer. **The
+Atlas nowhere presents these as one system** — no doc names a pipeline, no edge
+type links the stages, and the chaining is our synthesis from the family
+definitions, not a relay of Atlas text. What *is* Atlas text is the local
+linkage: Dn2 and Dn6 docs explicitly declare their breach "misalignment" (Dn8),
+Dn6 and Dn4 docs explicitly route allegations to A.1.5.9 (Dn7), and A.1.5.10
+names derecognition "the ultimate accountability measure for misalignment". The
+pipeline is a reasonable reading of those links; treat it as a reading.
+
+**Second enforcement pipeline (found during this rewrite).** A structurally
+parallel breach machinery exists in the Risk scope and is *not* part of the
+actor-misalignment path above: A.3.2.2.7.2 runs Financial Penalties For Breach Of
+Capital Requirements → Severity Of Breaches (Low/High definitions) → Length Of
+Breaches → per-severity penalties → Additional Token Issuance → Restrictions On
+Investments → Conservatorship, with its own escalation trigger (A.3.2.2.7.2.3
+Escalation To Sky Governance). 30 docs in the A.3.2.2.7 subtree. Same shape —
+breach definition, graduated response, terminal measure — different subject
+(agent capital adequacy, not actor conduct) and different vocabulary (no
+"misalignment", no adjudication).
 
 **D1. Ecosystem Accords**
 
 - **Definition** — bilateral/multi-party agreements between Sky Core and ecosystem parties, Atlas-recorded and governance-enforceable.
 
-- **Detection signature** — title "Ecosystem Accord N: X And Y" under `be46648d` /A.2.8.2; `ecosystem_accord` edges (20). Members (all 10): 1 Grove&Spark `9ca40096`, 2 Prime Program (Spark/Moonbow/ Sky) `aa3b8e65`, 3 Keel `63a88b08`, 4 Obex `6bddc5aa`, 5 Core Council Executor Agent 1 `3aa58bdc`, 6 Osero `45125ff8`, 7 Skybase `8a74919c`, 8 Amatsu `9d187ae2`, 9 Ozone `cb3c159b`, 10 Grove `0cb00b28` (each: Key Details + Substantive Terms).
+- **Detection signature** — title "Ecosystem Accord N: X And Y" under `be46648d` /A.2.8.2; `ecosystem_accord` edges (20). Members (all 10): 1 Grove&Spark `9ca40096`, 2 Prime Program (Spark/Moonbow/ Sky) `aa3b8e65`, 3 Keel `63a88b08`, 4 Obex `6bddc5aa`, 5 Core Council Executor Agent 1 `3aa58bdc`, 6 Osero `45125ff8`, 7 Skybase `8a74919c`, 8 Amatsu `9d187ae2`, 9 Ozone `cb3c159b`, 10 Grove `0cb00b28`. Anatomy claim [T2 ✓ 2026-07-27]: all 10 accord subtrees have exactly two children, titled "Accord Key Details" + "Accord Substantive Terms" (verified against the A.2.8.2.N index files). Signature caveat: Accord 2's own title is just "Prime Program", not "Ecosystem Accord 2: …" — the title-template signature misses it; use the subtree/edges.
 
 - **Relationships** — governed by Dispute Resolution (D8); parties are composite_party entities; Accord 10 carries the Compensation Formula (E3).
 
@@ -320,7 +541,7 @@ tree, fully reconstructable from the concept layer.
 
 - **Detection signature** — primitive/instance subtype `executor-accord` (8+8); spec `88017877` /A.2.2.6.1.
 
-- **Relationships** — mutual-exclusion rule with Root Edit (both cannot be deactivated — A.2.2.1.2.4.2.1). Distinction vs D1: D1 binds parties bilaterally; D2 codifies an operational relationship inside the primitive machine.
+- **Relationships** — **corrected 2026-07-27**: an earlier version called this a "mutual-exclusion rule with Root Edit (both cannot be deactivated)". The source rule (`a4797404` /A.2.2.1.2.4.2.1.2 Prohibition On Deactivating Executor Accord And Root Edit Primitives) is stronger and not a mutual exclusion: "Agents must have active Executor Accord and Root Edit Primitives at all times. Once Globally Activated, these Primitives cannot be deactivated" — i.e. *neither* may ever be deactivated individually; wind-down must go through the Agent Termination Protocol (D9) instead. Distinction vs D1: D1 binds parties bilaterally; D2 codifies an operational relationship inside the primitive machine.
 
 **D3. The edit-instrument triad** — three same-sounding but distinct concepts:
 - **Root Edit** (governance primitive): agent self-modification via token-holder
@@ -331,14 +552,21 @@ tree, fully reconstructable from the concept layer.
   every ICD (B6) — the distributed change-log.
 - **Atlas Edit Proposal (AEP, atlas-level)**: amendments to the core Atlas via the
   Atlas Edit Weekly/Monthly Cycle `14e99d92` /A.1.11.2 + `d2cbddd2` /A.1.12.2;
-  mandatory template (A.1.12.2.3), Ratification Poll (2 weeks, 240M SKY minimum,
-  binary — A.1.12.2.6); blocked AEPs cannot resubmit unchanged.
+  mandatory template (A.1.12.2.3), Ratification Poll [T2 ✓ 2026-07-27] per
+  `13e6da57` /A.1.12.2.6: "Duration: two (2) Weeks. Minimum Positive
+  Participation: 240,000,000 SKY. Type: Binary Poll (yes/no/abstain)" — to pass,
+  Yes must exceed No AND Yes vote-weight must exceed 240M SKY at close. Blocked
+  AEPs cannot resubmit unchanged [T2 ✓ 2026-07-27]: "An AEP that was blocked for
+  misalignment cannot be resubmitted in its original form; it must be edited
+  before it can be formally submitted again to the Monthly Cycle" (Action Tenet
+  `523bfc8f` /A.1.12.2.1.7.2.0.4.1; amend-and-resubmit path `90932951`
+  /A.1.12.2.1.7.2).
 
 **D4. Voting machinery**
 
 - **Definition** — the consensus layer.
 
-- **Detection signature** — Weekly Poll (A.1.11.1.2.1) → Executive Vote (A.1.11.1.2.2) → spell execution; Ratification Polls (D3); agent-token votes (>1% holding threshold for Root Edit submission); governance_channel edges (10).
+- **Detection signature** — Weekly Poll (A.1.11.1.2.1) → Executive Vote (A.1.11.1.2.2) → spell execution; Ratification Polls (D3); agent-token votes — Root Edit submission threshold [T2 ✓ 2026-07-27, refined]: the per-agent Root Edit instances require holding "at least 1% of the circulating token supply to submit a proposal" (Keel exemplar `98f59541` /A.6.1.1.3.2.2.2.2.1.2.1.1; an earlier version said ">1%" — the source says at-least, and it lives in the per-agent instances, not the A.2.2.6.2 spec, which only mandates that eligibility requirements exist); governance_channel edges (10).
 
 - **Relationships** — cycles (C4) schedule it; spells (D5) execute it.
 
@@ -346,7 +574,7 @@ tree, fully reconstructable from the concept layer.
 
 - **Definition** — executable governance actions.
 
-- **Detection signature** — A.1.10.2 executive process subtree; Emergency Spells `b8266c11` /A.1.10.5 (Standby Spells, Emergency Drop Spells + Protego authorization); Spell Validators = Aligned Delegates (validator_of edges, 27); Registered Spell Checklists registry (13 cites); StarGuard per-agent execution contracts (22 docs); Prime Spell Security Incidents log (Active Data).
+- **Detection signature** — A.1.10.2 executive process subtree; Emergency Spells `b8266c11` /A.1.10.5 [T2 ✓ 2026-07-27]: Standby Spells (`5e40b575` /A.1.10.5.2 — "allow Sky Governance to bypass the GSM Pause Delay and directly perform crucial actions", reusable/re-executable) and Protego (`13cdbb75` /A.1.10.5.3 — "a contract that allows Sky Governance to cancel the execution of planned governance actions that are awaiting the expiration of the … GSM Pause Delay"), with Emergency Drop Spells governed under the Protego subtree (AD validation duties /A.1.10.5.3.2.3); Spell Validators = Aligned Delegates (validator_of edges, 27); Registered Spell Checklists registry (13 cites); StarGuard per-agent execution contracts (22 docs); Prime Spell Security Incidents log (Active Data).
 
 - **Relationships** — emergency tier links C5; misvalidated emergency votes are AD breaches (→ normative layer).
 
@@ -354,17 +582,17 @@ tree, fully reconstructable from the concept layer.
 
 - **Definition** — voting-power intermediation.
 
-- **Detection signature** — aligned/ ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms + conflict-of-interest disclosure ⚠. Triggering rule (corrected 2026-07-22): a Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in their AD Buffer at trigger time — and "It is inconsequential if, after triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank" (Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted this into a rank-loss penalty — agent-derived error caught by source audit).
+- **Detection signature** — aligned/ ranked_delegate_for edges (12/3); registries "List Of Recognized Aligned Delegates" + per-agent delegate lists (Spark A.6.1.1.1.3.1.3.8); delegate contracts (one per AD, annotated A.1.6.1.3.1.0.3.1); 6-month terms + conflict-of-interest disclosure [T2 ✓ 2026-07-27, ⚠ resolved — but note these are rules of *Spark's* delegate framework, not universal AD rules]: "Delegates are appointed by the Spark Foundation to fixed six (6) month terms aligned to calendar half-years" with automatic offboarding absent re-approval (`c612d4e4` /A.6.1.1.1.3.1.3.4.3 + `02deeacc` /.5.5); onboarding includes "conflict-of-interest collection" by the Spark Foundation (`d08b9b32` /A.6.1.1.1.3.1.3.4.1), and "Abstain" may be used "solely in cases where the Delegate has a documented conflict of interest for the specific proposal" (`16eb44b8` /A.6.1.1.1.3.1.3.3.4). Triggering rule (corrected 2026-07-22): a Weekly Cycle Proposal needs a Ranked Delegate with the Triggering Threshold in their AD Buffer at trigger time — and "It is inconsequential if, after triggering the Proposal, the Ranked Delegate loses their Ranked Delegate rank" (Action Tenet A.1.11.2.1.3.0.4.1; an earlier version of this entry inverted this into a rank-loss penalty — agent-derived error caught by source audit).
 
 **D7. Safe Harbor Agreement**
 
-- **Definition** — the one ON-CHAIN agreement instrument: contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` + IPFS-pinned terms; fact page A.2.11.1.2.6. Distinction: immutable code vs governance-enforceable prose (D1).
+- **Definition** — the one ON-CHAIN agreement instrument [T2 ✓ 2026-07-27]: contract `0xf17bB418B4EC251f300Aa3517Cb37349f17697A1` (verbatim at `0f541963` /A.2.11.1.2.2.2 Agreement Address); the `agreementURI` IPFS terms verbatim at `0064ee74` /A.2.11.1.2.2.3.1: `https://bafkreiernns2f4nv2uzvwtzjc2jboyivsu2mixz33y3xo7cvtllsuao6jy.ipfs.w3s.link/` ("The agreement located at the IPFS address shown in the smart contract … is the definitive version" — /A.2.11.1.2.1); fact page `258e85f5` /A.2.11.1.2.6 Agreement Fact Page. Distinction: immutable code vs governance-enforceable prose (D1).
 
 **D8. Dispute Resolution**
 
 - **Definition** — formal disagreement service for accords & terminations.
 
-- **Detection signature** — `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded in Active Data "Dispute Resolutions"); conflict-resolution precedence rules `e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count: exactly 1 recorded so far (Grove/Spark facilitator decision, 2025-09-02) — a young system.
+- **Detection signature** — `f4d827e9` /A.2.8.1 (intake → arguments → decision → recorded in Active Data "Dispute Resolutions"); conflict-resolution precedence rules `e883ceb7` /A.1.2.3; termination-dispute path A.1.14.5.4. Precedent count [T2 ✓ 2026-07-27]: exactly 1 recorded — the Active Data doc `c48614bb` /A.2.8.1.2.0.6.1 "Dispute Resolutions" lists a single entry, "Dispute Between Spark And Grove Regarding Effective Date Of Their Ecosystem Accord (September 2, 2025) - Facilitator Decision" — a young system.
 
 **D9. Agent Termination Protocol**
 
@@ -461,7 +689,11 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 ### E+. Programs & economic machinery (deep-dive merge)
 
-*[T3] — agent-derived from the programs/economics deep-dive, structure survived spot-checks (see concepts-audit.md) but the Ep9/Ep4 formula- and value-verification sweep concepts-audit.md calls for has not been run. Treat specific numbers/formulas here as leads, not verified facts, until that pass lands.*
+*[T3] baseline; the Ep9/Ep4/Ep8 formula- and value-verification sweep
+(concepts-audit.md checks #1–2) ran 2026-07-27 against the checked-out atlas
+commit — items it touched are upgraded to [T2 ✓ 2026-07-27] inline, and the
+two claims it falsified carry visible correction notes (Ep4 Step-3 split, Ep8
+Avalanche/Plasma rate limits). Numbers NOT carrying a ✓ remain leads.*
 
 **Ep1. The four reward programs** — each is BOTH a named program and a primitive
 (the Program-vs-Primitive blur is resolved: program = the incentive structure +
@@ -489,14 +721,32 @@ registries + partners; primitive = the per-agent deployment mechanism):
   capital: constraint-flexibility, not capital provision.
 
 **Ep3. Rates family** — SSR (`A.3.1.2.2`, BEAM-bounded 200–3000bps), legacy DSR,
-SKY Borrow Rate (piecewise utilization curve /A.4.4.1.3.5.1.2), stUSDS Rate (a
-FORMULA over SSR+borrow+utilization, not a parameter — /A.4.4.1.3.2). Distinction
+SKY Borrow Rate (piecewise utilization curve — [T2 ✓ 2026-07-27] source-verified
+at `05e97d4d` /A.4.4.1.3.5.1.2 Rate Setting Formula: two branches around Target
+Utilization, `SKY Borrow Minimum Rate + Utilization / Target Utilization * Slope 1`
+below/at target, `… + Slope 1 + (Utilization − Target Utilization) /
+(1 − Target Utilization) * Slope 2` above), stUSDS Rate (a FORMULA, not a
+parameter — [T2 ✓ 2026-07-27] verbatim at `7e51d5a7` /A.4.4.1.3.2: `stUSDS Rate
+= Sky Savings Rate + (SKY Borrow Rate - SKY Borrow Minimum Rate) * Utilization -
+Rfactor * f(Utilization)` — note the Rfactor deduction term the earlier
+"SSR+borrow+utilization" gloss omitted). Distinction
 locked: parameter (tunable coefficient) vs formula (immutable relationship) vs
 mechanism (contract machinery paying it).
 
 **Ep4. Revenue waterfall** — Treasury Management `6c0af059` /A.2.3: Net Revenue
-(Step 0) → allocation steps → Smart Burn Engine (Step 3, 45%; kicker/splitter
-params, SPLITTER_MOM breaker exempt from GSM delay) → Staking Rewards (Step 4);
+(Step 0) → allocation steps → Smart Burn Engine (Step 3) → Staking Rewards
+(Step 4). Step-3 split [T2 ✓ 2026-07-27, corrected]: an earlier version said
+"Step 3, 45%"; the source (`5ce73730` /A.2.3.1.2.4) actually allocates Step 3
+Capital three ways — 45% SBE buybacks whose acquired SKY goes to stakers as SKY
+Staking Rewards, 45% distributed to SKY stakers as USDS Staking Rewards, and
+10% SBE buybacks that are burned. Kicker/splitter params [T2 ✓ 2026-07-27]
+live at `ddb90fee` /A.3.5.2 Smart Burn Engine Parameters (current values:
+`kicker.khump` −200M USDS, `kicker.kbump` 6,000 USDS, `splitter.hop` 13,787 s;
+100% of Splitter allocation accumulates SKY, 0% rewards stakers directly,
+`burn` 100%). SPLITTER_MOM breaker exempt from GSM delay [T2 ✓ 2026-07-27]:
+verbatim at `5247c795` /A.1.10.3.2.8 — "The SPLITTER_MOM contract allows for
+the disabling of the Smart Burn Engine without the GSM Pause Delay" (its
+activation also disables USDS Staking Rewards until reversed);
 operationalized by the Monthly Settlement Cycle (dual independent calculation +
 reconcile + true-up — an audit-shaped procedure) and tuned by the Operational
 Weekly Cycle. Surplus Buffer /A.3.5.1 is the state variable the waterfall reads.
@@ -518,17 +768,40 @@ Ecosystem Entity Grants /A.2.13 with recorded Aug-2025 disbursements + tx
 hashes). Grant vs Reward distinction: one-time capacity transfers vs per-user
 incentive flows.
 
-**Ep8. Peg & bridge machinery** — Lite PSM (tin/tout 0%, buf 800M — /A.3.3.2.7.1.1,
-ownership transitioning to Grove per Accord terms); SkyLink bridges per chain
-with rate limits (Solana 5M USDS/day; Avalanche/Plasma initially unlimited) +
-Freezer multisigs (F2); Token SkyLink primitive for pioneer launches.
+**Ep8. Peg & bridge machinery** — Lite PSM [T2 ✓ 2026-07-27]: `tin` 0%, `tout`
+0%, `buf` 800,000,000 **DAI** (verbatim at `8694e11a` /A.3.3.2.7.1.1.2 Parameter
+Values — the unit is DAI, not USDS); "Control of the Lite PSM is being
+transitioned to Grove" (`39473e1a` /A.3.3.2.7.1.1 — an earlier version said
+"per Accord terms", but the Grove accord subtree A.2.8.2.10 does not mention the
+PSM; the transition is stated in the ALM article itself). SkyLink bridges per
+chain with rate limits: Solana 5,000,000 USDS/day, "gradually increased over
+time as the bridge becomes more mature" ([T2 ✓ 2026-07-27] verbatim at
+`8414b48b` /A.4.2.2.2.3.2.2). **Correction (2026-07-27)**: an earlier version
+claimed Avalanche/Plasma were "initially unlimited" — the current source says
+otherwise: Avalanche's USDS rate limit is **0 USDS per day** (`6d550b28`
+/A.4.2.2.3.3.2.2) and Plasma's is **5,000,000 USDS per day** (`527a2195`
+/A.4.2.2.4.3.2.2); both are Core-Facilitator-modifiable via the Operational
+Weekly Cycle without a prior Governance Poll. Plus Freezer multisigs (F2);
+Token SkyLink primitive for pioneer launches.
 
 **Ep9. Risk model framework** — A.3.2's quantitative core (54 math docs, E3):
 implemented models (Lending Markets, Legal Recourse Assets) vs **Pending Risk
-Models** (explicit backlog /A.3.2.1.1.4.3.2); formula chain PD→LGD→EAD→RWA→
-required capital; Smart Contract Risk Rating = min[CAP,(SR+CCR)·LAF·AF] with the
-Lindy Adjustment Factor (log-age discount) — the Atlas quantifies contract
-maturity trust.
+Models** (explicit backlog /A.3.2.1.1.4.3.2). Formula chain **corrected
+2026-07-27**: an earlier version gave "PD→LGD→EAD→RWA→required capital", which
+conflated two models — the Lending Markets chain (A.3.2.2.1.1.1.1.1 steps 1–5)
+is actually PD → LGD → Asset Correlation Coefficient R → Capital Requirement
+Without Buffers K → Instance Financial RRC, with EAD entering only at the final
+step (`fc471b5a`: $\text{RRC} = K \times \frac{1}{CR} \times \text{EAD} \times
+\text{ECR}$; LGD itself is `c9bd4928`: $LGD = min(1 - \frac{(1 - LP) * (1 -
+S)}{LT}, 0)$), while Aggregate RWA belongs to the separate Real World Assets
+RRC process (A.3.2.2.1.1.1.5.2, leverage-adjusted then × 8% capital ratio).
+Smart Contract Risk Rating [T2 ✓ 2026-07-27] verbatim at `00fd9362`
+/A.3.2.2.1.2.2: $\text{SCRR} = min[\text{CAP}, (\text{SR} + \text{CCR}) \times
+\text{LAF} \times {AF}]$, with CAP currently `30` (`b824c6ec`) and the Lindy
+Adjustment Factor (log-age discount, [T2 ✓ 2026-07-27] at `227eff62`
+/A.3.2.2.1.2.2.4: $\text{LAF} = max(0, 1 - \frac{ln(1 + \lambda \times
+\text{AGEeff})}{ln(1 + \lambda \times \text{max})})$) — the Atlas quantifies
+contract maturity trust.
 
 ### F. Relational/social concepts (the entity layer)
 
