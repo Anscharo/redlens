@@ -2,8 +2,23 @@
 
 The cross-cutting conceptual groupings of the Sky Atlas — the organization that does
 NOT follow the tree. Mission + method: the `analyst-library` skill
-(`.claude/skills/analyst-library/SKILL.md`). Built at atlas `db87434`. Counts are exact
-when censused (scripted over docs.json / relations.json / MCP), "≈" when sampled.
+(`.claude/skills/analyst-library/SKILL.md`). Signatures re-run live against the
+checked-out atlas commit; prose interpretations are dated at the pass that wrote
+them. Nine of the mechanical signatures below are backed by a standing drift
+guard (`pnpm census:concepts`, `src/lib/conceptsCensus.ts`) — a `:::census
+<slug>` block renders the live count + member list right in this doc instead
+of a number frozen at whatever atlas commit last touched the prose.
+
+**Epistemic labels** — every group below now carries a `[T1]`–`[T4]` tag (per
+`docs/library/concepts-audit.md`'s rewrite plan), naming the strongest
+evidence tier backing it: **[T1]** script-censused (re-run per atlas bump,
+several wired to a live `:::census` block); **[T2]** source-read (an agent
+verified the claim against the Atlas doc's verbatim content); **[T3]**
+agent-derived, since corroborated (a subagent claim later checked and
+confirmed); **[T4]** agent-derived, unverified (relayed from a subagent
+report without an in-session read — treat as a lead, not a fact, until
+checked). See concepts-audit.md for the full spot-check log this rubric is
+based on.
 
 Each concept group carries four fields:
 
@@ -26,6 +41,8 @@ Each concept group carries four fields:
 
 ### A. Meta-concepts (the Atlas describing itself)
 
+*[T1] — doc-type counts, glossary extraction, NR-number gaps, and the ghost-type set difference are all script-censused.*
+
 **A1. Document Type System**
 
 - **Definition** — the Atlas's own vocabulary of 30 document types.
@@ -34,7 +51,9 @@ Each concept group carries four fields:
 
 - **Members** — 30, all in A.1.
 
-- **Relationships** — contains every overlay concept below; **discovery: several spec'd types have no instances in the corpus** — Budget Controller/Directory/Document, Translation, Archive, Original Context Data, Facilitator Action Precedent — spec'd-but-unused concepts (candidate staleness or future machinery).
+- **Relationships** — contains every overlay concept below; several spec'd types have no instances in the corpus (candidate staleness or future machinery) — the ghost/used split and full member list:
+
+:::census ghost-doc-types
 
 **A2. Definitions of Terms**
 
@@ -92,6 +111,8 @@ Each concept group carries four fields:
 
 ### B. Lifecycle concepts (the primitive machine)
 
+*[T1] — title-template and entity/instance counts are script-censused; Omni Documents contents were source-read.*
+
 **B1. Primitive** (class)
 
 - **Definition** — reusable capability spec with hub/instances/ invocations lifecycle.
@@ -104,7 +125,9 @@ Each concept group carries four fields:
 
 - **Definition** — per-primitive per-agent status+directory root.
 
-- **Detection signature** — title template ("Primitive Hub Document" ×136, "Global Activation Status" ×140, "Hub Data Repository" ×136).
+- **Detection signature** — title template. A representative sample of the exact-title families cited across this catalog (Primitive Hub Document, Global Activation Status, Hub Data Repository, Parameters, Rate Limits, the Data Repository triad, Omni Documents, the ICD title) is censused together:
+
+:::census title-templates
 
 - **Relationships** — contains B3 directories.
 
@@ -114,7 +137,9 @@ Each concept group carries four fields:
 
 - **Detection signature** — title templates (×130–144 each).
 
-- **Relationships** — the empty ones are the validated staleness signal (8–12 of 17 active-instance dirs per prime are empty scaffolding).
+- **Relationships** — the empty ones are the validated staleness signal — most status-bucket directories are empty scaffolding (a state that hasn't happened yet, not itself surprising per-bucket). Live split:
+
+:::census empty-scaffolding
 
 **B4. Instance Configuration Document (ICD)**
 
@@ -147,6 +172,8 @@ Each concept group carries four fields:
 - **Relationships** — where F1 role wiring + D6 delegation + C5 emergency get agent-specific overrides; SRC Membership Registry lives here (H1).
 
 ### C. Procedural concepts
+
+*[T1] — title-template counts, processes.json, and cite-hub counts are script-censused.*
 
 **C1. Operational Process Definitions**
 
@@ -194,14 +221,23 @@ Each concept group carries four fields:
 
 - **Definition** — docs whose content is a literal numbered sequence.
 
-- **Detection signature** — content regex (`1.` then `2.` lines) → 44 docs.
-
 - **Relationships** — subset feeds C3; exemplars outside processes.json are candidates for its next triage (e.g. `A.1.6.4.4.1 AD Monthly Compensation Cycle`).
+
+:::census numbered-step-docs
 
 ### D. Normative & instrument concepts
 
+*[T2] for D1–D12 (source-read; several numeric details are flagged `[T3/T4 — scrutinize]` inline per concepts-audit.md's checklist and have not yet been re-verified against source). The Dn1–Dn9 normative-family block immediately below is `[T4]` — see its own note.*
+
 **The normative-family taxonomy** (from the normative deep-dive, counts corrected
 against local censuses; ⚠ = agent hypothesis not yet verified doc-by-doc):
+
+*[T4] — this is the suspect agent's frame with corrected numbers bolted on
+(concepts-audit.md's own verdict). A census-first rewrite (derive each Dn
+family from a scripted detection pass, quote one exemplar per family, drop
+any family that can't be mechanically detected) is recommended but out of
+scope for this pass — see concepts-audit.md's rewrite item 1. Treat the
+"justice pipeline" synthesis as our interpretation, not Atlas text.*
 
 **Dn1. Duties** — role-subject obligation sentences (must/shall/will + power
 verbs), extracted as `duty_for` edges: **854 in the DB graph, all sourced from
@@ -211,10 +247,12 @@ duties citing duties). Distinctions: obligation (must) vs permission (may) vs
 discretionary (at discretion of); title-level vs prose duties; universal
 ("Facilitators must…") vs qualified ("Core Facilitator must…").
 
-**Dn2. Prohibitions** — negated norms. Censused: 53 docs carry prohibition
-language. Exemplars: Kickbacks Prohibited `45e794a0` /A.1.6.5, counterparty
-engagement ban /A.1.7.8. Distinctions: blanket vs conditional; permanent vs
-status-scoped; self-executing vs adjudicated.
+**Dn2. Prohibitions** — negated norms. Exemplars: Kickbacks Prohibited
+`45e794a0` /A.1.6.5, counterparty engagement ban /A.1.7.8. Distinctions:
+blanket vs conditional; permanent vs status-scoped; self-executing vs
+adjudicated.
+
+:::census prohibition-language
 
 **Dn3. Suspension/deactivation state rules**
 
@@ -335,15 +373,16 @@ tree, fully reconstructable from the concept layer.
 - **Detection signature** — `fe833d0e` /A.1.14.5 (initiate via Root Edit vote → Executor executes → forum notice + residual assets → dispute path). Distinct from emergency suspension (Sky Core discretionary power, A.1.14.1.5.4).
 
 **D10. Transitional governance family** — three nested layers:
-- **Short-Term Transitionary Measures** (20 docs titled "…Transitionary
-  Measure(s)", censused 2026-07-22): interim
-  workarounds pending permanent systems (forum-post AEP submission until
-  Powerhouse; staking rewards pending treasury; Founder Access suspension…).
+- **Short-Term Transitionary Measures** — interim workarounds pending permanent
+  systems (forum-post AEP submission until Powerhouse; staking rewards pending
+  treasury; Founder Access suspension…). Member list below.
 - **Scope Bootstrapping** `ba97b4dd` /A.1.15: meta-authority to waive normal
   process during Endgame transition (precedence rule A.0.1.2.1.2).
 - **Measures For Endgame Transition** `94ed62af` /A.3.7 (incl. the Tau/BEAM
   parameter hub, 18+14 cites).
 All three are EXPIRY-implying — prime staleness-signal candidates.
+
+:::census transitionary-measures
 
 **D11. Incubation frameworks**
 
@@ -362,9 +401,9 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 - **Relationships** — lifecycle II.3 glue; overlaps D10 (expiry tracking).
 
 **D0. Locally-established seeds** (agents refine):
-- **Prohibitions** — content signature (prohibit/forbidden/not permitted/may not):
-  53 docs. Exemplar: Kickbacks Prohibited `45e794a0` /A.1.6.5.
-- **Normative-language mass** — 1,301 docs carry MUST/SHALL/required-to language:
+- **Prohibitions** — see the `prohibition-language` census under Dn2 above.
+  Exemplar: Kickbacks Prohibited `45e794a0` /A.1.6.5.
+- **Normative-language mass** [T4, not yet censused] — 1,301 docs carry MUST/SHALL/required-to language:
   the rulebook is ~12% of the corpus by doc count.
 - **Spell machinery** — StarGuard: per-agent spell-whitelisting/execution contract
   (22 docs, A.1.10.2.3.2.3 subtree + per-artifact "StarGuard Max Delay" ×6 across
@@ -373,6 +412,8 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
   inside artifacts + root-edit pipelines; implies expiry review (staleness signal).
 
 ### E. Quantitative concepts
+
+*[T1] — all five sub-groups are script-censused.*
 
 **E1. Parameter Sets**
 
@@ -396,9 +437,11 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 
 - **Definition** — mathematical definitions (LaTeX/inline math).
 
-- **Detection signature** — content regex (\frac, \sum, \times, \text{}) → 120 docs; **54 of them concentrate in `55999acf` /A.3.2 Risk Capital** (probability-of-default model chain: Distance To Default, Leverage Adjusted Drift To Risk Ratio…), remainder: A.4.4 staking (3), A.2.8 accord compensation (2, e.g. `A.2.8.2.10.2.1.2 Compensation Formula`), spell validation math (A.1.10.2).
+- **Members** — concentrated in `55999acf` /A.3.2 Risk Capital (probability-of-default model chain: Distance To Default, Leverage Adjusted Drift To Risk Ratio…), remainder: A.4.4 staking, A.2.8 accord compensation (e.g. `A.2.8.2.10.2.1.2 Compensation Formula`), spell validation math (A.1.10.2). Member list + exact split below.
 
 - **Relationships** — formulas parameterized by E1 values.
+
+:::census formula-docs
 
 **E4. On-chain object descriptors**
 
@@ -417,6 +460,8 @@ All three are EXPIRY-implying — prime staleness-signal candidates.
 - **Relationships** — a STATUS overlay on B4 instances — a validated staleness/coverage signal candidate.
 
 ### E+. Programs & economic machinery (deep-dive merge)
+
+*[T3] — agent-derived from the programs/economics deep-dive, structure survived spot-checks (see concepts-audit.md) but the Ep9/Ep4 formula- and value-verification sweep concepts-audit.md calls for has not been run. Treat specific numbers/formulas here as leads, not verified facts, until that pass lands.*
 
 **Ep1. The four reward programs** — each is BOTH a named program and a primitive
 (the Program-vs-Primitive blur is resolved: program = the incentive structure +
@@ -487,6 +532,8 @@ maturity trust.
 
 ### F. Relational/social concepts (the entity layer)
 
+*[T1] — entity/edge/role counts are script-censused.*
+
 **F1. Actor role system**
 
 - **Definition** — who may act in what capacity.
@@ -511,11 +558,13 @@ maturity trust.
 
 ### G. Duties & responsibilities
 
+*[T1] — duty_for/RP-edge counts are script-censused (see the accuracy correction on the relations.json point below).*
+
 **G1. Duty assignments**
 
 - **Definition** — obligations extracted per party.
 
-- **Detection signature** — `duty_for` edges — 854 in the DB graph (NOT present in relations.json; they live in the server-side graph only — detection note for regenerability), plus process_step_responsible_party_for (32), responsible_party_for (63/64).
+- **Detection signature** — `duty_for` edges (build-graph §2s-ter) — 854 in the graph, and they DO ship in `relations.json` (an earlier version of this entry claimed otherwise — corrected), plus process_step_responsible_party_for (32), responsible_party_for (63/64).
 
 - **Relationships** — RedLens reports (Op Facilitator / GovOps Responsibilities, OEA Assessment) are validated curations of this concept.
 
@@ -531,6 +580,8 @@ maturity trust.
 
 ### H. Registry concepts
 
+*[T1] — the registry list and liveness split are script-censused (`:::census registry-liveness` below).*
+
 **H1. Registries ("List Of …")**
 
 - **Definition** — enumerable live collections the Atlas maintains.
@@ -539,19 +590,23 @@ maturity trust.
 
 - **Relationships** — registries are where concepts MATERIALIZE as data — the payment lists are the terminal nodes of the Distribution Rewards concept chain.
 
-**H1-liveness census (2026-07-21): 14 of 46 registries are LIVE, 32 are EMPTY
-shells** (no descendants, placeholder content). Empty includes: ALL 17 Distribution
-Reward Payment lists, 8 of 9 Integration Boost Payment lists, Integrator
-Applications, Current/Onboarding Integrators, Active Arrangers, Top-Tier Audit
-Firms (Mid-Tier is populated!). Live: Interpretations, Document Types, Aligned
-Delegates, Spell Checklists, Auxiliary Accounts, Sky Direct Exposures, Allocation
-Instances, Authorized Forum Accounts, Registered Multisigs, Mid-Tier Audit Firms,
-Skybase Core Governance Reward Payments, the two artifact lists.
-**Insight: the Atlas's transactional record-keeping layer is largely unrealized —
-payments are evidently tracked off-Atlas.** This is the strongest staleness/
-emptiness signal found so far, sharper than the empty instance-directory count.
+**H1-liveness** — no descendants, no data table, and no bulleted entries marks
+a registry as an EMPTY shell rather than a LIVE one; the split typically
+includes ALL/most Distribution Reward Payment lists, most Integration Boost
+Payment lists, Integrator Applications, Current/Onboarding Integrators, and
+Active Arrangers on the empty side. **Insight: the Atlas's transactional
+record-keeping layer is largely unrealized — payments are evidently tracked
+off-Atlas.** This is the strongest staleness/emptiness signal found so far,
+sharper than the empty instance-directory count. Live/empty split and full
+member list below (re-run per atlas bump — a doc that gains real entries
+between passes, e.g. an audit-firm list being populated, moves buckets here
+automatically).
+
+:::census registry-liveness
 
 ### I. Cross-link hubs (most-cited docs — the concept anchors)
+
+*[T1] — cite counts are script-censused (graph `cites` edges).*
 
 | Cites | Doc |
 |---|---|
@@ -601,7 +656,7 @@ cross-cutting machinery — pure prose.)
 - **Title template**: B2, B3, B4 (partly), B6, C1, C2, E1, E2, E5, H1, StarGuard,
   Transitionary Measures, Relayer Role.
 - **Edge type**: B4/B5 (instance_of/invoked_by), C5 (emergency_response), F1 (role
-  edges), F2 (signer edges), F3 (funds edges), G1 (duty_for — DB-only), G2
+  edges), F2 (signer edges), F3 (funds edges), G1 (duty_for, in relations.json), G2
   (active_data_for), H1 (listed_in), accords (ecosystem_accord).
 - **Content pattern**: E3 (math), D0 prohibitions, C6 numbered steps, dated
   commitments (61 docs).
@@ -647,12 +702,23 @@ concept taxonomy and the human-validated process taxonomy agree:
 
 ### II.6 Cross-scope concept duplication (same concept, parallel docs)
 
-- SkyLink Freezer Multisigs: one doc in A.1 (governance view) + one in A.4
-  (protocol view) per chain.
-- "Swift Action…" misalignment-redress: parallel docs in A.1.5 (ACs) and A.1.6 (ADs).
-- Operational/Core Executor Facilitator: defined in A.1.7 sections, mirrored in A.0
-  definitions and A.6.1.2 executor artifacts.
-- Sky Primitives: A.2.2 (spec) vs "Sky Primitives" title inside every artifact ×8.
+*[T1] for the census below (mechanical set-diff); [T2] for the curated exemplars, hand-picked and read from the census output.*
+
+Hand-picked exemplars, all present in the full census below: SkyLink Freezer
+Multisigs (one doc in A.1 governance view + one in A.4 protocol view per
+chain); "Swift Action…" misalignment-redress (parallel docs in A.1.5 ACs and
+A.1.6 ADs); Operational/Core Executor Facilitator (defined in A.1.7 sections,
+mirrored in A.0 definitions and A.6.1.2 executor artifacts); Sky Primitives
+(A.2.2 spec vs "Sky Primitives" title inside every artifact ×8).
+
+**Census tier only, deliberately not a graph edge** — title identity is a
+lead, not a verified relation (it can't distinguish "same object, two views"
+from "same template, different subjects"), and graph edges must assert true
+relationships. The full member list below includes template-title noise
+("Scope", "In General", "Resources") alongside the real exemplars — spot-check
+before treating any pair as a confirmed duplication.
+
+:::census cross-scope-duplication
 
 ---
 
@@ -735,8 +801,9 @@ Usage Standards →Dn6.
    artifacts vs primes' hundreds.
 
 **Open questions for the next pass**:
-- The 854 duty_for edges live only in the DB graph — regenerate the duty concept
-  from source or export them into relations.json for offline analysis?
+- ~~The 854 duty_for edges live only in the DB graph~~ RESOLVED: they ship in
+  `relations.json` (build-graph §2s-ter) — an earlier version of this entry
+  and two others in this doc (G1, II.2) claimed otherwise; all three corrected.
 - Do the spec'd-but-unused doc types (Budget…, Translation, Archive) appear in atlas
   HISTORY (existed once) or were they never populated? (atlas_history query.)
 - Payment lists (17+9) per reward instance: extractable into a Payments dataset
