@@ -593,14 +593,16 @@ maturity trust.
 **H1-liveness** — no descendants, no data table, and no bulleted entries marks
 a registry as an EMPTY shell rather than a LIVE one; the split typically
 includes ALL/most Distribution Reward Payment lists, most Integration Boost
-Payment lists, Integrator Applications, Current/Onboarding Integrators, and
-Active Arrangers on the empty side. **Insight: the Atlas's transactional
-record-keeping layer is largely unrealized — payments are evidently tracked
-off-Atlas.** This is the strongest staleness/emptiness signal found so far,
-sharper than the empty instance-directory count. Live/empty split and full
-member list below (re-run per atlas bump — a doc that gains real entries
-between passes, e.g. an audit-firm list being populated, moves buckets here
-automatically).
+Payment lists, Integrator Applications, and Current/Onboarding Integrators
+on the empty side. *(Atlas drift since db87434: List Of Active Arrangers
+was empty at authoring time and has since gained live entries — it now
+buckets "live", not "empty"; the census below reflects its current state.)*
+**Insight: the Atlas's transactional record-keeping layer is largely
+unrealized — payments are evidently tracked off-Atlas.** This is the
+strongest staleness/emptiness signal found so far, sharper than the empty
+instance-directory count. Live/empty split and full member list below
+(re-run per atlas bump — a doc that gains real entries between passes, e.g.
+an audit-firm list being populated, moves buckets here automatically).
 
 :::census registry-liveness
 
@@ -705,18 +707,24 @@ concept taxonomy and the human-validated process taxonomy agree:
 *[T1] for the census below (mechanical set-diff); [T2] for the curated exemplars, hand-picked and read from the census output.*
 
 Hand-picked exemplars, all present in the full census below: SkyLink Freezer
-Multisigs (one doc in A.1 governance view + one in A.4 protocol view per
-chain); "Swift Action…" misalignment-redress (parallel docs in A.1.5 ACs and
-A.1.6 ADs); Operational/Core Executor Facilitator (defined in A.1.7 sections,
-mirrored in A.0 definitions and A.6.1.2 executor artifacts); Sky Primitives
-(A.2.2 spec vs "Sky Primitives" title inside every artifact ×8).
+Multisigs (one doc per chain in the A.1 governance view, its exact-title
+counterpart in the A.4 protocol view — e.g. Ethereum SkyLink Freezer Multisig
+at `A.1.10.3.2.14`/`A.4.2.2.1`, and likewise for Solana/Avalanche/Plasma);
+Role Of Core Facilitator (three exact-title copies across A.1/A.2 —
+`A.1.5.1.1`, `A.2.8.1.1.1.2`, `A.2.10.1.1`); Core Executor Facilitator
+(A.1.7 sections mirrored in A.6.1.2 executor artifacts).
 
 **Census tier only, deliberately not a graph edge** — title identity is a
 lead, not a verified relation (it can't distinguish "same object, two views"
 from "same template, different subjects"), and graph edges must assert true
 relationships. The full member list below includes template-title noise
 ("Scope", "In General", "Resources") alongside the real exemplars — spot-check
-before treating any pair as a confirmed duplication.
+before treating any pair as a confirmed duplication. Some catalog examples
+from an earlier pass are excluded by the signature's noise filters and so
+don't appear below: "Swift Action…" misalignment-redress (A.1.5.8/A.1.6.6
+carry different exact titles — "AC" vs "AD" Misalignment — so they don't
+title-match), and Sky Primitives (occurs 10 times across the corpus, over
+the signature's ≤3-occurrence cap meant to exclude generic template titles).
 
 :::census cross-scope-duplication
 

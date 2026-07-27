@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AtlasNode } from "../types";
-import { computeLibrary, GROUPS, type GroupSpec } from "./libraryShape";
+import { computeLibrary, GROUPS, SCOPE_A1_UUID, SCOPE_A2_UUID, type GroupSpec } from "./libraryShape";
 
 let order = 0;
 const mk = (doc_no: string, type: string, content = "xx"): AtlasNode => ({
@@ -108,7 +108,9 @@ describe("GROUPS seed hardening", () => {
   });
 
   it("an unclaimed A.1/A.2 article surfaces as a visible Ungrouped group and warns", () => {
-    const partitionNodes = [mk("A.1", "Scope"), mk("A.1.1", "Article"), mk("A.1.2", "Article")];
+    // A.1's node id is pinned to the real SCOPE_A1_UUID: the completeness diff
+    // now resolves the scope by UUID, not by matching the "A.1" doc_no string.
+    const partitionNodes = [{ ...mk("A.1", "Scope"), id: SCOPE_A1_UUID }, mk("A.1.1", "Article"), mk("A.1.2", "Article")];
     const n = Object.fromEntries(partitionNodes.map((x) => [x.id, x]));
     const groups: GroupSpec[] = [{ name: "Constitutional core", roots: ["id-A.1.1"] }]; // A.1.2 never enumerated
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -120,13 +122,41 @@ describe("GROUPS seed hardening", () => {
     warn.mockRestore();
   });
 
+  it("resolves A.1/A.2 by UUID, not doc_no literal — survives a renumbering", () => {
+    // A.1 renumbered to "B.1" (id pinned to the real SCOPE_A1_UUID so the
+    // completeness diff must resolve it via nodes[SCOPE_A1_UUID].doc_no, not
+    // a hardcoded "A.1" string) — its one never-enumerated child still lands
+    // in "Ungrouped" instead of silently vanishing.
+    const renumberedNodes: AtlasNode[] = [
+      { ...mk("B.1", "Scope"), id: SCOPE_A1_UUID },
+      mk("B.1.1", "Article"),
+      { ...mk("A.2", "Scope"), id: SCOPE_A2_UUID },
+      mk("A.2.2", "Article"),
+    ];
+    const n = Object.fromEntries(renumberedNodes.map((x) => [x.id, x]));
+    const groups: GroupSpec[] = [{ name: "Primitive spec library", roots: ["id-A.2.2"] }]; // B.1.1 never enumerated
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, groups);
+    const ungrouped = out.chunkTree.find((g) => g.title === "Ungrouped");
+    expect(ungrouped?.children?.map((c) => c.doc_no)).toEqual(["B.1.1"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/B\.1\.1/);
+    warn.mockRestore();
+  });
+
+  it("degrades to an empty partitioned set (no crash) when A.1/A.2 are missing entirely", () => {
+    const n = Object.fromEntries([mk("A.3", "Scope")].map((x) => [x.id, x]));
+    const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, []);
+    expect(out.chunkTree.some((g) => g.title === "Ungrouped")).toBe(false);
+  });
+
   it("a fixture matching the current GROUPS shape leaves nothing unclaimed", () => {
     // Mirrors production: A.1 fully partitioned across three explicit-roots
     // groups, A.2 covered by one explicit root (A.2.2) plus the complement.
     const shapeNodes = [
-      mk("A.1", "Scope"),
+      { ...mk("A.1", "Scope"), id: SCOPE_A1_UUID },
       ...Array.from({ length: 15 }, (_, i) => mk(`A.1.${i + 1}`, "Article")),
-      mk("A.2", "Scope"),
+      { ...mk("A.2", "Scope"), id: SCOPE_A2_UUID },
       mk("A.2.2", "Article"),
       ...Array.from({ length: 12 }, (_, i) => mk(`A.2.${i + 3}`, "Article")), // A.2.3..A.2.14
     ];
@@ -136,7 +166,7 @@ describe("GROUPS seed hardening", () => {
       { name: "Actor rulebooks", roots: ["id-A.1.5", "id-A.1.6", "id-A.1.7", "id-A.1.8"] },
       { name: "Governance processes", roots: ["id-A.1.9", "id-A.1.10", "id-A.1.11", "id-A.1.12", "id-A.1.13"] },
       { name: "Primitive spec library", roots: ["id-A.2.2"] },
-      { name: "Support processes", complementOf: "id-A.2", except: ["id-A.2.2"] },
+      { name: "Support processes", complementOf: SCOPE_A2_UUID, except: ["id-A.2.2"] },
     ];
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, groups);

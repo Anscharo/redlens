@@ -168,16 +168,28 @@ function censusTransitionaryMeasures(all: AtlasNode[]): CensusResult {
 // notes field for the corpus-wide total's drift from concepts.md's 120.
 const FORMULA_RE = /\\frac|\\sum|\\times|\\text\{/;
 
+// Risk Capital — anchor by UUID, not the "A.3.2" doc_no literal (CLAUDE.md):
+// a renumbering must not silently zero out this subtotal. The "A.3.2" COUNT
+// KEY is kept as-is (not renamed to e.g. "risk-capital-subtree") because it's
+// read literally by .github/concepts-census-baseline.json and by concepts.md's
+// own prose — renaming it would be baseline/doc churn for no behavior change.
+const RISK_CAPITAL_UUID = "55999acf-75fe-4adf-8584-9746ef50d3e4"; // A.3.2 Risk Capital
+
 function censusFormulaDocs(all: AtlasNode[]): CensusResult {
   const members = all.filter((n) => FORMULA_RE.test(n.content)).map((n) => ref(n));
-  const inA32 = members.filter((m) => m.doc_no.startsWith("A.3.2")).length;
+  const riskCapital = all.find((n) => n.id === RISK_CAPITAL_UUID);
+  const inRiskCapital = riskCapital
+    ? members.filter((m) => m.doc_no === riskCapital.doc_no || m.doc_no.startsWith(`${riskCapital.doc_no}.`)).length
+    : 0;
   return {
     slug: "formula-docs",
     title: "Formulas (mathematical definitions)",
     signature: { kind: "content", pattern: "content contains \\frac, \\sum, \\times, or \\text{" },
     members,
-    counts: { total: members.length, "A.3.2": inA32 },
-    notes: "concepts.md's original figure was 120 docs (54 in A.3.2, atlas db87434); the current atlas (checked-out submodule) shows fewer outside A.3.2 — the A.3.2 share still matches exactly, so this reads as remainder drift, not a signature bug. Re-verify if the corpus-wide total keeps falling.",
+    counts: { total: members.length, "A.3.2": inRiskCapital },
+    notes: riskCapital
+      ? "concepts.md's original figure was 120 docs (54 in A.3.2, atlas db87434); the current atlas (checked-out submodule) shows fewer outside A.3.2 — the A.3.2 share still matches exactly, so this reads as remainder drift, not a signature bug. Re-verify if the corpus-wide total keeps falling."
+      : "Risk Capital (A.3.2) node not found by UUID in this bundle — the A.3.2 subtotal has degraded to 0 rather than silently mismatching a stale doc_no prefix.",
   };
 }
 

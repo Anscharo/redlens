@@ -8,6 +8,14 @@ import type { AtlasNode } from "../types";
 // docs.json cost more than computing it in place. Follows the Stale Dates
 // pattern: recompute on visit, nothing to version-skew.
 
+// The two partitioned scopes (see the completeness diff below) — anchored by
+// UUID per CLAUDE.md's doc_no rules, never by the literal "A.1"/"A.2" string,
+// which is an editorial doc_no that a renumbering could change.
+// Exported for tests only (renumbering-fixture coverage) — production code
+// within this file uses them directly.
+export const SCOPE_A1_UUID = "18ac7dd3-c646-4352-9b0d-d01a2932d7d1"; // A.1 "The Governance Scope"
+export const SCOPE_A2_UUID = "1ce14bd8-c7b3-4f74-a152-292a8d8ebed0"; // A.2 "The Support Scope"
+
 // Curated taxonomy seed — group → article/scope root UUIDs (see docs/atlas-map.md §2).
 // This is the embryo of the P1 chunk registry. Exported for the server's
 // atlas_describe stats section (src/server/tools-stats.ts).
@@ -167,7 +175,15 @@ export function computeLibrary(
   // Surface any gap as a visible "Ungrouped" catch-all plus a console.warn
   // (drift surfaces in the UI on next visit) rather than dropping it.
   const claimed = new Set(resolvedGroups.flatMap((g) => g.roots));
-  const partitioned = [...(semChildren.get("A.1") ?? []), ...(semChildren.get("A.2") ?? [])];
+  // Resolve A.1/A.2's CURRENT doc_no from their stable UUIDs — never hardcode
+  // the doc_no literal (CLAUDE.md). A renumbered or missing scope degrades to
+  // an empty semChildren lookup rather than a lookup keyed to a stale doc_no.
+  const scopeA1 = nodes[SCOPE_A1_UUID];
+  const scopeA2 = nodes[SCOPE_A2_UUID];
+  const partitioned = [
+    ...(scopeA1 ? semChildren.get(scopeA1.doc_no) ?? [] : []),
+    ...(scopeA2 ? semChildren.get(scopeA2.doc_no) ?? [] : []),
+  ];
   const unclaimed = partitioned.filter((n) => !claimed.has(n.id));
   if (unclaimed.length > 0) {
     console.warn(
