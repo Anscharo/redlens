@@ -52,18 +52,36 @@ test("toVectorLiteral formats a number[] as a pgvector bracket literal", async (
   expect(toVectorLiteral([1])).toBe("[1]");
 });
 
+// Point db.ts's `sql` at a guaranteed-unreachable target BEFORE importing it, so
+// waitForDb can never connect — independent of whether a real Postgres is
+// reachable in this environment. The CI "Railway server" job runs this same
+// suite WITH a live localhost:5432, so the old "docker default is unreachable"
+// assumption failed there; 127.0.0.1:1 refuses immediately everywhere.
+const UNREACHABLE_DB = "postgres://redlens:redlens@127.0.0.1:1/redlens"; // nothing listens on :1
+
 test("waitForDb gives up and throws after exhausting attempts against an unreachable db", async () => {
-  const { waitForDb } = await freshDb();
-  // db.ts's `sql` is bound to config.databaseUrl at import time (the docker
-  // default, localhost:5432) — no Postgres listens there in this environment,
-  // so the connection fails immediately (ECONNREFUSED), no real network hang.
-  await expect(waitForDb(1)).rejects.toBeTruthy();
+  const { config } = await import("./config.ts");
+  const orig = config.databaseUrl;
+  config.databaseUrl = UNREACHABLE_DB;
+  try {
+    const { waitForDb } = await freshDb(); // fresh `sql` binds to the unreachable URL
+    await expect(waitForDb(1)).rejects.toBeTruthy();
+  } finally {
+    config.databaseUrl = orig;
+  }
 });
 
 test("waitForDb retries with backoff before giving up (attempts > 1)", async () => {
-  const { waitForDb } = await freshDb();
-  const start = Date.now();
-  await expect(waitForDb(2)).rejects.toBeTruthy();
-  // One retry sleeps ~500ms between attempts.
-  expect(Date.now() - start).toBeGreaterThanOrEqual(400);
+  const { config } = await import("./config.ts");
+  const orig = config.databaseUrl;
+  config.databaseUrl = UNREACHABLE_DB;
+  try {
+    const { waitForDb } = await freshDb();
+    const start = Date.now();
+    await expect(waitForDb(2)).rejects.toBeTruthy();
+    // One retry sleeps ~500ms between attempts.
+    expect(Date.now() - start).toBeGreaterThanOrEqual(400);
+  } finally {
+    config.databaseUrl = orig;
+  }
 });
