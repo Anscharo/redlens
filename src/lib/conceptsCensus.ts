@@ -305,7 +305,7 @@ function censusCrossScopeDuplication(all: AtlasNode[]): CensusResult {
     signature: { kind: "structural", pattern: "identical normalized title occurring 2–3 times total, spanning ≥2 scopes, all copies non-trivial (>40 chars)" },
     members,
     counts: { total: members.length, groups: pairCount },
-    notes: 'Census tier only, deliberately not a graph edge — title identity is a lead, not a verified relation (can\'t distinguish "same object, two views" from "same template, different subjects"). Expect some template-title noise ("Scope", "In General", "Resources") alongside real exemplars (SkyLink Freezer Multisigs, "Swift Action…").',
+    notes: 'Census tier only, deliberately not a graph edge — title identity is a lead, not a verified relation (can\'t distinguish "same object, two views" from "same template, different subjects"). Expect some template-title noise ("Scope", "In General", "Resources") alongside real exemplars (SkyLink Freezer Multisigs, "Role Of Core Facilitator").',
   };
 }
 
