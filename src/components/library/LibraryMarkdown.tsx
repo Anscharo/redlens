@@ -3,8 +3,30 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Link } from "../Link";
 import { atlasHref } from "../../lib/routes";
+import { ConceptCensus } from "./ConceptCensus";
 
 const UUID_RE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
+
+// A `:::census <slug>` line, alone on its own line, interleaves a live
+// <ConceptCensus> block into the curated prose (docs/library/concepts.md).
+// Only concepts.md uses this; concepts-audit.md has no markers, so this is a
+// no-op split for it (one "md" segment, unchanged).
+const CENSUS_MARKER_RE = /^:::census\s+([\w-]+)\s*$/gm;
+
+type MarkdownSegment = { kind: "md"; text: string } | { kind: "census"; slug: string };
+
+function splitByCensusMarkers(raw: string): MarkdownSegment[] {
+  const segments: MarkdownSegment[] = [];
+  let cursor = 0;
+  for (const m of raw.matchAll(CENSUS_MARKER_RE)) {
+    const idx = m.index ?? 0;
+    if (idx > cursor) segments.push({ kind: "md", text: raw.slice(cursor, idx) });
+    segments.push({ kind: "census", slug: m[1] });
+    cursor = idx + m[0].length;
+  }
+  if (cursor < raw.length) segments.push({ kind: "md", text: raw.slice(cursor) });
+  return segments;
+}
 
 // Shared renderer for the library's curated markdown docs (Concepts, Audit) —
 // bundled at build time via ?raw, RubricPage pattern. Inline code spans holding
@@ -37,9 +59,18 @@ const components: Components = {
 };
 
 export function LibraryMarkdown({ raw }: { raw: string }) {
+  const segments = splitByCensusMarkers(raw);
   return (
     <div className="atlas-md text-sm text-tan-2">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{raw}</ReactMarkdown>
+      {segments.map((seg, i) =>
+        seg.kind === "census" ? (
+          <ConceptCensus key={i} slug={seg.slug} />
+        ) : (
+          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} components={components}>
+            {seg.text}
+          </ReactMarkdown>
+        ),
+      )}
     </div>
   );
 }
