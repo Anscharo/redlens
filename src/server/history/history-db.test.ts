@@ -23,7 +23,7 @@ const PARENT = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
 
 describe("§5: migration 009 adds the additive columns", () => {
   it("a 009 migration exists and ALTERs atlas_history with the new columns", () => {
-    const dir = new URL("./migrations/", import.meta.url);
+    const dir = new URL("../migrations/", import.meta.url);
     const file = readdirSync(dir).find((n) => n.startsWith("009") && n.endsWith(".sql"));
     expect(file).toBeTruthy();
     const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
@@ -85,7 +85,7 @@ describe("§5: eventToRow maps HTML-era additive fields", () => {
 
 describe("§10.4: migration 010 + method column", () => {
   it("a 010 migration ALTERs atlas_history with method", () => {
-    const dir = new URL("./migrations/", import.meta.url);
+    const dir = new URL("../migrations/", import.meta.url);
     const file = readdirSync(dir).find((n) => n.startsWith("010") && n.endsWith(".sql"));
     expect(file).toBeTruthy();
     const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
@@ -97,7 +97,7 @@ describe("§10.4: migration 010 + method column", () => {
 
 describe("pre-git-history.md: migration 011 + source_url column", () => {
   it("a 011 migration ALTERs atlas_history with source_url", () => {
-    const dir = new URL("./migrations/", import.meta.url);
+    const dir = new URL("../migrations/", import.meta.url);
     const file = readdirSync(dir).find((n) => n.startsWith("011") && n.endsWith(".sql"));
     expect(file).toBeTruthy();
     const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();
@@ -109,7 +109,7 @@ describe("pre-git-history.md: migration 011 + source_url column", () => {
 
 describe("PR metadata normalization: migration 012 + atlas_prs dual-write", () => {
   it("a 012 migration creates atlas_prs, backfills it, and exposes conflict audit view", () => {
-    const dir = new URL("./migrations/", import.meta.url);
+    const dir = new URL("../migrations/", import.meta.url);
     const file = readdirSync(dir).find((n) => n.startsWith("012") && n.endsWith(".sql"));
     expect(file).toBeTruthy();
     const sql = readFileSync(new URL(file!, dir), "utf8").toLowerCase();

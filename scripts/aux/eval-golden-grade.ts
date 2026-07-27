@@ -52,7 +52,7 @@ export interface GoldenGradeResult {
 }
 
 // The system prompt's citation link format, shared with the runtime harness
-// (src/server/verify-checks.ts) so grader and live checks can't drift.
+// (src/server/chat/verify/verify-checks.ts) so grader and live checks can't drift.
 const CITATION_RE = new RegExp(CITATION_SRC, "i");
 
 function containsAny(haystack: string, needles: string[]): boolean {

@@ -27,7 +27,7 @@ function addedRow(doc_id: string, overrides: Partial<{ committed_at: string | nu
 // opaque substitution the mocked tag call ignores, per the established
 // convention in history.test.ts.
 function mockHistoryRows(rows: ReturnType<typeof addedRow>[]) {
-  mock.module("./db.ts", () => ({
+  mock.module("../db.ts", () => ({
     sql: Object.assign(() => Promise.resolve(rows), { mock: true }),
   }));
 }
@@ -39,7 +39,7 @@ describe("first-seen", () => {
 
   it("firstSeenFor short-circuits on empty input without querying the DB", async () => {
     let called = false;
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(() => { called = true; return Promise.resolve([]); }, { mock: true }),
     }));
     const { firstSeenFor } = await import("./first-seen.ts");

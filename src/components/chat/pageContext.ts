@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from "wouter";
 import { ROUTES, REPORT_CHAT_TOOLS } from "../../lib/routes";
 import { loadAtlas } from "../../lib/docs";
 
-// Mirrors the server's PageContext (src/server/system-prompt.ts) plus the
+// Mirrors the server's PageContext (src/server/chat/system-prompt.ts) plus the
 // UI-only fields the launcher/composer render (short, placeholder, chip, label).
 export interface PageContext {
   path?: string;

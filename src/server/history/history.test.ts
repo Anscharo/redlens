@@ -255,7 +255,7 @@ describe("handleHistory", () => {
   });
 
   it("returns JSON array with mapped entries on success", async () => {
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(
         () =>
           Promise.resolve([
@@ -294,7 +294,7 @@ describe("handleHistory", () => {
   });
 
   it("returns 503 when the DB throws", async () => {
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(() => Promise.reject(new Error("connection refused")), { mock: true }),
     }));
     const { handleHistory } = await import("./history.ts");
@@ -306,7 +306,7 @@ describe("handleHistory", () => {
   });
 
   it("sets Cache-Control on successful response", async () => {
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(() => Promise.resolve([]), { mock: true }),
     }));
     const { handleHistory } = await import("./history.ts");
@@ -349,7 +349,7 @@ describe("handleHistoryBatch", () => {
 
   it("returns {} without touching the DB when no valid UUIDs are given", async () => {
     let called = false;
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(() => { called = true; return Promise.resolve([]); }, { mock: true }),
     }));
     const { handleHistoryBatch } = await import("./history.ts");
@@ -360,7 +360,7 @@ describe("handleHistoryBatch", () => {
   });
 
   it("groups rows by doc_id and maps entries", async () => {
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       sql: Object.assign(
         () =>
           Promise.resolve([
@@ -391,7 +391,7 @@ describe("handleHistoryBatch", () => {
   });
 
   it("returns 503 when the DB throws", async () => {
-    mock.module("./db.ts", () => ({
+    mock.module("../db.ts", () => ({
       // `sql(ids)` (the array-fragment helper) is called with a plain array and
       // must return a benign placeholder; only the tagged-template query (first
       // arg is a TemplateStringsArray, which has `.raw`) rejects.

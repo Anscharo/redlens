@@ -1,7 +1,7 @@
 // Post-migration edit history for HTML-era curation subjects (plan §10.4 timeline
 // enrichment). For a seed-close case the newer document IS the final #117 markdown
 // doc (a real UUID) — what happened to it AFTER the migration lives in the modern
-// atlas_history table (src/server/history-db.ts), a separate pipeline from the
+// atlas_history table (src/server/history/history-db.ts), a separate pipeline from the
 // HTML-era one. Whether it kept being edited under a stable topic (continuity — a
 // point in favor of the pairing) or was deleted soon after (a red flag) is
 // corroborating evidence the curation prompt otherwise can't see. Offline curation
