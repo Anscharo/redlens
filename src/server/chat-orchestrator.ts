@@ -221,6 +221,20 @@ export async function* runVerifiedChat(opts: {
   const finish = (d: DoneEvent): HarnessDone => ({ ...d, checksMeta });
 
   if (!config.chatVerifyChecks || opts.signal?.aborted || !done.content.trim()) {
+    // No audit runs here — but the streaming gate already repaired links in the
+    // token stream, and the client treats done.content as authoritative. Without
+    // the same repair applied to done.content, the client swaps the repaired
+    // stream back to the invalid link at completion (the exact bug this gate
+    // exists to prevent). Verification being off must not lose the repair.
+    // Aborted/empty answers have nothing meaningful to repair, so skip them.
+    if (!opts.signal?.aborted && done.content.trim()) {
+      try {
+        const repair = repairCitations(done.content, toolTextsOf(done.transcript), opts.ix);
+        if (repair.content !== done.content) done = { ...done, content: repair.content };
+      } catch (err) {
+        captureError(err, opts.obs, { stage: "citation_repair_verify_disabled" });
+      }
+    }
     yield finish(done);
     return;
   }

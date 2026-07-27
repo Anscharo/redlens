@@ -120,6 +120,31 @@ test("fabricated citation uuid is repaired in code when the title identifies a r
     expect(streamed).toBe(lastDone(events).content);
   }));
 
+test("verification disabled: done.content still carries the gate's citation repair", () =>
+  withModels("", "", async () => {
+    // With CHAT_VERIFY_CHECKS=0 the post-answer audit is skipped, but the
+    // streaming gate still repaired the link in the token stream. done.content
+    // (authoritative client-side) must match that stream, or the client swaps
+    // the repaired link back to the fabricated one at completion.
+    const prev = config.chatVerifyChecks;
+    config.chatVerifyChecks = false;
+    try {
+      const counts = new Map<string, number>();
+      for (const d of ix.docMap.values()) counts.set(d.title, (counts.get(d.title) ?? 0) + 1);
+      const doc = [...ix.docMap.values()].find((d) => d.title.length > 12 && counts.get(d.title) === 1)!;
+      const bad = `Per [${doc.title}](/atlas/12345678-1234-4321-8765-1234567890ab).`;
+      const chunks = [bad.slice(0, bad.indexOf("/atlas/") + 12), bad.slice(bad.indexOf("/atlas/") + 12)];
+      const events = await collect(
+        runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[...chunks.map(textChunk), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+      );
+      const streamed = events.filter((e) => e.type === "token").map((e) => (e as { text: string }).text).join("");
+      expect(lastDone(events).content).toBe(`Per [${doc.title}](/atlas/${doc.id}).`);
+      expect(streamed).toBe(lastDone(events).content);
+    } finally {
+      config.chatVerifyChecks = prev;
+    }
+  }));
+
 test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
   withModels("", "", async () => {
     const bad = "That rule is defined in Q.99.42.7 of the atlas.";
