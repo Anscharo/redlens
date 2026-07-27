@@ -1216,6 +1216,52 @@ button.atlas-node-expand-all:focus-visible {
   text-underline-offset: 3px;
 }
 
+/* Library docs (Concepts, Audit) — per-concept unit-opener paragraphs
+   ("**Lifecycle 7 · Omni Documents**") get breathing room above them beyond
+   the ordinary paragraph gap, so each concept reads as its own unit. */
+.atlas-md p.unit-opener {
+  margin-top: 1.5rem;
+}
+.atlas-md p.unit-opener > strong {
+  font-size: 1rem;
+}
+
+/* Evidence-level pills (rehypeEvidencePills.ts) — colored by strength, from
+   script-censused (strongest) down to unverified (weakest). Background/border
+   are subtle tints of the same token via color-mix, matching the bucket-pill
+   precedent in ConceptCensusMembers.tsx. */
+.evidence-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 0 0.4em;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.evidence-pill-1 {
+  color: var(--preview-add);
+  background: color-mix(in srgb, var(--preview-add) 16%, transparent);
+  border-color: color-mix(in srgb, var(--preview-add) 40%, transparent);
+}
+.evidence-pill-2 {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.evidence-pill-3 {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+.evidence-pill-4 {
+  color: var(--error-text);
+  background: color-mix(in srgb, var(--error-text) 16%, transparent);
+  border-color: color-mix(in srgb, var(--error-text) 40%, transparent);
+}
+
 /* ─── Right panel tab button ─── */
 .right-tab {
   font: 400 11px/1 "Source Code Pro", "Courier New", monospace;

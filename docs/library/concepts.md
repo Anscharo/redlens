@@ -10,7 +10,8 @@ guard (`pnpm census:concepts`, `src/lib/conceptsCensus.ts`) — a `:::census
 of a number frozen at whatever atlas commit last touched the prose.
 
 **Epistemic labels** — every group below now carries an evidence-level tag (per
-`docs/library/concepts-audit.md`'s rewrite plan). Each tag names exactly ONE
+`docs/library/concepts-audit.md`'s rewrite plan), rendered here as a small
+colored pill rather than the literal bracket text. Each tag names exactly ONE
 level — never a combined `[evidence level 3 · corroborated / evidence level 4 · unverified]`-style
 range; where one section mixes evidence strengths, each span carries its own
 separate tag. The level is the strongest evidence backing that span:
