@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
-import { getIndexes, setIndexes, type Indexes } from "./retrieval/indexes.ts";
+import { loadIndexes, setIndexes, type Indexes } from "./retrieval/indexes.ts";
 
-let previousIndexes: Indexes | null;
+let previousIndexes: Indexes;
 
 const registeredTools: {
   name: string;
@@ -46,17 +46,21 @@ function emptyIndexes(): Indexes {
 }
 
 beforeEach(() => {
-  try {
-    previousIndexes = getIndexes();
-  } catch {
-    previousIndexes = null;
-  }
+  // Capture the REAL indexes (loading them from disk if nothing has yet) so we can
+  // always restore them. Using getIndexes() here threw when this file ran before
+  // anything else had loaded indexes, leaving previousIndexes null — then the
+  // afterEach below skipped its restore and left the shared module-level state
+  // poisoned empty for every later test file that reads loadIndexes() at import
+  // (the chat/verify + eval-verifier suites). bun test shares module state across
+  // files, so that leak is order-dependent; loading + unconditionally restoring
+  // makes this suite self-contained regardless of file discovery order.
+  previousIndexes = loadIndexes();
   registeredTools.length = 0;
   setIndexes(emptyIndexes());
 });
 
 afterEach(() => {
-  if (previousIndexes) setIndexes(previousIndexes);
+  setIndexes(previousIndexes);
 });
 
 describe("createMcpServer", () => {
