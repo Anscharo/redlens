@@ -350,3 +350,29 @@ PR: https://github.com/Anscharo/redlens/pull/194 (27 commits, base main).
   Registry whenToUse/description updated; fixture in tools-graph.test.ts gained
   glossary/meta; new tools-stats.test.ts (totals, alias dedupe, pct floor, rollup,
   depth cap, opt-in-ness).
+
+- **Dn1–Dn9 rewritten census-first** (concepts-audit rewrite item 1 / execution-order
+  item 4). The old block was the normative-deep-dive agent's frame with corrected
+  numbers bolted on — that agent's counts were provably garbage (200–400 ADCs vs the
+  real 64), so the frame itself was re-derived rather than re-cited: for each family
+  a detection pass was actually run over `public/docs.json` + `public/relations.json`
+  (throwaway scripts), and a family kept its place only if a pass found it. Eight
+  survived (Dn1 duties 854 edges/635 docs/8 roles; Dn2 prohibitions 11 title/52
+  content; Dn3 suspension 5; Dn4 derecognition 14 + registry rows; Dn6 conduct 12;
+  Dn7 adjudication 5; Dn8 alignment 22; Dn9 edit restrictions 10), each with a
+  verbatim exemplar read from `vendor/next-gen-atlas/content/**` and a UUID. **Dn5
+  (escalation/precedence) demoted** to a labeled 4-doc pointer list — no general
+  signature exists. Three inherited claims were false and are corrected in place:
+  Dn1's "all sourced from A.1" (real spread across 5 scopes), Dn3's signature (it was
+  counting the B2 lifecycle machine: `has_status` runs primitive→its own Global
+  Activation Status doc, and 136/141 `Suspen*` titles are empty scaffolding), Dn6's
+  "Usage Standards ×22" (those 33 docs are per-multisig operating constraints). The
+  justice-pipeline chaining is kept but relabeled **our interpretation, not Atlas
+  structure**, with the doc-level links that *are* Atlas text listed separately.
+  Found en route: a second, structurally parallel enforcement pipeline in Risk
+  (A.3.2.2.7 capital-requirement breach → graduated penalties → conservatorship),
+  same shape, different subject, no "misalignment" vocabulary. Promoted the seven
+  title signatures to a standing census (`normative-title-families`, 79 member rows /
+  72 distinct docs, overlapping buckets by design) + `:::census` marker + tests +
+  baseline; Dn1 stays a documented one-off because it reads relations.json and
+  conceptsCensus.ts is docs-bundle-only.

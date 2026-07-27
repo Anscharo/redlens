@@ -203,3 +203,36 @@ describe("cross-scope-duplication", () => {
     expect(out["cross-scope-duplication"].counts).toEqual({ total: 0, groups: 0 });
   });
 });
+
+describe("normative-title-families", () => {
+  it("buckets each named normative family and excludes lifecycle status scaffolding", () => {
+    const nodes = [
+      mk("A.1.6.5", "Kickbacks Prohibited", "Section", "x"),
+      mk("A.1.5.8", "Swift Action Is Required From Facilitators To Redress AC Misalignment", "Section", "x"),
+      mk("A.2.2.1.3.2.2", "Suspended Instance Status", "Core", "x"),
+      mk("A.6.1.1.1.2.1.1.1.5.1.2", "Suspended Instances", "Core", "x"), // lifecycle scaffolding — excluded
+      mk("A.1.7.5", "Facilitators Must Err On Side Of Caution", "Section", "x"),
+      mk("A.1.5.4", "Standard of Proof In Universal Alignment Controversies", "Section", "x"),
+      mk("A.6.1.1.1.2.2.2.2.1.2.1.6", "Artifact Edit Restrictions", "Core", "x"),
+    ];
+    const { counts } = computeConceptsCensus(byId(nodes))["normative-title-families"];
+    expect(counts.prohibition).toBe(1);
+    expect(counts["suspension-rule"]).toBe(1); // "Suspended Instances" not counted
+    expect(counts["operational-conduct"]).toBe(1);
+    expect(counts.adjudication).toBe(1);
+    expect(counts["edit-restriction"]).toBe(1);
+  });
+
+  it("counts a doc in every family it names, so total exceeds distinct", () => {
+    const nodes = [
+      mk("A.1.6.8", "Derecognition Required Where AD Operational Security Is Compromised", "Section", "x"),
+      mk("A.1.5.8", "Swift Action Is Required From Facilitators To Redress AC Misalignment", "Section", "x"),
+    ];
+    const { counts } = computeConceptsCensus(byId(nodes))["normative-title-families"];
+    expect(counts.derecognition).toBe(2); // "Derecognition…" + "Swift Action…"
+    expect(counts["operational-conduct"]).toBe(1);
+    expect(counts.alignment).toBe(1);
+    expect(counts.total).toBe(4);
+    expect(counts.distinct).toBe(2);
+  });
+});

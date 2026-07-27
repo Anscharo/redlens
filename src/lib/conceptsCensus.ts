@@ -274,6 +274,52 @@ function censusTitleTemplates(all: AtlasNode[]): CensusResult {
 }
 
 // ---------------------------------------------------------------------------
+// Dn2–Dn9. normative-title-families — the census-first re-derivation of the
+// normative-family taxonomy in concepts.md's D section. Each bucket is one
+// title regex; a doc matching two buckets is counted in both (overlap is the
+// point — derecognition-for-opsec-breach docs are genuinely both).
+// ---------------------------------------------------------------------------
+// Lifecycle status-bucket directories ("Suspended Instances") are scaffolding
+// for the primitive machine (B group / empty-scaffolding census), not norms —
+// excluded from the suspension bucket, which is what the pre-rewrite Dn3
+// signature accidentally counted.
+const STATUS_BUCKET_RE = /^(Suspended|Active|Completed|In[- ]Progress|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
+
+const NORMATIVE_TITLE_FAMILIES: [string, (title: string) => boolean][] = [
+  ["prohibition", (t) => /Prohibit/i.test(t)],
+  ["derecognition", (t) => /Derecogni/i.test(t) || /^Swift Action/i.test(t)],
+  ["suspension-rule", (t) => /Suspen/i.test(t) && !STATUS_BUCKET_RE.test(t)],
+  ["operational-conduct", (t) => /Operational Security/i.test(t) || /Err On (The )?Side Of Caution/i.test(t)],
+  ["adjudication", (t) => /Adjudicat/i.test(t) || /Standard of Proof/i.test(t)],
+  ["alignment", (t) => /Universal Alignment/i.test(t) || /Misalign/i.test(t)],
+  ["edit-restriction", (t) => /Edit Restrictions?\b/i.test(t)],
+];
+
+function censusNormativeTitleFamilies(all: AtlasNode[]): CensusResult {
+  const members: CensusMember[] = [];
+  const counts: Record<string, number> = {};
+  for (const [bucket, test] of NORMATIVE_TITLE_FAMILIES) {
+    const matches = all.filter((n) => test(n.title));
+    counts[bucket] = matches.length;
+    for (const n of matches) members.push(ref(n, bucket));
+  }
+  const distinct = new Set(members.map((m) => m.uuid)).size;
+  return {
+    slug: "normative-title-families",
+    title: "Normative title families (Dn2–Dn9)",
+    signature: {
+      kind: "title",
+      pattern:
+        'title matches one of: /Prohibit/ · /Derecogni/ or "Swift Action…" · /Suspen/ minus lifecycle status buckets · /Operational Security/ or "Err On Side Of Caution" · /Adjudicat/ or "Standard of Proof" · /Universal Alignment/ or /Misalign/ · /Edit Restriction/',
+    },
+    members,
+    counts: { total: members.length, distinct, ...counts },
+    notes:
+      "Buckets overlap by design (e.g. \"Derecognition Required Where AD Operational Security Is Compromised\" is both derecognition and operational-conduct), so total > distinct. Title-only: it finds the docs the Atlas *names* after a normative family, not every doc that carries the norm — the duty layer (Dn1) is edge-derived (duty_for in relations.json) and deliberately not censused here, which is docs-bundle-only.",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // II.6. cross-scope-duplication — identical normalized title, different scopes.
 // ---------------------------------------------------------------------------
 function scopeOf(doc_no: string): string {
@@ -319,6 +365,7 @@ export const CENSUS_SLUGS = [
   "numbered-step-docs",
   "prohibition-language",
   "title-templates",
+  "normative-title-families",
   "cross-scope-duplication",
 ] as const;
 export type CensusSlug = (typeof CENSUS_SLUGS)[number];
@@ -334,6 +381,7 @@ export function computeConceptsCensus(docs: Record<string, AtlasNode>): Record<C
     "numbered-step-docs": censusNumberedStepDocs(all),
     "prohibition-language": censusProhibitionLanguage(all),
     "title-templates": censusTitleTemplates(all),
+    "normative-title-families": censusNormativeTitleFamilies(all),
     "cross-scope-duplication": censusCrossScopeDuplication(all),
   };
 }

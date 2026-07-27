@@ -14287,6 +14287,495 @@
       }
     ]
   },
+  "normative-title-families": {
+    "counts": {
+      "total": 79,
+      "distinct": 72,
+      "prohibition": 11,
+      "derecognition": 14,
+      "suspension-rule": 5,
+      "operational-conduct": 12,
+      "adjudication": 5,
+      "alignment": 22,
+      "edit-restriction": 10
+    },
+    "members": [
+      {
+        "uuid": "9f953b73-566e-4428-a9d2-e179513c3371",
+        "doc_no": "A.0.1.1.4",
+        "title": "Universal Alignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "2ea378ee-9b12-4e09-9f42-0c6ec65ef33b",
+        "doc_no": "A.0.1.1.5",
+        "title": "Universal Alignment Assumption",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "60066e0f-3db7-45c7-9664-8120a4fbd38b",
+        "doc_no": "A.0.1.1.11",
+        "title": "Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "adf7ccb3-9ef0-43e0-90cc-6eb9d779f9cd",
+        "doc_no": "A.0.1.1.12",
+        "title": "Slippery Slope Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "9524005e-e135-4ba5-aff3-d846923f3874",
+        "doc_no": "A.1.1.1",
+        "title": "Universal Alignment And The Spirit Of The Atlas",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "dce17e05-293a-4779-a028-ad32701aacd1",
+        "doc_no": "A.1.1.2.0.3.2",
+        "title": "Slippery Slope Misalignment - Element Annotation",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "c6c6f595-b29d-48b1-8196-79d15428e78c",
+        "doc_no": "A.1.3.2.4",
+        "title": "Reports Of Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "403a05ce-f8e0-4ecf-8a56-026c0acd0d8a",
+        "doc_no": "A.1.5.3",
+        "title": "Universal Alignment Requirements",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "034a9ad7-5d4d-40db-bef8-cad80c0a01e2",
+        "doc_no": "A.1.5.4",
+        "title": "Standard of Proof In Universal Alignment Controversies",
+        "bucket": "adjudication"
+      },
+      {
+        "uuid": "034a9ad7-5d4d-40db-bef8-cad80c0a01e2",
+        "doc_no": "A.1.5.4",
+        "title": "Standard of Proof In Universal Alignment Controversies",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "8dfd71fc-7ded-4217-8b6a-2bef00f75b55",
+        "doc_no": "A.1.5.4.0.4.1",
+        "title": "Highest Standard - Facilitators must apply strictest possible requirements of Universal Alignment on ACs",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "36b68ff0-30a3-4fb9-af04-a2869a4233fe",
+        "doc_no": "A.1.5.7",
+        "title": "AC Requirements Of Anonymity And High Operational Security",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "598ff9cf-146e-4499-93d3-583518c390a1",
+        "doc_no": "A.1.5.7.0.4.1",
+        "title": "ADs & Facilitators required to adhere to comprehensive operational security practices",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "40f850ee-b3f2-4126-9128-4f6a6b38d275",
+        "doc_no": "A.1.5.8",
+        "title": "Swift Action Is Required From Facilitators To Redress AC Misalignment",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "40f850ee-b3f2-4126-9128-4f6a6b38d275",
+        "doc_no": "A.1.5.8",
+        "title": "Swift Action Is Required From Facilitators To Redress AC Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "13c4f127-0ef2-43b5-a5ac-905719091bdd",
+        "doc_no": "A.1.5.8.0.3.1",
+        "title": "Risk Of Misalignment Spreading Among ACs - Element Annotation",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "560e1024-0897-4f1e-ae71-3ba31e29ed57",
+        "doc_no": "A.1.5.9",
+        "title": "Adjudication Process",
+        "bucket": "adjudication"
+      },
+      {
+        "uuid": "12044fd7-4cfa-4431-aa03-a9531353c6dd",
+        "doc_no": "A.1.5.9.2.2",
+        "title": "Mandated Derecognition For Severe Breaches",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "d7201212-e3f6-46a6-bab3-e859b88b0af2",
+        "doc_no": "A.1.5.9.2.2.0.4.1",
+        "title": "Promptly Derecognized - Mandated Timeline For AC Derecognition For Misalignment",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "d7201212-e3f6-46a6-bab3-e859b88b0af2",
+        "doc_no": "A.1.5.9.2.2.0.4.1",
+        "title": "Promptly Derecognized - Mandated Timeline For AC Derecognition For Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "1fd1ecc3-49c6-4e8c-b1fe-4387460d3514",
+        "doc_no": "A.1.5.9.4",
+        "title": "Core Facilitator Is Subject Of Misalignment Allegation",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "ac998664-5b5e-4ea5-813b-dc3105ea6cf2",
+        "doc_no": "A.1.5.10",
+        "title": "AC Derecognition",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "9c05207d-5e11-43ae-a8a3-1b61734d6ef9",
+        "doc_no": "A.1.5.10.1",
+        "title": "Derecognition Notice",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "15def023-af2e-4a27-92c4-6fab7b6f02f6",
+        "doc_no": "A.1.5.10.2",
+        "title": "Derecognition Recording",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "e7aec672-ed19-4329-aaf7-736950be2eb7",
+        "doc_no": "A.1.5.10.2.0.6.1",
+        "title": "Derecognized Alignment Conservers",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "45e794a0-5092-4dea-a0de-6f373228f760",
+        "doc_no": "A.1.6.5",
+        "title": "Kickbacks Prohibited",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "8953d5dc-1344-4fec-ae25-693204f64e38",
+        "doc_no": "A.1.6.6",
+        "title": "Swift Action Is Required From Facilitators To Redress AD Misalignment",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "8953d5dc-1344-4fec-ae25-693204f64e38",
+        "doc_no": "A.1.6.6",
+        "title": "Swift Action Is Required From Facilitators To Redress AD Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "c68b4c5d-adf7-49e6-850a-17a688664d40",
+        "doc_no": "A.1.6.7",
+        "title": "Mandate To Maintain High Level of Operational Security",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "7b0da718-62c1-4718-8d9d-47faa1647c6f",
+        "doc_no": "A.1.6.8",
+        "title": "Derecognition Required Where AD Operational Security Is Compromised",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "7b0da718-62c1-4718-8d9d-47faa1647c6f",
+        "doc_no": "A.1.6.8",
+        "title": "Derecognition Required Where AD Operational Security Is Compromised",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "36e7c024-0156-4941-a9f2-f53ce25ef39f",
+        "doc_no": "A.1.6.8.0.4.1",
+        "title": "Promptly Derecognized - Mandated Timeline For AD Derecognition For Operational Security Breach",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "36e7c024-0156-4941-a9f2-f53ce25ef39f",
+        "doc_no": "A.1.6.8.0.4.1",
+        "title": "Promptly Derecognized - Mandated Timeline For AD Derecognition For Operational Security Breach",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "09efe31d-28ae-47cc-a81e-caf4f669df95",
+        "doc_no": "A.1.6.9",
+        "title": "Facilitators Must Err On Side Of Caution",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "014feb92-49dc-4117-911f-a6ec14451b30",
+        "doc_no": "A.1.7.3",
+        "title": "Facilitators Must Maintain High Level Of Operational Security",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "c3ba34f0-b3f0-449b-b609-52548db090ea",
+        "doc_no": "A.1.7.4",
+        "title": "Derecognition Required Where Facilitator Operational Security Is Compromised",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "c3ba34f0-b3f0-449b-b609-52548db090ea",
+        "doc_no": "A.1.7.4",
+        "title": "Derecognition Required Where Facilitator Operational Security Is Compromised",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "b8601ee2-6576-4a0a-83da-660d1b81936b",
+        "doc_no": "A.1.7.4.0.4.1",
+        "title": "Promptly Derecognized - Mandated Timeline For Facilitator Derecognition",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "ac9df70a-d110-42da-805a-abe03b52dcdc",
+        "doc_no": "A.1.7.5",
+        "title": "Facilitators Must Err On Side Of Caution",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "7aafa61e-8649-41fb-8c3f-64e5714f9f18",
+        "doc_no": "A.1.7.6",
+        "title": "Acting Against Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "3f056c21-92de-4177-8c81-f8ba83a880ca",
+        "doc_no": "A.1.7.8",
+        "title": "Prohibition On Engaging With Counterparties",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "83f1374d-aa42-4f1d-bea2-5326b578a2af",
+        "doc_no": "A.1.10.2.4.9.2.9",
+        "title": "Prohibition on Merging Pull Request",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "357b6485-46fd-442a-ad6e-8ddff5ca4f7f",
+        "doc_no": "A.1.10.2.4.9.2.10",
+        "title": "Prohibition on Leaving GitHub Suggestions Post Deployment",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "75cdffe9-bec6-478c-aa6c-adcc3edb4fbe",
+        "doc_no": "A.1.10.5.2.3.3.2",
+        "title": "Misalignment To Vote For Unvalidated Standby Spell",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "fc62902d-f408-4f45-a284-193ed7688c19",
+        "doc_no": "A.1.10.5.3.2.3.2",
+        "title": "Misalignment To Vote For Unvalidated Emergency Drop Spell",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "94856ced-5c37-42e0-a756-0fa2ccd73180",
+        "doc_no": "A.1.11.2.3",
+        "title": "Rejecting A Proposal For Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "51dc4c3b-94cf-4fbc-bff2-648250a1f1ce",
+        "doc_no": "A.1.12.2.1.7.1",
+        "title": "Procedure For Blocking AEP For Misalignment",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "011846e4-8cab-4423-ae19-5a68ed83625c",
+        "doc_no": "A.1.14.1.5.3",
+        "title": "Intent to Suspend Notice Process",
+        "bucket": "suspension-rule"
+      },
+      {
+        "uuid": "cd9b64bd-9a0c-41ed-b02c-5cc6bfb231d3",
+        "doc_no": "A.1.14.1.5.4",
+        "title": "Emergency Process For Misaligned Agent Artifacts",
+        "bucket": "alignment"
+      },
+      {
+        "uuid": "4037c7a7-908d-4cd1-8020-0dd3db899c10",
+        "doc_no": "A.1.14.1.5.4.1",
+        "title": "Emergency Suspension Resolution Process",
+        "bucket": "suspension-rule"
+      },
+      {
+        "uuid": "584801d6-f1ac-4158-8633-f4e566ce0c09",
+        "doc_no": "A.1.14.1.5.4.2",
+        "title": "Emergency Suspension Review Process",
+        "bucket": "suspension-rule"
+      },
+      {
+        "uuid": "5dd07957-8e5b-4694-a0ba-a8aa88863552",
+        "doc_no": "A.2.2.1.1.3.2.1",
+        "title": "Short Term Suspension of “Founder Access”",
+        "bucket": "suspension-rule"
+      },
+      {
+        "uuid": "3ce3a1ae-9300-4159-9676-261d0404360f",
+        "doc_no": "A.2.2.1.2.4.2.1",
+        "title": "Prohibition On Deactivating Certain Primitives",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "04bbf091-b2a8-47e4-ad03-f3fd66e70279",
+        "doc_no": "A.2.2.1.2.4.2.1.1",
+        "title": "Prohibition On Deactivating Genesis Primitives",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "a4797404-1015-4cd5-a2ea-bc1a2699b575",
+        "doc_no": "A.2.2.1.2.4.2.1.2",
+        "title": "Prohibition On Deactivating Executor Accord And Root Edit Primitives",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "85121142-aa54-4957-b0e1-8f4294512c7e",
+        "doc_no": "A.2.2.1.2.4.2.1.3",
+        "title": "Prohibition On Deactivating Upkeep Rebate Primitive",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "984dcacc-d242-4203-90c2-d5cf61c92702",
+        "doc_no": "A.2.2.1.2.4.2.1.4",
+        "title": "Prohibition On Deactivating Ecosystem Upkeep Fee Primitive",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "3e5de640-5bc2-4953-a233-913e3337b4bb",
+        "doc_no": "A.2.2.1.3.2.2",
+        "title": "Suspended Instance Status",
+        "bucket": "suspension-rule"
+      },
+      {
+        "uuid": "056774ab-b584-4f37-90f4-9c17b79ddfb3",
+        "doc_no": "A.2.8.1.1.2.3.2",
+        "title": "Adjudication By Core Facilitator",
+        "bucket": "adjudication"
+      },
+      {
+        "uuid": "42c525ca-c541-4bf5-ac6a-7bd19960d583",
+        "doc_no": "A.2.9.1.3",
+        "title": "Privacy and Operational Security",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "50854ba8-c788-4df5-9c70-b6f070a28bfd",
+        "doc_no": "A.3.2.2.1.1.1.2.1.1.2.4",
+        "title": "Prohibition On Investments That Would Cause Ethena Exposure Limit To Be Exceeded",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "a75e7eea-7567-4f5c-aba4-6d41fb6732dd",
+        "doc_no": "A.3.2.2.1.1.1.2.1.2.2.3",
+        "title": "Prohibition On Investments That Would Cause Superstate Aggregate Exposure Limit To Be Exceeded",
+        "bucket": "prohibition"
+      },
+      {
+        "uuid": "535cd1c9-1d4d-42e3-bb44-6c128690dd2d",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "cc60f445-1ed9-479e-9b44-00de9884a7b5",
+        "doc_no": "A.6.1.1.1.2.2.2.2.1.2.1.6.1",
+        "title": "Time-Limited Root Edit Restrictions On Removal Of Nested Contributors",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "b5d668cd-5f19-4660-8846-8293126c5a57",
+        "doc_no": "A.6.1.1.1.3.1.3.7.1",
+        "title": "Operational Security",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "d3c68da3-81ff-4b73-a50c-1f9de5b6ff7f",
+        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "2a438f59-854c-4281-8bca-2bef58163c9d",
+        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.6.1",
+        "title": "Time-Limited Root Edit Restrictions On Removal Of Nested Contributors",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "e86acb47-775f-4f02-8cef-26eac82dd358",
+        "doc_no": "A.6.1.1.3.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "f3e8ecec-cb08-4682-9218-d13f567fc00e",
+        "doc_no": "A.6.1.1.4.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "c14e9e4d-2819-46cb-b267-a9b13600192a",
+        "doc_no": "A.6.1.1.5.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "4137d6f6-d330-4953-99e7-b17f2fb8ac55",
+        "doc_no": "A.6.1.1.6.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "ad3c8df7-2df3-4bb3-8192-f97ba459de7b",
+        "doc_no": "A.6.1.1.7.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "0049ae2e-37a7-4bab-ab08-461caba3dcbb",
+        "doc_no": "A.6.1.1.8.2.2.2.2.1.2.1.6",
+        "title": "Artifact Edit Restrictions",
+        "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "2da58ba2-a172-43bd-b7e7-d3d8e69233bf",
+        "doc_no": "NR-1",
+        "title": "Systematic Basis Of Adjudication, Fact-Finding And Evidence",
+        "bucket": "adjudication"
+      },
+      {
+        "uuid": "e33879c1-93d0-48a6-8f08-ad00a4821bde",
+        "doc_no": "NR-4",
+        "title": "Operational Security Protocols - Research Track",
+        "bucket": "operational-conduct"
+      },
+      {
+        "uuid": "7b90bfa2-c857-4170-b6cd-2d4adb290aa0",
+        "doc_no": "NR-5",
+        "title": "Derecognition Procedure",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "279f417e-2fec-473d-ab7c-eaf5b371c598",
+        "doc_no": "NR-8",
+        "title": "Systematic Basis Of Adjudication, Fact-Finding And Evidence",
+        "bucket": "adjudication"
+      },
+      {
+        "uuid": "69e4df9f-d2f3-4fd2-9add-e1314a0a5eb3",
+        "doc_no": "NR-9",
+        "title": "Derecognition Uncertainty Due To Anonymous Actors",
+        "bucket": "derecognition"
+      },
+      {
+        "uuid": "9962c7cc-9df2-4c37-89d6-746d004a056d",
+        "doc_no": "NR-17",
+        "title": "Addressing Misalignment Of Ecosystem Actors Or Other Governance Participants",
+        "bucket": "alignment"
+      }
+    ]
+  },
   "cross-scope-duplication": {
     "counts": {
       "total": 135,
