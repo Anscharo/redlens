@@ -1,12 +1,15 @@
 // Deterministic citation repair — models (especially small ones) cannot
 // reliably transcribe 36-char UUIDs out of long tool results, so the
-// orchestrator stops trusting them with link targets: after the answer
-// completes, every /atlas/ link is validated in code; invalid targets are
-// re-resolved from what was actually retrieved this turn (near-miss uuid,
-// doc_no href, truncated uuid, title match), and anything unrepairable is
-// de-linkified so a dead link can never ship. Runs BEFORE the deterministic
-// checks, which then validate the repaired answer; stripped links are folded
-// back in as hard failures by the orchestrator.
+// orchestrator stops trusting them with link targets: every /atlas/ link is
+// validated in code; invalid targets are re-resolved from what was actually
+// retrieved this turn (near-miss uuid, doc_no href, truncated uuid, title
+// match), and anything unrepairable is de-linkified so a dead link can never
+// ship. The decision function (createLinkJudge) is shared with the streaming
+// link gate (stream-link-gate.ts), which applies the same repairs to token
+// events BEFORE they reach the client; repairCitations then runs post-answer
+// as the authority — before the deterministic checks, which validate the
+// repaired answer; stripped links are folded back in as hard failures by the
+// orchestrator.
 import { UUID_RE } from "../lib/patterns.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
 import type { Indexes } from "./indexes.ts";
@@ -57,10 +60,19 @@ function titleIndex(docs: Iterable<{ id: string; title: string }>): Map<string, 
   return map;
 }
 
-export function repairCitations(answer: string, evidenceTexts: string[], ix: Indexes): CitationRepair {
-  const repaired: CitationRepair["repaired"] = [];
-  const stripped: CitationRepair["stripped"] = [];
+// The fate of one markdown link, decided against the atlas + this turn's
+// evidence. `from`/`target` are normalized the way the repair records expect:
+// for /atlas/ links the uuid part alone, for pseudo-citations the whole href.
+export type LinkVerdict =
+  | { action: "keep" }
+  | { action: "repair"; from: string; to: string }
+  | { action: "strip"; target: string };
 
+export type LinkJudge = (title: string, target: string) => LinkVerdict;
+
+// ONE decision function shared by the post-answer repair pass and the
+// streaming link gate, so what streams and what ships at done cannot disagree.
+export function createLinkJudge(evidenceTexts: string[], ix: Indexes): LinkJudge {
   // Docs that actually appeared in this turn's tool results — the only pool a
   // garbled uuid can plausibly have come from, and the first place a title
   // match is trusted.
@@ -102,29 +114,39 @@ export function repairCitations(answer: string, evidenceTexts: string[], ix: Ind
     return resolveByText(title);
   };
 
-  const withAtlasLinks = answer.replace(/\[([^\]]+)\]\(\/atlas\/([^)\s]+)\)/g, (m, title: string, target: string) => {
-    const to = resolve(title, target);
-    if (to === target.toLowerCase()) return m; // valid as written
-    if (to) {
-      repaired.push({ title, from: target, to });
-      return `[${title}](/atlas/${to})`;
+  return (title, target) => {
+    if (target.startsWith("/atlas/")) {
+      const t = target.slice("/atlas/".length);
+      if (!t) return { action: "keep" };
+      const to = resolve(title, t);
+      if (to === t.toLowerCase()) return { action: "keep" }; // valid as written
+      if (to) return { action: "repair", from: t, to };
+      return { action: "strip", target: t }; // de-linkify — never ship a dead link
     }
-    stripped.push({ title, target });
-    return title; // de-linkify — never ship a dead link
-  });
-
-  // Pseudo-citations: links whose href has no scheme and no leading "/" —
-  // models emit tool names or topic slugs as hrefs ("[Doc Structure](atlas_describe)").
-  // Promote to a real citation when the title identifies a doc; else de-linkify.
-  const content = withAtlasLinks.replace(/\[([^\]]+)\]\((?![a-z][a-z0-9+.-]*:|\/|#)([^)\s]+)\)/gi, (_m, title: string, target: string) => {
+    // A scheme, another root-relative route, or an anchor: a real link, not ours.
+    if (/^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith("/") || target.startsWith("#")) return { action: "keep" };
+    // Pseudo-citation — models emit tool names or topic slugs as hrefs
+    // ("[Doc Structure](atlas_describe)"). Promote via the title, else strip.
     const to = resolveByText(title);
-    if (to) {
-      repaired.push({ title, from: target, to });
-      return `[${title}](/atlas/${to})`;
+    return to ? { action: "repair", from: target, to } : { action: "strip", target };
+  };
+}
+
+export function repairCitations(answer: string, evidenceTexts: string[], ix: Indexes): CitationRepair {
+  const judge = createLinkJudge(evidenceTexts, ix);
+  const repaired: CitationRepair["repaired"] = [];
+  const stripped: CitationRepair["stripped"] = [];
+  // One generic scan (any whitespace-free-href link) replaces the old two-pass
+  // atlas-then-pseudo rewrite; the judge dispatches per link.
+  const content = answer.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (m, title: string, target: string) => {
+    const v = judge(title, target);
+    if (v.action === "keep") return m;
+    if (v.action === "repair") {
+      repaired.push({ title, from: v.from, to: v.to });
+      return `[${title}](/atlas/${v.to})`;
     }
-    stripped.push({ title, target });
+    stripped.push({ title, target: v.target });
     return title;
   });
-
   return { content, repaired, stripped };
 }

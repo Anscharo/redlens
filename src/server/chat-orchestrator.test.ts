@@ -107,11 +107,17 @@ test("fabricated citation uuid is repaired in code when the title identifies a r
     for (const d of ix.docMap.values()) counts.set(d.title, (counts.get(d.title) ?? 0) + 1);
     const doc = [...ix.docMap.values()].find((d) => d.title.length > 12 && counts.get(d.title) === 1)!;
     const bad = `Per [${doc.title}](/atlas/12345678-1234-4321-8765-1234567890ab).`;
+    // Split mid-uuid so the streaming gate has to hold across token boundaries.
+    const chunks = [bad.slice(0, bad.indexOf("/atlas/") + 12), bad.slice(bad.indexOf("/atlas/") + 12)];
     const events = await collect(
-      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(bad), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[...chunks.map(textChunk), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
     );
     expect(events.some((e) => e.type === "verify_result")).toBe(false);
     expect(lastDone(events).content).toBe(`Per [${doc.title}](/atlas/${doc.id}).`);
+    // The streaming gate already repaired the link in the token stream — the
+    // client never saw the fabricated uuid, and the stream matches done.
+    const streamed = events.filter((e) => e.type === "token").map((e) => (e as { text: string }).text).join("");
+    expect(streamed).toBe(lastDone(events).content);
   }));
 
 test("deterministic-only mode flags fabricated doc numbers as hard failures", () =>
