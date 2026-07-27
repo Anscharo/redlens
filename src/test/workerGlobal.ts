@@ -105,6 +105,10 @@ export interface StubFetchOptions {
   fail?: Record<string, number>;
   /** Record of every URL fetch was called with (for base-path assertions). */
   calls?: string[];
+  /** Artifact suffixes whose fetch never resolves — keeps the worker's async
+   *  init permanently suspended so a test can deterministically observe the
+   *  pre-load state (e.g. graph still null) without racing microtask ordering. */
+  pending?: string[];
 }
 
 /**
@@ -122,6 +126,9 @@ export function stubFetch(
     vi.fn(async (url: string) => {
       const u = String(url);
       calls.push(u);
+      for (const suffix of opts.pending ?? []) {
+        if (u.endsWith(suffix)) return new Promise<Response>(() => {}); // never settles
+      }
       for (const [suffix, status] of Object.entries(opts.fail ?? {})) {
         if (u.endsWith(suffix)) return new Response("fail", { status });
       }

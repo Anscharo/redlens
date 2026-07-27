@@ -231,13 +231,15 @@ describe("constellation", () => {
 // ---------------------------------------------------------------------------
 
 describe("pre-init guards", () => {
+  // relations.json is held permanently pending so init() is guaranteed suspended
+  // and `graph` is still null when the message is dispatched. This makes the
+  // guard deterministic instead of racing init's microtask chain against import.
   it("neighbors before the graph loads returns an empty result", async () => {
     const h = installWorkerGlobal();
     harness = h;
-    stubFetch({ "relations.json": makeRelationsJson() });
+    stubFetch({}, { pending: ["relations.json"] });
     vi.resetModules();
     await import("./graph.worker.ts");
-    // Dispatch synchronously, before awaiting ready — graph is still null.
     h.dispatch({ type: "neighbors", id: G.primeAgent, depth: 1 });
     const res = h.ofType("neighbors")[0];
     expect(res.nodes).toEqual([]);
@@ -247,7 +249,7 @@ describe("pre-init guards", () => {
   it("constellation-query before the graph loads returns empty", async () => {
     const h = installWorkerGlobal();
     harness = h;
-    stubFetch({ "relations.json": makeRelationsJson() });
+    stubFetch({}, { pending: ["relations.json"] });
     vi.resetModules();
     await import("./graph.worker.ts");
     h.dispatch({ type: "constellation-query", id: 5, q: "sky" });
