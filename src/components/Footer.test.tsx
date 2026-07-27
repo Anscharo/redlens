@@ -57,6 +57,7 @@ describe("Footer", () => {
     expect(screen.getByText("test", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("src")).toHaveAttribute("href", "https://github.com/test/test");
     expect(screen.getByText("provenance").closest("a")).toHaveAttribute("href", "/provenance");
+    expect(screen.getByText("privacy").closest("a")).toHaveAttribute("href", "/privacy");
     expect(screen.queryByText("offline")).toBeNull();
     expect(screen.queryByText(/update available/)).toBeNull();
     expect(screen.queryByText(/atlas updated/)).toBeNull();

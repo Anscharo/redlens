@@ -194,10 +194,21 @@ a. **Health check:**
    #     | "schema_behind"           (DB schema older than this image requires)
    #     | "degraded"                (DB unreachable)
    ```
-   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 48h —
-   matches the few-times-a-week atlas cadence), `ATLAS_STUCK_SECONDS` (default
-   30m), `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
+   Tunables (all optional, sane defaults): `ATLAS_STALE_SECONDS` (default 1h)
+   — `sync_state.synced_at` doubles as the worker heartbeat: every 12-min cron
+   tick touches it, including no-op runs where the atlas SHA hasn't advanced
+   (the worker's lightweight-check fast exit still issues an `UPDATE
+   sync_state SET synced_at = now()` before returning), so "stale" now
+   genuinely means the worker hasn't run in over an hour, not just that the
+   atlas hasn't changed. `ATLAS_STUCK_SECONDS` (default 30m),
+   `ATLAS_UPDATE_MAX_BACKOFF_MS` (default 30m), `ATLAS_UPDATE_ESCALATE_AFTER`
    (default 3).
+
+   **Built-in external monitor:** `.github/workflows/freshness-monitor.yml`
+   curls `/api/freshness` every 30 minutes (plus `workflow_dispatch`). A
+   non-2xx response fails the job, and GitHub emails the repo owner on
+   workflow failure — so this doubles as alerting without a third-party
+   uptime service. No secrets or checkout required.
 
 b. **Web service boot logs** — look for `db: connected`, `migrations: …`,
    `sync:atlas — done`, and `listening on :3000`. Migrations run at web boot
@@ -237,21 +248,109 @@ chat), set just the users pair. The OAuth/JWT variables below back both.
 openssl rand -hex 32
 ```
 
+> **Providers are independent — configure one or both.** The login surface shows
+> a button only for a provider whose `*_CLIENT_ID` **and** `*_CLIENT_SECRET` are
+> both set (`src/lib/authProviders.ts`). Set only the GitHub pair for GitHub-only
+> sign-in, only the Google pair for Google-only, or both for both.
+
 ### 7b. Create a GitHub OAuth app → `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
 1. [github.com/settings/developers](https://github.com/settings/developers)
    → **OAuth Apps → New OAuth App**.
-2. **Authorization callback URL:**
-   `https://atlas.redline.support/api/auth/github/callback`
+2. Fields:
+   - **Application name:** anything (e.g. `Sky Atlas by Redline`).
+   - **Homepage URL:** `https://atlas.redline.support`
+   - **Authorization callback URL:**
+     `https://atlas.redline.support/api/auth/github/callback`
 3. Copy the **Client ID** and generate a **Client secret**.
 
-### 7c. Create a Google OAuth app → `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+**Scopes:** none are set at app-creation time — the app requests `read:user`
+and `user:email` at sign-in (`src/server/auth.ts`), both non-privileged. GitHub
+does not require a privacy policy for an OAuth App.
 
-1. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
-   → **Create Credentials → OAuth client ID**.
-2. **Authorized redirect URI:**
-   `https://atlas.redline.support/api/auth/google/callback`
-3. Copy the **Client ID** and **Client secret**.
+### 7c. Create a Google OpenID (OAuth 2.0) client → `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+The app signs in with **OpenID Connect + PKCE** and requests only the
+**non-sensitive** scopes `openid`, `email`, `profile`. Because none are
+sensitive or restricted, **Google app verification (the security assessment /
+third-party audit) is NOT required** — but a **privacy policy URL is required
+to publish** the app to production (see the note at the end).
+
+Google groups this under **APIs & Services → Google Auth Platform** (formerly
+"OAuth consent screen"). Configure the consent screen once, then create a
+client. Below is **every field the console asks for and the value to enter**.
+
+**Step 1 — Project** ([console.cloud.google.com](https://console.cloud.google.com))
+
+| Field | Value |
+|---|---|
+| Project name | Anything, e.g. `redlens-atlas` |
+
+**Step 2 — Google Auth Platform → Branding** (the consent screen)
+
+| Field | Value |
+|---|---|
+| App name | `Sky Atlas by Redline` |
+| User support email | Your support address (e.g. `support@redline.support`) — shown publicly on the consent screen |
+| App logo | Optional — skip, or upload `public/icon-SMALL.png` |
+| Application home page | `https://atlas.redline.support` |
+| Application privacy policy link | `https://atlas.redline.support/privacy` |
+| Application terms of service link | Optional — leave blank |
+| Authorized domains | `redline.support` |
+| Developer contact information | Your email (e.g. `support@redline.support`) |
+
+*The home-page / privacy / terms links require the **Authorized domain** to be
+set first, and each link's host must fall under it (`redline.support`).*
+
+**Step 3 — Audience**
+
+| Field | Value |
+|---|---|
+| User type | **External** |
+| Test users | Add your own Google address(es) while in **Testing** |
+| Publishing status | **Testing** to start; **Publish app** → **In production** when ready for everyone |
+
+**Step 4 — Data access (scopes)** — click **Add or remove scopes** and select
+exactly these three (all non-sensitive → no verification needed):
+
+| Scope | Google name |
+|---|---|
+| `openid` | (OpenID Connect — "Associate you with your personal info on Google") |
+| `email` | `.../auth/userinfo.email` |
+| `profile` | `.../auth/userinfo.profile` |
+
+*The app also requests these at runtime, so sign-in works even if this list is
+left empty — but set them so the consent screen shows the correct summary.*
+
+**Step 5 — Clients → Create client** (the OAuth client ID itself)
+
+| Field | Value |
+|---|---|
+| Application type | **Web application** |
+| Name | Any label, e.g. `redlens-atlas web` |
+| Authorized JavaScript origins | Optional — **leave empty** (server-side redirect flow, no browser SDK) |
+| Authorized redirect URIs | One per environment (add all you use): `https://atlas.redline.support/api/auth/google/callback` (production) · `https://redlens-development.up.railway.app/api/auth/google/callback` (dev/staging) · `http://localhost:3000/api/auth/google/callback` (local dev) |
+
+On save, copy the generated **Client ID**
+(`…apps.googleusercontent.com`) → `GOOGLE_CLIENT_ID` and **Client secret** →
+`GOOGLE_CLIENT_SECRET`.
+
+*One client can serve all environments — add each redirect URI as its own entry
+(Google matches them exactly). **Caveat for publishing:** once you move the app
+to **In production**, Google's brand verification expects every redirect-URI host
+to fall under an **Authorized domain**, and you can't add `up.railway.app` (you
+don't own it, so it can't be verified). Two clean options: keep a **separate
+OAuth client for staging that stays in Testing mode** (test users only, no brand
+verification), or put staging on a `redline.support` subdomain you can verify.
+The production client should carry only `redline.support` redirect URIs.*
+
+**Privacy policy — required to publish.** While in **Testing** (≤100 test
+users) you can sign in immediately; the consent screen just shows an
+"unverified app" notice. To move to **In production** so any Google user can
+sign in, Google requires the privacy policy URL above to be **live**. It is
+served at [`/privacy`](https://atlas.redline.support/privacy) (rendered from
+`PRIVACY.md`, linked in the footer), so publish this app **after** the deploy
+that ships `/privacy` is live. Terms of service is optional for these scopes.
 
 ### 7d. Set the login + chat variables
 
@@ -283,6 +382,19 @@ railway variables --set 'GOOGLE_CLIENT_SECRET=<from 7c>'   --service redlens-atl
 *Setting a `VITE_*_ENABLED` build arg triggers a full image rebuild so the bundle
 includes the widgets. If you later move to a custom domain, also set
 `APP_URL=https://<custom-domain>` and update the provider callback URLs.*
+
+> **⚠️ APP_URL is mandatory once the service has more than one domain attached**
+> (e.g. the apex `redline.support` alongside `atlas.redline.support`).
+> `RAILWAY_PUBLIC_DOMAIN` is ambiguous with multiple domains — Railway picks one,
+> and if it picks a domain other than the one registered with the OAuth
+> providers, every sign-in fails with "The redirect_uri is not associated with
+> this application". Pin it:
+> `railway variables --set 'APP_URL=https://atlas.redline.support' --service redlens-atlas`.
+> With `APP_URL` set (https), the server also 301s GET/HEAD requests on any
+> other attached host to the canonical origin (`src/server/canonical.ts`) —
+> required for OAuth anyway, since the CSRF state cookie is host-only and a flow
+> started on the apex could never complete on the subdomain. Escape hatch:
+> `CANONICAL_HOST_REDIRECT=0`.
 
 ---
 
@@ -390,7 +502,11 @@ instance in the same Railway project.
 **OAuth fails with a redirect-URI mismatch**
 → The callback URL registered with the provider must exactly match
 `https://<your-domain>/api/auth/<provider>/callback`. On a custom domain set
-`APP_URL` (step 7d) and re-check the provider config.
+`APP_URL` (step 7d) and re-check the provider config. Check the actual
+`redirect_uri` query param in the provider's authorize URL from the failing
+sign-in — if its host is a different domain of the same service (the apex, or
+the `up.railway.app` default), `APP_URL` is unset and `RAILWAY_PUBLIC_DOMAIN`
+resolved to the wrong attached domain (see the warning in step 7d).
 
 **"pnpm could not be found" / wrong start command**
 → Railway auto-detected the pnpm workspace and set its own start command,

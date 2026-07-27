@@ -14,6 +14,23 @@ const hasJwtSecret = (process.env.CHAT_JWT_SECRET ?? "") !== "";
 const usersEnabled = usersRequested && hasJwtSecret;
 const chatEnabled =
   (process.env.CHAT_ENABLED === "1" || process.env.CHAT_ENABLED === "true") && usersEnabled;
+
+// Per-provider OAuth availability. A provider is available when BOTH its client
+// id and secret are set (matching the /api/auth/* route guards) AND the login
+// surface is on. This is how an environment restricts itself to a single
+// provider: configure only GitHub's pair, or only Google's, and only that
+// button renders / only that route works. Setting neither leaves the surface
+// on but with no way in — checkAuthConfig() warns about that at boot.
+const githubAuthEnabled =
+  usersEnabled && (process.env.GITHUB_CLIENT_ID ?? "") !== "" && (process.env.GITHUB_CLIENT_SECRET ?? "") !== "";
+const googleAuthEnabled =
+  usersEnabled && (process.env.GOOGLE_CLIENT_ID ?? "") !== "" && (process.env.GOOGLE_CLIENT_SECRET ?? "") !== "";
+// CSV of the providers this environment offers, injected into index.html
+// ({{AUTH_PROVIDERS}}) so the frontend renders exactly the configured buttons.
+// Empty when the login surface is off or no provider is configured.
+const authProvidersCsv = [githubAuthEnabled ? "github" : null, googleAuthEnabled ? "google" : null]
+  .filter(Boolean)
+  .join(",");
 const appUrl =
   process.env.APP_URL ??
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
@@ -40,9 +57,26 @@ export const config = {
   // CHAT_JWT_SECRET leaves chat off. Pair with the frontend's VITE_CHAT_ENABLED.
   chatEnabled,
 
+  // Which OAuth providers this environment offers (each true only when its
+  // credentials are present and the login surface is on). Injected into the HTML
+  // so the frontend renders exactly the configured buttons — an environment with
+  // only one provider's credentials shows only that provider's sign-in.
+  githubAuthEnabled,
+  googleAuthEnabled,
+  authProvidersCsv,
+
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
+  // With MORE THAN ONE domain attached to the service (apex + subdomain),
+  // RAILWAY_PUBLIC_DOMAIN is ambiguous — pin APP_URL explicitly or OAuth builds
+  // its redirect URI against whichever domain Railway happened to pick.
   appUrl,
+
+  // Canonical-host redirect (canonical.ts): GET/HEAD requests on any host other
+  // than appUrl's are 301'd to appUrl, so multi-domain deployments can't start
+  // an OAuth flow (or set host-only cookies) on a non-canonical host. Active
+  // only when appUrl is https; CANONICAL_HOST_REDIRECT=0 opts out.
+  canonicalHostRedirect: process.env.CANONICAL_HOST_REDIRECT !== "0",
 
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",

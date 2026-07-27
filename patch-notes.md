@@ -33,8 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-27
-- Chat now checks and repairs citation links live during streaming, so an invalid link no longer appears and gets swapped after the answer finishes
+
+## 2026-07-24
+- Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
 
 ## 2026-07-23
 - Made history diffs easier to read: heavily rewritten sentences and paragraphs now show as clean before/after blocks instead of interleaved word-by-word changes

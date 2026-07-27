@@ -1,5 +1,6 @@
 import { GitHubMark, GoogleMark } from "./glyphs";
 import { useAuth, type AuthProvider } from "./auth";
+import { authProviders } from "../../lib/authProviders";
 import { track } from "../../lib/analytics";
 
 // Shared GitHub/Google sign-in buttons. Two visual variants back the two call
@@ -22,6 +23,9 @@ export function SignInButtons({
   onBeforeSignIn?: () => void;
 }) {
   const { openAuth } = useAuth();
+  // Only the providers this environment configured (see src/lib/authProviders.ts).
+  // An environment with a single provider's credentials renders a single button.
+  const providers = authProviders();
 
   const click = (provider: AuthProvider) => {
     track("chat_signin_click", { product: source, provider });
@@ -32,25 +36,36 @@ export function SignInButtons({
   if (variant === "composer") {
     return (
       <div className="rlc-composer flex flex-col gap-[7px]">
-        <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => click("github")}>
-          <GitHubMark /> sign in with github to ask
-        </button>
-        <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => click("google")}>
-          <GoogleMark /> sign in with google to ask
-        </button>
+        {providers.includes("github") && (
+          <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => click("github")}>
+            <GitHubMark /> sign in with github to ask
+          </button>
+        )}
+        {providers.includes("google") && (
+          <button className="rlc-signin w-full justify-center p-[11px]" onClick={() => click("google")}>
+            <GoogleMark /> sign in with google to ask
+          </button>
+        )}
       </div>
     );
   }
 
+  const github = providers.includes("github") && (
+    <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("github")}>
+      <GitHubMark /> <span>Continue with GitHub</span>
+    </button>
+  );
+  const google = providers.includes("google") && (
+    <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("google")}>
+      <GoogleMark /> <span>Continue with Google</span>
+    </button>
+  );
+
   return (
     <>
-      <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("github")}>
-        <GitHubMark /> <span>Continue with GitHub</span>
-      </button>
-      <div className="border-t border-border" />
-      <button className={`rlc-menu-item justify-start${sansSerif ? " rlc-signin-menu" : ""}`} onClick={() => click("google")}>
-        <GoogleMark /> <span>Continue with Google</span>
-      </button>
+      {github}
+      {github && google && <div className="border-t border-border" />}
+      {google}
     </>
   );
 }
