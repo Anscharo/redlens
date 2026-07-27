@@ -5,7 +5,7 @@
 // artifacts, so "which part of the atlas is biggest" was previously not
 // answerable server-side.
 import type { Indexes } from "./indexes.ts";
-import { computeLibrary, GROUPS, type ChunkNode } from "../lib/libraryShape.ts";
+import { computeLibrary, GROUPS, type ChunkNode, type GroupSpec } from "../lib/libraryShape.ts";
 
 // Presentation trim: the full trees carry a ref for nearly every doc (the
 // reason the 2 MB library.json artifact was folded away) — a tool answer
@@ -65,13 +65,13 @@ export function statsSection(ix: Indexes): Record<string, unknown> {
   // ix.glossary is the alias-flattened lookup; alias keys share entry objects,
   // so identity-dedupe recovers the real term-entry count.
   const glossaryTerms = new Set([...ix.glossary.values()].flat()).size;
-  // Unlike the frontend (which throws loudly on a restructured atlas removing
-  // a GROUPS root — accepted-risk locked decision), the tool degrades: it
-  // drops missing roots so atlas_describe keeps working while the UI surfaces
-  // the drift.
-  const groups = GROUPS.map(([name, roots]) => [name, roots.filter((r) => r in nodes)] as [string, string[]]).filter(
-    ([, roots]) => roots.length > 0,
-  );
+  // Unlike the frontend (which surfaces a restructured atlas as a visible
+  // "Ungrouped" catch-all — accepted-risk locked decision), the tool degrades:
+  // it drops missing roots (or a whole complement group whose anchor vanished)
+  // so atlas_describe keeps working while the UI surfaces the drift.
+  const groups: GroupSpec[] = GROUPS.map((g): GroupSpec =>
+    "roots" in g ? { name: g.name, roots: g.roots.filter((r) => r in nodes) } : g,
+  ).filter((g) => ("roots" in g ? g.roots.length > 0 : g.complementOf in nodes));
   const lib = computeLibrary({ atlasCommit: ix.meta.atlasCommit ?? "unknown", nodes, glossaryTerms }, groups);
   const total = lib.totals.docs;
 
