@@ -1,7 +1,9 @@
 // Chat reliability harness orchestrator (docs/plans/chat-reliability-harness.md).
-// Wraps the pure runChat loop with: live status events, pipelined deterministic
-// round checks, a post-answer verifier audit (stream + badge — never gates the
-// answer), and an escalation-only advisor capped at exactly ONE recovery cycle.
+// Wraps the pure runChat loop with: live status events, a streaming citation
+// gate (invalid links repaired before their tokens reach the client), pipelined
+// deterministic round checks, a post-answer verifier audit (stream + badge —
+// never gates the answer), and an escalation-only advisor capped at exactly
+// ONE recovery cycle.
 // Unset model slots degrade to today's behavior; harness flakiness never breaks
 // a turn. `transcript`/`checksMeta` are internal — the SSE route strips them
 // via sanitizeDone before events reach a client.
@@ -13,7 +15,8 @@ import type { Indexes } from "./indexes.ts";
 import { config } from "./config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify-checks.ts";
-import { repairCitations, type CitationRepair } from "./citation-repair.ts";
+import { createLinkJudge, repairCitations, type CitationRepair, type LinkJudge } from "./citation-repair.ts";
+import { createLinkGate, gatedChat } from "./stream-link-gate.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verifier.ts";
 import { atlasDescribe } from "./tools.ts";
 import { adviseRecovery, type Recovery } from "./advisor.ts";
@@ -173,14 +176,39 @@ export async function* runVerifiedChat(opts: {
   const max = Math.max(1, opts.maxIterations ?? config.chatMaxIterations);
   const checker = createRoundChecker();
   let roundsUsed = 0;
+
+  // ── Streaming citation gate ───────────────────────────────────────────────
+  // The same LinkJudge the post-answer repair pass uses, fed the same evidence
+  // (history tool texts + this turn's rounds so far), applied to token events
+  // so an invalid link is repaired/de-linkified BEFORE it reaches the client —
+  // done.content then matches what streamed instead of swapping it. The judge
+  // is rebuilt lazily after each tool round; a gate failure falls back to
+  // emitting the link as written, with the post-answer pass as the safety net.
+  const gateEvidence: string[] = toolTextsOf(opts.messages);
+  let judge: LinkJudge | null = null;
+  const renderLink = (title: string, target: string, raw: string): string => {
+    try {
+      judge ??= createLinkJudge(gateEvidence, opts.ix);
+      const v = judge(title, target);
+      if (v.action === "repair") return `[${title}](/atlas/${v.to})`;
+      if (v.action === "strip") return title;
+    } catch (err) {
+      captureError(err, opts.obs, { stage: "stream_link_gate" });
+    }
+    return raw;
+  };
+  const makeGate = () => createLinkGate(renderLink);
+
   const onRoundEnd = (info: RoundInfo) => {
     checker.record(info);
     roundsUsed = Math.max(roundsUsed, info.iter + 1);
+    for (const r of info.results) gateEvidence.push(r.content);
+    judge = null; // new evidence — rebuild on the next link
   };
 
   // ── Conversationalist pass (answer streams at full speed) ────────────────
   let done: DoneEvent | null = null;
-  for await (const ev of runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs })) {
+  for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: opts.messages, stream: opts.stream, signal: opts.signal, maxIterations: max, onRoundEnd, obs: opts.obs }), makeGate)) {
     if (ev.type === "done") {
       done = ev;
       break; // held back — the harness emits its own terminal done
@@ -193,14 +221,31 @@ export async function* runVerifiedChat(opts: {
   const finish = (d: DoneEvent): HarnessDone => ({ ...d, checksMeta });
 
   if (!config.chatVerifyChecks || opts.signal?.aborted || !done.content.trim()) {
+    // No audit runs here — but the streaming gate already repaired links in the
+    // token stream, and the client treats done.content as authoritative. Without
+    // the same repair applied to done.content, the client swaps the repaired
+    // stream back to the invalid link at completion (the exact bug this gate
+    // exists to prevent). Verification being off must not lose the repair.
+    // Aborted/empty answers have nothing meaningful to repair, so skip them.
+    if (!opts.signal?.aborted && done.content.trim()) {
+      try {
+        const repair = repairCitations(done.content, toolTextsOf(done.transcript), opts.ix);
+        if (repair.content !== done.content) done = { ...done, content: repair.content };
+      } catch (err) {
+        captureError(err, opts.obs, { stage: "citation_repair_verify_disabled" });
+      }
+    }
     yield finish(done);
     return;
   }
 
   // ── Verification (deterministic always; model audit when configured) ─────
   // Citation repair runs first, on the FULL tool texts (the verifier evidence
-  // budget doesn't apply to free string scans): done.content is authoritative
-  // client-side, so repaired links replace the streamed ones at done.
+  // budget doesn't apply to free string scans). The streaming gate already
+  // applied the same judge to the token stream, so this pass normally agrees
+  // with what streamed — it is the authority and the record (repaired/stripped
+  // feed the checks), and done.content stays authoritative client-side for
+  // the rare case where the gate had to flush a malformed link raw.
   //
   // Everything from here down is pure post-processing of an answer that has
   // ALREADY streamed to the client (token events are long gone). A throw here
@@ -299,7 +344,7 @@ export async function* runVerifiedChat(opts: {
   const revMessages: Msg[] = [...done.transcript, { role: "system", content: steer }];
   let revDone: DoneEvent | null = null;
   try {
-    for await (const ev of runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs })) {
+    for await (const ev of gatedChat(runChat({ ix: opts.ix, messages: revMessages, stream: opts.stream, signal: opts.signal, maxIterations, onRoundEnd, obs: opts.obs }), makeGate)) {
       if (ev.type === "done") {
         revDone = ev;
         break;

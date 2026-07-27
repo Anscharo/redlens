@@ -33,6 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
 
