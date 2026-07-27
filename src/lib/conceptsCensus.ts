@@ -306,7 +306,7 @@ function censusNormativeTitleFamilies(all: AtlasNode[]): CensusResult {
   const distinct = new Set(members.map((m) => m.uuid)).size;
   return {
     slug: "normative-title-families",
-    title: "Normative title families (Dn2–Dn9)",
+    title: "Normative title families (Norms 2–9)",
     signature: {
       kind: "title",
       pattern:
@@ -315,7 +315,7 @@ function censusNormativeTitleFamilies(all: AtlasNode[]): CensusResult {
     members,
     counts: { total: members.length, distinct, ...counts },
     notes:
-      "Buckets overlap by design (e.g. \"Derecognition Required Where AD Operational Security Is Compromised\" is both derecognition and operational-conduct), so total > distinct. Title-only: it finds the docs the Atlas *names* after a normative family, not every doc that carries the norm — the duty layer (Dn1) is edge-derived (duty_for in relations.json) and deliberately not censused here, which is docs-bundle-only.",
+      "Buckets overlap by design (e.g. \"Derecognition Required Where AD Operational Security Is Compromised\" is both derecognition and operational-conduct), so total > distinct. Title-only: it finds the docs the Atlas *names* after a normative family, not every doc that carries the norm — the duty layer (Norms 1) is edge-derived (duty_for in relations.json) and deliberately not censused here, which is docs-bundle-only.",
   };
 }
 

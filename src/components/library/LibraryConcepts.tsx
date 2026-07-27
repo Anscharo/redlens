@@ -5,7 +5,14 @@ import { LibraryMarkdown } from "./LibraryMarkdown";
 // Curated research docs, bundled at build time (they ship with deploys, not
 // atlas commits — see docs/plans/atlas-library.md "curated flesh").
 export function LibraryConcepts() {
-  return <LibraryMarkdown raw={conceptsRaw} />;
+  return (
+    <div>
+      <p className="mono text-xs text-tan-3 uppercase tracking-wider mb-2">
+        Cross-cutting concept catalog · live census data from the checked-out atlas
+      </p>
+      <LibraryMarkdown raw={conceptsRaw} />
+    </div>
+  );
 }
 
 // The audit/triage plan for the concept catalog — which sections are

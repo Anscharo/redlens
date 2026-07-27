@@ -34,15 +34,18 @@ function splitByCensusMarkers(raw: string): MarkdownSegment[] {
 // plain code (the reader's ?id= resolves UUIDs only).
 const components: Components = {
   h1: ({ children }) => (
-    <h1 className="text-xl font-semibold mb-4" style={{ color: "var(--tan)" }}>{children}</h1>
+    <h1 className="text-2xl font-semibold mt-2 mb-4" style={{ color: "var(--tan)" }}>{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-xs mono text-tan-3 uppercase tracking-wider mt-8 mb-3 pb-1 border-b border-[var(--border)]">
+    <h2 className="text-lg font-semibold mt-10 mb-3 pb-2 border-b border-[var(--border)]" style={{ color: "var(--tan)" }}>
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-sm font-semibold mt-5 mb-2" style={{ color: "var(--tan)" }}>{children}</h3>
+    <h3 className="text-base font-semibold mt-6 mb-2" style={{ color: "var(--tan)" }}>{children}</h3>
+  ),
+  h4: ({ children }) => (
+    <h4 className="text-sm font-semibold mt-4 mb-1" style={{ color: "var(--tan-2)" }}>{children}</h4>
   ),
   code: ({ children }) => {
     const text = typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
