@@ -99,12 +99,13 @@ describe("coverage areas — backend partition", () => {
   });
 
   it("routes representative files to their product meter, and keeps routes/workers ahead of the split", () => {
-    // Product buckets.
-    expect(areaFor("src/server/chat-orchestrator.ts")).toBe("backend-chat");
-    expect(areaFor("src/server/tool-registry.ts")).toBe("backend-chat-tools");
-    expect(areaFor("src/server/verifier.ts")).toBe("backend-chat-verify");
-    expect(areaFor("src/server/query.ts")).toBe("backend-retrieval");
-    expect(areaFor("src/server/history-db.ts")).toBe("backend-history");
+    // Product buckets (files live in per-product folders).
+    expect(areaFor("src/server/chat/chat-orchestrator.ts")).toBe("backend-chat");
+    expect(areaFor("src/server/chat/tools/tool-registry.ts")).toBe("backend-chat-tools");
+    expect(areaFor("src/server/chat/verify/verifier.ts")).toBe("backend-chat-verify");
+    expect(areaFor("src/server/chat/verify/stream-link-gate.ts")).toBe("backend-chat-verify");
+    expect(areaFor("src/server/retrieval/query.ts")).toBe("backend-retrieval");
+    expect(areaFor("src/server/history/history-db.ts")).toBe("backend-history");
     expect(areaFor("src/server/preview/identity.ts")).toBe("backend-preview");
     expect(areaFor("src/server/reports/multisigs.ts")).toBe("backend-reports");
     expect(areaFor("src/server/config.ts")).toBe("backend-core");

@@ -7,7 +7,7 @@
 // In-memory indexes load once at boot before serving.
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
-import { loadIndexes, getIndexes, resolveNode } from "./indexes.ts";
+import { loadIndexes, getIndexes, resolveNode } from "./retrieval/indexes.ts";
 import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
@@ -15,16 +15,16 @@ import { contentTypeFor } from "./bundle-store.ts";
 import { createMcpServer } from "./mcp.ts";
 import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
-import { canonicalRedirect } from "./canonical.ts";
-import { handleChat } from "./chat.ts";
+import { canonicalRedirect } from "./history/canonical.ts";
+import { handleChat } from "./chat/chat.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
-import { handleHistory, handleHistoryBatch } from "./history.ts";
+import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
-import { evaluateFreshness, freshnessHttpStatus } from "./freshness.ts";
+import { evaluateFreshness, freshnessHttpStatus } from "./history/freshness.ts";
 import { shutdownPosthog } from "./posthog-node.ts";
 
 const t0 = performance.now();

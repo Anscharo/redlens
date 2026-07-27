@@ -17,7 +17,7 @@ import {
   type TickDeps,
   type UpdaterState,
 } from "./atlas-updater.ts";
-import { getIndexes } from "./indexes.ts";
+import { getIndexes } from "./retrieval/indexes.ts";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);

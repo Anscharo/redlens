@@ -77,46 +77,28 @@ export const areas = [
   { id: "backend-workers", label: "Backend workers", match: [/^src\/server\/(atlas-updater|atlas-refresh|sync|sync-embeddings|prefetch)\.ts$/, /^src\/server\/preview\/(sweeper|build)\.ts$/, /^scripts\/required\/atlas-worker\.mjs$/] },
   // ---- Backend product meters ----
   // `backend-core` used to be a single ~5k-line catch-all over ALL of src/server/.
-  // It's split into per-product meters so each backend product's test coverage is
-  // tracked on its own. Ordering is load-bearing (areaFor returns the FIRST match):
-  // these sit AFTER backend-routes + backend-workers (so preview/handler.ts stays a
-  // route and preview/{build,sweeper}.ts stay workers) and BEFORE the backend-core
-  // misc catch-all. The set of backend product ids below is proved to be a total
-  // partition of src/server/ by scripts_tests/coverage-areas.test.ts — keep in sync.
+  // The product files now live in per-product FOLDERS (src/server/{chat,chat/tools,
+  // chat/verify,retrieval,history}/), so each meter is just a folder prefix and the
+  // set of files stays honest as code is added/moved. Ordering is load-bearing
+  // (areaFor returns the FIRST match): these sit AFTER backend-routes + backend-workers
+  // (so preview/handler.ts stays a route and preview/{build,sweeper}.ts stay workers),
+  // chat/tools + chat/verify precede the broad chat/ prefix, and the whole set sits
+  // BEFORE the backend-core misc catch-all. Proved a total partition of src/server/
+  // by scripts_tests/coverage-areas.test.ts — keep in sync.
   { id: "backend-preview", label: "Backend · PR review (preview)", match: [/^src\/server\/preview\//] },
-  {
-    id: "backend-history",
-    label: "Backend · History",
-    match: [/^src\/server\/(history|history-db|history-curate|history-timeline-db|first-seen|freshness|canonical)\.ts$/],
-  },
-  {
-    id: "backend-chat-tools",
-    label: "Backend · Chat/AI (tools)",
-    // The LLM tool layer the chat agent calls: registry + graph/history tool impls.
-    match: [/^src\/server\/(tool-registry|tools|tools-graph|tools-history|llm-tools)\.ts$/],
-  },
-  {
-    id: "backend-chat-verify",
-    label: "Backend · Chat/AI (verify)",
-    // Answer grounding: verifier(s), verify-checks, citation repair, round checks, advisor.
-    match: [/^src\/server\/(verifier|verifier-slices|verify-checks|citation-repair|advisor|round-checks)\.ts$/],
-  },
-  {
-    id: "backend-chat",
-    label: "Backend · Chat/AI (core)",
-    // Conversation orchestration + LLM plumbing: orchestrator, loop, chat, prompt,
-    // model routing, credits/budget. Listed after tools/verify so those claim theirs.
-    match: [/^src\/server\/(chat|chat-loop|chat-history|chat-orchestrator|system-prompt|output-budget|credits|llm|model-router)\.ts$/],
-  },
-  {
-    id: "backend-retrieval",
-    label: "Backend · Retrieval",
-    // RAG/search retrieval: query build, indexes, keyword search, embeddings, entity/doc resolve.
-    match: [/^src\/server\/(query|query-schema|indexes|search|embed|embed-text|entity-resolve|entity-kind|doc-rows)\.ts$/],
-  },
+  { id: "backend-history", label: "Backend · History", match: [/^src\/server\/history\//] },
+  // The LLM tool layer the chat agent calls: registry + graph/history tool impls.
+  { id: "backend-chat-tools", label: "Backend · Chat/AI (tools)", match: [/^src\/server\/chat\/tools\//] },
+  // Answer grounding: verifier(s), verify-checks, citation repair + stream gate, round checks, advisor.
+  { id: "backend-chat-verify", label: "Backend · Chat/AI (verify)", match: [/^src\/server\/chat\/verify\//] },
+  // Conversation orchestration + LLM plumbing. Listed after chat/tools + chat/verify
+  // so those claim their nested files; this catches the rest of chat/.
+  { id: "backend-chat", label: "Backend · Chat/AI (core)", match: [/^src\/server\/chat\//] },
+  // RAG/search retrieval: query build, indexes, keyword search, embeddings, entity/doc resolve.
+  { id: "backend-retrieval", label: "Backend · Retrieval", match: [/^src\/server\/retrieval\//] },
   { id: "backend-reports", label: "Backend · Reports", match: [/^src\/server\/reports\//] },
-  // Misc catch-all — everything else under src/server/ (config, og/og-image, bundle-store,
-  // collections, session, rate-limit, migrate, db, posthog-*, atlas-static). Keep last.
+  // Misc catch-all — everything else at src/server/ root (config, og/og-image, bundle-store,
+  // collections, session, rate-limit, migrate, db, posthog-*, atlas-static, stream helpers). Keep last.
   { id: "backend-core", label: "Backend · Core (misc)", match: [/^src\/server\//] },
   { id: "general-utils", label: "General utils/units", match: [/^src\/lib\//, /^scripts\/lib\//] },
 ];

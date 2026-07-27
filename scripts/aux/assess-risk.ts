@@ -25,7 +25,7 @@ import type { AtlasNode } from "../../src/types";
 import { enumerateRiskCandidates, type RiskCandidate } from "../../src/lib/riskRules";
 import { normalizeAssessedText } from "../../src/lib/oeaTasks";
 import type { RiskAssessmentArtifact, RiskAssessmentEntry, RiskRating, RiskTriage, RiskTriageEntry } from "../../src/lib/riskAssessment";
-import { getClient } from "../../src/server/llm";
+import { getClient } from "../../src/server/chat/llm";
 import { loadRubric, MECHANISM_UUIDS, buildTriageSystemPrompt, buildTriageUserPrompt, buildAssessSystemPrompt, buildAssessUserPrompt } from "./assess-risk-prompt";
 import { validateTriage, validateRating, downgradeEnforcement } from "./assess-risk-validate";
 import { buildPrefixIndex, withRetry } from "./assess-common";

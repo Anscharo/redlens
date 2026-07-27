@@ -19,7 +19,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { proposePredecessor } from "../../src/server/history-curate.ts";
+import { proposePredecessor } from "../../src/server/history/history-curate.ts";
 import { config } from "../../src/server/config.ts";
 import { loadLlmCache, writeLlmCache } from "./auto-curate-io.mjs";
 import { buildAuditItems, summarizeAudit } from "./audit-decisions.mjs";

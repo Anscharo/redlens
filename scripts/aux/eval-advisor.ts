@@ -18,12 +18,12 @@
 // (guidance mentions the planted item), latency vs chatAdvisorTimeoutMs.
 import fs from "node:fs";
 import path from "node:path";
-import { loadIndexes } from "../../src/server/indexes.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
 import { config } from "../../src/server/config.ts";
-import { openrouterJson } from "../../src/server/llm.ts";
-import { adviseRecovery } from "../../src/server/advisor.ts";
-import type { Verdict } from "../../src/server/verifier.ts";
-import type { RoundTelemetry } from "../../src/server/round-checks.ts";
+import { openrouterJson } from "../../src/server/chat/llm.ts";
+import { adviseRecovery } from "../../src/server/chat/verify/advisor.ts";
+import type { Verdict } from "../../src/server/chat/verify/verifier.ts";
+import type { RoundTelemetry } from "../../src/server/chat/verify/round-checks.ts";
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");

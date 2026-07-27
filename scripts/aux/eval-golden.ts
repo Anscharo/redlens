@@ -23,11 +23,11 @@
 // promotion on hallucination regressions … and answer completeness").
 import fs from "node:fs";
 import path from "node:path";
-import { loadIndexes } from "../../src/server/indexes.ts";
-import { buildSystemPrompt } from "../../src/server/system-prompt.ts";
-import { runChat, type ChatEvent } from "../../src/server/chat-loop.ts";
-import { openrouterStream } from "../../src/server/llm.ts";
-import { evidenceFromTranscript } from "../../src/server/verifier.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
+import { runChat, type ChatEvent } from "../../src/server/chat/chat-loop.ts";
+import { openrouterStream } from "../../src/server/chat/llm.ts";
+import { evidenceFromTranscript } from "../../src/server/chat/verify/verifier.ts";
 import { config } from "../../src/server/config.ts";
 import { GOLDEN_QUESTIONS } from "./eval-golden-questions.ts";
 import { gradeAnswer, type GoldenGradeResult } from "./eval-golden-grade.ts";

@@ -12,7 +12,7 @@
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
 import { getSessionUser } from "./session.ts";
-import { fetchCommons } from "./credits.ts";
+import { fetchCommons } from "./chat/credits.ts";
 
 export interface WindowUsage {
   tokens: number; // input+output tokens spent in the current bucket

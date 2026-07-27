@@ -5,8 +5,8 @@
 // budget-fit and wrap. Keeping it here means a change to the shaping can't land
 // in one report and silently miss the other (the same rationale dutyCollapse.ts
 // gives for the two derivations sharing collapse logic).
-import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
-import type { ToolResult } from "../tools.ts";
+import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
+import type { ToolResult } from "../chat/tools/tools.ts";
 
 interface ResponsibilityRow {
   category: string;

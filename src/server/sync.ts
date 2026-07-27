@@ -12,8 +12,8 @@ import { join } from "node:path";
 import { sql, waitForDb } from "./db.ts";
 import { config } from "./config.ts";
 import { runMigrations } from "./migrate.ts";
-import type { AtlasNode } from "./indexes.ts";
-import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./doc-rows.ts";
+import type { AtlasNode } from "./retrieval/indexes.ts";
+import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./retrieval/doc-rows.ts";
 
 const FORCE = process.argv.includes("--force");
 const pub = (f: string) => join(config.publicDir, f);

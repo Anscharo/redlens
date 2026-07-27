@@ -20,11 +20,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import type OpenAI from "openai";
-import { loadIndexes } from "../../src/server/indexes.ts";
-import { buildSystemPrompt } from "../../src/server/system-prompt.ts";
-import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat-orchestrator.ts";
-import { makeOpenrouterStream, openrouterJson } from "../../src/server/llm.ts";
-import { runDeterministicChecks } from "../../src/server/verify-checks.ts";
+import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+import { buildSystemPrompt } from "../../src/server/chat/system-prompt.ts";
+import { runVerifiedChat, type CheckRowMeta } from "../../src/server/chat/chat-orchestrator.ts";
+import { makeOpenrouterStream, openrouterJson } from "../../src/server/chat/llm.ts";
+import { runDeterministicChecks } from "../../src/server/chat/verify/verify-checks.ts";
 import { config } from "../../src/server/config.ts";
 import { BAKEOFF_QUERIES, type BakeoffQuery } from "./eval-bakeoff-queries.ts";
 

@@ -473,7 +473,7 @@ if (STATS_ONLY) {
 // repeated. The LLM proposer + key are pulled in only here (dynamic import) so a plain
 // queue build stays free of any server dependency. Writes the gitignored baseline.
 if (AUTO) {
-  const { proposePredecessor, proposeClusterAssignment } = await import("../../src/server/history-curate.ts");
+  const { proposePredecessor, proposeClusterAssignment } = await import("../../src/server/history/history-curate.ts");
   const { config } = await import("../../src/server/config.ts");
   const frontierModel = FRONTIER_MODEL_ARG || config.curationFrontierModel;
   const clusterModels = config.curationClusterModels;

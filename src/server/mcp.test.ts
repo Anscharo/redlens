@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import MiniSearch from "minisearch";
 import { MultiDirectedGraph } from "graphology";
-import { getIndexes, setIndexes, type Indexes } from "./indexes.ts";
+import { getIndexes, setIndexes, type Indexes } from "./retrieval/indexes.ts";
 
 let previousIndexes: Indexes | null;
 

@@ -2,7 +2,7 @@
 // docs/plans/chatbot-readiness-remediation-plan.md). No network/DB/Bun-SQL
 // dependency — this file is imported by both the live runner
 // (scripts/aux/eval-golden.ts) and its unit tests, and runs fine under vitest.
-import { CITATION_SRC } from "../../src/server/verify-checks.ts";
+import { CITATION_SRC } from "../../src/server/chat/verify/verify-checks.ts";
 
 export type GoldenOutcome = "answered" | "partial" | "honest_decline" | "hallucinated" | "truncated" | "tool_failure";
 

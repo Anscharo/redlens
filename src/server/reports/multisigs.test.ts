@@ -3,7 +3,7 @@
 // Indexes fixture is enough.
 import { test, expect } from "bun:test";
 import { buildMultisigsReport } from "./multisigs.ts";
-import type { Indexes, AtlasNode, Edge, Entity } from "../indexes.ts";
+import type { Indexes, AtlasNode, Edge, Entity } from "../retrieval/indexes.ts";
 
 // ── Fixture ──────────────────────────────────────────────────────────────
 // Two multisigs (M1 "Alpha", M2 "Bravo"). M1 has two signer orgs (Soter 2,

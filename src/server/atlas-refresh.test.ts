@@ -4,9 +4,9 @@ import { describe, it, expect } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./indexes.ts";
+import { buildIndexes, type AtlasNode, type Edge, type Indexes } from "./retrieval/indexes.ts";
 import { diffDocs, patchDocs, isEmptyDelta, applyInPlaceUpdate, writeSearchIndex } from "./atlas-refresh.ts";
-import { atlasQuery } from "./query.ts";
+import { atlasQuery } from "./retrieval/query.ts";
 
 function doc(id: string, over: Partial<AtlasNode> = {}): AtlasNode {
   return {

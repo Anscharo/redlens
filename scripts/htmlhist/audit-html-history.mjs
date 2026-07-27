@@ -23,7 +23,7 @@ import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "./atlas-html.mjs";
 import { matchNodes } from "./history-identity.mjs";
-import { getClient, getModel } from "../../src/server/llm.ts";
+import { getClient, getModel } from "../../src/server/chat/llm.ts";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
