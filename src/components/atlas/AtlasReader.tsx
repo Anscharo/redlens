@@ -141,30 +141,6 @@ export const AtlasReader = memo(function AtlasReader({
     mergeParentsExpanded,
   } = useDepth6Expand(data.flatNodes, id);
 
-  // Navigating into a hidden branch reveals it: walk the VISUAL ancestor chain
-  // of `id` (each successively-shallower preceding row) and un-hide any hidden
-  // root above it. Visual, not parentId, so it matches how rows are nested on
-  // screen even when the depth cap reparented them.
-  useEffect(() => {
-    if (!id) return;
-    setHiddenSubtrees((prev) => {
-      if (!prev.size) return prev;
-      const entries = data.flatNodes;
-      const i = entries.findIndex((e) => e.node.id === id);
-      if (i < 0) return prev;
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      let depth = entries[i].depth;
-      for (let j = i - 1; j >= 0 && depth > 0; j--) {
-        if (entries[j].depth < depth) {
-          depth = entries[j].depth;
-          if (next.has(entries[j].node.id)) next.delete(entries[j].node.id);
-        }
-      }
-      return next.size === prev.size ? prev : next;
-    });
-  }, [id, data.flatNodes]);
-
   // Size of each node's on-screen subtree (the deeper-indented run that follows
   // it). Single O(n) pass with a depth stack. Used for the "N hidden" count so
   // it matches exactly the rows a hide removes.
@@ -197,6 +173,37 @@ export const AtlasReader = memo(function AtlasReader({
     }
     return roots;
   }, [data.flatNodes]);
+
+  // A doc reached from the sidebar (or any in-app link) may live inside a
+  // collapsed tree. Navigating to it must reveal it AND its siblings: walk its
+  // VISUAL ancestor chain and fully un-collapse each one — drop any intent-hide
+  // and open any default gate. Visual (not parentId) so it also reveals rows the
+  // heading-depth cap reparented, where a parentId walk would open the wrong gate.
+  useEffect(() => {
+    if (!id) return;
+    const entries = data.flatNodes;
+    const i = entries.findIndex((e) => e.node.id === id);
+    if (i < 0) return;
+    const ancestors: string[] = [];
+    let depth = entries[i].depth;
+    for (let j = i - 1; j >= 0 && depth > 0; j--) {
+      if (entries[j].depth < depth) {
+        depth = entries[j].depth;
+        ancestors.push(entries[j].node.id);
+      }
+    }
+    setHiddenSubtrees((prev) => {
+      if (!prev.size) return prev;
+      const next = new Set(prev);
+      let changed = next.delete(id);
+      for (const a of ancestors) if (next.delete(a)) changed = true;
+      return changed ? next : prev;
+    });
+    // Open only the gate ancestors (idempotent — a no-op when the row is already
+    // visible, so plain navigation between shown docs doesn't spuriously reveal).
+    const gateAncestors = ancestors.filter((a) => defaultGateRoots.has(a));
+    if (gateAncestors.length) setParentsExpanded(gateAncestors, true);
+  }, [id, data.flatNodes, defaultGateRoots, setParentsExpanded]);
 
   // THE single "is this subtree collapsed" predicate. A subtree is collapsed if
   // the user closed it (intent) OR it's a default depth-6 gate the user hasn't

@@ -13,6 +13,7 @@ import "@testing-library/jest-dom/vitest";
 import { AtlasReader } from "./AtlasReader";
 import { AtlasActionsContext, useAtlasActions } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
+import { flattenTree } from "../../lib/atlasHelpers";
 import type { FlatEntry } from "../../lib/atlasHelpers";
 
 const usePreviewChangedSetMock = vi.fn<() => Set<string> | null>(() => null);
@@ -418,6 +419,57 @@ describe("AtlasReader unified collapse (default gate == intent hide, differ only
     expect(node).toHaveAttribute("data-subtree-state", "hidden");
     expect(node).toHaveAttribute("data-hidden", "2");
     void p;
+  });
+});
+
+describe("AtlasReader reveal a linked doc that lives in a collapsed tree", () => {
+  it("navigating to a doc inside an explicitly-hidden branch reveals it and its siblings", () => {
+    // root → P(5) → C(6), C2(6) ; C → G(7). Shift-hide P, then navigate to G as
+    // if a sidebar/link jumped there — G, its path, and its siblings must show.
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const p = makeNode({ id: "p", doc_no: "A.1", parentId: "root" });
+    const c = makeNode({ id: "c", doc_no: "A.1.1", parentId: "p" });
+    const c2 = makeNode({ id: "c2", doc_no: "A.1.2", parentId: "p" });
+    const g = makeNode({ id: "g", doc_no: "A.1.1.1", parentId: "c" });
+    const atlas = makeAtlasBundle([root, p, c, c2, g]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: p, depth: 5 }),
+      makeFlatEntry({ node: c, depth: 6 }),
+      makeFlatEntry({ node: g, depth: 7 }),
+      makeFlatEntry({ node: c2, depth: 6 }),
+    ];
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
+
+    fireEvent.click(screen.getByText(`hide-${p.id}`));
+    expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
+
+    // navigate to the buried doc
+    rerenderWith({ id: "g", selectedId: g.id, data });
+    expect(screen.getByTestId(`node-${g.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${c.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${c2.id}`)).toBeInTheDocument(); // sibling revealed
+    expect(screen.getByTestId(`node-${p.id}`)).toBeInTheDocument();
+  });
+
+  it("reveals a doc whose gate was reparented by the depth cap (visual, not parentId)", () => {
+    // C(depth 5) visually parents G(depth 6), but G's parentId is the root — the
+    // shape the heading-level-6 cap produces. C is the on-screen gate; opening it
+    // by parentId (the old path) would miss it. Navigation must still reveal G.
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const c = makeNode({ id: "c", doc_no: "A.1.1.1.1.1", parentId: "root" });
+    const g = makeNode({ id: "g", doc_no: "A.1.1.1.1.1.1", parentId: "root" });
+    const atlas = makeAtlasBundle([root, c, g]);
+    // Real flattenTree: depths come from the doc numbers, G lands under C visually.
+    const data = makeLoadedData({ atlas, flatNodes: flattenTree(atlas.byParent), complete: true });
+    const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
+
+    // G is hidden by default behind C's gate.
+    expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
+
+    rerenderWith({ id: "g", selectedId: g.id, data });
+    expect(screen.getByTestId(`node-${g.id}`)).toBeInTheDocument();
   });
 });
 
