@@ -15,6 +15,7 @@ import {
   findUngroundedAddresses,
   findUntracedNumbers,
   findUngroundedQuotes,
+  findLowOverlapCitations,
   runDeterministicChecks,
 } from "./verify-checks.ts";
 
@@ -131,6 +132,38 @@ test("a standalone attribution line is authoring, not quotation", () => {
   expect(findUngroundedQuotes(listItem, evidence, ix)).toHaveLength(1);
 });
 
+test("a fully-bolded blockquote callout is the model's own words, not a quotation", () => {
+  // The live false positive: an entirely honest answer rendered its bottom line
+  // as a bolded blockquote. A self-authored callout can never appear in the
+  // evidence, so it hard-failed the turn.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const answer = [
+    "**Short answer:** the atlas defines this in one place.",
+    "",
+    "> The Stability Scope governs the protocol rates",
+    "",
+    `— [Stability Scope](/atlas/${realUuid})`,
+    "",
+    "> **Bottom line: this is my own one-sentence synthesis of the material above, written as a callout rather than a quotation.**",
+  ].join("\n");
+  expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
+});
+
+test("bold does NOT excuse a blockquote that presents itself as source text", () => {
+  // The exemption is a conjunction: fully bold AND no quote marks AND no
+  // citation link. Either marker means the model is presenting source text, so
+  // a genuine invented quote is still caught however it is styled.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  // Quote marks inside the bold → still a quotation claim.
+  expect(findUngroundedQuotes('> **"Facilitators may unilaterally seize treasury funds whenever convenient."**', evidence, ix)).toHaveLength(1);
+  // A citation link on the line → still a quotation claim (attribution path).
+  expect(findUngroundedQuotes(`> **Facilitators may unilaterally seize treasury funds whenever convenient.** — [X](/atlas/${realUuid})`, evidence, ix)).toHaveLength(1);
+  // Only partially bolded → a quotation with emphasis, not a callout.
+  expect(findUngroundedQuotes("> **Note:** facilitators may unilaterally seize treasury funds whenever convenient.", evidence, ix)).toHaveLength(1);
+  // Unbolded prose is untouched by the exemption.
+  expect(findUngroundedQuotes("> Facilitators may unilaterally seize treasury funds whenever convenient.", evidence, ix)).toHaveLength(1);
+});
+
 test("evidence markdown links and JSON escapes match a faithful quote", () => {
   // Live false positives: the source carries a markdown link and JSON-escaped
   // newlines; the model quotes the RENDERED text with a real line break.
@@ -225,6 +258,68 @@ test("untraced numbers: soft signal, tolerant of identifiers and small counts", 
   expect(findUntracedNumbers(`See [X](/atlas/${realUuid}) at A.2.2.9.1.2.1.2.`, evidence)).toEqual([]);
   // A figure that appears nowhere IS surfaced — but softly (see below).
   expect(findUntracedNumbers("The retainer is 250,000 USDS.", evidence)).toEqual(["250000"]);
+});
+
+test("low-overlap citations: soft wrong-doc assist, quiet on prose drawn from the cited doc", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  // One segment: links stripped, sentence terminators removed so the claim and
+  // its citation stay in the same claim unit.
+  const fromDoc = doc.content
+    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
+    .split(" ").slice(0, 25).join(" ");
+  const cite = `[${doc.title}](/atlas/${doc.id})`;
+  expect(findLowOverlapCitations(`${fromDoc}, per ${cite}.`, ix)).toEqual([]);
+
+  // Same shape, same citation — vocabulary that occurs nowhere in the cited doc.
+  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
+  const flagged = findLowOverlapCitations(`${offTopic}, per ${cite}.`, ix);
+  expect(flagged).toHaveLength(1);
+  expect(flagged[0]).toContain(doc.title);
+
+  // Too few distinctive words to judge → skipped, not guessed at.
+  expect(findLowOverlapCitations(`See ${cite}.`, ix)).toEqual([]);
+  // A nonexistent uuid belongs to the hard citation check, not this one.
+  expect(findLowOverlapCitations(`${offTopic}, per [X](/atlas/${FAKE_UUID}).`, ix)).toEqual([]);
+  // Blockquotes are quotations, not claims — the quote check owns them.
+  expect(findLowOverlapCitations(`> ${offTopic}, per ${cite}.`, ix)).toEqual([]);
+});
+
+test("low-overlap citations: a citation trailing its sentence is still scored", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  const cite = `[${doc.title}](/atlas/${doc.id})`;
+  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
+
+  // The shape the system prompt actually asks for — link AFTER the period.
+  // Splitting at sentence ends leaves the prose citation-less and the citation
+  // prose-less, so before the fold-back both halves escaped the check.
+  expect(findLowOverlapCitations(`${offTopic}. ${cite}`, ix)).toHaveLength(1);
+  // Attribution on its own line, the convention models use under a quote.
+  expect(findLowOverlapCitations(`${offTopic}.\n— ${cite}`, ix)).toHaveLength(1);
+  // Inline, mid-sentence, prose continuing after it.
+  expect(findLowOverlapCitations(`${offTopic} ${cite} and it applies broadly.`, ix)).toHaveLength(1);
+
+  // Prose drawn from the cited doc stays quiet in the trailing shape too —
+  // the fold-back must not manufacture false positives.
+  const fromDoc = doc.content
+    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
+    .split(" ").slice(0, 25).join(" ");
+  expect(findLowOverlapCitations(`${fromDoc}. ${cite}`, ix)).toEqual([]);
+
+  // A trailing SOURCES LIST is a bibliography, not a claim about the sentence
+  // above it: folding those bullets in would flag every entry. Plain `-` bullets
+  // are therefore never folded (unlike an em/en-dash attribution).
+  expect(findLowOverlapCitations(`${offTopic}.\n\n- ${cite}`, ix)).toEqual([]);
+});
+
+test("low-overlap citations never fail a turn — paraphrase legitimately depresses overlap", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  const report = runDeterministicChecks(
+    `The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone, per [${doc.title}](/atlas/${doc.id}).`,
+    [],
+    ix,
+  );
+  expect(report.lowOverlapCitations).toHaveLength(1);
+  expect(report.failed).toBe(false);
 });
 
 test("untraced numbers never fail a turn; ungrounded addresses always do", () => {

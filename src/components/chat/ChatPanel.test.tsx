@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { PageContextView } from "./pageContext";
 import type { ChatMsg } from "./useChatStream";
+import type { UsageWindow, CommonsPool } from "./api";
 
 vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }) }));
 
@@ -11,7 +12,7 @@ const { track, openAuth, refresh, send, stop } = vi.hoisted(() => ({
   track: vi.fn(),
   openAuth: vi.fn(),
   refresh: vi.fn(),
-  send: vi.fn(async () => ({}) as { rateLimited?: { message: string; resetsAt?: string } }),
+  send: vi.fn(async () => ({}) as { rateLimited?: { message: string; resetsAt?: string; kind?: "token" | "commons" } }),
   stop: vi.fn(),
 }));
 vi.mock("../../lib/analytics", () => ({ track }));
@@ -25,13 +26,16 @@ vi.mock("./auth", () => ({ useAuth: () => ({ user: authUser, openAuth }) }));
 let prefsState = { traces: false, reduceMotion: false };
 vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs: prefsState, setPref: vi.fn() }) }));
 
-let usageState = { usage: null, commons: null };
+// Annotated so a test can swap in a populated pool/window — the inferred type
+// from the initial value would be `{ usage: null; commons: null }`.
+let usageState: { usage: UsageWindow | null; commons: CommonsPool | null } = { usage: null, commons: null };
 vi.mock("./useUsage", () => ({ useUsage: () => ({ ...usageState, refresh }) }));
 
 let chatMessages: ChatMsg[] = [];
 let chatStreaming = false;
+let chatError: string | null = null;
 vi.mock("./useChatStream", () => ({
-  useChatStream: () => ({ messages: chatMessages, streaming: chatStreaming, send, stop }),
+  useChatStream: () => ({ messages: chatMessages, streaming: chatStreaming, error: chatError, send, stop }),
 }));
 
 import { ChatPanel } from "./ChatPanel";
@@ -64,6 +68,7 @@ beforeEach(() => {
   authUser = { name: "Ada", avatarUrl: "a.png" };
   chatMessages = [];
   chatStreaming = false;
+  chatError = null;
   usageState = { usage: null, commons: null };
   prefsState = { traces: false, reduceMotion: false };
   // jsdom doesn't implement Element.scrollTo
@@ -74,6 +79,7 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe("ChatPanel signed out", () => {
@@ -157,6 +163,93 @@ describe("ChatPanel rate limiting", () => {
     fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
     fireEvent.click(screen.getByLabelText("Send"));
     await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled());
+  });
+
+  it("auto-lifts the lock once the token-window resetsAt passes — never permanently stuck", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    send.mockResolvedValueOnce({
+      rateLimited: { message: "Usage limit reached.", resetsAt: "2026-01-01T00:00:20Z", kind: "token" },
+    });
+    renderPanel();
+    fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    await act(async () => {}); // flush the resolved send() promise
+    expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled();
+    expect(screen.getByText("Usage limit reached.")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).not.toBeDisabled();
+    // The stale 429 text must not resurface as an error banner once unlocked
+    // (useChatStream deliberately never sets `error` for a 429 — see its
+    // tests — so there is nothing here for ErrorNote to pick up).
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("keeps a commons-pool lock disabled on time alone; 'Check now' rechecks /api/usage, not /api/chat", async () => {
+    send.mockResolvedValueOnce({
+      rateLimited: { message: "Shared pool is out of credits.", kind: "commons" },
+    });
+    renderPanel();
+    fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled());
+    expect(screen.getByText("Shared pool is out of credits.")).toBeInTheDocument();
+
+    // "Check now" hits /api/usage (refresh), never /api/chat — it must not
+    // just let another chat request through to get another 429.
+    fireEvent.click(screen.getByText("Check now"));
+    expect(refresh).toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+
+    // usageState (the mocked useUsage's commons) is still drained — stays locked.
+    expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled();
+  });
+
+  it("lifts a commons-pool lock as soon as a re-render shows the pool topped up (e.g. after refresh() resolves)", async () => {
+    send.mockResolvedValueOnce({
+      rateLimited: { message: "Shared pool is out of credits.", kind: "commons" },
+    });
+    const onClose = vi.fn();
+    const onAtlas = vi.fn();
+    const onTogglePlacement = vi.fn();
+    const props = { onClose, context: baseContext, onAtlas, placement: "float" as const, onTogglePlacement };
+    const { rerender } = render(<ChatPanel {...props} />);
+    fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled());
+
+    // Simulate refresh() resolving with a topped-up pool, then a re-render
+    // (React re-reads the mocked useUsage() and sees the new commons value).
+    usageState = { usage: null, commons: { used: 1, total: 10, remaining: 9 } };
+    rerender(<ChatPanel {...props} />);
+    expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).not.toBeDisabled();
+  });
+});
+
+describe("ChatPanel stream errors", () => {
+  it("does not show an error note when there is no error", () => {
+    renderPanel();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("surfaces a failed-turn error visibly above the composer", () => {
+    chatError = "the model errored";
+    renderPanel();
+    expect(screen.getByRole("alert")).toHaveTextContent("the model errored");
+  });
+
+  it("suppresses the error note while a rate-limit lock is active (the lock note owns that story)", async () => {
+    chatError = "the model errored";
+    send.mockResolvedValueOnce({ rateLimited: { message: "slow down", kind: "token", resetsAt: "2099-01-01T00:00:00Z" } });
+    renderPanel();
+    fireEvent.change(screen.getByPlaceholderText("Ask about the Sky Atlas…"), { target: { value: "q1" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled());
+    expect(screen.queryByText("the model errored")).toBeNull();
+    expect(screen.getByText("slow down")).toBeInTheDocument();
   });
 });
 

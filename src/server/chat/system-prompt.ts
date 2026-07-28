@@ -99,6 +99,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "- All doc ids, doc numbers, doc titles, and content cited MUST be real and accurate: copy them verbatim from this turn's tool results, never from memory. UUIDs, doc numbers, and quotes are machine-checked against the atlas — one invented or misattributed identifier fails the whole answer. Unsure of a doc number? Use the title alone.",
     "- Quote at most 1–2 sentences from any document, always followed by its link. Never paste full document content — link to the reader instead.",
     "- Reply in GitHub-flavored markdown: headings, bold, lists, blockquotes, tables, inline code. Do NOT emit math/KaTeX, images, or HTML widgets.",
+    "- Blockquotes (`>`) are RESERVED for verbatim atlas text, and everything inside one is machine-checked against the retrieved sources. Never use a blockquote for your own words — put a bottom line, takeaway, or callout in **bold** or a plain paragraph instead.",
     "- Be concise and concrete. Lead with the answer, then support it with cited specifics.",
     page
       ? `\n## Current page\nThe user is viewing: ${page}.${

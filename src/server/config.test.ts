@@ -15,7 +15,8 @@ const ENV_KEYS = [
   "CURATION_AUDIT_MODEL", "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL", "CHAT_ADVISOR_MODEL",
   "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS", "CHAT_VERIFIER_TIMEOUT_MS",
-  "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
+  "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS",
+  "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "RATE_LIMIT_TOKENS_PER_WINDOW",
   "RATE_LIMIT_WINDOW_MINUTES", "MCP_PATH", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
   "SOURCE_COMMIT", "GITHUB_TOKEN", "PREVIEW_DAILY_QUOTA", "PREVIEW_TRUSTED_FORK_DAILY_QUOTA",
@@ -71,7 +72,7 @@ test("defaults when no env is set", async () => {
   expect(config.curationClusterModels).toEqual(["deepseek/deepseek-v4-flash", "anthropic/claude-haiku-4.5"]);
   expect(config.curationFrontierModel).toBe("deepseek/deepseek-v4-pro");
   expect(config.curationAuditModel).toBe("google/gemma-4-31b-it");
-  expect(config.chatMaxIterations).toBe(6);
+  expect(config.chatMaxIterations).toBe(4);
   expect(config.chatTemperature).toBe(0.3);
   expect(config.chatMaxOutputTokens).toBe(16000);
   expect(config.chatCaptureContent).toBe(true);
@@ -83,6 +84,7 @@ test("defaults when no env is set", async () => {
   expect(config.chatVerifierEvidenceMaxChars).toBe(60_000);
   expect(config.chatVerifierTimeoutMs).toBe(20_000);
   expect(config.chatAdvisorTriggerEmptyResults).toBe(2);
+  expect(config.chatAdvisorTriggerUnsupportedClaims).toBe(3);
   expect(config.chatAdvisorTimeoutMs).toBe(8000);
   expect(config.chatModelFast).toEqual([]);
   expect(config.chatModelStrong).toEqual([]);
@@ -141,6 +143,7 @@ test("all env overrides take effect", async () => {
     CHAT_VERIFIER_EVIDENCE_MAX_CHARS: "222",
     CHAT_VERIFIER_TIMEOUT_MS: "333",
     CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS: "5",
+    CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS: "7",
     CHAT_ADVISOR_TIMEOUT_MS: "444",
     CHAT_MODEL_FAST: "fast-a,fast-b",
     CHAT_MODEL_STRONG: "strong-a",
@@ -199,6 +202,7 @@ test("all env overrides take effect", async () => {
   expect(config.chatVerifierEvidenceMaxChars).toBe(222);
   expect(config.chatVerifierTimeoutMs).toBe(333);
   expect(config.chatAdvisorTriggerEmptyResults).toBe(5);
+  expect(config.chatAdvisorTriggerUnsupportedClaims).toBe(7);
   expect(config.chatAdvisorTimeoutMs).toBe(444);
   expect(config.chatModelFast).toEqual(["fast-a", "fast-b"]);
   expect(config.chatModelStrong).toEqual(["strong-a"]);

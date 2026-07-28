@@ -23,11 +23,41 @@ const DEFAULTS: Required<WindowOptions> = {
 
 const TRUNCATION_MARK = "\n…[earlier message truncated]";
 
+// Structural-only line: a heading, a horizontal rule, or a bold-only line
+// (e.g. "**Summary:**" alone). The system prompt tells the model to answer in
+// GFM markdown, so an answer-first response often OPENS with one of these —
+// a heading naming the topic, occasionally a rule or a bold lead-in — before
+// any prose. None of these carry the answer's substance on their own.
+const STRUCTURAL_LINE_RE = /^(#{1,6}\s+\S|(?:-{3,}|\*{3,}|_{3,})$|\*\*[^*\n]+\*\*$)/;
+
+function isStructuralParagraph(para: string): boolean {
+  const lines = para
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l !== "");
+  return lines.length > 0 && lines.every((l) => STRUCTURAL_LINE_RE.test(l));
+}
+
 // Lead paragraph capped at maxChars. The lead paragraph of an answer carries
 // its conclusion (the system prompt demands answer-first), so it is the
-// highest-value slice to keep from an old turn.
+// highest-value slice to keep from an old turn — UNLESS the answer opens with
+// a heading (or other structural-only line): then the "first paragraph" by
+// blank-line splitting is just a title, and keeping only that throws away every
+// citation. Walk past any leading structural-only paragraphs first, so the
+// paragraph boundary we cut at is the end of real prose. The slice returned
+// still starts at content[0] (heading included, for topic context) — only the
+// END of the cut moves forward to capture substance instead of stopping at
+// the heading's own line break.
 function truncateOld(content: string, maxChars: number): string {
-  const paraEnd = content.indexOf("\n\n");
+  let searchFrom = 0;
+  for (;;) {
+    const nextBreak = content.indexOf("\n\n", searchFrom);
+    if (nextBreak === -1) break; // no more paragraph breaks — nothing left to skip past
+    const para = content.slice(searchFrom, nextBreak);
+    if (!isStructuralParagraph(para)) break;
+    searchFrom = nextBreak + 2;
+  }
+  const paraEnd = content.indexOf("\n\n", searchFrom);
   const cut = Math.min(paraEnd === -1 ? content.length : paraEnd, maxChars);
   if (cut >= content.length) return content;
   return content.slice(0, cut) + TRUNCATION_MARK;

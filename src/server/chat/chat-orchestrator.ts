@@ -302,7 +302,18 @@ export async function* runVerifiedChat(opts: {
   // ── Escalation gate (all free signals) ────────────────────────────────────
   const exhausted = max > 1 && roundsUsed >= max - 1;
   const advisorModel = opts.jsonCall ? config.chatAdvisorModel : "";
-  const troubled = overall === "fail" || overall === "warn" || (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
+  // A recovery cycle replays the whole turn transcript through the model — the
+  // single most expensive operation here — so it is reserved for `fail`, plus
+  // the two independent trouble signals below (which still admit `warn` via
+  // `overall !== "pass"`). A lone `unsupported` claim used to trigger it: the
+  // mildest signal buying the costliest response. `warn` now escalates on its
+  // own only once enough claims are unsupported that the answer is substantially
+  // ungrounded rather than imprecise in one spot.
+  const unsupportedClaims = (verdict?.claims ?? []).filter((c) => c.status === "unsupported").length;
+  const troubled =
+    overall === "fail" ||
+    (overall === "warn" && unsupportedClaims >= config.chatAdvisorTriggerUnsupportedClaims) ||
+    (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
   const escalate = Boolean(advisorModel) && troubled && !opts.signal?.aborted;
 
   // Deterministic-only turns stay quiet unless something actually failed —

@@ -93,7 +93,11 @@ export const config = {
   // OpenRouter embeddings (semantic search). The embedding dimension is a code
   // constant (EMBED_DIM in embed.ts), NOT env — it's locked to the DB migration.
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
-  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+  // `||`, not `??`: an env var that is SET BUT EMPTY (a blank line in .env, a
+  // cleared Railway variable) survives `??` as "", and the OpenAI SDK then
+  // substitutes its OWN default — silently sending every chat call, and the
+  // OpenRouter key, to api.openai.com. Observed locally; fall back on empty too.
+  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   // Management ("provisioning") key for the account-wide credits endpoint
   // (GET /api/v1/credits) that powers the shared "commons" pool meter — one
   // dollar balance shown to all signed-in users. Distinct from openrouterApiKey
@@ -148,7 +152,12 @@ export const config = {
   // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
-  chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
+  // Every round replays the full context, so round count — not token count — is
+  // the dominant latency driver (a 30-turn in-repo eval measured median 82s, max
+  // 229s). The old default of 6 predates the curated `atlas_report_*` one-call
+  // rollups: questions that used to need four narrow tool calls now need one, so
+  // the extra rounds bought latency rather than evidence.
+  chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 4),
   // Conversationalist sampling temperature. Pinned (provider defaults hover
   // around 0.7) — a grounded citation machine wants low variance, and pinning
   // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
@@ -194,6 +203,12 @@ export const config = {
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
+  // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE
+  // turn transcript (every tool result, up to chatToolResultMaxChars each) — the
+  // most expensive thing the harness does — so one `unsupported` claim ("warn")
+  // must not buy it. Amber badges on its own; ≥N unsupported claims means the
+  // answer is substantially ungrounded and is worth the replay.
+  chatAdvisorTriggerUnsupportedClaims: Number(process.env.CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS ?? 3),
   // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
   // blocks on the advisor). Smoke testing showed chat-tier models can need >5s
   // for the recovery JSON, so this is env-tunable per deployed advisor model.

@@ -74,12 +74,16 @@ free, no pre-flight LLM call; with no env config it's a no-op.
 ## 4. The agentic loop (`chat-loop.ts`)
 
 `runChat` is a pure async generator (the LLM is injected as `ChatStream`, so it
-unit-tests with no network/DB). Each iteration (max `chatMaxIterations = 6`)
+unit-tests with no network/DB). Each iteration (max `chatMaxIterations = 4`)
 streams a completion and accumulates content, tool-call deltas, `finish_reason`,
-and usage (accumulated across rounds — load-bearing for rate limiting). If
-`finish_reason` is `tool_calls`, it emits `clear`, executes all calls in
+and usage (accumulated across rounds — load-bearing for rate limiting). If any
+tool-call deltas accumulated, it emits `clear`, executes all calls in
 parallel via `execToolDetailed`, appends results, and continues; otherwise the
-content is the final answer and it emits `done`. The last allowed iteration
+content is the final answer and it emits `done`. The round is keyed on the
+accumulated calls rather than `finish_reason == "tool_calls"`, because providers
+differ on which reason they report alongside tool calls — but a `"length"`
+finish still falls through to the answer path, since its call arguments were
+cut off mid-JSON and must not be executed. The last allowed iteration
 flips `tool_choice: "none"` and injects a final-turn instruction so no dangling
 tool round is left open.
 
@@ -108,11 +112,17 @@ tool result is budget-capped (`chatToolResultMaxChars = 30k`).
    that cross-checks each claim against evidence assembled from the transcript,
    producing supported/unsupported/contradicted claims → pass/warn/fail/
    unverified. Emits `verify_result` — it drives the badge but **never gates**
-   the already-streamed answer.
-4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — on fail/warn (or
-   unverified with retrieval trouble), `adviseRecovery` returns
-   requery/rewrite/decline, triggering exactly one revision + re-verify cycle.
-   On failure or abort, the original answer stands.
+   the already-streamed answer. `invented_facts` is a severity *upgrade* only
+   (warn → fail): it cannot fail an otherwise-clean claim table, because a real
+   fabrication always also surfaces as an unsupported/contradicted claim, while
+   a lone entry there is usually a wording critique.
+4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — on fail, on warn once
+   `chatAdvisorTriggerUnsupportedClaims` (default 3) unsupported claims
+   accumulate, or on non-pass with retrieval trouble / an exhausted loop.
+   `adviseRecovery` returns requery/rewrite/decline, triggering exactly one
+   revision + re-verify cycle. The revision replays the whole transcript, which
+   is why a single unsupported claim no longer triggers it. On failure or abort,
+   the original answer stands.
 
 All harness activity is recorded to `message_checks`; every stage degrades
 gracefully so harness flakiness never breaks a turn.

@@ -93,6 +93,26 @@ describe("Message", () => {
     expect(screen.queryByText("looked up 1 thing over the atlas")).toBeNull();
   });
 
+  it("shows a distinct failed-turn notice for a done, empty, failed assistant message", () => {
+    render(<Message msg={baseMsg({ content: "", done: true, failed: true })} streaming={false} showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText(/This reply didn.t come through/)).toBeInTheDocument();
+    expect(document.querySelector(".rlc-turn-error")).toBeInTheDocument();
+  });
+
+  it("does not show the failed-turn notice once real content has arrived, even if failed lingers", () => {
+    render(
+      <Message msg={baseMsg({ content: "an actual answer", done: true, failed: true })} streaming={false} showTrace={false} onAtlas={vi.fn()} />,
+    );
+    expect(screen.queryByText(/This reply didn.t come through/)).toBeNull();
+    expect(screen.getByText("an actual answer")).toBeInTheDocument();
+  });
+
+  it("prefers the thinking placeholder over the failed notice while still streaming", () => {
+    render(<Message msg={baseMsg({ content: "", failed: true })} streaming showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText("searching the stars…")).toBeInTheDocument();
+    expect(screen.queryByText(/This reply didn.t come through/)).toBeNull();
+  });
+
   it("shows a VerifyBadge when the message carries a verify state", () => {
     render(
       <Message

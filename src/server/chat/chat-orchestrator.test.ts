@@ -55,6 +55,12 @@ const lastDone = (events: HarnessEvent[]) => events.at(-1) as HarnessDone;
 const userMsg: Msg = { role: "user", content: "hi" };
 const PASS = '{"claims":[{"claim":"x","status":"supported"}],"invented_facts":[],"ruling_issued":false,"confidence":0.9,"feedback":""}';
 const FAIL = '{"claims":[{"claim":"x","status":"contradicted"}],"invented_facts":[],"ruling_issued":false,"confidence":0.3,"feedback":"claim x contradicted"}';
+// n unsupported claims alongside a supported one → overall "warn".
+const warn = (n: number) =>
+  JSON.stringify({
+    claims: [{ claim: "ok", status: "supported" }, ...Array.from({ length: n }, (_, i) => ({ claim: `u${i}`, status: "unsupported" }))],
+    invented_facts: [], ruling_issued: false, confidence: 0.6, feedback: "some claims unsupported",
+  });
 
 function withModels(verifier: string, advisor: string, fn: () => Promise<void>): Promise<void> {
   const pv = config.chatVerifierModel;
@@ -226,6 +232,66 @@ test("advisor failure (garbage JSON) falls back to annotate — original answer 
     expect(done.content).toBe("Bad answer.");
     const advisorRow = done.checksMeta.find((c) => c.kind === "advisor_recovery")!;
     expect(advisorRow.action).toBe("annotate");
+  }));
+
+test("a lone unsupported claim warns without buying a full transcript replay", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        jsonCall: fakeJson([warn(1)], jsonCalls),
+      }),
+    );
+    expect(kinds(events)).toEqual(["token", "status:checking", "verify_result", "done"]);
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    // Amber badge, no advisor, no revision — the answer stands as written.
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    expect(jsonCalls).toEqual([{ model: "strong/verifier" }]);
+    expect(lastDone(events).content).toBe("Answer.");
+  }));
+
+test("enough unsupported claims still escalates: warn crosses the threshold", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const rounds = [
+      [textChunk("Thin answer."), finishChunk("stop")],
+      [textChunk("Fixed answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream(rounds),
+        jsonCall: fakeJson([warn(config.chatAdvisorTriggerUnsupportedClaims), '{"action":"rewrite","guidance":"cite the gaps"}', PASS], jsonCalls),
+      }),
+    );
+    expect(events.some((e) => e.type === "status" && e.stage === "advising")).toBe(true);
+    expect(jsonCalls.map((c) => c.model)).toEqual(["strong/verifier", "chat/advisor", "strong/verifier"]);
+    expect(lastDone(events).content).toBe("Fixed answer.");
+  }));
+
+test("a sub-threshold warn still escalates when retrieval was in trouble", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    // The `overall !== "pass"` clause is untouched by the threshold: warn plus
+    // an independent trouble signal (repeated identical queries) still recovers.
+    const jsonCalls: { model: string }[] = [];
+    const same = toolChunk("atlas_search", '{"q":"same"}');
+    const rounds = [
+      [same, finishChunk("tool_calls")],
+      [same, finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+      [textChunk("Fixed answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 4,
+        stream: fakeStream(rounds),
+        jsonCall: fakeJson([warn(1), '{"action":"rewrite","guidance":"widen the search"}', PASS], jsonCalls),
+      }),
+    );
+    expect(events.some((e) => e.type === "status" && e.stage === "advising")).toBe(true);
   }));
 
 test("verifier pass suppresses escalation even when the loop was exhausted", () =>

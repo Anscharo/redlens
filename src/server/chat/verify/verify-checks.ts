@@ -138,6 +138,29 @@ const ATTRIBUTION_DASH = /^\s*[—–-]{1,2}\s*\S/;
 const CITATION_MARKER = /\[[^\]]*\]\([^)]*\)|\b(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)\b/;
 const isAttributionLine = (line: string) => ATTRIBUTION_DASH.test(line) && CITATION_MARKER.test(line);
 
+// A blockquote line the model wrote ABOUT the material rather than FROM it —
+// `> **Bottom line: …**`. Models routinely render their own summary as a bolded
+// blockquote callout, and a self-authored callout can never appear in the
+// evidence, so scoring it as a quotation hard-fails otherwise honest answers.
+// The discriminator is a CONJUNCTION, deliberately: essentially the whole line
+// is bold AND it carries no quotation marks AND no citation link. Either of
+// those two markers means the model is presenting the line as source text
+// (`> **"…"**`, or a bolded quote closed by its attribution), so a genuine
+// invented quote is still caught. The system prompt reserves blockquotes for
+// verbatim quotation, which is the other half of this fix.
+const BOLD_RUN = /\*\*([^*]+)\*\*/g;
+const MD_LINK_ANY = /\[[^\]]*\]\([^)]*\)/;
+const BOLD_LINE_MIN = 0.9;
+
+function isSelfAuthoredCallout(line: string): boolean {
+  if (/["“”]/.test(line) || MD_LINK_ANY.test(line)) return false;
+  const plain = line.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  if (plain.length === 0) return false;
+  let bold = 0;
+  for (const m of line.matchAll(BOLD_RUN)) bold += m[1].replace(/\s+/g, " ").trim().length;
+  return bold / plain.length >= BOLD_LINE_MIN;
+}
+
 // A quoted TERM the answer denies is a mention, not a quotation: `the atlas
 // does not contain an organization called "X"`. Such a term can never appear
 // in the evidence — its absence IS the claim — so demanding grounding fires
@@ -174,7 +197,7 @@ export function extractQuotedSpans(answer: string): string[] {
   const spans: string[] = [];
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
+    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
   }
   // Inline pass: collapse markdown links to their text FIRST — a quote inside
   // one link's title otherwise pairs with the quote in the next link's title,
@@ -268,6 +291,106 @@ export function findUntracedNumbers(answer: string, evidenceTexts: string[]): st
   return [...new Set(out)];
 }
 
+// A citation whose UUID is real but points at the WRONG document passes every
+// other deterministic check (`findInvalidCitationUuids` only asks whether the
+// uuid exists; `findDocNoMismatches` only fires when the link TEXT leads with a
+// doc_no). It is the worst-caught failure class across models, so this is a free
+// lexical assist: how much of the claim sentence's distinctive vocabulary
+// actually occurs in the cited doc. Deliberately a SOFT signal — paraphrase,
+// synthesis, and pronoun-carrying prose all legitimately depress overlap, so the
+// verifier adjudicates rather than the answer failing outright.
+const OVERLAP_STOPWORDS = new Set(
+  ("the and are was were for from with without into over under about that this these those which who whom whose " +
+    "what when where why how all any both each few more most other some such only own same too very per also " +
+    "within across between during after before above below out off again further once its their his her they " +
+    "them you your our not nor but then than there here can could may might must shall should will would has " +
+    "have had having does did done being been").split(" "),
+);
+// Plural/possessive folding so `facilitators` matches `Facilitator`. Crude on
+// purpose: the check is a ratio over many words, not a parser.
+const foldWord = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+
+function contentWords(text: string): string[] {
+  const words = text.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
+  return [...new Set(words.filter((w) => !OVERLAP_STOPWORDS.has(w)).map(foldWord))];
+}
+
+// A segment carrying citations but no prose of its own — `[Title](/atlas/…)`
+// sitting after a sentence's period, or an attribution line. It is an
+// attachment to the sentence before it, not a claim in its own right.
+const isCitationOnly = (seg: string): boolean =>
+  extractCitations(seg).length > 0 && contentWords(seg.replace(new RegExp(MD_LINK_SRC, "g"), " ")).length === 0;
+
+// Claim units: one line of markdown, split further at sentence ends. A citation
+// belongs to the sentence it closes, not to the whole paragraph.
+//
+// Splitting at sentence ends alone loses every trailing citation: `Foo is bar.
+// [Doc](/atlas/x)` becomes a prose segment with no citation (nothing to check)
+// plus a citation segment with no prose (dropped by MIN_CLAIM_WORDS), so the
+// claim escapes from both sides. Since the system prompt asks for exactly that
+// shape ("Quote at most 1–2 sentences … always followed by its link"), a
+// citation-only segment is folded back onto the sentence it follows.
+function claimSegments(answer: string): string[] {
+  const out: string[] = [];
+  for (const line of answer.split("\n")) {
+    // Headings carry no claim; blockquotes (content AND their attribution line)
+    // are skipped because findUngroundedQuotes already checks quoted text against
+    // the cited doc's content — checking them here too would double-report the
+    // same misattribution.
+    if (/^\s*(?:#{1,6}\s|>)/.test(line)) continue;
+    const segs = line.split(/(?<=[.!?])\s+/).filter((s) => s.trim());
+    for (let i = 0; i < segs.length; i++) {
+      const seg = segs[i];
+      // Same-line trailing citation, or an em/en-dash attribution on its own
+      // line. A plain `-` lead is deliberately NOT folded: that is a markdown
+      // bullet, and a trailing source LIST would otherwise be scored against
+      // the last sentence of the prose above it — every entry a false flag.
+      const attaches = i > 0 || /^\s*[—–]/.test(seg);
+      if (isCitationOnly(seg) && attaches && out.length > 0) {
+        out[out.length - 1] += ` ${seg}`;
+        continue;
+      }
+      out.push(seg);
+    }
+  }
+  return out;
+}
+
+// Below this many distinctive words the ratio is noise (a bare "See [Doc](…)"
+// would flag every time), so short segments are skipped outright — that is where
+// the false positives would come from. Tuned against the real index over 400
+// sampled docs: correctly-cited sentences 0% flagged (verbatim AND with half
+// their words dropped to simulate paraphrase), wrong-doc citations 86.5%
+// flagged, bare "See [Doc](…)." never flagged. A sentence citing its own doc's
+// PARENT flags ~60% of the time — intended, not noise: since atomization a
+// parent's content does not contain its children's text, so that IS a
+// misattribution worth the verifier's attention.
+const MIN_CLAIM_WORDS = 6;
+const MIN_CITATION_OVERLAP = 0.25;
+
+export function findLowOverlapCitations(answer: string, ix: Indexes): string[] {
+  const out: string[] = [];
+  for (const seg of claimSegments(answer)) {
+    const cites = extractCitations(seg);
+    if (cites.length === 0) continue;
+    // Strip the links first: the link TEXT is normally the cited doc's own
+    // title, which would guarantee overlap and make the check inert.
+    const prose = seg.replace(new RegExp(MD_LINK_SRC, "g"), " ");
+    const words = contentWords(prose);
+    if (words.length < MIN_CLAIM_WORDS) continue;
+    for (const c of cites) {
+      const doc = ix.docMap.get(c.uuid);
+      if (!doc) continue; // an unknown uuid is already a hard failure
+      const hay = new Set(contentWords(`${doc.title}\n${doc.content}`));
+      const hits = words.filter((w) => hay.has(w)).length;
+      if (hits / words.length < MIN_CITATION_OVERLAP) {
+        out.push(`${doc.doc_no} ${doc.title} ← "${prose.replace(/\s+/g, " ").trim().slice(0, 100)}"`);
+      }
+    }
+  }
+  return [...new Set(out)];
+}
+
 export interface CheckReport {
   citations: Citation[];
   invalidCitations: string[];
@@ -278,13 +401,17 @@ export interface CheckReport {
   ungroundedQuotes: string[];
   ungroundedAddresses: string[];
   untracedNumbers: string[];
+  // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
+  // doc they cite. Informs the verifier prompt; never fails a turn.
+  lowOverlapCitations: string[];
   // True when the answer was cut off by the output-token cap (chat-loop.ts's
   // finish_reason "length") rather than ending on its own. Not derivable from
   // the answer text — set by the caller, defaults false here.
   lengthCapped: boolean;
   // Hard deterministic failure — invented citation targets, invented/misattributed
   // doc numbers, invented quotes, invented addresses, or a length-capped answer.
-  // Soft signals (bare links, uncited paragraphs, untraced numbers) inform, they don't fail.
+  // Soft signals (bare links, uncited paragraphs, untraced numbers, low-overlap
+  // citations) inform, they don't fail.
   failed: boolean;
 }
 
@@ -305,6 +432,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     ungroundedQuotes,
     ungroundedAddresses,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
+    lowOverlapCitations: findLowOverlapCitations(answer, ix),
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||

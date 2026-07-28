@@ -1,6 +1,8 @@
 import type { UsageWindow } from "./api";
 
-function humanizeReset(resetsAt: string): string {
+// Exported for RateLimitNote, which shows the same "resets in <X>" phrasing
+// for the token-window 429 lock.
+export function humanizeReset(resetsAt: string): string {
   const ms = Date.parse(resetsAt) - Date.now();
   if (!Number.isFinite(ms) || ms <= 0) return "soon";
   const mins = Math.round(ms / 60000);
