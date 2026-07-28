@@ -19,10 +19,10 @@ import {
 const DRAG_THRESHOLD_PX = 4;
 
 // Body indent so expanded text lines up with where the title text begins:
-// pl-3 (12) + gap-2 (8) + toggle (14) + gap-2 (8) + expand-all (14) + gap-2 (8)
-// + title margin+padding (5), plus 15px per chiclet segment (.atlas-chiclet
-// width — keep in sync with index.css).
-const TITLE_TEXT_OFFSET = 69;
+// pl-3 (12) + gap-2 (8) + expand-all (14) + gap-2 (8) + title margin+padding (5),
+// plus 15px per chiclet segment (.atlas-chiclet width — keep in sync with
+// index.css).
+const TITLE_TEXT_OFFSET = 47;
 const CHICLET_W = 15;
 // gap-2 (8) + the toggle chevron (14): the agent pill may extend past the doc
 // numbers to also cover the chevron column, giving a slightly wider cap.
@@ -230,21 +230,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
-        {hasContent ? (
-          <button
-            type="button"
-            className={`atlas-node-toggle${isExpanded ? " is-open" : ""}`}
-            aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.doc_no}`}
-            title={showExpandAll ? "alt-click: expand/collapse all beneath" : undefined}
-            onClick={(e) => (e.altKey && showExpandAll ? doExpandAll() : doToggle())}
-          >
-            ›
-          </button>
-        ) : (
-          <span className="atlas-node-toggle" style={{ visibility: "hidden" }} aria-hidden="true">
-            {"›"}
-          </span>
-        )}
         {showExpandAll ? (
           <button
             ref={expandAllRef}

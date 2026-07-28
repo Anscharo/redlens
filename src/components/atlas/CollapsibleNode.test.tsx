@@ -228,27 +228,6 @@ describe("CollapsibleNode expand-all toggle", () => {
     delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
   });
 
-  it("alt-clicking the regular (chevron) toggle also triggers expand-all when available", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "collapsed",
-    });
-    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
-    fireEvent.click(chevronToggle, { altKey: true });
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded");
-  });
-
-  it("plain-clicking the chevron toggle (no altKey) still just toggles, not expand-all", () => {
-    const { onToggle, setSubtreeVisualState, container } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-    });
-    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
-    fireEvent.click(chevronToggle);
-    expect(onToggle).toHaveBeenCalledWith(baseNode.id);
-    expect(setSubtreeVisualState).not.toHaveBeenCalled();
-  });
 });
 
 describe("CollapsibleNode keyboard interaction", () => {
