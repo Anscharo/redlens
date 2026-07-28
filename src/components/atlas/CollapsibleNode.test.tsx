@@ -225,42 +225,25 @@ describe("CollapsibleNode expand-all toggle", () => {
   });
 
   it("alt-clicking the regular (chevron) toggle also triggers expand-all when available", () => {
-    // jsdom has no Element.animate — stub it so the WAAPI feedback path runs
-    // (the animate()-present branch in doExpandAll) instead of the plain-call
-    // fallback, and the deferred rAF(rAF(expandAll)) call resolves.
-    const cancel = vi.fn();
-    (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = vi
-      .fn()
-      .mockReturnValue({ cancel });
-    const rafSpy = vi
-      .spyOn(window, "requestAnimationFrame")
-      .mockImplementation((cb: FrameRequestCallback) => {
-        cb(0);
-        return 0;
-      });
-
-    const { container, expandAll } = setup({
+    const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
-      isSubtreeExpanded: false,
+      subtreeState: "collapsed",
     });
     const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
     fireEvent.click(chevronToggle, { altKey: true });
-    expect(expandAll).toHaveBeenCalledWith(baseNode.id, true);
-
-    rafSpy.mockRestore();
-    delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded");
   });
 
   it("plain-clicking the chevron toggle (no altKey) still just toggles, not expand-all", () => {
-    const { onToggle, expandAll, container } = setup({
+    const { onToggle, setSubtreeVisualState, container } = setup({
       hasChildren: true,
       withExpandAll: true,
     });
     const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
     fireEvent.click(chevronToggle);
     expect(onToggle).toHaveBeenCalledWith(baseNode.id);
-    expect(expandAll).not.toHaveBeenCalled();
+    expect(setSubtreeVisualState).not.toHaveBeenCalled();
   });
 });
 
