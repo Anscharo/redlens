@@ -222,9 +222,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [coverage-vitest, coverage-bun]
     steps:
+      # fetch-depth: 0 so coverage-areas.mjs can diff changed lines against
+      # origin/main. No submodule / atlas artifacts needed here anymore — this
+      # job only reads the two lcov artifacts + the cached main baseline.
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Download installed workspace
@@ -235,16 +237,6 @@ jobs:
       - name: Restore installed workspace
         run: tar -xzf workspace-deps.tgz
 
-      - name: Download atlas artifacts
-        uses: actions/download-artifact@v5
-        with:
-          name: atlas-artifacts
-
-      - name: Restore atlas artifacts
-        run: tar -xzf atlas-artifacts.tgz
-
-      - uses: oven-sh/setup-bun@v2
-
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
@@ -252,28 +244,20 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Run base coverage for delta
+      # Read main's precomputed coverage baseline (produced once per push to main
+      # by coverage-baseline.yml) instead of rebuilding + re-running both suites
+      # against main on every PR. The exact key never matches on a PR (github.sha
+      # is the merge sha), so the restore-keys prefix returns the most recent
+      # main baseline. On a cold cache the file is simply absent and
+      # coverage-areas.mjs degrades to blank Base/Δ columns for that one run.
+      - name: Restore main coverage baseline
         if: ${{ github.event_name == 'pull_request' }}
-        continue-on-error: true
-        run: |
-          git worktree add ../redlens-base origin/${{ github.base_ref }}
-          cd ../redlens-base
-          git submodule update --init --recursive
-          # Reuse the PR's already-installed node_modules instead of a fresh
-          # `pnpm install` against the base ref's own lockfile: the base ref may
-          # predate a devDependency the coverage tooling needs (e.g. this PR is
-          # the one that first adds @vitest/coverage-v8), so its own lockfile
-          # can't be trusted to produce a working coverage toolchain. The base
-          # number here is informational only (coverage-areas.mjs's pass/fail
-          # gate is keyed on changed-line coverage, not this delta).
-          ln -s ../redlens/node_modules node_modules
-          pnpm build:index && pnpm build:glossary && pnpm build:graph
-          pnpm exec vitest run --coverage --config ../redlens/vitest.config.ts
-          bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun
-          node ../redlens/scripts/required/coverage-areas.mjs
-          cp coverage/coverage-areas.json ../redlens/base-coverage-areas.json
-        env:
-          REPRO: "1"
+        uses: actions/cache/restore@v4
+        with:
+          path: base-coverage-areas.json
+          key: coverage-base-${{ github.sha }}
+          restore-keys: |
+            coverage-base-
 
       - name: Download Vitest coverage
         uses: actions/download-artifact@v5
