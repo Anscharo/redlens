@@ -22,7 +22,7 @@ export function LibraryTopicIndex() {
   return (
     <nav
       aria-label="Topics"
-      className="hidden xl:block shrink-0 w-56 text-xs overflow-y-auto"
+      className="hidden xl:block shrink-0 w-56 text-xs overflow-y-auto xl:ml-10"
       style={{ position: "sticky", top: PANEL_TOP, maxHeight: `calc(100vh - ${PANEL_TOP}px - 1rem)` }}
     >
       <p className="mono uppercase tracking-wider text-[var(--tan-3)] mb-2">Topics</p>
