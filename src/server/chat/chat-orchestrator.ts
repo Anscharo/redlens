@@ -16,6 +16,7 @@ import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
 import { createLinkJudge, repairCitations, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
+import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { createLinkGate, gatedChat } from "./verify/stream-link-gate.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
@@ -87,6 +88,46 @@ function verifyEvent(
     ungroundedQuotes: checks.ungroundedQuotes,
     ungroundedAddresses: checks.ungroundedAddresses,
   };
+}
+
+// Reference-style citations — `[text][label]` plus a `[label]: /atlas/<uuid>`
+// definition block — are expanded to the canonical inline form BEFORE repair
+// and before the deterministic checks, so the whole checking layer keeps
+// keying on one shape (docs/plans/reference-citations.md). Repair remains the
+// authority; it simply operates on the canonical form, which it has to, since
+// a garbled UUID in a reference answer lives in a definition line that is not
+// a `[text](href)` link at all.
+//
+// The repaired result becomes done.content whenever it differs from what the
+// model wrote — the comparison at each call site is against the ORIGINAL, not
+// the normalized string, so a normalization-only fix still ships. That is a
+// deliberate, narrow exception to the "streamed text and done.content must not
+// disagree" guard below:
+//   • today's inline-only answers normalize byte-identically, so this is a
+//     strict no-op and the guard is untouched;
+//   • a well-formed reference answer renders identically either way (remark
+//     resolves reference links to the same <a href="/atlas/…"> and drops the
+//     definition nodes), so the swap is invisible to the user;
+//   • where the swap IS visible it is precisely the repair — the two measured
+//     malformed shapes otherwise ship as literal brackets in the prose;
+//   • and done.content is what the verifier, the advisor digest, the revision
+//     steer, the Sources cluster and the persisted message all read, so one
+//     canonical shape across those consumers beats byte-fidelity to raw model
+//     output.
+function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair } {
+  const refs = expandReferenceLinks(content);
+  return { refs, repair: repairCitations(refs.content, toolTexts, ix) };
+}
+
+// Reference bookkeeping for the checks row — observability only, never a
+// verdict. Undefined labels are a hard failure per the plan, but only once
+// repair can resolve a label to a doc (a later wave); until then they are
+// already de-linkified to plain text by the normalizer. `undefined` so the
+// key vanishes from the persisted JSON on the overwhelmingly common turn that
+// uses no reference syntax at all.
+function refsMeta(r: ReferenceExpansion) {
+  if (r.definitions.size + r.undefinedLabels.length + r.unusedLabels.length === 0) return undefined;
+  return { definitions: r.definitions.size, undefinedLabels: r.undefinedLabels, unusedLabels: r.unusedLabels };
 }
 
 // Repair the answer's atlas links in code, then fold unrepairable (stripped)
@@ -227,9 +268,11 @@ export async function* runVerifiedChat(opts: {
     // stream back to the invalid link at completion (the exact bug this gate
     // exists to prevent). Verification being off must not lose the repair.
     // Aborted/empty answers have nothing meaningful to repair, so skip them.
+    // Normalization runs here too: with checks off this is the only thing
+    // standing between a malformed reference citation and the user.
     if (!opts.signal?.aborted && done.content.trim()) {
       try {
-        const repair = repairCitations(done.content, toolTextsOf(done.transcript), opts.ix);
+        const { repair } = normalizeAndRepair(done.content, toolTextsOf(done.transcript), opts.ix);
         if (repair.content !== done.content) done = { ...done, content: repair.content };
       } catch (err) {
         captureError(err, opts.obs, { stage: "citation_repair_verify_disabled" });
@@ -240,7 +283,7 @@ export async function* runVerifiedChat(opts: {
   }
 
   // ── Verification (deterministic always; model audit when configured) ─────
-  // Citation repair runs first, on the FULL tool texts (the verifier evidence
+  // Reference-link normalization, then citation repair, on the FULL tool texts (the verifier evidence
   // budget doesn't apply to free string scans). The streaming gate already
   // applied the same judge to the token stream, so this pass normally agrees
   // with what streamed — it is the authority and the record (repaired/stripped
@@ -258,12 +301,12 @@ export async function* runVerifiedChat(opts: {
   let checks: CheckReport;
   try {
     toolTexts = toolTextsOf(done.transcript);
-    const repair = repairCitations(done.content, toolTexts, opts.ix);
+    const { refs, repair } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
     checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped);
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
-      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, checks: { ...checks, citations: checks.citations.length } },
+      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), checks: { ...checks, citations: checks.citations.length } },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
   } catch (err) {
@@ -388,7 +431,7 @@ export async function* runVerifiedChat(opts: {
   let revChecks: CheckReport;
   try {
     const revToolTexts = toolTextsOf(revDone.transcript);
-    const revRepair = repairCitations(revDone.content, revToolTexts, opts.ix);
+    const { repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
     if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
     revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped);
   } catch (err) {

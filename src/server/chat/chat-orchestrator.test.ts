@@ -105,6 +105,23 @@ test("deterministic-only mode stays quiet on clean answers, flags invalid citati
     expect(verify && verify.type === "verify_result" && verify.action).toBe("annotate");
   }));
 
+test("reference-style citations are normalized to canonical inline form before repair and checks", () =>
+  withModels("", "", async () => {
+    // The definition block is dropped, the reference link inlines, and the
+    // measured bare-bracket defect is unbracketed — so the checking layer sees
+    // one real citation and the user never sees literal brackets.
+    const uuid = ix.docMap.keys().next().value as string;
+    const answer = [`[the-doc]: /atlas/${uuid}`, "", "The rule is [5%][the-doc] and a range of [20 percentage points] applies."].join("\n");
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toBe(`The rule is [5%](/atlas/${uuid}) and a range of 20 percentage points applies.`);
+    expect(events.some((e) => e.type === "verify_result")).toBe(false);
+    const row = done.checksMeta[0].verdict as { refs?: { definitions: number; undefinedLabels: string[]; unusedLabels: string[] } };
+    expect(row.refs).toEqual({ definitions: 1, undefinedLabels: [], unusedLabels: [] });
+  }));
+
 test("fabricated citation uuid is repaired in code when the title identifies a real doc", () =>
   withModels("", "", async () => {
     // Unique-title doc → the repair pass swaps the invented uuid for the real
