@@ -1,5 +1,6 @@
 import { CHANGE_COLOR, RECONSTRUCTED_ERAS, isGitSha, type HistoryEntry } from "../../lib/history";
 import { DiffView } from "./DiffView";
+import { TimelineRail } from "./Timeline";
 
 const CHANGE_LABEL: Record<string, string> = {
   added: "added",
@@ -14,6 +15,8 @@ interface Props {
    *  relabel the root html-snapshot "added" event "first git snapshot" when older
    *  reconstructed origin events exist below it (docs/plans/pre-git-history.md). */
   labelOverride?: string;
+  /** Newest (topmost) entry — trims the timeline line above its node. */
+  isFirst?: boolean;
 }
 
 // Pre-git origin events (docs/plans/pre-git-history.md) carry a self-descriptive
@@ -21,7 +24,7 @@ interface Props {
 // "added" chip next to that text adds noise, not information.
 const PRE_GIT_ADDED_ERAS = new Set(["mip", "genesis", "severed"]);
 
-export function EntryRow({ entry, labelOverride }: Props) {
+export function EntryRow({ entry, labelOverride, isFirst }: Props) {
   const color = CHANGE_COLOR[entry.changeType] ?? "var(--tan-3)";
   const hasPr = !!entry.pr;
   const gitSha = isGitSha(entry.commitHash);
@@ -32,9 +35,12 @@ export function EntryRow({ entry, labelOverride }: Props) {
   const title = entry.summary ?? (hasPr ? entry.prTitle : undefined);
 
   return (
-    // Each entry is one visual unit: line 1 = date + PR/commit, line 2 = title,
-    // line 3 = the type of edit (added/edited/removed/moved).
-    <article className="border-b py-2.5" style={{ borderColor: "var(--border)" }}>
+    // Each entry is one node on the timeline: the rail runs down the left gutter,
+    // the unit's three lines (date + PR/commit, title, type of edit) sit to its right.
+    <article className="border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="flex gap-3 py-2.5">
+        <TimelineRail color={color} hideTop={isFirst} />
+        <div className="min-w-0 flex-1">
       {/* Line 1: date, then the Atlas PR (if any) or — only when there's no PR —
           the commit / reconstructed source. */}
       <div className="flex items-baseline gap-2 flex-wrap mono text-[11px]">
@@ -133,6 +139,8 @@ export function EntryRow({ entry, labelOverride }: Props) {
           <span style={{ color: "var(--tan)" }}>→ {entry.movedTo}</span>
         </div>
       )}
+        </div>
+      </div>
     </article>
   );
 }
