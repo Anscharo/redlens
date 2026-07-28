@@ -64,18 +64,32 @@ function CollapsibleNodeStub(props: {
   isSelected: boolean;
   hasChildren?: boolean;
   hiddenCount?: number;
+  subtreeState?: string;
+  hasExplicitHiddenSubtree?: boolean;
   onExpandChildren?: (id: string) => void;
   cradle?: "line" | "foot";
   inSelectedOnly?: boolean;
 }) {
   const actions = useAtlasActions();
-  const { entry, isSelected, hasChildren, hiddenCount = 0, onExpandChildren, cradle, inSelectedOnly } = props;
+  const {
+    entry,
+    isSelected,
+    hasChildren,
+    hiddenCount = 0,
+    subtreeState,
+    hasExplicitHiddenSubtree,
+    onExpandChildren,
+    cradle,
+    inSelectedOnly,
+  } = props;
   return (
     <div
       data-testid={`node-${entry.node.id}`}
       data-selected={isSelected}
       data-cradle={cradle ?? "none"}
       data-hidden={hiddenCount}
+      data-subtree-state={subtreeState ?? "collapsed"}
+      data-explicit-hidden={!!hasExplicitHiddenSubtree}
       data-in-selected-only={!!inSelectedOnly}
     >
       {entry.node.title}
@@ -86,6 +100,13 @@ function CollapsibleNodeStub(props: {
         <>
           <button onClick={() => actions.expandAll!(entry.node.id, true)}>expand-all-{entry.node.id}</button>
           <button onClick={() => actions.expandAll!(entry.node.id, false)}>collapse-all-{entry.node.id}</button>
+        </>
+      )}
+      {actions.setSubtreeVisualState && (
+        <>
+          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "hidden")}>hide-{entry.node.id}</button>
+          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "expanded")}>svs-expand-{entry.node.id}</button>
+          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "expanded", { restore: true })}>restore-{entry.node.id}</button>
         </>
       )}
       <button onClick={() => actions.toggle(entry.node.id)}>toggle-{entry.node.id}</button>
@@ -356,6 +377,81 @@ describe("AtlasReader expand-all action", () => {
     // deep1's own ancestor path (mid) stays revealed — deep1 is still visible.
     expect(screen.getByTestId(`node-${deep1.id}`)).toBeInTheDocument();
     expect(screen.getByTestId(`node-${mid.id}`)).toBeInTheDocument();
+  });
+});
+
+describe("AtlasReader subtree hide / restore", () => {
+  it("hides a subtree's descendants behind the parent's explicit-hidden marker", () => {
+    const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+
+    // a stays visible (its own ancestors aren't hidden) and now advertises the
+    // hidden branch; its descendants are filtered out.
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "true");
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-hidden", "2");
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+    expect(screen.queryByTestId(`node-${a2.id}`)).toBeNull();
+  });
+
+  it("re-reveals a hidden subtree when navigation moves onto one of its descendants", () => {
+    const { atlas, flatNodes, a, a1 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+
+    // Navigating into the hidden branch un-hides the ancestor path.
+    rerenderWith({ id: "a1", selectedId: a1.id, data });
+    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+  });
+
+  it("restoring the branch brings its descendants back", () => {
+    const { atlas, flatNodes, a, a1 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+
+    fireEvent.click(screen.getByText(`restore-${a.id}`));
+    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
+  });
+
+  it("moves the selection up to the branch parent when hiding a subtree that holds the selection (#363)", () => {
+    const { atlas, flatNodes, a, a1, root } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    // The selected doc (a1) is a descendant of the branch we hide (a).
+    const { actions } = renderReader({ id: "a1", selectedId: a1.id, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+
+    // Selection is moved to a's parent (root) — outside the hidden branch, so it
+    // stays visible and recoverable rather than vanishing.
+    expect(actions.navigate).toHaveBeenCalledWith(root.id);
+  });
+
+  it("does not move the selection when hiding a branch that does not contain it", () => {
+    const { atlas, flatNodes, a, b } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { actions } = renderReader({ id: "b", selectedId: b.id, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    expect(actions.navigate).not.toHaveBeenCalled();
+  });
+
+  it("switching the visibility-behavior mode marks the chosen mode active", () => {
+    const { atlas, flatNodes } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    const restoreMode = screen.getByRole("button", { name: "Shift: hide/restore" });
+    fireEvent.click(restoreMode);
+    expect(restoreMode).toHaveAttribute("aria-pressed", "true");
   });
 });
 

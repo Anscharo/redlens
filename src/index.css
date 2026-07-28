@@ -632,6 +632,13 @@ button.atlas-node-expand-all {
 button.atlas-node-expand-all:focus-visible {
   opacity: 1;
 }
+/* The subtree-visibility switcher floats over the bottom of the reader, so the
+   scroll content reserves matching space beneath it — otherwise the final rows
+   sit under the control and become obscured/unclickable in short layouts. Keep
+   this in sync with the switcher's height + bottom offset below. */
+.atlas-scroll {
+  padding-bottom: 56px;
+}
 .subtree-demo-switcher {
   position: absolute;
   left: 50%;

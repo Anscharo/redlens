@@ -224,6 +224,38 @@ describe("CollapsibleNode expand-all toggle", () => {
     expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "collapsed");
   });
 
+  it("runs the compositor feedback and defers the commit two frames when the button can animate", () => {
+    // jsdom has no Element.animate — stub it so the WAAPI feedback path runs
+    // instead of the plain synchronous fallback, and make rAF resolve inline so
+    // the deferred rAF(rAF(commit)) fires within the test.
+    const cancel = vi.fn();
+    const animate = vi
+      .fn()
+      .mockReturnValue({ cancel });
+    (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = animate;
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb: FrameRequestCallback) => {
+        cb(0);
+        return 0;
+      });
+
+    const { container, setSubtreeVisualState } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      subtreeState: "collapsed",
+    });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+
+    // The chevron animation (spin + pulse) ran, and the heavy state commit still
+    // landed once the two deferred frames resolved.
+    expect(animate).toHaveBeenCalled();
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded");
+
+    rafSpy.mockRestore();
+    delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
+  });
+
   it("alt-clicking the regular (chevron) toggle also triggers expand-all when available", () => {
     const { container, setSubtreeVisualState } = setup({
       hasChildren: true,

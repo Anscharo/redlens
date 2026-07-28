@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-07-28
+- Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it
+
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
 

@@ -33,8 +33,25 @@ import {
 type HiddenSubtreeSnapshot = {
   userToggles: Set<string>;
   expandedParents: Set<string>;
-  bulkExpandedRoots: Set<string>;
 };
+
+// Restore only the branch's own portion of a reader-wide set: start from the
+// current set, then force membership of every id in `scope` (the branch's
+// subtree) to match the snapshot. Entries outside the branch are left as they
+// are now, so expand/collapse/reveal the user did elsewhere while the branch
+// was hidden survive the restore instead of being clobbered.
+function mergeSubtreeSnapshot(
+  current: Set<string>,
+  snapshot: Set<string>,
+  scope: Set<string>,
+): Set<string> {
+  const next = new Set(current);
+  for (const id of scope) {
+    if (snapshot.has(id)) next.add(id);
+    else next.delete(id);
+  }
+  return next;
+}
 
 // memo boundary: AtlasView re-renders on annotation-tab switches and other
 // panel state the reader doesn't care about. All props here are stable refs
@@ -60,7 +77,6 @@ export const AtlasReader = memo(function AtlasReader({
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
   const [hiddenSubtrees, setHiddenSubtrees] = useState<Set<string>>(new Set());
-  const [bulkExpandedRoots, setBulkExpandedRoots] = useState<Set<string>>(new Set());
   const [subtreeVisibilityMode, setSubtreeVisibilityMode] = useState<SubtreeVisibilityMode>("shift-hide-open");
   const seenExpanded = useRef<Set<string>>(new Set());
   const hiddenSnapshotsRef = useRef<Map<string, HiddenSubtreeSnapshot>>(new Map());
@@ -109,7 +125,7 @@ export const AtlasReader = memo(function AtlasReader({
     hiddenCount,
     expandParent,
     setParentsExpanded,
-    restoreParentsExpanded,
+    mergeParentsExpanded,
     entryById,
   } = useDepth6Expand(data.flatNodes, id);
 
@@ -156,7 +172,6 @@ export const AtlasReader = memo(function AtlasReader({
       hiddenSnapshotsRef.current.set(rootId, {
         userToggles: new Set(userToggles),
         expandedParents: new Set(expandedParents),
-        bulkExpandedRoots: new Set(bulkExpandedRoots),
       });
     }
     setHiddenSubtrees((prev) => {
@@ -172,13 +187,27 @@ export const AtlasReader = memo(function AtlasReader({
       const snapshot = hiddenSnapshotsRef.current.get(rootId);
       hiddenSnapshotsRef.current.delete(rootId);
       if (options?.restore && snapshot) {
-        setUserToggles(new Set(snapshot.userToggles));
-        restoreParentsExpanded(snapshot.expandedParents);
-        setBulkExpandedRoots(new Set(snapshot.bulkExpandedRoots));
+        // Only the branch's own portion is restored (#177): merge the snapshot
+        // over the branch's subtree ids, leaving unrelated reader state intact.
+        const scope = new Set(subtreeIds);
+        setUserToggles((prev) => mergeSubtreeSnapshot(prev, snapshot.userToggles, scope));
+        mergeParentsExpanded(snapshot.expandedParents, scope);
       }
     }
-    if (hidden) setNodeExpanded(rootId, false);
-  }, [data, userToggles, expandedParents, bulkExpandedRoots, restoreParentsExpanded, setNodeExpanded]);
+    if (hidden) {
+      setNodeExpanded(rootId, false);
+      // If the active selection sits inside the branch we're hiding, it would
+      // vanish with no id-change to recover it (clicking the same sidebar row is
+      // a no-op). Move selection up to the branch's parent — outside the hidden
+      // subtree, so the row stays visible and the hide sticks (navigating to the
+      // root itself would trip the "reveal ancestors of the selection" effect and
+      // immediately un-hide it).
+      if (selectedId && selectedId !== rootId && subtreeIds.includes(selectedId)) {
+        const parentId = data.atlas.docs[rootId]?.parentId ?? null;
+        if (parentId) navigate(parentId);
+      }
+    }
+  }, [data, userToggles, expandedParents, mergeParentsExpanded, setNodeExpanded, selectedId, navigate]);
 
   const handleSetSubtreeVisualState = useCallback((
     rootId: string,
@@ -192,34 +221,22 @@ export const AtlasReader = memo(function AtlasReader({
     const ids = collectSubtree(data.atlas.byParent, rootId);
     if (state === "hidden") {
       handleHideSubtree(rootId, true);
-      setBulkExpandedRoots((prev) => {
-        if (!prev.has(rootId)) return prev;
-        const next = new Set(prev);
-        next.delete(rootId);
-        return next;
-      });
       setParentsExpanded(ids, false);
       return;
     }
     handleHideSubtree(rootId, false);
-    setBulkExpandedRoots((prev) => {
-      const expand = state === "expanded";
-      if (expand ? prev.has(rootId) : !prev.has(rootId)) return prev;
-      const next = new Set(prev);
-      if (expand) next.add(rootId);
-      else next.delete(rootId);
-      return next;
-    });
     expandAll(rootId, state === "expanded");
     setParentsExpanded(ids, true);
   }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
 
   const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
+  // The depth-6 "N hidden" affordance only reveals the gated child rows — it must
+  // NOT expand every body in the branch (#220). Revealing the gated parents is
+  // exactly what expandParent does; the bulk expand-all is a separate control.
   const handleExpandParent = useCallback((nodeId: string) => {
-    handleSetSubtreeVisualState(nodeId, "expanded");
     expandParent(nodeId);
     triggerExpandingAnim();
-  }, [handleSetSubtreeVisualState, expandParent, triggerExpandingAnim]);
+  }, [expandParent, triggerExpandingAnim]);
 
   const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
     handleSetSubtreeVisualState(rootId, expand ? "expanded" : "collapsed");
@@ -314,7 +331,7 @@ export const AtlasReader = memo(function AtlasReader({
         const subtreeState = deriveSubtreeVisualState({
           hasExplicitHidden,
           hasGatedHidden: false,
-          isExpanded: bulkExpandedRoots.has(entry.node.id) || fullyExpanded.has(entry.node.id),
+          isExpanded: fullyExpanded.has(entry.node.id),
         });
         block.push(
           <CollapsibleNode
@@ -387,7 +404,7 @@ export const AtlasReader = memo(function AtlasReader({
       const subtreeState = deriveSubtreeVisualState({
         hasExplicitHidden,
         hasGatedHidden,
-        isExpanded: bulkExpandedRoots.has(entry.node.id) || fullyExpanded.has(entry.node.id),
+        isExpanded: fullyExpanded.has(entry.node.id),
       });
       const gatedCount = hasExplicitHidden
         ? descendantCount.get(entry.node.id) ?? 0
@@ -434,7 +451,7 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, bulkExpandedRoots, descendantCount, subtreeVisibilityMode, hasHiddenAncestor]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, descendantCount, subtreeVisibilityMode, hasHiddenAncestor]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection

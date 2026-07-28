@@ -74,9 +74,24 @@ export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
     });
   }, []);
 
-  const restoreParentsExpanded = useCallback((next: Set<string>) => {
-    setExpandedParents(new Set(next));
+  // Restore a snapshot's reveal state for one branch only: force membership of
+  // every id in `scope` (the branch's subtree) to match the snapshot, leaving
+  // gated-reveal state elsewhere untouched. See mergeSubtreeSnapshot in
+  // AtlasReader — this is the expandedParents equivalent.
+  const mergeParentsExpanded = useCallback((snapshot: Set<string>, scope: Set<string>) => {
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+      for (const id of scope) {
+        const want = snapshot.has(id);
+        if (want === next.has(id)) continue;
+        if (want) next.add(id);
+        else next.delete(id);
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
   }, []);
 
-  return { expandedParents, hiddenCount, expandParent, setParentsExpanded, restoreParentsExpanded, entryById };
+  return { expandedParents, hiddenCount, expandParent, setParentsExpanded, mergeParentsExpanded, entryById };
 }

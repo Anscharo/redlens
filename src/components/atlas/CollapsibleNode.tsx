@@ -117,19 +117,23 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       hasExplicitHidden: hasExplicitHiddenSubtree,
     });
     track("reader_expand_all", { node_id: node.id, action: transition });
-    if (setSubtreeVisualState) {
-      if (transition === "restore") {
-        setSubtreeVisualState(node.id, "expanded", { restore: true });
-      } else {
-        setSubtreeVisualState(node.id, transition);
-      }
-      return;
-    }
-    const willOpen = transition === "expanded";
+    const willOpen = transition === "expanded" || transition === "restore";
+    // The heavy state update (a large subtree re-render), deferred below so the
+    // chevron feedback paints first. Both action models funnel through here: the
+    // main reader supplies setSubtreeVisualState (the live path), the standalone
+    // fallback supplies expandAll. Either way the deferral + compositor feedback
+    // must wrap it — the setSubtreeVisualState branch used to bypass them, which
+    // restored the exact click-freeze the animation path exists to prevent.
+    const commit = setSubtreeVisualState
+      ? () =>
+          transition === "restore"
+            ? setSubtreeVisualState(node.id, "expanded", { restore: true })
+            : setSubtreeVisualState(node.id, transition)
+      : () => expandAll?.(node.id, willOpen);
     const btn = expandAllRef.current;
     if (btn?.animate) {
       const from = isSubtreeHidden ? -90 : isSubtreeExpanded ? 90 : 0;
-      const to = willOpen ? 90 : 0;
+      const to = transition === "hidden" ? -90 : willOpen ? 90 : 0;
       spinRef.current?.cancel();
       // rotate (transform) held via fill:forwards until CSS .is-open catches up
       spinRef.current = btn.animate(
@@ -149,15 +153,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         ],
         { duration: 520, easing: "ease-in-out", iterations: Infinity },
       );
-      // Defer the heavy expand two frames so the chevron feedback commits to the
-      // compositor and PAINTS first. Running expandAll now would let React flush
-      // the large synchronous re-render in this same task, before the browser
-      // ever paints the animation — so it'd only appear once the expand is done.
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => expandAll?.(node.id, willOpen)),
-      );
+      // Defer the heavy commit two frames so the chevron feedback commits to the
+      // compositor and PAINTS first. Committing now would let React flush the
+      // large synchronous re-render in this same task, before the browser ever
+      // paints the animation — so it'd only appear once the expand is done.
+      requestAnimationFrame(() => requestAnimationFrame(commit));
     } else {
-      expandAll?.(node.id, willOpen);
+      commit();
     }
   };
   // Once CSS .is-open reflects the new state (the expand finished), stop the
@@ -259,7 +261,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             } all sections under ${node.doc_no}`}
             title={
               isSubtreeHidden
-                ? subtreeVisibilityMode === "shift-hide-restore"
+                ? subtreeVisibilityMode === "shift-hide-restore" && hasExplicitHiddenSubtree
                   ? "restore hidden descendants"
                   : "expand hidden descendants"
                 : subtreeVisibilityMode === "cycle"
