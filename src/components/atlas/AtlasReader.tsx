@@ -225,13 +225,21 @@ export const AtlasReader = memo(function AtlasReader({
   }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
 
   const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
-  // The depth-6 "N hidden" affordance only reveals the gated child rows — it must
-  // NOT expand every body in the branch (#220). Revealing the gated parents is
-  // exactly what expandParent does; the bulk expand-all is a separate control.
+  // The "N hidden" tab means two different things depending on why the rows are
+  // hidden:
+  //  - an explicitly shift-hidden branch → uncollapse ALL (un-hide + expand every
+  //    body beneath). This is deliberately distinct from the up-chevron, which
+  //    restores the branch's prior shape.
+  //  - a depth-6 gated parent → reveal only the gated child rows, never expanding
+  //    every body in the branch (#220). That's exactly what expandParent does.
   const handleExpandParent = useCallback((nodeId: string) => {
-    expandParent(nodeId);
+    if (hiddenSubtrees.has(nodeId)) {
+      handleSetSubtreeVisualState(nodeId, "expanded");
+    } else {
+      expandParent(nodeId);
+    }
     triggerExpandingAnim();
-  }, [expandParent, triggerExpandingAnim]);
+  }, [hiddenSubtrees, handleSetSubtreeVisualState, expandParent, triggerExpandingAnim]);
 
   const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
     handleSetSubtreeVisualState(rootId, expand ? "expanded" : "collapsed");

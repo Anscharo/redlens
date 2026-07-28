@@ -422,6 +422,22 @@ describe("AtlasReader subtree hide / restore", () => {
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
   });
 
+  it("clicking the 'N hidden' tab on an explicitly-hidden branch uncollapses the whole branch", () => {
+    const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    // The hidden branch surfaces the "N hidden" tab (the stub's reveal button).
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+
+    fireEvent.click(screen.getByText(`reveal-${a.id}`));
+    // The whole branch comes back (un-hidden), distinct from the chevron's restore.
+    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${a2.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
+  });
+
   it("moves the selection up to the branch parent when hiding a subtree that holds the selection (#363)", () => {
     const { atlas, flatNodes, a, a1, root } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
