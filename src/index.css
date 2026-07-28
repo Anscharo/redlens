@@ -1226,6 +1226,44 @@ button.atlas-node-expand-all:focus-visible {
   font-size: 1rem;
 }
 
+/* Library markdown typography (Concepts, Audit only — LibraryMarkdown.tsx's
+   wrapper carries this class ALONGSIDE .atlas-md; scoped here rather than
+   edited into the shared .atlas-md rules above, which the main atlas reader
+   also uses). Tighter measure (the catalog's prose is denser/more
+   cross-referenced than reader content), slightly roomier paragraph rhythm,
+   and small rendering-quality knobs. Ragged right throughout — no
+   justification, no hyphenation. */
+.library-md p,
+.library-md ul,
+.library-md ol {
+  max-width: 70ch;
+}
+.library-md p {
+  margin-bottom: 0.9rem;
+}
+.library-md ul,
+.library-md ol {
+  margin-bottom: 0.9rem;
+}
+.library-md li + li {
+  margin-top: 0.375rem;
+}
+.library-md h1,
+.library-md h2 {
+  letter-spacing: -0.015em;
+}
+.library-md h3 {
+  letter-spacing: -0.01em;
+}
+.library-md {
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+.library-md td,
+.library-md th {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Evidence-level pills (rehypeEvidencePills.ts) — colored by strength, from
    script-censused (strongest) down to unverified (weakest). Background/border
    are subtle tints of the same token via color-mix, matching the bucket-pill

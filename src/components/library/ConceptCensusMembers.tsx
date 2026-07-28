@@ -11,7 +11,7 @@ export function ConceptCensusMembers({ members }: { members: CensusMember[] }) {
     return <p className="text-xs mono text-tan-3">no members</p>;
   }
   return (
-    <ul className="mt-2 space-y-1 max-h-80 overflow-y-auto">
+    <ul className="mt-2 space-y-1 max-h-80 overflow-y-auto tabular-nums">
       {members.map((m) => (
         <li key={m.uuid} className="text-xs flex items-center gap-2">
           <Link to={atlasHref(m.uuid)} className="mono link-accent">

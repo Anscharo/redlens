@@ -87,7 +87,7 @@ export function LibraryMarkdown({ raw, sticky = false }: { raw: string; sticky?:
   const components = buildComponents(resolver);
 
   return (
-    <div className={`atlas-md text-sm text-tan-2${sticky ? " library-sticky-headings" : ""}`}>
+    <div className={`atlas-md library-md text-sm text-tan-2${sticky ? " library-sticky-headings" : ""}`}>
       {segments.map((seg, i) =>
         seg.kind === "census" ? (
           <ConceptCensus key={i} slug={seg.slug} />

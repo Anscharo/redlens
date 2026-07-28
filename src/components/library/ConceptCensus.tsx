@@ -76,7 +76,7 @@ export function ConceptCensus({ slug }: { slug: string }) {
       <p className="text-xs mb-2" style={{ color: "var(--tan-2)" }}>
         <span className="mono">[{result.signature.kind}]</span> {result.signature.pattern}
       </p>
-      <p className="text-xs mb-2 mono" style={{ color: "var(--tan)" }}>
+      <p className="text-xs mb-2 mono tabular-nums" style={{ color: "var(--tan)" }}>
         {Object.entries(result.counts)
           .map(([k, v]) => `${k}: ${v}`)
           .join(" · ")}
