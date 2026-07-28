@@ -9,6 +9,7 @@ import { LibraryShape } from "./LibraryShape";
 import { LibraryGlossary } from "./LibraryGlossary";
 import { LibraryConcepts, LibraryAudit } from "./LibraryConcepts";
 import { LibraryToc } from "./LibraryToc";
+import { LibraryTopicIndex } from "./LibraryTopicIndex";
 
 export type LibraryTab = "shape" | "concepts" | "audit" | "glossary";
 
@@ -68,8 +69,18 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
       {/* Concepts gets its own (wider, lg+ only) row so a left TOC column fits
           beside the max-w-3xl article measure; every other tab keeps the
           plain centered 3xl column above unchanged. Below lg (TOC hidden),
-          this collapses back to the identical max-w-3xl mx-auto layout. */}
-      <div className={tab === "concepts" ? "max-w-3xl lg:max-w-[62rem] mx-auto lg:flex lg:gap-8 lg:items-start" : "max-w-3xl mx-auto"}>
+          this collapses back to the identical max-w-3xl mx-auto layout. At
+          xl+ a third column (LibraryTopicIndex, the right-hand "Topics"
+          panel) joins in — both side columns hide themselves below their
+          own breakpoint via their own classes, so this row just widens the
+          cap to fit all three at xl. */}
+      <div
+        className={
+          tab === "concepts"
+            ? "max-w-3xl lg:max-w-[62rem] xl:max-w-[80rem] mx-auto lg:flex lg:gap-8 lg:items-start"
+            : "max-w-3xl mx-auto"
+        }
+      >
         {tab === "concepts" && <LibraryToc />}
         <div className={tab === "concepts" ? "max-w-3xl lg:min-w-0 lg:flex-1" : undefined}>
           {tab === "glossary" ? (
@@ -88,6 +99,7 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
             <LibraryShape data={data} />
           )}
         </div>
+        {tab === "concepts" && <LibraryTopicIndex />}
       </div>
     </div>
   );

@@ -8,24 +8,34 @@ import { rehypeEvidencePills } from "../../lib/rehypeEvidencePills";
 import { rehypeDocRefs } from "../../lib/rehypeDocRefs";
 import { rehypeHeadingIds } from "../../lib/rehypeHeadingIds";
 import { extractHeadings, partitionHeadings } from "../../lib/libraryHeadings";
+import { parseLibraryIndex } from "../../lib/libraryIndex";
 import { buildDocRefResolver, type DocRefResolver } from "../../lib/docRefResolver";
 import { buildComponents } from "./libraryMarkdownComponents";
+import { LibraryIndexList } from "./LibraryIndexList";
 
 // A `:::census <slug>` line, alone on its own line, interleaves a live
 // <ConceptCensus> block into the curated prose (docs/library/concepts.md).
-// Only concepts.md uses this; concepts-audit.md has no markers, so this is a
-// no-op split for it (one "md" segment, unchanged).
+// A `:::index` … `:::endindex` block wraps the II.7 Topics list — stripped
+// out of the plain-markdown pass entirely and swapped for <LibraryIndexList>
+// so its "→ Group N" targets render as hash links instead of plain text
+// (see libraryIndex.ts). Only concepts.md uses either marker;
+// concepts-audit.md has neither, so this is a no-op split for it (one "md"
+// segment, unchanged).
 const CENSUS_MARKER_RE = /^:::census\s+([\w-]+)\s*$/gm;
+const INDEX_MARKER_RE = /^:::index\s*$\n[\s\S]*?^:::endindex\s*$/gm;
 
-type MarkdownSegment = { kind: "md"; text: string } | { kind: "census"; slug: string };
+type MarkdownSegment = { kind: "md"; text: string } | { kind: "census"; slug: string } | { kind: "index" };
 
-function splitByCensusMarkers(raw: string): MarkdownSegment[] {
+function splitByMarkers(raw: string): MarkdownSegment[] {
+  const markers = [...raw.matchAll(CENSUS_MARKER_RE), ...raw.matchAll(INDEX_MARKER_RE)].sort(
+    (a, b) => (a.index ?? 0) - (b.index ?? 0),
+  );
   const segments: MarkdownSegment[] = [];
   let cursor = 0;
-  for (const m of raw.matchAll(CENSUS_MARKER_RE)) {
+  for (const m of markers) {
     const idx = m.index ?? 0;
     if (idx > cursor) segments.push({ kind: "md", text: raw.slice(cursor, idx) });
-    segments.push({ kind: "census", slug: m[1] });
+    segments.push(m[1] !== undefined ? { kind: "census", slug: m[1] } : { kind: "index" });
     cursor = idx + m[0].length;
   }
   if (cursor < raw.length) segments.push({ kind: "md", text: raw.slice(cursor) });
@@ -59,15 +69,21 @@ export function LibraryMarkdown({ raw, sticky = false }: { raw: string; sticky?:
   // see libraryHeadings.ts. Memoized on `raw` only (stable across resolver
   // loads): the doc's heading outline never depends on doc-ref resolution.
   const headings = useMemo(() => extractHeadings(raw), [raw]);
-  const segments = useMemo(() => splitByCensusMarkers(raw), [raw]);
-  // Each `:::census`-split segment gets ONLY the headings that occur in its
-  // own text, not a cursor shared across segments — see rehypeHeadingIds.ts
-  // and partitionHeadings' doc comment for why (React StrictMode's dev-mode
-  // double-invoke of a segment's render would otherwise double-count).
+  const segments = useMemo(() => splitByMarkers(raw), [raw]);
+  // Each `:::census`/`:::index`-split segment gets ONLY the headings that
+  // occur in its own text, not a cursor shared across segments — see
+  // rehypeHeadingIds.ts and partitionHeadings' doc comment for why (React
+  // StrictMode's dev-mode double-invoke of a segment's render would
+  // otherwise double-count).
   const headingsBySegment = useMemo(
     () => partitionHeadings(headings, segments.map((s) => (s.kind === "md" ? s.text : ""))),
     [headings, segments],
   );
+  // Parsed once from the full raw source (not the stripped segment text —
+  // parseLibraryIndex locates the II.7 section itself via its own heading
+  // regex), shared with the right-hand LibraryTopicIndex.tsx panel so both
+  // surfaces agree on every target's slug.
+  const indexEntries = useMemo(() => parseLibraryIndex(raw, headings), [raw, headings]);
 
   // On mount/hash-change (a Link elsewhere in the app pointing at
   // "#slug" — client-side nav never fires the browser's own fragment
@@ -91,6 +107,8 @@ export function LibraryMarkdown({ raw, sticky = false }: { raw: string; sticky?:
       {segments.map((seg, i) =>
         seg.kind === "census" ? (
           <ConceptCensus key={i} slug={seg.slug} />
+        ) : seg.kind === "index" ? (
+          <LibraryIndexList key={i} entries={indexEntries} />
         ) : (
           <ReactMarkdown
             key={i}

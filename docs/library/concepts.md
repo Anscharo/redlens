@@ -1013,30 +1013,93 @@ the signature's ≤3-occurrence cap meant to exclude generic template titles).
 
 ---
 
-### II.7 Master index (A–Z, → group)
+### II.7 Topics (A–Z → section)
 
-Accords (Ecosystem) → Instruments 1 · Accords (Executor) → Instruments 2 · Action Tenets → Meta 6 · Active
-Data → Duties 2 · Adjudication → Norms 7 · Agent Artifacts → Lifecycle (II.4) · Agent Termination
-→ Instruments 9 · Agent Tokens → Economics 1/A.4.5 · Aligned Delegates → Instruments 6 · Alignment/Eligibility
-→ Norms 8 · Allocation Systems → Economics 2 · ALM & Rental → Economics 2 · Annotations → Meta 5 · Artifact
-Edit Proposals (per-instance) → Instruments 3/Lifecycle 6 · Atlas Edit Proposals → Instruments 3 · Budgets → Economics 6 ·
-Bridges/SkyLink → Economics 8 · Compensation formulas → Quantities 3/Economics 3 · Conduct standards → Norms 6 ·
-Core Governance Reward → Economics 1 · Cycles (weekly/monthly/settlement) → Process 4/Economics 4 · Data
-Repositories → Lifecycle 6 · Definitions → Meta 2 · Delegation → Instruments 6 · Derecognition → Norms 4 ·
-Dispute Resolution → Instruments 8 · Distribution Rewards → Economics 1 · Duties → Norms 1/Duties 1 · Emergency
-machinery → Process 5/Instruments 5 · Executor Agents → Actors 1 (ghost layer) · Fees (Upkeep) → Economics 5 ·
-Formulas → Quantities 3 · Foundations → Actors 1 · Glossary → Meta 2 · Governance votes → Instruments 4 · Grants
-→ Economics 7 · Hubs (primitive) → Lifecycle 2 · ICDs/Instances → Lifecycle 4 · Incubation → Instruments 11 · Integration
-Boost → Economics 1 · Integrator Program → Economics 1/Registries 1 · Interpretations → Meta 3 · Invocations → Lifecycle 5 ·
-Multisigs → Actors 2 · Needed Research → Meta 4 · Omni Documents → Lifecycle 7 · Parameters → Quantities 1 ·
-Payment lists → Registries 1 (empty) · Peg Stability Module → Economics 8 · Pending transitions → Instruments 12 ·
-Pioneer Chain → Economics 1 · Policies/Rules → Norms 1–9 · Primitives → Lifecycle 1 · Procedures → Process 1–3 ·
-Prohibitions → Norms 2 · Protocols (routine/emergency) → Process 2 · Rate Limits → Quantities 2 · Rates
-(SSR/DSR/stUSDS) → Economics 3 · Registries → Registries 1 · Relayer Role → Actors 2 · Resilience Fund → Economics 7 ·
-Risk models → Economics 9/Quantities 3 · Root Edits → Instruments 3 · RRC coverage → Quantities 5 · Scenarios → Meta 7 · Smart
-Burn Engine → Economics 4 · Spells/StarGuard → Instruments 5 · Staking → Economics 3/4 · Suspension → Norms 3 ·
-Transitionary measures → Instruments 10 · Treasury waterfall → Economics 4 · Type Specifications → Meta 1 ·
-Usage Standards → Norms 6.
+Alphabetical list of topic names/aliases mapping to the concept unit(s) or
+section that cover them — a recategorization/alias layer over the catalog,
+not a precise index. Most entries point at one specific concept unit; a few
+("Policies/Rules → Norms 1–9", "Procedures → Process 1–3") span a whole
+family and link once to that family's section heading instead of a single
+unit — "Agent Artifacts → Lifecycle (II.4)" is the same case (a legacy
+section code standing in for the whole Lifecycle family, not one unit).
+"Agent Tokens → Economics 1/A.4.5" is the one entry with a genuinely
+unresolved half: `A.4.5` is a bare doc_no, not a catalog anchor.
+
+:::index
+- Accords (Ecosystem) → Instruments 1
+- Accords (Executor) → Instruments 2
+- Action Tenets → Meta 6
+- Active Data → Duties 2
+- Adjudication → Norms 7
+- Agent Artifacts → Lifecycle (II.4)
+- Agent Termination → Instruments 9
+- Agent Tokens → Economics 1/A.4.5
+- Aligned Delegates → Instruments 6
+- Alignment/Eligibility → Norms 8
+- Allocation Systems → Economics 2
+- ALM & Rental → Economics 2
+- Annotations → Meta 5
+- Artifact Edit Proposals (per-instance) → Instruments 3/Lifecycle 6
+- Atlas Edit Proposals → Instruments 3
+- Budgets → Economics 6
+- Bridges/SkyLink → Economics 8
+- Compensation formulas → Quantities 3/Economics 3
+- Conduct standards → Norms 6
+- Core Governance Reward → Economics 1
+- Cycles (weekly/monthly/settlement) → Process 4/Economics 4
+- Data Repositories → Lifecycle 6
+- Definitions → Meta 2
+- Delegation → Instruments 6
+- Derecognition → Norms 4
+- Dispute Resolution → Instruments 8
+- Distribution Rewards → Economics 1
+- Duties → Norms 1/Duties 1
+- Emergency machinery → Process 5/Instruments 5
+- Executor Agents → Actors 1 (ghost layer)
+- Fees (Upkeep) → Economics 5
+- Formulas → Quantities 3
+- Foundations → Actors 1
+- Glossary → Meta 2
+- Governance votes → Instruments 4
+- Grants → Economics 7
+- Hubs (primitive) → Lifecycle 2
+- ICDs/Instances → Lifecycle 4
+- Incubation → Instruments 11
+- Integration Boost → Economics 1
+- Integrator Program → Economics 1/Registries 1
+- Interpretations → Meta 3
+- Invocations → Lifecycle 5
+- Multisigs → Actors 2
+- Needed Research → Meta 4
+- Omni Documents → Lifecycle 7
+- Parameters → Quantities 1
+- Payment lists → Registries 1 (empty)
+- Peg Stability Module → Economics 8
+- Pending transitions → Instruments 12
+- Pioneer Chain → Economics 1
+- Policies/Rules → Norms 1–9
+- Primitives → Lifecycle 1
+- Procedures → Process 1–3
+- Prohibitions → Norms 2
+- Protocols (routine/emergency) → Process 2
+- Rate Limits → Quantities 2
+- Rates (SSR/DSR/stUSDS) → Economics 3
+- Registries → Registries 1
+- Relayer Role → Actors 2
+- Resilience Fund → Economics 7
+- Risk models → Economics 9/Quantities 3
+- Root Edits → Instruments 3
+- RRC coverage → Quantities 5
+- Scenarios → Meta 7
+- Smart Burn Engine → Economics 4
+- Spells/StarGuard → Instruments 5
+- Staking → Economics 3/Economics 4
+- Suspension → Norms 3
+- Transitionary measures → Instruments 10
+- Treasury waterfall → Economics 4
+- Type Specifications → Meta 1
+- Usage Standards → Norms 6
+:::endindex
 
 ## Part III — Distinctions & open questions
 
@@ -1116,6 +1179,11 @@ because the codes were opaque. `docs/library/concepts-audit.md` and
 `docs/features/atlas-library/LOG.md` are historical records and still use the
 old codes — use this table to resolve their cross-references against the
 current catalog.
+
+Section II.7 was retitled from "Master index (A–Z, → group)" to "Topics (A–Z
+→ section)" (2026-07-28) — the old name overclaimed precision for what is
+really a topic/alias recategorization layer, not an index. The `II.7` number
+itself is unchanged for cross-reference stability.
 
 | Old code | New label |
 |---|---|

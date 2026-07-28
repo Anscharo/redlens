@@ -102,4 +102,42 @@ describe("LibraryMarkdown", () => {
     expect(link).toHaveAttribute("href", expect.stringContaining(FULL_UUID));
     expect(screen.getByText("A.3.2").tagName).toBe("CODE");
   });
+
+  it("stamps a unit-opener paragraph (bold 'Group N · Title' lead) with a slug id, hash-linkable like a heading", async () => {
+    const raw = "**Instruments 5 · Spell machinery**\n\nSome body text.";
+    render(<LibraryMarkdown raw={raw} />);
+    await screen.findByText("Some body text.");
+    const p = screen.getByText((_, el) => el?.tagName === "P" && !!el.querySelector("strong"));
+    expect(p).toHaveAttribute("id", "instruments-5");
+    expect(p.className).toContain("unit-opener");
+  });
+
+  it("does not stamp an id on a bold field-label paragraph (no 'Group N ·' lead)", async () => {
+    const raw = "**Definition** — some definition text.";
+    render(<LibraryMarkdown raw={raw} />);
+    const p = await screen.findByText(/some definition text/);
+    expect(p.closest("p")).not.toHaveAttribute("id");
+  });
+
+  it("swaps a `:::index` … `:::endindex` block for a linkified topics list, dropping the markers from the markdown pass", async () => {
+    const raw = [
+      "# Before",
+      "",
+      ":::index",
+      "- Accords (Ecosystem) → Instruments 1",
+      "- Staking → Economics 3/Economics 4",
+      ":::endindex",
+      "",
+      "## After",
+    ].join("\n");
+    render(<LibraryMarkdown raw={raw} />);
+    expect(await screen.findByRole("heading", { name: "Before" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /After/ })).toBeInTheDocument();
+    expect(screen.queryByText(/:::index/)).not.toBeInTheDocument();
+    const unitLink = screen.getByRole("link", { name: "Instruments 1" });
+    expect(unitLink).toHaveAttribute("href", "#instruments-1");
+    // compact multi-target rendering: one "Economics" label, two number links
+    expect(screen.getByRole("link", { name: "3" })).toHaveAttribute("href", "#economics-3");
+    expect(screen.getByRole("link", { name: "4" })).toHaveAttribute("href", "#economics-4");
+  });
 });

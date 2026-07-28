@@ -9,12 +9,20 @@ import type { Element as HastElement } from "hast";
 import { Link } from "../Link";
 import { atlasHref } from "../../lib/routes";
 import { FULL_UUID_RE, type DocRefResolver } from "../../lib/docRefResolver";
+import { groupRefSlug } from "../../lib/libraryIndex";
 
 // A per-concept unit-opener paragraph starts with a bold "<Group> <N> ·
 // <Title>" run (e.g. "**Lifecycle 7 · Omni Documents**") — distinct from a
 // list item's bold field label ("**Definition**", "**Detection signature**"),
-// which never carries a number + middot.
-const UNIT_OPENER_RE = /^[A-Za-z][\w\s]*\d+\s*·/;
+// which never carries a number + middot. Captures the group label so the
+// paragraph can be stamped with a hash-linkable id (groupRefSlug, shared
+// with the II.7 topic index's unit-target resolution in libraryIndex.ts).
+const UNIT_OPENER_RE = /^([A-Za-z]+)\s+(\d+)\s*·/;
+
+function unitOpenerId(text: string): string | undefined {
+  const m = UNIT_OPENER_RE.exec(text);
+  return m ? groupRefSlug(m[1], m[2]) : undefined;
+}
 
 function hastText(node: HastElement): string {
   let out = "";
@@ -59,8 +67,14 @@ const baseComponents: Omit<Components, "a" | "code"> = {
   ),
   p: ({ node, children }) => {
     const first = node?.children[0];
-    const isUnitOpener = !!first && first.type === "element" && first.tagName === "strong" && UNIT_OPENER_RE.test(hastText(first));
-    return <p className={isUnitOpener ? "unit-opener" : undefined}>{children}</p>;
+    const isStrongLead = !!first && first.type === "element" && first.tagName === "strong";
+    const id = isStrongLead ? unitOpenerId(hastText(first as HastElement)) : undefined;
+    return (
+      <p id={id} className={id ? "unit-opener heading-with-anchor" : undefined}>
+        {children}
+        {anchorFor(id)}
+      </p>
+    );
   },
 };
 

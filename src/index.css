@@ -1343,6 +1343,12 @@ button.atlas-node-expand-all:focus-visible {
 .library-sticky-headings h3.heading-with-anchor {
   scroll-margin-top: 112px;
 }
+/* Unit-opener paragraphs (libraryMarkdownComponents.tsx's "Group N · Title"
+   leads) live under the same stuck h2, so a hash-targeted unit needs the
+   same taller offset as h3 — otherwise it lands hidden under the bar too. */
+.library-sticky-headings p.unit-opener.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
 
 /* ─── Right panel tab button ─── */
 .right-tab {
