@@ -1,0 +1,62 @@
+name: Coverage baseline
+
+# Precomputes main's per-area coverage once per push to main and stores it in the
+# Actions cache. PR runs then read that baseline (ci.yml `coverage` job) instead
+# of rebuilding atlas artifacts and re-running both test suites against main on
+# every single PR — the baseline only feeds the informational "Base total"/"Δ"
+# columns in the coverage comment, never the pass/fail gate, so latest-main
+# granularity is exactly what we want.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: "Coverage baseline (main)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build atlas artifacts
+        run: pnpm build:index && pnpm build:glossary && pnpm build:graph
+
+      - name: Run Vitest coverage
+        run: pnpm test:coverage
+        env:
+          REPRO: "1"
+
+      - name: Run Bun coverage
+        run: pnpm test:server:coverage
+
+      # COVERAGE_CHANGED_MIN=0: this run only produces the per-area totals used as
+      # the baseline; the changed-line gate is meaningless here (HEAD == origin/main)
+      # and must never fail the baseline producer.
+      - name: Compute coverage baseline
+        run: node scripts/required/coverage-areas.mjs
+        env:
+          COVERAGE_AREAS_JSON: base-coverage-areas.json
+          COVERAGE_CHANGED_MIN: "0"
+
+      - name: Cache baseline for PRs
+        uses: actions/cache/save@v4
+        with:
+          path: base-coverage-areas.json
+          key: coverage-base-${{ github.sha }}
