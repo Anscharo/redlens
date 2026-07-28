@@ -331,11 +331,13 @@ export const AtlasReader = memo(function AtlasReader({
     handleSetSubtreeVisualState(rootId, expand ? "expanded" : "collapsed");
   }, [handleSetSubtreeVisualState]);
 
-  useAtlasScroll(id, data, expandedParents);
-
   const changedSet = usePreviewChangedSet();
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
+
+  // Re-scroll to the selected doc whenever the view mode flips, so leaving
+  // "selected only" (or preview "changed only") keeps the current node in view.
+  useAtlasScroll(id, data, expandedParents, changedSet ? "changed" : selectionSet ? "selected" : "all");
 
   // Shift-clicking a doc's selection checkbox selects it + all descendants.
   const { selectSubtree } = useSelection();
