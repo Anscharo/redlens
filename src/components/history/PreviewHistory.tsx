@@ -47,20 +47,26 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
       ? `https://github.com/${CANONICAL}/pull/${meta.prNumber}`
       : `https://github.com/${meta.repo}/commit/${meta.sha}`
     : null;
+  const isPr = meta?.kind === "pr" && !!meta.prNumber;
   const label = meta?.prTitle ? `${meta.ref} — ${meta.prTitle}` : meta?.ref ?? "this preview";
 
   return (
-    <div className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+    <div className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
       {status ? (
         <div className="pl-3 pb-3" style={{ borderLeft: "2px solid var(--preview-add)" }}>
           <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>
             {status}
             {reused ? "*" : ""} in this preview
+            {/* No PR to point at — this doc is only reachable via the preview's
+                branch, so weave the branch name into the "added/changed" line. */}
+            {!isPr && meta?.ref ? ` from branch: “${meta.ref}”` : ""}
           </div>
-          <div className="mt-1">
-            {label}
-            {meta?.prAuthor ? ` · by ${meta.prAuthor}` : ""}
-          </div>
+          {(isPr || meta?.prAuthor) && (
+            <div className="mt-1">
+              {isPr ? label : ""}
+              {meta?.prAuthor ? `${isPr ? " · " : ""}by ${meta.prAuthor}` : ""}
+            </div>
+          )}
           {swap && (
             <div className="mt-2 leading-snug" style={{ color: "var(--warn)" }}>
               ⚠ Identity changed — this UUID now holds a different document: “{swap.oldTitle}” → “{swap.newTitle}”.{" "}

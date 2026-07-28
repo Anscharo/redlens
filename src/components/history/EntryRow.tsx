@@ -28,69 +28,44 @@ export function EntryRow({ entry, labelOverride }: Props) {
   const hideChangeLabel =
     !labelOverride && entry.changeType === "added" && !!entry.era && PRE_GIT_ADDED_ERAS.has(entry.era);
 
+  // Title of the unit (line 2): the matched PR-body bullet, else the PR title.
+  const title = entry.summary ?? (hasPr ? entry.prTitle : undefined);
+
   return (
-    <div className="border-b py-2.5" style={{ borderColor: "var(--border)" }}>
-      <div className="flex items-baseline gap-2 flex-wrap mono text-[10px] mb-1.5">
+    // Each entry is one visual unit: line 1 = date + PR/commit, line 2 = title,
+    // line 3 = the type of edit (added/edited/removed/moved).
+    <article className="border-b py-2.5" style={{ borderColor: "var(--border)" }}>
+      {/* Line 1: date, then the Atlas PR (if any) or — only when there's no PR —
+          the commit / reconstructed source. */}
+      <div className="flex items-baseline gap-2 flex-wrap mono text-[11px]">
         <span style={{ color: "var(--tan-3)" }}>{entry.date}</span>
-        {!hideChangeLabel && (
-          <span style={{ color }}>{labelOverride ?? CHANGE_LABEL[entry.changeType]}</span>
-        )}
 
-        {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
-            are badged — deterministically-matched links carry no badge (the default). */}
-        {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (entry.method === "ai" || entry.method === "human") && (
-          <span
-            title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
-            className="shrink-0 px-1 rounded text-[9px] uppercase tracking-wide"
-            style={{
-              background: entry.method === "ai" ? "var(--accent)" : "var(--hover)",
-              color: entry.method === "ai" ? "var(--bg)" : "var(--tan-2)",
-            }}
-          >
-            {entry.method === "ai" ? "AI" : "human"}
+        {hasPr ? (
+          <span style={{ color: "var(--tan-2)" }}>
+            Atlas Pull Request{" "}
+            <a
+              href={entry.prUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline focus-visible:underline"
+              style={{ color: "var(--accent)" }}
+            >
+              #{entry.pr}
+            </a>
           </span>
-        )}
-
-        {entry.summary ? (
-          <span className="font-medium" style={{ color: "var(--tan)", fontFamily: "inherit" }}>
-            {entry.summary}
+        ) : gitSha ? (
+          <span style={{ color: "var(--tan-3)" }}>
+            Commit{" "}
+            <a
+              href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline focus-visible:underline"
+              style={{ color: "var(--tan-3)" }}
+            >
+              {entry.commitHash}
+            </a>
           </span>
-        ) : hasPr ? (
-          <span style={{ color: "var(--tan)" }}>{entry.prTitle}</span>
-        ) : null}
-
-        {hasPr && entry.prAuthor && (
-          <span style={{ color: "var(--tan-3)" }}>by {entry.prAuthor}</span>
-        )}
-        {hasPr && entry.approvalCount ? (
-          <span style={{ color: "var(--tan-3)" }}>✓ {entry.approvalCount}</span>
-        ) : null}
-        {hasPr && entry.commentCount ? (
-          <span style={{ color: "var(--tan-3)" }}>{entry.commentCount} comments</span>
-        ) : null}
-
-        {hasPr && (
-          <a
-            href={entry.prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline focus-visible:underline"
-            style={{ color: "var(--accent)" }}
-          >
-            #{entry.pr}
-          </a>
-        )}
-
-        {gitSha ? (
-          <a
-            href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline focus-visible:underline"
-            style={{ color: "var(--tan-3)" }}
-          >
-            {entry.commitHash}
-          </a>
         ) : entry.sourceUrl ? (
           // Reconstructed pre-git origin (era mip/genesis): a synthetic tag, not a
           // commit — link the external source (mips-repo section / genesis snapshot)
@@ -111,16 +86,53 @@ export function EntryRow({ entry, labelOverride }: Props) {
             {entry.era === "severed" ? "undated" : entry.commitHash}
           </span>
         )}
+
+        {hasPr && entry.prAuthor && (
+          <span style={{ color: "var(--tan-3)" }}>by {entry.prAuthor}</span>
+        )}
+        {hasPr && entry.commentCount ? (
+          <span style={{ color: "var(--tan-3)" }}>{entry.commentCount} comments</span>
+        ) : null}
+
+        {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
+            are badged — deterministically-matched links carry no badge (the default). */}
+        {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (entry.method === "ai" || entry.method === "human") && (
+          <span
+            title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
+            className="shrink-0 px-1 rounded text-[10px] uppercase tracking-wide"
+            style={{
+              background: entry.method === "ai" ? "var(--accent)" : "var(--hover)",
+              color: entry.method === "ai" ? "var(--bg)" : "var(--tan-2)",
+            }}
+          >
+            {entry.method === "ai" ? "AI" : "human"}
+          </span>
+        )}
       </div>
+
+      {/* Line 2: the change's title. */}
+      {title ? (
+        <div className="font-medium text-[13px] mt-1" style={{ color: "var(--tan)" }}>
+          {title}
+        </div>
+      ) : null}
+
+      {/* Line 3: the type of edit. */}
+      {!hideChangeLabel && (
+        <div className="mono text-[11px] mt-1" style={{ color }}>
+          {labelOverride ?? CHANGE_LABEL[entry.changeType]}
+        </div>
+      )}
 
       {entry.diff && <DiffView lines={entry.diff} />}
 
+      {/* A move renders its destination prominently (larger, not a faint arrow). */}
       {entry.changeType === "moved" && entry.movedTo && (
-        <div className="mono text-[10px] mt-1" style={{ color: "var(--tan-3)" }}>
-          {entry.movedFrom && <span>{entry.movedFrom} </span>}
+        <div className="mono text-[13px] mt-1.5" style={{ color: "var(--tan-2)" }}>
+          {entry.movedFrom && <span style={{ color: "var(--tan-3)" }}>{entry.movedFrom} </span>}
           <span style={{ color: "var(--tan)" }}>→ {entry.movedTo}</span>
         </div>
       )}
-    </div>
+    </article>
   );
 }
