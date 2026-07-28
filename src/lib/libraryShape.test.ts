@@ -49,6 +49,12 @@ const lib = (() => {
 })();
 
 describe("computeLibrary", () => {
+  it("treats a falsy (empty) content string as zero bytes rather than throwing", () => {
+    const n = { "id-A.3": mk("A.3", "Scope", "") };
+    const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, []);
+    expect(out.totals.bytes).toBe(0);
+  });
+
   it("totals and doc types", () => {
     expect(lib.totals).toEqual({ docs: 11, bytes: 22, glossaryTerms: 3 });
     expect(lib.docTypes[0]).toEqual(["Section", 6]);
@@ -85,6 +91,26 @@ describe("computeLibrary", () => {
     expect(g.children?.map((c) => c.doc_no)).toEqual([
       "A.1.1.1", "A.1.1.2", "A.1.1.3", "A.1.1.4", "A.1.1.5", "A.1.1.1.var1",
     ]);
+  });
+
+  it("recurses into a child whose own subtree meets MIN_CHUNK_DOCS, but keeps a lighter sibling as a flat leaf", () => {
+    // A.1 → A.1.1 (heavy: 5 grandchildren, subtree=6, recurses) and A.1.2
+    // (light: no children, subtree=1, stays a leaf with no `children` key).
+    const heavyNodes = [
+      mk("A.1", "Scope"),
+      mk("A.1.1", "Article"),
+      ...[1, 2, 3, 4, 5].map((i) => mk(`A.1.1.${i}`, "Section")),
+      mk("A.1.2", "Article"),
+    ];
+    const n = Object.fromEntries(heavyNodes.map((x) => [x.id, x]));
+    const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, []);
+    const a1 = out.scopeTree[0];
+    const heavy = a1.children?.find((c) => c.doc_no === "A.1.1");
+    const light = a1.children?.find((c) => c.doc_no === "A.1.2");
+    expect(heavy?.docs).toBe(6);
+    expect(heavy?.children).toHaveLength(5); // recursed — real ChunkNode subtree, not a flat leaf
+    expect(light?.docs).toBe(1);
+    expect(light?.children).toBeUndefined(); // below MIN_CHUNK_DOCS — stays a flat leaf
   });
 });
 
@@ -148,6 +174,13 @@ describe("GROUPS seed hardening", () => {
     const n = Object.fromEntries([mk("A.3", "Scope")].map((x) => [x.id, x]));
     const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, []);
     expect(out.chunkTree.some((g) => g.title === "Ungrouped")).toBe(false);
+  });
+
+  it("a complement spec whose parent UUID doesn't resolve degrades to an empty, childless group (no crash)", () => {
+    const n = Object.fromEntries([mk("A.3", "Scope")].map((x) => [x.id, x]));
+    const groups: GroupSpec[] = [{ name: "Dangling complement", complementOf: "no-such-uuid", except: [] }];
+    const out = computeLibrary({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, groups);
+    expect(out.chunkTree).toEqual([{ title: "Dangling complement", docs: 0, children: [] }]);
   });
 
   it("a fixture matching the current GROUPS shape leaves nothing unclaimed", () => {
