@@ -1298,9 +1298,12 @@ button.atlas-node-expand-all:focus-visible {
   border-color: color-mix(in srgb, var(--warn) 40%, transparent);
 }
 .evidence-pill-4 {
-  color: var(--error-text);
-  background: color-mix(in srgb, var(--error-text) 16%, transparent);
-  border-color: color-mix(in srgb, var(--error-text) 40%, transparent);
+  /* NOT --error-text: the app's red means "wrong/error", but L4 means
+     "unchecked". Muted violet from the entity palette — distinct from the
+     L1 green / L2 blue / L3 amber pills, links, and the brand red. */
+  color: var(--entity-foundation);
+  background: color-mix(in srgb, var(--entity-foundation) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-foundation) 38%, transparent);
 }
 
 /* Library docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
