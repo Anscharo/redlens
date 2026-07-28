@@ -461,6 +461,41 @@ describe("AtlasReader subtree hide / restore", () => {
     fireEvent.click(screen.getByText(`hide-${a.id}`));
     expect(actions.navigate).not.toHaveBeenCalled();
   });
+
+  it("restore re-hides a nested branch that was hidden before the outer branch", () => {
+    // root → a → a1 → a1x ; a → a2. a1 is a hideable branch nested inside a.
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const a = makeNode({ id: "a", doc_no: "A.1", parentId: "root" });
+    const a1 = makeNode({ id: "a1", doc_no: "A.1.1", parentId: "a" });
+    const a1x = makeNode({ id: "a1x", doc_no: "A.1.1.1", parentId: "a1" });
+    const a2 = makeNode({ id: "a2", doc_no: "A.1.2", parentId: "a" });
+    const atlas = makeAtlasBundle([root, a, a1, a1x, a2]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: a, depth: 2 }),
+      makeFlatEntry({ node: a1, depth: 3 }),
+      makeFlatEntry({ node: a1x, depth: 4 }),
+      makeFlatEntry({ node: a2, depth: 3 }),
+    ];
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    // 1) hide the nested branch a1 → a1x disappears.
+    fireEvent.click(screen.getByText(`hide-${a1.id}`));
+    expect(screen.queryByTestId(`node-${a1x.id}`)).toBeNull();
+
+    // 2) hide the outer branch a → a1, a1x, a2 all gone.
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+
+    // 3) restore a → a1 must come back STILL HIDDEN (a1x stays gone), while a2
+    //    (never hidden) is shown. The nested hide is remembered, not lost.
+    fireEvent.click(screen.getByText(`restore-${a.id}`));
+    expect(screen.getByTestId(`node-${a2.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-explicit-hidden", "true");
+    expect(screen.queryByTestId(`node-${a1x.id}`)).toBeNull();
+  });
 });
 
 describe("AtlasReader toggle + selectSubtree actions", () => {

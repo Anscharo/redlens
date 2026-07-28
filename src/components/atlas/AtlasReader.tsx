@@ -29,6 +29,7 @@ import {
 type HiddenSubtreeSnapshot = {
   userToggles: Set<string>;
   expandedParents: Set<string>;
+  hiddenSubtrees: Set<string>;
 };
 
 // Restore only the branch's own portion of a reader-wide set: start from the
@@ -163,28 +164,40 @@ export const AtlasReader = memo(function AtlasReader({
 
   const handleHideSubtree = useCallback((rootId: string, hidden: boolean, options?: { restore?: boolean }) => {
     const subtreeIds = collectSubtree(data.atlas.byParent, rootId);
+    const scope = new Set(subtreeIds);
     if (hidden) {
       hiddenSnapshotsRef.current.set(rootId, {
         userToggles: new Set(userToggles),
         expandedParents: new Set(expandedParents),
+        // Nested branches the user had hidden inside this one — recorded so a
+        // later restore brings back their hidden state too, not just the
+        // expand/collapse shape of the rows around them.
+        hiddenSubtrees: new Set(
+          [...hiddenSubtrees].filter((nid) => nid !== rootId && scope.has(nid)),
+        ),
       });
     }
+    const snapshot = !hidden ? hiddenSnapshotsRef.current.get(rootId) : undefined;
+    const restoring = !hidden && !!options?.restore && !!snapshot;
     setHiddenSubtrees((prev) => {
       const next = new Set(prev);
       for (const nid of subtreeIds) {
         if (nid !== rootId) next.delete(nid);
       }
       if (hidden) next.add(rootId);
-      else next.delete(rootId);
+      else {
+        next.delete(rootId);
+        // Restore re-hides the nested branches captured at hide time; a plain
+        // un-hide (e.g. the "N hidden" tab) leaves them all shown.
+        if (restoring && snapshot) for (const nid of snapshot.hiddenSubtrees) next.add(nid);
+      }
       return next;
     });
     if (!hidden) {
-      const snapshot = hiddenSnapshotsRef.current.get(rootId);
       hiddenSnapshotsRef.current.delete(rootId);
-      if (options?.restore && snapshot) {
+      if (restoring && snapshot) {
         // Only the branch's own portion is restored (#177): merge the snapshot
         // over the branch's subtree ids, leaving unrelated reader state intact.
-        const scope = new Set(subtreeIds);
         setUserToggles((prev) => mergeSubtreeSnapshot(prev, snapshot.userToggles, scope));
         mergeParentsExpanded(snapshot.expandedParents, scope);
       }
@@ -202,7 +215,7 @@ export const AtlasReader = memo(function AtlasReader({
         if (parentId) navigate(parentId);
       }
     }
-  }, [data, userToggles, expandedParents, mergeParentsExpanded, setNodeExpanded, selectedId, navigate]);
+  }, [data, userToggles, expandedParents, hiddenSubtrees, mergeParentsExpanded, setNodeExpanded, selectedId, navigate]);
 
   const handleSetSubtreeVisualState = useCallback((
     rootId: string,
