@@ -30,6 +30,12 @@ describe("extractHeadings", () => {
     const headings = extractHeadings(raw);
     expect(headings.map((h) => h.slug)).toEqual(["duplicate", "duplicate-1", "duplicate-2"]);
   });
+
+  it("skips a trailing heading line whose text is whitespace-only after trimming", () => {
+    const raw = ["## Real Heading", "##   "].join("\n");
+    const headings = extractHeadings(raw);
+    expect(headings).toEqual([{ level: 2, text: "Real Heading", slug: "real-heading" }]);
+  });
 });
 
 describe("countHeadings", () => {

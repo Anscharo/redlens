@@ -46,4 +46,11 @@ describe("rehypeHeadingIds", () => {
     rehypeHeadingIds([heading(2, "Foo", "foo")])()(tree);
     expect(p.properties?.id).toBeUndefined();
   });
+
+  it("leaves a heading unstamped once the headings list runs out (more h2/h3s than entries)", () => {
+    const tree: Root = { type: "root", children: [h("h2", "Foo"), h("h3", "Extra")] };
+    rehypeHeadingIds([heading(2, "Foo", "foo")])()(tree);
+    expect((tree.children[0] as Element).properties?.id).toBe("foo");
+    expect((tree.children[1] as Element).properties?.id).toBeUndefined();
+  });
 });

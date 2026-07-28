@@ -13,6 +13,10 @@ describe("slugify", () => {
   it("collapses repeated whitespace/hyphens and trims edges", () => {
     expect(slugify("  Weird   Spacing  ")).toBe("weird-spacing");
   });
+
+  it("returns an empty string for text with no letters/numbers (all stripped)", () => {
+    expect(slugify("--- !!! ---")).toBe("");
+  });
 });
 
 describe("makeSlugger", () => {
@@ -33,5 +37,11 @@ describe("makeSlugger", () => {
     expect(slugger("A")).toBe("a");
     expect(slugger("B")).toBe("b");
     expect(slugger("A")).toBe("a-1");
+  });
+
+  it("falls back to 'section' for punctuation-only text, still deduped on repeat", () => {
+    const slugger = makeSlugger();
+    expect(slugger("---")).toBe("section");
+    expect(slugger("!!!")).toBe("section-1");
   });
 });
