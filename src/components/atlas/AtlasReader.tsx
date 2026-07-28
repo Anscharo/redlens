@@ -23,6 +23,7 @@ import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
   ATLAS_LEFT_PANE_STYLE,
+  type FlatEntry,
   type LoadedData,
 } from "../../lib/atlasHelpers";
 
@@ -48,6 +49,24 @@ function mergeSubtreeSnapshot(
     else next.delete(id);
   }
   return next;
+}
+
+// A row's on-screen subtree is the contiguous run of following rows indented
+// deeper than it (flatNodes is display order, `depth` is the doc-number
+// realDepth used for indentation). This is what the user sees as "beneath" a
+// node, and it can differ from the parentId subtree when the heading-level-6 cap
+// reparents a deeply-numbered doc — so hiding, counting, and selection all key
+// off this visual span instead of parentId, keeping what disappears matched to
+// what looked nested.
+function visualSubtreeIds(flatNodes: FlatEntry[], rootId: string): string[] {
+  const i = flatNodes.findIndex((e) => e.node.id === rootId);
+  if (i < 0) return [];
+  const rootDepth = flatNodes[i].depth;
+  const ids: string[] = [];
+  for (let j = i + 1; j < flatNodes.length && flatNodes[j].depth > rootDepth; j++) {
+    ids.push(flatNodes[j].node.id);
+  }
+  return ids;
 }
 
 // memo boundary: AtlasView re-renders on annotation-tab switches and other
@@ -122,48 +141,71 @@ export const AtlasReader = memo(function AtlasReader({
     expandParent,
     setParentsExpanded,
     mergeParentsExpanded,
-    entryById,
   } = useDepth6Expand(data.flatNodes, id);
 
+  // Navigating into a hidden branch reveals it: walk the VISUAL ancestor chain
+  // of `id` (each successively-shallower preceding row) and un-hide any hidden
+  // root above it. Visual, not parentId, so it matches how rows are nested on
+  // screen even when the depth cap reparented them.
   useEffect(() => {
     if (!id) return;
     setHiddenSubtrees((prev) => {
       if (!prev.size) return prev;
+      const entries = data.flatNodes;
+      const i = entries.findIndex((e) => e.node.id === id);
+      if (i < 0) return prev;
       const next = new Set(prev);
-      let cur = entryById.get(id);
-      while (cur) {
-        next.delete(cur.node.id);
-        const parentId = cur.node.parentId;
-        if (!parentId) break;
-        cur = entryById.get(parentId);
+      if (next.has(id)) next.delete(id);
+      let depth = entries[i].depth;
+      for (let j = i - 1; j >= 0 && depth > 0; j--) {
+        if (entries[j].depth < depth) {
+          depth = entries[j].depth;
+          if (next.has(entries[j].node.id)) next.delete(entries[j].node.id);
+        }
       }
       return next.size === prev.size ? prev : next;
     });
-  }, [id, entryById]);
+  }, [id, data.flatNodes]);
 
-  const descendantCount = useMemo(() => {
+  // Size of each node's on-screen subtree (the deeper-indented run that follows
+  // it). Single O(n) pass with a depth stack. Used for the "N hidden" count so
+  // it matches exactly the rows a hide removes.
+  const visualSpanCount = useMemo(() => {
     const counts = new Map<string, number>();
-    for (let i = data.flatNodes.length - 1; i >= 0; i--) {
-      const { node } = data.flatNodes[i];
-      const children = data.atlas.byParent.get(node.id) ?? [];
-      let count = children.length;
-      for (const child of children) count += counts.get(child.id) ?? 0;
-      counts.set(node.id, count);
+    const entries = data.flatNodes;
+    const stack: { id: string; index: number; depth: number }[] = [];
+    for (let i = 0; i < entries.length; i++) {
+      const d = entries[i].depth;
+      while (stack.length && stack[stack.length - 1].depth >= d) {
+        const top = stack.pop()!;
+        counts.set(top.id, i - top.index - 1);
+      }
+      stack.push({ id: entries[i].node.id, index: i, depth: d });
     }
+    for (const top of stack) counts.set(top.id, entries.length - top.index - 1);
     return counts;
-  }, [data]);
+  }, [data.flatNodes]);
 
-  const hasHiddenAncestor = useCallback((nodeId: string) => {
-    let parentId = data.atlas.docs[nodeId]?.parentId ?? null;
-    while (parentId) {
-      if (hiddenSubtrees.has(parentId)) return true;
-      parentId = data.atlas.docs[parentId]?.parentId ?? null;
+  // Every row inside a hidden node's visual span. A row is hidden iff it falls
+  // in the deeper-indented run beneath some explicitly-hidden root.
+  const hiddenNodeIds = useMemo(() => {
+    const hidden = new Set<string>();
+    if (!hiddenSubtrees.size) return hidden;
+    const entries = data.flatNodes;
+    for (let i = 0; i < entries.length; i++) {
+      if (!hiddenSubtrees.has(entries[i].node.id)) continue;
+      const rootDepth = entries[i].depth;
+      for (let j = i + 1; j < entries.length && entries[j].depth > rootDepth; j++) {
+        hidden.add(entries[j].node.id);
+      }
     }
-    return false;
-  }, [data, hiddenSubtrees]);
+    return hidden;
+  }, [data.flatNodes, hiddenSubtrees]);
 
   const handleHideSubtree = useCallback((rootId: string, hidden: boolean, options?: { restore?: boolean }) => {
-    const subtreeIds = collectSubtree(data.atlas.byParent, rootId);
+    // Hide the VISUAL subtree (what looks nested on screen), not the parentId
+    // subtree — the two diverge under the heading-depth cap (see visualSubtreeIds).
+    const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
     const scope = new Set(subtreeIds);
     if (hidden) {
       hiddenSnapshotsRef.current.set(rootId, {
@@ -297,7 +339,7 @@ export const AtlasReader = memo(function AtlasReader({
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
         if (!filterSet.has(entry.node.id)) return;
-        if (hasHiddenAncestor(entry.node.id)) return;
+        if (hiddenNodeIds.has(entry.node.id)) return;
         kept.push({ entry, i, gap: prev >= 0 && i - prev > 1 });
         prev = i;
       });
@@ -360,7 +402,7 @@ export const AtlasReader = memo(function AtlasReader({
             hasExplicitHiddenSubtree={hasExplicitHidden}
             hiddenCount={
               hasExplicitHidden
-                ? descendantCount.get(entry.node.id) ?? 0
+                ? visualSpanCount.get(entry.node.id) ?? 0
                 : 0
             }
             onExpandChildren={handleExpandParent}
@@ -391,7 +433,7 @@ export const AtlasReader = memo(function AtlasReader({
     // filterSet is null here (the flat filtered view returned above): honor the
     // normal depth-6 gating.
     const visible = data.flatNodes.filter((entry) => {
-      if (hasHiddenAncestor(entry.node.id)) return false;
+      if (hiddenNodeIds.has(entry.node.id)) return false;
       return !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? ""));
     });
     // Cradle: the selected node's visible descendants are the contiguous run
@@ -422,7 +464,7 @@ export const AtlasReader = memo(function AtlasReader({
         isExpanded: fullyExpanded.has(entry.node.id),
       });
       const gatedCount = hasExplicitHidden
-        ? descendantCount.get(entry.node.id) ?? 0
+        ? visualSpanCount.get(entry.node.id) ?? 0
         : hasGatedHidden ? hiddenCount.get(entry.node.id) ?? 0 : 0;
       const cradle =
         cradleStart >= 0 && idx >= cradleStart && idx <= cradleEnd
@@ -465,7 +507,7 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, descendantCount, hasHiddenAncestor]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, visualSpanCount, hiddenNodeIds]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection

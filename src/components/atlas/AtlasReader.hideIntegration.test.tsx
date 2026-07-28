@@ -88,12 +88,10 @@ describe("AtlasReader real-component shift-hide", () => {
   // to deeply-numbered docs. The reader indents by realDepth (doc number) but
   // hides by parentId, so the row stays on screen even though it visually
   // belongs to the branch that now says "N hidden".
-  // it.fails: documents a CONFIRMED bug. The reader indents by realDepth (doc
-  // number) but hides by parentId, so a deeply-numbered row that was reparented
-  // above the hidden node by the heading-level-6 cap stays on screen even though
-  // it visually belongs to the branch now marked "N hidden". Remove `.fails`
-  // once hiding is switched to the visual (depth-span) subtree.
-  it.fails("hides rows that look nested under the branch even when parentId was reparented by the depth cap", () => {
+  // Hiding keys off the visual (depth-span) subtree, so a deeply-numbered row
+  // reparented above the hidden node by the heading-level-6 cap — but indented
+  // as if nested under it — is hidden along with the rest of the branch.
+  it("hides rows that look nested under the branch even when parentId was reparented by the depth cap", () => {
     // R = "A.1". Six real children A.1.1…A.1.6 (parentId R). One deeply-numbered
     // doc A.1.7.1 whose parentId is the ROOT (as the cap would leave it) — it
     // indents under R's block but is not in R's parentId subtree.
@@ -114,11 +112,12 @@ describe("AtlasReader real-component shift-hide", () => {
     // shift-hide R
     fireEvent.click(container.querySelector(`#R .atlas-node-expand-all`)!, { shiftKey: true });
 
-    // The six real children are gone and R says its rows are hidden …
+    // The six real children are gone …
     for (const k of kids) expect(container.querySelector(`#${k.id}`)).toBeNull();
-    expect(container.querySelector("#R")?.textContent).toMatch(/hidden/);
-    // … but the deeply-numbered row that visually belongs to R's block must ALSO
-    // be hidden. Today it is not — this asserts the fixed behavior.
+    // … the deeply-numbered row that visually belongs to R's block is hidden too …
     expect(container.querySelector("#ghost")).toBeNull();
+    // … and the count reflects the whole visual span (6 children + the ghost = 7),
+    // so "N hidden" matches exactly what left the screen.
+    expect(container.querySelector("#R")?.textContent).toContain("7 hidden");
   });
 });
