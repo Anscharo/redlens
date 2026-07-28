@@ -2,15 +2,13 @@ export type SubtreeVisualState = "collapsed" | "expanded" | "hidden";
 export type SubtreeTransition = SubtreeVisualState | "restore";
 
 export function deriveSubtreeVisualState({
-  hasExplicitHidden,
-  hasGatedHidden,
+  collapsed,
   isExpanded,
 }: {
-  hasExplicitHidden: boolean;
-  hasGatedHidden: boolean;
+  collapsed: boolean;
   isExpanded: boolean;
 }): SubtreeVisualState {
-  if (hasExplicitHidden || hasGatedHidden) return "hidden";
+  if (collapsed) return "hidden";
   return isExpanded ? "expanded" : "collapsed";
 }
 

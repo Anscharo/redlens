@@ -380,6 +380,47 @@ describe("AtlasReader expand-all action", () => {
   });
 });
 
+describe("AtlasReader unified collapse (default gate == intent hide, differ only in data)", () => {
+  // P(5) gates C(6) which gates G(7). Both P and C are default depth-6 gates.
+  function makeDeepChain() {
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const p = makeNode({ id: "p", doc_no: "A.1.1.1.1", parentId: "root" });
+    const c = makeNode({ id: "c", doc_no: "A.1.1.1.1.1", parentId: "p" });
+    const g = makeNode({ id: "g", doc_no: "A.1.1.1.1.1.1", parentId: "c" });
+    const atlas = makeAtlasBundle([root, p, c, g]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: p, depth: 5 }),
+      makeFlatEntry({ node: c, depth: 6 }),
+      makeFlatEntry({ node: g, depth: 7 }),
+    ];
+    return { atlas, flatNodes, root, p, c, g };
+  }
+
+  it("a default depth-6 gate's 'N hidden' counts the whole span, not just the first level", () => {
+    const { atlas, flatNodes, c, g } = makeDeepChain();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    // p is collapsed by default (depth-6 descendants); both c and g are hidden.
+    expect(screen.queryByTestId(`node-${c.id}`)).toBeNull();
+    expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
+    // The count is the whole span (c + g = 2), not the immediate child count (1).
+    expect(screen.getByTestId("node-p")).toHaveAttribute("data-hidden", "2");
+  });
+
+  it("default and intent hides render identically — same state, same count", () => {
+    const { atlas, flatNodes, p } = makeDeepChain();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+    // Default gate p reads exactly like an explicit hide would: hidden state, span count.
+    const node = screen.getByTestId("node-p");
+    expect(node).toHaveAttribute("data-subtree-state", "hidden");
+    expect(node).toHaveAttribute("data-hidden", "2");
+    void p;
+  });
+});
+
 describe("AtlasReader subtree hide / restore", () => {
   it("hides a subtree's descendants behind the parent's explicit-hidden marker", () => {
     const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();

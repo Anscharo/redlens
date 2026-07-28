@@ -8,10 +8,10 @@ import {
 
 describe("deriveSubtreeVisualState", () => {
   it.each([
-    [{ hasExplicitHidden: true, hasGatedHidden: false, isExpanded: false }, "hidden"],
-    [{ hasExplicitHidden: false, hasGatedHidden: true, isExpanded: false }, "hidden"],
-    [{ hasExplicitHidden: false, hasGatedHidden: false, isExpanded: true }, "expanded"],
-    [{ hasExplicitHidden: false, hasGatedHidden: false, isExpanded: false }, "collapsed"],
+    [{ collapsed: true, isExpanded: false }, "hidden"],
+    [{ collapsed: true, isExpanded: true }, "hidden"],
+    [{ collapsed: false, isExpanded: true }, "expanded"],
+    [{ collapsed: false, isExpanded: false }, "collapsed"],
   ] as const)("derives %s as %s", (input, expected) => {
     expect(deriveSubtreeVisualState(input)).toBe(expected);
   });
