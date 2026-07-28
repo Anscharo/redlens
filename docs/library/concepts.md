@@ -867,7 +867,7 @@ contract maturity trust.
 
 - **Definition** — enumerable live collections the Atlas maintains.
 
-- **Detection signature** — title prefix "List Of" (46 docs) + listed_in edges (47) + `.0.6.X` Active Data suffix on the live variants. Sub-families: - Party registries: Recognized Aligned Delegates, Derecognized Alignment Conservers (11 listed_in), AD Breach Registry, Authorized Forum Accounts (15), Active Arrangers, Registered Multisigs, SRC Membership Registry. - Program registries: Current/Onboarding Integrators, Integrator Applications, Distribution Reward Payments (×17 lists!), Integration Boost Payments (×9), Allocation Instances, Sky Direct Exposures, Auxiliary Accounts. - Governance registries: Interpretations, Registered Spell Checklists, Document Types, Top/Mid-Tier Audit Firms.
+- **Detection signature** — title prefix "List Of" (46 docs) + listed_in edges (47) + `.0.6.X` Active Data suffix on the live variants. Sub-families: - Party registries: Recognized Aligned Delegates, Derecognized Alignment Conservers (11 listed_in), AD Breach Registry, Authorized Forum Accounts (15), Active Arrangers, Registered Multisigs, SRC Membership Registry. - Program registries: Current/Onboarding Integrators, Integrator Applications, Distribution Reward Payments (×17 lists!), Integration Boost Payments (×10), Allocation Instances, Sky Direct Exposures, Auxiliary Accounts. - Governance registries: Interpretations, Registered Spell Checklists, Document Types, Top/Mid-Tier Audit Firms.
 
 - **Relationships** — registries are where concepts MATERIALIZE as data — the payment lists are the terminal nodes of the Distribution Rewards concept chain.
 
@@ -1157,15 +1157,32 @@ unresolved half: `A.4.5` is a bare doc_no, not a catalog anchor.
 - ~~The 854 duty_for edges live only in the DB graph~~ RESOLVED: they ship in
   `relations.json` (build-graph §2s-ter) — an earlier version of this entry
   and two others in this doc (Duties 1, II.2) claimed otherwise; all three corrected.
-- Do the spec'd-but-unused doc types (Budget…, Translation, Archive) appear in atlas
-  HISTORY (existed once) or were they never populated? (atlas_history query.)
-- Payment lists (17+9) per reward instance: extractable into a Payments dataset
-  (amounts/dates) for the flows index?
+- ~~Do the spec'd-but-unused doc types appear in atlas HISTORY?~~ RESOLVED
+  (2026-07-28): never populated. A pickaxe search (`git log -G` on the heading
+  `[Type]` tag) over the atlas repo's full history — all 209 commits back to the
+  2025-05-28 root, monolithic-file and atomized eras alike — finds zero documents
+  ever tagged with any of the 17 ghost types; the git root commit already carries
+  their type specs, and the HTML-era reconstruction mentions them only as spec
+  registry entries, never as instances. The ghost layer is aspirational
+  scaffolding from the type system's original design, not residue of deleted
+  content — a completeness signal, not a staleness one.
+- ~~Payment lists (17+10) per reward instance: extractable into a Payments
+  dataset?~~ RESOLVED (2026-07-28): nothing to extract — every one of the 27
+  reward payment lists (17 Distribution Reward + 10 Integration Boost) contains
+  only its lead-in sentence ("The … Payments are:") and zero entries. The lone
+  Core Governance Reward Payments list defines the schema (Reward Period, Payee,
+  Payment Address, Amount Paid, Transaction Hash, Transaction Date) but likewise
+  holds no rows. The dataset is fully spec'd, empty corpus-wide; the
+  registry-liveness census tracks these shells and will emit `[drift]` the
+  moment rows appear — that is the trigger to revisit extraction.
 - ~~"Near-Term Process" (19 cites)~~ RESOLVED: it's the interim Distribution Reward
   payment rule (Operational GovOps calculates; paid from Demand Side Buffer within
   7 days of month-end) — an Instruments 10-family transitional doc that 19 instance protocols
   cite. Its "near term" phrasing is undated → stale-date candidate.
-- Map Process 3's 8 curated categories onto the concept catalog as a validation pass.
+- ~~Map Process 3's 8 curated categories onto the concept catalog as a
+  validation pass.~~ RESOLVED: done — the mapping table is II.5, and its
+  per-category counts (132 total: 45/20/16/16/13/12/5/5) re-verify exactly
+  against the live `public/processes.json` (2026-07-28).
 
 <!-- AGENT FINDINGS PENDING: normative layer · programs/economic flows · accords/instruments -->
 
