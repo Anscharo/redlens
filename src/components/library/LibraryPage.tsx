@@ -8,6 +8,7 @@ import { useDataSource } from "../../lib/dataSource";
 import { LibraryShape } from "./LibraryShape";
 import { LibraryGlossary } from "./LibraryGlossary";
 import { LibraryConcepts, LibraryAudit } from "./LibraryConcepts";
+import { LibraryToc } from "./LibraryToc";
 
 export type LibraryTab = "shape" | "concepts" | "audit" | "glossary";
 
@@ -63,21 +64,30 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
             </Link>
           ))}
         </nav>
-        {tab === "glossary" ? (
-          <LibraryGlossary />
-        ) : tab === "concepts" ? (
-          <LibraryConcepts />
-        ) : tab === "audit" ? (
-          <LibraryAudit />
-        ) : error ? (
-          <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
-            library data failed to load: {error}
-          </p>
-        ) : !data ? (
-          <p className="text-sm mono text-tan-3">loading…</p>
-        ) : (
-          <LibraryShape data={data} />
-        )}
+      </div>
+      {/* Concepts gets its own (wider, lg+ only) row so a left TOC column fits
+          beside the max-w-3xl article measure; every other tab keeps the
+          plain centered 3xl column above unchanged. Below lg (TOC hidden),
+          this collapses back to the identical max-w-3xl mx-auto layout. */}
+      <div className={tab === "concepts" ? "max-w-3xl lg:max-w-[62rem] mx-auto lg:flex lg:gap-8 lg:items-start" : "max-w-3xl mx-auto"}>
+        {tab === "concepts" && <LibraryToc />}
+        <div className={tab === "concepts" ? "max-w-3xl lg:min-w-0 lg:flex-1" : undefined}>
+          {tab === "glossary" ? (
+            <LibraryGlossary />
+          ) : tab === "concepts" ? (
+            <LibraryConcepts />
+          ) : tab === "audit" ? (
+            <LibraryAudit />
+          ) : error ? (
+            <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
+              library data failed to load: {error}
+            </p>
+          ) : !data ? (
+            <p className="text-sm mono text-tan-3">loading…</p>
+          ) : (
+            <LibraryShape data={data} />
+          )}
+        </div>
       </div>
     </div>
   );
