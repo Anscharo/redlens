@@ -1,29 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import type { Components } from "react-markdown";
-import type { Element as HastElement } from "hast";
 import remarkGfm from "remark-gfm";
-import { Link } from "../Link";
-import { atlasHref } from "../../lib/routes";
+import { loadAtlas } from "../../lib/docs";
+import { useDataSource } from "../../lib/dataSource";
 import { ConceptCensus } from "./ConceptCensus";
 import { rehypeEvidencePills } from "../../lib/rehypeEvidencePills";
-
-const UUID_RE = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
-const rehypePlugins = [rehypeEvidencePills()];
-
-// A per-concept unit-opener paragraph starts with a bold "<Group> <N> ·
-// <Title>" run (e.g. "**Lifecycle 7 · Omni Documents**") — distinct from a
-// list item's bold field label ("**Definition**", "**Detection signature**"),
-// which never carries a number + middot.
-const UNIT_OPENER_RE = /^[A-Za-z][\w\s]*\d+\s*·/;
-
-function hastText(node: HastElement): string {
-  let out = "";
-  for (const child of node.children) {
-    if (child.type === "text") out += child.value;
-    else if (child.type === "element") out += hastText(child);
-  }
-  return out;
-}
+import { rehypeDocRefs } from "../../lib/rehypeDocRefs";
+import { buildDocRefResolver, type DocRefResolver } from "../../lib/docRefResolver";
+import { buildComponents } from "./libraryMarkdownComponents";
 
 // A `:::census <slug>` line, alone on its own line, interleaves a live
 // <ConceptCensus> block into the curated prose (docs/library/concepts.md).
@@ -47,44 +31,38 @@ function splitByCensusMarkers(raw: string): MarkdownSegment[] {
 }
 
 // Shared renderer for the library's curated markdown docs (Concepts, Audit) —
-// bundled at build time via ?raw, RubricPage pattern. Inline code spans holding
-// FULL UUIDs become reader deep-links; short-form pointers and doc_nos stay
-// plain code (the reader's ?id= resolves UUIDs only).
-const components: Components = {
-  h1: ({ children }) => (
-    <h1 className="text-3xl font-semibold mt-2 mb-4" style={{ color: "var(--tan)" }}>{children}</h1>
-  ),
-  h2: ({ children }) => (
-    <h2 className="text-xl font-semibold mt-14 mb-3 pb-2 border-b border-[var(--border)]" style={{ color: "var(--tan)" }}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children }) => (
-    <h3 className="text-lg font-semibold mt-10 mb-2" style={{ color: "var(--tan)" }}>{children}</h3>
-  ),
-  h4: ({ children }) => (
-    <h4 className="text-base font-semibold mt-4 mb-1" style={{ color: "var(--tan-2)" }}>{children}</h4>
-  ),
-  p: ({ node, children }) => {
-    const first = node?.children[0];
-    const isUnitOpener = !!first && first.type === "element" && first.tagName === "strong" && UNIT_OPENER_RE.test(hastText(first));
-    return <p className={isUnitOpener ? "unit-opener" : undefined}>{children}</p>;
-  },
-  code: ({ children }) => {
-    const text = typeof children === "string" ? children : Array.isArray(children) ? children.join("") : "";
-    const t = text.trim();
-    if (UUID_RE.test(t)) {
-      return (
-        <Link to={atlasHref(t)} className="mono text-xs link-accent" title={t}>
-          {t.slice(0, 8)}
-        </Link>
-      );
-    }
-    return <code>{children}</code>;
-  },
-};
-
+// bundled at build time via ?raw, RubricPage pattern. Every atlas document
+// reference (full UUID / short 8-hex pointer in a code span, bare doc_no in
+// plain text) becomes a reader deep-link, "DOC_NO • Truncated Title" — see
+// rehypeDocRefs.ts. Resolution needs the docs bundle (loaded below); until it
+// resolves (or if it fails to load) we fall back to the old full-uuid-only
+// behavior (see buildComponents in libraryMarkdownComponents.tsx) so the page
+// never blocks on it.
 export function LibraryMarkdown({ raw }: { raw: string }) {
+  const { base } = useDataSource();
+  const [resolver, setResolver] = useState<DocRefResolver | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let on = true;
+    loadAtlas(base)
+      .then((bundle) => on && setResolver(buildDocRefResolver(bundle)))
+      .catch(() => on && setFailed(true));
+    return () => {
+      on = false;
+    };
+  }, [base]);
+
+  const rehypePlugins = useMemo(
+    () => (resolver ? [rehypeEvidencePills(), rehypeDocRefs(resolver)] : [rehypeEvidencePills()]),
+    [resolver],
+  );
+  const components = useMemo(() => buildComponents(resolver), [resolver]);
+
+  if (!resolver && !failed) {
+    return <p className="text-xs mono text-tan-3">loading…</p>;
+  }
+
   const segments = splitByCensusMarkers(raw);
   return (
     <div className="atlas-md text-sm text-tan-2">
