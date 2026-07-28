@@ -11,7 +11,7 @@ export const PRE_MD_HTML_URL =
 export function HtmlEraDisclaimer() {
   return (
     <div
-      className="mono text-[10px] px-2 py-2.5 leading-snug my-1"
+      className="mono text-[11px] px-2 py-2.5 leading-snug my-1"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
       <strong style={{ color: "var(--tan-2)" }}>Pre-#117 history is reconstructed.</strong>{" "}
@@ -44,7 +44,7 @@ export function HtmlEraDisclaimer() {
 export function PreGitDisclaimer() {
   return (
     <div
-      className="mono text-[10px] px-2 py-2.5 leading-snug mt-3 mb-1"
+      className="mono text-[11px] px-2 py-2.5 leading-snug mt-3 mb-1"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
       The history events below trace atlas history prior to the current git repo. While

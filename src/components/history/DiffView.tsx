@@ -62,7 +62,7 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
   if (!Array.isArray(lines)) return null;
   return (
     <div
-      className="mt-2 rounded overflow-x-auto mono text-[11px] leading-relaxed"
+      className="mt-2 rounded overflow-x-auto mono text-[12px] leading-relaxed"
       style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
     >
       {refined.map((line, i) => {
@@ -76,39 +76,45 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
           );
         }
 
+        // The +/-/~ marker sits in a gutter OUTSIDE the tinted box that bounds the
+        // changed excerpt, so it doesn't read as itself being edited text.
         if (op === "~") {
           const segments = line[1] as WordSegment[];
           return (
-            <div
-              key={i}
-              className="flex gap-1.5 px-2 py-0.5"
-              style={{ background: "color-mix(in srgb, var(--accent) 6%, transparent)" }}
-            >
+            <div key={i} className="flex gap-1.5 px-2 py-0.5">
               <span
                 className="shrink-0 select-none w-3 text-center"
                 style={{ color: "var(--tan-3)" }}
               >
                 ~
               </span>
-              <IntralineDiff segments={segments} />
+              <span
+                className="rounded px-1"
+                style={{ background: "color-mix(in srgb, var(--accent) 6%, transparent)" }}
+              >
+                <IntralineDiff segments={segments} />
+              </span>
             </div>
           );
         }
 
         const text = line[1] as string;
+        const boxed = op !== "=";
         return (
-          <div
-            key={i}
-            className="flex gap-1.5 px-2 py-0.5 whitespace-pre-wrap break-all"
-            style={{ background: DIFF_LINE_BG[op] }}
-          >
+          <div key={i} className="flex gap-1.5 px-2 py-0.5">
             <span
               className="shrink-0 select-none w-3 text-center"
               style={{ color: DIFF_LINE_COLOR[op] }}
             >
               {DIFF_LINE_PREFIX[op]}
             </span>
-            <span style={{ color: op === "=" ? "var(--tan-2)" : DIFF_LINE_COLOR[op] }}>
+            <span
+              className={`whitespace-pre-wrap break-all${boxed ? " rounded px-1" : ""}`}
+              style={{
+                background: DIFF_LINE_BG[op],
+                color: op === "=" ? "var(--tan-2)" : DIFF_LINE_COLOR[op],
+              }}
+            >
               {text || "\u00a0"}
             </span>
           </div>

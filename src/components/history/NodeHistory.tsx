@@ -24,7 +24,7 @@ const ROOT_SHA = "4e931df";
 function PreMdFooter() {
   return (
     <p
-      className="mono text-[10px] px-2 py-2.5 leading-snug"
+      className="mono text-[11px] px-2 py-2.5 leading-snug"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
       Before 'Migrate To Markdown File' the atlas was maintained as a single HTML file. 79 prior commits exist in the vendor repo —{" "}
@@ -65,7 +65,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
 
   if (loading) {
     return (
-      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
         loading history…
       </p>
     );
@@ -73,7 +73,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
 
   if (!entries || entries.length === 0) {
     return (
-      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
         no history recorded
       </p>
     );
@@ -109,7 +109,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
         track("reader_history_reconstructed_toggle", { node_id: nodeId, action: showReconstructed ? "hide" : "show" });
         setShowReconstructed((v) => !v);
       }}
-      className="mono text-[10px] uppercase tracking-wide px-2 py-1 my-2 rounded"
+      className="mono text-[11px] uppercase tracking-wide px-2 py-1 my-2 rounded"
       style={{
         color: showReconstructed ? "var(--bg)" : "var(--accent)",
         background: showReconstructed ? "var(--accent)" : "transparent",

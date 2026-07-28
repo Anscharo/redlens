@@ -34,6 +34,10 @@
 -->
 
 
+## 2026-07-28
+- Redesigned history entries so each change reads as a unit: date and pull request first, then the title and the type of edit
+- Opened the document panel on the History tab by default
+
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
 
