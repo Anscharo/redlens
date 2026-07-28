@@ -1285,9 +1285,12 @@ button.atlas-node-expand-all:focus-visible {
   border-color: color-mix(in srgb, var(--preview-add) 40%, transparent);
 }
 .evidence-pill-2 {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  /* NOT --accent: that's the link color, and a source-read pill isn't a link.
+     Muted blue borrowed from the entity palette keeps it distinct from links
+     (accent), censused green (L1), corroborated amber (L3), unverified red (L4). */
+  color: var(--entity-govops-org);
+  background: color-mix(in srgb, var(--entity-govops-org) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-govops-org) 38%, transparent);
 }
 .evidence-pill-3 {
   color: var(--warn);
