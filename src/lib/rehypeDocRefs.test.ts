@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Root, Element, Text } from "hast";
+import type { Root, Element, ElementContent, Text } from "hast";
 import type { AtlasNode } from "../types";
 import type { AtlasBundle } from "./docsTypes";
 import { buildDocRefResolver } from "./docRefResolver";
@@ -61,7 +61,14 @@ const codeSpan = (value: string): Root => ({
   ],
 });
 
+const mixedPara = (children: ElementContent[]): Root => ({
+  type: "root",
+  children: [{ type: "element", tagName: "p", properties: {}, children }],
+});
+
 const kids = (tree: Root) => (tree.children[0] as Element).children;
+const textOf = (nodes: ElementContent[]) =>
+  nodes.filter((n): n is Text => n.type === "text").map((n) => n.value).join("");
 const isLink = (n: unknown): n is Element => !!n && (n as Element).type === "element" && (n as Element).tagName === "a";
 const linkText = (n: Element) => (n.children[0] as Text).value;
 
@@ -144,5 +151,89 @@ describe("rehypeDocRefs", () => {
     expect(links).toHaveLength(2);
     expect(linkText(links[0] as Element)).toContain("A.3.2");
     expect(linkText(links[1] as Element)).toContain("A.5.1");
+  });
+
+  describe("same-doc citation-pair collapse (uuid code span + slash-doc_no)", () => {
+    const codeOf = (value: string): Element => ({
+      type: "element",
+      tagName: "code",
+      properties: {},
+      children: [{ type: "text", value }],
+    });
+
+    it("collapses `uuid` /doc_no for the SAME doc into one link, dropping the slash", () => {
+      const t = run(mixedPara([codeOf(FULL), { type: "text", value: " /A.3.2 (weekly cadence)" }]));
+      const c = kids(t);
+      const links = c.filter(isLink);
+      expect(links).toHaveLength(1);
+      expect(linkText(links[0] as Element)).toContain("A.3.2");
+      const text = textOf(c);
+      expect(text).not.toContain("/");
+      expect(text).toBe(" (weekly cadence)");
+    });
+
+    it("collapses the reverse order (doc_no then the same doc's uuid code span) too", () => {
+      const t = run(mixedPara([{ type: "text", value: "A.3.2 /" }, codeOf(FULL)]));
+      const c = kids(t);
+      const links = c.filter(isLink);
+      expect(links).toHaveLength(1);
+      expect(textOf(c)).not.toContain("/");
+    });
+
+    it("keeps both links (and the slash) when the code span and doc_no reference DIFFERENT docs", () => {
+      const t = run(mixedPara([codeOf(FULL), { type: "text", value: " /A.5.1 elsewhere" }]));
+      const c = kids(t);
+      const links = c.filter(isLink);
+      expect(links).toHaveLength(2);
+      expect(linkText(links[0] as Element)).toContain("A.3.2");
+      expect(linkText(links[1] as Element)).toContain("A.5.1");
+      expect(textOf(c)).toContain("/");
+    });
+
+    it("a bare doc_no with no adjacent link is unaffected (nothing to collapse)", () => {
+      const t = run(para("see A.3.2 alone"));
+      const c = kids(t);
+      expect(c.filter(isLink)).toHaveLength(1);
+    });
+
+    it("a bare uuid code span with no adjacent doc_no is unaffected (nothing to collapse)", () => {
+      const t = run(codeSpan(FULL));
+      const c = kids(t);
+      expect(c.filter(isLink)).toHaveLength(1);
+    });
+
+    it('collapses the "Exemplar" idiom — doc_no, its own title spelled out, then the uuid code span', () => {
+      // "A.3.2 Stability Fee Mechanics And Governance Overview Extended `uuid`"
+      const t = run(
+        mixedPara([
+          { type: "text", value: "A.3.2 Stability Fee Mechanics And Governance Overview Extended " },
+          codeOf(FULL),
+        ]),
+      );
+      const c = kids(t);
+      const links = c.filter(isLink);
+      expect(links).toHaveLength(1);
+      expect(linkText(links[0] as Element)).toContain("A.3.2");
+    });
+
+    it('collapses the Exemplar idiom even when the title wraps across a markdown soft line-break', () => {
+      // Source wraps mid-title: "…Restrictions\n  On Removal… `uuid`"
+      const t = run(
+        mixedPara([
+          { type: "text", value: "A.3.2 Stability Fee Mechanics And\n  Governance Overview Extended " },
+          codeOf(FULL),
+        ]),
+      );
+      const c = kids(t);
+      expect(c.filter(isLink)).toHaveLength(1);
+    });
+
+    it('does NOT collapse via the title-match rule when the in-between text is prose, not the exact title', () => {
+      const t = run(
+        mixedPara([{ type: "text", value: "A.3.2 is discussed at length in " }, codeOf(FULL)]),
+      );
+      const c = kids(t);
+      expect(c.filter(isLink)).toHaveLength(2);
+    });
   });
 });
