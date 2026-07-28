@@ -4,7 +4,6 @@ import { render, cleanup, fireEvent } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
-import type { SubtreeVisibilityMode } from "./SubtreeVisibilityDemo";
 import type { SubtreeVisualState } from "./subtreeState";
 
 afterEach(cleanup);
@@ -19,7 +18,6 @@ interface Overrides {
   subtreeState?: SubtreeVisualState;
   hasExplicitHiddenSubtree?: boolean;
   hiddenCount?: number;
-  subtreeVisibilityMode?: SubtreeVisibilityMode;
   withExpandAll?: boolean;
 }
 
@@ -50,7 +48,6 @@ function setup(overrides: Overrides = {}) {
         subtreeState={overrides.subtreeState ?? "collapsed"}
         hasExplicitHiddenSubtree={overrides.hasExplicitHiddenSubtree ?? false}
         hiddenCount={overrides.hiddenCount ?? 0}
-        subtreeVisibilityMode={overrides.subtreeVisibilityMode}
         onExpandChildren={onExpandChildren}
       />
     </AtlasActionsContext.Provider>,
@@ -168,60 +165,35 @@ describe("CollapsibleNode expand-all toggle", () => {
     expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded");
   });
 
-  it("restores a hidden subtree on normal click in restore mode", () => {
+  it("restores a hidden subtree on normal click when it has an explicit snapshot", () => {
     const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
       subtreeState: "hidden",
       hasExplicitHiddenSubtree: true,
-      subtreeVisibilityMode: "shift-hide-restore",
     });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
     expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded", { restore: true });
   });
 
-  it("expands a depth-gated hidden subtree in restore mode when no explicit snapshot exists", () => {
+  it("expands a depth-gated hidden subtree when no explicit snapshot exists", () => {
     const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
       subtreeState: "hidden",
       hasExplicitHiddenSubtree: false,
-      subtreeVisibilityMode: "shift-hide-restore",
     });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
     expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "expanded");
   });
 
-  it("shift-click hides the subtree in the shift hide/open mode", () => {
+  it("shift-click hides the subtree", () => {
     const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
-      subtreeVisibilityMode: "shift-hide-open",
     });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!, { shiftKey: true });
     expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "hidden");
-  });
-
-  it("cycle mode hides after the subtree is already expanded", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "expanded",
-      subtreeVisibilityMode: "cycle",
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "hidden");
-  });
-
-  it("cycle mode collapses after the subtree is hidden", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "hidden",
-      subtreeVisibilityMode: "cycle",
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "collapsed");
   });
 
   it("runs the compositor feedback and defers the commit two frames when the button can animate", () => {

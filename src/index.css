@@ -632,51 +632,6 @@ button.atlas-node-expand-all {
 button.atlas-node-expand-all:focus-visible {
   opacity: 1;
 }
-/* The subtree-visibility switcher floats over the bottom of the reader, so the
-   scroll content reserves matching space beneath it — otherwise the final rows
-   sit under the control and become obscured/unclickable in short layouts. Keep
-   this in sync with the switcher's height + bottom offset below. */
-.atlas-scroll {
-  padding-bottom: 56px;
-}
-.subtree-demo-switcher {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  z-index: 20;
-  display: inline-flex;
-  gap: 2px;
-  max-width: calc(100% - 28px);
-  padding: 3px;
-  transform: translateX(-50%);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 8px 28px color-mix(in srgb, #000 36%, transparent);
-}
-.subtree-demo-switcher button {
-  min-height: 26px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: 4px;
-  color: var(--tan-3);
-  background: transparent;
-  cursor: pointer;
-  font-family: "Source Code Pro", "Courier New", monospace;
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 1;
-  white-space: nowrap;
-}
-.subtree-demo-switcher button:hover,
-.subtree-demo-switcher button:focus-visible {
-  color: var(--tan);
-  background: var(--hover);
-}
-.subtree-demo-switcher button.is-active {
-  color: var(--tan);
-  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
-}
 .atlas-node-title {
   border-radius: 2px;
   margin: 2px;

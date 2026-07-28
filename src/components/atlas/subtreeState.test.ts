@@ -5,7 +5,6 @@ import {
   type SubtreeTransition,
   type SubtreeVisualState,
 } from "./subtreeState";
-import type { SubtreeVisibilityMode } from "./SubtreeVisibilityDemo";
 
 describe("deriveSubtreeVisualState", () => {
   it.each([
@@ -20,34 +19,25 @@ describe("deriveSubtreeVisualState", () => {
 
 describe("nextSubtreeTransition", () => {
   const cases: {
-    mode: SubtreeVisibilityMode;
     state: SubtreeVisualState;
     shiftKey: boolean;
     hasExplicitHidden: boolean;
     expected: SubtreeTransition;
   }[] = [
-    { mode: "cycle", state: "collapsed", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "cycle", state: "collapsed", shiftKey: true, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "cycle", state: "expanded", shiftKey: false, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "cycle", state: "expanded", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "cycle", state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "collapsed" },
-    { mode: "cycle", state: "hidden", shiftKey: true, hasExplicitHidden: true, expected: "collapsed" },
-    { mode: "shift-hide-open", state: "collapsed", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "shift-hide-open", state: "collapsed", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "shift-hide-open", state: "expanded", shiftKey: false, hasExplicitHidden: false, expected: "collapsed" },
-    { mode: "shift-hide-open", state: "expanded", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "shift-hide-open", state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "shift-hide-open", state: "hidden", shiftKey: true, hasExplicitHidden: true, expected: "expanded" },
-    { mode: "shift-hide-restore", state: "collapsed", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "shift-hide-restore", state: "collapsed", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "shift-hide-restore", state: "expanded", shiftKey: false, hasExplicitHidden: false, expected: "collapsed" },
-    { mode: "shift-hide-restore", state: "expanded", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { mode: "shift-hide-restore", state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { mode: "shift-hide-restore", state: "hidden", shiftKey: false, hasExplicitHidden: true, expected: "restore" },
-    { mode: "shift-hide-restore", state: "hidden", shiftKey: true, hasExplicitHidden: true, expected: "restore" },
+    // Plain click toggles expand ⇄ collapse.
+    { state: "collapsed", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
+    { state: "expanded", shiftKey: false, hasExplicitHidden: false, expected: "collapsed" },
+    // Shift-click hides, from either open state.
+    { state: "collapsed", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
+    { state: "expanded", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
+    // Clicking a hidden branch restores its snapshot when one exists, otherwise
+    // (depth-gate-only hidden) just expands. Shift is irrelevant once hidden.
+    { state: "hidden", shiftKey: false, hasExplicitHidden: true, expected: "restore" },
+    { state: "hidden", shiftKey: true, hasExplicitHidden: true, expected: "restore" },
+    { state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
   ];
 
-  it.each(cases)("$mode $state shift=$shiftKey explicit=$hasExplicitHidden -> $expected", (item) => {
+  it.each(cases)("$state shift=$shiftKey explicit=$hasExplicitHidden -> $expected", (item) => {
     expect(nextSubtreeTransition(item)).toBe(item.expected);
   });
 });

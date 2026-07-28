@@ -11,7 +11,6 @@ import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
 import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
-import type { SubtreeVisibilityMode } from "./SubtreeVisibilityDemo";
 import {
   nextSubtreeTransition,
   type SubtreeVisualState,
@@ -39,7 +38,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   subtreeState = "collapsed",
   hasExplicitHiddenSubtree = false,
   hiddenCount = 0,
-  subtreeVisibilityMode = "shift-hide-open",
   onExpandChildren,
   idPrefix,
   cradle,
@@ -54,7 +52,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   subtreeState?: SubtreeVisualState;
   hasExplicitHiddenSubtree?: boolean;
   hiddenCount?: number;
-  subtreeVisibilityMode?: SubtreeVisibilityMode;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
@@ -111,7 +108,6 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const pulseRef = useRef<Animation | null>(null);
   const doExpandAll = (event?: React.MouseEvent) => {
     const transition = nextSubtreeTransition({
-      mode: subtreeVisibilityMode,
       state: subtreeState,
       shiftKey: !!event?.shiftKey,
       hasExplicitHidden: hasExplicitHiddenSubtree,
@@ -257,20 +253,18 @@ export const CollapsibleNode = memo(function CollapsibleNode({
               isSubtreeHidden ? " is-hidden" : isSubtreeExpanded ? " is-open" : ""
             }`}
             aria-label={`${
-              isSubtreeHidden ? "Expand hidden" : isSubtreeExpanded ? "Collapse" : "Expand"
+              isSubtreeHidden
+                ? hasExplicitHiddenSubtree ? "Restore hidden" : "Expand hidden"
+                : isSubtreeExpanded ? "Collapse" : "Expand"
             } all sections under ${node.doc_no}`}
             title={
               isSubtreeHidden
-                ? subtreeVisibilityMode === "shift-hide-restore" && hasExplicitHiddenSubtree
+                ? hasExplicitHiddenSubtree
                   ? "restore hidden descendants"
                   : "expand hidden descendants"
-                : subtreeVisibilityMode === "cycle"
-                  ? isSubtreeExpanded
-                    ? "hide descendants"
-                    : "expand all beneath"
-                  : isSubtreeExpanded
-                    ? "collapse all beneath (shift-click: hide descendants)"
-                    : "expand all beneath (shift-click: hide descendants)"
+                : isSubtreeExpanded
+                  ? "collapse all beneath (shift-click: hide descendants)"
+                  : "expand all beneath (shift-click: hide descendants)"
             }
             onClick={doExpandAll}
           >

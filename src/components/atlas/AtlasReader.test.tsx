@@ -443,16 +443,6 @@ describe("AtlasReader subtree hide / restore", () => {
     fireEvent.click(screen.getByText(`hide-${a.id}`));
     expect(actions.navigate).not.toHaveBeenCalled();
   });
-
-  it("switching the visibility-behavior mode marks the chosen mode active", () => {
-    const { atlas, flatNodes } = makeCradleTree();
-    const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    renderReader({ id: "root", selectedId: null, data });
-
-    const restoreMode = screen.getByRole("button", { name: "Shift: hide/restore" });
-    fireEvent.click(restoreMode);
-    expect(restoreMode).toHaveAttribute("aria-pressed", "true");
-  });
 });
 
 describe("AtlasReader toggle + selectSubtree actions", () => {

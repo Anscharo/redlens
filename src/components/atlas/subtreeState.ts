@@ -1,5 +1,3 @@
-import type { SubtreeVisibilityMode } from "./SubtreeVisibilityDemo";
-
 export type SubtreeVisualState = "collapsed" | "expanded" | "hidden";
 export type SubtreeTransition = SubtreeVisualState | "restore";
 
@@ -16,23 +14,24 @@ export function deriveSubtreeVisualState({
   return isExpanded ? "expanded" : "collapsed";
 }
 
+// The reader's single subtree-visibility behavior ("shift-click hides, click a
+// hidden branch restores its prior shape"):
+//   - plain click toggles expand ⇄ collapse
+//   - shift-click hides the branch
+//   - clicking a hidden branch restores the shape it had when hidden (if we hold
+//     an explicit snapshot), or just expands it if it was only depth-gated
 export function nextSubtreeTransition({
-  mode,
   state,
   shiftKey,
   hasExplicitHidden,
 }: {
-  mode: SubtreeVisibilityMode;
   state: SubtreeVisualState;
   shiftKey: boolean;
   hasExplicitHidden: boolean;
 }): SubtreeTransition {
   if (state === "hidden") {
-    if (mode === "cycle") return "collapsed";
-    if (mode === "shift-hide-restore" && hasExplicitHidden) return "restore";
-    return "expanded";
+    return hasExplicitHidden ? "restore" : "expanded";
   }
-  if (shiftKey && mode !== "cycle") return "hidden";
-  if (mode === "cycle") return state === "expanded" ? "hidden" : "expanded";
+  if (shiftKey) return "hidden";
   return state === "expanded" ? "collapsed" : "expanded";
 }

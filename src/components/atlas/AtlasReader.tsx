@@ -14,10 +14,6 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
-import {
-  SubtreeVisibilityDemo,
-  type SubtreeVisibilityMode,
-} from "./SubtreeVisibilityDemo";
 import { deriveSubtreeVisualState } from "./subtreeState";
 import type { SubtreeVisualState } from "./subtreeState";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
@@ -77,7 +73,6 @@ export const AtlasReader = memo(function AtlasReader({
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
   const [hiddenSubtrees, setHiddenSubtrees] = useState<Set<string>>(new Set());
-  const [subtreeVisibilityMode, setSubtreeVisibilityMode] = useState<SubtreeVisibilityMode>("shift-hide-open");
   const seenExpanded = useRef<Set<string>>(new Set());
   const hiddenSnapshotsRef = useRef<Map<string, HiddenSubtreeSnapshot>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -347,7 +342,6 @@ export const AtlasReader = memo(function AtlasReader({
                 ? descendantCount.get(entry.node.id) ?? 0
                 : 0
             }
-            subtreeVisibilityMode={subtreeVisibilityMode}
             onExpandChildren={handleExpandParent}
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
@@ -425,7 +419,6 @@ export const AtlasReader = memo(function AtlasReader({
           subtreeState={subtreeState}
           hasExplicitHiddenSubtree={hasExplicitHidden}
           hiddenCount={gatedCount}
-          subtreeVisibilityMode={subtreeVisibilityMode}
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
@@ -451,7 +444,7 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, descendantCount, subtreeVisibilityMode, hasHiddenAncestor]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, descendantCount, hasHiddenAncestor]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection
@@ -505,7 +498,6 @@ export const AtlasReader = memo(function AtlasReader({
             </ErrorBoundary>
           </div>
         </div>
-        <SubtreeVisibilityDemo mode={subtreeVisibilityMode} onModeChange={setSubtreeVisibilityMode} />
         {splitId && (
           <ErrorBoundary resetKey={splitId} fallback={(error) => <PanelError error={error} />}>
             <JuniorPane
