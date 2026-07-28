@@ -11,6 +11,7 @@ import "@testing-library/jest-dom/vitest";
 import { AtlasReader } from "./AtlasReader";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
+import { flattenTree } from "../../lib/atlasHelpers";
 import type { FlatEntry } from "../../lib/atlasHelpers";
 
 vi.mock("../../lib/previewFilter", () => ({
@@ -79,5 +80,45 @@ describe("AtlasReader real-component shift-hide", () => {
     expect(container.querySelector("#a")?.textContent).toContain("6 hidden");
     // … and every descendant row is actually gone from the DOM
     for (const k of kids) expect(container.querySelector(`#${k.id}`)).toBeNull();
+  });
+
+  // Reproduces the reported bug: a row can be indented as if it were nested
+  // under the hidden node (its doc-number depth is deeper) while its parentId
+  // was reparented above that node — exactly what the heading-level-6 cap does
+  // to deeply-numbered docs. The reader indents by realDepth (doc number) but
+  // hides by parentId, so the row stays on screen even though it visually
+  // belongs to the branch that now says "N hidden".
+  // it.fails: documents a CONFIRMED bug. The reader indents by realDepth (doc
+  // number) but hides by parentId, so a deeply-numbered row that was reparented
+  // above the hidden node by the heading-level-6 cap stays on screen even though
+  // it visually belongs to the branch now marked "N hidden". Remove `.fails`
+  // once hiding is switched to the visual (depth-span) subtree.
+  it.fails("hides rows that look nested under the branch even when parentId was reparented by the depth cap", () => {
+    // R = "A.1". Six real children A.1.1…A.1.6 (parentId R). One deeply-numbered
+    // doc A.1.7.1 whose parentId is the ROOT (as the cap would leave it) — it
+    // indents under R's block but is not in R's parentId subtree.
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const R = makeNode({ id: "R", doc_no: "A.1", parentId: "root" });
+    const kids = Array.from({ length: 6 }, (_, i) =>
+      makeNode({ id: `k${i}`, doc_no: `A.1.${i + 1}`, parentId: "R" }),
+    );
+    const ghost = makeNode({ id: "ghost", doc_no: "A.1.7.1", parentId: "root" });
+    const atlas = makeAtlasBundle([root, R, ...kids, ghost]);
+    // Build the flat list the way the real app does, so depths come from the
+    // doc numbers (ghost lands at a deeper indent than R's own children).
+    const data = makeLoadedData({ atlas, flatNodes: flattenTree(atlas.byParent), complete: true });
+    const { container } = renderReader("root", null, data);
+
+    expect(container.querySelector("#ghost")).not.toBeNull();
+
+    // shift-hide R
+    fireEvent.click(container.querySelector(`#R .atlas-node-expand-all`)!, { shiftKey: true });
+
+    // The six real children are gone and R says its rows are hidden …
+    for (const k of kids) expect(container.querySelector(`#${k.id}`)).toBeNull();
+    expect(container.querySelector("#R")?.textContent).toMatch(/hidden/);
+    // … but the deeply-numbered row that visually belongs to R's block must ALSO
+    // be hidden. Today it is not — this asserts the fixed behavior.
+    expect(container.querySelector("#ghost")).toBeNull();
   });
 });
