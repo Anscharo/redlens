@@ -63,10 +63,16 @@ describe("LibraryGlossary", () => {
 
   it("renders terms once loaded, linking to their source document", async () => {
     render(<LibraryGlossary />, { wrapper: wrap() });
-    expect(await screen.findByText("Accord")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Accord/ })).toBeInTheDocument();
     expect(screen.getByText(/1 terms extracted/)).toBeInTheDocument();
     const link = screen.getByRole("link", { name: /A\.0\.3\.1/ });
     expect(link).toHaveAttribute("href", expect.stringContaining("id-accord"));
+  });
+
+  it("gives each term heading a slugified id for deep-linking", async () => {
+    render(<LibraryGlossary />, { wrapper: wrap() });
+    const heading = await screen.findByRole("heading", { name: /Accord/ });
+    expect(heading).toHaveAttribute("id", "accord");
   });
 
   it("shows an error state when the glossary fails to load", async () => {

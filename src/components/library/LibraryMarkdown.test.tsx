@@ -69,7 +69,7 @@ describe("LibraryMarkdown", () => {
     render(<LibraryMarkdown raw={raw} />);
     expect(await screen.findByRole("heading", { name: "Before" })).toBeInTheDocument();
     expect(screen.getByTestId("census-slot")).toHaveTextContent("census:transitionary-measures");
-    expect(screen.getByRole("heading", { name: "After" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /After/ })).toBeInTheDocument();
   });
 
   it("splits multiple markers into multiple independent census slots", async () => {

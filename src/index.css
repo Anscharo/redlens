@@ -1262,6 +1262,44 @@ button.atlas-node-expand-all:focus-visible {
   border-color: color-mix(in srgb, var(--error-text) 40%, transparent);
 }
 
+/* Library docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
+   affordance is CSS-only hover reveal (no JS hover handler, per convention);
+   clicking it is a plain same-page fragment link (native browser scroll,
+   respecting scroll-margin-top below). */
+.heading-with-anchor {
+  scroll-margin-top: 64px; /* HEADER_OFFSET in src/lib/layout.ts */
+}
+.heading-anchor {
+  margin-left: 0.5em;
+  color: var(--tan-3);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 100ms;
+}
+.heading-with-anchor:hover .heading-anchor {
+  opacity: 1;
+}
+.heading-anchor:hover {
+  color: var(--accent);
+}
+
+/* Concepts tab only — h2 sticks to the top of the page as its section
+   scrolls (the library page is window-scroll, see App.tsx's windowScroll
+   routes; the sticky boundary is the viewport, not an inner container).
+   Solid bg matches the page background so content scrolling underneath
+   doesn't bleed through; z-index sits above content but below the app's
+   sticky search header (z-20). h3 gets a taller scroll-margin-top so a
+   hash-targeted h3 doesn't land hidden under the stuck h2. */
+.library-sticky-headings h2.heading-with-anchor {
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  background: var(--bg);
+}
+.library-sticky-headings h3.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
+
 /* ─── Right panel tab button ─── */
 .right-tab {
   font: 400 11px/1 "Source Code Pro", "Courier New", monospace;

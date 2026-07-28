@@ -6,6 +6,8 @@ import { useDataSource } from "../../lib/dataSource";
 import { ConceptCensus } from "./ConceptCensus";
 import { rehypeEvidencePills } from "../../lib/rehypeEvidencePills";
 import { rehypeDocRefs } from "../../lib/rehypeDocRefs";
+import { rehypeHeadingIds } from "../../lib/rehypeHeadingIds";
+import { extractHeadings, partitionHeadings } from "../../lib/libraryHeadings";
 import { buildDocRefResolver, type DocRefResolver } from "../../lib/docRefResolver";
 import { buildComponents } from "./libraryMarkdownComponents";
 
@@ -38,7 +40,7 @@ function splitByCensusMarkers(raw: string): MarkdownSegment[] {
 // resolves (or if it fails to load) we fall back to the old full-uuid-only
 // behavior (see buildComponents in libraryMarkdownComponents.tsx) so the page
 // never blocks on it.
-export function LibraryMarkdown({ raw }: { raw: string }) {
+export function LibraryMarkdown({ raw, sticky = false }: { raw: string; sticky?: boolean }) {
   const { base } = useDataSource();
   const [resolver, setResolver] = useState<DocRefResolver | null>(null);
   const [failed, setFailed] = useState(false);
@@ -53,24 +55,53 @@ export function LibraryMarkdown({ raw }: { raw: string }) {
     };
   }, [base]);
 
-  const rehypePlugins = useMemo(
-    () => (resolver ? [rehypeEvidencePills(), rehypeDocRefs(resolver)] : [rehypeEvidencePills()]),
-    [resolver],
+  // One extraction pass over the raw source, shared with the Concepts TOC —
+  // see libraryHeadings.ts. Memoized on `raw` only (stable across resolver
+  // loads): the doc's heading outline never depends on doc-ref resolution.
+  const headings = useMemo(() => extractHeadings(raw), [raw]);
+  const segments = useMemo(() => splitByCensusMarkers(raw), [raw]);
+  // Each `:::census`-split segment gets ONLY the headings that occur in its
+  // own text, not a cursor shared across segments — see rehypeHeadingIds.ts
+  // and partitionHeadings' doc comment for why (React StrictMode's dev-mode
+  // double-invoke of a segment's render would otherwise double-count).
+  const headingsBySegment = useMemo(
+    () => partitionHeadings(headings, segments.map((s) => (s.kind === "md" ? s.text : ""))),
+    [headings, segments],
   );
-  const components = useMemo(() => buildComponents(resolver), [resolver]);
+
+  // On mount/hash-change (a Link elsewhere in the app pointing at
+  // "#slug" — client-side nav never fires the browser's own fragment
+  // scroll), jump to the target once headings have actually rendered.
+  // Mirrors ActorDashboard.tsx's radar precedent.
+  useEffect(() => {
+    if (!resolver && !failed) return; // still loading — no headings rendered yet
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, [resolver, failed]);
 
   if (!resolver && !failed) {
     return <p className="text-xs mono text-tan-3">loading…</p>;
   }
 
-  const segments = splitByCensusMarkers(raw);
+  const components = buildComponents(resolver);
+
   return (
-    <div className="atlas-md text-sm text-tan-2">
+    <div className={`atlas-md text-sm text-tan-2${sticky ? " library-sticky-headings" : ""}`}>
       {segments.map((seg, i) =>
         seg.kind === "census" ? (
           <ConceptCensus key={i} slug={seg.slug} />
         ) : (
-          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]} rehypePlugins={rehypePlugins} components={components}>
+          <ReactMarkdown
+            key={i}
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[
+              rehypeEvidencePills(),
+              ...(resolver ? [rehypeDocRefs(resolver)] : []),
+              rehypeHeadingIds(headingsBySegment[i] ?? []),
+            ]}
+            components={components}
+          >
             {seg.text}
           </ReactMarkdown>
         ),

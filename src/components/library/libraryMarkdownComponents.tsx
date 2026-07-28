@@ -25,17 +25,34 @@ function hastText(node: HastElement): string {
   return out;
 }
 
+// The hover-reveal "#" affordance next to a deep-linkable h2/h3 — a plain
+// same-page fragment anchor (native browser scroll), shown via CSS
+// `.heading-with-anchor:hover` (see index.css), never a JS hover handler.
+export function anchorFor(id: string | undefined) {
+  return id ? (
+    <a href={`#${id}`} className="heading-anchor" aria-label="Anchor link">#</a>
+  ) : null;
+}
+
 const baseComponents: Omit<Components, "a" | "code"> = {
   h1: ({ children }) => (
     <h1 className="text-3xl font-semibold mt-2 mb-4" style={{ color: "var(--tan)" }}>{children}</h1>
   ),
-  h2: ({ children }) => (
-    <h2 className="text-xl font-semibold mt-14 mb-3 pb-2 border-b border-[var(--border)]" style={{ color: "var(--tan)" }}>
+  h2: ({ id, children }) => (
+    <h2
+      id={id}
+      className="text-xl font-semibold mt-14 mb-3 pb-2 border-b border-[var(--border)] heading-with-anchor"
+      style={{ color: "var(--tan)" }}
+    >
       {children}
+      {anchorFor(id)}
     </h2>
   ),
-  h3: ({ children }) => (
-    <h3 className="text-lg font-semibold mt-10 mb-2" style={{ color: "var(--tan)" }}>{children}</h3>
+  h3: ({ id, children }) => (
+    <h3 id={id} className="text-lg font-semibold mt-10 mb-2 heading-with-anchor" style={{ color: "var(--tan)" }}>
+      {children}
+      {anchorFor(id)}
+    </h3>
   ),
   h4: ({ children }) => (
     <h4 className="text-base font-semibold mt-4 mb-1" style={{ color: "var(--tan-2)" }}>{children}</h4>

@@ -37,7 +37,7 @@ export function LibraryPage({ tab }: { tab: LibraryTab }) {
   }, [base]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-8">
+    <div className="flex-1 px-6 py-8">
       <div className="max-w-3xl mx-auto">
         <p className="mono text-xs text-tan-3 mb-1">library</p>
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--tan)" }}>

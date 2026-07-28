@@ -10,7 +10,7 @@ export function LibraryConcepts() {
       <p className="mono text-xs text-tan-3 uppercase tracking-wider mb-2">
         Cross-cutting concept catalog · live census data from the checked-out atlas
       </p>
-      <LibraryMarkdown raw={conceptsRaw} />
+      <LibraryMarkdown raw={conceptsRaw} sticky />
     </div>
   );
 }
