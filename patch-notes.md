@@ -35,7 +35,7 @@
 
 
 ## 2026-07-28
-- Redesigned history entries so each change reads as a unit: date and pull request first, then the title and the type of edit
+- Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line
 - Opened the document panel on the History tab by default
 
 ## 2026-07-24

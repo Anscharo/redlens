@@ -3,6 +3,7 @@ import { useDataSource } from "../../lib/dataSource";
 import { usePreviewDiff, usePreviewPatch } from "../../lib/previewDiff";
 import { NodeHistory } from "./NodeHistory";
 import { DiffView } from "./DiffView";
+import { TimelineRail } from "./Timeline";
 
 // History tab in preview mode. The real per-doc history lives in Postgres for
 // the *live* atlas, which is meaningless for an unmerged branch — so instead we
@@ -53,7 +54,11 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
   return (
     <div className="mono text-[11px]" style={{ color: "var(--tan-3)" }}>
       {status ? (
-        <div className="pl-3 pb-3" style={{ borderLeft: "2px solid var(--preview-add)" }}>
+        // A timeline node like the live entries, but its downward line dissolves
+        // into a fuzzy break — this change isn't cemented into history yet.
+        <div className="flex gap-3 pb-3">
+          <TimelineRail color="var(--preview-add)" fuzz hideTop />
+          <div className="min-w-0 flex-1">
           <div style={{ color: "var(--preview-add)", fontWeight: 600 }}>
             {status}
             {reused ? "*" : ""} in this preview
@@ -91,6 +96,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
             </a>
           )}
           {patch && patch.length > 0 && <DiffView lines={patch} />}
+          </div>
         </div>
       ) : (
         <p>Unchanged by this preview.</p>

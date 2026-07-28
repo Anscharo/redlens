@@ -130,7 +130,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
           <Fragment key={i}>
             {i === firstHtmlEra && <HtmlEraDisclaimer />}
             {i === firstPreGit && <PreGitDisclaimer />}
-            <EntryRow entry={entry} labelOverride={isRootSnapshot ? "committed" : undefined} />
+            <EntryRow entry={entry} labelOverride={isRootSnapshot ? "committed" : undefined} isFirst={i === 0} />
             {!hasReconstructed && entry.pr === PRE_MD_PR && <PreMdFooter />}
             {i === migrationIdx && toggleButton}
           </Fragment>
