@@ -227,14 +227,14 @@ export const AtlasReader = memo(function AtlasReader({
   const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
   // The "N hidden" tab means two different things depending on why the rows are
   // hidden:
-  //  - an explicitly shift-hidden branch → uncollapse ALL (un-hide + expand every
-  //    body beneath). This is deliberately distinct from the up-chevron, which
-  //    restores the branch's prior shape.
+  //  - an explicitly shift-hidden branch → un-hide and SHOW every row beneath,
+  //    but left collapsed (bodies closed) — not expanded. Deliberately distinct
+  //    from the up-chevron, which restores the branch's prior shape.
   //  - a depth-6 gated parent → reveal only the gated child rows, never expanding
   //    every body in the branch (#220). That's exactly what expandParent does.
   const handleExpandParent = useCallback((nodeId: string) => {
     if (hiddenSubtrees.has(nodeId)) {
-      handleSetSubtreeVisualState(nodeId, "expanded");
+      handleSetSubtreeVisualState(nodeId, "collapsed");
     } else {
       expandParent(nodeId);
     }
