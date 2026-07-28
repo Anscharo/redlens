@@ -41,6 +41,11 @@ describe("HomePage", () => {
     expect(Boolean(reportsLink) !== Boolean(previewLink)).toBe(true);
   });
 
+  it("renders the Library card as an in-SPA link to the reports/library route", () => {
+    render(<HomePage />, { wrapper: wrap() });
+    expect(screen.getByRole("link", { name: /Library/ })).toHaveAttribute("href", "/reports/library");
+  });
+
   it("renders the patch notes section", () => {
     render(<HomePage />, { wrapper: wrap() });
     expect(screen.getByRole("heading", { name: "Recent improvements" })).toBeInTheDocument();

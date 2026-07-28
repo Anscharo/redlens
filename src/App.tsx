@@ -415,10 +415,20 @@ export default function App() {
                 <LibraryPage tab="shape" />
               </Suspense>
             </Route>
-            {/* Legacy /library URLs (pre-report move) → /reports/library */}
+            {/* Legacy /library URLs (pre-report move) → /reports/library.
+                Bare "/library" (no trailing segment) doesn't match "/library/:tab*"
+                in wouter — the pattern requires the literal slash — so it needs its
+                own exact route alongside the wildcard one below. */}
+            <Route path="/library">
+              <Redirect to={ROUTES.REPORTS_LIBRARY} replace />
+            </Route>
             <Route path="/library/:tab*">
-              {(params: { tab?: string }) => (
-                <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params.tab ? `/${params.tab}` : ""}`} replace />
+              {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
+                  included), not "tab" — using params.tab here silently dropped the
+                  tab segment on every legacy URL, redirecting e.g. /library/glossary
+                  to bare /reports/library instead of /reports/library/glossary. */}
+              {(params: { "tab*"?: string }) => (
+                <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
               )}
             </Route>
             <Route path={ROUTES.COLLECTIONS}>

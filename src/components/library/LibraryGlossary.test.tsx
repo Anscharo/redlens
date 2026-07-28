@@ -81,6 +81,22 @@ describe("LibraryGlossary", () => {
     expect(await screen.findByText(/glossary failed to load/)).toBeInTheDocument();
   });
 
+  it("scrolls the term matching the current URL hash into view once terms resolve", async () => {
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(window.HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+    window.history.pushState(null, "", "#accord");
+    try {
+      render(<LibraryGlossary />, { wrapper: wrap() });
+      await screen.findByRole("heading", { name: /Accord/ });
+      await waitFor(() => expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "instant", block: "start" }));
+    } finally {
+      window.history.pushState(null, "", "/reports/library/glossary");
+    }
+  });
+
   it("passes the data-source base to loadGlossary and refetches when the base changes", async () => {
     const liveBase = freshBase();
     useDataSourceMock.mockReturnValue({ base: liveBase, preview: null });
