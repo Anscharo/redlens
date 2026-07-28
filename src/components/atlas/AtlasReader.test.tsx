@@ -462,6 +462,39 @@ describe("AtlasReader subtree hide / restore", () => {
     expect(actions.navigate).not.toHaveBeenCalled();
   });
 
+  it("restoring a branch whose depth-6 children were revealed shows them again (not stuck gated)", () => {
+    // N (depth 5) gates two depth-6 children. Reveal them, shift-hide N, then
+    // restore: the children must reappear. Previously restore left N's own gate
+    // closed, so the rows stayed hidden and the reader "working…" pulse spun
+    // forever.
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const n = makeNode({ id: "n", doc_no: "A.1.1.1.1", parentId: "root" });
+    const g1 = makeNode({ id: "g1", doc_no: "A.1.1.1.1.1", parentId: "n" });
+    const g2 = makeNode({ id: "g2", doc_no: "A.1.1.1.1.2", parentId: "n" });
+    const atlas = makeAtlasBundle([root, n, g1, g2]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: n, depth: 5 }),
+      makeFlatEntry({ node: g1, depth: 6 }),
+      makeFlatEntry({ node: g2, depth: 6 }),
+    ];
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", selectedId: null, data });
+
+    // depth-6 children start gated; reveal them via the "N hidden" tab.
+    fireEvent.click(screen.getByText(`reveal-${n.id}`));
+    expect(screen.getByTestId(`node-${g1.id}`)).toBeInTheDocument();
+
+    // shift-hide N (the children disappear) …
+    fireEvent.click(screen.getByText(`hide-${n.id}`));
+    expect(screen.queryByTestId(`node-${g1.id}`)).toBeNull();
+
+    // … and restore N via the chevron — the revealed children come back.
+    fireEvent.click(screen.getByText(`restore-${n.id}`));
+    expect(screen.getByTestId(`node-${g1.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${g2.id}`)).toBeInTheDocument();
+  });
+
   it("restore re-hides a nested branch that was hidden before the outer branch", () => {
     // root → a → a1 → a1x ; a → a2. a1 is a hideable branch nested inside a.
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });

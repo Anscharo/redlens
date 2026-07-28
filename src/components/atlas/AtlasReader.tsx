@@ -206,7 +206,11 @@ export const AtlasReader = memo(function AtlasReader({
     // Hide the VISUAL subtree (what looks nested on screen), not the parentId
     // subtree — the two diverge under the heading-depth cap (see visualSubtreeIds).
     const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
-    const scope = new Set(subtreeIds);
+    // Restore scope includes rootId itself, so restoring re-opens the root's OWN
+    // depth-6 gate (and its body toggle) that hiding closed. Without it, a node
+    // whose deep children were revealed before hiding stays gated after restore —
+    // children never reappear and the reader "working…" pulse spins forever.
+    const scope = new Set([rootId, ...subtreeIds]);
     if (hidden) {
       hiddenSnapshotsRef.current.set(rootId, {
         userToggles: new Set(userToggles),

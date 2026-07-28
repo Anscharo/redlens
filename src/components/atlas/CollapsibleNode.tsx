@@ -153,7 +153,18 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       // compositor and PAINTS first. Committing now would let React flush the
       // large synchronous re-render in this same task, before the browser ever
       // paints the animation — so it'd only appear once the expand is done.
-      requestAnimationFrame(() => requestAnimationFrame(commit));
+      // Backstop: cancel the pulse one frame after the commit even if the subtree
+      // state didn't change (a click that reveals nothing) — otherwise the
+      // state-keyed effect below never fires and the pulse would spin forever.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          commit();
+          requestAnimationFrame(() => {
+            pulseRef.current?.cancel();
+            pulseRef.current = null;
+          });
+        }),
+      );
     } else {
       commit();
     }
