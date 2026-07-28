@@ -192,10 +192,14 @@ export const AtlasReader = memo(function AtlasReader({
         ancestors.push(entries[j].node.id);
       }
     }
+    // Un-hide the ANCESTORS only — not the doc itself. Navigating to a collapsed
+    // root (its own subtree hidden) should keep it collapsed: the doc is already
+    // visible, and we don't want to auto-expand its subtree. This also lets a
+    // hide operation move selection onto the very root it collapsed.
     setHiddenSubtrees((prev) => {
       if (!prev.size) return prev;
       const next = new Set(prev);
-      let changed = next.delete(id);
+      let changed = false;
       for (const a of ancestors) if (next.delete(a)) changed = true;
       return changed ? next : prev;
     });
@@ -284,14 +288,12 @@ export const AtlasReader = memo(function AtlasReader({
     if (hidden) {
       setNodeExpanded(rootId, false);
       // If the active selection sits inside the branch we're hiding, it would
-      // vanish with no id-change to recover it (clicking the same sidebar row is
-      // a no-op). Move selection up to the branch's parent — outside the hidden
-      // subtree, so the row stays visible and the hide sticks (navigating to the
-      // root itself would trip the "reveal ancestors of the selection" effect and
-      // immediately un-hide it).
+      // vanish. Move selection onto the branch root itself — the doc whose
+      // chevron was clicked — so focus lands on the collapsed row rather than
+      // disappearing. The root stays hidden because the reveal-on-nav effect only
+      // un-hides ancestors, never the navigated doc.
       if (selectedId && selectedId !== rootId && subtreeIds.includes(selectedId)) {
-        const parentId = data.atlas.docs[rootId]?.parentId ?? null;
-        if (parentId) navigate(parentId);
+        navigate(rootId);
       }
     }
   }, [data, userToggles, expandedParents, hiddenSubtrees, mergeParentsExpanded, setNodeExpanded, selectedId, navigate]);

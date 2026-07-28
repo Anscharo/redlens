@@ -533,17 +533,32 @@ describe("AtlasReader subtree hide / restore", () => {
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-subtree-state", "collapsed");
   });
 
-  it("moves the selection up to the branch parent when hiding a subtree that holds the selection (#363)", () => {
-    const { atlas, flatNodes, a, a1, root } = makeCradleTree();
+  it("moves the selection onto the clicked branch root when hiding a subtree that holds the selection (#363)", () => {
+    const { atlas, flatNodes, a, a1 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     // The selected doc (a1) is a descendant of the branch we hide (a).
     const { actions } = renderReader({ id: "a1", selectedId: a1.id, data });
 
     fireEvent.click(screen.getByText(`hide-${a.id}`));
 
-    // Selection is moved to a's parent (root) — outside the hidden branch, so it
-    // stays visible and recoverable rather than vanishing.
-    expect(actions.navigate).toHaveBeenCalledWith(root.id);
+    // Focus lands on the clicked root (a) itself — the collapsed row stays on
+    // screen — rather than jumping to its parent or vanishing.
+    expect(actions.navigate).toHaveBeenCalledWith(a.id);
+  });
+
+  it("the clicked root stays hidden after selection moves onto it (its subtree does not re-expand)", () => {
+    const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { rerenderWith } = renderReader({ id: "a1", selectedId: a1.id, data });
+
+    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    // Simulate the selection move landing (navigate(a) → id becomes a).
+    rerenderWith({ id: "a", selectedId: a.id, data });
+
+    // a is selected and visible, but its subtree stayed collapsed.
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "true");
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+    expect(screen.queryByTestId(`node-${a2.id}`)).toBeNull();
   });
 
   it("does not move the selection when hiding a branch that does not contain it", () => {
