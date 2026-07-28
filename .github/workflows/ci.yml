@@ -92,8 +92,8 @@ jobs:
       - name: Bundle
         run: pnpm exec vite build
 
-  test:
-    name: "CI: Test"
+  test-snap:
+    name: "CI: Test snaps"
     runs-on: ubuntu-latest
     needs: lint-build
     steps:
@@ -117,8 +117,6 @@ jobs:
       - name: Restore atlas artifacts
         run: tar -xzf atlas-artifacts.tgz
 
-      - uses: oven-sh/setup-bun@v2
-
       - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v4
@@ -126,21 +124,13 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Run Vitest tests
-        run: pnpm test
-        env:
-          REPRO: "1"
-
-      - name: Run Bun tests
-        run: pnpm test:server
-
       - name: Verify graph snapshots
         run: pnpm test:snap
 
   coverage-vitest:
-    name: "CI: Coverage (Vitest)"
+    name: "CI: Test Coverage (Vitest)"
     runs-on: ubuntu-latest
-    needs: test
+    needs: lint-build
     steps:
       - uses: actions/checkout@v5
         with:
@@ -183,9 +173,9 @@ jobs:
           retention-days: 14
 
   coverage-bun:
-    name: "CI: Coverage (Bun)"
+    name: "CI: Test Coverage (Bun)"
     runs-on: ubuntu-latest
-    needs: test
+    needs: lint-build
     steps:
       - uses: actions/checkout@v5
         with:
@@ -345,7 +335,7 @@ jobs:
   server:
     name: "CI: Railway server (Postgres + MCP smoke)"
     runs-on: ubuntu-latest
-    needs: test
+    needs: lint-build
     services:
       postgres:
         image: pgvector/pgvector:pg16
