@@ -1,6 +1,6 @@
-import { CHANGE_COLOR, RECONSTRUCTED_ERAS, isGitSha, type HistoryEntry } from "../../lib/history";
+import { CHANGE_COLOR, RECONSTRUCTED_ERAS, isGitSha, movePaths, severedRange, type HistoryEntry } from "../../lib/history";
 import { DiffView } from "./DiffView";
-import { TimelineRail } from "./Timeline";
+import { LINE1_H, TimelineRow } from "./Timeline";
 
 const CHANGE_LABEL: Record<string, string> = {
   added: "added",
@@ -33,114 +33,120 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
 
   // Title of the unit (line 2): the matched PR-body bullet, else the PR title.
   const title = entry.summary ?? (hasPr ? entry.prTitle : undefined);
+  const move = movePaths(entry);
+  const range = entry.date ? null : severedRange(entry.commitHash);
 
   return (
     // Each entry is one node on the timeline: the rail runs down the left gutter,
     // the unit's three lines (date + PR/commit, title, type of edit) sit to its right.
-    <article className="border-b" style={{ borderColor: "var(--border)" }}>
-      <div className="flex gap-3 py-2.5">
-        <TimelineRail color={color} hideTop={isFirst} />
-        <div className="min-w-0 flex-1">
-      {/* Line 1: date, then the Atlas PR (if any) or — only when there's no PR —
-          the commit / reconstructed source. */}
-      <div className="flex items-baseline gap-2 flex-wrap mono text-[11px]">
-        <span style={{ color: "var(--tan-3)" }}>{entry.date}</span>
+    <article>
+      <TimelineRow dot={color} hideTop={isFirst}>
+        {/* Line 1 is the entry's heading: date, then the Atlas PR (if any) or —
+            only when there's no PR — the commit / reconstructed source. LINE1_H
+            keeps the timeline dot centered on it — see Timeline.tsx. */}
+        <h4
+          className="flex items-baseline gap-2 flex-wrap mono text-[13px]"
+          style={{ lineHeight: `${LINE1_H}px` }}
+        >
+          {/* A severed-era birth has no date, only the window it happened in —
+              shown as a month range (not a <time>, which can't express one). */}
+          {entry.date ? (
+            <time dateTime={entry.date} style={{ color: "var(--tan-3)" }}>
+              {entry.date}
+            </time>
+          ) : range ? (
+            <span style={{ color: "var(--tan-3)" }}>{range}</span>
+          ) : null}
 
-        {hasPr ? (
-          <span style={{ color: "var(--tan-2)" }}>
-            Atlas Pull Request{" "}
+          {hasPr ? (
             <a
               href={entry.prUrl}
               target="_blank"
               rel="noopener noreferrer"
+              title={`Atlas Pull Request #${entry.pr}`}
               className="hover:underline focus-visible:underline"
               style={{ color: "var(--accent)" }}
             >
-              #{entry.pr}
+              PR {entry.pr}
             </a>
-          </span>
-        ) : gitSha ? (
-          <span style={{ color: "var(--tan-3)" }}>
-            Commit{" "}
+          ) : gitSha ? (
+            <span style={{ color: "var(--tan-3)" }}>
+              commit{" "}
+              <a
+                href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline focus-visible:underline"
+                style={{ color: "var(--tan-3)" }}
+              >
+                {entry.commitHash}
+              </a>
+            </span>
+          ) : entry.sourceUrl ? (
+            // Reconstructed pre-git origin (era mip/genesis): a synthetic tag, not a
+            // commit — link the external source (mips-repo section / genesis snapshot)
+            // instead of a dead github.com/.../commit/ URL.
             <a
-              href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+              href={entry.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:underline focus-visible:underline"
               style={{ color: "var(--tan-3)" }}
             >
-              {entry.commitHash}
+              source →
             </a>
-          </span>
-        ) : entry.sourceUrl ? (
-          // Reconstructed pre-git origin (era mip/genesis): a synthetic tag, not a
-          // commit — link the external source (mips-repo section / genesis snapshot)
-          // instead of a dead github.com/.../commit/ URL.
-          <a
-            href={entry.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:underline focus-visible:underline"
-            style={{ color: "var(--tan-3)" }}
-          >
-            source →
-          </a>
-        ) : (
-          // Undated severed-era birth: no real sha, no external source to link —
-          // show a human label instead of the raw internal `severed:<window>` tag.
-          <span style={{ color: "var(--tan-3)" }}>
-            {entry.era === "severed" ? "undated" : entry.commitHash}
-          </span>
-        )}
+          ) : range ? null : (
+            // No real sha and no external source to link. A severed-era birth is
+            // already covered by the range above; anything else shows its tag.
+            <span style={{ color: "var(--tan-3)" }}>{entry.commitHash}</span>
+          )}
 
-        {hasPr && entry.prAuthor && (
-          <span style={{ color: "var(--tan-3)" }}>by {entry.prAuthor}</span>
-        )}
-        {hasPr && entry.commentCount ? (
-          <span style={{ color: "var(--tan-3)" }}>{entry.commentCount} comments</span>
+          {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
+              are badged — deterministically-matched links carry no badge (the default). */}
+          {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (entry.method === "ai" || entry.method === "human") && (
+            <span
+              title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
+              className="shrink-0 px-1 rounded text-[10px] uppercase tracking-wide"
+              style={{
+                background: entry.method === "ai" ? "var(--accent)" : "var(--hover)",
+                color: entry.method === "ai" ? "var(--bg)" : "var(--tan-2)",
+                lineHeight: `${LINE1_H}px`,
+              }}
+            >
+              {entry.method === "ai" ? "AI" : "human"}
+            </span>
+          )}
+        </h4>
+
+        {/* Line 2: the change's title. */}
+        {title ? (
+          <p className="italic text-[12px] leading-snug mt-1" style={{ color: "var(--tan)" }}>
+            {title}
+          </p>
         ) : null}
 
-        {/* per-change provenance for reconstructed entries: only the exceptions (AI / human)
-            are badged — deterministically-matched links carry no badge (the default). */}
-        {entry.era && RECONSTRUCTED_ERAS.has(entry.era) && (entry.method === "ai" || entry.method === "human") && (
-          <span
-            title={entry.method === "ai" ? "Lineage resolved by an AI model" : "Lineage resolved by human review"}
-            className="shrink-0 px-1 rounded text-[10px] uppercase tracking-wide"
-            style={{
-              background: entry.method === "ai" ? "var(--accent)" : "var(--hover)",
-              color: entry.method === "ai" ? "var(--bg)" : "var(--tan-2)",
-            }}
-          >
-            {entry.method === "ai" ? "AI" : "human"}
-          </span>
+        {/* Line 3: the type of edit — a move reads as one sentence, folding its
+            from/to paths into the label rather than a separate arrow line. */}
+        {!hideChangeLabel && (
+          <p className="mono text-[12px] mt-1 break-all" style={{ color }}>
+            {labelOverride ?? CHANGE_LABEL[entry.changeType]}
+            {move && (
+              <>
+                {move.from && (
+                  <>
+                    {" from "}
+                    <span style={{ color: "var(--tan-3)" }}>{move.from}</span>
+                  </>
+                )}
+                {" to "}
+                <span style={{ color: "var(--tan-2)" }}>{move.to}</span>
+              </>
+            )}
+          </p>
         )}
-      </div>
 
-      {/* Line 2: the change's title. */}
-      {title ? (
-        <div className="font-medium text-[13px] mt-1" style={{ color: "var(--tan)" }}>
-          {title}
-        </div>
-      ) : null}
-
-      {/* Line 3: the type of edit. */}
-      {!hideChangeLabel && (
-        <div className="mono text-[11px] mt-1" style={{ color }}>
-          {labelOverride ?? CHANGE_LABEL[entry.changeType]}
-        </div>
-      )}
-
-      {entry.diff && <DiffView lines={entry.diff} />}
-
-      {/* A move renders its destination prominently (larger, not a faint arrow). */}
-      {entry.changeType === "moved" && entry.movedTo && (
-        <div className="mono text-[13px] mt-1.5" style={{ color: "var(--tan-2)" }}>
-          {entry.movedFrom && <span style={{ color: "var(--tan-3)" }}>{entry.movedFrom} </span>}
-          <span style={{ color: "var(--tan)" }}>→ {entry.movedTo}</span>
-        </div>
-      )}
-        </div>
-      </div>
+        {entry.diff && <DiffView lines={entry.diff} />}
+      </TimelineRow>
     </article>
   );
 }

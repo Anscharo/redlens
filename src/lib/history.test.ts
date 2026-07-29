@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { loadHistoryBatch, loadHistory, BATCH_MAX, type HistoryEntry } from "./history";
+import { loadHistoryBatch, loadHistory, movePaths, severedRange, BATCH_MAX, type HistoryEntry } from "./history";
 
 const entry = (commitHash: string): HistoryEntry => ({
   date: "2024-01-01",
@@ -142,5 +142,38 @@ describe("loadHistory", () => {
     expect(await loadHistory(a)).toBeNull();
     expect(await loadHistory(a)).toBeNull();
     expect(getSpy).toHaveBeenCalledTimes(1); // second call reused the cached settled promise
+  });
+});
+
+describe("movePaths", () => {
+  const moved = (e: Partial<HistoryEntry>): HistoryEntry => ({
+    date: "2024-01-01",
+    commitHash: "abc1234",
+    changeType: "moved",
+    ...e,
+  });
+
+  it("returns the recorded paths when git has them", () => {
+    expect(movePaths(moved({ movedFrom: "a.md", movedTo: "b.md" }))).toEqual({ from: "a.md", to: "b.md" });
+  });
+
+  it("names the markdown migration's paths, which git records as a rewrite not a rename", () => {
+    expect(movePaths(moved({ pr: 117 }))).toEqual({ from: "Sky Atlas.html", to: "Sky Atlas.md" });
+  });
+
+  it("is null for a pathless move from any other PR, and for non-moves", () => {
+    expect(movePaths(moved({ pr: 236 }))).toBeNull();
+    expect(movePaths(moved({ changeType: "modified", movedTo: "b.md" }))).toBeNull();
+  });
+});
+
+describe("severedRange", () => {
+  it("renders a severed window as a month range", () => {
+    expect(severedRange("severed:2024-09-02..2025-05-28")).toBe("2024-09 ~ 2025-05");
+  });
+
+  it("is null for a real sha or any other synthetic tag", () => {
+    expect(severedRange("4e931df")).toBeNull();
+    expect(severedRange("genesis:bafkreih7")).toBeNull();
   });
 });

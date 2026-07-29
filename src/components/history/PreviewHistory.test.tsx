@@ -57,27 +57,41 @@ afterEach(() => {
 });
 
 describe("PreviewHistory preview entry", () => {
-  it("shows an 'Added in this preview' entry with the PR label, author and GitHub link", async () => {
+  it("shows an 'Added in this preview' entry with the PR line, title and GitHub link", async () => {
     setDiff({ added: new Set(["n1"]) });
     render(<PreviewHistory nodeId="n1" />);
 
-    expect(screen.getByText(/Added\s*in this preview/)).toBeInTheDocument();
-    // Label + author come from meta.json (async).
-    expect(await screen.findByText(/feat\/x — Add a thing · by alice/)).toBeInTheDocument();
-    const link = await screen.findByRole("link", { name: "view on GitHub →" });
+    // Wording + PR line come from meta.json (async): the source is a pull request,
+    // not "this preview" — it isn't the preview that changed anything.
+    expect(await screen.findByText(/Added\s*in this pull request/)).toBeInTheDocument();
+    // PR number + title, laid out like a live entry:
+    // "PR n" then the title below it. The author is deliberately not shown.
+    expect(await screen.findByText("PR 42")).toBeInTheDocument();
+    expect(await screen.findByText("Add a thing")).toBeInTheDocument();
+    expect(screen.queryByText(/alice/)).not.toBeInTheDocument();
+    const link = await screen.findByRole("link", { name: "view on GitHub" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/next-gen-atlas/pull/42");
   });
 
-  it("shows a 'Changed in this preview' entry for a changed doc", () => {
+  it("puts the branch in the title slot when the preview has no PR", async () => {
     setDiff({ changed: new Set(["n1"]) });
+    mockMeta({ ref: "feat/x", kind: "branch", repo: "someone/next-gen-atlas", sha: "abc123" });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText(/Changed\s*in this preview/)).toBeInTheDocument();
+    expect(await screen.findByText("Branch: someone/feat/x")).toBeInTheDocument();
+    expect(screen.getByText(/Changed\s*in this branch/)).toBeInTheDocument();
+    expect(screen.queryByText(/^PR /)).not.toBeInTheDocument();
   });
 
-  it("reports 'Unchanged by this preview' for an untouched doc", () => {
+  it("shows a 'Changed in this pull request' entry for a changed doc", async () => {
+    setDiff({ changed: new Set(["n1"]) });
+    render(<PreviewHistory nodeId="n1" />);
+    expect(await screen.findByText(/Changed\s*in this pull request/)).toBeInTheDocument();
+  });
+
+  it("reports the doc unchanged by the source for an untouched doc", async () => {
     setDiff({});
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText("Unchanged by this preview.")).toBeInTheDocument();
+    expect(await screen.findByText("Unchanged by this pull request.")).toBeInTheDocument();
   });
 
   it("renders the line diff when a patch is available", () => {
@@ -93,12 +107,14 @@ describe("PreviewHistory preview entry", () => {
     expect(screen.getByText(/renumbered A\.1\.2 → A\.2\.3/)).toBeInTheDocument();
   });
 
-  it("marks a slot-reusing added doc with an asterisk and disclaimer", () => {
+  it("marks a slot-reusing added doc with a superscript asterisk and disclaimer", async () => {
     setDiff({ added: new Set(["n1"]), reusedSlot: { n1: { title: "Old Doc", movedTo: "A.9" } } });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText(/Added\*\s*in this preview/)).toBeInTheDocument();
+    expect(await screen.findByText(/Added\s*in this pull request/)).toBeInTheDocument();
+    // The marker is a superscript footnote pointing at the note below.
+    expect(screen.getAllByText("*").map((el) => el.tagName)).toEqual(["SUP", "SUP"]);
     expect(screen.getByText(/takes over an existing doc number/)).toBeInTheDocument();
-    expect(screen.getByText(/moved to A\.9 in this preview/)).toBeInTheDocument();
+    expect(screen.getByText(/moved to A\.9 in this pull request/)).toBeInTheDocument();
   });
 
   it("shows the ⚠ identity-swap warning with old/new title and relocation target", () => {
@@ -111,6 +127,8 @@ describe("PreviewHistory preview entry", () => {
     render(<PreviewHistory nodeId="n1" />);
     expect(screen.getByText(/Identity changed/)).toBeInTheDocument();
     expect(screen.getByText(/moved to A\.9/)).toBeInTheDocument();
+    // The ⚠ glyph is sized up relative to the 11px mono around it.
+    expect(screen.getByText("⚠")).toHaveStyle({ fontSize: "1.25em" });
   });
 
   it("notes when a swapped UUID's previous content is not present in the preview", () => {
@@ -136,7 +154,7 @@ describe("PreviewHistory live section", () => {
   it("always renders the live atlas history below the preview entry", () => {
     setDiff({ added: new Set(["n1"]) });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText("On the live atlas")).toBeInTheDocument();
+    expect(screen.getByText("On the Live Atlas")).toBeInTheDocument();
     expect(screen.getByTestId("live-history")).toHaveTextContent("live:n1");
   });
 

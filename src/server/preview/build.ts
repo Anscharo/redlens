@@ -291,6 +291,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
         prTitle: resolved.pr?.title,
         prAuthor: resolved.pr?.author,
         prState: resolved.pr?.state,
+        headCommitAt: resolved.date,
         resolvedAt: new Date().toISOString(),
         docCount,
         buildMs: Date.now() - t0,

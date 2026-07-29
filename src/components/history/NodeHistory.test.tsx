@@ -40,17 +40,36 @@ describe("NodeHistory states", () => {
     expect(await screen.findByText("no history recorded")).toBeInTheDocument();
   });
 
-  it("renders 'no history recorded' for an empty array", async () => {
+  it("renders 'no history recorded' for an empty array, indented to the entry column", async () => {
     mockLoad.mockResolvedValue([]);
     render(<NodeHistory nodeId="n3" />);
-    expect(await screen.findByText("no history recorded")).toBeInTheDocument();
+    const msg = await screen.findByText("no history recorded");
+    // Status lines have no rail of their own, so they indent to where entry text
+    // starts rather than sitting under the timeline.
+    expect(msg).toHaveStyle({ marginLeft: "30px" });
+  });
+
+  it("keeps the first entry's upward rail when the timeline runs in from above", async () => {
+    // Preview mode draws its own entry and heading above this list, so trimming
+    // the top segment here would break one continuous line into two.
+    mockLoad.mockResolvedValue([entry({ pr: 1 })]);
+    const railSpans = (c: HTMLElement) => c.querySelectorAll("[aria-hidden='true'] span").length;
+
+    const trimmed = render(<NodeHistory nodeId="n5" />);
+    await screen.findByText("2025-01-01");
+    const trimmedCount = railSpans(trimmed.container);
+    cleanup();
+
+    const continued = render(<NodeHistory nodeId="n5" railAbove />);
+    await screen.findByText("2025-01-01");
+    expect(railSpans(continued.container)).toBe(trimmedCount + 1);
   });
 
   it("renders an entry row with its PR title", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 42, prTitle: "Tweak the thing", changeType: "added" })]);
     render(<NodeHistory nodeId="n4" />);
     expect(await screen.findByText("Tweak the thing")).toBeInTheDocument();
-    expect(screen.getByText("#42")).toBeInTheDocument();
+    expect(screen.getByText("PR 42")).toBeInTheDocument();
   });
 
   it("sorts entries newest-first by date", async () => {

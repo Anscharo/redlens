@@ -70,6 +70,29 @@ export function isGitSha(s: string | undefined | null): boolean {
   return !!s && /^[0-9a-f]{7,40}$/i.test(s);
 }
 
+/** 'Migrate To Markdown File' (2025-11-21) — the PR that turned the single HTML
+ *  atlas into markdown. Every doc alive at the time carries a `moved` row for it. */
+export const PRE_MD_PR = 117;
+// git records that migration as a whole-file rewrite rather than a rename, so the
+// per-doc rows carry no paths — name the one path every doc took instead.
+const PRE_MD_MOVE = { from: "Sky Atlas.html", to: "Sky Atlas.md" } as const;
+
+/** A severed-era birth has no date — only the window it happened in, encoded in
+ *  its synthetic tag (`severed:2024-09-02..2025-05-28`). Render that window as a
+ *  month range so the entry still carries a when. Null if it isn't one. */
+export function severedRange(commitHash: string): string | null {
+  const m = /^severed:(\d{4}-\d{2})-\d{2}\.\.(\d{4}-\d{2})-\d{2}$/.exec(commitHash);
+  return m && `${m[1]} ~ ${m[2]}`;
+}
+
+/** The from/to paths to render for a `moved` entry, or null if it isn't a move
+ *  (or is one with no paths to show). */
+export function movePaths(e: HistoryEntry): { from?: string; to: string } | null {
+  if (e.changeType !== "moved") return null;
+  if (e.movedTo) return { from: e.movedFrom, to: e.movedTo };
+  return e.pr === PRE_MD_PR ? PRE_MD_MOVE : null;
+}
+
 /** Single source of truth for change-type → CSS color, shared by the atlas
  *  history panel (EntryRow) and the radar actor history (ActorHistory).
  *  added/removed reuse the diff-view tokens so the label color matches the
@@ -78,7 +101,10 @@ export const CHANGE_COLOR: Record<string, string> = {
   added: "var(--diff-added-fg)",
   modified: "var(--tan-3)",
   removed: "var(--diff-removed-fg)",
-  moved: "var(--accent)",
+  // Blue from the decorative depth cycle — deliberately NOT --accent (the link
+  // color) nor --warn/--error-text (which carry their own meaning); it just has to
+  // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
+  moved: "var(--depth-4)",
 };
 
 // Module-level cache: nodeId → promise
