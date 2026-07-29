@@ -108,12 +108,6 @@ export function NodeHistory({
   const visible = showReconstructed ? sorted : sorted.filter((e) => !e.era || !RECONSTRUCTED_ERAS.has(e.era));
   const firstHtmlEra = visible.findIndex((e) => e.era === "html");
   const firstPreGit = visible.findIndex((e) => e.era && PRE_GIT_ERAS.has(e.era));
-  // The toggle sits right below the migration entry — that's the actual boundary
-  // between native markdown history and everything reconstructed. Migration is a
-  // markdown-era entry (not RECONSTRUCTED_ERAS), so its index in `visible` is stable
-  // across the toggle. Fall back to the top for the (unlikely) doc whose snapshot was
-  // byte-identical across the migration commit, so it never got its own PR117 row.
-  const migrationIdx = visible.findIndex((e) => e.pr === PRE_MD_PR);
   const toggleButton = hasReconstructed && (
     <button
       type="button"
@@ -133,26 +127,30 @@ export function NodeHistory({
     </button>
   );
 
-  // Disclaimers, the footer and the toggle sit *inside* the timeline (indented into
-  // the entry column, rail running past them) so the line never breaks. Only the
-  // topmost block of the list trims the rail above it — and not even that when the
-  // rail already runs into this list from above.
-  const leadsWithToggle = !!toggleButton && migrationIdx === -1;
-  const topIsBlock = leadsWithToggle || firstHtmlEra === 0 || firstPreGit === 0;
+  // The reconstructed-history toggle sits at the native↔reconstructed boundary —
+  // just above the block it shows/hides. When those entries are visible it renders
+  // right before the first one; when hidden (none are in `visible`) it renders at
+  // the very bottom, directly below the last native entry, where the block appears.
+  // Disclaimers/footer/toggle sit *inside* the timeline (indented into the entry
+  // column, rail running past them) so the line never breaks; only the topmost block
+  // of the list trims the rail above it (and not when the rail runs in from above).
+  const firstReconstructedIdx = visible.findIndex((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
+  const topIsBlock = firstReconstructedIdx === 0;
   const trimTop = !railAbove;
 
   return (
     <div>
-      {leadsWithToggle && <TimelineRow hideTop={trimTop}>{toggleButton}</TimelineRow>}
       {visible.map((entry, i) => {
         const isRootSnapshot =
           hasPreGit && entry.era === "html" && entry.changeType === "added" && entry.commitHash.startsWith(ROOT_SHA);
         const disclaimer =
           i === firstHtmlEra ? <HtmlEraDisclaimer /> : i === firstPreGit ? <PreGitDisclaimer /> : null;
+        const toggleHere = i === firstReconstructedIdx && !!toggleButton;
         return (
           <Fragment key={i}>
+            {toggleHere && <TimelineRow hideTop={trimTop && i === 0}>{toggleButton}</TimelineRow>}
             {disclaimer && (
-              <TimelineRow hideTop={trimTop && i === 0 && !leadsWithToggle}>{disclaimer}</TimelineRow>
+              <TimelineRow hideTop={trimTop && i === 0 && !toggleHere}>{disclaimer}</TimelineRow>
             )}
             <EntryRow
               entry={entry}
@@ -164,10 +162,12 @@ export function NodeHistory({
                 <PreMdFooter />
               </TimelineRow>
             )}
-            {i === migrationIdx && toggleButton && <TimelineRow>{toggleButton}</TimelineRow>}
           </Fragment>
         );
       })}
+      {/* No reconstructed entries visible (toggle off) → the button sits at the
+          bottom, right where the hidden block would appear. */}
+      {firstReconstructedIdx === -1 && toggleButton && <TimelineRow>{toggleButton}</TimelineRow>}
     </div>
   );
 }
