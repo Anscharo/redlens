@@ -60,6 +60,23 @@ function checkAuthConfig(): void {
 }
 checkAuthConfig();
 
+// Report the canonical-redirect decision at boot, in BOTH directions — the gate
+// turns on a single env string (RAILWAY_ENVIRONMENT_NAME === "production"), and
+// either way of getting it wrong is invisible until a human opens a URL:
+//   ON  outside production → the deploy 301s its own hostname away (PR previews
+//       inherit production's pinned APP_URL, so this black-holes them).
+//   OFF in production      → OAuth on secondary attached domains dies with
+//       invalid_oauth_state, the very thing canonical.ts exists to prevent.
+// Only meaningful with an https appUrl; canonical.ts declines on http anyway.
+if (config.appUrl.startsWith("https://")) {
+  const host = new URL(config.appUrl).host;
+  if (config.canonicalHostRedirect) {
+    console.warn(`↪️  canonical-host redirect ON (env="${config.railwayEnv}") — GETs on any host but ${host} 301 to ${config.appUrl}`);
+  } else {
+    console.warn(`↪️  canonical-host redirect OFF (env="${config.railwayEnv}") — expected in preview/PR envs. If this IS production, the env name is not "production" and OAuth on secondary domains will fail: set CANONICAL_HOST_REDIRECT=1.`);
+  }
+}
+
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",

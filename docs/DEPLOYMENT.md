@@ -394,7 +394,16 @@ includes the widgets. If you later move to a custom domain, also set
 > other attached host to the canonical origin (`src/server/canonical.ts`) —
 > required for OAuth anyway, since the CSRF state cookie is host-only and a flow
 > started on the apex could never complete on the subdomain. Escape hatch:
-> `CANONICAL_HOST_REDIRECT=0`.
+> `CANONICAL_HOST_REDIRECT=0` (and `=1` to force it on).
+>
+> **That redirect is gated on `RAILWAY_ENVIRONMENT_NAME === "production"`.**
+> Per-PR environments are forked from the base environment and inherit this
+> pinned `APP_URL`, so an ungated redirect 301s each PR deploy's own hostname to
+> production: the preview is unreachable, and the `e2e.yml` Playwright run
+> (which follows redirects) silently asserts against prod instead of the PR
+> build. Don't "fix" a PR env by setting `APP_URL` per-environment — the gate
+> handles it. Note that sign-in inside a PR env still lands on production,
+> because the OAuth callback is registered against the canonical host only.
 
 ---
 
