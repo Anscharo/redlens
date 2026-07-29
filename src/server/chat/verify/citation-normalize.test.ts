@@ -167,6 +167,33 @@ test("prose lines that look like definitions but have no URL destination survive
   expect(expand(answer)).toBe(answer);
 });
 
+test("undefined-label degradation: a resolver synthesizes an inline link for a label it can place", () => {
+  // The normalizer passes the normalized label KEY (dashes intact) to the
+  // resolver; the orchestrator's real resolver un-slugifies before matching.
+  const resolve = (label: string) => (label === "spark-rate" ? `/atlas/${A}` : null);
+  const r = expandReferenceLinks("The rate is [5%][spark-rate] today.", resolve);
+  expect(r.content).toBe(`The rate is [5%](/atlas/${A}) today.`);
+  expect(r.undefinedLabels).toEqual([]);
+});
+
+test("undefined-label degradation: a label the resolver can't place is stripped and still reported", () => {
+  const r = expandReferenceLinks("Per [the rules][missing-label] here.", () => null);
+  expect(r.content).toBe("Per the rules here.");
+  expect(r.content).not.toContain("[the rules]");
+  expect(r.undefinedLabels).toEqual(["missing-label"]);
+});
+
+test("undefined-label degradation: a collapsed [text][] ref resolves through its text when defined by the resolver", () => {
+  const resolve = (label: string) => (label === "keel accord" ? `/atlas/${B}` : null);
+  expect(expandReferenceLinks("See the [Keel Accord][] now.", resolve).content).toBe(`See the [Keel Accord](/atlas/${B}) now.`);
+});
+
+test("resolver path stays idempotent", () => {
+  const resolve = (label: string) => (label === "spark-rate" ? `/atlas/${A}` : null);
+  const once = expandReferenceLinks("[5%][spark-rate] and [x][nope].", resolve).content;
+  expect(expandReferenceLinks(once, resolve).content).toBe(once);
+});
+
 test("the checking layer reports identically for a reference answer and its inline twin", () => {
   const [a, b] = [...ix.docMap.values()].filter((d) => !/[[\]]/.test(d.title) && d.content.length > 200).slice(0, 2);
   const evidence = [JSON.stringify({ id: a.id, title: a.title, content: a.content }), JSON.stringify({ id: b.id, title: b.title, content: b.content })];

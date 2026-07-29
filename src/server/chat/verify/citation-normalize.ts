@@ -65,6 +65,10 @@ interface ExpandCtx {
   used: Set<string>;
   undef: string[];
   refMode: boolean;
+  // Undefined-label degradation: resolve a used-but-undeclared label to an
+  // /atlas/<uuid> href (docs retrieved this turn, else the atlas). Injected by
+  // the orchestrator; absent in the pure/no-index path, which strips instead.
+  resolve?: (label: string) => string | null;
 }
 
 function expandLine(line: string, ctx: ExpandCtx): string {
@@ -87,9 +91,13 @@ function expandLine(line: string, ctx: ExpandCtx): string {
       // twice for two sources", so downstream sees nothing novel.
       return hrefs.map((h) => `[${text}](${h})`).join(" ");
     }
-    // A used-but-undeclared label must never ship as raw brackets: drop to
-    // plain text and report it. Resolving it to a doc is repair's job.
+    // A used-but-undeclared label must never ship as raw brackets. First try to
+    // resolve it against the docs retrieved this turn (undefined-label
+    // degradation): a unique match synthesizes the missing definition as an
+    // inline link. Otherwise drop to plain text and report it as a hard failure.
     if (!shortcut) {
+      const href = ctx.resolve?.(key);
+      if (href) return `[${text}](${href})`;
       ctx.undef.push(key);
       return text;
     }
@@ -97,7 +105,7 @@ function expandLine(line: string, ctx: ExpandCtx): string {
   });
 }
 
-export function expandReferenceLinks(answer: string): ReferenceExpansion {
+export function expandReferenceLinks(answer: string, resolve?: (label: string) => string | null): ReferenceExpansion {
   const lines = answer.split("\n");
   const definitions = new Map<string, string>();
   const declared: string[] = []; // normalized labels, declaration order
@@ -121,7 +129,7 @@ export function expandReferenceLinks(answer: string): ReferenceExpansion {
 
   // Pass 2 — expand uses and drop the definition lines (remark strips them
   // when rendering, so the checking layer must not see them as prose either).
-  const ctx: ExpandCtx = { defs: definitions, used: new Set(), undef: [], refMode: definitions.size > 0 };
+  const ctx: ExpandCtx = { defs: definitions, used: new Set(), undef: [], refMode: definitions.size > 0, resolve };
   const out: string[] = [];
   fence = false;
   for (let i = 0; i < lines.length; i++) {

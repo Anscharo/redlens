@@ -13,6 +13,7 @@ import {
   extractQuotedSpans,
   normalizeForMatch,
   findUngroundedAddresses,
+  findUngroundedCitationValues,
   findUntracedNumbers,
   findUngroundedQuotes,
   findLowOverlapCitations,
@@ -378,4 +379,59 @@ test("runDeterministicChecks: fabricated or misattributed doc numbers are hard f
   const misattributed = runDeterministicChecks(`Per [${other.doc_no} - X](/atlas/${realUuid}).`, [], ix);
   expect(misattributed.failed).toBe(true);
   expect(misattributed.docNoMismatches).toHaveLength(1);
+});
+
+// ── per-doc value grounding: findUngroundedCitationValues ──────────────────
+// A real doc whose content carries a distinctive standalone percentage — the
+// "value used as link text, cited to the doc that actually contains it" case.
+// Found dynamically so the test survives atlas renumbering.
+function docWithPercent(): { doc: typeof realDoc; value: string } {
+  for (const d of ix.docMap.values()) {
+    const m = d.content.match(/(?<![\w.])(\d{2,3}%)/);
+    if (m) return { doc: d, value: m[1] };
+  }
+  throw new Error("no doc with a standalone percentage in the atlas");
+}
+
+// A distinctive figure no single doc is expected to contain, so each test
+// controls grounding purely via the evidence it passes.
+const EXOTIC = "48.73%";
+
+test("value grounding: a value used as link text that IS in the cited doc passes", () => {
+  const { doc, value } = docWithPercent();
+  expect(findUngroundedCitationValues(`The threshold is [${value}](/atlas/${doc.id}).`, [], ix)).toEqual([]);
+});
+
+test("value grounding: a value in this turn's evidence but NOT the cited doc is a hard failure", () => {
+  expect(realDoc.content).not.toContain(EXOTIC);
+  const answer = `The rate is [${EXOTIC}](/atlas/${realUuid}).`;
+  const evidence = [`A different retrieved doc states ${EXOTIC} explicitly.`];
+  expect(findUngroundedCitationValues(answer, evidence, ix)).toHaveLength(1);
+  const report = runDeterministicChecks(answer, evidence, ix);
+  expect(report.ungroundedCitationValues).toHaveLength(1);
+  expect(report.failed).toBe(true);
+});
+
+test("value grounding: a value in NO evidence at all is left to the soft check, not hard-failed", () => {
+  // The plainly-computed / paraphrased escape hatch — a figure that appears in
+  // no tool result lives in findUntracedNumbers (soft), never here. This is
+  // what protects a correct answer whose cited doc spells the figure out
+  // ("five percent") while the digit form appears nowhere in the evidence.
+  expect(realDoc.content).not.toContain(EXOTIC);
+  expect(findUngroundedCitationValues(`A derived total of [${EXOTIC}](/atlas/${realUuid}).`, [], ix)).toEqual([]);
+});
+
+test("value grounding: a mistyped EVM address cited to the wrong doc is caught, case-insensitively", () => {
+  const addr = "0x" + "aB".repeat(20); // 40 hex chars, EIP-55-ish mixed case
+  expect(realDoc.content.toLowerCase()).not.toContain(addr.toLowerCase());
+  const answer = `Held at [${addr}](/atlas/${realUuid}).`;
+  const evidence = [`{"address":"${addr.toLowerCase()}"}`]; // present, lowercased
+  expect(findUngroundedCitationValues(answer, evidence, ix)).toHaveLength(1);
+});
+
+test("value grounding: non-value link text, small counts, and leading doc_nos carry no value", () => {
+  const evidence = ["unrelated evidence mentioning 3 signers under A.2.2.9"];
+  for (const text of ["Keel Accord", "3 signers", "A.2.2.9 - Reward Rate"]) {
+    expect(findUngroundedCitationValues(`Cited [${text}](/atlas/${realUuid}).`, evidence, ix)).toEqual([]);
+  }
 });
