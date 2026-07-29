@@ -291,6 +291,101 @@ export function findUntracedNumbers(answer: string, evidenceTexts: string[]): st
   return [...new Set(out)];
 }
 
+// A citation whose LINK TEXT is a value — a number, percentage, date, or
+// on-chain address — is the sharpest wrong-doc signal available in pure code.
+// A value cannot be paraphrased, so if the answer writes `[5%][spark-rate]` the
+// figure 5% must literally occur in the spark-rate doc; citing a doc that does
+// not contain it is misattribution, a HARD failure on the same reasoning as
+// `findUngroundedAddresses`. The escape hatch for "plainly computed" values
+// (a total the answer derives from cited parts, which lives in no single doc):
+// a value that appears in NO tool evidence at all is left to
+// `findUntracedNumbers` (soft) and never hard-failed here — only a value that
+// IS in this turn's evidence but NOT in the cited doc is flagged, which is
+// exactly a real figure attributed to the wrong document. Percentages and
+// decimals are examined even when small — unlike `findUntracedNumbers`'s ≤20
+// integer skip — because a bare `5%` is precisely the gap this closes.
+// Complements `findLowOverlapCitations`: overlap scores prose sentences, this
+// scores citations whose text IS the claim.
+const PERCENT_RE = /\d[\d,]*(?:\.\d+)?\s*%/g;
+const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
+const SLASH_DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
+
+// Comma/percent-form-insensitive numeric key: thousands separators drop on both
+// sides (`10,782` ↔ `10782`) and `5 %` collapses to `5%`, so a normalized value
+// matches the same figure however the doc spells its separators.
+const numKey = (s: string) => s.replace(/,(?=\d{3}\b)/g, "").replace(/\s+%/g, "%").toLowerCase();
+
+interface LinkValue {
+  literal: string;
+  address: "evm" | "sol" | null;
+}
+
+// Values carried by a citation's link text, most-distinctive-first (addresses,
+// then percentages, then dates, then remaining figures), each span blanked out
+// before the next scan so a percentage's or address's own digits are never
+// re-mined as a bare number.
+function citationValues(text: string): LinkValue[] {
+  const out: LinkValue[] = [];
+  const seen = new Set<string>();
+  const push = (literal: string, address: LinkValue["address"]) => {
+    const key = address ? literal : numKey(literal);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      out.push({ literal, address });
+    }
+  };
+  // A leading real/structural doc_no in the link text ("A.2.2.9 - Rate") is an
+  // identifier, not a value — drop it before mining.
+  let rest = text.replace(new RegExp(String.raw`^\s*${DOC_NO_CORE}\b`), "");
+  for (const m of rest.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) push(m, "evm");
+  for (const m of rest.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) push(m, "sol");
+  rest = rest.replace(new RegExp(EVM_ADDRESS_SRC, "g"), " ").replace(new RegExp(SOL_ADDRESS_SRC, "g"), " ");
+  for (const m of rest.match(PERCENT_RE) ?? []) push(m, null);
+  for (const m of rest.match(ISO_DATE_RE) ?? []) push(m, null);
+  for (const m of rest.match(SLASH_DATE_RE) ?? []) push(m, null);
+  rest = rest.replace(PERCENT_RE, " ").replace(ISO_DATE_RE, " ").replace(SLASH_DATE_RE, " ");
+  for (const m of rest.match(NUMBER_RE) ?? []) {
+    const n = Number(m.replace(/,/g, ""));
+    if (!Number.isFinite(n)) continue;
+    if (Number.isInteger(n) && Math.abs(n) <= SMALL_COUNT_MAX) continue;
+    push(m, null);
+  }
+  return out;
+}
+
+interface Hay {
+  raw: string;
+  lower: string;
+  num: string;
+}
+const mkHay = (s: string): Hay => ({ raw: s, lower: s.toLowerCase(), num: numKey(s) });
+
+// EVM matching is case-insensitive (checksum casing is cosmetic); base58 Solana
+// is case-sensitive; numeric values compare on the comma/percent-normalized key.
+function valueInHay(v: LinkValue, hay: Hay): boolean {
+  if (v.address === "evm") return hay.lower.includes(v.literal.toLowerCase());
+  if (v.address === "sol") return hay.raw.includes(v.literal);
+  return hay.num.includes(numKey(v.literal));
+}
+
+export function findUngroundedCitationValues(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
+  const cites = extractCitations(answer);
+  if (cites.length === 0) return [];
+  const evidence = mkHay(evidenceTexts.join("\n"));
+  const out: string[] = [];
+  for (const c of cites) {
+    const doc = ix.docMap.get(c.uuid);
+    if (!doc) continue; // an unknown uuid is already a hard failure
+    const docHay = mkHay(`${doc.title}\n${doc.content}`);
+    for (const v of citationValues(c.title)) {
+      if (valueInHay(v, docHay)) continue; // grounded in the cited doc — fine
+      if (!valueInHay(v, evidence)) continue; // in no evidence at all → computed/soft, skip
+      out.push(`${v.literal} cited to ${doc.doc_no} (${doc.title}) but absent from it`);
+    }
+  }
+  return [...new Set(out)];
+}
+
 // A citation whose UUID is real but points at the WRONG document passes every
 // other deterministic check (`findInvalidCitationUuids` only asks whether the
 // uuid exists; `findDocNoMismatches` only fires when the link TEXT leads with a
@@ -400,6 +495,10 @@ export interface CheckReport {
   uncitedParagraphs: number;
   ungroundedQuotes: string[];
   ungroundedAddresses: string[];
+  // Values used as citation link text (a number, percentage, date, or address)
+  // that occur in this turn's evidence but NOT in the specific doc they cite —
+  // a real figure attributed to the wrong document. A HARD failure.
+  ungroundedCitationValues: string[];
   untracedNumbers: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
@@ -422,6 +521,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
   const docNoMismatches = findDocNoMismatches(citations, ix);
   const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
+  const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
   return {
     citations,
     invalidCitations,
@@ -431,6 +531,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     uncitedParagraphs: countUncitedParagraphs(answer),
     ungroundedQuotes,
     ungroundedAddresses,
+    ungroundedCitationValues,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
     lowOverlapCitations: findLowOverlapCitations(answer, ix),
     lengthCapped: false,
@@ -439,6 +540,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
       invalidDocNos.length > 0 ||
       docNoMismatches.length > 0 ||
       ungroundedQuotes.length > 0 ||
-      ungroundedAddresses.length > 0,
+      ungroundedAddresses.length > 0 ||
+      ungroundedCitationValues.length > 0,
   };
 }

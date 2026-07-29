@@ -15,9 +15,10 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
-import { createLinkJudge, repairCitations, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
+import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
-import { createLinkGate, gatedChat } from "./verify/stream-link-gate.ts";
+import { gatedChat } from "./verify/stream-link-gate.ts";
+import { createCitationGate } from "./verify/definition-block-gate.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
@@ -115,16 +116,25 @@ function verifyEvent(
 //     canonical shape across those consumers beats byte-fidelity to raw model
 //     output.
 function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair } {
-  const refs = expandReferenceLinks(content);
+  // A used-but-undeclared label is resolved against this turn's retrieved docs
+  // and synthesized as an inline link when it maps uniquely (undefined-label
+  // degradation); unresolvable ones the normalizer strips to plain text and
+  // reports, and the orchestrator folds those into a hard failure below.
+  const judge = createLinkJudge(toolTexts, ix);
+  const resolveLabel = (label: string): string | null => {
+    const uuid = resolveLabelToUuid(label, judge);
+    return uuid ? `/atlas/${uuid}` : null;
+  };
+  const refs = expandReferenceLinks(content, resolveLabel);
   return { refs, repair: repairCitations(refs.content, toolTexts, ix) };
 }
 
 // Reference bookkeeping for the checks row — observability only, never a
-// verdict. Undefined labels are a hard failure per the plan, but only once
-// repair can resolve a label to a doc (a later wave); until then they are
-// already de-linkified to plain text by the normalizer. `undefined` so the
-// key vanishes from the persisted JSON on the overwhelmingly common turn that
-// uses no reference syntax at all.
+// verdict. The remaining `undefinedLabels` here are the ones that could NOT be
+// resolved to a retrieved doc (the resolvable ones were already synthesized
+// into inline links by normalizeAndRepair); repairedChecks folds these into a
+// hard failure. `undefined` so the key vanishes from the persisted JSON on the
+// overwhelmingly common turn that uses no reference syntax at all.
 function refsMeta(r: ReferenceExpansion) {
   if (r.definitions.size + r.undefinedLabels.length + r.unusedLabels.length === 0) return undefined;
   return { definitions: r.definitions.size, undefinedLabels: r.undefinedLabels, unusedLabels: r.unusedLabels };
@@ -133,15 +143,18 @@ function refsMeta(r: ReferenceExpansion) {
 // Repair the answer's atlas links in code, then fold unrepairable (stripped)
 // links back into the report as hard failures — the link is gone from the
 // shipped text, but a fabricated citation still means an unsupported claim.
-// A length-capped answer (cut off mid-generation) is folded in the same way:
-// it's not a citation problem, but it must equally force `failed` so the
-// escalation gate below sees it and the harness attempts a recovery.
-function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean): CheckReport {
+// Unresolvable undefined reference labels (de-linkified to plain text by the
+// normalizer) fold in identically: a claim that cited a doc which turned out
+// not to resolve is just as unsupported. A length-capped answer (cut off
+// mid-generation) is folded the same way: it's not a citation problem, but it
+// must equally force `failed` so the escalation gate below sees it and the
+// harness attempts a recovery.
+function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean, undefinedLabels: string[] = []): CheckReport {
   const checks = runDeterministicChecks(content, toolTexts, ix);
-  if (repair.stripped.length === 0 && !lengthCapped) return checks;
+  if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
-    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target)],
+    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target), ...undefinedLabels],
     lengthCapped,
     failed: true,
   };
@@ -170,6 +183,7 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
+    ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
@@ -238,7 +252,21 @@ export async function* runVerifiedChat(opts: {
     }
     return raw;
   };
-  const makeGate = () => createLinkGate(renderLink);
+  // Reference-style answers stream a definition block first; the gate buffers it
+  // and repairs the whole citation table once (same judge, same evidence) before
+  // releasing it, so a garbled definition never flashes as a live dead link.
+  // A gate failure degrades to emitting the block unrepaired — the post-answer
+  // pass is the safety net.
+  const repairBlock = (block: string): string => {
+    try {
+      judge ??= createLinkJudge(gateEvidence, opts.ix);
+      return repairDefinitionBlock(block, judge).content;
+    } catch (err) {
+      captureError(err, opts.obs, { stage: "stream_link_gate" });
+      return block;
+    }
+  };
+  const makeGate = () => createCitationGate({ render: renderLink, repairBlock });
 
   const onRoundEnd = (info: RoundInfo) => {
     checker.record(info);
@@ -303,7 +331,7 @@ export async function* runVerifiedChat(opts: {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
-    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped);
+    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels);
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
       verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), checks: { ...checks, citations: checks.citations.length } },
@@ -431,9 +459,9 @@ export async function* runVerifiedChat(opts: {
   let revChecks: CheckReport;
   try {
     const revToolTexts = toolTextsOf(revDone.transcript);
-    const { repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
+    const { refs: revRefs, repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
     if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped);
+    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels);
   } catch (err) {
     captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
     yield finish(revDone);

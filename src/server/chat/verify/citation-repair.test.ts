@@ -3,7 +3,7 @@
 import { test, expect } from "bun:test";
 import { loadIndexes } from "../../retrieval/indexes.ts";
 import { normalizeForMatch } from "./verify-checks.ts";
-import { repairCitations } from "./citation-repair.ts";
+import { repairCitations, repairDefinitionBlock, resolveLabelToUuid, createLinkJudge } from "./citation-repair.ts";
 
 const ix = loadIndexes();
 const realUuid = ix.docMap.keys().next().value as string;
@@ -113,4 +113,76 @@ test("the same bad uuid cited twice is repaired consistently", () => {
   const r = repairCitations(answer, evidence, ix);
   expect(r.content).toBe(`A [${realDoc.title}](/atlas/${realUuid}) then B [${realDoc.title}](/atlas/${realUuid}).`);
   expect(r.repaired).toHaveLength(2);
+});
+
+// ── repairDefinitionBlock: repair operates on the citation table, not per-use ──
+const flip3 = (uuid: string) => uuid.slice(0, -3) + [...uuid.slice(-3)].map((c) => (c === "0" ? "1" : "0")).join("");
+
+// A doc whose title is unique across the atlas AND alphanumeric+spaces only, so
+// its slug round-trips through unslugifyLabel back to a matchable title.
+function cleanUniqueTitleDoc() {
+  const counts = new Map<string, number>();
+  for (const d of ix.docMap.values()) {
+    const k = normalizeForMatch(d.title);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  for (const d of ix.docMap.values()) {
+    if (/^[a-z0-9 ]{13,}$/i.test(d.title) && counts.get(normalizeForMatch(d.title)) === 1) return d;
+  }
+  throw new Error("no clean unique-title doc in the atlas");
+}
+
+test("repairDefinitionBlock: a valid definition (with a title) is kept verbatim", () => {
+  const judge = createLinkJudge([], ix);
+  const line = `[keel-accord]: /atlas/${realUuid} "Keel Accord"`;
+  const r = repairDefinitionBlock(line, judge);
+  expect(r.content).toBe(line);
+  expect(r.repaired).toEqual([]);
+  expect(r.stripped).toEqual([]);
+});
+
+test("repairDefinitionBlock: a garbled uuid is repaired against this turn's evidence", () => {
+  const garbled = flip3(realUuid);
+  const judge = createLinkJudge([`{"id":"${realUuid}"}`], ix);
+  const r = repairDefinitionBlock(`[doc-a]: /atlas/${garbled}`, judge);
+  expect(r.content).toBe(`[doc-a]: /atlas/${realUuid}`);
+  expect(r.repaired).toEqual([{ title: "doc-a", from: garbled, to: realUuid }]);
+});
+
+test("repairDefinitionBlock: one repair fixes the table while valid siblings are untouched", () => {
+  const other = [...ix.docMap.values()].find((d) => d.id !== realUuid)!;
+  const garbled = flip3(realUuid);
+  const judge = createLinkJudge([`{"id":"${realUuid}"}`, `{"id":"${other.id}"}`], ix);
+  const block = [`[a]: /atlas/${garbled}`, `[b]: /atlas/${other.id}`].join("\n");
+  const r = repairDefinitionBlock(block, judge);
+  expect(r.content).toBe([`[a]: /atlas/${realUuid}`, `[b]: /atlas/${other.id}`].join("\n"));
+  expect(r.repaired).toHaveLength(1);
+});
+
+test("repairDefinitionBlock: an unrepairable definition is dropped and reported", () => {
+  const judge = createLinkJudge([], ix);
+  const r = repairDefinitionBlock(`[bad]: /atlas/${FAKE_UUID}`, judge);
+  expect(r.content).toBe("");
+  expect(r.stripped).toEqual([{ title: "bad", target: FAKE_UUID }]);
+});
+
+test("repairDefinitionBlock: a doc_no destination resolves through byDocNo", () => {
+  const target = ix.byDocNo.get(realDoc.doc_no)!;
+  const r = repairDefinitionBlock(`[x]: /atlas/${realDoc.doc_no}`, createLinkJudge([], ix));
+  expect(r.content).toBe(`[x]: /atlas/${target.id}`);
+});
+
+test("repairDefinitionBlock: a garbled uuid is rescued by its un-slugified label matching the doc title", () => {
+  const doc = cleanUniqueTitleDoc();
+  const slug = doc.title.toLowerCase().replace(/ +/g, "-");
+  const r = repairDefinitionBlock(`[${slug}]: /atlas/${FAKE_UUID}`, createLinkJudge([], ix));
+  expect(r.content).toBe(`[${slug}]: /atlas/${doc.id}`);
+});
+
+test("resolveLabelToUuid: a slug mapping uniquely to a doc resolves; nonsense is null", () => {
+  const doc = cleanUniqueTitleDoc();
+  const slug = doc.title.toLowerCase().replace(/ +/g, "-");
+  const judge = createLinkJudge([], ix);
+  expect(resolveLabelToUuid(slug, judge)).toBe(doc.id);
+  expect(resolveLabelToUuid("totally-made-up-nonexistent-label-xyz", judge)).toBeNull();
 });

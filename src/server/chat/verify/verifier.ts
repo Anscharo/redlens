@@ -178,6 +178,10 @@ export function buildVerifierPrompt(params: {
     `invalid_doc_numbers=${checks.invalidDocNos.join(",") || "none"} docno_mismatches=${checks.docNoMismatches.join("; ") || "none"}`,
     `uncited_paragraphs=${checks.uncitedParagraphs} ungrounded_quotes=${checks.ungroundedQuotes.length}`,
     `ungrounded_addresses=${checks.ungroundedAddresses.join(",") || "none"}`,
+    // Hard: a value used as citation link text (a figure, percentage, date, or
+    // address) that IS in the evidence but NOT in the doc it was cited to — a
+    // real number attributed to the wrong document.
+    `values_cited_to_wrong_doc=${checks.ungroundedCitationValues.join("; ") || "none"}`,
     // Soft: an untraced figure may be computed, unit-converted, or a schema
     // fact from [E0] — judge each against the evidence rather than assuming.
     `numbers_not_found_verbatim_in_evidence=${checks.untracedNumbers.join(",") || "none"}`,
