@@ -12,7 +12,10 @@
 // - host-only comparison, never protocol: TLS terminates at the Railway edge,
 //   so the request seen here is plain http on the right host — comparing
 //   origins would loop forever.
-// - CANONICAL_HOST_REDIRECT=0 opts out (config.canonicalHostRedirect).
+// - production only: config.canonicalHostRedirect is gated on the Railway
+//   environment name, because PR/preview environments inherit production's
+//   pinned APP_URL and would otherwise 301 their own hostname to prod. See the
+//   railwayEnv note in config.ts; CANONICAL_HOST_REDIRECT=0/1 forces off/on.
 import { config } from "../config.ts";
 
 export function canonicalRedirect(req: Request): Response | null {
