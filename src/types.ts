@@ -7,7 +7,7 @@ export type ReportId =
   | "stale-dates"
   | "oea-assessment"
   | "risk-rules"
-  | "library";
+  | "anatomy";
 
 export interface AtlasNode {
   id: string;

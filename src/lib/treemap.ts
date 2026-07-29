@@ -1,4 +1,4 @@
-import type { ChunkNode } from "./library";
+import type { ChunkNode } from "./anatomy";
 
 // Squarified treemap (Bruls et al.): children sorted largest-first fill their
 // parent's box with near-square rects, largest landing in the top-left —

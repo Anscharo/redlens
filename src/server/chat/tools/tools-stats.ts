@@ -1,14 +1,14 @@
 // atlas_describe "stats" section — a trimmed doc-mass map of the corpus,
-// computed from the same semantic doc_no tree as /reports/library
-// (src/lib/libraryShape.ts). Fills a gap the primitive tools can't: subtree
+// computed from the same semantic doc_no tree as /reports/anatomy
+// (src/lib/anatomyShape.ts). Fills a gap the primitive tools can't: subtree
 // mass via atlas_filter walks parentId, which goes flat inside agent
 // artifacts, so "which part of the atlas is biggest" was previously not
 // answerable server-side.
 import type { Indexes } from "../../retrieval/indexes.ts";
-import { computeLibrary, GROUPS, type ChunkNode, type GroupSpec } from "../../../lib/libraryShape.ts";
+import { computeAnatomy, GROUPS, type ChunkNode, type GroupSpec } from "../../../lib/anatomyShape.ts";
 
 // Presentation trim: the full trees carry a ref for nearly every doc (the
-// reason the 2 MB library.json artifact was folded away) — a tool answer
+// reason the 2 MB anatomy.json artifact was folded away) — a tool answer
 // needs orientation, not the corpus. Two levels below the groups; a child is
 // listed only if it carries ≥ MIN_ROW_PCT of the atlas (and at most
 // MAX_CHILDREN per node) — everything else rolls up so the masses still sum.
@@ -72,7 +72,7 @@ export function statsSection(ix: Indexes): Record<string, unknown> {
   const groups: GroupSpec[] = GROUPS.map((g): GroupSpec =>
     "roots" in g ? { name: g.name, roots: g.roots.filter((r) => r in nodes) } : g,
   ).filter((g) => ("roots" in g ? g.roots.length > 0 : g.complementOf in nodes));
-  const lib = computeLibrary({ atlasCommit: ix.meta.atlasCommit ?? "unknown", nodes, glossaryTerms }, groups);
+  const lib = computeAnatomy({ atlasCommit: ix.meta.atlasCommit ?? "unknown", nodes, glossaryTerms }, groups);
   const total = lib.totals.docs;
 
   const out: Record<string, unknown> = {

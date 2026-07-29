@@ -32,8 +32,8 @@ const CARDS: { page?: NavPage; to?: string; href?: string; name: string; desc: s
         desc: "Op Facilitator responsibilities, Active Data index, integrator rewards, and more",
       },
   {
-    to: ROUTES.REPORTS_LIBRARY,
-    name: "Library",
+    to: ROUTES.REPORTS_ANATOMY,
+    name: "Anatomy",
     desc: "The shape of the Atlas — its functional chunks and their weights, a distilled table of contents, concept catalog, and glossary",
   },
   {
