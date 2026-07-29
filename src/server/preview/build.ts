@@ -222,6 +222,27 @@ async function forkGate(
   return { tier: "unknown", count: () => previewsTodayCount("unknown"), quota: config.previewUnknownForkDailyQuota };
 }
 
+/** The base PreviewMeta fields that map straight off the resolved ref (the
+ *  build then layers on baseAtlasCommit, trust tier, fork/diff stats). Split out
+ *  of runBuild so this field mapping — notably headCommitAt from the head commit
+ *  date — is unit-testable without driving a full build. */
+export function baseMeta(resolved: Resolved, sha: string, docCount: number, t0: number): PreviewMeta {
+  return {
+    sha,
+    repo: resolved.repo,
+    ref: resolved.ref,
+    kind: resolved.kind,
+    prNumber: resolved.pr?.number,
+    prTitle: resolved.pr?.title,
+    prAuthor: resolved.pr?.author,
+    prState: resolved.pr?.state,
+    headCommitAt: resolved.date,
+    resolvedAt: new Date().toISOString(),
+    docCount,
+    buildMs: Date.now() - t0,
+  };
+}
+
 async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
   const sha = resolved.sha;
   const paths = previewPaths(sha);
@@ -282,20 +303,7 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
       // ancestor / unknown commit) is not a derivative of the atlas — reject.
       if (fork && !filesR.ok) return fail(f, sha, "not-derived");
 
-      const meta: PreviewMeta = {
-        sha,
-        repo: resolved.repo,
-        ref: resolved.ref,
-        kind: resolved.kind,
-        prNumber: resolved.pr?.number,
-        prTitle: resolved.pr?.title,
-        prAuthor: resolved.pr?.author,
-        prState: resolved.pr?.state,
-        headCommitAt: resolved.date,
-        resolvedAt: new Date().toISOString(),
-        docCount,
-        buildMs: Date.now() - t0,
-      };
+      const meta: PreviewMeta = baseMeta(resolved, sha, docCount, t0);
       // Diff baseline: which main this bundle's redlines were computed against.
       // The sweeper evicts the bundle when main moves past it. Cold start
       // (indexes not loaded) leaves it unset → swept as stale, regenerable.
