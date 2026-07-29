@@ -46,7 +46,7 @@ export function AnatomyPage({ tab }: { tab: AnatomyTab }) {
           Atlas Anatomy
         </h1>
         <p className="text-sm mb-6" style={{ color: "var(--tan-2)" }}>
-          A scholarly layer over the Atlas: its functional chunks, how much weight each carries, and the terms it
+          Alternate categorizations of the Atlas: its functional chunks, how much weight each carries, and the terms it
           defines — instead of one monolith document or a pile of disconnected sections.
         </p>
         <nav className="flex gap-2 mb-8" aria-label="Anatomy pages">
