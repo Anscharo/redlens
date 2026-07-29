@@ -21,6 +21,9 @@ interface Meta {
   prNumber?: number;
   prTitle?: string;
   prAuthor?: string;
+  /** ISO timestamp of the preview's head commit (added to meta.json server-side);
+   *  the preview entry shows its date. Optional — older cached previews lack it. */
+  headCommitAt?: string;
 }
 
 export function PreviewHistory({ nodeId }: { nodeId: string }) {
