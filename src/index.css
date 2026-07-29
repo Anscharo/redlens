@@ -593,6 +593,9 @@ mark {
   display: flex;
   align-items: center;
 }
+.atlas-node.is-selected[data-has-hidden="true"] .atlas-node-meta {
+  right: 92px;
+}
 .atlas-node.is-selected .atlas-node-meta {
   background-color: var(--bg);
 }
@@ -610,6 +613,10 @@ mark {
 }
 .atlas-node-toggle.is-open {
   transform: rotate(90deg);
+}
+.atlas-node-toggle.is-hidden {
+  transform: rotate(-90deg);
+  color: var(--accent);
 }
 button.atlas-node-toggle:hover {
   color: var(--tan);

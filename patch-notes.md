@@ -34,7 +34,8 @@
 -->
 
 
-## 2026-07-28
+## 2026-07-29
+- Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it
 - Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line
 - Opened the document panel on the History tab by default
 

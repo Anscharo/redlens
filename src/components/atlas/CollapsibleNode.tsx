@@ -11,14 +11,18 @@ import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
 import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
+import {
+  nextSubtreeTransition,
+  type SubtreeVisualState,
+} from "./subtreeState";
 
 const DRAG_THRESHOLD_PX = 4;
 
 // Body indent so expanded text lines up with where the title text begins:
-// pl-3 (12) + gap-2 (8) + toggle (14) + gap-2 (8) + expand-all (14) + gap-2 (8)
-// + title margin+padding (5), plus 15px per chiclet segment (.atlas-chiclet
-// width — keep in sync with index.css).
-const TITLE_TEXT_OFFSET = 69;
+// pl-3 (12) + gap-2 (8) + expand-all (14) + gap-2 (8) + title margin+padding (5),
+// plus 15px per chiclet segment (.atlas-chiclet width — keep in sync with
+// index.css).
+const TITLE_TEXT_OFFSET = 47;
 const CHICLET_W = 15;
 // gap-2 (8) + the toggle chevron (14): the agent pill may extend past the doc
 // numbers to also cover the chevron column, giving a slightly wider cap.
@@ -31,8 +35,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hasChildren = false,
-  isSubtreeExpanded = false,
-  hiddenCount = 0,
+  subtreeState = "closed",
+  hasExplicitHiddenSubtree = false,
+  gatedCount = 0,
   onExpandChildren,
   idPrefix,
   cradle,
@@ -44,8 +49,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected: boolean;
   isExpanded: boolean;
   hasChildren?: boolean;
-  isSubtreeExpanded?: boolean;
-  hiddenCount?: number;
+  subtreeState?: SubtreeVisualState;
+  hasExplicitHiddenSubtree?: boolean;
+  gatedCount?: number;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
@@ -59,7 +65,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
    *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
   inSelectedOnly?: boolean;
 }) {
-  const { navigate, toggle, splitNavigate, expandAll } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, expandAll, setSubtreeVisualState } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -82,7 +88,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
-  const showExpandAll = hasChildren && !!expandAll;
+  const isSubtreeExpanded = subtreeState === "open";
+  const isSubtreeHidden = subtreeState === "hidden";
+  const showExpandAll = hasChildren && (!!setSubtreeVisualState || !!expandAll);
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
   const doToggle = () => {
     track("reader_node_toggle", { node_id: node.id, action: isExpanded ? "collapse" : "expand" });
@@ -98,13 +106,30 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const expandAllRef = useRef<HTMLButtonElement>(null);
   const spinRef = useRef<Animation | null>(null);
   const pulseRef = useRef<Animation | null>(null);
-  const doExpandAll = () => {
-    track("reader_expand_all", { node_id: node.id, action: isSubtreeExpanded ? "collapse" : "expand" });
-    const willOpen = !isSubtreeExpanded;
+  const doExpandAll = (event?: React.MouseEvent) => {
+    const transition = nextSubtreeTransition({
+      state: subtreeState,
+      shiftKey: !!event?.shiftKey,
+      hasExplicitHidden: hasExplicitHiddenSubtree,
+    });
+    track("reader_expand_all", { node_id: node.id, action: transition });
+    const willOpen = transition === "open" || transition === "restore";
+    // The heavy state update (a large subtree re-render), deferred below so the
+    // chevron feedback paints first. Both action models funnel through here: the
+    // main reader supplies setSubtreeVisualState (the live path), the standalone
+    // fallback supplies expandAll. Either way the deferral + compositor feedback
+    // must wrap it — the setSubtreeVisualState branch used to bypass them, which
+    // restored the exact click-freeze the animation path exists to prevent.
+    const commit = setSubtreeVisualState
+      ? () =>
+          transition === "restore"
+            ? setSubtreeVisualState(node.id, "open", { restore: true })
+            : setSubtreeVisualState(node.id, transition)
+      : () => expandAll?.(node.id, willOpen);
     const btn = expandAllRef.current;
     if (btn?.animate) {
-      const from = isSubtreeExpanded ? 90 : 0;
-      const to = willOpen ? 90 : 0;
+      const from = isSubtreeHidden ? -90 : isSubtreeExpanded ? 90 : 0;
+      const to = transition === "hidden" ? -90 : willOpen ? 90 : 0;
       spinRef.current?.cancel();
       // rotate (transform) held via fill:forwards until CSS .is-open catches up
       spinRef.current = btn.animate(
@@ -124,15 +149,24 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         ],
         { duration: 520, easing: "ease-in-out", iterations: Infinity },
       );
-      // Defer the heavy expand two frames so the chevron feedback commits to the
-      // compositor and PAINTS first. Running expandAll now would let React flush
-      // the large synchronous re-render in this same task, before the browser
-      // ever paints the animation — so it'd only appear once the expand is done.
+      // Defer the heavy commit two frames so the chevron feedback commits to the
+      // compositor and PAINTS first. Committing now would let React flush the
+      // large synchronous re-render in this same task, before the browser ever
+      // paints the animation — so it'd only appear once the expand is done.
+      // Backstop: cancel the pulse one frame after the commit even if the subtree
+      // state didn't change (a click that reveals nothing) — otherwise the
+      // state-keyed effect below never fires and the pulse would spin forever.
       requestAnimationFrame(() =>
-        requestAnimationFrame(() => expandAll?.(node.id, willOpen)),
+        requestAnimationFrame(() => {
+          commit();
+          requestAnimationFrame(() => {
+            pulseRef.current?.cancel();
+            pulseRef.current = null;
+          });
+        }),
       );
     } else {
-      expandAll?.(node.id, willOpen);
+      commit();
     }
   };
   // Once CSS .is-open reflects the new state (the expand finished), stop the
@@ -143,7 +177,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     pulseRef.current = null;
     spinRef.current?.cancel();
     spinRef.current = null;
-  }, [isSubtreeExpanded]);
+  }, [isSubtreeExpanded, isSubtreeHidden]);
 
   return (
     <article
@@ -151,7 +185,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       className={`atlas-node relative${isSelected ? " is-selected" : ""}${
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
-      data-has-hidden={hiddenCount > 0 ? "true" : undefined}
+      data-has-hidden={gatedCount > 0 ? "true" : undefined}
       style={
         {
           ["--row-color" as string]: color,
@@ -207,28 +241,27 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* data-row-bar: marker the outer onClick uses to distinguish title-bar clicks from body clicks (see handler above). */}
       <div data-row-bar className="flex items-center gap-2 pl-3">
         <DocNoChiclets parts={docNoParts} depths={docNoDepths} />
-        {hasContent ? (
-          <button
-            type="button"
-            className={`atlas-node-toggle${isExpanded ? " is-open" : ""}`}
-            aria-label={`${isExpanded ? "Collapse" : "Expand"} ${node.doc_no}`}
-            title={showExpandAll ? "alt-click: expand/collapse all beneath" : undefined}
-            onClick={(e) => (e.altKey && showExpandAll ? doExpandAll() : doToggle())}
-          >
-            ›
-          </button>
-        ) : (
-          <span className="atlas-node-toggle" style={{ visibility: "hidden" }} aria-hidden="true">
-            {"›"}
-          </span>
-        )}
         {showExpandAll ? (
           <button
             ref={expandAllRef}
             type="button"
-            className={`atlas-node-toggle atlas-node-expand-all${isSubtreeExpanded ? " is-open" : ""}`}
-            aria-label={`${isSubtreeExpanded ? "Collapse" : "Expand"} all sections under ${node.doc_no}`}
-            title={isSubtreeExpanded ? "collapse all beneath" : "expand all beneath"}
+            className={`atlas-node-toggle atlas-node-expand-all${
+              isSubtreeHidden ? " is-hidden" : isSubtreeExpanded ? " is-open" : ""
+            }`}
+            aria-label={`${
+              isSubtreeHidden
+                ? hasExplicitHiddenSubtree ? "Restore hidden" : "Expand hidden"
+                : isSubtreeExpanded ? "Collapse" : "Expand"
+            } all sections under ${node.doc_no}`}
+            title={
+              isSubtreeHidden
+                ? hasExplicitHiddenSubtree
+                  ? "restore hidden descendants"
+                  : "expand hidden descendants"
+                : isSubtreeExpanded
+                  ? "collapse all beneath (shift-click: hide descendants)"
+                  : "expand all beneath (shift-click: hide descendants)"
+            }
             onClick={doExpandAll}
           >
             »
@@ -250,19 +283,19 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* In selected-only mode the reader shows a flat list that ignores depth-6
           gating, so revealing hidden descendants is a no-op — hide the affordance
           rather than offer a dead button. */}
-      {hiddenCount > 0 && onExpandChildren && !inSelectedOnly && (
+      {gatedCount > 0 && onExpandChildren && !inSelectedOnly && (
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            track("reader_reveal_hidden", { node_id: node.id, hidden_count: hiddenCount });
+            track("reader_reveal_hidden", { node_id: node.id, hidden_count: gatedCount });
             onExpandChildren(node.id);
           }}
-          title={`View ${hiddenCount} hidden ${hiddenCount === 1 ? "section" : "sections"} under ${node.doc_no}`}
-          aria-label={`View ${hiddenCount} hidden sections`}
+          title={`View ${gatedCount} hidden ${gatedCount === 1 ? "section" : "sections"} under ${node.doc_no}`}
+          aria-label={`View ${gatedCount} hidden sections`}
           className="view-children-affordance"
         >
-          <span>{hiddenCount} hidden</span>
+          <span>{gatedCount} hidden</span>
           <svg
             width="8"
             height="5"
