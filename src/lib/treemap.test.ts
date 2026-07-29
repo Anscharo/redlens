@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildTreemap, squarify } from "./treemap";
-import type { ChunkNode } from "./library";
+import type { ChunkNode } from "./anatomy";
 
 describe("squarify", () => {
   it("fills the box exactly and puts the first (largest) area at the origin", () => {

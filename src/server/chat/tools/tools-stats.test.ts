@@ -101,20 +101,20 @@ test("atlas_describe: sections:['all'] also includes stats", () => {
 });
 
 // ── Real-GROUPS-UUID fixture: exercises statsSection's own degrade filter
-// (distinct from libraryShape's internal completeness diff) —
+// (distinct from anatomyShape's internal completeness diff) —
 //   GROUPS.map(...).filter((g) => "roots" in g ? g.roots.length > 0 : g.complementOf in nodes)
 // — for both branches: a roots-based group with a partially-missing root list,
 // and the complementOf/except group ("Support processes").
 const A0 = "8650a584-01f8-45d6-882b-c14eab9879c4"; // Constitutional core root
 const A1_1 = "86a93dab-2f12-4c3f-9285-bcc4520c851b"; // Constitutional core root
 const A2 = "1ce14bd8-c7b3-4f74-a152-292a8d8ebed0"; // Support scope (complementOf anchor)
-const A2_2 = "fcde2604-a138-4c1b-9d9a-14895835c907"; // Primitive spec library root == the "except" entry
+const A2_2 = "fcde2604-a138-4c1b-9d9a-14895835c907"; // Primitive spec anatomy root == the "except" entry
 
 function makeGroupsIx(opts: { includeA2: boolean }): Indexes {
   const docs: AtlasNode[] = [
     node(A0, "A.0", "Scope"),
     node(A1_1, "A.1.1", "Article"), // only 2 of "Constitutional core"'s 7 roots present
-    node(A2_2, "A.2.2", "Article"), // "Primitive spec library" root, also the complement's "except" entry
+    node(A2_2, "A.2.2", "Article"), // "Primitive spec anatomy" root, also the complement's "except" entry
     ...(opts.includeA2 ? [node(A2, "A.2", "Scope"), node("a29", "A.2.9", "Article")] : []),
   ];
   return {
@@ -140,11 +140,11 @@ test("complementOf group resolves children(A.2) minus the except set when the an
     groups: { title: string; docs: number; doc_no?: string }[];
   };
   const support = s.groups.find((g) => g.title === "Support processes");
-  const primitiveLib = s.groups.find((g) => g.title === "Primitive spec library");
+  const primitiveLib = s.groups.find((g) => g.title === "Primitive spec anatomy");
   // A.2.2 is excluded from "Support processes" (it has its own group) — only
   // A.2.9 remains under the complement.
   expect(support).toMatchObject({ title: "Support processes", docs: 1 });
-  expect(primitiveLib).toMatchObject({ title: "Primitive spec library", doc_no: "A.2.2", docs: 1 });
+  expect(primitiveLib).toMatchObject({ title: "Primitive spec anatomy", doc_no: "A.2.2", docs: 1 });
 });
 
 test("complementOf group is dropped entirely when its anchor (A.2) is missing, unlike roots groups", () => {
@@ -152,5 +152,5 @@ test("complementOf group is dropped entirely when its anchor (A.2) is missing, u
   expect(s.groups.find((g) => g.title === "Support processes")).toBeUndefined();
   // Sibling roots-based groups anchored elsewhere are unaffected by A.2's absence.
   expect(s.groups.find((g) => g.title === "Constitutional core")).toBeDefined();
-  expect(s.groups.find((g) => g.title === "Primitive spec library")).toBeDefined();
+  expect(s.groups.find((g) => g.title === "Primitive spec anatomy")).toBeDefined();
 });

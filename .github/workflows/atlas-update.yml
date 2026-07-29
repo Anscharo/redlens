@@ -207,8 +207,8 @@ jobs:
           # instructions instead of being lumped in with items 1-3 below.
           grep '^\[drift\] risk-census:' "$NEW" > "$RISK" || true
 
-          # concepts-census lines are analyst-catalog work (docs/library/concepts.md
-          # review under the analyst-library skill), not an extraction-gap to
+          # concepts-census lines are analyst-catalog work (docs/anatomy/concepts.md
+          # review under the analyst-anatomy skill), not an extraction-gap to
           # classify against the parse-atlas skill — pull them out the same way
           # risk-census lines are, so they get their own routing instead of
           # falling into the generic item-1 bucket.
@@ -225,7 +225,7 @@ jobs:
             echo "1. Classify each NEW warning **except the Risk Rules Assessment backlog lines and the Concepts census lines below** (see items 3-4): **benign** (known limitation — recommend the exact line to append to \`.github/atlas-warnings-baseline.txt\`), **extraction gap** (atlas now encodes a structure no pattern handles — describe the pattern a fix would need), or **atlas content issue** (upstream data problem worth reporting)."
             echo "2. If the syntax spec diff below is non-empty, summarize what changed and which extraction patterns or parser rules it can affect."
             echo "3. If the Risk Rules Assessment backlog section below is non-empty, do NOT run \`pnpm risk:assess\` yourself — it costs real LLM spend, and \`docs/risk-assessment-rubric.md\` requires human review before a rating enters the curated artifact. Just summarize which rows are new/changed in your comment so a human can decide when to run it."
-            echo "4. If the Concepts census drift section below is non-empty, this is analyst-catalog work, not a parser fix — use the analyst-library skill (\`.claude/skills/analyst-library/SKILL.md\`) to triage each new/changed row against \`docs/library/concepts.md\`'s existing censuses, then run \`pnpm census:concepts --update\` once the doc reflects them."
+            echo "4. If the Concepts census drift section below is non-empty, this is analyst-catalog work, not a parser fix — use the analyst-anatomy skill (\`.claude/skills/analyst-anatomy/SKILL.md\`) to triage each new/changed row against \`docs/anatomy/concepts.md\`'s existing censuses, then run \`pnpm census:concepts --update\` once the doc reflects them."
             echo "5. Post your analysis as a comment. If everything is benign and already documented, say so and close this issue — but leave it open if the risk-census section is non-empty; that item needs a human to run \`pnpm risk:assess\`, not just a comment."
             echo
             if [ -s "$RISK" ]; then
@@ -238,7 +238,7 @@ jobs:
             fi
             if [ -s "$CONCEPTS" ]; then
               echo "## Concepts census drift"
-              echo "New/changed rows since the last accepted baseline — triage with the analyst-library skill against \`docs/library/concepts.md\`, then \`pnpm census:concepts --update\`:"
+              echo "New/changed rows since the last accepted baseline — triage with the analyst-anatomy skill against \`docs/anatomy/concepts.md\`, then \`pnpm census:concepts --update\`:"
               echo '```'
               cat "$CONCEPTS"
               echo '```'

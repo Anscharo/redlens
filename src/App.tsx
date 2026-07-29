@@ -79,8 +79,8 @@ const ConnectPage = lazy(() =>
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
-const LibraryPage = lazy(() =>
-  lazyRetry(() => import("./components/library/LibraryPage")).then((m) => ({ default: m.LibraryPage })),
+const AnatomyPage = lazy(() =>
+  lazyRetry(() => import("./components/anatomy/AnatomyPage")).then((m) => ({ default: m.AnatomyPage })),
 );
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
@@ -392,45 +392,55 @@ export default function App() {
               </Suspense>
             </Route>
             {/* Contents tab removed (superseded by Shape's "Doc mass by scope") — keep old links working */}
-            <Route path="/reports/library/contents">
-              <Redirect to={ROUTES.REPORTS_LIBRARY} replace />
+            <Route path="/reports/anatomy/contents">
+              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
             </Route>
-            <Route path={ROUTES.REPORTS_LIBRARY_CONCEPTS}>
+            <Route path={ROUTES.REPORTS_ANATOMY_CONCEPTS}>
               <Suspense fallback={<Loading />}>
-                <LibraryPage tab="concepts" />
+                <AnatomyPage tab="concepts" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_LIBRARY_AUDIT}>
+            <Route path={ROUTES.REPORTS_ANATOMY_AUDIT}>
               <Suspense fallback={<Loading />}>
-                <LibraryPage tab="audit" />
+                <AnatomyPage tab="audit" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_LIBRARY_GLOSSARY}>
+            <Route path={ROUTES.REPORTS_ANATOMY_GLOSSARY}>
               <Suspense fallback={<Loading />}>
-                <LibraryPage tab="glossary" />
+                <AnatomyPage tab="glossary" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_LIBRARY}>
+            <Route path={ROUTES.REPORTS_ANATOMY}>
               <Suspense fallback={<Loading />}>
-                <LibraryPage tab="shape" />
+                <AnatomyPage tab="shape" />
               </Suspense>
             </Route>
-            {/* Legacy /library URLs (pre-report move) → /reports/library.
-                Bare "/library" (no trailing segment) doesn't match "/library/:tab*"
-                in wouter — the pattern requires the literal slash — so it needs its
-                own exact route alongside the wildcard one below. */}
+            {/* Legacy URLs → /reports/anatomy. Covers the pre-report /library
+                path and the former /reports/library name (this feature was
+                renamed Library → Anatomy). Bare "/library" (no trailing segment)
+                doesn't match "/library/:tab*" in wouter — the pattern requires the
+                literal slash — so each needs its own exact route alongside the
+                wildcard one. */}
             <Route path="/library">
-              <Redirect to={ROUTES.REPORTS_LIBRARY} replace />
+              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
             </Route>
-            <Route path="/library/:tab*">
-              {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
-                  included), not "tab" — using params.tab here silently dropped the
-                  tab segment on every legacy URL, redirecting e.g. /library/glossary
-                  to bare /reports/library instead of /reports/library/glossary. */}
-              {(params: { "tab*"?: string }) => (
-                <Redirect to={`${ROUTES.REPORTS_LIBRARY}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
-              )}
+            <Route path="/reports/library">
+              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
             </Route>
+            {[
+              "/library/:tab*",
+              "/reports/library/:tab*",
+            ].map((path) => (
+              <Route key={path} path={path}>
+                {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
+                    included), not "tab" — using params.tab here silently dropped the
+                    tab segment on every legacy URL, redirecting e.g. /library/glossary
+                    to bare /reports/anatomy instead of /reports/anatomy/glossary. */}
+                {(params: { "tab*"?: string }) => (
+                  <Redirect to={`${ROUTES.REPORTS_ANATOMY}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
+                )}
+              </Route>
+            ))}
             <Route path={ROUTES.COLLECTIONS}>
               <Suspense fallback={<Loading />}>
                 <CollectionsPage />

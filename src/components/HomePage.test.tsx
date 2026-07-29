@@ -41,9 +41,9 @@ describe("HomePage", () => {
     expect(Boolean(reportsLink) !== Boolean(previewLink)).toBe(true);
   });
 
-  it("renders the Library card as an in-SPA link to the reports/library route", () => {
+  it("renders the Anatomy card as an in-SPA link to the reports/anatomy route", () => {
     render(<HomePage />, { wrapper: wrap() });
-    expect(screen.getByRole("link", { name: /Library/ })).toHaveAttribute("href", "/reports/library");
+    expect(screen.getByRole("link", { name: /Anatomy/ })).toHaveAttribute("href", "/reports/anatomy");
   });
 
   it("renders the patch notes section", () => {

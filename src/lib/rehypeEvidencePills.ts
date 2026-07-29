@@ -1,6 +1,6 @@
-// Rehype plugin: turns the curated library docs' literal evidence-level tags
+// Rehype plugin: turns the curated anatomy docs' literal evidence-level tags
 // — `[evidence level 1 · censused]`, `[evidence level 2 · source-read ✓
-// 2026-07-27]`, etc. (see docs/library/concepts.md's legend paragraph) — into
+// 2026-07-27]`, etc. (see docs/anatomy/concepts.md's legend paragraph) — into
 // small colored pills. Runs post-parse over the hast tree (mirrors
 // rehypeEthAddresses.ts's text-splitting + code-span-unwrapping approach) so
 // it catches the tag wherever it lands: mid-paragraph text, an italic label

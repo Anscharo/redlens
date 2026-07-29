@@ -1,4 +1,4 @@
-// Pure resolution logic behind rehypeDocRefs.ts (LibraryMarkdown's doc-reference
+// Pure resolution logic behind rehypeDocRefs.ts (AnatomyMarkdown's doc-reference
 // linkifier). Kept separate from the rehype plugin so the maps/regexes/formatting
 // are independently unit-testable without a hast tree.
 //
