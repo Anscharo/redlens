@@ -1,5 +1,5 @@
 // Rehype plugin: linkifies every atlas document reference in the curated
-// anatomy markdown into a reader deep-link, displayed "DOC_NO • Truncated
+// crossview markdown into a reader deep-link, displayed "DOC_NO • Truncated
 // Title" (tooltip carries the untruncated "DOC_NO - Title"). Mirrors
 // rehypeEvidencePills.ts's structure — a code-span pass, then a plain-text
 // pass — parameterized by a DocRefResolver (see docRefResolver.ts) so the

@@ -1216,7 +1216,7 @@ button.atlas-node-expand-all:focus-visible {
   text-underline-offset: 3px;
 }
 
-/* Anatomy docs (Concepts, Audit) — per-concept unit-opener paragraphs
+/* CrossView docs (Concepts, Audit) — per-concept unit-opener paragraphs
    ("**Lifecycle 7 · Omni Documents**") get breathing room above them beyond
    the ordinary paragraph gap, so each concept reads as its own unit. */
 .atlas-md p.unit-opener {
@@ -1226,41 +1226,41 @@ button.atlas-node-expand-all:focus-visible {
   font-size: 1rem;
 }
 
-/* Anatomy markdown typography (Concepts, Audit only — AnatomyMarkdown.tsx's
+/* CrossView markdown typography (Concepts, Audit only — CrossViewMarkdown.tsx's
    wrapper carries this class ALONGSIDE .atlas-md; scoped here rather than
    edited into the shared .atlas-md rules above, which the main atlas reader
    also uses). Tighter measure (the catalog's prose is denser/more
    cross-referenced than reader content), slightly roomier paragraph rhythm,
    and small rendering-quality knobs. Ragged right throughout — no
    justification, no hyphenation. */
-.anatomy-md p,
-.anatomy-md ul,
-.anatomy-md ol {
+.crossview-md p,
+.crossview-md ul,
+.crossview-md ol {
   max-width: 70ch;
 }
-.anatomy-md p {
+.crossview-md p {
   margin-bottom: 0.9rem;
 }
-.anatomy-md ul,
-.anatomy-md ol {
+.crossview-md ul,
+.crossview-md ol {
   margin-bottom: 0.9rem;
 }
-.anatomy-md li + li {
+.crossview-md li + li {
   margin-top: 0.375rem;
 }
-.anatomy-md h1,
-.anatomy-md h2 {
+.crossview-md h1,
+.crossview-md h2 {
   letter-spacing: -0.015em;
 }
-.anatomy-md h3 {
+.crossview-md h3 {
   letter-spacing: -0.01em;
 }
-.anatomy-md {
+.crossview-md {
   font-kerning: normal;
   text-rendering: optimizeLegibility;
 }
-.anatomy-md td,
-.anatomy-md th {
+.crossview-md td,
+.crossview-md th {
   font-variant-numeric: tabular-nums;
 }
 
@@ -1306,7 +1306,7 @@ button.atlas-node-expand-all:focus-visible {
   border-color: color-mix(in srgb, var(--entity-foundation) 38%, transparent);
 }
 
-/* Anatomy docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
+/* CrossView docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
    affordance is CSS-only hover reveal (no JS hover handler, per convention);
    clicking it is a plain same-page fragment link (native browser scroll,
    respecting scroll-margin-top below). */
@@ -1328,25 +1328,25 @@ button.atlas-node-expand-all:focus-visible {
 }
 
 /* Concepts tab only — h2 sticks to the top of the page as its section
-   scrolls (the anatomy page is window-scroll, see App.tsx's windowScroll
+   scrolls (the crossview page is window-scroll, see App.tsx's windowScroll
    routes; the sticky boundary is the viewport, not an inner container).
    Solid bg matches the page background so content scrolling underneath
    doesn't bleed through; z-index sits above content but below the app's
    sticky search header (z-20). h3 gets a taller scroll-margin-top so a
    hash-targeted h3 doesn't land hidden under the stuck h2. */
-.anatomy-sticky-headings h2.heading-with-anchor {
+.crossview-sticky-headings h2.heading-with-anchor {
   position: sticky;
   top: 64px;
   z-index: 10;
   background: var(--bg);
 }
-.anatomy-sticky-headings h3.heading-with-anchor {
+.crossview-sticky-headings h3.heading-with-anchor {
   scroll-margin-top: 112px;
 }
-/* Unit-opener paragraphs (anatomyMarkdownComponents.tsx's "Group N · Title"
+/* Unit-opener paragraphs (crossviewMarkdownComponents.tsx's "Group N · Title"
    leads) live under the same stuck h2, so a hash-targeted unit needs the
    same taller offset as h3 — otherwise it lands hidden under the bar too. */
-.anatomy-sticky-headings p.unit-opener.heading-with-anchor {
+.crossview-sticky-headings p.unit-opener.heading-with-anchor {
   scroll-margin-top: 112px;
 }
 

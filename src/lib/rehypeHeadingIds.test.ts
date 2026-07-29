@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Root, Element } from "hast";
 import { rehypeHeadingIds } from "./rehypeHeadingIds";
-import type { AnatomyHeading } from "./anatomyHeadings";
+import type { CrossViewHeading } from "./crossviewHeadings";
 
 const h = (tagName: "h2" | "h3", text: string): Element => ({
   type: "element",
@@ -10,7 +10,7 @@ const h = (tagName: "h2" | "h3", text: string): Element => ({
   children: [{ type: "text", value: text }],
 });
 
-const heading = (level: 2 | 3, text: string, slug: string): AnatomyHeading => ({ level, text, slug });
+const heading = (level: 2 | 3, text: string, slug: string): CrossViewHeading => ({ level, text, slug });
 
 describe("rehypeHeadingIds", () => {
   it("stamps ids onto h2/h3 elements in document order", () => {
@@ -31,7 +31,7 @@ describe("rehypeHeadingIds", () => {
   });
 
   it("each transformer call starts its own fresh cursor (independent segment trees)", () => {
-    const plugin = (hs: AnatomyHeading[]) => rehypeHeadingIds(hs)();
+    const plugin = (hs: CrossViewHeading[]) => rehypeHeadingIds(hs)();
     const treeA: Root = { type: "root", children: [h("h2", "One")] };
     const treeB: Root = { type: "root", children: [h("h2", "Two")] };
     plugin([heading(2, "One", "one")])(treeA);
