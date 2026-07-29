@@ -165,11 +165,18 @@ export const AtlasReader = memo(function AtlasReader({
     selectedIdRef.current = selectedId;
   });
 
-  // Size of each node's on-screen subtree (the deeper-indented run that follows
-  // it). Single O(n) pass with a depth stack. Used for the "N hidden" count so
-  // it matches exactly the rows a hide removes.
-  const visualSpanCount = useMemo(() => {
+  // One O(n) depth-stack pass over flatNodes computes two things at once:
+  //   - visualSpanCount: size of each node's on-screen subtree (the deeper-
+  //     indented run that follows it), for the "N hidden" count so it matches
+  //     exactly the rows a hide removes.
+  //   - defaultGateRoots: nodes that gate deeper-than-level-6 rows by default —
+  //     the on-screen parent of any row at depth >= 6. Data-derived, so "hidden
+  //     because it's deep" needs no separate code path from "hidden on purpose".
+  // Both pop the same set (entries with depth >= the current row), so they share
+  // the walk; after popping, the stack top is the current row's on-screen parent.
+  const { visualSpanCount, defaultGateRoots } = useMemo(() => {
     const counts = new Map<string, number>();
+    const roots = new Set<string>();
     const entries = data.flatNodes;
     const stack: { id: string; index: number; depth: number }[] = [];
     for (let i = 0; i < entries.length; i++) {
@@ -178,24 +185,11 @@ export const AtlasReader = memo(function AtlasReader({
         const top = stack.pop()!;
         counts.set(top.id, i - top.index - 1);
       }
+      if (d >= 6 && stack.length) roots.add(stack[stack.length - 1].id);
       stack.push({ id: entries[i].node.id, index: i, depth: d });
     }
     for (const top of stack) counts.set(top.id, entries.length - top.index - 1);
-    return counts;
-  }, [data.flatNodes]);
-
-  // Nodes that gate deeper-than-level-6 rows by default: the on-screen parent of
-  // any row at depth >= 6. Data-derived, so "hidden because it's deep" needs no
-  // separate code path from "hidden on purpose" — both are just collapsed roots.
-  const defaultGateRoots = useMemo(() => {
-    const roots = new Set<string>();
-    const stack: { id: string; depth: number }[] = [];
-    for (const entry of data.flatNodes) {
-      while (stack.length && stack[stack.length - 1].depth >= entry.depth) stack.pop();
-      if (entry.depth >= 6 && stack.length) roots.add(stack[stack.length - 1].id);
-      stack.push({ id: entry.node.id, depth: entry.depth });
-    }
-    return roots;
+    return { visualSpanCount: counts, defaultGateRoots: roots };
   }, [data.flatNodes]);
 
   // A doc reached from the sidebar (or any in-app link) may live inside a
@@ -263,10 +257,17 @@ export const AtlasReader = memo(function AtlasReader({
     return hidden;
   }, [data.flatNodes, isCollapsed]);
 
-  const handleHideSubtree = useCallback((rootId: string, hidden: boolean, options?: { restore?: boolean }) => {
+  const handleHideSubtree = useCallback((
+    rootId: string,
+    hidden: boolean,
+    options?: { restore?: boolean },
+    // The caller (handleSetSubtreeVisualState) already walked the visual subtree
+    // to build its own span; accept it to avoid a second identical walk per click.
+    precomputedSubtreeIds?: string[],
+  ) => {
     // Hide the VISUAL subtree (what looks nested on screen), not the parentId
     // subtree — the two diverge under the heading-depth cap (see visualSubtreeIds).
-    const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
+    const subtreeIds = precomputedSubtreeIds ?? visualSubtreeIds(data.flatNodes, rootId);
     // Restore scope includes rootId itself, so restoring re-opens the root's OWN
     // depth-6 gate (and its body toggle) that hiding closed. Without it, a node
     // whose deep children were revealed before hiding stays gated after restore —
@@ -328,19 +329,22 @@ export const AtlasReader = memo(function AtlasReader({
     state: SubtreeVisualState,
     options?: { restore?: boolean },
   ) => {
+    // Walk the visual subtree once here and hand it to handleHideSubtree so the
+    // click path does a single findIndex + subtree walk, not two.
+    const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
     if (options?.restore) {
-      handleHideSubtree(rootId, false, options);
+      handleHideSubtree(rootId, false, options, subtreeIds);
       return;
     }
     // Reveal/re-gate the whole VISUAL span (the on-screen subtree), including the
     // root's own gate — one span notion for both default gates and explicit hides.
-    const span = [rootId, ...visualSubtreeIds(data.flatNodes, rootId)];
+    const span = [rootId, ...subtreeIds];
     if (state === "hidden") {
-      handleHideSubtree(rootId, true);
+      handleHideSubtree(rootId, true, undefined, subtreeIds);
       setParentsExpanded(span, false);
       return;
     }
-    handleHideSubtree(rootId, false);
+    handleHideSubtree(rootId, false, undefined, subtreeIds);
     expandAll(rootId, state === "open");
     setParentsExpanded(span, true);
   }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
