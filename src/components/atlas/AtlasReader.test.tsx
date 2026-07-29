@@ -220,6 +220,23 @@ describe("AtlasReader unfiltered view", () => {
     for (const a of capturedActions) expect(a).toBe(before);
   });
 
+  it("keeps the actions context referentially stable across navigation (doc click)", () => {
+    const { atlas, flatNodes } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { rerenderWith } = renderReader({ id: "a", selectedId: "a", data });
+    const before = capturedActions[capturedActions.length - 1];
+    expect(before).toBeDefined();
+    capturedActions.length = 0;
+
+    // Navigating changes id, which gives expandedSet a fresh identity. If that
+    // leaks into the actions object, every one of the ~1200 rows re-renders on
+    // each doc click (the click-to-select lag). The context must stay the same
+    // reference so only the selection-changed rows re-render.
+    rerenderWith({ id: "b", selectedId: "b", data });
+    expect(capturedActions.length).toBeGreaterThan(0);
+    for (const ac of capturedActions) expect(ac).toBe(before);
+  });
+
   it("renders no cradle and no selection-group when nothing is selected", () => {
     const { atlas, flatNodes } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });

@@ -124,16 +124,22 @@ export const AtlasReader = memo(function AtlasReader({
 
   const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
 
+  // expandedSet gets a fresh identity on every navigation; read it through a ref
+  // so setNodeExpanded stays referentially stable. It feeds handleHideSubtree and
+  // thus the actions-context object — if it churned per navigation, every
+  // CollapsibleNode (a context consumer) would re-render on each doc click.
+  const expandedSetRef = useRef(expandedSet);
+  expandedSetRef.current = expandedSet;
   const setNodeExpanded = useCallback((nodeId: string, expand: boolean) => {
     setUserToggles((prev) => {
       const next = new Set(prev);
-      const auto = expandedSet.has(nodeId);
+      const auto = expandedSetRef.current.has(nodeId);
       const shouldToggle = expand ? !auto : auto;
       if (shouldToggle) next.add(nodeId);
       else next.delete(nodeId);
       return next;
     });
-  }, [expandedSet]);
+  }, []);
 
   const {
     expandedParents,
