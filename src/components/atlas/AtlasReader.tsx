@@ -316,7 +316,7 @@ export const AtlasReader = memo(function AtlasReader({
       return;
     }
     handleHideSubtree(rootId, false);
-    expandAll(rootId, state === "expanded");
+    expandAll(rootId, state === "open");
     setParentsExpanded(span, true);
   }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
 
@@ -325,12 +325,12 @@ export const AtlasReader = memo(function AtlasReader({
   // closed). Same behavior whether the rows were hidden by default (depth-6 gate)
   // or on purpose — the collapse model no longer distinguishes them here.
   const handleExpandParent = useCallback((nodeId: string) => {
-    handleSetSubtreeVisualState(nodeId, "collapsed");
+    handleSetSubtreeVisualState(nodeId, "closed");
     triggerExpandingAnim();
   }, [handleSetSubtreeVisualState, triggerExpandingAnim]);
 
   const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
-    handleSetSubtreeVisualState(rootId, expand ? "expanded" : "collapsed");
+    handleSetSubtreeVisualState(rootId, expand ? "open" : "closed");
   }, [handleSetSubtreeVisualState]);
 
   const changedSet = usePreviewChangedSet();
@@ -422,8 +422,8 @@ export const AtlasReader = memo(function AtlasReader({
         const cradle = inCradle ? (k === lastCradleKept ? ("foot" as const) : ("line" as const)) : undefined;
         const collapsed = isCollapsed(entry.node.id);
         const subtreeState = deriveSubtreeVisualState({
-          collapsed,
-          isExpanded: fullyExpanded.has(entry.node.id),
+          hidden: collapsed,
+          bodiesOpen: fullyExpanded.has(entry.node.id),
         });
         block.push(
           <CollapsibleNode
@@ -434,7 +434,7 @@ export const AtlasReader = memo(function AtlasReader({
             hasChildren={filteredParentIds.has(entry.node.id)}
             subtreeState={subtreeState}
             hasExplicitHiddenSubtree={hiddenSubtrees.has(entry.node.id)}
-            hiddenCount={collapsed ? visualSpanCount.get(entry.node.id) ?? 0 : 0}
+            gatedCount={collapsed ? visualSpanCount.get(entry.node.id) ?? 0 : 0}
             onExpandChildren={handleExpandParent}
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
@@ -486,8 +486,8 @@ export const AtlasReader = memo(function AtlasReader({
     const items: ReactElement[] = visible.map((entry, idx) => {
       const collapsed = isCollapsed(entry.node.id);
       const subtreeState = deriveSubtreeVisualState({
-        collapsed,
-        isExpanded: fullyExpanded.has(entry.node.id),
+        hidden: collapsed,
+        bodiesOpen: fullyExpanded.has(entry.node.id),
       });
       const gatedCount = collapsed ? visualSpanCount.get(entry.node.id) ?? 0 : 0;
       const cradle =
@@ -505,7 +505,7 @@ export const AtlasReader = memo(function AtlasReader({
           hasChildren={data.atlas.byParent.has(entry.node.id)}
           subtreeState={subtreeState}
           hasExplicitHiddenSubtree={hiddenSubtrees.has(entry.node.id)}
-          hiddenCount={gatedCount}
+          gatedCount={gatedCount}
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}

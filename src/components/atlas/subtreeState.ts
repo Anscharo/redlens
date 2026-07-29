@@ -1,23 +1,27 @@
-export type SubtreeVisualState = "collapsed" | "expanded" | "hidden";
+export type SubtreeVisualState = "open" | "closed" | "hidden";
 export type SubtreeTransition = SubtreeVisualState | "restore";
 
+// A parent's subtree is in exactly one of three visual states:
+//   - "open"   — descendant rows shown AND their bodies expanded
+//   - "closed" — descendant rows shown, bodies collapsed (the neutral default)
+//   - "hidden" — descendant rows removed from the reader ("hide all children")
 export function deriveSubtreeVisualState({
-  collapsed,
-  isExpanded,
+  hidden,
+  bodiesOpen,
 }: {
-  collapsed: boolean;
-  isExpanded: boolean;
+  hidden: boolean;
+  bodiesOpen: boolean;
 }): SubtreeVisualState {
-  if (collapsed) return "hidden";
-  return isExpanded ? "expanded" : "collapsed";
+  if (hidden) return "hidden";
+  return bodiesOpen ? "open" : "closed";
 }
 
 // The reader's single subtree-visibility behavior ("shift-click hides, click a
 // hidden branch restores its prior shape"):
-//   - plain click toggles expand ⇄ collapse
+//   - plain click toggles open ⇄ closed
 //   - shift-click hides the branch
 //   - clicking a hidden branch restores the shape it had when hidden (if we hold
-//     an explicit snapshot), or just expands it if it was only depth-gated
+//     an explicit snapshot), or just opens it if it was only depth-gated
 export function nextSubtreeTransition({
   state,
   shiftKey,
@@ -28,8 +32,8 @@ export function nextSubtreeTransition({
   hasExplicitHidden: boolean;
 }): SubtreeTransition {
   if (state === "hidden") {
-    return hasExplicitHidden ? "restore" : "expanded";
+    return hasExplicitHidden ? "restore" : "open";
   }
   if (shiftKey) return "hidden";
-  return state === "expanded" ? "collapsed" : "expanded";
+  return state === "open" ? "closed" : "open";
 }

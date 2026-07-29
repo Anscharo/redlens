@@ -57,14 +57,14 @@ vi.mock("./JuniorPane", () => ({
 }));
 
 // A minimal stand-in for CollapsibleNode that surfaces the props docList
-// computes (isSelected, cradle, hiddenCount, hasChildren) as data-attributes,
+// computes (isSelected, cradle, gatedCount, hasChildren) as data-attributes,
 // and exposes the inner AtlasActionsContext (expandAll/onExpandChildren) via
 // clickable buttons so tests can drive expand-all / reveal-hidden.
 function CollapsibleNodeStub(props: {
   entry: FlatEntry;
   isSelected: boolean;
   hasChildren?: boolean;
-  hiddenCount?: number;
+  gatedCount?: number;
   subtreeState?: string;
   hasExplicitHiddenSubtree?: boolean;
   onExpandChildren?: (id: string) => void;
@@ -76,7 +76,7 @@ function CollapsibleNodeStub(props: {
     entry,
     isSelected,
     hasChildren,
-    hiddenCount = 0,
+    gatedCount = 0,
     subtreeState,
     hasExplicitHiddenSubtree,
     onExpandChildren,
@@ -88,13 +88,13 @@ function CollapsibleNodeStub(props: {
       data-testid={`node-${entry.node.id}`}
       data-selected={isSelected}
       data-cradle={cradle ?? "none"}
-      data-hidden={hiddenCount}
-      data-subtree-state={subtreeState ?? "collapsed"}
+      data-hidden={gatedCount}
+      data-subtree-state={subtreeState ?? "closed"}
       data-explicit-hidden={!!hasExplicitHiddenSubtree}
       data-in-selected-only={!!inSelectedOnly}
     >
       {entry.node.title}
-      {hiddenCount > 0 && onExpandChildren && (
+      {gatedCount > 0 && onExpandChildren && (
         <button onClick={() => onExpandChildren(entry.node.id)}>reveal-{entry.node.id}</button>
       )}
       {hasChildren && actions.expandAll && (
@@ -106,8 +106,8 @@ function CollapsibleNodeStub(props: {
       {actions.setSubtreeVisualState && (
         <>
           <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "hidden")}>hide-{entry.node.id}</button>
-          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "expanded")}>svs-expand-{entry.node.id}</button>
-          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "expanded", { restore: true })}>restore-{entry.node.id}</button>
+          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "open")}>svs-expand-{entry.node.id}</button>
+          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "open", { restore: true })}>restore-{entry.node.id}</button>
         </>
       )}
       <button onClick={() => actions.toggle(entry.node.id)}>toggle-{entry.node.id}</button>
@@ -525,12 +525,12 @@ describe("AtlasReader subtree hide / restore", () => {
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
 
     fireEvent.click(screen.getByText(`reveal-${a.id}`));
-    // Every row comes back (un-hidden) — but collapsed, not expanded: the branch
-    // lands in the "collapsed" visual state, distinct from the chevron's restore.
+    // Every row comes back (un-hidden) — but closed, not open: the branch
+    // lands in the "closed" visual state, distinct from the chevron's restore.
     expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
     expect(screen.getByTestId(`node-${a2.id}`)).toBeInTheDocument();
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-subtree-state", "collapsed");
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-subtree-state", "closed");
   });
 
   it("moves the selection onto the clicked branch root when hiding a subtree that holds the selection (#363)", () => {

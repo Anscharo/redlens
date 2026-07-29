@@ -4,19 +4,21 @@ import { type FlatEntry } from "../../lib/atlasHelpers";
 export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set());
 
-  // hiddenCount[parentId] = how many immediate children of `parentId` are at
-  // depth >= 6 (i.e., would be revealed if the user expands `parentId`).
+  // gatedCount[parentId] = how many immediate children of `parentId` are at
+  // depth >= 6 (i.e., would be revealed if the user expands `parentId`). This is
+  // the structural depth-6 gate, distinct from the "hidden" subtree visual state
+  // (see subtreeState.ts) which tracks user-driven hide/collapse.
   // Single O(N) pass; lookup is O(1).
-  const { hiddenCount, entryById } = useMemo(() => {
-    const hiddenCount = new Map<string, number>();
+  const { gatedCount, entryById } = useMemo(() => {
+    const gatedCount = new Map<string, number>();
     const entryById = new Map<string, FlatEntry>();
     for (const entry of flatNodes) {
       entryById.set(entry.node.id, entry);
       if (entry.depth >= 6 && entry.node.parentId) {
-        hiddenCount.set(entry.node.parentId, (hiddenCount.get(entry.node.parentId) ?? 0) + 1);
+        gatedCount.set(entry.node.parentId, (gatedCount.get(entry.node.parentId) ?? 0) + 1);
       }
     }
-    return { hiddenCount, entryById };
+    return { gatedCount, entryById };
   }, [flatNodes]);
 
   // On navigation, two auto-expansions:
@@ -42,12 +44,12 @@ export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
           cur = parent;
         }
       }
-      if ((hiddenCount.get(target.node.id) ?? 0) > 0 && !prev.has(target.node.id)) {
+      if ((gatedCount.get(target.node.id) ?? 0) > 0 && !prev.has(target.node.id)) {
         next.add(target.node.id);
       }
       return next.size === prev.size ? prev : next;
     });
-  }, [id, entryById, hiddenCount]);
+  }, [id, entryById, gatedCount]);
 
   const expandParent = useCallback((nodeId: string) => {
     setExpandedParents((prev) => {
@@ -93,5 +95,5 @@ export function useDepth6Expand(flatNodes: FlatEntry[], id: string) {
     });
   }, []);
 
-  return { expandedParents, hiddenCount, expandParent, setParentsExpanded, mergeParentsExpanded, entryById };
+  return { expandedParents, gatedCount, expandParent, setParentsExpanded, mergeParentsExpanded, entryById };
 }

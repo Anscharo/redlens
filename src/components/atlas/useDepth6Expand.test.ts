@@ -20,12 +20,12 @@ function tree() {
   return [root, gp, c1, c2, gc].map((node) => makeFlatEntry({ node, depth: node.depth }));
 }
 
-describe("useDepth6Expand hidden-count math", () => {
+describe("useDepth6Expand gated-count math", () => {
   it("counts depth-6+ children per gating parent", () => {
     const { result } = renderHook(() => useDepth6Expand(tree(), ""));
-    expect(result.current.hiddenCount.get("gp")).toBe(2);
-    expect(result.current.hiddenCount.get("c1")).toBe(1);
-    expect(result.current.hiddenCount.get("root")).toBeUndefined();
+    expect(result.current.gatedCount.get("gp")).toBe(2);
+    expect(result.current.gatedCount.get("c1")).toBe(1);
+    expect(result.current.gatedCount.get("root")).toBeUndefined();
   });
 });
 

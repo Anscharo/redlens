@@ -35,9 +35,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hasChildren = false,
-  subtreeState = "collapsed",
+  subtreeState = "closed",
   hasExplicitHiddenSubtree = false,
-  hiddenCount = 0,
+  gatedCount = 0,
   onExpandChildren,
   idPrefix,
   cradle,
@@ -51,7 +51,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   hasChildren?: boolean;
   subtreeState?: SubtreeVisualState;
   hasExplicitHiddenSubtree?: boolean;
-  hiddenCount?: number;
+  gatedCount?: number;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
   /** Row is part of the selected node's descendant rail; "foot" closes it. */
@@ -88,7 +88,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
-  const isSubtreeExpanded = subtreeState === "expanded";
+  const isSubtreeExpanded = subtreeState === "open";
   const isSubtreeHidden = subtreeState === "hidden";
   const showExpandAll = hasChildren && (!!setSubtreeVisualState || !!expandAll);
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
@@ -113,7 +113,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       hasExplicitHidden: hasExplicitHiddenSubtree,
     });
     track("reader_expand_all", { node_id: node.id, action: transition });
-    const willOpen = transition === "expanded" || transition === "restore";
+    const willOpen = transition === "open" || transition === "restore";
     // The heavy state update (a large subtree re-render), deferred below so the
     // chevron feedback paints first. Both action models funnel through here: the
     // main reader supplies setSubtreeVisualState (the live path), the standalone
@@ -123,7 +123,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     const commit = setSubtreeVisualState
       ? () =>
           transition === "restore"
-            ? setSubtreeVisualState(node.id, "expanded", { restore: true })
+            ? setSubtreeVisualState(node.id, "open", { restore: true })
             : setSubtreeVisualState(node.id, transition)
       : () => expandAll?.(node.id, willOpen);
     const btn = expandAllRef.current;
@@ -185,7 +185,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       className={`atlas-node relative${isSelected ? " is-selected" : ""}${
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
-      data-has-hidden={hiddenCount > 0 ? "true" : undefined}
+      data-has-hidden={gatedCount > 0 ? "true" : undefined}
       style={
         {
           ["--row-color" as string]: color,
@@ -283,19 +283,19 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       {/* In selected-only mode the reader shows a flat list that ignores depth-6
           gating, so revealing hidden descendants is a no-op — hide the affordance
           rather than offer a dead button. */}
-      {hiddenCount > 0 && onExpandChildren && !inSelectedOnly && (
+      {gatedCount > 0 && onExpandChildren && !inSelectedOnly && (
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            track("reader_reveal_hidden", { node_id: node.id, hidden_count: hiddenCount });
+            track("reader_reveal_hidden", { node_id: node.id, hidden_count: gatedCount });
             onExpandChildren(node.id);
           }}
-          title={`View ${hiddenCount} hidden ${hiddenCount === 1 ? "section" : "sections"} under ${node.doc_no}`}
-          aria-label={`View ${hiddenCount} hidden sections`}
+          title={`View ${gatedCount} hidden ${gatedCount === 1 ? "section" : "sections"} under ${node.doc_no}`}
+          aria-label={`View ${gatedCount} hidden sections`}
           className="view-children-affordance"
         >
-          <span>{hiddenCount} hidden</span>
+          <span>{gatedCount} hidden</span>
           <svg
             width="8"
             height="5"

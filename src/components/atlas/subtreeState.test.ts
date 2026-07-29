@@ -8,10 +8,10 @@ import {
 
 describe("deriveSubtreeVisualState", () => {
   it.each([
-    [{ collapsed: true, isExpanded: false }, "hidden"],
-    [{ collapsed: true, isExpanded: true }, "hidden"],
-    [{ collapsed: false, isExpanded: true }, "expanded"],
-    [{ collapsed: false, isExpanded: false }, "collapsed"],
+    [{ hidden: true, bodiesOpen: false }, "hidden"],
+    [{ hidden: true, bodiesOpen: true }, "hidden"],
+    [{ hidden: false, bodiesOpen: true }, "open"],
+    [{ hidden: false, bodiesOpen: false }, "closed"],
   ] as const)("derives %s as %s", (input, expected) => {
     expect(deriveSubtreeVisualState(input)).toBe(expected);
   });
@@ -24,17 +24,17 @@ describe("nextSubtreeTransition", () => {
     hasExplicitHidden: boolean;
     expected: SubtreeTransition;
   }[] = [
-    // Plain click toggles expand ⇄ collapse.
-    { state: "collapsed", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
-    { state: "expanded", shiftKey: false, hasExplicitHidden: false, expected: "collapsed" },
-    // Shift-click hides, from either open state.
-    { state: "collapsed", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
-    { state: "expanded", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
+    // Plain click toggles open ⇄ closed.
+    { state: "closed", shiftKey: false, hasExplicitHidden: false, expected: "open" },
+    { state: "open", shiftKey: false, hasExplicitHidden: false, expected: "closed" },
+    // Shift-click hides, from either shown state.
+    { state: "closed", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
+    { state: "open", shiftKey: true, hasExplicitHidden: false, expected: "hidden" },
     // Clicking a hidden branch restores its snapshot when one exists, otherwise
-    // (depth-gate-only hidden) just expands. Shift is irrelevant once hidden.
+    // (depth-gate-only hidden) just opens. Shift is irrelevant once hidden.
     { state: "hidden", shiftKey: false, hasExplicitHidden: true, expected: "restore" },
     { state: "hidden", shiftKey: true, hasExplicitHidden: true, expected: "restore" },
-    { state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "expanded" },
+    { state: "hidden", shiftKey: false, hasExplicitHidden: false, expected: "open" },
   ];
 
   it.each(cases)("$state shift=$shiftKey explicit=$hasExplicitHidden -> $expected", (item) => {
