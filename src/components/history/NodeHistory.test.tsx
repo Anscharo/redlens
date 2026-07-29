@@ -239,7 +239,7 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText("A's history")).not.toBeInTheDocument();
   });
 
-  it("falls back to the top when there's no migration entry for this doc (byte-identical across #117)", async () => {
+  it("keeps the toggle below the entries even with no migration entry (byte-identical across #117)", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
@@ -247,6 +247,23 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n15" />);
     const modern = await screen.findByText("a modern edit");
     const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
-    expect(toggle.compareDocumentPosition(modern) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Toggle sits below the (only) native entry, right where the hidden block would appear.
+    expect(modern.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("when shown, the toggle sits below the native entries and just above the reconstructed block", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
+      entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n16" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    const migration = screen.getByText("Migrate To Markdown File"); // last native entry
+    const toggle = screen.getByRole("button", { name: "Hide Reconstructed History" });
+    const html = screen.getByText("an html-era change"); // first reconstructed entry
+    // native … migration, then the toggle, then the reconstructed block below it.
+    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
