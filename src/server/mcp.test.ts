@@ -41,6 +41,7 @@ mock.module("./posthog-node.ts", () => ({
 }));
 
 const { createMcpServer } = await import("./mcp.ts");
+const { ATLAS_TOOLS } = await import("./chat/tools/tool-registry.ts");
 
 function emptyIndexes(): Indexes {
   return {
@@ -105,5 +106,29 @@ describe("createMcpServer", () => {
     expect(body.doc_count).toBe(0);
     expect(body.entity_count).toBe(0);
     expect(body.edge_types).toEqual([]);
+  });
+
+  it("re-throws when a tool handler fails (after recording the error for analytics)", async () => {
+    // mcp.ts registers one callback per ATLAS_TOOLS entry; a handler that throws
+    // must propagate (the SDK turns it into an MCP error response) rather than be
+    // swallowed. Append a throwing tool to the real registry array, then restore it
+    // — local + reversible, avoiding a process-global module mock of tool-registry.
+    ATLAS_TOOLS.push({
+      name: "atlas_boom",
+      description: "throws",
+      shape: {},
+      annotations: { readOnlyHint: true },
+      handler: () => {
+        throw new Error("handler exploded");
+      },
+    });
+    try {
+      createMcpServer({ host: "localhost", userAgent: null, protocolVersion: null, sessionId: "sess-err" });
+      const boom = registeredTools.find((tool) => tool.name === "atlas_boom")!;
+      expect(boom).toBeDefined();
+      await expect(boom.cb({})).rejects.toThrow("handler exploded");
+    } finally {
+      ATLAS_TOOLS.pop();
+    }
   });
 });
