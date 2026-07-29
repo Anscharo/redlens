@@ -123,11 +123,4 @@ describe("App", () => {
     await screen.findByTestId("crossview-page");
     expect(history?.at(-1)).toBe("/reports/crossview/concepts");
   });
-
-  it("redirects the former /reports/anatomy URL to /reports/crossview", async () => {
-    const { hook, history } = memoryLocation({ path: "/reports/anatomy/audit", record: true });
-    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
-    await screen.findByTestId("crossview-page");
-    expect(history?.at(-1)).toBe("/reports/crossview/audit");
-  });
 });

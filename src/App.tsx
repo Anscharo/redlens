@@ -416,24 +416,20 @@ export default function App() {
               </Suspense>
             </Route>
             {/* Legacy URLs → /reports/crossview. Covers the pre-report /library
-                path and the former /reports/library and /reports/anatomy names
-                (this feature was renamed Library → Anatomy → CrossView). Bare
-                paths (no trailing segment) don't match "/:tab*" in wouter — the
-                pattern requires the literal slash — so each needs its own exact
-                route alongside the wildcard one. */}
+                path and the former /reports/library name (this feature was
+                renamed Library → CrossView). Bare "/library" (no trailing segment)
+                doesn't match "/library/:tab*" in wouter — the pattern requires the
+                literal slash — so each needs its own exact route alongside the
+                wildcard one. */}
             <Route path="/library">
               <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
             </Route>
             <Route path="/reports/library">
               <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
             </Route>
-            <Route path="/reports/anatomy">
-              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
-            </Route>
             {[
               "/library/:tab*",
               "/reports/library/:tab*",
-              "/reports/anatomy/:tab*",
             ].map((path) => (
               <Route key={path} path={path}>
                 {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
