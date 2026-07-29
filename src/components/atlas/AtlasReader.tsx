@@ -141,6 +141,24 @@ export const AtlasReader = memo(function AtlasReader({
     mergeParentsExpanded,
   } = useDepth6Expand(data.flatNodes, id);
 
+  // Latest-value refs for the state handleHideSubtree snapshots. Reading these
+  // (instead of closing over the values) keeps handleHideSubtree — and the whole
+  // actions-context object built from it — referentially stable across ordinary
+  // body toggles. Without this, every expand/collapse recreated the context and
+  // re-rendered every memo'd CollapsibleNode, defeating the memo boundary during
+  // the most frequent interaction. The snapshot reads happen in click handlers,
+  // by which point this effect has already synced the refs.
+  const userTogglesRef = useRef(userToggles);
+  const expandedParentsRef = useRef(expandedParents);
+  const hiddenSubtreesRef = useRef(hiddenSubtrees);
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    userTogglesRef.current = userToggles;
+    expandedParentsRef.current = expandedParents;
+    hiddenSubtreesRef.current = hiddenSubtrees;
+    selectedIdRef.current = selectedId;
+  });
+
   // Size of each node's on-screen subtree (the deeper-indented run that follows
   // it). Single O(n) pass with a depth stack. Used for the "N hidden" count so
   // it matches exactly the rows a hide removes.
@@ -250,13 +268,13 @@ export const AtlasReader = memo(function AtlasReader({
     const scope = new Set([rootId, ...subtreeIds]);
     if (hidden) {
       hiddenSnapshotsRef.current.set(rootId, {
-        userToggles: new Set(userToggles),
-        expandedParents: new Set(expandedParents),
+        userToggles: new Set(userTogglesRef.current),
+        expandedParents: new Set(expandedParentsRef.current),
         // Nested branches the user had hidden inside this one — recorded so a
         // later restore brings back their hidden state too, not just the
         // expand/collapse shape of the rows around them.
         hiddenSubtrees: new Set(
-          [...hiddenSubtrees].filter((nid) => nid !== rootId && scope.has(nid)),
+          [...hiddenSubtreesRef.current].filter((nid) => nid !== rootId && scope.has(nid)),
         ),
       });
     }
@@ -292,11 +310,12 @@ export const AtlasReader = memo(function AtlasReader({
       // chevron was clicked — so focus lands on the collapsed row rather than
       // disappearing. The root stays hidden because the reveal-on-nav effect only
       // un-hides ancestors, never the navigated doc.
-      if (selectedId && selectedId !== rootId && subtreeIds.includes(selectedId)) {
+      const sel = selectedIdRef.current;
+      if (sel && sel !== rootId && subtreeIds.includes(sel)) {
         navigate(rootId);
       }
     }
-  }, [data, userToggles, expandedParents, hiddenSubtrees, mergeParentsExpanded, setNodeExpanded, selectedId, navigate]);
+  }, [data, mergeParentsExpanded, setNodeExpanded, navigate]);
 
   const handleSetSubtreeVisualState = useCallback((
     rootId: string,
@@ -540,7 +559,9 @@ export const AtlasReader = memo(function AtlasReader({
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection
-  // change). All members are stable callbacks, so memoize the object too.
+  // change or an ordinary body toggle). All members are referentially stable
+  // across those renders — handleHideSubtree reads its snapshot state through
+  // refs rather than closing over it — so memoize the object too.
   const actions = useMemo(
     () => ({
       navigate,

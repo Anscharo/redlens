@@ -60,6 +60,10 @@ vi.mock("./JuniorPane", () => ({
 // computes (isSelected, cradle, gatedCount, hasChildren) as data-attributes,
 // and exposes the inner AtlasActionsContext (expandAll/onExpandChildren) via
 // clickable buttons so tests can drive expand-all / reveal-hidden.
+// Identity of the reader's inner actions-context object, recorded on every stub
+// render so a test can assert it stays stable across an ordinary body toggle.
+const capturedActions: unknown[] = [];
+
 function CollapsibleNodeStub(props: {
   entry: FlatEntry;
   isSelected: boolean;
@@ -72,6 +76,7 @@ function CollapsibleNodeStub(props: {
   inSelectedOnly?: boolean;
 }) {
   const actions = useAtlasActions();
+  capturedActions.push(actions);
   const {
     entry,
     isSelected,
@@ -127,6 +132,7 @@ afterEach(() => {
   usePreviewChangedSetMock.mockReturnValue(null);
   useSelectionSetMock.mockReturnValue(null);
   selectSubtreeMock.mockClear();
+  capturedActions.length = 0;
 });
 
 function outerActions(overrides: Partial<React.ComponentProps<typeof AtlasActionsContext.Provider>["value"]> = {}) {
@@ -197,6 +203,21 @@ describe("AtlasReader unfiltered view", () => {
     expect(group!.querySelector(`[data-testid="node-${a2.id}"]`)).not.toBeNull();
     // The unrelated sibling never joins the group.
     expect(group!.querySelector(`[data-testid="node-${flatNodes[4].node.id}"]`)).toBeNull();
+  });
+
+  it("keeps the actions context referentially stable across an ordinary body toggle", () => {
+    const { atlas, flatNodes, b } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "a", selectedId: "a", data });
+    const before = capturedActions[capturedActions.length - 1];
+    expect(before).toBeDefined();
+    capturedActions.length = 0;
+
+    // A plain body toggle changes userToggles; the memo boundary must hold, so
+    // the actions object handed to every row must be the same reference.
+    fireEvent.click(screen.getByText(`toggle-${b.id}`));
+    expect(capturedActions.length).toBeGreaterThan(0);
+    for (const a of capturedActions) expect(a).toBe(before);
   });
 
   it("renders no cradle and no selection-group when nothing is selected", () => {
