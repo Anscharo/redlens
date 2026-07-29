@@ -269,6 +269,67 @@ describe("AtlasReader changed-filtered view (preview diff)", () => {
   });
 });
 
+describe("AtlasReader filtered view ignores collapse state", () => {
+  // Two sibling gated branches: root -> midA(5) -> deepA(6); root -> midB(5) -> deepB(6).
+  function makeTwoGatedBranches() {
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const midA = makeNode({ id: "midA", doc_no: "A.1.1.1.1", parentId: "root" });
+    const deepA = makeNode({ id: "deepA", doc_no: "A.1.1.1.1.1", parentId: "midA" });
+    const midB = makeNode({ id: "midB", doc_no: "A.2.2.2.2", parentId: "root" });
+    const deepB = makeNode({ id: "deepB", doc_no: "A.2.2.2.2.1", parentId: "midB" });
+    const atlas = makeAtlasBundle([root, midA, deepA, midB, deepB]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: midA, depth: 5 }),
+      makeFlatEntry({ node: deepA, depth: 6 }),
+      makeFlatEntry({ node: midB, depth: 5 }),
+      makeFlatEntry({ node: deepB, depth: 6 }),
+    ];
+    return { atlas, flatNodes, root, midA, deepA, midB, deepB };
+  }
+
+  it("keeps a selected depth-6 doc whose branch is still gated (selected-only)", () => {
+    const { atlas, flatNodes, root, deepA } = makeTwoGatedBranches();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    // Selection includes the gated deep doc, but we sit on root so its gate
+    // (midA) is never opened by the reveal-on-nav effect.
+    useSelectionSetMock.mockReturnValue(new Set([root.id, deepA.id]));
+    renderReader({ id: "root", selectedId: root.id, data });
+    // Pre-fix, deepA landed in hiddenNodeIds and was dropped from the subset.
+    expect(screen.getByTestId(`node-${deepA.id}`)).toBeInTheDocument();
+  });
+
+  it("keeps multiple selected deep docs under different gated branches (selected-only)", () => {
+    const { atlas, flatNodes, deepA, deepB } = makeTwoGatedBranches();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    useSelectionSetMock.mockReturnValue(new Set([deepA.id, deepB.id]));
+    renderReader({ id: "root", selectedId: null, data });
+    expect(screen.getByTestId(`node-${deepA.id}`)).toBeInTheDocument();
+    expect(screen.getByTestId(`node-${deepB.id}`)).toBeInTheDocument();
+  });
+
+  it("keeps a changed doc inside an explicitly hidden branch (changed-only preview)", () => {
+    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+    const p = makeNode({ id: "p", doc_no: "A.1", parentId: "root" });
+    const d = makeNode({ id: "d", doc_no: "A.1.1", parentId: "p" });
+    const atlas = makeAtlasBundle([root, p, d]);
+    const flatNodes: FlatEntry[] = [
+      makeFlatEntry({ node: root, depth: 1 }),
+      makeFlatEntry({ node: p, depth: 2 }),
+      makeFlatEntry({ node: d, depth: 3 }),
+    ];
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    usePreviewChangedSetMock.mockReturnValue(new Set([p.id, d.id]));
+    renderReader({ id: "p", selectedId: null, data });
+    expect(screen.getByTestId(`node-${d.id}`)).toBeInTheDocument();
+
+    // Explicitly hide p's subtree, then confirm the changed descendant d is not
+    // silently dropped from the diff review (which would make it look complete).
+    fireEvent.click(screen.getByText(`hide-${p.id}`));
+    expect(screen.getByTestId(`node-${d.id}`)).toBeInTheDocument();
+  });
+});
+
 describe("AtlasReader split pane", () => {
   it("shows the 'Open comparison pane' button when no split is open", () => {
     const { atlas, flatNodes } = makeCradleTree();

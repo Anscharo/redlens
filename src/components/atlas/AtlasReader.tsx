@@ -370,11 +370,16 @@ export const AtlasReader = memo(function AtlasReader({
       // two kept docs that are NOT adjacent in the full atlas order (something
       // was filtered out between them), drop an ellipsis barrier so the gap
       // reads as intentional rather than as true neighbors.
+      // The flat filtered list (selected-only / changed-only) is built purely
+      // from filterSet — depth-6 gating and explicit hides are hierarchy-view
+      // concepts that must NOT apply here, or a matching doc that happens to sit
+      // under a collapsed/gated/hidden ancestor would silently vanish from the
+      // subset (e.g. changed docs omitted so a review looks complete when it
+      // isn't). See AtlasReader.test.tsx "filtered view ignores collapse state".
       const kept: { entry: (typeof data.flatNodes)[number]; i: number; gap: boolean }[] = [];
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
         if (!filterSet.has(entry.node.id)) return;
-        if (hiddenNodeIds.has(entry.node.id)) return;
         kept.push({ entry, i, gap: prev >= 0 && i - prev > 1 });
         prev = i;
       });
