@@ -7,7 +7,8 @@ import { test, expect } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { countNewAddresses } from "./build.ts";
+import { countNewAddresses, baseMeta } from "./build.ts";
+import type { Resolved } from "./resolve.ts";
 
 function mkTmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "pv-build-"));
@@ -48,4 +49,29 @@ test("a missing preview file also returns undefined rather than 0", async () => 
   const mainDir = mkTmp();
   writeAddrs(mainDir, { "0xaaa": {} });
   expect(await countNewAddresses(previewDir, mainDir)).toBeUndefined();
+});
+
+test("baseMeta maps the resolved ref onto PreviewMeta, incl. headCommitAt from the head-commit date", () => {
+  const resolved: Resolved = {
+    repo: "sky-ecosystem/next-gen-atlas",
+    sha: "deadbeef",
+    kind: "pr",
+    ref: "pull-211",
+    pr: { number: 211, title: "History tab", author: "anscharo", state: "open" },
+    date: "2026-07-29T08:29:55Z",
+  };
+  const m = baseMeta(resolved, "deadbeef", 42, 0);
+  expect(m.headCommitAt).toBe("2026-07-29T08:29:55Z");
+  expect(m.sha).toBe("deadbeef");
+  expect(m.repo).toBe("sky-ecosystem/next-gen-atlas");
+  expect(m.kind).toBe("pr");
+  expect(m.prNumber).toBe(211);
+  expect(m.prTitle).toBe("History tab");
+  expect(m.docCount).toBe(42);
+  expect(typeof m.resolvedAt).toBe("string");
+});
+
+test("baseMeta leaves headCommitAt undefined when GitHub returned no date", () => {
+  const resolved: Resolved = { repo: "o/r", sha: "abc", kind: "branch", ref: "feat/x" };
+  expect(baseMeta(resolved, "abc", 1, 0).headCommitAt).toBeUndefined();
 });

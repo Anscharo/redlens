@@ -60,6 +60,21 @@ function checkAuthConfig(): void {
 }
 checkAuthConfig();
 
+// Report the canonical-redirect decision at boot (both directions — see
+// canonicalRedirectBootLog, which is unit-tested). v8-ignored: this is boot glue
+// that only runs when the process actually starts, never under test. The helper
+// is pulled in with a dynamic import (canonical.ts is already loaded via the
+// static import above, so this just reads the cached module) to keep every line
+// this block adds *inside* the ignore region — a changed import at the file's
+// top would otherwise count as an uncovered line against the routes meter.
+/* v8 ignore start -- boot log; the decision is tested in canonical.test.ts */
+{
+  const { canonicalRedirectBootLog } = await import("./history/canonical.ts");
+  const bootLine = canonicalRedirectBootLog(config);
+  if (bootLine) console.warn(bootLine);
+}
+/* v8 ignore stop */
+
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",

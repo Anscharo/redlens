@@ -32,9 +32,36 @@ describe("DiffView", () => {
     expect(screen.getByText("+")).toBeInTheDocument();
   });
 
-  it("renders the '…' gap marker as a ··· row", () => {
+  it("marks added and removed lines up as <ins>/<del>, with no underline or strike", () => {
+    const { container } = render(<DiffView lines={[["=", "ctx"], ["+", "new"], ["-", "old"]] as DiffLine[]} />);
+    expect(container.querySelector("ins")).toHaveTextContent("new");
+    expect(container.querySelector("del")).toHaveTextContent("old");
+    // Color and background already carry the meaning; the UA decoration would
+    // fight the diff tint, so both bodies opt out of it.
+    expect(container.querySelector("ins")).toHaveClass("no-underline");
+    expect(container.querySelector("del")).toHaveClass("no-underline");
+  });
+
+  it("marks intraline word changes up as <ins>/<del> too", () => {
+    const lines: DiffLine[] = [["~", [["=", "the "], ["-", "old"], ["+", "new"], ["=", " word"]]]];
+    const { container } = render(<DiffView lines={lines} />);
+    expect(container.querySelector("del")).toHaveTextContent("old");
+    expect(container.querySelector("ins")).toHaveTextContent("new");
+  });
+
+  it("keeps the change marker in its own ruled gutter, outside the line body", () => {
+    const { container } = render(<DiffView lines={[["+", "added line"]] as DiffLine[]} />);
+    const marker = screen.getByText("+");
+    // Fixed-width column, and the body is a sibling — not nested inside the marker.
+    expect(marker).toHaveStyle({ width: "20px" });
+    expect(marker.contains(screen.getByText("added line"))).toBe(false);
+    // The gutter column itself is painted on the box, so the box owns that seam.
+    expect((container.firstChild as HTMLElement).style.background).toContain("linear-gradient");
+  });
+
+  it("renders the '…' gap marker in the gutter as a ⋯ row", () => {
     render(<DiffView lines={[["…"]]} />);
-    expect(screen.getByText("···")).toBeInTheDocument();
+    expect(screen.getByText("⋯")).toBeInTheDocument();
   });
 
   it("substitutes a non-breaking space for an empty line body", () => {

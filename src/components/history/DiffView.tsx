@@ -14,6 +14,15 @@ const DIFF_LINE_COLOR: Record<string, string> = {
 };
 const DIFF_LINE_PREFIX: Record<string, string> = { "+": "+", "-": "−", "=": " " };
 
+// The marker column is its own gutter — darker than the diff box, ruled off from
+// the text — so +/−/~ read as chrome rather than as part of the changed line. The
+// column itself is painted as a background gradient on the box (below) so it runs
+// unbroken through the box's own padding; the rows only place the glyph in it.
+const GUTTER_W = 20; // px
+const GUTTER_CLASS = "shrink-0 select-none text-center py-0.5";
+const GUTTER_STYLE: React.CSSProperties = { width: GUTTER_W };
+const DIFF_BOX_BG = `linear-gradient(to right, var(--bg-deep) 0 ${GUTTER_W}px, var(--border) ${GUTTER_W}px ${GUTTER_W + 1}px, var(--surface) ${GUTTER_W + 1}px)`;
+
 const WORD_ADDED_STYLE: React.CSSProperties = {
   background: "var(--diff-added-bg)",
   color: "var(--diff-added-fg)",
@@ -33,15 +42,15 @@ function IntralineDiff({ segments }: { segments: WordSegment[] }) {
         const [op, text] = seg;
         if (op === "+")
           return (
-            <span key={i} style={WORD_ADDED_STYLE}>
+            <ins key={i} className="no-underline" style={WORD_ADDED_STYLE}>
               {text}
-            </span>
+            </ins>
           );
         if (op === "-")
           return (
-            <span key={i} style={WORD_REMOVED_STYLE}>
+            <del key={i} style={WORD_REMOVED_STYLE}>
               {text}
-            </span>
+            </del>
           );
         return (
           <span key={i} style={{ color: "var(--tan-2)" }}>
@@ -62,54 +71,62 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
   if (!Array.isArray(lines)) return null;
   return (
     <div
-      className="mt-2 rounded overflow-x-auto mono text-[11px] leading-relaxed"
-      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+      className="mt-2 py-2 rounded overflow-x-auto mono text-[12px] leading-relaxed"
+      style={{ background: DIFF_BOX_BG, border: "1px solid var(--border)" }}
     >
       {refined.map((line, i) => {
         const op = line[0];
 
         if (op === "…") {
           return (
-            <div key={i} className="px-2 py-0.5 select-none" style={{ color: "var(--tan-3)" }}>
-              ···
+            <div key={i} className="flex">
+              <span className={GUTTER_CLASS} style={{ ...GUTTER_STYLE, color: "var(--tan-3)" }}>
+                ⋯
+              </span>
+              <span className="py-0.5">&nbsp;</span>
             </div>
           );
         }
 
+        // The +/-/~ marker sits in the gutter, OUTSIDE the tinted box that bounds
+        // the changed excerpt, so it doesn't read as itself being edited text.
         if (op === "~") {
           const segments = line[1] as WordSegment[];
           return (
-            <div
-              key={i}
-              className="flex gap-1.5 px-2 py-0.5"
-              style={{ background: "color-mix(in srgb, var(--accent) 6%, transparent)" }}
-            >
-              <span
-                className="shrink-0 select-none w-3 text-center"
-                style={{ color: "var(--tan-3)" }}
-              >
+            <div key={i} className="flex">
+              <span className={GUTTER_CLASS} style={{ ...GUTTER_STYLE, color: "var(--tan-3)" }}>
                 ~
               </span>
-              <IntralineDiff segments={segments} />
+              <span className="min-w-0 px-2 py-0.5">
+                <span
+                  className="rounded px-1"
+                  style={{ background: "color-mix(in srgb, var(--accent) 6%, transparent)" }}
+                >
+                  <IntralineDiff segments={segments} />
+                </span>
+              </span>
             </div>
           );
         }
 
         const text = line[1] as string;
+        // An added/removed line is marked up as such; context lines are plain.
+        const Body = op === "+" ? "ins" : op === "-" ? "del" : "span";
         return (
-          <div
-            key={i}
-            className="flex gap-1.5 px-2 py-0.5 whitespace-pre-wrap break-all"
-            style={{ background: DIFF_LINE_BG[op] }}
-          >
-            <span
-              className="shrink-0 select-none w-3 text-center"
-              style={{ color: DIFF_LINE_COLOR[op] }}
-            >
+          <div key={i} className="flex">
+            <span className={GUTTER_CLASS} style={{ ...GUTTER_STYLE, color: DIFF_LINE_COLOR[op] }}>
               {DIFF_LINE_PREFIX[op]}
             </span>
-            <span style={{ color: op === "=" ? "var(--tan-2)" : DIFF_LINE_COLOR[op] }}>
-              {text || "\u00a0"}
+            <span className="min-w-0 px-2 py-0.5">
+              <Body
+                className={`whitespace-pre-wrap break-all no-underline${op === "=" ? "" : " rounded px-1"}`}
+                style={{
+                  background: DIFF_LINE_BG[op],
+                  color: op === "=" ? "var(--tan-2)" : DIFF_LINE_COLOR[op],
+                }}
+              >
+                {text || "\u00a0"}
+              </Body>
             </span>
           </div>
         );

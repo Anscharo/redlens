@@ -24,6 +24,7 @@
   --tan-2: #e4d1b9; /* secondary */
   --tan-3: #b8a48e; /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
   --magenta: #c61f7c; /* status pills (e.g. update available) — high-contrast on --tan */
+  --lilac: #bfa8ec; /* soft violet — preview "renumbered" note; distinct from --accent links */
   --terminal-green: #399930;
   --lily-green: #ecffea;
 

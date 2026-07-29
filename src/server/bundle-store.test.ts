@@ -103,7 +103,10 @@ test("bundleReady is true with just docs.json when meta isn't required", () => {
 test("touch updates mtime and silently no-ops on a missing dir", () => {
   const store = freshStore();
   fs.mkdirSync(path.join(ROOT, "sha3"), { recursive: true });
-  const before = fs.statSync(path.join(ROOT, "sha3")).mtimeMs;
+  // mkdirSync records mtime at sub-ms (ns) resolution, but touch() writes via
+  // new Date(), which truncates to whole ms — so the freshly-set mtime can be a
+  // sub-ms tick *below* the dir's creation mtime. Compare at ms granularity.
+  const before = Math.floor(fs.statSync(path.join(ROOT, "sha3")).mtimeMs);
   touch(store, "sha3");
   expect(fs.statSync(path.join(ROOT, "sha3")).mtimeMs).toBeGreaterThanOrEqual(before);
   expect(() => touch(store, "does-not-exist")).not.toThrow();
