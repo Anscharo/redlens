@@ -125,8 +125,9 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
             </p>
           )}
           {renumber && (
-            <p className="mt-1" style={{ color: "var(--accent)" }}>
-              renumbered {renumber[0]} → {renumber[1]}
+            <p className="mt-1" style={{ color: "var(--lilac)" }}>
+              renumbered {renumber[0]}{" "}
+              <span style={{ fontSize: "1.25em" }}>→</span> {renumber[1]}
             </p>
           )}
           {srcUrl && (

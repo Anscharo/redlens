@@ -104,7 +104,12 @@ describe("PreviewHistory preview entry", () => {
   it("shows the renumber note when a changed doc moved doc number", () => {
     setDiff({ changed: new Set(["n1"]), renumbered: { n1: ["A.1.2", "A.2.3"] } });
     render(<PreviewHistory nodeId="n1" />);
-    expect(screen.getByText(/renumbered A\.1\.2 → A\.2\.3/)).toBeInTheDocument();
+    // The arrow is its own (enlarged) span, so match on the <p>'s full textContent.
+    expect(
+      screen.getByText(
+        (_content, el) => el?.tagName === "P" && el.textContent === "renumbered A.1.2 → A.2.3",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("marks a slot-reusing added doc with a superscript asterisk and disclaimer", async () => {
