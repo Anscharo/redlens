@@ -9,19 +9,19 @@ describe("atlasUrl", () => {
   });
 });
 
-describe("Anatomy route registration", () => {
-  it("nests the three anatomy sub-tab routes under REPORTS_ANATOMY", () => {
-    expect(ROUTES.REPORTS_ANATOMY).toBe("/reports/anatomy");
-    expect(ROUTES.REPORTS_ANATOMY_CONCEPTS).toBe(`${ROUTES.REPORTS_ANATOMY}/concepts`);
-    expect(ROUTES.REPORTS_ANATOMY_AUDIT).toBe(`${ROUTES.REPORTS_ANATOMY}/audit`);
-    expect(ROUTES.REPORTS_ANATOMY_GLOSSARY).toBe(`${ROUTES.REPORTS_ANATOMY}/glossary`);
+describe("CrossView route registration", () => {
+  it("nests the three crossview sub-tab routes under REPORTS_CROSSVIEW", () => {
+    expect(ROUTES.REPORTS_CROSSVIEW).toBe("/reports/crossview");
+    expect(ROUTES.REPORTS_CROSSVIEW_CONCEPTS).toBe(`${ROUTES.REPORTS_CROSSVIEW}/concepts`);
+    expect(ROUTES.REPORTS_CROSSVIEW_AUDIT).toBe(`${ROUTES.REPORTS_CROSSVIEW}/audit`);
+    expect(ROUTES.REPORTS_CROSSVIEW_GLOSSARY).toBe(`${ROUTES.REPORTS_CROSSVIEW}/glossary`);
   });
 
-  it("registers a display title for the anatomy report id, matching the /reports/<id> slug convention", () => {
-    expect(REPORT_TITLES.anatomy).toBe("Atlas Anatomy");
+  it("registers a display title for the crossview report id, matching the /reports/<id> slug convention", () => {
+    expect(REPORT_TITLES.crossview).toBe("Atlas CrossView");
     // Every other report id in REPORT_TITLES is the last path segment of a
-    // ROUTES.REPORTS_* constant; anatomy's slug ("anatomy") is the same
-    // last segment as its ROUTES.REPORTS_ANATOMY route.
-    expect(ROUTES.REPORTS_ANATOMY.split("/").pop()).toBe("anatomy");
+    // ROUTES.REPORTS_* constant; crossview's slug ("crossview") is the same
+    // last segment as its ROUTES.REPORTS_CROSSVIEW route.
+    expect(ROUTES.REPORTS_CROSSVIEW.split("/").pop()).toBe("crossview");
   });
 });

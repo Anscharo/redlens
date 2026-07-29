@@ -1,4 +1,4 @@
-// Pure resolution logic behind rehypeDocRefs.ts (AnatomyMarkdown's doc-reference
+// Pure resolution logic behind rehypeDocRefs.ts (CrossViewMarkdown's doc-reference
 // linkifier). Kept separate from the rehype plugin so the maps/regexes/formatting
 // are independently unit-testable without a hast tree.
 //

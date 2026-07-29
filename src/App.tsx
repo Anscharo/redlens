@@ -79,8 +79,8 @@ const ConnectPage = lazy(() =>
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
-const AnatomyPage = lazy(() =>
-  lazyRetry(() => import("./components/anatomy/AnatomyPage")).then((m) => ({ default: m.AnatomyPage })),
+const CrossViewPage = lazy(() =>
+  lazyRetry(() => import("./components/crossview/CrossViewPage")).then((m) => ({ default: m.CrossViewPage })),
 );
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
@@ -392,52 +392,56 @@ export default function App() {
               </Suspense>
             </Route>
             {/* Contents tab removed (superseded by Shape's "Doc mass by scope") — keep old links working */}
-            <Route path="/reports/anatomy/contents">
-              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
+            <Route path="/reports/crossview/contents">
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
             </Route>
-            <Route path={ROUTES.REPORTS_ANATOMY_CONCEPTS}>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_CONCEPTS}>
               <Suspense fallback={<Loading />}>
-                <AnatomyPage tab="concepts" />
+                <CrossViewPage tab="concepts" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_ANATOMY_AUDIT}>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_AUDIT}>
               <Suspense fallback={<Loading />}>
-                <AnatomyPage tab="audit" />
+                <CrossViewPage tab="audit" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_ANATOMY_GLOSSARY}>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_GLOSSARY}>
               <Suspense fallback={<Loading />}>
-                <AnatomyPage tab="glossary" />
+                <CrossViewPage tab="glossary" />
               </Suspense>
             </Route>
-            <Route path={ROUTES.REPORTS_ANATOMY}>
+            <Route path={ROUTES.REPORTS_CROSSVIEW}>
               <Suspense fallback={<Loading />}>
-                <AnatomyPage tab="shape" />
+                <CrossViewPage tab="shape" />
               </Suspense>
             </Route>
-            {/* Legacy URLs → /reports/anatomy. Covers the pre-report /library
-                path and the former /reports/library name (this feature was
-                renamed Library → Anatomy). Bare "/library" (no trailing segment)
-                doesn't match "/library/:tab*" in wouter — the pattern requires the
-                literal slash — so each needs its own exact route alongside the
-                wildcard one. */}
+            {/* Legacy URLs → /reports/crossview. Covers the pre-report /library
+                path and the former /reports/library and /reports/anatomy names
+                (this feature was renamed Library → Anatomy → CrossView). Bare
+                paths (no trailing segment) don't match "/:tab*" in wouter — the
+                pattern requires the literal slash — so each needs its own exact
+                route alongside the wildcard one. */}
             <Route path="/library">
-              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
             </Route>
             <Route path="/reports/library">
-              <Redirect to={ROUTES.REPORTS_ANATOMY} replace />
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
+            </Route>
+            <Route path="/reports/anatomy">
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
             </Route>
             {[
               "/library/:tab*",
               "/reports/library/:tab*",
+              "/reports/anatomy/:tab*",
             ].map((path) => (
               <Route key={path} path={path}>
                 {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
                     included), not "tab" — using params.tab here silently dropped the
                     tab segment on every legacy URL, redirecting e.g. /library/glossary
-                    to bare /reports/anatomy instead of /reports/anatomy/glossary. */}
+                    to bare /reports/crossview instead of /reports/crossview/glossary. */}
                 {(params: { "tab*"?: string }) => (
-                  <Redirect to={`${ROUTES.REPORTS_ANATOMY}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
+                  <Redirect to={`${ROUTES.REPORTS_CROSSVIEW}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
                 )}
               </Route>
             ))}

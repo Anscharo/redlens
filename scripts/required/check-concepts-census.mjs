@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * Concepts catalog census — drift detector for docs/anatomy/concepts.md (the
- * /reports/anatomy Concepts tab).
+ * Concepts catalog census — drift detector for docs/crossview/concepts.md (the
+ * /reports/crossview Concepts tab).
  *
  * Recomputes every deterministic census in src/lib/conceptsCensus.ts against
  * public/docs.json and diffs each census's member list against the committed

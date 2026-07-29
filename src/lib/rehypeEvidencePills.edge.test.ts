@@ -55,14 +55,14 @@ describe("rehypeEvidencePills — tag at the end of a text node", () => {
           type: "element",
           tagName: "p",
           properties: {},
-          children: [{ type: "text", value: "Anatomy claim [evidence level 1 · censused]" }],
+          children: [{ type: "text", value: "CrossView claim [evidence level 1 · censused]" }],
         },
       ],
     };
     run(tree);
     const c = kids(tree);
     expect(c).toHaveLength(2);
-    expect((c[0] as Text).value).toBe("Anatomy claim ");
+    expect((c[0] as Text).value).toBe("CrossView claim ");
     expect(isPill(c[1])).toBe(true);
   });
 });

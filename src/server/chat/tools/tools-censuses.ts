@@ -1,5 +1,5 @@
 // atlas_describe "censuses" section — the deterministic concept censuses
-// (src/lib/conceptsCensus.ts, the /reports/anatomy Concepts tab) exposed to
+// (src/lib/conceptsCensus.ts, the /reports/crossview Concepts tab) exposed to
 // the chat loop. Summary rows by default; full member lists via a
 // "censuses:<slug>" section spec — the drill-down path the concepts prefetch
 // lane (src/server/concepts-prefetch.ts) points the model at. Only the

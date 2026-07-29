@@ -1,6 +1,6 @@
-// Deterministic censuses backing docs/anatomy/concepts.md (the /reports/anatomy
+// Deterministic censuses backing docs/crossview/concepts.md (the /reports/crossview
 // Concepts tab). DOM-free pure compute over the docs bundle only — the
-// anatomyShape.ts precedent — so it's importable both from the browser bundle
+// crossviewShape.ts precedent — so it's importable both from the browser bundle
 // (ConceptCensus.tsx) and from a bun-run script (check-concepts-census.mjs,
 // the check-risk-census.mjs precedent). Every census here is mechanical
 // (title pattern / content regex / structural emptiness / set difference) —
@@ -9,7 +9,7 @@
 // relations.json.
 //
 // Interleaved into concepts.md via a `:::census <slug>` marker line — see
-// AnatomyMarkdown.tsx / ConceptCensus.tsx.
+// CrossViewMarkdown.tsx / ConceptCensus.tsx.
 
 import type { AtlasNode } from "../types";
 

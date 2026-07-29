@@ -33,10 +33,10 @@ const pillClass = (n: Element) => ((n.properties?.className ?? []) as string[]).
 
 describe("rehypeEvidencePills", () => {
   it("turns a mid-paragraph evidence tag into a pill, keeping surrounding text", () => {
-    const t = run(para("Anatomy claim [evidence level 2 · source-read ✓ 2026-07-27]: all ten."));
+    const t = run(para("CrossView claim [evidence level 2 · source-read ✓ 2026-07-27]: all ten."));
     const c = kids(t);
     expect(c).toHaveLength(3);
-    expect((c[0] as Text).value).toBe("Anatomy claim ");
+    expect((c[0] as Text).value).toBe("CrossView claim ");
     expect(isPill(c[1]) && pillText(c[1] as Element)).toBe("L2 · source-read ✓ 2026-07-27");
     expect(pillClass(c[1] as Element)).toBe("evidence-pill evidence-pill-2");
     expect((c[2] as Text).value).toBe(": all ten.");
