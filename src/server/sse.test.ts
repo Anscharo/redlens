@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { broadcastAtlasUpdate, registerSSEClient } from "./sse.ts";
+import { broadcastAtlasUpdate, heartbeat, registerSSEClient } from "./sse.ts";
 
 describe("SSE client registry", () => {
   it("broadcasts atlas-update events to registered clients", () => {
@@ -39,6 +39,22 @@ describe("SSE client registry", () => {
         'event: atlas-update\ndata: {"atlas_sha":"first"}\n\n',
         'event: atlas-update\ndata: {"atlas_sha":"second"}\n\n',
       ]);
+    } finally {
+      unregisterHealthy();
+    }
+  });
+
+  it("heartbeat pings live clients and evicts dead ones", () => {
+    const pings: string[] = [];
+    registerSSEClient(() => {
+      throw new Error("dead stream");
+    }, () => {});
+    const unregisterHealthy = registerSSEClient((chunk) => pings.push(chunk), () => {});
+
+    try {
+      heartbeat(); // first tick: pings both, evicts the dead one
+      heartbeat(); // second tick: only the healthy client remains
+      expect(pings).toEqual([":ping\n\n", ":ping\n\n"]);
     } finally {
       unregisterHealthy();
     }
