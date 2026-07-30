@@ -149,6 +149,10 @@ const server = Bun.serve({
           age_seconds: f.ageSeconds,
           schema: f.schemaVersion,
           required_schema: f.requiredSchema,
+          // Which build is answering. Lets a deploy gate (e2e/global-setup.ts)
+          // wait for the commit it deployed instead of sleeping and hoping the
+          // previous container has been replaced. "" when no git env is set.
+          app_commit: config.appCommit || null,
           db_reachable: f.dbReachable,
           docs: f.docs,
         },

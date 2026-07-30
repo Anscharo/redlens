@@ -83,6 +83,13 @@ jobs:
       - name: Type check
         run: pnpm build:ts
 
+      # e2e/ is outside `tsc -b`'s project references on purpose — it must not
+      # gate the production image build (Dockerfile runs build:ts) over a test
+      # file. Checked here instead, so spec type errors surface in CI rather
+      # than as a runtime failure against a live deploy.
+      - name: Type check E2E
+        run: pnpm test:e2e:types
+
       - name: Lint
         run: pnpm lint
 

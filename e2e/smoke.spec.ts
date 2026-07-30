@@ -1,4 +1,6 @@
 import { test, expect } from "@playwright/test";
+import { readiness } from "./health";
+import { callTool } from "./mcp";
 
 // First E2E spec — the ci.yml curl smoke, ported to run against the live Railway
 // PR environment (real Docker image, real workers, real DB). These two checks
@@ -13,8 +15,15 @@ test.describe("deploy smoke", () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     // status is a derived enum (ok/syncing/stale/…) that can be non-"ok" on a
-    // healthy box; assert DB reachability rather than the status string.
-    expect(body.db_reachable).toBe(true);
+    // healthy box; assert DB reachability rather than the status string. Global
+    // setup has already polled this for minutes, so a failure here means the
+    // deploy's Postgres genuinely never came up — the message carries the whole
+    // snapshot because that's the only thing that makes it diagnosable after
+    // the environment is torn down.
+    expect(
+      body.db_reachable,
+      `deploy never reported a reachable DB: ${JSON.stringify(body)}`,
+    ).toBe(true);
   });
 
   test("POST /mcp tools/list exposes the atlas tools", async ({ request }) => {
@@ -36,30 +45,7 @@ test.describe("deploy smoke", () => {
 // Behavioral smoke over a few tools — these run against the REAL deployed MCP,
 // so they catch regressions this session's unit tests can't (index loading,
 // pg wiring, the transport). Each asserts a shape invariant, not exact content,
-// to stay robust to atlas edits. A tool call comes back as a JSON-RPC envelope
-// (JSON or SSE) whose result.content[0].text is the tool payload JSON.
-async function callTool(
-  request: import("@playwright/test").APIRequestContext,
-  name: string,
-  args: Record<string, unknown>,
-): Promise<Record<string, any>> {
-  const res = await request.post("/mcp", {
-    headers: { Accept: "application/json, text/event-stream", "Content-Type": "application/json" },
-    data: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } },
-  });
-  expect(res.ok()).toBeTruthy();
-  const text = await res.text();
-  let env: any;
-  try {
-    env = JSON.parse(text);
-  } catch {
-    const data = text.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim());
-    env = JSON.parse(data.find((d) => d.includes('"result"')) ?? data[data.length - 1]);
-  }
-  expect(env.result).toBeTruthy();
-  return JSON.parse(env.result.content[0].text);
-}
-
+// to stay robust to atlas edits. See mcp.ts for the envelope handling.
 test.describe("mcp tool behavior", () => {
   test("atlas_describe: provenance stamped + heavy sections opt-in", async ({ request }) => {
     const d = await callTool(request, "atlas_describe", {});
@@ -109,6 +95,14 @@ test.describe("mcp tool behavior", () => {
 // are derived from live data (recent changes, address refs) so nothing hardcodes
 // a renumberable doc_no or a mutable address.
 test.describe("mcp db-backed tools", () => {
+  // Without a DB every one of these fails identically and for a reason that has
+  // nothing to do with the tools — the "reachable DB" smoke above already reports
+  // that, so skip rather than restate it four more times.
+  test.beforeEach(() => {
+    const r = readiness();
+    test.skip(!r.dbReady, `deploy has no reachable DB: ${r.detail}`);
+  });
+
   test("recent_changes → history → pr chain off live history", async ({ request }) => {
     const rc = await callTool(request, "atlas_recent_changes", { k: 5 });
     expect(Array.isArray(rc.events)).toBe(true);
@@ -129,7 +123,7 @@ test.describe("mcp db-backed tools", () => {
 
   test("changed_between spans two real commits", async ({ request }) => {
     const rc = await callTool(request, "atlas_recent_changes", { k: 50 });
-    const shas: string[] = [...new Set(rc.events.map((e: any) => e.commit_sha).filter(Boolean))];
+    const shas = [...new Set<string>(rc.events.map((e: any) => e.commit_sha).filter(Boolean))];
     test.skip(shas.length < 2, "need two distinct commits in history");
     const cb = await callTool(request, "atlas_changed_between", { commit_a: shas[1], commit_b: shas[0] });
     expect(typeof cb.doc_count).toBe("number");

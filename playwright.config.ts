@@ -11,12 +11,21 @@ const baseURL = process.env.BASE_URL;
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
+  // Waits for the deploy to actually be serving (indexes loaded, DB reachable)
+  // and records what it found for the specs — see e2e/global-setup.ts. This
+  // replaces guessing at a fixed sleep in the workflow.
+  globalSetup: "./e2e/global-setup.ts",
   // Fail the run if a `test.only` was committed by accident.
   forbidOnly: !!process.env.CI,
   // The target is a real network deploy — a couple of retries absorb cold
   // starts and transient blips without masking genuine regressions.
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI ? [["github"], ["list"]] : "list",
+  // Every worker is another concurrent client on one small preview container
+  // and its Postgres; the connection pool there is the scarce resource, not CPU.
+  workers: process.env.CI ? 2 : undefined,
+  // The html reporter is what `actions/upload-artifact` collects — without it
+  // the workflow's report upload finds nothing and warns instead of failing.
+  reporter: process.env.CI ? [["github"], ["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL,
     trace: "on-first-retry",

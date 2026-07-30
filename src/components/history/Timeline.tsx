@@ -45,7 +45,16 @@ interface RowProps {
 
 function Rail({ dot, fuzz, hideTop }: RowProps) {
   return (
-    <div className="relative shrink-0 self-stretch" style={{ width: RAIL_W }} aria-hidden="true">
+    // data-timeline-rail is the e2e geometry hook (e2e/history.spec.ts). The rail
+    // is presentational, so there is no role or label to select it by, and
+    // "an aria-hidden box that happens to be RAIL_W wide" also matches unrelated
+    // decorations elsewhere on the page.
+    <div
+      className="relative shrink-0 self-stretch"
+      style={{ width: RAIL_W }}
+      aria-hidden="true"
+      data-timeline-rail=""
+    >
       {!dot ? (
         !hideTop && <span className="absolute" style={{ ...LINE, top: 0, bottom: BLEED }} />
       ) : (

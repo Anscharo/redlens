@@ -64,6 +64,7 @@
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "test:e2e": "playwright test",
+    "test:e2e:types": "tsc -p tsconfig.e2e.json",
     "check:pr": "bash scripts/aux/check-atlas-pr.sh",
     "tva": "bash scripts/aux/tva.sh",
     "knip": "knip",
