@@ -1224,6 +1224,140 @@ button.atlas-node-expand-all:focus-visible {
   text-underline-offset: 3px;
 }
 
+/* CrossView docs (Concepts, Audit) — per-concept unit-opener paragraphs
+   ("**Lifecycle 7 · Omni Documents**") get breathing room above them beyond
+   the ordinary paragraph gap, so each concept reads as its own unit. */
+.atlas-md p.unit-opener {
+  margin-top: 1.5rem;
+}
+.atlas-md p.unit-opener > strong {
+  font-size: 1rem;
+}
+
+/* CrossView markdown typography (Concepts, Audit only — CrossViewMarkdown.tsx's
+   wrapper carries this class ALONGSIDE .atlas-md; scoped here rather than
+   edited into the shared .atlas-md rules above, which the main atlas reader
+   also uses). Tighter measure (the catalog's prose is denser/more
+   cross-referenced than reader content), slightly roomier paragraph rhythm,
+   and small rendering-quality knobs. Ragged right throughout — no
+   justification, no hyphenation. */
+.crossview-md p,
+.crossview-md ul,
+.crossview-md ol {
+  max-width: 70ch;
+}
+.crossview-md p {
+  margin-bottom: 0.9rem;
+}
+.crossview-md ul,
+.crossview-md ol {
+  margin-bottom: 0.9rem;
+}
+.crossview-md li + li {
+  margin-top: 0.375rem;
+}
+.crossview-md h1,
+.crossview-md h2 {
+  letter-spacing: -0.015em;
+}
+.crossview-md h3 {
+  letter-spacing: -0.01em;
+}
+.crossview-md {
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+.crossview-md td,
+.crossview-md th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Evidence-level pills (rehypeEvidencePills.ts) — colored by strength, from
+   script-censused (strongest) down to unverified (weakest). Background/border
+   are subtle tints of the same token via color-mix, matching the bucket-pill
+   precedent in ConceptCensusMembers.tsx. */
+.evidence-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 0 0.4em;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.evidence-pill-1 {
+  color: var(--preview-add);
+  background: color-mix(in srgb, var(--preview-add) 16%, transparent);
+  border-color: color-mix(in srgb, var(--preview-add) 40%, transparent);
+}
+.evidence-pill-2 {
+  /* NOT --accent: that's the link color, and a source-read pill isn't a link.
+     Muted blue borrowed from the entity palette keeps it distinct from links
+     (accent), censused green (L1), corroborated amber (L3), unverified red (L4). */
+  color: var(--entity-govops-org);
+  background: color-mix(in srgb, var(--entity-govops-org) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-govops-org) 38%, transparent);
+}
+.evidence-pill-3 {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+.evidence-pill-4 {
+  /* NOT --error-text: the app's red means "wrong/error", but L4 means
+     "unchecked". Muted violet from the entity palette — distinct from the
+     L1 green / L2 blue / L3 amber pills, links, and the brand red. */
+  color: var(--entity-foundation);
+  background: color-mix(in srgb, var(--entity-foundation) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-foundation) 38%, transparent);
+}
+
+/* CrossView docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
+   affordance is CSS-only hover reveal (no JS hover handler, per convention);
+   clicking it is a plain same-page fragment link (native browser scroll,
+   respecting scroll-margin-top below). */
+.heading-with-anchor {
+  scroll-margin-top: 64px; /* HEADER_OFFSET in src/lib/layout.ts */
+}
+.heading-anchor {
+  margin-left: 0.5em;
+  color: var(--tan-3);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 100ms;
+}
+.heading-with-anchor:hover .heading-anchor {
+  opacity: 1;
+}
+.heading-anchor:hover {
+  color: var(--accent);
+}
+
+/* Concepts tab only — h2 sticks to the top of the page as its section
+   scrolls (the crossview page is window-scroll, see App.tsx's windowScroll
+   routes; the sticky boundary is the viewport, not an inner container).
+   Solid bg matches the page background so content scrolling underneath
+   doesn't bleed through; z-index sits above content but below the app's
+   sticky search header (z-20). h3 gets a taller scroll-margin-top so a
+   hash-targeted h3 doesn't land hidden under the stuck h2. */
+.crossview-sticky-headings h2.heading-with-anchor {
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  background: var(--bg);
+}
+.crossview-sticky-headings h3.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
+/* Unit-opener paragraphs (crossviewMarkdownComponents.tsx's "Group N · Title"
+   leads) live under the same stuck h2, so a hash-targeted unit needs the
+   same taller offset as h3 — otherwise it lands hidden under the bar too. */
+.crossview-sticky-headings p.unit-opener.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
+
 /* ─── Right panel tab button ─── */
 .right-tab {
   font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
