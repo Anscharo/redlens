@@ -56,11 +56,6 @@
       "title": "Full Launch Of Executor Agents"
     },
     {
-      "uuid": "12286b6c-0231-40e3-ab3f-234bc0249216",
-      "doc_no": "A.1.15.1.2",
-      "title": "Governance Security & Ecosystem Actor Embedding"
-    },
-    {
       "uuid": "f51addb2-fba3-476f-b3e4-1c5b4b9013fc",
       "doc_no": "A.2.1.1.2.0.3.1",
       "title": "Monitoring And Ensuring - Element Annotation"
@@ -174,6 +169,11 @@
       "uuid": "3f43d965-56e4-4153-a59a-00329e3b00e5",
       "doc_no": "A.2.8.1.1.2.1.1",
       "title": "Formal Request For Dispute Resolution"
+    },
+    {
+      "uuid": "128f71a4-ad1c-4efa-a1da-706f85d7c89a",
+      "doc_no": "A.2.8.3.1.2.3",
+      "title": "Prior Ratification By Self-Governing Primes"
     },
     {
       "uuid": "aa2c4af5-5530-4872-9750-20813f3cd258",
