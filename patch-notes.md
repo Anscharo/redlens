@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-30
+- Recovered pre-migration history for 800 documents that previously showed nothing before the Atlas moved to Markdown
+
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it
 - Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line

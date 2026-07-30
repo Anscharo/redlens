@@ -135,6 +135,19 @@ function resolveDecisionOverrides(decisionsPath, { commits, shas, md }) {
   return { seedOverrides, hopOverrides, methodPins, splitOf, applied };
 }
 
+/** Just the cross-format seam seed — the #117 md docs, the last HTML commit's rows, and
+ *  the correspondence between them — WITHOUT the backward thread over the other 78
+ *  commits. For passes that only reason about the seam itself (thread-structural.mjs).
+ *  Shares loadHtmlEraCommits + resolveDecisionOverrides with threadHtmlEra, so the seed
+ *  it returns is the same one the shipped artifact is built from. */
+export function seedHtmlEra({ decisionsPath = null } = {}) {
+  const { commits, shas, commitMeta, md } = loadHtmlEraCommits();
+  const resolved = decisionsPath ? resolveDecisionOverrides(decisionsPath, { commits, shas, md }) : null;
+  const last = commits[commits.length - 1];
+  const seed = seedFromMd(md, last.nodes, resolved?.seedOverrides ? { overrides: resolved.seedOverrides } : {});
+  return { md, htmlNodes: last.nodes, seed, lastSha: last.sha, commitMeta, applied: resolved?.applied ?? null };
+}
+
 /** Load the html-era commits + thread real uuids backward from the #117 seed, applying
  *  curation overrides. `decisionsPath` null ⇒ plain auto-threaded (no curation). Returns
  *  everything prepare-html-history.mjs needs to build events, plus `commits` (commits[0]

@@ -14,12 +14,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
+import { loadHtmlAt } from "./atlas-html.mjs";
+import { contentDupCounts, occKey } from "./history-occkey.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
 const arg = (f) => { const i = process.argv.indexOf(f); return i >= 0 ? process.argv[i + 1] : null; };
 const DECISIONS = path.resolve(ROOT, arg("--decisions") || "public/history-decisions.json");
-const MD117 = "22cc27b5";
+const MD117 = "22cc27b5", SEED_HTML = "7b43d159";
 const AGENT_BY_PREFIX = { 1: "Spark", 2: "Grove", 3: "Keel", 4: "Launch Agent 3", 5: "Launch Agent 4" };
 const AGENTS = Object.values(AGENT_BY_PREFIX);
 
@@ -34,7 +36,25 @@ while ((m = HEADING_RE.exec(md))) {
 
 const q = JSON.parse(fs.readFileSync(path.join(ROOT, "public/history-curation.json"), "utf8"));
 const decisions = JSON.parse(fs.readFileSync(DECISIONS, "utf8")).decisions || [];
-const agentOfOcc = (k) => ((q.nodes[k]?.ancestors) || []).find((a) => AGENTS.includes(a)) || null;
+
+// Occurrence agent comes from the curation queue when the key is in it. Decisions minted
+// OUTSIDE the queue — `pnpm htmlhist:structural` proposes forced pairs the queue never
+// raised a case for — would otherwise be silently skipped here, so fall back to reading
+// the row straight out of the last HTML commit. Same keys (history-occkey), so the two
+// sources agree wherever they overlap; this only ADDS coverage.
+const rowByKey = new Map();
+{
+  const rows = loadHtmlAt(SEED_HTML, REPO);
+  const dup = contentDupCounts(rows);
+  for (const r of rows) rowByKey.set(occKey(SEED_HTML, r, dup), r);
+}
+const agentOfOcc = (k) => {
+  const fromQueue = (q.nodes[k]?.ancestors || []).find((a) => AGENTS.includes(a));
+  if (fromQueue) return fromQueue;
+  const row = rowByKey.get(k);
+  if (!row) return null;
+  return [row.owner, ...(row.ancestors || [])].find((a) => AGENTS.includes(a)) || null;
+};
 
 let checked = 0;
 const findings = [];
