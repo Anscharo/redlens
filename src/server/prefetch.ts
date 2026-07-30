@@ -12,6 +12,7 @@ import type { Indexes, Entity } from "./retrieval/indexes.ts";
 import type { GlossaryEntry } from "../lib/glossaryLookup.ts";
 import { matchEntities, entityAliases } from "./retrieval/entity-resolve.ts";
 import { entityKindLabel } from "./retrieval/entity-kind.ts";
+import { censusPrefetchRows, CENSUSES_NOTE } from "./concepts-prefetch.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -178,6 +179,7 @@ export interface Prefetch {
   content: string; // the tool-result JSON the model reads
   definitions: number;
   entities: number;
+  censuses: number;
 }
 
 export function buildPrefetch(ix: Indexes, question: string): Prefetch | null {
@@ -196,12 +198,22 @@ export function buildPrefetch(ix: Indexes, question: string): Prefetch | null {
     }
   }
   const entities = matchQuestionEntities(ix, question);
-  if (definitions.length === 0 && entities.length === 0) return null;
+  // Concepts lane: cross-cutting census summaries (counts only, drill-down
+  // via atlas_describe) for questions phrased in census vocabulary — see
+  // concepts-prefetch.ts.
+  const censuses = censusPrefetchRows(ix, question);
+  if (definitions.length === 0 && entities.length === 0 && censuses.length === 0) return null;
 
   return {
-    content: JSON.stringify({ note: NOTE, definitions, entities }),
+    content: JSON.stringify({
+      note: NOTE,
+      definitions,
+      entities,
+      ...(censuses.length ? { censuses_note: CENSUSES_NOTE, censuses } : {}),
+    }),
     definitions: definitions.length,
     entities: entities.length,
+    censuses: censuses.length,
   };
 }
 

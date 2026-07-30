@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { AtlasBundle } from "../../lib/docs";
 import type { LoadedData } from "../../lib/atlasHelpers";
 import { revealStore } from "../../lib/revealStore";
@@ -37,6 +37,16 @@ export function useExpandAll(
     return full;
   }, [data, expandedSet, userToggles]);
 
+  // expandedSet gets a fresh identity on every navigation (it accumulates the
+  // visited id). Reading it through a ref keeps expandAll referentially stable
+  // across navigation — otherwise expandAll → handleSetSubtreeVisualState → the
+  // whole actions-context object would be recreated on every doc click, and
+  // since every CollapsibleNode consumes that context, all ~1200 rows would
+  // re-render synchronously (the click-to-select lag). The read happens inside a
+  // click handler, after render, so the ref is current.
+  const expandedSetRef = useRef(expandedSet);
+  expandedSetRef.current = expandedSet;
+
   const expandAll = useCallback(
     (rootId: string, expand: boolean) => {
       const ids = collectSubtree(data.atlas.byParent, rootId);
@@ -44,7 +54,7 @@ export function useExpandAll(
         const next = new Set(prev);
         for (const nid of ids) {
           if (!data.atlas.docs[nid]?.content) continue;
-          const auto = expandedSet.has(nid);
+          const auto = expandedSetRef.current.has(nid);
           // target: isExpanded (= auto XOR toggled) === expand
           if ((expand && auto) || (!expand && !auto)) next.delete(nid);
           else next.add(nid);
@@ -53,7 +63,7 @@ export function useExpandAll(
       });
       if (expand) revealStore.reveal(ids);
     },
-    [data, expandedSet, setUserToggles],
+    [data, setUserToggles],
   );
 
   return { fullyExpanded, expandAll };

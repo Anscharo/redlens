@@ -4,6 +4,7 @@ import { render, cleanup, fireEvent } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
+import type { SubtreeVisualState } from "./subtreeState";
 
 afterEach(cleanup);
 
@@ -14,8 +15,9 @@ interface Overrides {
   isSelected?: boolean;
   isExpanded?: boolean;
   hasChildren?: boolean;
-  isSubtreeExpanded?: boolean;
-  hiddenCount?: number;
+  subtreeState?: SubtreeVisualState;
+  hasExplicitHiddenSubtree?: boolean;
+  gatedCount?: number;
   withExpandAll?: boolean;
 }
 
@@ -25,6 +27,8 @@ function setup(overrides: Overrides = {}) {
   const onShiftNavigate = vi.fn();
   const onExpandChildren = vi.fn();
   const expandAll = vi.fn();
+  const hideSubtree = vi.fn();
+  const setSubtreeVisualState = vi.fn();
   const utils = render(
     <AtlasActionsContext.Provider
       value={{
@@ -32,6 +36,8 @@ function setup(overrides: Overrides = {}) {
         toggle: onToggle,
         splitNavigate: onShiftNavigate,
         expandAll: overrides.withExpandAll ? expandAll : undefined,
+        hideSubtree,
+        setSubtreeVisualState: overrides.withExpandAll ? setSubtreeVisualState : undefined,
       }}
     >
       <CollapsibleNode
@@ -39,13 +45,14 @@ function setup(overrides: Overrides = {}) {
         isSelected={overrides.isSelected ?? false}
         isExpanded={overrides.isExpanded ?? false}
         hasChildren={overrides.hasChildren ?? false}
-        isSubtreeExpanded={overrides.isSubtreeExpanded ?? false}
-        hiddenCount={overrides.hiddenCount ?? 0}
+        subtreeState={overrides.subtreeState ?? "closed"}
+        hasExplicitHiddenSubtree={overrides.hasExplicitHiddenSubtree ?? false}
+        gatedCount={overrides.gatedCount ?? 0}
         onExpandChildren={onExpandChildren}
       />
     </AtlasActionsContext.Provider>,
   );
-  return { ...utils, onNavigate, onToggle, onShiftNavigate, onExpandChildren, expandAll };
+  return { ...utils, onNavigate, onToggle, onShiftNavigate, onExpandChildren, expandAll, hideSubtree, setSubtreeVisualState };
 }
 
 describe("CollapsibleNode click behaviour", () => {
@@ -97,20 +104,20 @@ describe("CollapsibleNode click behaviour", () => {
 });
 
 describe("CollapsibleNode depth-6 affordance", () => {
-  it("shows no hidden affordance when hiddenCount is 0", () => {
-    const { container } = setup({ hiddenCount: 0 });
+  it("shows no hidden affordance when gatedCount is 0", () => {
+    const { container } = setup({ gatedCount: 0 });
     expect(container.querySelector(".view-children-affordance")).toBeNull();
     expect(container.querySelector("[data-has-hidden]")).toBeNull();
   });
 
   it("renders the 'N hidden' affordance and the data-has-hidden marker", () => {
-    const { container, getByText } = setup({ hiddenCount: 3 });
+    const { container, getByText } = setup({ gatedCount: 3 });
     expect(getByText("3 hidden")).toBeTruthy();
     expect(container.querySelector('[data-has-hidden="true"]')).not.toBeNull();
   });
 
   it("calls onExpandChildren without selecting/toggling the row (stopPropagation)", () => {
-    const { getByText, onExpandChildren, onNavigate, onToggle } = setup({ hiddenCount: 2 });
+    const { getByText, onExpandChildren, onNavigate, onToggle } = setup({ gatedCount: 2 });
     fireEvent.click(getByText("2 hidden"));
     expect(onExpandChildren).toHaveBeenCalledWith(baseNode.id);
     expect(onNavigate).not.toHaveBeenCalled();
@@ -130,23 +137,74 @@ describe("CollapsibleNode expand-all toggle", () => {
   });
 
   it("calls expandAll with the expand intent based on current subtree state", () => {
-    const { container, expandAll } = setup({
+    const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
-      isSubtreeExpanded: false,
+      subtreeState: "closed",
     });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(expandAll).toHaveBeenCalledWith(baseNode.id, true);
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
   });
 
-  it("alt-clicking the regular (chevron) toggle also triggers expand-all when available", () => {
+  it("points the expand-all button up when the subtree is hidden", () => {
+    const { container } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      subtreeState: "hidden",
+    });
+    expect(container.querySelector(".atlas-node-expand-all")?.classList.contains("is-hidden")).toBe(true);
+  });
+
+  it("expands a hidden subtree on normal click", () => {
+    const { container, setSubtreeVisualState } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      subtreeState: "hidden",
+    });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
+  });
+
+  it("restores a hidden subtree on normal click when it has an explicit snapshot", () => {
+    const { container, setSubtreeVisualState } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      subtreeState: "hidden",
+      hasExplicitHiddenSubtree: true,
+    });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open", { restore: true });
+  });
+
+  it("expands a depth-gated hidden subtree when no explicit snapshot exists", () => {
+    const { container, setSubtreeVisualState } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+      subtreeState: "hidden",
+      hasExplicitHiddenSubtree: false,
+    });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
+  });
+
+  it("shift-click hides the subtree", () => {
+    const { container, setSubtreeVisualState } = setup({
+      hasChildren: true,
+      withExpandAll: true,
+    });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!, { shiftKey: true });
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "hidden");
+  });
+
+  it("runs the compositor feedback and defers the commit two frames when the button can animate", () => {
     // jsdom has no Element.animate — stub it so the WAAPI feedback path runs
-    // (the animate()-present branch in doExpandAll) instead of the plain-call
-    // fallback, and the deferred rAF(rAF(expandAll)) call resolves.
+    // instead of the plain synchronous fallback, and make rAF resolve inline so
+    // the deferred rAF(rAF(commit)) fires within the test.
     const cancel = vi.fn();
-    (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = vi
+    const animate = vi
       .fn()
       .mockReturnValue({ cancel });
+    (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = animate;
     const rafSpy = vi
       .spyOn(window, "requestAnimationFrame")
       .mockImplementation((cb: FrameRequestCallback) => {
@@ -154,29 +212,22 @@ describe("CollapsibleNode expand-all toggle", () => {
         return 0;
       });
 
-    const { container, expandAll } = setup({
+    const { container, setSubtreeVisualState } = setup({
       hasChildren: true,
       withExpandAll: true,
-      isSubtreeExpanded: false,
+      subtreeState: "closed",
     });
-    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
-    fireEvent.click(chevronToggle, { altKey: true });
-    expect(expandAll).toHaveBeenCalledWith(baseNode.id, true);
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+
+    // The chevron animation (spin + pulse) ran, and the heavy state commit still
+    // landed once the two deferred frames resolved.
+    expect(animate).toHaveBeenCalled();
+    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
 
     rafSpy.mockRestore();
     delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
   });
 
-  it("plain-clicking the chevron toggle (no altKey) still just toggles, not expand-all", () => {
-    const { onToggle, expandAll, container } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-    });
-    const chevronToggle = container.querySelector(".atlas-node-toggle:not(.atlas-node-expand-all)")!;
-    fireEvent.click(chevronToggle);
-    expect(onToggle).toHaveBeenCalledWith(baseNode.id);
-    expect(expandAll).not.toHaveBeenCalled();
-  });
 });
 
 describe("CollapsibleNode keyboard interaction", () => {

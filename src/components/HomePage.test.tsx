@@ -41,6 +41,11 @@ describe("HomePage", () => {
     expect(Boolean(reportsLink) !== Boolean(previewLink)).toBe(true);
   });
 
+  it("renders the CrossView card as an in-SPA link to the reports/crossview route", () => {
+    render(<HomePage />, { wrapper: wrap() });
+    expect(screen.getByRole("link", { name: /CrossView/ })).toHaveAttribute("href", "/reports/crossview");
+  });
+
   it("renders the patch notes section", () => {
     render(<HomePage />, { wrapper: wrap() });
     expect(screen.getByRole("heading", { name: "Recent improvements" })).toBeInTheDocument();

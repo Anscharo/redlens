@@ -32,6 +32,11 @@ const CARDS: { page?: NavPage; to?: string; href?: string; name: string; desc: s
         desc: "Op Facilitator responsibilities, Active Data index, integrator rewards, and more",
       },
   {
+    to: ROUTES.REPORTS_CROSSVIEW,
+    name: "CrossView",
+    desc: "The shape of the Atlas — its functional chunks and their weights, a distilled table of contents, concept catalog, and glossary",
+  },
+  {
     to: ROUTES.CONNECT,
     name: "Connect (MCP)",
     desc: "Connect an AI assistant to the atlas over MCP — search, traverse, and cite it directly from your client",

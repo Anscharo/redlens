@@ -20,12 +20,12 @@ function tree() {
   return [root, gp, c1, c2, gc].map((node) => makeFlatEntry({ node, depth: node.depth }));
 }
 
-describe("useDepth6Expand hidden-count math", () => {
+describe("useDepth6Expand gated-count math", () => {
   it("counts depth-6+ children per gating parent", () => {
     const { result } = renderHook(() => useDepth6Expand(tree(), ""));
-    expect(result.current.hiddenCount.get("gp")).toBe(2);
-    expect(result.current.hiddenCount.get("c1")).toBe(1);
-    expect(result.current.hiddenCount.get("root")).toBeUndefined();
+    expect(result.current.gatedCount.get("gp")).toBe(2);
+    expect(result.current.gatedCount.get("c1")).toBe(1);
+    expect(result.current.gatedCount.get("root")).toBeUndefined();
   });
 });
 
@@ -117,5 +117,28 @@ describe("useDepth6Expand setParentsExpanded (bulk reveal/re-gate)", () => {
     act(() => result.current.setParentsExpanded(["gp", "c1"], false));
     expect(result.current.expandedParents.has("gp")).toBe(false);
     expect(result.current.expandedParents.has("c1")).toBe(false);
+  });
+});
+
+describe("useDepth6Expand mergeParentsExpanded (scoped snapshot restore)", () => {
+  it("forces membership within the scope to match the snapshot, leaving the rest alone", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), ""));
+    // c1 revealed and out-of-scope "gp" revealed before the restore.
+    act(() => result.current.setParentsExpanded(["c1", "gp"], true));
+    // Snapshot says: within the {c1, gc} branch, only gc should be revealed.
+    act(() => result.current.mergeParentsExpanded(new Set(["gc"]), new Set(["c1", "gc"])));
+    // c1 dropped (in scope, not in snapshot); gc added (in scope + snapshot);
+    // gp untouched (outside the scope) — the whole point of the scoped merge.
+    expect(result.current.expandedParents.has("c1")).toBe(false);
+    expect(result.current.expandedParents.has("gc")).toBe(true);
+    expect(result.current.expandedParents.has("gp")).toBe(true);
+  });
+
+  it("is a no-op (same reference) when the scope already matches the snapshot", () => {
+    const { result } = renderHook(() => useDepth6Expand(tree(), ""));
+    act(() => result.current.setParentsExpanded(["gp"], true));
+    const before = result.current.expandedParents;
+    act(() => result.current.mergeParentsExpanded(new Set(["gp"]), new Set(["gp"])));
+    expect(result.current.expandedParents).toBe(before);
   });
 });
