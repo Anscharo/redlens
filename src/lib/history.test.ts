@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { loadHistoryBatch, loadHistory, movePaths, severedRange, BATCH_MAX, type HistoryEntry } from "./history";
+import {
+  loadHistoryBatch,
+  loadHistory,
+  movePaths,
+  prHref,
+  severedRange,
+  ATLAS_REPO,
+  BATCH_MAX,
+  type HistoryEntry,
+} from "./history";
 
 const entry = (commitHash: string): HistoryEntry => ({
   date: "2024-01-01",
@@ -164,6 +173,22 @@ describe("movePaths", () => {
   it("is null for a pathless move from any other PR, and for non-moves", () => {
     expect(movePaths(moved({ pr: 236 }))).toBeNull();
     expect(movePaths(moved({ changeType: "modified", movedTo: "b.md" }))).toBeNull();
+  });
+});
+
+describe("prHref", () => {
+  it("prefers the stored URL when the row has one", () => {
+    expect(prHref({ pr: 236, prUrl: "https://example.test/pr/236" })).toBe("https://example.test/pr/236");
+  });
+
+  it("derives the URL from the number for a reconstructed row with no stored URL", () => {
+    // HTML-era rows predate the atlas_prs metadata git-era rows take pr_url
+    // from; without this the link renders href-less and is unclickable.
+    expect(prHref({ pr: 66 })).toBe(`${ATLAS_REPO}/pull/66`);
+  });
+
+  it("is undefined when there is no PR at all", () => {
+    expect(prHref({})).toBeUndefined();
   });
 });
 

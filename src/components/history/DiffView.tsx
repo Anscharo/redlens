@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { DiffLine, WordSegment } from "../../lib/history";
 import { refineProseDiff } from "../../lib/diffProse";
 import { isStructuredLine } from "../../lib/diffSentences";
+import { fencedFlags } from "../../lib/diffFences";
 import { IntralineDiff } from "./IntralineDiff";
 
 const DIFF_LINE_BG: Record<string, string> = {
@@ -30,26 +31,31 @@ const DIFF_BOX_BG = `linear-gradient(to right, var(--bg-deep) 0 ${GUTTER_W}px, v
  *  `key: value`, table row, heading, code — stays monospace and may break
  *  mid-token so long hashes and addresses still fit. Uses the same classifier
  *  as the prose-diff refinement, so a line's font agrees with how its diff was
- *  computed. */
+ *  computed. `inFence` overrides it: inside a ``` block every line is code,
+ *  however word-like it looks on its own (see ../../lib/diffFences). */
 const STRUCTURED_CLASS = "mono whitespace-pre-wrap break-all";
 const PROSE_CLASS = "whitespace-pre-wrap break-words";
 
-function lineClass(text: string): string {
-  return isStructuredLine(text) ? STRUCTURED_CLASS : PROSE_CLASS;
+function lineClass(text: string, inFence: boolean): string {
+  return inFence || isStructuredLine(text) ? STRUCTURED_CLASS : PROSE_CLASS;
 }
 
 /** Same test for an intraline row: reconstruct both sides of the line (the
  *  segments interleave them) and treat it as structured if either side is. */
-function segmentsClass(segments: WordSegment[]): string {
+function segmentsClass(segments: WordSegment[], inFence: boolean): string {
   const side = (keep: string) =>
     segments.filter(([op]) => op === "=" || op === keep).map(([, t]) => t).join("");
-  return isStructuredLine(side("-")) || isStructuredLine(side("+")) ? STRUCTURED_CLASS : PROSE_CLASS;
+  return inFence || isStructuredLine(side("-")) || isStructuredLine(side("+"))
+    ? STRUCTURED_CLASS
+    : PROSE_CLASS;
 }
 
 export function DiffView({ lines }: { lines: DiffLine[] }) {
   // Hooks must run unconditionally — refineProseDiff itself tolerates
   // non-array input (returns []), so this stays safe ahead of the guard below.
   const refined = useMemo(() => refineProseDiff(lines), [lines]);
+  // Which rows sit inside a ``` block — a per-line classifier can't see that.
+  const fenced = useMemo(() => fencedFlags(refined), [refined]);
   // Defensive: a malformed payload (e.g. a legacy double-encoded jsonb diff
   // that arrives as a string) must degrade, not crash the whole history tab.
   if (!Array.isArray(lines)) return null;
@@ -87,7 +93,7 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
                   className="rounded px-1"
                   style={{ background: "color-mix(in srgb, var(--accent) 6%, transparent)" }}
                 >
-                  <IntralineDiff segments={segments} className={segmentsClass(segments)} />
+                  <IntralineDiff segments={segments} className={segmentsClass(segments, fenced[i])} />
                 </span>
               </span>
             </div>
@@ -104,7 +110,7 @@ export function DiffView({ lines }: { lines: DiffLine[] }) {
             </span>
             <span className="min-w-0 px-2 py-1">
               <Body
-                className={`${lineClass(text)} no-underline${op === "=" ? "" : " rounded px-1"}`}
+                className={`${lineClass(text, fenced[i])} no-underline${op === "=" ? "" : " rounded px-1"}`}
                 style={{
                   background: DIFF_LINE_BG[op],
                   color: op === "=" ? "var(--tan-2)" : DIFF_LINE_COLOR[op],

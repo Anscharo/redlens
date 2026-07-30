@@ -113,6 +113,26 @@ describe("DiffView", () => {
     expect(prose).toHaveClass("break-words");
   });
 
+  it("keeps a fenced block's contents in mono even when they read as prose", () => {
+    // Only the ``` rows match isStructuredLine on their own; the contents have
+    // to inherit from the fence or they'd flip to the sans prose treatment
+    // mid-block.
+    const lines: DiffLine[] = [
+      ["=", "The facilitator shall maintain the reserve for the mandate."],
+      ["=", "```"],
+      ["+", "set the reserve to fourteen"],
+      ["=", "```"],
+    ];
+    render(<DiffView lines={lines} />);
+    const code = screen.getByText("set the reserve to fourteen");
+    expect(code).toHaveClass("mono");
+    expect(code).toHaveClass("break-all");
+    // The prose line outside the block is unaffected.
+    expect(
+      screen.getByText("The facilitator shall maintain the reserve for the mandate."),
+    ).not.toHaveClass("mono");
+  });
+
   it("renders the REFINED output: a wholesale sentence rewrite promotes to −/+ rows", () => {
     // A "~" entry where the sentence is almost entirely rewritten. refineProseDiff
     // promotes this to whole-line before/after swaps; DiffView must render that

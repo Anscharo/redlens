@@ -35,7 +35,7 @@
 
 
 ## 2026-07-30
-- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields in monospace
+- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
 - Fixed pull request links not opening on reconstructed history entries
 
 
