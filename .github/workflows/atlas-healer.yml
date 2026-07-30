@@ -1,0 +1,254 @@
+name: Atlas Healer
+
+# Weekly drift triage. The hourly atlas-update flow auto-accepts census
+# baselines and graph snapshots in the same commit that reports drift — this
+# sweep reconstructs what was silently accepted during the week, re-runs every
+# detector in VERIFY mode (no --update), and surfaces anything actionable in
+# an "atlas-health" issue whose @claude mention hands triage to the agent
+# (runbook: .claude/skills/atlas-healer/SKILL.md). It also opens the
+# processes-review issue when the curated inventory drifts — the half of that
+# loop processes-autoclose.yml was waiting on.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Monday 06:00 UTC.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  heal:
+    runs-on: ubuntu-latest
+    # Holds the ATLAS_BOT App credentials: issues created with the App token
+    # trigger claude.yml; issues from the default GITHUB_TOKEN never do.
+    environment: atlas-update-main-bypass
+    steps:
+      - name: Generate ATLAS_BOT app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLAS_BOT_APP_ID }}
+          private-key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
+
+      # fetch-depth 0: the week-window steps below read repo history (the
+      # submodule SHA a week ago, baseline churn since then).
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # census:risk and census:concepts run under bun.
+      - uses: oven-sh/setup-bun@v2
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same wholesale stderr capture as atlas-update.yml — now also carrying
+      # the [drift] tripwire and [drift-count] lines from graph-tripwires.mjs.
+      - name: Build artifacts
+        run: |
+          pnpm build:index 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm build:graph 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm build:glossary 2> >(tee -a /tmp/healer-warnings.log >&2)
+
+      - name: Run censuses in verify mode
+        run: |
+          pnpm census:check 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm census:govops 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm census:risk 2> >(tee -a /tmp/healer-warnings.log >&2)
+          pnpm census:concepts 2> >(tee -a /tmp/healer-warnings.log >&2)
+
+      - name: Check process inventory
+        id: processes
+        run: pnpm processes:check
+
+      # The hourly flow only ever runs snapshot UPDATE; verify catches
+      # whatever update papered over (e.g. a snapshot committed against a
+      # different addresses.json than the one now on main).
+      - name: Verify graph snapshots
+        run: |
+          if pnpm test:snap > /tmp/snap-verify.log 2>&1; then
+            echo "pass" > /tmp/snap-verify-status.txt
+          else
+            echo "FAIL" > /tmp/snap-verify-status.txt
+            tail -c 4000 /tmp/snap-verify.log > /tmp/snap-verify-tail.txt
+          fi
+
+      - name: Collect week-window signals
+        id: week
+        run: |
+          # Atlas submodule SHA recorded on this branch a week ago → what
+          # changed upstream since, plus the spec diff (leading indicator of
+          # a new structural convention).
+          OLD_MAIN=$(git rev-list -1 --before='7 days ago' HEAD || true)
+          NOW_ATLAS=$(git -C vendor/next-gen-atlas rev-parse HEAD)
+          if [ -n "$OLD_MAIN" ]; then
+            OLD_ATLAS=$(git rev-parse "$OLD_MAIN:vendor/next-gen-atlas" 2>/dev/null || echo "$NOW_ATLAS")
+          else
+            OLD_ATLAS="$NOW_ATLAS"
+          fi
+          echo "old_atlas=${OLD_ATLAS:0:7}" >> "$GITHUB_OUTPUT"
+          echo "now_atlas=${NOW_ATLAS:0:7}" >> "$GITHUB_OUTPUT"
+          git -C vendor/next-gen-atlas log --oneline --stat=100 \
+            "$OLD_ATLAS..$NOW_ATLAS" > /tmp/upstream-log.txt 2>/dev/null || true
+          git -C vendor/next-gen-atlas diff "$OLD_ATLAS" "$NOW_ATLAS" \
+            -- ATLAS_MARKDOWN_SYNTAX.md > /tmp/spec-diff.txt 2>/dev/null || true
+
+          # What the hourly bumps auto-accepted this week. Baseline churn is
+          # drift that was recorded and then erased; snapshot churn is context.
+          git log -p --since='7 days ago' -- \
+            .github/atlas-census-baseline.json .github/govops-census-baseline.json \
+            .github/risk-census-baseline.json .github/concepts-census-baseline.json \
+            .github/atlas-warnings-baseline.txt > /tmp/accepted-baselines.txt || true
+          git log --stat --since='7 days ago' -- \
+            graph-snapshots/__snapshots__ > /tmp/accepted-snapshots.txt || true
+
+          # Only warnings not already accepted as benign count as drift —
+          # same idiom as atlas-update.yml.
+          comm -13 \
+            <(sort -u .github/atlas-warnings-baseline.txt) \
+            <(sort -u /tmp/healer-warnings.log 2>/dev/null || true) > /tmp/new-warnings.txt || true
+
+      # A failed atlas-update run means the atlas silently stopped advancing —
+      # the one failure mode with no issue, no PR, and no drift signal.
+      - name: Sweep atlas-update runs
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh run list --workflow=atlas-update.yml --limit 60 \
+            --json conclusion,createdAt,url \
+            --jq '[.[] | select(.createdAt > (now - 7*86400 | todate)) | select(.conclusion == "failure")] | .[] | "\(.createdAt) \(.url)"' \
+            > /tmp/failed-runs.txt || true
+
+      # Complete the loop processes-autoclose.yml closes: when the curated
+      # inventory drifts, make sure an open processes-review issue exists.
+      - name: Open processes-review issue when inventory is dirty
+        if: steps.processes.outputs.dirty == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh label create processes-review --force \
+            --color FBCA04 \
+            --description "Curated process inventory needs reconciling against atlas drift"
+
+          {
+            echo "The curated process inventory has drifted from the atlas (missing: ${{ steps.processes.outputs.missing }}, new candidates: ${{ steps.processes.outputs.candidates }})."
+            echo "Triage with \`pnpm processes:triage --issue <this issue number>\` — runbook: \`.claude/skills/processes-triage/SKILL.md\`. This issue closes automatically once \`public/processes.json\` is back in sync."
+            echo
+            head -c 12000 .cache/processes-audit.md
+          } > /tmp/processes-issue.md
+
+          OPEN=$(gh issue list --state open --label processes-review --json number --jq '.[0].number // empty')
+          if [ -n "$OPEN" ]; then
+            gh issue comment "$OPEN" --body-file /tmp/processes-issue.md
+            echo "Refreshed open processes-review issue #$OPEN"
+          else
+            gh issue create \
+              --title "Process inventory drift — candidates to triage" \
+              --label processes-review \
+              --body-file /tmp/processes-issue.md
+          fi
+
+      - name: Open or update atlas-health issue
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          SNAP_STATUS=$(cat /tmp/snap-verify-status.txt)
+
+          # Actionable = anything a healer run should look at. Snapshot/
+          # baseline *churn* alone is context, but census-baseline churn is a
+          # recorded-then-erased drift signal, so it counts.
+          ACTIONABLE=false
+          [ -s /tmp/new-warnings.txt ] && ACTIONABLE=true
+          [ -s /tmp/spec-diff.txt ] && ACTIONABLE=true
+          [ -s /tmp/accepted-baselines.txt ] && ACTIONABLE=true
+          [ -s /tmp/failed-runs.txt ] && ACTIONABLE=true
+          [ "$SNAP_STATUS" = "FAIL" ] && ACTIONABLE=true
+          [ "${{ steps.processes.outputs.dirty }}" = "true" ] && ACTIONABLE=true
+
+          if [ "$ACTIONABLE" = "false" ]; then
+            echo "All signals clean — no atlas-health issue this week."
+            exit 0
+          fi
+
+          {
+            echo "@claude Weekly atlas health sweep (atlas \`${{ steps.week.outputs.old_atlas }}\` → \`${{ steps.week.outputs.now_atlas }}\`). Triage using the atlas-healer skill (\`.claude/skills/atlas-healer/SKILL.md\`): work the checklist in its silence order, open a fix PR for mechanical repairs, report judgment calls as findings, and end with the health-report comment the skill specifies."
+            echo
+            if [ "$SNAP_STATUS" = "FAIL" ]; then
+              echo "## Graph snapshot VERIFY FAILED on main"
+              echo '```'
+              cat /tmp/snap-verify-tail.txt
+              echo '```'
+              echo
+            fi
+            if [ -s /tmp/failed-runs.txt ]; then
+              echo "## Failed atlas-update runs this week (atlas may have stopped advancing)"
+              echo '```'
+              cat /tmp/failed-runs.txt
+              echo '```'
+              echo
+            fi
+            if [ -s /tmp/new-warnings.txt ]; then
+              echo "## NEW warnings (not in baseline) — includes tripwires and [drift-count] bucket changes"
+              echo '```'
+              head -c 12000 /tmp/new-warnings.txt
+              echo '```'
+              echo
+            fi
+            if [ -s /tmp/spec-diff.txt ]; then
+              echo "## ATLAS_MARKDOWN_SYNTAX.md changed this week"
+              echo '```diff'
+              head -c 12000 /tmp/spec-diff.txt
+              echo '```'
+              echo
+            fi
+            if [ -s /tmp/accepted-baselines.txt ]; then
+              echo "<details><summary>Census/warnings baselines auto-accepted this week (recorded-then-erased drift)</summary>"
+              echo
+              echo '```diff'
+              head -c 16000 /tmp/accepted-baselines.txt
+              echo '```'
+              echo "</details>"
+              echo
+            fi
+            if [ -s /tmp/accepted-snapshots.txt ]; then
+              echo "<details><summary>Graph snapshot churn this week (context)</summary>"
+              echo
+              echo '```'
+              head -c 4000 /tmp/accepted-snapshots.txt
+              echo '```'
+              echo "</details>"
+              echo
+            fi
+            if [ -s /tmp/upstream-log.txt ]; then
+              echo "<details><summary>Upstream atlas commits this week</summary>"
+              echo
+              echo '```'
+              head -c 8000 /tmp/upstream-log.txt
+              echo '```'
+              echo "</details>"
+            fi
+          } > /tmp/health-issue.md
+
+          gh label create atlas-health --force \
+            --color 1D76DB \
+            --description "Weekly atlas healer sweep — drift triage for parsers and reports"
+
+          OPEN=$(gh issue list --state open --label atlas-health --json number --jq '.[0].number // empty')
+          if [ -n "$OPEN" ]; then
+            gh issue comment "$OPEN" --body-file /tmp/health-issue.md
+            echo "Appended to open atlas-health issue #$OPEN"
+          else
+            gh issue create \
+              --title "Atlas health sweep — week of $(date -u +%Y-%m-%d)" \
+              --label atlas-health \
+              --body-file /tmp/health-issue.md
+          fi

@@ -48,6 +48,10 @@ Escape hatches: `DEV_NO_INSTALL=1` (skip the install check), `DEV_NO_WORKER=1` (
 
 The curated process inventory (`public/processes.json` + `public/processes-ignored.json`) is reconciled against atlas drift by the `processes:*` scripts, which are off the `pnpm build` chain. See `.claude/skills/processes-triage/SKILL.md` ("Entry points") for which are human entry-points vs CI-only, and the triage runbook.
 
+### Atlas healer (weekly drift sweep)
+
+`.github/workflows/atlas-healer.yml` runs Mondays: rebuilds artifacts, runs every census in verify mode (no `--update`), reconstructs what the hourly atlas bumps auto-accepted that week, verifies graph snapshots, sweeps failed atlas-update runs, and opens an `atlas-health` issue whose `@claude` mention triggers triage via `.claude/skills/atlas-healer/SKILL.md` (the silence-ordered checklist + fix-PR-vs-finding rules). It also opens the `processes-review` issue when the inventory is dirty — `processes-autoclose.yml` closes it. Build-side tripwires live in `scripts/lib/graph-tripwires.mjs`: `[drift] tripwire:` stderr lines when a structural gate (doc_no regex or `type ===` filter) matches zero docs, and bucketed `[drift-count]` stderr lines for unresolved-counter regressions — both flow into the same warnings-baseline diff atlas-update.yml uses.
+
 ## Architecture
 
 ### Data pipeline

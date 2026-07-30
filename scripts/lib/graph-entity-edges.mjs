@@ -22,6 +22,7 @@ import {
   ALIGNED_DELEGATES_UUID,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
+import { warnDriftCount } from "./graph-tripwires.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
 
 export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, addressesRaw) {
@@ -391,6 +392,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   console.log(
     `  responsible_party_for: ${rpDirect} direct, ${rpChain} via chain, ${rpRole} via role-binding, ${rpUnresolved} unresolved`,
   );
+  warnDriftCount("responsible_party_for unresolved", rpUnresolved);
 
   // --- 2s-bis. process_step_responsible_party_for (Pattern 6, process-step) ---
   // Process-step "Update" docs (type=Core, mostly A.2.2.9.*) carry the same
@@ -436,6 +438,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   console.log(
     `  process_step_responsible_party_for: ${stepRpEdges} edges across ${stepRpDocs} docs, ${stepRpUnresolved} unresolved`,
   );
+  warnDriftCount("process_step_responsible_party_for unresolved", stepRpUnresolved);
 
   // --- 2s-ter. duty_for (acting-role duty discovery) ---
   // Neither GovOps nor the Executor Agent has a dedicated "Duties" scope the way
@@ -581,6 +584,12 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
         .map((k) => `${s.byMatch.get(k) ?? 0} ${k}`)
         .join(", ")}), ${s.unresolved} unresolved`,
     );
+    warnDriftCount(`duty_for[${role.key}] unresolved`, s.unresolved);
+    if (s.edges === 0) {
+      console.warn(
+        `  [drift] tripwire: duty_for[${role.key}] emitted 0 edges — the ${role.key} duty patterns in scripts/lib/graph-duties.mjs no longer match the atlas`,
+      );
+    }
   }
 
   // --- 2t. defines_entity (doc → entity it defines) ---
@@ -651,6 +660,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
       }
     }
     console.log(`  org-prose: ${emitted} edges (${skipped} unresolved matches skipped)`);
+    warnDriftCount("org-prose unresolved", skipped);
   }
 
   // --- 2w. proxies_to (address → implementation address) ---
