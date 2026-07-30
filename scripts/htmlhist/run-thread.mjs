@@ -32,6 +32,13 @@ const md5 = (s) => crypto.createHash("md5").update(s).digest("hex");
 const git = (a) => execSync(`git -C "${REPO}" ${a}`, { maxBuffer: 1 << 30 }).toString();
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
+// git's %cI spells a UTC commit's offset `+00:00`, but the frozen artifact has always
+// carried `Z` for those — meaning the two forms depend on which machine ran the freeze,
+// and a rerun elsewhere silently reformats ~1.5k historical event dates (same instants,
+// pure diff noise, against the "historical diffs must not change" bar). Non-UTC offsets
+// are untouched. Canonicalize here so the freeze is byte-stable across environments.
+const canonicalDate = (d) => (typeof d === "string" ? d.replace(/\+00:00$/, "Z") : d);
+
 // #117 markdown monolith → nodes with real uuid4 + body prose (for the seed).
 function parseMd117(blob) {
   const HRE = /^(#{1,6}) (\S+) - (.*?) \[([^\]]+)\]\s+<!-- UUID: ([0-9a-f-]{36}) -->/;
@@ -56,7 +63,7 @@ function loadHtmlEraCommits() {
     const [full, date, ...rest] = line.split("\t");
     const subject = rest.join("\t");
     const pr = (subject.match(/\(#(\d+)\)/) || [])[1] || null;
-    commitMeta.set(full.slice(0, 7), { date, pr: pr ? Number(pr) : null, subject });
+    commitMeta.set(full.slice(0, 7), { date: canonicalDate(date), pr: pr ? Number(pr) : null, subject });
   }
 
   const md = parseMd117(git(`show ${MD117}:'${MD}'`));
