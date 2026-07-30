@@ -183,6 +183,32 @@ describe("GROUPS seed hardening", () => {
     expect(out.chunkTree).toEqual([{ title: "Dangling complement", docs: 0, children: [] }]);
   });
 
+  it("drops a curated root UUID that no longer resolves, warns, and keeps its live siblings (no crash)", () => {
+    // A curated group lists two roots; one was deleted from the atlas (a doc
+    // merge/removal). The dead UUID must not throw on nodes[r].doc_no — it's
+    // dropped with a warn and the surviving root still renders.
+    const n = Object.fromEntries([mk("A.3", "Scope"), mk("A.4", "Scope")].map((x) => [x.id, x]));
+    const groups: GroupSpec[] = [{ name: "Machinery", roots: ["id-A.3", "gone-uuid", "id-A.4"] }];
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = computeCrossView({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, groups);
+    const machinery = out.chunkTree.find((g) => g.title === "Machinery");
+    expect(machinery?.docs).toBe(2); // A.3 + A.4, the dead root contributes nothing
+    expect(machinery?.children?.map((c) => c.doc_no).sort()).toEqual(["A.3", "A.4"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toMatch(/gone-uuid/);
+    warn.mockRestore();
+  });
+
+  it("degrades a group whose every curated root is gone to an empty, childless group (no crash)", () => {
+    const n = Object.fromEntries([mk("A.3", "Scope")].map((x) => [x.id, x]));
+    const groups: GroupSpec[] = [{ name: "All gone", roots: ["dead-1", "dead-2"] }];
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const out = computeCrossView({ atlasCommit: "x", nodes: n, glossaryTerms: 0 }, groups);
+    expect(out.chunkTree).toEqual([{ title: "All gone", docs: 0, children: [] }]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
   it("a fixture matching the current GROUPS shape leaves nothing unclaimed", () => {
     // Mirrors production: A.1 fully partitioned across three explicit-roots
     // groups, A.2 covered by one explicit root (A.2.2) plus the complement.

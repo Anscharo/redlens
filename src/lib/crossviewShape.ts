@@ -159,14 +159,33 @@ export function computeCrossView(
   // Resolve each GroupSpec to a concrete root-id list. Complement specs read
   // straight children off the semChildren map built above, so a new A.2.x
   // article self-heals into "Support processes" without a code change.
+  //
+  // Curated `roots` are hardcoded UUIDs (Constitutional core, Actor rulebooks,
+  // …). If one is ever deleted from the atlas (a doc merge/removal, not just a
+  // renumbering) it must degrade gracefully — every downstream consumer
+  // (groupChildren, the chunkTree reducer) indexes straight into nodes[r], so
+  // a stale UUID would throw on `undefined` and take down the whole Shape tab.
+  // Drop missing roots with a console.warn, mirroring the unclaimed-articles
+  // self-heal below, so all resolved roots are guaranteed present in `nodes`.
+  const missingRoots: string[] = [];
   const resolveRoots = (g: GroupSpec): string[] => {
-    if ("roots" in g) return g.roots;
+    if ("roots" in g) {
+      const present = g.roots.filter((r) => nodes[r]);
+      for (const r of g.roots) if (!nodes[r]) missingRoots.push(r);
+      return present;
+    }
     const parent = nodes[g.complementOf];
     if (!parent) return [];
     const exceptSet = new Set(g.except);
     return (semChildren.get(parent.doc_no) ?? []).filter((c) => !exceptSet.has(c.id)).map((c) => c.id);
   };
   const resolvedGroups = groups.map((g) => ({ name: g.name, roots: resolveRoots(g) }));
+  if (missingRoots.length > 0) {
+    console.warn(
+      `[crossviewShape] ${missingRoots.length} curated GROUPS root UUID(s) no longer in the atlas — ` +
+        `${missingRoots.join(", ")}. Dropped from the chunk tree; update GROUPS in src/lib/crossviewShape.ts.`,
+    );
+  }
 
   // Completeness diff: A.1 and A.2 are partitioned article-by-article (unlike
   // A.0/A.3–A.6, each captured by a single whole-scope root) — every direct
