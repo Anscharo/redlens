@@ -33,14 +33,14 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-27
-- Added an Atlas CrossView report with a visual chunk map of the Atlas, weight bars, a concept catalog with live re-computed data blocks and CSV export, a glossary of defined terms, and CSV export of the chunk breakdown
-- The chatbot can now answer cross-cutting questions from the concept censuses, like how many registries are empty or which document types are unused
-
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it
 - Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line
 - Opened the document panel on the History tab by default
+
+## 2026-07-27
+- Added an Atlas CrossView report with a visual chunk map of the Atlas, weight bars, a concept catalog with live re-computed data blocks and CSV export, a glossary of defined terms, and CSV export of the chunk breakdown
+- The chatbot can now answer cross-cutting questions from the concept censuses, like how many registries are empty or which document types are unused
 
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
