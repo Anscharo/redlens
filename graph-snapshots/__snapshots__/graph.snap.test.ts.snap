@@ -3888,14 +3888,14 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Tokenize
 ]
 `;
 
-exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - USDC to USDG via Paxos 1`] = `
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - USDC To USDG Via Paxos 1`] = `
 [
   {
     "content": "**\`Pending\`**",
     "title": "RRC Framework Full Implementation Coverage",
   },
   {
-    "content": "The documents herein define the parameters of the USDC to USDG via Paxos Instance of the Allocation System Primitive.",
+    "content": "The documents herein define the parameters of the USDC To USDG Via Paxos Instance of the Allocation System Primitive.",
     "title": "Parameters",
   },
   {
@@ -4296,7 +4296,7 @@ exports[`allocation-system sub-doc content > Grove > Plasma - Aave v3 USDT0 1`] 
     "title": "Token Address",
   },
   {
-    "content": "\`0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD\`",
+    "content": "\`0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb\`",
     "title": "Underlying Asset Address",
   },
   {
@@ -4517,14 +4517,14 @@ exports[`allocation-system sub-doc content > Grove > Robinhood Chain - Grove x S
 ]
 `;
 
-exports[`allocation-system sub-doc content > Grove > Robinhood Chain - USDG to USDC via Paxos 1`] = `
+exports[`allocation-system sub-doc content > Grove > Robinhood Chain - USDG To USDC Via Paxos 1`] = `
 [
   {
     "content": "**\`Pending\`**",
     "title": "RRC Framework Full Implementation Coverage",
   },
   {
-    "content": "The documents herein define the parameters of the USDG to USDC via Paxos Instance of the Allocation System Primitive.",
+    "content": "The documents herein define the parameters of the USDG To USDC Via Paxos Instance of the Allocation System Primitive.",
     "title": "Parameters",
   },
   {
@@ -10741,19 +10741,19 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
-  "active_data_for": 76,
+  "active_data_for": 78,
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 1988,
+  "cites": 2063,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
   "defines_entity": 403,
-  "duty_for": 854,
+  "duty_for": 861,
   "ecosystem_accord": 20,
   "emergency_response": 16,
-  "erg_member_for": 8,
+  "erg_member_for": 9,
   "governance_channel": 10,
   "has_address": 278,
   "has_status": 136,
@@ -10765,7 +10765,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 201,
   "listed_in": 51,
   "located_at": 193,
-  "mentions": 639,
+  "mentions": 638,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -10775,7 +10775,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "provides_services_to": 2,
   "proxies_to": 67,
   "ranked_delegate_for": 3,
-  "responsible_party_for": 63,
+  "responsible_party_for": 65,
   "signer_of": 61,
   "validator_of": 27,
 }
@@ -10903,10 +10903,6 @@ exports[`entities > facilitators 1`] = `
 exports[`entities > govops orgs 1`] = `
 [
   {
-    "name": "Atlas Axis",
-    "slug": "atlas-axis",
-  },
-  {
     "name": "Soter Labs",
     "slug": "soter-labs",
   },
@@ -10969,6 +10965,7 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
   "A.1.9.1.2.2.0.6.1 → A.1.9.1.2.2",
   "A.2.11.1.3.4.2.0.6.1 → A.2.11.1.3.4.2",
   "A.2.2.10.1.1.1.1.2.0.6.1 → A.2.2.10.1.1.1.1.2",
+  "A.2.2.10.1.1.1.1.3.0.6.1 → A.2.2.10.1.1.1.1.3",
   "A.2.2.4.1.2.1.1.0.6.1 → A.2.2.4.1.2.1.1",
   "A.2.2.4.3.6.1.0.6.1 → A.2.2.4.3.6.1",
   "A.2.2.9.1.2.1.4.1.0.6.1 → A.2.2.9.1.2.1.4.1",
@@ -10988,6 +10985,7 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
   "A.6.1.1.1.3.1.4.11.1.0.6.1 → A.6.1.1.1.3.1.4.11.1",
   "A.6.1.1.1.3.2.2.2.1.1.0.6.1 → A.6.1.1.1.3.2.2.2.1.1",
   "A.6.1.1.2.2.5.1.2.1.3.4.0.6.1 → A.6.1.1.2.2.5.1.2.1.3.4",
+  "A.6.1.1.2.3.1.4.8.2.0.6.1 → A.6.1.1.2.3.1.4.8.2",
   "A.6.1.1.3.2.5.1.2.1.3.4.0.6.1 → A.6.1.1.3.2.5.1.2.1.3.4",
   "A.6.1.1.3.2.5.1.2.2.3.4.0.6.1 → A.6.1.1.3.2.5.1.2.2.3.4",
   "A.6.1.1.3.2.5.2.2.1.3.4.0.6.1 → A.6.1.1.3.2.5.2.2.1.3.4",
@@ -11116,15 +11114,20 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   {
     "adc": "A.1.9.1.2.2",
     "declared": "Core GovOps",
-    "party": "Atlas Axis",
+    "party": "Soter Labs",
   },
   {
     "adc": "A.2.11.1.3.4.2",
     "declared": "Core GovOps",
-    "party": "Atlas Axis",
+    "party": "Soter Labs",
   },
   {
     "adc": "A.2.2.10.1.1.1.1.2",
+    "declared": "Core Facilitator",
+    "party": "JanSky",
+  },
+  {
+    "adc": "A.2.2.10.1.1.1.1.3",
     "declared": "Core Facilitator",
     "party": "JanSky",
   },
@@ -11151,12 +11154,12 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   {
     "adc": "A.2.2.9.1.2.1.5.1",
     "declared": "Core GovOps",
-    "party": "Atlas Axis",
+    "party": "Soter Labs",
   },
   {
     "adc": "A.2.2.9.2.2.1.5.1",
     "declared": "Core GovOps",
-    "party": "Atlas Axis",
+    "party": "Soter Labs",
   },
   {
     "adc": "A.2.2.9.3.1.2.1",
@@ -11181,7 +11184,7 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
   {
     "adc": "A.3.7.1.5.3",
     "declared": "Core GovOps",
-    "party": "Atlas Axis",
+    "party": "Soter Labs",
   },
   {
     "adc": "A.3.7.1.6.6.2.3",
@@ -11217,6 +11220,11 @@ exports[`governance edges > responsible_party_for — entity → ADC doc 1`] = `
     "adc": "A.6.1.1.2.2.5.1.2.1.3.4",
     "declared": "Operational GovOps",
     "party": "Soter Labs",
+  },
+  {
+    "adc": "A.6.1.1.2.3.1.4.8.2",
+    "declared": "Operational Facilitator",
+    "party": "Endgame Edge",
   },
   {
     "adc": "A.6.1.1.3.2.5.1.2.1.3.4",
@@ -13439,7 +13447,7 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
-    "name": "Ethereum Mainnet - USDC to USDG via Paxos",
+    "name": "Ethereum Mainnet - USDC To USDG Via Paxos",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDC",
       "Network": "Ethereum Mainnet",
@@ -13490,7 +13498,7 @@ exports[`instances > allocation-system instances 1`] = `
       "Target Protocol": "Aave v3",
       "Token": "USDT0",
       "Token Address": "0x5D72a9d9A9510Cd8cBdBA12aC62593A58930a948",
-      "Underlying Asset Address": "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD",
+      "Underlying Asset Address": "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
     },
     "slug": "grove-allocation-system-plasma-aave-v3-usdt0",
     "status": "Active",
@@ -13540,7 +13548,7 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
-    "name": "Robinhood Chain - USDG to USDC via Paxos",
+    "name": "Robinhood Chain - USDG To USDC Via Paxos",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDG",
       "Network": "Robinhood Chain",
@@ -14374,7 +14382,7 @@ exports[`role edges > core_facilitator_for 1`] = `
 
 exports[`role edges > core_govops_for 1`] = `
 [
-  "Atlas Axis → Core Council Executor Agent 1",
+  "Soter Labs → Core Council Executor Agent 1",
 ]
 `;
 

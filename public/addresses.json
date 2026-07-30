@@ -1780,6 +1780,11 @@
     "isContract": false,
     "isProxy": false
   },
+  "0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb": {
+    "chain": "ethereum",
+    "isContract": false,
+    "isProxy": false
+  },
   "0x222365ef19f7947e5484218551b56bb3965aa7af": {
     "chain": "ethereum",
     "isContract": false,
@@ -1806,6 +1811,21 @@
     "isProxy": false
   },
   "0xfc0a7ed7c5146b26eb38fa92c71f434a7178b06e": {
+    "chain": "ethereum",
+    "isContract": false,
+    "isProxy": false
+  },
+  "0xb5f1a4a55337493f82640e1bed84fa9290b6ec2d": {
+    "chain": "ethereum",
+    "isContract": false,
+    "isProxy": false
+  },
+  "0x1c8f136b3c8f40b82f6676f09f44e8e2b52677a8": {
+    "chain": "ethereum",
+    "isContract": false,
+    "isProxy": false
+  },
+  "0x9ea908bd2d294161c40b9accb095e91ff27f09df": {
     "chain": "ethereum",
     "isContract": false,
     "isProxy": false
