@@ -13,6 +13,11 @@ Quick reference — variable names and which service they go on. For the full st
 | `CHAT_JWT_SECRET` | output of `openssl rand -hex 32` | For logins/chat |
 | `GITHUB_CLIENT_ID` | from your GitHub OAuth App | For logins/chat |
 | `GITHUB_CLIENT_SECRET` | from your GitHub OAuth App | For logins/chat |
+| `GITHUB_TOKEN` | a PAT with public-repo read access | For Preview (PR/branch resolution + fork previews) |
+
+Without `GITHUB_TOKEN` on the **web** service, `/preview` can still build canonical
+branches, but PR/fork resolution is rate-limited or rejected — fork URLs come back as
+`not-derived`. It's the same kind of token the worker uses; one PAT can serve both services.
 
 `CHAT_ENABLED` is AND-gated by `USERS_ENABLED` — chat requires a logged-in session, so enabling chat means setting **both** `USERS_ENABLED=1` and `CHAT_ENABLED=1` (plus the matching `VITE_USERS_ENABLED=1` / `VITE_CHAT_ENABLED=1` build args).
 

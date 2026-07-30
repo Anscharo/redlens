@@ -341,7 +341,9 @@ const server = Bun.serve({
       .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
-    if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
+    // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to
+    // the trailing-slash-less path, which is the first crawlable route into it.
+    if (pathname === "/preview" || pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { status: notFound ? 404 : 200, headers });
     /* v8 ignore stop */
   },
