@@ -132,8 +132,9 @@ win. Work is on branch **`futures`**. Build order is the "Build sequencing" sect
   DB row freshness; this sweeper owns the web service's disk.
 
 ### Next — remaining
-- **Deploy**: set `GITHUB_TOKEN` + `PREVIEW_ENABLED=1` on the Railway **web** service; the worker
-  service already has `GITHUB_TOKEN`. Migrations `006`/`007` run at boot.
+- **Deploy**: set `GITHUB_TOKEN` on the Railway **web** service; the worker service already has
+  it. Migrations `006`/`007` run at boot. (There is no longer a `PREVIEW_ENABLED` /
+  `VITE_PREVIEW_ENABLED` flag — the homepage Preview card always renders.)
 - **Graph relations keyed** (P1) — re-enable right-panel relations in preview by keying the graph
   worker per base.
 - **Dockerfile** `python3` removal; `subscribeBuild` double-`fetching` event (cosmetic).
