@@ -70,7 +70,7 @@ describe("DiffView", () => {
     expect(container.textContent).toContain(" ");
   });
 
-  it("renders a lightly edited paragraph as an inline ~ row (word-level, not promoted)", () => {
+  it("renders a lightly edited paragraph as an inline Δ row (word-level, not promoted)", () => {
     // One short word changed in a long sentence stays below the promotion
     // threshold, so refineProseDiff leaves the "~" intraline entry intact.
     const lines: DiffLine[] = [
@@ -90,7 +90,27 @@ describe("DiffView", () => {
     render(<DiffView lines={lines} />);
     expect(screen.getByText("twelve")).toBeInTheDocument();
     expect(screen.getByText("fourteen")).toBeInTheDocument();
-    expect(screen.getByText("~")).toBeInTheDocument();
+    // The modified-line marker is Δ — a tilde reads too much like the "−" one.
+    expect(screen.getByText("Δ")).toBeInTheDocument();
+  });
+
+  it("sets prose lines in the body sans and structured/frontmatter lines in mono", () => {
+    // A preview patch carries the document.md frontmatter, so both kinds land
+    // in one box: `key: value` and `---` stay monospace, prose does not.
+    const lines: DiffLine[] = [
+      ["=", "---"],
+      ["-", "name: Old Document Name"],
+      ["+", "name: New Document Name"],
+      ["=", "The facilitator shall maintain the reserve for the mandate."],
+    ];
+    render(<DiffView lines={lines} />);
+    expect(screen.getByText("---")).toHaveClass("mono");
+    expect(screen.getByText("name: Old Document Name")).toHaveClass("mono");
+    expect(screen.getByText("name: New Document Name")).toHaveClass("mono");
+    const prose = screen.getByText("The facilitator shall maintain the reserve for the mandate.");
+    expect(prose).not.toHaveClass("mono");
+    // Prose wraps at word boundaries; only structured lines break mid-token.
+    expect(prose).toHaveClass("break-words");
   });
 
   it("renders the REFINED output: a wholesale sentence rewrite promotes to −/+ rows", () => {

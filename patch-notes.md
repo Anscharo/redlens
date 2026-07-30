@@ -34,6 +34,10 @@
 -->
 
 
+## 2026-07-30
+- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields in monospace
+- Fixed pull request links not opening on reconstructed history entries
+
 ## 2026-07-28
 - Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line
 - Opened the document panel on the History tab by default

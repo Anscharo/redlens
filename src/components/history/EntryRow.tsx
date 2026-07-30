@@ -1,4 +1,13 @@
-import { CHANGE_COLOR, RECONSTRUCTED_ERAS, isGitSha, movePaths, severedRange, type HistoryEntry } from "../../lib/history";
+import {
+  ATLAS_REPO,
+  CHANGE_COLOR,
+  RECONSTRUCTED_ERAS,
+  isGitSha,
+  movePaths,
+  prHref,
+  severedRange,
+  type HistoryEntry,
+} from "../../lib/history";
 import { DiffView } from "./DiffView";
 import { LINE1_H, TimelineRow } from "./Timeline";
 
@@ -60,7 +69,7 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
 
           {hasPr ? (
             <a
-              href={entry.prUrl}
+              href={prHref(entry)}
               target="_blank"
               rel="noopener noreferrer"
               title={`Atlas Pull Request #${entry.pr}`}
@@ -73,7 +82,7 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
             <span style={{ color: "var(--tan-3)" }}>
               commit{" "}
               <a
-                href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+                href={`${ATLAS_REPO}/commit/${entry.commitHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:underline focus-visible:underline"
@@ -93,7 +102,7 @@ export function EntryRow({ entry, labelOverride, isFirst }: Props) {
               className="hover:underline focus-visible:underline"
               style={{ color: "var(--tan-3)" }}
             >
-              source →
+              source <span className="enlargen">→</span>
             </a>
           ) : range ? null : (
             // No real sha and no external source to link. A severed-era birth is

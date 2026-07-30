@@ -35,7 +35,7 @@ function PreMdFooter() {
         className="hover:underline focus-visible:underline"
         style={{ color: "var(--accent)" }}
       >
-        view original HTML →
+        view original HTML <span className="enlargen">→</span>
       </a>
     </p>
   );

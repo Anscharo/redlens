@@ -160,8 +160,8 @@ describe("ActorDashboard sections", () => {
     );
     expect(screen.getByText("Notable")).toBeInTheDocument();
     expect(screen.getByText("2 AD docs without a responsible party")).toBeInTheDocument();
-    expect(screen.getByText("view report →")).toBeInTheDocument();
-    expect(screen.getByText("view actor →")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "view report →" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "view actor →" })).toBeInTheDocument();
   });
 
   it("scrolls a matching hash target into view on mount", () => {

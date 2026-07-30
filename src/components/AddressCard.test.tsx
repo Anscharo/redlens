@@ -62,14 +62,13 @@ describe("AddressCard", () => {
     const impl = "0x1111111111111111111111111111111111111111";
     const info = makeAddressInfo({ isProxy: true, implementation: impl, roles: [] });
     render(<AddressCard address={ADDR} info={info} />);
-    expect(screen.getByText(/proxy →/)).toBeInTheDocument();
-    expect(screen.getByTitle(`implementation ${impl}`)).toBeInTheDocument();
+    expect(screen.getByTitle(`implementation ${impl}`)).toHaveTextContent("proxy →");
   });
 
   it("omits the proxy badge when isProxy is true but implementation is missing", () => {
     const info = makeAddressInfo({ isProxy: true, implementation: undefined, roles: [] });
     render(<AddressCard address={ADDR} info={info} />);
-    expect(screen.queryByText(/proxy →/)).toBeNull();
+    expect(screen.queryByText(/^proxy\b/)).toBeNull();
   });
 
   it("omits the whole badge row when there are no roles and no proxy", () => {
