@@ -40,17 +40,36 @@ describe("NodeHistory states", () => {
     expect(await screen.findByText("no history recorded")).toBeInTheDocument();
   });
 
-  it("renders 'no history recorded' for an empty array", async () => {
+  it("renders 'no history recorded' for an empty array, indented to the entry column", async () => {
     mockLoad.mockResolvedValue([]);
     render(<NodeHistory nodeId="n3" />);
-    expect(await screen.findByText("no history recorded")).toBeInTheDocument();
+    const msg = await screen.findByText("no history recorded");
+    // Status lines have no rail of their own, so they indent to where entry text
+    // starts rather than sitting under the timeline.
+    expect(msg).toHaveStyle({ marginLeft: "30px" });
+  });
+
+  it("keeps the first entry's upward rail when the timeline runs in from above", async () => {
+    // Preview mode draws its own entry and heading above this list, so trimming
+    // the top segment here would break one continuous line into two.
+    mockLoad.mockResolvedValue([entry({ pr: 1 })]);
+    const railSpans = (c: HTMLElement) => c.querySelectorAll("[aria-hidden='true'] span").length;
+
+    const trimmed = render(<NodeHistory nodeId="n5" />);
+    await screen.findByText("2025-01-01");
+    const trimmedCount = railSpans(trimmed.container);
+    cleanup();
+
+    const continued = render(<NodeHistory nodeId="n5" railAbove />);
+    await screen.findByText("2025-01-01");
+    expect(railSpans(continued.container)).toBe(trimmedCount + 1);
   });
 
   it("renders an entry row with its PR title", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 42, prTitle: "Tweak the thing", changeType: "added" })]);
     render(<NodeHistory nodeId="n4" />);
     expect(await screen.findByText("Tweak the thing")).toBeInTheDocument();
-    expect(screen.getByText("#42")).toBeInTheDocument();
+    expect(screen.getByText("PR 42")).toBeInTheDocument();
   });
 
   it("sorts entries newest-first by date", async () => {
@@ -220,7 +239,7 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText("A's history")).not.toBeInTheDocument();
   });
 
-  it("falls back to the top when there's no migration entry for this doc (byte-identical across #117)", async () => {
+  it("keeps the toggle below the entries even with no migration entry (byte-identical across #117)", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
@@ -228,6 +247,23 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n15" />);
     const modern = await screen.findByText("a modern edit");
     const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
-    expect(toggle.compareDocumentPosition(modern) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Toggle sits below the (only) native entry, right where the hidden block would appear.
+    expect(modern.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("when shown, the toggle sits below the native entries and just above the reconstructed block", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
+      entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n16" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    const migration = screen.getByText("Migrate To Markdown File"); // last native entry
+    const toggle = screen.getByRole("button", { name: "Hide Reconstructed History" });
+    const html = screen.getByText("an html-era change"); // first reconstructed entry
+    // native … migration, then the toggle, then the reconstructed block below it.
+    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 
-import { canonicalRedirect } from "./canonical.ts";
+import { canonicalRedirect, canonicalRedirectBootLog } from "./canonical.ts";
 import { config } from "../config.ts";
 
 const origAppUrl = config.appUrl;
@@ -60,5 +60,35 @@ describe("canonicalRedirect", () => {
   it("is inert when CANONICAL_HOST_REDIRECT=0", () => {
     config.canonicalHostRedirect = false;
     expect(canonicalRedirect(new Request("https://redline.support/"))).toBeNull();
+  });
+});
+
+describe("canonicalRedirectBootLog", () => {
+  it("reports ON with the canonical host when the redirect is enabled", () => {
+    const line = canonicalRedirectBootLog({
+      appUrl: "https://atlas.redline.support",
+      canonicalHostRedirect: true,
+      railwayEnv: "production",
+    });
+    expect(line).toContain("ON");
+    expect(line).toContain('env="production"');
+    expect(line).toContain("atlas.redline.support");
+  });
+
+  it("reports OFF with the recovery hint when the redirect is disabled", () => {
+    const line = canonicalRedirectBootLog({
+      appUrl: "https://atlas.redline.support",
+      canonicalHostRedirect: false,
+      railwayEnv: "pr-212",
+    });
+    expect(line).toContain("OFF");
+    expect(line).toContain('env="pr-212"');
+    expect(line).toContain("CANONICAL_HOST_REDIRECT=1");
+  });
+
+  it("returns null for a non-https appUrl (local dev has nothing to report)", () => {
+    expect(
+      canonicalRedirectBootLog({ appUrl: "http://localhost:3000", canonicalHostRedirect: false, railwayEnv: "" }),
+    ).toBeNull();
   });
 });

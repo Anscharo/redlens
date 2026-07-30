@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useState } from "react";
-import { loadHistory, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
+import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
 import { track } from "../../lib/analytics";
 import { EntryRow } from "./EntryRow";
 import { HtmlEraDisclaimer, PreGitDisclaimer, PRE_MD_HTML_URL } from "./HistoryDisclaimers";
+import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 
 // Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML file
 // with no per-doc identities. Two cases:
@@ -12,7 +13,6 @@ import { HtmlEraDisclaimer, PreGitDisclaimer, PRE_MD_HTML_URL } from "./HistoryD
 //    toggle, with a disclaimer shown before each reconstructed block.
 //  · not reconstructed — a doc created AT the migration (no reconstructed-era entries);
 //    keep the legacy one-line footer pointing at the last pre-migration HTML file.
-const PRE_MD_PR = 117;
 // The repo's first commit (2025-05-28) — everything at/after this is real git history;
 // everything below it (era mip/genesis/severed) predates git entirely. When older
 // origin events exist, this row's "added" label is a lie (it's not the doc's origin,
@@ -24,7 +24,7 @@ const ROOT_SHA = "4e931df";
 function PreMdFooter() {
   return (
     <p
-      className="mono text-[10px] px-2 py-2.5 leading-snug"
+      className="mono text-[11px] px-2 py-2.5 leading-snug"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
       Before 'Migrate To Markdown File' the atlas was maintained as a single HTML file. 79 prior commits exist in the vendor repo —{" "}
@@ -43,7 +43,16 @@ function PreMdFooter() {
 
 const PRE_GIT_ERAS = new Set(["mip", "genesis", "severed"]);
 
-export function NodeHistory({ nodeId }: { nodeId: string }) {
+export function NodeHistory({
+  nodeId,
+  railAbove = false,
+}: {
+  nodeId: string;
+  /** Something above already draws the timeline (the preview entry + its live-atlas
+   *  heading), so this list's first block keeps its upward rail instead of trimming
+   *  it — the line reads as one run from the preview down. */
+  railAbove?: boolean;
+}) {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(undefined as unknown as null);
   const [loading, setLoading] = useState(true);
   const [showReconstructed, setShowReconstructed] = useState(false);
@@ -63,9 +72,13 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
     };
   }, [nodeId]);
 
+  // Status lines carry no timeline node of their own — indent them to the entry
+  // column so they line up with the entry text rather than with the rail.
+  const statusStyle = { color: "var(--tan-3)", marginLeft: CONTENT_INDENT };
+
   if (loading) {
     return (
-      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[11px]" style={statusStyle}>
         loading history…
       </p>
     );
@@ -73,7 +86,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
 
   if (!entries || entries.length === 0) {
     return (
-      <p className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
+      <p className="mono text-[11px]" style={statusStyle}>
         no history recorded
       </p>
     );
@@ -95,12 +108,6 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
   const visible = showReconstructed ? sorted : sorted.filter((e) => !e.era || !RECONSTRUCTED_ERAS.has(e.era));
   const firstHtmlEra = visible.findIndex((e) => e.era === "html");
   const firstPreGit = visible.findIndex((e) => e.era && PRE_GIT_ERAS.has(e.era));
-  // The toggle sits right below the migration entry — that's the actual boundary
-  // between native markdown history and everything reconstructed. Migration is a
-  // markdown-era entry (not RECONSTRUCTED_ERAS), so its index in `visible` is stable
-  // across the toggle. Fall back to the top for the (unlikely) doc whose snapshot was
-  // byte-identical across the migration commit, so it never got its own PR117 row.
-  const migrationIdx = visible.findIndex((e) => e.pr === PRE_MD_PR);
   const toggleButton = hasReconstructed && (
     <button
       type="button"
@@ -109,7 +116,7 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
         track("reader_history_reconstructed_toggle", { node_id: nodeId, action: showReconstructed ? "hide" : "show" });
         setShowReconstructed((v) => !v);
       }}
-      className="mono text-[10px] uppercase tracking-wide px-2 py-1 my-2 rounded"
+      className="mono text-[11px] uppercase tracking-wide px-2 py-1 my-2 rounded"
       style={{
         color: showReconstructed ? "var(--bg)" : "var(--accent)",
         background: showReconstructed ? "var(--accent)" : "transparent",
@@ -120,22 +127,47 @@ export function NodeHistory({ nodeId }: { nodeId: string }) {
     </button>
   );
 
+  // The reconstructed-history toggle sits at the native↔reconstructed boundary —
+  // just above the block it shows/hides. When those entries are visible it renders
+  // right before the first one; when hidden (none are in `visible`) it renders at
+  // the very bottom, directly below the last native entry, where the block appears.
+  // Disclaimers/footer/toggle sit *inside* the timeline (indented into the entry
+  // column, rail running past them) so the line never breaks; only the topmost block
+  // of the list trims the rail above it (and not when the rail runs in from above).
+  const firstReconstructedIdx = visible.findIndex((e) => e.era && RECONSTRUCTED_ERAS.has(e.era));
+  const topIsBlock = firstReconstructedIdx === 0;
+  const trimTop = !railAbove;
+
   return (
     <div>
-      {migrationIdx === -1 && toggleButton}
       {visible.map((entry, i) => {
         const isRootSnapshot =
           hasPreGit && entry.era === "html" && entry.changeType === "added" && entry.commitHash.startsWith(ROOT_SHA);
+        const disclaimer =
+          i === firstHtmlEra ? <HtmlEraDisclaimer /> : i === firstPreGit ? <PreGitDisclaimer /> : null;
+        const toggleHere = i === firstReconstructedIdx && !!toggleButton;
         return (
           <Fragment key={i}>
-            {i === firstHtmlEra && <HtmlEraDisclaimer />}
-            {i === firstPreGit && <PreGitDisclaimer />}
-            <EntryRow entry={entry} labelOverride={isRootSnapshot ? "committed" : undefined} />
-            {!hasReconstructed && entry.pr === PRE_MD_PR && <PreMdFooter />}
-            {i === migrationIdx && toggleButton}
+            {toggleHere && <TimelineRow hideTop={trimTop && i === 0}>{toggleButton}</TimelineRow>}
+            {disclaimer && (
+              <TimelineRow hideTop={trimTop && i === 0 && !toggleHere}>{disclaimer}</TimelineRow>
+            )}
+            <EntryRow
+              entry={entry}
+              labelOverride={isRootSnapshot ? "committed" : undefined}
+              isFirst={trimTop && i === 0 && !topIsBlock}
+            />
+            {!hasReconstructed && entry.pr === PRE_MD_PR && (
+              <TimelineRow>
+                <PreMdFooter />
+              </TimelineRow>
+            )}
           </Fragment>
         );
       })}
+      {/* No reconstructed entries visible (toggle off) → the button sits at the
+          bottom, right where the hidden block would appear. */}
+      {firstReconstructedIdx === -1 && toggleButton && <TimelineRow>{toggleButton}</TimelineRow>}
     </div>
   );
 }

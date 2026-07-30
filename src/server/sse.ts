@@ -11,14 +11,15 @@ let nextId = 0;
 const clients = new Map<number, Client>();
 
 // Send a comment to all clients every 30s to keep Railway's proxy from
-// closing idle connections.
+// closing idle connections. Dead clients (enqueue throws) are evicted.
 const HEARTBEAT_MS = 30_000;
-setInterval(() => {
+export function heartbeat(): void {
   for (const [id, c] of clients) {
     try { c.enqueue(":ping\n\n"); }
     catch { clients.delete(id); }
   }
-}, HEARTBEAT_MS).unref?.();
+}
+setInterval(heartbeat, HEARTBEAT_MS).unref?.();
 
 export function registerSSEClient(
   enqueue: (chunk: string) => void,

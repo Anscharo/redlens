@@ -9,6 +9,7 @@ const ENV_KEYS = [
   "PORT", "USERS_ENABLED", "CHAT_JWT_SECRET", "CHAT_ENABLED",
   "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
   "APP_URL", "RAILWAY_PUBLIC_DOMAIN", "CANONICAL_HOST_REDIRECT", "DATABASE_URL",
+  "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT",
   "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
   "CURATION_SELECTOR_MODEL", "CURATION_CLUSTER_MODELS", "CURATION_FRONTIER_MODEL",
@@ -59,7 +60,11 @@ test("defaults when no env is set", async () => {
   expect(config.googleAuthEnabled).toBe(false);
   expect(config.authProvidersCsv).toBe("");
   expect(config.appUrl).toBe("http://localhost:3000");
-  expect(config.canonicalHostRedirect).toBe(true);
+  // Off by default: the redirect is opt-in by Railway environment identity, and
+  // no environment name is set here. (canonical.ts would decline anyway on the
+  // http:// appUrl, but the flag itself must not default on — that is what
+  // black-holed the PR-211 preview to production.)
+  expect(config.canonicalHostRedirect).toBe(false);
   expect(config.databaseUrl).toBe("postgres://redlens:redlens@localhost:5432/redlens");
   expect(config.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
   expect(config.embedModel).toBe("qwen/qwen3-embedding-8b");
@@ -240,6 +245,50 @@ test("appUrl falls back to RAILWAY_PUBLIC_DOMAIN when APP_URL is unset", async (
   process.env.RAILWAY_PUBLIC_DOMAIN = "my-app.up.railway.app";
   const config = await freshConfig();
   expect(config.appUrl).toBe("https://my-app.up.railway.app");
+});
+
+// Regression: a Railway PR environment is forked from the base environment, so
+// it inherits production's pinned APP_URL. Before this gate, canonical.ts 301'd
+// the PR deploy's own hostname to production — the preview was unreachable and
+// Playwright (which follows redirects) asserted against prod, not the PR build.
+test("canonicalHostRedirect is off in a PR environment that inherited prod's APP_URL", async () => {
+  for (const nameVar of ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT"]) {
+    clearAll();
+    process.env.APP_URL = "https://atlas.redline.support";
+    process.env.RAILWAY_PUBLIC_DOMAIN = "redlens-redlens-pr-211.up.railway.app";
+    process.env[nameVar] = "pr-211";
+    const config = await freshConfig();
+    expect(config.canonicalHostRedirect).toBe(false);
+  }
+});
+
+test("canonicalHostRedirect is on in the production environment", async () => {
+  for (const nameVar of ["RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT"]) {
+    clearAll();
+    process.env.APP_URL = "https://atlas.redline.support";
+    process.env[nameVar] = "production";
+    const config = await freshConfig();
+    expect(config.canonicalHostRedirect).toBe(true);
+  }
+});
+
+test("canonicalHostRedirect is off when no environment name is injected", async () => {
+  clearAll();
+  process.env.APP_URL = "https://atlas.redline.support";
+  const config = await freshConfig();
+  expect(config.canonicalHostRedirect).toBe(false);
+});
+
+test("CANONICAL_HOST_REDIRECT overrides the environment gate in both directions", async () => {
+  clearAll();
+  process.env.RAILWAY_ENVIRONMENT_NAME = "production";
+  process.env.CANONICAL_HOST_REDIRECT = "0";
+  expect((await freshConfig()).canonicalHostRedirect).toBe(false);
+
+  clearAll();
+  process.env.RAILWAY_ENVIRONMENT_NAME = "pr-211";
+  process.env.CANONICAL_HOST_REDIRECT = "1";
+  expect((await freshConfig()).canonicalHostRedirect).toBe(true);
 });
 
 test("usersRequested accepts USERS_ENABLED=true (not just \"1\")", async () => {

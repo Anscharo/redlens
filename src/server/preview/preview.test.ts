@@ -67,14 +67,29 @@ function fakeGh(map: Record<string, { ok?: boolean; status?: number; json: any }
   };
 }
 
-test("resolveRef: PR → fork head repo + sha + state", async () => {
+test("resolveRef: PR → fork head repo + sha + state + head-commit date", async () => {
   const gh = fakeGh({
     "/repos/sky-ecosystem/next-gen-atlas/pulls/256": {
       json: { title: "Spark", user: { login: "blimpa" }, state: "open", merged_at: null, head: { repo: { full_name: "blimpa/next-gen-atlas" }, sha: "deadbeef" } },
     },
+    // The pulls payload has no commit date, so resolveRef asks for the commit.
+    "/repos/blimpa/next-gen-atlas/commits/deadbeef": {
+      json: { commit: { committer: { date: "2026-06-15T10:00:00Z" } } },
+    },
   });
   const r = await resolveRef(decodeId("pull-256")!, gh);
-  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: "deadbeef", kind: "pr", ref: "pull-256", pr: { state: "open", author: "blimpa" } });
+  expect(r).toMatchObject({ repo: "blimpa/next-gen-atlas", sha: "deadbeef", kind: "pr", ref: "pull-256", pr: { state: "open", author: "blimpa" }, date: "2026-06-15T10:00:00Z" });
+});
+
+test("resolveRef: a PR still resolves when the head-commit lookup fails, just undated", async () => {
+  const gh = fakeGh({
+    "/repos/sky-ecosystem/next-gen-atlas/pulls/9": {
+      json: { title: "x", user: { login: "a" }, state: "open", merged_at: null, head: { repo: { full_name: "sky-ecosystem/next-gen-atlas" }, sha: "abc" } },
+    },
+  });
+  const r = await resolveRef(decodeId("pull-9")!, gh);
+  expect((r as any).sha).toBe("abc");
+  expect((r as any).date).toBeUndefined();
 });
 
 test("resolveRef: merged PR reports merged state", async () => {
@@ -87,9 +102,13 @@ test("resolveRef: merged PR reports merged state", async () => {
   expect((r as any).pr.state).toBe("merged");
 });
 
-test("resolveRef: canonical branch → tip sha; missing → not-found", async () => {
-  const gh = fakeGh({ "/repos/sky-ecosystem/next-gen-atlas/branches/main": { json: { commit: { sha: "tip123" } } } });
-  expect(await resolveRef(decodeId("main")!, gh)).toMatchObject({ sha: "tip123", kind: "branch" });
+test("resolveRef: canonical branch → tip sha + its commit date; missing → not-found", async () => {
+  const gh = fakeGh({
+    "/repos/sky-ecosystem/next-gen-atlas/branches/main": {
+      json: { commit: { sha: "tip123", commit: { committer: { date: "2026-07-01T09:00:00Z" } } } },
+    },
+  });
+  expect(await resolveRef(decodeId("main")!, gh)).toMatchObject({ sha: "tip123", kind: "branch", date: "2026-07-01T09:00:00Z" });
   expect(await resolveRef(decodeId("nope")!, gh)).toEqual({ error: "not-found" });
 });
 

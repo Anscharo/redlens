@@ -107,12 +107,13 @@ export default function App() {
   const [treeOpen, setTreeOpen] = useState(false);
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
+  // History is the default tab, so an absent (or unrecognized) ?view= lands there.
   const atlasView =
-    searchParams.get("view") === "history"
-      ? ("history" as const)
+    searchParams.get("view") === "annotations"
+      ? ("annotations" as const)
       : searchParams.get("view") === "glossary"
         ? ("glossary" as const)
-        : ("annotations" as const);
+        : ("history" as const);
   const activeNavPage: NavPage | null = location.startsWith(ROUTES.CONSTELLATIONS)
     ? "constellations"
     : location.startsWith(ROUTES.REPORTS)

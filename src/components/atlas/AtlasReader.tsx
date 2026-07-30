@@ -14,6 +14,8 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
+import { deriveSubtreeVisualState } from "./subtreeState";
+import type { SubtreeVisualState } from "./subtreeState";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
 import { useSelection } from "../../lib/selection";
@@ -21,8 +23,51 @@ import { ErrorBoundary, PanelError } from "../ErrorBoundary";
 import {
   ATLAS_EMPTY_SET,
   ATLAS_LEFT_PANE_STYLE,
+  type FlatEntry,
   type LoadedData,
 } from "../../lib/atlasHelpers";
+
+type HiddenSubtreeSnapshot = {
+  userToggles: Set<string>;
+  expandedParents: Set<string>;
+  hiddenSubtrees: Set<string>;
+};
+
+// Restore only the branch's own portion of a reader-wide set: start from the
+// current set, then force membership of every id in `scope` (the branch's
+// subtree) to match the snapshot. Entries outside the branch are left as they
+// are now, so expand/collapse/reveal the user did elsewhere while the branch
+// was hidden survive the restore instead of being clobbered.
+function mergeSubtreeSnapshot(
+  current: Set<string>,
+  snapshot: Set<string>,
+  scope: Set<string>,
+): Set<string> {
+  const next = new Set(current);
+  for (const id of scope) {
+    if (snapshot.has(id)) next.add(id);
+    else next.delete(id);
+  }
+  return next;
+}
+
+// A row's on-screen subtree is the contiguous run of following rows indented
+// deeper than it (flatNodes is display order, `depth` is the doc-number
+// realDepth used for indentation). This is what the user sees as "beneath" a
+// node, and it can differ from the parentId subtree when the heading-level-6 cap
+// reparents a deeply-numbered doc — so hiding, counting, and selection all key
+// off this visual span instead of parentId, keeping what disappears matched to
+// what looked nested.
+function visualSubtreeIds(flatNodes: FlatEntry[], rootId: string): string[] {
+  const i = flatNodes.findIndex((e) => e.node.id === rootId);
+  if (i < 0) return [];
+  const rootDepth = flatNodes[i].depth;
+  const ids: string[] = [];
+  for (let j = i + 1; j < flatNodes.length && flatNodes[j].depth > rootDepth; j++) {
+    ids.push(flatNodes[j].node.id);
+  }
+  return ids;
+}
 
 // memo boundary: AtlasView re-renders on annotation-tab switches and other
 // panel state the reader doesn't care about. All props here are stable refs
@@ -47,7 +92,9 @@ export const AtlasReader = memo(function AtlasReader({
 }) {
   const { navigate, splitNavigate } = useAtlasActions();
   const [userToggles, setUserToggles] = useState<Set<string>>(new Set());
+  const [hiddenSubtrees, setHiddenSubtrees] = useState<Set<string>>(new Set());
   const seenExpanded = useRef<Set<string>>(new Set());
+  const hiddenSnapshotsRef = useRef<Map<string, HiddenSubtreeSnapshot>>(new Map());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -77,51 +124,251 @@ export const AtlasReader = memo(function AtlasReader({
 
   const { fullyExpanded, expandAll } = useExpandAll(data, expandedSet, userToggles, setUserToggles);
 
-  const { expandedParents, hiddenCount, expandParent, setParentsExpanded, entryById } = useDepth6Expand(
-    data.flatNodes,
-    id,
+  // expandedSet gets a fresh identity on every navigation; read it through a ref
+  // so setNodeExpanded stays referentially stable. It feeds handleHideSubtree and
+  // thus the actions-context object — if it churned per navigation, every
+  // CollapsibleNode (a context consumer) would re-render on each doc click.
+  const expandedSetRef = useRef(expandedSet);
+  expandedSetRef.current = expandedSet;
+  const setNodeExpanded = useCallback((nodeId: string, expand: boolean) => {
+    setUserToggles((prev) => {
+      const next = new Set(prev);
+      const auto = expandedSetRef.current.has(nodeId);
+      const shouldToggle = expand ? !auto : auto;
+      if (shouldToggle) next.add(nodeId);
+      else next.delete(nodeId);
+      return next;
+    });
+  }, []);
+
+  const {
+    expandedParents,
+    setParentsExpanded,
+    mergeParentsExpanded,
+  } = useDepth6Expand(data.flatNodes, id);
+
+  // Latest-value refs for the state handleHideSubtree snapshots. Reading these
+  // (instead of closing over the values) keeps handleHideSubtree — and the whole
+  // actions-context object built from it — referentially stable across ordinary
+  // body toggles. Without this, every expand/collapse recreated the context and
+  // re-rendered every memo'd CollapsibleNode, defeating the memo boundary during
+  // the most frequent interaction. The snapshot reads happen in click handlers,
+  // by which point this effect has already synced the refs.
+  const userTogglesRef = useRef(userToggles);
+  const expandedParentsRef = useRef(expandedParents);
+  const hiddenSubtreesRef = useRef(hiddenSubtrees);
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    userTogglesRef.current = userToggles;
+    expandedParentsRef.current = expandedParents;
+    hiddenSubtreesRef.current = hiddenSubtrees;
+    selectedIdRef.current = selectedId;
+  });
+
+  // One O(n) depth-stack pass over flatNodes computes two things at once:
+  //   - visualSpanCount: size of each node's on-screen subtree (the deeper-
+  //     indented run that follows it), for the "N hidden" count so it matches
+  //     exactly the rows a hide removes.
+  //   - defaultGateRoots: nodes that gate deeper-than-level-6 rows by default —
+  //     the on-screen parent of any row at depth >= 6. Data-derived, so "hidden
+  //     because it's deep" needs no separate code path from "hidden on purpose".
+  // Both pop the same set (entries with depth >= the current row), so they share
+  // the walk; after popping, the stack top is the current row's on-screen parent.
+  const { visualSpanCount, defaultGateRoots } = useMemo(() => {
+    const counts = new Map<string, number>();
+    const roots = new Set<string>();
+    const entries = data.flatNodes;
+    const stack: { id: string; index: number; depth: number }[] = [];
+    for (let i = 0; i < entries.length; i++) {
+      const d = entries[i].depth;
+      while (stack.length && stack[stack.length - 1].depth >= d) {
+        const top = stack.pop()!;
+        counts.set(top.id, i - top.index - 1);
+      }
+      if (d >= 6 && stack.length) roots.add(stack[stack.length - 1].id);
+      stack.push({ id: entries[i].node.id, index: i, depth: d });
+    }
+    for (const top of stack) counts.set(top.id, entries.length - top.index - 1);
+    return { visualSpanCount: counts, defaultGateRoots: roots };
+  }, [data.flatNodes]);
+
+  // A doc reached from the sidebar (or any in-app link) may live inside a
+  // collapsed tree. Navigating to it must reveal it AND its siblings: walk its
+  // VISUAL ancestor chain and fully un-collapse each one — drop any intent-hide
+  // and open any default gate. Visual (not parentId) so it also reveals rows the
+  // heading-depth cap reparented, where a parentId walk would open the wrong gate.
+  useEffect(() => {
+    if (!id) return;
+    const entries = data.flatNodes;
+    const i = entries.findIndex((e) => e.node.id === id);
+    if (i < 0) return;
+    const ancestors: string[] = [];
+    let depth = entries[i].depth;
+    for (let j = i - 1; j >= 0 && depth > 0; j--) {
+      if (entries[j].depth < depth) {
+        depth = entries[j].depth;
+        ancestors.push(entries[j].node.id);
+      }
+    }
+    // Un-hide the ANCESTORS only — not the doc itself. Navigating to a collapsed
+    // root (its own subtree hidden) should keep it collapsed: the doc is already
+    // visible, and we don't want to auto-expand its subtree. This also lets a
+    // hide operation move selection onto the very root it collapsed.
+    setHiddenSubtrees((prev) => {
+      if (!prev.size) return prev;
+      const next = new Set(prev);
+      let changed = false;
+      for (const a of ancestors) if (next.delete(a)) changed = true;
+      return changed ? next : prev;
+    });
+    // Open only the gate ancestors (idempotent — a no-op when the row is already
+    // visible, so plain navigation between shown docs doesn't spuriously reveal).
+    const gateAncestors = ancestors.filter((a) => defaultGateRoots.has(a));
+    if (gateAncestors.length) setParentsExpanded(gateAncestors, true);
+  }, [id, data.flatNodes, defaultGateRoots, setParentsExpanded]);
+
+  // THE single "is this subtree collapsed" predicate. A subtree is collapsed if
+  // the user closed it (intent) OR it's a default depth-6 gate the user hasn't
+  // opened (default). The ONLY difference between the two cases is this data
+  // lookup — the filter, the count, and the visual state below are identical.
+  const isCollapsed = useCallback(
+    (nodeId: string) =>
+      hiddenSubtrees.has(nodeId) || (defaultGateRoots.has(nodeId) && !expandedParents.has(nodeId)),
+    [hiddenSubtrees, defaultGateRoots, expandedParents],
   );
 
-  const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
-  const handleExpandParent = useCallback((nodeId: string) => {
-    expandParent(nodeId);
-    triggerExpandingAnim();
-  }, [expandParent, triggerExpandingAnim]);
+  // Every row hidden by a collapsed ancestor. One O(n) pass over the on-screen
+  // order: a row is hidden iff any of its visual ancestors is collapsed. Nested
+  // collapsed roots stay collapsed roots, so per-level disclosure (open one gate,
+  // its children appear but their own gates stay shut) falls out for free.
+  const hiddenNodeIds = useMemo(() => {
+    const hidden = new Set<string>();
+    const stack: { depth: number; collapsed: boolean }[] = [];
+    let collapsedOnStack = 0;
+    for (const entry of data.flatNodes) {
+      while (stack.length && stack[stack.length - 1].depth >= entry.depth) {
+        if (stack.pop()!.collapsed) collapsedOnStack--;
+      }
+      if (collapsedOnStack > 0) hidden.add(entry.node.id);
+      const collapsed = isCollapsed(entry.node.id);
+      stack.push({ depth: entry.depth, collapsed });
+      if (collapsed) collapsedOnStack++;
+    }
+    return hidden;
+  }, [data.flatNodes, isCollapsed]);
 
-  // Expand-all (double chevron) must also un-gate hidden depth-6+ descendants:
-  // expandAll only flips content-toggle state, but gated children stay filtered
-  // out of docList until their parent is in expandedParents. Reveal the whole
-  // subtree on expand, re-gate it on collapse, so » truly opens everything.
-  const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
-    expandAll(rootId, expand);
-    const ids = collectSubtree(data.atlas.byParent, rootId);
-    if (expand) {
-      setParentsExpanded(ids, true);
+  const handleHideSubtree = useCallback((
+    rootId: string,
+    hidden: boolean,
+    options?: { restore?: boolean },
+    // The caller (handleSetSubtreeVisualState) already walked the visual subtree
+    // to build its own span; accept it to avoid a second identical walk per click.
+    precomputedSubtreeIds?: string[],
+  ) => {
+    // Hide the VISUAL subtree (what looks nested on screen), not the parentId
+    // subtree — the two diverge under the heading-depth cap (see visualSubtreeIds).
+    const subtreeIds = precomputedSubtreeIds ?? visualSubtreeIds(data.flatNodes, rootId);
+    // Restore scope includes rootId itself, so restoring re-opens the root's OWN
+    // depth-6 gate (and its body toggle) that hiding closed. Without it, a node
+    // whose deep children were revealed before hiding stays gated after restore —
+    // children never reappear and the reader "working…" pulse spins forever.
+    const scope = new Set([rootId, ...subtreeIds]);
+    if (hidden) {
+      hiddenSnapshotsRef.current.set(rootId, {
+        userToggles: new Set(userTogglesRef.current),
+        expandedParents: new Set(expandedParentsRef.current),
+        // Nested branches the user had hidden inside this one — recorded so a
+        // later restore brings back their hidden state too, not just the
+        // expand/collapse shape of the rows around them.
+        hiddenSubtrees: new Set(
+          [...hiddenSubtreesRef.current].filter((nid) => nid !== rootId && scope.has(nid)),
+        ),
+      });
+    }
+    const snapshot = !hidden ? hiddenSnapshotsRef.current.get(rootId) : undefined;
+    const restoring = !hidden && !!options?.restore && !!snapshot;
+    setHiddenSubtrees((prev) => {
+      const next = new Set(prev);
+      for (const nid of subtreeIds) {
+        if (nid !== rootId) next.delete(nid);
+      }
+      if (hidden) next.add(rootId);
+      else {
+        next.delete(rootId);
+        // Restore re-hides the nested branches captured at hide time; a plain
+        // un-hide (e.g. the "N hidden" tab) leaves them all shown.
+        if (restoring && snapshot) for (const nid of snapshot.hiddenSubtrees) next.add(nid);
+      }
+      return next;
+    });
+    if (!hidden) {
+      hiddenSnapshotsRef.current.delete(rootId);
+      if (restoring && snapshot) {
+        // Only the branch's own portion is restored (#177): merge the snapshot
+        // over the branch's subtree ids, leaving unrelated reader state intact.
+        setUserToggles((prev) => mergeSubtreeSnapshot(prev, snapshot.userToggles, scope));
+        mergeParentsExpanded(snapshot.expandedParents, scope);
+      }
+    }
+    if (hidden) {
+      setNodeExpanded(rootId, false);
+      // If the active selection sits inside the branch we're hiding, it would
+      // vanish. Move selection onto the branch root itself — the doc whose
+      // chevron was clicked — so focus lands on the collapsed row rather than
+      // disappearing. The root stays hidden because the reveal-on-nav effect only
+      // un-hides ancestors, never the navigated doc.
+      const sel = selectedIdRef.current;
+      if (sel && sel !== rootId && subtreeIds.includes(sel)) {
+        navigate(rootId);
+      }
+    }
+  }, [data, mergeParentsExpanded, setNodeExpanded, navigate]);
+
+  const handleSetSubtreeVisualState = useCallback((
+    rootId: string,
+    state: SubtreeVisualState,
+    options?: { restore?: boolean },
+  ) => {
+    // Walk the visual subtree once here and hand it to handleHideSubtree so the
+    // click path does a single findIndex + subtree walk, not two.
+    const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
+    if (options?.restore) {
+      handleHideSubtree(rootId, false, options, subtreeIds);
       return;
     }
-    // Collapsing a bulk-expanded ancestor must not re-gate the current
-    // selection's own revealed path — otherwise a depth-6+ selected node
-    // disappears from docList until the user navigates away and back (the
-    // auto-reveal effect only re-fires on `id` change).
-    const protectedIds = new Set<string>();
-    let cur = entryById.get(id);
-    while (cur && cur.depth >= 6) {
-      const parentId = cur.node.parentId;
-      if (!parentId) break;
-      protectedIds.add(parentId);
-      cur = entryById.get(parentId);
+    // Reveal/re-gate the whole VISUAL span (the on-screen subtree), including the
+    // root's own gate — one span notion for both default gates and explicit hides.
+    const span = [rootId, ...subtreeIds];
+    if (state === "hidden") {
+      handleHideSubtree(rootId, true, undefined, subtreeIds);
+      setParentsExpanded(span, false);
+      return;
     }
-    setParentsExpanded(
-      ids.filter((nid) => !protectedIds.has(nid)),
-      false,
-    );
-  }, [expandAll, setParentsExpanded, data, id, entryById]);
+    handleHideSubtree(rootId, false, undefined, subtreeIds);
+    expandAll(rootId, state === "open");
+    setParentsExpanded(span, true);
+  }, [data, expandAll, setParentsExpanded, handleHideSubtree]);
 
-  useAtlasScroll(id, data, expandedParents);
+  const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
+  // The "N hidden" tab reveals every row beneath the node, left collapsed (bodies
+  // closed). Same behavior whether the rows were hidden by default (depth-6 gate)
+  // or on purpose — the collapse model no longer distinguishes them here.
+  const handleExpandParent = useCallback((nodeId: string) => {
+    handleSetSubtreeVisualState(nodeId, "closed");
+    triggerExpandingAnim();
+  }, [handleSetSubtreeVisualState, triggerExpandingAnim]);
+
+  const handleExpandAll = useCallback((rootId: string, expand: boolean) => {
+    handleSetSubtreeVisualState(rootId, expand ? "open" : "closed");
+  }, [handleSetSubtreeVisualState]);
 
   const changedSet = usePreviewChangedSet();
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
+
+  // Re-scroll to the selected doc whenever the view mode flips, so leaving
+  // "selected only" (or preview "changed only") keeps the current node in view.
+  useAtlasScroll(id, data, expandedParents, changedSet ? "changed" : selectionSet ? "selected" : "all");
 
   // Shift-clicking a doc's selection checkbox selects it + all descendants.
   const { selectSubtree } = useSelection();
@@ -152,6 +399,12 @@ export const AtlasReader = memo(function AtlasReader({
       // two kept docs that are NOT adjacent in the full atlas order (something
       // was filtered out between them), drop an ellipsis barrier so the gap
       // reads as intentional rather than as true neighbors.
+      // The flat filtered list (selected-only / changed-only) is built purely
+      // from filterSet — depth-6 gating and explicit hides are hierarchy-view
+      // concepts that must NOT apply here, or a matching doc that happens to sit
+      // under a collapsed/gated/hidden ancestor would silently vanish from the
+      // subset (e.g. changed docs omitted so a review looks complete when it
+      // isn't). See AtlasReader.test.tsx "filtered view ignores collapse state".
       const kept: { entry: (typeof data.flatNodes)[number]; i: number; gap: boolean }[] = [];
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
@@ -201,6 +454,11 @@ export const AtlasReader = memo(function AtlasReader({
         }
         const inCradle = cradleFrom >= 0 && i >= cradleFrom && i <= cradleTo;
         const cradle = inCradle ? (k === lastCradleKept ? ("foot" as const) : ("line" as const)) : undefined;
+        const collapsed = isCollapsed(entry.node.id);
+        const subtreeState = deriveSubtreeVisualState({
+          hidden: collapsed,
+          bodiesOpen: fullyExpanded.has(entry.node.id),
+        });
         block.push(
           <CollapsibleNode
             key={entry.node.id}
@@ -208,8 +466,9 @@ export const AtlasReader = memo(function AtlasReader({
             isSelected={entry.node.id === selectedId}
             isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
             hasChildren={filteredParentIds.has(entry.node.id)}
-            isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
-            hiddenCount={expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0)}
+            subtreeState={subtreeState}
+            hasExplicitHiddenSubtree={hiddenSubtrees.has(entry.node.id)}
+            gatedCount={collapsed ? visualSpanCount.get(entry.node.id) ?? 0 : 0}
             onExpandChildren={handleExpandParent}
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
@@ -235,11 +494,10 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
 
-    // filterSet is null here (the flat filtered view returned above): honor the
-    // normal depth-6 gating.
-    const visible = data.flatNodes.filter(
-      (entry) => !(entry.depth >= 6 && !expandedParents.has(entry.node.parentId ?? "")),
-    );
+    // filterSet is null here (the flat filtered view returned above). One filter
+    // now covers both default depth-6 gating and explicit hides: a row is out iff
+    // it sits under a collapsed ancestor.
+    const visible = data.flatNodes.filter((entry) => !hiddenNodeIds.has(entry.node.id));
     // Cradle: the selected node's visible descendants are the contiguous run
     // of deeper entries right after it (flatNodes is DFS document order).
     // They get a left rail in the selected node's color, closed under the
@@ -260,7 +518,12 @@ export const AtlasReader = memo(function AtlasReader({
       }
     }
     const items: ReactElement[] = visible.map((entry, idx) => {
-      const gatedCount = expandedParents.has(entry.node.id) ? 0 : (hiddenCount.get(entry.node.id) ?? 0);
+      const collapsed = isCollapsed(entry.node.id);
+      const subtreeState = deriveSubtreeVisualState({
+        hidden: collapsed,
+        bodiesOpen: fullyExpanded.has(entry.node.id),
+      });
+      const gatedCount = collapsed ? visualSpanCount.get(entry.node.id) ?? 0 : 0;
       const cradle =
         cradleStart >= 0 && idx >= cradleStart && idx <= cradleEnd
           ? idx === cradleEnd
@@ -274,8 +537,9 @@ export const AtlasReader = memo(function AtlasReader({
           isSelected={entry.node.id === selectedId}
           isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
           hasChildren={data.atlas.byParent.has(entry.node.id)}
-          isSubtreeExpanded={fullyExpanded.has(entry.node.id)}
-          hiddenCount={gatedCount}
+          subtreeState={subtreeState}
+          hasExplicitHiddenSubtree={hiddenSubtrees.has(entry.node.id)}
+          gatedCount={gatedCount}
           onExpandChildren={handleExpandParent}
           cradle={cradle}
           cradleColor={cradle ? cradleColor : undefined}
@@ -301,14 +565,24 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, expandedParents, hiddenCount, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc]);
+  }, [data, selectedId, expandedSet, userToggles, fullyExpanded, handleExpandParent, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, hiddenSubtrees, visualSpanCount, hiddenNodeIds, isCollapsed]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection
-  // change). All members are stable callbacks, so memoize the object too.
+  // change or an ordinary body toggle). All members are referentially stable
+  // across those renders — handleHideSubtree reads its snapshot state through
+  // refs rather than closing over it — so memoize the object too.
   const actions = useMemo(
-    () => ({ navigate, toggle: handleToggle, splitNavigate, expandAll: handleExpandAll, selectSubtree: handleSelectSubtree }),
-    [navigate, handleToggle, splitNavigate, handleExpandAll, handleSelectSubtree],
+    () => ({
+      navigate,
+      toggle: handleToggle,
+      splitNavigate,
+      expandAll: handleExpandAll,
+      hideSubtree: handleHideSubtree,
+      setSubtreeVisualState: handleSetSubtreeVisualState,
+      selectSubtree: handleSelectSubtree,
+    }),
+    [navigate, handleToggle, splitNavigate, handleExpandAll, handleHideSubtree, handleSetSubtreeVisualState, handleSelectSubtree],
   );
 
   return (
