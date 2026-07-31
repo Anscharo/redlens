@@ -101,7 +101,7 @@ export function ProvenancePage() {
   }, []);
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
-      <article className="max-w-3xl mx-auto">
+      <article className="max-w-[72ch] text-sm mx-auto">
         <header>
           <p className="mono text-sm text-tan-3 mb-1">provenance</p>
           <h1
