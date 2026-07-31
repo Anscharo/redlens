@@ -40,7 +40,7 @@ describe("usePrefs", () => {
     expect(result.current.prefs).toEqual({ traces: true, reduceMotion: false });
   });
 
-  it("ignores a pre-migration (unversioned) stored preference, since its switch no longer exists", async () => {
+  it("ignores a pre-migration (unversioned) stored preference, so a restored switch starts from its default", async () => {
     localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, reduceMotion: true }));
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());

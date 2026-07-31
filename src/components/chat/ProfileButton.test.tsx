@@ -8,6 +8,11 @@ const signOut = vi.fn();
 const deleteAccount = vi.fn(() => Promise.resolve(true));
 vi.mock("./auth", () => ({ useAuth: () => ({ user, signOut, deleteAccount }) }));
 
+let prefs = { traces: false, reduceMotion: false };
+const setPref = vi.fn((k: string, v: boolean) => {
+  prefs = { ...prefs, [k]: v };
+});
+vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs, setPref }) }));
 vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
 // The signed-out menu renders SignInButtons, which gates on authProviders();
 // under vitest the real one returns [] (usersEnabled() is false), so stub it.
@@ -19,6 +24,7 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   user = null;
+  prefs = { traces: false, reduceMotion: false };
 });
 
 describe("ProfileButton signed out", () => {
@@ -87,9 +93,42 @@ describe("ProfileButton signed in", () => {
     fireEvent.click(screen.getByAltText("Ada"));
     fireEvent.click(screen.getByText("Account"));
     expect(screen.getByText("← account")).toBeInTheDocument();
+    expect(screen.getByText("Reduce motion")).toBeInTheDocument();
     fireEvent.click(screen.getByText("← account"));
+    expect(screen.queryByText("Reduce motion")).toBeNull();
     expect(screen.queryByText("Delete account")).toBeNull();
     expect(screen.getByText("Account")).toBeInTheDocument();
+  });
+
+  it("toggles the reduce-motion switch and reflects aria-checked", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Account"));
+    const motionSwitch = screen.getByRole("switch", { name: /reduce motion/i });
+    expect(motionSwitch).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(motionSwitch);
+    expect(setPref).toHaveBeenCalledWith("reduceMotion", true);
+  });
+
+  it("shows the switch already on when the stored preference is on", () => {
+    prefs = { traces: false, reduceMotion: true };
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Account"));
+    const motionSwitch = screen.getByRole("switch", { name: /reduce motion/i });
+    expect(motionSwitch).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(motionSwitch);
+    expect(setPref).toHaveBeenCalledWith("reduceMotion", false);
+  });
+
+  it("does not restore the tool-call traces switch", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Account"));
+    expect(screen.queryByText("Show tool-call traces")).toBeNull();
   });
 
   it("deletes the account from the Account panel after confirmation", () => {
