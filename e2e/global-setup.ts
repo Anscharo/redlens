@@ -25,6 +25,15 @@ export default async function globalSetup() {
       );
     }
     console.log(`e2e: target ${baseURL} — ${ready.detail}`);
+    if (ready.commitMatched === false) {
+      // The deploy explicitly reported a different build for the whole readiness
+      // window. Every assertion below is about code we did not deploy, so say so
+      // rather than let a green run imply otherwise.
+      console.warn(
+        `e2e: WRONG BUILD — ${baseURL} is serving ${ready.health?.app_commit} but this run deployed ` +
+          `${process.env.E2E_EXPECT_COMMIT}. Results describe the older container, not this PR.`,
+      );
+    }
     if (!ready.dbReady) {
       // Not fatal here: smoke.spec asserts this so the run goes red with one
       // named failure, and the DB-backed specs skip with this same reason

@@ -27,6 +27,10 @@ export interface Readiness {
   docsReady: boolean;
   /** Postgres answered the sync_state read — the DB-backed specs need this. */
   dbReady: boolean;
+  /** Did the deploy confirm it is serving the commit we asked for? `null` when no
+   *  commit was expected (manual dispatch) or the deploy reports none at all —
+   *  i.e. "unverifiable", as distinct from `false`, "verified as something else". */
+  commitMatched: boolean | null;
   /** One-line summary, safe to paste into a skip reason or an assertion message. */
   detail: string;
 }
@@ -36,6 +40,7 @@ const NOT_MEASURED: Readiness = {
   serving: false,
   docsReady: false,
   dbReady: false,
+  commitMatched: null,
   detail: "readiness was never measured (global setup did not run)",
 };
 
@@ -67,14 +72,21 @@ function summarize(h: Health | null, expectedCommit?: string): string {
 /**
  * Poll /api/health until the deploy is serving its indexes with a reachable DB.
  *
- * `expectedCommit` (the SHA the workflow deployed) is a SOFT gate: we wait for
- * the deploy to report it so the suite can't assert against the previous build,
- * but a deploy that never reports it — an older image, or `RAILWAY_GIT_COMMIT_SHA`
- * unset — proceeds after COMMIT_GRACE rather than becoming a new source of red
- * (or, worse, spending the whole budget waiting for a match that can't happen).
+ * `expectedCommit` (the SHA the workflow deployed) gates the wait, and the two
+ * ways it can fail to match are NOT the same thing:
  *
- * Never throws: an unreachable deploy comes back as `serving: false` so the
- * caller decides whether that's fatal.
+ *  · The deploy reports no `app_commit` at all — an older image, or
+ *    `RAILWAY_GIT_COMMIT_SHA` unset. There is nothing to wait for, so COMMIT_GRACE
+ *    releases the wait rather than spending the whole budget on a match that can
+ *    never happen.
+ *  · The deploy reports a DIFFERENT commit — a previous container is still
+ *    serving. Releasing here would assert against the wrong build, which is
+ *    precisely the race this gate exists to close, so the grace does NOT apply:
+ *    keep polling until the right commit appears or the overall deadline hits.
+ *
+ * Never throws: an unreachable deploy comes back as `serving: false`, and a
+ * deadline reached on a mismatched commit comes back as `commitMatched: false`,
+ * so the caller decides whether either is fatal.
  */
 const COMMIT_GRACE = 60_000;
 
@@ -95,15 +107,19 @@ export async function waitForReady(
     if (probe) {
       health = probe;
       serving = true;
+      // Sticky: during a rolling swap both containers answer, so requiring the
+      // CURRENT probe to match would flap. Having seen the new build once is
+      // enough to say it is live.
       if (expectedCommit && probe.app_commit && probe.app_commit.startsWith(expectedCommit.slice(0, 7))) {
         commitSeen = true;
       }
       const converged = (probe.docs ?? 0) > 0 && probe.db_reachable === true;
       if (converged && convergedAt === null) convergedAt = Date.now();
       if (!converged) convergedAt = null;
-      const commitOk =
-        !expectedCommit || commitSeen || (convergedAt !== null && Date.now() - convergedAt >= COMMIT_GRACE);
-      if (converged && commitOk) break;
+      // The grace window only releases a deploy that reports NO commit. One
+      // reporting a different commit stays gated — see the note above.
+      const graceApplies = !probe.app_commit && convergedAt !== null && Date.now() - convergedAt >= COMMIT_GRACE;
+      if (converged && (!expectedCommit || commitSeen || graceApplies)) break;
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
@@ -116,6 +132,10 @@ export async function waitForReady(
     serving,
     docsReady: (health?.docs ?? 0) > 0,
     dbReady: health?.db_reachable === true,
+    // false ONLY when the deploy told us it is serving some other commit — that
+    // is the case worth shouting about, and it is distinct from a deploy that
+    // reports nothing (null: unverifiable, not contradicted).
+    commitMatched: !expectedCommit || !health?.app_commit ? null : commitSeen,
     detail: summarize(health, expectedCommit),
   };
 }
