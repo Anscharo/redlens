@@ -143,7 +143,7 @@ function CardBody({ entity, onSelect }: {
       {entity.did && (
         <AtlasLink to={atlasHref(entity.did)} onClick={stopPropagation}
           className="mono text-[11px] hover:underline mb-3 inline-block" style={{ color: "var(--accent)" }}>
-          → defining document
+          <span className="enlargen">→</span> defining document
         </AtlasLink>
       )}
       {params && (
@@ -205,7 +205,7 @@ function RelationChip({ rel, onSelect }: {
         style={baseStyle}
         title={title}
       >
-        <span style={{ color: "var(--tan-3)" }}>{arrow}</span>
+        <span className="enlargen" style={{ color: "var(--tan-3)" }}>{arrow}</span>
         <span>{otherLabel}</span>
       </AtlasLink>
     );
@@ -218,14 +218,14 @@ function RelationChip({ rel, onSelect }: {
         onClick={(e) => { e.stopPropagation(); onSelect(otherId); }}
         title={title}
       >
-        <span style={{ color: "var(--tan-3)" }}>{arrow}</span>
+        <span className="enlargen" style={{ color: "var(--tan-3)" }}>{arrow}</span>
         <span>{otherLabel}</span>
       </button>
     );
   }
   return (
     <span className={className} style={{ ...baseStyle, cursor: "default" }} title={title}>
-      <span style={{ color: "var(--tan-3)" }}>{arrow}</span>
+      <span className="enlargen" style={{ color: "var(--tan-3)" }}>{arrow}</span>
       <span>{otherLabel}</span>
     </span>
   );

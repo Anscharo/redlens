@@ -498,10 +498,16 @@ describe("duty_for — no double-counted core org from a bare+Core pair", () => 
     // doesn't fan the core org out twice. Keying on (doc, entity) alone also
     // caught the Core+Operational pair that findRoleDuties emits ON PURPOSE —
     // two consecutive sentences assigning separate duties, its docstring cites
-    // A.3.2.2.7.2.1.2 — which only stopped being invisible once the atlas made
-    // both roles resolve to the same entity. Bind-slots express the real rule,
-    // and still flag bare+Core: bare binds core, so core would be bound twice.
-    // Mirrors the Pattern 6-bis process_step_responsible_party_for check above.
+    // A.3.2.2.7.2.1.2. That was invisible until the atlas bump in #220 made
+    // Soter Labs both the Core GovOps org and the sole Operational GovOps org,
+    // so both duties began resolving to one entity.
+    //
+    // Bucketing declared roles into core-vs-operational (as the Pattern 6-bis
+    // check above does) unblocks that, but goes blind to A.1.6.6 itself: a bare
+    // "Facilitator" doesn't match /core/, so bare+Core lands in two buckets and
+    // stops being reported. Key on the holder slots a qualifier BINDS instead —
+    // bare binds core, so bare+Core still collides — which is what the invariant
+    // actually means and is strictly stronger than either earlier key.
     const seen = new Set<string>();
     const dupes: string[] = [];
     for (const e of edgesOfType("duty_for")) {

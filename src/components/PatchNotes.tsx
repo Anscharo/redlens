@@ -59,7 +59,7 @@ export function PatchNotes() {
       <h2 className="text-3xl font-semibold text-tan mb-4">Recent improvements</h2>
       <PatchNoteGroups groups={recentGroups} />
       <Link to={ROUTES.UPDATES} className="link-accent inline-block mt-4 text-sm">
-        View all updates →
+        View all updates <span className="enlargen">→</span>
       </Link>
     </section>
   );

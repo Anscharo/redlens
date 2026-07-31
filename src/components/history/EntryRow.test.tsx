@@ -34,6 +34,16 @@ describe("EntryRow line 1", () => {
     );
   });
 
+  it("still links a reconstructed entry's PR, which carries a number but no stored URL", () => {
+    // HTML-era rows predate the atlas_prs metadata the git-era rows get pr_url
+    // from — without a derived href the link renders as dead text.
+    render(<EntryRow entry={entry({ pr: 66, era: "html" })} />);
+    expect(screen.getByRole("link", { name: "PR 66" })).toHaveAttribute(
+      "href",
+      "https://github.com/sky-ecosystem/next-gen-atlas/pull/66",
+    );
+  });
+
   it("shows neither the PR author nor its comment count", () => {
     render(<EntryRow entry={entry({ pr: 236, prAuthor: "adamgfraser", commentCount: 7 })} />);
     expect(screen.queryByText(/adamgfraser/)).not.toBeInTheDocument();

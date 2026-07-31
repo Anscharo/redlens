@@ -87,7 +87,7 @@ describe("NodeHistory states", () => {
   it("appends the pre-markdown footer under the migration PR (no reconstructed entries)", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File" })]);
     render(<NodeHistory nodeId="n6" />);
-    expect(await screen.findByText("view original HTML →")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
   });
 
   it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
@@ -108,7 +108,7 @@ describe("NodeHistory states", () => {
 
     expect(await screen.findByText("an html-era change")).toBeInTheDocument();
     expect(screen.getByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
-    expect(screen.getByText("view original HTML →")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
   });
 
   it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
@@ -176,7 +176,7 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n11" />);
     fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Proposed in MIP104 §14.3");
-    const link = screen.getByText("source →").closest("a");
+    const link = screen.getByRole("link", { name: "source →" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413");
   });
 

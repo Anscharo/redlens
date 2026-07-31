@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { CHANGE_COLOR, isGitSha, loadHistoryBatch, type HistoryEntry } from "../../lib/history";
+import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, prHref, type HistoryEntry } from "../../lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "../../types";
 import { ROUTES } from "../../lib/routes";
@@ -251,13 +251,13 @@ function Entry({
               </span>
             ))}
             {entry.pr && (
-              <a href={entry.prUrl} target="_blank" rel="noopener noreferrer"
+              <a href={prHref(entry)} target="_blank" rel="noopener noreferrer"
                  className="hover:underline focus-visible:underline" style={{ color: "var(--accent)" }}>
                 #{entry.pr}
               </a>
             )}
             {isGitSha(entry.commitHash) ? (
-              <a href={`https://github.com/sky-ecosystem/next-gen-atlas/commit/${entry.commitHash}`}
+              <a href={`${ATLAS_REPO}/commit/${entry.commitHash}`}
                  target="_blank" rel="noopener noreferrer"
                  className="hover:underline focus-visible:underline" style={{ color: "var(--tan-3)" }}>
                 {entry.commitHash.slice(0, 7)}
