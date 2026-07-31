@@ -14,24 +14,13 @@ export function HtmlEraDisclaimer() {
       className="mono text-[11px] px-2 py-2.5 leading-snug my-1"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
-      <strong style={{ color: "var(--tan-2)" }}>Pre-#117 history is reconstructed.</strong>{" "}
-      Before the “Migrate To Markdown File” PR (Nov 2025) the Atlas was a single HTML file
-      with no per-document identities. The entries below were automatically translated from
-      the original HTML tables to markdown, and each document’s lineage was traced by{" "}
-      <span style={{ color: "var(--tan-2)" }}>deterministic matching</span> (content + structure
-      fingerprints),{" "}
-      <span style={{ color: "var(--tan-2)" }}>AI cross-checks</span> using multiple AI models
-      forward and backward looking of changes, PR descriptions for each change, and{" "}
-      <span style={{ color: "var(--tan-2)" }}>human review</span> on top; although thorough the
-      possibility for mistakes exists.{" "}
+      This history is reconstructed.{" "}
       <a
-        href={PRE_MD_HTML_URL}
-        target="_blank"
-        rel="noopener noreferrer"
+        href="/provenance#reconstructed-history"
         className="hover:underline focus-visible:underline"
         style={{ color: "var(--accent)" }}
       >
-        view original HTML <span className="enlargen">→</span>
+        Learn how <span className="enlargen">→</span>
       </a>
     </aside>
   );
@@ -47,9 +36,14 @@ export function PreGitDisclaimer() {
       className="mono text-[11px] px-2 py-2.5 leading-snug mt-3 mb-1"
       style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
     >
-      The history events below trace atlas history prior to the current git repo. While
-      we can confidently say which docs were unchanged since genesis or MIPS, for edits in this
-      era we don't have the changelogs. Try searching sky forum posts for historical context.
+      This history comes from pre-git sources.{" "}
+      <a
+        href="/provenance#pre-git-history"
+        className="hover:underline focus-visible:underline"
+        style={{ color: "var(--accent)" }}
+      >
+        Learn more <span className="enlargen">→</span>
+      </a>
     </aside>
   );
 }

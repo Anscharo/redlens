@@ -33,6 +33,8 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-07-31
+- Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
 
 ## 2026-07-30
 - Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
