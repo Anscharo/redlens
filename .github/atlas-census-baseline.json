@@ -21,17 +21,17 @@
       "samples": []
     },
     "Active Data Controller|s:resp-party,uuid-link": {
-      "total": 24,
+      "total": 25,
       "uncovered": 0,
       "samples": []
     },
     "Active Data Controller|uuid-link": {
-      "total": 1,
+      "total": 2,
       "uncovered": 0,
       "samples": []
     },
     "Active Data|addr": {
-      "total": 7,
+      "total": 8,
       "uncovered": 0,
       "samples": []
     },
@@ -41,12 +41,12 @@
       "samples": []
     },
     "Active Data|plain": {
-      "total": 61,
+      "total": 60,
       "uncovered": 0,
       "samples": []
     },
     "Active Data|table": {
-      "total": 5,
+      "total": 7,
       "uncovered": 0,
       "samples": []
     },
@@ -87,7 +87,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is": {
-      "total": 170,
+      "total": 169,
       "uncovered": 0,
       "samples": []
     },
@@ -102,7 +102,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is,uuid-link": {
-      "total": 9,
+      "total": 6,
       "uncovered": 0,
       "samples": []
     },
@@ -133,8 +133,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 7689,
-      "uncovered": 5903,
+      "total": 7933,
+      "uncovered": 6144,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -165,12 +165,7 @@
       "samples": []
     },
     "Core|s:modify-signers": {
-      "total": 22,
-      "uncovered": 0,
-      "samples": []
-    },
-    "Core|s:modify-signers,s:signing-req,uuid-link": {
-      "total": 1,
+      "total": 23,
       "uncovered": 0,
       "samples": []
     },
@@ -202,7 +197,7 @@
       ]
     },
     "Core|s:role-for-is,uuid-link": {
-      "total": 23,
+      "total": 24,
       "uncovered": 0,
       "samples": []
     },
@@ -220,8 +215,8 @@
       "samples": []
     },
     "Core|s:serves-as": {
-      "total": 11,
-      "uncovered": 8,
+      "total": 14,
+      "uncovered": 11,
       "samples": [
         "A.1.10.2.1.5",
         "A.1.10.2.2.2",
@@ -241,8 +236,8 @@
       "samples": []
     },
     "Core|s:transfer": {
-      "total": 34,
-      "uncovered": 32,
+      "total": 35,
+      "uncovered": 33,
       "samples": [
         "A.1.6.4.4",
         "A.2.8.2.1.2.10",
@@ -272,7 +267,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1457,
+      "total": 1528,
       "uncovered": 0,
       "samples": []
     },
@@ -323,8 +318,8 @@
       ]
     },
     "Section|plain": {
-      "total": 107,
-      "uncovered": 81,
+      "total": 108,
+      "uncovered": 82,
       "samples": [
         "A.0.1.1",
         "A.0.1.2",
