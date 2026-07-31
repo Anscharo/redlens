@@ -35,7 +35,7 @@ function RelationRow({ r }: { r: ActorRelation }) {
   return (
     <div className="flex items-center gap-2 py-1 border-t border-[var(--border)] text-sm">
       <span className="mono text-[10px]" style={{ color: "var(--tan-3)" }}>
-        {arrow} {label}
+        <span className="enlargen">{arrow}</span> {label}
       </span>
       {r.otherSlug ? (
         <Link to={actorHref(r.otherSlug)} className="text-accent hover:underline">
@@ -56,7 +56,7 @@ function RecRow({ rec }: { rec: Recommendation }) {
         <span style={{ color: "var(--tan-2)" }}>{rec.label}</span>
         {rec.reportLink && (
           <Link to={rec.reportLink} className="mono text-[10px] text-accent hover:underline ml-2">
-            view report →
+            view report <span className="enlargen">→</span>
           </Link>
         )}
         {rec.entityLink && (
@@ -64,7 +64,7 @@ function RecRow({ rec }: { rec: Recommendation }) {
             to={actorHref(rec.entityLink)}
             className="mono text-[10px] text-accent hover:underline ml-2"
           >
-            view actor →
+            view actor <span className="enlargen">→</span>
           </Link>
         )}
         <div className="text-xs mt-0.5" style={{ color: "var(--tan-3)" }}>
@@ -128,7 +128,7 @@ export function ActorDashboard({ profile }: Props) {
                     to={atlasHref(definingDoc.id)}
                     className="mono text-[10px] text-accent hover:underline"
                   >
-                    {definingDoc.doc_no} →
+                    {definingDoc.doc_no} <span className="enlargen">→</span>
                   </AtlasLink>
                 )}
                 {partOfComposite?.slug && (
@@ -136,7 +136,7 @@ export function ActorDashboard({ profile }: Props) {
                     to={actorHref(partOfComposite.slug)}
                     className="mono text-[10px] text-tan-3 hover:text-accent hover:underline"
                   >
-                    part of {partOfComposite.name} →
+                    part of {partOfComposite.name} <span className="enlargen">→</span>
                   </Link>
                 )}
               </div>

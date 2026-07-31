@@ -60,8 +60,7 @@ describe("PatchNotes / PatchNoteGroups", () => {
 
     render(<PatchNotes />, { wrapper: wrap() });
 
-    const viewAll = screen.getByText("View all updates →");
-    expect(viewAll.closest("a")).toHaveAttribute("href", "/updates");
+    expect(screen.getByRole("link", { name: "View all updates →" })).toHaveAttribute("href", "/updates");
   });
 
   it("renders nothing when there are no patch note groups", async () => {

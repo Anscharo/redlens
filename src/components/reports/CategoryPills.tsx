@@ -29,8 +29,9 @@ export function CategoryPills<T extends string>({
   display?: Partial<Record<T, string>>;
   /** Muted per-pill count, shown after the pill text. */
   counts?: Partial<Record<T, number>>;
-  /** Muted trailing hint, e.g. a scale legend. */
-  hint?: string;
+  /** Muted trailing hint, e.g. a scale legend. Takes a node, not just a string,
+   *  so a legend can mark up a glyph (the → in a range hint is `.enlargen`). */
+  hint?: React.ReactNode;
 }) {
   if (categories.length < 2) return null;
   return (

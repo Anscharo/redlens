@@ -70,7 +70,7 @@ describe("DiffView", () => {
     expect(container.textContent).toContain(" ");
   });
 
-  it("renders a lightly edited paragraph as an inline ~ row (word-level, not promoted)", () => {
+  it("renders a lightly edited paragraph as an inline Δ row (word-level, not promoted)", () => {
     // One short word changed in a long sentence stays below the promotion
     // threshold, so refineProseDiff leaves the "~" intraline entry intact.
     const lines: DiffLine[] = [
@@ -90,7 +90,47 @@ describe("DiffView", () => {
     render(<DiffView lines={lines} />);
     expect(screen.getByText("twelve")).toBeInTheDocument();
     expect(screen.getByText("fourteen")).toBeInTheDocument();
-    expect(screen.getByText("~")).toBeInTheDocument();
+    // The modified-line marker is Δ — a tilde reads too much like the "−" one.
+    expect(screen.getByText("Δ")).toBeInTheDocument();
+  });
+
+  it("sets prose lines in the body sans and structured/frontmatter lines in mono", () => {
+    // A preview patch carries the document.md frontmatter, so both kinds land
+    // in one box: `key: value` and `---` stay monospace, prose does not.
+    const lines: DiffLine[] = [
+      ["=", "---"],
+      ["-", "name: Old Document Name"],
+      ["+", "name: New Document Name"],
+      ["=", "The facilitator shall maintain the reserve for the mandate."],
+    ];
+    render(<DiffView lines={lines} />);
+    expect(screen.getByText("---")).toHaveClass("mono");
+    expect(screen.getByText("name: Old Document Name")).toHaveClass("mono");
+    expect(screen.getByText("name: New Document Name")).toHaveClass("mono");
+    const prose = screen.getByText("The facilitator shall maintain the reserve for the mandate.");
+    expect(prose).not.toHaveClass("mono");
+    // Prose wraps at word boundaries; only structured lines break mid-token.
+    expect(prose).toHaveClass("break-words");
+  });
+
+  it("keeps a fenced block's contents in mono even when they read as prose", () => {
+    // Only the ``` rows match isStructuredLine on their own; the contents have
+    // to inherit from the fence or they'd flip to the sans prose treatment
+    // mid-block.
+    const lines: DiffLine[] = [
+      ["=", "The facilitator shall maintain the reserve for the mandate."],
+      ["=", "```"],
+      ["+", "set the reserve to fourteen"],
+      ["=", "```"],
+    ];
+    render(<DiffView lines={lines} />);
+    const code = screen.getByText("set the reserve to fourteen");
+    expect(code).toHaveClass("mono");
+    expect(code).toHaveClass("break-all");
+    // The prose line outside the block is unaffected.
+    expect(
+      screen.getByText("The facilitator shall maintain the reserve for the mandate."),
+    ).not.toHaveClass("mono");
   });
 
   it("renders the REFINED output: a wholesale sentence rewrite promotes to −/+ rows", () => {
