@@ -21,38 +21,60 @@ test.describe("reader navigation", () => {
     await expect(selected).toBeInViewport();
   });
 
-  test("navigating to a gated depth-6 node auto-expands its ancestor and scrolls to it", async ({ page }) => {
+  test("navigating to a doc nested several levels inside a collapsed branch auto-expands its whole ancestor chain and scrolls to it", async ({ page }) => {
     await page.goto("/atlas");
     await expect(page.locator("article.atlas-node").first()).toBeVisible({ timeout: READY });
 
-    // A "N hidden" affordance marks a node that gates depth-6+ descendants.
-    // Located by its stable aria-label ("View N hidden sections") rather than class.
+    // First paint: every parent row starts collapsed, marked by an
+    // "N hidden" affordance. Located by its stable aria-label rather than class.
     const affordance = page.getByRole("button", { name: /hidden sections/ }).first();
     await expect(affordance).toBeVisible({ timeout: READY });
 
-    // The gating ancestor is the article that contains the affordance.
-    const gatingId = await affordance.evaluate((el) => el.closest("article")?.id ?? null);
-    expect(gatingId).toBeTruthy();
+    // The collapsed branch's root is the article that contains the affordance.
+    const rootId = await affordance.evaluate((el) => el.closest("article")?.id ?? null);
+    expect(rootId).toBeTruthy();
 
-    // Reveal the gated children, then find an article that appeared as a result.
-    const before = await page.locator("article.atlas-node").evaluateAll((els) => els.map((e) => e.id));
+    // The tab reveals the WHOLE branch at once (every level, titles only —
+    // see subtreeState.ts / handleExpandParent), so this single click can
+    // expose several nested levels in one shot. Find the most deeply nested
+    // row it exposed (highest doc-number chiclet count) and an intermediate
+    // ancestor strictly between it and root — by DOM order, the nearest
+    // preceding row with a shallower chiclet count is its visual parent —
+    // so the deep-link below exercises a genuine multi-hop ancestor raise,
+    // not just one level.
     await affordance.click();
-    await expect
-      .poll(async () => (await page.locator("article.atlas-node").evaluateAll((els) => els.length)))
-      .toBeGreaterThan(before.length);
-
-    const deepId = await page.locator("article.atlas-node").evaluateAll(
-      (els, prev) => els.map((e) => e.id).find((id) => id && !prev.includes(id)) ?? null,
-      before,
-    );
+    const { deepId, midId } = await page.evaluate((rid) => {
+      const rows = Array.from(document.querySelectorAll("article.atlas-node"));
+      const rootIdx = rows.findIndex((el) => el.id === rid);
+      const after = rows.slice(rootIdx + 1).map((el) => ({
+        id: el.id,
+        depth: el.querySelectorAll(".atlas-chiclet").length,
+      }));
+      if (!after.length) return { deepId: null, midId: null };
+      let deepIdx = 0;
+      for (let i = 1; i < after.length; i++) if (after[i].depth > after[deepIdx].depth) deepIdx = i;
+      const deep = after[deepIdx];
+      let midId: string | null = null;
+      for (let i = deepIdx - 1; i >= 0; i--) {
+        if (after[i].depth < deep.depth) {
+          midId = after[i].id;
+          break;
+        }
+      }
+      return { deepId: deep.id, midId };
+    }, rootId);
     expect(deepId).toBeTruthy();
+    expect(midId).toBeTruthy();
 
-    // Fresh navigation to the deep node: its gating ancestor must be rendered
-    // (auto-expanded), and the node itself selected and scrolled into view.
+    // Fresh navigation straight to the deep node: BOTH ancestors (the
+    // intermediate one and the original collapsed root) must be rendered —
+    // a multi-hop ancestor raise — and the node itself selected and
+    // scrolled into view.
     await page.goto(`/atlas?id=${deepId}`);
     const deep = page.locator(`article[id="${deepId}"]`);
     await expect(deep).toHaveClass(/is-selected/, { timeout: READY });
     await expect(deep).toBeInViewport();
-    await expect(page.locator(`article[id="${gatingId}"]`)).toHaveCount(1);
+    await expect(page.locator(`article[id="${midId}"]`)).toHaveCount(1);
+    await expect(page.locator(`article[id="${rootId}"]`)).toHaveCount(1);
   });
 });

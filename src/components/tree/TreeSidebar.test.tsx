@@ -6,8 +6,8 @@
 // mocked to render every row directly (no virtualization/measurement in jsdom),
 // so TreeRow's real rendering is exercised through it.
 
-import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, beforeAll, vi } from "vitest";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { useRef } from "react";
 import { TreeSidebar } from "./TreeSidebar";
@@ -148,7 +148,7 @@ describe("TreeSidebar basic tree rendering", () => {
     expect(mocks.track).toHaveBeenCalledWith("reader_sidebar_toggle", {
       node_id: "root",
       action: "expand",
-      all: false,
+      cascade: false,
     });
   });
 
@@ -162,35 +162,34 @@ describe("TreeSidebar basic tree rendering", () => {
     expect(screen.getAllByRole("treeitem")).toHaveLength(5);
   });
 
-  it("alt-click expands the entire subtree at once, and collapses it back", () => {
+  it("alt-click is no longer a bulk gesture — it toggles one level like a plain click", () => {
     mocks.bundle = makeAtlasBundle(tree());
     setup();
     const rootToggle = screen.getAllByRole("button")[0];
     fireEvent.click(rootToggle, { altKey: true });
+    // root + mid + sib + nr1 — one level, not the whole subtree.
+    expect(screen.getAllByRole("treeitem")).toHaveLength(4);
     expect(mocks.track).toHaveBeenCalledWith("reader_sidebar_toggle", {
       node_id: "root",
       action: "expand",
-      all: true,
+      cascade: false,
     });
-    // root, mid, leaf, deep, sib, nr1 — everything.
-    expect(screen.getAllByRole("treeitem")).toHaveLength(6);
-
-    fireEvent.click(rootToggle, { altKey: true });
-    expect(screen.getAllByRole("treeitem")).toHaveLength(1);
   });
 });
 
 describe("TreeSidebar ancestor auto-expansion on navigation", () => {
-  it("expands every ancestor of the selected node so its row is visible", () => {
+  it("expands every ancestor of the selected node, but not the node itself", () => {
     mocks.bundle = makeAtlasBundle(tree());
     setup({ nodeId: "leaf" });
-    // root + mid are ancestors; leaf is also expanded (selected node with its own
-    // children get auto-expanded too), which reveals deep as well.
+    // root + mid are ancestors and must open, or leaf's row could not be shown.
+    // leaf's OWN child (deep) stays hidden: selecting a doc opens it in the
+    // reader, it does not rearrange the tree underneath it. Only the chevron
+    // does that.
     const ids = screen.getAllByRole("treeitem").map((el) => el.getAttribute("data-node-id"));
     expect(ids).toContain("root");
     expect(ids).toContain("mid");
     expect(ids).toContain("leaf");
-    expect(ids).toContain("deep");
+    expect(ids).not.toContain("deep");
   });
 });
 
@@ -249,9 +248,21 @@ describe("TreeSidebar scroll-on-select effect", () => {
 });
 
 describe("TreeSidebar cradle rail", () => {
+  // The cradle rails the selection's VISIBLE descendants, so these expand the
+  // selected node by its chevron first — selecting alone no longer unfolds it.
+  const expandRow = (id: string) =>
+    fireEvent.click(
+      screen
+        .getAllByRole("button")
+        .find((b) => b.className.includes("tree-toggle") && b.closest(`[data-node-id="${id}"]`))!,
+    );
+
   it("marks the contiguous descendant run below the selection as in-cradle", () => {
     mocks.bundle = makeAtlasBundle(tree());
     const { container } = setup({ nodeId: "mid" });
+    expect(container.querySelector(".in-cradle")).toBeNull();
+
+    expandRow("mid");
     const cradled = container.querySelectorAll(".in-cradle");
     expect(cradled.length).toBeGreaterThan(0);
     expect(container.querySelector(".cradle-foot")).not.toBeNull();
@@ -261,6 +272,7 @@ describe("TreeSidebar cradle rail", () => {
     mocks.selectionSet = new Set(["mid", "leaf"]);
     mocks.bundle = makeAtlasBundle(tree());
     const { container } = setup({ nodeId: "mid" });
+    expandRow("mid");
     expect(container.querySelector(".in-cradle")).not.toBeNull();
   });
 });
@@ -344,5 +356,104 @@ describe("TreeSidebar sidebar-width resize effect", () => {
     mocks.bundle = makeAtlasBundle(tree());
     const { unmount } = setup();
     expect(() => unmount()).not.toThrow();
+  });
+});
+
+// A 6-level chain — deeper than the cascade cap — so the cap actually bites:
+// the levels past it never appear, proving maxLevels stops the walk rather than
+// the frontier simply running out.
+function chain() {
+  const root = makeNode({ id: "c-root", doc_no: "A.1", title: "Root", depth: 1, parentId: null });
+  const l1 = makeNode({ id: "c-l1", doc_no: "A.1.2", title: "L1", depth: 2, parentId: "c-root" });
+  const l2 = makeNode({ id: "c-l2", doc_no: "A.1.2.3", title: "L2", depth: 3, parentId: "c-l1" });
+  const l3 = makeNode({ id: "c-l3", doc_no: "A.1.2.3.4", title: "L3", depth: 4, parentId: "c-l2" });
+  const l4 = makeNode({ id: "c-l4", doc_no: "A.1.2.3.4.5", title: "L4", depth: 5, parentId: "c-l3" });
+  const l5 = makeNode({ id: "c-l5", doc_no: "A.1.2.3.4.5.6", title: "L5", depth: 6, parentId: "c-l4" });
+  return [root, l1, l2, l3, l4, l5];
+}
+
+describe("TreeSidebar shift-click cascade", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shift-clicks a chevron and unfolds three levels one tick at a time, then stops", () => {
+    mocks.bundle = makeAtlasBundle(chain());
+    setup();
+    const rootToggle = screen.getAllByRole("button")[0];
+
+    act(() => fireEvent.click(rootToggle, { shiftKey: true }));
+    // Tick 1 (synchronous): root expands, revealing l1.
+    expect(screen.getAllByRole("treeitem")).toHaveLength(2);
+
+    act(() => vi.advanceTimersByTime(180));
+    // Tick 2: l1 expands, revealing l2.
+    expect(screen.getAllByRole("treeitem")).toHaveLength(3);
+
+    act(() => vi.advanceTimersByTime(180));
+    // Tick 3 — the cap: l2 expands, revealing l3, and no further tick is scheduled.
+    expect(screen.getAllByRole("treeitem")).toHaveLength(4);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // l3 itself was never added to expandedIds, so its own child (l4) stays hidden.
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getAllByRole("treeitem")).toHaveLength(4);
+  });
+
+  it("carries cascade: true in the analytics payload on shift-click", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    act(() => fireEvent.click(screen.getAllByRole("button")[0], { shiftKey: true }));
+    expect(mocks.track).toHaveBeenCalledWith("reader_sidebar_toggle", {
+      node_id: "root",
+      action: "expand",
+      cascade: true,
+    });
+    act(() => vi.runAllTimers());
+  });
+
+  it("shift-clicking an OPEN chevron collapses the row and every descendant", () => {
+    mocks.bundle = makeAtlasBundle(chain());
+    setup();
+    const rootToggle = screen.getAllByRole("button")[0];
+
+    // Cascade the branch open first, so there are nested expansions to undo.
+    act(() => fireEvent.click(rootToggle, { shiftKey: true }));
+    act(() => vi.runAllTimers());
+    expect(screen.getAllByRole("treeitem")).toHaveLength(4);
+
+    // Shift again, now that it is open: the whole branch folds back in one step.
+    act(() => fireEvent.click(rootToggle, { shiftKey: true }));
+    expect(screen.getAllByRole("treeitem")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0); // instant, not staggered
+    expect(mocks.track).toHaveBeenLastCalledWith("reader_sidebar_toggle", {
+      node_id: "c-root",
+      action: "collapse",
+      cascade: true,
+    });
+
+    // The descendants were cleared too, not just hidden: re-opening one level
+    // shows l1 alone, with l2 still folded.
+    act(() => fireEvent.click(rootToggle));
+    expect(screen.getAllByRole("treeitem")).toHaveLength(2);
+  });
+
+  it("falls through to a plain one-level toggle when shift-clicking in selected-only view", () => {
+    mocks.selectionSet = new Set(["mid", "leaf"]);
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    const midToggle = screen.getByRole("button");
+    act(() => fireEvent.click(midToggle, { shiftKey: true }));
+    // Plain one-level expand applied synchronously — no cascade timer scheduled
+    // (if the guard were missing, cascadeLevels would walk the real tree's
+    // "leaf" → "deep" edge and leave a pending timer here).
+    expect(screen.getAllByRole("treeitem").map((el) => el.getAttribute("data-node-id"))).toEqual([
+      "mid",
+      "leaf",
+    ]);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
