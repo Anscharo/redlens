@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup, fireEvent, act } from "@testing-library/react";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
+import { CHEVRON_SETTLE_MS } from "../../lib/chevronSettle";
 import { makeNode, makeFlatEntry } from "../../test/fixtures";
-import type { SubtreeVisualState } from "./subtreeState";
+import type { RungDir, RungLevel } from "./subtreeState";
 
 afterEach(cleanup);
 
@@ -15,8 +16,8 @@ interface Overrides {
   isSelected?: boolean;
   isExpanded?: boolean;
   hasChildren?: boolean;
-  subtreeState?: SubtreeVisualState;
-  hasExplicitHiddenSubtree?: boolean;
+  rungLevel?: RungLevel;
+  rungDir?: RungDir;
   gatedCount?: number;
   withExpandAll?: boolean;
 }
@@ -26,18 +27,14 @@ function setup(overrides: Overrides = {}) {
   const onToggle = vi.fn();
   const onShiftNavigate = vi.fn();
   const onExpandChildren = vi.fn();
-  const expandAll = vi.fn();
-  const hideSubtree = vi.fn();
-  const setSubtreeVisualState = vi.fn();
+  const pendulum = vi.fn();
   const utils = render(
     <AtlasActionsContext.Provider
       value={{
         navigate: onNavigate,
         toggle: onToggle,
         splitNavigate: onShiftNavigate,
-        expandAll: overrides.withExpandAll ? expandAll : undefined,
-        hideSubtree,
-        setSubtreeVisualState: overrides.withExpandAll ? setSubtreeVisualState : undefined,
+        pendulum: overrides.withExpandAll ? pendulum : undefined,
       }}
     >
       <CollapsibleNode
@@ -45,14 +42,14 @@ function setup(overrides: Overrides = {}) {
         isSelected={overrides.isSelected ?? false}
         isExpanded={overrides.isExpanded ?? false}
         hasChildren={overrides.hasChildren ?? false}
-        subtreeState={overrides.subtreeState ?? "closed"}
-        hasExplicitHiddenSubtree={overrides.hasExplicitHiddenSubtree ?? false}
+        rungLevel={overrides.rungLevel ?? 0}
+        rungDir={overrides.rungDir ?? 1}
         gatedCount={overrides.gatedCount ?? 0}
         onExpandChildren={onExpandChildren}
       />
     </AtlasActionsContext.Provider>,
   );
-  return { ...utils, onNavigate, onToggle, onShiftNavigate, onExpandChildren, expandAll, hideSubtree, setSubtreeVisualState };
+  return { ...utils, onNavigate, onToggle, onShiftNavigate, onExpandChildren, pendulum };
 }
 
 describe("CollapsibleNode click behaviour", () => {
@@ -125,75 +122,46 @@ describe("CollapsibleNode depth-6 affordance", () => {
   });
 });
 
-describe("CollapsibleNode expand-all toggle", () => {
-  it("hides the expand-all button when the node has no children", () => {
+describe("CollapsibleNode pendulum toggle", () => {
+  it("hides the pendulum button when the node has no children", () => {
     const { container } = setup({ hasChildren: false, withExpandAll: true });
     expect(container.querySelector(".atlas-node-expand-all")).toBeNull();
   });
 
-  it("shows the expand-all button only when there are children and an expandAll action", () => {
+  it("shows the pendulum button only when there are children and a pendulum action", () => {
     const { container } = setup({ hasChildren: true, withExpandAll: true });
     expect(container.querySelector(".atlas-node-expand-all")).not.toBeNull();
   });
 
-  it("calls expandAll with the expand intent based on current subtree state", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "closed",
-    });
+  it("clicking the » button calls pendulum with the node id, regardless of current rung", () => {
+    const { container, pendulum } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 1, rungDir: 1 });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
+    expect(pendulum).toHaveBeenCalledTimes(1);
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id);
   });
 
-  it("points the expand-all button up when the subtree is hidden", () => {
-    const { container } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "hidden",
-    });
-    expect(container.querySelector(".atlas-node-expand-all")?.classList.contains("is-hidden")).toBe(true);
+  it.each([
+    [0, "is-hidden"],
+    [1, ""],
+    [2, "is-open"],
+  ] as const)("rung level %d renders class %j", (rungLevel, expectedClass) => {
+    const { container } = setup({ hasChildren: true, withExpandAll: true, rungLevel });
+    const btn = container.querySelector(".atlas-node-expand-all")!;
+    expect(btn.classList.contains("is-open")).toBe(expectedClass === "is-open");
+    expect(btn.classList.contains("is-hidden")).toBe(expectedClass === "is-hidden");
   });
 
-  it("expands a hidden subtree on normal click", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "hidden",
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
-  });
-
-  it("restores a hidden subtree on normal click when it has an explicit snapshot", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "hidden",
-      hasExplicitHiddenSubtree: true,
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open", { restore: true });
-  });
-
-  it("expands a depth-gated hidden subtree when no explicit snapshot exists", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-      subtreeState: "hidden",
-      hasExplicitHiddenSubtree: false,
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
-  });
-
-  it("shift-click hides the subtree", () => {
-    const { container, setSubtreeVisualState } = setup({
-      hasChildren: true,
-      withExpandAll: true,
-    });
-    fireEvent.click(container.querySelector(".atlas-node-expand-all")!, { shiftKey: true });
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "hidden");
+  // Hover preview: the button leans 45° toward wherever the next click lands
+  // — pure CSS off this custom property (see index.css .atlas-node-toggle:hover).
+  it.each([
+    [0, 1, -45],
+    [1, 1, 45],
+    [1, -1, -45],
+    [2, 1, 45],
+  ] as const)("rung {level: %d, dir: %d} sets --hover-deg to %ddeg", (rungLevel, rungDir, expected) => {
+    const { container } = setup({ hasChildren: true, withExpandAll: true, rungLevel, rungDir });
+    const btn = container.querySelector(".atlas-node-expand-all") as HTMLElement;
+    expect(btn.style.getPropertyValue("--hover-deg")).toBe(`${expected}deg`);
   });
 
   it("runs the compositor feedback and defers the commit two frames when the button can animate", () => {
@@ -201,9 +169,11 @@ describe("CollapsibleNode expand-all toggle", () => {
     // instead of the plain synchronous fallback, and make rAF resolve inline so
     // the deferred rAF(rAF(commit)) fires within the test.
     const cancel = vi.fn();
+    // `finished` matters: the rotation releases its fill:forwards hold when the
+    // spin finishes, not when the rung changes — see doPendulum.
     const animate = vi
       .fn()
-      .mockReturnValue({ cancel });
+      .mockReturnValue({ cancel, finished: Promise.resolve() });
     (HTMLElement.prototype as unknown as { animate: (...a: unknown[]) => unknown }).animate = animate;
     const rafSpy = vi
       .spyOn(window, "requestAnimationFrame")
@@ -212,22 +182,44 @@ describe("CollapsibleNode expand-all toggle", () => {
         return 0;
       });
 
-    const { container, setSubtreeVisualState } = setup({
+    const { container, pendulum } = setup({
       hasChildren: true,
       withExpandAll: true,
-      subtreeState: "closed",
+      rungLevel: 0,
     });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
 
     // The chevron animation (spin + pulse) ran, and the heavy state commit still
     // landed once the two deferred frames resolved.
     expect(animate).toHaveBeenCalled();
-    expect(setSubtreeVisualState).toHaveBeenCalledWith(baseNode.id, "open");
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id);
 
     rafSpy.mockRestore();
     delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
   });
 
+  // After a click the chevron holds its new resting angle for a beat even if the
+  // pointer never moves away, so the outcome reads before the slow hover drift
+  // toward the NEXT rung starts. The CSS hover rule is gated on
+  // :not([data-settling]); this is the seam a jsdom test can see.
+  it("flags the button [data-settling] on click and lifts it after the settle window", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 0 });
+      const btn = container.querySelector(".atlas-node-expand-all") as HTMLElement;
+      expect(btn.hasAttribute("data-settling")).toBe(false);
+
+      fireEvent.click(btn);
+      expect(btn.hasAttribute("data-settling")).toBe(true);
+
+      act(() => vi.advanceTimersByTime(CHEVRON_SETTLE_MS - 1));
+      expect(btn.hasAttribute("data-settling")).toBe(true);
+      act(() => vi.advanceTimersByTime(1));
+      expect(btn.hasAttribute("data-settling")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("CollapsibleNode keyboard interaction", () => {

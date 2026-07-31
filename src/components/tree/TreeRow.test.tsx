@@ -94,3 +94,31 @@ describe("TreeRow ARIA semantics", () => {
     expect(row).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+describe("TreeRow chevron placement", () => {
+  it("renders the toggle button after the doc-number chiclets, not before", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n4" }), hasChildren: true, treeDepth: 1 }];
+    const data = baseData(visibleNodes);
+    const { container } = render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
+
+    const row = container.querySelector('[role="treeitem"]')!;
+    const children = Array.from(row.children);
+    const chicletsIndex = children.findIndex((el) => el.classList.contains("atlas-chiclets"));
+    const toggleIndex = children.findIndex((el) => el.tagName === "BUTTON" && el.classList.contains("tree-toggle"));
+    expect(chicletsIndex).toBeGreaterThanOrEqual(0);
+    expect(toggleIndex).toBeGreaterThan(chicletsIndex);
+  });
+
+  // The sidebar chevron shows state by SWAPPING GLYPH, not by rotating — the
+  // rotate-toward-the-next-state hover preview is the reader's chevron alone.
+  it("swaps the glyph between collapsed (▸) and expanded (▾)", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n5" }), hasChildren: true, treeDepth: 1 }];
+    const collapsed = baseData(visibleNodes);
+    const { rerender } = render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} />);
+    expect(screen.getByRole("button").textContent).toBe("▸");
+
+    const expanded = { ...collapsed, expandedIds: new Set(["n5"]) };
+    rerender(<TreeRow index={0} style={{}} ariaAttributes={aria} {...expanded} />);
+    expect(screen.getByRole("button").textContent).toBe("▾");
+  });
+});

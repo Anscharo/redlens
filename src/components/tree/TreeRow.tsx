@@ -10,7 +10,7 @@ import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
 
 export const ROW_HEIGHT = 29;
-const TOGGLE_WIDTH = 12;
+const TOGGLE_WIDTH = 15;
 const PAD_X = 3;
 // Sidebar scrollbar width — keep in sync with the 8px ::-webkit-scrollbar in
 // index.css. Reserved from the title budget so long titles and their ellipsis
@@ -51,7 +51,7 @@ const TOGGLE_BASE: React.CSSProperties = {
   width: TOGGLE_WIDTH,
   textAlign: "center",
   flexShrink: 0,
-  fontSize: 16,
+  fontSize: 20,
   userSelect: "none",
 };
 const TITLE_BASE: React.CSSProperties = {
@@ -171,6 +171,12 @@ export function TreeRow({
         } else onNavigate(node.id);
       }}
     >
+      <DocNoChiclets
+        parts={docNoSegments.parts}
+        depths={docNoSegments.depths}
+        slots={docNoSegments.slots}
+        gradients={docNoSegments.gradients}
+      />
       {hasChildren ? (
         <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
           <button
@@ -190,12 +196,6 @@ export function TreeRow({
           {"\u00B7"}
         </span>
       )}
-      <DocNoChiclets
-        parts={docNoSegments.parts}
-        depths={docNoSegments.depths}
-        slots={docNoSegments.slots}
-        gradients={docNoSegments.gradients}
-      />
       {isPreview && (
         <>
           <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />

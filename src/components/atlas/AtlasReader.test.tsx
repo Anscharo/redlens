@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 // AtlasReader's docList useMemo is the bulk of this file's lines — it has four
 // largely independent branches (unfiltered w/ cradle, selection-filtered w/ gap
-// dividers + cradle, changed-filtered w/ no cradle, depth-6 gating) plus the
-// split-pane toggle and the expand-all action wiring. CollapsibleNode and
+// dividers + cradle, changed-filtered w/ no cradle, default-collapsed rows)
+// plus the split-pane toggle and the pendulum action wiring. CollapsibleNode and
 // JuniorPane are stubbed so we can assert docList's *structure* (which ids
-// render, in what grouping, with what cradle/hidden markers) without depending
+// render, in what grouping, with what cradle/rung markers) without depending
 // on CollapsibleNode's own rendering, which is covered by CollapsibleNode.test.tsx.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
@@ -42,8 +42,12 @@ vi.mock("../../lib/selectionFilter", () => ({
 vi.mock("../../lib/selection", () => ({
   useSelection: () => useSelectionMock(),
 }));
+// Spied rather than stubbed away: which swings ARM the reveal animation is
+// reader behavior worth asserting. What the trigger then does to the DOM is the
+// hook's own business (see useExpandingAttr.test.ts).
+const expandingTriggerMock = vi.fn();
 vi.mock("../../hooks/useExpandingAttr", () => ({
-  useExpandingAttr: () => () => {},
+  useExpandingAttr: () => expandingTriggerMock,
 }));
 vi.mock("./useAtlasScroll", () => ({
   useAtlasScroll: () => {},
@@ -57,20 +61,22 @@ vi.mock("./JuniorPane", () => ({
 }));
 
 // A minimal stand-in for CollapsibleNode that surfaces the props docList
-// computes (isSelected, cradle, gatedCount, hasChildren) as data-attributes,
-// and exposes the inner AtlasActionsContext (expandAll/onExpandChildren) via
-// clickable buttons so tests can drive expand-all / reveal-hidden.
-// Identity of the reader's inner actions-context object, recorded on every stub
-// render so a test can assert it stays stable across an ordinary body toggle.
+// computes (isSelected, cradle, gatedCount, hasChildren, rung) as
+// data-attributes, and exposes the inner AtlasActionsContext (pendulum/
+// onExpandChildren) via clickable buttons so tests can drive the » chevron /
+// "N hidden" tab. Identity of the reader's inner actions-context object is
+// recorded on every stub render so a test can assert it stays stable across
+// an ordinary body toggle.
 const capturedActions: unknown[] = [];
 
 function CollapsibleNodeStub(props: {
   entry: FlatEntry;
   isSelected: boolean;
+  isExpanded: boolean;
   hasChildren?: boolean;
   gatedCount?: number;
-  subtreeState?: string;
-  hasExplicitHiddenSubtree?: boolean;
+  rungLevel?: number;
+  rungDir?: number;
   onExpandChildren?: (id: string) => void;
   cradle?: "line" | "foot";
   inSelectedOnly?: boolean;
@@ -80,10 +86,11 @@ function CollapsibleNodeStub(props: {
   const {
     entry,
     isSelected,
+    isExpanded,
     hasChildren,
     gatedCount = 0,
-    subtreeState,
-    hasExplicitHiddenSubtree,
+    rungLevel = 0,
+    rungDir = 1,
     onExpandChildren,
     cradle,
     inSelectedOnly,
@@ -94,26 +101,17 @@ function CollapsibleNodeStub(props: {
       data-selected={isSelected}
       data-cradle={cradle ?? "none"}
       data-hidden={gatedCount}
-      data-subtree-state={subtreeState ?? "closed"}
-      data-explicit-hidden={!!hasExplicitHiddenSubtree}
+      data-rung-level={rungLevel}
+      data-rung-dir={rungDir}
+      data-expanded={isExpanded}
       data-in-selected-only={!!inSelectedOnly}
     >
       {entry.node.title}
       {gatedCount > 0 && onExpandChildren && (
         <button onClick={() => onExpandChildren(entry.node.id)}>reveal-{entry.node.id}</button>
       )}
-      {hasChildren && actions.expandAll && (
-        <>
-          <button onClick={() => actions.expandAll!(entry.node.id, true)}>expand-all-{entry.node.id}</button>
-          <button onClick={() => actions.expandAll!(entry.node.id, false)}>collapse-all-{entry.node.id}</button>
-        </>
-      )}
-      {actions.setSubtreeVisualState && (
-        <>
-          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "hidden")}>hide-{entry.node.id}</button>
-          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "open")}>svs-expand-{entry.node.id}</button>
-          <button onClick={() => actions.setSubtreeVisualState!(entry.node.id, "open", { restore: true })}>restore-{entry.node.id}</button>
-        </>
+      {hasChildren && actions.pendulum && (
+        <button onClick={() => actions.pendulum!(entry.node.id)}>pendulum-{entry.node.id}</button>
       )}
       <button onClick={() => actions.toggle(entry.node.id)}>toggle-{entry.node.id}</button>
       {actions.selectSubtree && (
@@ -132,6 +130,7 @@ afterEach(() => {
   usePreviewChangedSetMock.mockReturnValue(null);
   useSelectionSetMock.mockReturnValue(null);
   selectSubtreeMock.mockClear();
+  expandingTriggerMock.mockClear();
   capturedActions.length = 0;
 });
 
@@ -167,8 +166,20 @@ function renderReader(
   return { ...utils, onSplitChange, actions, rerenderWith };
 }
 
+// The pendulum isn't a simple increment (0→1→2→1→0→1→2…, direction-dependent
+// at level 1) so the number of clicks needed to reach a target level depends
+// on where it currently is. Read the level back off the DOM and click until
+// it matches, rather than counting clicks analytically.
+function cycleTo(id: string, level: 0 | 1 | 2) {
+  for (let i = 0; i < 6; i++) {
+    if (screen.getByTestId(`node-${id}`).getAttribute("data-rung-level") === String(level)) return;
+    fireEvent.click(screen.getByText(`pendulum-${id}`));
+  }
+  throw new Error(`cycleTo(${id}, ${level}) did not converge`);
+}
+
 // Builds a small tree: root -> a -> (a1, a2); root -> b. All at depths that
-// keep them well clear of the depth-6 gate.
+// keep them well clear of any depth cap.
 function makeCradleTree() {
   const root = makeNode({ id: "root", doc_no: "A", parentId: null });
   const a = makeNode({ id: "a", doc_no: "A.1", parentId: "root" });
@@ -190,6 +201,8 @@ describe("AtlasReader unfiltered view", () => {
   it("renders a cradle rail around the selected node's descendants and wraps them in a selection-group", () => {
     const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    // Navigating straight to "a" raises a's own rung to 1 (reveal-on-nav also
+    // raises the target, not just its ancestors), so its children render.
     const { container } = renderReader({ id: "a", selectedId: a.id, data });
 
     expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-cradle", "line");
@@ -203,6 +216,32 @@ describe("AtlasReader unfiltered view", () => {
     expect(group!.querySelector(`[data-testid="node-${a2.id}"]`)).not.toBeNull();
     // The unrelated sibling never joins the group.
     expect(group!.querySelector(`[data-testid="node-${flatNodes[4].node.id}"]`)).toBeNull();
+  });
+
+  // `data-expanding` is what lets newly inserted rows/bodies run their
+  // @starting-style entrance (index.css). It has to be armed on the swings that
+  // INSERT something — 0 → 1 adds child rows, 1 → 2 adds their bodies — and left
+  // alone on the inward swings, which only remove nodes.
+  it("arms the reveal animation on outward pendulum swings only", () => {
+    const { atlas, flatNodes, a } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", data });
+    cycleTo(a.id, 0);
+    expandingTriggerMock.mockClear();
+
+    // 0 → 1 inserts the child rows; 1 → 2 inserts their bodies.
+    fireEvent.click(screen.getByText(`pendulum-${a.id}`));
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "1");
+    expect(expandingTriggerMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText(`pendulum-${a.id}`));
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "2");
+    expect(expandingTriggerMock).toHaveBeenCalledTimes(2);
+
+    // 2 → 1 only removes bodies — nothing is inserted, so nothing is armed.
+    fireEvent.click(screen.getByText(`pendulum-${a.id}`));
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "1");
+    expect(expandingTriggerMock).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the actions context referentially stable across an ordinary body toggle", () => {
@@ -228,23 +267,25 @@ describe("AtlasReader unfiltered view", () => {
     expect(before).toBeDefined();
     capturedActions.length = 0;
 
-    // Navigating changes id, which gives expandedSet a fresh identity. If that
-    // leaks into the actions object, every one of the ~1200 rows re-renders on
-    // each doc click (the click-to-select lag). The context must stay the same
-    // reference so only the selection-changed rows re-render.
+    // Navigating changes id, which gives expandedSet (and the rung map) a
+    // fresh reveal. If that leaks into the actions object, every one of the
+    // ~1200 rows re-renders on each doc click (the click-to-select lag). The
+    // context must stay the same reference so only the selection-changed
+    // rows re-render.
     rerenderWith({ id: "b", selectedId: "b", data });
     expect(capturedActions.length).toBeGreaterThan(0);
     for (const ac of capturedActions) expect(ac).toBe(before);
   });
 
-  it("renders no cradle and no selection-group when nothing is selected", () => {
-    const { atlas, flatNodes } = makeCradleTree();
+  it("renders no cradle and no selection-group when nothing is selected — and only the top-level row, since nothing has been revealed", () => {
+    const { atlas, flatNodes, root, a } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     const { container } = renderReader({ id: "", selectedId: null, data });
     expect(container.querySelector(".selection-group")).toBeNull();
-    for (const entry of flatNodes) {
-      expect(screen.getByTestId(`node-${entry.node.id}`)).toHaveAttribute("data-cradle", "none");
-    }
+    // With no id, the reveal-on-nav effect bails before running — only the
+    // top-of-forest row (root) renders; its children stay collapsed by default.
+    expect(screen.getByTestId(`node-${root.id}`)).toHaveAttribute("data-cradle", "none");
+    expect(screen.queryByTestId(`node-${a.id}`)).toBeNull();
   });
 });
 
@@ -305,39 +346,50 @@ describe("AtlasReader changed-filtered view (preview diff)", () => {
     expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-cradle", "none");
     expect(screen.getByTestId(`node-${a2.id}`)).toHaveAttribute("data-cradle", "none");
   });
+
+  it("required #5: never shows an 'N hidden' tab, even under a branch collapsed by default", () => {
+    const { atlas, flatNodes, a } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    usePreviewChangedSetMock.mockReturnValue(new Set([a.id]));
+    renderReader({ id: "root", selectedId: null, data });
+    // The filtered branch fixes gatedCount at 0 so a real (but here invisible)
+    // rung-0 branch never sprouts a working "N hidden" tab in this view.
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-hidden", "0");
+    expect(screen.queryByText(`reveal-${a.id}`)).toBeNull();
+  });
 });
 
 describe("AtlasReader filtered view ignores collapse state", () => {
-  // Two sibling gated branches: root -> midA(5) -> deepA(6); root -> midB(5) -> deepB(6).
+  // Two sibling branches, each collapsed by default: root -> midA -> deepA; root -> midB -> deepB.
   function makeTwoGatedBranches() {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
-    const midA = makeNode({ id: "midA", doc_no: "A.1.1.1.1", parentId: "root" });
-    const deepA = makeNode({ id: "deepA", doc_no: "A.1.1.1.1.1", parentId: "midA" });
-    const midB = makeNode({ id: "midB", doc_no: "A.2.2.2.2", parentId: "root" });
-    const deepB = makeNode({ id: "deepB", doc_no: "A.2.2.2.2.1", parentId: "midB" });
+    const midA = makeNode({ id: "midA", doc_no: "A.1", parentId: "root" });
+    const deepA = makeNode({ id: "deepA", doc_no: "A.1.1", parentId: "midA" });
+    const midB = makeNode({ id: "midB", doc_no: "A.2", parentId: "root" });
+    const deepB = makeNode({ id: "deepB", doc_no: "A.2.1", parentId: "midB" });
     const atlas = makeAtlasBundle([root, midA, deepA, midB, deepB]);
     const flatNodes: FlatEntry[] = [
       makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: midA, depth: 5 }),
-      makeFlatEntry({ node: deepA, depth: 6 }),
-      makeFlatEntry({ node: midB, depth: 5 }),
-      makeFlatEntry({ node: deepB, depth: 6 }),
+      makeFlatEntry({ node: midA, depth: 2 }),
+      makeFlatEntry({ node: deepA, depth: 3 }),
+      makeFlatEntry({ node: midB, depth: 2 }),
+      makeFlatEntry({ node: deepB, depth: 3 }),
     ];
     return { atlas, flatNodes, root, midA, deepA, midB, deepB };
   }
 
-  it("keeps a selected depth-6 doc whose branch is still gated (selected-only)", () => {
+  it("keeps a selected doc whose branch is still collapsed (selected-only)", () => {
     const { atlas, flatNodes, root, deepA } = makeTwoGatedBranches();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    // Selection includes the gated deep doc, but we sit on root so its gate
-    // (midA) is never opened by the reveal-on-nav effect.
+    // Selection includes the deep doc, but we sit on root so its branch
+    // (midA) is never revealed by the reveal-on-nav effect.
     useSelectionSetMock.mockReturnValue(new Set([root.id, deepA.id]));
     renderReader({ id: "root", selectedId: root.id, data });
     // Pre-fix, deepA landed in hiddenNodeIds and was dropped from the subset.
     expect(screen.getByTestId(`node-${deepA.id}`)).toBeInTheDocument();
   });
 
-  it("keeps multiple selected deep docs under different gated branches (selected-only)", () => {
+  it("keeps multiple selected deep docs under different collapsed branches (selected-only)", () => {
     const { atlas, flatNodes, deepA, deepB } = makeTwoGatedBranches();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     useSelectionSetMock.mockReturnValue(new Set([deepA.id, deepB.id]));
@@ -346,7 +398,7 @@ describe("AtlasReader filtered view ignores collapse state", () => {
     expect(screen.getByTestId(`node-${deepB.id}`)).toBeInTheDocument();
   });
 
-  it("keeps a changed doc inside an explicitly hidden branch (changed-only preview)", () => {
+  it("keeps a changed doc inside a collapsed branch (changed-only preview)", () => {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
     const p = makeNode({ id: "p", doc_no: "A.1", parentId: "root" });
     const d = makeNode({ id: "d", doc_no: "A.1.1", parentId: "p" });
@@ -361,9 +413,12 @@ describe("AtlasReader filtered view ignores collapse state", () => {
     renderReader({ id: "p", selectedId: null, data });
     expect(screen.getByTestId(`node-${d.id}`)).toBeInTheDocument();
 
-    // Explicitly hide p's subtree, then confirm the changed descendant d is not
-    // silently dropped from the diff review (which would make it look complete).
-    fireEvent.click(screen.getByText(`hide-${p.id}`));
+    // Click p's pendulum from within the filtered view. The real rung state
+    // changes underneath, but the changed-only branch is collapse-blind by
+    // construction (rungLevel fixed at 1 for display, gatedCount fixed at 0)
+    // — the changed descendant must not silently drop out of the diff
+    // review regardless of what the click does to the real rung.
+    fireEvent.click(screen.getByText(`pendulum-${p.id}`));
     expect(screen.getByTestId(`node-${d.id}`)).toBeInTheDocument();
   });
 });
@@ -394,23 +449,23 @@ describe("AtlasReader split pane", () => {
   });
 });
 
-describe("AtlasReader depth-6 gating", () => {
+describe("AtlasReader default collapse (first paint)", () => {
   function makeDeepTree() {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
-    const mid = makeNode({ id: "mid", doc_no: "A.1.1.1.1", parentId: "root" });
-    const deep1 = makeNode({ id: "deep1", doc_no: "A.1.1.1.1.1", parentId: "mid" });
-    const deep2 = makeNode({ id: "deep2", doc_no: "A.1.1.1.1.2", parentId: "mid" });
+    const mid = makeNode({ id: "mid", doc_no: "A.1", parentId: "root" });
+    const deep1 = makeNode({ id: "deep1", doc_no: "A.1.1", parentId: "mid" });
+    const deep2 = makeNode({ id: "deep2", doc_no: "A.1.2", parentId: "mid" });
     const atlas = makeAtlasBundle([root, mid, deep1, deep2]);
     const flatNodes: FlatEntry[] = [
       makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: mid, depth: 5 }),
-      makeFlatEntry({ node: deep1, depth: 6 }),
-      makeFlatEntry({ node: deep2, depth: 6 }),
+      makeFlatEntry({ node: mid, depth: 2 }),
+      makeFlatEntry({ node: deep1, depth: 3 }),
+      makeFlatEntry({ node: deep2, depth: 3 }),
     ];
     return { atlas, flatNodes, root, mid, deep1, deep2 };
   }
 
-  it("hides depth>=6 nodes behind a hidden-count affordance on the parent until revealed", () => {
+  it("children sit behind an N-hidden tab until revealed", () => {
     const { atlas, flatNodes, mid, deep1, deep2 } = makeDeepTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
@@ -426,105 +481,74 @@ describe("AtlasReader depth-6 gating", () => {
     expect(screen.getByTestId(`node-${mid.id}`)).toHaveAttribute("data-hidden", "0");
   });
 
-  it("auto-reveals the ancestor chain when navigating straight to a depth>=6 node", () => {
+  it("navigating straight to a deep, unrevealed node auto-reveals its ancestor chain", () => {
     const { atlas, flatNodes, deep1 } = makeDeepTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "deep1", selectedId: "deep1", data });
     expect(screen.getByTestId(`node-${deep1.id}`)).toBeInTheDocument();
   });
-});
 
-describe("AtlasReader expand-all action", () => {
-  function makeDeepTree2() {
-    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
-    const mid = makeNode({ id: "mid", doc_no: "A.1.1.1.1", parentId: "root" });
-    const deep1 = makeNode({ id: "deep1", doc_no: "A.1.1.1.1.1", parentId: "mid" });
-    const deep2 = makeNode({ id: "deep2", doc_no: "A.1.1.1.1.2", parentId: "mid" });
-    const atlas = makeAtlasBundle([root, mid, deep1, deep2]);
-    const flatNodes: FlatEntry[] = [
-      makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: mid, depth: 5 }),
-      makeFlatEntry({ node: deep1, depth: 6 }),
-      makeFlatEntry({ node: deep2, depth: 6 }),
-    ];
-    return { atlas, flatNodes, root, mid, deep1, deep2 };
-  }
-
-  it("reveals every gated descendant in the subtree via the expandAll context action", () => {
-    const { atlas, flatNodes, root, mid, deep1, deep2 } = makeDeepTree2();
+  it("required #6: first paint shows only the top-level row, with a working chevron and an N-hidden tab", () => {
+    const { atlas, flatNodes } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    renderReader({ id: "root", selectedId: null, data });
+    renderReader({ id: "", selectedId: null, data });
 
-    expect(screen.queryByTestId(`node-${deep1.id}`)).toBeNull();
+    // Only root renders — a, a1, a2, b are all collapsed by default.
+    expect(screen.getByTestId("node-root")).toBeInTheDocument();
+    expect(screen.queryByTestId("node-a")).toBeNull();
+    expect(screen.queryByTestId("node-b")).toBeNull();
 
-    fireEvent.click(screen.getByText(`expand-all-${root.id}`));
-
-    expect(screen.getByTestId(`node-${deep1.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${deep2.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${mid.id}`)).toHaveAttribute("data-hidden", "0");
-  });
-
-  it("collapsing a bulk-expanded ancestor protects the current depth>=6 selection's own path", () => {
-    const { atlas, flatNodes, root, mid, deep1 } = makeDeepTree2();
-    const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    // Selected/current id is the depth-6 node itself, so its ancestor (mid) is
-    // auto-revealed on mount; collapsing root's subtree must not re-gate it.
-    renderReader({ id: "deep1", selectedId: "deep1", data });
-    expect(screen.getByTestId(`node-${deep1.id}`)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText(`collapse-all-${root.id}`));
-
-    // deep1's own ancestor path (mid) stays revealed — deep1 is still visible.
-    expect(screen.getByTestId(`node-${deep1.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${mid.id}`)).toBeInTheDocument();
+    // root has children and a pendulum action, so it gets a working chevron
+    // and an "N hidden" tab spanning its whole subtree (a, a1, a2, b = 4).
+    expect(screen.getByText("pendulum-root")).toBeInTheDocument();
+    expect(screen.getByTestId("node-root")).toHaveAttribute("data-hidden", "4");
   });
 });
 
-describe("AtlasReader unified collapse (default gate == intent hide, differ only in data)", () => {
-  // P(5) gates C(6) which gates G(7). Both P and C are default depth-6 gates.
+describe("AtlasReader default collapse spans multiple levels", () => {
+  // P gates C which gates G — all collapsed by default (rung 0) until revealed.
   function makeDeepChain() {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
-    const p = makeNode({ id: "p", doc_no: "A.1.1.1.1", parentId: "root" });
-    const c = makeNode({ id: "c", doc_no: "A.1.1.1.1.1", parentId: "p" });
-    const g = makeNode({ id: "g", doc_no: "A.1.1.1.1.1.1", parentId: "c" });
+    const p = makeNode({ id: "p", doc_no: "A.1", parentId: "root" });
+    const c = makeNode({ id: "c", doc_no: "A.1.1", parentId: "p" });
+    const g = makeNode({ id: "g", doc_no: "A.1.1.1", parentId: "c" });
     const atlas = makeAtlasBundle([root, p, c, g]);
     const flatNodes: FlatEntry[] = [
       makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: p, depth: 5 }),
-      makeFlatEntry({ node: c, depth: 6 }),
-      makeFlatEntry({ node: g, depth: 7 }),
+      makeFlatEntry({ node: p, depth: 2 }),
+      makeFlatEntry({ node: c, depth: 3 }),
+      makeFlatEntry({ node: g, depth: 4 }),
     ];
     return { atlas, flatNodes, root, p, c, g };
   }
 
-  it("a default depth-6 gate's 'N hidden' counts the whole span, not just the first level", () => {
+  it("a collapsed branch's 'N hidden' counts the whole span, not just the immediate children", () => {
     const { atlas, flatNodes, c, g } = makeDeepChain();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
 
-    // p is collapsed by default (depth-6 descendants); both c and g are hidden.
+    // p is collapsed by default; both c and g (nested two levels deep) are hidden.
     expect(screen.queryByTestId(`node-${c.id}`)).toBeNull();
     expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
     // The count is the whole span (c + g = 2), not the immediate child count (1).
     expect(screen.getByTestId("node-p")).toHaveAttribute("data-hidden", "2");
   });
 
-  it("default and intent hides render identically — same state, same count", () => {
+  it("a collapsed branch reads at rung 0 with the whole span counted", () => {
     const { atlas, flatNodes, p } = makeDeepChain();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
-    // Default gate p reads exactly like an explicit hide would: hidden state, span count.
     const node = screen.getByTestId("node-p");
-    expect(node).toHaveAttribute("data-subtree-state", "hidden");
+    expect(node).toHaveAttribute("data-rung-level", "0");
     expect(node).toHaveAttribute("data-hidden", "2");
     void p;
   });
 });
 
 describe("AtlasReader reveal a linked doc that lives in a collapsed tree", () => {
-  it("navigating to a doc inside an explicitly-hidden branch reveals it and its siblings", () => {
-    // root → P(5) → C(6), C2(6) ; C → G(7). Shift-hide P, then navigate to G as
-    // if a sidebar/link jumped there — G, its path, and its siblings must show.
+  it("navigating to a doc inside a collapsed branch reveals it and its siblings", () => {
+    // root → p → c, c2; c → g. p's own branch is collapsed by default —
+    // only root itself gets auto-revealed by the initial navigation.
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
     const p = makeNode({ id: "p", doc_no: "A.1", parentId: "root" });
     const c = makeNode({ id: "c", doc_no: "A.1.1", parentId: "p" });
@@ -533,15 +557,14 @@ describe("AtlasReader reveal a linked doc that lives in a collapsed tree", () =>
     const atlas = makeAtlasBundle([root, p, c, c2, g]);
     const flatNodes: FlatEntry[] = [
       makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: p, depth: 5 }),
-      makeFlatEntry({ node: c, depth: 6 }),
-      makeFlatEntry({ node: g, depth: 7 }),
-      makeFlatEntry({ node: c2, depth: 6 }),
+      makeFlatEntry({ node: p, depth: 2 }),
+      makeFlatEntry({ node: c, depth: 3 }),
+      makeFlatEntry({ node: g, depth: 4 }),
+      makeFlatEntry({ node: c2, depth: 3 }),
     ];
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
 
-    fireEvent.click(screen.getByText(`hide-${p.id}`));
     expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
 
     // navigate to the buried doc
@@ -564,7 +587,7 @@ describe("AtlasReader reveal a linked doc that lives in a collapsed tree", () =>
     const data = makeLoadedData({ atlas, flatNodes: flattenTree(atlas.byParent), complete: true });
     const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
 
-    // G is hidden by default behind C's gate.
+    // G is hidden by default behind C's chevron.
     expect(screen.queryByTestId(`node-${g.id}`)).toBeNull();
 
     rerenderWith({ id: "g", selectedId: g.id, data });
@@ -572,169 +595,163 @@ describe("AtlasReader reveal a linked doc that lives in a collapsed tree", () =>
   });
 });
 
-describe("AtlasReader subtree hide / restore", () => {
-  it("hides a subtree's descendants behind the parent's explicit-hidden marker", () => {
+describe("AtlasReader pendulum collapse / reveal (branch-level)", () => {
+  it("collapsing an open branch hides its descendants behind the chevron's N-hidden count", () => {
     const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    // a starts collapsed by default; open it to rung 2 first so there's
+    // something to collapse.
+    cycleTo(a.id, 2);
+    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
 
-    // a stays visible (its own ancestors aren't hidden) and now advertises the
-    // hidden branch; its descendants are filtered out.
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "true");
+    cycleTo(a.id, 0);
     expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-hidden", "2");
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
     expect(screen.queryByTestId(`node-${a2.id}`)).toBeNull();
   });
 
-  it("re-reveals a hidden subtree when navigation moves onto one of its descendants", () => {
-    const { atlas, flatNodes, a, a1 } = makeCradleTree();
+  it("reveals a still-collapsed branch when navigation moves onto one of its descendants", () => {
+    const { atlas, flatNodes, a1 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     const { rerenderWith } = renderReader({ id: "root", selectedId: null, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
 
-    // Navigating into the hidden branch un-hides the ancestor path.
+    // Navigating into the collapsed branch raises its ancestor's rung.
     rerenderWith({ id: "a1", selectedId: a1.id, data });
     expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
   });
 
-  it("restoring the branch brings its descendants back", () => {
-    const { atlas, flatNodes, a, a1 } = makeCradleTree();
-    const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    renderReader({ id: "root", selectedId: null, data });
-
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
-    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
-
-    fireEvent.click(screen.getByText(`restore-${a.id}`));
-    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
-  });
-
-  it("clicking the 'N hidden' tab on an explicitly-hidden branch shows every row, left collapsed", () => {
+  it("clicking the 'N hidden' tab reveals every descendant row, each left at rung 1 (titles only)", () => {
     const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
-    // The hidden branch surfaces the "N hidden" tab (the stub's reveal button).
+    // a is collapsed by default — the "N hidden" tab (the stub's reveal button).
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
 
     fireEvent.click(screen.getByText(`reveal-${a.id}`));
-    // Every row comes back (un-hidden) — but closed, not open: the branch
-    // lands in the "closed" visual state, distinct from the chevron's restore.
+    // Every row in the span comes back — but at rung 1 (titles only), not
+    // rung 2 (bodies open): the tab discloses, it doesn't fully expand.
     expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
     expect(screen.getByTestId(`node-${a2.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "false");
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-subtree-state", "closed");
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "1");
   });
 
-  it("moves the selection onto the clicked branch root when hiding a subtree that holds the selection (#363)", () => {
+  it("moves the selection onto the clicked branch root when collapsing a branch that holds the selection (#363)", () => {
     const { atlas, flatNodes, a, a1 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
-    // The selected doc (a1) is a descendant of the branch we hide (a).
+    // The selected doc (a1) is a descendant of the branch we collapse (a).
+    // Navigating to a1 raises "a" to rung 1 (post-nav default); collapsing it
+    // to 0 takes 3 clicks (1→2→1→0).
     const { actions } = renderReader({ id: "a1", selectedId: a1.id, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    cycleTo(a.id, 0);
 
     // Focus lands on the clicked root (a) itself — the collapsed row stays on
     // screen — rather than jumping to its parent or vanishing.
     expect(actions.navigate).toHaveBeenCalledWith(a.id);
   });
 
-  it("the clicked root stays hidden after selection moves onto it (its subtree does not re-expand)", () => {
+  it("required #4: the clicked root stays collapsed after the selection move lands (self-collapse survives navigation)", () => {
     const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     const { rerenderWith } = renderReader({ id: "a1", selectedId: a1.id, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    cycleTo(a.id, 0);
     // Simulate the selection move landing (navigate(a) → id becomes a).
     rerenderWith({ id: "a", selectedId: a.id, data });
 
-    // a is selected and visible, but its subtree stayed collapsed.
-    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-explicit-hidden", "true");
+    // a is selected and visible, but its subtree stayed collapsed — the
+    // reveal-on-nav effect must not spring it back open just because the
+    // selection landed on it (the two self-undo bugs the guard refs exist for).
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "0");
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
     expect(screen.queryByTestId(`node-${a2.id}`)).toBeNull();
   });
 
-  it("does not move the selection when hiding a branch that does not contain it", () => {
+  it("does not move the selection when collapsing a branch that does not contain it", () => {
     const { atlas, flatNodes, a, b } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     const { actions } = renderReader({ id: "b", selectedId: b.id, data });
 
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    // Full pendulum cycle 0→1→2→1→0 on a branch that never holds the
+    // selection — collapsing it must never call navigate.
+    const btn = screen.getByText(`pendulum-${a.id}`);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "0");
     expect(actions.navigate).not.toHaveBeenCalled();
   });
+});
 
-  it("restoring a branch whose depth-6 children were revealed shows them again (not stuck gated)", () => {
-    // N (depth 5) gates two depth-6 children. Reveal them, shift-hide N, then
-    // restore: the children must reappear. Previously restore left N's own gate
-    // closed, so the rows stayed hidden and the reader "working…" pulse spun
-    // forever.
-    const root = makeNode({ id: "root", doc_no: "A", parentId: null });
-    const n = makeNode({ id: "n", doc_no: "A.1.1.1.1", parentId: "root" });
-    const g1 = makeNode({ id: "g1", doc_no: "A.1.1.1.1.1", parentId: "n" });
-    const g2 = makeNode({ id: "g2", doc_no: "A.1.1.1.1.2", parentId: "n" });
-    const atlas = makeAtlasBundle([root, n, g1, g2]);
-    const flatNodes: FlatEntry[] = [
-      makeFlatEntry({ node: root, depth: 1 }),
-      makeFlatEntry({ node: n, depth: 5 }),
-      makeFlatEntry({ node: g1, depth: 6 }),
-      makeFlatEntry({ node: g2, depth: 6 }),
-    ];
+describe("AtlasReader pendulum mechanics (required regression coverage)", () => {
+  it("required #1: direction memory — after swinging out to rung 2 and back to 1, the next click goes to 0, not 2", () => {
+    const { atlas, flatNodes, a } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
 
-    // depth-6 children start gated; reveal them via the "N hidden" tab.
-    fireEvent.click(screen.getByText(`reveal-${n.id}`));
-    expect(screen.getByTestId(`node-${g1.id}`)).toBeInTheDocument();
-
-    // shift-hide N (the children disappear) …
-    fireEvent.click(screen.getByText(`hide-${n.id}`));
-    expect(screen.queryByTestId(`node-${g1.id}`)).toBeNull();
-
-    // … and restore N via the chevron — the revealed children come back.
-    fireEvent.click(screen.getByText(`restore-${n.id}`));
-    expect(screen.getByTestId(`node-${g1.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${g2.id}`)).toBeInTheDocument();
+    cycleTo(a.id, 2);
+    const btn = screen.getByText(`pendulum-${a.id}`);
+    fireEvent.click(btn); // 2 → 1 (dir now -1)
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "1");
+    fireEvent.click(btn); // 1 → 0, the pendulum swinging back, not wrapping to 2.
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-rung-level", "0");
   });
 
-  it("restore re-hides a nested branch that was hidden before the outer branch", () => {
-    // root → a → a1 → a1x ; a → a2. a1 is a hideable branch nested inside a.
+  function makeNestedTree() {
     const root = makeNode({ id: "root", doc_no: "A", parentId: null });
     const a = makeNode({ id: "a", doc_no: "A.1", parentId: "root" });
     const a1 = makeNode({ id: "a1", doc_no: "A.1.1", parentId: "a" });
     const a1x = makeNode({ id: "a1x", doc_no: "A.1.1.1", parentId: "a1" });
-    const a2 = makeNode({ id: "a2", doc_no: "A.1.2", parentId: "a" });
-    const atlas = makeAtlasBundle([root, a, a1, a1x, a2]);
+    const atlas = makeAtlasBundle([root, a, a1, a1x]);
     const flatNodes: FlatEntry[] = [
       makeFlatEntry({ node: root, depth: 1 }),
       makeFlatEntry({ node: a, depth: 2 }),
       makeFlatEntry({ node: a1, depth: 3 }),
       makeFlatEntry({ node: a1x, depth: 4 }),
-      makeFlatEntry({ node: a2, depth: 3 }),
     ];
+    return { atlas, flatNodes, root, a, a1, a1x };
+  }
+
+  it("required #2: preserves a nested branch's rung across an outer collapse/re-expand", () => {
+    const { atlas, flatNodes, a, a1, a1x } = makeNestedTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "root", selectedId: null, data });
 
-    // 1) hide the nested branch a1 → a1x disappears.
-    fireEvent.click(screen.getByText(`hide-${a1.id}`));
-    expect(screen.queryByTestId(`node-${a1x.id}`)).toBeNull();
+    // Open both levels: a to 1 (a1 visible), then a1 to 2 (a1x visible).
+    cycleTo(a.id, 1);
+    cycleTo(a1.id, 2);
+    expect(screen.getByTestId(`node-${a1x.id}`)).toBeInTheDocument();
 
-    // 2) hide the outer branch a → a1, a1x, a2 all gone.
-    fireEvent.click(screen.getByText(`hide-${a.id}`));
+    // Collapse the OUTER branch — a1 (and its rung-2 state) drops out of
+    // view entirely. Collapsing writes nothing about a1's own rung.
+    cycleTo(a.id, 0);
     expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
 
-    // 3) restore a → a1 must come back STILL HIDDEN (a1x stays gone), while a2
-    //    (never hidden) is shown. The nested hide is remembered, not lost.
-    fireEvent.click(screen.getByText(`restore-${a.id}`));
-    expect(screen.getByTestId(`node-${a2.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
-    expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-explicit-hidden", "true");
-    expect(screen.queryByTestId(`node-${a1x.id}`)).toBeNull();
+    // Re-open a to 1 — a1 reappears exactly as it was left: still rung 2.
+    cycleTo(a.id, 1);
+    expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-rung-level", "2");
+    expect(screen.getByTestId(`node-${a1x.id}`)).toBeInTheDocument();
+  });
+
+  it("required #3: reveal-on-nav never forces bodies — a body opened in one branch stays open after navigating elsewhere", () => {
+    const { atlas, flatNodes, b } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    const { rerenderWith } = renderReader({ id: "a", selectedId: "a", data });
+
+    fireEvent.click(screen.getByText(`toggle-${b.id}`));
+    expect(screen.getByTestId(`node-${b.id}`)).toHaveAttribute("data-expanded", "true");
+
+    // Navigate to an unrelated doc — the reveal-on-nav effect raises rungs
+    // along the new target's ancestor chain but must never touch
+    // userToggles/body state.
+    rerenderWith({ id: "a1", selectedId: "a1", data });
+    expect(screen.getByTestId(`node-${b.id}`)).toHaveAttribute("data-expanded", "true");
   });
 });
 
@@ -778,7 +795,7 @@ describe("AtlasReader edge cases", () => {
     const { atlas, flatNodes } = makeCradleTree();
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     renderReader({ id: "does-not-exist", selectedId: null, data });
-    // Full tree still renders normally.
+    // The top-of-forest row still renders normally.
     expect(screen.getByTestId("node-root")).toBeInTheDocument();
   });
 
