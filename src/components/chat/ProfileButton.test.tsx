@@ -8,11 +8,6 @@ const signOut = vi.fn();
 const deleteAccount = vi.fn(() => Promise.resolve(true));
 vi.mock("./auth", () => ({ useAuth: () => ({ user, signOut, deleteAccount }) }));
 
-let prefs = { traces: false, reduceMotion: false };
-const setPref = vi.fn((k: string, v: boolean) => {
-  prefs = { ...prefs, [k]: v };
-});
-vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs, setPref }) }));
 vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
 // The signed-out menu renders SignInButtons, which gates on authProviders();
 // under vitest the real one returns [] (usersEnabled() is false), so stub it.
@@ -24,7 +19,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   user = null;
-  prefs = { traces: false, reduceMotion: false };
 });
 
 describe("ProfileButton signed out", () => {
@@ -59,12 +53,12 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByAltText("Signed in")).toBeInTheDocument();
   });
 
-  it("opens the menu showing name, Preferences, Collections, Sign out", () => {
+  it("opens the menu showing name, Account, Collections, Sign out", () => {
     user = { name: "Ada Lovelace", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada Lovelace"));
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("Preferences")).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
     expect(screen.getByText("Collections")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();
   });
@@ -87,35 +81,23 @@ describe("ProfileButton signed in", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("navigates into the Preferences sub-panel and back", () => {
+  it("navigates into the Account sub-panel and back", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
-    expect(screen.getByText("Show tool-call traces")).toBeInTheDocument();
-    expect(screen.getByText("Reduce motion")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("← preferences"));
-    expect(screen.queryByText("Show tool-call traces")).toBeNull();
-    expect(screen.getByText("Preferences")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Account"));
+    expect(screen.getByText("← account")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("← account"));
+    expect(screen.queryByText("Delete account")).toBeNull();
+    expect(screen.getByText("Account")).toBeInTheDocument();
   });
 
-  it("toggles a preference switch and reflects aria-checked", () => {
-    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
-    render(<ProfileButton />);
-    fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
-    const traceSwitch = screen.getByText("Show tool-call traces").closest("button")!;
-    expect(traceSwitch).toHaveAttribute("aria-checked", "false");
-    fireEvent.click(traceSwitch);
-    expect(setPref).toHaveBeenCalledWith("traces", true);
-  });
-
-  it("deletes the account from the Preferences panel after confirmation", () => {
+  it("deletes the account from the Account panel after confirmation", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByText("Account"));
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     expect(deleteAccount).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull(); // menu closes on delete
@@ -126,7 +108,7 @@ describe("ProfileButton signed in", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByText("Account"));
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     expect(deleteAccount).not.toHaveBeenCalled();
   });

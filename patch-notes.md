@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-07-31
+- Renamed the signed-in menu's "Preferences" panel to "Account" and removed the reduce motion and show tool traces toggles
+
 ## 2026-07-30
 - Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
 - Fixed pull request links not opening on reconstructed history entries
