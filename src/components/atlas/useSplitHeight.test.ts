@@ -28,6 +28,10 @@ function stubClientHeight(el: HTMLElement, px: number) {
   Object.defineProperty(el, "clientHeight", { value: px, configurable: true });
 }
 
+function stubOffsetTop(el: HTMLElement, px: number) {
+  Object.defineProperty(el, "offsetTop", { value: px, configurable: true });
+}
+
 /** Builds parent(availPx) > pane > scroller > content and wires them into the
  *  hook's refs, mirroring what JuniorPane actually mounts. */
 function attach(result: { current: ReturnType<typeof useSplitHeight> }, opts: { availPx: number; paneH: number; scrollerH: number }) {
@@ -91,5 +95,47 @@ describe("useSplitHeight", () => {
 
     // Falls back to the default fraction, not the too-small stored value.
     expect(result.current.height).toBe(Math.round(1000 * SPLIT_DEFAULT_FRACTION));
+  });
+
+  it("fits content using the scroller's offset from the pane top as chrome, not pane-minus-scroller clientHeight", () => {
+    const { result, rerender } = renderHook(({ shrink }) => useSplitHeight(shrink), {
+      initialProps: { shrink: false },
+    });
+    const { scroller, content } = attach(result, { availPx: 1000, paneH: 400, scrollerH: 400 });
+    stubOffsetTop(scroller, 35); // the breadcrumb header's height
+    Object.defineProperty(content, "scrollHeight", { value: 200, configurable: true });
+    act(() => window.dispatchEvent(new Event("resize")));
+    rerender({ shrink: true });
+
+    // contentPx = scrollHeight(200) + offsetTop(35) = 235.
+    expect(result.current.height).toBe(235);
+  });
+
+  it("does not shrink to a Suspense skeleton's height — skips measuring while one is present", () => {
+    const { result, rerender } = renderHook(({ shrink }) => useSplitHeight(shrink), {
+      initialProps: { shrink: false },
+    });
+    const { scroller, content } = attach(result, { availPx: 1000, paneH: 400, scrollerH: 400 });
+    stubOffsetTop(scroller, 35);
+    const skeleton = document.createElement("div");
+    skeleton.setAttribute("data-node-content-skeleton", "");
+    content.appendChild(skeleton);
+    Object.defineProperty(content, "scrollHeight", { value: 50, configurable: true }); // the skeleton's own (short) height
+    act(() => window.dispatchEvent(new Event("resize")));
+    rerender({ shrink: true });
+
+    // Skeleton present: contentPx stays unset, so height falls back to the
+    // default fraction rather than fitting the skeleton's height.
+    expect(result.current.height).toBe(Math.round(1000 * SPLIT_DEFAULT_FRACTION));
+
+    // Skeleton replaced by real (taller) content — the next re-measure (the
+    // real ResizeObserver would fire this on its own; toggling shrinkToContent
+    // here re-runs the effect the same way a fresh navigation would) now uses
+    // the real content height.
+    content.removeChild(skeleton);
+    Object.defineProperty(content, "scrollHeight", { value: 200, configurable: true });
+    rerender({ shrink: false });
+    rerender({ shrink: true });
+    expect(result.current.height).toBe(235); // 200 + offsetTop(35, still stubbed on scroller)
   });
 });

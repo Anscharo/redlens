@@ -51,16 +51,24 @@ export function useSplitHeight(shrinkToContent: boolean) {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Content height DOES need an observer: NodeContent is code-split, so a
-  // one-shot measure on splitId change can run before the body has rendered and
-  // would leave the pane stuck too short with nothing to correct it.
+  // Content height DOES need an observer: NodeContent is code-split (lazy +
+  // Suspense), so the FIRST measure on a fresh page load — before the chunk's
+  // idle-deferred prefetch (prefetchNodeContent) has resolved — can catch the
+  // Suspense fallback's skeleton rather than the real content. Fitting the pane
+  // to the skeleton's height, then correcting once the real chunk mounts and
+  // the ResizeObserver fires again, is a visible jump on the pane's very first
+  // open. Skip measuring while any skeleton is still present under `el` —
+  // data-node-content-skeleton (NodeContent.tsx) marks it — so the pane keeps
+  // its default/dragged height through the loading gap and fits only once real
+  // content has replaced it.
   //
   // Observe the CONTENT box, not the scroller: the scroller is flex-1, so its
   // own box never changes when the doc inside it does. What we store is the
   // height the pane would need — content plus the chrome around it (the
-  // breadcrumb header and borders), measured as pane-minus-scroller. Measuring
-  // chrome as pane-minus-content instead just reads back the flex slack, which
-  // makes the cap equal the current height and the fit a no-op.
+  // breadcrumb header and borders), measured as the scroller's offset from the
+  // pane's top (pane has position:relative, so this is exactly the header's
+  // height) — stable regardless of the pane's own current total height, unlike
+  // pane.clientHeight minus scroller.clientHeight.
   useLayoutEffect(() => {
     const el = contentRef.current;
     if (!el || !shrinkToContent) {
@@ -68,11 +76,9 @@ export function useSplitHeight(shrinkToContent: boolean) {
       return;
     }
     const measure = () => {
-      const pane = paneRef.current;
       const scroller = scrollerRef.current;
-      if (!pane || !scroller) return;
-      const chrome = Math.max(0, pane.clientHeight - scroller.clientHeight);
-      setContentPx(el.scrollHeight + chrome);
+      if (!scroller || el.querySelector("[data-node-content-skeleton]")) return;
+      setContentPx(el.scrollHeight + scroller.offsetTop);
     };
     const ro = new ResizeObserver(measure);
     ro.observe(el);
