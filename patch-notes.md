@@ -34,7 +34,6 @@
 -->
 
 ## 2026-07-31
-- Restored the reduce motion toggle in the signed-in menu's Account panel
 - Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
 - Renamed the signed-in menu's "Preferences" panel to "Account" and removed the reduce motion and show tool traces toggles
 
