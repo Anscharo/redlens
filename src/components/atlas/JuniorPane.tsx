@@ -104,11 +104,7 @@ export function JuniorPane({
   const docNo = node?.doc_no ?? "";
   const hasAbove = ancestors.length > 0;
 
-  // Childless docs are short, so the pane shrinks to fit rather than reserving
-  // 45% of the column for a few lines. Children come from byParent (stable
-  // identity), never a doc_no check.
-  const childless = !data.atlas.byParent.get(splitId)?.length;
-  const { paneRef, scrollerRef, contentRef, height, startResize } = useSplitHeight(childless);
+  const { paneRef, scrollerRef, contentRef, height, startResize } = useSplitHeight();
 
   const ctxValue = useMemo(
     () => ({ navigate: onShiftNavigate, toggle: handleToggle, splitNavigate: onShiftNavigate }),

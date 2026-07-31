@@ -2,9 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useResizeDrag } from "../../hooks/useResizeDrag";
 
 export const SPLIT_MIN_PX = 120;
-/** Left for the main reader above the pane, so a drag can't squeeze it to zero. */
-export const READER_MIN_PX = 160;
-export const SPLIT_DEFAULT_FRACTION = 0.45;
+/** The undragged pane never defaults taller than this fraction of the column,
+ *  even for a doc whose own content would want more room. */
+export const SPLIT_DEFAULT_MAX_FRACTION = 0.5;
+/** Dragging can grow the pane up to this fraction of the column, always
+ *  leaving the reader at least 40%. */
+export const SPLIT_MAX_FRACTION = 0.6;
 const STORAGE_KEY = "redline-sky-atlas:split-pane-height";
 
 function readStored(): number | null {
@@ -23,13 +26,16 @@ function readStored(): number | null {
  * The pane is bottom-anchored in the reader column, so the handle sits on its
  * TOP edge and dragging up grows it (growsLeft on the y axis).
  *
- * `contentPx` is a display cap, never a stored value: a doc with no children is
- * short, and the pane shrinks to fit it rather than reserving 45% of the column
- * for a few lines. Writing that shrunken number to storage would silently
- * destroy a height the user had dragged, the first time they opened a leaf — so
- * only the drag's mouseup persists anything.
+ * Undragged, the pane defaults to the doc's own rendered size — content plus
+ * chrome (`contentPx`) — capped at SPLIT_DEFAULT_MAX_FRACTION of the column: a
+ * short leaf gets exactly the room it needs, a doc with many children doesn't
+ * take over the column just because its full list is tall. `contentPx` is a
+ * display cap, never a stored value: writing a content-driven number to
+ * storage would silently destroy a height the user had dragged, the first
+ * time they opened a short doc — only the drag's mouseup persists anything.
+ * A drag can still go further than the default cap, up to SPLIT_MAX_FRACTION.
  */
-export function useSplitHeight(shrinkToContent: boolean) {
+export function useSplitHeight() {
   const paneRef = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -71,10 +77,7 @@ export function useSplitHeight(shrinkToContent: boolean) {
   // pane.clientHeight minus scroller.clientHeight.
   useLayoutEffect(() => {
     const el = contentRef.current;
-    if (!el || !shrinkToContent) {
-      setContentPx(null);
-      return;
-    }
+    if (!el) return;
     const measure = () => {
       const scroller = scrollerRef.current;
       if (!scroller || el.querySelector("[data-node-content-skeleton]")) return;
@@ -84,14 +87,16 @@ export function useSplitHeight(shrinkToContent: boolean) {
     ro.observe(el);
     measure();
     return () => ro.disconnect();
-  }, [shrinkToContent]);
+  }, []);
 
-  const defaultPx = availPx == null ? null : Math.round(availPx * SPLIT_DEFAULT_FRACTION);
+  const defaultCapPx = availPx == null ? null : Math.round(availPx * SPLIT_DEFAULT_MAX_FRACTION);
   const maxPx =
-    availPx == null ? SPLIT_MIN_PX : Math.max(SPLIT_MIN_PX, availPx - READER_MIN_PX);
-  const base = Math.min(dragged ?? defaultPx ?? 0, maxPx);
-  const fitted = contentPx == null ? base : Math.min(base, contentPx);
-  const height = availPx == null && dragged == null ? null : Math.max(SPLIT_MIN_PX, fitted);
+    availPx == null ? SPLIT_MIN_PX : Math.max(SPLIT_MIN_PX, Math.round(availPx * SPLIT_MAX_FRACTION));
+  // Undragged preference: the doc's own size, never past the default cap.
+  const preferredPx =
+    contentPx == null ? defaultCapPx : defaultCapPx == null ? contentPx : Math.min(contentPx, defaultCapPx);
+  const base = Math.min(dragged ?? preferredPx ?? 0, maxPx);
+  const height = availPx == null && dragged == null ? null : Math.max(SPLIT_MIN_PX, base);
 
   const setHeight = useCallback((h: number) => setDragged(h), []);
   const startResize = useResizeDrag(height ?? SPLIT_MIN_PX, setHeight, {
