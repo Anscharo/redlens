@@ -10,6 +10,11 @@ const baseURL = process.env.BASE_URL;
 
 export default defineConfig({
   testDir: "./e2e",
+  // e2e/ holds Playwright specs AND vitest unit tests for the helpers beside them
+  // (health.test.ts, mcp.test.ts). Playwright's default testMatch takes *.test.ts
+  // too, which makes it try to run those as browser specs and die at collection.
+  // Pin it to *.spec.ts — the mirror of vitest.config.ts, which excludes *.spec.ts.
+  testMatch: "**/*.spec.ts",
   fullyParallel: true,
   // Waits for the deploy to actually be serving (indexes loaded, DB reachable)
   // and records what it found for the specs — see e2e/global-setup.ts. This
