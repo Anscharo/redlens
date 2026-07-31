@@ -455,9 +455,13 @@ describe("AtlasReader filtered view ignores collapse state", () => {
     const data = makeLoadedData({ atlas, flatNodes, complete: true });
     useSelectionSetMock.mockReturnValue(new Set([midA.id, deepA.id]));
     renderReader({ id: "root", selectedId: null, data });
-    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "0");
+    // Real rung is 0 (untouched), but 0 is invisible in a flat view (see next
+    // test) — it displays as its stand-in, 1.
+    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "1");
 
-    // 0 -> 1 -> 2: each click's real rung write should show up on the row.
+    // Flat view swings only between 1 and 2 — never back down to 0.
+    fireEvent.click(screen.getByText(`pendulum-${midA.id}`));
+    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "2");
     fireEvent.click(screen.getByText(`pendulum-${midA.id}`));
     expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "1");
     fireEvent.click(screen.getByText(`pendulum-${midA.id}`));

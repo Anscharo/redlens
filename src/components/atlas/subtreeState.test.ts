@@ -3,6 +3,9 @@ import {
   DEFAULT_RUNG,
   nextRung,
   reverseRung,
+  flatRung,
+  flatNextRung,
+  flatReverseRung,
   rungAngle,
   rungClass,
   rungHoverAngle,
@@ -126,5 +129,69 @@ describe("rungReverseHoverAngle", () => {
         expect(rungReverseHoverAngle(cur)).not.toBe(rungHoverAngle(cur));
       }
     }
+  });
+});
+
+// Flat filtered views (selected-only/changed-only) never hide a row for rung
+// 0 — visibility there comes purely from the filter set (see AtlasReader's
+// filterSet branch) — so a swing that lands on (or leans toward) 0 there looks
+// like a dead click. These wrap the ordinary swings to stay within {1, 2}.
+describe("flatRung", () => {
+  it("reads level 0 as its display stand-in, rung 1", () => {
+    expect(flatRung({ level: 0, dir: 1 })).toEqual({ level: 1, dir: 1 });
+    expect(flatRung({ level: 0, dir: -1 })).toEqual({ level: 1, dir: 1 });
+  });
+
+  it("leaves 1 and 2 untouched", () => {
+    expect(flatRung({ level: 1, dir: 1 })).toEqual({ level: 1, dir: 1 });
+    expect(flatRung({ level: 1, dir: -1 })).toEqual({ level: 1, dir: -1 });
+    expect(flatRung({ level: 2, dir: 1 })).toEqual({ level: 2, dir: 1 });
+  });
+});
+
+describe("flatNextRung / flatReverseRung", () => {
+  it("never produces level 0, for any input the ordinary swings can reach", () => {
+    for (const level of [0, 1, 2] as const) {
+      for (const dir of [1, -1] as const) {
+        const cur = { level, dir };
+        expect(flatNextRung(cur).level).not.toBe(0);
+        expect(flatReverseRung(cur).level).not.toBe(0);
+      }
+    }
+  });
+
+  it("toggles cleanly between closed (1) and open (2), starting from untouched (0)", () => {
+    let r: Rung = DEFAULT_RUNG; // real rung 0 — never touched
+    const levels: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      r = flatNextRung(r);
+      levels.push(r.level);
+    }
+    expect(levels).toEqual([2, 1, 2, 1, 2]);
+  });
+
+  it("alt-click (reverse) lands on the same target a plain click would — there's no third position left to be the 'other way'", () => {
+    for (const level of [0, 1, 2] as const) {
+      for (const dir of [1, -1] as const) {
+        const cur = { level, dir };
+        expect(flatReverseRung(cur).level).toBe(flatNextRung(cur).level);
+      }
+    }
+  });
+});
+
+describe("rungHoverAngle / rungReverseHoverAngle with flat=true", () => {
+  it("never leans toward 'hidden' (-90deg), even from the state that would naturally swing there", () => {
+    // { level: 1, dir: -1 } is the one state where the ordinary swing (plain
+    // AND reverse) lands on 0 — exactly the case the non-flat angle tests
+    // above show leaning to -45deg.
+    const cur = { level: 1, dir: -1 } as const;
+    expect(rungHoverAngle(cur, true)).toBe(45); // leans toward open (90deg), not hidden
+    expect(rungReverseHoverAngle(cur, true)).toBe(45);
+  });
+
+  it("matches the non-flat angle wherever the ordinary swing already avoids 0", () => {
+    const cur = { level: 2, dir: 1 } as const;
+    expect(rungHoverAngle(cur, true)).toBe(rungHoverAngle(cur, false));
   });
 });

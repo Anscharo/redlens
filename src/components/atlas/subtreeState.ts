@@ -50,15 +50,48 @@ export function rungAngle(level: RungLevel): number {
 }
 
 /** Midpoint between this rung's angle and the next one's — the hover preview:
- *  it leans 45° toward wherever the next click will actually land. */
-export function rungHoverAngle(cur: Rung): number {
-  return (rungAngle(cur.level) + rungAngle(nextRung(cur).level)) / 2;
+ *  it leans 45° toward wherever the next click will actually land. `flat`
+ *  selects the flatNextRung swing (see below) for views where 0 is invisible. */
+export function rungHoverAngle(cur: Rung, flat = false): number {
+  const next = flat ? flatNextRung(cur) : nextRung(cur);
+  return (rungAngle(cur.level) + rungAngle(next.level)) / 2;
 }
 
 /** Same idea for the alt-click swing: while Alt is held the chevron must lean
  *  toward where THAT click lands, not the plain one — otherwise the preview
  *  lies. Always a different angle from rungHoverAngle, since reverseRung never
  *  agrees with nextRung. */
-export function rungReverseHoverAngle(cur: Rung): number {
-  return (rungAngle(cur.level) + rungAngle(reverseRung(cur).level)) / 2;
+export function rungReverseHoverAngle(cur: Rung, flat = false): number {
+  const next = flat ? flatReverseRung(cur) : reverseRung(cur);
+  return (rungAngle(cur.level) + rungAngle(next.level)) / 2;
+}
+
+// The flat filtered views (selected-only / changed-only, AtlasReader's
+// filterSet branch) never hide a row for rung 0 — visibility there comes
+// purely from the filter set, never from rung (see AtlasReader.test.tsx
+// "filtered view ignores collapse state") — so a chevron that swings up to
+// "hidden" looks like a dead click: the row is still right there. These
+// wrap the ordinary swings to skip 0 in both directions, leaving a plain
+// closed (titles) / open (bodies) toggle. `cur.level === 0` is first treated
+// as 1 (its display stand-in — see flatRung) since 0 has no chevron glyph of
+// its own here either.
+
+/** `cur.level === 0` has no meaning in a flat view (see above) — read it as
+ *  its display stand-in, rung 1, instead. */
+export function flatRung(cur: Rung): Rung {
+  return cur.level === 0 ? { level: 1, dir: 1 } : cur;
+}
+
+export function flatNextRung(cur: Rung): Rung {
+  const c = flatRung(cur);
+  const next = nextRung(c);
+  if (next.level !== 0) return next;
+  return c.level === 2 ? { level: 1, dir: 1 } : { level: 2, dir: 1 };
+}
+
+export function flatReverseRung(cur: Rung): Rung {
+  const c = flatRung(cur);
+  const next = reverseRung(c);
+  if (next.level !== 0) return next;
+  return c.level === 2 ? { level: 1, dir: 1 } : { level: 2, dir: 1 };
 }

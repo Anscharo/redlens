@@ -20,6 +20,7 @@ interface Overrides {
   rungDir?: RungDir;
   gatedCount?: number;
   withExpandAll?: boolean;
+  inSelectedOnly?: boolean;
 }
 
 function setup(overrides: Overrides = {}) {
@@ -46,6 +47,7 @@ function setup(overrides: Overrides = {}) {
         rungDir={overrides.rungDir ?? 1}
         gatedCount={overrides.gatedCount ?? 0}
         onExpandChildren={onExpandChildren}
+        inSelectedOnly={overrides.inSelectedOnly}
       />
     </AtlasActionsContext.Provider>,
   );
@@ -268,6 +270,51 @@ describe("CollapsibleNode NR-X doc numbers", () => {
     // single one-part token since there's no dot).
     expect(chiclets.length).toBe(5);
     expect(Array.from(chiclets).map((c) => c.textContent).join("")).toBe("NR-42");
+  });
+});
+
+// In a flat filtered view (selected-only/changed-only), rung 0 is invisible
+// (see AtlasReader's filterSet branch) — a chevron that rests at, or leans
+// toward, "hidden" there looks like a dead click even though nothing is
+// actually hidden. inSelectedOnly swaps in the flat swing (flatNextRung/
+// flatReverseRung), which never lands on or previews 0.
+describe("CollapsibleNode flat filtered view (inSelectedOnly)", () => {
+  it.each([
+    // Every one of these leans exactly 45deg toward whichever of open/closed
+    // it isn't currently at — {level:1, dir:-1} is the interesting case: the
+    // non-flat table above previews -45deg (toward hidden) for it.
+    [1, 1, "45deg"],
+    [1, -1, "45deg"],
+    [2, 1, "45deg"],
+  ] as const)("rung {level: %d, dir: %d} sets --hover-deg to %s, never toward hidden", (rungLevel, rungDir, expected) => {
+    const { container } = setup({ hasChildren: true, withExpandAll: true, rungLevel, rungDir, inSelectedOnly: true });
+    const btn = container.querySelector(".atlas-node-expand-all") as HTMLElement;
+    expect(btn.style.getPropertyValue("--hover-deg")).toBe(expected);
+  });
+
+  it("swings a plain click between open and closed, never to hidden", () => {
+    const { container, pendulum } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 1, rungDir: -1, inSelectedOnly: true });
+    // Ordinarily (non-flat) this state's next click would go to rung 0.
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id, { reverse: false });
+  });
+
+  it("alt-click lands on the same target a plain click would (no third position to reverse into)", () => {
+    const { container, pendulum } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 2, rungDir: 1, inSelectedOnly: true });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!, { altKey: true });
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id, { reverse: true });
+  });
+
+  it("describes the upcoming click as expand/collapse, never show/hide children", () => {
+    const openBtn = setup({ hasChildren: true, withExpandAll: true, rungLevel: 1, rungDir: 1, inSelectedOnly: true }).container.querySelector(
+      ".atlas-node-expand-all",
+    )!;
+    expect(openBtn.getAttribute("title")).toMatch(/^expand child bodies \(alt-click: expand child bodies\)$/);
+
+    const closeBtn = setup({ hasChildren: true, withExpandAll: true, rungLevel: 2, rungDir: 1, inSelectedOnly: true }).container.querySelector(
+      ".atlas-node-expand-all",
+    )!;
+    expect(closeBtn.getAttribute("title")).toMatch(/^collapse child bodies \(alt-click: collapse child bodies\)$/);
   });
 });
 

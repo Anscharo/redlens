@@ -13,7 +13,7 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
-import { DEFAULT_RUNG, nextRung, reverseRung, type Rung } from "./subtreeState";
+import { DEFAULT_RUNG, nextRung, reverseRung, flatRung, flatNextRung, flatReverseRung, type Rung } from "./subtreeState";
 import { revealStore } from "../../lib/revealStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
@@ -326,6 +326,14 @@ export const AtlasReader = memo(function AtlasReader({
   const triggerExpandingAnimRef = useRef(triggerExpandingAnim);
   triggerExpandingAnimRef.current = triggerExpandingAnim;
 
+  // Read through a ref (filterSet isn't computed until below, and handlePendulum
+  // must not depend on it directly — same stability concern as the refs above).
+  // True whenever a flat filtered view (selected-only or changed-only) is
+  // active, where rung 0 is invisible (docList's filterSet branch below never
+  // hides a row for it) — the pendulum swings between 1/2 only there instead
+  // of the ordinary 3-position hidden/titles/bodies cycle. See flatNextRung.
+  const inFlatViewRef = useRef(false);
+
   // The » click: advances rootId's rung to the next pendulum position and
   // forces bodies to match — level 2 opens the clicked doc's own body AND its
   // immediate children's, the 2 → 1 swing back closes that same set, and
@@ -335,8 +343,12 @@ export const AtlasReader = memo(function AtlasReader({
   const handlePendulum = useCallback((rootId: string, opts?: { reverse?: boolean }) => {
     const cur = rungRef.current.get(rootId) ?? DEFAULT_RUNG;
     // Alt-click swings the other way (see reverseRung): back the way it came
-    // from the middle, or clear across to the far end from either end.
-    const next = opts?.reverse ? reverseRung(cur) : nextRung(cur);
+    // from the middle, or clear across to the far end from either end. In a
+    // flat filtered view, use the 1/2-only variant instead (see inFlatViewRef).
+    const swing = inFlatViewRef.current
+      ? (opts?.reverse ? flatReverseRung : flatNextRung)
+      : (opts?.reverse ? reverseRung : nextRung);
+    const next = swing(cur);
     // Only the OUTWARD swings insert anything: 0 → 1 adds the child rows, 1 → 2
     // adds their bodies, and the alt jump 0 → 2 adds both at once. Arm the
     // reveal animation for those, so each step of the ladder visibly arrives
@@ -401,6 +413,9 @@ export const AtlasReader = memo(function AtlasReader({
   const changedSet = usePreviewChangedSet();
   const selectionSet = useSelectionSet();
   const filterSet = changedSet ?? selectionSet;
+  useEffect(() => {
+    inFlatViewRef.current = !!filterSet;
+  });
 
   // Re-scroll to the selected doc whenever the view mode flips, so leaving
   // "selected only" (or preview "changed only") keeps the current node in view.
@@ -500,8 +515,11 @@ export const AtlasReader = memo(function AtlasReader({
         // is truly inert here (the "N hidden" tab has nothing to reveal in a
         // flat list). Reading the real rung, rather than hardcoding level 1,
         // keeps the chevron's displayed state (icon angle/label) in sync with
-        // what a click actually does — see Codex review on this line.
-        const r = rung.get(entry.node.id) ?? DEFAULT_RUNG;
+        // what a click actually does — see Codex review on this line. flatRung
+        // clamps level 0 to its display stand-in (1): 0 is invisible in this
+        // flat view (rung never gates visibility here — see above), so showing
+        // its "hidden" glyph/angle would read as a dead click.
+        const r = flatRung(rung.get(entry.node.id) ?? DEFAULT_RUNG);
         block.push(
           <CollapsibleNode
             key={entry.node.id}
@@ -515,7 +533,7 @@ export const AtlasReader = memo(function AtlasReader({
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}
             agentName={agentByDoc?.get(entry.node.id)}
-            inSelectedOnly={!!selectionSet}
+            inSelectedOnly
           />,
         );
         return block;

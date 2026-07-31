@@ -15,6 +15,8 @@ import { settleChevron } from "../../lib/chevronSettle";
 import {
   nextRung,
   reverseRung,
+  flatNextRung,
+  flatReverseRung,
   rungAngle,
   rungClass,
   rungHoverAngle,
@@ -88,9 +90,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   /** Owning prime/executor agent name — shown as a pill under the doc number
    *  whenever the row is expanded. Undefined for docs not under an agent. */
   agentName?: string | null;
-  /** "Selected only" view is active — hides the hidden-descendants affordance.
-   *  Passed as a prop (not read from selection context) so a selection change
-   *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
+  /** A flat filtered view (selected-only OR changed-only) is active: hides the
+   *  hidden-descendants affordance, and swaps the pendulum's swing to the
+   *  flatNextRung/flatReverseRung variant (rung 0 is invisible in these views —
+   *  see AtlasReader's filterSet branch — so the ordinary 3-position swing
+   *  would let the chevron rest at/lean toward "hidden" for a click that does
+   *  nothing visible). Passed as a prop (not read from selection/preview
+   *  context) so switching views doesn't re-render every row; see
+   *  NodeSelectBox for the checkbox itself. */
   inSelectedOnly?: boolean;
 }) {
   const { navigate, toggle, splitNavigate, pendulum } = useAtlasActions();
@@ -117,11 +124,22 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const dim = usePreviewDim(node.id) && !isSelected;
 
   const showExpandAll = hasChildren && !!pendulum;
-  const nextLevel = nextRung({ level: rungLevel, dir: rungDir }).level;
+  // In a flat filtered view (selected-only/changed-only) rung 0 is invisible
+  // — the row never disappears for it (see AtlasReader's filterSet branch) —
+  // so the ordinary 3-position swing would let the chevron rest at (and lean
+  // toward) "hidden" for a click that visibly does nothing. flatNextRung/
+  // flatReverseRung skip 0 there, leaving a plain closed/open toggle.
+  const nextLevel = (inSelectedOnly ? flatNextRung : nextRung)({ level: rungLevel, dir: rungDir }).level;
   // The verb describes what the UPCOMING click does, not the current state —
   // matches the affordance-tab convention below ("View N hidden sections").
-  const pendulumVerb =
-    rungLevel === 0
+  // rungLevel is never 0 in a flat view (AtlasReader clamps its display), and
+  // rungDir stops distinguishing anything there — both directions from rung 1
+  // land on rung 2 (flatNextRung), so the "hide children" wording never fires.
+  const pendulumVerb = inSelectedOnly
+    ? rungLevel === 2
+      ? "collapse child bodies"
+      : "expand child bodies"
+    : rungLevel === 0
       ? "show children"
       : rungLevel === 2
         ? "collapse child bodies"
@@ -129,9 +147,12 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           ? "expand child bodies"
           : "hide children";
   // Alt is the only way to reach the opposite swing, so the tooltip has to
-  // say so — the affordance is otherwise invisible.
-  const reverseVerb =
-    rungLevel === 0
+  // say so — the affordance is otherwise invisible. With only two positions
+  // (flat view), alt-click lands on the same target a plain click would —
+  // there's no "other way" left to swing — so the verb is the same.
+  const reverseVerb = inSelectedOnly
+    ? pendulumVerb
+    : rungLevel === 0
       ? "show children with bodies"
       : rungLevel === 2
         ? "hide children"
@@ -164,7 +185,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
     // is already split-pane navigation.)
     const reverse = !!event?.altKey;
     const cur = { level: rungLevel, dir: rungDir };
-    const targetLevel = reverse ? reverseRung(cur).level : nextLevel;
+    const targetLevel = reverse ? (inSelectedOnly ? flatReverseRung : reverseRung)(cur).level : nextLevel;
     track("reader_expand_all", { node_id: node.id, action: targetLevel, reverse });
     // The heavy state update (a rung write across a node's immediate
     // children, plus body-forcing), deferred below so the chevron feedback
@@ -334,8 +355,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             }`}
             style={
               {
-                ["--hover-deg" as string]: `${rungHoverAngle({ level: rungLevel, dir: rungDir })}deg`,
-                ["--hover-deg-alt" as string]: `${rungReverseHoverAngle({ level: rungLevel, dir: rungDir })}deg`,
+                ["--hover-deg" as string]: `${rungHoverAngle({ level: rungLevel, dir: rungDir }, inSelectedOnly)}deg`,
+                ["--hover-deg-alt" as string]: `${rungReverseHoverAngle({ level: rungLevel, dir: rungDir }, inSelectedOnly)}deg`,
               } as React.CSSProperties
             }
             aria-label={`${pendulumVerb[0].toUpperCase()}${pendulumVerb.slice(1)} under ${node.doc_no}`}
