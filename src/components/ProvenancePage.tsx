@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { HistoryProvenance } from "./provenance/HistoryProvenance";
 
@@ -17,7 +18,7 @@ const STAGES: Stage[] = [
   {
     label: "derive relationships",
     description:
-      "Applies documented, pattern-based extractors to Atlas text. It identifies entities, roles, instances, document relationships, and address annotations; these are interpretations produced by RedLens, not extra claims from the Atlas.",
+      "Applies documented, pattern-based extractors to Atlas text. It identifies entities, roles, instances, document relationships, and address annotations; these are our interpretations, not extra claims from the Atlas.",
     powers: [
       "Constellations graph",
       "Cross-document reports",
@@ -66,19 +67,19 @@ function PipelineStage({ stage, index }: { stage: Stage; index: number }) {
   return (
     <section className="mb-8">
       <h2 className="flex items-baseline gap-3 mb-2">
-        <span className="mono text-xs text-tan-3 w-4">{index + 1}.</span>
-        <span className="mono text-xs text-tan-3 uppercase tracking-wider">
+        <span className="mono text-sm text-tan-3 w-4">{index + 1}.</span>
+        <span className="mono text-sm text-tan-3 uppercase tracking-wider">
           {stage.label}
         </span>
       </h2>
       <div className="pl-7 space-y-2">
-        <p className="text-xs" style={{ color: "var(--tan-2)" }}>
+        <p className="text-sm" style={{ color: "var(--tan-2)" }}>
           {stage.description}
         </p>
         <div className="flex gap-4">
-          <span className="mono text-xs text-tan-3 w-14 shrink-0">powers</span>
+          <span className="mono text-sm text-tan-3 w-14 shrink-0">powers</span>
           <ul
-            className="space-y-1 flex-1 text-xs"
+            className="space-y-1 flex-1 text-sm"
             style={{ color: "var(--tan-2)" }}
           >
             {stage.powers.map((power) => (
@@ -93,11 +94,16 @@ function PipelineStage({ stage, index }: { stage: Stage; index: number }) {
 
 export function ProvenancePage() {
   useDocumentTitle("Provenance: Sky Atlas by Redline");
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, []);
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
       <article className="max-w-3xl mx-auto">
         <header>
-          <p className="mono text-xs text-tan-3 mb-1">provenance</p>
+          <p className="mono text-sm text-tan-3 mb-1">provenance</p>
           <h1
             className="text-xl font-semibold mb-4"
             style={{ color: "var(--tan)" }}
@@ -106,20 +112,22 @@ export function ProvenancePage() {
           </h1>
           <p className="text-sm mb-4" style={{ color: "var(--tan-2)" }}>
             The current Atlas text comes from the sky-ecosystem/next-gen-atlas
-            git repository. RedLens also uses clearly separated supporting
+            git repository. We also use clearly separated supporting
             sources: its git and GitHub pull-request history, Sky Chainlog,
             Etherscan verified-contract metadata, a public Ethereum RPC, and the
             historical sources documented below.
           </p>
           <p className="text-sm mb-8" style={{ color: "var(--tan-2)" }}>
-            RedLens-derived graphs, labels, reports, search indexes, and
+            Our derived graphs, labels, reports, search indexes, and
             summaries are transformations of those sources—not independent
-            primary records. Builds are pinned to an Atlas commit, and shipping
-            artifacts are checksummed so the inputs and output version can be
-            audited.
+            primary records. Builds are pinned to an Atlas commit, and most
+            shipping artifacts—documents, relationships, addresses, the search
+            index, and the glossary—are checksummed in a build manifest for
+            auditability. Chain-state snapshots, history, and embeddings are
+            pinned to a commit and timestamp but fall outside that manifest.
           </p>
         </header>
-        <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
+        <p className="text-sm mb-4" style={{ color: "var(--tan-3)" }}>
           The data flow has {STAGES.length} stages:
         </p>
         {STAGES.map((stage, index) => (

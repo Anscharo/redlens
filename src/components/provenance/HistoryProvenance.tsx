@@ -1,3 +1,5 @@
+import { PRE_MD_HTML_URL } from "../history/HistoryDisclaimers";
+
 const linkClass = "hover:underline focus-visible:underline";
 
 export function HistoryProvenance() {
@@ -20,10 +22,10 @@ export function HistoryProvenance() {
         className="mb-10"
         style={{ scrollMarginTop: "64px" }}
       >
-        <h3 className="mono text-xs text-tan-3 uppercase tracking-wider mb-3">
+        <h3 className="mono text-sm text-tan-3 uppercase tracking-wider mb-3">
           The HTML era: reconstructed document history
         </h3>
-        <div className="space-y-3 text-xs" style={{ color: "var(--tan-2)" }}>
+        <div className="space-y-3 text-sm" style={{ color: "var(--tan-2)" }}>
           <p>
             <strong>History before pull request #117 is reconstructed.</strong>{" "}
             Before “Migrate To Markdown File” on 21 November 2025, the Atlas was
@@ -35,7 +37,8 @@ export function HistoryProvenance() {
             edited row in another.
           </p>
           <p>
-            RedLens translated all 79 preserved HTML revisions into a common
+            We, with the help of frontier AI models, translated all 79
+            preserved HTML revisions into a common
             markdown-shaped representation, seeded present-day identities at the
             migration boundary, and traced each lineage backward. Automatic
             matching compares normalized content and structural fingerprints.
@@ -54,11 +57,11 @@ export function HistoryProvenance() {
             rewrites, splits, and merges can create uncertainty, and mistakes
             remain possible. Treat the linked original commit or pull request as
             primary evidence for the change; treat its assignment to a
-            present-day document as RedLens’s reconstruction.
+            present-day document as a reconstruction.
           </p>
           <p>
             <a
-              href="https://github.com/sky-ecosystem/next-gen-atlas/blob/7b43d159e098b30e67c4be6a7594a237a340fa58/Sky%20Atlas/Sky%20Atlas.html"
+              href={PRE_MD_HTML_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={linkClass}
@@ -72,13 +75,13 @@ export function HistoryProvenance() {
       </section>
 
       <section id="pre-git-history" style={{ scrollMarginTop: "64px" }}>
-        <h3 className="mono text-xs text-tan-3 uppercase tracking-wider mb-3">
+        <h3 className="mono text-sm text-tan-3 uppercase tracking-wider mb-3">
           Before the current git repository
         </h3>
-        <div className="space-y-3 text-xs" style={{ color: "var(--tan-2)" }}>
+        <div className="space-y-3 text-sm" style={{ color: "var(--tan-2)" }}>
           <p>
             The current repository begins on 28 May 2025. Earlier entries are
-            origin evidence, not a continuous changelog. RedLens works backward
+            origin evidence, not a continuous changelog. We work backward
             from the first git snapshot using a recovered Atlas v2 genesis
             snapshot dated 2 September 2024, six preserved Atlas v1/MIP-era
             source artifacts, and accepted Atlas Edit Proposals where a proposal
