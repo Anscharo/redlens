@@ -63,6 +63,17 @@ export interface HistoryEntry {
  *  opposed to a real markdown-era commit. */
 export const RECONSTRUCTED_ERAS = new Set(["html", "mip", "genesis", "severed"]);
 
+/** The atlas repo every commit / PR link points at. */
+export const ATLAS_REPO = "https://github.com/sky-ecosystem/next-gen-atlas";
+
+/** URL of an entry's Atlas PR. Reconstructed (HTML-era) rows carry a PR number but
+ *  no stored `pr_url` — those PRs predate the `atlas_prs` metadata the git-era rows
+ *  get their URL from — so derive it from the number rather than rendering a dead
+ *  <a> with no href. */
+export function prHref(e: { pr?: number; prUrl?: string }): string | undefined {
+  return e.prUrl ?? (e.pr ? `${ATLAS_REPO}/pull/${e.pr}` : undefined);
+}
+
 /** A real git commit sha (7–40 lowercase hex), as opposed to a synthetic pre-git tag
  *  (`mip:104:14.3`, `genesis:bafkreih7…`, `severed:…`). Gates the "view on GitHub"
  *  commit link, which is meaningless for a synthetic tag. */

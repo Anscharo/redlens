@@ -57,7 +57,7 @@ export function AddressCard({
               className="badge badge-accent mono text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide"
               title={`implementation ${info.implementation}`}
             >
-              proxy → {shortAddr(info.implementation)}
+              proxy <span className="enlargen">→</span> {shortAddr(info.implementation)}
             </span>
           )}
           {info.roles.map((role) => (

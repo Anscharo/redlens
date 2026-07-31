@@ -66,12 +66,12 @@ export function ProfileButton() {
               <div className="border-t border-border" />
               <button className="rlc-menu-item" onClick={() => setShowPrefs(true)}>
                 <span>Preferences</span>
-                <span className="text-tan-3">→</span>
+                <span className="text-tan-3 enlargen">→</span>
               </button>
               <div className="border-t border-border" />
               <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
                 <span>Collections</span>
-                <span className="text-tan-3">→</span>
+                <span className="text-tan-3 enlargen">→</span>
               </Link>
               <div className="border-t border-border" />
               <button

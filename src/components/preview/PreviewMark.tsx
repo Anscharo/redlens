@@ -32,7 +32,7 @@ export function PreviewMark({ nodeId, className }: { nodeId: string; className?:
     const content = swap ? (
       <span>
         Identity changed in this preview — UUID <span className="mono">{nodeId}</span> now holds a
-        different document: “{swap.oldTitle}” → “{swap.newTitle}”.{" "}
+        different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
         {swap.movedTo ? (
           <>
             The previous content moved to{" "}
