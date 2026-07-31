@@ -474,19 +474,61 @@ describe("Pattern 6-bis — process-step Responsible Party", () => {
 });
 
 describe("duty_for — no double-counted core org from a bare+Core pair", () => {
-  it("never emits two duty_for edges from the same doc to the same entity (bare+Core collapse, A.1.6.6)", () => {
-    // findRoleDuties collapses a bare/universal duty + a same-doc Core-only
-    // duty to a single bare result (see graph-duties.mjs) so resolveDutyEntities
-    // doesn't fan the core org out twice for one doc. Mirrors the Pattern
-    // 6-bis process_step_responsible_party_for no-dup check above.
+  // What a declared qualifier BINDS, which is what must not be bound twice for
+  // one doc. A bare/universal label binds both holders (resolveDutyEntities fans
+  // it to [...opIds, coreId]); "Core X" binds only the core holder, "Operational
+  // X" only the operational ones. GovOps has no distinct bare label —
+  // graph-duties.mjs sets bareLabel === op.label — so a bare GovOps duty already
+  // arrives labelled "Operational GovOps" and shares that bucket by design.
+  const BARE_LABELS = new Set(["Facilitator", "Executor Agent"]);
+  const binds = (declared: string | undefined): string[] =>
+    declared === undefined
+      ? ["unqualified"] // org-derived duty: no Core/Operational qualifier at all
+      : BARE_LABELS.has(declared)
+        ? ["core", "op"]
+        : [/^core\b/i.test(declared) ? "core" : "op"];
+  // Roles are independent: a doc may owe the same entity a GovOps duty and a
+  // Facilitator duty without either double-counting the other.
+  const family = (declared: string | undefined): string =>
+    !declared ? "-" : /govops/i.test(declared) ? "govops" : /facilitator/i.test(declared) ? "facilitator" : "executor";
+
+  it("never binds the same duty holder twice for one doc (bare+Core collapse, A.1.6.6)", () => {
+    // findRoleDuties collapses a bare/universal duty + a same-doc Core-only duty
+    // to a single bare result (see graph-duties.mjs) so resolveDutyEntities
+    // doesn't fan the core org out twice. Keying on (doc, entity) alone also
+    // caught the Core+Operational pair that findRoleDuties emits ON PURPOSE —
+    // two consecutive sentences assigning separate duties, its docstring cites
+    // A.3.2.2.7.2.1.2 — which only stopped being invisible once the atlas made
+    // both roles resolve to the same entity. Bind-slots express the real rule,
+    // and still flag bare+Core: bare binds core, so core would be bound twice.
+    // Mirrors the Pattern 6-bis process_step_responsible_party_for check above.
     const seen = new Set<string>();
     const dupes: string[] = [];
     for (const e of edgesOfType("duty_for")) {
-      const key = `${e.from_id}:${e.to_id}`;
-      if (seen.has(key)) dupes.push(key);
-      seen.add(key);
+      const declared: string | undefined = e.meta ? JSON.parse(e.meta).role_declared : undefined;
+      for (const slot of binds(declared)) {
+        const key = `${e.from_id}:${e.to_id}:${family(declared)}:${slot}`;
+        if (seen.has(key)) dupes.push(key);
+        seen.add(key);
+      }
     }
     expect(dupes).toEqual([]);
+  });
+
+  it("keeps a doc's separate Core and Operational duties even when they resolve to one entity", () => {
+    // The case above must not be "fixed" by dropping one of the two — that would
+    // lose a real, separately-quoted duty. Assert the pair actually survives.
+    const byPair = new Map<string, Set<string>>();
+    for (const e of edgesOfType("duty_for")) {
+      const declared: string | undefined = e.meta ? JSON.parse(e.meta).role_declared : undefined;
+      const key = `${e.from_id}:${e.to_id}`;
+      if (!byPair.has(key)) byPair.set(key, new Set());
+      byPair.get(key)!.add(declared ?? "-");
+    }
+    const corePlusOp = [...byPair.values()].filter(
+      (s) => [...s].some((d) => /^core\b/i.test(d)) && [...s].some((d) => /^operational\b/i.test(d)),
+    );
+    expect(corePlusOp.length).toBeGreaterThan(0);
   });
 });
 
