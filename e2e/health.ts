@@ -90,17 +90,28 @@ function summarize(h: Health | null, expectedCommit?: string): string {
  */
 const COMMIT_GRACE = 60_000;
 
+/** Poll timings. Overridable only so health.test.ts can exercise the grace
+ *  window without spending a real minute per case. */
+export interface WaitTiming {
+  commitGraceMs?: number;
+  initialDelayMs?: number;
+  maxDelayMs?: number;
+}
+
 export async function waitForReady(
   ctx: APIRequestContext,
   timeoutMs: number,
   expectedCommit?: string,
+  timing: WaitTiming = {},
 ): Promise<Readiness> {
+  const grace = timing.commitGraceMs ?? COMMIT_GRACE;
+  const maxDelay = timing.maxDelayMs ?? 10_000;
   const deadline = Date.now() + timeoutMs;
   let health: Health | null = null;
   let serving = false;
   let commitSeen = false;
   let convergedAt: number | null = null;
-  let delay = 2_000;
+  let delay = timing.initialDelayMs ?? 2_000;
 
   for (;;) {
     const probe = await probeHealth(ctx);
@@ -118,13 +129,13 @@ export async function waitForReady(
       if (!converged) convergedAt = null;
       // The grace window only releases a deploy that reports NO commit. One
       // reporting a different commit stays gated — see the note above.
-      const graceApplies = !probe.app_commit && convergedAt !== null && Date.now() - convergedAt >= COMMIT_GRACE;
+      const graceApplies = !probe.app_commit && convergedAt !== null && Date.now() - convergedAt >= grace;
       if (converged && (!expectedCommit || commitSeen || graceApplies)) break;
     }
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;
     await new Promise((r) => setTimeout(r, Math.min(delay, remaining)));
-    delay = Math.min(Math.round(delay * 1.5), 10_000);
+    delay = Math.min(Math.round(delay * 1.5), maxDelay);
   }
 
   return {

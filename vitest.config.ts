@@ -38,7 +38,10 @@ export default defineConfig({
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
     // scripts/aux/eval-verifier-mutations.test.ts is likewise a bun test (imports
     // bun:test + src/server/indexes) — it runs under `test:server`, not vitest.
-    // e2e/** are Playwright specs (browser/API against a live deploy) — never vitest.
+    // e2e/*.spec.ts are Playwright specs (browser/API against a live deploy) — never
+    // vitest. Their *helpers* (health.ts, mcp.ts) are plain logic that gates the whole
+    // suite, so e2e/*.test.ts DOES run here: the readiness/retry rules are worth
+    // testing in milliseconds rather than only against a live Railway environment.
     // Component tests that need a DOM opt in individually via a `// @vitest-environment jsdom` pragma.
     exclude: [
       ".claude/**",
@@ -47,7 +50,7 @@ export default defineConfig({
       "graph-snapshots/**",
       "src/server/**",
       "scripts/aux/eval-verifier-mutations.test.ts",
-      "e2e/**",
+      "e2e/**/*.spec.ts",
     ],
   },
 });
