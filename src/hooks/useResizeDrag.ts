@@ -4,15 +4,20 @@ interface ResizeDragOptions {
   min: number;
   max: number;
   storageKey?: string;
-  /** When true, dragging toward the left grows the panel (right-anchored panels).
-   *  When false (default), dragging toward the right grows the panel (left-anchored panels). */
+  /** Which dimension the drag resizes. "x" (default) reads clientX and shows a
+   *  col-resize cursor; "y" reads clientY and shows row-resize. */
+  axis?: "x" | "y";
+  /** Invert the drag direction: on the x axis, dragging LEFT grows the panel
+   *  (right-anchored panels); on the y axis, dragging UP grows it
+   *  (bottom-anchored panels). Not derivable from the axis — the tree sidebar
+   *  grows right, the annotations panel grows left, the split pane grows up. */
   growsLeft?: boolean;
 }
 
 export function useResizeDrag(
   width: number,
   setWidth: (w: number) => void,
-  { min, max, storageKey, growsLeft = false }: ResizeDragOptions,
+  { min, max, storageKey, axis = "x", growsLeft = false }: ResizeDragOptions,
 ): React.MouseEventHandler {
   // Ref keeps current width readable inside the stable handler without adding
   // width to useCallback's dep array, which would recreate the handler on every
@@ -23,16 +28,17 @@ export function useResizeDrag(
   return useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      const startX = e.clientX;
+      const start = axis === "y" ? e.clientY : e.clientX;
       const startWidth = widthRef.current;
       let latest = startWidth;
       const prevCursor = document.body.style.cursor;
       const prevSelect = document.body.style.userSelect;
-      document.body.style.cursor = "col-resize";
+      document.body.style.cursor = axis === "y" ? "row-resize" : "col-resize";
       document.body.style.userSelect = "none";
 
       const onMove = (ev: MouseEvent) => {
-        const delta = growsLeft ? startX - ev.clientX : ev.clientX - startX;
+        const pos = axis === "y" ? ev.clientY : ev.clientX;
+        const delta = growsLeft ? start - pos : pos - start;
         latest = Math.max(min, Math.min(max, startWidth + delta));
         setWidth(latest);
       };
@@ -50,6 +56,6 @@ export function useResizeDrag(
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [min, max, storageKey, growsLeft, setWidth],
+    [min, max, storageKey, axis, growsLeft, setWidth],
   );
 }

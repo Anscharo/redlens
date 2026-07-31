@@ -3,11 +3,23 @@
 // doc, and its descendant slice. We assert the breadcrumb links, the close
 // button, descendant rendering, and that Shift-clicking a row re-targets the pane.
 
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { JuniorPane } from "./JuniorPane";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
+
+// jsdom has no ResizeObserver; useSplitHeight watches the content box with one
+// to size the pane to a childless doc. Nothing here asserts on the measurement
+// (jsdom reports every box as 0), so an inert stub is enough to let it mount.
+beforeAll(() => {
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+    class FakeResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+});
 
 // root(A.1) → mid(A.1.2) → split(A.1.2.3) → child(A.1.2.3.1)
 function data() {

@@ -7,10 +7,10 @@
 // render, in what grouping, with what cradle/rung markers) without depending
 // on CollapsibleNode's own rendering, which is covered by CollapsibleNode.test.tsx.
 
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
+import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { AtlasReader } from "./AtlasReader";
+import { AtlasReader, EXIT_MS } from "./AtlasReader";
 import { AtlasActionsContext, useAtlasActions } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
 import { flattenTree } from "../../lib/atlasHelpers";
@@ -74,6 +74,7 @@ function CollapsibleNodeStub(props: {
   isSelected: boolean;
   isExpanded: boolean;
   hasChildren?: boolean;
+  isExiting?: boolean;
   gatedCount?: number;
   rungLevel?: number;
   rungDir?: number;
@@ -88,6 +89,7 @@ function CollapsibleNodeStub(props: {
     isSelected,
     isExpanded,
     hasChildren,
+    isExiting,
     gatedCount = 0,
     rungLevel = 0,
     rungDir = 1,
@@ -105,13 +107,19 @@ function CollapsibleNodeStub(props: {
       data-rung-dir={rungDir}
       data-expanded={isExpanded}
       data-in-selected-only={!!inSelectedOnly}
+      data-exiting={isExiting ? "true" : undefined}
     >
       {entry.node.title}
       {gatedCount > 0 && onExpandChildren && (
         <button onClick={() => onExpandChildren(entry.node.id)}>reveal-{entry.node.id}</button>
       )}
       {hasChildren && actions.pendulum && (
-        <button onClick={() => actions.pendulum!(entry.node.id)}>pendulum-{entry.node.id}</button>
+        <>
+          <button onClick={() => actions.pendulum!(entry.node.id)}>pendulum-{entry.node.id}</button>
+          <button onClick={() => actions.pendulum!(entry.node.id, { reverse: true })}>
+            reverse-{entry.node.id}
+          </button>
+        </>
       )}
       <button onClick={() => actions.toggle(entry.node.id)}>toggle-{entry.node.id}</button>
       {actions.selectSubtree && (
@@ -124,6 +132,22 @@ function CollapsibleNodeStub(props: {
 vi.mock("./CollapsibleNode", () => ({
   CollapsibleNode: (props: Parameters<typeof CollapsibleNodeStub>[0]) => <CollapsibleNodeStub {...props} />,
 }));
+
+// The exit fade keeps collapsing rows mounted for EXIT_MS. These suites assert
+// collapse SEMANTICS (which rows end up hidden), not the transient, so report
+// reduced motion by default — markExiting skips entirely then, and the DOM
+// settles synchronously. The fade has its own dedicated test, which opts in.
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }),
+  });
+});
 
 afterEach(() => {
   cleanup();
@@ -737,6 +761,99 @@ describe("AtlasReader pendulum mechanics (required regression coverage)", () => 
     cycleTo(a.id, 1);
     expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-rung-level", "2");
     expect(screen.getByTestId(`node-${a1x.id}`)).toBeInTheDocument();
+  });
+
+  it("rung 2 opens the clicked doc's OWN body, not just its children's", () => {
+    const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", data });
+
+    cycleTo(a.id, 2);
+    for (const id of [a.id, a1.id, a2.id]) {
+      expect(screen.getByTestId(`node-${id}`)).toHaveAttribute("data-expanded", "true");
+    }
+
+    // The 2 → 1 swing back closes the same set it opened, root included, so the
+    // chevron can always undo itself.
+    cycleTo(a.id, 1);
+    for (const id of [a.id, a1.id, a2.id]) {
+      expect(screen.getByTestId(`node-${id}`)).toHaveAttribute("data-expanded", "false");
+    }
+  });
+
+  // Opts INTO motion (the suite default reports reduced motion, see beforeAll):
+  // a collapsing row must stay mounted long enough to fade, then leave the DOM
+  // for good — the end state is identical to an instant removal.
+  it("keeps collapsing rows mounted and inert while they fade, then unmounts them", () => {
+    const realMatchMedia = window.matchMedia;
+    (window as unknown as { matchMedia: unknown }).matchMedia = () => ({ matches: false });
+    vi.useFakeTimers();
+    try {
+      const { atlas, flatNodes, a, a1, a2 } = makeCradleTree();
+      const data = makeLoadedData({ atlas, flatNodes, complete: true });
+      renderReader({ id: "root", data });
+      cycleTo(a.id, 1);
+      expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+
+      cycleTo(a.id, 0);
+      // Still rendered — but marked, so CSS can fade it and clicks pass it by.
+      for (const id of [a1.id, a2.id]) {
+        expect(screen.getByTestId(`node-${id}`)).toHaveAttribute("data-exiting", "true");
+      }
+
+      act(() => vi.advanceTimersByTime(EXIT_MS + 20));
+      for (const id of [a1.id, a2.id]) {
+        expect(screen.queryByTestId(`node-${id}`)).toBeNull();
+      }
+    } finally {
+      vi.useRealTimers();
+      (window as unknown as { matchMedia: unknown }).matchMedia = realMatchMedia;
+    }
+  });
+
+  it("shift-click reverses the swing, and jumps end-to-end from either extreme", () => {
+    const { atlas, flatNodes, a, a1 } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", data });
+    const level = () => screen.getByTestId(`node-${a.id}`).getAttribute("data-rung-level");
+
+    // up → middle → shift → back up (undoes the swing rather than continuing).
+    cycleTo(a.id, 0);
+    fireEvent.click(screen.getByText(`pendulum-${a.id}`));
+    expect(level()).toBe("1");
+    fireEvent.click(screen.getByText(`reverse-${a.id}`));
+    expect(level()).toBe("0");
+
+    // From the bottom end there is no reverse step, so it crosses to the top:
+    // rows AND bodies arrive together.
+    fireEvent.click(screen.getByText(`reverse-${a.id}`));
+    expect(level()).toBe("2");
+    expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-expanded", "true");
+
+    // down → middle → shift → back down.
+    fireEvent.click(screen.getByText(`pendulum-${a.id}`));
+    expect(level()).toBe("1");
+    fireEvent.click(screen.getByText(`reverse-${a.id}`));
+    expect(level()).toBe("2");
+
+    // …and from the top end it crosses straight back to hidden.
+    fireEvent.click(screen.getByText(`reverse-${a.id}`));
+    expect(level()).toBe("0");
+    expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+  });
+
+  it("the 0 → 1 swing leaves the clicked doc's own body alone", () => {
+    const { atlas, flatNodes, a } = makeCradleTree();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    renderReader({ id: "root", data });
+    cycleTo(a.id, 0);
+
+    // Open a's body by hand, as reading a doc does, then ask to see its
+    // children's titles. Revealing structure must not shut what you're reading.
+    fireEvent.click(screen.getByText(`toggle-${a.id}`));
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-expanded", "true");
+    cycleTo(a.id, 1);
+    expect(screen.getByTestId(`node-${a.id}`)).toHaveAttribute("data-expanded", "true");
   });
 
   it("required #3: reveal-on-nav never forces bodies — a body opened in one branch stays open after navigating elsewhere", () => {

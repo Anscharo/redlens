@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, type ReactElement } from "re
 import { buildAncestors, type FlatEntry, type LoadedData } from "../../lib/atlasHelpers";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
+import { useSplitHeight } from "./useSplitHeight";
 import { depthColor, realDepth } from "../../lib/depth";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
@@ -103,6 +104,12 @@ export function JuniorPane({
   const docNo = node?.doc_no ?? "";
   const hasAbove = ancestors.length > 0;
 
+  // Childless docs are short, so the pane shrinks to fit rather than reserving
+  // 45% of the column for a few lines. Children come from byParent (stable
+  // identity), never a doc_no check.
+  const childless = !data.atlas.byParent.get(splitId)?.length;
+  const { paneRef, scrollerRef, contentRef, height, startResize } = useSplitHeight(childless);
+
   const ctxValue = useMemo(
     () => ({ navigate: onShiftNavigate, toggle: handleToggle, splitNavigate: onShiftNavigate }),
     [onShiftNavigate, handleToggle],
@@ -143,7 +150,28 @@ export function JuniorPane({
   ]);
 
   return (
-    <div className="flex flex-col" style={{ flex: "0 0 45%", minHeight: 0, overflow: "hidden" }}>
+    // junior-pane: index.css suppresses the shift-click split hint in here —
+    // this pane already is the split view.
+    <div
+      ref={paneRef}
+      className="junior-pane flex flex-col"
+      style={{
+        // Falls back to the 45% default until the column has been measured.
+        flex: height == null ? "0 0 45%" : `0 0 ${height}px`,
+        minHeight: 0,
+        overflow: "hidden",
+        // Positioning context for the drag handle — the pane's own overflow
+        // would otherwise clip a handle anchored to an ancestor.
+        position: "relative",
+      }}
+    >
+      {/* Drag the top edge to resize, like the sidebars' vertical handles.
+          Inside the pane (not at top: -3) because overflow: hidden clips it. */}
+      <div
+        onMouseDown={startResize}
+        title="Drag to resize"
+        style={{ position: "absolute", left: 0, right: 0, top: 0, height: 6, cursor: "row-resize", zIndex: 10 }}
+      />
       <div
         className="flex items-center gap-1 px-3 py-1 shrink-0 mono text-xs overflow-hidden"
         style={{
@@ -180,8 +208,8 @@ export function JuniorPane({
           ✕
         </button>
       </div>
-      <div className="overflow-y-auto flex-1">
-        <div className="mx-auto px-3 py-2">
+      <div ref={scrollerRef} className="overflow-y-auto flex-1">
+        <div ref={contentRef} className="mx-auto px-3 py-2">
           <AtlasActionsContext.Provider value={ctxValue}>{items}</AtlasActionsContext.Provider>
         </div>
       </div>

@@ -13,7 +13,7 @@ import { useAtlasScroll } from "./useAtlasScroll";
 import { useExpandingAttr } from "../../hooks/useExpandingAttr";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { JuniorPane } from "./JuniorPane";
-import { DEFAULT_RUNG, nextRung, type Rung } from "./subtreeState";
+import { DEFAULT_RUNG, nextRung, reverseRung, type Rung } from "./subtreeState";
 import { revealStore } from "../../lib/revealStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
 import { useSelectionSet } from "../../lib/selectionFilter";
@@ -26,6 +26,14 @@ import {
   type FlatEntry,
   type LoadedData,
 } from "../../lib/atlasHelpers";
+
+// How long a collapsing row stays mounted and inert before it is removed from
+// the DOM for real. Must outlast the exit keyframes in index.css (190ms) plus
+// the frame or two they take to start: the animation ends at height 0 and holds
+// there, so once it has finished the row occupies nothing and the unmount is
+// invisible. Cut it short and the row is pulled while it still has height —
+// which is exactly the jump this exists to remove.
+export const EXIT_MS = 240;
 
 // A row's on-screen subtree is the contiguous run of following rows indented
 // deeper than it (flatNodes is display order, `depth` is the doc-number
@@ -71,6 +79,8 @@ export const AtlasReader = memo(function AtlasReader({
   const seenExpanded = useRef<Set<string>>(new Set());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { rung, rungRef, writeRungs, revealTo } = useRungs();
+  // Alt/Shift are mirrored onto <html> by useModifierKeyAttrs, mounted at the
+  // App shell — the chevrons read data-alt to preview the reversed swing.
 
   useEffect(() => {
     setUserToggles((prev) => {
@@ -253,7 +263,46 @@ export const AtlasReader = memo(function AtlasReader({
   // for a beat, which is what lets newly inserted rows and bodies run their
   // @starting-style entrance (see index.css). A plain attribute write — no React
   // state, so it can't invalidate docList and rebuild every row.
-  const triggerExpandingAnim = useExpandingAttr(scrollContainerRef);
+  // Rows on their way out. A collapse would otherwise blink them away; keeping
+  // them mounted, inert and fading for EXIT_MS lets the removal read. Driven by
+  // the collapse ACTION rather than by diffing renders: the action knows the
+  // exact set leaving, and a diff computed after the fact would have to unmount
+  // the rows first and re-add them, which replays their ENTRANCE animation.
+  const [exitingIds, setExitingIds] = useState<ReadonlySet<string>>(ATLAS_EMPTY_SET);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (exitTimerRef.current) clearTimeout(exitTimerRef.current); }, []);
+  // hiddenNodeIds through a ref: markExiting runs inside a click handler and
+  // must not become a dependency of handlePendulum (which feeds the shared
+  // actions object — see the stability note above).
+  const hiddenNodeIdsRef = useRef(hiddenNodeIds);
+  hiddenNodeIdsRef.current = hiddenNodeIds;
+  const markExiting = useCallback((ids: string[]) => {
+    // Reduced motion skips the whole mechanism rather than fading instantly:
+    // an instant fade would still hold the rows' layout space for EXIT_MS,
+    // reading as a stall before the list closes up.
+    if (!ids.length || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+    // Pin each row's current height for the exit keyframes to collapse FROM.
+    // Measured here because the rows are still laid out at this point — the rung
+    // write below is what removes them — and because `height: auto` gives the
+    // animation nothing to start at.
+    for (const nid of ids) {
+      const el = document.getElementById(nid);
+      if (el) el.style.setProperty("--exit-h", `${el.offsetHeight}px`);
+    }
+    setExitingIds(new Set(ids));
+    exitTimerRef.current = setTimeout(() => {
+      setExitingIds(ATLAS_EMPTY_SET);
+      exitTimerRef.current = null;
+    }, EXIT_MS);
+  }, []);
+
+  // The window MUST outlast the longest entrance in index.css (currently the
+  // 280ms row fade) plus the two-frame commit deferral in CollapsibleNode.
+  // Removing the attribute mid-transition stops `[data-expanding]` matching,
+  // which drops the transition declaration and snaps the element to its end
+  // state — the animation would silently truncate rather than fail loudly.
+  const triggerExpandingAnim = useExpandingAttr(scrollContainerRef, 450);
   // Read through a ref, NOT as a dependency. handlePendulum feeds the
   // actions-context object that every memo'd row consumes, so anything in its
   // dep array that churns re-renders all ~1200 rows on an unrelated body
@@ -266,17 +315,21 @@ export const AtlasReader = memo(function AtlasReader({
   triggerExpandingAnimRef.current = triggerExpandingAnim;
 
   // The » click: advances rootId's rung to the next pendulum position and
-  // forces its immediate children's bodies to match (level 1 → closed,
-  // level 2 → open, level 0 → no body writes — collapsing preserves whatever
-  // shape the descendants were left in, which is the whole point of storing
-  // rung instead of deriving it).
-  const handlePendulum = useCallback((rootId: string) => {
+  // forces bodies to match — level 2 opens the clicked doc's own body AND its
+  // immediate children's, the 2 → 1 swing back closes that same set, and
+  // level 0 writes no bodies at all (collapsing preserves whatever shape the
+  // descendants were left in, which is the whole point of storing rung instead
+  // of deriving it).
+  const handlePendulum = useCallback((rootId: string, opts?: { reverse?: boolean }) => {
     const cur = rungRef.current.get(rootId) ?? DEFAULT_RUNG;
-    const next = nextRung(cur);
+    // Alt-click swings the other way (see reverseRung): back the way it came
+    // from the middle, or clear across to the far end from either end.
+    const next = opts?.reverse ? reverseRung(cur) : nextRung(cur);
     // Only the OUTWARD swings insert anything: 0 → 1 adds the child rows, 1 → 2
-    // adds their bodies. Arm the reveal animation for those, so each step of the
-    // ladder visibly arrives instead of blinking into place. The inward swings
-    // only remove nodes, where the attribute would be inert anyway.
+    // adds their bodies, and the alt jump 0 → 2 adds both at once. Arm the
+    // reveal animation for those, so each step of the ladder visibly arrives
+    // instead of blinking into place. The inward swings only remove nodes,
+    // where the attribute would be inert anyway.
     if (next.level > cur.level) triggerExpandingAnimRef.current();
     writeRungs([[rootId, next]]);
     const children = visualChildren.get(rootId) ?? [];
@@ -287,6 +340,11 @@ export const AtlasReader = memo(function AtlasReader({
       // was clicked) so focus lands on the collapsed row instead of
       // disappearing.
       const subtreeIds = visualSubtreeIds(data.flatNodes, rootId);
+      // Only the rows actually on screen right now are leaving — the rest of
+      // the subtree was already hidden at some deeper rung and has nothing to
+      // animate. Read BEFORE writeRungs, while hiddenNodeIds still describes
+      // what the user can see.
+      markExiting(subtreeIds.filter((sid) => !hiddenNodeIdsRef.current.has(sid)));
       const sel = selectedIdRef.current;
       if (sel && sel !== rootId && subtreeIds.includes(sel)) {
         selfCollapsedRef.current = rootId;
@@ -295,17 +353,22 @@ export const AtlasReader = memo(function AtlasReader({
       return;
     }
     if (next.level === 1) {
-      setBodiesExpanded(children, false);
+      // Closing the root's OWN body belongs only to the 2 → 1 swing, which
+      // undoes the level-2 open. Doing it on 0 → 1 as well would slam shut the
+      // body of the doc you are reading the moment you ask to see its children.
+      setBodiesExpanded(cur.level === 2 ? [rootId, ...children] : children, false);
       // Only the 0 → 1 swing also asks the sidebar to reveal the children —
       // level 2 already does this on its own outward swing, and would
       // otherwise be the only rung that ever syncs the sidebar.
       if (cur.level === 0) revealStore.reveal(children);
       return;
     }
-    // next.level === 2
-    setBodiesExpanded(children, true);
+    // next.level === 2: the clicked doc's own body opens alongside its
+    // children's — "show the bodies" means this doc too, not just what is
+    // under it.
+    setBodiesExpanded([rootId, ...children], true);
     revealStore.reveal(children);
-  }, [data, writeRungs, visualChildren, setBodiesExpanded, navigate]);
+  }, [data, writeRungs, visualChildren, setBodiesExpanded, navigate, markExiting]);
 
   // The "N hidden" tab reveals every row beneath the node, left collapsed
   // (bodies closed): every member of the visual span that itself has visual
@@ -453,8 +516,12 @@ export const AtlasReader = memo(function AtlasReader({
 
     // filterSet is null here (the flat filtered view returned above). Row
     // visibility comes from one source — hiddenNodeIds, computed above from
-    // the rung map.
-    const visible = data.flatNodes.filter((entry) => !hiddenNodeIds.has(entry.node.id));
+    // the rung map — plus the rows on their way out, which keep rendering
+    // (marked, inert, fading) for EXIT_MS so a collapse dissolves instead of
+    // blinking. They are gone from the DOM for real once the timer clears.
+    const visible = data.flatNodes.filter(
+      (entry) => !hiddenNodeIds.has(entry.node.id) || exitingIds.has(entry.node.id),
+    );
     // Cradle: the selected node's visible descendants are the contiguous run
     // of deeper entries right after it (flatNodes is DFS document order).
     // They get a left rail in the selected node's color, closed under the
@@ -490,6 +557,7 @@ export const AtlasReader = memo(function AtlasReader({
           isSelected={entry.node.id === selectedId}
           isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
           hasChildren={visualChildren.has(entry.node.id)}
+          isExiting={exitingIds.has(entry.node.id)}
           rungLevel={r.level}
           rungDir={r.dir}
           gatedCount={gatedCount}
@@ -518,7 +586,7 @@ export const AtlasReader = memo(function AtlasReader({
       ];
     }
     return items;
-  }, [data, selectedId, expandedSet, userToggles, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, rung, visualSpanCount, visualChildren, hiddenNodeIds, handleExpandParent]);
+  }, [data, selectedId, expandedSet, userToggles, filterSet, changedSet, selectionSet, filteredParentIds, agentByDoc, rung, visualSpanCount, visualChildren, hiddenNodeIds, handleExpandParent, exitingIds]);
 
   // Stable actions-context value: rebuilding it every render forced every
   // memo'd CollapsibleNode to re-render on any parent render (e.g. a selection

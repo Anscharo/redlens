@@ -137,7 +137,13 @@ describe("CollapsibleNode pendulum toggle", () => {
     const { container, pendulum } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 1, rungDir: 1 });
     fireEvent.click(container.querySelector(".atlas-node-expand-all")!);
     expect(pendulum).toHaveBeenCalledTimes(1);
-    expect(pendulum).toHaveBeenCalledWith(baseNode.id);
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id, { reverse: false });
+  });
+
+  it("alt-clicking the » button asks for the reversed swing", () => {
+    const { container, pendulum } = setup({ hasChildren: true, withExpandAll: true, rungLevel: 1, rungDir: 1 });
+    fireEvent.click(container.querySelector(".atlas-node-expand-all")!, { altKey: true });
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id, { reverse: true });
   });
 
   it.each([
@@ -192,7 +198,7 @@ describe("CollapsibleNode pendulum toggle", () => {
     // The chevron animation (spin + pulse) ran, and the heavy state commit still
     // landed once the two deferred frames resolved.
     expect(animate).toHaveBeenCalled();
-    expect(pendulum).toHaveBeenCalledWith(baseNode.id);
+    expect(pendulum).toHaveBeenCalledWith(baseNode.id, { reverse: false });
 
     rafSpy.mockRestore();
     delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate;
@@ -263,4 +269,23 @@ describe("CollapsibleNode NR-X doc numbers", () => {
     expect(chiclets.length).toBe(5);
     expect(Array.from(chiclets).map((c) => c.textContent).join("")).toBe("NR-42");
   });
+});
+
+describe("CollapsibleNode alt hover preview", () => {
+  // Both custom properties are always emitted; index.css picks between them on
+  // <html data-alt>, so the hover itself stays pure CSS.
+  it.each([
+    [0, 1, "-45deg", "0deg"],
+    [1, 1, "45deg", "-45deg"],
+    [1, -1, "-45deg", "45deg"],
+    [2, 1, "45deg", "0deg"],
+  ] as const)(
+    "rung {level: %d, dir: %d} emits --hover-deg %s and --hover-deg-alt %s",
+    (rungLevel, rungDir, plain, alt) => {
+      const { container } = setup({ hasChildren: true, withExpandAll: true, rungLevel, rungDir });
+      const btn = container.querySelector(".atlas-node-expand-all") as HTMLElement;
+      expect(btn.style.getPropertyValue("--hover-deg")).toBe(plain);
+      expect(btn.style.getPropertyValue("--hover-deg-alt")).toBe(alt);
+    },
+  );
 });

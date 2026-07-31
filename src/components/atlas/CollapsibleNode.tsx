@@ -14,9 +14,11 @@ import { track } from "../../lib/analytics";
 import { settleChevron } from "../../lib/chevronSettle";
 import {
   nextRung,
+  reverseRung,
   rungAngle,
   rungClass,
   rungHoverAngle,
+  rungReverseHoverAngle,
   type RungDir,
   type RungLevel,
 } from "./subtreeState";
@@ -54,6 +56,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hasChildren = false,
+  isExiting = false,
   rungLevel = 0,
   rungDir = 1,
   gatedCount = 0,
@@ -68,6 +71,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected: boolean;
   isExpanded: boolean;
   hasChildren?: boolean;
+  /** Row is on its way out: still mounted so it can fade, but inert. It is
+   *  unmounted for real once the reader's exit timer clears. */
+  isExiting?: boolean;
   /** Primitives, never an object — passing an object here would break the
    *  memo above on every render. dir never changes without level also
    *  changing, so this adds zero extra re-renders in practice. */
@@ -122,6 +128,16 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         : rungDir === 1
           ? "expand child bodies"
           : "hide children";
+  // Alt is the only way to reach the opposite swing, so the tooltip has to
+  // say so — the affordance is otherwise invisible.
+  const reverseVerb =
+    rungLevel === 0
+      ? "show children with bodies"
+      : rungLevel === 2
+        ? "hide children"
+        : rungDir === 1
+          ? "hide children"
+          : "expand child bodies";
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
   const doToggle = () => {
     track("reader_node_toggle", { node_id: node.id, action: isExpanded ? "collapse" : "expand" });
@@ -140,12 +156,20 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   const pulseRef = useRef<Animation | null>(null);
   const settleRef = useRef<(() => void) | null>(null);
   useEffect(() => () => settleRef.current?.(), []);
-  const doPendulum = () => {
-    track("reader_expand_all", { node_id: node.id, action: nextLevel });
+  const doPendulum = (event?: React.MouseEvent) => {
+    // Alt reverses the swing: from the middle it goes back the way it came,
+    // from either end it crosses straight to the far end. The target level has
+    // to be resolved HERE too, not just in the reader, so the chevron animates
+    // to the angle it will actually land on. (Alt, not shift — shift on a row
+    // is already split-pane navigation.)
+    const reverse = !!event?.altKey;
+    const cur = { level: rungLevel, dir: rungDir };
+    const targetLevel = reverse ? reverseRung(cur).level : nextLevel;
+    track("reader_expand_all", { node_id: node.id, action: targetLevel, reverse });
     // The heavy state update (a rung write across a node's immediate
     // children, plus body-forcing), deferred below so the chevron feedback
     // paints first.
-    const commit = () => pendulum?.(node.id);
+    const commit = () => pendulum?.(node.id, { reverse });
     const btn = expandAllRef.current;
     // Sample the live angle BEFORE settling: settleChevron switches the hover
     // rule off, which starts a transition back toward the resting angle, and
@@ -161,12 +185,12 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       // Carry on from wherever the hover drift had reached — the rotation never
       // stops or reverses on click, it just suddenly gets fast.
       const from = fromAngle;
-      const to = rungAngle(nextLevel);
+      const to = rungAngle(targetLevel);
       spinRef.current?.cancel();
       // rotate (transform) held via fill:forwards until CSS .is-open/.is-hidden catches up
       const spin = btn.animate(
         [{ transform: `rotate(${from}deg)` }, { transform: `rotate(${to}deg)` }],
-        { duration: 200, easing: "ease-out", fill: "forwards" },
+        { duration: 240, easing: "ease-out", fill: "forwards" },
       );
       spinRef.current = spin;
       // Release the fill:forwards hold only once the spin has actually FINISHED.
@@ -239,6 +263,8 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
+      data-exiting={isExiting ? "true" : undefined}
+      aria-hidden={isExiting ? true : undefined}
       style={
         {
           ["--row-color" as string]: color,
@@ -304,10 +330,11 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             style={
               {
                 ["--hover-deg" as string]: `${rungHoverAngle({ level: rungLevel, dir: rungDir })}deg`,
+                ["--hover-deg-alt" as string]: `${rungReverseHoverAngle({ level: rungLevel, dir: rungDir })}deg`,
               } as React.CSSProperties
             }
             aria-label={`${pendulumVerb[0].toUpperCase()}${pendulumVerb.slice(1)} under ${node.doc_no}`}
-            title={pendulumVerb}
+            title={`${pendulumVerb} (alt-click: ${reverseVerb})`}
             onClick={doPendulum}
           >
             »

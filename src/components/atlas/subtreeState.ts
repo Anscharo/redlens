@@ -21,6 +21,22 @@ export function nextRung(cur: Rung): Rung {
   return cur.dir === 1 ? { level: 2, dir: 1 } : { level: 0, dir: 1 };
 }
 
+// Alt-click: go the OTHER way. From the middle that means the rung a plain
+// click would not have gone to; from either end there is no "other step", so it
+// swings clear across to the far end instead of stalling.
+//   0 → 2: skip titles-only, straight to bodies.
+//   1 → 0 when a plain click would have gone to 2, and 1 → 2 when it would have
+//        gone to 0 — the reversal the user reaches for after over-swinging.
+//   2 → 0: hide the whole branch in one click.
+// `dir` is only consulted at level 1 (see nextRung) and every result here is 0
+// or 2, so the returned direction is inert — kept at +1 to match DEFAULT_RUNG.
+export function reverseRung(cur: Rung): Rung {
+  if (cur.level === 0) return { level: 2, dir: 1 };
+  if (cur.level === 2) return { level: 0, dir: 1 };
+  // level === 1 — the mirror of nextRung's branch.
+  return cur.dir === 1 ? { level: 0, dir: 1 } : { level: 2, dir: 1 };
+}
+
 export function rungClass(level: RungLevel): string {
   if (level === 2) return "is-open";
   if (level === 0) return "is-hidden";
@@ -37,4 +53,12 @@ export function rungAngle(level: RungLevel): number {
  *  it leans 45° toward wherever the next click will actually land. */
 export function rungHoverAngle(cur: Rung): number {
   return (rungAngle(cur.level) + rungAngle(nextRung(cur).level)) / 2;
+}
+
+/** Same idea for the alt-click swing: while Alt is held the chevron must lean
+ *  toward where THAT click lands, not the plain one — otherwise the preview
+ *  lies. Always a different angle from rungHoverAngle, since reverseRung never
+ *  agrees with nextRung. */
+export function rungReverseHoverAngle(cur: Rung): number {
+  return (rungAngle(cur.level) + rungAngle(reverseRung(cur).level)) / 2;
 }

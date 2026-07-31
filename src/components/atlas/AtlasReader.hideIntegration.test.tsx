@@ -10,7 +10,7 @@
 // no rAF/animation stubbing needed here (contrast CollapsibleNode.test.tsx's
 // WAAPI-scaffolding test, which stubs animate deliberately).
 
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { AtlasReader } from "./AtlasReader";
@@ -18,6 +18,22 @@ import { AtlasActionsContext } from "./AtlasActionsContext";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
 import { flattenTree } from "../../lib/atlasHelpers";
 import type { FlatEntry } from "../../lib/atlasHelpers";
+
+// The exit fade keeps collapsing rows mounted for EXIT_MS. These suites assert
+// collapse SEMANTICS (which rows end up hidden), not the transient, so report
+// reduced motion by default — markExiting skips entirely then, and the DOM
+// settles synchronously. The fade has its own dedicated test, which opts in.
+beforeAll(() => {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }),
+  });
+});
 
 vi.mock("../../lib/previewFilter", () => ({
   usePreviewChangedSet: () => null,

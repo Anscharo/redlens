@@ -151,6 +151,9 @@ export function TreeRow({
   return (
     <div
       data-node-id={node.id}
+      // Full, untruncated title for the hover hint's `content: attr(data-hint)`
+      // (index.css) — the visible span shows displayTitle, which is clipped.
+      data-hint={node.title}
       role="treeitem"
       aria-selected={isSelected}
       aria-level={treeDepth}
@@ -208,12 +211,10 @@ export function TreeRow({
           />
         </>
       )}
-      <span
-        style={{ ...TITLE_BASE, color: titleColor }}
-        title={node.doc_no + " \u2014 " + node.title}
-      >
-        {displayTitle}
-      </span>
+      {/* No native title= here: the row's own ::after hint (index.css) carries
+          the full untruncated title, so a browser tooltip would be a second,
+          slower, differently-worded copy of it. */}
+      <span style={{ ...TITLE_BASE, color: titleColor }}>{displayTitle}</span>
     </div>
   );
 }

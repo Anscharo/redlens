@@ -36,7 +36,9 @@
 ## 2026-07-31
 - Reader documents now start collapsed and open one level at a time
 - Moved the sidebar chevron next to the document title and made it larger
-- Shift-click a sidebar chevron to unfold three levels at once
+- Shift-click a sidebar chevron to unfold three levels at once, or to fold a whole open branch back in
+- Hovering a sidebar row now names the document it opens, and holding shift shows which rows a click would open in the split view
+- Drag the top edge of the split view to resize it, and it now shrinks to fit documents with no sections beneath them
 
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it

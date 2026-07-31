@@ -88,14 +88,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         }
         pid = parentOf.get(pid) ?? null;
       }
-      // Also expand the selected node itself so its direct children show — this
-      // is what the reader does on selection, and it's what makes the cradle
-      // appear in the sidebar (a rail around the now-visible children), mirroring
-      // the middle pane.
-      if (bundle.byParent.has(nodeId) && !next.has(nodeId)) {
-        next.add(nodeId);
-        changed = true;
-      }
+      // Deliberately NOT expanding the selected node itself. Ancestors have to
+      // open or the row could not be shown at all, but unfolding the node's own
+      // children turns "open this doc" into "open this doc and rearrange the
+      // tree under it". Selecting picks a doc; only the chevron changes shape.
       return changed ? next : prev;
     });
   }, [bundle, nodeId, parentOf]);
@@ -320,54 +316,64 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     [cascade, rollup],
   );
 
-  // Shift-click on a chevron: unfold the next 4 levels of the real tree,
-  // regardless of rollup membership.
+  // Shift-click on a collapsed chevron: unfold the next few levels of the real
+  // tree, regardless of rollup membership. The cap is the third argument below.
   const cascadeLevels = useCallback(
     (id: string) => cascade(id, (cid) => !!bundle?.byParent.has(cid), 3),
     [cascade, bundle],
   );
 
+  // Shift-click on an already-open chevron: the mirror image — collapse the row
+  // and every descendant under it in one step, so the branch you unfolded with
+  // one gesture folds back with the same one. Instant rather than staggered:
+  // there is nothing to read on the way down, and a staggered collapse would
+  // just make the row you are aiming at move.
+  const collapseSubtree = useCallback(
+    (id: string) => {
+      if (revealTimer.current) clearTimeout(revealTimer.current);
+      revealTimer.current = null;
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        const stack = [id];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          next.delete(cur);
+          for (const k of bundle?.byParent.get(cur) ?? []) stack.push(k.id);
+        }
+        return next;
+      });
+    },
+    [bundle],
+  );
+
   const toggleExpand = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      const wasExpanded = expandedIds.has(id);
       track("reader_sidebar_toggle", {
         node_id: id,
-        // shift-click only ever unfolds, so it's "expand" even on an already-
-        // expanded row; alt-click and plain click both toggle.
-        action: !e.shiftKey && expandedIds.has(id) ? "collapse" : "expand",
-        all: e.altKey,
+        action: wasExpanded ? "collapse" : "expand",
+        // Shift is the bulk gesture in both directions: cascade open from
+        // closed, collapse the whole subtree from open.
         cascade: e.shiftKey,
       });
-      // Shift-click: staggered 4-level cascade (skipped in selected-only view —
-      // its rows are filtered to selected docs only, so following the full tree
-      // would expand nodes that render nothing there and surprise the user once
-      // they leave selected-only). Falls through to a plain one-level toggle.
+      // Skipped in selected-only view — its rows are filtered to selected docs
+      // only, so following the full tree would touch nodes that render nothing
+      // there and surprise the user once they leave selected-only. Falls
+      // through to a plain one-level toggle.
       if (e.shiftKey && !selectionSet) {
-        cascadeLevels(id);
+        if (wasExpanded) collapseSubtree(id);
+        else cascadeLevels(id);
         return;
       }
       setExpandedIds((prev) => {
         const next = new Set(prev);
-        // alt-click: expand/collapse the entire subtree (Finder convention)
-        if (e.altKey && bundle) {
-          const expand = !prev.has(id);
-          const stack = [id];
-          while (stack.length) {
-            const cur = stack.pop()!;
-            const kids = bundle.byParent.get(cur);
-            if (!kids?.length) continue;
-            if (expand) next.add(cur);
-            else next.delete(cur);
-            for (const k of kids) stack.push(k.id);
-          }
-          return next;
-        }
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
       });
     },
-    [bundle, expandedIds, selectionSet, cascadeLevels],
+    [expandedIds, selectionSet, cascadeLevels, collapseSubtree],
   );
 
   const handleKeyDown = useTreeKeyboard({

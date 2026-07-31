@@ -69,6 +69,24 @@ describe("TreeRow ARIA semantics", () => {
     expect(row).not.toHaveAttribute("aria-expanded");
   });
 
+  // The hover hint is CSS (`content: "Open " attr(data-hint)` in index.css), so
+  // the attribute is the only testable seam. It must hold the FULL title — the
+  // visible span is truncated to fit the sidebar, which is the whole reason the
+  // hint exists.
+  it("carries the full untruncated title in data-hint, with no competing native title=", () => {
+    const long = "A Very Long Document Title That The Sidebar Would Otherwise Clip";
+    const visibleNodes: VisibleNode[] = [
+      { node: node({ title: long }), hasChildren: false, treeDepth: 1 },
+    ];
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />);
+
+    const row = screen.getByRole("treeitem");
+    expect(row).toHaveAttribute("data-hint", long);
+    // A native tooltip here would be a second, slower, differently-worded copy
+    // of the same hint — the two-tooltips bug this replaced.
+    expect(row.querySelector("[title]")).toBeNull();
+  });
+
   it("sets aria-expanded on rows that have children, and renders a real <button> toggle", () => {
     const visibleNodes: VisibleNode[] = [{ node: node({ id: "n2" }), hasChildren: true, treeDepth: 1 }];
     const data = {

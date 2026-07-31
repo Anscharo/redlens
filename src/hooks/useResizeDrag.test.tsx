@@ -8,10 +8,11 @@ afterEach(() => {
   localStorage.clear();
 });
 
-function fakeMouseDown(clientX: number): React.MouseEvent {
+function fakeMouseDown(clientX: number, clientY = 0): React.MouseEvent {
   return {
     preventDefault: vi.fn(),
     clientX,
+    clientY,
   } as unknown as React.MouseEvent;
 }
 
@@ -52,6 +53,45 @@ describe("useResizeDrag", () => {
     });
     // growsLeft: delta = startX - clientX = 50-80 = -30 → 200-30=170
     expect(setWidth).toHaveBeenCalledWith(170);
+  });
+
+  // The comparison pane resizes vertically: it sits at the bottom of the reader
+  // column, so its handle reads clientY and dragging UP has to grow it.
+  it("axis: y reads clientY, shows row-resize, and grows upward with growsLeft", () => {
+    const setHeight = vi.fn();
+    const { result } = renderHook(() =>
+      useResizeDrag(300, setHeight, { min: 120, max: 600, axis: "y", growsLeft: true }),
+    );
+    act(() => result.current(fakeMouseDown(0, 500)));
+    expect(document.body.style.cursor).toBe("row-resize");
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientY: 440 }));
+    });
+    // Dragged up 60px → the bottom-anchored pane grows: 300 + (500-440) = 360.
+    expect(setHeight).toHaveBeenCalledWith(360);
+    // And back down past the floor clamps at min, rather than inverting.
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientY: 900 }));
+    });
+    expect(setHeight).toHaveBeenLastCalledWith(120);
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+  });
+
+  it("axis: y ignores horizontal movement", () => {
+    const setHeight = vi.fn();
+    const { result } = renderHook(() =>
+      useResizeDrag(300, setHeight, { min: 120, max: 600, axis: "y" }),
+    );
+    act(() => result.current(fakeMouseDown(0, 500)));
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 999, clientY: 500 }));
+    });
+    expect(setHeight).toHaveBeenCalledWith(300); // unchanged
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
   });
 
   it("sets and restores cursor/userSelect styles across the drag", () => {
