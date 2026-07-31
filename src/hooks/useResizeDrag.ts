@@ -47,7 +47,11 @@ export function useResizeDrag(
         window.removeEventListener("mouseup", onUp);
         document.body.style.cursor = prevCursor;
         document.body.style.userSelect = prevSelect;
-        if (storageKey) {
+        // Only a real drag persists. `startWidth` can be a display cap rather
+        // than the caller's stored preference (see useSplitHeight's childless
+        // shrink-to-fit) — writing it back on a no-op press-release would
+        // silently overwrite that preference with the cap.
+        if (storageKey && latest !== startWidth) {
           try {
             localStorage.setItem(storageKey, String(latest));
           } catch {}

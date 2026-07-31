@@ -269,8 +269,12 @@ export const AtlasReader = memo(function AtlasReader({
   // exact set leaving, and a diff computed after the fact would have to unmount
   // the rows first and re-add them, which replays their ENTRANCE animation.
   const [exitingIds, setExitingIds] = useState<ReadonlySet<string>>(ATLAS_EMPTY_SET);
-  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (exitTimerRef.current) clearTimeout(exitTimerRef.current); }, []);
+  // One timer PER collapse batch, not a single shared slot: collapsing branch B
+  // while branch A's rows are still fading must not cancel A's timer or drop
+  // A's ids out of exitingIds — each batch owns its own timeout and only ever
+  // removes its own ids, so overlapping collapses each get to finish their fade.
+  const exitTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => () => { for (const t of exitTimersRef.current) clearTimeout(t); }, []);
   // hiddenNodeIds through a ref: markExiting runs inside a click handler and
   // must not become a dependency of handlePendulum (which feeds the shared
   // actions object — see the stability note above).
@@ -281,7 +285,6 @@ export const AtlasReader = memo(function AtlasReader({
     // an instant fade would still hold the rows' layout space for EXIT_MS,
     // reading as a stall before the list closes up.
     if (!ids.length || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
     // Pin each row's current height for the exit keyframes to collapse FROM.
     // Measured here because the rows are still laid out at this point — the rung
     // write below is what removes them — and because `height: auto` gives the
@@ -290,11 +293,20 @@ export const AtlasReader = memo(function AtlasReader({
       const el = document.getElementById(nid);
       if (el) el.style.setProperty("--exit-h", `${el.offsetHeight}px`);
     }
-    setExitingIds(new Set(ids));
-    exitTimerRef.current = setTimeout(() => {
-      setExitingIds(ATLAS_EMPTY_SET);
-      exitTimerRef.current = null;
+    setExitingIds((prev) => {
+      const next = new Set(prev);
+      for (const nid of ids) next.add(nid);
+      return next;
+    });
+    const timer = setTimeout(() => {
+      setExitingIds((prev) => {
+        const next = new Set(prev);
+        for (const nid of ids) next.delete(nid);
+        return next;
+      });
+      exitTimersRef.current.delete(timer);
     }, EXIT_MS);
+    exitTimersRef.current.add(timer);
   }, []);
 
   // The window MUST outlast the longest entrance in index.css (currently the
@@ -425,13 +437,15 @@ export const AtlasReader = memo(function AtlasReader({
       // reads as intentional rather than as true neighbors.
       // The flat filtered list (selected-only / changed-only) is built purely
       // from filterSet — rung state is a hierarchy-view concept that must NOT
-      // apply here, or a matching doc that happens to sit under a collapsed
-      // ancestor would silently vanish from the subset (e.g. changed docs
-      // omitted so a review looks complete when it isn't). See
-      // AtlasReader.test.tsx "filtered view ignores collapse state". rungLevel
-      // is fixed at 1 (chevron shown "open", never "hidden") and gatedCount is
-      // fixed at 0 — a real "N hidden" tab here would mutate rung state with
-      // no visible effect in this view.
+      // gate VISIBILITY here, or a matching doc that happens to sit under a
+      // collapsed ancestor would silently vanish from the subset (e.g. changed
+      // docs omitted so a review looks complete when it isn't). See
+      // AtlasReader.test.tsx "filtered view ignores collapse state". gatedCount
+      // is fixed at 0 — a real "N hidden" tab here would mutate rung state with
+      // no visible effect in this view. rungLevel/rungDir, unlike visibility,
+      // DO read the real rung map below: the pendulum still writes it from this
+      // view (handlePendulum doesn't know about filterSet), so the chevron's
+      // displayed angle/label must track what a click actually does.
       const kept: { entry: (typeof data.flatNodes)[number]; i: number; gap: boolean }[] = [];
       let prev = -1;
       data.flatNodes.forEach((entry, i) => {
@@ -481,6 +495,13 @@ export const AtlasReader = memo(function AtlasReader({
         }
         const inCradle = cradleFrom >= 0 && i >= cradleFrom && i <= cradleTo;
         const cradle = inCradle ? (k === lastCradleKept ? ("foot" as const) : ("line" as const)) : undefined;
+        // The pendulum control still writes the SAME shared rung map in this
+        // view (handlePendulum doesn't know about filterSet) — only gatedCount
+        // is truly inert here (the "N hidden" tab has nothing to reveal in a
+        // flat list). Reading the real rung, rather than hardcoding level 1,
+        // keeps the chevron's displayed state (icon angle/label) in sync with
+        // what a click actually does — see Codex review on this line.
+        const r = rung.get(entry.node.id) ?? DEFAULT_RUNG;
         block.push(
           <CollapsibleNode
             key={entry.node.id}
@@ -488,7 +509,8 @@ export const AtlasReader = memo(function AtlasReader({
             isSelected={entry.node.id === selectedId}
             isExpanded={expandedSet.has(entry.node.id) !== userToggles.has(entry.node.id)}
             hasChildren={filteredParentIds.has(entry.node.id)}
-            rungLevel={1}
+            rungLevel={r.level}
+            rungDir={r.dir}
             gatedCount={0}
             cradle={cradle}
             cradleColor={cradle ? cradleColor : undefined}

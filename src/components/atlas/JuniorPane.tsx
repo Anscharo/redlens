@@ -166,7 +166,9 @@ export function JuniorPane({
       }}
     >
       {/* Drag the top edge to resize, like the sidebars' vertical handles.
-          Inside the pane (not at top: -3) because overflow: hidden clips it. */}
+          Inside the pane (not at top: -3) because overflow: hidden clips it.
+          TODO: mouse-only — not focusable, no role/keyboard resizing. Follow-up
+          PR: make this an accessible separator with arrow-key resize. */}
       <div
         onMouseDown={startResize}
         title="Drag to resize"

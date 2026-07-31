@@ -1,11 +1,12 @@
+// @vitest-environment jsdom
 // glide() must cancel a prior in-flight glide on the same scroller instead of
 // letting two rAF loops fight over scrollTop (deep review finding: no
 // cancellation token). Driven with a fake scroller + mocked
 // requestAnimationFrame/performance.now — jsdom's real scrollTop/layout can't
 // observe the race directly.
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { glide, needsScroll } from "./animatedScroll";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { glide, needsScroll, scrollIfOutOfView } from "./animatedScroll";
 
 type FakeScroller = { scrollTop: number };
 
@@ -119,5 +120,127 @@ describe("needsScroll", () => {
 
   it("ignores a zero-height body", () => {
     expect(needsScroll({ ...band, ...title(100), bodyTop: 140, bodyBottom: 140 })).toBe(false);
+  });
+});
+
+// scrollIfOutOfView glues needsScroll's geometry to the real DOM (closest,
+// getComputedStyle, matchMedia, scrollIntoView/glide) — the part needsScroll's
+// own pure-function tests above deliberately don't reach.
+describe("scrollIfOutOfView", () => {
+  const realMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = realMatchMedia;
+    document.body.innerHTML = "";
+  });
+
+  function mockMatchMedia(reducedMotion: boolean) {
+    window.matchMedia = ((query: string) => ({
+      matches: reducedMotion,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+      addListener() {},
+      removeListener() {},
+      onchange: null,
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  }
+
+  function setRect(el: Element, r: Partial<DOMRect>) {
+    el.getBoundingClientRect = () =>
+      ({ x: 0, y: 0, width: 0, height: 0, left: 0, right: 0, top: 0, bottom: 0, toJSON() {}, ...r }) as DOMRect;
+  }
+
+  /** A row (article + its [data-row-bar] title), optionally inside a .atlas-scroll ancestor. */
+  function buildRow(opts: { inScroller: boolean }) {
+    const scroller = document.createElement("div");
+    scroller.className = "atlas-scroll";
+    const el = document.createElement("article");
+    const bar = document.createElement("div");
+    bar.setAttribute("data-row-bar", "");
+    el.appendChild(bar);
+    el.style.scrollMarginTop = "64px";
+    if (opts.inScroller) {
+      scroller.appendChild(el);
+      document.body.appendChild(scroller);
+    } else {
+      document.body.appendChild(el);
+    }
+    return { scroller, el, bar };
+  }
+
+  it("does nothing when the row's title is already fully in view", () => {
+    mockMatchMedia(false);
+    const { scroller, el, bar } = buildRow({ inScroller: true });
+    setRect(scroller, { top: 0, bottom: 600 });
+    setRect(el, { top: 100 });
+    setRect(bar, { top: 100, bottom: 140 });
+    scroller.scrollTop = 5;
+
+    scrollIfOutOfView(el);
+
+    expect(scroller.scrollTop).toBe(5);
+  });
+
+  it("falls back to instant scrollIntoView when there is no .atlas-scroll ancestor", () => {
+    mockMatchMedia(false);
+    const { el, bar } = buildRow({ inScroller: false });
+    setRect(el, { top: -300 });
+    setRect(bar, { top: -300, bottom: -260 }); // above the band -> out of view
+    const scrollIntoViewMock = vi.fn();
+    el.scrollIntoView = scrollIntoViewMock;
+
+    scrollIfOutOfView(el);
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
+  });
+
+  it("falls back to instant scrollIntoView under reduced motion, even with a scroller", () => {
+    mockMatchMedia(true);
+    const { scroller, el, bar } = buildRow({ inScroller: true });
+    setRect(scroller, { top: 0, bottom: 600 });
+    setRect(el, { top: -300 });
+    setRect(bar, { top: -300, bottom: -260 });
+    const scrollIntoViewMock = vi.fn();
+    el.scrollIntoView = scrollIntoViewMock;
+
+    scrollIfOutOfView(el);
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "instant", block: "start" });
+  });
+
+  it("glides the scroller to the computed target when the row is out of view", () => {
+    mockMatchMedia(false);
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const realRAF = globalThis.requestAnimationFrame;
+    const realNow = performance.now;
+    let now = 0;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      rafCallbacks.push(cb);
+      return rafCallbacks.length;
+    }) as typeof requestAnimationFrame;
+    performance.now = () => now;
+
+    try {
+      const { scroller, el, bar } = buildRow({ inScroller: true });
+      setRect(scroller, { top: 0, bottom: 600 });
+      setRect(el, { top: -300 });
+      setRect(bar, { top: -300, bottom: -260 });
+      Object.defineProperty(scroller, "scrollHeight", { value: 2000, configurable: true });
+      Object.defineProperty(scroller, "clientHeight", { value: 600, configurable: true });
+      scroller.scrollTop = 400;
+
+      scrollIfOutOfView(el);
+      now = 220; // >= GLIDE_MS: the glide's single queued frame lands on target
+      for (const cb of rafCallbacks.splice(0)) cb(now);
+
+      // target = clamp(el.top - scroller.top + scroller.scrollTop - margin, 0, scrollHeight - clientHeight)
+      //        = clamp(-300 - 0 + 400 - 64, 0, 1400) = 36
+      expect(scroller.scrollTop).toBe(36);
+    } finally {
+      globalThis.requestAnimationFrame = realRAF;
+      performance.now = realNow;
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildAncestorsWithSelf } from "./atlasHelpers";
+import { buildAncestorsWithSelf, collectSubtree } from "./atlasHelpers";
 import type { AtlasNode } from "../types";
 
 function node(id: string, doc_no: string, title = id): AtlasNode {
@@ -49,5 +49,23 @@ describe("buildAncestorsWithSelf", () => {
     const docNoToId = new Map<string, string>();
     const chain = buildAncestorsWithSelf(docs, docNoToId, "missing");
     expect(chain).toEqual([]);
+  });
+});
+
+describe("collectSubtree", () => {
+  it("returns just the root id when it has no children", () => {
+    const byParent = new Map<string, AtlasNode[]>();
+    expect(collectSubtree(byParent, "root")).toEqual(["root"]);
+  });
+
+  it("walks every descendant breadth-first, root first", () => {
+    const a1 = node("a1", "A.1");
+    const a2 = node("a2", "A.2");
+    const a11 = node("a11", "A.1.1");
+    const byParent = new Map<string, AtlasNode[]>([
+      ["root", [a1, a2]],
+      ["a1", [a11]],
+    ]);
+    expect(collectSubtree(byParent, "root")).toEqual(["root", "a1", "a2", "a11"]);
   });
 });

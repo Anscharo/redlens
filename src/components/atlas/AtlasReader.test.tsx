@@ -445,6 +445,24 @@ describe("AtlasReader filtered view ignores collapse state", () => {
     fireEvent.click(screen.getByText(`pendulum-${p.id}`));
     expect(screen.getByTestId(`node-${d.id}`)).toBeInTheDocument();
   });
+
+  // Regression: the filtered branch used to hardcode rungLevel={1} for every
+  // row's chevron display, even though handlePendulum (fed the SAME shared rung
+  // map) actually advances it — so after one click the chevron looked stuck at
+  // "titles" while the underlying rung had already moved to "bodies open".
+  it("reflects the real rung level on the chevron after a pendulum click (selected-only)", () => {
+    const { atlas, flatNodes, midA, deepA } = makeTwoGatedBranches();
+    const data = makeLoadedData({ atlas, flatNodes, complete: true });
+    useSelectionSetMock.mockReturnValue(new Set([midA.id, deepA.id]));
+    renderReader({ id: "root", selectedId: null, data });
+    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "0");
+
+    // 0 -> 1 -> 2: each click's real rung write should show up on the row.
+    fireEvent.click(screen.getByText(`pendulum-${midA.id}`));
+    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "1");
+    fireEvent.click(screen.getByText(`pendulum-${midA.id}`));
+    expect(screen.getByTestId(`node-${midA.id}`)).toHaveAttribute("data-rung-level", "2");
+  });
 });
 
 describe("AtlasReader split pane", () => {
@@ -805,6 +823,61 @@ describe("AtlasReader pendulum mechanics (required regression coverage)", () => 
       for (const id of [a1.id, a2.id]) {
         expect(screen.queryByTestId(`node-${id}`)).toBeNull();
       }
+    } finally {
+      vi.useRealTimers();
+      (window as unknown as { matchMedia: unknown }).matchMedia = realMatchMedia;
+    }
+  });
+
+  // Regression: markExiting used to hold a single shared exitingIds/timer slot,
+  // so collapsing branch B while branch A was still fading would overwrite A's
+  // entry and cancel its timer — A's rows then vanished instantly instead of
+  // finishing their exit animation. Each collapse now owns its own timer and
+  // only ever removes its own ids from exitingIds.
+  it("finishes both exit fades when two branches collapse within EXIT_MS of each other", () => {
+    const realMatchMedia = window.matchMedia;
+    (window as unknown as { matchMedia: unknown }).matchMedia = () => ({ matches: false });
+    vi.useFakeTimers();
+    try {
+      const root = makeNode({ id: "root", doc_no: "A", parentId: null });
+      const a = makeNode({ id: "a", doc_no: "A.1", parentId: "root" });
+      const a1 = makeNode({ id: "a1", doc_no: "A.1.1", parentId: "a" });
+      const b = makeNode({ id: "b", doc_no: "A.2", parentId: "root" });
+      const b1 = makeNode({ id: "b1", doc_no: "A.2.1", parentId: "b" });
+      const atlas = makeAtlasBundle([root, a, a1, b, b1]);
+      const flatNodes: FlatEntry[] = [
+        makeFlatEntry({ node: root, depth: 1 }),
+        makeFlatEntry({ node: a, depth: 2 }),
+        makeFlatEntry({ node: a1, depth: 3 }),
+        makeFlatEntry({ node: b, depth: 2 }),
+        makeFlatEntry({ node: b1, depth: 3 }),
+      ];
+      const data = makeLoadedData({ atlas, flatNodes, complete: true });
+      renderReader({ id: "root", data });
+
+      cycleTo(a.id, 1);
+      cycleTo(b.id, 1);
+      expect(screen.getByTestId(`node-${a1.id}`)).toBeInTheDocument();
+      expect(screen.getByTestId(`node-${b1.id}`)).toBeInTheDocument();
+
+      // Collapse a, then collapse b partway through a's exit window.
+      cycleTo(a.id, 0);
+      expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-exiting", "true");
+      act(() => vi.advanceTimersByTime(EXIT_MS / 2));
+      cycleTo(b.id, 0);
+
+      // a1 must still be mid-fade, not dropped by b's collapse.
+      expect(screen.getByTestId(`node-${a1.id}`)).toHaveAttribute("data-exiting", "true");
+      expect(screen.getByTestId(`node-${b1.id}`)).toHaveAttribute("data-exiting", "true");
+
+      // a's own timer fires first — only a1 leaves.
+      act(() => vi.advanceTimersByTime(EXIT_MS / 2 + 20));
+      expect(screen.queryByTestId(`node-${a1.id}`)).toBeNull();
+      expect(screen.getByTestId(`node-${b1.id}`)).toHaveAttribute("data-exiting", "true");
+
+      // b's timer then fires on its own schedule.
+      act(() => vi.advanceTimersByTime(EXIT_MS / 2 + 20));
+      expect(screen.queryByTestId(`node-${b1.id}`)).toBeNull();
     } finally {
       vi.useRealTimers();
       (window as unknown as { matchMedia: unknown }).matchMedia = realMatchMedia;

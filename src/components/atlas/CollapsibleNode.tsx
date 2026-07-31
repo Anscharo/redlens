@@ -265,6 +265,11 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
       data-exiting={isExiting ? "true" : undefined}
       aria-hidden={isExiting ? true : undefined}
+      // `pointer-events: none` (index.css) only blocks the mouse — inert also
+      // pulls the row and everything in it out of the tab order and off the
+      // accessibility tree while it fades, so focus/keyboard nav can't land on
+      // (or act through) a row already marked aria-hidden.
+      inert={isExiting || undefined}
       style={
         {
           ["--row-color" as string]: color,

@@ -124,6 +124,22 @@ describe("useResizeDrag", () => {
     expect(localStorage.getItem("panel-width")).toBe("240"); // 200 + (90-50)
   });
 
+  it("does not persist on a no-op press-release (no mousemove)", () => {
+    // Guards a real bug: useSplitHeight passes a display cap (not the user's
+    // stored preference) as the starting width for a childless doc. Without
+    // this guard, merely pressing and releasing the handle would overwrite the
+    // stored preference with that cap.
+    const setWidth = vi.fn();
+    const { result } = renderHook(() =>
+      useResizeDrag(200, setWidth, { min: 100, max: 400, storageKey: "panel-width" }),
+    );
+    act(() => result.current(fakeMouseDown(50)));
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mouseup"));
+    });
+    expect(localStorage.getItem("panel-width")).toBeNull();
+  });
+
   it("does not touch localStorage when no storageKey is given", () => {
     const setWidth = vi.fn();
     const { result } = renderHook(() => useResizeDrag(200, setWidth, { min: 100, max: 400 }));
@@ -159,11 +175,15 @@ describe("useResizeDrag", () => {
       useResizeDrag(200, setWidth, { min: 100, max: 400, storageKey: "panel-width" }),
     );
     act(() => result.current(fakeMouseDown(50)));
+    act(() => {
+      window.dispatchEvent(new MouseEvent("mousemove", { clientX: 90 }));
+    });
     expect(() => {
       act(() => {
         window.dispatchEvent(new MouseEvent("mouseup"));
       });
     }).not.toThrow();
+    expect(setItemSpy).toHaveBeenCalled();
     setItemSpy.mockRestore();
   });
 
