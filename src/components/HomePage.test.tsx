@@ -33,12 +33,11 @@ describe("HomePage", () => {
     expect(screen.getByRole("link", { name: /Connect \(MCP\)/ })).toHaveAttribute("href", "/connect");
   });
 
-  it("renders either the Reports card or the Preview card depending on the build flag", () => {
+  it("renders both the Preview and Reports cards", () => {
     render(<HomePage />, { wrapper: wrap() });
-    const reportsLink = screen.queryByRole("link", { name: /Reports/ });
-    const previewLink = screen.queryByRole("link", { name: /Preview/ });
-    // Exactly one of the two mutually exclusive fourth cards renders.
-    expect(Boolean(reportsLink) !== Boolean(previewLink)).toBe(true);
+    // Preview mounts its own shell, so its card is a plain anchor, not a wouter Link.
+    expect(screen.getByRole("link", { name: /Preview/ })).toHaveAttribute("href", "/preview");
+    expect(screen.getByRole("link", { name: /Reports/ })).toHaveAttribute("href", "/reports");
   });
 
   it("renders the CrossView card as an in-SPA link to the reports/crossview route", () => {
