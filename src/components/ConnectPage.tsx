@@ -87,7 +87,7 @@ export function ConnectPage() {
             <li key={e.ask} className="text-xs" style={{ color: "var(--tan-2)" }}>
               <span style={{ color: "var(--tan)" }}>“{e.ask}”</span>{" "}
               <span className="text-tan-3">
-                → {e.tools.map((t) => (
+                <span className="enlargen">→</span> {e.tools.map((t) => (
                   <span key={t} className="mono" style={{ color: "var(--accent)" }}>
                     {t}{" "}
                   </span>

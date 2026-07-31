@@ -367,6 +367,16 @@ mark {
   opacity: 1;
 }
 
+/* One glyph, 25% bigger than the text around it — used on the → arrows, which
+   read as too small next to mono chrome at their inherited size. `em` (NOT
+   `rem`: that was a flat 20px, ignoring context and dwarfing a 10px caption)
+   so it scales with whatever it sits in; `line-height: 1` keeps the taller
+   glyph from growing its line box and shifting the row it's on. */
+.enlargen {
+  font-size: 1.25em;
+  line-height: 1;
+}
+
 /* ─── View-children fill ─── */
 .view-children-fill {
   padding: 4px 2px;

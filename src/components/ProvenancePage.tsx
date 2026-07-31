@@ -1,102 +1,140 @@
+import { useEffect } from "react";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { HistoryProvenance } from "./provenance/HistoryProvenance";
 
-type Stage = {
-  label: string;
-  description: string;
-  powers: string[];
-};
+type Stage = { label: string; description: string; powers: string[] };
 
 const STAGES: Stage[] = [
   {
-    label: "parse",
+    label: "parse atlas",
     description:
-      "Reads Sky Atlas.md and extracts every heading into a structured node record with a UUID, doc number, type, depth, and full content. Also builds a full-text search index over the entire corpus.",
+      "Reads the atomized document.md files in the upstream next-gen-atlas repository and turns their headings, UUIDs, types, links, and content into structured records.",
     powers: [
-      "Full-text search (MiniSearch in a Web Worker)",
-      "Document viewing — every atlas node page, breadcrumbs, and UUID-to-UUID linking",
+      "Atlas reader and breadcrumbs",
+      "Full-content MiniSearch index",
+      "Definitions glossary",
+    ],
+  },
+  {
+    label: "derive relationships",
+    description:
+      "Applies documented, pattern-based extractors to Atlas text. It identifies entities, roles, instances, document relationships, and address annotations; these are our interpretations, not extra claims from the Atlas.",
+    powers: [
+      "Constellations graph",
+      "Cross-document reports",
+      "Graph-aware search and chat tools",
     ],
   },
   {
     label: "enrich addresses",
     description:
-      "Collects every on-chain address mentioned in the atlas, then enriches each one from the Sky chainlog and Etherscan. Results are cached so contributors don't need an API key.",
+      "Combines addresses and context found in the Atlas with Sky Chainlog labels and Etherscan verified-contract metadata. Atlas-derived and on-chain fields remain separate until they are merged for display.",
     powers: [
-      "Address cards in the annotations panel (entity labels, roles, aliases, explorer links)",
-      "In-content address linkification",
+      "Address labels, roles, aliases, and explorer links",
+      "Proxy and implementation metadata",
     ],
   },
   {
     label: "snapshot chain state",
     description:
-      "Reads view-function values for known contracts via a public RPC and pins the results to a specific block. No keys required — the snapshot is committed and reproducible.",
+      "Calls no-argument view functions through an Ethereum public RPC and records the exact block used. This is a point-in-time observation, not a live value or an Atlas statement.",
     powers: [
-      "Cached on-chain view-function values shown on address cards",
-      "Block pill in the footer — click through to the exact block on Etherscan",
+      "Cached contract values on address cards",
+      "A block-linked snapshot in the footer",
     ],
   },
   {
-    label: "atlas history",
+    label: "assemble history",
     description:
-      "Walks the upstream atlas commit history and matches each change to the affected nodes by heading overlap. GitHub PR metadata is also matched where available.",
+      "Builds native history from the upstream git log and GitHub pull-request metadata, then adds the separately identified reconstructed eras described below.",
     powers: [
-      "Per-document change timeline — toggle history on any atlas page",
-      "Upstream commit and PR links for every change entry",
+      "Per-document change timelines",
+      "Commit, pull request, and original-source links",
     ],
   },
   {
-    label: "build graph",
+    label: "publish & verify",
     description:
-      "Extracts typed relationships from the atlas text — document structure, agent roles, governance parties, instances, and on-chain addresses — and emits a graph used by the Constellations view and reports.",
+      "Produces versioned artifacts and checksums. The Atlas worker syncs documents, relationships, addresses, history, and optional embeddings to Postgres; the app rebuilds its in-memory indexes when the recorded Atlas SHA changes.",
     powers: [
-      "Constellations — visual graph of agents, facilitators, governance parties, and their relationships",
-      "Graph-aware search and reports that join across the Sky ecosystem",
+      "SHA-keyed live and preview data",
+      "Reproducibility and artifact-integrity checks",
     ],
   },
 ];
 
+function PipelineStage({ stage, index }: { stage: Stage; index: number }) {
+  return (
+    <section className="mb-8">
+      <h2 className="flex items-baseline gap-3 mb-2">
+        <span className="mono text-sm text-tan-3 w-4">{index + 1}.</span>
+        <span className="mono text-sm text-tan-3 uppercase tracking-wider">
+          {stage.label}
+        </span>
+      </h2>
+      <div className="pl-7 space-y-2">
+        <p className="text-sm" style={{ color: "var(--tan-2)" }}>
+          {stage.description}
+        </p>
+        <div className="flex gap-4">
+          <span className="mono text-sm text-tan-3 w-14 shrink-0">powers</span>
+          <ul
+            className="space-y-1 flex-1 text-sm"
+            style={{ color: "var(--tan-2)" }}
+          >
+            {stage.powers.map((power) => (
+              <li key={power}>· {power}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ProvenancePage() {
   useDocumentTitle("Provenance: Sky Atlas by Redline");
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return;
+    document.getElementById(hash)?.scrollIntoView({ behavior: "instant", block: "start" });
+  }, []);
   return (
     <div className="flex-1 overflow-y-auto px-6 py-8">
-      <div className="max-w-3xl mx-auto">
-        <p className="mono text-xs text-tan-3 mb-1">provenance</p>
-        <h1 className="text-xl font-semibold mb-4" style={{ color: "var(--tan)" }}>
-          Data flow &amp; provenance
-        </h1>
-        <p className="text-sm mb-8" style={{ color: "var(--tan-2)" }}>
-          Everything in this app derives from a single source:{" "}
-          <span className="mono">Sky&nbsp;Atlas.md</span>, published by sky-ecosystem. A pipeline of
-          build scripts runs at each release, extracting structured data from the Atlas and
-          publishing artifacts the UI reads at runtime. Everything is reproducible from a single{" "}
-          <span className="mono">pnpm build</span>. For more detail, see the README.
+      <article className="max-w-[72ch] text-sm mx-auto">
+        <header>
+          <p className="mono text-sm text-tan-3 mb-1">provenance</p>
+          <h1
+            className="text-xl font-semibold mb-4"
+            style={{ color: "var(--tan)" }}
+          >
+            Data flow &amp; provenance
+          </h1>
+          <p className="text-sm mb-4" style={{ color: "var(--tan-2)" }}>
+            The current Atlas text comes from the sky-ecosystem/next-gen-atlas
+            git repository. We also use clearly separated supporting
+            sources: its git and GitHub pull-request history, Sky Chainlog,
+            Etherscan verified-contract metadata, a public Ethereum RPC, and the
+            historical sources documented below.
+          </p>
+          <p className="text-sm mb-8" style={{ color: "var(--tan-2)" }}>
+            Our derived graphs, labels, reports, search indexes, and
+            summaries are transformations of those sources—not independent
+            primary records. Builds are pinned to an Atlas commit, and most
+            shipping artifacts—documents, relationships, addresses, the search
+            index, and the glossary—are checksummed in a build manifest for
+            auditability. Chain-state snapshots, history, and embeddings are
+            pinned to a commit and timestamp but fall outside that manifest.
+          </p>
+        </header>
+        <p className="text-sm mb-4" style={{ color: "var(--tan-3)" }}>
+          The data flow has {STAGES.length} stages:
         </p>
-
-        <p className="text-xs mb-4" style={{ color: "var(--tan-3)" }}>
-          The pipeline runs {STAGES.length} stages in order:
-        </p>
-
-        {STAGES.map((s, i) => (
-          <section key={s.label} className="mb-8">
-            <div className="flex items-baseline gap-3 mb-2">
-              <span className="mono text-xs text-tan-3 w-4">{i + 1}.</span>
-              <span className="mono text-xs text-tan-3 uppercase tracking-wider">{s.label}</span>
-            </div>
-            <div className="pl-7 space-y-2">
-              <p className="text-xs" style={{ color: "var(--tan-2)" }}>
-                {s.description}
-              </p>
-              <div className="flex gap-4">
-                <span className="mono text-xs text-tan-3 w-14 shrink-0">powers</span>
-                <ul className="space-y-1 flex-1 text-xs" style={{ color: "var(--tan-2)" }}>
-                  {s.powers.map((p) => (
-                    <li key={p}>· {p}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </section>
+        {STAGES.map((stage, index) => (
+          <PipelineStage key={stage.label} stage={stage} index={index} />
         ))}
-      </div>
+        <HistoryProvenance />
+      </article>
     </div>
   );
 }

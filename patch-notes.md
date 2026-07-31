@@ -35,10 +35,14 @@
 
 ## 2026-07-31
 - Reader documents now start collapsed and open one level at a time
-- Moved the sidebar chevron next to the document title and made it larger
-- Shift-click a sidebar chevron to unfold three levels at once, or to fold a whole open branch back in
-- Hovering a sidebar row now names the document it opens, and holding shift shows which rows a click would open in the split view
+- Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in
 - Drag the top edge of the split view to resize it, and it now shrinks to fit documents with no sections beneath them
+- Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
+
+## 2026-07-30
+- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
+- Fixed pull request links not opening on reconstructed history entries
+
 
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it

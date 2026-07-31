@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./auth";
-import { usePrefs, type ChatPrefs } from "./usePrefs";
 import { SignInButtons } from "./SignInButtons";
 import { Link } from "../Link";
 
 // NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
 // provider choice (GitHub / Google), both routing through the shared openAuth.
-// Signed-in: avatar → dropdown with name, a Preferences sub-panel (tool-traces
-// + reduce-motion switches, persisted to localStorage), and Sign out.
+// Signed-in: avatar → dropdown with name, an Account sub-panel (Delete
+// account), and Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
   const { user, signOut, deleteAccount } = useAuth();
-  const { prefs, setPref } = usePrefs();
   const [open, setOpen] = useState(false);
   const [showPrefs, setShowPrefs] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -65,13 +63,13 @@ export function ProfileButton() {
               </div>
               <div className="border-t border-border" />
               <button className="rlc-menu-item" onClick={() => setShowPrefs(true)}>
-                <span>Preferences</span>
-                <span className="text-tan-3">→</span>
+                <span>Account</span>
+                <span className="text-tan-3 enlargen">→</span>
               </button>
               <div className="border-t border-border" />
               <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
                 <span>Collections</span>
-                <span className="text-tan-3">→</span>
+                <span className="text-tan-3 enlargen">→</span>
               </Link>
               <div className="border-t border-border" />
               <button
@@ -90,16 +88,8 @@ export function ProfileButton() {
                 className="rlc-menu-item mono text-[11px] text-tan-3"
                 onClick={() => setShowPrefs(false)}
               >
-                <span>← preferences</span>
+                <span>← account</span>
               </button>
-              <div className="border-t border-border" />
-              <PrefSwitch label="Show tool-call traces" prefKey="traces" prefs={prefs} setPref={setPref} />
-              <PrefSwitch label="Reduce motion" prefKey="reduceMotion" prefs={prefs} setPref={setPref} />
-              <div className="px-3 pt-2 pb-[11px]">
-                <div className="mono text-[9.5px] text-gray leading-normal">
-                  surfaced from local storage · syncs per-browser
-                </div>
-              </div>
               <div className="border-t border-border" />
               <button
                 className="rlc-menu-item text-[12.5px] text-red"
@@ -119,27 +109,5 @@ export function ProfileButton() {
         </div>
       )}
     </div>
-  );
-}
-
-function PrefSwitch({
-  label,
-  prefKey,
-  prefs,
-  setPref,
-}: {
-  label: string;
-  prefKey: keyof ChatPrefs;
-  prefs: ChatPrefs;
-  setPref: <K extends keyof ChatPrefs>(k: K, v: ChatPrefs[K]) => void;
-}) {
-  const on = prefs[prefKey];
-  return (
-    <button className="rlc-menu-item" onClick={() => setPref(prefKey, !on)} role="switch" aria-checked={on}>
-      <span className="text-[12.5px]">{label}</span>
-      <span className="rlc-switch" data-on={on}>
-        <span className="rlc-switch-knob" />
-      </span>
-    </button>
   );
 }

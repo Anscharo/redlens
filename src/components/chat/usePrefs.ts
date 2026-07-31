@@ -13,10 +13,19 @@ const KEY = "rlc-prefs";
 const DEFAULTS: ChatPrefs = { traces: false, reduceMotion: false };
 const EVENT = "rlc-prefs-change";
 
+// Bumped when the NavBar Account panel dropped the traces/reduceMotion
+// switches, so a value persisted under the old (unversioned) schema — from
+// when those switches still existed — is treated as stale and ignored rather
+// than silently keeping a removed setting in effect forever.
+const SCHEMA_VERSION = 2;
+
 function read(): ChatPrefs {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<ChatPrefs>) } : DEFAULTS;
+    if (!raw) return DEFAULTS;
+    const { v, ...parsed } = JSON.parse(raw) as Partial<ChatPrefs> & { v?: number };
+    if (v !== SCHEMA_VERSION) return DEFAULTS;
+    return { ...DEFAULTS, ...parsed };
   } catch {
     return DEFAULTS;
   }
@@ -44,7 +53,7 @@ export function usePrefs() {
 
   const setPref = useCallback(<K extends keyof ChatPrefs>(key: K, value: ChatPrefs[K]) => {
     const next = { ...read(), [key]: value };
-    localStorage.setItem(KEY, JSON.stringify(next));
+    localStorage.setItem(KEY, JSON.stringify({ ...next, v: SCHEMA_VERSION }));
     snapshot = next;
     window.dispatchEvent(new Event(EVENT));
   }, []);

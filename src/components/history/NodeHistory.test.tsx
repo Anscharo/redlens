@@ -87,7 +87,7 @@ describe("NodeHistory states", () => {
   it("appends the pre-markdown footer under the migration PR (no reconstructed entries)", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File" })]);
     render(<NodeHistory nodeId="n6" />);
-    expect(await screen.findByText("view original HTML →")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
   });
 
   it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
@@ -99,7 +99,7 @@ describe("NodeHistory states", () => {
 
     await screen.findByText("migration");
     expect(screen.queryByText("an html-era change")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Pre-#117 history is reconstructed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/This history is reconstructed/i)).not.toBeInTheDocument();
     // the legacy "no per-doc identities" footer is also suppressed — this doc DOES have
     // reconstructed entries, they're just toggled off, so the footer would be misleading
     expect(screen.queryByText(/79 prior commits exist/)).not.toBeInTheDocument();
@@ -107,8 +107,8 @@ describe("NodeHistory states", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
 
     expect(await screen.findByText("an html-era change")).toBeInTheDocument();
-    expect(screen.getByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
-    expect(screen.getByText("view original HTML →")).toBeInTheDocument();
+    expect(screen.getByText(/This history is reconstructed/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Learn how →" })).toBeInTheDocument();
   });
 
   it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
@@ -147,7 +147,7 @@ describe("NodeHistory states", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
     expect(await screen.findByText("Proposed in MIP104 §14.3")).toBeInTheDocument();
     expect(screen.getByText("Present at Atlas v2 genesis")).toBeInTheDocument();
-    expect(screen.getByText(/trace atlas history prior to the current git repo/i)).toBeInTheDocument();
+    expect(screen.getByText(/This history comes from pre-git sources/i)).toBeInTheDocument();
   });
 
   it("orders by commitSeq, not date, when a severed-era birth carries no date at all", async () => {
@@ -176,7 +176,7 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n11" />);
     fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Proposed in MIP104 §14.3");
-    const link = screen.getByText("source →").closest("a");
+    const link = screen.getByRole("link", { name: "source →" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413");
   });
 

@@ -113,7 +113,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           )}
           {swap && (
             <p className="my-2 leading-snug" style={{ color: "var(--warn)" }}>
-              <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” → “{swap.newTitle}”.{" "}
+              <span style={WARN_GLYPH}>⚠</span> Identity changed — this UUID now holds a different document: “{swap.oldTitle}” <span className="enlargen">→</span> “{swap.newTitle}”.{" "}
               {swap.movedTo
                 ? `The previous content moved to ${swap.movedTo.doc_no} (“${swap.movedTo.title}”) under a new UUID.`
                 : `The previous content is not present in this ${source}.`}
@@ -127,7 +127,7 @@ export function PreviewHistory({ nodeId }: { nodeId: string }) {
           {renumber && (
             <p className="mt-1" style={{ color: "var(--lilac)" }}>
               renumbered {renumber[0]}{" "}
-              <span style={{ fontSize: "1.25em" }}>→</span> {renumber[1]}
+              <span className="enlargen">→</span> {renumber[1]}
             </p>
           )}
           {srcUrl && (
