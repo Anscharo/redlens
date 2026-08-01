@@ -7948,13 +7948,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1056,
+      "total": 1059,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 210,
-      "Rate Limits": 129,
+      "Parameters": 211,
+      "Rate Limits": 131,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
       "Artifact Edit Proposal": 83,
@@ -8820,26 +8820,14 @@
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "3c749393-8134-4483-ad35-c6820768421f",
+        "uuid": "0d0b492a-ad25-43a0-8a45-3ac1021cd491",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "7eaf8614-3343-4a6b-a637-8a92a7115bbb",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "0d0b492a-ad25-43a0-8a45-3ac1021cd491",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
         "uuid": "46f33c44-c9b3-4241-a5ad-84f4f7765280",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -9168,6 +9156,24 @@
         "bucket": "Rate Limits"
       },
       {
+        "uuid": "f0686fca-47c3-4e1b-8b2e-0a0f200fee27",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "46fab347-8af2-4e79-ba3f-401f27d6155f",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "f052e1ed-e2ff-4eaa-8cc4-8ecaabe0bcb4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.4.2.2",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
         "uuid": "9f44d3eb-b1d4-490e-bab2-8f39b73dc6ad",
         "doc_no": "A.6.1.1.1.2.6.1.4.1.1.2",
         "title": "Parameters",
@@ -9188,6 +9194,18 @@
       {
         "uuid": "e5519b29-8100-4490-965b-a616729865e1",
         "doc_no": "A.6.1.1.1.2.6.1.4.2.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "3c749393-8134-4483-ad35-c6820768421f",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "7eaf8614-3343-4a6b-a637-8a92a7115bbb",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
