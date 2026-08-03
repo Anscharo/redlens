@@ -231,4 +231,20 @@ describe("spawn() shallow/deep decoupling (R3)", () => {
     worker.emit("message", { data: errorMsg("StaleAtlasError: /r3-stale/docs-deep.json") });
     expect(worker.terminated).toBe(true);
   });
+
+  it("a stale-atlas shallow-error short-circuits the same way — terminates without settling either promise", async () => {
+    const docs = await import("./docs");
+    const base = "/r3-stale-shallow/";
+
+    docs.loadAtlasShallow(base);
+    docs.loadAtlas(base);
+    const worker = MockWorker.instances[0];
+
+    // The shallow-error branch runs handledStaleMessage first, exactly like the
+    // "error" branch above: a stale-sha signal terminates the worker and returns
+    // before touching either promise (the page is reloading anyway). reloadOnce()
+    // no-ops here — typeof window === "undefined" in this non-jsdom file.
+    worker.emit("message", { data: shallowErrorMsg("StaleAtlasError: /r3-stale-shallow/docs-shallow.json") });
+    expect(worker.terminated).toBe(true);
+  });
 });
