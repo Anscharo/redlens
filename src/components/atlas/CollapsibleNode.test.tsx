@@ -251,6 +251,44 @@ describe("CollapsibleNode keyboard interaction", () => {
     expect(onToggle).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();
   });
+
+  // R1: onKeyDown had no target guard, unlike the sibling onClick (which bails
+  // via closest('a, button, [role="button"]')) — Enter/Space bubbling up from a
+  // nested control got swallowed into toggling/navigating the row instead of
+  // running the control's own behavior. These fire keyDown directly on a
+  // nested interactive element (as a real keypress on a focused child would
+  // bubble) and assert the row does NOT react.
+  it("Enter on the pendulum chevron does not navigate/toggle the row", () => {
+    const { container, onNavigate, onToggle, pendulum } = setup({
+      isSelected: false,
+      hasChildren: true,
+      withExpandAll: true,
+    });
+    const btn = container.querySelector(".atlas-node-expand-all")!;
+    fireEvent.keyDown(btn, { key: "Enter" });
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+    // The chevron itself only responds to click (native <button> Enter/Space
+    // activation is a browser behavior jsdom's fireEvent.keyDown doesn't
+    // simulate) — the point here is only that the ROW didn't hijack the key.
+    expect(pendulum).not.toHaveBeenCalled();
+  });
+
+  it("Space on the selection checkbox does not toggle/navigate the row", () => {
+    const { container, onNavigate, onToggle } = setup({ isSelected: true });
+    const checkbox = container.querySelector<HTMLInputElement>(".atlas-node-select input")!;
+    fireEvent.keyDown(checkbox, { key: " " });
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("still navigates on Enter when focus is on the row itself, not a nested control", () => {
+    // Guards against an overly broad target check swallowing the row's own key.
+    const { container, onNavigate } = setup({ isSelected: false });
+    const row = container.querySelector(".atlas-node")!;
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(onNavigate).toHaveBeenCalledWith(baseNode.id);
+  });
 });
 
 describe("CollapsibleNode NR-X doc numbers", () => {

@@ -35,6 +35,9 @@
 
 ## 2026-08-03
 - Refreshed on-chain contract values automatically each week
+- Improved keyboard navigation and loading reliability in the reader and sidebar
+- Fixed search issues with scroll position, excluded terms, and quoted phrases
+- Fixed history and radar to show structural and renumbering changes, recover from temporary errors, and link addresses to the correct networks
 
 ## 2026-07-31
 - Reader documents now start collapsed and open one level at a time

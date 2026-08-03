@@ -31,50 +31,54 @@ export function useTreeKeyboard({
     (e: React.KeyboardEvent) => {
       if (visibleNodes.length === 0) return;
       const idx = focusedIndex >= 0 ? focusedIndex : selectedIndex;
+      // `idx` can be stale: a mouse-driven toggle can shrink visibleNodes out
+      // from under a previously-set focusedIndex (TreeSidebar clamps it back
+      // in a follow-up effect, but that runs after this handler could already
+      // have fired for the stale value). Never trust it directly — every
+      // lookup below goes through `visibleNodes[idx]` optional-chained, and
+      // every index handed to scrollToRow is clamped into range first.
+      const clampIndex = (i: number) => Math.min(Math.max(i, 0), visibleNodes.length - 1);
 
       switch (e.key) {
         case "ArrowDown": {
           e.preventDefault();
-          const next = Math.min(idx + 1, visibleNodes.length - 1);
+          const next = clampIndex(idx + 1);
           setFocusedIndex(next);
           listRef.current?.scrollToRow({ index: next, align: "smart" });
           break;
         }
         case "ArrowUp": {
           e.preventDefault();
-          const prev = Math.max(idx - 1, 0);
+          const prev = clampIndex(idx - 1);
           setFocusedIndex(prev);
           listRef.current?.scrollToRow({ index: prev, align: "smart" });
           break;
         }
         case "ArrowRight": {
           e.preventDefault();
-          if (idx >= 0) {
-            const node = visibleNodes[idx].node;
-            if (visibleNodes[idx].hasChildren && !expandedIds.has(node.id)) {
-              setExpandedIds((prev) => new Set(prev).add(node.id));
-            }
+          const entry = visibleNodes[idx];
+          if (entry && entry.hasChildren && !expandedIds.has(entry.node.id)) {
+            setExpandedIds((prev) => new Set(prev).add(entry.node.id));
           }
           break;
         }
         case "ArrowLeft": {
           e.preventDefault();
-          if (idx >= 0) {
-            const node = visibleNodes[idx].node;
-            if (expandedIds.has(node.id)) {
-              setExpandedIds((prev) => {
-                const next = new Set(prev);
-                next.delete(node.id);
-                return next;
-              });
-            }
+          const entry = visibleNodes[idx];
+          if (entry && expandedIds.has(entry.node.id)) {
+            setExpandedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(entry.node.id);
+              return next;
+            });
           }
           break;
         }
         case "Enter": {
           e.preventDefault();
-          if (idx >= 0) {
-            onNavigate(visibleNodes[idx].node.id);
+          const entry = visibleNodes[idx];
+          if (entry) {
+            onNavigate(entry.node.id);
             setFocusedIndex(-1);
           }
           break;

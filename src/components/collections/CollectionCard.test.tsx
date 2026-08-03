@@ -86,6 +86,34 @@ describe("CollectionCard", () => {
     expect(screen.getByText("+1 more")).toBeInTheDocument();
   });
 
+  // C5: an unbroken 200-char name (API-creatable pre-fix, or grandfathered
+  // from before the server cap was lowered) must never blow out the card /
+  // page width — the name column needs the same truncate/min-w-0 treatment
+  // the doc-title rows already use, and the date column must hold its size.
+  it("C5: a long unbroken name gets truncate/min-w-0 treatment; the date column doesn't shrink", () => {
+    const longName = "x".repeat(200);
+    const { container } = render(
+      <CollectionCard
+        collection={collection({ name: longName })}
+        docs={null}
+        onOpen={() => {}}
+        onRename={() => {}}
+        onDelete={() => {}}
+      />,
+    );
+    const nameButton = screen.getByText(longName);
+    expect(nameButton.tagName).toBe("BUTTON");
+    expect(nameButton.className).toContain("truncate");
+    expect(nameButton.className).toContain("min-w-0");
+    // CSS-only truncation — the full name is still in the DOM (assistive tech
+    // and copy/paste still see it), only its rendered box is clipped.
+    expect(nameButton.textContent).toBe(longName);
+
+    expect(nameButton.parentElement?.className).toContain("min-w-0");
+    const dateEl = container.querySelector("p.whitespace-nowrap");
+    expect(dateEl?.className).toContain("shrink-0");
+  });
+
   it("calls onOpen when Open is clicked", () => {
     const onOpen = vi.fn();
     render(

@@ -624,6 +624,26 @@ mark {
   z-index: 2;
 }
 
+/* R2: the sticky box above is the WHOLE article, header + expanded body. A
+   body taller than the scrollport made the sticky box itself taller than the
+   scrollport, so it fully occluded every descendant for as long as it stayed
+   stuck — there was no scroll position where both the (opaque) selected node
+   and any descendant were visible/clickable at once. Capping just the body —
+   not the header/chiclets/pendulum/meta above it — keeps the header at its
+   natural size (so the red bar + tint above still read as "selected" exactly
+   as before) while giving the rare long body its own internal scroll, so the
+   article's total height stays bounded and the sticky box can still release
+   its descendants at a reachable scroll position. Ordinary bodies (well under
+   60vh) never hit this cap, so nothing changes for the common case. Not a full
+   fix for "header-only sticky" (that needs the body pulled out of the sticky
+   box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
+   R2) — this is the safe, CSS-only mitigation for the part that made
+   descendants totally unreachable. */
+.atlas-node.is-selected .atlas-node-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 /* Cradle: rail down the left of the selected node's descendants, in the
    selected node's depth color, closing with a curved foot under the last
    one. Sits at the same x as the selection bar so it reads as hanging from
@@ -722,6 +742,17 @@ button.atlas-node-toggle:not([data-settling]):hover {
 [data-alt] button.atlas-node-toggle:not([data-settling]):hover {
   transform: rotate(var(--hover-deg-alt, 0deg));
 }
+/* …but not on the drift curve above. That 1s ease is tuned for a pointer
+   arriving: a lean that grows out of the hover. A modifier is a discrete
+   input — press Option and the answer is already decided — so on the curve's
+   own profile it would move ~9° of a 45° swap in the first eighth of a second
+   and read as dead. <html data-alt-turn> is up for the moment the modifier
+   flips (either way, so the release snaps back just as fast) and switches the
+   transition to a quick one; see ALT_TURN_MS in useModifierKeyAttrs. Must stay
+   AFTER the rule above — equal specificity, and this one has to win. */
+[data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
+  transition: transform 0.18s ease-out;
+}
 /* Hover hints on the two row surfaces, as ::after labels rather than React
    state or a per-row Tooltip portal — there are ~1200 reader rows. Each surface
    sets its own `content` below; this block is only the shared box. <html
@@ -819,7 +850,10 @@ button.atlas-node-toggle:not([data-settling]):hover {
    near the top — that block is earlier in the file and these selectors are more
    specific, so it can't reach them. The lean still happens, it just snaps. */
 @media (prefers-reduced-motion: reduce) {
-  button.atlas-node-toggle:not([data-settling]):hover {
+  button.atlas-node-toggle:not([data-settling]):hover,
+  /* Same reason one level down: the alt-turn rule outranks the plain hover one,
+     so neutralising only that one would leave the modifier swap animating. */
+  [data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
     transition: none;
   }
 }
@@ -1625,5 +1659,30 @@ button.atlas-node-expand-all:focus-visible {
   50% {
     opacity: 1;
     transform: scale(1.1);
+  }
+}
+
+/* The ↻ on the footer's update pills. It spins from the click until the page
+   navigates away — see StatusPill for why it never resolves. inline-block so
+   the glyph has a box to rotate inside; without it the transform is dropped. */
+.status-pill-glyph {
+  display: inline-block;
+}
+.status-pill.is-applying .status-pill-glyph {
+  animation: status-pill-spin 0.9s linear infinite;
+}
+@keyframes status-pill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Reduced motion still needs the acknowledgement — that IS the fix here — just
+   not as rotation. Dimming the pill reads as "taken, working". */
+@media (prefers-reduced-motion: reduce) {
+  .status-pill.is-applying .status-pill-glyph {
+    animation: none;
+  }
+  .status-pill.is-applying {
+    opacity: 0.6;
   }
 }

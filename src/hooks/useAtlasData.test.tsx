@@ -5,7 +5,7 @@
 // it and returns null so an enrichment failure doesn't blank the page.
 import React from "react";
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, renderHook, waitFor, act } from "@testing-library/react";
 import { useLoaded, useAtlasData } from "./useAtlasData";
 
 // --- Mocks for the useAtlasData() loader orchestration -----------------------
@@ -84,22 +84,33 @@ describe("useAtlasData", () => {
   const fullAtlas = { byParent: new Map() } as never;
 
   beforeEach(() => {
+    // Clear call counts so each test is isolated — these vi.fn()s are created
+    // once via vi.hoisted and are NOT reset by afterEach's restoreAllMocks
+    // (that only restores spies). Without this, toHaveBeenCalledTimes counts
+    // leak across tests. mockClear keeps the implementations set below.
+    loaders.loadAtlas.mockClear();
+    loaders.loadAtlasShallow.mockClear();
+    loaders.loadAddresses.mockClear();
+    loaders.loadChainState.mockClear();
+    loaders.loadGlossary.mockClear();
+    loaders.setAddressMap.mockClear();
     loaders.base = "";
     loaders.loadAtlasShallow.mockResolvedValue(shallowAtlas);
     loaders.loadAtlas.mockResolvedValue(fullAtlas);
     loaders.loadAddresses.mockResolvedValue({ "0xabc": { chain: "ethereum" } });
     loaders.loadChainState.mockResolvedValue({ values: {} });
     loaders.loadGlossary.mockResolvedValue({ term: [] });
-    loaders.setAddressMap.mockClear();
   });
 
   it("phase 1 shows a shallow (incomplete, enrichment-null) bundle, then phase 2 completes it with enrichments", async () => {
     const { result } = renderHook(() => useAtlasData());
     // Eventually the full phase-2 bundle lands: complete + enrichments populated.
-    await waitFor(() => expect(result.current?.complete).toBe(true));
-    expect(result.current?.addresses).toEqual({ "0xabc": { chain: "ethereum" } });
-    expect(result.current?.chainState).toEqual({ values: {} });
-    expect(result.current?.glossary).toEqual({ term: [] });
+    await waitFor(() => expect(result.current.data?.complete).toBe(true));
+    expect(result.current.data?.addresses).toEqual({ "0xabc": { chain: "ethereum" } });
+    expect(result.current.data?.chainState).toEqual({ values: {} });
+    expect(result.current.data?.glossary).toEqual({ term: [] });
+    expect(result.current.shallowError).toBeNull();
+    expect(result.current.deepError).toBeNull();
     // Address map hydrated from the resolved addresses.
     expect(loaders.setAddressMap).toHaveBeenCalledWith({ "0xabc": { chain: "ethereum" } });
   });
@@ -109,20 +120,50 @@ describe("useAtlasData", () => {
     loaders.loadChainState.mockRejectedValue(new Error("no chain-state.json"));
     loaders.loadGlossary.mockRejectedValue(new Error("no glossary.json"));
     const { result } = renderHook(() => useAtlasData());
-    await waitFor(() => expect(result.current?.complete).toBe(true));
-    expect(result.current?.addresses).toBeNull();
-    expect(result.current?.glossary).toBeNull();
+    await waitFor(() => expect(result.current.data?.complete).toBe(true));
+    expect(result.current.data?.addresses).toBeNull();
+    expect(result.current.data?.glossary).toBeNull();
     expect(loaders.setAddressMap).not.toHaveBeenCalled();
   });
 
-  it("does not throw when the load-bearing docs fetch rejects (stays on shallow/null)", async () => {
+  // R3: a rejected loader used to be swallowed silently (both phases), leaving
+  // callers with no way to distinguish "still loading" from "failed forever"
+  // and no way to retry. Both phases now surface a real error instead.
+  it("surfaces shallowError (not an eternal null) when the load-bearing docs fetch rejects", async () => {
     loaders.loadAtlasShallow.mockRejectedValue(new Error("no docs-shallow.json"));
     loaders.loadAtlas.mockRejectedValue(new Error("no docs-deep.json"));
     const { result } = renderHook(() => useAtlasData());
-    // Both phases rejected → data stays null, no unhandled rejection / throw.
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(result.current).toBeNull();
+    await waitFor(() => expect(result.current.shallowError).not.toBeNull());
+    // No unhandled rejection / throw — the hook itself never throws.
+    expect(result.current.data).toBeNull();
+    expect(result.current.shallowError?.message).toBe("no docs-shallow.json");
+  });
+
+  it("a deep-only failure keeps the already-rendered shallow tree and surfaces deepError, not shallowError", async () => {
+    loaders.loadAtlas.mockRejectedValue(new Error("no docs-deep.json"));
+    const { result } = renderHook(() => useAtlasData());
+    await waitFor(() => expect(result.current.deepError).not.toBeNull());
+    expect(result.current.data).not.toBeNull();
+    expect(result.current.data?.complete).toBe(false);
+    expect(result.current.shallowError).toBeNull();
+    expect(result.current.deepError?.message).toBe("no docs-deep.json");
+  });
+
+  it("retry() clears deepError optimistically without touching the already-rendered tree, then completes on success", async () => {
+    loaders.loadAtlas.mockRejectedValueOnce(new Error("no docs-deep.json"));
+    const { result } = renderHook(() => useAtlasData());
+    await waitFor(() => expect(result.current.deepError).not.toBeNull());
+    const treeBeforeRetry = result.current.data;
+
+    act(() => result.current.retry());
+    // Optimistic clear + the retried loadAtlas mock now resolves — no second
+    // rejection queued via mockRejectedValueOnce.
+    expect(result.current.deepError).toBeNull();
+    expect(result.current.data).toBe(treeBeforeRetry);
+
+    await waitFor(() => expect(result.current.data?.complete).toBe(true));
+    expect(result.current.deepError).toBeNull();
+    expect(loaders.loadAtlas).toHaveBeenCalledTimes(2);
   });
 
   it("passes the data-source base through to every loader", async () => {

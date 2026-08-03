@@ -5,6 +5,7 @@ import { useAtlasVersion } from "../hooks/useAtlasVersion";
 import { loadAtlas } from "../lib/docs";
 import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
+import { StatusPill } from "./StatusPill";
 
 const BASE = import.meta.env.BASE_URL;
 const REPO = __REPO_URL__;
@@ -92,7 +93,7 @@ export function Footer() {
               title="A new version is available — click to reload"
               onClick={applyUpdate}
             >
-              update available ↻
+              update available
             </StatusPill>
           )}
           {atlasNeedsUpdate && (
@@ -102,7 +103,7 @@ export function Footer() {
               title="Atlas content has been updated — click to reload"
               onClick={reloadWithFreshAtlas}
             >
-              atlas updated ↻
+              atlas updated
             </StatusPill>
           )}
         </div>
@@ -209,40 +210,3 @@ function Sep() {
   return <span style={{ color: "var(--border)", fontSize: "10px", userSelect: "none" }}>|</span>;
 }
 
-type StatusPillProps = {
-  color: string;
-  title?: string;
-  children: React.ReactNode;
-} & (
-  | { as?: "span"; onClick?: never }
-  | { as: "button"; onClick: () => void }
-);
-
-function StatusPill({ as = "span", color, title, children, onClick }: StatusPillProps) {
-  const style: React.CSSProperties = {
-    fontSize: "10px",
-    lineHeight: "24px",
-    color,
-    background: "var(--tan)",
-    fontWeight: 600,
-    letterSpacing: "0.02em",
-  };
-  if (as === "button") {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        title={title}
-        className="mono px-3 whitespace-nowrap hover:underline cursor-pointer"
-        style={style}
-      >
-        {children}
-      </button>
-    );
-  }
-  return (
-    <span title={title} className="mono px-3 whitespace-nowrap" style={style}>
-      {children}
-    </span>
-  );
-}

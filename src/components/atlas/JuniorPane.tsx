@@ -114,15 +114,27 @@ export function JuniorPane({
   const items = useMemo(() => {
     const result: ReactElement[] = [];
     if (hasAbove) result.push(<TopNote key="top" />);
-    for (const entry of slice) {
+    // slice[0] is always splitId's own entry (see above); everything after it
+    // is that node's descendants. Bound the selected root's position:sticky to
+    // a group spanning it + those descendants — mirrors AtlasReader's
+    // .selection-group — so the sticky root's containing block is just this
+    // node's own slice, not the whole pane. Without it, the pane has no
+    // bounding wrapper at all and a long-bodied root can occlude every
+    // descendant at any scroll position (R2).
+    const rows: ReactElement[] = slice.map((entry) => (
+      <CollapsibleNode
+        key={entry.node.id}
+        entry={entry}
+        idPrefix="junior"
+        isSelected={entry.node.id === splitId}
+        isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
+      />
+    ));
+    if (rows.length) {
       result.push(
-        <CollapsibleNode
-          key={entry.node.id}
-          entry={entry}
-          idPrefix="junior"
-          isSelected={entry.node.id === splitId}
-          isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
-        />,
+        <div key="__selection-group" className="selection-group">
+          {rows}
+        </div>,
       );
     }
     if (hasMore)

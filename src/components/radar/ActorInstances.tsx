@@ -23,10 +23,10 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-function renderValue(value: string): React.ReactNode {
+function renderValue(value: string, chainHint?: Array<string | undefined>): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
     const short = shortAddr(value);
-    return <a href={explorerUrl(value)} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
+    return <a href={explorerUrl(value, { chain: chainHint })} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
   }
   if (RATE_LIMIT_HASH_RE.test(value.trim())) {
     const v = value.trim();
@@ -54,7 +54,7 @@ function renderValue(value: string): React.ReactNode {
   return value;
 }
 
-function ParamLine({ p, colWidth }: { p: InstanceParam; colWidth: number }) {
+function ParamLine({ p, colWidth, instanceHint }: { p: InstanceParam; colWidth: number; instanceHint: string }) {
   return (
     <div className="flex py-0.5 w-full items-baseline">
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
@@ -65,7 +65,11 @@ function ParamLine({ p, colWidth }: { p: InstanceParam; colWidth: number }) {
         className="mono text-[10px] shrink-0 text-right leading-relaxed"
         style={{ maxWidth: `calc(100% - ${colWidth}px)`, wordBreak: "break-word", color: "var(--tan-2)" }}
       >
-        {renderValue(p.value)}
+        {/* Param key first: it's the more specific signal (e.g. "Token Address
+            (Avalanche)" on an instance whose name says "Ethereum Mainnet - …"
+            names the token's own chain, not the instance's home chain). Falls
+            back to the instance name when the key carries no chain hint. */}
+        {renderValue(p.value, [p.key, instanceHint])}
       </span>
     </div>
   );
@@ -91,7 +95,7 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} />)}
+          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} />)}
         </div>
       )}
     </div>

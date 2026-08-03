@@ -37,6 +37,13 @@ ARG VITE_CHAT_ENABLED=$CHAT_ENABLED
 # --build-arg when this ARG is declared. Empty by default → analytics stays a
 # no-op (analyticsEnabled=false in src/lib/analytics.ts).
 ARG VITE_POSTHOG_KEY=""
+# App build provenance: this image has no .git (COPY . . above copies source
+# only), so vite.config.ts's `git rev-parse --short HEAD` always fails here and
+# __COMMIT_HASH__ would default to "dev". Railway auto-populates
+# RAILWAY_GIT_COMMIT_SHA as a service variable (already read at runtime by
+# config.ts's appCommit); declaring the matching ARG makes Railway forward it
+# as a build-arg too, so vite.config.ts's fallback chain can pick it up.
+ARG RAILWAY_GIT_COMMIT_SHA=""
 RUN rm -rf vendor/next-gen-atlas \
  && git clone --depth 1 --single-branch --branch main \
       https://github.com/sky-ecosystem/next-gen-atlas vendor/next-gen-atlas \
@@ -47,7 +54,7 @@ RUN rm -rf vendor/next-gen-atlas \
  && bun run build:bundle \
  && bun run build:tools \
  && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED bun run build:ts \
- && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY bun run build:vite \
+ && VITE_USERS_ENABLED=$VITE_USERS_ENABLED VITE_CHAT_ENABLED=$VITE_CHAT_ENABLED VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA bun run build:vite \
  && gzip -9 -k dist/docs.json dist/search-index.json dist/relations.json dist/glossary.json dist/oea-report.json
 
 # ─── Stage 2: runtime ────────────────────────────────────────────────────────

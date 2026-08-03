@@ -17,22 +17,26 @@ import { PreviewTreeToggle } from "../preview/PreviewTreeToggle";
 import { SelectionTreeToggle } from "../selection/SelectionTreeToggle";
 import { TreeRow, ROW_HEIGHT, type VisibleNode, type TreeRowData } from "./TreeRow";
 
-// Expand every ancestor of `doc_no` so the node's row is visible. Returns
-// whether `next` changed. (fragile: doc_no prefix — same walk the selection
-// effect has always used.)
+// Expand every ancestor of `id` so its row is visible. Walks parent links
+// (the same `parentOf` map the selection effect below uses) rather than
+// doc_no "."-prefixes: a doc_no string-prefix walk silently does nothing for
+// docs whose number has no dots (e.g. "NR-5" — Needed Research uses flat
+// global numbering per ATLAS_MARKDOWN_SYNTAX.md), so NR-X reveals were a
+// no-op under the old approach. parentOf has no such blind spot. Returns
+// whether `next` changed.
 function addAncestors(
-  docNoToId: Map<string, string>,
-  doc_no: string,
+  parentOf: Map<string, string | null>,
+  id: string,
   next: Set<string>,
 ): boolean {
-  const parts = doc_no.split(".");
   let changed = false;
-  for (let i = 2; i < parts.length; i++) {
-    const aid = docNoToId.get(parts.slice(0, i).join("."));
-    if (aid && !next.has(aid)) {
-      next.add(aid);
+  let pid = parentOf.get(id) ?? null;
+  while (pid) {
+    if (!next.has(pid)) {
+      next.add(pid);
       changed = true;
     }
+    pid = parentOf.get(pid) ?? null;
   }
   return changed;
 }
@@ -100,19 +104,18 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   // visible by expanding their ancestors, without changing the selection.
   useEffect(() => {
     if (!bundle) return;
-    const { docs, docNoToId } = bundle;
+    const { docs } = bundle;
     return revealStore.subscribe((ids) => {
       setExpandedIds((prev) => {
         const next = new Set(prev);
         let changed = false;
         for (const id of ids) {
-          const doc = docs[id];
-          if (doc) changed = addAncestors(docNoToId, doc.doc_no, next) || changed;
+          if (docs[id]) changed = addAncestors(parentOf, id, next) || changed;
         }
         return changed ? next : prev;
       });
     });
-  }, [bundle]);
+  }, [bundle, parentOf]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -216,6 +219,16 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     walk(null);
     return result;
   }, [bundle, expandedIds, changedSet, selectionSet]);
+
+  // A mouse-driven toggle (plain collapse, cascade collapse, switching flat
+  // views, …) can shrink visibleNodes out from under a keyboard-focused row,
+  // leaving focusedIndex stale and past the end of the new, shorter array.
+  // useTreeKeyboard guards its own indexing against that, but the stale index
+  // is still wrong to keep around — clamp it back into range (or to -1, "no
+  // focus", once the list is empty) whenever the visible list changes.
+  useEffect(() => {
+    setFocusedIndex((prev) => (prev >= visibleNodes.length ? visibleNodes.length - 1 : prev));
+  }, [visibleNodes]);
 
   const selectedIndex = useMemo(
     () => (nodeId ? visibleNodes.findIndex((v) => v.node.id === nodeId) : -1),

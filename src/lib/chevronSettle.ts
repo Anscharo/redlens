@@ -1,9 +1,11 @@
 // How long a chevron holds its new resting angle after a click before the
 // hover-drift preview is allowed to start again. Long enough that the click's
-// own outcome reads clearly even when the pointer never moves away.
+// own outcome reads clearly even when the pointer never moves away, short
+// enough that a pointer parked on the chevron isn't left waiting on the next
+// preview.
 // Paired with the `:not([data-settling])` hover rules in index.css — changing
 // the behavior means changing both.
-export const CHEVRON_SETTLE_MS = 1500;
+export const CHEVRON_SETTLE_MS = 1100;
 
 /**
  * Park `btn` at its resting angle: flag it `[data-settling]`, which switches off

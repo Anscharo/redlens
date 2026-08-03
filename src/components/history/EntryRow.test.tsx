@@ -121,6 +121,20 @@ describe("EntryRow change label", () => {
     expect(screen.getByText("moved")).toBeInTheDocument();
   });
 
+  // H2 (deep-QA 2026-08-02): the html-era generator used to stamp movedFrom/movedTo
+  // with the SAME doc_no whenever only a doc's title/ancestors changed — 335 frozen
+  // rows read "moved from A.1.11 to A.1.11". movePaths guards this; confirm the
+  // render actually falls back to the bare "moved" presentation, same as any other
+  // moved entry with no paths to show, instead of an "X to X" sentence.
+  it("renders a self-move (movedFrom === movedTo) as bare 'moved', not 'moved from X to X'", () => {
+    const { container } = render(
+      <EntryRow entry={entry({ changeType: "moved", movedFrom: "A.1.11", movedTo: "A.1.11" })} />,
+    );
+    expect(screen.getByText("moved")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("A.1.11");
+    expect(container.textContent).not.toContain(" to ");
+  });
+
   it("drops the redundant 'added' chip on a self-describing pre-git origin", () => {
     render(<EntryRow entry={entry({ era: "genesis", changeType: "added", summary: "Present at Atlas v2 genesis" })} />);
     expect(screen.getByText("Present at Atlas v2 genesis")).toBeInTheDocument();
