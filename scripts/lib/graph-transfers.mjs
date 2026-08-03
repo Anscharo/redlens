@@ -25,6 +25,12 @@
  *     become `funds_authorization`, not `funds_transfer`:
  *       "… grant of 800,000 USDS per month to the Grove Foundation from
  *        Grove's Prime Treasury for a three (3) month period …"
+ *     Both "per month" and the "for a N month period" tail are optional —
+ *     single-month/one-time grants drop the recurrence entirely ("… grant
+ *     of 800,000 USDS to the Grove Foundation from Grove's Prime Treasury
+ *     for July 2026", "… one-time cash grant of 700,000 USDS to the Skybase
+ *     Foundation from Skybase's SubProxy …"). Source can be a Treasury or a
+ *     SubProxy.
  *
  * Never-silent: docs that look like one of the shapes but fail to parse are
  * warned about individually.
@@ -47,8 +53,13 @@ const GENESIS_TRANSFER_GAP_RE =
 const GENESIS_MINT_RE =
   /The Genesis Supply was minted to an account owned by\s+(?:the\s+)?(.+?)\./i;
 
+// "per month" and the "for a N month period" tail are both optional — July
+// 2026's Grove/Skybase grants drop the recurrence entirely ("a cash grant of
+// 800,000 USDS to the Grove Foundation from Grove's Prime Treasury for July
+// 2026", "a one-time cash grant of 700,000 USDS to the Skybase Foundation
+// from Skybase's SubProxy"). Source can be a Treasury or a SubProxy.
 const AUTH_GRANT_RE =
-  /grant of\s+([\d,.]+)\s+([A-Z]{2,10})\s+per month to (?:the )?(.+?) from (.+?)(?:['’]s)? (?:Prime )?Treasury\b[\s\S]*?for a\s+\w+\s*\((\d+)\)\s*month period/i;
+  /grant of\s+([\d,.]+)\s+([A-Z]{2,10})\s+(?:(per month)\s+)?to (?:the )?(.+?) from (.+?)(?:['’]s)? (?:Prime\s+)?(?:Treasury|SubProxy)\b(?:[\s\S]*?for a\s+\w+\s*\((\d+)\)\s*month period)?/i;
 const AUTH_BEGIN_RE = /beginning on ([^.]+?)\./i;
 
 // Shape D — accord capital allocations. Title must END with the allocation
@@ -275,12 +286,13 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     if (DIRECTORY_RE.test(content.trim())) continue;
     const m = content.match(AUTH_GRANT_RE);
     if (!m) { warn(`grant authorization did not parse: ${d.doc_no} ("${d.title}")`); continue; }
-    const recipient = resolveParty(m[3], d);
-    const sender = resolveParty(m[4], d);
+    const recipient = resolveParty(m[4], d);
+    const sender = resolveParty(m[5], d);
     if (!recipient || !sender) { warn(`grant authorization endpoints unresolved: ${d.doc_no}`); continue; }
+    const periodic = Boolean(m[3]);
     addAuthorization(sender, recipient, d, {
-      amounts: { [`${m[2]} per month`]: m[1] },
-      period_months: Number(m[5]),
+      amounts: { [periodic ? `${m[2]} per month` : m[2]]: m[1] },
+      period_months: m[6] ? Number(m[6]) : undefined,
       // "Spark Foundation Grant Authorization: December 2025" → "December 2025"
       period: d.title.match(/Grant Authorization:?\s*(.+)$/i)?.[1]?.trim(),
       begin_date: content.match(AUTH_BEGIN_RE)?.[1]?.trim(),

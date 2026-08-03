@@ -32,6 +32,7 @@ const CHAIN_HINTS = [
   { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
   { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
   { chain: "gnosis", patterns: [/\bgnosis\b/i, /\bxdai\b/i] },
+  { chain: "robinhood", patterns: [/\brobinhood\b/i] },
 ];
 
 // "address on [the] CHAIN is 0x..." — most reliable signal

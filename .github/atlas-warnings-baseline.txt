@@ -1,6 +1,5 @@
 .env.local not found. Continuing without it.
-  org-prose: unresolved provides_services_to "Grove Development Company" → "Grove Foundation" (A.6.1.1.2.2.1.1.3.1.1.4.2)
-  transfers: genesis transfer did not parse: A.6.1.1.1.2.1.4.2.1.2.4 ("Transfer Of Tokens For Token Launch")
+  org-prose: unresolved provides_services_to "Grove Development Company" → "Grove Foundation" (A.6.1.1.2.2.1.1.3.1.1.5)
   [drift-count] ICD-param agent unresolved: 0
   [drift-count] duty_for[executor] unresolved: 0
   [drift-count] duty_for[facilitator] unresolved: 0

@@ -56,6 +56,10 @@ for (const n of [
   // Title-discovered duty (quote null) whose content is an unpunctuated bullet
   // list — the snippet must pick the GovOps bullet, not glue the whole list.
   node({ id: "duty-title-bullets", doc_no: "A.2.7.7", title: "GovOps Settlement Review", content: "The process flow is defined herein:\n\n- The Agent submits the calculation data\n- Core GovOps reviews the calculations for accuracy\n- The Facilitator publishes the outcome" }),
+  // Hyphenated spelling ("Gov-Ops") — must still be recognized when picking
+  // the duty snippet, matching the gov[\s-]*ops tolerance graph-duties.mjs
+  // and the census use for title/content scanning.
+  node({ id: "duty-title-hyphen", doc_no: "A.2.7.8", title: "Gov-Ops Verification Review", content: "The process begins with intake. Gov-Ops verifies the submitted calculation for accuracy." }),
   // Shape #3 — process-step "Update" docs (process_step_responsible_party_for).
   node({ id: "step-op", doc_no: "A.2.2.9.2.2.3.3.4.2.1", title: "Primitive Hub Document Update", content: "The Document in the Agent Artifact is updated as follows:\n\n- Responsible Party: Operational GovOps\n- Triggers: none." }),
   // One doc with both an op step and a core step → two edges, two rows.
@@ -102,6 +106,7 @@ const edges: RelationEdge[] = [
   { f: "atlas-axis", ft: "entity", t: "duty-core", tt: "doc", e: "duty_for", s: ["A.2.2.1.1.13"], m: dutyMeta("Core GovOps", null) },
   { f: "soter", ft: "entity", t: "duty-quoted", tt: "doc", e: "duty_for", s: ["A.1.14.4.6.1.1"], m: dutyMeta("Operational GovOps", "GovOps actors [carry out](someuuid) operational activities on behalf of Executor Agents.") },
   { f: "atlas-axis", ft: "entity", t: "duty-title-bullets", tt: "doc", e: "duty_for", s: ["A.2.7.7"], m: dutyMeta("Core GovOps", null) },
+  { f: "soter", ft: "entity", t: "duty-title-hyphen", tt: "doc", e: "duty_for", s: ["A.2.7.8"], m: dutyMeta("Operational GovOps", null) },
   { f: "soter", ft: "entity", t: "flow-a", tt: "doc", e: "duty_for", s: ["A.2.2.9.1.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method A.") },
   { f: "soter", ft: "entity", t: "flow-b", tt: "doc", e: "duty_for", s: ["A.2.2.9.2.2.3.1.2"], m: dutyMeta("Operational GovOps", "Operational GovOps calculates the eligible balances using method B.") },
   { f: "soter", ft: "entity", t: "dual", tt: "doc", e: "duty_for", s: ["A.2.8.8"], m: dutyMeta("Operational GovOps", "Operational GovOps reviews the update.") },
@@ -194,6 +199,11 @@ describe("deriveGovOpsResponsibilities", () => {
   it("falls back to a content snippet for title matches, picking the GovOps bullet", () => {
     const row = byCat("core-duty").find((r) => r.uuid === "duty-title-bullets");
     expect(row?.duty).toBe("…Core GovOps reviews the calculations for accuracy…");
+  });
+
+  it("recognizes hyphenated 'Gov-Ops' spelling when picking the duty snippet", () => {
+    const row = byCat("op-duty").find((r) => r.uuid === "duty-title-hyphen");
+    expect(row?.duty).toBe("…Gov-Ops verifies the submitted calculation for accuracy.");
   });
 
   it("emits one assignment per govops edge with executor + govops entity", () => {
