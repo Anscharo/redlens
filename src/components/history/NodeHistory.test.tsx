@@ -126,6 +126,15 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
   });
 
+  // A reintroduced doc's predecessor IS recorded (the reintroduction ledger), so calling
+  // it untraced would state something the reconstruction knows to be false.
+  it("says a reintroduced doc was revived, not that it could not be traced", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "reintroduced" })]);
+    render(<NodeHistory nodeId="n6e" />);
+    expect(await screen.findByText(/Revived at the markdown migration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
   it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2025-11-21", pr: 117, prTitle: "Migrate To Markdown File", summary: "migration" }),

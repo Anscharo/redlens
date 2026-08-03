@@ -216,7 +216,10 @@ const MIGRATION_CHANGE_TYPE = "structural";
  */
 export async function stampMigrationSeam(
   sql: SQL,
-  artifact: { meta?: { migrationCommit?: string }; docMeta?: Record<string, { seam?: string }> },
+  artifact: {
+    meta?: { migrationCommit?: string };
+    docMeta?: Record<string, { seam?: string; extractedFrom?: string }>;
+  },
   chunkSize = 1000,
 ): Promise<number> {
   const sha = (artifact.meta?.migrationCommit ?? MIGRATION_COMMIT).slice(0, 7);
@@ -227,12 +230,18 @@ export async function stampMigrationSeam(
     const values = entries
       .slice(i, i + chunkSize)
       .map(([id, m]) => {
-        params.push(id, m.seam);
-        return `($${params.length - 1}::uuid, $${params.length})`;
+        params.push(id, m.seam, m.extractedFrom ?? null);
+        return `($${params.length - 2}::uuid, $${params.length - 1}, $${params.length}::uuid)`;
       })
       .join(",");
+    // extracted_from rides along: a `split` doc with no reconstructed event of its own
+    // (34 in the committed artifact) has its source-document pointer ONLY in docMeta, so
+    // without this the lineage the reconstruction recovered never reaches the DB. COALESCE
+    // so a doc whose own event already carried the pointer is never blanked by a docMeta
+    // row that lacks one.
     const res = await sql.unsafe(
-      `UPDATE atlas_history h SET seam = v.seam FROM (VALUES ${values}) AS v(doc_id, seam)
+      `UPDATE atlas_history h SET seam = v.seam, extracted_from = COALESCE(v.extracted_from, h.extracted_from)
+       FROM (VALUES ${values}) AS v(doc_id, seam, extracted_from)
        WHERE h.doc_id = v.doc_id AND h.commit_sha = $1 AND h.change_type = '${MIGRATION_CHANGE_TYPE}'`,
       params,
     );

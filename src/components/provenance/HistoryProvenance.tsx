@@ -111,6 +111,13 @@ export function HistoryProvenance() {
             earlier history is recorded on the document it was extracted from
             rather than lost.
           </p>
+          <p>
+            <strong>Revived under a retired name</strong> covers a document the
+            migration reintroduced under a name the HTML had already renamed
+            away from. Its real predecessor lives under the newer name, which we
+            record separately, so it is a continuation rather than a new
+            document.
+          </p>
         </div>
       </section>
 

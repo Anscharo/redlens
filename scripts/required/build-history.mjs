@@ -451,8 +451,13 @@ async function main() {
 
   if (commits.length === 0) {
     console.error("no new commits to process");
-    if (!OUT_JSON) await sql.end();
-    return;
+    // The --out-json sink derives everything it writes from these commits, so with none
+    // there is nothing left to do. The DB sink must NOT stop here: the frozen pre-#117
+    // artifacts below are ingested idempotently on every run and change INDEPENDENTLY of
+    // the atlas git log — a re-freeze (htmlhist:apply / prehist:*) ships new rows without
+    // any new upstream commit. Returning here stranded a re-freeze until some unrelated
+    // atlas commit happened to trigger a cycle, which on a current cursor is never.
+    if (OUT_JSON) return;
   }
 
   // nodeId → new entries added in this run only

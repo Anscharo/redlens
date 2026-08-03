@@ -76,5 +76,6 @@ describe("ProvenancePage", () => {
     expect(screen.getByText(/Could not be traced/)).toBeInTheDocument();
     expect(screen.getByText(/Introduced at the migration/)).toBeInTheDocument();
     expect(screen.getByText(/Carved out of a larger document/)).toBeInTheDocument();
+    expect(screen.getByText(/Revived under a retired name/)).toBeInTheDocument();
   });
 });

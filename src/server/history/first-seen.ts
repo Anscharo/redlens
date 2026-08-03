@@ -70,6 +70,10 @@ const SEAM_NOTE: Record<string, string> = {
     "no 'added' event — this doc's history could not be traced back through the #117 markdown migration, so it is at least as old as that migration (2025-11-21), not newer",
   created:
     "no 'added' event — reviewed as introduced by the #117 markdown migration (2025-11-21); the pre-migration HTML holds no earlier version",
+  split:
+    "no 'added' event — carved out of a larger document at the #117 markdown migration (2025-11-21); it is at least as old as the document it was extracted from, whose history carries its earlier record",
+  reintroduced:
+    "no 'added' event — the migration revived a name the pre-migration HTML had already retired, so this doc continues an earlier document under its former name; older than the migration, not new",
 };
 
 /** Earliest `added` event per doc_id, for the given ids only. Empty input

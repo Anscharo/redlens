@@ -12,6 +12,9 @@ import { PRE_MD_HTML_URL } from "./HistoryDisclaimers";
 const HEADLINE: Record<string, string> = {
   created: "Introduced at the markdown migration.",
   split: "Carved out of a larger document at the markdown migration.",
+  // Its lineage IS known — the reintroduction ledger records the predecessor and the
+  // rename — so falling through to "could not be traced" would state something false.
+  reintroduced: "Revived at the markdown migration under a name that had already been retired.",
 };
 const UNTRACED_HEADLINE = "This document’s history before the markdown migration could not be traced.";
 

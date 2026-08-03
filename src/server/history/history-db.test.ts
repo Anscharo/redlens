@@ -239,6 +239,26 @@ describe("stampMigrationSeam writes each doc's #117 verdict onto its migration r
     expect(sweep.q).toContain("seam = 'untraced'");
     expect(sweep.q).toContain("seam IS NULL");
   });
+
+  // A `split` doc with no reconstructed event of its own holds its source-document
+  // pointer only in docMeta, so this stamp is the only thing that can persist it.
+  it("carries a split doc's extracted_from pointer onto the migration row", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, {
+      meta: { migrationCommit: "22cc27b5" },
+      docMeta: { [UUID]: { seam: "split", extractedFrom: OTHER } },
+    });
+    const [perDoc] = sql.calls;
+    expect(perDoc.q).toContain("extracted_from = COALESCE(v.extracted_from, h.extracted_from)");
+    expect(perDoc.p).toContain(OTHER);
+  });
+
+  // …but a docMeta row without one must never blank a pointer an event already wrote.
+  it("does not blank extracted_from when the artifact has no pointer", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    expect(sql.calls[0].q).toContain("COALESCE(v.extracted_from, h.extracted_from)");
+  });
 });
 
 describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () => {
