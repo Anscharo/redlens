@@ -5,6 +5,7 @@ import { sql } from "./db.ts";
 import { getSessionUser } from "./session.ts";
 import { json, isStringArray } from "./http.ts";
 import { MAX_COLLECTION_DOCS } from "../lib/collectionsLimits.ts";
+import { UUID_RE } from "../lib/patterns.ts";
 
 interface CollectionRow {
   id: string;
@@ -24,13 +25,30 @@ interface CollectionBody {
   ids?: string[];
 }
 
-// Server-side safety caps (the UI enforces a tighter 32-char name via maxLength;
-// these guard a direct authenticated POST/PATCH from inserting a giant name or a
-// huge ids array). MAX_IDS is the shared MAX_COLLECTION_DOCS so the limit shown
-// in the UI matches what the server accepts; items are inserted in batches
-// (insertItems) so even a full-atlas save is a few statements, not one per doc.
-const MAX_NAME_LEN = 200;
+// Server-side safety caps (these guard a direct authenticated POST/PATCH from
+// inserting a giant name or a huge ids array). MAX_NAME_LEN matches
+// MAX_COLLECTION_NAME_LEN in src/lib/collectionsApi.ts (the UI's maxLength) so
+// a name the UI would let you type is never rejected server-side and a rename
+// can't sneak past the UI cap by deleting a character out of an old, longer
+// name — single source of truth is the number 32 itself; it's kept as a
+// literal here (not imported) because collectionsApi.ts pulls in browser-only
+// chat/api types. If that constant ever moves to the zero-import
+// src/lib/collectionsLimits.ts (mirroring MAX_COLLECTION_DOCS below), switch
+// this to a real shared import. MAX_IDS is the shared MAX_COLLECTION_DOCS so
+// the limit shown in the UI matches what the server accepts; items are
+// inserted in batches (insertItems) so even a full-atlas save is a few
+// statements, not one per doc.
+const MAX_NAME_LEN = 32;
 const MAX_IDS = MAX_COLLECTION_DOCS;
+
+// True when `v` is a string with non-whitespace content. `body` is untyped
+// JSON cast to CollectionBody (`as CollectionBody`), so `body.name` can be any
+// JSON value at runtime — a plain `!body.name?.trim()` check only guards
+// null/undefined; a truthy non-string (42, true, ["a"], {}) reaches `.trim()`
+// and throws a TypeError, which surfaces as an unhandled 500.
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0;
+}
 
 async function itemsFor(collectionId: string): Promise<string[]> {
   const rows = (await sql`
@@ -137,11 +155,19 @@ export async function handleSharedCollection(req: Request): Promise<Response> {
   if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
   const { pathname } = new URL(req.url);
   const id = pathname.match(/^\/api\/collections\/([^/]+)\/shared$/)?.[1];
-  if (!id) return json({ error: "not_found" }, 404);
-  const rows = (await sql`SELECT id, name, updated_at FROM collections WHERE id = ${id}`) as CollectionRow[];
-  if (!rows.length) return json({ error: "not_found" }, 404);
-  const row = rows[0];
-  return json({ id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids: await itemsFor(id) });
+  // `id` is a bare uuid column (migrations/014_collections.sql) — an id that
+  // isn't even shaped like a UUID would otherwise reach Postgres as a bad
+  // ::uuid cast and throw, surfacing as an unhandled 500 with an HTML body
+  // instead of the 404 a merely-unknown (but well-formed) id gets below.
+  if (!id || !UUID_RE.test(id)) return json({ error: "not_found" }, 404);
+  try {
+    const rows = (await sql`SELECT id, name, updated_at FROM collections WHERE id = ${id}`) as CollectionRow[];
+    if (!rows.length) return json({ error: "not_found" }, 404);
+    const row = rows[0];
+    return json({ id: row.id, name: row.name, updatedAt: new Date(row.updated_at).toISOString(), ids: await itemsFor(id) });
+  } catch {
+    return json({ error: "server_error" }, 500);
+  }
 }
 
 export async function handleCollections(req: Request): Promise<Response> {
@@ -152,6 +178,11 @@ export async function handleCollections(req: Request): Promise<Response> {
   const { pathname } = new URL(req.url);
   const match = pathname.match(/^\/api\/collections(?:\/([^/]+))?$/);
   const id = match?.[1];
+  // Same bad-::uuid-cast concern as handleSharedCollection above — reject a
+  // malformed id before it ever reaches the PATCH/DELETE queries below. A
+  // well-formed id that just doesn't exist (or isn't owned) still 404s further
+  // down via the normal ownership checks.
+  if (id && !UUID_RE.test(id)) return json({ error: "not_found" }, 404);
 
   if (!id && req.method === "GET") {
     return json(await listCollections(userId), 200, session.refresh);
@@ -164,7 +195,7 @@ export async function handleCollections(req: Request): Promise<Response> {
     } catch {
       return json({ error: "invalid_json" }, 400);
     }
-    if (!body.name?.trim()) return json({ error: "empty_name" }, 400);
+    if (!isNonEmptyString(body.name)) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
     if (body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);
     if ((body.ids?.length ?? 0) > MAX_IDS) return json({ error: "too_many_ids" }, 400);
@@ -178,19 +209,27 @@ export async function handleCollections(req: Request): Promise<Response> {
     } catch {
       return json({ error: "invalid_json" }, 400);
     }
-    if (body.name !== undefined && !body.name.trim()) return json({ error: "empty_name" }, 400);
+    if (body.name !== undefined && !isNonEmptyString(body.name)) return json({ error: "empty_name" }, 400);
     if (body.ids !== undefined && !isStringArray(body.ids)) return json({ error: "invalid_ids" }, 400);
     if (body.name !== undefined && body.name.trim().length > MAX_NAME_LEN) return json({ error: "name_too_long" }, 400);
     if (body.ids !== undefined && body.ids.length > MAX_IDS) return json({ error: "too_many_ids" }, 400);
-    const updated = await updateCollection(userId, id, body);
-    if (!updated) return json({ error: "not_found" }, 404);
-    return json(updated, 200, session.refresh);
+    try {
+      const updated = await updateCollection(userId, id, body);
+      if (!updated) return json({ error: "not_found" }, 404);
+      return json(updated, 200, session.refresh);
+    } catch {
+      return json({ error: "server_error" }, 500);
+    }
   }
 
   if (id && req.method === "DELETE") {
-    const ok = await deleteCollection(userId, id);
-    if (!ok) return json({ error: "not_found" }, 404);
-    return json({ ok: true }, 200, session.refresh);
+    try {
+      const ok = await deleteCollection(userId, id);
+      if (!ok) return json({ error: "not_found" }, 404);
+      return json({ ok: true }, 200, session.refresh);
+    } catch {
+      return json({ error: "server_error" }, 500);
+    }
   }
 
   return json({ error: "method_not_allowed" }, 405);

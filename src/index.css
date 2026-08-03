@@ -624,6 +624,26 @@ mark {
   z-index: 2;
 }
 
+/* R2: the sticky box above is the WHOLE article, header + expanded body. A
+   body taller than the scrollport made the sticky box itself taller than the
+   scrollport, so it fully occluded every descendant for as long as it stayed
+   stuck — there was no scroll position where both the (opaque) selected node
+   and any descendant were visible/clickable at once. Capping just the body —
+   not the header/chiclets/pendulum/meta above it — keeps the header at its
+   natural size (so the red bar + tint above still read as "selected" exactly
+   as before) while giving the rare long body its own internal scroll, so the
+   article's total height stays bounded and the sticky box can still release
+   its descendants at a reachable scroll position. Ordinary bodies (well under
+   60vh) never hit this cap, so nothing changes for the common case. Not a full
+   fix for "header-only sticky" (that needs the body pulled out of the sticky
+   box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
+   R2) — this is the safe, CSS-only mitigation for the part that made
+   descendants totally unreachable. */
+.atlas-node.is-selected .atlas-node-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 /* Cradle: rail down the left of the selected node's descendants, in the
    selected node's depth color, closing with a curved foot under the last
    one. Sits at the same x as the selection bar so it reads as hanging from

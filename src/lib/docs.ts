@@ -85,6 +85,10 @@ function spawn(base: string): WorkerHandles {
   let resolveFull!: (b: AtlasBundle) => void, rejectFull!: (e: Error) => void;
   const shallow = new Promise<AtlasBundle>((res, rej) => { resolveShallow = res; rejectShallow = rej; });
   const full = new Promise<AtlasBundle>((res, rej) => { resolveFull = res; rejectFull = rej; });
+  // Has `shallow` already settled (via the "shallow" branch below, or by us
+  // rejecting it)? Guards the "error" branch from double-settling it and tells
+  // it whether shallow is still worth waiting on.
+  let shallowSettled = false;
 
   const worker = new Worker(new URL("../workers/atlas.worker.ts", import.meta.url), {
     type: "module",
@@ -93,18 +97,46 @@ function spawn(base: string): WorkerHandles {
   worker.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.type === "shallow") {
+      shallowSettled = true;
       resolveShallow(toBundle(base, msg));
     } else if (msg.type === "ready") {
       resolveFull(toBundle(base, msg));
       worker.terminate();
     } else if (msg.type === "error") {
-      worker.terminate();
       // Stale pinned sha (404 on /api/atlas/<sha>/) → force-forward reload
       // instead of surfacing an error; the page is on its way out.
-      if (handledStaleMessage(msg.message)) return;
+      if (handledStaleMessage(msg.message)) {
+        worker.terminate();
+        return;
+      }
       const err = new Error(msg.message);
-      rejectShallow(err);
+      // The worker posts ONE blanket "error" for Promise.all([shallowP,
+      // deepP]) even when only docs-deep.json failed (atlas.worker.ts) —
+      // rejecting `shallow` too, unconditionally, used to destroy a shallow
+      // tree that had already loaded (or was about to: Promise.all rejects
+      // the instant EITHER promise rejects, without waiting for the other, so
+      // a fast deep failure can win the race against a still-in-flight
+      // shallow fetch). fetchJson names the artifact in its thrown message
+      // ("docs-deep.json: 404" — see lib/verify.ts), so use that to tell a
+      // deep-only failure apart from one that also/only hit shallow.
+      const deepOnly = msg.message.includes("docs-deep.json") && !msg.message.includes("docs-shallow.json");
       rejectFull(err);
+      if (deepOnly && !shallowSettled) {
+        // Leave the worker running instead of terminating it: its independent
+        // shallow fetch (atlas.worker.ts's own separate shallowP.then/.catch)
+        // may still resolve and post "shallow" above, which settles `shallow`
+        // normally — exactly the case this exists to protect. If shallow
+        // fails too, that rejection is swallowed worker-side with no second
+        // message to catch it here (a gap only a dedicated shallow-error
+        // message from the worker could close); this is the ambiguous/
+        // both-failed branch below.
+        return;
+      }
+      worker.terminate();
+      if (!shallowSettled) {
+        shallowSettled = true;
+        rejectShallow(err);
+      }
     }
   });
   return { shallow, full };

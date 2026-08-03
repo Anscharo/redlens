@@ -3,7 +3,7 @@ import { useLocation, useSearchParams } from "wouter";
 import { saveScroll, getSavedScroll } from "../lib/scrollMemory";
 
 // Restores `ref.scrollTop` for the current URL on mount (after `ready`), and
-// saves it on unmount or when the URL changes. No on-scroll listeners.
+// saves it on unmount or when the URL changes.
 //
 // Pass `ready=true` only once the scroll target actually exists (data loaded,
 // list rendered) — otherwise the restore is wasted on an empty container and
@@ -28,14 +28,30 @@ export function useScrollRestore(
   const key = search ? `${path}?${search}` : path;
   const restoredKey = useRef<string | null>(null);
 
+  // Last scrollTop observed while `ref.current` was still attached. The save
+  // effect below persists this in its CLEANUP, which for a real unmount fires
+  // only after React has already detached the element from the document — a
+  // detached element has no CSS layout box, so reading its `.scrollTop` at
+  // that point returns 0 regardless of where the user actually scrolled to.
+  // Tracking the value here instead (updated live on "scroll", and again
+  // right after a restore) means the cleanup always has a genuine pre-detach
+  // value to persist rather than a bogus post-detach 0 that would otherwise
+  // overwrite a real saved position with the top.
+  const lastScrollRef = useRef(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => { lastScrollRef.current = el.scrollTop; };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [ref]);
+
   // Save on unmount or when key changes. Cleanup closure captures the key
   // value at the time the effect ran, so writes go to the OLD key on change.
   useEffect(() => {
-    const el = ref.current;
-    return () => {
-      if (el) saveScroll(key, el.scrollTop);
-    };
-  }, [key, ref]);
+    return () => saveScroll(key, lastScrollRef.current);
+  }, [key]);
 
   // Restore once per key, once data is ready.
   useEffect(() => {
@@ -49,6 +65,10 @@ export function useScrollRestore(
     }
     const saved = getSavedScroll(key);
     el.scrollTop = saved ?? 0;
+    // Keep the tracked value in sync with the restore so navigating away
+    // immediately after (before any new "scroll" event fires) still persists
+    // the restored position instead of the ref's stale initial value.
+    lastScrollRef.current = el.scrollTop;
     restoredKey.current = key;
   }, [key, ready, ref]);
 }

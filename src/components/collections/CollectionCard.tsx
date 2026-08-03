@@ -54,11 +54,11 @@ export function CollectionCard({
       className="px-4 py-4 rounded border"
       style={{ borderColor: "var(--border)", background: "var(--surface)" }}
     >
-      <div className="flex items-start justify-between gap-3 mb-1">
+      <div className="flex items-start justify-between gap-3 mb-1 min-w-0">
         {editing ? (
           <input
             autoFocus
-            className="text-sm font-medium bg-transparent border-b outline-none flex-1"
+            className="text-sm font-medium bg-transparent border-b outline-none flex-1 min-w-0"
             style={{ color: "var(--tan)", borderColor: "var(--border)" }}
             maxLength={MAX_COLLECTION_NAME_LEN}
             value={draft}
@@ -74,14 +74,14 @@ export function CollectionCard({
           />
         ) : (
           <button
-            className="text-sm font-medium text-left hover:underline"
+            className="text-sm font-medium text-left hover:underline truncate min-w-0"
             style={{ color: "var(--tan)" }}
             onClick={() => setEditing(true)}
           >
             {collection.name}
           </button>
         )}
-        <p className="mono text-[11px] text-tan-3 whitespace-nowrap">
+        <p className="mono text-[11px] text-tan-3 whitespace-nowrap shrink-0">
           {new Date(collection.updatedAt).toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",

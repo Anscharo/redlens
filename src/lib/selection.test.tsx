@@ -144,6 +144,93 @@ describe("useSelection", () => {
     expect(result.current.activeCollectionName).toBeNull();
   });
 
+  // C4 (2026-08-02 QA report): opening an empty collection calls replace([]),
+  // which — pre-fix — tripped the same empties-effect as an interactive drain
+  // and silently reset selectedOnly + forgot the collection. It must not.
+  it("replace([]) — opening an empty collection — keeps selectedOnly and the active collection", () => {
+    subsetValue = "selected";
+    storedIds = ["a"];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    setSubset.mockClear();
+
+    act(() => result.current.replace([]));
+
+    expect(result.current.ids.size).toBe(0);
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.selectedOnly).toBe(true);
+    expect(result.current.activeCollectionId).toBe("col1");
+    expect(result.current.activeCollectionName).toBe("Empty Collection");
+  });
+
+  // The two open paths (CollectionsPage's openCollection, the /c/:id opener)
+  // call replace() while still on the previous route and only navigate to
+  // ?subset=selected afterwards — so `selectedOnly` can flip true a render
+  // after `ids` already settled at empty. That's a second firing of the same
+  // effect (selectedOnly is in its dependency array) and must not undo the
+  // first firing's "keep it" decision.
+  it("keeps context when selectedOnly flips true a render after an empty replace()", () => {
+    storedIds = [];
+    const { result, rerender } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    expect(result.current.activeCollectionId).toBe("col1");
+    setSubset.mockClear();
+
+    // Simulate the subset=selected navigation landing on the next render.
+    subsetValue = "selected";
+    rerender();
+
+    expect(result.current.selectedOnly).toBe(true);
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.activeCollectionId).toBe("col1");
+    expect(result.current.activeCollectionName).toBe("Empty Collection");
+  });
+
+  it("a later interactive drain still resets after an earlier empty replace() (the flag isn't sticky)", () => {
+    subsetValue = "selected";
+    storedIds = [];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    expect(result.current.activeCollectionId).toBe("col1");
+    setSubset.mockClear(); // isolate the drain's own call below from mount's
+
+    // The user adds a doc (now interactive) then removes it again — this
+    // drain-to-empty must reset normally, proving replace()'s flag doesn't
+    // linger forever and mask a real drain.
+    act(() => result.current.toggleDoc("a"));
+    expect(result.current.activeCollectionId).toBe("col1"); // unaffected while non-empty
+    act(() => result.current.toggleDoc("a"));
+
+    expect(result.current.ids.size).toBe(0);
+    expect(setSubset).toHaveBeenCalledWith("all");
+    expect(result.current.activeCollectionId).toBeNull();
+    expect(result.current.activeCollectionName).toBeNull();
+  });
+
+  it("replace() with a non-empty collection is unaffected by the empties-effect", () => {
+    storedIds = [];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace(["x", "y"]);
+      result.current.setActiveCollectionId("col2");
+      result.current.setActiveCollectionName("Non-empty Collection");
+    });
+    expect(result.current.ids).toEqual(new Set(["x", "y"]));
+    expect(result.current.activeCollectionId).toBe("col2");
+    expect(result.current.activeCollectionName).toBe("Non-empty Collection");
+  });
+
   it("syncs ids from a cross-tab storage event matching STORAGE_KEY", () => {
     const { result } = renderHook(() => useSelection(), { wrapper });
     storedIds = ["z"];

@@ -22,4 +22,17 @@ describe("explorerUrl", () => {
   it("defaults EVM-shaped addresses to ethereum", () => {
     expect(explorerUrl(EVM)).toBe(EXPLORER.ethereum + EVM);
   });
+
+  it("accepts a priority list of hints and uses the first one that names a chain", () => {
+    // Real Spark data shape: a param key naming the token's own chain
+    // ("Token Address (Avalanche)") on an instance whose name says the
+    // instance's home chain is Ethereum Mainnet — the key must win (RD1).
+    expect(
+      explorerUrl(EVM, { chain: ["Token Address (Avalanche)", "Ethereum Mainnet - Galaxy Arch CLOs"] }),
+    ).toBe(EXPLORER.avalanche + EVM);
+    // And the inverse: a generic key falls back to the instance-name hint.
+    expect(
+      explorerUrl(EVM, { chain: [undefined, "Base - Morpho Blue USDC ERC4626 Vault"] }),
+    ).toBe(EXPLORER.base + EVM);
+  });
 });

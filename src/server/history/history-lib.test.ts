@@ -27,3 +27,8 @@ test("movePaths returns recorded paths, the markdown-migration paths, or null", 
   expect(movePaths(moved({ pr: 236 }))).toBeNull();
   expect(movePaths(moved({ changeType: "modified", movedTo: "b.md" }))).toBeNull();
 });
+
+// H2 (deep-QA 2026-08-02): a self-move (movedFrom === movedTo) is not a move to render.
+test("movePaths is null for a self-move — movedFrom === movedTo", () => {
+  expect(movePaths(moved({ movedFrom: "A.1.11", movedTo: "A.1.11" }))).toBeNull();
+});

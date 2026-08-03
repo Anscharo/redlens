@@ -33,6 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-03
+- Improved keyboard navigation and loading reliability in the reader and sidebar
+- Fixed search issues with scroll position, excluded terms, and quoted phrases
+- Fixed history and radar to show structural and renumbering changes, recover from temporary errors, and link addresses to the correct networks
+
 ## 2026-07-31
 - Reader documents now start collapsed and open one level at a time
 - Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in

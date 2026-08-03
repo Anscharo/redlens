@@ -260,6 +260,23 @@ describe("search operators", () => {
     }
   });
 
+  it('double-quote phrase matches even when it begins/ends with punctuation (S3 regression, "(USDS)")', async () => {
+    const s = await initSearchWorker();
+    // facilitatorCore's content contains "...quorum. properly implemented." —
+    // "quorum." is a phrase whose trailing character is punctuation. An
+    // unconditional \b<phrase>\b (the pre-fix behavior) can never match here:
+    // \b never holds between two non-word characters ("." followed by " ",
+    // or "." at the very end of annotation's content). Same shape of bug as
+    // the reported "(USDS)" case, using content already in the fixtures.
+    const hits = await s.query('"quorum."');
+    expect(hits.some((h) => h.id === IDS.facilitatorCore)).toBe(true);
+    expect(hits.some((h) => h.id === IDS.annotation)).toBe(true);
+    const docs = makeDocsRecord();
+    for (const h of hits) {
+      expect((docs[h.id].content + " " + docs[h.id].title).toLowerCase()).toContain("quorum.");
+    }
+  });
+
   it("single-quote phrase is case-sensitive", async () => {
     const s = await initSearchWorker();
     const good = await s.query("'delegatedSigners'");
@@ -284,6 +301,26 @@ describe("search operators", () => {
     expect(withScenario.some((h) => h.id === IDS.scenarioVar)).toBe(true);
     const excluded = await s.query("delegate -slippery");
     expect(excluded.some((h) => h.id === IDS.scenarioVar)).toBe(false);
+  });
+
+  it("excluding an ALL-CAPS ticker does not self-contradict into zero results (S2 regression)", async () => {
+    const s = await initSearchWorker();
+    // facilitatorCore contains both "quorum" and "USDC"; annotation contains
+    // "quorum" but not "USDC". Before the fix, the ticker auto-phrase loop ran
+    // over "-USDC" before exclusion parsing and promoted the bare "USDC" to a
+    // REQUIRED phrase as well as an excluded term — a doc had to both contain
+    // and not contain "usdc", so every doc was rejected and results were [].
+    const hits = await s.query("quorum -USDC");
+    expect(hits.some((h) => h.id === IDS.annotation)).toBe(true);
+    expect(hits.some((h) => h.id === IDS.facilitatorCore)).toBe(false);
+  });
+
+  it("-USDC (uppercase) and -usdc (lowercase) exclusions return the same result set", async () => {
+    const s = await initSearchWorker();
+    const upper = await s.query("quorum -USDC");
+    const lower = await s.query("quorum -usdc");
+    expect(upper.map((h) => h.id).sort()).toEqual(lower.map((h) => h.id).sort());
+    expect(upper.length).toBeGreaterThan(0);
   });
 
   it("~N fuzzy tolerates a typo", async () => {
