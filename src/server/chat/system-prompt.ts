@@ -41,7 +41,34 @@ export function pageContextLine(ctx?: PageContext): string | null {
   return null;
 }
 
-export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
+// Which citation format the prompt ASKS for. The pipeline accepts both from
+// every model, permanently (citation-normalize.ts) — this only chooses what the
+// model is told to write, because compliance is model-dependent: the 2026-08-03
+// bakeoff had gpt-5-mini at 93% adoption with the definition block leading the
+// answer 93% of the time and zero format defects, while the default tier adopted
+// it in 29% of turns, never led with the block, labelled definitions with raw
+// UUIDs (which defeats label-based repair), cited a third as often, and produced
+// the grid's only undefined-label failure. See docs/plans/reference-citations.md.
+export type CitationStyle = "reference" | "inline";
+
+// Reference-style: the definition block, its labels, and the mixed-form escape.
+const REFERENCE_CITATION_RULES = [
+  "- Cite every claim with a link to its source doc, using reference style: open your answer with a definition block — one `[label]: /atlas/<uuid>` per line, no blank line inside the block, a blank line after it — then cite inline as `[link text][label]` throughout the prose. A doc cited many times is written once, in one place.",
+  "- The definition block is the FIRST thing in the answer: before any heading, any greeting, any introductory sentence. A block that arrives later leaves every citation ahead of it rendering as literal `[text][label]` brackets while the answer streams.",
+  "- The `<uuid>` in a definition is ALWAYS a document UUID copied verbatim from this turn's tool results — never a doc_no, never typed from memory, never invented. If you did not retrieve a document this turn you cannot link it: retrieve it first, or drop the claim.",
+  "- Labels are short slugs from the doc's title (or its doc_no when two titles collide): lowercase, words joined with `-`, e.g. `[spark-rate]: /atlas/<uuid>`. Never label a definition with the UUID itself — the label is how a citation is recovered when a UUID is mistyped, so it must carry the title.",
+  "- Link text is free — a doc title, a quoted phrase, a value, a date, or an on-chain address. When a claim IS a number, percentage, date, or on-chain address, make that value the link text: write `[6.5%][spark-rate]`, `[2025-03-01][keel-accord]`, or `[0x6B17…][pause-proxy]`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
+  "- One label per citation. When two docs support one claim, cite twice — `[text][label-a] [text][label-b]` — never a comma-separated list of labels in one bracket.",
+  "- Every label you use must be defined in the block. Inline `[Title](/atlas/<uuid>)` links stay fully acceptable when you settle on a citation mid-sentence, and you may mix both forms in one answer — but a `[text][label]` whose label was never defined is a broken citation, not a link.",
+];
+
+// Inline-only: one shape, no block to place, no labels to keep consistent.
+const INLINE_CITATION_RULES = [
+  "- Cite every claim with a link to the source doc: `[link text](/atlas/<uuid>)`. The href is ALWAYS a document UUID copied verbatim from this turn's tool results — never a doc_no, never typed from memory, never invented. If you did not retrieve a document this turn you cannot link it: retrieve it first, or drop the claim.",
+  "- Link text is normally the document's title, but when a claim IS a number, percentage, date, or on-chain address, make that value the link text instead: write `[6.5%](/atlas/<uuid>)` or `[0x6B17…](/atlas/<uuid>)`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
+];
+
+export function buildSystemPrompt(ix: Indexes, ctx?: PageContext, citations: CitationStyle = "inline"): string {
   // entity_type_graph is opt-in on atlas_describe (see DEFAULT_SECTIONS in
   // tools.ts) — request it explicitly, and guard defensively so a future
   // schema change can never NPE the whole /api/chat system prompt.
@@ -94,12 +121,7 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext): string {
     "For eligibility, payment-rate, or dispute questions: cite the governing atlas rule text and its provenance, present competing readings if the text is ambiguous, and say plainly when the atlas is silent. Never issue a facilitator or governance ruling yourself — say that the relevant facilitator or governance process must decide. You report what the atlas says; you do not adjudicate.",
     "",
     "## Citations & rendering",
-    "- Cite every claim with a link to its source doc. PREFER reference-style: open your answer with a definition block — one `[label]: /atlas/<uuid>` per line, no blank line inside the block, a blank line after it — then cite inline as `[link text][label]` throughout the prose. A doc cited many times is written once, in one place.",
-    "- The `<uuid>` in a definition is ALWAYS a document UUID copied verbatim from this turn's tool results — never a doc_no, never typed from memory, never invented. If you did not retrieve a document this turn you cannot link it: retrieve it first, or drop the claim.",
-    "- Labels are short slugs from the doc's title (or its doc_no when two titles collide): lowercase, words joined with `-`, e.g. `[spark-rate]: /atlas/<uuid>`. The label is how a citation is recovered when a UUID is mistyped, so keep it recognisable.",
-    "- Link text is free — a doc title, a quoted phrase, a value, a date, or an on-chain address. When a claim IS a number, percentage, date, or on-chain address, make that value the link text: write `[6.5%][spark-rate]`, `[2025-03-01][keel-accord]`, or `[0x6B17…][pause-proxy]`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
-    "- One label per citation. When two docs support one claim, cite twice — `[text][label-a] [text][label-b]` — never a comma-separated list of labels in one bracket.",
-    "- Inline `[Title](/atlas/<uuid>)` links stay fully acceptable when you settle on a citation mid-sentence, and you may mix both forms in one answer. The verbatim-UUID rule above applies identically.",
+    ...(citations === "reference" ? REFERENCE_CITATION_RULES : INLINE_CITATION_RULES),
     "- Never emit placeholder citations — a parenthetical topic name with no link, e.g. `(Document Structure)`, is not a citation. Every citation must resolve to a real UUID.",
     "- All doc ids, doc numbers, doc titles, quoted text, and cited values MUST be real and accurate: copy them verbatim from this turn's tool results, never from memory. They are machine-checked against the atlas — one invented or misattributed identifier, or a figure that isn't in the document you cite for it, fails the whole answer. Unsure of a doc number? Use the title alone.",
     "- Quote at most 1–2 sentences from any document, always with its citation. Never paste full document content — link to the reader instead.",

@@ -223,6 +223,14 @@ export const config = {
   chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   // Fallbacks for the default chain (also inherited by unset tiers).
   chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
+  // still accepts both formats — this is prompt wording only. Defaults to the
+  // strong chain, since that is where the 2026-08-03 bakeoff measured the format
+  // working (93% adoption, block first, no defects) while the default tier
+  // adopted it in 29% of turns and never led with the block. Empty (no strong
+  // tier configured, no override) = inline everywhere, which is the safe form.
+  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? process.env.CHAT_MODEL_STRONG ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum

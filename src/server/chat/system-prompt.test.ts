@@ -67,6 +67,29 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("## Current page");
   });
 
+  // Which format the prompt ASKS for is per-model (docs/plans/reference-citations.md):
+  // the bakeoff measured the definition block working on the strong tier and
+  // misfiring on the default one. Inline is the default because it is the form
+  // every measured model follows.
+  it("asks for inline citations by default and reference style only when selected", () => {
+    const inline = buildSystemPrompt(ix);
+    expect(inline).toContain("[link text](/atlas/<uuid>)");
+    expect(inline).not.toContain("definition block");
+    expect(inline).not.toContain("[link text][label]");
+
+    const reference = buildSystemPrompt(ix, undefined, "reference");
+    expect(reference).toContain("definition block");
+    expect(reference).toContain("[link text][label]");
+    // The placement rule is the one the default tier failed 14/14 times.
+    expect(reference).toContain("FIRST thing in the answer");
+    // Format-agnostic rules survive in both.
+    for (const p of [inline, reference]) {
+      expect(p).toContain("## Citations & rendering");
+      expect(p).toContain("Never emit placeholder citations");
+      expect(p).toContain("make that value the link text");
+    }
+  });
+
   it("includes today's date and the atlas commit when present", () => {
     const prompt = buildSystemPrompt(ix);
     const today = new Date().toISOString().slice(0, 10);

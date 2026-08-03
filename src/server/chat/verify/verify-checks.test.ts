@@ -435,3 +435,15 @@ test("value grounding: non-value link text, small counts, and leading doc_nos ca
     expect(findUngroundedCitationValues(`Cited [${text}](/atlas/${realUuid}).`, evidence, ix)).toEqual([]);
   }
 });
+
+// The default-tier model links a doc by its own uuid. Its digit runs (692, 9829,
+// 41 …) are short enough to occur in some other retrieved doc, so mining them
+// manufactured 36 spurious hard failures in one bakeoff run.
+test("value grounding: a uuid used as link text is an identifier, not a figure", () => {
+  const uuidText = "7ac692f1-9829-41d8-83d4-4cb1bd053302";
+  const evidence = [`unrelated doc mentioning 692 and 9829 and 053302 elsewhere`];
+  expect(findUngroundedCitationValues(`See [${uuidText}](/atlas/${realUuid}).`, evidence, ix)).toEqual([]);
+  // …but a real figure sitting beside the uuid is still mined.
+  const answer = `See [${uuidText} — ${EXOTIC}](/atlas/${realUuid}).`;
+  expect(findUngroundedCitationValues(answer, [`the rate is ${EXOTIC}`], ix)).toHaveLength(1);
+});

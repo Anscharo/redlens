@@ -62,9 +62,15 @@ must stay in sync.
 
 The per-request system prompt (`system-prompt.ts`) injects today's date + atlas
 commit, the doc-type taxonomy with counts, the live entity-traversal graph, the
-tool guide, and strict citation rules (every claim → `[Title](/atlas/<uuid>)`
-with a verbatim UUID from this turn's tool results). History is windowed to a
-hard char budget (`chat-history.ts`). A deterministic **prefetch**
+tool guide, and strict citation rules (every claim → a link with a verbatim UUID
+from this turn's tool results). The citation FORMAT those rules ask for is
+per-model: inline `[Title](/atlas/<uuid>)` by default, reference-style (a
+`[label]: /atlas/<uuid>` definition block at the top, `[text][label]` in prose)
+only for models listed in `CHAT_REFERENCE_CITATION_MODELS` — which defaults to
+the strong chain, the only tier where the format measured clean. The pipeline
+accepts both from every model regardless; see
+`docs/plans/reference-citations.md`. History is windowed to a hard char budget
+(`chat-history.ts`). A deterministic **prefetch**
 (`prefetch.ts`) matches the message against the glossary and entity roster and,
 on a hit, injects a synthetic `atlas_prefetch` tool round so definitional
 questions can answer in one pass. **Tier routing** (`model-router.ts`)

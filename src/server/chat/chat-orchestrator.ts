@@ -115,7 +115,11 @@ function verifyEvent(
 //     steer, the Sources cluster and the persisted message all read, so one
 //     canonical shape across those consumers beats byte-fidelity to raw model
 //     output.
-function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair } {
+// Exported for the offline evals (scripts/aux/eval-bakeoff.ts), which must grade
+// the string production would SHIP: a reference-style answer has no inline
+// citations at all until this runs, so a checker fed the raw model output scores
+// every well-formed reference answer as uncited.
+export function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair } {
   // A used-but-undeclared label is resolved against this turn's retrieved docs
   // and synthesized as an inline link when it maps uniquely (undefined-label
   // degradation); unresolvable ones the normalizer strips to plain text and

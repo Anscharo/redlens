@@ -1,5 +1,10 @@
 # Reference-style citations for chat answers
 
+> **Status (2026-08-03): shipped per model, not globally.** The prompt asks for
+> reference style only for models on `CHAT_REFERENCE_CITATION_MODELS` (defaults
+> to the strong chain); every other model is prompted inline. See
+> "Rollout decision" below — it supersedes the framing in this Overview.
+
 ## Overview
 
 Move the chat answer's citation format from inline-only `[Doc Title](/atlas/<uuid>)`
@@ -110,6 +115,75 @@ hardest questions — where value grounding matters most — the per-doc value c
 would get no coverage there as currently worded. **The prompt needs an explicit
 directive**, not an example, if that check is to earn its place.
 
+## Measured: full bakeoff after rollout (2026-08-03)
+
+`pnpm eval:bakeoff`, 14 queries × the four deployed models (default, both
+approved fallbacks, strong tier), judge `gpt-5.6-terra`, atlas `4101dc75`. 55
+successful runs, 475 citations. The report is `.cache/eval-bakeoff.json`; the
+bakeoff now runs `normalizeAndRepair` before grading, because a reference answer
+contains no inline citation for any checker to see.
+
+**Citation integrity — the central hypothesis, confirmed at scale.**
+
+| across 475 citations | count |
+|---|---|
+| invalid citation UUIDs | **0** |
+| bare / truncated `/atlas/…` hrefs | **0** |
+| citations repaired by `citation-repair` | **0** |
+| citations stripped (unrepairable) | **0** |
+| invalid doc numbers | 0 |
+| doc_no mismatches | 1 (glm-5.2) |
+
+Not one garbled UUID in the whole grid. `citation-repair.ts` — written because
+models cannot copy 36-char UUIDs — did nothing at all.
+
+**This does not isolate reference style as the cause.** The run was HEAD-only, no
+old-prompt baseline, and two of the four models wrote mostly inline links
+(adoption 29% and 64% below). So what is measured is "UUID garbling is absent on
+these four models in both formats", which is stronger than the plan predicted but
+is not evidence for the causal claim that reference style *reduces* garbling. An
+A/B against the inline prompt is still the only thing that would establish that,
+and it was deliberately skipped.
+
+**Format adoption is model-dependent, and the default tier is the weak one.**
+
+| | gemma-4-31b-it (default) | gpt-5-mini (strong) | glm-5.2 | haiku-4.5 |
+|---|---|---|---|---|
+| reference style used | 29% | 93% | 69% | 64% |
+| definition block first | 0% | 93% | 15% | 0% |
+| definitions / run | 2.4 | 6.0 | 7.9 | 4.9 |
+| citations / run | 4.0 | 11.7 | 13.4 | 5.8 |
+| value used as link text | 13% | 7% | 1% | 16% |
+| hard failures / run (after the fix below) | 0.79 | 0.21 | 0.23 | 0.43 |
+| mean judged score | 0.72 | 0.80 | 0.76 | 0.61 |
+
+Every remaining hard failure is concentrated in two runs: gemma's
+`multisig-security` (11 `[text][label]` uses with **no definition block at all** —
+the predicted undefined-label degradation, all 11 de-linkified and reported), and
+haiku's `did-you-know` (6 real value misattributions, independently confirmed by
+the judge: "290 is total responsibilities, not JanSky's; blurb 9 cites the wrong
+document"). Both are true positives.
+
+**One false-positive class found and fixed.** gemma writes a doc's own UUID as
+link text (`[7ac692f1-9829-41d8-…](/atlas/7ac692f1-…)`, 7 of its 56 citations).
+`citationValues` mined the digit runs out of it — `692`, `9829`, `41`, `053302` —
+each short enough to occur incidentally in some other retrieved doc, and reported
+them as figures misattributed to the cited doc: **36 spurious hard failures from
+a single run**, enough to force a full-transcript recovery replay in production.
+`citationValues` now strips UUIDs before mining, exactly as it already stripped a
+leading doc_no. Recomputing the grid offline from the saved tool results: 36 → 0
+spurious, haiku's 6 true catches preserved.
+
+**Streaming placement is the real cost of low adoption.** `blockFirst` overstates
+the problem — what matters is whether any use streams before its definition, since
+until then remark renders literal `[text][label]`. Measured on raw answers
+(`eval-bakeoff` now records `usesBeforeBlock`): gemma put the block on line 2
+under a one-line intro for one query (harmless, no use precedes it) but at the
+**bottom** for another, with 11 uses ahead of it across a table — visible bracket
+junk for the whole stream, resolving only at completion. `definition-block-gate.ts`
+degrades correctly in both cases (first real line isn't a definition → straight to
+the inline gate, no stall), so this is a rendering nuisance, not a hang.
+
 ### Two failure modes to handle (both confirmed by direct render)
 
 **1. Multi-label citation.** gemma, 2/3 runs, when a claim is genuinely supported
@@ -132,6 +206,30 @@ they are emphasis gone wrong rather than citations.
 
 Neither appeared on gpt-5-mini. Both produce visible junk in the answer, so both
 must be handled in the normalizer regardless of prompt wording.
+
+## Rollout decision (2026-08-03)
+
+**Reference style is prompted per model, not globally.** `CHAT_REFERENCE_CITATION_MODELS`
+(config, defaults to `CHAT_MODEL_STRONG`) is the allowlist; `citationStyleFor()`
+in `model-router.ts` is the single decision point, and `chat.ts` routes the tier
+*before* building the prompt so the format follows the model that will read it.
+Everything downstream — normalization, repair, the gate, the checks, the Sources
+cluster — still accepts both forms from every model, permanently. This is prompt
+wording only.
+
+The rule is keyed on the **model**, not the tier, for two reasons: format
+compliance is a property of the model (swapping `CHAT_MODEL_STRONG` for a model
+that can't hold the format should not silently keep asking for it), and the evals
+must reproduce production's choice for any candidate they run — `eval-bakeoff`
+calls the same `citationStyleFor()`.
+
+Inline is the default because it is the form every measured model follows. The
+reference-style prompt also now states the block must precede any heading or
+intro sentence, and forbids labelling a definition with the UUID itself.
+
+Verified live (4 cells, 2 queries × both tiers): gemma emits inline only — no
+definition block, no undefined labels, no ungrounded values — and gpt-5-mini
+emits the block first in both runs with nothing streaming ahead of it.
 
 ## The format contract
 
@@ -296,10 +394,22 @@ one that changes model behaviour, and it is a one-line revert if the eval regres
 - ~~**Label collisions** across docs with similar titles.~~ **Answered** — both
   models disambiguated identical titles unasked, 6/6. `titleIndex`'s ambiguity
   handling still governs repair when a label matches two docs.
-- **How hard should the value-as-link-text rule be?** gpt-5-mini ignored the
-  example entirely. An explicit directive ("when a claim is a number, percentage,
-  date, or address, make that value the link text") should be tried and
-  re-measured before committing to the per-doc value check, since that check is
-  worthless without the behaviour it depends on.
-- **Does an up-front definition block constrain the model's writing?** Still open,
-  though six runs produced no under-declaration — every doc used was declared.
+- ~~**How hard should the value-as-link-text rule be?**~~ **Answered, negatively.**
+  The explicit directive shipped, and it barely moved: 1–16% of citations carry a
+  value (gpt-5-mini 7%, up from 0/3 under the example alone). The per-doc value
+  check therefore runs on thin coverage — 6 catches in 55 runs, all on one model —
+  and it cost one false-positive class to get there. It earns its place (those 6
+  were real wrong-doc attributions nothing else caught), but it is not the primary
+  wrong-doc defence the plan hoped for. Wording the directive harder is the next
+  lever if the check is to carry more weight.
+- ~~**Does an up-front definition block constrain the model's writing?**~~
+  **Answered.** No under-declaration problem: only 1 run in 55 used labels it
+  never declared. But adoption is 29–93% and the block leads the answer only
+  0–93% of the time, so an up-front block is the exception outside gpt-5-mini —
+  the streaming win the format was designed for is only reliably collected on the
+  strong tier.
+- **Should the default tier keep reference style?** New. gemma adopts it in 29% of
+  turns, never leads with the block, uses UUIDs as labels (defeating label-based
+  repair), and produced the one undefined-label failure in the grid — while citing
+  a third as often as the models that adopted the format. Either the prompt names
+  the block placement far more forcefully, or default-tier routing is revisited.

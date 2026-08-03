@@ -324,7 +324,11 @@ interface LinkValue {
 // then percentages, then dates, then remaining figures), each span blanked out
 // before the next scan so a percentage's or address's own digits are never
 // re-mined as a bare number.
-function citationValues(text: string): LinkValue[] {
+// Exported so the model bakeoff can measure the prompt-compliance rate for
+// "make the value the link text" — the behaviour findUngroundedCitationValues
+// depends on, and which one measured tier ignored entirely (see
+// docs/plans/reference-citations.md).
+export function citationValues(text: string): LinkValue[] {
   const out: LinkValue[] = [];
   const seen = new Set<string>();
   const push = (literal: string, address: LinkValue["address"]) => {
@@ -337,6 +341,13 @@ function citationValues(text: string): LinkValue[] {
   // A leading real/structural doc_no in the link text ("A.2.2.9 - Rate") is an
   // identifier, not a value — drop it before mining.
   let rest = text.replace(new RegExp(String.raw`^\s*${DOC_NO_CORE}\b`), "");
+  // So is a UUID. The default-tier model writes a doc's own uuid as link text
+  // (`[7ac692f1-9829-41d8-…](/atlas/7ac692f1-…)`, measured in the 2026-08-03
+  // bakeoff), and mining that yields digit runs — 692, 9829, 41 — which are
+  // short enough to occur incidentally in some other retrieved doc and are then
+  // reported as figures misattributed to the doc they link. That accounted for
+  // 36 of the 42 hard value failures in that run, every one of them spurious.
+  rest = rest.replace(new RegExp(UUID_RE.source.slice(1, -1), "gi"), " ");
   for (const m of rest.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) push(m, "evm");
   for (const m of rest.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) push(m, "sol");
   rest = rest.replace(new RegExp(EVM_ADDRESS_SRC, "g"), " ").replace(new RegExp(SOL_ADDRESS_SRC, "g"), " ");

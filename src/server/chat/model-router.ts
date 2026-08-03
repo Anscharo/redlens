@@ -5,6 +5,7 @@
 // (primary + fallbacks); unset tier slots inherit the default chain, so with
 // no env configured routing is a no-op and CHAT_MODEL behaves as before.
 import { config } from "../config.ts";
+import type { CitationStyle } from "./system-prompt.ts";
 
 export type ModelTier = "fast" | "default" | "strong";
 
@@ -46,6 +47,20 @@ export function routeTier(question: string, opts: { followUp?: boolean } = {}): 
     return { tier: "fast", reason: docRef ? "doc-ref" : "lookup" };
   }
   return { tier: "default", reason: "default" };
+}
+
+// Which citation format to ASK this model for. Keyed on the model, not the tier,
+// because format compliance is a property of the model — and because the evals
+// must be able to reproduce production's choice for any candidate they run
+// (scripts/aux/eval-bakeoff.ts). Everything downstream accepts both formats from
+// everyone; see system-prompt.ts and docs/plans/reference-citations.md.
+//
+// The prompt is fixed once per turn from the chain's PRIMARY model, so an
+// OpenRouter failover inherits it — list a tier's fallbacks in the allowlist too
+// if that tier is asked for reference style, or a failover hands the reference
+// prompt to a model that was never measured on it.
+export function citationStyleFor(model: string): CitationStyle {
+  return config.chatReferenceCitationModels.includes(model) ? "reference" : "inline";
 }
 
 // Tier → model chain: first entry is the primary, the rest are OpenRouter
