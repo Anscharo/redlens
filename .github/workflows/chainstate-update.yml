@@ -1,0 +1,113 @@
+name: Chainstate Update
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly Sunday 22:00 UTC. Self-aborts if on-chain artifacts are unchanged.
+    - cron: "0 22 * * 0"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Reuses the ATLAS_BOT GitHub App credentials and ETHERSCAN_API_KEY from
+    # the atlas-update environment. The App token lets the push + PR trigger CI.
+    environment: atlas-update-main-bypass
+    steps:
+      - name: Generate ATLAS_BOT app token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLAS_BOT_APP_ID }}
+          private-key: ${{ secrets.ATLAS_BOT_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # build:addresses reads gitignored addresses.atlas.json from build:index.
+      - name: Build index
+        run: pnpm build:index
+
+      # Refresh committed addresses.json + Etherscan cache. Degrades gracefully
+      # on flaky Etherscan calls — snap:chainstate still runs against the
+      # existing committed artifacts.
+      - name: Refresh on-chain address metadata
+        continue-on-error: true
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+        run: pnpm build:addresses
+
+      - name: Snapshot chain state
+        env:
+          ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
+        run: pnpm snap:chainstate
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet -- public/chain-state.json public/addresses.json .cache/etherscan; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "On-chain artifacts unchanged — nothing to commit."
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            BLOCK=$(node -e "console.log(JSON.parse(require('fs').readFileSync('public/chain-state.json','utf8')).block)")
+            echo "block=$BLOCK" >> "$GITHUB_OUTPUT"
+            git diff --stat -- public/chain-state.json public/addresses.json .cache/etherscan
+          fi
+
+      - name: Commit and push to chainstate-update branch
+        if: steps.diff.outputs.proceed == 'true'
+        id: push
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          BRANCH="chainstate-update/${DATE}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add public/chain-state.json public/addresses.json .cache/etherscan
+          git commit -m "chore: refresh chainstate snapshot"
+          git push origin "$BRANCH" --force
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update chainstate-update PR
+        if: steps.diff.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BLOCK="${{ steps.diff.outputs.block }}"
+          BRANCH="${{ steps.push.outputs.branch }}"
+
+          gh label create chainstate-update --force \
+            --color 1D76DB \
+            --description "Automated weekly chainstate snapshot refresh"
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "PR #$EXISTING already open for $BRANCH — nothing to do."
+          else
+            gh pr create \
+              --title "chore: refresh chainstate snapshot" \
+              --body "Automated weekly refresh of on-chain contract values at Ethereum block \`${BLOCK}\`." \
+              --label "chainstate-update" \
+              --base main \
+              --head "$BRANCH"
+            PR_NUM=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+            gh pr merge "$PR_NUM" --auto --rebase
+            echo "Opened PR #${PR_NUM} with auto-merge (rebase) enabled."
+          fi

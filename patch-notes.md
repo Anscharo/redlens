@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-03
+- Refreshed on-chain contract values automatically each week
+
 ## 2026-07-31
 - Reader documents now start collapsed and open one level at a time
 - Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in

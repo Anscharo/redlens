@@ -28,7 +28,7 @@ const ADDRS_PATH = path.join(ROOT, "public/addresses.json");
 const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const OUT_PATH = path.join(ROOT, "public/chain-state.json");
 
-const RPC_URL = process.env.ETH_RPC_URL ?? "https://ethereum.publicnode.com";
+const RPC_URL = process.env.ETH_RPC_URL?.trim() || "https://ethereum.publicnode.com";
 
 const client = createPublicClient({
   chain: mainnet,
