@@ -88,14 +88,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
         }
         pid = parentOf.get(pid) ?? null;
       }
-      // Also expand the selected node itself so its direct children show — this
-      // is what the reader does on selection, and it's what makes the cradle
-      // appear in the sidebar (a rail around the now-visible children), mirroring
-      // the middle pane.
-      if (bundle.byParent.has(nodeId) && !next.has(nodeId)) {
-        next.add(nodeId);
-        changed = true;
-      }
+      // Deliberately NOT expanding the selected node itself. Ancestors have to
+      // open or the row could not be shown at all, but unfolding the node's own
+      // children turns "open this doc" into "open this doc and rearrange the
+      // tree under it". Selecting picks a doc; only the chevron changes shape.
       return changed ? next : prev;
     });
   }, [bundle, nodeId, parentOf]);
@@ -267,30 +263,41 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     }
   }, [selectedIndex, nodeId, listRef]);
 
-  // Expand from `id` down through every node that has a changed descendant
-  // (rollup keys), revealing the changes without unfolding unrelated subtrees.
-  // Changed leaves become visible once their (rollup-key) parent is expanded.
-  // Done one level per REVEAL_STEP_MS tick (not all at once) so the cascade is
-  // legible — each level's pills appear, linger, then fade as they unfold.
+  // Staggered BFS unfold, one level per REVEAL_STEP_MS tick (not all at once)
+  // so the cascade is legible — each level appears, lingers, then the next
+  // unfolds. `follow` decides which children continue the frontier; `maxLevels`
+  // caps how many ticks run (the first tick expands `rootId` itself, so
+  // maxLevels = 4 means 4 ticks). Shared by the preview rollup reveal and the
+  // sidebar chevron's shift-click cascade below.
   const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (revealTimer.current) clearTimeout(revealTimer.current); }, []);
 
-  const revealChanges = useCallback(
-    (id: string) => {
+  const cascade = useCallback(
+    (rootId: string, follow: (childId: string) => boolean, maxLevels: number) => {
       if (!bundle) return;
       const { byParent } = bundle;
       if (revealTimer.current) clearTimeout(revealTimer.current);
-      let frontier = [id];
+      let frontier = [rootId];
+      let level = 0;
       const step = () => {
+        // Snapshot the frontier this tick is expanding *before* queuing the
+        // state update. React can defer invoking a functional setState updater
+        // until after this synchronous block finishes — by then `frontier`
+        // below would already be reassigned to the *next* tick's value, so the
+        // updater must close over a value that never changes out from under it.
+        const toExpand = frontier;
         setExpandedIds((prev) => {
           const next = new Set(prev);
-          for (const cur of frontier) next.add(cur);
+          for (const cur of toExpand) next.add(cur);
           return next;
         });
-        const nextFrontier: string[] = [];
-        for (const cur of frontier) {
-          for (const child of byParent.get(cur) ?? []) {
-            if (rollup.has(child.id)) nextFrontier.push(child.id);
+        level++;
+        let nextFrontier: string[] = [];
+        if (level < maxLevels) {
+          for (const cur of toExpand) {
+            for (const child of byParent.get(cur) ?? []) {
+              if (follow(child.id)) nextFrontier.push(child.id);
+            }
           }
         }
         frontier = nextFrontier;
@@ -298,39 +305,75 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       };
       step();
     },
-    [bundle, rollup],
+    [bundle],
+  );
+
+  // Expand from `id` down through every node that has a changed descendant
+  // (rollup keys), revealing the changes without unfolding unrelated subtrees.
+  // Changed leaves become visible once their (rollup-key) parent is expanded.
+  const revealChanges = useCallback(
+    (id: string) => cascade(id, (cid) => rollup.has(cid), Infinity),
+    [cascade, rollup],
+  );
+
+  // Shift-click on a collapsed chevron: unfold the next few levels of the real
+  // tree, regardless of rollup membership. The cap is the third argument below.
+  const cascadeLevels = useCallback(
+    (id: string) => cascade(id, (cid) => !!bundle?.byParent.has(cid), 3),
+    [cascade, bundle],
+  );
+
+  // Shift-click on an already-open chevron: the mirror image — collapse the row
+  // and every descendant under it in one step, so the branch you unfolded with
+  // one gesture folds back with the same one. Instant rather than staggered:
+  // there is nothing to read on the way down, and a staggered collapse would
+  // just make the row you are aiming at move.
+  const collapseSubtree = useCallback(
+    (id: string) => {
+      if (revealTimer.current) clearTimeout(revealTimer.current);
+      revealTimer.current = null;
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        const stack = [id];
+        while (stack.length) {
+          const cur = stack.pop()!;
+          next.delete(cur);
+          for (const k of bundle?.byParent.get(cur) ?? []) stack.push(k.id);
+        }
+        return next;
+      });
+    },
+    [bundle],
   );
 
   const toggleExpand = useCallback(
     (id: string, e: React.MouseEvent) => {
       e.stopPropagation();
+      const wasExpanded = expandedIds.has(id);
       track("reader_sidebar_toggle", {
         node_id: id,
-        action: expandedIds.has(id) ? "collapse" : "expand",
-        all: e.altKey,
+        action: wasExpanded ? "collapse" : "expand",
+        // Shift is the bulk gesture in both directions: cascade open from
+        // closed, collapse the whole subtree from open.
+        cascade: e.shiftKey,
       });
+      // Skipped in selected-only view — its rows are filtered to selected docs
+      // only, so following the full tree would touch nodes that render nothing
+      // there and surprise the user once they leave selected-only. Falls
+      // through to a plain one-level toggle.
+      if (e.shiftKey && !selectionSet) {
+        if (wasExpanded) collapseSubtree(id);
+        else cascadeLevels(id);
+        return;
+      }
       setExpandedIds((prev) => {
         const next = new Set(prev);
-        // alt-click: expand/collapse the entire subtree (Finder convention)
-        if (e.altKey && bundle) {
-          const expand = !prev.has(id);
-          const stack = [id];
-          while (stack.length) {
-            const cur = stack.pop()!;
-            const kids = bundle.byParent.get(cur);
-            if (!kids?.length) continue;
-            if (expand) next.add(cur);
-            else next.delete(cur);
-            for (const k of kids) stack.push(k.id);
-          }
-          return next;
-        }
         if (next.has(id)) next.delete(id);
         else next.add(id);
         return next;
       });
     },
-    [bundle, expandedIds],
+    [expandedIds, selectionSet, cascadeLevels, collapseSubtree],
   );
 
   const handleKeyDown = useTreeKeyboard({

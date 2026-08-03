@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type { AtlasNode } from "../types";
 import { useSelection } from "../lib/selection";
-import { collectSubtree } from "./atlas/useExpandAll";
+import { collectSubtree } from "../lib/atlasHelpers";
 
 // Selection checkbox for an annotations-panel related card. Mirrors the reader's
 // NodeSelectBox: it self-subscribes to the selection so a toggle re-renders only

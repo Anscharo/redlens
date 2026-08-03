@@ -34,8 +34,10 @@
 -->
 
 ## 2026-07-31
+- Reader documents now start collapsed and open one level at a time
+- Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in
+- Drag the top edge of the split view to resize it, up to 60% of the reader — it now defaults to the size of the document shown, capped at 50%
 - Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
-- Renamed the signed-in menu's "Preferences" panel to "Account" and removed the reduce motion and show tool traces toggles
 
 ## 2026-07-30
 - Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
