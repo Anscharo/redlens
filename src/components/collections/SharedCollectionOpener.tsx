@@ -10,12 +10,23 @@ import { ROUTES } from "../../lib/routes";
 // collection by id, loads it into the working selection, and hands off to the
 // reader's selected-only view. Replaces whatever the viewer had selected.
 //
-// We set the collection NAME (for the pill) but deliberately NOT the active
+// We set the collection NAME (for the pill) but explicitly CLEAR the active
 // collection ID: the viewer usually isn't the owner, so an in-place "Update"
-// would 404. Leaving the id unset makes the save modal offer "save as new"
-// instead — the viewer keeps their own copy.
+// would 404 — or worse. This used to just leave the id untouched, trusting it
+// was already unset; it usually was, but if the viewer had one of their OWN
+// collections active first, that real id was still sitting in
+// activeCollectionId. replace() alone doesn't clear it, and — when the shared
+// collection happens to be empty — selection.tsx's empties-effect bails out
+// too (the openedFromReplaceRef guard that keeps C4 fixed), so nothing else
+// would clear it either. The id and name would then diverge: the pill shows
+// this shared collection's name, but Save's "Update" would silently PATCH the
+// viewer's own previous collection — with this collection's ids, which can be
+// `[]`. Explicitly nulling it here (unconditionally, whether or not this
+// shared collection is empty) is what guarantees the save modal falls back to
+// "save as new" and the viewer's own collection is left alone. (P1 data-loss
+// bug, PR #230 review, 2026-08-03.)
 export function SharedCollectionOpener({ id }: { id: string }) {
-  const { replace, setActiveCollectionName } = useSelection();
+  const { replace, setActiveCollectionId, setActiveCollectionName } = useSelection();
   const [, navigate] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +36,7 @@ export function SharedCollectionOpener({ id }: { id: string }) {
       .then((c) => {
         if (!alive) return;
         replace(c.ids);
+        setActiveCollectionId(null);
         setActiveCollectionName(c.name);
         track("collection_open_shared", { id: c.id, count: c.ids.length });
         navigate(`${ROUTES.ATLAS}?subset=selected`, { replace: true });
@@ -33,7 +45,7 @@ export function SharedCollectionOpener({ id }: { id: string }) {
     return () => {
       alive = false;
     };
-  }, [id, replace, setActiveCollectionName, navigate]);
+  }, [id, replace, setActiveCollectionId, setActiveCollectionName, navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center flex-1 py-24 gap-3 text-center px-4">

@@ -97,9 +97,15 @@ export function severedRange(commitHash: string): string | null {
 }
 
 /** The from/to paths to render for a `moved` entry, or null if it isn't a move
- *  (or is one with no paths to show). */
+ *  (or is one with no paths to show — including a self-move, see below). */
 export function movePaths(e: HistoryEntry): { from?: string; to: string } | null {
   if (e.changeType !== "moved") return null;
+  // Self-move: movedFrom and movedTo are identical. The html-era generator
+  // (history-html-era.mjs) used to fire `moved` and stamp both with the same
+  // doc_no whenever only a doc's title/ancestors changed (doc_no itself did
+  // not) — rendering a nonsense "moved from X to X" (335 frozen rows, deep-QA
+  // H2). Treat it as having nothing to show, same as any other pathless move.
+  if (e.movedTo && e.movedTo === e.movedFrom) return null;
   if (e.movedTo) return { from: e.movedFrom, to: e.movedTo };
   return e.pr === PRE_MD_PR ? PRE_MD_MOVE : null;
 }
@@ -127,12 +133,18 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
     // /api/history/:nodeId — absolute path, same-origin on Railway.
     // On GitHub Pages (no backend) the 404 resolves to null, which the UI
     // already handles gracefully — that outcome IS cached (it's a stable
-    // property of the deploy, not a blip). A real rejection (network error,
-    // offline) is transient, so it evicts the cache entry instead of being
-    // cached as permanent "no history" — mirroring loadHistoryBatch below,
+    // property of the deploy, not a blip). Any OTHER non-ok status — e.g. the
+    // 503 the server returns on a DB hiccup (src/server/history/history.ts) —
+    // is transient, so — like a real fetch rejection (network error, offline)
+    // — it must NOT be cached as permanent "no history": throw so the `catch`
+    // below evicts the cache entry instead, mirroring loadHistoryBatch below,
     // which already only seeds the cache on a real response.
     p = fetch(`/api/history/${nodeId}`)
-      .then((r) => (r.ok ? (r.json() as Promise<HistoryEntry[]>) : null))
+      .then((r) => {
+        if (r.ok) return r.json() as Promise<HistoryEntry[]>;
+        if (r.status === 404) return null; // stable: no backend, or no such doc
+        throw new Error(`history fetch failed with status ${r.status}`); // transient
+      })
       .catch((err) => {
         cache.delete(nodeId);
         throw err;

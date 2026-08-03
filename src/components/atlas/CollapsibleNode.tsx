@@ -333,6 +333,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       }}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
+          // Same bail as the onClick handler above: a nested control (pendulum
+          // chevron, selection checkbox, copy buttons, in-content links, "Open
+          // on Sky Atlas") should run its OWN Enter/Space behavior, not have it
+          // swallowed into toggling/navigating the row. Widened past onClick's
+          // `a, button, [role="button"]` to also cover form controls that
+          // natively respond to these keys.
+          if ((e.target as Element).closest('a, button, [role="button"], input, select, textarea, [contenteditable]')) return;
           e.preventDefault();
           if (isSelected && hasContent) {
             doToggle();

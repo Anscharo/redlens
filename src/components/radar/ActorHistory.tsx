@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "../Link";
 import { Tooltip } from "../Tooltip";
-import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, prHref, type HistoryEntry } from "../../lib/history";
+import { ATLAS_REPO, CHANGE_COLOR, isGitSha, loadHistoryBatch, movePaths, prHref, severedRange, type HistoryEntry } from "../../lib/history";
 import type { ActorProfile } from "../../lib/actorIndex";
 import type { AtlasNode } from "../../types";
 import { ROUTES } from "../../lib/routes";
@@ -20,9 +20,15 @@ interface AffectedDoc {
   docNo: string | null;
   title: string | null;
   category: Category;
-  changeType: "added" | "modified" | "removed";
+  changeType: "added" | "modified" | "removed" | "moved";
   /** Edit significance for modified entries — lets the UI mute trivial rows */
   changeKind?: ChangeKind;
+  /** For a genuine `moved` (renumber/atomization) event: the doc_no before and
+   *  after. Absent for a self-move (movedFrom === movedTo — only the title or
+   *  ancestors changed, not the doc_no; see H2) so the UI never renders a
+   *  nonsense "moved from X to X". */
+  movedFrom?: string;
+  movedTo?: string;
 }
 
 interface MergedEntry {
@@ -61,6 +67,7 @@ const CHANGE_INDICATOR: Record<string, string> = {
   added: "+",
   modified: "~",
   removed: "−",
+  moved: "→",
 };
 
 function buildDocCategoryMap(
@@ -105,25 +112,27 @@ function mergeByCommit(
   docs: Record<string, AtlasNode>,
 ): MergedEntry[] {
   const byCommit = new Map<string, MergedEntry>();
+  // docId → its row, scoped per commit (mirrors byCommit's own keying). A doc
+  // can carry BOTH a "modified" and a "moved" event in the same commit — the
+  // history builder explicitly emits both when a node is edited and
+  // renumbered together (scripts/required/build-history.mjs: "A node can
+  // appear twice ... both entries are emitted"). Keying rows through this map
+  // (instead of a linear existence check on `docs`) lets the second event
+  // for a (commit, docId) pair merge onto the first one's row instead of
+  // being silently dropped — whichever event the batch query happened to
+  // return first used to win outright, losing either the changeKind or the
+  // movedFrom/movedTo detail (P2; RD2 only fixed `moved` being dropped
+  // entirely, not this same-commit collision).
+  const rowsByCommit = new Map<string, Map<string, AffectedDoc>>();
   for (const [docId, entries] of perDoc) {
     const category = docCategory.get(docId);
     if (!category) continue;
     for (const entry of entries) {
-      // "moved" events are renumbering noise (atomization, doc-no reshuffles).
-      if (entry.changeType === "moved") continue;
-      const affected: AffectedDoc = {
-        docId,
-        docNo: docs[docId]?.doc_no ?? null,
-        title: docs[docId]?.title ?? null,
-        category,
-        changeType: entry.changeType as AffectedDoc["changeType"],
-        changeKind: entry.changeKind,
-      };
-      const existing = byCommit.get(entry.commitHash);
-      if (existing) {
-        if (!existing.docs.some((d) => d.docId === docId)) existing.docs.push(affected);
-      } else {
-        byCommit.set(entry.commitHash, {
+      let commitEntry = byCommit.get(entry.commitHash);
+      let rows = rowsByCommit.get(entry.commitHash);
+      if (!commitEntry || !rows) {
+        rows = new Map();
+        commitEntry = {
           date: entry.date,
           commitHash: entry.commitHash,
           pr: entry.pr,
@@ -131,8 +140,52 @@ function mergeByCommit(
           prAuthor: entry.prAuthor,
           prUrl: entry.prUrl,
           era: entry.era,
-          docs: [affected],
-        });
+          docs: [],
+        };
+        byCommit.set(entry.commitHash, commitEntry);
+        rowsByCommit.set(entry.commitHash, rows);
+      }
+
+      let affected = rows.get(docId);
+      if (!affected) {
+        affected = {
+          docId,
+          docNo: docs[docId]?.doc_no ?? null,
+          title: docs[docId]?.title ?? null,
+          category,
+          changeType: entry.changeType,
+          changeKind: entry.changeKind,
+        };
+        rows.set(docId, affected);
+        commitEntry.docs.push(affected);
+      } else if (entry.changeType !== "moved") {
+        // A content-edit event landing on a row a same-commit "moved" event
+        // already created: the edit is the more informative primary
+        // indicator (edit significance beats a bare "renumbered"), so it
+        // takes over changeType/changeKind. The move detail (merged below,
+        // independently of this branch) is untouched either way, so this
+        // is safe regardless of which event arrived first.
+        affected.changeType = entry.changeType;
+        affected.changeKind = entry.changeKind;
+      }
+
+      // "moved" events (renumbers, atomization) used to be dropped entirely —
+      // that hid real history for actors whose docs only ever moved, and made
+      // renumbering commits vanish (RD2). Surface them like any other
+      // structural change, but guard the self-move quirk (H2): some rows
+      // record movedFrom === movedTo because only the title/ancestors
+      // changed, not the doc_no — showing "moved from X to X" would be
+      // nonsense, so the from/to detail is attached only when the paths
+      // actually differ. This merges onto `affected` regardless of whether
+      // the row was just created above or already existed (e.g. created by
+      // a same-commit "modified" event), so a doc's move detail survives no
+      // matter which of its two same-commit events is processed first.
+      if (entry.changeType === "moved") {
+        const move = movePaths(entry);
+        if (move?.from && move.to && move.from !== move.to) {
+          affected.movedFrom = move.from;
+          affected.movedTo = move.to;
+        }
       }
     }
   }
@@ -211,6 +264,11 @@ function Entry({
   const [open, setOpen] = useState(false);
   const prSuffix = entry.pr ? ` — #${entry.pr}` : "";
   const changeTypes = [...new Set(entry.docs.map((d) => d.changeType))];
+  // Severed-era rows (docs/plans/pre-git-history.md) have no commit date — the
+  // server sends "". Fall back to the reconstructed month-range label (mirrors
+  // the reader's severedRange treatment in EntryRow) so the row never renders
+  // a blank clickable heading (H3); a bare commitHash is the last resort.
+  const heading = entry.date || severedRange(entry.commitHash) || entry.commitHash;
   return (
     <div className="border-b py-2" style={{ borderColor: "var(--border)" }}>
       <button
@@ -233,7 +291,7 @@ function Entry({
         </span>
         <div>
           <div className="mono text-xs font-semibold" style={{ color: "var(--tan)" }}>
-            {entry.date}{prSuffix}
+            {heading}{prSuffix}
           </div>
           {entry.prTitle && (
             <div className="text-[11px] leading-snug mt-0.5" style={{ color: "var(--tan-3)" }}>
@@ -345,6 +403,14 @@ function DocRow({ doc: d, rowIndex }: { doc: AffectedDoc; rowIndex: number }) {
         <span className="block truncate">
           {d.title ? shortenTitle(d.title, 48) : ""}
         </span>
+        {/* Renumber detail for a genuine "moved" doc — omitted for a
+            self-move (movedFrom/movedTo absent, see AffectedDoc) so no
+            "A.1 → A.1" nonsense ever renders. */}
+        {d.movedFrom && d.movedTo && (
+          <span className="block truncate mono text-[9px]" style={{ color: "var(--tan-3)" }}>
+            {d.movedFrom} → {d.movedTo}
+          </span>
+        )}
       </td>
       <td className="py-0.5 pr-3" style={{ verticalAlign: "middle", overflow: "hidden" }}>
         <Tooltip content={CATEGORY_TOOLTIP[d.category]}>

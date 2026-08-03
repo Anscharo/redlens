@@ -92,6 +92,45 @@ describe("JuniorPane descendant slice", () => {
   });
 });
 
+// R2: the selected root's position:sticky (index.css .atlas-node.is-selected)
+// is bounded by the nearest .selection-group ancestor. AtlasReader supplies
+// that wrapper; JuniorPane rendered no such wrapper at all, so the sticky
+// root's containing block was the whole pane — a long-bodied root could
+// occlude every descendant at any scroll position. Assert the wrapper exists
+// and spans exactly the selected root + its descendants (not the breadcrumb
+// note above, nor the bottom fill/note below).
+describe("JuniorPane selection-group wrapper (R2)", () => {
+  it("wraps the selected root and its descendants in a selection-group", () => {
+    const { container } = setup();
+    const group = container.querySelector(".selection-group");
+    expect(group).not.toBeNull();
+    const splitHeading = screen.getByRole("heading", { name: "Split Title" });
+    const childHeading = screen.getByRole("heading", { name: "Child Title" });
+    expect(group!.contains(splitHeading)).toBe(true);
+    expect(group!.contains(childHeading)).toBe(true);
+    // The ancestor breadcrumb note sits above the pane's own header bar, not
+    // inside the group.
+    expect(group!.textContent).not.toContain("SplitView only renders");
+  });
+
+  it("still applies the is-selected marker (red bar + tint) to the root inside the group", () => {
+    const { container } = setup();
+    const group = container.querySelector(".selection-group")!;
+    const selected = group.querySelector(".atlas-node.is-selected");
+    expect(selected).not.toBeNull();
+    // Exactly one selected row (the split root) — its descendant isn't also selected.
+    expect(group.querySelectorAll(".atlas-node.is-selected")).toHaveLength(1);
+  });
+
+  it("renders no selection-group for an unknown splitId (nothing to bound)", () => {
+    const onShiftNavigate = vi.fn();
+    const { container } = render(
+      <JuniorPane splitId="missing" data={data()} onShiftNavigate={onShiftNavigate} onClose={() => {}} />,
+    );
+    expect(container.querySelector(".selection-group")).toBeNull();
+  });
+});
+
 describe("JuniorPane with an unknown splitId", () => {
   it("renders nothing above and a bare 'no more descendants' note, without crashing", () => {
     const onShiftNavigate = vi.fn();

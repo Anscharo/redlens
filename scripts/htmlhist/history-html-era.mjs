@@ -237,8 +237,20 @@ export function buildEvents(commits, { lineDiff, era = "html" } = {}) {
         if (lineDiff) ev.diff = lineDiff(p.content, c.content);
         push(ev);
       }
-      const pathChanged = p.doc_no !== c.doc_no || (p.ancestors || []).join(">") !== (c.ancestors || []).join(">") || p.title !== c.title;
-      if (pathChanged) push({ uuid, type: "moved", sha: occ[i].sha, seq: occ[i].seq, movedFrom: p.doc_no, movedTo: c.doc_no, moveKind: "doc_no" });
+      const docNoChanged = p.doc_no !== c.doc_no;
+      const pathChanged = docNoChanged || (p.ancestors || []).join(">") !== (c.ancestors || []).join(">") || p.title !== c.title;
+      if (pathChanged) {
+        // `movedFrom`/`movedTo` are always a doc_no PAIR (moveKind: "doc_no") — only
+        // stamp them when doc_no itself changed. Doing it for a title/ancestor-only
+        // change stamped an identical pair, rendering a nonsense "moved from X to X"
+        // (deep-QA H2, 335 rows). A title/ancestor-only change still surfaces as a
+        // `moved` event (the doc's structural placement changed) but with no doc_no
+        // pair to show; EntryRow/movePaths already render a pathless `moved` event
+        // as a bare "moved", so omitting the fields here is enough.
+        const ev = { uuid, type: "moved", sha: occ[i].sha, seq: occ[i].seq };
+        if (docNoChanged) { ev.movedFrom = p.doc_no; ev.movedTo = c.doc_no; ev.moveKind = "doc_no"; }
+        push(ev);
+      }
     }
     const last = occ[occ.length - 1];
     if (last.idx < lastIdx) push({ uuid, type: "removed", sha: last.sha, seq: last.seq }); // disappeared before the era's end

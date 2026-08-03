@@ -206,6 +206,20 @@ describe("TreeSidebar revealStore integration", () => {
       expect(ids).toContain("mid");
     });
   });
+
+  // S8: "NR-1" has no dots, so a doc_no "."-prefix walk finds no ancestors and
+  // silently no-ops. addAncestors now walks parentOf instead, which reveals
+  // NR-X docs exactly like any other node.
+  it("expands the ancestor of a revealed NR-X doc via parent links, not doc_no prefixes", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    expect(screen.getAllByRole("treeitem")).toHaveLength(1); // only root, collapsed
+    revealStore.reveal(["nr1"]);
+    return waitFor(() => {
+      const ids = screen.getAllByRole("treeitem").map((el) => el.getAttribute("data-node-id"));
+      expect(ids).toContain("nr1"); // root expanded, nr1 (root's child) now visible
+    });
+  });
 });
 
 describe("TreeSidebar row click / navigation", () => {
@@ -285,6 +299,50 @@ describe("TreeSidebar keyboard navigation", () => {
     fireEvent.keyDown(treeEl, { key: "ArrowDown" });
     expect(screen.getByRole("treeitem").className).toContain("is-focused");
     fireEvent.keyDown(treeEl, { key: "Enter" });
+    expect(onNavigate).toHaveBeenCalledWith("root");
+  });
+
+  // S1: mouse-collapsing an ancestor of a keyboard-focused row shrinks
+  // visibleNodes out from under focusedIndex. Before the fix this threw
+  // (Enter/ArrowRight/ArrowLeft dereferenced visibleNodes[staleIdx].node,
+  // ArrowUp handed react-window an out-of-range scrollToRow index) and Enter
+  // silently failed to navigate. The TreeSidebar-side clamp effect plus
+  // useTreeKeyboard's own guards fix both.
+  it("survives a mouse collapse that shrinks the list past a stale keyboard focusedIndex", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    const { onNavigate } = setup();
+    const treeEl = screen.getByRole("tree");
+    const toggleFor = (id: string) =>
+      screen
+        .getAllByRole("button")
+        .find((b) => b.className.includes("tree-toggle") && b.closest(`[data-node-id="${id}"]`))!;
+
+    fireEvent.click(toggleFor("root")); // [root, mid, sib, nr1]
+    fireEvent.click(toggleFor("mid")); // [root, mid, leaf, sib, nr1]
+    fireEvent.click(toggleFor("leaf")); // [root, mid, leaf, deep, sib, nr1]
+
+    // Focus down to index 3 ("deep").
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" }); // root (0)
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" }); // mid (1)
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" }); // leaf (2)
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" }); // deep (3)
+    let rows = screen.getAllByRole("treeitem");
+    expect(rows).toHaveLength(6);
+    expect(rows[3].getAttribute("data-node-id")).toBe("deep");
+    expect(rows[3].className).toContain("is-focused");
+
+    // Mouse-collapse root: visibleNodes drops from 6 rows to 1 (root only) in
+    // one click, leaving the old focusedIndex (3) far out of range.
+    fireEvent.click(toggleFor("root"));
+    rows = screen.getAllByRole("treeitem");
+    expect(rows).toHaveLength(1);
+    // TreeSidebar's clamp effect already caught the stale index by the time
+    // this fires — the sole remaining row (root) reads as focused.
+    expect(rows[0].className).toContain("is-focused");
+
+    // The real regression: Enter must not throw on the stale index, and must
+    // navigate using the clamped (valid) index rather than silently failing.
+    expect(() => fireEvent.keyDown(treeEl, { key: "Enter" })).not.toThrow();
     expect(onNavigate).toHaveBeenCalledWith("root");
   });
 });

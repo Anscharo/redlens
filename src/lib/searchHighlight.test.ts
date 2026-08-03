@@ -115,6 +115,58 @@ describe("'single-quote' phrase: case-sensitive exact", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phrase edges: punctuation vs word characters (S3 regression — "(USDS)")
+//
+// \b only holds at a transition between a word char and a non-word char, so
+// an unconditionally \b-anchored phrase can never match one that begins or
+// ends with punctuation. The boundary is applied per-edge, and only where
+// that edge of the phrase is itself a word character.
+// ---------------------------------------------------------------------------
+
+describe("phrase boundary is conditional on the phrase's own edge characters", () => {
+  it('highlights a phrase punctuated on both edges — "(USDS)"', () => {
+    expect(applyHighlight("The token (USDS) is listed.", [], ["(USDS)"], []))
+      .toBe("The token <mark>(USDS)</mark> is listed.");
+  });
+
+  it('matches "(USDS)" case-insensitively, including inside code-shaped text', () => {
+    expect(applyHighlight("call.address(usds) here", [], ["(USDS)"], []))
+      .toBe("call.address<mark>(usds)</mark> here");
+  });
+
+  it("a phrase punctuated only on the leading edge still enforces the boundary on the trailing (word-char) edge", () => {
+    // "-fixed" has no leading \b (starts with "-") but does have a trailing \b
+    // (ends with "d"), so it must not match inside a longer word like "-fixedRate".
+    expect(applyHighlight("the -fixedRate parameter", [], ["-fixed"], []))
+      .toBe("the -fixedRate parameter");
+    expect(applyHighlight("set to -fixed always", [], ["-fixed"], []))
+      .toBe("set to <mark>-fixed</mark> always");
+  });
+
+  it("single-quote (case-sensitive) phrases get the same punctuation-aware treatment", () => {
+    expect(applyHighlight("the (Delegate) role", [], [], ["(Delegate)"]))
+      .toBe("the <mark>(Delegate)</mark> role");
+    // Wrong case is still rejected — punctuation-awareness doesn't loosen case-sensitivity.
+    expect(applyHighlight("the (delegate) role", [], [], ["(Delegate)"]))
+      .toBe("the (delegate) role");
+  });
+
+  it("buildSnippet anchors on a punctuation-edged phrase instead of falling back to a plain window", () => {
+    const content = "x".repeat(100) + " the (USDS) token appears here in the excerpt window";
+    const snippet = buildSnippet(content, [], ["(USDS)"], []);
+    expect(snippet).toContain("<mark>(USDS)</mark>");
+  });
+
+  it("word-edged phrase behavior is unchanged — still requires a boundary at both ends", () => {
+    // Regression guard for the conditional-boundary refactor: an all-word-char
+    // phrase like "Test" must behave exactly like the old unconditional \bTest\b
+    // — no match inside "Testing", "Tests", or "contest".
+    expect(applyHighlight("Testing Test Tests contest", [], ["Test"], []))
+      .toBe("Testing <mark>Test</mark> Tests contest");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Tier priority — phrase wins when it overlaps a raw term
 // ---------------------------------------------------------------------------
 

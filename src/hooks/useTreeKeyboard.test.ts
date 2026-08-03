@@ -174,4 +174,51 @@ describe("useTreeKeyboard", () => {
     const { result } = renderHook(() => useTreeKeyboard(params));
     expect(() => act(() => result.current(key("ArrowDown")))).not.toThrow();
   });
+
+  // S1: a mouse-driven toggle can shrink visibleNodes out from under a
+  // keyboard-focused row (TreeSidebar clamps focusedIndex back afterward, but
+  // this hook must never trust it blindly in the meantime). visibleNodes here
+  // has 3 rows (indices 0-2); focusedIndex: 10 simulates the stale leftover.
+  describe("guards a stale/out-of-range focusedIndex (S1)", () => {
+    it("Enter does not throw and does not navigate", () => {
+      const { params, onNavigate, setFocusedIndex } = setupParams({ focusedIndex: 10 });
+      const { result } = renderHook(() => useTreeKeyboard(params));
+      expect(() => act(() => result.current(key("Enter")))).not.toThrow();
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(setFocusedIndex).not.toHaveBeenCalled();
+    });
+
+    it("ArrowRight does not throw and does not expand", () => {
+      const { params, setExpandedIds } = setupParams({ focusedIndex: 10 });
+      const { result } = renderHook(() => useTreeKeyboard(params));
+      expect(() => act(() => result.current(key("ArrowRight")))).not.toThrow();
+      expect(setExpandedIds).not.toHaveBeenCalled();
+    });
+
+    it("ArrowLeft does not throw and does not collapse", () => {
+      const { params, setExpandedIds } = setupParams({
+        focusedIndex: 10,
+        expandedIds: new Set(["b"]),
+      });
+      const { result } = renderHook(() => useTreeKeyboard(params));
+      expect(() => act(() => result.current(key("ArrowLeft")))).not.toThrow();
+      expect(setExpandedIds).not.toHaveBeenCalled();
+    });
+
+    it("ArrowUp clamps the scrollToRow index into range instead of passing the stale index through", () => {
+      const { params, setFocusedIndex, scrollToRow } = setupParams({ focusedIndex: 10 });
+      const { result } = renderHook(() => useTreeKeyboard(params));
+      expect(() => act(() => result.current(key("ArrowUp")))).not.toThrow();
+      expect(setFocusedIndex).toHaveBeenCalledWith(2);
+      expect(scrollToRow).toHaveBeenCalledWith({ index: 2, align: "smart" });
+    });
+
+    it("ArrowDown clamps at the last index rather than the stale index", () => {
+      const { params, setFocusedIndex, scrollToRow } = setupParams({ focusedIndex: 10 });
+      const { result } = renderHook(() => useTreeKeyboard(params));
+      expect(() => act(() => result.current(key("ArrowDown")))).not.toThrow();
+      expect(setFocusedIndex).toHaveBeenCalledWith(2);
+      expect(scrollToRow).toHaveBeenCalledWith({ index: 2, align: "smart" });
+    });
+  });
 });

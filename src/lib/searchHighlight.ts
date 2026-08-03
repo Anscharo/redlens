@@ -2,6 +2,15 @@ const ESC_HTML = (c: string) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!;
 const ESC_RE = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// A quoted phrase is a literal substring — \b only holds between a word char
+// and a non-word char, so unconditionally anchoring both ends can never match
+// a phrase that begins or ends with punctuation (e.g. "(USDS)"). Anchor each
+// edge independently, and only where the phrase's own edge is itself a word
+// character — this keeps "don't highlight inside a longer word" for ordinary
+// word phrases while still letting punctuation-edged phrases match.
+const PHRASE_PATTERN = (p: string) =>
+  (/\w/.test(p[0]) ? "\\b" : "") + ESC_RE(p) + (/\w/.test(p[p.length - 1]) ? "\\b" : "");
+
 // Single-pass highlight over plain text (HTML-escaped first).
 // Three tiers in priority order — higher tiers win when ranges overlap:
 //   casePhrases → exact case-sensitive, no word-extension
@@ -16,8 +25,8 @@ export function applyHighlight(
   type Entry = { pattern: string; exact: string; caseSensitive: boolean };
   const entries: Entry[] = [];
 
-  for (const p of casePhrases) if (p.length >= 2) entries.push({ pattern: "\\b" + ESC_RE(p) + "\\b", exact: p, caseSensitive: true });
-  for (const p of phrases)    if (p.length >= 2) entries.push({ pattern: "\\b" + ESC_RE(p) + "\\b", exact: p, caseSensitive: false });
+  for (const p of casePhrases) if (p.length >= 2) entries.push({ pattern: PHRASE_PATTERN(p), exact: p, caseSensitive: true });
+  for (const p of phrases)    if (p.length >= 2) entries.push({ pattern: PHRASE_PATTERN(p), exact: p, caseSensitive: false });
   for (const t of terms)      if (t.length >= 2) entries.push({ pattern: ESC_RE(t), exact: "", caseSensitive: false });
 
   if (entries.length === 0) return raw.replace(/[&<>"]/g, ESC_HTML);
@@ -59,15 +68,16 @@ export function buildSnippet(
   const lower = content.toLowerCase();
 
   // Anchor on the most specific match first: case-sensitive phrase > case-insensitive phrase > term
-  // Phrases use \b so anchoring must too — indexOf("test") would land on "tests".
+  // Phrases are boundary-anchored (see PHRASE_PATTERN) so anchoring must match
+  // the same rule — plain indexOf("test") would land on "tests".
   let bestPos = -1;
   for (const p of casePhrases) {
-    const m = new RegExp("\\b" + ESC_RE(p) + "\\b").exec(content);
+    const m = new RegExp(PHRASE_PATTERN(p)).exec(content);
     if (m) { bestPos = m.index; break; }
   }
   if (bestPos === -1) {
     for (const p of phrases) {
-      const m = new RegExp("\\b" + ESC_RE(p) + "\\b", "i").exec(content);
+      const m = new RegExp(PHRASE_PATTERN(p), "i").exec(content);
       if (m) { bestPos = m.index; break; }
     }
   }
