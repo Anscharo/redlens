@@ -46,7 +46,7 @@ export function StatusPill({ as = "span", color, title, children, onClick }: Sta
           // at the end of a discrete event like this one, so the spin is on
           // screen by the time the reload comes back.
           setApplying(true);
-          onClick();
+          onClick?.();
         }}
         title={title}
         disabled={applying}
