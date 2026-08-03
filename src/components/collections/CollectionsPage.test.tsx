@@ -111,6 +111,25 @@ describe("CollectionsPage — signed in", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/atlas?subset=selected");
   });
 
+  // C4: opening an EMPTY collection must still set the active id/name (not
+  // skip them) — SelectionProvider's empties-effect is what's responsible for
+  // not wiping them back out again; see selection.test.tsx. This test pins
+  // openCollection's side of that contract: it must keep calling
+  // replace([]) + setActiveCollectionId + setActiveCollectionName + navigate
+  // exactly as it does for a non-empty collection, with nothing skipped or
+  // special-cased for the empty-ids case.
+  it("Open on an empty collection still sets replace([]) + active id/name + navigates", () => {
+    mocks.user = { id: "u1" };
+    mocks.collections = [{ id: "c1", name: "Empty", ids: [], updatedAt: "2026-01-01T00:00:00.000Z" }];
+    render(<CollectionsPage />);
+    fireEvent.click(screen.getByText("Open"));
+    expect(mocks.replace).toHaveBeenCalledWith([]);
+    expect(mocks.setActiveCollectionId).toHaveBeenCalledWith("c1");
+    expect(mocks.setActiveCollectionName).toHaveBeenCalledWith("Empty");
+    expect(mocks.track).toHaveBeenCalledWith("collection_open", { id: "c1", count: 0 });
+    expect(mocks.navigate).toHaveBeenCalledWith("/atlas?subset=selected");
+  });
+
   it("Delete: confirms, then calls remove + track", async () => {
     mocks.user = { id: "u1" };
     mocks.collections = [{ id: "c1", name: "Mine", ids: ["a"], updatedAt: "2026-01-01T00:00:00.000Z" }];

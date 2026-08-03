@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { loadHistoryBatch, loadHistory, movePaths, severedRange, BATCH_MAX, type HistoryEntry } from "./history";
+import {
+  loadHistoryBatch,
+  loadHistory,
+  movePaths,
+  prHref,
+  severedRange,
+  ATLAS_REPO,
+  BATCH_MAX,
+  type HistoryEntry,
+} from "./history";
 
 const entry = (commitHash: string): HistoryEntry => ({
   date: "2024-01-01",
@@ -7,9 +16,11 @@ const entry = (commitHash: string): HistoryEntry => ({
   changeType: "modified",
 });
 
-/** A minimal Response stand-in for the bits loadHistoryBatch/loadHistory read. */
-function jsonRes(data: unknown, ok = true) {
-  return { ok, json: async () => data } as unknown as Response;
+/** A minimal Response stand-in for the bits loadHistoryBatch/loadHistory read.
+ *  `status` defaults to 200 (ok); pass e.g. 404 or 503 to simulate a specific
+ *  non-ok response — loadHistory branches its caching behavior on the exact code. */
+function jsonRes(data: unknown, status = 200) {
+  return { ok: status >= 200 && status < 300, status, json: async () => data } as unknown as Response;
 }
 
 /** loadHistoryBatch POSTs to /api/history/batch; loadHistory GETs
@@ -101,7 +112,7 @@ describe("loadHistoryBatch", () => {
 
   it("maps every id to [] when the response is not ok, without seeding", async () => {
     const a = freshId();
-    installFetch(() => jsonRes(null, false));
+    installFetch(() => jsonRes(null, 500));
 
     const out = await loadHistoryBatch([a]);
     expect(out.get(a)).toEqual([]);
@@ -138,10 +149,35 @@ describe("loadHistory", () => {
 
   it("an explicit 404 (no backend, e.g. GitHub Pages) IS cached as null — no refetch", async () => {
     const a = freshId();
-    const getSpy = installFetch(() => jsonRes(null, false));
+    const getSpy = installFetch(() => jsonRes(null, 404));
     expect(await loadHistory(a)).toBeNull();
     expect(await loadHistory(a)).toBeNull();
     expect(getSpy).toHaveBeenCalledTimes(1); // second call reused the cached settled promise
+  });
+
+  // H1 (deep-QA 2026-08-02): a transient 5xx must NOT be cached like a stable
+  // 404 — the server returns 503 on a DB hiccup (src/server/history/history.ts),
+  // and that outcome should be retried, not frozen as "no history" all session.
+  it("a 503 (transient DB hiccup) is NOT cached — retries instead of freezing on 'no history'", async () => {
+    const a = freshId();
+    const getSpy1 = installFetch(() => jsonRes(null, 503));
+    expect(await loadHistory(a)).toBeNull();
+    expect(getSpy1).toHaveBeenCalledTimes(1);
+
+    // Unlike the 404 case above, the next call must re-fetch and can now succeed.
+    const getSpy2 = installFetch(() => jsonRes([entry("ddd")]));
+    expect(await loadHistory(a)).toEqual([entry("ddd")]);
+    expect(getSpy2).toHaveBeenCalledTimes(1);
+  });
+
+  it("a 500 behaves the same as a 503 — any non-404 non-ok status is transient", async () => {
+    const a = freshId();
+    installFetch(() => jsonRes(null, 500));
+    expect(await loadHistory(a)).toBeNull();
+
+    const getSpy = installFetch(() => jsonRes([entry("eee")]));
+    expect(await loadHistory(a)).toEqual([entry("eee")]);
+    expect(getSpy).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -164,6 +200,35 @@ describe("movePaths", () => {
   it("is null for a pathless move from any other PR, and for non-moves", () => {
     expect(movePaths(moved({ pr: 236 }))).toBeNull();
     expect(movePaths(moved({ changeType: "modified", movedTo: "b.md" }))).toBeNull();
+  });
+
+  // H2 (deep-QA 2026-08-02): the html-era generator used to stamp movedFrom/movedTo
+  // with the same doc_no whenever only a title/ancestors changed, producing 335
+  // frozen "moved from X to X" rows. Guard the self-move case regardless of cause.
+  it("is null for a self-move (movedFrom === movedTo) — no nonsense 'X to X'", () => {
+    expect(movePaths(moved({ movedFrom: "A.1.11", movedTo: "A.1.11" }))).toBeNull();
+  });
+
+  it("still returns real paths for a genuine move between two different doc_nos", () => {
+    // Sanity check the guard is an equality check, not something cruder (e.g.
+    // truncation/prefix matching that could false-positive on "A.1" vs "A.11").
+    expect(movePaths(moved({ movedFrom: "A.1", movedTo: "A.11" }))).toEqual({ from: "A.1", to: "A.11" });
+  });
+});
+
+describe("prHref", () => {
+  it("prefers the stored URL when the row has one", () => {
+    expect(prHref({ pr: 236, prUrl: "https://example.test/pr/236" })).toBe("https://example.test/pr/236");
+  });
+
+  it("derives the URL from the number for a reconstructed row with no stored URL", () => {
+    // HTML-era rows predate the atlas_prs metadata git-era rows take pr_url
+    // from; without this the link renders href-less and is unclickable.
+    expect(prHref({ pr: 66 })).toBe(`${ATLAS_REPO}/pull/66`);
+  });
+
+  it("is undefined when there is no PR at all", () => {
+    expect(prHref({})).toBeUndefined();
   });
 });
 

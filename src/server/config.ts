@@ -247,9 +247,9 @@ export const config = {
   appCommit:
     process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_COMMIT ?? process.env.GIT_COMMIT ?? process.env.SOURCE_COMMIT ?? "",
 
-  // Preview feature (/api/preview/*): always active server-side; surfaced in
-  // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
-  // tarball downloads (previously only the worker needed GitHub access).
+  // Preview feature (/api/preview/*): always active, server-side and in the UI.
+  // GITHUB_TOKEN does PR/branch resolution + tarball downloads (previously only
+  // the worker needed GitHub access).
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.

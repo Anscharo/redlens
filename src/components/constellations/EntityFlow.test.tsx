@@ -182,15 +182,15 @@ describe("EntityFlow — selected card body (relations)", () => {
   it("renders the defining-document link when entity.did is set", async () => {
     mocks.getEdges.mockResolvedValue(edgeResult());
     renderFlow({ selectedId: "e-prime" });
-    const link = await screen.findByText("→ defining document");
-    expect(link.closest("a")).toHaveAttribute("href", "/atlas?id=doc-uuid-1");
+    const link = await screen.findByRole("link", { name: "→ defining document" });
+    expect(link).toHaveAttribute("href", "/atlas?id=doc-uuid-1");
   });
 
   it("does not render the defining-document link when entity.did is null", async () => {
     mocks.getEdges.mockResolvedValue(edgeResult());
     renderFlow({ selectedId: "e-exec" });
     await screen.findByText("No relations.");
-    expect(screen.queryByText("→ defining document")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "→ defining document" })).not.toBeInTheDocument();
   });
 
   it("groups relations by edge type + direction, most numerous first, and renders doc/entity/other chips", async () => {

@@ -10,7 +10,7 @@ import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
 
 export const ROW_HEIGHT = 29;
-const TOGGLE_WIDTH = 12;
+const TOGGLE_WIDTH = 15;
 const PAD_X = 3;
 // Sidebar scrollbar width — keep in sync with the 8px ::-webkit-scrollbar in
 // index.css. Reserved from the title budget so long titles and their ellipsis
@@ -51,7 +51,7 @@ const TOGGLE_BASE: React.CSSProperties = {
   width: TOGGLE_WIDTH,
   textAlign: "center",
   flexShrink: 0,
-  fontSize: 16,
+  fontSize: 20,
   userSelect: "none",
 };
 const TITLE_BASE: React.CSSProperties = {
@@ -151,6 +151,9 @@ export function TreeRow({
   return (
     <div
       data-node-id={node.id}
+      // Full, untruncated title for the hover hint's `content: attr(data-hint)`
+      // (index.css) — the visible span shows displayTitle, which is clipped.
+      data-hint={node.title}
       role="treeitem"
       aria-selected={isSelected}
       aria-level={treeDepth}
@@ -171,6 +174,12 @@ export function TreeRow({
         } else onNavigate(node.id);
       }}
     >
+      <DocNoChiclets
+        parts={docNoSegments.parts}
+        depths={docNoSegments.depths}
+        slots={docNoSegments.slots}
+        gradients={docNoSegments.gradients}
+      />
       {hasChildren ? (
         <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
           <button
@@ -190,12 +199,6 @@ export function TreeRow({
           {"\u00B7"}
         </span>
       )}
-      <DocNoChiclets
-        parts={docNoSegments.parts}
-        depths={docNoSegments.depths}
-        slots={docNoSegments.slots}
-        gradients={docNoSegments.gradients}
-      />
       {isPreview && (
         <>
           <PreviewMark nodeId={node.id} className="text-[13px] ml-0.5" />
@@ -208,12 +211,10 @@ export function TreeRow({
           />
         </>
       )}
-      <span
-        style={{ ...TITLE_BASE, color: titleColor }}
-        title={node.doc_no + " \u2014 " + node.title}
-      >
-        {displayTitle}
-      </span>
+      {/* No native title= here: the row's own ::after hint (index.css) carries
+          the full untruncated title, so a browser tooltip would be a second,
+          slower, differently-worded copy of it. */}
+      <span style={{ ...TITLE_BASE, color: titleColor }}>{displayTitle}</span>
     </div>
   );
 }

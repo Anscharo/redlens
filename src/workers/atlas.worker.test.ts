@@ -147,8 +147,32 @@ describe("error handling", () => {
     const h = await initAtlasWorker({ fail: { "docs-shallow.json": 500 } });
     const err = await h.waitFor((m) => m.type === "error");
     expect(String(err.message)).toContain("docs-shallow.json");
-    // The shallow branch swallows its own rejection; only Promise.all posts error.
     expect(h.ofType("shallow")).toHaveLength(0);
+    expect(h.ofType("error")).toHaveLength(1);
+  });
+
+  // P2 fix: a shallow rejection now also posts its own dedicated message
+  // instead of being silently swallowed — this is what lets docs.ts spawn()
+  // settle its `shallow` promise when a shallow failure arrives too late to
+  // be the reason named in Promise.all's single "error" (the both-failed,
+  // deep-rejects-first race — see docs.test.ts "settles shallow (rejects,
+  // not hangs) when BOTH artifacts fail and deep rejects first").
+  it("posts a dedicated shallow-error whenever the shallow artifact fails, alongside the blanket error", async () => {
+    const h = await initAtlasWorker({ fail: { "docs-shallow.json": 500 } });
+    const shallowErr = await h.waitFor((m) => m.type === "shallow-error");
+    expect(String(shallowErr.message)).toContain("docs-shallow.json");
+    expect(h.ofType("shallow-error")).toHaveLength(1);
+    await h.waitFor((m) => m.type === "error");
+    expect(h.ofType("error")).toHaveLength(1);
+  });
+
+  it("posts both a shallow-error and the blanket error when both artifacts fail", async () => {
+    const h = await initAtlasWorker({ fail: { "docs-shallow.json": 500, "docs-deep.json": 404 } });
+    await h.waitFor((m) => m.type === "shallow-error");
+    await h.waitFor((m) => m.type === "error");
+    expect(h.ofType("shallow")).toHaveLength(0);
+    expect(h.ofType("ready")).toHaveLength(0);
+    expect(h.ofType("shallow-error")).toHaveLength(1);
     expect(h.ofType("error")).toHaveLength(1);
   });
 });

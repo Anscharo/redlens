@@ -34,6 +34,16 @@ describe("EntryRow line 1", () => {
     );
   });
 
+  it("still links a reconstructed entry's PR, which carries a number but no stored URL", () => {
+    // HTML-era rows predate the atlas_prs metadata the git-era rows get pr_url
+    // from — without a derived href the link renders as dead text.
+    render(<EntryRow entry={entry({ pr: 66, era: "html" })} />);
+    expect(screen.getByRole("link", { name: "PR 66" })).toHaveAttribute(
+      "href",
+      "https://github.com/sky-ecosystem/next-gen-atlas/pull/66",
+    );
+  });
+
   it("shows neither the PR author nor its comment count", () => {
     render(<EntryRow entry={entry({ pr: 236, prAuthor: "adamgfraser", commentCount: 7 })} />);
     expect(screen.queryByText(/adamgfraser/)).not.toBeInTheDocument();
@@ -109,6 +119,20 @@ describe("EntryRow change label", () => {
   it("says just 'moved' when there are no paths to show", () => {
     render(<EntryRow entry={entry({ changeType: "moved", pr: 236 })} />);
     expect(screen.getByText("moved")).toBeInTheDocument();
+  });
+
+  // H2 (deep-QA 2026-08-02): the html-era generator used to stamp movedFrom/movedTo
+  // with the SAME doc_no whenever only a doc's title/ancestors changed — 335 frozen
+  // rows read "moved from A.1.11 to A.1.11". movePaths guards this; confirm the
+  // render actually falls back to the bare "moved" presentation, same as any other
+  // moved entry with no paths to show, instead of an "X to X" sentence.
+  it("renders a self-move (movedFrom === movedTo) as bare 'moved', not 'moved from X to X'", () => {
+    const { container } = render(
+      <EntryRow entry={entry({ changeType: "moved", movedFrom: "A.1.11", movedTo: "A.1.11" })} />,
+    );
+    expect(screen.getByText("moved")).toBeInTheDocument();
+    expect(container.textContent).not.toContain("A.1.11");
+    expect(container.textContent).not.toContain(" to ");
   });
 
   it("drops the redundant 'added' chip on a self-describing pre-git origin", () => {

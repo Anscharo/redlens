@@ -77,6 +77,28 @@ describe("Footer", () => {
     expect(applyUpdate).toHaveBeenCalledTimes(1);
   });
 
+  // applyUpdate waits on the service worker to activate before it reloads, so
+  // without this the click had no visible effect for a second or more and read
+  // as dropped. The spin is the acknowledgement; disabling stops the re-clicks
+  // that produced.
+  it("spins the pill's glyph and locks it once an update is being applied", () => {
+    (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: true, applyUpdate });
+    render(<Footer />);
+    const btn = screen.getByText(/update available/) as HTMLButtonElement;
+    expect(btn.querySelector(".status-pill-glyph")).not.toBeNull();
+    expect(btn).not.toHaveClass("is-applying");
+    expect(btn).not.toBeDisabled();
+
+    fireEvent.click(btn);
+    expect(btn).toHaveClass("is-applying");
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-busy", "true");
+
+    // A second click can't re-enter applyUpdate — the update is already going.
+    fireEvent.click(btn);
+    expect(applyUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it("shows an atlas-updated pill that reloads the page on click", () => {
     (useAtlasVersion as unknown as Mock).mockReturnValue(true);
     render(<Footer />);

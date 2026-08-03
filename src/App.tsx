@@ -4,6 +4,7 @@ import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
+import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
@@ -105,6 +106,10 @@ export default function App() {
   // restore the same side-by-side view, and the URL is shareable.
   const [splitId, setSplitId] = useUrlState("split", splitCodec);
   const [treeOpen, setTreeOpen] = useState(false);
+  // Mirror Alt/Shift onto <html> for the CSS-only chevron preview and the
+  // shift-click hints. Lives here because the reader and the tree sidebar
+  // mount independently.
+  useModifierKeyAttrs();
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
   // History is the default tab, so an absent (or unrecognized) ?view= lands there.

@@ -35,7 +35,7 @@ export function AtlasView({
   onSplitChange: (id: string | null) => void;
   onOpenTree?: () => void;
 }) {
-  const data = useAtlasData();
+  const { data, shallowError, deepError, retry } = useAtlasData();
   // soft: the relations panel is an enrichment — a graph load failure must not
   // blank the whole reader (the doc content still renders without it).
   const graph = useLoaded(loadGraph, { soft: true });
@@ -70,12 +70,39 @@ export function AtlasView({
   );
 
   if (!data) {
+    // docs-shallow.json is load-bearing — without it there is nothing to
+    // render. A genuine failure (vs. still in flight) gets a real error state
+    // with a retry instead of eternal Loading (R3).
+    if (shallowError) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 py-24 text-sm text-red">
+          <p>Couldn't load the atlas.</p>
+          <button type="button" onClick={retry} className="text-xs mono text-accent hover:underline">
+            retry
+          </button>
+        </div>
+      );
+    }
     return <Loading />;
   }
   // A depth-6 node isn't in the shallow first-paint set; wait for the deep tier
-  // (complete) before declaring it missing, so a valid deep-link shows Loading.
+  // (complete) before declaring it missing, so a valid deep-link shows Loading —
+  // unless the deep load has actually failed, in which case it will never
+  // arrive on its own; surface a retry instead of an eternal spinner (R3).
   if (id && !data.atlas.docs[id]) {
-    if (!data.complete) return <Loading />;
+    if (!data.complete) {
+      if (deepError) {
+        return (
+          <div className="flex flex-col items-center justify-center gap-3 py-24 text-sm text-red">
+            <p>Couldn't finish loading the atlas, so this node can't be shown yet.</p>
+            <button type="button" onClick={retry} className="text-xs mono text-accent hover:underline">
+              retry
+            </button>
+          </div>
+        );
+      }
+      return <Loading />;
+    }
     return (
       <div className="flex items-center justify-center py-24 text-sm text-red">
         Node not found: {id}
@@ -93,6 +120,21 @@ export function AtlasView({
           <DrawerToggle label="Atlas" onClick={onOpenTree} breakpoint={1050} />
           {id && <Breadcrumbs ancestors={ancestors} />}
         </div>
+        {/* Non-blocking: the shallow tree above already rendered fine (R3) —
+            this only means "view all descendants" / deep-linked deep nodes /
+            enrichments aren't available yet. Clears itself once a retry (or
+            the load that was already in flight) lands. */}
+        {deepError && !data.complete && (
+          <div
+            className="flex items-center gap-2 px-3 py-1 text-xs mono text-red"
+            style={{ borderBottom: "1px solid var(--border)" }}
+          >
+            <span>Couldn't finish loading the full atlas — showing what loaded so far.</span>
+            <button type="button" onClick={retry} className="text-accent hover:underline">
+              retry
+            </button>
+          </div>
+        )}
         <div className="flex-1 flex" style={ATLAS_GRID_STYLE}>
           <AtlasReader
             id={id}

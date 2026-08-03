@@ -11,12 +11,35 @@ import { usePreviewDim } from "../../lib/previewFilter";
 import { useDataSource } from "../../lib/dataSource";
 import { NodeSelectBox } from "./NodeSelectBox";
 import { track } from "../../lib/analytics";
+import { settleChevron } from "../../lib/chevronSettle";
 import {
-  nextSubtreeTransition,
-  type SubtreeVisualState,
+  nextRung,
+  reverseRung,
+  flatNextRung,
+  flatReverseRung,
+  rungAngle,
+  rungClass,
+  rungHoverAngle,
+  rungReverseHoverAngle,
+  type RungDir,
+  type RungLevel,
 } from "./subtreeState";
 
 const DRAG_THRESHOLD_PX = 4;
+
+// The chevron's CURRENT on-screen angle, read out of the computed transform
+// (which reflects the live interpolated value mid-transition, not the endpoint).
+// The click animation starts from this rather than from the rung's resting
+// angle: a click landing mid hover-drift must carry on from where the lean got
+// to and simply speed up, instead of snapping back to rest and re-travelling.
+function currentAngleDeg(el: HTMLElement, fallback: number): number {
+  const t = getComputedStyle(el).transform;
+  if (!t || t === "none") return 0;
+  const m = t.match(/matrix\(([^)]+)\)/);
+  if (!m) return fallback;
+  const [a, b] = m[1].split(",").map(Number);
+  return (Math.atan2(b, a) * 180) / Math.PI;
+}
 
 // Body indent so expanded text lines up with where the title text begins:
 // pl-3 (12) + gap-2 (8) + expand-all (14) + gap-2 (8) + title margin+padding (5),
@@ -35,8 +58,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected,
   isExpanded,
   hasChildren = false,
-  subtreeState = "closed",
-  hasExplicitHiddenSubtree = false,
+  isExiting = false,
+  rungLevel = 0,
+  rungDir = 1,
   gatedCount = 0,
   onExpandChildren,
   idPrefix,
@@ -49,8 +73,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   isSelected: boolean;
   isExpanded: boolean;
   hasChildren?: boolean;
-  subtreeState?: SubtreeVisualState;
-  hasExplicitHiddenSubtree?: boolean;
+  /** Row is on its way out: still mounted so it can fade, but inert. It is
+   *  unmounted for real once the reader's exit timer clears. */
+  isExiting?: boolean;
+  /** Primitives, never an object — passing an object here would break the
+   *  memo above on every render. dir never changes without level also
+   *  changing, so this adds zero extra re-renders in practice. */
+  rungLevel?: RungLevel;
+  rungDir?: RungDir;
   gatedCount?: number;
   onExpandChildren?: (id: string) => void;
   idPrefix?: string;
@@ -60,12 +90,17 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   /** Owning prime/executor agent name — shown as a pill under the doc number
    *  whenever the row is expanded. Undefined for docs not under an agent. */
   agentName?: string | null;
-  /** "Selected only" view is active — hides the hidden-descendants affordance.
-   *  Passed as a prop (not read from selection context) so a selection change
-   *  doesn't re-render every row; see NodeSelectBox for the checkbox itself. */
+  /** A flat filtered view (selected-only OR changed-only) is active: hides the
+   *  hidden-descendants affordance, and swaps the pendulum's swing to the
+   *  flatNextRung/flatReverseRung variant (rung 0 is invisible in these views —
+   *  see AtlasReader's filterSet branch — so the ordinary 3-position swing
+   *  would let the chevron rest at/lean toward "hidden" for a click that does
+   *  nothing visible). Passed as a prop (not read from selection/preview
+   *  context) so switching views doesn't re-render every row; see
+   *  NodeSelectBox for the checkbox itself. */
   inSelectedOnly?: boolean;
 }) {
-  const { navigate, toggle, splitNavigate, expandAll, setSubtreeVisualState } = useAtlasActions();
+  const { navigate, toggle, splitNavigate, pendulum } = useAtlasActions();
   const isPreview = !!useDataSource().preview;
   const { node, depth, color, hasContent } = entry;
   const HeadingTag = `h${Math.min(depth, 6)}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
@@ -88,58 +123,116 @@ export const CollapsibleNode = memo(function CollapsibleNode({
   // Selected node always full-strength; otherwise dim untouched docs in preview.
   const dim = usePreviewDim(node.id) && !isSelected;
 
-  const isSubtreeExpanded = subtreeState === "open";
-  const isSubtreeHidden = subtreeState === "hidden";
-  const showExpandAll = hasChildren && (!!setSubtreeVisualState || !!expandAll);
+  const showExpandAll = hasChildren && !!pendulum;
+  // In a flat filtered view (selected-only/changed-only) rung 0 is invisible
+  // — the row never disappears for it (see AtlasReader's filterSet branch) —
+  // so the ordinary 3-position swing would let the chevron rest at (and lean
+  // toward) "hidden" for a click that visibly does nothing. flatNextRung/
+  // flatReverseRung skip 0 there, leaving a plain closed/open toggle.
+  const nextLevel = (inSelectedOnly ? flatNextRung : nextRung)({ level: rungLevel, dir: rungDir }).level;
+  // The verb describes what the UPCOMING click does, not the current state —
+  // matches the affordance-tab convention below ("View N hidden sections").
+  // rungLevel is never 0 in a flat view (AtlasReader clamps its display), and
+  // rungDir stops distinguishing anything there — both directions from rung 1
+  // land on rung 2 (flatNextRung), so the "hide children" wording never fires.
+  const pendulumVerb = inSelectedOnly
+    ? rungLevel === 2
+      ? "collapse child bodies"
+      : "expand child bodies"
+    : rungLevel === 0
+      ? "show children"
+      : rungLevel === 2
+        ? "collapse child bodies"
+        : rungDir === 1
+          ? "expand child bodies"
+          : "hide children";
+  // Alt is the only way to reach the opposite swing, so the tooltip has to
+  // say so — the affordance is otherwise invisible. With only two positions
+  // (flat view), alt-click lands on the same target a plain click would —
+  // there's no "other way" left to swing — so the verb is the same.
+  const reverseVerb = inSelectedOnly
+    ? pendulumVerb
+    : rungLevel === 0
+      ? "show children with bodies"
+      : rungLevel === 2
+        ? "hide children"
+        : rungDir === 1
+          ? "hide children"
+          : "expand child bodies";
   // Expanding (not collapsing) also asks the tree sidebar to reveal the node.
   const doToggle = () => {
     track("reader_node_toggle", { node_id: node.id, action: isExpanded ? "collapse" : "expand" });
     if (!isExpanded) revealStore.reveal([node.id]);
     toggle(node.id);
   };
-  // Instant click feedback for expand-all: expanding a large subtree blocks the
-  // main thread, so the CSS .is-open rotation (which keys off isSubtreeExpanded)
-  // only lands after the work finishes — the click feels dead. A Web Animation on
-  // the chevron runs on the compositor, so it turns to its target angle and gives
-  // a slight pop the moment the click registers, playing through the jank. CSS
-  // takes the angle back over once the expand lands (see the effect below).
+  // Instant click feedback for the pendulum: advancing a large subtree's rung
+  // blocks the main thread, so the CSS .is-open/.is-hidden rotation (which
+  // keys off rungLevel) only lands after the work finishes — the click feels
+  // dead. A Web Animation on the chevron runs on the compositor, so it turns
+  // to its target angle and gives a slight pop the moment the click
+  // registers, playing through the jank. CSS takes the angle back over once
+  // the pendulum lands (see the effect below).
   const expandAllRef = useRef<HTMLButtonElement>(null);
   const spinRef = useRef<Animation | null>(null);
   const pulseRef = useRef<Animation | null>(null);
-  const doExpandAll = (event?: React.MouseEvent) => {
-    const transition = nextSubtreeTransition({
-      state: subtreeState,
-      shiftKey: !!event?.shiftKey,
-      hasExplicitHidden: hasExplicitHiddenSubtree,
-    });
-    track("reader_expand_all", { node_id: node.id, action: transition });
-    const willOpen = transition === "open" || transition === "restore";
-    // The heavy state update (a large subtree re-render), deferred below so the
-    // chevron feedback paints first. Both action models funnel through here: the
-    // main reader supplies setSubtreeVisualState (the live path), the standalone
-    // fallback supplies expandAll. Either way the deferral + compositor feedback
-    // must wrap it — the setSubtreeVisualState branch used to bypass them, which
-    // restored the exact click-freeze the animation path exists to prevent.
-    const commit = setSubtreeVisualState
-      ? () =>
-          transition === "restore"
-            ? setSubtreeVisualState(node.id, "open", { restore: true })
-            : setSubtreeVisualState(node.id, transition)
-      : () => expandAll?.(node.id, willOpen);
+  const settleRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => settleRef.current?.(), []);
+  const doPendulum = (event?: React.MouseEvent) => {
+    // Alt reverses the swing: from the middle it goes back the way it came,
+    // from either end it crosses straight to the far end. The target level has
+    // to be resolved HERE too, not just in the reader, so the chevron animates
+    // to the angle it will actually land on. (Alt, not shift — shift on a row
+    // is already split-pane navigation.)
+    const reverse = !!event?.altKey;
+    const cur = { level: rungLevel, dir: rungDir };
+    const targetLevel = reverse ? (inSelectedOnly ? flatReverseRung : reverseRung)(cur).level : nextLevel;
+    track("reader_expand_all", { node_id: node.id, action: targetLevel, reverse });
+    // The heavy state update (a rung write across a node's immediate
+    // children, plus body-forcing), deferred below so the chevron feedback
+    // paints first.
+    const commit = () => pendulum?.(node.id, { reverse });
     const btn = expandAllRef.current;
+    // Sample the live angle BEFORE settling: settleChevron switches the hover
+    // rule off, which starts a transition back toward the resting angle, and
+    // from then on this would read a value already in retreat.
+    const fromAngle = btn ? currentAngleDeg(btn, rungAngle(rungLevel)) : 0;
+    // Hold the new resting angle against a continuing hover before the drift
+    // toward the *next* rung is allowed to start (see settleChevron).
+    if (btn) {
+      settleRef.current?.();
+      settleRef.current = settleChevron(btn);
+    }
     if (btn?.animate) {
-      const from = isSubtreeHidden ? -90 : isSubtreeExpanded ? 90 : 0;
-      const to = transition === "hidden" ? -90 : willOpen ? 90 : 0;
+      // Carry on from wherever the hover drift had reached — the rotation never
+      // stops or reverses on click, it just suddenly gets fast.
+      const from = fromAngle;
+      const to = rungAngle(targetLevel);
       spinRef.current?.cancel();
-      // rotate (transform) held via fill:forwards until CSS .is-open catches up
-      spinRef.current = btn.animate(
+      // rotate (transform) held via fill:forwards until CSS .is-open/.is-hidden catches up
+      const spin = btn.animate(
         [{ transform: `rotate(${from}deg)` }, { transform: `rotate(${to}deg)` }],
-        { duration: 200, easing: "ease-out", fill: "forwards" },
+        { duration: 240, easing: "ease-out", fill: "forwards" },
       );
+      spinRef.current = spin;
+      // Release the fill:forwards hold only once the spin has actually FINISHED.
+      // It used to be cancelled by the rungLevel-keyed effect below, which fires
+      // about two frames after the click — so the rotation was killed ~30ms into
+      // its 200ms and the chevron teleported to the new angle. Cancelling here
+      // instead is seamless: by this point CSS resolves to the same angle the
+      // animation is holding. (cancel() rejects `finished`, hence the catch.)
+      spin.finished
+        ?.then(() => {
+          if (spinRef.current === spin) {
+            spin.cancel();
+            spinRef.current = null;
+          }
+        })
+        .catch(() => {});
       // pulse: a looping bright scale-up "working…" beat via the independent
       // scale/opacity props (they compose with the rotate above instead of
       // fighting it). Runs on the compositor, so it keeps pulsing through the
-      // expand's main-thread jank; the effect below stops it once .is-open lands.
+      // expand's main-thread jank; the effect below stops it once the new
+      // rung's CSS class lands.
       pulseRef.current?.cancel();
       pulseRef.current = btn.animate(
         [
@@ -153,9 +246,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       // compositor and PAINTS first. Committing now would let React flush the
       // large synchronous re-render in this same task, before the browser ever
       // paints the animation — so it'd only appear once the expand is done.
-      // Backstop: cancel the pulse one frame after the commit even if the subtree
-      // state didn't change (a click that reveals nothing) — otherwise the
-      // state-keyed effect below never fires and the pulse would spin forever.
+      // Backstop: cancel the pulse one frame after the commit even if the rung
+      // state didn't change — otherwise the state-keyed effect below never
+      // fires and the pulse would spin forever.
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           commit();
@@ -169,15 +262,20 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       commit();
     }
   };
-  // Once CSS .is-open reflects the new state (the expand finished), stop the
-  // "working…" pulse and release the WAAPI rotation hold — hover/steady styles
-  // resume and both sit at the same angle, so there's no visible jump.
+  // Once CSS reflects the new rung (the pendulum landed), stop the "working…"
+  // pulse. The rotation is deliberately NOT cancelled here: this effect fires
+  // roughly two frames after the click, which would cut the 200ms spin short and
+  // teleport the chevron. The spin releases itself when it finishes (see above).
   useEffect(() => {
     pulseRef.current?.cancel();
     pulseRef.current = null;
+  }, [rungLevel]);
+  // Unmounting mid-spin would otherwise leave the animation running on a
+  // detached node.
+  useEffect(() => () => {
     spinRef.current?.cancel();
-    spinRef.current = null;
-  }, [isSubtreeExpanded, isSubtreeHidden]);
+    pulseRef.current?.cancel();
+  }, []);
 
   return (
     <article
@@ -186,6 +284,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
+      data-exiting={isExiting ? "true" : undefined}
+      aria-hidden={isExiting ? true : undefined}
+      // `pointer-events: none` (index.css) only blocks the mouse — inert also
+      // pulls the row and everything in it out of the tab order and off the
+      // accessibility tree while it fades, so focus/keyboard nav can't land on
+      // (or act through) a row already marked aria-hidden.
+      inert={isExiting || undefined}
       style={
         {
           ["--row-color" as string]: color,
@@ -228,6 +333,13 @@ export const CollapsibleNode = memo(function CollapsibleNode({
       }}
       onKeyDown={(e: React.KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
+          // Same bail as the onClick handler above: a nested control (pendulum
+          // chevron, selection checkbox, copy buttons, in-content links, "Open
+          // on Sky Atlas") should run its OWN Enter/Space behavior, not have it
+          // swallowed into toggling/navigating the row. Widened past onClick's
+          // `a, button, [role="button"]` to also cover form controls that
+          // natively respond to these keys.
+          if ((e.target as Element).closest('a, button, [role="button"], input, select, textarea, [contenteditable]')) return;
           e.preventDefault();
           if (isSelected && hasContent) {
             doToggle();
@@ -246,23 +358,17 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             ref={expandAllRef}
             type="button"
             className={`atlas-node-toggle atlas-node-expand-all${
-              isSubtreeHidden ? " is-hidden" : isSubtreeExpanded ? " is-open" : ""
+              rungClass(rungLevel) ? ` ${rungClass(rungLevel)}` : ""
             }`}
-            aria-label={`${
-              isSubtreeHidden
-                ? hasExplicitHiddenSubtree ? "Restore hidden" : "Expand hidden"
-                : isSubtreeExpanded ? "Collapse" : "Expand"
-            } all sections under ${node.doc_no}`}
-            title={
-              isSubtreeHidden
-                ? hasExplicitHiddenSubtree
-                  ? "restore hidden descendants"
-                  : "expand hidden descendants"
-                : isSubtreeExpanded
-                  ? "collapse all beneath (shift-click: hide descendants)"
-                  : "expand all beneath (shift-click: hide descendants)"
+            style={
+              {
+                ["--hover-deg" as string]: `${rungHoverAngle({ level: rungLevel, dir: rungDir }, inSelectedOnly)}deg`,
+                ["--hover-deg-alt" as string]: `${rungReverseHoverAngle({ level: rungLevel, dir: rungDir }, inSelectedOnly)}deg`,
+              } as React.CSSProperties
             }
-            onClick={doExpandAll}
+            aria-label={`${pendulumVerb[0].toUpperCase()}${pendulumVerb.slice(1)} under ${node.doc_no}`}
+            title={`${pendulumVerb} (alt-click: ${reverseVerb})`}
+            onClick={doPendulum}
           >
             »
           </button>

@@ -13,7 +13,7 @@ vi.mock("../../lib/animatedScroll", () => ({ scrollIfOutOfView: vi.fn() }));
 
 const scrollMock = vi.mocked(scrollIfOutOfView);
 const data = makeLoadedData();
-const EMPTY = new Set<string>();
+const EMPTY = new Map();
 
 let rafSpy: ReturnType<typeof vi.spyOn>;
 let getByIdSpy: ReturnType<typeof vi.spyOn>;

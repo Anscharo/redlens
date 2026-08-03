@@ -33,9 +33,22 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-07-30
+## 2026-08-03
 - Recovered pre-migration history for 1,005 documents that previously showed nothing before the Atlas moved to Markdown
 - Added a note saying when a document's history before the markdown migration couldn't be traced
+- Improved keyboard navigation and loading reliability in the reader and sidebar
+- Fixed search issues with scroll position, excluded terms, and quoted phrases
+- Fixed history and radar to show structural and renumbering changes, recover from temporary errors, and link addresses to the correct networks
+
+## 2026-07-31
+- Reader documents now start collapsed and open one level at a time
+- Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in
+- Drag the top edge of the split view to resize it, up to 60% of the reader — it now defaults to the size of the document shown, capped at 50%
+- Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
+
+## 2026-07-30
+- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
+- Fixed pull request links not opening on reconstructed history entries
 
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it

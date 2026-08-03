@@ -33,11 +33,18 @@ describe("usePrefs", () => {
     expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false });
   });
 
-  it("reads a previously stored partial preference, filling in defaults", async () => {
-    localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true }));
+  it("reads a previously stored current-schema preference, filling in defaults", async () => {
+    localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, v: 2 }));
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
     expect(result.current.prefs).toEqual({ traces: true, reduceMotion: false });
+  });
+
+  it("ignores a pre-migration (unversioned) stored preference, so a restored switch starts from its default", async () => {
+    localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, reduceMotion: true }));
+    const usePrefs = await freshUsePrefs();
+    const { result } = renderHook(() => usePrefs());
+    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false });
   });
 
   it("tolerates corrupt JSON in storage by falling back to defaults", async () => {
@@ -52,7 +59,7 @@ describe("usePrefs", () => {
     const { result } = renderHook(() => usePrefs());
     act(() => result.current.setPref("traces", true));
     expect(result.current.prefs.traces).toBe(true);
-    expect(JSON.parse(localStorage.getItem("rlc-prefs")!)).toEqual({ traces: true, reduceMotion: false });
+    expect(JSON.parse(localStorage.getItem("rlc-prefs")!)).toEqual({ traces: true, reduceMotion: false, v: 2 });
   });
 
   it("toggles the rlc-nomotion body class with reduceMotion", async () => {
@@ -76,7 +83,7 @@ describe("usePrefs", () => {
   it("syncs across a cross-tab storage event", async () => {
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
-    localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, reduceMotion: true }));
+    localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, reduceMotion: true, v: 2 }));
     act(() => {
       window.dispatchEvent(new Event("storage"));
     });

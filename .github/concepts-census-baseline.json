@@ -1,8 +1,8 @@
 {
   "registry-liveness": {
     "counts": {
-      "total": 46,
-      "live": 16,
+      "total": 48,
+      "live": 18,
       "empty": 30
     },
     "members": [
@@ -67,6 +67,12 @@
         "bucket": "live"
       },
       {
+        "uuid": "86fce840-f7f3-4617-bb58-d04db8731c9d",
+        "doc_no": "A.2.2.10.1.1.1.1.3.0.6.1",
+        "title": "List Of Previous Sky Direct Exposures",
+        "bucket": "live"
+      },
+      {
         "uuid": "e4975062-6d19-438b-a5d5-cfc1a7fd8cb9",
         "doc_no": "A.2.2.10.1.2.6",
         "title": "List Of Allocation Instances",
@@ -125,6 +131,12 @@
         "doc_no": "A.6.1.1.2.2.5.1.2.1.3.4.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
+      },
+      {
+        "uuid": "d3210b97-f007-4502-b8d5-dfaf01257001",
+        "doc_no": "A.6.1.1.2.3.1.4.8.2.0.6.1",
+        "title": "List Of Delegates",
+        "bucket": "live"
       },
       {
         "uuid": "1d0e0165-719b-4899-af1c-8a0366a058af",
@@ -7012,7 +7024,7 @@
   },
   "transitionary-measures": {
     "counts": {
-      "total": 20
+      "total": 21
     },
     "members": [
       {
@@ -7053,6 +7065,11 @@
       {
         "uuid": "c05f5877-d0e5-49dd-9608-86aa70d58cc0",
         "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.5.1",
+        "title": "Short-Term Transitionary Measures"
+      },
+      {
+        "uuid": "a65302b4-5222-48a9-b37f-282498acb4d6",
+        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.4",
         "title": "Short-Term Transitionary Measures"
       },
       {
@@ -7422,7 +7439,7 @@
   },
   "numbered-step-docs": {
     "counts": {
-      "total": 48
+      "total": 47
     },
     "members": [
       {
@@ -7651,14 +7668,9 @@
         "title": "SparkLend Risk Parameters Cap Automators"
       },
       {
-        "uuid": "4cd4f590-6a01-4824-a6e7-bbf4a6f5225e",
-        "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.4.1",
-        "title": "Circulating Supply Definition"
-      },
-      {
-        "uuid": "20dba0ba-3dd2-47cb-8e7a-793de6a11c5d",
-        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.3.2.8",
-        "title": "Split Into Multiple Swaps If Limit Exceeded"
+        "uuid": "b4efab71-53c2-4b0c-aba0-853bbc584952",
+        "doc_no": "A.6.1.1.2.3.1.4.6",
+        "title": "Incentives And Compensation"
       },
       {
         "uuid": "156c9c72-46c9-4668-81b6-7e524e7a4bac",
@@ -7936,13 +7948,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1056,
+      "total": 1059,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 210,
-      "Rate Limits": 129,
+      "Parameters": 211,
+      "Rate Limits": 131,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
       "Artifact Edit Proposal": 83,
@@ -8808,26 +8820,14 @@
         "bucket": "Rate Limits"
       },
       {
-        "uuid": "3c749393-8134-4483-ad35-c6820768421f",
+        "uuid": "0d0b492a-ad25-43a0-8a45-3ac1021cd491",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
-        "uuid": "7eaf8614-3343-4a6b-a637-8a92a7115bbb",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
-        "title": "Rate Limits",
-        "bucket": "Rate Limits"
-      },
-      {
-        "uuid": "0d0b492a-ad25-43a0-8a45-3ac1021cd491",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2",
-        "title": "Parameters",
-        "bucket": "Parameters"
-      },
-      {
         "uuid": "46f33c44-c9b3-4241-a5ad-84f4f7765280",
-        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.5.2.4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.8.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -9156,6 +9156,24 @@
         "bucket": "Rate Limits"
       },
       {
+        "uuid": "f0686fca-47c3-4e1b-8b2e-0a0f200fee27",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "46fab347-8af2-4e79-ba3f-401f27d6155f",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "f052e1ed-e2ff-4eaa-8cc4-8ecaabe0bcb4",
+        "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.4.2.2",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
         "uuid": "9f44d3eb-b1d4-490e-bab2-8f39b73dc6ad",
         "doc_no": "A.6.1.1.1.2.6.1.4.1.1.2",
         "title": "Parameters",
@@ -9176,6 +9194,18 @@
       {
         "uuid": "e5519b29-8100-4490-965b-a616729865e1",
         "doc_no": "A.6.1.1.1.2.6.1.4.2.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "3c749393-8134-4483-ad35-c6820768421f",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "7eaf8614-3343-4a6b-a637-8a92a7115bbb",
+        "doc_no": "A.6.1.1.1.2.6.1.4.3.1.1.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -14289,14 +14319,14 @@
   },
   "normative-title-families": {
     "counts": {
-      "total": 79,
-      "distinct": 72,
+      "total": 81,
+      "distinct": 74,
       "prohibition": 11,
       "derecognition": 14,
       "suspension-rule": 5,
-      "operational-conduct": 12,
+      "operational-conduct": 13,
       "adjudication": 5,
-      "alignment": 22,
+      "alignment": 23,
       "edit-restriction": 10
     },
     "members": [
@@ -14655,6 +14685,12 @@
         "bucket": "adjudication"
       },
       {
+        "uuid": "94bebf32-12f4-4109-9b24-cb835bc3a964",
+        "doc_no": "A.2.8.3.2.3",
+        "title": "Misalignment",
+        "bucket": "alignment"
+      },
+      {
         "uuid": "42c525ca-c541-4bf5-ac6a-7bd19960d583",
         "doc_no": "A.2.9.1.3",
         "title": "Privacy and Operational Security",
@@ -14701,6 +14737,12 @@
         "doc_no": "A.6.1.1.2.2.2.2.2.1.2.1.6.1",
         "title": "Time-Limited Root Edit Restrictions On Removal Of Nested Contributors",
         "bucket": "edit-restriction"
+      },
+      {
+        "uuid": "563611a3-4670-4787-9a53-31892aee9390",
+        "doc_no": "A.6.1.1.2.3.1.4.7.1",
+        "title": "Operational Security",
+        "bucket": "operational-conduct"
       },
       {
         "uuid": "e86acb47-775f-4f02-8cef-26eac82dd358",
@@ -14778,10 +14820,16 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 135,
-      "groups": 61
+      "total": 138,
+      "groups": 62
     },
     "members": [
+      {
+        "uuid": "60066e0f-3db7-45c7-9664-8120a4fbd38b",
+        "doc_no": "A.0.1.1.11",
+        "title": "Misalignment",
+        "bucket": "misalignment"
+      },
       {
         "uuid": "f30e56f9-da71-44bc-ab3b-9b13348794fe",
         "doc_no": "A.0.1.1.13",
@@ -14915,6 +14963,18 @@
         "bucket": "aave facet"
       },
       {
+        "uuid": "d9cbf883-119e-403d-8efa-125997cd8897",
+        "doc_no": "A.2.2.10.1.1.1.4.2.2",
+        "title": "Basin Facet",
+        "bucket": "basin facet"
+      },
+      {
+        "uuid": "afa3da61-c32a-4efd-900b-16e1c262c842",
+        "doc_no": "A.2.2.10.1.1.1.4.2.16",
+        "title": "PSM Facet",
+        "bucket": "psm facet"
+      },
+      {
         "uuid": "917e1162-3c06-4508-b0e9-02c5eefc1346",
         "doc_no": "A.2.2.10.1.1.1.4.2.22",
         "title": "USDS Facet",
@@ -14925,18 +14985,6 @@
         "doc_no": "A.2.2.10.1.1.1.5.2",
         "title": "Diamond PAU Controller Functions",
         "bucket": "diamond pau controller functions"
-      },
-      {
-        "uuid": "1490a13f-c897-4f0d-9ba3-205f40900321",
-        "doc_no": "A.2.2.10.1.1.1.5.2.1.3",
-        "title": "Mint USDS To ALM Proxy",
-        "bucket": "mint usds to alm proxy"
-      },
-      {
-        "uuid": "feace76a-e48a-42da-8732-74bbf55c530f",
-        "doc_no": "A.2.2.10.1.1.1.5.2.2.3",
-        "title": "Burn USDS From ALM Proxy",
-        "bucket": "burn usds from alm proxy"
       },
       {
         "uuid": "1cb17b82-a294-4942-8183-4d90b224a79d",
@@ -15027,6 +15075,12 @@
         "doc_no": "A.2.8.2.2.2.4.6",
         "title": "Genesis Capital Backstop",
         "bucket": "genesis capital backstop"
+      },
+      {
+        "uuid": "94bebf32-12f4-4109-9b24-cb835bc3a964",
+        "doc_no": "A.2.8.3.2.3",
+        "title": "Misalignment",
+        "bucket": "misalignment"
       },
       {
         "uuid": "aeb75fe3-f52b-4cdf-a206-1e54ef648d88",
@@ -15485,16 +15539,22 @@
         "bucket": "diamond pau controller functions"
       },
       {
-        "uuid": "08e29676-36c3-453b-9d1f-397452a7c412",
-        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.3.3",
-        "title": "Mint USDS To ALM Proxy",
-        "bucket": "mint usds to alm proxy"
+        "uuid": "3e54ecce-73fc-4f85-be3c-0c89d3d005d2",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.1",
+        "title": "Basin Facet",
+        "bucket": "basin facet"
       },
       {
-        "uuid": "cfdfeb73-9316-4064-b45c-5d8cb2b864ae",
-        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.4.3",
-        "title": "Burn USDS From ALM Proxy",
-        "bucket": "burn usds from alm proxy"
+        "uuid": "bdf5ef63-d436-4ffb-bf37-2c1790d1a68d",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.2",
+        "title": "USDS Facet",
+        "bucket": "usds facet"
+      },
+      {
+        "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
+        "title": "PSM Facet",
+        "bucket": "psm facet"
       },
       {
         "uuid": "5aea6114-5e7e-4bb1-86fa-c54135015397",

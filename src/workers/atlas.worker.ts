@@ -88,10 +88,17 @@ shallowP
     const docs = toRecord(s.nodes);
     self.postMessage({ type: "shallow", docs, atlasCommit: s.atlasCommit ?? null, ...buildMaps(docs) });
   })
-  // Swallow a shallow failure here (don't post). Promise.all below sees the same
-  // rejection and owns the single "error" post — catching it here too would post
-  // a duplicate; omitting the catch entirely would leak an unhandled rejection.
-  .catch(() => {});
+  // A shallow failure also flows into Promise.all below, which owns the combined
+  // "error" post — but Promise.all's rejection reason is whichever of
+  // shallowP/deepP rejects FIRST. When deepP rejects first, that "error" names
+  // only docs-deep.json, and swallowing this rejection silently (as before)
+  // left the main thread (docs.ts spawn()) with no way to learn shallow ALSO
+  // failed: it deliberately leaves `shallow` pending on a deep-only-shaped
+  // error so a still-in-flight shallow fetch can land normally, but then
+  // nothing ever told it shallow lost the race too — `shallow` hung forever.
+  // Post a dedicated message so spawn() can settle `shallow` on that path; a
+  // no-op there whenever shallow already settled some other way.
+  .catch((err) => self.postMessage({ type: "shallow-error", message: String(err) }));
 
 Promise.all([shallowP, deepP])
   .then(([s, d]) => {

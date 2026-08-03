@@ -15,11 +15,19 @@ export const EXPLORER: Record<string, string> = {
 const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
 
 // Resolve a chain key from a free-text hint (e.g. "Base", "OP Mainnet") or,
-// failing that, from the address shape. Defaults to ethereum.
-function resolveChain(hint: string | undefined, addr: string): string {
-  const h = (hint ?? "").toLowerCase();
-  for (const key of Object.keys(EXPLORER)) {
-    if (h.includes(key)) return key;
+// failing that, from the address shape. Defaults to ethereum. `hint` may be a
+// single string or a priority list of hints (most specific first — e.g.
+// [paramKey, instanceName]): the first hint that names a known chain wins, so
+// a param-level override (e.g. "Token Address (Avalanche)" on an otherwise
+// Ethereum-homed instance) beats a more general fallback hint instead of
+// whichever chain name happens to sort first internally.
+function resolveChain(hint: string | undefined | Array<string | undefined>, addr: string): string {
+  const hints = Array.isArray(hint) ? hint : [hint];
+  for (const h of hints) {
+    const lower = (h ?? "").toLowerCase();
+    for (const key of Object.keys(EXPLORER)) {
+      if (lower.includes(key)) return key;
+    }
   }
   if (SOL_RE.test(addr)) return "solana";
   return "ethereum";
@@ -27,11 +35,11 @@ function resolveChain(hint: string | undefined, addr: string): string {
 
 // Single source of truth for address → explorer URL. Prefers the precomputed
 // url from the merged address map; otherwise picks an explorer from the chain
-// hint or the address shape. Used by report cells, radar, address cards, and
-// the markdown linkifier so they can't drift to different chain coverage.
+// hint(s) or the address shape. Used by report cells, radar, address cards,
+// and the markdown linkifier so they can't drift to different chain coverage.
 export function explorerUrl(
   addr: string,
-  opts: { chain?: string; addrMap?: Record<string, { explorerUrl?: string }> } = {},
+  opts: { chain?: string | Array<string | undefined>; addrMap?: Record<string, { explorerUrl?: string }> } = {},
 ): string {
   if (opts.addrMap) {
     const known = opts.addrMap[addr.toLowerCase()] ?? opts.addrMap[addr];

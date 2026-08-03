@@ -2,8 +2,10 @@
 // ActorHistory batches per-doc change history for an actor (definition +
 // instances + their params/config + reward primitives), merges by commit, and
 // renders collapsible commit rows with a nested doc table. loadAtlas and
-// loadHistoryBatch are mocked (no artifacts); CHANGE_COLOR / isGitSha stay real
-// via a partial mock so the git-vs-synthetic-era branch renders correctly.
+// loadHistoryBatch are mocked (no artifacts); CHANGE_COLOR / isGitSha / movePaths /
+// severedRange stay real via a partial mock so the git-vs-synthetic-era branch,
+// the moved-entry from/to detail, and the severed-era heading fallback all
+// render correctly.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
@@ -87,7 +89,8 @@ describe("ActorHistory", () => {
       ["def-1", [{ date: "2025-01-02", commitHash: "abc1234", changeType: "modified", changeKind: "semantic", pr: 184, prTitle: "Header change", prAuthor: "alice", prUrl: "http://pr/184" }]],
       ["config-1", [{ date: "2025-01-02", commitHash: "abc1234", changeType: "added" }]],
       ["inst-1", [{ date: "2024-12-01", commitHash: "genesis:zzz", changeType: "added", era: "genesis" }]],
-      // "moved" events are renumbering noise and must be dropped.
+      // "moved" events (renumbers, atomization) are structural history and
+      // must render like any other change, not be dropped (RD2).
       ["prim-1", [{ date: "2024-10-01", commitHash: "fff9999", changeType: "moved" }]],
     ]);
     renderHistory();
@@ -95,9 +98,93 @@ describe("ActorHistory", () => {
 
     expect(await screen.findByText(/2025-01-02/)).toBeInTheDocument();
     expect(screen.getByText("Header change")).toBeInTheDocument();
-    // genesis synthetic entry present; moved-only commit dropped.
+    // genesis synthetic entry and the moved commit are both present.
     expect(screen.getByText(/2024-12-01/)).toBeInTheDocument();
-    expect(screen.queryByText(/2024-10-01/)).not.toBeInTheDocument();
+    expect(screen.getByText(/2024-10-01/)).toBeInTheDocument();
+  });
+
+  it("shows real history for an actor whose only changes are structural moves (RD2)", async () => {
+    // Mirrors /radar/keel-freezer-multisig: every recorded change for this
+    // actor's docs is a renumber, so the old drop-all-"moved" logic emptied
+    // mergeByCommit's output entirely and the panel claimed no history.
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [{ date: "2025-06-01", commitHash: "renumber01", changeType: "moved", movedFrom: "A.1", movedTo: "A.2" }]],
+    ]);
+    renderHistory();
+    expect(await screen.findByText(/2025-06-01/)).toBeInTheDocument();
+    expect(screen.queryByText("no history recorded")).not.toBeInTheDocument();
+  });
+
+  it("shows the renumber detail for a genuine move, but guards a self-move from a nonsense label (RD2/H2)", async () => {
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      // Genuine renumber: doc_no actually changed.
+      ["def-1", [{ date: "2025-03-01", commitHash: "ren0001", changeType: "moved", movedFrom: "A.1.11", movedTo: "A.1.12" }]],
+      // Self-move (html-era quirk): only title/ancestors changed, so
+      // movedFrom === movedTo — must not render "A.1.5 → A.1.5".
+      ["inst-1", [{ date: "2025-03-01", commitHash: "ren0001", changeType: "moved", movedFrom: "A.1.5", movedTo: "A.1.5" }]],
+    ]);
+    renderHistory();
+    const toggle = await screen.findByRole("button", { name: /2025-03-01/ });
+    fireEvent.click(toggle);
+
+    // Real renumber: from/to is shown.
+    expect(screen.getByText("A.1.11 → A.1.12")).toBeInTheDocument();
+    // Self-move: still rendered as a row (not dropped), but no "X to X" text.
+    expect(screen.getByText("agent instance")).toBeInTheDocument();
+    expect(screen.queryByText(/A\.1\.5 → A\.1\.5/)).not.toBeInTheDocument();
+  });
+
+  it("merges a same-commit modified + moved event for one doc — modified-then-moved order (P2)", async () => {
+    // The history builder emits BOTH a "modified" and a "moved" entry for a
+    // doc that's edited and renumbered in the same commit
+    // (build-history.mjs: "A node can appear twice ... both entries are
+    // emitted"). The per-commit docId dedup used to retain only whichever
+    // row arrived first, silently dropping the other's detail — merge both
+    // into one row instead.
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-04-01", commitHash: "mixed001", changeType: "modified", changeKind: "typo" },
+        { date: "2025-04-01", commitHash: "mixed001", changeType: "moved", movedFrom: "A.1.9", movedTo: "A.1.10" },
+      ]],
+    ]);
+    renderHistory();
+    const toggle = await screen.findByRole("button", { name: /2025-04-01/ });
+    fireEvent.click(toggle);
+
+    // Content-edit detail survives: the changeKind badge.
+    expect(screen.getByText("typo")).toBeInTheDocument();
+    // Renumber detail survives too — neither event overwrote the other.
+    expect(screen.getByText("A.1.9 → A.1.10")).toBeInTheDocument();
+    // Merged into ONE row for the doc, not a duplicate.
+    expect(screen.getAllByText("A.2")).toHaveLength(1);
+  });
+
+  it("merges a same-commit modified + moved event for one doc — moved-then-modified order (P2)", async () => {
+    // Same scenario, opposite arrival order — the merge must not depend on
+    // which row the batch query happens to return first, since (per the
+    // reviewer) the query has no tie-breaker between rows from the same
+    // commit.
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-04-01", commitHash: "mixed002", changeType: "moved", movedFrom: "A.1.9", movedTo: "A.1.10" },
+        { date: "2025-04-01", commitHash: "mixed002", changeType: "modified", changeKind: "typo" },
+      ]],
+    ]);
+    renderHistory();
+    const toggle = await screen.findByRole("button", { name: /2025-04-01/ });
+    fireEvent.click(toggle);
+
+    expect(screen.getByText("typo")).toBeInTheDocument();
+    expect(screen.getByText("A.1.9 → A.1.10")).toBeInTheDocument();
+    expect(screen.getAllByText("A.2")).toHaveLength(1);
+  });
+
+  it("shows a severed-era month range instead of a blank heading when the date is empty (H3)", async () => {
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [{ date: "", commitHash: "severed:2024-09-02..2025-05-28", changeType: "removed", era: "severed" }]],
+    ]);
+    renderHistory();
+    expect(await screen.findByText("2024-09 ~ 2025-05")).toBeInTheDocument();
   });
 
   it("expands a commit to reveal the affected-doc table and toggles config rows", async () => {

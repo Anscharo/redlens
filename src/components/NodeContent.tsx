@@ -28,7 +28,11 @@ export function prefetchNodeContent(): void {
 
 function NodeContentSkeleton() {
   return (
-    <div className="animate-pulse space-y-2 py-1">
+    // data-node-content-skeleton: lets useSplitHeight's shrink-to-fit measurement
+    // recognize (and skip) this placeholder — its height has nothing to do with
+    // the real content's, and fitting to it just produces a visible jump once
+    // the lazy chunk resolves and the skeleton is replaced.
+    <div data-node-content-skeleton className="animate-pulse space-y-2 py-1">
       <div className="h-3 rounded" style={{ background: "var(--surface)", width: "92%" }} />
       <div className="h-3 rounded" style={{ background: "var(--surface)", width: "78%" }} />
       <div className="h-3 rounded" style={{ background: "var(--surface)", width: "85%" }} />

@@ -19,6 +19,7 @@
 import type { DiffLine, WordSegment } from "./history";
 import { lcsOps, mergeOps } from "./diffCore";
 import { isStructuredLine, segmentSentences, changeStats, shouldPromote, MIN_REFINE_RATIO } from "./diffSentences";
+import { fencedFlags } from "./diffFences";
 import { refineSentencePair } from "./diffSubclause";
 
 type SentenceOp = { op: "=" | "-" | "+"; text: string };
@@ -175,12 +176,16 @@ function refineTilde(segments: WordSegment[]): DiffLine[] {
 /** Refine every modified-paragraph ("~") entry in a diff for display: fine-
  *  grained word diffs stay when the change is localized, but a substantially
  *  rewritten sentence or paragraph is promoted to a whole-unit before/after
- *  block. All other entries (and malformed ones) pass through untouched. */
+ *  block. Lines inside a ``` block are exempt — sentence segmentation is a
+ *  prose operation, and `isStructuredLine` alone can't see a fence the line
+ *  isn't itself the delimiter of (see ./diffFences). All other entries (and
+ *  malformed ones) pass through untouched. */
 export function refineProseDiff(lines: DiffLine[]): DiffLine[] {
   if (!Array.isArray(lines)) return [];
+  const fenced = fencedFlags(lines);
   const out: DiffLine[] = [];
-  for (const line of lines) {
-    if (isWellFormedTilde(line)) out.push(...refineTilde(line[1]));
+  for (const [i, line] of lines.entries()) {
+    if (!fenced[i] && isWellFormedTilde(line)) out.push(...refineTilde(line[1]));
     else out.push(line);
   }
   return out;

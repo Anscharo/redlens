@@ -9,6 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./retrieval/indexes.ts";
 import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
+import { resolveOrigin } from "./reqOrigin.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
@@ -307,7 +308,10 @@ const server = Bun.serve({
     // unit-tested in og.ts; here we only wire it into the served HTML.
     /* v8 ignore start */
     const url = new URL(req.url);
-    let ogTags = defaultOgTags(url.origin);
+    // Base URL for the meta tags below — see resolveOrigin() for why this
+    // isn't just url.origin.
+    const origin = resolveOrigin(req, url, config.appUrl);
+    let ogTags = defaultOgTags(origin);
     // Soft 404: a dynamic route whose key doesn't resolve (e.g. an unknown
     // /radar/<slug>) still serves the SPA HTML (so the app renders its own
     // not-found view) but with a 404 status, so crawlers/tools don't treat a
@@ -321,7 +325,7 @@ const server = Bun.serve({
       ogTags = renderOgTags({
         pathname,
         searchParams: url.searchParams,
-        origin: url.origin,
+        origin,
         lookup: (idOrDocNo) => {
           const n = resolveNode(ix, idOrDocNo);
           return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
@@ -341,7 +345,9 @@ const server = Bun.serve({
       .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
-    if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
+    // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to
+    // the trailing-slash-less path, which is the first crawlable route into it.
+    if (pathname === "/preview" || pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { status: notFound ? 404 : 200, headers });
     /* v8 ignore stop */
   },
