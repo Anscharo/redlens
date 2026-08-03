@@ -2,7 +2,8 @@ import { Fragment, useEffect, useState } from "react";
 import { loadHistory, PRE_MD_PR, RECONSTRUCTED_ERAS, type HistoryEntry } from "../../lib/history";
 import { track } from "../../lib/analytics";
 import { EntryRow } from "./EntryRow";
-import { HtmlEraDisclaimer, PreGitDisclaimer, PRE_MD_HTML_URL } from "./HistoryDisclaimers";
+import { HtmlEraDisclaimer, PreGitDisclaimer } from "./HistoryDisclaimers";
+import { SeamFooter } from "./SeamFooter";
 import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 
 // Before PR #117 (commit 22cc27b5, 2025-11-21) the atlas was a single HTML file
@@ -11,8 +12,9 @@ import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 //    (era="html", plus era="mip"/"genesis"/"severed" further back — docs/plans/
 //    pre-git-history.md); hidden by default behind the "View Reconstructed History"
 //    toggle, with a disclaimer shown before each reconstructed block.
-//  · not reconstructed — a doc created AT the migration (no reconstructed-era entries);
-//    keep the legacy one-line footer pointing at the last pre-migration HTML file.
+//  · not reconstructed — no pre-#117 entries were threaded to this doc. SeamFooter says
+//    which of the two that is: a reviewed "created at the migration" verdict, or (the
+//    common case) that the doc's earlier history could not be traced at all.
 // The repo's first commit (2025-05-28) — everything at/after this is real git history;
 // everything below it (era mip/genesis/severed) predates git entirely. When older
 // origin events exist, this row's "added" label is a lie (it's not the doc's origin,
@@ -20,26 +22,6 @@ import { CONTENT_INDENT, TimelineRow } from "./Timeline";
 // hashes throughout this pipeline are truncated to 7 chars (gitCommitSeq, buildEvents,
 // etc.) — 8 would never match and silently disable the relabel.
 const ROOT_SHA = "4e931df";
-
-function PreMdFooter() {
-  return (
-    <p
-      className="mono text-[11px] px-2 py-2.5 leading-snug"
-      style={{ color: "var(--tan-3)", border: "2px solid var(--border)" }}
-    >
-      Before 'Migrate To Markdown File' the atlas was maintained as a single HTML file. 79 prior commits exist in the vendor repo —{" "}
-      <a
-        href={PRE_MD_HTML_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:underline focus-visible:underline"
-        style={{ color: "var(--accent)" }}
-      >
-        view original HTML →
-      </a>
-    </p>
-  );
-}
 
 const PRE_GIT_ERAS = new Set(["mip", "genesis", "severed"]);
 
@@ -159,7 +141,7 @@ export function NodeHistory({
             />
             {!hasReconstructed && entry.pr === PRE_MD_PR && (
               <TimelineRow>
-                <PreMdFooter />
+                <SeamFooter seam={entry.seam} />
               </TimelineRow>
             )}
           </Fragment>

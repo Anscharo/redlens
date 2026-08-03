@@ -34,7 +34,8 @@
 -->
 
 ## 2026-07-30
-- Recovered pre-migration history for 800 documents that previously showed nothing before the Atlas moved to Markdown
+- Recovered pre-migration history for 1,005 documents that previously showed nothing before the Atlas moved to Markdown
+- Added a note saying when a document's history before the markdown migration couldn't be traced
 
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it

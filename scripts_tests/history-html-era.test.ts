@@ -77,6 +77,67 @@ describe("seedFromMd — human overrides (plan §10.4)", () => {
     expect([...seed.uuidByRow.values()]).not.toContain("uuid-A");
     expect(seed.seam.get("uuid-A")).toBe("created");
   });
+
+  it("a doc displaced by an override is untraced, not created", () => {
+    // The override hands P to uuid-B, so uuid-A loses the row it had auto-claimed.
+    // Losing a claim says nothing about where uuid-A came from.
+    const seed = seedFromMd(md, [P, Q], { overrides: new Map([["uuid-B", P]]) });
+    expect(seed.seam.get("uuid-A")).toBe("untraced");
+  });
+});
+
+// A doc whose whole body is one word ("`Completed`" — the ICD parameter leaves) makes no
+// 8-word shingle, so the seed can neither match nor rule out a predecessor for it. It used
+// to fall through as `created`. See scripts/htmlhist/seed-positional.mjs.
+describe("seedFromMd — tier S2: zero-shingle docs (seed-positional.mjs)", () => {
+  const A = "alpha beta gamma delta epsilon zeta eta theta iota kappa";
+  const B = "lambda mu nu xi omicron pi rho sigma tau upsilon";
+  const anchorMd = [{ uuid: "uuid-A", content: A, title: "Doc A" }, { uuid: "uuid-B", content: B, title: "Doc B" }];
+  const P = { content: A, title: "Doc A" }, Q = { content: B, title: "Doc B" };
+  const gas = (uuid: string, body: string) => ({ uuid, content: body, title: "Global Activation Status" });
+  const row = (body: string) => ({ content: body, title: "Global Activation Status" });
+
+  it("threads a short doc sitting in the same gap as its row", () => {
+    const md = [anchorMd[0], gas("uuid-G", "`Completed`"), anchorMd[1]];
+    const R = row("Completed");
+    const seed = seedFromMd(md, [P, R, Q]);
+    expect(seed.uuidByRow.get(R)).toBe("uuid-G");
+    expect(seed.seam.get("uuid-G")).toBe("kept");
+    expect(seed.positionalUuids.has("uuid-G")).toBe(true);
+    expect(seed.seam.get("uuid-A")).toBe("kept"); // the anchors are untouched
+  });
+
+  it("keeps k-th ↔ k-th order inside a gap", () => {
+    const md = [anchorMd[0], gas("uuid-1", "`Active`"), gas("uuid-2", "`Inactive`"), anchorMd[1]];
+    const R1 = row("Active"), R2 = row("Inactive");
+    const seed = seedFromMd(md, [P, R1, R2, Q]);
+    expect(seed.uuidByRow.get(R1)).toBe("uuid-1");
+    expect(seed.uuidByRow.get(R2)).toBe("uuid-2");
+  });
+
+  it("leaves an unequal bucket untraced rather than guessing", () => {
+    // Two identical candidate rows for one md doc: the gap can't say which, so neither.
+    const md = [anchorMd[0], gas("uuid-G", "`Active`"), anchorMd[1]];
+    const R1 = row("Active"), R2 = row("Active");
+    const seed = seedFromMd(md, [P, R1, R2, Q]);
+    expect(seed.seam.get("uuid-G")).toBe("untraced");
+    expect(seed.uuidByRow.has(R1)).toBe(false);
+    expect(seed.uuidByRow.has(R2)).toBe(false);
+  });
+
+  it("does not reach across an anchor into a different gap", () => {
+    // The row sits AFTER the second anchor, the md doc BEFORE it — different gaps.
+    const md = [anchorMd[0], gas("uuid-G", "`Completed`"), anchorMd[1]];
+    const R = row("Completed");
+    const seed = seedFromMd(md, [P, Q, R]);
+    expect(seed.seam.get("uuid-G")).toBe("untraced");
+  });
+
+  it("an unmatched doc with a normal-length body is untraced, not created", () => {
+    const md = [{ uuid: "uuid-N", content: "one two three four five six seven eight nine", title: "New" }];
+    const seed = seedFromMd(md, [P]);
+    expect(seed.seam.get("uuid-N")).toBe("untraced");
+  });
 });
 
 describe("threadBackward — human overrides (plan §10.4)", () => {

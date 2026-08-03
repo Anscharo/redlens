@@ -83,6 +83,32 @@ The human-in-the-loop path is the same shape: curate a few commits on the page �
 
 To **re-run the auto-resolution over an existing queue** without rebuilding the 6 MB queue (e.g. after changing `--threshold`), call the standalone tool directly: `bun scripts/htmlhist/auto-curate-html-history.mjs`.
 
+### Seam verdicts: `kept` / `split` / `merged` / `reintroduced` / **`untraced`** / `created`
+
+The seed's verdict for each #117 doc lives in the artifact's `docMeta` (and, for docs that
+have one, on their html-era birth event). Two of them never produce an event at all, so the
+reader learns about them from the seam alone — and they must not be confused:
+
+- **`untraced`** — nothing threaded this doc, and nothing ruled a predecessor out. This is
+  the *automatic* outcome and it asserts nothing about the document: for short or heavily
+  duplicated bodies it says more about the matcher than about the atlas. The reader renders
+  it as "history before the markdown migration could not be traced", explicitly **not** as a
+  creation.
+- **`created`** — a *reviewed* verdict (`"chosenKey": "none"` in
+  `public/history-decisions.json`, method deterministic/ai/human) that the last HTML holds no
+  earlier version. The decisions file carries 12 such verdicts, 11 of which are
+  duplication-split copies `prepare` re-tags `split`, so ~1 doc ships as `created`. This is
+  the only seam value that claims a birth, and the only one the reader shows as one.
+
+Losing a row to a curation override also demotes the displaced doc to `untraced` — it lost a
+claim, which is not evidence of where it came from.
+
+Because neither verdict has an event to hang on, `stampMigrationSeam`
+(`src/server/history/history-db.ts`) writes every doc's verdict onto its #117 `structural`
+row on each sync. It rides the html-era upsert rather than build-history's git walk on
+purpose: that walk is incremental and never re-visits #117, so a verdict written there would
+only reach the DB on a `--full` rebuild.
+
 ### Re-introductions (`history-reintroductions.json`)
 
 Some #117 docs REVIVE a name the live HTML had **already retired** — a migration regression, not new
@@ -136,6 +162,25 @@ It never ranks or scores, never overrides an existing decision (the committed de
 on the current seam: **823 of 1,203** unthreaded docs forced (813 `gap-exact` + 10 `gap-unique`),
 across 155 distinct titles, 98 gaps abstained; 661 of the 823 also have byte-identical content, which
 is corroboration the rules never asked for.
+
+#### Seed tier S2 — the same idea, inside the seed (`seed-positional.mjs`)
+
+`htmlhist:structural` runs *over* the seam and freezes its findings as decisions, which is
+what makes them auditable. Tier S2 applies the same anchored-order argument *inside*
+`seedFromMd`, over the one population the shingle matcher is structurally blind to: a body
+shorter than the 8-word shingle window produces no shingles at all, and its HTML rows are
+skipped outright (`if (!rSh.length) continue`), so the seed can neither match nor rule them
+out. It buckets the zero-shingle md docs and the zero-shingle *unclaimed* rows inside each
+anchor gap by title (+ body) and pairs a bucket k-th ↔ k-th only when both sides hold the
+same count; unequal buckets stay `untraced` rather than being guessed.
+
+The two are complementary, and both are wanted — measured on the current seam, `kept` is
+7 277 with the structural decisions alone, 7 323 with S2 alone, and **7 482 with both** (S2
+recovers 205 docs the structural rules abstain on; they recover 159 S2's do). They compose
+safely — S2 only
+ever touches rows the shingle pass left untouched, and the committed decisions are applied
+*after* it, so a curated pick always wins over an S2 pairing. Docs S2 threaded are tagged
+`seamTier: "positional"` in `docMeta`.
 
 ### Notes
 

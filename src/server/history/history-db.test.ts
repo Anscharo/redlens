@@ -208,6 +208,39 @@ describe("pre-git-history.md: preEraRows loads public/history-pre-era.json → u
   });
 });
 
+describe("stampMigrationSeam writes each doc's #117 verdict onto its migration row", () => {
+  const OTHER = "2ce24b08-84ff-4524-9710-49bba429c6ef";
+  const artifact = {
+    meta: { migrationCommit: "22cc27b5" },
+    docMeta: { [UUID]: { seam: "kept" }, [OTHER]: { seam: "untraced" } },
+  };
+  // Minimal Bun.sql stand-in: record every statement + its params, report 1 row hit.
+  const fakeSql = () => {
+    const calls: { q: string; p: unknown[] }[] = [];
+    return { calls, unsafe: (q: string, p: unknown[]) => { calls.push({ q, p }); return Promise.resolve({ count: 1 }); } };
+  };
+
+  it("targets the migration commit's structural rows only, keyed by doc", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    const [perDoc] = sql.calls;
+    expect(perDoc.q).toContain("UPDATE atlas_history");
+    expect(perDoc.q).toContain("change_type = 'structural'");
+    expect(perDoc.p[0]).toBe("22cc27b"); // 7-char sha, as build-history writes it
+    expect(perDoc.p).toContain(UUID);
+    expect(perDoc.p).toContain("kept");
+    expect(perDoc.p).toContain("untraced");
+  });
+
+  it("defaults the docs the reconstruction never reached to untraced, not null", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    const sweep = sql.calls[sql.calls.length - 1];
+    expect(sweep.q).toContain("seam = 'untraced'");
+    expect(sweep.q).toContain("seam IS NULL");
+  });
+});
+
 describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () => {
   const artifact = {
     meta: { kind: "html-era-history" },

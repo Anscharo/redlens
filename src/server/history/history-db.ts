@@ -195,6 +195,60 @@ export function preEraRows(
   return rows;
 }
 
+/** The HTML→markdown migration (PR #117). build-history re-tags every doc's birth at
+ *  this commit as `moved` (they existed in the HTML era), which Postgres stores as
+ *  `structural` — so this is the one row every doc alive at the seam is guaranteed to
+ *  have, and the only place to hang a per-doc seam verdict that has no event of its own. */
+const MIGRATION_COMMIT = "22cc27b5";
+const MIGRATION_CHANGE_TYPE = "structural";
+
+/**
+ * Stamp each doc's #117 seam verdict (`kept` / `split` / `merged` / `reintroduced` /
+ * `untraced` / `created`) onto its migration row, from the frozen artifact's `docMeta`.
+ *
+ * Not done in build-history's git walk on purpose: that walk is incremental and will
+ * never re-visit #117 again, so a verdict written there would only reach the DB on a
+ * `--full` rebuild. docMeta rides the html-era upsert instead, which runs on every sync.
+ *
+ * The verdict can't come from the event stream either — the docs that most need it
+ * (`untraced`, `created`) have NO html-era events at all; docMeta is the only record
+ * that they were looked at and not threaded.
+ */
+export async function stampMigrationSeam(
+  sql: SQL,
+  artifact: { meta?: { migrationCommit?: string }; docMeta?: Record<string, { seam?: string }> },
+  chunkSize = 1000,
+): Promise<number> {
+  const sha = (artifact.meta?.migrationCommit ?? MIGRATION_COMMIT).slice(0, 7);
+  const entries = Object.entries(artifact.docMeta ?? {}).filter(([, m]) => m?.seam);
+  let stamped = 0;
+  for (let i = 0; i < entries.length; i += chunkSize) {
+    const params: unknown[] = [sha];
+    const values = entries
+      .slice(i, i + chunkSize)
+      .map(([id, m]) => {
+        params.push(id, m.seam);
+        return `($${params.length - 1}::uuid, $${params.length})`;
+      })
+      .join(",");
+    const res = await sql.unsafe(
+      `UPDATE atlas_history h SET seam = v.seam FROM (VALUES ${values}) AS v(doc_id, seam)
+       WHERE h.doc_id = v.doc_id AND h.commit_sha = $1 AND h.change_type = '${MIGRATION_CHANGE_TYPE}'`,
+      params,
+    );
+    stamped += res.count ?? 0;
+  }
+  // Everything else alive at the seam: docs the reconstruction has no docMeta row for
+  // at all. "No verdict" and "untraced" mean the same thing to a reader, and leaving
+  // NULL would make the reader unable to tell them apart from an un-synced row.
+  const rest = await sql.unsafe(
+    `UPDATE atlas_history SET seam = 'untraced'
+     WHERE commit_sha = $1 AND change_type = '${MIGRATION_CHANGE_TYPE}' AND seam IS NULL`,
+    [sha],
+  );
+  return stamped + (rest.count ?? 0);
+}
+
 const SET_CLAUSE = HISTORY_COLS.filter((c) => c !== "doc_id" && c !== "commit_sha" && c !== "change_type")
   .map((c) => `${c} = excluded.${c}`)
   .join(", ");

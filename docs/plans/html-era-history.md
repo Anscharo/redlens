@@ -447,6 +447,12 @@ which is pure format; see §7):
   surviving md doc's body. Record `merged_into` = successor UUID so chat can
   follow it forward; do not treat as a deletion.
 
+- **`untraced`** (added 2026-08) — the seed found no predecessor and nobody has
+  ruled one out. Not a fourth content-conserving kind: it is the *absence* of a
+  verdict, and the reader says so ("history before the migration could not be
+  traced") instead of implying a birth. See below — this is what the residue the
+  first freeze called `created` actually was.
+
 **Genuine `created` / `deleted` at #117 are measured ≈0**, so they are *not* a
 bulk population — they stay reserved for the rare true case, and because each is
 rare it is a real, surfaceable event rather than migration noise. The numbers
@@ -496,7 +502,15 @@ Tiered, cheapest-first, to avoid an O(n²) edit-distance blow-up:
    title — *not* the leaf doc_no/temp-name alone, which collides hundreds of
    times (§2c). **This tier is load-bearing, not a fallback** (§2c): short rows
    (< ~8 words) carry no shingles, so tier 3 *cannot* match them — the structural
-   key is their **only** handle. The owner column matters: the §3 converter
+   key is their **only** handle — *and the seed had no such tier*, which is why
+   the first freeze shipped 1 159 `created` docs against a measured ≈0 of genuine
+   births: the whole zero-shingle population (the ICD parameter leaves, bodies
+   like `` `Completed` ``) fell straight through. Fixed 2026-08 by **seed tier
+   S2** (`scripts/htmlhist/seed-positional.mjs`), which ports the tier-2.5 idea
+   below across the seam: anchor on the shingle-matched pairs, then align the
+   zero-shingle leftovers by order inside each anchor gap, only where the bucket
+   sizes match. The residue it can't reach is `untraced` (§4.1), never `created`.
+   The owner column matters: the §3 converter
    measured it (2026-06-25) cuts raw seed-commit key-collisions **69% → 52%** by
    de-colliding bare temp-name rows (every "Spark" row no longer shares one key).
 2.5. **Positional alignment within a key-bucket.** Even the strong key leaves a
@@ -711,11 +725,15 @@ An earlier draft jammed format-era and per-doc seam-fate into one `era` value
   lives here. This is what the UI labels ("HTML era", etc.).
 - **`seam TEXT` = the #117 reorganization relationship, per doc, nullable**
   (null for every row whose identity doesn't cross the seam):
-  `seam IN ('kept', 'split', 'merged', 'created', 'deleted')`. These are
-  **content-conserving reorganization links, not loss/creation tags** (§4.1):
+  `seam IN ('kept', 'split', 'merged', 'reintroduced', 'untraced', 'created', 'deleted')`.
+  These are **content-conserving reorganization links, not loss/creation tags** (§4.1):
   `kept` (1:1), `split` (carved out of a parent), `merged` (absorbed into a
   successor). `created`/`deleted` are the measured-≈0 genuine cases — rare enough
-  that each is a real event, not a population. Plus two pointer columns:
+  that each is a real event, not a population — and `untraced` is the honest
+  fall-through for a doc the seed couldn't thread either way. Since `untraced` and
+  `created` have no event of their own to hang on, `stampMigrationSeam`
+  (`src/server/history/history-db.ts`) writes every doc's verdict onto its #117
+  `structural` row on each sync. Plus two pointer columns:
   - `extracted_from UUID` — on `split` rows: the HTML parent the doc was carved
     out of (§4.2 tier 4). Lets reader/radar/chat thread the child's history
     *into* the parent's pre-#117 timeline.
