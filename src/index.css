@@ -722,6 +722,17 @@ button.atlas-node-toggle:not([data-settling]):hover {
 [data-alt] button.atlas-node-toggle:not([data-settling]):hover {
   transform: rotate(var(--hover-deg-alt, 0deg));
 }
+/* …but not on the drift curve above. That 1s ease is tuned for a pointer
+   arriving: a lean that grows out of the hover. A modifier is a discrete
+   input — press Option and the answer is already decided — so on the curve's
+   own profile it would move ~9° of a 45° swap in the first eighth of a second
+   and read as dead. <html data-alt-turn> is up for the moment the modifier
+   flips (either way, so the release snaps back just as fast) and switches the
+   transition to a quick one; see ALT_TURN_MS in useModifierKeyAttrs. Must stay
+   AFTER the rule above — equal specificity, and this one has to win. */
+[data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
+  transition: transform 0.18s ease-out;
+}
 /* Hover hints on the two row surfaces, as ::after labels rather than React
    state or a per-row Tooltip portal — there are ~1200 reader rows. Each surface
    sets its own `content` below; this block is only the shared box. <html
@@ -819,7 +830,10 @@ button.atlas-node-toggle:not([data-settling]):hover {
    near the top — that block is earlier in the file and these selectors are more
    specific, so it can't reach them. The lean still happens, it just snaps. */
 @media (prefers-reduced-motion: reduce) {
-  button.atlas-node-toggle:not([data-settling]):hover {
+  button.atlas-node-toggle:not([data-settling]):hover,
+  /* Same reason one level down: the alt-turn rule outranks the plain hover one,
+     so neutralising only that one would leave the modifier swap animating. */
+  [data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
     transition: none;
   }
 }
@@ -1625,5 +1639,30 @@ button.atlas-node-expand-all:focus-visible {
   50% {
     opacity: 1;
     transform: scale(1.1);
+  }
+}
+
+/* The ↻ on the footer's update pills. It spins from the click until the page
+   navigates away — see StatusPill for why it never resolves. inline-block so
+   the glyph has a box to rotate inside; without it the transform is dropped. */
+.status-pill-glyph {
+  display: inline-block;
+}
+.status-pill.is-applying .status-pill-glyph {
+  animation: status-pill-spin 0.9s linear infinite;
+}
+@keyframes status-pill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Reduced motion still needs the acknowledgement — that IS the fix here — just
+   not as rotation. Dimming the pill reads as "taken, working". */
+@media (prefers-reduced-motion: reduce) {
+  .status-pill.is-applying .status-pill-glyph {
+    animation: none;
+  }
+  .status-pill.is-applying {
+    opacity: 0.6;
   }
 }
