@@ -50,17 +50,18 @@ export function useScrollRestore(
   // Save on unmount or when key changes. Cleanup closure captures the key
   // value at the time the effect ran, so writes go to the OLD key on change.
   //
-  // Gated on `restoredKey.current === key`: lastScrollRef is a single ref
-  // that outlives a `key` change, so right after the key changes (e.g. the
-  // search query changes while the same component stays mounted) it can
-  // still hold the PREVIOUS key's offset — nothing has touched it for the
-  // new key yet if `ready` is false (new data not in) and no "scroll" event
-  // has fired. Without this gate, unmounting in that window would persist
-  // the old key's stale offset under the new key. The restore effect below
-  // is what advances restoredKey.current to the new key — resetting
-  // lastScrollRef.current to the freshly-restored value in the same breath
-  // (see its own comment) — so this check only lets a save through once the
-  // tracked value is actually known-good for the CURRENT key.
+  // Invariant: lastScrollRef holds a value for exactly ONE key at a time — the
+  // key it was last written under. Only persist it for that key.
+  //
+  // Why the `restoredKey.current === key` gate enforces it: lastScrollRef is a
+  // single ref that outlives a `key` change, so right after the key changes
+  // (e.g. a new search query while the same component stays mounted) it still
+  // holds the PREVIOUS key's offset until either a "scroll" event or the
+  // restore effect touches it for the new key. Saving in that window would
+  // stamp the old offset onto the new key. The restore effect below is what
+  // advances restoredKey.current (and resets lastScrollRef to the freshly
+  // restored value in the same breath), so this check only lets a save
+  // through once the tracked value is known-good for the CURRENT key.
   useEffect(() => {
     return () => {
       if (restoredKey.current === key) saveScroll(key, lastScrollRef.current);

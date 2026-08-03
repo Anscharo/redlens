@@ -94,6 +94,20 @@ function spawn(base: string): WorkerHandles {
     type: "module",
     name: base,
   });
+  // Message protocol → how each inbound type settles { shallow, full }. The
+  // per-branch comments below carry the detail; this is the map:
+  //   "shallow"       resolve shallow (full may still arrive later).
+  //   "ready"         resolve full, terminate.
+  //   "error"         full ALWAYS rejects. Then three terminal shapes:
+  //                     (a) deep-only failure (names docs-deep, not
+  //                         docs-shallow) AND shallow not yet settled → leave
+  //                         the worker running so its own shallow fetch can
+  //                         still resolve — shallow stays pending on purpose;
+  //                     (b) message implicates shallow, or shallow already
+  //                         settled → reject shallow too, terminate.
+  //   "shallow-error" the deferred tail of (a): shallow's own fetch has now
+  //                     failed too → reject shallow, terminate.
+  // A stale-sha message on either error type short-circuits to a reload first.
   worker.addEventListener("message", (e) => {
     const msg = e.data;
     if (msg.type === "shallow") {
