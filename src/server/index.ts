@@ -9,6 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./retrieval/indexes.ts";
 import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
+import { resolveOrigin } from "./reqOrigin.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
@@ -89,29 +90,6 @@ function withCors(res: Response): Response {
 }
 
 const NOT_FOUND = () => new Response(null, { status: 404 });
-
-// External base URL for the OG/Twitter/canonical meta tags in the SPA
-// fallback below. Railway's edge terminates TLS, so Bun always sees plain
-// http on `req` — url.origin's scheme is wrong on every route (og:url,
-// og:image, twitter:image, canonical all emitted http://; see
-// docs/qa/2026-08-02-deep-qa-report.md L1).
-//
-// Prefer config.appUrl only when it's actually the canonical host for THIS
-// request (https, and its host matches the request's host) — this mirrors
-// canonicalRedirect's own host check (history/canonical.ts): PR/preview
-// Railway environments inherit production's pinned APP_URL, so a bare
-// "appUrl is https" check would wrongly stamp a preview's own reachable host
-// with production's URL. When appUrl doesn't apply, trust the proxy's
-// forwarded headers, falling back to the request's own origin when neither
-// is present (local dev, direct non-proxied hits).
-function resolveOrigin(req: Request, url: URL): string {
-  if (config.appUrl.startsWith("https://") && new URL(config.appUrl).host.toLowerCase() === url.host.toLowerCase()) {
-    return config.appUrl;
-  }
-  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || url.protocol.slice(0, -1);
-  const host = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || url.host;
-  return `${proto}://${host}`;
-}
 
 // Generated OG card images. Two routes:
 //   /api/og/<uuid|doc_no>.png[?preview=<label>] — a document card (resolved
@@ -332,7 +310,7 @@ const server = Bun.serve({
     const url = new URL(req.url);
     // Base URL for the meta tags below — see resolveOrigin() for why this
     // isn't just url.origin.
-    const origin = resolveOrigin(req, url);
+    const origin = resolveOrigin(req, url, config.appUrl);
     let ogTags = defaultOgTags(origin);
     // Soft 404: a dynamic route whose key doesn't resolve (e.g. an unknown
     // /radar/<slug>) still serves the SPA HTML (so the app renders its own

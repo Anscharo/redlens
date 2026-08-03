@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 
 const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
+  setActiveCollectionId: vi.fn(),
   setActiveCollectionName: vi.fn(),
   navigate: vi.fn(),
   track: vi.fn(),
@@ -13,7 +14,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/selection", () => ({
-  useSelection: () => ({ replace: mocks.replace, setActiveCollectionName: mocks.setActiveCollectionName }),
+  useSelection: () => ({
+    replace: mocks.replace,
+    setActiveCollectionId: mocks.setActiveCollectionId,
+    setActiveCollectionName: mocks.setActiveCollectionName,
+  }),
 }));
 vi.mock("wouter", () => ({
   useLocation: () => ["/c/abc", mocks.navigate],
@@ -44,6 +49,9 @@ describe("SharedCollectionOpener", () => {
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalled());
     expect(mocks.getSharedCollection).toHaveBeenCalledWith("abc");
     expect(mocks.replace).toHaveBeenCalledWith(["x", "y"]);
+    // P1 (PR #230): a shared collection must clear any stale own-collection id,
+    // else the save modal would PATCH the viewer's previous collection.
+    expect(mocks.setActiveCollectionId).toHaveBeenCalledWith(null);
     expect(mocks.setActiveCollectionName).toHaveBeenCalledWith("Shared");
     expect(mocks.track).toHaveBeenCalledWith("collection_open_shared", { id: "abc", count: 2 });
     expect(mocks.navigate).toHaveBeenCalledWith("/atlas?subset=selected", { replace: true });

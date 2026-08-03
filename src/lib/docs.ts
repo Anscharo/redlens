@@ -126,10 +126,10 @@ function spawn(base: string): WorkerHandles {
         // shallow fetch (atlas.worker.ts's own separate shallowP.then/.catch)
         // may still resolve and post "shallow" above, which settles `shallow`
         // normally — exactly the case this exists to protect. If shallow
-        // fails too, that rejection is swallowed worker-side with no second
-        // message to catch it here (a gap only a dedicated shallow-error
-        // message from the worker could close); this is the ambiguous/
-        // both-failed branch below.
+        // fails too, atlas.worker.ts posts a dedicated "shallow-error" message
+        // (handled below) once its own fetch settles — that's what finally
+        // rejects `shallow` on the both-failed path, so this branch only ever
+        // leaves it pending, never forever.
         return;
       }
       worker.terminate();
@@ -137,6 +137,23 @@ function spawn(base: string): WorkerHandles {
         shallowSettled = true;
         rejectShallow(err);
       }
+    } else if (msg.type === "shallow-error") {
+      // Closes the gap the comment above describes: BOTH artifacts failed and
+      // docs-deep.json's rejection won the Promise.all race in atlas.worker.ts,
+      // so the "error" branch above saw a deep-only-shaped message and left
+      // `shallow` pending on the worker's still-in-flight shallow fetch. That
+      // fetch has now also failed — atlas.worker.ts posts this dedicated
+      // message (instead of silently swallowing the rejection) so `shallow`
+      // can finally settle instead of hanging forever.
+      if (handledStaleMessage(msg.message)) {
+        worker.terminate();
+        return;
+      }
+      if (!shallowSettled) {
+        shallowSettled = true;
+        rejectShallow(new Error(msg.message));
+      }
+      worker.terminate();
     }
   });
   return { shallow, full };

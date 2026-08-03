@@ -134,6 +134,51 @@ describe("ActorHistory", () => {
     expect(screen.queryByText(/A\.1\.5 → A\.1\.5/)).not.toBeInTheDocument();
   });
 
+  it("merges a same-commit modified + moved event for one doc — modified-then-moved order (P2)", async () => {
+    // The history builder emits BOTH a "modified" and a "moved" entry for a
+    // doc that's edited and renumbered in the same commit
+    // (build-history.mjs: "A node can appear twice ... both entries are
+    // emitted"). The per-commit docId dedup used to retain only whichever
+    // row arrived first, silently dropping the other's detail — merge both
+    // into one row instead.
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-04-01", commitHash: "mixed001", changeType: "modified", changeKind: "typo" },
+        { date: "2025-04-01", commitHash: "mixed001", changeType: "moved", movedFrom: "A.1.9", movedTo: "A.1.10" },
+      ]],
+    ]);
+    renderHistory();
+    const toggle = await screen.findByRole("button", { name: /2025-04-01/ });
+    fireEvent.click(toggle);
+
+    // Content-edit detail survives: the changeKind badge.
+    expect(screen.getByText("typo")).toBeInTheDocument();
+    // Renumber detail survives too — neither event overwrote the other.
+    expect(screen.getByText("A.1.9 → A.1.10")).toBeInTheDocument();
+    // Merged into ONE row for the doc, not a duplicate.
+    expect(screen.getAllByText("A.2")).toHaveLength(1);
+  });
+
+  it("merges a same-commit modified + moved event for one doc — moved-then-modified order (P2)", async () => {
+    // Same scenario, opposite arrival order — the merge must not depend on
+    // which row the batch query happens to return first, since (per the
+    // reviewer) the query has no tie-breaker between rows from the same
+    // commit.
+    historyByDoc = new Map<string, HistoryEntry[]>([
+      ["def-1", [
+        { date: "2025-04-01", commitHash: "mixed002", changeType: "moved", movedFrom: "A.1.9", movedTo: "A.1.10" },
+        { date: "2025-04-01", commitHash: "mixed002", changeType: "modified", changeKind: "typo" },
+      ]],
+    ]);
+    renderHistory();
+    const toggle = await screen.findByRole("button", { name: /2025-04-01/ });
+    fireEvent.click(toggle);
+
+    expect(screen.getByText("typo")).toBeInTheDocument();
+    expect(screen.getByText("A.1.9 → A.1.10")).toBeInTheDocument();
+    expect(screen.getAllByText("A.2")).toHaveLength(1);
+  });
+
   it("shows a severed-era month range instead of a blank heading when the date is empty (H3)", async () => {
     historyByDoc = new Map<string, HistoryEntry[]>([
       ["def-1", [{ date: "", commitHash: "severed:2024-09-02..2025-05-28", changeType: "removed", era: "severed" }]],

@@ -67,6 +67,10 @@ function errorMsg(message: string) {
   return { type: "error", message };
 }
 
+function shallowErrorMsg(message: string) {
+  return { type: "shallow-error", message };
+}
+
 beforeEach(() => {
   MockWorker.instances = [];
   (globalThis as { Worker: unknown }).Worker = MockWorker as unknown;
@@ -131,6 +135,39 @@ describe("spawn() shallow/deep decoupling (R3)", () => {
     worker.emit("message", { data: shallowMsg(id, "A.9") });
     const shallow = await shallowPromise;
     expect(shallow.docs[id]).toBeDefined();
+  });
+
+  // P2 (reviewer-flagged): when BOTH artifacts fail and docs-deep.json's
+  // rejection wins the Promise.all race (same setup as the test above), the
+  // "error" branch looks deep-only and leaves `shallow` pending on the
+  // worker's still-in-flight shallow fetch — correctly so, since at that
+  // point shallow might still succeed. But if shallow ALSO fails, nothing
+  // used to tell spawn(): atlas.worker.ts swallowed that second rejection
+  // with no message, so `shallow` hung forever — useAtlasData got a
+  // deepError but no shallowError, and with `data` still null, AtlasView sat
+  // on an eternal loading screen with no retry control. atlas.worker.ts now
+  // posts a dedicated "shallow-error" message for this; assert it actually
+  // settles (rejects) `shallow` instead of hanging.
+  it("settles shallow (rejects, not hangs) when BOTH artifacts fail and deep rejects first", async () => {
+    const docs = await import("./docs");
+    const base = "/r3-both-fail-deep-first/";
+
+    const shallowPromise = docs.loadAtlasShallow(base);
+    const fullPromise = docs.loadAtlas(base);
+    const worker = MockWorker.instances[0];
+
+    // Deep rejects first, exactly like the deep-only race above: `full`
+    // rejects and the worker is left running, `shallow` still pending.
+    worker.emit("message", { data: errorMsg("Error: docs-deep.json: 404") });
+    await expect(fullPromise).rejects.toThrow();
+    expect(worker.terminated).toBe(false);
+
+    // Shallow's own fetch settles too — with a failure this time. The
+    // dedicated "shallow-error" message (not a second "error") is what must
+    // settle `shallow`.
+    worker.emit("message", { data: shallowErrorMsg("Error: docs-shallow.json: 500") });
+    await expect(shallowPromise).rejects.toThrow();
+    expect(worker.terminated).toBe(true);
   });
 
   it("a deep-only failure arriving AFTER shallow already resolved leaves shallow resolved and cleans up the worker", async () => {

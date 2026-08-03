@@ -112,38 +112,27 @@ function mergeByCommit(
   docs: Record<string, AtlasNode>,
 ): MergedEntry[] {
   const byCommit = new Map<string, MergedEntry>();
+  // docId → its row, scoped per commit (mirrors byCommit's own keying). A doc
+  // can carry BOTH a "modified" and a "moved" event in the same commit — the
+  // history builder explicitly emits both when a node is edited and
+  // renumbered together (scripts/required/build-history.mjs: "A node can
+  // appear twice ... both entries are emitted"). Keying rows through this map
+  // (instead of a linear existence check on `docs`) lets the second event
+  // for a (commit, docId) pair merge onto the first one's row instead of
+  // being silently dropped — whichever event the batch query happened to
+  // return first used to win outright, losing either the changeKind or the
+  // movedFrom/movedTo detail (P2; RD2 only fixed `moved` being dropped
+  // entirely, not this same-commit collision).
+  const rowsByCommit = new Map<string, Map<string, AffectedDoc>>();
   for (const [docId, entries] of perDoc) {
     const category = docCategory.get(docId);
     if (!category) continue;
     for (const entry of entries) {
-      const affected: AffectedDoc = {
-        docId,
-        docNo: docs[docId]?.doc_no ?? null,
-        title: docs[docId]?.title ?? null,
-        category,
-        changeType: entry.changeType,
-        changeKind: entry.changeKind,
-      };
-      // "moved" events (renumbers, atomization) used to be dropped entirely —
-      // that hid real history for actors whose docs only ever moved, and made
-      // renumbering commits vanish (RD2). Surface them like any other
-      // structural change, but guard the self-move quirk (H2): some rows
-      // record movedFrom === movedTo because only the title/ancestors
-      // changed, not the doc_no — showing "moved from X to X" would be
-      // nonsense, so the from/to detail is attached only when the paths
-      // actually differ.
-      if (entry.changeType === "moved") {
-        const move = movePaths(entry);
-        if (move?.from && move.to && move.from !== move.to) {
-          affected.movedFrom = move.from;
-          affected.movedTo = move.to;
-        }
-      }
-      const existing = byCommit.get(entry.commitHash);
-      if (existing) {
-        if (!existing.docs.some((d) => d.docId === docId)) existing.docs.push(affected);
-      } else {
-        byCommit.set(entry.commitHash, {
+      let commitEntry = byCommit.get(entry.commitHash);
+      let rows = rowsByCommit.get(entry.commitHash);
+      if (!commitEntry || !rows) {
+        rows = new Map();
+        commitEntry = {
           date: entry.date,
           commitHash: entry.commitHash,
           pr: entry.pr,
@@ -151,8 +140,52 @@ function mergeByCommit(
           prAuthor: entry.prAuthor,
           prUrl: entry.prUrl,
           era: entry.era,
-          docs: [affected],
-        });
+          docs: [],
+        };
+        byCommit.set(entry.commitHash, commitEntry);
+        rowsByCommit.set(entry.commitHash, rows);
+      }
+
+      let affected = rows.get(docId);
+      if (!affected) {
+        affected = {
+          docId,
+          docNo: docs[docId]?.doc_no ?? null,
+          title: docs[docId]?.title ?? null,
+          category,
+          changeType: entry.changeType,
+          changeKind: entry.changeKind,
+        };
+        rows.set(docId, affected);
+        commitEntry.docs.push(affected);
+      } else if (entry.changeType !== "moved") {
+        // A content-edit event landing on a row a same-commit "moved" event
+        // already created: the edit is the more informative primary
+        // indicator (edit significance beats a bare "renumbered"), so it
+        // takes over changeType/changeKind. The move detail (merged below,
+        // independently of this branch) is untouched either way, so this
+        // is safe regardless of which event arrived first.
+        affected.changeType = entry.changeType;
+        affected.changeKind = entry.changeKind;
+      }
+
+      // "moved" events (renumbers, atomization) used to be dropped entirely —
+      // that hid real history for actors whose docs only ever moved, and made
+      // renumbering commits vanish (RD2). Surface them like any other
+      // structural change, but guard the self-move quirk (H2): some rows
+      // record movedFrom === movedTo because only the title/ancestors
+      // changed, not the doc_no — showing "moved from X to X" would be
+      // nonsense, so the from/to detail is attached only when the paths
+      // actually differ. This merges onto `affected` regardless of whether
+      // the row was just created above or already existed (e.g. created by
+      // a same-commit "modified" event), so a doc's move detail survives no
+      // matter which of its two same-commit events is processed first.
+      if (entry.changeType === "moved") {
+        const move = movePaths(entry);
+        if (move?.from && move.to && move.from !== move.to) {
+          affected.movedFrom = move.from;
+          affected.movedTo = move.to;
+        }
       }
     }
   }

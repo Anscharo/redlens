@@ -91,6 +91,17 @@ export function SelectionProvider({ children }: { children: ReactNode }) {
   // onto the full atlas with no explanation and no way back to the collection
   // they just clicked (2026-08-02 QA report, C4). openedFromReplaceRef tells
   // the two apart.
+  //
+  // Bailing here is necessary but NOT sufficient for correct ownership
+  // context: it only means this effect leaves activeCollectionId/Name exactly
+  // as they already were — it does not set the *right* id for whichever
+  // collection replace() just loaded. That's on the caller, right alongside
+  // its replace() call: CollectionsPage's openCollection sets the collection's
+  // own (non-null) id, since the user owns it. SharedCollectionOpener sets it
+  // to null, since a shared collection never is the viewer's to overwrite —
+  // a stale id from a previously-active OWN collection must not survive an
+  // empty replace() here undetected, or Save's "Update" can PATCH the wrong
+  // collection to empty (P1 data-loss bug, PR #230 review, 2026-08-03).
   useEffect(() => {
     if (ids.size > 0) return;
     if (openedFromReplaceRef.current) return;

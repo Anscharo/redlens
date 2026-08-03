@@ -6,7 +6,7 @@
 // useScrollRestore's `excludeParams` option, threaded from SearchResults.
 
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, cleanup, fireEvent } from "@testing-library/react";
+import { render, cleanup, fireEvent, act } from "@testing-library/react";
 import { useRef } from "react";
 
 const saveScroll = vi.fn();
@@ -19,9 +19,9 @@ vi.mock("../lib/scrollMemory", () => ({
 
 import { useScrollRestore } from "./useScrollRestore";
 
-function Harness({ excludeParams }: { excludeParams?: string[] }) {
+function Harness({ excludeParams, ready = true }: { excludeParams?: string[]; ready?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  useScrollRestore(ref, true, excludeParams);
+  useScrollRestore(ref, ready, excludeParams);
   return <div ref={ref} data-testid="scroll-el" />;
 }
 
@@ -105,5 +105,65 @@ describe("useScrollRestore persists the last live scroll position, not a post-de
     fireEvent.scroll(el, { target: { scrollTop: 0 } }); // scrolled back to top
     unmount();
     expect(saveScroll).toHaveBeenCalledWith("/search?q=foo", 0);
+  });
+});
+
+// P2 (PR #230 reviewer): lastScrollRef is a single ref that outlives a `key`
+// change. When the search query changes, the same SearchResults instance
+// stays mounted, `key` moves on to the new query's URL, and `ready` drops
+// back to false until the new results resolve — but lastScrollRef still
+// holds the OLD key's last-tracked offset (nothing resets it, and the
+// scroll listener is keyed on `ref`, not `key`). If the user navigates away
+// before the new results resolve or emit a "scroll" event, saving on the
+// new key's cleanup used to persist that stale old-key offset under the
+// new key, so returning to it later jumped to an unrelated position instead
+// of the top. Fixed by gating the save on `restoredKey.current === key` —
+// see useScrollRestore.ts.
+describe("useScrollRestore does not leak a stale offset across a key change (P2, PR #230)", () => {
+  it("does not save the old key's offset under a new key that never became ready before unmount", () => {
+    getSavedScroll.mockReturnValue(undefined);
+    window.history.pushState({}, "", "/search?q=foo");
+    const { rerender, unmount, getByTestId } = render(<Harness ready={true} />);
+    const el = getByTestId("scroll-el");
+    fireEvent.scroll(el, { target: { scrollTop: 400 } });
+
+    // The query changes: results for the new query aren't in yet (`ready`
+    // drops), then the URL key moves to the new query — same instance,
+    // same lastScrollRef, still holding key A's 400.
+    rerender(<Harness ready={false} />);
+    act(() => {
+      window.history.pushState({}, "", "/search?q=bar");
+    });
+
+    // No "scroll" event ever fires for key B, and it never became ready.
+    unmount();
+
+    // Key A still gets its real, live-tracked offset — the S4 save path
+    // (last-tracked-value-in-cleanup, not a post-detach DOM read) is intact.
+    expect(saveScroll).toHaveBeenCalledWith("/search?q=foo", 400);
+    // Key B must not inherit key A's stale offset — it was never restored.
+    expect(saveScroll).not.toHaveBeenCalledWith("/search?q=bar", 400);
+    expect(saveScroll).not.toHaveBeenCalledWith("/search?q=bar", expect.anything());
+  });
+
+  it("resumes saving under the new key once it actually becomes ready before unmount", () => {
+    getSavedScroll.mockReturnValue(undefined);
+    window.history.pushState({}, "", "/search?q=foo");
+    const { rerender, unmount, getByTestId } = render(<Harness ready={true} />);
+    const el = getByTestId("scroll-el");
+    fireEvent.scroll(el, { target: { scrollTop: 400 } });
+
+    rerender(<Harness ready={false} />);
+    act(() => {
+      window.history.pushState({}, "", "/search?q=bar");
+    });
+    // New query's results resolve; ready flips back true for key B, which
+    // restores (and resets the tracked value away from key A's 400).
+    rerender(<Harness ready={true} />);
+
+    unmount();
+
+    expect(saveScroll).toHaveBeenCalledWith("/search?q=foo", 400);
+    expect(saveScroll).toHaveBeenCalledWith("/search?q=bar", 0);
   });
 });
