@@ -63,4 +63,18 @@ describe("ProvenancePage", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  // The seam footer on a doc with no pre-#117 entries links here instead of restating
+  // the explanation inline, so this section has to carry all three verdicts.
+  it("explains the three seam verdicts for docs with no pre-migration history", () => {
+    render(<ProvenancePage />);
+    expect(
+      screen.getByRole("heading", {
+        name: "Documents with no history before the migration",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Could not be traced/)).toBeInTheDocument();
+    expect(screen.getByText(/Introduced at the migration/)).toBeInTheDocument();
+    expect(screen.getByText(/Carved out of a larger document/)).toBeInTheDocument();
+  });
 });

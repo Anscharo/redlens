@@ -90,6 +90,17 @@ describe("NodeHistory states", () => {
     expect(await screen.findByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
   });
 
+  // The verdict is stated inline; what each verdict MEANS lives once on the provenance
+  // page, so the footer has to link there rather than restate it.
+  it("links the seam verdict to its explanation on the provenance page", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "untraced" })]);
+    render(<NodeHistory nodeId="n6d" />);
+    expect(await screen.findByRole("link", { name: "What this means →" })).toHaveAttribute(
+      "href",
+      "/provenance#untraced-history",
+    );
+  });
+
   // A doc the seam matcher couldn't attach to any pre-migration entry must NOT be
   // described as created there — that's a limit of the reconstruction, not a finding.
   it("says the pre-migration history could not be traced when the seam is untraced", async () => {
