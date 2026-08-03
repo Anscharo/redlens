@@ -59,10 +59,17 @@ for (const p of methodPins) {
   else methodByDocCommit.set(`${p.mdUuid}:${lastSha}`, p.method);
 }
 
-// per-doc seam metadata (plan §4.1/§7): kept/split/merged/created + the
-// extracted_from / merged_into pointers, keyed by uuid.
+// per-doc seam metadata (plan §4.1/§7): kept/split/merged/untraced/created + the
+// extracted_from / merged_into pointers, keyed by uuid. `seamTier: "positional"` marks
+// the docs threaded by tier S2 (seed-positional.mjs) — matched on title + order between
+// two anchors rather than on body content, because their bodies are too short to shingle.
 const docMeta = new Map();
-for (const [uuid, s] of seed.seam) docMeta.set(uuid, seed.extractedFrom.has(uuid) ? { seam: s, extractedFrom: seed.extractedFrom.get(uuid) } : { seam: s });
+for (const [uuid, s] of seed.seam) {
+  const m = { seam: s };
+  if (seed.extractedFrom.has(uuid)) m.extractedFrom = seed.extractedFrom.get(uuid);
+  if (seed.positionalUuids.has(uuid)) m.seamTier = "positional";
+  docMeta.set(uuid, m);
+}
 for (const [row, successor] of seed.mergedInto) docMeta.set(syntheticUuid(row, lastSha), { seam: "merged", mergedInto: successor });
 // duplication-split copies (from the decisions): mark seam "split" + point at the #117 source.
 for (const [splitUuid, sourceUuid] of splitOf) docMeta.set(splitUuid, { seam: "split", extractedFrom: sourceUuid });

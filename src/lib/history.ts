@@ -56,6 +56,15 @@ export interface HistoryEntry {
    *  or the genesis IPFS gateway URL. Absent for git-derived eras (those link their
    *  real commit instead). */
   sourceUrl?: string;
+  /** How this document crossed the HTML→markdown seam (scripts/htmlhist/). On an
+   *  html-era `added` row it labels the doc's birth; on the #117 `moved` row it is the
+   *  reconstruction's verdict for the doc as a whole:
+   *   · "kept"/"split"/"merged"/"reintroduced" — lineage traced, pre-#117 entries exist;
+   *   · "untraced" — no pre-migration entry could be matched to it. NOT a claim that the
+   *     doc was created at the migration; its earlier history is simply unknown;
+   *   · "created" — a reviewed verdict that the pre-migration HTML holds no earlier
+   *     version (public/history-decisions.json). */
+  seam?: string;
 }
 
 /** Reconstructed (non-git-native) history eras — every era whose entries carry a

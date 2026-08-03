@@ -40,6 +40,7 @@ import {
   htmlEraRows,
   preEraRows,
   readHistoryCursor,
+  stampMigrationSeam,
   upsertHistory,
 } from "../../src/server/history/history-db.ts";
 
@@ -450,8 +451,13 @@ async function main() {
 
   if (commits.length === 0) {
     console.error("no new commits to process");
-    if (!OUT_JSON) await sql.end();
-    return;
+    // The --out-json sink derives everything it writes from these commits, so with none
+    // there is nothing left to do. The DB sink must NOT stop here: the frozen pre-#117
+    // artifacts below are ingested idempotently on every run and change INDEPENDENTLY of
+    // the atlas git log — a re-freeze (htmlhist:apply / prehist:*) ships new rows without
+    // any new upstream commit. Returning here stranded a re-freeze until some unrelated
+    // atlas commit happened to trigger a cycle, which on a current cursor is never.
+    if (OUT_JSON) return;
   }
 
   // nodeId → new entries added in this run only
@@ -618,13 +624,14 @@ async function main() {
     // from atlas_history. Every html-era event's commitHash is a REAL git sha, so its
     // commit_seq always reconciles via seqByCommit; the baked seq is never reached for
     // these rows. Absent (un-applied) → skipped, markdown era unaffected.
-    let htmlEraCount = 0;
+    let htmlEraCount = 0, seamStamped = 0;
     const htmlEraPath = path.join(ROOT, "public/history-html-era.json");
     if (fs.existsSync(htmlEraPath)) {
       const artifact = JSON.parse(fs.readFileSync(htmlEraPath, "utf8"));
       const htmlRows = htmlEraRows(artifact, seqByCommit);
       await upsertHistory(sql, htmlRows);
       htmlEraCount = htmlRows.length;
+      seamStamped = await stampMigrationSeam(sql, artifact);
     }
 
     // ── Pre-git origins (mip / genesis / severed) ─────────────────────────────
@@ -656,6 +663,7 @@ async function main() {
     console.error(
       `\ndone: upserted ${rows.length} markdown-era change entries across ${newHistory.size} nodes` +
       `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""}` +
+      `${seamStamped ? ` (seam verdict stamped on ${seamStamped} migration rows)` : ""}` +
       `${preEraCount ? ` + ${preEraCount} pre-git origin rows from the frozen artifact` : ""}` +
       `${supersededCount ? ` (deleted ${supersededCount} superseded row(s) first)` : ""} into atlas_history`,
     );

@@ -34,6 +34,8 @@
 -->
 
 ## 2026-08-03
+- Recovered pre-migration history for 1,005 documents that previously showed nothing before the Atlas moved to Markdown
+- Added a note saying when a document's history before the markdown migration couldn't be traced
 - Improved keyboard navigation and loading reliability in the reader and sidebar
 - Fixed search issues with scroll position, excluded terms, and quoted phrases
 - Fixed history and radar to show structural and renumbering changes, recover from temporary errors, and link addresses to the correct networks
@@ -47,7 +49,6 @@
 ## 2026-07-30
 - Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
 - Fixed pull request links not opening on reconstructed history entries
-
 
 ## 2026-07-29
 - Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it

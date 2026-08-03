@@ -16,6 +16,7 @@
     "htmlhist:prepare": "bun scripts/htmlhist/prepare-html-history.mjs",
     "htmlhist:curate": "bun scripts/htmlhist/build-history-curation.mjs --auto",
     "htmlhist:resume": "bun scripts/htmlhist/auto-curate-html-history.mjs --frontier",
+    "htmlhist:structural": "bun scripts/htmlhist/thread-structural.mjs",
     "htmlhist:apply": "bun scripts/htmlhist/prepare-html-history.mjs --decisions",
     "htmlhist:audit": "bun scripts/htmlhist/audit-html-decisions.mjs",
     "htmlhist:audit:accuracy": "bun scripts/htmlhist/audit-html-history.mjs",
