@@ -21,6 +21,7 @@ function row(overrides: Partial<HistoryStatsRow>): HistoryStatsRow {
     title: "Doc 1",
     doc_type: "Core",
     scope: "A Agent",
+    era: null,
     ...overrides,
   };
 }
@@ -88,4 +89,72 @@ test("summarizeHistoryStats returns top docs and PRs with month buckets", () => 
   expect(result.prs).toEqual([
     { pr_number: 10, title: "Edit d1", author: "alice", url: "https://example.test/10", count: 2, first_date: "2025-06-01", last_date: "2025-06-02" },
   ]);
+});
+
+// The bug this guards: a default call over reconstructed rows read as editorial
+// activity, because nothing in the response distinguished them from git commits.
+const statsOpts = { bucket: "quarter" as const, include_top_docs: false, include_prs: false, limit: 20 };
+
+test("summarizeHistoryStats groups by era, labelling git-derived rows 'git'", () => {
+  const result = summarizeHistoryStats(
+    [
+      row({ committed_at: "2025-10-05", era: "html" }),
+      row({ committed_at: "2025-10-06", era: "html" }),
+      row({ committed_at: "2025-12-01", era: null }),
+    ],
+    { ...statsOpts, group_by: ["era"] },
+  ) as Record<string, any>;
+
+  expect(result.buckets[0]).toMatchObject({ bucket: "2025-Q4", total: 3, groups: { era: { html: 2, git: 1 } } });
+});
+
+test("summarizeHistoryStats warns on snapshot-era rows without claiming when git history begins", () => {
+  const result = summarizeHistoryStats(
+    [row({ committed_at: "2025-10-05", era: "html" }), row({ committed_at: "2025-12-01", era: null })],
+    { ...statsOpts, group_by: [] },
+  ) as Record<string, any>;
+
+  expect(result.warnings).toHaveLength(1);
+  expect(result.warnings[0]).toContain("1 of 2 events have reconstructed per-document detail (era=html)");
+  expect(result.warnings[0]).toContain("for era=html the underlying commits and PRs are real");
+  expect(result.warnings[0]).toContain('Group by "era" to separate them.');
+  // The html era overlaps 78 real commits, so no single "git starts here" date is correct.
+  expect(result.warnings[0]).not.toMatch(/2025-11-21|begins|starts at/);
+});
+
+test("summarizeHistoryStats reports pre-git eras separately from snapshot eras", () => {
+  const result = summarizeHistoryStats(
+    [
+      row({ committed_at: "2024-09-02", era: "genesis" }),
+      row({ committed_at: "2023-03-01", era: "mip" }),
+      row({ committed_at: "2025-10-05", era: "html" }),
+    ],
+    { ...statsOpts, group_by: [] },
+  ) as Record<string, any>;
+
+  expect(result.warnings).toHaveLength(2);
+  expect(result.warnings[0]).toContain("1 of 3 events have reconstructed per-document detail");
+  expect(result.warnings[1]).toContain("2 of 3 events predate the atlas git repository (era=genesis, era=mip)");
+  expect(result.warnings[1]).toContain("no PR attribution");
+});
+
+test("summarizeHistoryStats stays quiet when every row is git-derived", () => {
+  const result = summarizeHistoryStats(
+    [row({ committed_at: "2026-04-01" }), row({ committed_at: "2026-05-01" })],
+    { ...statsOpts, group_by: ["era"] },
+  ) as Record<string, any>;
+
+  expect(result.warnings).toBeUndefined();
+  expect(result.buckets[0].groups.era).toEqual({ git: 2 });
+});
+
+test("summarizeHistoryStats treats an unrecognized era as reconstructed, not git-derived", () => {
+  const result = summarizeHistoryStats([row({ committed_at: "2026-04-01", era: "future-era" })], {
+    ...statsOpts,
+    group_by: [],
+  }) as Record<string, any>;
+
+  expect(result.warnings[0]).toContain("era=future-era");
+  // An unknown era must not inherit html's mechanism claim.
+  expect(result.warnings[0]).not.toContain("html");
 });

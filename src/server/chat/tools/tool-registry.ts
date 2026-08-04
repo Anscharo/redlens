@@ -162,15 +162,16 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_traverse",
     whenToUse:
-      "You need everything reachable from a node along typed edges several hops out — indirect or chained relationships, not just direct neighbors.",
+      "You need everything reachable from a node along typed edges several hops out — indirect or chained relationships, not just direct neighbors. Start it from an entity slug when you need what an actor reaches indirectly — e.g. 2 hops with direction 'both' and no edge_type filter reaches the addresses held by the multisigs it signs and the instances it runs (a relationship hop then an address hop run in opposite directions, so a filtered or single-direction walk misses them).",
     annotations: readOnlyAtlasTool("Atlas Traverse"),
     description:
-      "Traverse the graph from a node, following typed edges up to N hops. Each " +
+      "Traverse the graph from a node, following typed edges up to N hops. Accepts a doc UUID/doc_no OR an entity " +
+      "slug/name as the start, and returns doc, entity, and on-chain address nodes. Each " +
       "result carries `hops` (BFS distance from the start node — distinct from `depth`, the node's atlas nesting), " +
       "plus the `edge_type` and `direction` ('out'|'in') of the edge that first reached it. Results 2+ hops away " +
       "also include `path`: the ordered chain of steps (edge + node) from the start node to that result.",
     shape: {
-      id: z.string().describe("Starting node UUID or doc_no."),
+      id: z.string().describe("Starting node: doc UUID or doc_no, or an entity slug/name."),
       edge_type: z.string().optional().describe("Edge type filter (e.g. 'cites', 'responsible_party_for')."),
       hops: z.number().int().min(1).max(4).default(2),
       direction: z.enum(["out", "in", "both"]).default("out"),
@@ -235,11 +236,13 @@ export const ATLAS_TOOLS: AtlasTool[] = [
   {
     name: "atlas_entity",
     whenToUse:
-      "The question is about what an actor actually HAS or does — its instances, responsibilities, or Active Data. Use this instead of searching and reading titles when you need an agent's real holdings, not docs that merely mention it.",
+      "The question is about what an actor actually HAS or does — its addresses, instances, responsibilities, or Active Data. Use this instead of searching and reading titles when you need an agent's real holdings, not docs that merely mention it. This is also the one call that answers 'what addresses relate to X'.",
     annotations: readOnlyAtlasTool("Atlas Entity"),
     description:
       "Get Atlas sections related to an entity (agent, role, or actor) — resolves `name` server-side (slug or " +
-      "natural language) and echoes `resolved` + `alternatives`. Returns paginated `nodes` (edge-linked docs + " +
+      "natural language) and echoes `resolved` + `alternatives`. Returns `addresses` (every on-chain address the " +
+      "entity holds, plus those held by the entities it is linked to — grouped by owner with the linking edge and " +
+      "provenance doc_nos), paginated `nodes` (edge-linked docs + " +
       "defining-doc subtree), `node_count` + `node_types` (a type histogram — use it to pick a `type` filter), " +
       "`responsibilities`, and Active Data it controls. Prime Agents have 2000+ nodes — page and narrow by type.",
     shape: {
@@ -337,16 +340,22 @@ export const ATLAS_TOOLS: AtlasTool[] = [
     annotations: readOnlyAtlasTool("Atlas History Stats"),
     description:
       "Summarize Atlas history by month or quarter, with global availability bounds, change-type counts, optional " +
-      "grouping, top changed docs, and top PRs.",
+      "grouping, top changed docs, and top PRs. Counts mix git-derived events with reconstructed ones " +
+      "(era='html' has real commits/PRs but per-doc deltas rebuilt from archived HTML; era='mip'/'genesis'/'severed' " +
+      "predate the repo entirely) — group_by 'era' to split them, and read the response `warnings` before " +
+      "describing a bucket as editorial activity.",
     shape: {
       since: z.string().optional().describe("ISO date (YYYY-MM-DD). If earlier than available history, the response includes a warning."),
       until: z.string().optional().describe("ISO date (YYYY-MM-DD)."),
       bucket: z.enum(["month", "quarter"]).default("month"),
       group_by: z
-        .array(z.enum(["doc_type", "scope", "change_kind", "review_status", "pr_author"]))
-        .max(5)
+        .array(z.enum(["doc_type", "scope", "change_kind", "review_status", "pr_author", "era"]))
+        .max(6)
         .default([])
-        .describe("Optional grouping dimensions to include inside each bucket."),
+        .describe(
+          "Optional grouping dimensions to include inside each bucket. 'era' splits reconstructed history " +
+            "from git-derived history (git | html | mip | genesis | severed).",
+        ),
       include_top_docs: z.boolean().default(false),
       include_prs: z.boolean().default(false),
       limit: z.number().int().min(1).max(100).default(20).describe("Max top docs / PRs to return."),

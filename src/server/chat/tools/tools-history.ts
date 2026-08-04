@@ -15,6 +15,14 @@ const FROM_PG: Record<string, string> = { content: "modified", structural: "move
 function pgType(t: string) { return TO_PG[t] ?? t; }
 function userType(t: string) { return FROM_PG[t] ?? t; }
 
+// Reconstructed history splits into two classes that must not be collapsed.
+// mip/genesis/severed predate the repo entirely: no commits, no PR attribution,
+// dates and contents both reconstructed. Every other non-null era is
+// snapshot-class — currently `html` (2025-05-28→2025-11-20), where real commits
+// and PRs DO exist (8k+ rows carry PR numbers) and only the per-doc delta is
+// rebuilt from archived HTML, because pre-#117 content wasn't markdown.
+const PRE_GIT_ERAS = new Set(["mip", "genesis", "severed"]);
+
 type HistoryRow = {
   doc_id: string; commit_sha: string; commit_seq: number | null; committed_at: string | null;
   change_type: string; pr_number: number | null; pr_title: string | null;
@@ -30,7 +38,7 @@ type HistoryRow = {
   era: string | null; method: string | null; source_url: string | null;
 };
 
-type HistoryStatsGroupBy = "doc_type" | "scope" | "change_kind" | "review_status" | "pr_author";
+type HistoryStatsGroupBy = "doc_type" | "scope" | "change_kind" | "review_status" | "pr_author" | "era";
 type HistoryStatsBucket = "month" | "quarter";
 export type HistoryStatsRow = {
   doc_id: string;
@@ -48,6 +56,9 @@ export type HistoryStatsRow = {
   title: string | null;
   doc_type: string | null;
   scope: string | null;
+  // null = derived from a real git commit diff; non-null = reconstructed
+  // (see PRE_GIT_ERAS above).
+  era: string | null;
 };
 type HistoryStatsOpts = {
   since?: string;
@@ -84,7 +95,51 @@ function groupValue(r: HistoryStatsRow, group: HistoryStatsGroupBy): string {
   if (group === "scope") return r.scope ?? "unknown";
   if (group === "change_kind") return r.change_kind ?? "unspecified";
   if (group === "review_status") return reviewStatus(r);
+  if (group === "era") return r.era ?? "git";
   return r.pr_author ?? "unknown";
+}
+
+// Flag reconstructed rows even when the caller didn't ask to group by era — the
+// failure this guards against was a default call reading a reconstructed bucket
+// as editorial activity. Deliberately says nothing about when git history begins:
+// the repo's first commit (2025-05-28) predates the markdown migration that made
+// per-doc events derivable (2025-11-21), so any single cutoff would be wrong.
+function reconstructionWarnings(rows: Array<{ era: string | null }>): string[] {
+  const total = rows.length;
+  const counts = new Map<string, number>();
+  for (const r of rows) if (r.era) counts.set(r.era, (counts.get(r.era) ?? 0) + 1);
+  if (!counts.size) return [];
+
+  const tally = (eras: string[]) => eras.reduce((n, e) => n + (counts.get(e) ?? 0), 0);
+  const list = (eras: string[]) => eras.map((e) => `era=${e}`).join(", ");
+  const present = [...counts.keys()].sort();
+  const preGit = present.filter((e) => PRE_GIT_ERAS.has(e));
+  // Everything else non-null falls here, so an unrecognized future era is flagged
+  // as reconstructed rather than silently reading as a real commit diff.
+  const snapshot = present.filter((e) => !PRE_GIT_ERAS.has(e));
+
+  const warnings: string[] = [];
+  if (snapshot.length) {
+    // The html specifics are appended only when html is actually present: an
+    // unrecognized era lands in this bucket too, and claiming a mechanism that
+    // doesn't hold for it would be the same overreach this warning guards against.
+    warnings.push(
+      `${tally(snapshot)} of ${total} events have reconstructed per-document detail (${list(snapshot)}): ` +
+        `these rows were rebuilt from archived snapshots rather than parsed from git commit diffs` +
+        (counts.has("html")
+          ? `; for era=html the underlying commits and PRs are real and only the per-document delta is reconstructed`
+          : ``) +
+        `.`,
+    );
+  }
+  if (preGit.length) {
+    warnings.push(
+      `${tally(preGit)} of ${total} events predate the atlas git repository (${list(preGit)}): ` +
+        `their dates and contents are both reconstructed and they carry no PR attribution.`,
+    );
+  }
+  warnings[0] += ` Group by "era" to separate them.`;
+  return warnings;
 }
 
 function inc(obj: Record<string, number>, key: string): void {
@@ -112,6 +167,7 @@ export function summarizeHistoryStats(rows: HistoryStatsRow[], opts: HistoryStat
   if (opts.until && latest && opts.until > latest) {
     warnings.push(`Requested until=${opts.until}, but latest history event is ${latest}.`);
   }
+  warnings.push(...reconstructionWarnings(dated));
 
   const bucketMap = new Map<string, { bucket: string; total: number; change_types: Record<string, number>; groups: Record<string, Record<string, number>> }>();
   for (const row of dated) {
@@ -353,6 +409,7 @@ export async function atlasHistoryStats(
             COALESCE(h.pr_title, p.title) AS pr_title,
             COALESCE(h.pr_author, p.author) AS pr_author,
             COALESCE(h.pr_url, p.url) AS pr_url,
+            h.era,
             n.doc_no, n.title, n.type AS doc_type
      FROM atlas_history h
      LEFT JOIN atlas_doc_meta n ON n.id = h.doc_id
