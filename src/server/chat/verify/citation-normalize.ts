@@ -38,6 +38,12 @@ const REF_RE = /\[([^[\]\n]{1,120})\](?:\[([^[\]\n]{0,200})\])?/g;
 
 const FENCE_RE = /^ {0,3}(?:```|~~~)/;
 
+// Odd number of backticks before an offset → it sits inside an inline code span.
+// A bracket span shown as a literal example — `` `[spark-rate]` `` — must NOT be
+// expanded into a citation, or the code the user was meant to read is corrupted.
+// Same backtick-parity heuristic identifier-leak.ts uses for the same reason.
+const inInlineCode = (before: string): boolean => (before.match(/`/g)?.length ?? 0) % 2 === 1;
+
 // CommonMark matches labels case-insensitively with whitespace collapsed.
 const normLabel = (s: string): string => s.toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -73,6 +79,7 @@ interface ExpandCtx {
 
 function expandLine(line: string, ctx: ExpandCtx): string {
   return line.replace(REF_RE, (m: string, text: string, label: string | undefined, offset: number) => {
+    if (inInlineCode(line.slice(0, offset))) return m; // literal bracket inside `code` — leave verbatim
     // `undefined` = no second bracket (shortcut ref, or an inline link's text);
     // `""` = a collapsed ref `[foo][]`. They diverge when unresolved, so the
     // distinction cannot be collapsed to a falsy check.

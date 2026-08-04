@@ -259,6 +259,8 @@ function scopeFor(ix: Indexes, docId: string, docNo: string | null): string | nu
   let node = ix.docMap.get(docId) ?? null;
   while (node?.parentId) node = ix.docMap.get(node.parentId) ?? null;
   if (node) return `${node.doc_no} ${node.title}`;
+  // fragile: doc_no prefix — display-grouping fallback only, reached when the
+  // root ancestor is missing from the index; never used as a lookup key.
   return docNo?.split(".")[0] ?? null;
 }
 

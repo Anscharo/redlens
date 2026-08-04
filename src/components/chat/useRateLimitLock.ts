@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CommonsPool } from "./api";
 import type { RateLimitState } from "./types";
 
@@ -32,6 +32,14 @@ const COMMONS_MAX_LOCK_MS = 2 * 60_000;
 //     same `refresh`) for an immediate check rather than waiting on the poll.
 export function useRateLimitLock(commons: CommonsPool | null, refresh: () => void) {
   const [rateLimit, setRateLimit] = useState<RateLimitState | null>(null);
+  // The commons reading that was current at the instant the commons lock was
+  // set. It is NOT evidence the pool has room — it can be a stale cached-positive
+  // value from before another user drained the shared pool, which is exactly the
+  // 429 that just fired. So the clear effect must ignore this reading and only
+  // unlock on a genuinely fresh /api/usage reading that arrives afterward.
+  // useUsage.refresh() parses fresh JSON into a new object on every successful
+  // fetch, so identity inequality is a reliable "this arrived after the lock".
+  const lockReadingRef = useRef<CommonsPool | null>(null);
 
   useEffect(() => {
     if (!rateLimit || rateLimit.kind !== "token") return;
@@ -58,8 +66,18 @@ export function useRateLimitLock(commons: CommonsPool | null, refresh: () => voi
     return () => clearInterval(id);
   }, [rateLimit, refresh]);
 
+  const wasCommonsRef = useRef(false);
   useEffect(() => {
-    if (rateLimit?.kind === "commons" && commons && commons.remaining > 0) setRateLimit(null);
+    const isCommons = rateLimit?.kind === "commons";
+    // On the render that first sets the commons lock, pin whatever reading was
+    // current — it is the value that coincided with the 429, not proof of room.
+    if (isCommons && !wasCommonsRef.current) lockReadingRef.current = commons;
+    wasCommonsRef.current = isCommons;
+    if (!isCommons) return;
+    // Only a fresh reading (a different object than the one at lock time) that
+    // shows room lifts the lock — never that pinned stale value, which would
+    // clear the lock in the same pass that set it.
+    if (commons && commons !== lockReadingRef.current && commons.remaining > 0) setRateLimit(null);
   }, [commons, rateLimit]);
 
   return [rateLimit, setRateLimit] as const;

@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-04
+- Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
+
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address
 

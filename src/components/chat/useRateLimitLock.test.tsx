@@ -137,6 +137,23 @@ describe("useRateLimitLock — commons gate", () => {
     expect(result.current[0]).toBeNull();
   });
 
+  it("ignores a stale positive reading present when the lock is set, and unlocks only on a fresh one", () => {
+    // The panel already holds a cached-positive commons value when a
+    // `commons_exhausted` 429 arrives (another user drained the pool after the
+    // last refresh). That reading predates the drain, so it must not unlock.
+    const stale: CommonsPool = { used: 0, total: 10, remaining: 10 };
+    const { result, rerender } = setup(stale, vi.fn());
+    act(() => {
+      result.current[1]({ message: "Shared pool is out of credits.", kind: "commons" });
+    });
+    // Same stale object still on the prop → lock holds.
+    expect(result.current[0]).not.toBeNull();
+
+    // A genuinely fresh reading (new object) that shows room lifts it.
+    rerender({ c: { used: 0, total: 10, remaining: 10 } });
+    expect(result.current[0]).toBeNull();
+  });
+
   it("stays locked if a commons update still shows the pool drained", () => {
     const { result, rerender } = setup(null, vi.fn());
     act(() => {

@@ -162,6 +162,20 @@ test("fenced code blocks are left untouched", () => {
   expect(out).toContain(`Which renders as [5%](/atlas/${A}).`);
 });
 
+test("inline code spans are left untouched even when reference style is in play", () => {
+  // A definition puts the pass in reference mode and defines `spark-rate`, but
+  // the answer also SHOWS the bracket syntax as a literal inline-code example.
+  // The code must survive verbatim; only the real reference use expands.
+  const answer = [
+    `[spark-rate]: /atlas/${A}`,
+    "",
+    "Cite a shortcut like `[spark-rate]` and it renders as [spark-rate].",
+  ].join("\n");
+  const out = expand(answer);
+  expect(out).toContain("`[spark-rate]`"); // literal example untouched
+  expect(out).toContain(`renders as [spark-rate](/atlas/${A}).`); // real use expanded
+});
+
 test("prose lines that look like definitions but have no URL destination survive", () => {
   const answer = ["[Note]: this is a caveat", "", `Cited [X](/atlas/${A}).`].join("\n");
   expect(expand(answer)).toBe(answer);

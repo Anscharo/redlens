@@ -421,6 +421,21 @@ test("value grounding: a value in NO evidence at all is left to the soft check, 
   expect(findUngroundedCitationValues(`A derived total of [${EXOTIC}](/atlas/${realUuid}).`, [], ix)).toEqual([]);
 });
 
+test("value grounding: a cited value matches on token boundaries, not as a digit-substring", () => {
+  // `[8.73%]` cited to a doc that lacks it, with evidence that only ever says
+  // `48.73%`. A bare substring check reads "8.73%" inside "48.73%" and (a) treats
+  // the figure as present in evidence and (b) would treat it as present in any
+  // doc that says 48.73% — both mask the real wrong-doc signal. With boundary
+  // matching "8.73%" is grounded in neither "48.73%" text, so it drops to the
+  // soft check (present in no evidence at all) and is not hard-failed here.
+  const sub = "8.73%"; // a proper digit-substring of EXOTIC ("48.73%")
+  expect(realDoc.content).not.toContain(sub);
+  const answer = `The rate is [${sub}](/atlas/${realUuid}).`;
+  expect(findUngroundedCitationValues(answer, [`Another doc states ${EXOTIC} and nothing else.`], ix)).toEqual([]);
+  // And a genuine standalone `8.73%` in the evidence is still caught as wrong-doc.
+  expect(findUngroundedCitationValues(answer, [`the pool takes ${sub} of rewards`], ix)).toHaveLength(1);
+});
+
 test("value grounding: a mistyped EVM address cited to the wrong doc is caught, case-insensitively", () => {
   const addr = "0x" + "aB".repeat(20); // 40 hex chars, EIP-55-ish mixed case
   expect(realDoc.content.toLowerCase()).not.toContain(addr.toLowerCase());

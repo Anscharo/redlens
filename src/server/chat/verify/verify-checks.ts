@@ -315,6 +315,16 @@ const SLASH_DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
 // matches the same figure however the doc spells its separators.
 const numKey = (s: string) => s.replace(/,(?=\d{3}\b)/g, "").replace(/\s+%/g, "%").toLowerCase();
 
+// Whether a normalized numeric key occurs in `hayNum` as a whole figure rather
+// than a digit-substring of a larger one. A plain `includes` treats `[5%]` cited
+// to a doc that only says `15%` as grounded — suppressing the wrong-doc HARD
+// failure this check exists to raise — because "15%" contains "5%". Guard both
+// ends against an adjacent digit or decimal point so `5%`≠`15%`, `48.73`≠`148.73`
+// or `48.731`, and a date's components don't collide with a longer run.
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const numTokenInHay = (hayNum: string, key: string): boolean =>
+  key.length > 0 && new RegExp(String.raw`(?<![\d.])${escapeRe(key)}(?![\d.])`).test(hayNum);
+
 interface LinkValue {
   literal: string;
   address: "evm" | "sol" | null;
@@ -376,7 +386,7 @@ const mkHay = (s: string): Hay => ({ raw: s, lower: s.toLowerCase(), num: numKey
 function valueInHay(v: LinkValue, hay: Hay): boolean {
   if (v.address === "evm") return hay.lower.includes(v.literal.toLowerCase());
   if (v.address === "sol") return hay.raw.includes(v.literal);
-  return hay.num.includes(numKey(v.literal));
+  return numTokenInHay(hay.num, numKey(v.literal));
 }
 
 export function findUngroundedCitationValues(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
