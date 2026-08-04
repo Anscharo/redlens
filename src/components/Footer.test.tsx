@@ -53,9 +53,13 @@ afterEach(() => {
 describe("Footer", () => {
   it("renders build info and the app commit link with no status pills when everything is fine", async () => {
     render(<Footer />);
-    // App commit + build date are always present (no async dependency).
+    // App commit + build date are always present (no async dependency). The
+    // src link now carries the build commit: text "src <sha>", href → the commit.
     expect(screen.getByText("test", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("src")).toHaveAttribute("href", "https://github.com/test/test");
+    expect(screen.getByText("src", { exact: false }).closest("a")).toHaveAttribute(
+      "href",
+      "https://github.com/test/test/commit/test",
+    );
     expect(screen.getByText("provenance").closest("a")).toHaveAttribute("href", "/provenance");
     expect(screen.getByText("privacy").closest("a")).toHaveAttribute("href", "/privacy");
     expect(screen.queryByText("offline")).toBeNull();
