@@ -17,6 +17,7 @@ import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.t
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
+import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
@@ -119,7 +120,7 @@ function verifyEvent(
 // the string production would SHIP: a reference-style answer has no inline
 // citations at all until this runs, so a checker fed the raw model output scores
 // every well-formed reference answer as uncited.
-export function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair } {
+export function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair; identifiers: IdentifierRepair } {
   // A used-but-undeclared label is resolved against this turn's retrieved docs
   // and synthesized as an inline link when it maps uniquely (undefined-label
   // degradation); unresolvable ones the normalizer strips to plain text and
@@ -130,7 +131,13 @@ export function normalizeAndRepair(content: string, toolTexts: string[], ix: Ind
     return uuid ? `/atlas/${uuid}` : null;
   };
   const refs = expandReferenceLinks(content, resolveLabel);
-  return { refs, repair: repairCitations(refs.content, toolTexts, ix) };
+  const repair = repairCitations(refs.content, toolTexts, ix);
+  // Last: internal machine handles pasted into prose as pseudo-citations
+  // (`(Slug: grove-freezer-multisig)`) become real citations when the handle
+  // names a doc retrieved this turn, and vanish otherwise. Folded into
+  // repair.content because every call site swaps on that one string.
+  const identifiers = repairIdentifierLeaks(repair.content, toolTexts, ix);
+  return { refs, repair: { ...repair, content: identifiers.content }, identifiers };
 }
 
 // Reference bookkeeping for the checks row — observability only, never a
@@ -142,6 +149,14 @@ export function normalizeAndRepair(content: string, toolTexts: string[], ix: Ind
 function refsMeta(r: ReferenceExpansion) {
   if (r.definitions.size + r.undefinedLabels.length + r.unusedLabels.length === 0) return undefined;
   return { definitions: r.definitions.size, undefinedLabels: r.undefinedLabels, unusedLabels: r.unusedLabels };
+}
+
+// Same bookkeeping shape for leaked machine handles: observability only (the
+// leak is already gone from the shipped text), `undefined` so the key vanishes
+// from the persisted JSON on the turns — nearly all of them — with no leak.
+function identifiersMeta(i: IdentifierRepair) {
+  if (i.linkified.length + i.removed.length === 0) return undefined;
+  return { linkified: i.linkified, removed: i.removed };
 }
 
 // Repair the answer's atlas links in code, then fold unrepairable (stripped)
@@ -333,12 +348,12 @@ export async function* runVerifiedChat(opts: {
   let checks: CheckReport;
   try {
     toolTexts = toolTextsOf(done.transcript);
-    const { refs, repair } = normalizeAndRepair(done.content, toolTexts, opts.ix);
+    const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
     checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels);
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
-      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), checks: { ...checks, citations: checks.citations.length } },
+      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
   } catch (err) {

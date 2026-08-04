@@ -122,6 +122,30 @@ test("reference-style citations are normalized to canonical inline form before r
     expect(row.refs).toEqual({ definitions: 1, undefinedLabels: [], unusedLabels: [] });
   }));
 
+test("a leaked entity slug never reaches done.content, and is recorded in the checks row", () =>
+  withModels("", "", async () => {
+    // Same shape as the reported turn: an entity row in hand, no document read,
+    // so the handle is deleted (nothing retrieved this turn grounds a link).
+    const ent = [...ix.entityBySlug.values()].find((e) => e.defining_doc_id && ix.docMap.has(e.defining_doc_id))!;
+    const doc = ix.docMap.get(ent.defining_doc_id!)!;
+    const answer = `- **${ent.name}**: (Slug: ${ent.slug})`;
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toBe(`- **${ent.name}**`);
+    const row = done.checksMeta[0].verdict as { identifiers?: { linkified: string[]; removed: string[] } };
+    expect(row.identifiers).toEqual({ linkified: [], removed: [ent.slug] });
+
+    // With the entity's defining doc in this turn's evidence, the same leak
+    // becomes a real citation instead.
+    const toolMsg: Msg = { role: "tool", tool_call_id: "call_1", content: JSON.stringify({ defining_doc_id: doc.id }) };
+    const grounded = await collect(
+      runVerifiedChat({ ix, messages: [userMsg, toolMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    expect(lastDone(grounded).content).toBe(`- **[${ent.name}](/atlas/${doc.id})**`);
+  }));
+
 test("fabricated citation uuid is repaired in code when the title identifies a real doc", () =>
   withModels("", "", async () => {
     // Unique-title doc → the repair pass swaps the invented uuid for the real
