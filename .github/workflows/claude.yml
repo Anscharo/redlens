@@ -36,6 +36,16 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          # atlas-healer.yml and atlas-update.yml open/comment on their issues
+          # with the ATLAS_BOT App token (redlens-atlas-updater[bot]) on purpose:
+          # events from the default GITHUB_TOKEN never trigger this workflow.
+          # claude-code-action v1 refuses bot-initiated runs unless the bot is
+          # allow-listed, so without this the @claude mention in every
+          # atlas-health issue is seen ("Trigger result: true") and then the run
+          # aborts ("Workflow initiated by non-human actor"). Allow just that App
+          # (the [bot] suffix is stripped before comparison).
+          allowed_bots: "redlens-atlas-updater"
+
           # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
