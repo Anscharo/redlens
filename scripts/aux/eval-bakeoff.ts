@@ -67,10 +67,12 @@ const priorOk = new Map<string, RunResult>();
 if (argv.includes("--resume") && fs.existsSync(REPORT_PATH)) {
   const prior = JSON.parse(fs.readFileSync(REPORT_PATH, "utf8")) as { results?: RunResult[] };
   for (const r of prior.results ?? []) {
-    // Unjudged runs (judge call failed, e.g. on a budget cap) are re-run too, as
-    // are rows from a report predating the reference-citation metrics — `refs`
-    // is not reconstructible from a stored row.
-    if (!r.error && r.judge && r.refs && MODELS.includes(r.model) && queries.some((q) => q.id === r.id)) priorOk.set(`${r.model} ${r.id}`, r);
+    // Unjudged runs (judge call failed, e.g. on a budget cap) are re-run too —
+    // unless --no-judge, where no run has a judge by design and resuming would
+    // otherwise re-pay for the entire grid. Rows from a report predating the
+    // reference-citation metrics are re-run as well: `refs` is not
+    // reconstructible from a stored row.
+    if (!r.error && (NO_JUDGE || r.judge) && r.refs && MODELS.includes(r.model) && queries.some((q) => q.id === r.id)) priorOk.set(`${r.model} ${r.id}`, r);
   }
   if (priorOk.size) console.log(`resuming: keeping ${priorOk.size} ok runs from ${REPORT_PATH}`);
 }

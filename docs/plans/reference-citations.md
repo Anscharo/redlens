@@ -231,6 +231,101 @@ Verified live (4 cells, 2 queries × both tiers): gemma emits inline only — no
 definition block, no undefined labels, no ungrounded values — and gpt-5-mini
 emits the block first in both runs with nothing streaming ahead of it.
 
+### Re-measured after the split (2026-08-04, hand-graded)
+
+Full grid re-run with the per-model prompts, `--no-judge`, graded by hand against
+each query's rubric (`.cache/eval-bakeoff-grades.json`; the run stopped 11 cells
+short on an OpenRouter credit exhaustion, so haiku has only 4 runs and is not
+comparable).
+
+| | mean | support | complete | honest | hard/run | cites/run | format |
+|---|---|---|---|---|---|---|---|
+| glm-5.2 | **0.925** | 0.96 | 0.98 | 0.92 | 0.15 | 14.3 | inline |
+| gemma-4-31b-it | 0.856 | 0.93 | 0.83 | 0.78 | **0** | 7.7 | inline |
+| gpt-5-mini | 0.786 | 0.89 | 0.67 | 0.87 | 0.21 | 12.1 | reference |
+| haiku-4.5 (4 runs — not comparable) | 0.72 | 0.79 | 0.66 | 0.70 | 0 | 9.0 | inline |
+
+haiku's four surviving cells are three of the field's easiest enumeration
+queries plus one it failed outright, so its row is a biased sample, not a
+ranking. glm is 13/14. Only gemma and gpt-5-mini ran the full set.
+
+**The split helped both models that moved.** Same models, same queries, prompt
+the only variable:
+
+| citations | 08-03 (all reference) | 08-04 (inline) |
+|---|---|---|
+| gemma | 56, **7/14 runs uncited** | 108, 6/14 uncited |
+| glm | 174, **4/13 runs uncited** | 186, **0/13 uncited** |
+| gpt-5-mini (control, unchanged) | 164, 1 uncited | 170, 2 uncited |
+
+glm's uncited answers went to zero and its hard failures with them; gemma nearly
+doubled its citation volume and posted **zero** hard failures across 14 runs. The
+control did not drift, so this is the prompt, not run-to-run noise.
+
+**What the split did not fix.** gemma still ships 6 of 14 answers with **no
+citation at all** — and they are exactly the synthesis answers (primitives
+structure, multisig security, roles, individuals, organizations, quarterly
+timeline) where a reader most needs sources. The facts in them spot-check correct;
+they are simply unverifiable as delivered. `uncitedParagraphs` sees this and is a
+soft signal only. That is the next thing to fix for the default tier, and it is a
+prompt/model question, not a format one.
+
+**Reference style is not what holds gpt-5-mini back.** It has the best citation
+discipline in the field (93% adoption, block first, every threshold in the
+multisig answer bound to its own doc and value-checked) and the worst
+completeness: it twice concluded the atlas lacks something it holds — no transfer
+records (gemma and glm both built ~20-row ledgers from the same atlas) — and once
+refused a clear question to ask clarifying ones. That is under-retrieval, and it
+scored the same way under the old all-reference prompt, so the format is not the
+cause.
+
+### Found while grading, now fixed: agent snippets are verbatim
+
+Not a citation-format issue, but it surfaced through this eval's
+`findUngroundedQuotes` hits and is more consequential than anything above.
+
+`buildSnippet` (`src/server/retrieval/search.ts`) runs **`compactProse`** over
+every snippet it returns. This predates the citation work — every
+`atlas_search` / `atlas_query` result the chat has ever returned has carried it.
+The pass strips `the|a|of|an|and|or|for|in|on|to|at|by|with|from`
+and abbreviating words (`communication`→`Comms.`, `information`→`Info.`,
+`document`→`Doc.`) to fit more content per byte. It feeds `atlas_search`
+(`tools.ts:146`) and `atlas_query` (`query.ts:310`) — the two tools the system
+prompt pushes hardest.
+
+So the model's most common view of a document is text the atlas does not contain:
+
+| | text |
+|---|---|
+| atlas | "Core GovOps manages **the** overall dispute resolution process, including establishing **communication** channels **for** dispute resolution, communicating **with the** parties, **and** gathering **and** analyzing **information** relating **to the** dispute." |
+| snippet the model got | "Core GovOps manages overall dispute resolution process, including establishing **Comms.** channels dispute resolution, communicating parties, gathering analyzing **Info.** relating dispute…" |
+
+Three consequences, all observed in this grid:
+
+1. **Users are shown mangled quotes.** glm's roles-positions answer quotes
+   `Comms.` and `Info.` — strings that appear nowhere in the atlas.
+2. **Repairing the grammar is punished.** A model that restores the dropped
+   stopwords produces a quote that matches no evidence text, and
+   `findUngroundedQuotes` hard-fails it — which in production forces a full
+   transcript replay. Five of glm's hard failures this run were exactly this.
+3. **Meaning is distorted.** Dropping `of`/`for`/`to` in governance prose changes
+   claims: "responsible **for** the Agent" → "responsible Agent", "transfer **to**
+   Y" → "transfer Y".
+
+**Fixed** by splitting the two audiences rather than changing one for both.
+`buildAgentSnippet` (same module) returns a verbatim window — no word dropped,
+abbreviated or reordered, only whitespace runs collapsed, both ends pulled back
+to word boundaries so the text is quotable. `atlas_search` (`tools.ts`) and
+`atlas_query` (`query.ts`) use it. `buildSnippet` keeps compacting, unchanged,
+for search-result display, where density is what a human scanning hits wants.
+
+Measured on the doc that produced the mangled quote: the agent snippet is now a
+literal substring of the atlas, and the exact quote that hard-failed glm scores
+0 ungrounded instead of 1. Cost, over 800 docs: **-17% content words per
+snippet** (31.6 → 26.1) at essentially the same character budget (238 → 230) —
+compaction was buying far less density than it appeared to, because it spent the
+saved characters on a wider window it then truncated anyway.
+
 ## The format contract
 
 **Definition block.** First thing in the answer, before any prose. One definition
