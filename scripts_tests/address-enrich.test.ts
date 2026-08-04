@@ -40,6 +40,8 @@ beforeEach(() => {
   store.clear();
   vi.unstubAllGlobals();
   delete process.env.REFRESH_PROXY_CACHE;
+  // Don't wait the real 1 req/s Etherscan throttle during unit tests.
+  process.env.ETHERSCAN_THROTTLE_MS = "0";
 });
 
 describe("fetchChainlog", () => {

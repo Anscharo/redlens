@@ -17,8 +17,12 @@ const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
 
 // Client-side ceiling for the Etherscan v2 shared endpoint. All live calls go
 // through throttleEtherscan() so enrich + impl-ABI passes cannot stampede.
-const ETHERSCAN_MAX_RPS = 10;
-const ETHERSCAN_MIN_INTERVAL_MS = Math.ceil(1000 / ETHERSCAN_MAX_RPS); // 100ms
+const ETHERSCAN_MAX_RPS = 1;
+const ETHERSCAN_MIN_INTERVAL_MS = Math.ceil(1000 / ETHERSCAN_MAX_RPS); // 1000ms
+// Effective throttle interval. ETHERSCAN_THROTTLE_MS overrides it (tests set 0
+// so they don't wait in real time); unset → the 1 req/s default above.
+const throttleIntervalMs = () =>
+  process.env.ETHERSCAN_THROTTLE_MS != null ? Number(process.env.ETHERSCAN_THROTTLE_MS) : ETHERSCAN_MIN_INTERVAL_MS;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -34,7 +38,7 @@ async function throttleEtherscan() {
   });
   await prev;
   try {
-    const wait = lastEtherscanAt + ETHERSCAN_MIN_INTERVAL_MS - Date.now();
+    const wait = lastEtherscanAt + throttleIntervalMs() - Date.now();
     if (wait > 0) await sleep(wait);
     lastEtherscanAt = Date.now();
   } finally {
