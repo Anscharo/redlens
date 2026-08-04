@@ -448,7 +448,13 @@ Add these under repo **Settings → Environments → `atlas-update-main-bypass`*
 | `ATLAS_BOT_APP_ID` | App ID from step 8b | Both workflows (App token mint) |
 | `ATLAS_BOT_PRIVATE_KEY` | Full contents of the `.pem` from step 8b | Both workflows (App token mint) |
 | `ETHERSCAN_API_KEY` | [Etherscan API key](https://etherscan.io/apidashboard) | `chainstate-update.yml` (`build:addresses`); also atlas-update on bumps |
-| `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | `chainstate-update.yml` (`snap:chainstate`); defaults to publicnode if absent |
+| `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | `chainstate-update.yml` (`snap:chainstate`); overrides the `CHAIN_RPC.ethereum` default if set |
+
+RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free
+public endpoints), so no `ETH_RPC_URL` secret is required — set one only to
+override the default when the public endpoint rate-limits. `pnpm census:chains
+--rpc` round-trips `eth_chainId` against every endpoint to confirm each one
+still answers for the chain id the registry claims.
 
 On-chain data (`addresses.json`, `chain-state.json`) refreshes weekly via
 `.github/workflows/chainstate-update.yml` (Sunday 22:00 UTC) — separate from

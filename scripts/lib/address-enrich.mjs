@@ -15,7 +15,32 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
 
+// Client-side ceiling for the Etherscan v2 shared endpoint. All live calls go
+// through throttleEtherscan() so enrich + impl-ABI passes cannot stampede.
+const ETHERSCAN_MAX_RPS = 10;
+const ETHERSCAN_MIN_INTERVAL_MS = Math.ceil(1000 / ETHERSCAN_MAX_RPS); // 100ms
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let lastEtherscanAt = 0;
+/** Serialize waiters so concurrent callers still respect the interval. */
+let etherscanGate = Promise.resolve();
+
+async function throttleEtherscan() {
+  const prev = etherscanGate;
+  let release;
+  etherscanGate = new Promise((r) => {
+    release = r;
+  });
+  await prev;
+  try {
+    const wait = lastEtherscanAt + ETHERSCAN_MIN_INTERVAL_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastEtherscanAt = Date.now();
+  } finally {
+    release();
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Cache I/O
@@ -66,12 +91,17 @@ export async function fetchChainlog() {
 // Etherscan getsourcecode
 // ---------------------------------------------------------------------------
 async function fetchEtherscan(chainid, addr, apiKey) {
+  await throttleEtherscan();
   const url = `${ETHERSCAN_BASE}?chainid=${chainid}&module=contract&action=getsourcecode&address=${addr}&apikey=${apiKey}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr}`);
   const data = await res.json();
   // Negative response shape: { status: "0", message: "NOTOK", result: "..." }
   if (data.status === "0" && typeof data.result === "string") {
+    // Do not cache rate-limit / transient NOTOK strings as empty ABIs.
+    if (/rate limit/i.test(data.result)) {
+      throw new Error(`Etherscan rate limit for ${chainid}/${addr}: ${data.result}`);
+    }
     // Treat as unverified / unknown — cache an empty entry so we don't retry.
     return makeEntry(chainid, addr, {
       ContractName: "",
@@ -142,11 +172,11 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
         if (misses % 25 === 0) {
           console.log(`  … ${processed}/${total} processed, ${misses} cache misses`);
         }
-        await sleep(250);
       } catch (err) {
         errors++;
         console.warn(`! ${chainid}/${addr}: ${err.message}`);
-        // Treat as empty so the build continues.
+        // Treat as empty so the build continues — do not write cache on error
+        // (rate-limit / transient failures must be retried next run).
         entry = {
           fetchedAt: new Date().toISOString(),
           chainid,
@@ -215,7 +245,6 @@ export async function fetchImplABIs(out, apiKey) {
       await writeCache(1, impl, entry);
       implMisses++;
       console.log(`  cached ${impl} (${entry.contractName || "unverified"})`);
-      await sleep(250);
     } catch (err) {
       console.warn(`  ! impl ${impl}: ${err.message}`);
     }

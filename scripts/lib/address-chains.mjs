@@ -23,8 +23,9 @@ const WINDOW = 300; // chars before the address to scan for chain hints
 // with word-boundary regexes (so "base" inside "database" doesn't match) and
 // orders ethereum FIRST (an "ethereum mainnet" context should win), the opposite
 // of label normalization. Keep the two in step when adding a chain.
-// Ordered by specificity — more specific patterns first within each entry
-const CHAIN_HINTS = [
+// Ordered by specificity — more specific patterns first within each entry.
+// Exported so census:chains can assert it stays in step with CHAINS.
+export const CHAIN_HINTS = [
   { chain: "ethereum", patterns: [/\bethereum\b/i, /\bmainnet\b/i] },
   { chain: "base", patterns: [/\bbase\b/i] },
   { chain: "arbitrum", patterns: [/\barbitrum\b/i, /\barb\b/i] },
@@ -32,6 +33,7 @@ const CHAIN_HINTS = [
   { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
   { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
   { chain: "gnosis", patterns: [/\bgnosis\b/i, /\bxdai\b/i] },
+  { chain: "robinhood", patterns: [/\brobinhood\b/i] },
 ];
 
 // "address on [the] CHAIN is 0x..." — most reliable signal

@@ -55,6 +55,7 @@ jobs:
 
       - name: Snapshot chain state
         env:
+          # Optional — falls back to CHAIN_RPC.ethereum in scripts/lib/chains.mjs.
           ETH_RPC_URL: ${{ secrets.ETH_RPC_URL }}
         run: pnpm snap:chainstate
 

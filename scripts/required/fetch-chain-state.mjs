@@ -4,10 +4,12 @@
  * snapshot to public/chain-state.json.
  *
  * Uses viem + multicall3 — ~44 contracts * ~80 functions batched into a
- * handful of RPC calls.
+ * handful of RPC calls. The endpoint defaults to the ethereum entry of the
+ * canonical registry in scripts/lib/chains.mjs (CHAIN_RPC), with ETH_RPC_URL
+ * as an override for when the public endpoint rate-limits.
  *
- * Run:  node scripts/fetch-chain-state.mjs
- *       ETH_RPC_URL=https://... node scripts/fetch-chain-state.mjs
+ * Run:  node scripts/required/fetch-chain-state.mjs
+ *       ETH_RPC_URL=https://... node scripts/required/fetch-chain-state.mjs
  *
  * Output: public/chain-state.json
  *   { block, values: { [addrLower]: { [fnName]: string | null } } }
@@ -22,13 +24,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+import { CHAIN_RPC } from "../lib/chains.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.." );
 const ADDRS_PATH = path.join(ROOT, "public/addresses.json");
 const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const OUT_PATH = path.join(ROOT, "public/chain-state.json");
 
-const RPC_URL = process.env.ETH_RPC_URL?.trim() || "https://ethereum.publicnode.com";
+const RPC_URL = process.env.ETH_RPC_URL?.trim() || CHAIN_RPC.ethereum;
+if (!RPC_URL) throw new Error("CHAIN_RPC.ethereum is missing from scripts/lib/chains.mjs");
 
 const client = createPublicClient({
   chain: mainnet,
@@ -56,6 +60,7 @@ const chainlogEntries = Object.entries(addresses).filter(
   ([, info]) => info.chainlogId && info.chain === "ethereum",
 );
 console.log(`Chainlog addresses: ${chainlogEntries.length}`);
+console.log(`RPC: ${RPC_URL}`);
 
 const calls = [];
 

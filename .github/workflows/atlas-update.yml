@@ -60,8 +60,8 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
-      # census:risk and census:concepts run under bun (import src/lib/riskRules.ts
-      # / src/lib/conceptsCensus.ts directly).
+      # census:risk, census:concepts and census:chains run under bun (they import
+      # src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
       - uses: oven-sh/setup-bun@v2
         if: steps.atlas.outputs.proceed == 'true'
 
@@ -117,6 +117,7 @@ jobs:
           pnpm census:govops --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:risk --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:concepts --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:chains --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm test:snap:update
           git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
@@ -145,6 +146,7 @@ jobs:
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
             .github/risk-census-baseline.json .github/concepts-census-baseline.json \
+            .github/chains-census-baseline.json \
             public/addresses.json .cache/etherscan
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force

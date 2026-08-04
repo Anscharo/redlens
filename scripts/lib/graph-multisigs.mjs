@@ -154,7 +154,7 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
           if (am) {
             address = normalizeAddress(am[1]);
             chain = am[1].startsWith("0x")
-              ? normalizeChainLabel((slot.address.content ?? "").match(ADDRESS_CHAIN_RE)?.[1])
+              ? normalizeChainLabel((slot.address.content ?? "").match(ADDRESS_CHAIN_RE)?.[1], "multisig-chain")
               : "solana";
           } else warn(`address did not parse: ${slot.address.doc_no}`);
         }
