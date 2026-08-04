@@ -53,10 +53,20 @@ try {
 console.log(`Loaded ${Object.keys(atlas).length} merged atlas addresses`);
 
 const chainlog = await fetchChainlog();
+
+if (!chainlog || Object.keys(chainlog).length === 0) {
+  console.error(
+    "Chainlog fetch failed or returned empty — refusing to overwrite public/addresses.json.\n" +
+    "Doing so would strip every chainlogId and make snap:chainstate write an empty chain-state.json.\n" +
+    "Keeping the existing committed artifacts; retry when chainlog.skyeco.com is reachable.",
+  );
+  process.exit(1);
+}
+
 console.log(`Loaded chainlog: ${Object.keys(chainlog).length} mainnet entries`);
 
 const out = await enrichAddresses(atlas, chainlog, API_KEY);
-const { misses = 0, errors = 0 } = out.__stats ?? {};
+const { misses = 0, errors = 0, proxyRefreshed = 0 } = out.__stats ?? {};
 
 await fetchImplABIs(out, API_KEY);
 
@@ -79,6 +89,7 @@ console.log("\n=== Address build stats ===");
 console.log(`Total addresses:    ${all.length}`);
 console.log(`Cache misses:       ${misses}`);
 console.log(`Errors:             ${errors}`);
+console.log(`Proxies re-verified: ${proxyRefreshed}`);
 console.log(`With label:         ${withLabel}`);
 console.log(`  via chainlog:     ${withChainlog}`);
 console.log(`  via etherscan:    ${withEtherscan}`);

@@ -440,18 +440,26 @@ d. **Make the bot a branch-protection bypass actor:** repo **Settings →
 
 ## 9. Add the workflow secrets
 
-Add these under repo **Settings → Environments → CI** (or as repo-level
-secrets):
+Add these under repo **Settings → Environments → `atlas-update-main-bypass`**
+(the environment used by both atlas-update and chainstate-update workflows):
 
-| Secret | Value |
-|---|---|
-| `ATLAS_BOT_APP_ID` | App ID from step 8b |
-| `ATLAS_BOT_PRIVATE_KEY` | Full contents of the `.pem` from step 8b |
+| Secret | Value | Used by |
+|---|---|---|
+| `ATLAS_BOT_APP_ID` | App ID from step 8b | Both workflows (App token mint) |
+| `ATLAS_BOT_PRIVATE_KEY` | Full contents of the `.pem` from step 8b | Both workflows (App token mint) |
+| `ETHERSCAN_API_KEY` | [Etherscan API key](https://etherscan.io/apidashboard) | `chainstate-update.yml` (`build:addresses`); also atlas-update on bumps |
+| `BLOCKSCOUT_API_KEY` | Blockscout API key (optional) | `chainstate-update.yml` (`build:addresses`); raises the Blockscout rate limit used for Robinhood Chain + as the Etherscan fallback |
+| `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | `chainstate-update.yml` (`snap:chainstate`); overrides the `CHAIN_RPC.ethereum` default if set |
 
-*`ETHERSCAN_API_KEY` and `ETH_RPC_URL` are no longer needed by this workflow —
-the atlas-update run only calls `build:index` and `build:graph`, neither of
-which hits Etherscan or an RPC endpoint. On-chain data (`addresses.json`,
-`chain-state.json`) is refreshed separately.*
+RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free
+public endpoints), so no `ETH_RPC_URL` secret is required — set one only to
+override the default when the public endpoint rate-limits. `pnpm census:chains
+--rpc` round-trips `eth_chainId` against every endpoint to confirm each one
+still answers for the chain id the registry claims.
+
+On-chain data (`addresses.json`, `chain-state.json`) refreshes weekly via
+`.github/workflows/chainstate-update.yml` (Sunday 22:00 UTC) — separate from
+the hourly atlas submodule loop.
 
 ---
 
@@ -465,9 +473,9 @@ which hits Etherscan or an RPC endpoint. On-chain data (`addresses.json`,
   new content.
 - **Submodule pointer in git** stays current via the hourly atlas-update
   workflow, keeping CI + graph snapshots in sync.
-- **On-chain data** (`addresses.json`, `chain-state.json`) refreshes on its
-  own cadence via `build:addresses` / `snap:chainstate` — separate from the
-  atlas loop and not automated by default.
+- **On-chain data** (`addresses.json`, `chain-state.json`) refreshes weekly
+  via the `chainstate-update` workflow (Sunday 22:00 UTC) — separate from the
+  hourly atlas submodule loop.
 
 ## Troubleshooting
 

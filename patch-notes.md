@@ -33,6 +33,11 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-04
+- Refreshed on-chain contract values automatically each week
+- Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
+
+
 ## 2026-08-03
 - Recovered pre-migration history for 1,005 documents that previously showed nothing before the Atlas moved to Markdown
 - Added a note saying when a document's history before the markdown migration couldn't be traced

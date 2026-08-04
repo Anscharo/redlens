@@ -32,6 +32,7 @@
     "census:govops": "node scripts/required/check-govops-census.mjs",
     "census:risk": "bun scripts/required/check-risk-census.mjs",
     "census:concepts": "bun scripts/required/check-concepts-census.mjs",
+    "census:chains": "bun scripts/required/check-chains-census.mjs",
     "processes:check": "node scripts/required/check-processes-dirty.mjs",
     "processes:triage": "bash scripts/aux/processes-triage.sh",
     "processes:apply-decisions": "node scripts/aux/processes-apply-decisions.mjs",
