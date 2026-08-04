@@ -59,6 +59,12 @@ const orgNames = [
 const orgRe = orgNames.length
   ? new RegExp(`\\b(?:${orgNames.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i")
   : /$^/;
+if (!orgNames.length) {
+  console.warn(
+    "[drift] govops-census: 0 GovOps org edges in the graph — the govops_for extraction " +
+      "(graph-entities.mjs assignment sentences or the isGovOpsDoc gate) has collapsed",
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Row set — every doc that backs a report row
@@ -169,6 +175,20 @@ if (baselineUuids) {
   }
   const resolved = [...baselineUuids].filter((u) => !residue.some((r) => r.uuid === u)).length;
   if (resolved) console.log(`govops-census: ${resolved} baseline residue doc(s) resolved (now covered or gone)`);
+  // Mass disappearance is a regression signal, not good news: residue docs
+  // resolve one at a time when duties get extracted, but vanish in bulk when
+  // the GovOps matchers themselves break (docs stop being counted at all).
+  if (resolved >= 5 && resolved > baselineUuids.size / 2) {
+    console.warn(
+      `[drift] govops-census: ${resolved}/${baselineUuids.size} baseline residue docs vanished at once — ` +
+        "likely a matcher break (ANY_GOVOPS_RE / org names), not genuine resolution",
+    );
+  }
+}
+if (counts.total > 0 && counts.row === 0) {
+  console.warn(
+    "[drift] govops-census: 0 report rows despite GovOps mentions — the GovOps Responsibilities report is empty",
+  );
 }
 
 console.log(

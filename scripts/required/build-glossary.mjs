@@ -104,6 +104,20 @@ const atlasCommit = docsFile.atlasCommit ?? "unknown";
 
 const { glossary, definitionsSections } = buildGlossary(docsFile.nodes);
 
+// The section gate is an exact title match and the term gate an exact type
+// match — a retitle/rename empties the glossary with no error. Only these
+// [drift] stderr lines (picked up by atlas-update.yml + the atlas-healer)
+// notice the collapse.
+if (definitionsSections.length === 0) {
+  console.warn(
+    '[drift] tripwire: 0 "Definitions" sections found — the exact-title gate in build-glossary.mjs no longer matches the atlas',
+  );
+} else if (Object.keys(glossary).length === 0) {
+  console.warn(
+    "[drift] tripwire: Definitions sections exist but yielded 0 terms — the [Core] child-type gate in build-glossary.mjs no longer matches",
+  );
+}
+
 printStats(glossary, definitionsSections);
 
 fs.writeFileSync(OUT_PATH, JSON.stringify({ atlasCommit, terms: glossary }));

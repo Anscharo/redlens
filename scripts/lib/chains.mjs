@@ -23,6 +23,7 @@ export const CHAINS = [
   { chain: "avalanche", chainId: 43114, aliases: ["avalanche", "avax"] },
   { chain: "polygon", chainId: 137, aliases: ["polygon"] },
   { chain: "gnosis", chainId: 100, aliases: ["gnosis"] },
+  { chain: "robinhood", chainId: 4663, aliases: ["robinhood"] },
   { chain: "ethereum", chainId: 1, aliases: ["ethereum", "mainnet"] },
 ];
 

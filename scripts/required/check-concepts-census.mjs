@@ -29,6 +29,17 @@ import path from "node:path";
 import { computeConceptsCensus, CENSUS_SLUGS } from "../../src/lib/conceptsCensus.ts";
 import { naturalCompare } from "../lib/natural-sort.mjs";
 
+// Optional dependency: the GROUPS root check below wants the curated crossview
+// taxonomy, but the census guard's test fixture materializes only this
+// script's minimal layout (see src/server/check-concepts-census.test.ts) —
+// resolve it dynamically and skip the check where it isn't present.
+const GROUPS = await import("../../src/lib/crossviewShape.ts")
+  .then((m) => m.GROUPS)
+  .catch(() => {
+    console.log("concepts-census: GROUPS root check skipped — crossviewShape.ts not importable in this layout");
+    return null;
+  });
+
 const ROOT = path.resolve(import.meta.dir, "../..");
 const BASELINE_PATH = path.join(ROOT, ".github/concepts-census-baseline.json");
 const update = process.argv.includes("--update");
@@ -83,11 +94,47 @@ for (const slug of CENSUS_SLUGS) {
       drift++;
     }
   }
+  let slugResolved = 0;
   for (const prev of prevMembers) {
-    if (!curByUuid.has(prev.uuid)) resolved++;
+    if (!curByUuid.has(prev.uuid)) slugResolved++;
+  }
+  resolved += slugResolved;
+  // A census emptying (or mostly emptying) is a regression reported as good
+  // news: the title/content signature it keys on stopped matching, so the
+  // docs are still there but invisible. Warn instead of counting it resolved.
+  if (prevMembers.length && members.length === 0) {
+    console.warn(
+      `[drift] concepts-census: ${slug}: census emptied (${prevMembers.length} → 0 members) — ` +
+        "its title/content signature in src/lib/conceptsCensus.ts no longer matches the atlas",
+    );
+    drift++;
+  } else if (slugResolved >= 3 && slugResolved > prevMembers.length / 2) {
+    console.warn(
+      `[drift] concepts-census: ${slug}: ${slugResolved}/${prevMembers.length} members vanished at once — ` +
+        "check the census signature before treating this as resolution",
+    );
+    drift++;
   }
 }
 if (resolved) console.log(`concepts-census: ${resolved} baseline member(s) resolved (no longer in any census)`);
+
+// Crossview GROUPS roots: resolveRoots() in crossviewShape.ts warns about a
+// vanished curated root UUID only in the BROWSER console — surface it here
+// where atlas-update.yml and the atlas-healer capture stderr.
+if (GROUPS) {
+  const groupRootUuids = GROUPS.flatMap((g) =>
+    "roots" in g ? g.roots : [g.complementOf, ...g.except],
+  );
+  for (const uuid of groupRootUuids) {
+    if (!docs[uuid]) {
+      console.warn(
+        `[drift] concepts-census: crossview GROUPS root UUID ${uuid} no longer in the atlas — ` +
+          "update src/lib/crossviewShape.ts GROUPS to the successor doc",
+      );
+      drift++;
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Stats + baseline write

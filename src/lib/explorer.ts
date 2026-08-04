@@ -9,6 +9,7 @@ export const EXPLORER: Record<string, string> = {
   polygon: "https://polygonscan.com/address/",
   avalanche: "https://snowtrace.io/address/",
   gnosis: "https://gnosisscan.io/address/",
+  robinhood: "https://robinhoodchain.blockscout.com/address/",
   solana: "https://solscan.io/account/",
 };
 

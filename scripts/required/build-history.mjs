@@ -23,7 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
-import { HEADING_RE } from "../lib/atlas-parser.mjs";
+import { HEADING_RE, unquoteYamlName } from "../lib/atlas-parser.mjs";
 import {
   classifyDiff,
   classifyPrTitle,
@@ -196,20 +196,9 @@ function extractBody(raw) {
 
 /** Parse the document.md frontmatter for the fields we care about.
  *  Frontmatter is a small subset of YAML (`key: value` per line); a hand
- *  parser is fine here and avoids pulling in a YAML dep. Handles the two
- *  quoting styles `decompose.py` emits: double-quoted (with `\"` escapes)
- *  and single-quoted (with `''` escapes), used when the value contains
- *  `:`, leading whitespace, or quote characters. */
-function unquoteYamlScalar(v) {
-  if (v.length >= 2 && v[0] === '"' && v[v.length - 1] === '"') {
-    return v.slice(1, -1).replace(/\\(["\\])/g, "$1");
-  }
-  if (v.length >= 2 && v[0] === "'" && v[v.length - 1] === "'") {
-    return v.slice(1, -1).replace(/''/g, "'");
-  }
-  return v;
-}
-
+ *  parser is fine here and avoids pulling in a YAML dep. Unquoting (both
+ *  quoting styles `decompose.py` emits) is shared with atlas-parser.mjs's
+ *  parseDocumentMd via unquoteYamlName. */
 function parseFrontmatter(raw) {
   const lines = raw.split("\n");
   if (lines[0] !== "---") return null;
@@ -217,7 +206,7 @@ function parseFrontmatter(raw) {
   for (let i = 1; i < lines.length; i++) {
     if (lines[i] === "---") break;
     const m = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-    if (m) out[m[1]] = unquoteYamlScalar(m[2]);
+    if (m) out[m[1]] = unquoteYamlName(m[2]);
   }
   return out;
 }

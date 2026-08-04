@@ -13,7 +13,7 @@ import fs from "fs";
 import path from "path";
 import type { AtlasNode } from "../src/types";
 // @ts-expect-error — .mjs without types; runtime-only import for parser access
-import { parse, parseTree, KNOWN_DOC_TYPES } from "../scripts/lib/atlas-parser.mjs";
+import { parse, parseTree, KNOWN_DOC_TYPES, unquoteYamlName } from "../scripts/lib/atlas-parser.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const CONTENT_DIR = path.join(ROOT, "vendor/next-gen-atlas/content");
@@ -121,5 +121,21 @@ describe("parser invariants", () => {
       }
     }
     expect(phantoms).toEqual([]);
+  });
+});
+
+describe("unquoteYamlName", () => {
+  it("passes bare (unquoted) values through unchanged", () => {
+    expect(unquoteYamlName("A.0.1.1 - Something")).toBe("A.0.1.1 - Something");
+  });
+
+  it("unescapes a double-quoted value, including embedded escaped quotes/backslashes", () => {
+    expect(unquoteYamlName('"a \\"quoted\\" name"')).toBe('a "quoted" name');
+    expect(unquoteYamlName('"back\\\\slash"')).toBe("back\\slash");
+  });
+
+  it("unescapes a single-quoted value, matching build-history.mjs's unquoteYamlScalar", () => {
+    expect(unquoteYamlName("'a name: with a colon'")).toBe("a name: with a colon");
+    expect(unquoteYamlName("'it''s doubled'")).toBe("it's doubled");
   });
 });

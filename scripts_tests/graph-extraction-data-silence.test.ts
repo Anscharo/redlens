@@ -63,6 +63,49 @@ describe("transfer extraction data silence", () => {
     expect(JSON.parse(edges[0].meta).expected_record_fields).toContain("transaction hash");
   });
 
+  it("models one-time grant authorizations that drop the per-month/Treasury recurrence phrasing", () => {
+    const docs = [
+      {
+        id: "auth-doc-2",
+        doc_no: "A.2.8.2.7.2.2.3.1",
+        title: "Skybase Foundation Grant Authorization: July 2026",
+        type: "Core",
+        content:
+          "The founding team of Skybase has proposed a one-time cash grant of 700,000 USDS to the Skybase Foundation from Skybase's SubProxy to provide operational capital.",
+      },
+    ];
+    const entityMap = new Map([
+      ["sky-core", entity("sky-core", "Sky Core", "operational_party")],
+      ["skybase", entity("skybase", "Skybase", "agent", "prime")],
+      ["skybase-foundation", entity("skybase-foundation", "Skybase Foundation", "foundation")],
+    ]);
+    const edges: any[] = [];
+    const addEntity = (slug: string, name: string, entity_type: string, subtype: string | null, defining_doc_id: string | null, meta: unknown) => {
+      const ent = { ...entity(slug, name, entity_type, subtype), defining_doc_id, meta: meta ? JSON.stringify(meta) : null };
+      entityMap.set(slug, ent);
+      return ent;
+    };
+
+    const stats = extractTransfers(docs, new Map(docs.map((d) => [d.id, d])), new Map(docs.map((d) => [d.doc_no, d])), entityMap, edges, addEntity);
+
+    expect(stats.authorizations).toBe(1);
+    expect(stats.warnings).toBe(0);
+    expect(edges).toHaveLength(1);
+    expect(edges[0].edgeType).toBe("funds_authorization");
+    expect(edges[0].fromId).toBe("skybase");
+    expect(edges[0].toId).toBe("skybase-foundation");
+    expect(JSON.parse(edges[0].meta)).toMatchObject({
+      kind: "grant_authorization",
+      status: "authorized",
+      periodic: false,
+      amounts: { USDS: "700,000" },
+    });
+    expect(JSON.parse(edges[0].meta).period_months).toBeUndefined();
+    // One-time grants must not carry the recurring-payment silence framing.
+    expect(JSON.parse(edges[0].meta).silence_reason).not.toMatch(/recurring/);
+    expect(JSON.parse(edges[0].meta).expected_record_fields).not.toContain("reward period");
+  });
+
   it("models planned token distributions with future details as data gaps", () => {
     const docs = [
       {
