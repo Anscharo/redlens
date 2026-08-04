@@ -4,6 +4,7 @@ import { type Indexes, resolveNode, descendantIds, type AtlasNode, type Entity }
 import { type ToolResult } from "./tools.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../output-budget.ts";
 import { matchEntities, resolveEntity } from "../../retrieval/entity-resolve.ts";
+import { entityAddresses } from "./tools-entity-addresses.ts";
 
 // Slim node row for tool responses.
 function docRow(n: AtlasNode) {
@@ -11,6 +12,12 @@ function docRow(n: AtlasNode) {
 }
 function entityRow(e: Entity) {
   return { id: e.id, slug: e.slug, name: e.name, entity_type: e.entity_type, subtype: e.subtype };
+}
+// Graph address node → row. The key is `<address>:<chain>`; base58 Solana
+// addresses carry no colon of their own, so the LAST one is the separator.
+function addressRow(id: string) {
+  const i = id.lastIndexOf(":");
+  return { id, node_type: "address", address: i === -1 ? id : id.slice(0, i), chain: i === -1 ? null : id.slice(i + 1) };
 }
 function parseJsonObject(raw: string | null): Record<string, unknown> | null {
   if (!raw) return null;
@@ -74,17 +81,23 @@ export function atlasTraverse(
   maxHops: number,
   direction: "out" | "in" | "both",
 ): ToolResult {
-  const start = resolveNode(ix, id);
-  if (!start) return { error: "Not found" };
+  // Docs resolve by uuid/doc_no; entities by slug or natural-language name.
+  // Accepting a slug is load-bearing, not a convenience: the entity tools hand
+  // the caller a slug and nothing else, so slug-rejection made the graph's only
+  // multi-hop tool unreachable for every entity question.
+  const startId = resolveNode(ix, id)?.id ?? ix.entityBySlug.get(id.toLowerCase())?.id ?? resolveEntity(ix, id)?.id;
+  if (!startId) return { error: "Not found" };
 
   // id → how it was first reached: hop distance from the start node, the edge
-  // type + direction of the discovering edge, and `from` (the predecessor node)
-  // so a multi-hop route can be reconstructed. `hops` is BFS distance (NOT the
-  // node's atlas depth — docRow still carries that as `depth`).
-  type Reach = { hops: number; edge_type: string | null; direction: "out" | "in" | null; from: string | null };
+  // type + direction of the discovering edge, the node kind (so address nodes
+  // — which live in neither docMap nor entityById — can still be rendered), and
+  // `from` (the predecessor node) so a multi-hop route can be reconstructed.
+  // `hops` is BFS distance (NOT the node's atlas depth — docRow still carries
+  // that as `depth`).
+  type Reach = { hops: number; edge_type: string | null; direction: "out" | "in" | null; from: string | null; node_type: string | null };
   const visited = new Map<string, Reach>();
-  visited.set(start.id, { hops: 0, edge_type: null, direction: null, from: null });
-  const queue: Array<{ id: string; hops: number }> = [{ id: start.id, hops: 0 }];
+  visited.set(startId, { hops: 0, edge_type: null, direction: null, from: null, node_type: null });
+  const queue: Array<{ id: string; hops: number }> = [{ id: startId, hops: 0 }];
 
   while (queue.length) {
     const { id: cur, hops } = queue.shift()!;
@@ -93,15 +106,18 @@ export function atlasTraverse(
       if (edgeType && e.edge_type !== edgeType) continue;
       let neighbor: string | null = null;
       let dir: "out" | "in" | null = null;
+      let kind: string | null = null;
       if ((direction === "out" || direction === "both") && e.from_id === cur) {
         neighbor = e.to_id;
         dir = "out";
+        kind = e.to_type;
       } else if ((direction === "in" || direction === "both") && e.to_id === cur) {
         neighbor = e.from_id;
         dir = "in";
+        kind = e.from_type;
       }
       if (neighbor && !visited.has(neighbor)) {
-        visited.set(neighbor, { hops: hops + 1, edge_type: e.edge_type, direction: dir, from: cur });
+        visited.set(neighbor, { hops: hops + 1, edge_type: e.edge_type, direction: dir, from: cur, node_type: kind });
         queue.push({ id: neighbor, hops: hops + 1 });
       }
     }
@@ -112,11 +128,13 @@ export function atlasTraverse(
   // doesn't reveal how the node was reached.
   const stepLabel = (nid: string) => {
     const d = ix.docMap.get(nid);
-    return d ? { id: nid, doc_no: d.doc_no } : { id: nid, slug: ix.entityById.get(nid)?.slug ?? null };
+    if (d) return { id: nid, doc_no: d.doc_no };
+    const ent = ix.entityById.get(nid);
+    return ent ? { id: nid, slug: ent.slug } : { id: nid };
   };
   const pathTo = (nid: string) => {
     const steps: Array<Record<string, unknown>> = [];
-    for (let cur: string | null = nid; cur && cur !== start.id; cur = visited.get(cur)!.from) {
+    for (let cur: string | null = nid; cur && cur !== startId; cur = visited.get(cur)!.from) {
       const r = visited.get(cur)!;
       steps.push({ ...stepLabel(cur), edge_type: r.edge_type, direction: r.direction });
     }
@@ -125,10 +143,13 @@ export function atlasTraverse(
 
   const results: Array<Record<string, unknown>> = [];
   for (const [nid, r] of visited) {
-    if (nid === start.id) continue;
+    if (nid === startId) continue;
     const doc = ix.docMap.get(nid);
     const ent = doc ? null : ix.entityById.get(nid);
-    const base = doc ? docRow(doc) : ent ? entityRow(ent) : null;
+    // Address nodes are keyed `<address>:<chain>` and exist in neither map;
+    // they used to be dropped here, which made every on-chain question invisible
+    // to the one tool built for multi-hop traversal.
+    const base = doc ? docRow(doc) : ent ? entityRow(ent) : r.node_type === "address" ? addressRow(nid) : null;
     if (base) {
       const row: Record<string, unknown> = { ...base, hops: r.hops, edge_type: r.edge_type, direction: r.direction };
       if (r.hops >= 2) row.path = pathTo(nid); // single-hop route is just the node itself
@@ -210,6 +231,9 @@ export function atlasEntity(
     resolved: { slug: entity.slug, name: entity.name, entity_type: entity.entity_type, subtype: entity.subtype },
     alternatives,
     entityId,
+    // Before `nodes` on purpose: the address block answers "what addresses does
+    // X have" outright, and must never be the section a budget trim eats.
+    addresses: entityAddresses(ix, entityId),
     node_count: filtered.length,
     node_types,
     offset,
