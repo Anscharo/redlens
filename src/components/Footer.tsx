@@ -144,25 +144,12 @@ export function Footer() {
           {nodeCount > 0 && (
             <span style={{ color: "var(--tan-3)" }}>
               &nbsp;·&nbsp;{nodeCount.toLocaleString()}&nbsp;
-              <span className="hidden sm:inline">nodes</span>
+              <span className="hidden sm:inline">docs</span>
             </span>
           )}
         </FooterItem>
       )}
       {atlasCommit && <Sep />}
-      <FooterItem>
-        <a
-          href={APP_COMMIT_HREF}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-          style={{ color: "var(--tan-3)" }}
-        >
-          <span className="hidden sm:inline">redline-atlas&nbsp;</span>
-          {__COMMIT_HASH__}
-        </a>
-      </FooterItem>
-      <Sep />
       <FooterItem>
         <span className="hidden sm:inline">updated </span>
         {buildDate}
@@ -182,13 +169,13 @@ export function Footer() {
       <Sep />
       <FooterItem>
         <a
-          href={REPO}
+          href={APP_COMMIT_HREF}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:underline"
           style={{ color: "var(--accent)" }}
         >
-          src
+          src&nbsp;{__COMMIT_HASH__}
         </a>
       </FooterItem>
       </div>
