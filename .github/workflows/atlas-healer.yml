@@ -18,6 +18,10 @@ on:
 permissions:
   contents: read
   issues: write
+  # The run/PR sweeps below use the default GITHUB_TOKEN — the ATLAS_BOT App
+  # has only Contents/PRs/Issues, not Actions read.
+  actions: read
+  pull-requests: read
 
 jobs:
   heal:
@@ -118,15 +122,35 @@ jobs:
             <(sort -u /tmp/healer-warnings.log 2>/dev/null || true) > /tmp/new-warnings.txt || true
 
       # A failed atlas-update run means the atlas silently stopped advancing —
-      # the one failure mode with no issue, no PR, and no drift signal.
+      # the one failure mode with no issue, no PR, and no drift signal. Uses
+      # the default GITHUB_TOKEN (actions: read); the App token lacks Actions
+      # access. Most hourly runs are self-aborting no-ops that conclude
+      # "success", so the failure filter already excludes them — but they still
+      # count against the fetch limit, hence 250 (> 168 runs/week). A sweep
+      # error must surface as a line, not vanish into an empty file.
       - name: Sweep atlas-update runs
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh run list --workflow=atlas-update.yml --limit 60 \
+          gh run list --workflow=atlas-update.yml --limit 250 \
             --json conclusion,createdAt,url \
             --jq '[.[] | select(.createdAt > (now - 7*86400 | todate)) | select(.conclusion == "failure")] | .[] | "\(.createdAt) \(.url)"' \
-            > /tmp/failed-runs.txt || true
+            > /tmp/failed-runs.txt \
+            || echo "SWEEP ERROR: gh run list failed — check the healer job log and token permissions" > /tmp/failed-runs.txt
+
+      # An atlas-update PR left open is the other way main stops advancing:
+      # the bump job succeeded but downstream CI failed (or auto-merge is
+      # stuck), so the auto-merge never fired. Run-history sweeps can't see
+      # this — the update run itself was green.
+      - name: Sweep stuck atlas-update PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list --label atlas-update --state open \
+            --json number,title,createdAt,url \
+            --jq '.[] | "#\(.number) \(.createdAt) \(.title) \(.url)"' \
+            > /tmp/stuck-prs.txt \
+            || echo "SWEEP ERROR: gh pr list failed — check the healer job log and token permissions" > /tmp/stuck-prs.txt
 
       # Complete the loop processes-autoclose.yml closes: when the curated
       # inventory drifts, make sure an open processes-review issue exists.
@@ -171,6 +195,7 @@ jobs:
           [ -s /tmp/spec-diff.txt ] && ACTIONABLE=true
           [ -s /tmp/accepted-baselines.txt ] && ACTIONABLE=true
           [ -s /tmp/failed-runs.txt ] && ACTIONABLE=true
+          [ -s /tmp/stuck-prs.txt ] && ACTIONABLE=true
           [ "$SNAP_STATUS" = "FAIL" ] && ACTIONABLE=true
           [ "${{ steps.processes.outputs.dirty }}" = "true" ] && ACTIONABLE=true
 
@@ -193,6 +218,13 @@ jobs:
               echo "## Failed atlas-update runs this week (atlas may have stopped advancing)"
               echo '```'
               cat /tmp/failed-runs.txt
+              echo '```'
+              echo
+            fi
+            if [ -s /tmp/stuck-prs.txt ]; then
+              echo "## Open atlas-update PRs (auto-merge never fired — downstream CI failed or merge is stuck)"
+              echo '```'
+              cat /tmp/stuck-prs.txt
               echo '```'
               echo
             fi

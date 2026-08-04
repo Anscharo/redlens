@@ -97,9 +97,13 @@ describe("transfer extraction data silence", () => {
     expect(JSON.parse(edges[0].meta)).toMatchObject({
       kind: "grant_authorization",
       status: "authorized",
+      periodic: false,
       amounts: { USDS: "700,000" },
     });
     expect(JSON.parse(edges[0].meta).period_months).toBeUndefined();
+    // One-time grants must not carry the recurring-payment silence framing.
+    expect(JSON.parse(edges[0].meta).silence_reason).not.toMatch(/recurring/);
+    expect(JSON.parse(edges[0].meta).expected_record_fields).not.toContain("reward period");
   });
 
   it("models planned token distributions with future details as data gaps", () => {

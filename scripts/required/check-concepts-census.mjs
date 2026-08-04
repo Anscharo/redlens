@@ -27,8 +27,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { computeConceptsCensus, CENSUS_SLUGS } from "../../src/lib/conceptsCensus.ts";
-import { GROUPS } from "../../src/lib/crossviewShape.ts";
 import { naturalCompare } from "../lib/natural-sort.mjs";
+
+// Optional dependency: the GROUPS root check below wants the curated crossview
+// taxonomy, but the census guard's test fixture materializes only this
+// script's minimal layout (see src/server/check-concepts-census.test.ts) —
+// resolve it dynamically and skip the check where it isn't present.
+const GROUPS = await import("../../src/lib/crossviewShape.ts")
+  .then((m) => m.GROUPS)
+  .catch(() => {
+    console.log("concepts-census: GROUPS root check skipped — crossviewShape.ts not importable in this layout");
+    return null;
+  });
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const BASELINE_PATH = path.join(ROOT, ".github/concepts-census-baseline.json");
@@ -111,7 +121,7 @@ if (resolved) console.log(`concepts-census: ${resolved} baseline member(s) resol
 // Crossview GROUPS roots: resolveRoots() in crossviewShape.ts warns about a
 // vanished curated root UUID only in the BROWSER console — surface it here
 // where atlas-update.yml and the atlas-healer capture stderr.
-{
+if (GROUPS) {
   const groupRootUuids = GROUPS.flatMap((g) =>
     "roots" in g ? g.roots : [g.complementOf, ...g.except],
   );

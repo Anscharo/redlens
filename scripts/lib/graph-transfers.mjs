@@ -156,18 +156,22 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     });
   }
   function addAuthorization(from, to, sourceDoc, meta) {
+    const { periodic = true, ...rest } = meta;
     edges.push({
       fromId: from.id, fromType: "entity", toId: to.id, toType: "entity",
       edgeType: "funds_authorization", sourceDocNos: [sourceDoc.doc_no],
       meta: JSON.stringify({
-        ...meta,
+        ...rest,
         kind: "grant_authorization",
         status: "authorized",
+        periodic,
         populated: false,
         recorded_transfer: false,
-        silence_reason: "Atlas authorizes recurring payments here but does not record completed transfer rows.",
+        silence_reason: periodic
+          ? "Atlas authorizes recurring payments here but does not record completed transfer rows."
+          : "Atlas authorizes a one-time payment here but does not record a completed transfer row.",
         expected_record_fields: [
-          "reward period",
+          ...(periodic ? ["reward period"] : []),
           "payee",
           "payment address",
           "amount paid",
@@ -291,6 +295,7 @@ export function extractTransfers(allDocs, docById, docByDocNo, entityMap, edges,
     if (!recipient || !sender) { warn(`grant authorization endpoints unresolved: ${d.doc_no}`); continue; }
     const periodic = Boolean(m[3]);
     addAuthorization(sender, recipient, d, {
+      periodic,
       amounts: { [periodic ? `${m[2]} per month` : m[2]]: m[1] },
       period_months: m[6] ? Number(m[6]) : undefined,
       // "Spark Foundation Grant Authorization: December 2025" → "December 2025"
