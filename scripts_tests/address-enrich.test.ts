@@ -141,7 +141,7 @@ describe("fetchImplABIs", () => {
     vi.stubGlobal("fetch", vi.fn(async () => verified({ ContractName: "" })));
     await fetchImplABIs({ a: { isProxy: true, implementation: cachedImpl } }, "KEY");
 
-    const fetchMock = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    const fetchMock = vi.fn(async (_url: string) => ({ ok: false, status: 500, json: async () => ({}) }));
     vi.stubGlobal("fetch", fetchMock);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     await fetchImplABIs(
@@ -331,7 +331,7 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
     expect(seen.some((u) => u.includes("eth.blockscout.com"))).toBe(true);
   });
 
-  it("does not consult the Blockscout backup when Etherscan succeeds", async () => {
+  it("does not consult the Blockscout backup when Etherscan verifies the contract", async () => {
     const addr = "0xaaaa666666666666666666666666666666aaaa6";
     const seen: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
@@ -342,5 +342,31 @@ describe("explorer providers (Etherscan + Blockscout backup)", () => {
     expect(seen).toHaveLength(1);
     expect(seen[0]).toContain("api.etherscan.io");
     expect(seen.some((u) => u.includes("blockscout"))).toBe(false);
+  });
+
+  it("consults Blockscout when Etherscan lacks the contract (returns it unverified)", async () => {
+    const addr = "0xaaaa777777777777777777777777777777aaaa7";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      // Etherscan answers but the contract is unverified there.
+      if (url.includes("api.etherscan.io")) {
+        return verified({ ContractName: "", ABI: "Contract source code not verified" });
+      }
+      return verified({ ContractName: "OnlyOnBlockscout" }); // eth.blockscout.com
+    }));
+    const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ etherscanName: "OnlyOnBlockscout", isContract: true });
+    expect(seen.some((u) => u.includes("api.etherscan.io"))).toBe(true);
+    expect(seen.some((u) => u.includes("eth.blockscout.com"))).toBe(true);
+  });
+
+  it("returns an unverified entry (does not throw) when no explorer has the contract verified", async () => {
+    const addr = "0xaaaa888888888888888888888888888888aaaa8";
+    vi.stubGlobal("fetch", vi.fn(async () => verified({ ContractName: "", ABI: "Contract source code not verified" })));
+    const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ chain: "ethereum", isContract: false });
+    // the unverified answer is cached so we don't re-query it every run
+    expect([...store.keys()].some((k) => k.endsWith(`${addr}.json`))).toBe(true);
   });
 });

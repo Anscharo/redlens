@@ -162,25 +162,32 @@ async function fetchExplorer(url, providerName, chainid, addr) {
 
 /**
  * Fetch verified-source metadata for one address, trying each configured
- * explorer in order and falling back to the next only on a hard failure
- * (network / HTTP error / rate limit). A successful "unverified" answer is
- * returned as-is — only thrown errors trigger the backup, so a normal
- * unverified contract doesn't double the API traffic.
+ * explorer in order. Returns the first VERIFIED result; if an explorer answers
+ * but the contract is unverified there, the next explorer is tried (a backup may
+ * have it verified). Hard failures (network / HTTP error / rate limit) also fall
+ * through to the next provider. If no explorer has it verified, the first
+ * unverified answer is returned; only if every explorer errored does it throw.
  */
 async function fetchSourceCode(chain, chainid, addr, apiKey) {
   const providers = explorerProviders(chain, chainid, addr, apiKey);
   if (!providers.length) return makeEntry(chainid, addr, EMPTY_SOURCE);
   let lastErr;
+  let unverified; // first successful-but-unverified answer, used as a fallback
   for (let i = 0; i < providers.length; i++) {
     const p = providers[i];
+    const more = i < providers.length - 1;
     try {
-      return await fetchExplorer(p.url, p.name, chainid, addr);
+      const entry = await fetchExplorer(p.url, p.name, chainid, addr);
+      if (entry.contractName || entry.abi) return entry; // verified — done
+      unverified ??= entry;
+      if (more) console.warn(`  · ${p.name} has ${chainid}/${addr} unverified — trying backup`);
     } catch (err) {
       lastErr = err;
-      const more = i < providers.length - 1;
       console.warn(`  ! ${p.name} failed for ${chainid}/${addr}: ${err.message}${more ? " — trying backup" : ""}`);
     }
   }
+  // No explorer had it verified — prefer a real (unverified) answer over an error.
+  if (unverified) return unverified;
   throw lastErr;
 }
 
