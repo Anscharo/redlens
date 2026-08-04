@@ -109,7 +109,9 @@ export function Footer() {
         </div>
       )}
       {hasStatus && <Sep />}
-      <div className="flex items-center overflow-hidden">
+      {/* Info block (chain state → commits → updated → links) centers when no
+          status pill leads; when a status pill shows it stays left-packed. */}
+      <div className={`flex items-center overflow-hidden${hasStatus ? "" : " mx-auto"}`}>
       {block && (
         <>
           <FooterItem>
