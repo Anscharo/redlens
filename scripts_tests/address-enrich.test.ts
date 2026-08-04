@@ -2,6 +2,15 @@
 // to an in-memory store so the read-through cache never hits disk; fetch is
 // stubbed per-test.
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Mirror address-enrich.mjs's cachePath() so a seeded cache key matches the key
+// the module reads, regardless of where the repo is checked out — local and CI
+// absolute paths differ (/home/user/... vs /home/runner/work/...).
+const REPO_ROOT = path.resolve(fileURLToPath(import.meta.url), "../..");
+const cacheKey = (chainid: number, addr: string) =>
+  path.join(REPO_ROOT, ".cache/etherscan", String(chainid), `${addr}.json`);
 
 const store = new Map<string, string>();
 vi.mock("node:fs/promises", () => {
@@ -205,7 +214,7 @@ describe("enrichAddresses additional branches", () => {
   it("propagates a non-ENOENT cache read error instead of silently treating it as a miss", async () => {
     const addr = "0xaaaa111111111111111111111111111111aaaa1";
     const chainid = 1;
-    const p = `/home/user/redlens/.cache/etherscan/${chainid}/${addr}.json`;
+    const p = cacheKey(chainid, addr);
     store.set(p, "{not valid json");
     await expect(enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY")).rejects.toThrow();
   });
