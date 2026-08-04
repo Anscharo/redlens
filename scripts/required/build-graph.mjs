@@ -27,6 +27,7 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { slugify, normalizeKey, buildNameIndex, resolveAliasedEntity, makeEntity } from "../lib/graph-patterns.mjs";
+import { checkGateTripwires, warnDriftCount } from "../lib/graph-tripwires.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
 import { extractBridges } from "../lib/graph-bridges.mjs";
@@ -82,6 +83,10 @@ console.log(`  ${allDocs.length} docs`);
 
 const docById = new Map(allDocs.map((d) => [d.id, d]));
 const docByDocNo = new Map(allDocs.map((d) => [d.doc_no, d]));
+
+// Silent-collapse tripwires: a renumber/rename that zeroes a structural gate
+// produces no error anywhere — only these [drift] stderr lines.
+checkGateTripwires(allDocs);
 
 // Load both address artifacts and build a merged in-memory view for graph
 // extraction. Phase 4.5 writes enrichments back to addresses.atlas.json only;
@@ -376,6 +381,7 @@ console.log(
   ` (agent resolved: ${icdAgentResolved}/${instanceCount + invocationCount} instances+invocations;` +
   ` ${instanceCount} instances, ${invocationCount} invocations)`,
 );
+warnDriftCount("ICD-param agent unresolved", instanceCount + invocationCount - icdAgentResolved);
 
 // Edge-type breakdown for quick verification.
 const edgeTypeCounts = new Map();
@@ -738,6 +744,15 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
     ` ${msStats.modifierEdges} can_modify_signers_of, ${msStats.created} new signer entities` +
     (msStats.warnings ? `, ${msStats.warnings} WARNINGS` : ""),
   );
+  // Detection keys on child TITLES ("…Signers" + "…Number Of Signers") and
+  // dies before any per-root warning if those templates change — only this
+  // notices every multisig disappearing at once.
+  if (msStats.roots === 0) {
+    console.warn(
+      "  [drift] tripwire: 0 multisig roots detected — the child-title suffixes in " +
+        "scripts/lib/graph-multisigs.mjs childSuffix() no longer match the atlas",
+    );
+  }
 
   // --- Transfer/grant events (Pattern 18) ---
   const txStats = extractTransfers(allDocs, docById, docByDocNo, entityMap, edges, addPatternEntity);
