@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CHAIN_ID } from "./chains.mjs";
+import { CHAIN_ID, CHAIN_BLOCKSCOUT, CHAIN_SUPPORTS_ETHERSCAN } from "./chains.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -15,8 +15,9 @@ const CACHE_DIR = path.join(ROOT, ".cache/etherscan");
 const CHAINLOG_URL = "https://chainlog.skyeco.com/api/mainnet/active.json";
 const ETHERSCAN_BASE = "https://api.etherscan.io/v2/api";
 
-// Client-side ceiling for the Etherscan v2 shared endpoint. All live calls go
-// through throttleEtherscan() so enrich + impl-ABI passes cannot stampede.
+// Client-side ceiling for the explorer endpoints (Etherscan v2 + Blockscout).
+// All live calls go through throttleEtherscan() so enrich + impl-ABI passes
+// cannot stampede either provider.
 const ETHERSCAN_MAX_RPS = 1;
 const ETHERSCAN_MIN_INTERVAL_MS = Math.ceil(1000 / ETHERSCAN_MAX_RPS); // 1000ms
 // Effective throttle interval. ETHERSCAN_THROTTLE_MS overrides it (tests set 0
@@ -108,40 +109,79 @@ export async function fetchChainlog() {
 }
 
 // ---------------------------------------------------------------------------
-// Etherscan getsourcecode
+// Source-code lookup (Etherscan v2 + Blockscout backup)
+//
+// Etherscan v2 and every Blockscout instance expose the same
+// `?module=contract&action=getsourcecode` response shape, so one parser
+// (makeEntry) covers both. Per chain we build an ordered provider list —
+// Etherscan first where supported, Blockscout as a fallback — and for chains
+// Etherscan v2 doesn't cover (robinhood) Blockscout is the only, primary
+// provider. Blockscout's optional BLOCKSCOUT_API_KEY raises its rate limit.
 // ---------------------------------------------------------------------------
-async function fetchEtherscan(chainid, addr, apiKey) {
+const EMPTY_SOURCE = { ContractName: "", ABI: "", Proxy: "0", Implementation: "", SourceCode: "" };
+
+function explorerProviders(chain, chainid, addr, apiKey) {
+  const providers = [];
+  if (CHAIN_SUPPORTS_ETHERSCAN.has(chain)) {
+    providers.push({
+      name: "etherscan",
+      url: `${ETHERSCAN_BASE}?chainid=${chainid}&module=contract&action=getsourcecode&address=${addr}&apikey=${apiKey}`,
+    });
+  }
+  const blockscout = CHAIN_BLOCKSCOUT[chain];
+  if (blockscout) {
+    const bsKey = process.env.BLOCKSCOUT_API_KEY;
+    providers.push({
+      name: "blockscout",
+      url:
+        `${blockscout}?module=contract&action=getsourcecode&address=${addr}` +
+        (bsKey ? `&apikey=${bsKey}` : ""),
+    });
+  }
+  return providers;
+}
+
+async function fetchExplorer(url, providerName, chainid, addr) {
   await throttleEtherscan();
-  const url = `${ETHERSCAN_BASE}?chainid=${chainid}&module=contract&action=getsourcecode&address=${addr}&apikey=${apiKey}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status} for ${chainid}/${addr} (${providerName})`);
   const data = await res.json();
   // Negative response shape: { status: "0", message: "NOTOK", result: "..." }
   if (data.status === "0" && typeof data.result === "string") {
-    // Do not cache rate-limit / transient NOTOK strings as empty ABIs.
+    // Do not cache rate-limit / transient NOTOK strings as empty ABIs — throw so
+    // the caller falls back to the next provider (or retries next run).
     if (/rate limit/i.test(data.result)) {
-      throw new Error(`Etherscan rate limit for ${chainid}/${addr}: ${data.result}`);
+      throw new Error(`${providerName} rate limit for ${chainid}/${addr}: ${data.result}`);
     }
     // Treat as unverified / unknown — cache an empty entry so we don't retry.
-    return makeEntry(chainid, addr, {
-      ContractName: "",
-      ABI: "",
-      Proxy: "0",
-      Implementation: "",
-      SourceCode: "",
-    });
+    return makeEntry(chainid, addr, EMPTY_SOURCE);
   }
   const result = Array.isArray(data.result) ? data.result[0] : null;
-  if (!result) {
-    return makeEntry(chainid, addr, {
-      ContractName: "",
-      ABI: "",
-      Proxy: "0",
-      Implementation: "",
-      SourceCode: "",
-    });
+  return makeEntry(chainid, addr, result ?? EMPTY_SOURCE);
+}
+
+/**
+ * Fetch verified-source metadata for one address, trying each configured
+ * explorer in order and falling back to the next only on a hard failure
+ * (network / HTTP error / rate limit). A successful "unverified" answer is
+ * returned as-is — only thrown errors trigger the backup, so a normal
+ * unverified contract doesn't double the API traffic.
+ */
+async function fetchSourceCode(chain, chainid, addr, apiKey) {
+  const providers = explorerProviders(chain, chainid, addr, apiKey);
+  if (!providers.length) return makeEntry(chainid, addr, EMPTY_SOURCE);
+  let lastErr;
+  for (let i = 0; i < providers.length; i++) {
+    const p = providers[i];
+    try {
+      return await fetchExplorer(p.url, p.name, chainid, addr);
+    } catch (err) {
+      lastErr = err;
+      const more = i < providers.length - 1;
+      console.warn(`  ! ${p.name} failed for ${chainid}/${addr}: ${err.message}${more ? " — trying backup" : ""}`);
+    }
   }
-  return makeEntry(chainid, addr, result);
+  throw lastErr;
 }
 
 function makeEntry(chainid, addr, r) {
@@ -192,7 +232,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
     // actually changed — so a no-op re-verify doesn't dirty git every week.
     if (entry && entry.proxy && process.env.REFRESH_PROXY_CACHE) {
       try {
-        const fresh = await fetchEtherscan(chainid, addr, apiKey);
+        const fresh = await fetchSourceCode(info.chain, chainid, addr, apiKey);
         if (proxyMetaChanged(entry, fresh)) {
           await writeCache(chainid, addr, fresh);
           console.log(`  proxy metadata changed for ${addr}: impl ${entry.implementation || "∅"} → ${fresh.implementation || "∅"}`);
@@ -206,7 +246,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
 
     if (!entry) {
       try {
-        entry = await fetchEtherscan(chainid, addr, apiKey);
+        entry = await fetchSourceCode(info.chain, chainid, addr, apiKey);
         await writeCache(chainid, addr, entry);
         misses++;
         if (misses % 25 === 0) {
@@ -281,7 +321,9 @@ export async function fetchImplABIs(out, apiKey) {
     const cached = await readCache(1, impl);
     if (cached) continue;
     try {
-      const entry = await fetchEtherscan(1, impl, apiKey);
+      // Proxy implementations tracked here are ethereum addresses (the snapshot
+      // step only reads ethereum chainlog contracts), so resolve via ethereum.
+      const entry = await fetchSourceCode("ethereum", 1, impl, apiKey);
       await writeCache(1, impl, entry);
       implMisses++;
       console.log(`  cached ${impl} (${entry.contractName || "unverified"})`);

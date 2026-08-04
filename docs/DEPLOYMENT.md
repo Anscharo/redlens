@@ -448,6 +448,7 @@ Add these under repo **Settings → Environments → `atlas-update-main-bypass`*
 | `ATLAS_BOT_APP_ID` | App ID from step 8b | Both workflows (App token mint) |
 | `ATLAS_BOT_PRIVATE_KEY` | Full contents of the `.pem` from step 8b | Both workflows (App token mint) |
 | `ETHERSCAN_API_KEY` | [Etherscan API key](https://etherscan.io/apidashboard) | `chainstate-update.yml` (`build:addresses`); also atlas-update on bumps |
+| `BLOCKSCOUT_API_KEY` | Blockscout API key (optional) | `chainstate-update.yml` (`build:addresses`); raises the Blockscout rate limit used for Robinhood Chain + as the Etherscan fallback |
 | `ETH_RPC_URL` | Ethereum mainnet RPC URL (optional) | `chainstate-update.yml` (`snap:chainstate`); overrides the `CHAIN_RPC.ethereum` default if set |
 
 RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free

@@ -48,10 +48,13 @@ jobs:
       # on flaky Etherscan calls — snap:chainstate still runs against the
       # existing committed artifacts. REFRESH_PROXY_CACHE re-verifies cached
       # proxy metadata so a proxy upgraded since last week is picked up.
+      # BLOCKSCOUT_API_KEY (optional) raises the Blockscout rate limit used for
+      # Robinhood Chain + as the Etherscan fallback.
       - name: Refresh on-chain address metadata
         continue-on-error: true
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          BLOCKSCOUT_API_KEY: ${{ secrets.BLOCKSCOUT_API_KEY }}
           REFRESH_PROXY_CACHE: "1"
         run: pnpm build:addresses
 

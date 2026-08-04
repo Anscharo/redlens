@@ -18,6 +18,11 @@
 //
 // rpcUrl: free public HTTPS endpoints — no API key. PublicNode where available;
 // Robinhood uses the official public RPC (not on PublicNode yet).
+//
+// blockscoutApi: Etherscan-compatible Blockscout `/api` base (no key). Used by
+// address-enrich as the *primary* contract-metadata source for chains Etherscan
+// v2 doesn't cover (robinhood, flagged `etherscan: false`), and as a *fallback*
+// for chains that do (ethereum) when the Etherscan call hard-fails.
 export const CHAINS = [
   { chain: "base", chainId: 8453, aliases: ["base"], rpcUrl: "https://base-rpc.publicnode.com" },
   { chain: "arbitrum", chainId: 42161, aliases: ["arbitrum"], rpcUrl: "https://arbitrum-one-rpc.publicnode.com" },
@@ -26,9 +31,23 @@ export const CHAINS = [
   { chain: "avalanche", chainId: 43114, aliases: ["avalanche", "avax"], rpcUrl: "https://avalanche-c-chain-rpc.publicnode.com" },
   { chain: "polygon", chainId: 137, aliases: ["polygon"], rpcUrl: "https://polygon-bor-rpc.publicnode.com" },
   { chain: "gnosis", chainId: 100, aliases: ["gnosis"], rpcUrl: "https://gnosis-rpc.publicnode.com" },
-  // Robinhood Chain — Arbitrum Orbit L2, chain id 4663 (0x1237).
-  { chain: "robinhood", chainId: 4663, aliases: ["robinhood"], rpcUrl: "https://rpc.mainnet.chain.robinhood.com" },
-  { chain: "ethereum", chainId: 1, aliases: ["ethereum", "mainnet"], rpcUrl: "https://ethereum-rpc.publicnode.com" },
+  // Robinhood Chain — Arbitrum Orbit L2, chain id 4663 (0x1237). Not on
+  // Etherscan v2, so contract metadata comes from its Blockscout instance.
+  {
+    chain: "robinhood",
+    chainId: 4663,
+    aliases: ["robinhood"],
+    rpcUrl: "https://rpc.mainnet.chain.robinhood.com",
+    blockscoutApi: "https://robinhoodchain.blockscout.com/api",
+    etherscan: false,
+  },
+  {
+    chain: "ethereum",
+    chainId: 1,
+    aliases: ["ethereum", "mainnet"],
+    rpcUrl: "https://ethereum-rpc.publicnode.com",
+    blockscoutApi: "https://eth.blockscout.com/api",
+  },
 ];
 
 // Future / testnet chains with no explorer or full support yet — collapse to
@@ -76,4 +95,23 @@ export const CHAIN_ID = Object.fromEntries(
 /** Public HTTPS RPC URL per EVM chain key. Solana has none. */
 export const CHAIN_RPC = Object.fromEntries(
   CHAINS.filter((c) => c.rpcUrl).map((c) => [c.chain, c.rpcUrl]),
+);
+
+/**
+ * Blockscout Etherscan-compatible `/api` base per chain. Used by address-enrich
+ * as the primary contract-metadata source for chains Etherscan v2 doesn't cover
+ * (robinhood) and as a fallback for chains that do (ethereum) when Etherscan
+ * hard-fails. An optional BLOCKSCOUT_API_KEY raises Blockscout's rate limit.
+ */
+export const CHAIN_BLOCKSCOUT = Object.fromEntries(
+  CHAINS.filter((c) => c.blockscoutApi).map((c) => [c.chain, c.blockscoutApi]),
+);
+
+/**
+ * Chains whose contract metadata is fetched from Etherscan v2 (has a chainId and
+ * is not flagged `etherscan: false`). robinhood is excluded — Etherscan v2 has
+ * no endpoint for chain 4663, so Blockscout is its only source.
+ */
+export const CHAIN_SUPPORTS_ETHERSCAN = new Set(
+  CHAINS.filter((c) => c.chainId != null && c.etherscan !== false).map((c) => c.chain),
 );

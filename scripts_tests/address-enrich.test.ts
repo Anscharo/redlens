@@ -148,8 +148,12 @@ describe("fetchImplABIs", () => {
       { a: { isProxy: true, implementation: cachedImpl }, b: { isProxy: true, implementation: failingImpl } },
       "KEY",
     );
-    // cachedImpl is skipped (no fetch for it); failingImpl is fetched and fails.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // cachedImpl is skipped (never fetched); failingImpl is fetched and fails
+    // gracefully — Etherscan then the Blockscout backup — warning, not throwing.
+    const calledUrls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(calledUrls.length).toBeGreaterThanOrEqual(1);
+    expect(calledUrls.every((u) => u.includes(failingImpl))).toBe(true);
+    expect(calledUrls.some((u) => u.includes(cachedImpl))).toBe(false);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
@@ -277,5 +281,66 @@ describe("enrichAddresses additional branches", () => {
     expect(out[addr].implementation).toBe(oldImpl);
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+});
+
+describe("explorer providers (Etherscan + Blockscout backup)", () => {
+  beforeEach(() => {
+    delete process.env.BLOCKSCOUT_API_KEY;
+  });
+
+  it("enriches a robinhood address via its Blockscout instance, never Etherscan", async () => {
+    const addr = "0xdddd333333333333333333333333333333dddd3";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      return verified({ ContractName: "RhToken" });
+    }));
+    const out = await enrichAddresses({ [addr]: { chain: "robinhood" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ chain: "robinhood", etherscanName: "RhToken", isContract: true });
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("robinhoodchain.blockscout.com");
+    expect(seen[0]).not.toContain("api.etherscan.io");
+    // cached under the robinhood chainId (4663) directory
+    expect([...store.keys()].some((k) => k.includes("/4663/") && k.endsWith(`${addr}.json`))).toBe(true);
+  });
+
+  it("appends BLOCKSCOUT_API_KEY to the Blockscout request when set", async () => {
+    const addr = "0xdddd444444444444444444444444444444dddd4";
+    process.env.BLOCKSCOUT_API_KEY = "bs-secret";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      return verified();
+    }));
+    await enrichAddresses({ [addr]: { chain: "robinhood" } }, {}, "KEY");
+    expect(seen[0]).toContain("apikey=bs-secret");
+  });
+
+  it("falls back to Blockscout when the Etherscan call hard-fails for a backed chain", async () => {
+    const addr = "0xcccc555555555555555555555555555555cccc5";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      if (url.includes("api.etherscan.io")) return { ok: false, status: 503, json: async () => ({}) };
+      return verified({ ContractName: "ViaBlockscout" });
+    }));
+    const out = await enrichAddresses({ [addr]: { chain: "ethereum" } }, {}, "KEY");
+    expect(out[addr]).toMatchObject({ chain: "ethereum", etherscanName: "ViaBlockscout", isContract: true });
+    expect(seen.some((u) => u.includes("api.etherscan.io"))).toBe(true);
+    expect(seen.some((u) => u.includes("eth.blockscout.com"))).toBe(true);
+  });
+
+  it("does not consult the Blockscout backup when Etherscan succeeds", async () => {
+    const addr = "0xaaaa666666666666666666666666666666aaaa6";
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      seen.push(url);
+      return verified();
+    }));
+    await enrichAddresses({ [addr]: { chain: "ethereum" } }, { [addr]: "FOO" }, "KEY");
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain("api.etherscan.io");
+    expect(seen.some((u) => u.includes("blockscout"))).toBe(false);
   });
 });

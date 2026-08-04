@@ -4,7 +4,14 @@
 
 import { describe, it, expect, vi } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
-import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC } from "../scripts/lib/chains.mjs";
+import {
+  normalizeChainLabel,
+  classifyChainLabel,
+  CHAIN_ID,
+  CHAIN_RPC,
+  CHAIN_BLOCKSCOUT,
+  CHAIN_SUPPORTS_ETHERSCAN,
+} from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
   it("defaults empty / unknown labels to ethereum", () => {
@@ -77,5 +84,23 @@ describe("CHAIN_RPC", () => {
     expect(CHAIN_RPC.ethereum).toMatch(/^https:\/\//);
     expect(CHAIN_RPC.robinhood).toMatch(/^https:\/\//);
     expect(CHAIN_RPC.solana).toBeUndefined();
+  });
+});
+
+describe("CHAIN_BLOCKSCOUT", () => {
+  it("configures a Blockscout API for robinhood (primary) and ethereum (backup)", () => {
+    expect(CHAIN_BLOCKSCOUT.robinhood).toMatch(/^https:\/\/.*blockscout/);
+    expect(CHAIN_BLOCKSCOUT.ethereum).toMatch(/^https:\/\/.*blockscout/);
+    // chains without a Blockscout instance are simply absent
+    expect(CHAIN_BLOCKSCOUT.base).toBeUndefined();
+  });
+});
+
+describe("CHAIN_SUPPORTS_ETHERSCAN", () => {
+  it("includes Etherscan-v2 chains but not robinhood (chain 4663 is unsupported) or solana", () => {
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("ethereum")).toBe(true);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("base")).toBe(true);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("robinhood")).toBe(false);
+    expect(CHAIN_SUPPORTS_ETHERSCAN.has("solana")).toBe(false);
   });
 });
