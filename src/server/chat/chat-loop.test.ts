@@ -231,6 +231,54 @@ test("multi-call round: parallel execution keeps call order; onRoundEnd sees cal
   expect(roundEnds[0].results.every((r) => r.ok)).toBe(true);
 });
 
+test("export_findings: yields an export event and feeds the model only a small ack", async () => {
+  const csvArgs = JSON.stringify({ format: "csv", filename: "duties", columns: ["Doc", "Type"], rows: [["A.1", "Scope"]] });
+  const rounds = [
+    [toolChunk("export_findings", csvArgs), finishChunk("tool_calls")],
+    [textChunk("Your file is downloading."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+
+  const exp = events.find((e) => e.type === "export");
+  expect(exp && exp.type === "export").toBeTruthy();
+  if (exp && exp.type === "export") {
+    expect(exp.format).toBe("csv");
+    expect(exp.filename).toBe("duties.csv");
+    expect(exp.mime).toBe("text/csv;charset=utf-8");
+    expect(exp.content).toContain('"Doc","Type"');
+    expect(exp.bytes).toBe(exp.content.length);
+  }
+  const result = events.find((e) => e.type === "tool_result");
+  expect(result && result.type === "tool_result" && result.ok).toBe(true);
+  // The tool message the model saw is a small ack, NOT the file body — the CSV
+  // never goes back into the model's context.
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const toolMsg = done.transcript.find((m) => m.role === "tool");
+    expect(typeof toolMsg?.content === "string" && (toolMsg!.content as string).includes('"ok":true')).toBe(true);
+    expect(typeof toolMsg?.content === "string" && (toolMsg!.content as string).includes('"Doc"')).toBe(false);
+    expect(done.content).toBe("Your file is downloading.");
+  }
+});
+
+test("export_findings: invalid args become an {error} tool result, no export event", async () => {
+  // format:csv with no columns → buildExportArtifact throws → model gets {error}.
+  const rounds = [
+    [toolChunk("export_findings", JSON.stringify({ format: "csv", rows: [["a"]] })), finishChunk("tool_calls")],
+    [textChunk("Sorry, I couldn't build that."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 2 }));
+
+  expect(events.some((e) => e.type === "export")).toBe(false);
+  const result = events.find((e) => e.type === "tool_result");
+  expect(result && result.type === "tool_result" && result.ok).toBe(false);
+  const done = events.at(-1)!;
+  if (done.type === "done") {
+    const toolMsg = done.transcript.find((m) => m.role === "tool");
+    expect(typeof toolMsg?.content === "string" && (toolMsg!.content as string).startsWith('{"error"')).toBe(true);
+  }
+});
+
 test("aborted signal short-circuits to a terminal done", async () => {
   const ctrl = new AbortController();
   ctrl.abort();

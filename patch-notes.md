@@ -34,6 +34,7 @@
 -->
 
 ## 2026-08-04
+- Added the ability to have the chatbot export its answers as a Markdown or CSV file
 - Refreshed on-chain contract values automatically each week
 - Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
 
