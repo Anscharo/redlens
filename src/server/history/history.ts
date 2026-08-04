@@ -36,6 +36,7 @@ interface HistoryQueryRow {
   era: string | null;
   method: string | null;
   source_url: string | null;
+  seam: string | null;
 }
 
 /** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
@@ -85,6 +86,7 @@ export function toEntry(row: HistoryQueryRow): HistoryEntry {
   if (row.method) entry.method = row.method as HistoryEntry["method"];
   if (row.commit_seq != null) entry.commitSeq = row.commit_seq;
   if (row.source_url) entry.sourceUrl = row.source_url;
+  if (row.seam) entry.seam = row.seam;
   return entry;
 }
 
@@ -103,7 +105,7 @@ export async function handleHistory(_req: Request, pathname: string): Promise<Re
              COALESCE(h.review_count, p.review_count) AS review_count,
              COALESCE(h.approval_count, p.approval_count) AS approval_count,
              COALESCE(h.comment_count, p.comment_count) AS comment_count,
-             h.era, h.method, h.source_url
+             h.era, h.method, h.source_url, h.seam
       FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
       WHERE h.doc_id = ${nodeId}
       ORDER BY h.commit_seq DESC NULLS LAST, h.committed_at DESC NULLS LAST
@@ -150,7 +152,7 @@ export async function handleHistoryBatch(req: Request): Promise<Response> {
              COALESCE(h.review_count, p.review_count) AS review_count,
              COALESCE(h.approval_count, p.approval_count) AS approval_count,
              COALESCE(h.comment_count, p.comment_count) AS comment_count,
-             h.era, h.method, h.source_url
+             h.era, h.method, h.source_url, h.seam
       FROM atlas_history h LEFT JOIN atlas_prs p ON p.pr_number = h.pr_number
       WHERE h.doc_id IN ${sql(ids)}
       ORDER BY h.commit_seq DESC NULLS LAST, h.committed_at DESC NULLS LAST

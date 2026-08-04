@@ -208,6 +208,59 @@ describe("pre-git-history.md: preEraRows loads public/history-pre-era.json → u
   });
 });
 
+describe("stampMigrationSeam writes each doc's #117 verdict onto its migration row", () => {
+  const OTHER = "2ce24b08-84ff-4524-9710-49bba429c6ef";
+  const artifact = {
+    meta: { migrationCommit: "22cc27b5" },
+    docMeta: { [UUID]: { seam: "kept" }, [OTHER]: { seam: "untraced" } },
+  };
+  // Minimal Bun.sql stand-in: record every statement + its params, report 1 row hit.
+  const fakeSql = () => {
+    const calls: { q: string; p: unknown[] }[] = [];
+    return { calls, unsafe: (q: string, p: unknown[]) => { calls.push({ q, p }); return Promise.resolve({ count: 1 }); } };
+  };
+
+  it("targets the migration commit's structural rows only, keyed by doc", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    const [perDoc] = sql.calls;
+    expect(perDoc.q).toContain("UPDATE atlas_history");
+    expect(perDoc.q).toContain("change_type = 'structural'");
+    expect(perDoc.p[0]).toBe("22cc27b"); // 7-char sha, as build-history writes it
+    expect(perDoc.p).toContain(UUID);
+    expect(perDoc.p).toContain("kept");
+    expect(perDoc.p).toContain("untraced");
+  });
+
+  it("defaults the docs the reconstruction never reached to untraced, not null", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    const sweep = sql.calls[sql.calls.length - 1];
+    expect(sweep.q).toContain("seam = 'untraced'");
+    expect(sweep.q).toContain("seam IS NULL");
+  });
+
+  // A `split` doc with no reconstructed event of its own holds its source-document
+  // pointer only in docMeta, so this stamp is the only thing that can persist it.
+  it("carries a split doc's extracted_from pointer onto the migration row", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, {
+      meta: { migrationCommit: "22cc27b5" },
+      docMeta: { [UUID]: { seam: "split", extractedFrom: OTHER } },
+    });
+    const [perDoc] = sql.calls;
+    expect(perDoc.q).toContain("extracted_from = COALESCE(v.extracted_from, h.extracted_from)");
+    expect(perDoc.p).toContain(OTHER);
+  });
+
+  // …but a docMeta row without one must never blank a pointer an event already wrote.
+  it("does not blank extracted_from when the artifact has no pointer", async () => {
+    const sql = fakeSql();
+    await (db as any).stampMigrationSeam(sql, artifact);
+    expect(sql.calls[0].q).toContain("COALESCE(v.extracted_from, h.extracted_from)");
+  });
+});
+
 describe("§5: htmlEraRows loads the frozen artifact → upsertable rows", () => {
   const artifact = {
     meta: { kind: "html-era-history" },

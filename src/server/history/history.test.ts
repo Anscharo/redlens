@@ -37,6 +37,7 @@ describe("toEntry", () => {
         era: null,
         method: null,
         source_url: null,
+        seam: null,
       });
       expect(entry.changeType, `change_type="${dbVal}"`).toBe(expected);
     }
@@ -64,6 +65,7 @@ describe("toEntry", () => {
       era: null,
       method: null,
       source_url: null,
+      seam: null,
     });
     expect(entry.changeType).toBe("future_type" as any);
   });
@@ -90,6 +92,7 @@ describe("toEntry", () => {
       era: null,
       method: null,
       source_url: null,
+      seam: null,
     });
     expect(entry.date).toBe("");
   });
@@ -116,6 +119,7 @@ describe("toEntry", () => {
       era: null,
       method: null,
       source_url: null,
+      seam: null,
     });
     expect("pr" in entry).toBe(false);
     expect("prTitle" in entry).toBe(false);
@@ -157,6 +161,7 @@ describe("toEntry", () => {
       era: "html",
       method: "deterministic",
       source_url: "https://example.com/source",
+      seam: null,
     });
     expect(entry.date).toBe("2024-03-15");
     expect(entry.commitHash).toBe("abc1234");
@@ -199,6 +204,7 @@ describe("toEntry", () => {
     era: null,
     method: null,
     source_url: null,
+    seam: null,
   } as const;
 
   it("coerces a legacy double-encoded (string) diff back to an array", () => {

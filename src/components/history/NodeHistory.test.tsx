@@ -90,6 +90,51 @@ describe("NodeHistory states", () => {
     expect(await screen.findByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
   });
 
+  // The verdict is stated inline; what each verdict MEANS lives once on the provenance
+  // page, so the footer has to link there rather than restate it.
+  it("links the seam verdict to its explanation on the provenance page", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "untraced" })]);
+    render(<NodeHistory nodeId="n6d" />);
+    expect(await screen.findByRole("link", { name: "What this means →" })).toHaveAttribute(
+      "href",
+      "/provenance#untraced-history",
+    );
+  });
+
+  // A doc the seam matcher couldn't attach to any pre-migration entry must NOT be
+  // described as created there — that's a limit of the reconstruction, not a finding.
+  it("says the pre-migration history could not be traced when the seam is untraced", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "untraced" })]);
+    render(<NodeHistory nodeId="n6a" />);
+    expect(await screen.findByText(/could not be traced/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Introduced at the markdown migration/i)).not.toBeInTheDocument();
+  });
+
+  it("says the doc was introduced at the migration only on a reviewed 'created' verdict", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "created" })]);
+    render(<NodeHistory nodeId="n6b" />);
+    expect(await screen.findByText(/Introduced at the markdown migration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
+  // A split doc's lineage IS known — it lives on the parent it was carved out of — so it
+  // must not be reported as untraceable either.
+  it("points a split doc at the document it was extracted from", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "split" })]);
+    render(<NodeHistory nodeId="n6c" />);
+    expect(await screen.findByText(/Carved out of a larger document/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
+  // A reintroduced doc's predecessor IS recorded (the reintroduction ledger), so calling
+  // it untraced would state something the reconstruction knows to be false.
+  it("says a reintroduced doc was revived, not that it could not be traced", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "reintroduced" })]);
+    render(<NodeHistory nodeId="n6e" />);
+    expect(await screen.findByText(/Revived at the markdown migration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
   it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2025-11-21", pr: 117, prTitle: "Migrate To Markdown File", summary: "migration" }),

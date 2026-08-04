@@ -74,6 +74,53 @@ export function HistoryProvenance() {
         </div>
       </section>
 
+      <section
+        id="untraced-history"
+        className="mb-10"
+        style={{ scrollMarginTop: "64px" }}
+      >
+        <h3 className="mono text-sm text-tan-3 uppercase tracking-wider mb-3">
+          Documents with no history before the migration
+        </h3>
+        <div className="space-y-3 text-sm" style={{ color: "var(--tan-2)" }}>
+          <p>
+            Some documents show nothing before pull request #117. Their entry at
+            the migration says which of three things we actually found, because
+            the difference matters and only one of them is a claim about the
+            document itself.
+          </p>
+          <p>
+            <strong>Could not be traced</strong> is the honest default. The
+            pre-migration HTML gave documents no stable identities, and for these
+            no earlier entry could be matched to this one with enough confidence
+            to assert it. Near-identical wording, short bodies whose text is a
+            single value, renames, splits and merges all produce cases where more
+            than one predecessor is equally plausible; rather than guess, we
+            record that the lineage is unknown. Such a document is at least as
+            old as the migration, not newer — the absence is a limit of the
+            reconstruction, not evidence that it was written then.
+          </p>
+          <p>
+            <strong>Introduced at the migration</strong> is the opposite, and is
+            a reviewed finding: the pre-migration HTML was checked and holds no
+            earlier version of the document.
+          </p>
+          <p>
+            <strong>Carved out of a larger document</strong> means the text
+            existed before the migration but inside a bigger document, so its
+            earlier history is recorded on the document it was extracted from
+            rather than lost.
+          </p>
+          <p>
+            <strong>Revived under a retired name</strong> covers a document the
+            migration reintroduced under a name the HTML had already renamed
+            away from. Its real predecessor lives under the newer name, which we
+            record separately, so it is a continuation rather than a new
+            document.
+          </p>
+        </div>
+      </section>
+
       <section id="pre-git-history" style={{ scrollMarginTop: "64px" }}>
         <h3 className="mono text-sm text-tan-3 uppercase tracking-wider mb-3">
           Before the current git repository

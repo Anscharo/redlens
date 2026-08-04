@@ -42,6 +42,14 @@ before upserting, automatically, every run. No manual DB step needed.
 
 ## Gotchas
 
+- **Any change to the html-era threading invalidates this artifact — re-run all three.**
+  Every event here is keyed by a ROOT-commit uuid that `run-thread.mjs` assigns, so when
+  the html-era seed threads a doc it previously couldn't, that root row swaps its synthetic
+  uuid for the real one: the old row becomes an orphan nobody can see, and the real doc
+  silently loses its pre-git origin. (Measured when seed tier S2 landed, 2026-08: 52 rows
+  orphaned, 192 real-doc rows recovered — `genesis`/`mip` attribution counts unchanged, only
+  `severed` births moved onto the real docs.) The re-run is cheap and deterministic; do it
+  in the same change, in the order above.
 - **`prehist:genesis` re-runs the full 79-commit html-era thread** (`run-thread.mjs`)
   to get real root uuids — same cost as `htmlhist:apply` (a few minutes). This is
   deliberate: a `(docNo|title)` heuristic join against the frozen JSON artifact was
