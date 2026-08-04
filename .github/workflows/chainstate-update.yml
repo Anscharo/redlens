@@ -46,11 +46,13 @@ jobs:
 
       # Refresh committed addresses.json + Etherscan cache. Degrades gracefully
       # on flaky Etherscan calls — snap:chainstate still runs against the
-      # existing committed artifacts.
+      # existing committed artifacts. REFRESH_PROXY_CACHE re-verifies cached
+      # proxy metadata so a proxy upgraded since last week is picked up.
       - name: Refresh on-chain address metadata
         continue-on-error: true
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          REFRESH_PROXY_CACHE: "1"
         run: pnpm build:addresses
 
       - name: Snapshot chain state
@@ -62,14 +64,30 @@ jobs:
       - name: Check for changes
         id: diff
         run: |
-          if git diff --quiet -- public/chain-state.json public/addresses.json .cache/etherscan; then
-            echo "proceed=false" >> "$GITHUB_OUTPUT"
-            echo "On-chain artifacts unchanged — nothing to commit."
-          else
+          # chain-state.json embeds a live block number that changes every run,
+          # so compare only its `.values` payload — a pure block bump is not a
+          # real on-chain change and must not open a no-op PR.
+          values_changed=false
+          if [ -f public/chain-state.json ]; then
+            NEW_VALUES=$(node -e "console.log(JSON.stringify(JSON.parse(require('fs').readFileSync('public/chain-state.json','utf8')).values))")
+            OLD_VALUES=$(git show HEAD:public/chain-state.json 2>/dev/null \
+              | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.stringify(JSON.parse(s).values))}catch{console.log('')}})")
+            [ "$NEW_VALUES" != "$OLD_VALUES" ] && values_changed=true
+          fi
+          # addresses.json + Etherscan cache: use `git status --porcelain` so NEW
+          # untracked cache files are detected too (git diff --quiet ignores them).
+          meta_changed=false
+          [ -n "$(git status --porcelain -- public/addresses.json .cache/etherscan)" ] && meta_changed=true
+
+          if [ "$values_changed" = true ] || [ "$meta_changed" = true ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
             BLOCK=$(node -e "console.log(JSON.parse(require('fs').readFileSync('public/chain-state.json','utf8')).block)")
             echo "block=$BLOCK" >> "$GITHUB_OUTPUT"
-            git diff --stat -- public/chain-state.json public/addresses.json .cache/etherscan
+            echo "On-chain values or address metadata changed (values_changed=$values_changed meta_changed=$meta_changed)."
+            git status --porcelain -- public/chain-state.json public/addresses.json .cache/etherscan
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "On-chain values + address metadata unchanged (block-only bump ignored) — nothing to commit."
           fi
 
       - name: Commit and push to chainstate-update branch

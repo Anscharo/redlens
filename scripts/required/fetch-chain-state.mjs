@@ -62,6 +62,13 @@ const chainlogEntries = Object.entries(addresses).filter(
 console.log(`Chainlog addresses: ${chainlogEntries.length}`);
 console.log(`RPC: ${RPC_URL}`);
 
+if (chainlogEntries.length === 0) {
+  throw new Error(
+    "No chainlog addresses in public/addresses.json — refusing to overwrite " +
+    "public/chain-state.json with an empty snapshot (likely a failed chainlog/address build upstream).",
+  );
+}
+
 const calls = [];
 
 async function loadAbi(addr) {

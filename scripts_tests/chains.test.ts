@@ -2,9 +2,9 @@
 // pipeline (build-graph normalizeChain, multisig chain headers, address-enrich
 // CHAIN_ID). Guards the specific→generic ordering and the future-chain collapse.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 // @ts-expect-error — .mjs without types; runtime-only import.
-import { normalizeChainLabel, CHAIN_ID } from "../scripts/lib/chains.mjs";
+import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC } from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
   it("defaults empty / unknown labels to ethereum", () => {
@@ -39,5 +39,43 @@ describe("CHAIN_ID", () => {
     expect(CHAIN_ID.base).toBe(8453);
     expect(CHAIN_ID.arbitrum).toBe(42161);
     expect(CHAIN_ID.solana).toBeUndefined();
+  });
+});
+
+describe("classifyChainLabel", () => {
+  it("classifies empty / blank / null as empty → ethereum", () => {
+    expect(classifyChainLabel("")).toEqual({ kind: "empty", chain: "ethereum" });
+    expect(classifyChainLabel("   ")).toEqual({ kind: "empty", chain: "ethereum" });
+    expect(classifyChainLabel(null)).toEqual({ kind: "empty", chain: "ethereum" });
+  });
+  it("classifies a registered chain (including robinhood) as known", () => {
+    expect(classifyChainLabel("Base Mainnet")).toMatchObject({ kind: "known", chain: "base" });
+    expect(classifyChainLabel("Robinhood Chain")).toMatchObject({ kind: "known", chain: "robinhood" });
+  });
+  it("classifies FUTURE_TO_ETHEREUM chains as deferred → ethereum", () => {
+    expect(classifyChainLabel("Plume Network")).toMatchObject({ kind: "deferred", chain: "ethereum", deferred: "plume" });
+  });
+  it("classifies an unrecognized non-empty label as unknown → ethereum", () => {
+    expect(classifyChainLabel("Wonderland")).toMatchObject({ kind: "unknown", chain: "ethereum", raw: "Wonderland" });
+  });
+});
+
+describe("normalizeChainLabel warnCtx", () => {
+  it("warns once for an unknown label with warnCtx, but not for known/deferred", () => {
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(normalizeChainLabel("Wonderland", "test-ctx")).toBe("ethereum");
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(normalizeChainLabel("Plume", "test-ctx")).toBe("ethereum");
+    expect(normalizeChainLabel("Base", "test-ctx")).toBe("base");
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+});
+
+describe("CHAIN_RPC", () => {
+  it("has an https rpc for every EVM chain and none for solana", () => {
+    expect(CHAIN_RPC.ethereum).toMatch(/^https:\/\//);
+    expect(CHAIN_RPC.robinhood).toMatch(/^https:\/\//);
+    expect(CHAIN_RPC.solana).toBeUndefined();
   });
 });

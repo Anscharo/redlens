@@ -42,6 +42,20 @@ async function throttleEtherscan() {
   }
 }
 
+/**
+ * Substantive proxy metadata fields — deliberately ignores fetchedAt so a
+ * re-verification that finds no upgrade doesn't rewrite (and git-dirty) the
+ * committed cache on every weekly run.
+ */
+function proxyMetaChanged(a, b) {
+  return (
+    a.implementation !== b.implementation ||
+    a.abi !== b.abi ||
+    a.contractName !== b.contractName ||
+    a.proxy !== b.proxy
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Cache I/O
 // ---------------------------------------------------------------------------
@@ -83,7 +97,9 @@ export async function fetchChainlog() {
     return inverted;
   } catch (err) {
     console.warn(`! chainlog fetch failed (${err.message}) — proceeding without chainlog labels`);
-    return {};
+    // null = fetch failed entirely (distinct from a real, never-empty result)
+    // so callers can refuse to overwrite artifacts with empty data.
+    return null;
   }
 }
 
@@ -147,6 +163,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
   const out = {};
   let misses = 0;
   let errors = 0;
+  let proxyRefreshed = 0;
   let processed = 0;
   const total = Object.keys(atlas).length;
 
@@ -164,6 +181,25 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
     const chainid = CHAIN_ID[info.chain] ?? 1;
 
     let entry = await readCache(chainid, addr);
+
+    // A cached proxy can be upgraded between weekly runs (its implementation
+    // address changes). When REFRESH_PROXY_CACHE is set (the weekly workflow),
+    // re-verify cached proxies and rewrite the cache only when the metadata
+    // actually changed — so a no-op re-verify doesn't dirty git every week.
+    if (entry && entry.proxy && process.env.REFRESH_PROXY_CACHE) {
+      try {
+        const fresh = await fetchEtherscan(chainid, addr, apiKey);
+        if (proxyMetaChanged(entry, fresh)) {
+          await writeCache(chainid, addr, fresh);
+          console.log(`  proxy metadata changed for ${addr}: impl ${entry.implementation || "∅"} → ${fresh.implementation || "∅"}`);
+          entry = fresh;
+          proxyRefreshed++;
+        }
+      } catch (err) {
+        console.warn(`! proxy re-verify ${chainid}/${addr}: ${err.message} — keeping cached entry`);
+      }
+    }
+
     if (!entry) {
       try {
         entry = await fetchEtherscan(chainid, addr, apiKey);
@@ -210,7 +246,7 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
   // Attach stats as a non-enumerable property so callers can read them without
   // contaminating Object.entries(out) iteration.
   Object.defineProperty(out, "__stats", {
-    value: { misses, errors },
+    value: { misses, errors, proxyRefreshed },
     enumerable: false,
   });
   return out;
