@@ -191,7 +191,9 @@ const server = Bun.serve({
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     // On-chain token balances for the addresses report (GET cached, POST refresh).
+    /* v8 ignore start -- request glue; handleBalances is unit-tested in balances.test.ts */
     "/api/balances": { GET: (req) => handleBalances(req as Request), POST: (req) => handleBalances(req as Request) },
+    /* v8 ignore stop */
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).

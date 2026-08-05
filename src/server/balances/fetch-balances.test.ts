@@ -7,6 +7,7 @@ import {
   assembleBalances,
   planCodeChecks,
   assembleCodeResults,
+  fetchBalances,
   type MulticallResult,
 } from "./fetch-balances.ts";
 
@@ -85,4 +86,24 @@ test("assembleCodeResults: empty/absent code is false, real bytecode is true", (
   expect(out.get("0xbb")).toBe(false);
   expect(out.get("0xcc")).toBe(false);
   expect(out.get("0xdd")).toBe(true);
+});
+
+// fetchBalances' per-chain grouping/filtering is pure — these inputs are all
+// filtered out before the (live-RPC, separately-verified) per-chain sweep, so
+// they exercise the real export without a network call.
+test("fetchBalances: an unsupported chain (no NATIVE_TOKEN) never reaches the network", async () => {
+  const out = await fetchBalances([{ address: "abc", chain: "solana", expectedTokens: [] }]);
+  expect(out).toEqual([]);
+});
+
+test("fetchBalances: the optional chains allowlist drops non-matching inputs", async () => {
+  const out = await fetchBalances(
+    [{ address: "0xaaa0000000000000000000000000000000000001", chain: "ethereum", expectedTokens: [] }],
+    ["base"],
+  );
+  expect(out).toEqual([]);
+});
+
+test("fetchBalances: empty input yields no results", async () => {
+  expect(await fetchBalances([])).toEqual([]);
 });
