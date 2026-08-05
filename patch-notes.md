@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-05
-- Added a Modification Frequency report showing how often documents get edited, with a timeline, per-section and per-type breakdowns, and a filterable document list
+- Added a Modification Frequency report showing semantic edit stats by time, type, and section
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
