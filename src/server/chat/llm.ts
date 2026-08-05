@@ -127,7 +127,7 @@ export function callWithTimeout(
 // harness's verifier/advisor roles so their generations land in the SAME trace as
 // the answer stream (chat.ts passes the shared per-turn obs). When PostHog is off
 // this is exactly the old plain-client behavior.
-export function makeOpenrouterJson(obs: ChatObservability = {}): JsonCall {
+export function makeOpenrouterJson(obs: ChatObservability = {}, surface = "atlas-chat-verify"): JsonCall {
   return async ({ model, messages, maxTokens, signal }) => {
     const t0 = Date.now();
     const res = await getChatClient().chat.completions.create(
@@ -137,7 +137,7 @@ export function makeOpenrouterJson(obs: ChatObservability = {}): JsonCall {
         temperature: 0,
         response_format: { type: "json_object" },
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
-        ...posthogParams(obs, "atlas-chat-verify"),
+        ...posthogParams(obs, surface),
       } as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
       { signal },
     );

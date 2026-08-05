@@ -15,6 +15,7 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { buildPrefetch, prefetchRound } from "../prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
+import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
 import { json } from "../http.ts";
@@ -122,10 +123,18 @@ export async function handleChat(req: Request): Promise<Response> {
   if (!convId) return json({ error: "conversation_not_found" }, 404);
 
   // Persist the user message before streaming, then load history (includes it).
+  // The updated_at bump runs alongside the history SELECT — independent
+  // writes, no added latency — so a conversation whose stream later aborts or
+  // 429s still sorts by its real last-activity time. Today only
+  // persistAssistant bumps updated_at, so an aborted-turn conversation sorts
+  // stale until (if ever) it gets a reply. With rename (conversations.ts)
+  // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
+  // message time` holds exactly, served by the existing conversations_user index.
   await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
-  const history = (await sql`
-    SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at
-  `) as { role: string; content: string }[];
+  const [history] = (await Promise.all([
+    sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
+    sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
+  ])) as [{ role: string; content: string }[], unknown];
 
   const ix = getIndexes();
 
@@ -134,7 +143,8 @@ export async function handleChat(req: Request): Promise<Response> {
   // route fast on brevity alone — see model-router.ts. This runs BEFORE the
   // system prompt is built because the citation format the prompt asks for
   // depends on which model will read it.
-  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
+  const priorAssistants = history.filter((m) => m.role === "assistant").length;
+  const route = routeTier(body.message, { followUp: priorAssistants > 0 });
   const models = resolveTierModels(route.tier);
 
   // The DB keeps the full conversation; the model gets a windowed replay
@@ -191,7 +201,22 @@ export async function handleChat(req: Request): Promise<Response> {
           }
         }
         // Don't persist an empty assistant row for an aborted turn.
-        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt, obs);
+        if (done && !req.signal.aborted) {
+          await persistAssistant(convId, done, Date.now() - startedAt, obs);
+          // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
+          // total; see title.ts). Unawaited + .catch()'d so it can never
+          // surface as an unhandled rejection or delay the stream's own
+          // teardown — the answer has already been sent to the client.
+          // Deliberately NOT passed req.signal: the SSE response (and thus
+          // the signal) is already closing/closed here, so forwarding it
+          // would make titling a silent no-op on every turn (see title.ts).
+          const TITLE_AT_TURNS = new Set([1, 4, 10]);
+          if (TITLE_AT_TURNS.has(priorAssistants + 1)) {
+            void titleConversation(convId, buildTitleTranscript(history, done.content), obs).catch((err) =>
+              captureError(err, obs, { stage: "title" }),
+            );
+          }
+        }
       } catch (err) {
         if (!req.signal.aborted) {
           captureError(err, obs, { stage: "stream_handler" });

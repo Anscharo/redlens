@@ -7,6 +7,7 @@ import { ErrorBoundary, PanelError } from "./components/ErrorBoundary";
 import { isStaleChunkError } from "./lib/staleChunk";
 import { AuthProvider } from "./components/chat/auth";
 import { SelectionProvider } from "./lib/selection";
+import { ChatOpenProvider } from "./lib/chatOpen";
 import { DataSourceContext, DEFAULT_SOURCE } from "./lib/dataSource";
 import { PreviewGate } from "./components/preview/PreviewGate";
 import { PreviewHome } from "./components/preview/PreviewHome";
@@ -35,7 +36,9 @@ function Root() {
       <DataSourceContext.Provider value={DEFAULT_SOURCE}>
         <AuthProvider>
           <SelectionProvider>
-            <App />
+            <ChatOpenProvider>
+              <App />
+            </ChatOpenProvider>
           </SelectionProvider>
         </AuthProvider>
       </DataSourceContext.Provider>

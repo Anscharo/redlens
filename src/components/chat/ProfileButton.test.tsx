@@ -18,6 +18,9 @@ vi.mock("../../lib/analytics", () => ({ track: vi.fn() }));
 // under vitest the real one returns [] (usersEnabled() is false), so stub it.
 vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "google"] }));
 
+let chatEnabledOn = true;
+vi.mock("../../lib/chatEnabled", () => ({ chatEnabled: () => chatEnabledOn }));
+
 import { ProfileButton } from "./ProfileButton";
 
 afterEach(() => {
@@ -25,6 +28,7 @@ afterEach(() => {
   vi.clearAllMocks();
   user = null;
   prefs = { traces: false, reduceMotion: false };
+  chatEnabledOn = true;
 });
 
 describe("ProfileButton signed out", () => {
@@ -67,6 +71,40 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByText("Preferences")).toBeInTheDocument();
     expect(screen.getByText("Collections")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();
+  });
+
+  it("shows a Conversations item directly below Collections when chatEnabled() is true", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    chatEnabledOn = true;
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    expect(screen.getByText("Conversations")).toBeInTheDocument();
+    // .rlc-menu-item elements aren't given role="menuitem" in the markup, so
+    // assert ordering by walking the DOM directly.
+    const labels = Array.from(document.querySelectorAll(".rlc-menu-item")).map((el) => el.textContent);
+    const collectionsIdx = labels.findIndex((t) => t?.includes("Collections"));
+    const conversationsIdx = labels.findIndex((t) => t?.includes("Conversations"));
+    expect(collectionsIdx).toBeGreaterThanOrEqual(0);
+    expect(conversationsIdx).toBe(collectionsIdx + 1);
+  });
+
+  it("hides the Conversations item when chatEnabled() is false", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    chatEnabledOn = false;
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    expect(screen.getByText("Collections")).toBeInTheDocument();
+    expect(screen.queryByText("Conversations")).toBeNull();
+  });
+
+  it("closes the menu when the Conversations link is clicked", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    chatEnabledOn = true;
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Conversations"));
+    expect(screen.queryByRole("menu")).toBeNull();
   });
 
   it("closes the menu when the Collections link is clicked", () => {

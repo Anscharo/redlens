@@ -54,6 +54,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mirrors convIdRef as state so callers (useChatSession, tests) can read it
+  // reactively. The ref stays — send()'s closure over convIdRef.current is
+  // what lets a reply land on the right conversation without re-subscribing.
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const convIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -99,7 +103,26 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     abortRef.current?.abort();
     abortRef.current = null;
     convIdRef.current = null;
+    setConversationId(null);
     setMessages([]);
+    setError(null);
+    setStreaming(false);
+  }, []);
+
+  // Seeds the stream with a restored conversation (or clears to a fresh chat
+  // via hydrate(null, [])). Aborts any in-flight stream FIRST: patchLast
+  // mutates whatever array is currently in `messages`, so if the old
+  // stream's next event were dispatched after messages/convIdRef were
+  // already reset but before the abort took effect, it would land on the
+  // newly hydrated array and corrupt it. Aborting first — before the
+  // request even changes — closes that window (see the
+  // chat-conversation-memory plan §6).
+  const hydrate = useCallback((id: string | null, msgs: ChatMsg[]) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    convIdRef.current = id;
+    setConversationId(id);
+    setMessages(msgs);
     setError(null);
     setStreaming(false);
   }, []);
@@ -109,6 +132,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       switch (ev.type) {
         case "meta":
           convIdRef.current = ev.conversationId;
+          setConversationId(ev.conversationId);
           break;
         case "token":
           // Answer is streaming — the status ticker yields to the live text.
@@ -250,6 +274,24 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           setStreaming(false);
           return { rateLimited: { message, resetsAt: body.resetsAt, kind } };
         }
+        if (res.status === 404) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          if (body.error === "conversation_not_found") {
+            // The conversation was deleted elsewhere (another tab, or the
+            // /conversations page) between hydrate and this send. Clear the
+            // stale id so the NEXT send starts a fresh conversation
+            // server-side, and finalize this turn as failed — Message.tsx's
+            // own "didn't come through" copy — rather than routing it through
+            // `error` (ErrorNote's generic banner), which would misrepresent
+            // a stale reference as a real failure.
+            convIdRef.current = null;
+            setConversationId(null);
+            finalizeLast({ failed: true });
+            setStreaming(false);
+            return {};
+          }
+          throw new Error(`chat request failed (404)`);
+        }
         if (!res.ok || !res.body) {
           throw new Error(`chat request failed (${res.status})`);
         }
@@ -305,5 +347,5 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     [streaming, dispatch, patchLast, finalizeLast, handlers],
   );
 
-  return { messages, streaming, error, send, stop, reset };
+  return { messages, streaming, error, conversationId, send, stop, reset, hydrate };
 }

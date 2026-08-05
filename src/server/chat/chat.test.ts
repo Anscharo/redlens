@@ -35,6 +35,22 @@ mock.module("../db.ts", () => ({
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
 }));
 
+// NOTE on title.ts: deliberately NOT mocked via mock.module here. bun:test
+// imports every test file's module-level code (running mock.module calls
+// immediately) before running any file's hooks/tests, so a mock.module("./
+// title.ts", ...) registered here would permanently replace the module for
+// the REST OF THE PROCESS — including title.test.ts's own `await
+// import("./title.ts")`, which needs the real thing since title.ts is what
+// IT tests. (Confirmed empirically: mock.restore() does not undo
+// mock.module — that's only for mock.fn()/spyOn — so there is no way to
+// "unmock" it later in this file either.) Instead, titling is controlled via
+// config.chatTitleModel: left at "" (see beforeAll below) for every
+// pre-existing test, which makes titleConversation an immediate no-op (its
+// first line is `if (!model) return;`) — zero network calls, so there's
+// nothing to race against the per-test fetch mock swaps. The dedicated
+// "titling" describe block below temporarily sets a real chatTitleModel and
+// drives titleConversation through its REAL implementation end-to-end.
+
 // Dynamic imports: everything that (transitively) reaches "../db.ts" must be
 // imported AFTER the mock.module registration above, or it captures the real
 // module (static imports are hoisted before any module-body code runs).
@@ -69,19 +85,28 @@ describe("handleChat", () => {
   const g = globalThis as unknown as { __llmFetchCurrentImpl?: typeof fetch; __llmFetchDispatcher?: typeof fetch };
   let savedJwtSecret: string;
   let savedOpenrouterKey: string;
+  let savedTitleModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
     // openrouterApiKey (which activates embed's network path) — process-global under bun.
     config.jwtSecret = savedJwtSecret;
     config.openrouterApiKey = savedOpenrouterKey;
+    config.chatTitleModel = savedTitleModel;
   });
 
   beforeAll(() => {
     savedJwtSecret = config.jwtSecret;
     savedOpenrouterKey = config.openrouterApiKey;
+    savedTitleModel = config.chatTitleModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
+    // Off by default for every pre-existing test (see the file-header note on
+    // title.ts): titleConversation's first line is `if (!model) return;`, so
+    // this makes it an unconditional no-op — no network call, nothing to race
+    // against the per-test fetch mock swaps below. The "titling" describe
+    // block turns it back on for its own tests.
+    config.chatTitleModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.
@@ -99,23 +124,28 @@ describe("handleChat", () => {
     sqlHandlers = [];
   });
 
-  function sseAnswer(text: string): typeof fetch {
+  // Builds the mocked streaming chat-completion Response body (shared by
+  // sseAnswer below and the titling suite's combined dispatcher).
+  function sseResponse(text: string): Response {
     const chunks = [
       { id: "gen-h1", choices: [{ index: 0, delta: { content: text }, finish_reason: null }] },
       { id: "gen-h1", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
       { id: "gen-h1", choices: [], usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } },
     ];
     const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
-    return (async () =>
-      new Response(
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode(body));
-            controller.close();
-          },
-        }),
-        { status: 200, headers: { "content-type": "text/event-stream" } },
-      )) as unknown as typeof fetch;
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "content-type": "text/event-stream" } },
+    );
+  }
+
+  function sseAnswer(text: string): typeof fetch {
+    return (async () => sseResponse(text)) as unknown as typeof fetch;
   }
 
   async function authedRequest(body: unknown): Promise<Request> {
@@ -128,14 +158,21 @@ describe("handleChat", () => {
   }
 
   // Default handlers for a fully happy path: ownership check finds the convo,
-  // history is just the just-inserted user message, rate window has headroom.
-  function installHappyHandlers(opts: { convId?: string; tokens?: number } = {}) {
+  // history is just the just-inserted user message (plus `priorAssistants`
+  // synthetic prior assistant rows, for the turn-count titling tests), rate
+  // window has headroom.
+  function installHappyHandlers(opts: { convId?: string; tokens?: number; priorAssistants?: number } = {}) {
     const convId = opts.convId ?? "conv-1";
+    const history = [
+      { role: "user", content: "hi" },
+      ...Array.from({ length: opts.priorAssistants ?? 0 }, () => ({ role: "assistant", content: "prior answer" })),
+    ];
     sqlHandlers.push((text) => {
       if (text.includes("SUM(COALESCE")) return [{ tokens: opts.tokens ?? 0 }];
       if (text.includes("conversations WHERE id")) return [{ id: convId }];
       if (text.includes("INSERT INTO conversations")) return [{ id: convId }];
-      if (text.includes("SELECT role, content FROM messages")) return [{ role: "user", content: "hi" }];
+      if (text.includes("SELECT role, content FROM messages")) return history;
+      if (text.includes("UPDATE conversations SET updated_at")) return [];
       if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) return [{ id: "msg-1" }];
       return undefined;
     });
@@ -258,5 +295,149 @@ describe("handleChat", () => {
     } finally {
       g.__llmFetchCurrentImpl = prevImpl;
     }
+  });
+
+  it("bumps conversations.updated_at on the user message insert", async () => {
+    installHappyHandlers();
+    const prevImpl = g.__llmFetchCurrentImpl!;
+    g.__llmFetchCurrentImpl = sseAnswer("Hello.");
+    try {
+      await handleChat(await authedRequest({ message: "hi" }));
+      expect(queryLog.some((q) => q.text.includes("UPDATE conversations SET updated_at = now() WHERE id"))).toBe(true);
+    } finally {
+      g.__llmFetchCurrentImpl = prevImpl;
+    }
+  });
+
+  // Runs titleConversation through its REAL implementation end to end (not a
+  // stub — see the file-header note on why title.ts can't be mock.module'd
+  // here). The chat-completion stream and the titling call both go through
+  // the SAME shared fetch dispatcher, so this dispatcher tells them apart by
+  // request shape (the stream sets `stream:true`; the titling call is
+  // OpenAI's non-streaming JSON mode) and answers each appropriately,
+  // capturing the titling call's request body for assertions.
+  describe("titling", () => {
+    beforeAll(() => {
+      config.chatTitleModel = "test/title-model";
+    });
+    afterAll(() => {
+      config.chatTitleModel = "";
+    });
+
+    function titlingFetchImpl(answerText: string, titleCalls: { model: string; messages: unknown[] }[]): typeof fetch {
+      return (async (_url: unknown, init?: RequestInit) => {
+        const parsed = init?.body ? (JSON.parse(init.body as string) as { stream?: boolean; model: string; messages: unknown[] }) : ({} as any);
+        if (parsed.stream) return sseResponse(answerText);
+        // Non-streaming JSON-mode call — the titling call (the verifier is
+        // the only other JSON-mode caller in chat.ts, and it stays off here
+        // since config.chatVerifierModel defaults to "").
+        titleCalls.push(parsed);
+        return new Response(
+          JSON.stringify({
+            id: "gen-title-1",
+            choices: [{ message: { content: '{"title":"A Generated Title"}' } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }) as unknown as typeof fetch;
+    }
+
+    async function runTurn(priorAssistants: number): Promise<{ model: string; messages: unknown[] }[]> {
+      // sqlHandlers is a shared queue with no per-call scoping (afterEach only
+      // resets it BETWEEN it() blocks) — reset it explicitly here so a test
+      // that calls runTurn more than once (e.g. "does not fire on turn 2 or
+      // 3") doesn't have its second call still matched by the first call's
+      // stale handler.
+      sqlHandlers = [];
+      installHappyHandlers({ priorAssistants });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      const titleCalls: { model: string; messages: unknown[] }[] = [];
+      g.__llmFetchCurrentImpl = titlingFetchImpl("An answer.", titleCalls);
+      try {
+        const res = await handleChat(await authedRequest({ message: "a question" }));
+        await res.text(); // drains the SSE stream itself
+        // The titling call is genuinely fire-and-forget, several real async
+        // ticks deep (callWithTimeout → the JsonCall → the openai SDK's own
+        // internal awaits before it calls fetch) — unlike a directly-injected
+        // stub, those ticks aren't guaranteed to have all resolved by the time
+        // res.text() settles. Flush a macrotask so they do.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        return titleCalls;
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    }
+
+    it("fires on turn 1 (priorAssistants=0)", async () => {
+      const calls = await runTurn(0);
+      expect(calls.length).toBe(1);
+      expect(calls[0].model).toBe("test/title-model");
+    });
+
+    it("does not fire on turn 2 or 3", async () => {
+      expect((await runTurn(1)).length).toBe(0);
+      expect((await runTurn(2)).length).toBe(0);
+    });
+
+    it("fires on turn 4 (priorAssistants=3)", async () => {
+      expect((await runTurn(3)).length).toBe(1);
+    });
+
+    it("does not fire on turns 5 through 9", async () => {
+      for (const priorAssistants of [4, 5, 6, 7, 8]) {
+        expect((await runTurn(priorAssistants)).length).toBe(0);
+      }
+    });
+
+    it("fires on turn 10 (priorAssistants=9)", async () => {
+      expect((await runTurn(9)).length).toBe(1);
+    });
+
+    it("does not fire on turn 11 or later", async () => {
+      expect((await runTurn(10)).length).toBe(0);
+    });
+
+    it("is unawaited — a real provider failure on the titling call doesn't affect the SSE stream", async () => {
+      installHappyHandlers({ priorAssistants: 0 });
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      // The streaming answer succeeds; the titling call gets a real HTTP
+      // failure. titleConversation's own try/catch must swallow this
+      // entirely (see title.test.ts) — this test's job is only to confirm
+      // that failure never reaches the client-visible stream.
+      g.__llmFetchCurrentImpl = (async (_url: unknown, init?: RequestInit) => {
+        const parsed = init?.body ? (JSON.parse(init.body as string) as { stream?: boolean }) : ({} as any);
+        if (parsed.stream) return sseResponse("Fine despite titling failing.");
+        return new Response("internal error", { status: 500 });
+      }) as unknown as typeof fetch;
+      try {
+        const res = await handleChat(await authedRequest({ message: "a question" }));
+        expect(res.status).toBe(200);
+        const text = await res.text();
+        const events = text
+          .split("\n\n")
+          .filter((l) => l.startsWith("data: "))
+          .map((l) => JSON.parse(l.slice("data: ".length)));
+        const done = events.find((e) => e.type === "done");
+        expect(done).toBeDefined();
+        expect(done.content).toBe("Fine despite titling failing.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    // "req.signal is not forwarded to titleConversation" is not re-verified
+    // dynamically here (the earlier mock.module-based version could inspect
+    // the exact JS arguments; the real-network version above can't, since
+    // callWithTimeout always wraps whatever signal it's given into a NEW
+    // AbortSignal.any(...) before it ever reaches fetch — there's nothing
+    // meaningfully different to observe at the HTTP layer whether or not
+    // chat.ts had passed req.signal through). The guarantee instead comes
+    // from chat.ts's fixed 3-argument call site (convId, transcript, obs)
+    // plus TypeScript arity checking on titleConversation's declared
+    // 4-parameter signature (convId, transcript, obs?, call?) — a 5th
+    // positional argument, or stuffing a signal into `obs` (typed
+    // ErrorContext, which has no signal field), is a compile error, not
+    // something that needs a runtime test.
   });
 });
