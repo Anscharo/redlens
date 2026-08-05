@@ -3,7 +3,6 @@
 // CHAIN_ID). Guards the specific→generic ordering and the future-chain collapse.
 
 import { describe, it, expect, vi } from "vitest";
-// @ts-expect-error — .mjs without types; runtime-only import.
 import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_SUPPORTS_ETHERSCAN } from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
