@@ -21,6 +21,7 @@ import {
   FREQUENCY_COMPARATORS,
   FREQUENCY_MIN,
   FREQUENCY_MAX,
+  FREQUENCY_DEFAULT,
   type ModCountBucket,
   type ModFrequencyGrouping,
   type FrequencyComparator,
@@ -40,7 +41,7 @@ const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
 };
 
 const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);
-const thresholdCodec = urlInt(FREQUENCY_MIN);
+const thresholdCodec = urlInt(FREQUENCY_DEFAULT);
 
 // Pill text bakes in the live threshold — "Least Frequent (≤1 edit)" reads as
 // a preview of what the pill currently selects, not just a static label.
@@ -93,7 +94,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     const clamped = Math.min(FREQUENCY_MAX, Math.max(FREQUENCY_MIN, Math.round(n)));
     setThreshold(clamped);
     setThresholdInput(String(clamped));
-    track("report_filter", { report: "mod-frequency", filter_type: "threshold", value: clamped, active: clamped !== FREQUENCY_MIN });
+    track("report_filter", { report: "mod-frequency", filter_type: "threshold", value: clamped, active: clamped !== FREQUENCY_DEFAULT });
   };
 
   // The full, unfiltered atlas — the per-category summary's denominator and

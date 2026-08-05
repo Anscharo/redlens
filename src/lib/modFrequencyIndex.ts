@@ -205,9 +205,11 @@ export function buildModCountHistogram(rows: readonly ModFrequencyRow[]): ModCou
 export type FrequencyComparator = "lte" | "gt";
 export const FREQUENCY_COMPARATORS: readonly FrequencyComparator[] = ["lte", "gt"];
 
-/** Bounds for the threshold number input. */
-export const FREQUENCY_MIN = 1;
+/** Bounds for the threshold number input — 0 so "≤0 edits" (never modified) is selectable. */
+export const FREQUENCY_MIN = 0;
 export const FREQUENCY_MAX = 12;
+/** Initial threshold when the report first loads (not the input's floor). */
+export const FREQUENCY_DEFAULT = 1;
 
 export function matchesFrequency(count: number, comparator: FrequencyComparator, threshold: number): boolean {
   return comparator === "lte" ? count <= threshold : count > threshold;

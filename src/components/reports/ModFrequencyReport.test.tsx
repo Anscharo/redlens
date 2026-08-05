@@ -122,7 +122,7 @@ describe("ModFrequencyReport", () => {
     expect(screen.getByText("Most Frequent (>4 edits)")).toBeInTheDocument();
   });
 
-  it("clamps the threshold input to [1, 12] and reverts on invalid entry", async () => {
+  it("clamps the threshold input to [0, 12] and reverts on invalid entry", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
     await screen.findByText("Never Touched Doc");
     const input = screen.getByRole("spinbutton");
@@ -131,9 +131,26 @@ describe("ModFrequencyReport", () => {
     fireEvent.blur(input);
     expect(await screen.findByDisplayValue("12")).toBeInTheDocument();
 
+    fireEvent.change(input, { target: { value: "-3" } });
+    fireEvent.blur(input);
+    expect(await screen.findByDisplayValue("0")).toBeInTheDocument();
+
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.blur(input);
-    expect(await screen.findByDisplayValue("12")).toBeInTheDocument(); // reverts to last committed value
+    expect(await screen.findByDisplayValue("0")).toBeInTheDocument(); // reverts to last committed value
+  });
+
+  it("allows a threshold of 0 to isolate never-modified docs", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Never Touched Doc");
+    const input = screen.getByRole("spinbutton");
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText("Least Frequent (≤0 edits)")).toBeInTheDocument();
+    expect(screen.getByText("Never Touched Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Once Edited Doc")).not.toBeInTheDocument(); // count 1, excluded now
+    expect(screen.getByText(/documents with ≤0 modification/)).toBeInTheDocument();
   });
 
   it("switches grouping via the pills (section/type only, no flat list)", async () => {
