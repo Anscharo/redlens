@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useChatStream } from "./useChatStream";
 import type { ChatEvent } from "./api";
@@ -202,6 +202,58 @@ describe("useChatStream event dispatch", () => {
       await result.current.send("question");
     });
     expect(result.current.messages.at(-1)?.content).toBe("ok");
+  });
+});
+
+describe("useChatStream export events", () => {
+  // jsdom has no URL.createObjectURL/revokeObjectURL — stub them so the
+  // auto-download path in dispatch runs fully instead of throwing.
+  const realCreate = URL.createObjectURL;
+  const realRevoke = URL.revokeObjectURL;
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
+  });
+  afterEach(() => {
+    URL.createObjectURL = realCreate;
+    URL.revokeObjectURL = realRevoke;
+  });
+
+  it("auto-downloads a csv export and records the artifact on the message", async () => {
+    mockChat([
+      { type: "export", format: "csv", filename: "data.csv", mime: "text/csv;charset=utf-8", content: '"A"\r\n"1"', bytes: 8 },
+      { type: "token", text: "Your file is downloading." },
+      { type: "done", content: "Your file is downloading.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("export it");
+    });
+    const exports = result.current.messages.at(-1)?.exports;
+    expect(exports).toHaveLength(1);
+    expect(exports?.[0]).toMatchObject({ format: "csv", filename: "data.csv" });
+    expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it("rewrites in-app atlas links to absolute URLs in a markdown export", async () => {
+    mockChat([
+      {
+        type: "export",
+        format: "markdown",
+        filename: "report.md",
+        mime: "text/markdown;charset=utf-8",
+        content: "See [Doc](/atlas/11111111-1111-1111-1111-111111111111).",
+        bytes: 10,
+      },
+      { type: "done", content: "Done.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("export it");
+    });
+    const content = result.current.messages.at(-1)?.exports?.[0].content ?? "";
+    expect(content).toContain("/atlas?id=11111111-1111-1111-1111-111111111111");
+    expect(content).not.toContain("(/atlas/11111111");
   });
 });
 

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import type OpenAI from "openai";
 import { ATLAS_TOOLS, TOOLS_BY_NAME, toolDescription } from "./tool-registry.ts";
+import { EXPORT_TOOL_NAME, EXPORT_TOOL_SHAPE, EXPORT_TOOL_DESCRIPTION } from "./export-tool.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
 import { config } from "../../config.ts";
 import { captureError, type ErrorContext } from "../../posthog-node.ts";
@@ -27,6 +28,20 @@ export const CHAT_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = ATLAS_TO
     parameters: toJsonSchema(t.shape),
   },
 }));
+
+// Chat-ONLY export tool. Deliberately appended here, not sourced from
+// ATLAS_TOOLS, so it never reaches the MCP server (which has no browser to
+// download to). The loop (chat-loop.ts) intercepts calls to it by name and
+// yields an `export` SSE event rather than routing through execToolDetailed —
+// so it needs no registry handler.
+CHAT_TOOLS.push({
+  type: "function",
+  function: {
+    name: EXPORT_TOOL_NAME,
+    description: EXPORT_TOOL_DESCRIPTION,
+    parameters: toJsonSchema(EXPORT_TOOL_SHAPE),
+  },
+});
 
 export function safeParseArgs(raw: string): Record<string, unknown> {
   try {

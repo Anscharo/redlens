@@ -36,6 +36,7 @@
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
 - Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
+- Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
 
 
 ## 2026-08-03
@@ -63,9 +64,6 @@
 ## 2026-07-27
 - Added an Atlas CrossView report with a visual chunk map of the Atlas, weight bars, a concept catalog with live re-computed data blocks and CSV export, a glossary of defined terms, and CSV export of the chunk breakdown
 - The chatbot can now answer cross-cutting questions from the concept censuses, like how many registries are empty or which document types are unused
-
-## 2026-08-04
-- Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
 
 ## 2026-07-24
 - Fixed sign-in failing when the site is opened on an alternate domain: visitors are now redirected to the canonical address

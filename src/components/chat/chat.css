@@ -220,6 +220,23 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 .rlc-cite-doc { font: 400 11.5px/1 "Source Code Pro", monospace; color: var(--tan-3); }
 .rlc-cite-title { font: 400 14px/1 var(--serif, "Lora", serif); color: var(--tan-2); }
 
+/* ── Export / download chips (export_findings tool) ─────────────────────── */
+.rlc-exports { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 8px; }
+.rlc-export-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+}
+.rlc-export-chip:hover { background: var(--hover); border-color: var(--accent); }
+.rlc-export-icon { color: var(--accent); font-size: 13px; line-height: 1; }
+.rlc-export-name { font: 400 12.5px/1 "Source Code Pro", monospace; color: var(--tan-2); }
+
 /* ── Verification badge (reliability harness) ──────────────────────────── */
 .rlc-verify { margin-top: 8px; }
 .rlc-statusline { margin-top: 6px; }

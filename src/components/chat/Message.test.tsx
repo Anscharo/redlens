@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Message } from "./Message";
 import type { ChatMsg } from "./useChatStream";
@@ -111,6 +111,33 @@ describe("Message", () => {
     render(<Message msg={baseMsg({ content: "", failed: true })} streaming showTrace={false} onAtlas={vi.fn()} />);
     expect(screen.getByText("searching the stars…")).toBeInTheDocument();
     expect(screen.queryByText(/This reply didn.t come through/)).toBeNull();
+  });
+
+  it("renders a download button per export and downloads on click", () => {
+    const realCreate = URL.createObjectURL;
+    const realRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
+    try {
+      render(
+        <Message
+          msg={baseMsg({
+            done: true,
+            exports: [{ format: "csv", filename: "data.csv", mime: "text/csv;charset=utf-8", content: "a", bytes: 1 }],
+          })}
+          streaming={false}
+          showTrace={false}
+          onAtlas={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("files · 1")).toBeInTheDocument();
+      const btn = screen.getByRole("button", { name: /data\.csv/ });
+      fireEvent.click(btn);
+      expect(URL.createObjectURL).toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = realCreate;
+      URL.revokeObjectURL = realRevoke;
+    }
   });
 
   it("shows a VerifyBadge when the message carries a verify state", () => {
