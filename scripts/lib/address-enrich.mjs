@@ -284,6 +284,12 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
     // expectedTokens) stay in addresses.atlas.json and are never written here.
     // label and aliases are derived at read time by loadAddresses() in the
     // frontend (chainlogId ?? entityLabel ?? etherscanName).
+    //
+    // isContract starts from "has verified source" only as a provisional value;
+    // build-addresses then overwrites every EVM entry with the eth_getCode
+    // answer (address-code.mjs). Verified source is a strictly narrower thing
+    // than having code, so this alone would read every unverified contract as
+    // an EOA.
     out[addr] = {
       chain: info.chain,
       ...(chainlogId ? { chainlogId } : {}),

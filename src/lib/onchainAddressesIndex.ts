@@ -63,11 +63,10 @@ const SKY_SYSTEM_ROLES = new Set([
 //   EOA       — no on-chain bytecode.
 //   Other      — a contract we can't place more precisely (e.g. a VoteDelegate).
 //
-// info.isContract actually means "Etherscan-verified contract" (build-addresses.mjs:
-// isContract = Boolean(etherscanName)) — an unverified contract reads `false` there
-// too. hasCode is the real eth_getCode signal from the balances refresh (null before
-// the first refresh, or for addresses the atlas already had verified); it overrides
-// isContract when present so an unverified contract lands in "Other", not "EOA".
+// info.isContract is the eth_getCode answer as of the last build-addresses run
+// (address-code.mjs). hasCode is the same signal taken live during a balances
+// refresh, so it's fresher when present (null before the first refresh) and
+// overrides isContract; they should agree otherwise.
 export function classifyAddress(info: AddressInfo, hasCode?: boolean | null): AddressType {
   const roles = info.roles ?? [];
   const has = (r: string) => roles.includes(r);

@@ -120,6 +120,13 @@ Two separate artifacts — never mix their fields:
 | `public/addresses.atlas.json` | `build-index` (initial), `build-graph` Phase 4.5 (enrichment) | `chain`, `explorerUrl`, `roles`, `entityLabel`, `aliases`, `expectedTokens` |
 | `public/addresses.json` | `build-addresses` | `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?` |
 
+**`isContract` is the `eth_getCode` answer**, not "the explorer verified it". `address-enrich` sets a provisional value from `Boolean(etherscanName)`, then `build-addresses` overwrites every EVM entry via `address-code.mjs` (`applyOnchainCode`, public RPC from `CHAIN_RPC`, no API key). Verified source is strictly narrower than having code, so the provisional value alone reads every deployed-but-unverified contract as an EOA.
+
+Two things that pass through `address-code.mjs` are load-bearing:
+
+- A failed RPC call is signalled as `{ ok: false }`, never as an undefined code — viem's `getCode` resolves to `undefined` for an address with *no* bytecode, so the two are otherwise indistinguishable and a network blip would downgrade real contracts to EOAs.
+- Chains with no `rpcUrl` (solana) are skipped entirely and keep the explorer's value. Solana addresses are consequently still hardcoded `isContract: false` in `address-enrich`, so they classify as "EOA" in the On-Chain Addresses report — a known wart, not a checked fact.
+
 `build-addresses` must never write atlas annotation fields into `addresses.json`.
 
 The frontend `loadAddresses()` loads both in parallel, merges per-address, and resolves `label = chainlogId ?? entityLabel ?? etherscanName`.

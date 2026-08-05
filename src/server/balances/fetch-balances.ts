@@ -117,9 +117,10 @@ export function assembleBalances(
   return out;
 }
 
-// Pure: addresses on this chain worth an eth_getCode check — those Etherscan
-// didn't verify (isContract false/undefined), deduplicated and lowercased.
-// Verified contracts don't need it; unsupported chains yield nothing.
+// Pure: addresses on this chain worth a live eth_getCode check — those the last
+// build-addresses run found no bytecode at (isContract false/undefined),
+// deduplicated and lowercased. Known contracts can't stop being contracts, so
+// they don't need re-checking; unsupported chains yield nothing.
 export function planCodeChecks(chain: string, inputs: AddressInput[]): string[] {
   if (!NATIVE_TOKEN[chain]) return [];
   const out = new Set<string>();
