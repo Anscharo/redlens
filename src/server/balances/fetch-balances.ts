@@ -181,9 +181,36 @@ async function fetchChain(
   return { balances, codeResults };
 }
 
+/**
+ * Pure: one row per address this chain had anything to say about.
+ *
+ * Keyed on the union of the two maps, not just the balance keys. An address
+ * holding nothing still has a useful eth_getCode answer, and those are exactly
+ * the addresses most likely to be mislabelled — an unverified contract with no
+ * tokens. Iterating balances alone discarded their hasCode on every sweep.
+ *
+ * An empty balance map is still emitted alongside a code answer; refreshBalances
+ * COALESCEs it so it can't overwrite a good reading (viem reports failed
+ * multicall entries by omission, so empty is indistinguishable from failed).
+ */
+export function assembleChainResults(
+  chain: string,
+  balances: Map<string, BalanceMap>,
+  codeResults: Map<string, boolean>,
+): BalanceResult[] {
+  const out: BalanceResult[] = [];
+  for (const address of new Set([...balances.keys(), ...codeResults.keys()])) {
+    const bal = balances.get(address) ?? {};
+    const hasCode = codeResults.get(address);
+    if (Object.keys(bal).length === 0 && hasCode === undefined) continue;
+    out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}) });
+  }
+  return out;
+}
+
 // Fetch balances for many addresses across chains (one multicall per chain).
 // `chains` optionally restricts which chains to fetch. Returns one result per
-// (address, chain) that produced at least one balance.
+// (address, chain) that produced at least one balance OR an eth_getCode answer.
 export async function fetchBalances(
   inputs: AddressInput[],
   chains?: string[],
@@ -201,11 +228,7 @@ export async function fetchBalances(
   for (const [chain, list] of byChain) {
     try {
       const { balances, codeResults } = await fetchChain(chain, list);
-      for (const [address, bal] of balances) {
-        if (Object.keys(bal).length === 0) continue;
-        const hasCode = codeResults.get(address);
-        out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}) });
-      }
+      out.push(...assembleChainResults(chain, balances, codeResults));
     } catch (e) {
       console.warn(`balances: chain ${chain} failed (${(e as Error).message}) — skipped`);
     }

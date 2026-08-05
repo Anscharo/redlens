@@ -170,8 +170,6 @@ export async function getDbAtlasSha(): Promise<string | null> {
   }
 }
 
-
-
 // public/search-index.json is stale-by-construction after a DB refresh (it
 // still reflects the PREVIOUS atlas sha): the happy path (refreshInPlaceFromDisk)
 // rewrites it next, but if that throws, the rebuildFromDisk() fallback loads

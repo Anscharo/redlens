@@ -51,9 +51,15 @@ export function loadAddresses(base: string = liveAtlasBase()): Promise<Record<st
         // build-graph enriches it). Default to empty arrays so a partial build
         // still renders without throwing.
         const aliases = [...new Set([...(a.aliases ?? []), ...aliasCandidates])].sort();
+        // The on-chain chain wins over the atlas's reading of it. build-addresses
+        // probes every chain an ambiguous doc could mean and settles on the one
+        // the address actually exists on (address-code.mjs
+        // resolvePresentChains), so `a.chain` may still be the pre-probe guess.
+        // Falls back to the atlas when the address isn't in addresses.json yet.
+        const chain = o.chain ?? a.chain;
         out[addr] = {
-          chain: a.chain,
-          explorerUrl: (EXPLORER[a.chain] ?? EXPLORER.ethereum) + addr,
+          chain,
+          explorerUrl: (EXPLORER[chain] ?? EXPLORER.ethereum) + addr,
           label,
           ...(a.entityLabel ? { entityLabel: a.entityLabel } : {}),
           ...(o.chainlogId ? { chainlogId: o.chainlogId } : {}),

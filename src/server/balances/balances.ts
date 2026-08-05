@@ -101,12 +101,16 @@ async function doRefresh(): Promise<BalancesResponse> {
     const now = new Date().toISOString();
     await sql.begin(async (tx) => {
       for (const r of results) {
-        // has_code: COALESCE onto the existing value when this sweep didn't check
-        // this address (r.hasCode undefined → null placeholder) — a verified
-        // contract's has_code stays whatever it was rather than being cleared.
+        // Both columns COALESCE onto the existing value when this sweep had
+        // nothing to say. has_code: undefined → the address wasn't checked, so
+        // a verified contract's flag isn't cleared. balances: an empty map is
+        // indistinguishable from a multicall whose calls all failed (viem
+        // reports failures by omission), so it must not overwrite a good
+        // reading — rows now reach here on a hasCode result alone.
+        const balances = Object.keys(r.balances).length > 0 ? r.balances : null;
         await tx`
           UPDATE atlas_addresses
-          SET balances = ${r.balances}::jsonb, balances_checked_at = ${now},
+          SET balances = COALESCE(${balances}::jsonb, balances), balances_checked_at = ${now},
               has_code = COALESCE(${r.hasCode ?? null}, has_code)
           WHERE address = ${r.address} AND chain = ${r.chain}
         `;

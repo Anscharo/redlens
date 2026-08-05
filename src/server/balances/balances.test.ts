@@ -59,12 +59,14 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
     );
   }
   if (text.includes("UPDATE atlas_addresses") && text.includes("SET balances")) {
-    const [balancesJson, checkedAt, hasCodeParam, address, chain] = values as [string, string, boolean | null, string, string];
+    const [balancesJson, checkedAt, hasCodeParam, address, chain] = values as [string | null, string, boolean | null, string, string];
     const row = rows.find((r) => r.address === address && r.chain === chain);
     if (row) {
-      row.balances = balancesJson;
+      // Mirror both SQL COALESCEs: a null parameter means "this sweep had
+      // nothing to say about this column", so the stored value survives.
+      row.balances = balancesJson ?? row.balances;
       row.balances_checked_at = checkedAt;
-      row.has_code = hasCodeParam ?? row.has_code; // mirror SQL COALESCE(hasCodeParam, has_code)
+      row.has_code = hasCodeParam ?? row.has_code;
     }
     return Promise.resolve([]);
   }
@@ -210,9 +212,27 @@ describe("handleBalances POST", () => {
     expect(body.addresses["0xbbb|ethereum"].hasCode).toBeNull(); // untouched (was already null) — not overwritten
   });
 
-  it("leaves the cache unchanged and refreshed:false when the chain sweep produces nothing", async () => {
+  it("keeps cached balances when the multicall fails but the code check still answers", async () => {
+    // A failed multicall reports by omission, so an empty balance map is
+    // indistinguishable from "holds nothing" — it must not clobber the cache.
+    // The eth_getCode answer is still real, so the sweep did refresh something.
     rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: false, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: null, has_code: null }];
-    multicallImpl = async (contracts) => contracts.map(() => ({ status: "failure" })); // every call fails → no balances
+    multicallImpl = async (contracts) => contracts.map(() => ({ status: "failure" }));
+    getCodeImpl = async () => "0x60806040"; // it is a contract
+
+    const res = await handleBalances(req("POST"));
+    const body = (await res.json()) as BalancesResponse;
+    expect(body.refreshed).toBe(true);
+    expect(rows[0].has_code).toBe(true);
+    expect(rows[0].balances).toEqual({ ETH: { raw: "1", decimals: 18 } }); // NOT overwritten with {}
+    getCodeImpl = async () => "0x";
+  });
+
+  it("leaves the cache unchanged and refreshed:false when the sweep learns nothing at all", async () => {
+    // Already known to be a contract, so planCodeChecks skips it — with the
+    // multicall failing too, there is genuinely nothing to write.
+    rows = [{ address: "0xaaa", chain: "ethereum", expected_tokens: [], is_contract: true, balances: { ETH: { raw: "1", decimals: 18 } }, balances_checked_at: null, has_code: null }];
+    multicallImpl = async (contracts) => contracts.map(() => ({ status: "failure" }));
 
     const res = await handleBalances(req("POST"));
     const body = (await res.json()) as BalancesResponse;
