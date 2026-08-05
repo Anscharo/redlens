@@ -180,12 +180,27 @@ function titleChainFor(node) {
 for (const node of nodes) {
   const addrs = extractAddresses(node.content, titleChainFor(node));
   for (const [addr, info] of Object.entries(addrs)) {
-    // First *detected* chain wins; a defaulted ethereum stays replaceable. The
-    // previous rule ("anything beats ethereum") could not tell the two apart,
-    // so an address the atlas placed on Mainnet outright was re-pointed by any
-    // later doc that merely filed it under another chain's heading.
+    // An address can legitimately live on several chains — Safes and the
+    // deterministically-deployed ALM contracts are at the same address
+    // everywhere — so collect every chain the atlas actually names for it
+    // rather than picking one winner. atlas_addresses is keyed (address, chain)
+    // precisely for this.
+    //
+    // `chain` stays the single primary: the first *detected* chain, or ethereum
+    // when nothing named one. A defaulted ethereum is not evidence, so it never
+    // joins `chains` and never outranks a real detection — without that, an
+    // address the atlas placed on Mainnet outright was re-pointed by any later
+    // doc that merely filed it under another chain's heading.
     const existing = chainMap[addr];
-    if (!existing || (!existing.detected && info.detected)) chainMap[addr] = info;
+    if (!existing) {
+      chainMap[addr] = { ...info, chains: info.detected ? [info.chain] : [] };
+    } else {
+      if (info.detected && !existing.chains.includes(info.chain)) existing.chains.push(info.chain);
+      if (!existing.detected && info.detected) {
+        existing.chain = info.chain;
+        existing.detected = true;
+      }
+    }
   }
   docs[node.id] = {
     id: node.id,
@@ -213,9 +228,14 @@ const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
   catch { return "unknown"; }
 })();
 
-// `detected` is merge bookkeeping, not part of the artifact contract.
+// `detected` is merge bookkeeping, not part of the artifact contract. `chains`
+// is: it lists every chain the atlas places this address on, and always
+// contains `chain` (which falls back to ethereum when nothing named one).
 const addressesOut = Object.fromEntries(
-  Object.entries(chainMap).map(([addr, { chain }]) => [addr, { chain }]),
+  Object.entries(chainMap).map(([addr, { chain, chains }]) => [
+    addr,
+    { chain, chains: chains.length ? chains : [chain] },
+  ]),
 );
 
 fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesOut }));

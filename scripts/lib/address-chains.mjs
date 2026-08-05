@@ -33,7 +33,10 @@ export const CHAIN_HINTS = [
   { chain: "optimism", patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
   { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
   { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
-  { chain: "gnosis", patterns: [/\bgnosis\b/i, /\bxdai\b/i] },
+  // "Gnosis Safe" (the multisig, on any chain) and "Gnosis Protocol" (the DEX)
+  // are not Gnosis Chain — without the lookahead they pinned mainnet Safes and
+  // the Distribution Reward instances to gnosis.
+  { chain: "gnosis", patterns: [/\bgnosis\b(?!\s+(?:safe|protocol))/i, /\bxdai\b/i] },
   { chain: "robinhood", patterns: [/\brobinhood\b/i] },
 ];
 

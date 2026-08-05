@@ -156,7 +156,7 @@ if (chainState.chains) {
   ]);
 
   // Per-address aggregation across all docs
-  const agg = new Map(); // addr → { chains: Set, labels: Set, roles: Set, tokens: Set }
+  const agg = new Map(); // addr → { labels: Set, roles: Set, tokens: Set }
 
   for (const doc of allDocs) {
     const content = doc.content ?? "";
@@ -505,7 +505,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
           if (!addr) continue;
           if (!addressesAtlas[addr]) {
             const label = role === "ea_address" ? name : `${name} Delegation Contract`;
-            addressesAtlas[addr] = { chain: "ethereum", roles: ["delegate"], entityLabel: label };
+            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["delegate"], entityLabel: label };
             addressesRaw[addr] = { ...addressesAtlas[addr], label, aliases: [] };
           }
           addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role });
@@ -564,7 +564,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
       if (govRaw && govRaw !== "N/A") {
         for (const addr of extractEthAddresses(govRaw)) {
           if (!addressesAtlas[addr]) {
-            addressesAtlas[addr] = { chain: "ethereum", roles: ["governance"], entityLabel: name };
+            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["governance"], entityLabel: name };
             addressesRaw[addr] = { ...addressesAtlas[addr], label: name, aliases: [] };
           }
           addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role: "governance" });
@@ -1002,10 +1002,14 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
     if (ann.entityLabel) entry.entityLabel = ann.entityLabel;
     // A chain the ICD states outright beats build-index's prose/heading
     // heuristic — a `Token Address (Avalanche)` param key or a `Network` param
-    // is structured data about this exact address.
-    if (ann.chain && ann.chain !== entry.chain) {
-      entry.chain = ann.chain;
-      icdRechained++;
+    // is structured data about this exact address. It becomes the primary and
+    // joins `chains` (the address may still be on the others too).
+    if (ann.chain) {
+      entry.chains = [...new Set([ann.chain, ...(entry.chains ?? [entry.chain])])];
+      if (ann.chain !== entry.chain) {
+        entry.chain = ann.chain;
+        icdRechained++;
+      }
     }
     icdUpdated++;
   }

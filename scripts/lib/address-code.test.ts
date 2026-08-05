@@ -42,7 +42,7 @@ describe("applyCodeResults", () => {
 
   it("marks an address with bytecode as a contract", () => {
     const a = addrs();
-    const s = applyCodeResults(a, ["0xaaa"], [{ ok: true, code: "0x60806040" }]);
+    const s = applyCodeResults(a, "ethereum", ["0xaaa"], [{ ok: true, code: "0x60806040" }]);
     expect(a["0xaaa"].isContract).toBe(true);
     expect(s).toEqual({ checked: 1, failed: 0, corrected: 1 });
   });
@@ -50,7 +50,7 @@ describe("applyCodeResults", () => {
   it("treats '0x' and undefined code as a real EOA answer", () => {
     // viem's getCode resolves to undefined when there is no bytecode.
     const a = addrs();
-    applyCodeResults(a, ["0xaaa", "0xbbb"], [{ ok: true, code: "0x" }, { ok: true, code: undefined }]);
+    applyCodeResults(a, "ethereum", ["0xaaa", "0xbbb"], [{ ok: true, code: "0x" }, { ok: true, code: undefined }]);
     expect(a["0xaaa"].isContract).toBe(false);
     expect(a["0xbbb"].isContract).toBe(false);
   });
@@ -59,14 +59,14 @@ describe("applyCodeResults", () => {
     // A network blip must not downgrade a known contract to an EOA — which is
     // why a failure is signalled as {ok:false} and not as an undefined code.
     const a = addrs();
-    const s = applyCodeResults(a, ["0xbbb"], [{ ok: false }]);
+    const s = applyCodeResults(a, "ethereum", ["0xbbb"], [{ ok: false }]);
     expect(a["0xbbb"].isContract).toBe(true);
     expect(s).toEqual({ checked: 0, failed: 1, corrected: 0 });
   });
 
   it("counts a correction only when getCode disagrees with the explorer", () => {
     const a = addrs();
-    const s = applyCodeResults(a, ["0xbbb"], [{ ok: true, code: "0x60806040" }]);
+    const s = applyCodeResults(a, "ethereum", ["0xbbb"], [{ ok: true, code: "0x60806040" }]);
     expect(s.corrected).toBe(0);
     expect(a["0xbbb"].isContract).toBe(true);
   });

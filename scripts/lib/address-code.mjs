@@ -27,9 +27,14 @@ const BATCH = 50;
 export function planCodeChecks(addresses) {
   const byChain = new Map();
   for (const [addr, info] of Object.entries(addresses)) {
-    if (!addr.startsWith("0x") || !CHAIN_RPC[info.chain]) continue;
-    if (!byChain.has(info.chain)) byChain.set(info.chain, []);
-    byChain.get(info.chain).push(addr);
+    if (!addr.startsWith("0x")) continue;
+    // Every chain the atlas places the address on, not just the primary — the
+    // same address can be a contract on one chain and an EOA on another.
+    for (const chain of info.chains?.length ? info.chains : [info.chain]) {
+      if (!CHAIN_RPC[chain]) continue;
+      if (!byChain.has(chain)) byChain.set(chain, []);
+      byChain.get(chain).push(addr);
+    }
   }
   return byChain;
 }
@@ -47,7 +52,7 @@ export function planCodeChecks(addresses) {
  * Returns counts including how often getCode disagreed with the explorer —
  * i.e. how many addresses were mislabelled.
  */
-export function applyCodeResults(addresses, addrList, results) {
+export function applyCodeResults(addresses, chain, addrList, results) {
   let checked = 0;
   let failed = 0;
   let corrected = 0;
@@ -59,8 +64,14 @@ export function applyCodeResults(addresses, addrList, results) {
     }
     const hasCode = r.code != null && r.code !== "0x" && r.code !== "";
     const entry = addresses[addrList[i]];
-    if (entry.isContract !== hasCode) corrected++;
-    entry.isContract = hasCode;
+    // Per-chain truth. `isContract` stays a single value for the artifact's
+    // existing consumers and tracks the address's primary chain.
+    (entry.codeByChain ??= {})[chain] = hasCode;
+    const isPrimary = chain === (entry.chain ?? "ethereum");
+    if (isPrimary) {
+      if (entry.isContract !== hasCode) corrected++;
+      entry.isContract = hasCode;
+    }
     checked++;
   }
   return { checked, failed, corrected };
@@ -93,7 +104,8 @@ export async function applyOnchainCode(
   const totals = { checked: 0, failed: 0, corrected: 0, skipped: 0 };
 
   for (const [addr, info] of Object.entries(addresses)) {
-    if (!addr.startsWith("0x") || !CHAIN_RPC[info.chain]) totals.skipped++;
+    const chains = info.chains?.length ? info.chains : [info.chain];
+    if (!addr.startsWith("0x") || !chains.some((c) => CHAIN_RPC[c])) totals.skipped++;
   }
 
   for (const [chain, addrList] of byChain) {
@@ -112,7 +124,7 @@ export async function applyOnchainCode(
         )),
       );
     }
-    const s = applyCodeResults(addresses, addrList, results);
+    const s = applyCodeResults(addresses, chain, addrList, results);
     totals.checked += s.checked;
     totals.failed += s.failed;
     totals.corrected += s.corrected;

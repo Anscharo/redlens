@@ -156,3 +156,60 @@ test("buildAddrRows dedupes case-variant EVM addresses by (address, chain) — n
   expect(eth).toHaveLength(1);
   expect(eth[0].address).toBe("0xabcdef0000000000000000000000000000000001");
 });
+
+test("buildAddrRows emits one row per chain the atlas places an address on", () => {
+  // A Safe deployed at the same address on three chains: atlas_addresses' PK is
+  // (address, chain) precisely so all three are representable.
+  const rows = buildAddrRows(
+    { [EVM_UPPER]: { chain: "ethereum", chains: ["ethereum", "base", "avalanche"], entityLabel: "Freezer Multisig" } },
+    {},
+    {},
+    SHA,
+  );
+  expect(rows.map((r) => r.chain).sort()).toEqual(["avalanche", "base", "ethereum"]);
+  expect(new Set(rows.map((r) => r.address))).toEqual(new Set([EVM_UPPER.toLowerCase()]));
+});
+
+test("buildAddrRows falls back to the primary chain when `chains` is absent or empty", () => {
+  const fromMissing = buildAddrRows({ [EVM_UPPER]: { chain: "base" } }, {}, {}, SHA);
+  const fromEmpty = buildAddrRows({ [EVM_UPPER]: { chain: "base", chains: [] } }, {}, {}, SHA);
+  expect(fromMissing.map((r) => r.chain)).toEqual(["base"]);
+  expect(fromEmpty.map((r) => r.chain)).toEqual(["base"]);
+});
+
+test("buildAddrRows takes is_contract per chain from codeByChain", () => {
+  // The same address can hold code on one chain and be an EOA on another, so a
+  // single isContract must not be stamped onto every row.
+  const rows = buildAddrRows(
+    { [EVM_UPPER]: { chain: "ethereum", chains: ["ethereum", "base"] } },
+    { [EVM_UPPER.toLowerCase()]: { isContract: true, codeByChain: { ethereum: true, base: false } } },
+    {},
+    SHA,
+  );
+  expect(rows.find((r) => r.chain === "ethereum")!.is_contract).toBe(true);
+  expect(rows.find((r) => r.chain === "base")!.is_contract).toBe(false);
+});
+
+test("buildAddrRows attaches chain-state only to the chain it was snapshotted on", () => {
+  // An ethereum multicall copied onto the base row would assert state nobody read.
+  const chainStateByAddr = buildChainStateByAddr({
+    chains: { ethereum: { block: 9, values: { [EVM_UPPER]: { balance: 2 } } } },
+  });
+  const rows = buildAddrRows(
+    { [EVM_UPPER]: { chain: "ethereum", chains: ["ethereum", "base"] } },
+    {},
+    chainStateByAddr,
+    SHA,
+  );
+  expect(rows.find((r) => r.chain === "ethereum")!.chain_state).toMatchObject({ block: 9, balance: 2 });
+  expect(rows.find((r) => r.chain === "base")!.chain_state).toBeNull();
+});
+
+test("buildChainStateByAddr on the flat shape leaves chain null so the row still joins", () => {
+  // The legacy shape predates per-chain snapshots; nulling it would drop every
+  // pre-migration snapshot on the floor.
+  const cs = buildChainStateByAddr({ block: 42, values: { [EVM_UPPER]: { balance: 3 } } });
+  expect(cs[EVM_UPPER.toLowerCase()].chain).toBeNull();
+  const rows = buildAddrRows({ [EVM_UPPER]: { chain: "ethereum" } }, {}, cs, SHA);
+  expect(rows[0].chain_state).toMatchObject({ block: 42, balance: 3 });
+});

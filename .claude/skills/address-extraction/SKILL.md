@@ -82,7 +82,23 @@ Overall precedence, strongest first:
 
 `build-graph` Phase 2.6 deliberately does **not** recompute chain: it can't see headings, and its "prefer any non-ethereum detection" aggregation let a single stray mention win globally (a doc whose prose said "Gnosis **Protocol**" pinned the address to Gnosis **Chain**).
 
-> **Known limitation:** `addresses.atlas.json` holds one chain per address, but Safes and deterministically-deployed ALM contracts genuinely exist at the same address on several chains. For those, the chain reflects whichever atlas doc names one first.
+### Multi-chain addresses
+
+Safes and the deterministically-deployed ALM contracts sit at the same address on several chains, and the storage layer was built for it: `atlas_addresses`' PK is `(address, chain)`, balances are keyed `address|chain`, and `has_address` edges are `${addr}:${chain}`.
+
+So `addresses.atlas.json` carries **both**:
+
+- `chain` — the single primary (first detected, else ethereum). Every existing consumer reads this and is unaffected.
+- `chains` — every chain the atlas names for the address; always contains `chain`.
+
+`buildAddrRows` emits **one DB row per entry in `chains`**. Writing only the primary was what hid multi-chain deployments from the DB and from the balances refresh.
+
+Two things follow from one address having several rows:
+
+- `is_contract` comes from `addresses.json`'s `codeByChain[chain]` (written by `applyOnchainCode`, which checks every chain in `chains`), falling back to the primary-chain `isContract`. An address can hold code on one chain and be an EOA on another — a single value stamped onto every row would be wrong.
+- `chain_state` attaches only to the chain it was snapshotted on (`ChainStateEntry.chain`). The legacy flat `chain-state.json` shape has no chain, so it carries `chain: null` and still joins.
+
+`atlas-updater`'s DB→artifact rebuild regroups those rows back into one entry per address, restoring `chains` — dropping it there would silently re-collapse what build-index detected.
 
 **Supported chains and their block explorers:**
 

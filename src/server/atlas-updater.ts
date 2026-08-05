@@ -231,10 +231,20 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     log(`refresh-from-db: ${docRows.length} docs → public/docs.json (+meta/content split)`);
 
     // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
-    const addrAtlas: Record<string, object> = {};
+    // atlas_addresses is keyed (address, chain), so a multi-chain address
+    // arrives as several rows. Fold them back into the artifact's one-entry-per
+    // -address shape, rebuilding `chains` from the row set — dropping it here
+    // would silently re-collapse what build-index detected.
+    const addrAtlas: Record<string, { chain: string; chains: string[] } & Record<string, unknown>> = {};
     for (const r of addrRows) {
+      const existing = addrAtlas[r.address];
+      if (existing) {
+        if (!existing.chains.includes(r.chain)) existing.chains.push(r.chain);
+        continue;
+      }
       addrAtlas[r.address] = {
         chain: r.chain,
+        chains: [r.chain],
         entityLabel: r.entity_label,
         roles: r.roles ?? [],
         aliases: r.aliases ?? [],
