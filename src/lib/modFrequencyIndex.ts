@@ -4,7 +4,7 @@
 // edits only, never moves/renames/renumbers. Docs absent from the counts (no
 // content history at all) zero-fill and therefore lead the ranking.
 import type { AtlasNode } from "../types";
-import type { ModCount } from "./history";
+import type { ModCount, ModTimelineRow } from "./history";
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import type { SearchField } from "./reportFilter";
@@ -198,6 +198,45 @@ export function buildModCountHistogram(rows: readonly ModFrequencyRow[]): ModCou
     docs,
     isTail: count === cap && max > cap,
   }));
+}
+
+export interface ModTimelineBucket {
+  /** "YYYY-MM". */
+  month: string;
+  /** "Jan '24" — compact axis label. */
+  label: string;
+  count: number;
+}
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthLabel(year: number, month: number): string {
+  return `${MONTH_ABBR[month - 1]} '${String(year).padStart(4, "0").slice(2)}`;
+}
+
+/** One bucket per calendar month from the earliest to the latest month with a
+ *  recorded semantic edit, zero-filling any month in between with no edits —
+ *  a gap in the timeline should read as "no edits that month", not vanish. */
+export function buildModTimelineBuckets(rows: readonly ModTimelineRow[]): ModTimelineBucket[] {
+  if (rows.length === 0) return [];
+  const countByMonth = new Map(rows.map((r) => [r.month, r.count]));
+  const months = [...countByMonth.keys()].sort();
+  const [startYear, startMonth] = months[0].split("-").map(Number);
+  const [endYear, endMonth] = months[months.length - 1].split("-").map(Number);
+
+  const buckets: ModTimelineBucket[] = [];
+  let year = startYear;
+  let month = startMonth;
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    const key = `${year}-${String(month).padStart(2, "0")}`;
+    buckets.push({ month: key, label: monthLabel(year, month), count: countByMonth.get(key) ?? 0 });
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+  return buckets;
 }
 
 /** "lte" keeps docs with count <= threshold; "gt" keeps docs with count >

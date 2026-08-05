@@ -202,6 +202,37 @@ export function loadModCounts(): Promise<ModCount[] | null> {
   return modCountsCache.catch(() => null);
 }
 
+/** One calendar month's semantic-edit tally from GET /api/history/mod-timeline.
+ *  Months with no matching edit are absent — the Modification Frequency
+ *  report's timeline chart zero-fills the gaps client-side. */
+export interface ModTimelineRow {
+  /** "YYYY-MM". */
+  month: string;
+  count: number;
+}
+
+let modTimelineCache: Promise<ModTimelineRow[] | null> | null = null;
+
+/** Fetch the semantic-edits-per-month timeline. Same contract as
+ *  loadModCounts: 404 (no backend) resolves null and IS cached; any other
+ *  failure resolves null for this call but evicts the cache so the next
+ *  visit retries. Callers never see a rejection. */
+export function loadModTimeline(): Promise<ModTimelineRow[] | null> {
+  if (!modTimelineCache) {
+    modTimelineCache = fetch("/api/history/mod-timeline")
+      .then((r) => {
+        if (r.ok) return r.json() as Promise<ModTimelineRow[]>;
+        if (r.status === 404) return null; // stable: no backend
+        throw new Error(`mod-timeline fetch failed with status ${r.status}`); // transient
+      })
+      .catch((err) => {
+        modTimelineCache = null;
+        throw err;
+      });
+  }
+  return modTimelineCache.catch(() => null);
+}
+
 /** Max ids per /api/history/batch request — shared by the server (hard cap on
  *  a hostile payload) and the client (chunk size). Comfortably above the
  *  largest real actor doc-set (~1.2k for Spark). */

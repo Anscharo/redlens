@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import type { AtlasNode } from "../../types";
-import type { ModCount } from "../../lib/history";
+import type { ModCount, ModTimelineRow } from "../../lib/history";
 import type { GraphData } from "../../lib/graphData";
 import { DataSourceContext, type DataSource } from "../../lib/dataSource";
 
@@ -36,10 +36,16 @@ const COUNTS: ModCount[] = [
   { docId: "busy2", count: 8, lastModified: "2026-03-01", contentCount: 8 },
 ];
 
+const TIMELINE: ModTimelineRow[] = [
+  { month: "2026-01", count: 3 },
+  { month: "2026-03", count: 6 },
+];
+
 const EMPTY_GRAPH: GraphData = { participants: [], instances: [], invocations: [], primitives: [], edges: [] };
 
 let docsImpl = () => Promise.resolve(DOCS);
 let countsImpl = (): Promise<ModCount[] | null> => Promise.resolve(COUNTS);
+let timelineImpl = (): Promise<ModTimelineRow[] | null> => Promise.resolve(TIMELINE);
 let graphImpl = (): Promise<GraphData> => Promise.resolve(EMPTY_GRAPH);
 let capturedBase: string | null = null;
 
@@ -51,6 +57,7 @@ vi.mock("../../lib/docs", () => ({
 }));
 vi.mock("../../lib/history", () => ({
   loadModCounts: () => countsImpl(),
+  loadModTimeline: () => timelineImpl(),
 }));
 vi.mock("../../lib/graph", () => ({
   loadGraph: () => graphImpl(),
@@ -63,6 +70,7 @@ afterEach(() => {
   window.history.pushState({}, "", "/");
   docsImpl = () => Promise.resolve(DOCS);
   countsImpl = () => Promise.resolve(COUNTS);
+  timelineImpl = () => Promise.resolve(TIMELINE);
   graphImpl = () => Promise.resolve(EMPTY_GRAPH);
   capturedBase = null;
   vi.restoreAllMocks();
@@ -96,6 +104,23 @@ describe("ModFrequencyReport", () => {
     expect(screen.getByText("Documents by number of edits")).toBeInTheDocument();
     // Buckets 0..8 (max count is busy2's 8), well under the 20-bucket tail cap.
     expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("renders a timeline of semantic edits by month, zero-filling the gap", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Never Touched Doc");
+    expect(screen.getByText("Semantic edits by month")).toBeInTheDocument();
+    // TIMELINE has Jan and Mar 2026 — Feb should be zero-filled in between.
+    expect(screen.getByText("Jan '26")).toBeInTheDocument();
+    expect(screen.getByText("Feb '26")).toBeInTheDocument();
+    expect(screen.getByText("Mar '26")).toBeInTheDocument();
+  });
+
+  it("doesn't render the timeline chart when the endpoint is unreachable", async () => {
+    timelineImpl = () => Promise.resolve(null);
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Never Touched Doc");
+    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
   });
 
   it("switches to 'Most Frequent' and lists docs above the typed threshold, updating the summary table too", async () => {

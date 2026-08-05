@@ -22,6 +22,7 @@ import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
+import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
@@ -188,8 +189,9 @@ const server = Bun.serve({
 
     // Static segments win over the `:id` param route, so these match first.
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
-    /* v8 ignore start -- request glue; handleModCounts is unit-tested in mod-counts.test.ts */
+    /* v8 ignore start -- request glue; handleModCounts/handleModTimeline are unit-tested in mod-counts.test.ts/mod-timeline.test.ts */
     "/api/history/mod-counts": () => handleModCounts(),
+    "/api/history/mod-timeline": () => handleModTimeline(),
     /* v8 ignore stop */
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 

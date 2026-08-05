@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
-import { loadModCounts } from "../../lib/history";
+import { loadModCounts, loadModTimeline } from "../../lib/history";
 import { loadGraph } from "../../lib/graph";
 import { buildOwningAgentMap } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
@@ -12,6 +12,7 @@ import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportF
 import {
   buildModFrequencyRows,
   buildModCountHistogram,
+  buildModTimelineBuckets,
   groupModFrequencyRows,
   matchesFrequency,
   modFrequencyRowsToCSV,
@@ -33,6 +34,7 @@ import { DownloadCsvButton } from "./DownloadCsvButton";
 import { ModFrequencyTable } from "./ModFrequencyTable";
 import { ModFrequencySummaryTable } from "./ModFrequencySummaryTable";
 import { ModFrequencyHistogram } from "./ModFrequencyHistogram";
+import { ModFrequencyTimeline } from "./ModFrequencyTimeline";
 
 const groupCodec = urlEnum<ModFrequencyGrouping>("section", GROUPINGS);
 const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
@@ -61,6 +63,14 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   // on this deploy" ({ value: null }) — loadModCounts resolves null for both a
   // backend-less deploy and a transient failure, never rejects.
   const counts = useLoaded(() => loadModCounts().then((value) => ({ value })));
+  // soft: the timeline chart is a supplementary view (when edits happened, not
+  // which docs match the filter) — unlike counts, its absence has no warning
+  // banner, it just doesn't render.
+  const timelineRows = useLoaded(loadModTimeline, { soft: true });
+  const timelineBuckets = useMemo(
+    () => (timelineRows ? buildModTimelineBuckets(timelineRows) : null),
+    [timelineRows],
+  );
   // soft: the A.6-by-agent sub-split is an enrichment, not core to the report —
   // a graph load failure shouldn't block the rest of the page. Always reads the
   // live-atlas base (like AtlasView's cousins/relations), so hide it in preview
@@ -159,6 +169,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           eras.
         </p>
         {rows && histogram && <ModFrequencyHistogram buckets={histogram} isIncluded={isBucketIncluded} />}
+        {timelineBuckets && <ModFrequencyTimeline buckets={timelineBuckets} />}
         {rows && (
           <div className="mb-2">
             <CategoryPills

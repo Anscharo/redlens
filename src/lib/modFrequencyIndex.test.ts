@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { AtlasNode } from "../types";
-import type { ModCount } from "./history";
+import type { ModCount, ModTimelineRow } from "./history";
 import {
   buildModCountHistogram,
   buildModFrequencyRows,
+  buildModTimelineBuckets,
   groupModFrequencyRows,
   matchesFrequency,
   modFrequencyRowsToCSV,
@@ -217,6 +218,37 @@ describe("buildModCountHistogram", () => {
 
   it("returns no buckets for an empty row set", () => {
     expect(buildModCountHistogram([])).toEqual([]);
+  });
+});
+
+function timelineRow(month: string, n: number): ModTimelineRow {
+  return { month, count: n };
+}
+
+describe("buildModTimelineBuckets", () => {
+  it("zero-fills every month between the earliest and latest edit", () => {
+    const buckets = buildModTimelineBuckets([timelineRow("2026-01", 5), timelineRow("2026-04", 2)]);
+    expect(buckets).toEqual([
+      { month: "2026-01", label: "Jan '26", count: 5 },
+      { month: "2026-02", label: "Feb '26", count: 0 },
+      { month: "2026-03", label: "Mar '26", count: 0 },
+      { month: "2026-04", label: "Apr '26", count: 2 },
+    ]);
+  });
+
+  it("spans a year boundary", () => {
+    const buckets = buildModTimelineBuckets([timelineRow("2025-11", 1), timelineRow("2026-02", 3)]);
+    expect(buckets.map((b) => b.month)).toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
+    expect(buckets.map((b) => b.label)).toEqual(["Nov '25", "Dec '25", "Jan '26", "Feb '26"]);
+  });
+
+  it("handles unsorted input and a single month", () => {
+    const buckets = buildModTimelineBuckets([timelineRow("2026-03", 7)]);
+    expect(buckets).toEqual([{ month: "2026-03", label: "Mar '26", count: 7 }]);
+  });
+
+  it("returns no buckets for an empty row set", () => {
+    expect(buildModTimelineBuckets([])).toEqual([]);
   });
 });
 
