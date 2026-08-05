@@ -11,6 +11,30 @@ type FilterVal = string | false | null | undefined;
 export const BTN_CLASS =
   "mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap";
 
+// Tags a download with the atlas version it was taken from, so a saved CSV is
+// traceable to a specific atlas commit (preview sha when in preview mode,
+// else the live injected sha; omitted in dev/cold boot where no sha exists).
+// Shared by SingleDownloadButton.tsx.
+export function useAtlasSha(): string | null {
+  const { preview } = useDataSource();
+  return preview?.sha ?? liveAtlasSha();
+}
+
+// Fires the export analytics event, stamps the sha onto the filename, and
+// triggers the download. Shared by SingleDownloadButton.tsx.
+export function exportReportCsv(opts: {
+  report: string;
+  filename: string;
+  rowCount: number;
+  scope: "full" | "filtered";
+  sha: string | null;
+  build: () => string;
+}) {
+  track("report_export", { report: opts.report, format: "csv", row_count: opts.rowCount, scope: opts.scope });
+  const name = insertBeforeExt(opts.filename, opts.sha ? opts.sha.slice(0, 8) : "");
+  downloadCSV(name, opts.build());
+}
+
 // CSV downloads for the /reports/* pages. Two controls:
 //   • "Download full report" — always visible, always exports the full
 //     (unfiltered) dataset, regardless of any active search/filters.
@@ -42,16 +66,10 @@ export function DownloadCsvButton({
   filters?: FilterVal[]; // active pill filters (labels), matching FilterSummary
 }) {
   const filtering = hasActiveFilter(query, filters);
-  // Tag every download with the atlas version it was taken from, so a saved CSV
-  // is traceable to a specific atlas commit (preview sha when in preview mode,
-  // else the live injected sha; omitted in dev/cold boot where no sha exists).
-  const { preview } = useDataSource();
-  const sha = preview?.sha ?? liveAtlasSha();
+  const sha = useAtlasSha();
   const download = (scope: "full" | "filtered", count: number, builder: () => string) => {
-    track("report_export", { report, format: "csv", row_count: count, scope });
     const base = scope === "filtered" ? filteredExportName(filename, query, filters) : filename;
-    const name = insertBeforeExt(base, sha ? sha.slice(0, 8) : "");
-    downloadCSV(name, builder());
+    exportReportCsv({ report, filename: base, rowCount: count, scope, sha, build: builder });
   };
   return (
     <div className="flex items-center gap-2 self-start">

@@ -15,12 +15,12 @@
 // absent commit_seq is a real commit that touched no atlas content, not a
 // gap in a continuous axis.
 //
-// Same strict "modified" predicate as mod-counts.ts (COUNTED) in all three
-// modes: only `change_type = 'content'` rows, and of those only semantic
-// edits (or, for rows with no change_kind yet, a real stored diff) — see
-// that file's header for the full rationale.
+// Same strict "modified" predicate as mod-counts.ts in all three modes: only
+// `change_type = 'content'` rows, filtered further by COUNTED_CONTENT_EDIT
+// (history-db.ts) — see that constant's comment for the full rationale.
 import { sql } from "../db.ts";
 import { toIsoDate } from "./history.ts";
+import { COUNTED_CONTENT_EDIT as COUNTED } from "./history-db.ts";
 
 type TimelineGranularity = "month" | "week" | "commit";
 
@@ -35,9 +35,6 @@ interface CommitQueryRow {
   date: string | Date | null;
   count: number;
 }
-
-const COUNTED = `change_kind = 'semantic'
-                 OR (change_kind IS NULL AND diff IS NOT NULL)`;
 
 function parseGranularity(req: Request): TimelineGranularity {
   const g = new URL(req.url).searchParams.get("granularity");

@@ -54,29 +54,9 @@ function monthLabel(year: number, month: number): string {
   return `${MONTH_ABBR[month - 1]} '${String(year).padStart(4, "0").slice(2)}`;
 }
 
-/** One bucket per calendar month from the earliest to the latest month with a
- *  recorded semantic edit, zero-filling any month in between with no edits —
- *  a gap in the timeline should read as "no edits that month", not vanish. */
-export function buildModTimelineMonthBuckets(rows: readonly ModTimelinePeriodRow[]): ModTimelineBucket[] {
-  if (rows.length === 0) return [];
-  const countByMonth = new Map(rows.map((r) => [r.period, r.count]));
-  const months = [...countByMonth.keys()].sort();
-  const [startYear, startMonth] = months[0].split("-").map(Number);
-  const [endYear, endMonth] = months[months.length - 1].split("-").map(Number);
-
-  const buckets: ModTimelineBucket[] = [];
-  let year = startYear;
-  let month = startMonth;
-  while (year < endYear || (year === endYear && month <= endMonth)) {
-    const key = `${year}-${String(month).padStart(2, "0")}`;
-    buckets.push({ key, label: monthLabel(year, month), count: countByMonth.get(key) ?? 0 });
-    month++;
-    if (month > 12) {
-      month = 1;
-      year++;
-    }
-  }
-  return buckets;
+function nextMonthKey(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, "0")}`;
 }
 
 function weekLabel(d: Date): string {
@@ -85,23 +65,48 @@ function weekLabel(d: Date): string {
 
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000;
 
+function nextWeekKey(key: string): string {
+  return new Date(new Date(`${key}T00:00:00Z`).getTime() + MS_PER_WEEK).toISOString().slice(0, 10);
+}
+
+/** Shared by the month/week builders below: one bucket per period key from the
+ *  earliest to the latest seen, zero-filling any period in between with no
+ *  edits — a gap in the timeline should read as "no edits that period", not
+ *  vanish. `next` steps from one period key to the next (calendar month
+ *  arithmetic, or a fixed week-length jump); commit buckets have no periods to
+ *  step between, so they're built separately (no zero-fill). */
+function zeroFillPeriodBuckets(
+  countByPeriod: Map<string, number>,
+  next: (key: string) => string,
+  labelOf: (key: string) => string,
+): ModTimelineBucket[] {
+  const periods = [...countByPeriod.keys()].sort();
+  if (periods.length === 0) return [];
+  const end = periods[periods.length - 1];
+  const buckets: ModTimelineBucket[] = [];
+  for (let key = periods[0]; ; key = next(key)) {
+    buckets.push({ key, label: labelOf(key), count: countByPeriod.get(key) ?? 0 });
+    if (key === end) break;
+  }
+  return buckets;
+}
+
+/** One bucket per calendar month from the earliest to the latest month with a
+ *  recorded semantic edit, zero-filling any month in between with no edits. */
+export function buildModTimelineMonthBuckets(rows: readonly ModTimelinePeriodRow[]): ModTimelineBucket[] {
+  const countByMonth = new Map(rows.map((r) => [r.period, r.count]));
+  return zeroFillPeriodBuckets(countByMonth, nextMonthKey, (key) => {
+    const [year, month] = key.split("-").map(Number);
+    return monthLabel(year, month);
+  });
+}
+
 /** One bucket per ISO week (Monday start, matching Postgres's date_trunc)
  *  from the earliest to the latest week with a recorded semantic edit,
  *  zero-filling any week in between with no edits. */
 export function buildModTimelineWeekBuckets(rows: readonly ModTimelinePeriodRow[]): ModTimelineBucket[] {
-  if (rows.length === 0) return [];
   const countByWeek = new Map(rows.map((r) => [r.period, r.count]));
-  const weeks = [...countByWeek.keys()].sort();
-  const start = new Date(`${weeks[0]}T00:00:00Z`).getTime();
-  const end = new Date(`${weeks[weeks.length - 1]}T00:00:00Z`).getTime();
-
-  const buckets: ModTimelineBucket[] = [];
-  for (let t = start; t <= end; t += MS_PER_WEEK) {
-    const d = new Date(t);
-    const key = d.toISOString().slice(0, 10);
-    buckets.push({ key, label: weekLabel(d), count: countByWeek.get(key) ?? 0 });
-  }
-  return buckets;
+  return zeroFillPeriodBuckets(countByWeek, nextWeekKey, (key) => weekLabel(new Date(`${key}T00:00:00Z`)));
 }
 
 /** One bucket per commit with a recorded semantic edit, in commit order — no

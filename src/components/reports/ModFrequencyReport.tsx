@@ -71,49 +71,35 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   const [group, setGroup] = useUrlState("group", groupCodec);
   const filter = useModFrequencyFilter();
 
-  // The full, unfiltered atlas — the per-category summary tables' denominator
-  // and the histogram's source, so both reflect each category/bucket's true
-  // size, not just the doc-level table's filtered subset.
-  const rows = useMemo(
-    () => (docs && counts?.value ? buildModFrequencyRows(docs, counts.value, agentByDoc) : null),
-    [docs, counts, agentByDoc],
-  );
-  // Both groupings are always computed (not just the one the List tab's
-  // "Group by" pills currently show) so the Sum By tab can display and
-  // download section and type breakdowns side by side.
-  const summaryBySection = useMemo(
-    () => (rows ? summarizeModFrequencyMatches(rows, "section", (r) => filter.matchesFilter(r.count)) : null),
-    [rows, filter.matchesFilter],
-  );
-  const summaryByType = useMemo(
-    () => (rows ? summarizeModFrequencyMatches(rows, "type", (r) => filter.matchesFilter(r.count)) : null),
-    [rows, filter.matchesFilter],
-  );
-  const histogram = useMemo(() => (rows ? buildModCountHistogram(rows) : null), [rows]);
+  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
 
-  const docRows = useMemo(
-    () => (rows ? rows.filter((r) => filter.matchesFilter(r.count)) : null),
-    [rows, filter.matchesFilter],
-  );
+  // Every derived value below is a synchronous function of `docs`/`counts` —
+  // one guard (`!view`) covers them all, instead of a separate nullable memo
+  // (and null-check) per value. Both groupings are always computed (not just
+  // the one the List tab's "Group by" pills currently show) so the Sum By tab
+  // can display and download section and type breakdowns side by side; the
+  // histogram is built from the full, unfiltered atlas so it reflects each
+  // bucket's true size, not just the doc-level table's filtered subset.
+  const view = useMemo(() => {
+    if (!docs || !counts?.value) return null;
+    const rows = buildModFrequencyRows(docs, counts.value, agentByDoc);
+    const summaryBySection = summarizeModFrequencyMatches(rows, "section", (r) => filter.matchesFilter(r.count));
+    const summaryByType = summarizeModFrequencyMatches(rows, "type", (r) => filter.matchesFilter(r.count));
+    const histogram = buildModCountHistogram(rows);
+    const docRows = rows.filter((r) => filter.matchesFilter(r.count));
+    const filtered = filterRows(docRows, rq, modFrequencySearchFields);
+    const groups = groupModFrequencyRows(filtered, group);
+    return { rows, summaryBySection, summaryByType, histogram, docRows, filtered, groups };
+  }, [docs, counts, agentByDoc, filter.matchesFilter, rq, group]);
 
   const isBucketIncluded = useCallback((b: ModCountBucket) => filter.matchesFilter(b.count), [filter.matchesFilter]);
 
   const trackedView = useRef(false);
   useEffect(() => {
-    if (!docRows || trackedView.current) return;
+    if (!view || trackedView.current) return;
     trackedView.current = true;
-    track("report_view", { report: "mod-frequency", row_count: docRows.length });
-  }, [docRows]);
-
-  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
-  const filtered = useMemo(
-    () => (docRows ? filterRows(docRows, rq, modFrequencySearchFields) : null),
-    [docRows, rq],
-  );
-  const groups = useMemo(
-    () => (filtered ? groupModFrequencyRows(filtered, group) : null),
-    [filtered, group],
-  );
+    track("report_view", { report: "mod-frequency", row_count: view.docRows.length });
+  }, [view]);
 
   const onTab = (t: ModFrequencyTab) => {
     setTab(t);
@@ -136,7 +122,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           Counts span the atlas's full recorded history, including the reconstructed pre-markdown
           eras.
         </p>
-        {rows && (
+        {view && (
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <CategoryPills
               categories={FREQUENCY_COMPARATORS}
@@ -171,7 +157,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
             Modification counts come from the history database, which isn't reachable on this
             deploy. Try again later.
           </p>
-        ) : !rows || !summaryBySection || !summaryByType || !docRows || !groups || !filtered ? (
+        ) : !view ? (
           <p className="mono text-base text-tan-3">loading…</p>
         ) : (
           <>
@@ -202,12 +188,12 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                     <SingleDownloadButton
                       report="mod-frequency-summary-section"
                       filename="modification-frequency-by-section.csv"
-                      rowCount={summaryBySection.length}
-                      build={() => modFrequencySummaryToCSV(summaryBySection)}
+                      rowCount={view.summaryBySection.length}
+                      build={() => modFrequencySummaryToCSV(view.summaryBySection)}
                       label="Download by section (CSV)"
                     />
                   </div>
-                  <ModFrequencySummaryTable summary={summaryBySection} matchLabel={filter.filterLabel} />
+                  <ModFrequencySummaryTable summary={view.summaryBySection} matchLabel={filter.filterLabel} />
                 </section>
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-2">
@@ -215,19 +201,19 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                     <SingleDownloadButton
                       report="mod-frequency-summary-type"
                       filename="modification-frequency-by-type.csv"
-                      rowCount={summaryByType.length}
-                      build={() => modFrequencySummaryToCSV(summaryByType)}
+                      rowCount={view.summaryByType.length}
+                      build={() => modFrequencySummaryToCSV(view.summaryByType)}
                       label="Download by type (CSV)"
                     />
                   </div>
-                  <ModFrequencySummaryTable summary={summaryByType} matchLabel={filter.filterLabel} />
+                  <ModFrequencySummaryTable summary={view.summaryByType} matchLabel={filter.filterLabel} />
                 </section>
               </>
             )}
 
             {tab === "list" && (
               <>
-                {histogram && <ModFrequencyHistogram buckets={histogram} isIncluded={isBucketIncluded} />}
+                <ModFrequencyHistogram buckets={view.histogram} isIncluded={isBucketIncluded} />
                 <div className="mb-4">
                   <CategoryPills
                     categories={GROUPINGS}
@@ -240,25 +226,25 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                 <FilterSummary query={query} searches="doc no, title, type, section" />
                 <div className="flex items-center justify-between mb-4">
                   <p className="mono text-xs text-tan-3">
-                    {filtered.length === docRows.length
-                      ? `${docRows.length} documents with ${filter.filterLabel}`
-                      : `${filtered.length} of ${docRows.length} documents with ${filter.filterLabel}`}
+                    {view.filtered.length === view.docRows.length
+                      ? `${view.docRows.length} documents with ${filter.filterLabel}`
+                      : `${view.filtered.length} of ${view.docRows.length} documents with ${filter.filterLabel}`}
                   </p>
                   <DownloadCsvButton
                     report="mod-frequency"
                     filename="modification-frequency.csv"
-                    rowCount={filtered.length}
-                    build={() => modFrequencyRowsToCSV(filtered)}
-                    fullRowCount={docRows.length}
-                    buildFull={() => modFrequencyRowsToCSV(docRows)}
+                    rowCount={view.filtered.length}
+                    build={() => modFrequencyRowsToCSV(view.filtered)}
+                    fullRowCount={view.docRows.length}
+                    buildFull={() => modFrequencyRowsToCSV(view.docRows)}
                     query={query}
                     filters={[filter.thresholdActive && filter.filterLabel]}
                   />
                 </div>
-                {filtered.length === 0 ? (
+                {view.filtered.length === 0 ? (
                   <NoRowsMatch query={query} />
                 ) : (
-                  groups.map((g) => (
+                  view.groups.map((g) => (
                     <ModFrequencyTable key={g.key} group={g} rq={rq} showSection={group !== "section"} />
                   ))
                 )}

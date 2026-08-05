@@ -32,20 +32,20 @@ export function useModFrequencyTimeline() {
   // switching granularity re-fetches — loadModTimeline caches per
   // granularity, so flipping back to one already seen resolves instantly.
   //
-  // Rows are tagged with the granularity they were fetched for, not just
-  // stored bare: `granularity` (state) flips to its new value on the render
-  // right after a pill click, one render before this effect's fetch resolves
-  // and updates the rows — during that gap, bare stale rows would carry the
-  // OLD granularity's shape (e.g. period rows with no `sha`/`seq`) while the
-  // buckets memo below reads the NEW granularity, calling the wrong builder
-  // on mismatched data. Comparing `data.granularity` against the live
-  // `granularity` closes that window instead of racing it.
+  // `data` is reset to null synchronously at the top of the effect, before
+  // the new fetch even starts, so there's no render where a stale rows array
+  // (shaped for the OLD granularity) coexists with the NEW granularity's
+  // state — `data` is always either null or in sync with the fetch it came
+  // from. Bucket-building below reads `data.granularity` (paired with
+  // `data.rows` in the same setData call), not the live `granularity` state,
+  // so the two can never mismatch.
   const [data, setData] = useState<{
     granularity: TimelineGranularity;
     rows: (ModTimelinePeriodRow | ModTimelineCommitRow)[] | null;
   } | null>(null);
   useEffect(() => {
     let live = true;
+    setData(null);
     loadModTimeline(granularity).then((rows) => {
       if (live) setData({ granularity, rows });
     });
@@ -55,14 +55,14 @@ export function useModFrequencyTimeline() {
   }, [granularity]);
 
   const buckets = useMemo(() => {
-    if (!data || data.granularity !== granularity || !data.rows) return null;
+    if (!data || !data.rows) return null;
     const { rows } = data;
-    // Cast is safe by construction: `rows` was fetched for this exact
-    // granularity (the check above), which determines the server's row shape.
-    if (granularity === "week") return buildModTimelineWeekBuckets(rows as ModTimelinePeriodRow[]);
-    if (granularity === "commit") return buildModTimelineCommitBuckets(rows as ModTimelineCommitRow[]);
+    // Cast is safe by construction: `rows` was fetched for `data.granularity`,
+    // which determines the server's row shape.
+    if (data.granularity === "week") return buildModTimelineWeekBuckets(rows as ModTimelinePeriodRow[]);
+    if (data.granularity === "commit") return buildModTimelineCommitBuckets(rows as ModTimelineCommitRow[]);
     return buildModTimelineMonthBuckets(rows as ModTimelinePeriodRow[]);
-  }, [data, granularity]);
+  }, [data]);
 
   const onGranularity = (g: TimelineGranularity) => {
     setGranularity(g);

@@ -133,37 +133,37 @@ export const CHANGE_COLOR: Record<string, string> = {
   moved: "var(--depth-4)",
 };
 
+// Shared shape for every /api/history/* GET below: a 404 (no backend on this
+// deploy, or no such doc) is a stable outcome and IS cached; any other
+// failure — a transient DB hiccup (503), a real fetch rejection — must NOT be
+// cached as permanent "no data", so it evicts the cache entry via `onFail` and
+// resolves to null for just this call. Callers never see a rejection.
+function fetchCached<T>(url: string, label: string, onFail: () => void): Promise<T | null> {
+  const p = fetch(url)
+    .then((r) => {
+      if (r.ok) return r.json() as Promise<T>;
+      if (r.status === 404) return null;
+      throw new Error(`${label} fetch failed with status ${r.status}`); // transient
+    })
+    .catch((err) => {
+      onFail();
+      throw err;
+    });
+  return p.catch(() => null);
+}
+
 // Module-level cache: nodeId → promise
 const cache = new Map<string, Promise<HistoryEntry[] | null>>();
 
 export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
   let p = cache.get(nodeId);
   if (!p) {
-    // /api/history/:nodeId — absolute path, same-origin on Railway.
-    // On GitHub Pages (no backend) the 404 resolves to null, which the UI
-    // already handles gracefully — that outcome IS cached (it's a stable
-    // property of the deploy, not a blip). Any OTHER non-ok status — e.g. the
-    // 503 the server returns on a DB hiccup (src/server/history/history.ts) —
-    // is transient, so — like a real fetch rejection (network error, offline)
-    // — it must NOT be cached as permanent "no history": throw so the `catch`
-    // below evicts the cache entry instead, mirroring loadHistoryBatch below,
-    // which already only seeds the cache on a real response.
-    p = fetch(`/api/history/${nodeId}`)
-      .then((r) => {
-        if (r.ok) return r.json() as Promise<HistoryEntry[]>;
-        if (r.status === 404) return null; // stable: no backend, or no such doc
-        throw new Error(`history fetch failed with status ${r.status}`); // transient
-      })
-      .catch((err) => {
-        cache.delete(nodeId);
-        throw err;
-      });
+    // Mirrors loadHistoryBatch below, which already only seeds the cache on a
+    // real response.
+    p = fetchCached<HistoryEntry[]>(`/api/history/${nodeId}`, "history", () => cache.delete(nodeId));
     cache.set(nodeId, p);
   }
-  // Callers never see a rejection (existing contract) — a transient failure
-  // resolves to null for this call, while the cache eviction above (if any)
-  // means the next call retries instead of reusing the failed promise.
-  return p.catch(() => null);
+  return p;
 }
 
 /** One doc's strict-modification tally from GET /api/history/mod-counts —
@@ -182,24 +182,14 @@ export interface ModCount {
 
 let modCountsCache: Promise<ModCount[] | null> | null = null;
 
-/** Fetch the all-docs modification tallies. Same contract as loadHistory:
- *  404 (no backend on this deploy) resolves null and IS cached; any other
- *  failure (503 DB hiccup, network) resolves null for this call but evicts the
- *  cache so the next visit retries. Callers never see a rejection. */
+/** Fetch the all-docs modification tallies. Same contract as loadHistory. */
 export function loadModCounts(): Promise<ModCount[] | null> {
   if (!modCountsCache) {
-    modCountsCache = fetch("/api/history/mod-counts")
-      .then((r) => {
-        if (r.ok) return r.json() as Promise<ModCount[]>;
-        if (r.status === 404) return null; // stable: no backend
-        throw new Error(`mod-counts fetch failed with status ${r.status}`); // transient
-      })
-      .catch((err) => {
-        modCountsCache = null;
-        throw err;
-      });
+    modCountsCache = fetchCached<ModCount[]>("/api/history/mod-counts", "mod-counts", () => {
+      modCountsCache = null;
+    });
   }
-  return modCountsCache.catch(() => null);
+  return modCountsCache;
 }
 
 export type TimelineGranularity = "month" | "week" | "commit";
@@ -233,29 +223,22 @@ const modTimelineCache = new Map<
 >();
 
 /** Fetch the semantic-edits timeline at the given granularity. Same contract
- *  as loadModCounts: 404 (no backend) resolves null and IS cached; any other
- *  failure resolves null for this call but evicts that granularity's cache
- *  entry so the next visit retries. Callers never see a rejection. Returns the
- *  row shape matching the requested granularity — narrow with the granularity
- *  value at the call site (see ModFrequencyReport's timelineBuckets). */
+ *  as loadModCounts, cached per granularity. Returns the row shape matching
+ *  the requested granularity — narrow with the granularity value at the call
+ *  site (see useModFrequencyTimeline). */
 export function loadModTimeline(
   granularity: TimelineGranularity = "month",
 ): Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null> {
   let p = modTimelineCache.get(granularity);
   if (!p) {
-    p = fetch(`/api/history/mod-timeline?granularity=${granularity}`)
-      .then((r) => {
-        if (r.ok) return r.json() as Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[]>;
-        if (r.status === 404) return null; // stable: no backend
-        throw new Error(`mod-timeline fetch failed with status ${r.status}`); // transient
-      })
-      .catch((err) => {
-        modTimelineCache.delete(granularity);
-        throw err;
-      });
+    p = fetchCached<(ModTimelinePeriodRow | ModTimelineCommitRow)[]>(
+      `/api/history/mod-timeline?granularity=${granularity}`,
+      "mod-timeline",
+      () => modTimelineCache.delete(granularity),
+    );
     modTimelineCache.set(granularity, p);
   }
-  return p.catch(() => null);
+  return p;
 }
 
 /** Max ids per /api/history/batch request — shared by the server (hard cap on
