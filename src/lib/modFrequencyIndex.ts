@@ -80,8 +80,8 @@ export function buildModFrequencyRows(
   );
 }
 
-export type ModFrequencyGrouping = "section" | "type" | "none";
-export const GROUPINGS: readonly ModFrequencyGrouping[] = ["section", "type", "none"];
+export type ModFrequencyGrouping = "section" | "type";
+export const GROUPINGS: readonly ModFrequencyGrouping[] = ["section", "type"];
 
 export interface ModFrequencyGroup {
   key: string;
@@ -95,7 +95,6 @@ export function groupModFrequencyRows(
   rows: readonly ModFrequencyRow[],
   grouping: ModFrequencyGrouping,
 ): ModFrequencyGroup[] {
-  if (grouping === "none") return [{ key: "all", label: "All documents", rows: [...rows] }];
   const groups = new Map<string, ModFrequencyGroup>();
   for (const r of rows) {
     const key = grouping === "section" ? r.section : r.type;
@@ -112,6 +111,40 @@ export function groupModFrequencyRows(
   return [...groups.values()].sort((a, b) =>
     a.key.localeCompare(b.key, undefined, { numeric: true }),
   );
+}
+
+export interface ModFrequencySummaryRow {
+  key: string;
+  label: string;
+  /** All docs in this category, regardless of edit count. */
+  total: number;
+  /** Docs in this category with zero recorded modifications. */
+  zeroCount: number;
+  /** zeroCount / total, as a 0–100 percentage (0 when total is 0). */
+  zeroPercent: number;
+}
+
+/** Per-category rollup: how many docs in each section/type have never been
+ *  modified, as a share of every doc in that category — not just the
+ *  ≤1-modification subset the doc-level table below is filtered to. Built
+ *  from the full (unfiltered) row set so the denominator is the category's
+ *  true size. */
+export function summarizeZeroModFrequency(
+  rows: readonly ModFrequencyRow[],
+  grouping: ModFrequencyGrouping,
+): ModFrequencySummaryRow[] {
+  // groupModFrequencyRows only ever emits groups it found at least one row
+  // for, so g.rows.length is always >= 1 here — no zero-division guard needed.
+  return groupModFrequencyRows(rows, grouping).map((g) => {
+    const zeroCount = g.rows.filter((r) => r.count === 0).length;
+    return {
+      key: g.key,
+      label: g.label,
+      total: g.rows.length,
+      zeroCount,
+      zeroPercent: (zeroCount / g.rows.length) * 100,
+    };
+  });
 }
 
 /** Haystack for the header-box filter — the same fields the table renders. */

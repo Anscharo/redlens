@@ -52,7 +52,7 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
       ),
       card(
         "mod-frequency",
-        "Every atlas document ranked by how rarely its content has been edited — semantic edits only, never moves or renumbers — groupable by section or document type.",
+        "Share of never-modified documents per section or document type, plus the full list of documents with at most one semantic edit.",
       ),
       card(
         "processes",

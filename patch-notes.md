@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-05
-- Added a Modification Frequency report ranking every atlas document by how rarely its content has been edited, groupable by section or document type
+- Added a Modification Frequency report showing what share of documents per section or document type have never been edited, plus the full list of documents with at most one edit
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week

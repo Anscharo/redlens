@@ -7,6 +7,7 @@ import {
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
   sectionOf,
+  summarizeZeroModFrequency,
 } from "./modFrequencyIndex";
 
 function node(id: string, doc_no: string, title: string, type = "Section"): AtlasNode {
@@ -92,11 +93,41 @@ describe("groupModFrequencyRows", () => {
     const groups = groupModFrequencyRows(rows, "type");
     expect(groups.map((g) => g.key)).toEqual(["Article", "Needed Research", "Scope"]);
   });
+});
 
-  it("returns a single group for none", () => {
-    const groups = groupModFrequencyRows(rows, "none");
-    expect(groups).toHaveLength(1);
-    expect(groups[0].rows).toHaveLength(rows.length);
+describe("summarizeZeroModFrequency", () => {
+  it("counts zero-modification docs per category against the category's full total", () => {
+    // scope0 (0), root (0), scope2 (0), nr (0) are all zero-fills (no count row);
+    // only "deep" (A.2) was actually modified.
+    const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
+    const summary = summarizeZeroModFrequency(rows, "section");
+    expect(summary.find((s) => s.key === "A")).toEqual({
+      key: "A", label: "A — The Atlas", total: 1, zeroCount: 1, zeroPercent: 100,
+    });
+    expect(summary.find((s) => s.key === "A.2")).toEqual({
+      key: "A.2",
+      label: "A.2 — Accessibility Scope",
+      total: 2, // scope2 + deep
+      zeroCount: 1, // scope2 only — deep has 2 edits
+      zeroPercent: 50,
+    });
+  });
+
+  it("returns no categories for an empty row set", () => {
+    const summary = summarizeZeroModFrequency([], "type");
+    expect(summary).toEqual([]);
+  });
+
+  it("groups by type using the same category buckets as groupModFrequencyRows", () => {
+    const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
+    const summary = summarizeZeroModFrequency(rows, "type");
+    expect(summary.map((s) => s.key)).toEqual(["Article", "Needed Research", "Scope"]);
+    expect(summary.find((s) => s.key === "Article")).toEqual({
+      key: "Article", label: "Article", total: 1, zeroCount: 0, zeroPercent: 0,
+    });
+    expect(summary.find((s) => s.key === "Scope")).toEqual({
+      key: "Scope", label: "Scope", total: 3, zeroCount: 3, zeroPercent: 100,
+    });
   });
 });
 
