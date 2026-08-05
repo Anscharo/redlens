@@ -1,28 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
-import {
-  loadModCounts,
-  loadModTimeline,
-  type TimelineGranularity,
-  type ModTimelinePeriodRow,
-  type ModTimelineCommitRow,
-} from "../../lib/history";
+import { loadModCounts } from "../../lib/history";
 import { loadGraph } from "../../lib/graph";
 import { buildOwningAgentMap } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useUrlState, urlEnum, urlInt } from "../../hooks/useUrlState";
+import { useUrlState, urlEnum } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import {
   buildModFrequencyRows,
-  buildModCountHistogram,
-  buildModTimelineMonthBuckets,
-  buildModTimelineWeekBuckets,
-  buildModTimelineCommitBuckets,
   groupModFrequencyRows,
-  matchesFrequency,
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
   modFrequencySummaryToCSV,
@@ -31,11 +20,9 @@ import {
   FREQUENCY_COMPARATORS,
   FREQUENCY_MIN,
   FREQUENCY_MAX,
-  FREQUENCY_DEFAULT,
-  type ModCountBucket,
   type ModFrequencyGrouping,
-  type FrequencyComparator,
 } from "../../lib/modFrequencyIndex";
+import { buildModCountHistogram, type ModCountBucket } from "../../lib/modFrequencyCharts";
 import { CategoryPills } from "./CategoryPills";
 import { FilterSummary } from "./FilterSummary";
 import { NoRowsMatch } from "./NoRowsMatch";
@@ -46,6 +33,8 @@ import { ModFrequencySummaryTable } from "./ModFrequencySummaryTable";
 import { ModFrequencyHistogram } from "./ModFrequencyHistogram";
 import { ModFrequencyTimeline } from "./ModFrequencyTimeline";
 import { ModFrequencyTabs, MOD_FREQUENCY_TABS, type ModFrequencyTab } from "./ModFrequencyTabs";
+import { useModFrequencyFilter, comparatorDisplay } from "./useModFrequencyFilter";
+import { useModFrequencyTimeline, TIMELINE_GRANULARITIES, GRANULARITY_DISPLAY } from "./useModFrequencyTimeline";
 
 const groupCodec = urlEnum<ModFrequencyGrouping>("section", GROUPINGS);
 const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
@@ -53,28 +42,7 @@ const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
   type: "doc type",
 };
 
-const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);
-const thresholdCodec = urlInt(FREQUENCY_DEFAULT);
 const tabCodec = urlEnum<ModFrequencyTab>("timeline", MOD_FREQUENCY_TABS);
-
-const TIMELINE_GRANULARITIES: readonly TimelineGranularity[] = ["month", "week", "commit"];
-const granularityCodec = urlEnum<TimelineGranularity>("month", TIMELINE_GRANULARITIES);
-const GRANULARITY_DISPLAY: Record<TimelineGranularity, string> = { month: "month", week: "week", commit: "commit" };
-const GRANULARITY_TITLE: Record<TimelineGranularity, string> = {
-  month: "Semantic edits by month",
-  week: "Semantic edits by week",
-  commit: "Semantic edits by commit",
-};
-
-// Pill text bakes in the live threshold — "Least Frequent (≤1 edit)" reads as
-// a preview of what the pill currently selects, not just a static label.
-function comparatorDisplay(threshold: number): Record<FrequencyComparator, string> {
-  const edit = `edit${threshold === 1 ? "" : "s"}`;
-  return {
-    lte: `Least Frequent (≤${threshold} ${edit})`,
-    gt: `Most Frequent (>${threshold} ${edit})`,
-  };
-}
 
 export function ModFrequencyReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Modification Frequency: Sky Atlas by Redline");
@@ -84,48 +52,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   // on this deploy" ({ value: null }) — loadModCounts resolves null for both a
   // backend-less deploy and a transient failure, never rejects.
   const counts = useLoaded(() => loadModCounts().then((value) => ({ value })));
-  const [granularity, setGranularity] = useUrlState("tgran", granularityCodec);
-  // Manual fetch (not useLoaded, which only ever loads once on mount) so
-  // switching granularity re-fetches — loadModTimeline caches per granularity,
-  // so flipping back to one already seen resolves instantly, no refetch.
-  // soft-equivalent: the timeline chart is a supplementary view (when edits
-  // happened, not which docs match the filter) — unlike counts, its absence
-  // has no warning banner, it just shows an empty-state message on its tab.
-  //
-  // Rows are tagged with the granularity they were fetched for, not just
-  // stored bare: `granularity` (state) flips to its new value on the render
-  // right after a pill click, one render before this effect's fetch resolves
-  // and updates the rows — during that gap, bare stale rows would carry the
-  // OLD granularity's shape (e.g. period rows with no `sha`/`seq`) while
-  // `timelineBuckets` below reads the NEW granularity, calling the wrong
-  // builder on mismatched data. Comparing `data.granularity` against the
-  // live `granularity` closes that window instead of racing it.
-  const [timelineData, setTimelineData] = useState<{
-    granularity: TimelineGranularity;
-    rows: (ModTimelinePeriodRow | ModTimelineCommitRow)[] | null;
-  } | null>(null);
-  useEffect(() => {
-    let live = true;
-    loadModTimeline(granularity).then((rows) => {
-      if (live) setTimelineData({ granularity, rows });
-    });
-    return () => {
-      live = false;
-    };
-  }, [granularity]);
-  const timelineBuckets = useMemo(() => {
-    if (!timelineData || timelineData.granularity !== granularity || !timelineData.rows) return null;
-    const { rows } = timelineData;
-    // Cast is safe by construction: `rows` was fetched for this exact
-    // granularity (the check above), which determines the server's row shape.
-    if (granularity === "week") return buildModTimelineWeekBuckets(rows as ModTimelinePeriodRow[]);
-    if (granularity === "commit") return buildModTimelineCommitBuckets(rows as ModTimelineCommitRow[]);
-    return buildModTimelineMonthBuckets(rows as ModTimelinePeriodRow[]);
-  }, [timelineData, granularity]);
-  const onGranularity = (g: TimelineGranularity) => {
-    setGranularity(g);
-    track("report_filter", { report: "mod-frequency", filter_type: "timeline_granularity", value: g, active: g !== "month" });
-  };
+  const timeline = useModFrequencyTimeline();
   // soft: the A.6-by-agent sub-split is an enrichment, not core to the report —
   // a graph load failure shouldn't block the rest of the page. Always reads the
   // live-atlas base (like AtlasView's cousins/relations), so hide it in preview
@@ -142,26 +69,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   }, [docs, docNoToId, preview, graph]);
   const [tab, setTab] = useUrlState("tab", tabCodec);
   const [group, setGroup] = useUrlState("group", groupCodec);
-  const [comparator, setComparator] = useUrlState("cmp", comparatorCodec);
-  const [threshold, setThreshold] = useUrlState("n", thresholdCodec);
-  // Local editing buffer so the field can be freely cleared/retyped — a
-  // number input controlled directly by the clamped URL value fights the
-  // user mid-edit (e.g. can't clear "1" to type "9"). Commits (clamped to
-  // [FREQUENCY_MIN, FREQUENCY_MAX]) on blur/Enter; invalid or empty input
-  // reverts to the last committed value.
-  const [thresholdInput, setThresholdInput] = useState(String(threshold));
-  useEffect(() => setThresholdInput(String(threshold)), [threshold]);
-  const commitThreshold = (raw: string) => {
-    const n = Number(raw);
-    if (!raw || !Number.isFinite(n)) {
-      setThresholdInput(String(threshold));
-      return;
-    }
-    const clamped = Math.min(FREQUENCY_MAX, Math.max(FREQUENCY_MIN, Math.round(n)));
-    setThreshold(clamped);
-    setThresholdInput(String(clamped));
-    track("report_filter", { report: "mod-frequency", filter_type: "threshold", value: clamped, active: clamped !== FREQUENCY_DEFAULT });
-  };
+  const filter = useModFrequencyFilter();
 
   // The full, unfiltered atlas — the per-category summary tables' denominator
   // and the histogram's source, so both reflect each category/bucket's true
@@ -170,26 +78,25 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     () => (docs && counts?.value ? buildModFrequencyRows(docs, counts.value, agentByDoc) : null),
     [docs, counts, agentByDoc],
   );
-  const matchesFilter = useCallback((count: number) => matchesFrequency(count, comparator, threshold), [comparator, threshold]);
   // Both groupings are always computed (not just the one the List tab's
   // "Group by" pills currently show) so the Sum By tab can display and
   // download section and type breakdowns side by side.
   const summaryBySection = useMemo(
-    () => (rows ? summarizeModFrequencyMatches(rows, "section", (r) => matchesFilter(r.count)) : null),
-    [rows, matchesFilter],
+    () => (rows ? summarizeModFrequencyMatches(rows, "section", (r) => filter.matchesFilter(r.count)) : null),
+    [rows, filter.matchesFilter],
   );
   const summaryByType = useMemo(
-    () => (rows ? summarizeModFrequencyMatches(rows, "type", (r) => matchesFilter(r.count)) : null),
-    [rows, matchesFilter],
+    () => (rows ? summarizeModFrequencyMatches(rows, "type", (r) => filter.matchesFilter(r.count)) : null),
+    [rows, filter.matchesFilter],
   );
   const histogram = useMemo(() => (rows ? buildModCountHistogram(rows) : null), [rows]);
 
   const docRows = useMemo(
-    () => (rows ? rows.filter((r) => matchesFilter(r.count)) : null),
-    [rows, matchesFilter],
+    () => (rows ? rows.filter((r) => filter.matchesFilter(r.count)) : null),
+    [rows, filter.matchesFilter],
   );
 
-  const isBucketIncluded = useCallback((b: ModCountBucket) => matchesFilter(b.count), [matchesFilter]);
+  const isBucketIncluded = useCallback((b: ModCountBucket) => filter.matchesFilter(b.count), [filter.matchesFilter]);
 
   const trackedView = useRef(false);
   useEffect(() => {
@@ -216,17 +123,6 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     setGroup(g);
     track("report_filter", { report: "mod-frequency", filter_type: "group", value: g, active: g !== "section" });
   };
-  const onComparator = (c: FrequencyComparator) => {
-    setComparator(c);
-    track("report_filter", { report: "mod-frequency", filter_type: "comparator", value: c, active: c !== "lte" });
-  };
-
-  const filterLabel = `${comparator === "lte" ? "≤" : ">"}${threshold} modification${threshold === 1 ? "" : "s"}`;
-  // Every doc-level download already only ever contains threshold-matching
-  // docs (docRows/filtered are pre-filtered) — this just makes that reflected
-  // in the button/filename once the threshold moves off its default, so a
-  // saved CSV is traceable to the filter that produced it.
-  const thresholdActive = comparator !== "lte" || threshold !== FREQUENCY_DEFAULT;
 
   return (
     <div className="px-6 py-6">
@@ -244,10 +140,10 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <CategoryPills
               categories={FREQUENCY_COMPARATORS}
-              active={comparator}
-              onToggle={onComparator}
+              active={filter.comparator}
+              onToggle={filter.onComparator}
               label="Show"
-              display={comparatorDisplay(threshold)}
+              display={comparatorDisplay(filter.threshold)}
             />
             <label className="flex items-center gap-1.5 text-xs text-tan-3">
               Edits
@@ -255,9 +151,9 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                 type="number"
                 min={FREQUENCY_MIN}
                 max={FREQUENCY_MAX}
-                value={thresholdInput}
-                onChange={(e) => setThresholdInput(e.target.value)}
-                onBlur={(e) => commitThreshold(e.target.value)}
+                value={filter.thresholdInput}
+                onChange={(e) => filter.setThresholdInput(e.target.value)}
+                onBlur={(e) => filter.commitThreshold(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
@@ -284,14 +180,14 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                 <div className="mb-4">
                   <CategoryPills
                     categories={TIMELINE_GRANULARITIES}
-                    active={granularity}
-                    onToggle={onGranularity}
+                    active={timeline.granularity}
+                    onToggle={timeline.onGranularity}
                     label="Group by"
                     display={GRANULARITY_DISPLAY}
                   />
                 </div>
-                {timelineBuckets ? (
-                  <ModFrequencyTimeline buckets={timelineBuckets} title={GRANULARITY_TITLE[granularity]} />
+                {timeline.buckets ? (
+                  <ModFrequencyTimeline buckets={timeline.buckets} title={timeline.title} />
                 ) : (
                   <p className="mono text-xs text-tan-3">No edit timeline available.</p>
                 )}
@@ -311,7 +207,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                       label="Download by section (CSV)"
                     />
                   </div>
-                  <ModFrequencySummaryTable summary={summaryBySection} matchLabel={filterLabel} />
+                  <ModFrequencySummaryTable summary={summaryBySection} matchLabel={filter.filterLabel} />
                 </section>
                 <section className="mb-8">
                   <div className="flex items-center justify-between mb-2">
@@ -324,7 +220,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                       label="Download by type (CSV)"
                     />
                   </div>
-                  <ModFrequencySummaryTable summary={summaryByType} matchLabel={filterLabel} />
+                  <ModFrequencySummaryTable summary={summaryByType} matchLabel={filter.filterLabel} />
                 </section>
               </>
             )}
@@ -345,8 +241,8 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                 <div className="flex items-center justify-between mb-4">
                   <p className="mono text-xs text-tan-3">
                     {filtered.length === docRows.length
-                      ? `${docRows.length} documents with ${filterLabel}`
-                      : `${filtered.length} of ${docRows.length} documents with ${filterLabel}`}
+                      ? `${docRows.length} documents with ${filter.filterLabel}`
+                      : `${filtered.length} of ${docRows.length} documents with ${filter.filterLabel}`}
                   </p>
                   <DownloadCsvButton
                     report="mod-frequency"
@@ -356,7 +252,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
                     fullRowCount={docRows.length}
                     buildFull={() => modFrequencyRowsToCSV(docRows)}
                     query={query}
-                    filters={[thresholdActive && filterLabel]}
+                    filters={[filter.thresholdActive && filter.filterLabel]}
                   />
                 </div>
                 {filtered.length === 0 ? (

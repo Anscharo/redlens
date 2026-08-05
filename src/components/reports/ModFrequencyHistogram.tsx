@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Tooltip } from "../Tooltip";
-import type { ModCountBucket } from "../../lib/modFrequencyIndex";
+import type { ModCountBucket } from "../../lib/modFrequencyCharts";
 
 // One bar. Included (matches the active filter below) renders full-strength
 // red; excluded dims to a faint outline — same "highlight what's selected"

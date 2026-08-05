@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Tooltip } from "../Tooltip";
-import type { ModTimelineBucket } from "../../lib/modFrequencyIndex";
+import type { ModTimelineBucket } from "../../lib/modFrequencyCharts";
 
 // Minimum width per bar so labels stay legible instead of squashing — the
 // chart scrolls horizontally (its wrapper) once there are enough buckets to
