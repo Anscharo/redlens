@@ -6,6 +6,7 @@ import { shortAddr } from "../../lib/format";
 import { explorerUrl } from "../../lib/explorer";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
+import { HEADER_OFFSET } from "../../lib/layout";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import {
@@ -260,11 +261,21 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
         {!loading && rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
       </div>
 
+      {/*
+        A plain overflow-x-auto div can't host a page-scroll sticky header — per the CSS
+        overflow spec, giving overflow-x a non-visible value while overflow-y stays
+        "visible" forces overflow-y to also compute as "auto", turning this div into its
+        own scroll container. Since the div's height is otherwise unconstrained (it never
+        overflows itself), that scroll container has no actual scroll range, so a sticky
+        header inside it never sticks. Bounding the height and scrolling for real (an
+        actual internal scrollbar) gives position:sticky a genuine range to work within —
+        the standard "data grid" pattern for header + horizontal scroll together.
+      */}
       {!loading && (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto" style={{ maxHeight: `calc(100vh - ${HEADER_OFFSET}px - 40px)` }}>
           <table className="w-full text-left" style={{ minWidth: "1500px" }}>
             <thead>
-              <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
+              <tr className="text-xs mono text-tan-3 [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-[var(--border)] [&>th]:bg-[var(--bg)]">
                 <th className="py-2 px-3 font-normal w-24">Chain</th>
                 <th className="py-2 px-3 font-normal w-44">Address</th>
                 <th className="py-2 px-3 font-normal w-32">Name</th>
