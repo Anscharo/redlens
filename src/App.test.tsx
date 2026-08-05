@@ -46,7 +46,10 @@ vi.mock("./components/preview/PreviewBanner", () => ({ PreviewBanner: () => null
 // ModFrequencyReport is a real (unmocked) lazy route (see below) — stub its
 // data so it doesn't hit the network.
 vi.mock("./lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
-vi.mock("./lib/history", () => ({ loadModCounts: () => Promise.resolve([]) }));
+vi.mock("./lib/history", () => ({
+  loadModCounts: () => Promise.resolve([]),
+  loadModTimeline: () => Promise.resolve([]),
+}));
 
 import App from "./App";
 
