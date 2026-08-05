@@ -22,11 +22,17 @@ const DOCS: Record<string, AtlasNode> = {
   // No scope node for "NR", so sectionTitle falls back to the section itself —
   // exercises the sectionTitle === section branch in ModFrequencyTable's Section cell.
   nr: node("nr", "NR-1", "Open Question", "Needed Research"),
+  // Heavily-edited docs, isolated in their own section so they don't disturb
+  // the A.2/NR summary percentages above. Only used by the frequent-mode tests.
+  busy1: node("busy1", "A.9.1", "Busy Doc One", "Article"),
+  busy2: node("busy2", "A.9.2", "Busy Doc Two", "Article"),
 };
 
 const COUNTS: ModCount[] = [
   { docId: "edited", count: 3, lastModified: "2026-01-05", contentCount: 5 },
   { docId: "once", count: 1, lastModified: "2025-11-01", contentCount: 1 },
+  { docId: "busy1", count: 5, lastModified: "2026-02-01", contentCount: 5 },
+  { docId: "busy2", count: 8, lastModified: "2026-03-01", contentCount: 8 },
 ];
 
 let docsImpl = () => Promise.resolve(DOCS);
@@ -72,6 +78,24 @@ describe("ModFrequencyReport", () => {
     expect(screen.getByText("Once Edited Doc")).toBeInTheDocument();
     expect(screen.queryByText("Edited Doc")).not.toBeInTheDocument();
     expect(screen.getByText("4 documents with ≤1 modification")).toBeInTheDocument();
+  });
+
+  it("renders a distribution histogram of documents by edit count", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Never Touched Doc");
+    expect(screen.getByText("Documents by number of edits")).toBeInTheDocument();
+    // Buckets 0..8 (max count is busy2's 8), well under the 20-bucket tail cap.
+    expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("switches to frequent mode and lists docs above the top-N% threshold", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Never Touched Doc");
+    fireEvent.click(screen.getByText("frequently modified"));
+    expect(await screen.findByText("Busy Doc Two")).toBeInTheDocument();
+    expect(screen.queryByText("Busy Doc One")).not.toBeInTheDocument();
+    expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
+    expect(screen.getByText(/documents with more than 5 modifications \(top 20%\)/)).toBeInTheDocument();
   });
 
   it("switches grouping via the pills (section/type only, no flat list)", async () => {

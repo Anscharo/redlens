@@ -147,6 +147,63 @@ export function summarizeZeroModFrequency(
   });
 }
 
+export interface ModCountBucket {
+  /** Exact modification count this bucket represents (the cap value for the
+   *  tail bucket — see isTail). */
+  count: number;
+  /** "0", "1", …, or "20+" for the tail bucket. */
+  label: string;
+  docs: number;
+  /** True for the final bucket when it aggregates every count >= the cap. */
+  isTail?: boolean;
+}
+
+// Distinct-count bars beyond this collapse into one "N+" tail bucket — a
+// handful of heavily-revised docs would otherwise stretch the x-axis to the
+// point every other bar reads as zero.
+const HISTOGRAM_CAP = 20;
+
+/** One bucket per distinct modification count (0, 1, 2, …), tail-capped, for
+ *  the report's distribution chart. Built from the full row set so the chart
+ *  reflects every doc regardless of the doc-level filter below it. */
+export function buildModCountHistogram(rows: readonly ModFrequencyRow[]): ModCountBucket[] {
+  if (rows.length === 0) return [];
+  const max = Math.max(...rows.map((r) => r.count));
+  const cap = Math.min(max, HISTOGRAM_CAP);
+  const docsByCount = new Array<number>(cap + 1).fill(0);
+  for (const r of rows) docsByCount[Math.min(r.count, cap)]++;
+  return docsByCount.map((docs, count) => ({
+    count,
+    label: count === cap && max > cap ? `${cap}+` : String(count),
+    docs,
+    isTail: count === cap && max > cap,
+  }));
+}
+
+export type ModFrequencyFilterMode = "rare" | "frequent";
+export const FILTER_MODES: readonly ModFrequencyFilterMode[] = ["rare", "frequent"];
+
+/** "Rare" mode keeps docs with count <= one of these. */
+export const RARE_MAX_OPTIONS = [1, 2, 3, 4] as const;
+export type RareMax = (typeof RARE_MAX_OPTIONS)[number];
+
+/** "Frequent" mode keeps docs above a percentile-derived threshold — the
+ *  count value splitting off (approximately) the top N% most-modified docs. */
+export const FREQUENT_PERCENT_OPTIONS = [20, 10, 5] as const;
+export type FrequentPercent = (typeof FREQUENT_PERCENT_OPTIONS)[number];
+
+/** The count value at the (100 - topPercent)th percentile of the row set's
+ *  modification counts — docs with count > this value are (approximately)
+ *  the top `topPercent`% most-modified. Approximate by construction: ties at
+ *  the cutoff (e.g. many docs sharing count 0) can push the actual included
+ *  share above or below topPercent%. */
+export function percentileThreshold(rows: readonly ModFrequencyRow[], topPercent: number): number {
+  if (rows.length === 0) return 0;
+  const sorted = rows.map((r) => r.count).sort((a, b) => a - b);
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * (1 - topPercent / 100))));
+  return sorted[idx];
+}
+
 /** Haystack for the header-box filter — the same fields the table renders. */
 export function modFrequencySearchFields(r: ModFrequencyRow): SearchField[] {
   return [

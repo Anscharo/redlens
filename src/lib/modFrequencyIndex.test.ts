@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import type { AtlasNode } from "../types";
 import type { ModCount } from "./history";
 import {
+  buildModCountHistogram,
   buildModFrequencyRows,
   groupModFrequencyRows,
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
+  percentileThreshold,
   sectionOf,
   summarizeZeroModFrequency,
 } from "./modFrequencyIndex";
@@ -128,6 +130,53 @@ describe("summarizeZeroModFrequency", () => {
     expect(summary.find((s) => s.key === "Scope")).toEqual({
       key: "Scope", label: "Scope", total: 3, zeroCount: 3, zeroPercent: 100,
     });
+  });
+});
+
+describe("buildModCountHistogram", () => {
+  it("returns one bucket per distinct count, zero-filling gaps", () => {
+    const rows = buildModFrequencyRows(DOCS, [count("deep", 3, "2026-01-05")]);
+    // 4 zero-count docs (root, scope2, scope0, nr) + deep at count 3.
+    const buckets = buildModCountHistogram(rows);
+    expect(buckets).toEqual([
+      { count: 0, label: "0", docs: 4, isTail: false },
+      { count: 1, label: "1", docs: 0, isTail: false },
+      { count: 2, label: "2", docs: 0, isTail: false },
+      { count: 3, label: "3", docs: 1, isTail: false },
+    ]);
+  });
+
+  it("collapses counts past the cap into one tail bucket", () => {
+    const docs: Record<string, AtlasNode> = { hot: node("hot", "A.9", "Hot doc") };
+    const rows = buildModFrequencyRows(docs, [count("hot", 47, "2026-01-05")]);
+    const buckets = buildModCountHistogram(rows);
+    expect(buckets.at(-1)).toEqual({ count: 20, label: "20+", docs: 1, isTail: true });
+    expect(buckets).toHaveLength(21);
+  });
+
+  it("returns no buckets for an empty row set", () => {
+    expect(buildModCountHistogram([])).toEqual([]);
+  });
+});
+
+describe("percentileThreshold", () => {
+  it("returns the count value at the top-N% cutoff", () => {
+    const docs: Record<string, AtlasNode> = {
+      a: node("a", "A.1", "A"),
+      b: node("b", "A.2", "B"),
+      c: node("c", "A.3", "C"),
+      d: node("d", "A.4", "D"),
+      e: node("e", "A.5", "E"),
+    };
+    // Counts sorted: 0, 0, 0, 1, 5. Top 20% of 5 rows -> idx floor(5*0.8)=4 -> value 5.
+    const rows = buildModFrequencyRows(docs, [count("d", 1), count("e", 5)]);
+    expect(percentileThreshold(rows, 20)).toBe(5);
+    // Top 40% -> idx floor(5*0.6)=3 -> value 1.
+    expect(percentileThreshold(rows, 40)).toBe(1);
+  });
+
+  it("returns 0 for an empty row set", () => {
+    expect(percentileThreshold([], 20)).toBe(0);
   });
 });
 

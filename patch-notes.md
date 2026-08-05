@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-05
-- Added a Modification Frequency report showing what share of documents per section or document type have never been edited, plus the full list of documents with at most one edit
+- Added a Modification Frequency report showing what share of documents per section or document type have never been edited, a chart of how many documents fall at each edit count, and a filter to switch between the rarest- and most-frequently-edited documents
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
