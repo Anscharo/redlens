@@ -40,8 +40,17 @@ const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
 };
 
 const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);
-const COMPARATOR_DISPLAY: Record<FrequencyComparator, string> = { lte: "≤", gt: ">" };
 const thresholdCodec = urlInt(FREQUENCY_MIN);
+
+// Pill text bakes in the live threshold — "Least Frequent (≤1 edit)" reads as
+// a preview of what the pill currently selects, not just a static label.
+function comparatorDisplay(threshold: number): Record<FrequencyComparator, string> {
+  const edit = `edit${threshold === 1 ? "" : "s"}`;
+  return {
+    lte: `Least Frequent (≤${threshold} ${edit})`,
+    gt: `Most Frequent (>${threshold} ${edit})`,
+  };
+}
 
 export function ModFrequencyReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Modification Frequency: Sky Atlas by Redline");
@@ -134,7 +143,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     track("report_filter", { report: "mod-frequency", filter_type: "comparator", value: c, active: c !== "lte" });
   };
 
-  const filterLabel = `${COMPARATOR_DISPLAY[comparator]}${threshold} modification${threshold === 1 ? "" : "s"}`;
+  const filterLabel = `${comparator === "lte" ? "≤" : ">"}${threshold} modification${threshold === 1 ? "" : "s"}`;
 
   return (
     <div className="px-6 py-6">
@@ -167,7 +176,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
               active={comparator}
               onToggle={onComparator}
               label="Show"
-              display={COMPARATOR_DISPLAY}
+              display={comparatorDisplay(threshold)}
             />
             <label className="flex items-center gap-1.5 text-xs text-tan-3">
               Edits

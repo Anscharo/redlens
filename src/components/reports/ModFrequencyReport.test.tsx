@@ -98,10 +98,10 @@ describe("ModFrequencyReport", () => {
     expect(screen.getByText("8")).toBeInTheDocument();
   });
 
-  it("switches to '>' and lists docs above the typed threshold, updating the summary table too", async () => {
+  it("switches to 'Most Frequent' and lists docs above the typed threshold, updating the summary table too", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
     await screen.findByText("Never Touched Doc");
-    fireEvent.click(screen.getByText(">"));
+    fireEvent.click(screen.getByText("Most Frequent (>1 edit)"));
     // Default threshold is still 1: count > 1 keeps edited(3), busy1(5), busy2(8).
     expect(await screen.findByText("Busy Doc Two")).toBeInTheDocument();
     expect(screen.getByText("Busy Doc One")).toBeInTheDocument();
@@ -109,6 +109,8 @@ describe("ModFrequencyReport", () => {
     expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
     expect(screen.getByText(/documents with >1 modification/)).toBeInTheDocument();
     expect(screen.getByText(">1 modification")).toBeInTheDocument(); // summary column header follows the filter
+    // Pill label bakes in the live threshold too.
+    expect(screen.getByText("Least Frequent (≤1 edit)")).toBeInTheDocument();
 
     // Raise the threshold via the number input: only busy1/busy2 (>4) remain.
     const input = screen.getByRole("spinbutton");
@@ -117,6 +119,7 @@ describe("ModFrequencyReport", () => {
     expect(await screen.findByText(/documents with >4 modifications/)).toBeInTheDocument();
     expect(screen.queryByText("Edited Doc")).not.toBeInTheDocument();
     expect(screen.getByText("Busy Doc One")).toBeInTheDocument();
+    expect(screen.getByText("Most Frequent (>4 edits)")).toBeInTheDocument();
   });
 
   it("clamps the threshold input to [1, 12] and reverts on invalid entry", async () => {
