@@ -1,6 +1,9 @@
 import { useCallback, useRef, useState } from "react";
 import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
+import { downloadFile } from "../../lib/csvDownload";
+import { absolutizeAtlasLinks } from "../../lib/routes";
+import { track } from "../../lib/analytics";
 
 export interface TraceRow {
   name: string;
@@ -21,6 +24,17 @@ export interface VerifyState {
   ungroundedAddresses: string[];
 }
 
+// A downloadable file the agent produced this session via export_findings.
+// Auto-downloaded on arrival; kept on the message so the reply can offer a
+// re-download button. Live-session only — not persisted across reloads.
+export interface ExportArtifact {
+  format: "markdown" | "csv";
+  filename: string;
+  mime: string;
+  content: string;
+  bytes: number;
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -30,6 +44,7 @@ export interface ChatMsg {
   done: boolean;
   verify?: VerifyState;
   statusLine?: string | null; // transient harness status ticker (streaming only)
+  exports?: ExportArtifact[]; // files handed to the user this session (live only)
 }
 
 export interface SendResult {
@@ -139,6 +154,31 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           // any leaked answer fragments. done.content is authoritative.
           patchLast((m) => ({ ...m, content: "" }));
           break;
+        case "export": {
+          // Auto-download the file the moment it arrives (CSV keeps the Excel
+          // BOM; markdown doesn't). A gesture-strict browser (Safari) may block
+          // this async download — the persistent button rendered from
+          // m.exports is the gesture-safe fallback + re-download.
+          // Markdown leaves the app, so rewrite the in-app citation links
+          // (`/atlas/<id>`) to absolute URLs that resolve outside it. CSV is
+          // left byte-for-byte as built server-side.
+          const content = ev.format === "markdown" ? absolutizeAtlasLinks(ev.content) : ev.content;
+          const artifact: ExportArtifact = {
+            format: ev.format,
+            filename: ev.filename,
+            mime: ev.mime,
+            content,
+            bytes: content.length,
+          };
+          try {
+            downloadFile(artifact.filename, artifact.content, artifact.mime, artifact.format === "csv");
+          } catch {
+            // Blocked/unsupported — the fallback button still lets the user save it.
+          }
+          track("chat_export", { format: artifact.format, bytes: artifact.bytes });
+          patchLast((m) => ({ ...m, exports: [...(m.exports ?? []), artifact] }));
+          break;
+        }
         case "tool_call":
           // rounds is bumped in the send loop (it has the contiguous-run state).
           patchLast((m) => ({

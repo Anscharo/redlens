@@ -13,6 +13,8 @@ import type OpenAI from "openai";
 import { execToolDetailed } from "./tools/llm-tools.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
+import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
+import { checkExportArtifact } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -45,6 +47,10 @@ export type ChatEvent =
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
+  // A downloadable artifact the model asked to hand the user (export_findings).
+  // The loop builds it and yields it straight to the client (a tool handler
+  // can't — it only returns JSON to the model); `content` is the whole file.
+  | { type: "export"; format: "markdown" | "csv"; filename: string; mime: string; content: string; bytes: number }
   | {
       type: "done";
       content: string;
@@ -178,17 +184,65 @@ export async function* runChat(opts: {
       msgs.push({
         role: "assistant",
         content: content || null,
-        tool_calls: calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args } })),
+        // The export tool's args carry the whole file body — redact it from the
+        // retained transcript (it's already delivered to the user) so it isn't
+        // re-sent every turn or fed unbudgeted into the verifier evidence.
+        tool_calls: calls.map((c) => ({
+          id: c.id,
+          type: "function",
+          function: { name: c.name, arguments: c.name === EXPORT_TOOL_NAME ? redactExportArgs(c.args) : c.args },
+        })),
       });
       const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
       for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };
       // Execute the round's calls in parallel (pure latency win); results are
-      // then emitted + pushed in call order for deterministic transcripts.
-      const results = await Promise.all(parsedCalls.map((c) => execToolDetailed(opts.ix, c.name, c.raw, opts.obs)));
+      // then emitted + pushed in call order for deterministic transcripts. The
+      // export tool is chat-only and has no registry handler — it's built inline
+      // in the result loop below (it must yield an `export` event, which a
+      // Promise.all callback can't do), so it's skipped here.
+      const results = await Promise.all(
+        parsedCalls.map((c) => (c.name === EXPORT_TOOL_NAME ? Promise.resolve(null) : execToolDetailed(opts.ix, c.name, c.raw, opts.obs))),
+      );
       const roundResults: RoundInfo["results"] = [];
       for (let i = 0; i < parsedCalls.length; i++) {
         const c = parsedCalls[i];
-        const result = results[i];
+
+        // ── export_findings: build the artifact, hand the file to the client,
+        // feed the model only a small ack (never the file body). ──────────────
+        if (c.name === EXPORT_TOOL_NAME) {
+          let ack: Record<string, unknown>;
+          try {
+            const art = buildExportArtifact(c.args as Parameters<typeof buildExportArtifact>[0]);
+            // Deterministically verify the file body against this turn's evidence
+            // (tool results + prior answers) BEFORE it downloads — the harness
+            // only audits the chat answer, so an unchecked file could carry a
+            // fabricated citation/quote/address. Withhold + tell the model to fix.
+            const evidenceTexts = msgs
+              .filter((m) => (m.role === "tool" || m.role === "assistant") && typeof m.content === "string")
+              .map((m) => m.content as string);
+            const check = checkExportArtifact(art, evidenceTexts, opts.ix);
+            if (check.ok) {
+              const bytes = check.content.length;
+              yield { type: "export", format: art.format, filename: art.filename, mime: art.mime, content: check.content, bytes };
+              ack = { ok: true, filename: art.filename, bytes, note: "Delivered to the user as a download." };
+            } else {
+              ack = {
+                error: `export withheld — the file content failed verification: ${check.problems.join("; ")}. Correct these using only evidence retrieved this turn, then call export_findings again.`,
+              };
+            }
+          } catch (e) {
+            ack = { error: (e as Error).message };
+          }
+          const ackStr = JSON.stringify(ack);
+          const ok = !isErrorResult(ackStr);
+          toolCalls.push({ name: c.name, args: c.args, ok, bytes: ackStr.length });
+          yield { type: "tool_result", name: c.name, ok, bytes: ackStr.length };
+          msgs.push({ role: "tool", tool_call_id: c.id, content: ackStr });
+          roundResults.push({ name: c.name, ok, content: ackStr, truncated: false });
+          continue;
+        }
+
+        const result = results[i]!;
         const toolContent = result.content;
         const ok = !isErrorResult(toolContent);
         toolCalls.push({

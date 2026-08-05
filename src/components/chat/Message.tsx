@@ -1,6 +1,7 @@
 import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
+import { ExportChips } from "./ExportChips";
 import { ToolTrace } from "./ToolTrace";
 import { VerifyBadge } from "./VerifyBadge";
 import type { ChatMsg } from "./useChatStream";
@@ -50,6 +51,7 @@ function AssistantTurn({
             </div>
           )}
           {msg.verify && <VerifyBadge verify={msg.verify} />}
+          {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
           {!streaming && msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
         </>
       )}
