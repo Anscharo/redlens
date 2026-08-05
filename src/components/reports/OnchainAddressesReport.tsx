@@ -259,39 +259,37 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           />
         </div>
 
-        {loading ? (
-          <p className="text-sm text-tan-3">Loading…</p>
-        ) : (
-          <>
-            {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left" style={{ minWidth: "1500px" }}>
-                <thead>
-                  <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
-                    <th className="py-2 px-3 font-normal w-44">Address</th>
-                    <th className="py-2 px-3 font-normal w-44">Chainlog / On-Chain Name</th>
-                    <th className="py-2 px-3 font-normal w-32">Implementation</th>
-                    <th className="py-2 px-3 font-normal w-44">Owner</th>
-                    <th className="py-2 px-3 font-normal w-24">Chain</th>
-                    <th className="py-2 px-3 font-normal w-40">Type</th>
-                    <th className="py-2 px-3 font-normal text-right">ETH</th>
-                    <th className="py-2 px-3 font-normal text-right">USDS</th>
-                    <th className="py-2 px-3 font-normal text-right">SKY</th>
-                    <th className="py-2 px-3 font-normal">Other Balances</th>
-                    <th className="py-2 px-3 font-normal w-24">Updated</th>
-                    <th className="py-2 px-3 font-normal">Docs Mentioned In</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((r) => (
-                    <Row key={r.rowKey} r={r} rq={rq} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+        {loading && <p className="text-sm text-tan-3">Loading…</p>}
+        {!loading && rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
       </div>
+
+      {!loading && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left" style={{ minWidth: "1500px" }}>
+            <thead>
+              <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
+                <th className="py-2 px-3 font-normal w-44">Address</th>
+                <th className="py-2 px-3 font-normal w-44">Chainlog / On-Chain Name</th>
+                <th className="py-2 px-3 font-normal w-32">Implementation</th>
+                <th className="py-2 px-3 font-normal w-44">Owner</th>
+                <th className="py-2 px-3 font-normal w-24">Chain</th>
+                <th className="py-2 px-3 font-normal w-40">Type</th>
+                <th className="py-2 px-3 font-normal text-right">ETH</th>
+                <th className="py-2 px-3 font-normal text-right">USDS</th>
+                <th className="py-2 px-3 font-normal text-right">SKY</th>
+                <th className="py-2 px-3 font-normal">Other Balances</th>
+                <th className="py-2 px-3 font-normal w-24">Updated</th>
+                <th className="py-2 px-3 font-normal">Docs Mentioned In</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => (
+                <Row key={r.rowKey} r={r} rq={rq} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
