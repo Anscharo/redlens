@@ -52,7 +52,7 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
       ),
       card(
         "mod-frequency",
-        "Share of never-modified documents per section or document type, a distribution chart of edit counts, and a filterable list of the rarest- or most-frequently-modified documents.",
+        "A distribution chart of edit counts, a per-category share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent), and the matching document list.",
       ),
       card(
         "processes",

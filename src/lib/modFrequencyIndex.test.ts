@@ -5,11 +5,11 @@ import {
   buildModCountHistogram,
   buildModFrequencyRows,
   groupModFrequencyRows,
+  matchesFrequency,
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
-  percentileThreshold,
   sectionOf,
-  summarizeZeroModFrequency,
+  summarizeModFrequencyMatches,
 } from "./modFrequencyIndex";
 
 function node(id: string, doc_no: string, title: string, type = "Section"): AtlasNode {
@@ -62,6 +62,15 @@ describe("buildModFrequencyRows", () => {
     expect(rows.find((r) => r.id === "nr")?.sectionTitle).toBe("NR");
   });
 
+  it("stamps each row's agent from the given map, defaulting to null when omitted", () => {
+    const withoutAgent = buildModFrequencyRows(DOCS, []);
+    expect(withoutAgent.every((r) => r.agent === null)).toBe(true);
+
+    const withAgent = buildModFrequencyRows(DOCS, [], new Map([["deep", "Spark"]]));
+    expect(withAgent.find((r) => r.id === "deep")?.agent).toBe("Spark");
+    expect(withAgent.find((r) => r.id === "scope2")?.agent).toBeNull();
+  });
+
   it("sorts by count asc, then never-modified first, then oldest edit, then doc_no numeric", () => {
     const docs: Record<string, AtlasNode> = {
       a10: node("a10", "A.10", "Ten"),
@@ -95,40 +104,92 @@ describe("groupModFrequencyRows", () => {
     const groups = groupModFrequencyRows(rows, "type");
     expect(groups.map((g) => g.key)).toEqual(["Article", "Needed Research", "Scope"]);
   });
+
+  it("sub-splits a section into per-agent groups when rows carry an agent, keeping the agent-less remainder in the plain section bucket", () => {
+    const agentDocs: Record<string, AtlasNode> = {
+      agentScope: node("agentScope", "A.6", "The Agent Scope", "Scope"),
+      sparkRoot: node("sparkRoot", "A.6.1.1.1", "Spark", "Core"),
+      sparkChild: node("sparkChild", "A.6.1.1.1.2", "Spark ICD", "Section"),
+      groveChild: node("groveChild", "A.6.1.1.2.5", "Grove ICD", "Section"),
+    };
+    const agentByDoc = new Map([
+      ["sparkChild", "Spark"],
+      ["groveChild", "Grove"],
+    ]);
+    const agentRows = buildModFrequencyRows(agentDocs, [], agentByDoc);
+    const groups = groupModFrequencyRows(agentRows, "section");
+    expect(groups.map((g) => g.key)).toEqual(["A.6", "A.6:Grove", "A.6:Spark"]);
+    expect(groups.find((g) => g.key === "A.6")?.rows.map((r) => r.id)).toEqual(["agentScope", "sparkRoot"]);
+    expect(groups.find((g) => g.key === "A.6:Spark")?.label).toBe("A.6 — Spark");
+    expect(groups.find((g) => g.key === "A.6:Spark")?.rows.map((r) => r.id)).toEqual(["sparkChild"]);
+    expect(groups.find((g) => g.key === "A.6:Grove")?.rows.map((r) => r.id)).toEqual(["groveChild"]);
+  });
+
+  it("doesn't sub-split by agent when grouping by type", () => {
+    const agentDocs: Record<string, AtlasNode> = {
+      sparkChild: node("sparkChild", "A.6.1.1.1.2", "Spark ICD", "Section"),
+      groveChild: node("groveChild", "A.6.1.1.2.5", "Grove ICD", "Section"),
+    };
+    const agentByDoc = new Map([
+      ["sparkChild", "Spark"],
+      ["groveChild", "Grove"],
+    ]);
+    const agentRows = buildModFrequencyRows(agentDocs, [], agentByDoc);
+    const groups = groupModFrequencyRows(agentRows, "type");
+    expect(groups.map((g) => g.key)).toEqual(["Section"]);
+    expect(groups[0].rows).toHaveLength(2);
+  });
 });
 
-describe("summarizeZeroModFrequency", () => {
-  it("counts zero-modification docs per category against the category's full total", () => {
+describe("summarizeModFrequencyMatches", () => {
+  const zeroOnly = (r: { count: number }) => r.count === 0;
+
+  it("counts matching docs per category against the category's full total", () => {
     // scope0 (0), root (0), scope2 (0), nr (0) are all zero-fills (no count row);
     // only "deep" (A.2) was actually modified.
     const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
-    const summary = summarizeZeroModFrequency(rows, "section");
+    const summary = summarizeModFrequencyMatches(rows, "section", zeroOnly);
     expect(summary.find((s) => s.key === "A")).toEqual({
-      key: "A", label: "A — The Atlas", total: 1, zeroCount: 1, zeroPercent: 100,
+      key: "A", label: "A — The Atlas", total: 1, matchCount: 1, matchPercent: 100,
     });
     expect(summary.find((s) => s.key === "A.2")).toEqual({
       key: "A.2",
       label: "A.2 — Accessibility Scope",
       total: 2, // scope2 + deep
-      zeroCount: 1, // scope2 only — deep has 2 edits
-      zeroPercent: 50,
+      matchCount: 1, // scope2 only — deep has 2 edits
+      matchPercent: 50,
+    });
+  });
+
+  it("reflects whatever predicate is passed, not just zero-modification", () => {
+    const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
+    const summary = summarizeModFrequencyMatches(rows, "section", (r) => r.count > 0);
+    expect(summary.find((s) => s.key === "A.2")).toEqual({
+      key: "A.2",
+      label: "A.2 — Accessibility Scope",
+      total: 2,
+      matchCount: 1, // deep only — scope2 has 0 edits
+      matchPercent: 50,
+    });
+    expect(summary.find((s) => s.key === "A")).toEqual({
+      key: "A", label: "A — The Atlas", total: 1, matchCount: 0, matchPercent: 0,
     });
   });
 
   it("returns no categories for an empty row set", () => {
-    const summary = summarizeZeroModFrequency([], "type");
+    const summary = summarizeModFrequencyMatches([], "type", zeroOnly);
     expect(summary).toEqual([]);
   });
 
   it("groups by type using the same category buckets as groupModFrequencyRows", () => {
     const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
-    const summary = summarizeZeroModFrequency(rows, "type");
+    const summary = summarizeModFrequencyMatches(rows, "type", zeroOnly);
     expect(summary.map((s) => s.key)).toEqual(["Article", "Needed Research", "Scope"]);
     expect(summary.find((s) => s.key === "Article")).toEqual({
-      key: "Article", label: "Article", total: 1, zeroCount: 0, zeroPercent: 0,
+      key: "Article", label: "Article", total: 1, matchCount: 0, matchPercent: 0,
     });
     expect(summary.find((s) => s.key === "Scope")).toEqual({
-      key: "Scope", label: "Scope", total: 3, zeroCount: 3, zeroPercent: 100,
+      key: "Scope", label: "Scope", total: 3, matchCount: 3, matchPercent: 100,
     });
   });
 });
@@ -159,24 +220,16 @@ describe("buildModCountHistogram", () => {
   });
 });
 
-describe("percentileThreshold", () => {
-  it("returns the count value at the top-N% cutoff", () => {
-    const docs: Record<string, AtlasNode> = {
-      a: node("a", "A.1", "A"),
-      b: node("b", "A.2", "B"),
-      c: node("c", "A.3", "C"),
-      d: node("d", "A.4", "D"),
-      e: node("e", "A.5", "E"),
-    };
-    // Counts sorted: 0, 0, 0, 1, 5. Top 20% of 5 rows -> idx floor(5*0.8)=4 -> value 5.
-    const rows = buildModFrequencyRows(docs, [count("d", 1), count("e", 5)]);
-    expect(percentileThreshold(rows, 20)).toBe(5);
-    // Top 40% -> idx floor(5*0.6)=3 -> value 1.
-    expect(percentileThreshold(rows, 40)).toBe(1);
+describe("matchesFrequency", () => {
+  it("lte keeps count <= threshold", () => {
+    expect(matchesFrequency(1, "lte", 1)).toBe(true);
+    expect(matchesFrequency(0, "lte", 1)).toBe(true);
+    expect(matchesFrequency(2, "lte", 1)).toBe(false);
   });
 
-  it("returns 0 for an empty row set", () => {
-    expect(percentileThreshold([], 20)).toBe(0);
+  it("gt keeps count > threshold", () => {
+    expect(matchesFrequency(2, "gt", 1)).toBe(true);
+    expect(matchesFrequency(1, "gt", 1)).toBe(false);
   });
 });
 

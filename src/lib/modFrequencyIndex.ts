@@ -23,6 +23,11 @@ export interface ModFrequencyRow {
   count: number;
   /** YYYY-MM-DD of the latest counted edit; null = never modified. */
   lastModified: string | null;
+  /** The Prime/Executor Agent whose artifact subtree this doc lives under
+   *  (only ever non-null under A.6, the Agent Scope), or null. From
+   *  buildOwningAgentMap — null in preview mode or when the graph hasn't
+   *  loaded yet. */
+  agent: string | null;
 }
 
 // NR-X (Needed Research) is a spec-defined structural pattern
@@ -48,10 +53,12 @@ function cmpLastModified(a: string | null, b: string | null): number {
 
 /** One row per doc in docs.json, merged with the server tallies (zero-filled
  *  when absent; count rows for docs no longer in the atlas are dropped),
- *  sorted least-frequently-modified first. */
+ *  sorted least-frequently-modified first. `agentByDoc` (from
+ *  buildOwningAgentMap) is optional — omit it and every row's agent is null. */
 export function buildModFrequencyRows(
   docs: Record<string, AtlasNode>,
   counts: ModCount[],
+  agentByDoc: ReadonlyMap<string, string> = new Map(),
 ): ModFrequencyRow[] {
   const byId = new Map(counts.map((c) => [c.docId, c]));
   const titleByDocNo = new Map<string, string>();
@@ -69,6 +76,7 @@ export function buildModFrequencyRows(
       sectionTitle: titleByDocNo.get(section) ?? section,
       count: c?.count ?? 0,
       lastModified: c?.lastModified ?? null,
+      agent: agentByDoc.get(d.id) ?? null,
     };
   });
 
@@ -90,19 +98,29 @@ export interface ModFrequencyGroup {
 }
 
 /** Buckets the (already-sorted) rows; rows keep their global order inside each
- *  group. Section groups order by section doc_no, type groups alphabetically. */
+ *  group. Section groups order by section doc_no, type groups alphabetically.
+ *  A section whose rows carry an `agent` (only ever A.6, the Agent Scope —
+ *  see buildOwningAgentMap) further splits into one group per agent instead
+ *  of one lumped section bucket; the agent-less remainder (the scope's own
+ *  structural docs and each agent's own root doc, which is self-excluded)
+ *  keeps the plain section bucket. The ":" key separator sorts every agent
+ *  subgroup immediately after that plain bucket. */
 export function groupModFrequencyRows(
   rows: readonly ModFrequencyRow[],
   grouping: ModFrequencyGrouping,
 ): ModFrequencyGroup[] {
   const groups = new Map<string, ModFrequencyGroup>();
   for (const r of rows) {
-    const key = grouping === "section" ? r.section : r.type;
+    const key = grouping === "section" ? (r.agent ? `${r.section}:${r.agent}` : r.section) : r.type;
     let g = groups.get(key);
     if (!g) {
       const label =
-        grouping === "section" && r.sectionTitle !== r.section
-          ? `${r.section} — ${r.sectionTitle}`
+        grouping === "section"
+          ? r.agent
+            ? `${r.section} — ${r.agent}`
+            : r.sectionTitle !== r.section
+              ? `${r.section} — ${r.sectionTitle}`
+              : key
           : key;
       groups.set(key, (g = { key, label, rows: [] }));
     }
@@ -118,31 +136,33 @@ export interface ModFrequencySummaryRow {
   label: string;
   /** All docs in this category, regardless of edit count. */
   total: number;
-  /** Docs in this category with zero recorded modifications. */
-  zeroCount: number;
-  /** zeroCount / total, as a 0–100 percentage (0 when total is 0). */
-  zeroPercent: number;
+  /** Docs in this category matching the active filter predicate. */
+  matchCount: number;
+  /** matchCount / total, as a 0–100 percentage (0 when total is 0). */
+  matchPercent: number;
 }
 
-/** Per-category rollup: how many docs in each section/type have never been
- *  modified, as a share of every doc in that category — not just the
- *  ≤1-modification subset the doc-level table below is filtered to. Built
- *  from the full (unfiltered) row set so the denominator is the category's
- *  true size. */
-export function summarizeZeroModFrequency(
+/** Per-category rollup: how many docs in each section/type match the given
+ *  predicate (the same one filtering the doc-level table below), as a share
+ *  of every doc in that category — not just the filtered subset. Built from
+ *  the full (unfiltered) row set so the denominator is the category's true
+ *  size; `matches` decides the numerator, so the table tracks whatever
+ *  threshold/comparator the report's filter is currently set to. */
+export function summarizeModFrequencyMatches(
   rows: readonly ModFrequencyRow[],
   grouping: ModFrequencyGrouping,
+  matches: (row: ModFrequencyRow) => boolean,
 ): ModFrequencySummaryRow[] {
   // groupModFrequencyRows only ever emits groups it found at least one row
   // for, so g.rows.length is always >= 1 here — no zero-division guard needed.
   return groupModFrequencyRows(rows, grouping).map((g) => {
-    const zeroCount = g.rows.filter((r) => r.count === 0).length;
+    const matchCount = g.rows.filter(matches).length;
     return {
       key: g.key,
       label: g.label,
       total: g.rows.length,
-      zeroCount,
-      zeroPercent: (zeroCount / g.rows.length) * 100,
+      matchCount,
+      matchPercent: (matchCount / g.rows.length) * 100,
     };
   });
 }
@@ -180,28 +200,17 @@ export function buildModCountHistogram(rows: readonly ModFrequencyRow[]): ModCou
   }));
 }
 
-export type ModFrequencyFilterMode = "rare" | "frequent";
-export const FILTER_MODES: readonly ModFrequencyFilterMode[] = ["rare", "frequent"];
+/** "lte" keeps docs with count <= threshold; "gt" keeps docs with count >
+ *  threshold. One user-typed threshold instead of preset buckets. */
+export type FrequencyComparator = "lte" | "gt";
+export const FREQUENCY_COMPARATORS: readonly FrequencyComparator[] = ["lte", "gt"];
 
-/** "Rare" mode keeps docs with count <= one of these. */
-export const RARE_MAX_OPTIONS = [1, 2, 3, 4] as const;
-export type RareMax = (typeof RARE_MAX_OPTIONS)[number];
+/** Bounds for the threshold number input. */
+export const FREQUENCY_MIN = 1;
+export const FREQUENCY_MAX = 12;
 
-/** "Frequent" mode keeps docs above a percentile-derived threshold — the
- *  count value splitting off (approximately) the top N% most-modified docs. */
-export const FREQUENT_PERCENT_OPTIONS = [20, 10, 5] as const;
-export type FrequentPercent = (typeof FREQUENT_PERCENT_OPTIONS)[number];
-
-/** The count value at the (100 - topPercent)th percentile of the row set's
- *  modification counts — docs with count > this value are (approximately)
- *  the top `topPercent`% most-modified. Approximate by construction: ties at
- *  the cutoff (e.g. many docs sharing count 0) can push the actual included
- *  share above or below topPercent%. */
-export function percentileThreshold(rows: readonly ModFrequencyRow[], topPercent: number): number {
-  if (rows.length === 0) return 0;
-  const sorted = rows.map((r) => r.count).sort((a, b) => a - b);
-  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * (1 - topPercent / 100))));
-  return sorted[idx];
+export function matchesFrequency(count: number, comparator: FrequencyComparator, threshold: number): boolean {
+  return comparator === "lte" ? count <= threshold : count > threshold;
 }
 
 /** Haystack for the header-box filter — the same fields the table renders. */

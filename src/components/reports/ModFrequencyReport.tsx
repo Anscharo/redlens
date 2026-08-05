@@ -1,27 +1,29 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
 import { loadModCounts } from "../../lib/history";
+import { loadGraph } from "../../lib/graph";
+import { buildOwningAgentMap } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useUrlState, urlEnum } from "../../hooks/useUrlState";
+import { useUrlState, urlEnum, urlInt } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
 import {
   buildModFrequencyRows,
   buildModCountHistogram,
   groupModFrequencyRows,
+  matchesFrequency,
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
-  percentileThreshold,
-  summarizeZeroModFrequency,
+  summarizeModFrequencyMatches,
   GROUPINGS,
-  FILTER_MODES,
-  RARE_MAX_OPTIONS,
-  FREQUENT_PERCENT_OPTIONS,
+  FREQUENCY_COMPARATORS,
+  FREQUENCY_MIN,
+  FREQUENCY_MAX,
   type ModCountBucket,
   type ModFrequencyGrouping,
-  type ModFrequencyFilterMode,
+  type FrequencyComparator,
 } from "../../lib/modFrequencyIndex";
 import { CategoryPills } from "./CategoryPills";
 import { FilterSummary } from "./FilterSummary";
@@ -37,66 +39,74 @@ const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
   type: "doc type",
 };
 
-const filterModeCodec = urlEnum<ModFrequencyFilterMode>("rare", FILTER_MODES);
-const FILTER_MODE_DISPLAY: Record<ModFrequencyFilterMode, string> = {
-  rare: "rarely modified",
-  frequent: "frequently modified",
-};
-
-const RARE_MAX_STRS = RARE_MAX_OPTIONS.map(String);
-const rareMaxCodec = urlEnum<string>("1", RARE_MAX_STRS);
-const RARE_MAX_DISPLAY: Record<string, string> = Object.fromEntries(RARE_MAX_OPTIONS.map((n) => [String(n), `≤${n}`]));
-
-const FREQUENT_PERCENT_STRS = FREQUENT_PERCENT_OPTIONS.map(String);
-const freqPercentCodec = urlEnum<string>("20", FREQUENT_PERCENT_STRS);
-const FREQUENT_PERCENT_DISPLAY: Record<string, string> = Object.fromEntries(
-  FREQUENT_PERCENT_OPTIONS.map((n) => [String(n), `top ${n}%`]),
-);
+const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);
+const COMPARATOR_DISPLAY: Record<FrequencyComparator, string> = { lte: "≤", gt: ">" };
+const thresholdCodec = urlInt(FREQUENCY_MIN);
 
 export function ModFrequencyReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Modification Frequency: Sky Atlas by Redline");
-  const { base } = useDataSource();
+  const { base, preview } = useDataSource();
   const docs = useLoaded(() => loadDocs(base));
   // Wrapped so "still loading" (null) is distinguishable from "no history DB
   // on this deploy" ({ value: null }) — loadModCounts resolves null for both a
   // backend-less deploy and a transient failure, never rejects.
   const counts = useLoaded(() => loadModCounts().then((value) => ({ value })));
+  // soft: the A.6-by-agent sub-split is an enrichment, not core to the report —
+  // a graph load failure shouldn't block the rest of the page. Always reads the
+  // live-atlas base (like AtlasView's cousins/relations), so hide it in preview
+  // (its node ids describe the live atlas, not the preview bundle `docs` came
+  // from) rather than mismatching agents to the wrong docs.
+  const graph = useLoaded(loadGraph, { soft: true });
+  const docNoToId = useMemo(() => {
+    if (!docs) return null;
+    return new Map(Object.values(docs).map((d) => [d.doc_no, d.id]));
+  }, [docs]);
+  const agentByDoc = useMemo(() => {
+    if (!docs || !docNoToId) return new Map<string, string>();
+    return buildOwningAgentMap({ docs, docNoToId }, preview ? null : graph);
+  }, [docs, docNoToId, preview, graph]);
   const [group, setGroup] = useUrlState("group", groupCodec);
-  const [filterMode, setFilterMode] = useUrlState("filter", filterModeCodec);
-  const [rareMaxStr, setRareMaxStr] = useUrlState("rare-max", rareMaxCodec);
-  const [freqPercentStr, setFreqPercentStr] = useUrlState("freq-pct", freqPercentCodec);
-  const rareMax = Number(rareMaxStr);
-  const freqPercent = Number(freqPercentStr);
+  const [comparator, setComparator] = useUrlState("cmp", comparatorCodec);
+  const [threshold, setThreshold] = useUrlState("n", thresholdCodec);
+  // Local editing buffer so the field can be freely cleared/retyped — a
+  // number input controlled directly by the clamped URL value fights the
+  // user mid-edit (e.g. can't clear "1" to type "9"). Commits (clamped to
+  // [FREQUENCY_MIN, FREQUENCY_MAX]) on blur/Enter; invalid or empty input
+  // reverts to the last committed value.
+  const [thresholdInput, setThresholdInput] = useState(String(threshold));
+  useEffect(() => setThresholdInput(String(threshold)), [threshold]);
+  const commitThreshold = (raw: string) => {
+    const n = Number(raw);
+    if (!raw || !Number.isFinite(n)) {
+      setThresholdInput(String(threshold));
+      return;
+    }
+    const clamped = Math.min(FREQUENCY_MAX, Math.max(FREQUENCY_MIN, Math.round(n)));
+    setThreshold(clamped);
+    setThresholdInput(String(clamped));
+    track("report_filter", { report: "mod-frequency", filter_type: "threshold", value: clamped, active: clamped !== FREQUENCY_MIN });
+  };
 
   // The full, unfiltered atlas — the per-category summary's denominator and
   // the histogram's source, so both reflect each category/bucket's true
   // size, not just the doc-level table's filtered subset.
   const rows = useMemo(
-    () => (docs && counts?.value ? buildModFrequencyRows(docs, counts.value) : null),
-    [docs, counts],
+    () => (docs && counts?.value ? buildModFrequencyRows(docs, counts.value, agentByDoc) : null),
+    [docs, counts, agentByDoc],
   );
-  const summary = useMemo(() => (rows ? summarizeZeroModFrequency(rows, group) : null), [rows, group]);
+  const matchesFilter = useCallback((count: number) => matchesFrequency(count, comparator, threshold), [comparator, threshold]);
+  const summary = useMemo(
+    () => (rows ? summarizeModFrequencyMatches(rows, group, (r) => matchesFilter(r.count)) : null),
+    [rows, group, matchesFilter],
+  );
   const histogram = useMemo(() => (rows ? buildModCountHistogram(rows) : null), [rows]);
 
-  // "Rare" keeps count <= rareMax; "frequent" keeps count above the count
-  // value at the chosen top-N% cutoff of the live distribution.
-  const threshold = useMemo(() => {
-    if (!rows) return null;
-    return filterMode === "rare" ? rareMax : percentileThreshold(rows, freqPercent);
-  }, [rows, filterMode, rareMax, freqPercent]);
-
-  const docRows = useMemo(() => {
-    if (!rows || threshold === null) return null;
-    return filterMode === "rare"
-      ? rows.filter((r) => r.count <= threshold)
-      : rows.filter((r) => r.count > threshold);
-  }, [rows, filterMode, threshold]);
-
-  const isBucketIncluded = useCallback(
-    (b: ModCountBucket) =>
-      threshold !== null && (filterMode === "rare" ? b.count <= threshold : b.count > threshold),
-    [filterMode, threshold],
+  const docRows = useMemo(
+    () => (rows ? rows.filter((r) => matchesFilter(r.count)) : null),
+    [rows, matchesFilter],
   );
+
+  const isBucketIncluded = useCallback((b: ModCountBucket) => matchesFilter(b.count), [matchesFilter]);
 
   const trackedView = useRef(false);
   useEffect(() => {
@@ -119,23 +129,12 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     setGroup(g);
     track("report_filter", { report: "mod-frequency", filter_type: "group", value: g, active: g !== "section" });
   };
-  const onFilterMode = (m: ModFrequencyFilterMode) => {
-    setFilterMode(m);
-    track("report_filter", { report: "mod-frequency", filter_type: "filter_mode", value: m, active: m !== "rare" });
-  };
-  const onRareMax = (v: string) => {
-    setRareMaxStr(v);
-    track("report_filter", { report: "mod-frequency", filter_type: "rare_max", value: v, active: v !== "1" });
-  };
-  const onFreqPercent = (v: string) => {
-    setFreqPercentStr(v);
-    track("report_filter", { report: "mod-frequency", filter_type: "freq_percent", value: v, active: v !== "20" });
+  const onComparator = (c: FrequencyComparator) => {
+    setComparator(c);
+    track("report_filter", { report: "mod-frequency", filter_type: "comparator", value: c, active: c !== "lte" });
   };
 
-  const filterLabel =
-    filterMode === "rare"
-      ? `≤${rareMax} modification${rareMax === 1 ? "" : "s"}`
-      : `more than ${threshold ?? 0} modification${(threshold ?? 0) === 1 ? "" : "s"} (top ${freqPercent}%)`;
+  const filterLabel = `${COMPARATOR_DISPLAY[comparator]}${threshold} modification${threshold === 1 ? "" : "s"}`;
 
   return (
     <div className="px-6 py-6">
@@ -162,31 +161,30 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           </div>
         )}
         {rows && (
-          <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2">
+          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
             <CategoryPills
-              categories={FILTER_MODES}
-              active={filterMode}
-              onToggle={onFilterMode}
+              categories={FREQUENCY_COMPARATORS}
+              active={comparator}
+              onToggle={onComparator}
               label="Show"
-              display={FILTER_MODE_DISPLAY}
+              display={COMPARATOR_DISPLAY}
             />
-            {filterMode === "rare" ? (
-              <CategoryPills
-                categories={RARE_MAX_STRS}
-                active={rareMaxStr}
-                onToggle={onRareMax}
-                label="Edits"
-                display={RARE_MAX_DISPLAY}
+            <label className="flex items-center gap-1.5 text-xs text-tan-3">
+              Edits
+              <input
+                type="number"
+                min={FREQUENCY_MIN}
+                max={FREQUENCY_MAX}
+                value={thresholdInput}
+                onChange={(e) => setThresholdInput(e.target.value)}
+                onBlur={(e) => commitThreshold(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                className="w-14 px-1.5 py-0.5 rounded border bg-transparent mono text-xs text-tan"
+                style={{ borderColor: "var(--border)" }}
               />
-            ) : (
-              <CategoryPills
-                categories={FREQUENT_PERCENT_STRS}
-                active={freqPercentStr}
-                onToggle={onFreqPercent}
-                label="Cutoff"
-                display={FREQUENT_PERCENT_DISPLAY}
-              />
-            )}
+            </label>
           </div>
         )}
         {counts && counts.value === null ? (
@@ -198,7 +196,7 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           <p className="mono text-base text-tan-3">loading…</p>
         ) : (
           <>
-            <ModFrequencySummaryTable summary={summary} />
+            <ModFrequencySummaryTable summary={summary} matchLabel={filterLabel} />
             <FilterSummary query={query} searches="doc no, title, type, section" />
             {filtered && (
               <div className="flex items-center justify-between mb-4">
