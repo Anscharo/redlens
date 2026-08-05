@@ -188,7 +188,9 @@ const server = Bun.serve({
 
     // Static segments win over the `:id` param route, so these match first.
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
+    /* v8 ignore start -- request glue; handleModCounts is unit-tested in mod-counts.test.ts */
     "/api/history/mod-counts": () => handleModCounts(),
+    /* v8 ignore stop */
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +

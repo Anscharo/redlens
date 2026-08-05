@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
 import { loadModCounts } from "../../lib/history";
+import { useDataSource } from "../../lib/dataSource";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { useUrlState, urlEnum } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
@@ -29,7 +30,8 @@ const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
 
 export function ModFrequencyReport({ query, mode }: { query: string; mode: ReportMode }) {
   useDocumentTitle("Modification Frequency: Sky Atlas by Redline");
-  const docs = useLoaded(loadDocs);
+  const { base } = useDataSource();
+  const docs = useLoaded(() => loadDocs(base));
   // Wrapped so "still loading" (null) is distinguishable from "no history DB
   // on this deploy" ({ value: null }) — loadModCounts resolves null for both a
   // backend-less deploy and a transient failure, never rejects.

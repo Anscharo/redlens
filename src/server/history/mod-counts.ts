@@ -5,16 +5,17 @@
 //
 // "Modified" is deliberately strict: only `change_type = 'content'` rows count
 // (moves/renames/renumbers are `structural` and never appear here), and of
-// those only semantic edits — `change_kind = 'semantic'`. Two consequences,
-// both intended:
-//   · title-only renames (content rows with an empty diff and null change_kind)
-//     are excluded;
-//   · markdown-era rows written before migration 006 backfill have null
-//     change_kind and are excluded until `pnpm build:history --full` runs.
-// The one rescue: reconstructed-era rows (era set — html/mip/genesis) predate
-// kind classification entirely, so those count when they carry a real diff
-// (18 such rows in the frozen html-era artifact; the pre-git eras emit no
-// content rows at all).
+// those only semantic edits — `change_kind = 'semantic'`. One consequence,
+// intended: title-only renames (content rows with no diff and no change_kind)
+// are excluded.
+//
+// Rows with no change_kind at all — either reconstructed-era rows (predate
+// kind classification) or markdown-era rows written before migration 006's
+// `pnpm build:history --full` backfill has reached them — fall back to
+// diff-based counting: a real stored diff means a real content edit, so it
+// counts. Without this fallback, un-backfilled markdown-era edits would read
+// as `count: 0` and rank as "never modified" instead of just undercounting
+// (they still miss edits whose diff wasn't stored) until the backfill runs.
 import { sql } from "../db.ts";
 import { toIsoDate } from "./history.ts";
 
@@ -26,7 +27,7 @@ interface ModCountQueryRow {
 }
 
 const COUNTED = `change_kind = 'semantic'
-                 OR (change_kind IS NULL AND era IS NOT NULL AND diff IS NOT NULL)`;
+                 OR (change_kind IS NULL AND diff IS NOT NULL)`;
 
 export async function handleModCounts(): Promise<Response> {
   try {

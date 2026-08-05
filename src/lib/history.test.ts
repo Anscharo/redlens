@@ -181,6 +181,71 @@ describe("loadHistory", () => {
   });
 });
 
+describe("loadModCounts", () => {
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.resetModules(); // fresh module-level modCountsCache per test
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("resolves the parsed rows and caches on success", async () => {
+    let calls = 0;
+    const data = [{ docId: "a", count: 3, lastModified: "2026-01-05", contentCount: 5 }];
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => data } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    const first = await loadModCounts();
+    const second = await loadModCounts();
+    expect(first).toEqual(data);
+    expect(second).toBe(first);
+    expect(calls).toBe(1);
+  });
+
+  it("a 404 (no history DB on this deploy) resolves null and IS cached", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 404, json: async () => null } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    expect(await loadModCounts()).toBeNull();
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(1); // second call reused the cached settled promise
+  });
+
+  it("a non-404 failure (503 DB hiccup) resolves null but evicts the cache — retries next time", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 503, json: async () => null } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(1);
+
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(2); // not cached — retried
+  });
+
+  it("a thrown network error resolves null, never a rejection", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    const { loadModCounts } = await import("./history");
+    await expect(loadModCounts()).resolves.toBeNull();
+  });
+});
+
 describe("movePaths", () => {
   const moved = (e: Partial<HistoryEntry>): HistoryEntry => ({
     date: "2024-01-01",
