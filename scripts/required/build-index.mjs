@@ -17,7 +17,13 @@ import { fileURLToPath } from "node:url";
 import MiniSearch from "minisearch";
 
 import { parse, parseTree } from "../lib/atlas-parser.mjs";
-import { ETH_ADDR_RE, SOL_ADDR_RE, normalizeAddress, detectChain } from "../lib/address-chains.mjs";
+import {
+  ETH_ADDR_RE,
+  SOL_ADDR_RE,
+  normalizeAddress,
+  detectChainOrNull,
+  chainFromLabel,
+} from "../lib/address-chains.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -37,20 +43,27 @@ const CONTENT_DIR = path.join(ATLAS_SRC_DIR, "content");
 // Annotation (roles, entityLabel, expectedTokens) runs in build-graph Phase 2.6
 // so it has access to the full entity graph and ICD param data.
 // ---------------------------------------------------------------------------
-function extractAddresses(content) {
+function extractAddresses(content, titleChain) {
   const result = {};
 
   ETH_ADDR_RE.lastIndex = 0;
   let m;
   while ((m = ETH_ADDR_RE.exec(content)) !== null) {
     const key = normalizeAddress(m[0]);
-    if (!result[key]) result[key] = { chain: detectChain(content, m.index) };
+    // Prose first, then the doc's heading context, then the ethereum default.
+    // `detected` records whether anything actually named a chain, so the
+    // cross-doc merge below can tell a stated ethereum from a defaulted one.
+    if (!result[key]) {
+      const detected = detectChainOrNull(content, m.index) ?? titleChain;
+      result[key] = { chain: detected ?? "ethereum", detected: detected != null };
+    }
   }
 
   SOL_ADDR_RE.lastIndex = 0;
   while ((m = SOL_ADDR_RE.exec(content)) !== null) {
     const key = normalizeAddress(m[0]);
-    if (!result[key]) result[key] = { chain: "solana" };
+    // The base58 shape is itself the signal, so this counts as detected.
+    if (!result[key]) result[key] = { chain: "solana", detected: true };
   }
 
   return result;
@@ -144,13 +157,35 @@ fs.mkdirSync(OUT_DIR, { recursive: true });
 
 // Build docs and extract address refs + chain map in one pass.
 const docs = {};
-const chainMap = {}; // addr → { chain }  (most specific chain wins over ethereum)
+const chainMap = {}; // addr → { chain, detected }  (first detected chain wins)
+
+// Chain named by a node's own title, else by its nearest doc_no ancestor that
+// names one. Atomized docs put the chain in a heading — either inline
+// ("ALM Proxy (Optimism) Contract") or as a bare per-chain grouping heading
+// ("Monolithic ALM Contracts" > "Robinhood Chain" > "ALM Proxy Contract") — and
+// the one-line body never repeats it. Walks doc_no rather than parentId because
+// heading depth is capped at 6, which collapses the parent chain for the deeply
+// nested artifact subtrees where this pattern lives.
+const nodeByDocNo = new Map(nodes.map((n) => [n.doc_no, n]));
+function titleChainFor(node) {
+  const parts = node.doc_no.split(".");
+  for (let i = parts.length; i > 0; i--) {
+    const ancestor = i === parts.length ? node : nodeByDocNo.get(parts.slice(0, i).join("."));
+    const hit = ancestor && chainFromLabel(ancestor.title);
+    if (hit) return hit;
+  }
+  return null;
+}
 
 for (const node of nodes) {
-  const addrs = extractAddresses(node.content);
+  const addrs = extractAddresses(node.content, titleChainFor(node));
   for (const [addr, info] of Object.entries(addrs)) {
+    // First *detected* chain wins; a defaulted ethereum stays replaceable. The
+    // previous rule ("anything beats ethereum") could not tell the two apart,
+    // so an address the atlas placed on Mainnet outright was re-pointed by any
+    // later doc that merely filed it under another chain's heading.
     const existing = chainMap[addr];
-    if (!existing || existing.chain === "ethereum") chainMap[addr] = info;
+    if (!existing || (!existing.detected && info.detected)) chainMap[addr] = info;
   }
   docs[node.id] = {
     id: node.id,
@@ -178,7 +213,12 @@ const atlasCommit = process.env.ATLAS_COMMIT ?? (() => {
   catch { return "unknown"; }
 })();
 
-fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: chainMap }));
+// `detected` is merge bookkeeping, not part of the artifact contract.
+const addressesOut = Object.fromEntries(
+  Object.entries(chainMap).map(([addr, { chain }]) => [addr, { chain }]),
+);
+
+fs.writeFileSync(path.join(OUT_DIR, "addresses.atlas.json"), JSON.stringify({ atlasCommit, addresses: addressesOut }));
 fs.writeFileSync(path.join(OUT_DIR, "docs.json"), JSON.stringify({ atlasCommit, nodes: docs }));
 if (idx) fs.writeFileSync(path.join(OUT_DIR, "search-index.json"), JSON.stringify(idx));
 

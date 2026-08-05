@@ -51,14 +51,38 @@ This ships phantom addresses into `addresses.json` that don't correspond to real
  
 ---
 
-## Chain detection (`detectChain`)
+## Chain detection
 
-Three-pass priority — first match wins:
+`detectChainOrNull(content, matchIndex)` reads the prose around an address and returns `null` when nothing names a chain; `detectChain` is the same thing defaulting to `ethereum`. Priority — first match wins:
 
-1. **Explicit phrase** — `address on [the] CHAIN is` in the 120 chars before the address. Most reliable: the author stated the chain explicitly.
-2. **Tight-window keyword scan** — chain-name keywords in the 120 chars before.
-3. **Wide-window keyword scan** — chain-name keywords in the 300 chars before.
-4. **Fallback** — `ethereum`.
+1. **Explicit clause** — `on <phrase> is` immediately before the address (the last such clause, tolerating the `:` / backtick the atlas writes before the literal). Most reliable: the author stated the chain outright. Deliberately *not* anchored on `address on …` — atlas prose reads "The address of the `<long entity name>` on `<Chain>` is:", and requiring `address` adjacent to `on` matched almost nothing, so the entity name's own chain word won instead ("Grove **Arbitrum** … receiver on **Robinhood Chain**" → arbitrum).
+2. **Tight-window keyword scan** — chain keywords in the 120 chars before.
+3. **Wide-window keyword scan** — chain keywords in the 300 chars before.
+
+Each keyword window is scanned **from the last address literal in it onward** first, falling back to the whole window when that segment names no chain. A chain named before some *other* address belongs to that address — without this, every row of a per-chain list (`- Ethereum Mainnet - 0x… - Arbitrum - 0x…`) inherited the first row's chain. The fallback means trimming can only add a signal, never remove the only one.
+
+An enumeration (`on the Ethereum Mainnet, Base, and Arbitrum is` — one address deployed to all three) resolves by `CHAIN_HINTS` registry order, which puts ethereum first.
+
+### Chain from a heading (`chainFromLabel`)
+
+Atomized docs routinely put the chain in a **heading** and never repeat it in the one-line body — either inline (`ALM Proxy (Optimism) Contract`) or as a bare per-chain grouping heading (`Monolithic ALM Contracts` > `Robinhood Chain` > `ALM Proxy Contract`). `build-index` therefore falls back to the node's own title, then its **doc_no** ancestors' titles (`titleChainFor`). It walks doc_no rather than `parentId` because heading depth is capped at 6, which collapses the parent chain exactly in the deeply nested artifact subtrees where this pattern lives.
+
+A title is a **label**, not prose, so `chainFromLabel` checks specific chains before ethereum — otherwise `Base Mainnet - …` resolves to ethereum on the `\bmainnet\b` hint. It keeps word-boundary matching (unlike `normalizeChainLabel`'s substring test) because a doc title is free text where "Database" must not read as base. A deferred chain (`FUTURE_TO_ETHEREUM`) resolves to ethereum rather than null, so the ancestor walk stops at the heading that named it.
+
+### Cross-doc merge and precedence
+
+`build-index` keeps the **first detected** chain per address; a defaulted ethereum (nothing named a chain) stays replaceable, a detected one does not. The older "anything beats ethereum" rule could not tell the two apart, so an address the atlas placed on `(Mainnet)` outright was re-pointed by any later doc that merely filed it under another chain's heading.
+
+Overall precedence, strongest first:
+
+1. **ICD-stated chain** — `build-graph` Phase 4.5a, from a `Token Address (<Chain>)` param key or a `Network` / `Integration Partner Chain` param. Structured data about this exact address. `icdParamChain` returns `null` (not `ethereum`) when the ICD names nothing, so an unlabelled ICD can't reset a chain detected from prose.
+2. **Prose** — `detectChainOrNull`.
+3. **Heading** — `chainFromLabel` over the doc's own title, then doc_no ancestors.
+4. **Default** — `ethereum`.
+
+`build-graph` Phase 2.6 deliberately does **not** recompute chain: it can't see headings, and its "prefer any non-ethereum detection" aggregation let a single stray mention win globally (a doc whose prose said "Gnosis **Protocol**" pinned the address to Gnosis **Chain**).
+
+> **Known limitation:** `addresses.atlas.json` holds one chain per address, but Safes and deterministically-deployed ALM contracts genuinely exist at the same address on several chains. For those, the chain reflects whichever atlas doc names one first.
 
 **Supported chains and their block explorers:**
 
