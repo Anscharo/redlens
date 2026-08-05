@@ -57,6 +57,14 @@ export interface FlatEntry {
   hasContent: boolean;
 }
 
+export function collectSubtree(byParent: AtlasBundle["byParent"], rootId: string): string[] {
+  const ids = [rootId];
+  for (let i = 0; i < ids.length; i++) {
+    for (const child of byParent.get(ids[i]) ?? []) ids.push(child.id);
+  }
+  return ids;
+}
+
 export function flattenTree(byParent: Map<string | null, AtlasNode[]>): FlatEntry[] {
   const result: FlatEntry[] = [];
   function walk(parentId: string | null, parentDocNo?: string) {

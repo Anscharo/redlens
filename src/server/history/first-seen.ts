@@ -51,6 +51,31 @@ function sourceLabel(r: AddedRow): string {
   return `commit:${r.commit_sha}`;
 }
 
+/** The #117 seam verdict for docs that have no `added` event at all, so the caller can
+ *  say WHY. `untraced` (the common case) means the reconstruction couldn't attach the doc
+ *  to any pre-migration entry — the doc is older than its records, not new. `created` means
+ *  a reviewer found no earlier version. Keyed by doc_id; only queried for the docs that
+ *  came back empty, so the normal path costs nothing. */
+async function migrationSeamFor(docIds: string[]): Promise<Map<string, string>> {
+  if (docIds.length === 0) return new Map();
+  const rows = await sql<{ doc_id: string; seam: string }[]>`
+    SELECT doc_id, seam FROM atlas_history
+    WHERE change_type = 'structural' AND seam IS NOT NULL AND doc_id IN ${sql(docIds)}
+  `;
+  return new Map(rows.map((r) => [r.doc_id, r.seam]));
+}
+
+const SEAM_NOTE: Record<string, string> = {
+  untraced:
+    "no 'added' event — this doc's history could not be traced back through the #117 markdown migration, so it is at least as old as that migration (2025-11-21), not newer",
+  created:
+    "no 'added' event — reviewed as introduced by the #117 markdown migration (2025-11-21); the pre-migration HTML holds no earlier version",
+  split:
+    "no 'added' event — carved out of a larger document at the #117 markdown migration (2025-11-21); it is at least as old as the document it was extracted from, whose history carries its earlier record",
+  reintroduced:
+    "no 'added' event — the migration revived a name the pre-migration HTML had already retired, so this doc continues an earlier document under its former name; older than the migration, not new",
+};
+
 /** Earliest `added` event per doc_id, for the given ids only. Empty input
  *  short-circuits to an empty map without touching the DB. Ties (same
  *  committed_at) break on commit_seq so the result is deterministic. */
@@ -97,6 +122,7 @@ export async function atlasFirstSeen(ix: Indexes, ids: string[]): Promise<ToolRe
 
   const docIds = resolved.map((r) => r.docId).filter((id): id is string => !!id);
   const firstSeenMap = await firstSeenFor(docIds);
+  const seamMap = await migrationSeamFor(docIds.filter((id) => !firstSeenMap.has(id)));
 
   const results = resolved.map((r) => {
     const fs = r.docId ? firstSeenMap.get(r.docId) : undefined;
@@ -104,7 +130,7 @@ export async function atlasFirstSeen(ix: Indexes, ids: string[]): Promise<ToolRe
     let note: string | undefined;
     if (!r.found) note = "not found";
     else if (!r.docId) note = "entity has no defining doc — first_seen cannot be derived";
-    else if (!fs) note = "no recorded 'added' event in atlas_history";
+    else if (!fs) note = SEAM_NOTE[seamMap.get(r.docId) ?? ""] ?? "no recorded 'added' event in atlas_history";
     else if (fs.date == null) note = "recorded as 'added' but the exact date is unknown (severed era)";
 
     return {

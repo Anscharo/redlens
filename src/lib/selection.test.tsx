@@ -144,6 +144,193 @@ describe("useSelection", () => {
     expect(result.current.activeCollectionName).toBeNull();
   });
 
+  // C4 (2026-08-02 QA report): opening an empty collection calls replace([]),
+  // which — pre-fix — tripped the same empties-effect as an interactive drain
+  // and silently reset selectedOnly + forgot the collection. It must not.
+  it("replace([]) — opening an empty collection — keeps selectedOnly and the active collection", () => {
+    subsetValue = "selected";
+    storedIds = ["a"];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    setSubset.mockClear();
+
+    act(() => result.current.replace([]));
+
+    expect(result.current.ids.size).toBe(0);
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.selectedOnly).toBe(true);
+    expect(result.current.activeCollectionId).toBe("col1");
+    expect(result.current.activeCollectionName).toBe("Empty Collection");
+  });
+
+  // The two open paths (CollectionsPage's openCollection, the /c/:id opener)
+  // call replace() while still on the previous route and only navigate to
+  // ?subset=selected afterwards — so `selectedOnly` can flip true a render
+  // after `ids` already settled at empty. That's a second firing of the same
+  // effect (selectedOnly is in its dependency array) and must not undo the
+  // first firing's "keep it" decision.
+  it("keeps context when selectedOnly flips true a render after an empty replace()", () => {
+    storedIds = [];
+    const { result, rerender } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    expect(result.current.activeCollectionId).toBe("col1");
+    setSubset.mockClear();
+
+    // Simulate the subset=selected navigation landing on the next render.
+    subsetValue = "selected";
+    rerender();
+
+    expect(result.current.selectedOnly).toBe(true);
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.activeCollectionId).toBe("col1");
+    expect(result.current.activeCollectionName).toBe("Empty Collection");
+  });
+
+  it("a later interactive drain still resets after an earlier empty replace() (the flag isn't sticky)", () => {
+    subsetValue = "selected";
+    storedIds = [];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId("col1");
+      result.current.setActiveCollectionName("Empty Collection");
+    });
+    expect(result.current.activeCollectionId).toBe("col1");
+    setSubset.mockClear(); // isolate the drain's own call below from mount's
+
+    // The user adds a doc (now interactive) then removes it again — this
+    // drain-to-empty must reset normally, proving replace()'s flag doesn't
+    // linger forever and mask a real drain.
+    act(() => result.current.toggleDoc("a"));
+    expect(result.current.activeCollectionId).toBe("col1"); // unaffected while non-empty
+    act(() => result.current.toggleDoc("a"));
+
+    expect(result.current.ids.size).toBe(0);
+    expect(setSubset).toHaveBeenCalledWith("all");
+    expect(result.current.activeCollectionId).toBeNull();
+    expect(result.current.activeCollectionName).toBeNull();
+  });
+
+  // P1 data-loss bug (PR #230 review, 2026-08-03): a stale activeCollectionId
+  // left over from the viewer's OWN previously-active collection must not
+  // survive opening a shared (/c/:id) collection — even an empty one.
+  // Pre-fix, SharedCollectionOpener called only replace([]) +
+  // setActiveCollectionName(), trusting activeCollectionId was already null.
+  // When it wasn't — the viewer had their own collection open first — the C4
+  // bail-out just above (openedFromReplaceRef) meant nothing else cleared it
+  // either: id and name diverged, the pill showed the shared collection's
+  // name, and Save's "Update" would silently PATCH the viewer's own previous
+  // collection with this (empty) id list. The fix has SharedCollectionOpener
+  // call setActiveCollectionId(null) itself, right alongside replace() — this
+  // test reproduces that exact call sequence.
+  it("opening an empty SHARED collection clears a stale own-collection id (does not leak the previous owner's id)", () => {
+    subsetValue = "selected";
+    storedIds = ["a"];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    // The viewer has one of their OWN collections active.
+    act(() => {
+      result.current.setActiveCollectionId("own-123");
+      result.current.setActiveCollectionName("My Collection");
+    });
+    expect(result.current.activeCollectionId).toBe("own-123");
+    setSubset.mockClear();
+
+    // SharedCollectionOpener's (fixed) sequence for an empty shared collection.
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId(null);
+      result.current.setActiveCollectionName("Shared Empty Collection");
+    });
+
+    expect(result.current.ids.size).toBe(0);
+    // The stale own-collection id must be gone — a subsequent "Update" save
+    // can no longer PATCH it.
+    expect(result.current.activeCollectionId).toBeNull();
+    // The shared collection's name still shows in the pill.
+    expect(result.current.activeCollectionName).toBe("Shared Empty Collection");
+    // Still preserves C4: opening an empty collection (shared or own) must not
+    // silently strip subset=selected back out from under the viewer.
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.selectedOnly).toBe(true);
+  });
+
+  // Same root cause, non-empty case: a shared collection's own docs must not
+  // get attributed to a stale own-collection id either. Unlike the empty
+  // case, ids.size > 0 here means the empties-effect above is a no-op
+  // regardless of openedFromReplaceRef (`if (ids.size > 0) return;` fires
+  // first) — so nothing but SharedCollectionOpener's explicit, unconditional
+  // clear protects this case. Pins that the fix isn't accidentally
+  // empty-only.
+  it("opening a NON-EMPTY shared collection also clears a stale own-collection id", () => {
+    storedIds = ["a"];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.setActiveCollectionId("own-123");
+      result.current.setActiveCollectionName("My Collection");
+    });
+
+    act(() => {
+      result.current.replace(["s1", "s2"]);
+      result.current.setActiveCollectionId(null);
+      result.current.setActiveCollectionName("Shared Collection");
+    });
+
+    expect(result.current.ids).toEqual(new Set(["s1", "s2"]));
+    expect(result.current.activeCollectionId).toBeNull();
+    expect(result.current.activeCollectionName).toBe("Shared Collection");
+  });
+
+  // Contrast case: opening one of the viewer's OWN other empty collections
+  // (CollectionsPage.openCollection's sequence) must keep behaving like C4 —
+  // it sets that collection's own real (non-null) id right alongside
+  // replace(). This pins that the shared-collection fix above is scoped to
+  // shared opens and does not turn into "always null the id after an empty
+  // replace()".
+  it("opening one of the viewer's OWN empty collections still keeps that collection's real id (C4, unaffected by the shared-collection fix)", () => {
+    subsetValue = "selected";
+    storedIds = ["a"];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.setActiveCollectionId("own-123");
+      result.current.setActiveCollectionName("My Collection");
+    });
+    setSubset.mockClear();
+
+    // CollectionsPage.openCollection's sequence: replace() + the collection's
+    // OWN real id (not null) + its name.
+    act(() => {
+      result.current.replace([]);
+      result.current.setActiveCollectionId("own-456");
+      result.current.setActiveCollectionName("My Other (Empty) Collection");
+    });
+
+    expect(result.current.ids.size).toBe(0);
+    expect(result.current.activeCollectionId).toBe("own-456");
+    expect(result.current.activeCollectionName).toBe("My Other (Empty) Collection");
+    expect(setSubset).not.toHaveBeenCalled();
+    expect(result.current.selectedOnly).toBe(true);
+  });
+
+  it("replace() with a non-empty collection is unaffected by the empties-effect", () => {
+    storedIds = [];
+    const { result } = renderHook(() => useSelection(), { wrapper });
+    act(() => {
+      result.current.replace(["x", "y"]);
+      result.current.setActiveCollectionId("col2");
+      result.current.setActiveCollectionName("Non-empty Collection");
+    });
+    expect(result.current.ids).toEqual(new Set(["x", "y"]));
+    expect(result.current.activeCollectionId).toBe("col2");
+    expect(result.current.activeCollectionName).toBe("Non-empty Collection");
+  });
+
   it("syncs ids from a cross-tab storage event matching STORAGE_KEY", () => {
     const { result } = renderHook(() => useSelection(), { wrapper });
     storedIds = ["z"];

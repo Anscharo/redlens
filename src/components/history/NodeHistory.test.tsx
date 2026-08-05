@@ -40,17 +40,36 @@ describe("NodeHistory states", () => {
     expect(await screen.findByText("no history recorded")).toBeInTheDocument();
   });
 
-  it("renders 'no history recorded' for an empty array", async () => {
+  it("renders 'no history recorded' for an empty array, indented to the entry column", async () => {
     mockLoad.mockResolvedValue([]);
     render(<NodeHistory nodeId="n3" />);
-    expect(await screen.findByText("no history recorded")).toBeInTheDocument();
+    const msg = await screen.findByText("no history recorded");
+    // Status lines have no rail of their own, so they indent to where entry text
+    // starts rather than sitting under the timeline.
+    expect(msg).toHaveStyle({ marginLeft: "30px" });
+  });
+
+  it("keeps the first entry's upward rail when the timeline runs in from above", async () => {
+    // Preview mode draws its own entry and heading above this list, so trimming
+    // the top segment here would break one continuous line into two.
+    mockLoad.mockResolvedValue([entry({ pr: 1 })]);
+    const railSpans = (c: HTMLElement) => c.querySelectorAll("[aria-hidden='true'] span").length;
+
+    const trimmed = render(<NodeHistory nodeId="n5" />);
+    await screen.findByText("2025-01-01");
+    const trimmedCount = railSpans(trimmed.container);
+    cleanup();
+
+    const continued = render(<NodeHistory nodeId="n5" railAbove />);
+    await screen.findByText("2025-01-01");
+    expect(railSpans(continued.container)).toBe(trimmedCount + 1);
   });
 
   it("renders an entry row with its PR title", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 42, prTitle: "Tweak the thing", changeType: "added" })]);
     render(<NodeHistory nodeId="n4" />);
     expect(await screen.findByText("Tweak the thing")).toBeInTheDocument();
-    expect(screen.getByText("#42")).toBeInTheDocument();
+    expect(screen.getByText("PR 42")).toBeInTheDocument();
   });
 
   it("sorts entries newest-first by date", async () => {
@@ -68,7 +87,52 @@ describe("NodeHistory states", () => {
   it("appends the pre-markdown footer under the migration PR (no reconstructed entries)", async () => {
     mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File" })]);
     render(<NodeHistory nodeId="n6" />);
-    expect(await screen.findByText("view original HTML →")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "view original HTML →" })).toBeInTheDocument();
+  });
+
+  // The verdict is stated inline; what each verdict MEANS lives once on the provenance
+  // page, so the footer has to link there rather than restate it.
+  it("links the seam verdict to its explanation on the provenance page", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "untraced" })]);
+    render(<NodeHistory nodeId="n6d" />);
+    expect(await screen.findByRole("link", { name: "What this means →" })).toHaveAttribute(
+      "href",
+      "/provenance#untraced-history",
+    );
+  });
+
+  // A doc the seam matcher couldn't attach to any pre-migration entry must NOT be
+  // described as created there — that's a limit of the reconstruction, not a finding.
+  it("says the pre-migration history could not be traced when the seam is untraced", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "untraced" })]);
+    render(<NodeHistory nodeId="n6a" />);
+    expect(await screen.findByText(/could not be traced/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Introduced at the markdown migration/i)).not.toBeInTheDocument();
+  });
+
+  it("says the doc was introduced at the migration only on a reviewed 'created' verdict", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "created" })]);
+    render(<NodeHistory nodeId="n6b" />);
+    expect(await screen.findByText(/Introduced at the markdown migration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
+  // A split doc's lineage IS known — it lives on the parent it was carved out of — so it
+  // must not be reported as untraceable either.
+  it("points a split doc at the document it was extracted from", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "split" })]);
+    render(<NodeHistory nodeId="n6c" />);
+    expect(await screen.findByText(/Carved out of a larger document/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
+  });
+
+  // A reintroduced doc's predecessor IS recorded (the reintroduction ledger), so calling
+  // it untraced would state something the reconstruction knows to be false.
+  it("says a reintroduced doc was revived, not that it could not be traced", async () => {
+    mockLoad.mockResolvedValue([entry({ pr: 117, prTitle: "Migrate To Markdown File", seam: "reintroduced" })]);
+    render(<NodeHistory nodeId="n6e" />);
+    expect(await screen.findByText(/Revived at the markdown migration/i)).toBeInTheDocument();
+    expect(screen.queryByText(/could not be traced/i)).not.toBeInTheDocument();
   });
 
   it("hides HTML-era entries by default behind a toggle, and reveals them on click", async () => {
@@ -80,7 +144,7 @@ describe("NodeHistory states", () => {
 
     await screen.findByText("migration");
     expect(screen.queryByText("an html-era change")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Pre-#117 history is reconstructed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/This history is reconstructed/i)).not.toBeInTheDocument();
     // the legacy "no per-doc identities" footer is also suppressed — this doc DOES have
     // reconstructed entries, they're just toggled off, so the footer would be misleading
     expect(screen.queryByText(/79 prior commits exist/)).not.toBeInTheDocument();
@@ -88,8 +152,8 @@ describe("NodeHistory states", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
 
     expect(await screen.findByText("an html-era change")).toBeInTheDocument();
-    expect(screen.getByText(/Pre-#117 history is reconstructed/i)).toBeInTheDocument();
-    expect(screen.getByText("view original HTML →")).toBeInTheDocument();
+    expect(screen.getByText(/This history is reconstructed/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Learn how →" })).toBeInTheDocument();
   });
 
   it("badges only the AI/human HTML-era entries, never deterministic or markdown ones", async () => {
@@ -128,7 +192,7 @@ describe("NodeHistory states", () => {
     fireEvent.click(screen.getByRole("button", { name: "View Reconstructed History" }));
     expect(await screen.findByText("Proposed in MIP104 §14.3")).toBeInTheDocument();
     expect(screen.getByText("Present at Atlas v2 genesis")).toBeInTheDocument();
-    expect(screen.getByText(/trace atlas history prior to the current git repo/i)).toBeInTheDocument();
+    expect(screen.getByText(/This history comes from pre-git sources/i)).toBeInTheDocument();
   });
 
   it("orders by commitSeq, not date, when a severed-era birth carries no date at all", async () => {
@@ -157,7 +221,7 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n11" />);
     fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
     await screen.findByText("Proposed in MIP104 §14.3");
-    const link = screen.getByText("source →").closest("a");
+    const link = screen.getByRole("link", { name: "source →" });
     expect(link).toHaveAttribute("href", "https://github.com/sky-ecosystem/mips/blob/main/MIP104/MIP104.md#1413");
   });
 
@@ -220,7 +284,7 @@ describe("NodeHistory states", () => {
     expect(screen.queryByText("A's history")).not.toBeInTheDocument();
   });
 
-  it("falls back to the top when there's no migration entry for this doc (byte-identical across #117)", async () => {
+  it("keeps the toggle below the entries even with no migration entry (byte-identical across #117)", async () => {
     mockLoad.mockResolvedValue([
       entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
       entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
@@ -228,6 +292,23 @@ describe("NodeHistory states", () => {
     render(<NodeHistory nodeId="n15" />);
     const modern = await screen.findByText("a modern edit");
     const toggle = screen.getByRole("button", { name: "View Reconstructed History" });
-    expect(toggle.compareDocumentPosition(modern) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Toggle sits below the (only) native entry, right where the hidden block would appear.
+    expect(modern.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("when shown, the toggle sits below the native entries and just above the reconstructed block", async () => {
+    mockLoad.mockResolvedValue([
+      entry({ date: "2026-01-01", commitHash: "newer12", commitSeq: 200, summary: "a modern edit" }),
+      entry({ date: "2025-11-21", commitHash: "22cc27b", commitSeq: 82, pr: 117, prTitle: "Migrate To Markdown File" }),
+      entry({ date: "2025-09-01", commitHash: "html0001", era: "html", commitSeq: 5, summary: "an html-era change" }),
+    ]);
+    render(<NodeHistory nodeId="n16" />);
+    fireEvent.click(await screen.findByRole("button", { name: "View Reconstructed History" }));
+    const migration = screen.getByText("Migrate To Markdown File"); // last native entry
+    const toggle = screen.getByRole("button", { name: "Hide Reconstructed History" });
+    const html = screen.getByText("an html-era change"); // first reconstructed entry
+    // native … migration, then the toggle, then the reconstructed block below it.
+    expect(migration.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.compareDocumentPosition(html) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

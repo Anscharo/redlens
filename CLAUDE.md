@@ -29,6 +29,8 @@ pnpm test:snap:update  # update graph snapshots after a deliberate atlas PR or b
 pnpm census:check    # coverage census: warn ([drift]) when uncovered structure clusters appear/grow vs .github/atlas-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 pnpm census:govops   # GovOps report recall census: buckets every GovOps-mentioning doc (row / excluded-by-rule / residue), warns ([drift]) on residue docs not in .github/govops-census-baseline.json — i.e. new GovOps phrasings graph-duties.mjs doesn't recognize; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 pnpm census:risk     # Risk Rules Assessment backlog census (runs under bun): buckets every risk candidate (fresh / rejected-by-triage / backlog), warns ([drift]) on backlog rows not in .github/risk-census-baseline.json — i.e. new/changed risk paragraphs `pnpm risk:assess` hasn't caught up with yet; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
+pnpm census:chains   # chain registry census (runs under bun, imports src/lib/explorer.ts): every chain string the pipeline reads — `Token Address (X)` titles, `Network`/`Integration Partner Chain` params, the multisig `address of ... on X is` regex — plus an inverted prose scan for `<Proper Noun> Chain|Network|Mainnet|Rollup|L2`, bucketed known / deferred (FUTURE_TO_ETHEREUM) / unknown. Warns ([drift]) on unknown chain strings not in .github/chains-census-baseline.json — i.e. the atlas named a chain the registry would silently collapse to ethereum — and on registry inconsistency (a chain in CHAINS missing its CHAIN_HINTS / EXPLORER / chainId / rpcUrl counterpart). `--update` rewrites the baseline (atlas-update.yml does this per bump); `--rpc` additionally round-trips eth_chainId against every rpcUrl. Always exits 0.
+pnpm census:concepts # Atlas CrossView Concepts catalog census (runs under bun, imports src/lib/conceptsCensus.ts): recomputes the 9 deterministic censuses backing docs/crossview/concepts.md (registry liveness, empty scaffolding, ghost doc types, transitionary measures, formulas, numbered-step docs, prohibition language, title templates, cross-scope duplication), warns ([drift]) on new/changed members vs .github/concepts-census-baseline.json; --update rewrites the baseline (atlas-update.yml does this per bump). Always exits 0.
 ```
 
 ### Local dev
@@ -46,6 +48,10 @@ Escape hatches: `DEV_NO_INSTALL=1` (skip the install check), `DEV_NO_WORKER=1` (
 ### Process inventory scripts
 
 The curated process inventory (`public/processes.json` + `public/processes-ignored.json`) is reconciled against atlas drift by the `processes:*` scripts, which are off the `pnpm build` chain. See `.claude/skills/processes-triage/SKILL.md` ("Entry points") for which are human entry-points vs CI-only, and the triage runbook.
+
+### Atlas healer (weekly drift sweep)
+
+`.github/workflows/atlas-healer.yml` runs Mondays: rebuilds artifacts, runs every census in verify mode (no `--update`), reconstructs what the hourly atlas bumps auto-accepted that week, verifies graph snapshots, sweeps failed atlas-update runs, and opens an `atlas-health` issue whose `@claude` mention triggers triage via `.claude/skills/atlas-healer/SKILL.md` (the silence-ordered checklist + fix-PR-vs-finding rules). It also opens the `processes-review` issue when the inventory is dirty — `processes-autoclose.yml` closes it. Build-side tripwires live in `scripts/lib/graph-tripwires.mjs`: `[drift] tripwire:` stderr lines when a structural gate (doc_no regex or `type ===` filter) matches zero docs, and bucketed `[drift-count]` stderr lines for unresolved-counter regressions — both flow into the same warnings-baseline diff atlas-update.yml uses.
 
 ## Architecture
 

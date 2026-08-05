@@ -59,12 +59,12 @@ describe("ProfileButton signed in", () => {
     expect(screen.getByAltText("Signed in")).toBeInTheDocument();
   });
 
-  it("opens the menu showing name, Preferences, Collections, Sign out", () => {
+  it("opens the menu showing name, Account, Collections, Sign out", () => {
     user = { name: "Ada Lovelace", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada Lovelace"));
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("Preferences")).toBeInTheDocument();
+    expect(screen.getByText("Account")).toBeInTheDocument();
     expect(screen.getByText("Collections")).toBeInTheDocument();
     expect(screen.getByText("Sign out")).toBeInTheDocument();
   });
@@ -87,35 +87,56 @@ describe("ProfileButton signed in", () => {
     expect(screen.queryByRole("menu")).toBeNull();
   });
 
-  it("navigates into the Preferences sub-panel and back", () => {
+  it("navigates into the Account sub-panel and back", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
-    expect(screen.getByText("Show tool-call traces")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Account"));
+    expect(screen.getByText("← account")).toBeInTheDocument();
     expect(screen.getByText("Reduce motion")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("← preferences"));
-    expect(screen.queryByText("Show tool-call traces")).toBeNull();
-    expect(screen.getByText("Preferences")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("← account"));
+    expect(screen.queryByText("Reduce motion")).toBeNull();
+    expect(screen.queryByText("Delete account")).toBeNull();
+    expect(screen.getByText("Account")).toBeInTheDocument();
   });
 
-  it("toggles a preference switch and reflects aria-checked", () => {
+  it("toggles the reduce-motion switch and reflects aria-checked", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
-    const traceSwitch = screen.getByText("Show tool-call traces").closest("button")!;
-    expect(traceSwitch).toHaveAttribute("aria-checked", "false");
-    fireEvent.click(traceSwitch);
-    expect(setPref).toHaveBeenCalledWith("traces", true);
+    fireEvent.click(screen.getByText("Account"));
+    const motionSwitch = screen.getByRole("switch", { name: /reduce motion/i });
+    expect(motionSwitch).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(motionSwitch);
+    expect(setPref).toHaveBeenCalledWith("reduceMotion", true);
   });
 
-  it("deletes the account from the Preferences panel after confirmation", () => {
+  it("shows the switch already on when the stored preference is on", () => {
+    prefs = { traces: false, reduceMotion: true };
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Account"));
+    const motionSwitch = screen.getByRole("switch", { name: /reduce motion/i });
+    expect(motionSwitch).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(motionSwitch);
+    expect(setPref).toHaveBeenCalledWith("reduceMotion", false);
+  });
+
+  it("does not restore the tool-call traces switch", () => {
+    user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
+    render(<ProfileButton />);
+    fireEvent.click(screen.getByAltText("Ada"));
+    fireEvent.click(screen.getByText("Account"));
+    expect(screen.queryByText("Show tool-call traces")).toBeNull();
+  });
+
+  it("deletes the account from the Account panel after confirmation", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByText("Account"));
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     expect(deleteAccount).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).toBeNull(); // menu closes on delete
@@ -126,7 +147,7 @@ describe("ProfileButton signed in", () => {
     user = { name: "Ada", avatarUrl: "http://example.com/a.png" };
     render(<ProfileButton />);
     fireEvent.click(screen.getByAltText("Ada"));
-    fireEvent.click(screen.getByText("Preferences"));
+    fireEvent.click(screen.getByText("Account"));
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     expect(deleteAccount).not.toHaveBeenCalled();
   });

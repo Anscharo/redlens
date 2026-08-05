@@ -24,6 +24,7 @@
   --tan-2: #e4d1b9; /* secondary */
   --tan-3: #b8a48e; /* bumped from #a38f79 — passes 4.5:1 on --bg and --surface */
   --magenta: #c61f7c; /* status pills (e.g. update available) — high-contrast on --tan */
+  --lilac: #bfa8ec; /* soft violet — preview "renumbered" note; distinct from --accent links */
   --terminal-green: #399930;
   --lily-green: #ecffea;
 
@@ -247,16 +248,23 @@ mark {
 }
 .tree-toggle {
   cursor: pointer;
-  line-height: 1;
   background: none;
   border: none;
   padding: 0;
   margin: 0;
   font: inherit;
+  /* MUST stay after `font: inherit` — the shorthand resets line-height to the
+     row's inherited value, which at the 20px glyph size makes the button taller
+     than ROW_HEIGHT (29px) and bleeds it into the rows above and below. */
+  line-height: 1;
 }
 .tree-toggle:hover {
   color: var(--tan) !important;
 }
+/* No hover rotation here on purpose — the sidebar chevron swaps glyph (▸/▾) and
+   stays put. The rotate-toward-the-next-state preview is the reader's alone
+   (.atlas-node-toggle below), where the control has three states instead of two
+   and the lean is what distinguishes them. */
 /* Childless rows render a transparent placeholder — keep it invisible and
    non-interactive so hovering doesn't reveal a stray dot. */
 .tree-toggle-empty {
@@ -357,6 +365,16 @@ mark {
 }
 .scope-node.is-target {
   opacity: 1;
+}
+
+/* One glyph, 25% bigger than the text around it — used on the → arrows, which
+   read as too small next to mono chrome at their inherited size. `em` (NOT
+   `rem`: that was a flat 20px, ignoring context and dwarfing a 10px caption)
+   so it scales with whatever it sits in; `line-height: 1` keeps the taller
+   glyph from growing its line box and shifting the row it's on. */
+.enlargen {
+  font-size: 1.25em;
+  line-height: 1;
 }
 
 /* ─── View-children fill ─── */
@@ -502,23 +520,83 @@ mark {
   border-bottom: 1px solid var(--border-muted);
 }
 /* Rows newly revealed by a user-initiated expand animate in.
-   data-expanding is set on .atlas-scroll for 250 ms by handleExpandParent
+   data-expanding is set on .atlas-scroll by handleExpandParent + the pendulum
    in AtlasView — a plain DOM mutation, no React state, no re-render.
    @starting-style fires only for elements inserted while the attribute is
    present, so initial-load nodes and navigation-triggered auto-expansions
    are unaffected. */
+/* Motion vocabulary here is translate + scale only — no opacity — and both stay
+   on the Y axis: `scale: 1 <y>`, never a uniform scale, so text never squeezes
+   horizontally. */
 [data-expanding] .atlas-node {
-  transition: background-color 0.1s, opacity 240ms ease-out, transform 240ms ease-out;
+  transition: background-color 0.1s, translate 280ms ease-out, scale 280ms ease-out;
 }
 @starting-style {
   [data-expanding] .atlas-node {
-    opacity: 0;
-    transform: translateY(-3px);
+    translate: 0 -8px;
+    scale: 1 0.98;
   }
+}
+/* The second step of the same ladder: bodies opened by the rung 1 → 2 swing
+   arrive the way the rows themselves did, so both steps read as one family of
+   movement rather than two unrelated effects. Slightly shorter and a shorter
+   throw than the rows — the body is a bigger object, and matching the rows'
+   distance made it feel like it was dropping rather than unfolding.
+   Cost is bounded: one rung step touches at most ~56 rows (measured; median 2),
+   because a swing only ever reaches a node's IMMEDIATE children. */
+[data-expanding] .atlas-node-body {
+  transition: translate 240ms ease-out, scale 240ms ease-out;
+}
+@starting-style {
+  [data-expanding] .atlas-node-body {
+    translate: 0 -6px;
+    scale: 1 0.99;
+  }
+}
+/* Exit. The hard part is that `scale` is a TRANSFORM: it shrinks the row
+   visually while it keeps every pixel of its layout space, so a transform-only
+   exit ends with the surrounding rows snapping up by the full row height the
+   instant it unmounts. That snap is the jump. Closing the space has to happen
+   DURING the animation, not at the end of it.
+   A keyframe animation rather than a transition, because `height: auto` cannot
+   be transitioned — keyframes state both ends outright. --exit-h is measured
+   and pinned by markExiting (AtlasReader) while the row is still laid out.
+   `forwards` holds height 0 afterwards, so by the time EXIT_MS unmounts the row
+   its space is already gone and the removal changes nothing on screen. */
+@keyframes atlas-node-exit {
+  from {
+    height: var(--exit-h);
+    translate: 0 0;
+    scale: 1 1;
+  }
+  to {
+    height: 0;
+    /* height:0 alone still leaves the row's 5px of vertical padding and its
+       1px hidden-descendants border — ~6px per row that snaps away at unmount,
+       which is the residual jump. Collapse the whole box, not just the box's
+       content. */
+    padding-top: 0;
+    padding-bottom: 0;
+    border-bottom-width: 0;
+    translate: 0 -4px;
+    scale: 1 0.85;
+  }
+}
+.atlas-node[data-exiting] {
+  overflow: hidden;
+  transform-origin: top center;
+  animation: atlas-node-exit 190ms ease-in forwards;
+  pointer-events: none;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-expanding] .atlas-node {
     transition: background-color 0.1s;
+  }
+  [data-expanding] .atlas-node-body {
+    transition: none;
+  }
+  .atlas-node[data-exiting] {
+    animation: none;
   }
   .tree-row.is-pulse {
     animation: none;
@@ -544,6 +622,26 @@ mark {
   position: sticky;
   top: 0;
   z-index: 2;
+}
+
+/* R2: the sticky box above is the WHOLE article, header + expanded body. A
+   body taller than the scrollport made the sticky box itself taller than the
+   scrollport, so it fully occluded every descendant for as long as it stayed
+   stuck — there was no scroll position where both the (opaque) selected node
+   and any descendant were visible/clickable at once. Capping just the body —
+   not the header/chiclets/pendulum/meta above it — keeps the header at its
+   natural size (so the red bar + tint above still read as "selected" exactly
+   as before) while giving the rare long body its own internal scroll, so the
+   article's total height stays bounded and the sticky box can still release
+   its descendants at a reachable scroll position. Ordinary bodies (well under
+   60vh) never hit this cap, so nothing changes for the common case. Not a full
+   fix for "header-only sticky" (that needs the body pulled out of the sticky
+   box entirely, a DOM restructure — see docs/qa/2026-08-02-deep-qa-report.md
+   R2) — this is the safe, CSS-only mitigation for the part that made
+   descendants totally unreachable. */
+.atlas-node.is-selected .atlas-node-body {
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
 /* Cradle: rail down the left of the selected node's descendants, in the
@@ -592,6 +690,9 @@ mark {
   display: flex;
   align-items: center;
 }
+.atlas-node.is-selected[data-has-hidden="true"] .atlas-node-meta {
+  right: 92px;
+}
 .atlas-node.is-selected .atlas-node-meta {
   background-color: var(--bg);
 }
@@ -604,14 +705,157 @@ mark {
   color: var(--tan-2);
   user-select: none;
   /* expanded state rotates the same › / » glyph to point down — keeps the
-     baseline identical between states (no down-chevron glyph needed) */
-  transition: transform 0.15s;
+     baseline identical between states (no down-chevron glyph needed).
+     Resting / post-click move: quick, but never instant. */
+  transition: transform 0.24s ease-out;
 }
 .atlas-node-toggle.is-open {
   transform: rotate(90deg);
 }
+.atlas-node-toggle.is-hidden {
+  transform: rotate(-90deg);
+  color: var(--accent);
+}
 button.atlas-node-toggle:hover {
   color: var(--tan);
+}
+/* Hover DRIFTS the chevron slowly toward where the next click will land, rather
+   than snapping to the preview angle — a lean that reads as intent, not state.
+   --hover-deg is set inline per row from rungHoverAngle() (subtreeState.ts).
+   Suppressed while [data-settling] is present: for CHEVRON_SETTLE_MS after a
+   click the chevron holds its new resting angle even under a continuing hover,
+   so the click's own outcome reads clearly; when the attribute lifts and the
+   pointer is still there, the drift starts again toward the NEW next rung. */
+button.atlas-node-toggle:not([data-settling]):hover {
+  transform: rotate(var(--hover-deg, 0deg));
+  /* Variable speed, not a constant creep. Measured profile: velocity ramps from
+     11%/100ms up to a 24% peak at ~150ms, then decays into a long tail — 20% of
+     the lean is covered by 133ms, 50% by 258ms, and it finishes around 860ms.
+     So the chevron accelerates into the movement, then visibly eases off rather
+     than stopping dead. Retune by measuring, not by eye: the curve's feel is in
+     the velocity profile, which is not obvious from the control points. */
+  transition: transform 1s cubic-bezier(0.22, 0.18, 0.22, 1);
+}
+/* Alt held: alt-click reverses the swing, so the lean must point at THAT rung
+   instead — a preview that ignored the modifier would promise the wrong move.
+   <html data-alt> is kept in sync by useModifierKeyAttrs. */
+[data-alt] button.atlas-node-toggle:not([data-settling]):hover {
+  transform: rotate(var(--hover-deg-alt, 0deg));
+}
+/* …but not on the drift curve above. That 1s ease is tuned for a pointer
+   arriving: a lean that grows out of the hover. A modifier is a discrete
+   input — press Option and the answer is already decided — so on the curve's
+   own profile it would move ~9° of a 45° swap in the first eighth of a second
+   and read as dead. <html data-alt-turn> is up for the moment the modifier
+   flips (either way, so the release snaps back just as fast) and switches the
+   transition to a quick one; see ALT_TURN_MS in useModifierKeyAttrs. Must stay
+   AFTER the rule above — equal specificity, and this one has to win. */
+[data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
+  transition: transform 0.18s ease-out;
+}
+/* Hover hints on the two row surfaces, as ::after labels rather than React
+   state or a per-row Tooltip portal — there are ~1200 reader rows. Each surface
+   sets its own `content` below; this block is only the shared box. <html
+   data-shift> comes from useModifierKeyAttrs.
+
+   Both are suppressed while the cursor is over an interactive descendant,
+   because a click means something else there: the reader's row handler bails on
+   `closest('a, button, [role="button"]')` before it ever reaches the shift
+   branch, the selection checkbox's <label> stops propagation (shift there
+   selects the subtree), and the sidebar chevron has a tooltip of its own. */
+[data-shift] .atlas-node:hover:not(:has(a:hover, button:hover, [role="button"]:hover, label:hover, input:hover))::after,
+.tree-row::after {
+  position: absolute;
+  z-index: 30;
+  /* A label sitting under the cursor must not eat the hover that summoned it —
+     without this the hint would flicker as it appears beneath the pointer. */
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--tan-3);
+  font-family: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 500;
+  box-shadow: 0 4px 12px var(--shadow-strong);
+}
+/* Reader rows speak up only while Shift is held — their titles are already
+   fully visible, so there is nothing to add until the modifier changes what a
+   click does. The label is generated ONLY in that state, so at rest no reader
+   row carries an extra box at all.
+
+   Read through a variable rather than hardcoding the string: a subtree can opt
+   out by inheriting --split-hint: none (see .junior-pane below). That is
+   inheritance, not cascade competition — a plain `content: none` override would
+   lose to this selector, whose :not(:has(…)) makes it very specific.
+
+   Rows are `relative` and can be viewport-tall, so the hint pins to the TOP edge
+   rather than floating mid-row where a long body would strand it. right: 30px
+   clears the 18px selection checkbox at top-2 right-2, revealed by the same
+   hover. */
+[data-shift] .atlas-node:hover:not(:has(a:hover, button:hover, [role="button"]:hover, label:hover, input:hover))::after {
+  content: var(--split-hint, "shift click to open split view");
+  top: 4px;
+  right: 30px;
+}
+/* Sidebar rows carry ONE hover label, not two. It replaces the native title=
+   the title span used to have (a second, slower, differently-worded tooltip of
+   the same thing), so it states the action and always names the doc — reading
+   "Open <title>", or "Open <title> in Splitview" while Shift is held, since
+   that is what the click would then do. The title comes from data-hint on the
+   row: the visible span is truncated to fit, this is the full string.
+
+   It drops BELOW the row rather than sitting in it: the label easily outgrows a
+   sidebar that can be dragged down to 180px, so in-row it would bury the very
+   title being pointed at. Overlaying the NEXT row costs nothing — it is
+   pointer-events: none and follows the cursor down. */
+.tree-row::after {
+  content: "Open " attr(data-hint);
+  top: 100%;
+  left: 6px;
+  max-width: calc(100% - 12px);
+  /* Long atlas titles wrap rather than run off the clipped sidebar edge. */
+  white-space: normal;
+  opacity: 0;
+  transition: opacity 0.08s;
+}
+[data-shift] .tree-row::after {
+  content: "Open " attr(data-hint) " in Splitview";
+}
+/* Delayed on the way in so sweeping the mouse down the tree doesn't strobe a
+   label on every row — the native tooltip it replaces had the same manners.
+   Instant on the way out (no delay on the base rule above). */
+.tree-row:hover:not(:has(a:hover, button:hover, [role="button"]:hover))::after {
+  opacity: 1;
+  transition-delay: 0.5s;
+}
+/* react-window gives every row `position: absolute` with no z-index, so rows
+   paint in DOM order and the NEXT row would draw straight over a hint hanging
+   below this one — z-index on the ::after can't help, it only orders within its
+   own row. Lift the hovered row itself so its overflow wins. */
+.tree-row:hover {
+  z-index: 30;
+}
+/* The split pane already IS the split view: re-targeting it works, but "open
+   split view" is the wrong promise, so junior rows get no hint. Inherited by
+   every row inside the pane; `none` suppresses the pseudo-element outright. */
+.junior-pane {
+  --split-hint: none;
+}
+/* Reduced motion: the drift is the whole point of the hover rules above, so
+   they have to be neutralised HERE rather than in the main reduced-motion block
+   near the top — that block is earlier in the file and these selectors are more
+   specific, so it can't reach them. The lean still happens, it just snaps. */
+@media (prefers-reduced-motion: reduce) {
+  button.atlas-node-toggle:not([data-settling]):hover,
+  /* Same reason one level down: the alt-turn rule outranks the plain hover one,
+     so neutralising only that one would leave the modifier swap animating. */
+  [data-alt-turn] button.atlas-node-toggle:not([data-settling]):hover {
+    transition: none;
+  }
 }
 /* Expand-all (»/«) stays visible on every parent row, just a notch dimmer than
    the primary › toggle so rows stay calm; brightens to full on hover/focus.
@@ -619,6 +863,20 @@ button.atlas-node-toggle:hover {
 button.atlas-node-expand-all {
   opacity: 0.55;
   transition: opacity 0.1s;
+  position: relative;
+}
+/* The glyph's own box is only ~14×16px, sitting in a 44px-tall row — so both
+   the click and the hover lean demanded near-pixel accuracy. This invisible
+   pseudo-element enlarges the target for BOTH at once (hovering a pseudo-element
+   counts as hovering its originating element) without touching layout, so the
+   title and the agent-pill offsets don't move.
+   Symmetric on purpose: the button itself rotates, and the inset is measured in
+   its LOCAL box, so a taller-than-wide area would swing sideways into the doc
+   numbers and title at ±90°. Equal insets stay put through the whole swing. */
+button.atlas-node-expand-all::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
 }
 .atlas-node:hover button.atlas-node-expand-all,
 .atlas-node:focus-within button.atlas-node-expand-all,
@@ -1216,6 +1474,140 @@ button.atlas-node-expand-all:focus-visible {
   text-underline-offset: 3px;
 }
 
+/* CrossView docs (Concepts, Audit) — per-concept unit-opener paragraphs
+   ("**Lifecycle 7 · Omni Documents**") get breathing room above them beyond
+   the ordinary paragraph gap, so each concept reads as its own unit. */
+.atlas-md p.unit-opener {
+  margin-top: 1.5rem;
+}
+.atlas-md p.unit-opener > strong {
+  font-size: 1rem;
+}
+
+/* CrossView markdown typography (Concepts, Audit only — CrossViewMarkdown.tsx's
+   wrapper carries this class ALONGSIDE .atlas-md; scoped here rather than
+   edited into the shared .atlas-md rules above, which the main atlas reader
+   also uses). Tighter measure (the catalog's prose is denser/more
+   cross-referenced than reader content), slightly roomier paragraph rhythm,
+   and small rendering-quality knobs. Ragged right throughout — no
+   justification, no hyphenation. */
+.crossview-md p,
+.crossview-md ul,
+.crossview-md ol {
+  max-width: 70ch;
+}
+.crossview-md p {
+  margin-bottom: 0.9rem;
+}
+.crossview-md ul,
+.crossview-md ol {
+  margin-bottom: 0.9rem;
+}
+.crossview-md li + li {
+  margin-top: 0.375rem;
+}
+.crossview-md h1,
+.crossview-md h2 {
+  letter-spacing: -0.015em;
+}
+.crossview-md h3 {
+  letter-spacing: -0.01em;
+}
+.crossview-md {
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+.crossview-md td,
+.crossview-md th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Evidence-level pills (rehypeEvidencePills.ts) — colored by strength, from
+   script-censused (strongest) down to unverified (weakest). Background/border
+   are subtle tints of the same token via color-mix, matching the bucket-pill
+   precedent in ConceptCensusMembers.tsx. */
+.evidence-pill {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Source Code Pro", "Courier New", monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 0 0.4em;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.evidence-pill-1 {
+  color: var(--preview-add);
+  background: color-mix(in srgb, var(--preview-add) 16%, transparent);
+  border-color: color-mix(in srgb, var(--preview-add) 40%, transparent);
+}
+.evidence-pill-2 {
+  /* NOT --accent: that's the link color, and a source-read pill isn't a link.
+     Muted blue borrowed from the entity palette keeps it distinct from links
+     (accent), censused green (L1), corroborated amber (L3), unverified red (L4). */
+  color: var(--entity-govops-org);
+  background: color-mix(in srgb, var(--entity-govops-org) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-govops-org) 38%, transparent);
+}
+.evidence-pill-3 {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+.evidence-pill-4 {
+  /* NOT --error-text: the app's red means "wrong/error", but L4 means
+     "unchecked". Muted violet from the entity palette — distinct from the
+     L1 green / L2 blue / L3 amber pills, links, and the brand red. */
+  color: var(--entity-foundation);
+  background: color-mix(in srgb, var(--entity-foundation) 14%, transparent);
+  border-color: color-mix(in srgb, var(--entity-foundation) 38%, transparent);
+}
+
+/* CrossView docs (Concepts, Audit) — deep-linkable heading anchors. The "#"
+   affordance is CSS-only hover reveal (no JS hover handler, per convention);
+   clicking it is a plain same-page fragment link (native browser scroll,
+   respecting scroll-margin-top below). */
+.heading-with-anchor {
+  scroll-margin-top: 64px; /* HEADER_OFFSET in src/lib/layout.ts */
+}
+.heading-anchor {
+  margin-left: 0.5em;
+  color: var(--tan-3);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 100ms;
+}
+.heading-with-anchor:hover .heading-anchor {
+  opacity: 1;
+}
+.heading-anchor:hover {
+  color: var(--accent);
+}
+
+/* Concepts tab only — h2 sticks to the top of the page as its section
+   scrolls (the crossview page is window-scroll, see App.tsx's windowScroll
+   routes; the sticky boundary is the viewport, not an inner container).
+   Solid bg matches the page background so content scrolling underneath
+   doesn't bleed through; z-index sits above content but below the app's
+   sticky search header (z-20). h3 gets a taller scroll-margin-top so a
+   hash-targeted h3 doesn't land hidden under the stuck h2. */
+.crossview-sticky-headings h2.heading-with-anchor {
+  position: sticky;
+  top: 64px;
+  z-index: 10;
+  background: var(--bg);
+}
+.crossview-sticky-headings h3.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
+/* Unit-opener paragraphs (crossviewMarkdownComponents.tsx's "Group N · Title"
+   leads) live under the same stuck h2, so a hash-targeted unit needs the
+   same taller offset as h3 — otherwise it lands hidden under the bar too. */
+.crossview-sticky-headings p.unit-opener.heading-with-anchor {
+  scroll-margin-top: 112px;
+}
+
 /* ─── Right panel tab button ─── */
 .right-tab {
   font: 400 11px/1 "Source Code Pro", "Courier New", monospace;
@@ -1267,5 +1659,30 @@ button.atlas-node-expand-all:focus-visible {
   50% {
     opacity: 1;
     transform: scale(1.1);
+  }
+}
+
+/* The ↻ on the footer's update pills. It spins from the click until the page
+   navigates away — see StatusPill for why it never resolves. inline-block so
+   the glyph has a box to rotate inside; without it the transform is dropped. */
+.status-pill-glyph {
+  display: inline-block;
+}
+.status-pill.is-applying .status-pill-glyph {
+  animation: status-pill-spin 0.9s linear infinite;
+}
+@keyframes status-pill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Reduced motion still needs the acknowledgement — that IS the fix here — just
+   not as rotation. Dimming the pill reads as "taken, working". */
+@media (prefers-reduced-motion: reduce) {
+  .status-pill.is-applying .status-pill-glyph {
+    animation: none;
+  }
+  .status-pill.is-applying {
+    opacity: 0.6;
   }
 }

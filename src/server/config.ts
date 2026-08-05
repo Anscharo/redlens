@@ -35,6 +35,22 @@ const appUrl =
   process.env.APP_URL ??
   (process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${port}`);
 
+// Railway PR/preview environments are FORKED from the base environment, so they
+// inherit its service variables — including the pinned APP_URL. Left ungated,
+// canonical.ts then 301s every PR deploy's own hostname to production: the
+// preview is unreachable, and Playwright (which follows redirects) silently
+// asserts against prod instead of the PR build. So the redirect is opt-in by
+// environment identity, not by domain. Railway names the var differently across
+// versions; read both. Fail-safe: an absent/unknown name means NO redirect —
+// a stray non-production env losing the redirect only degrades OAuth on
+// secondary domains, while a stray env KEEPING it black-holes the whole deploy.
+const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME ?? process.env.RAILWAY_ENVIRONMENT ?? "").trim().toLowerCase();
+// "0" forces off and "1" forces on (both regardless of environment); unset
+// defers to the environment name.
+const canonicalHostRedirect =
+  process.env.CANONICAL_HOST_REDIRECT === "1" ||
+  (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
+
 export const config = {
   port,
 
@@ -75,8 +91,15 @@ export const config = {
   // Canonical-host redirect (canonical.ts): GET/HEAD requests on any host other
   // than appUrl's are 301'd to appUrl, so multi-domain deployments can't start
   // an OAuth flow (or set host-only cookies) on a non-canonical host. Active
-  // only when appUrl is https; CANONICAL_HOST_REDIRECT=0 opts out.
-  canonicalHostRedirect: process.env.CANONICAL_HOST_REDIRECT !== "0",
+  // only when appUrl is https AND this is the production Railway environment
+  // (see railwayEnv above); CANONICAL_HOST_REDIRECT=0/1 forces it off/on.
+  canonicalHostRedirect,
+
+  // Lowercased Railway environment name ("production", "pr-211", …), empty off
+  // Railway. Exported so startup can log which way the gate above resolved —
+  // an over-eager canonical redirect is otherwise invisible until someone opens
+  // the URL and lands on production.
+  railwayEnv,
 
   // GitHub + Google OAuth (arctic) + stateless JWT session cookie.
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
@@ -247,9 +270,9 @@ export const config = {
   appCommit:
     process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_COMMIT ?? process.env.GIT_COMMIT ?? process.env.SOURCE_COMMIT ?? "",
 
-  // Preview feature (/api/preview/*): always active server-side; surfaced in
-  // the UI via VITE_PREVIEW_ENABLED. GITHUB_TOKEN does PR/branch resolution +
-  // tarball downloads (previously only the worker needed GitHub access).
+  // Preview feature (/api/preview/*): always active, server-side and in the UI.
+  // GITHUB_TOKEN does PR/branch resolution + tarball downloads (previously only
+  // the worker needed GitHub access).
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.

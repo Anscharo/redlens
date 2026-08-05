@@ -89,6 +89,9 @@ function makeIx(): Indexes {
     entities,
     entityBySlug: new Map(entities.map((e) => [e.slug, e])),
     entityById: new Map(entities.map((e) => [e.id, e])),
+    // atlas_describe's shape section reads these.
+    glossary: new Map(),
+    meta: {},
   } as unknown as Indexes;
 }
 

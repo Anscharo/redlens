@@ -302,6 +302,21 @@ describe("refineProseDiff", () => {
     expect(refineProseDiff(input)).toEqual(input);
   });
 
+  it("leaves a line inside a ``` fence unrefined, however prose-like it reads", () => {
+    // Same rewrite, once loose and once inside a fenced block. Loose, it
+    // promotes to a whole-line swap; fenced, it stays the stored word diff —
+    // isStructuredLine can't see the fence from the content line alone.
+    const oldLine = "The old clause described a completely different obligation entirely.";
+    const newLine = "A wholly rewritten sentence now states an unrelated requirement instead.";
+    expect(refineProseDiff(tildeInput(oldLine, newLine))).toEqual([
+      ["-", oldLine],
+      ["+", newLine],
+    ]);
+
+    const fenced: DiffLine[] = [["=", "```"], ...tildeInput(oldLine, newLine), ["=", "```"]];
+    expect(refineProseDiff(fenced)).toEqual(fenced);
+  });
+
   it("end-to-end: a promoted sentence with a shared comma clause renders the clause as '=' inside the paragraph, not a whole-sentence swap", () => {
     const s1 = "Intro stays the same.";
     const s2old = "The Facilitator, acting in good faith, must approve the deposit request.";

@@ -9,6 +9,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { config } from "./config.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./retrieval/indexes.ts";
 import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
+import { resolveOrigin } from "./reqOrigin.ts";
 import { getOgImage, getCardImage, cardFromQuery } from "./og-image.ts";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { contentTypeFor } from "./bundle-store.ts";
@@ -59,6 +60,21 @@ function checkAuthConfig(): void {
   console.warn(`   redirect URI in use: ${config.appUrl}/api/auth/<provider>/callback`);
 }
 checkAuthConfig();
+
+// Report the canonical-redirect decision at boot (both directions — see
+// canonicalRedirectBootLog, which is unit-tested). v8-ignored: this is boot glue
+// that only runs when the process actually starts, never under test. The helper
+// is pulled in with a dynamic import (canonical.ts is already loaded via the
+// static import above, so this just reads the cached module) to keep every line
+// this block adds *inside* the ignore region — a changed import at the file's
+// top would otherwise count as an uncovered line against the routes meter.
+/* v8 ignore start -- boot log; the decision is tested in canonical.test.ts */
+{
+  const { canonicalRedirectBootLog } = await import("./history/canonical.ts");
+  const bootLine = canonicalRedirectBootLog(config);
+  if (bootLine) console.warn(bootLine);
+}
+/* v8 ignore stop */
 
 const CORS: Record<string, string> = {
   "access-control-allow-origin": "*",
@@ -292,7 +308,10 @@ const server = Bun.serve({
     // unit-tested in og.ts; here we only wire it into the served HTML.
     /* v8 ignore start */
     const url = new URL(req.url);
-    let ogTags = defaultOgTags(url.origin);
+    // Base URL for the meta tags below — see resolveOrigin() for why this
+    // isn't just url.origin.
+    const origin = resolveOrigin(req, url, config.appUrl);
+    let ogTags = defaultOgTags(origin);
     // Soft 404: a dynamic route whose key doesn't resolve (e.g. an unknown
     // /radar/<slug>) still serves the SPA HTML (so the app renders its own
     // not-found view) but with a 404 status, so crawlers/tools don't treat a
@@ -306,7 +325,7 @@ const server = Bun.serve({
       ogTags = renderOgTags({
         pathname,
         searchParams: url.searchParams,
-        origin: url.origin,
+        origin,
         lookup: (idOrDocNo) => {
           const n = resolveNode(ix, idOrDocNo);
           return n ? { title: n.title, doc_no: n.doc_no, content: n.content } : undefined;
@@ -326,7 +345,9 @@ const server = Bun.serve({
       .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };
-    if (pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
+    // Bare `/preview` too, not just `/preview/<id>` — the homepage card links to
+    // the trailing-slash-less path, which is the first crawlable route into it.
+    if (pathname === "/preview" || pathname.includes("/preview/")) headers["x-robots-tag"] = "noindex";
     return new Response(html, { status: notFound ? 404 : 200, headers });
     /* v8 ignore stop */
   },

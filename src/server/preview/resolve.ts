@@ -115,6 +115,17 @@ export interface Resolved {
   kind: "pr" | "branch";
   ref: string; // human label (pull-256, branch name)
   pr?: { number: number; title: string; author: string; state: "open" | "merged" | "closed" };
+  /** ISO date of the head commit — the real "when did this change happen" behind
+   *  the preview, so its entry can carry a date like a live history entry does.
+   *  Absent when GitHub didn't return one (the preview still builds). */
+  date?: string;
+}
+
+/** Head-commit date from a GitHub commit-ish payload (branches and commits both
+ *  nest it the same way). Committer date is when it landed on the ref. */
+function commitDate(json: any): string | undefined {
+  const c = json?.commit?.commit ?? json?.commit;
+  return c?.committer?.date ?? c?.author?.date ?? undefined;
 }
 
 export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork";
@@ -151,12 +162,16 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
       : r.json.state === "closed"
         ? "closed"
         : "open";
+    // The pulls payload carries no head-commit date, so ask for the commit
+    // itself. Best-effort: a failure here only costs the entry its date.
+    const c = await gh.fetchJson(`/repos/${head.repo.full_name}/commits/${head.sha}`);
     return {
       repo: head.repo.full_name,
       sha: head.sha,
       kind: "pr",
       ref: `pull-${p.prNumber}`,
       pr: { number: p.prNumber, title: r.json.title ?? "", author: r.json.user?.login ?? "", state },
+      date: c.ok ? commitDate(c.json) : undefined,
     };
   }
 
@@ -171,5 +186,5 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
   const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
-  return { repo: p.repo, sha, kind: "branch", ref: p.ref };
+  return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json) };
 }

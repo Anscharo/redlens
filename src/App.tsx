@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
-import { useLocation, useSearchParams, Switch, Route } from "wouter";
+import { useLocation, useSearchParams, Switch, Route, Redirect } from "wouter";
 import { useSearchInput } from "./hooks/useSearchInput";
 import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
+import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
@@ -79,6 +80,9 @@ const ConnectPage = lazy(() =>
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
+const CrossViewPage = lazy(() =>
+  lazyRetry(() => import("./components/crossview/CrossViewPage")).then((m) => ({ default: m.CrossViewPage })),
+);
 const AdminEntry = lazy(() =>
   lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
 );
@@ -102,14 +106,19 @@ export default function App() {
   // restore the same side-by-side view, and the URL is shareable.
   const [splitId, setSplitId] = useUrlState("split", splitCodec);
   const [treeOpen, setTreeOpen] = useState(false);
+  // Mirror Alt/Shift onto <html> for the CSS-only chevron preview and the
+  // shift-click hints. Lives here because the reader and the tree sidebar
+  // mount independently.
+  useModifierKeyAttrs();
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
+  // History is the default tab, so an absent (or unrecognized) ?view= lands there.
   const atlasView =
-    searchParams.get("view") === "history"
-      ? ("history" as const)
+    searchParams.get("view") === "annotations"
+      ? ("annotations" as const)
       : searchParams.get("view") === "glossary"
         ? ("glossary" as const)
-        : ("annotations" as const);
+        : ("history" as const);
   const activeNavPage: NavPage | null = location.startsWith(ROUTES.CONSTELLATIONS)
     ? "constellations"
     : location.startsWith(ROUTES.REPORTS)
@@ -388,6 +397,56 @@ export default function App() {
                 <ConnectPage />
               </Suspense>
             </Route>
+            {/* Contents tab removed (superseded by Shape's "Doc mass by scope") — keep old links working */}
+            <Route path="/reports/crossview/contents">
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
+            </Route>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_CONCEPTS}>
+              <Suspense fallback={<Loading />}>
+                <CrossViewPage tab="concepts" />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_AUDIT}>
+              <Suspense fallback={<Loading />}>
+                <CrossViewPage tab="audit" />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_CROSSVIEW_GLOSSARY}>
+              <Suspense fallback={<Loading />}>
+                <CrossViewPage tab="glossary" />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_CROSSVIEW}>
+              <Suspense fallback={<Loading />}>
+                <CrossViewPage tab="shape" />
+              </Suspense>
+            </Route>
+            {/* Legacy URLs → /reports/crossview. Covers the pre-report /library
+                path and the former /reports/library name (this feature was
+                renamed Library → CrossView). Bare "/library" (no trailing segment)
+                doesn't match "/library/:tab*" in wouter — the pattern requires the
+                literal slash — so each needs its own exact route alongside the
+                wildcard one. */}
+            <Route path="/library">
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
+            </Route>
+            <Route path="/reports/library">
+              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
+            </Route>
+            {[
+              "/library/:tab*",
+              "/reports/library/:tab*",
+            ].map((path) => (
+              <Route key={path} path={path}>
+                {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
+                    included), not "tab" — using params.tab here silently dropped the
+                    tab segment on every legacy URL, redirecting e.g. /library/glossary
+                    to bare /reports/crossview instead of /reports/crossview/glossary. */}
+                {(params: { "tab*"?: string }) => (
+                  <Redirect to={`${ROUTES.REPORTS_CROSSVIEW}${params["tab*"] ? `/${params["tab*"]}` : ""}`} replace />
+                )}
+              </Route>
+            ))}
             <Route path={ROUTES.COLLECTIONS}>
               <Suspense fallback={<Loading />}>
                 <CollectionsPage />

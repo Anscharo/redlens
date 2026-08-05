@@ -160,9 +160,13 @@ function search(q: string): SearchHit[] {
 
   const { phrases, casePhrases, rest: restAfterPhrases } = extractPhrases(qForPhrases);
 
-  // Tickers get auto-added as phrases so the stemmer can't mangle them
+  // Tickers get auto-added as phrases so the stemmer can't mangle them.
+  // Skip exclusion tokens ("-word") — they're parsed separately below, and
+  // promoting one here would add the same ticker as both a required phrase
+  // and an excluded term, a self-contradictory filter that matches nothing.
   const restWords = restAfterPhrases.trim().split(/\s+/).filter(Boolean);
   for (const word of restWords) {
+    if (word.startsWith("-")) continue;
     const bare = word.replace(/^[+\-~]/, "").replace(/[~^*]\d*$/, "");
     if (
       bare.length >= 3 &&
@@ -236,13 +240,13 @@ function search(q: string): SearchHit[] {
     casePhrases.push(matchedChainlogId);
   }
 
-  // Pre-compile all regexes once per search (not once per document).
-  const phraseRes = phrases.map(
-    (p) => new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i"),
-  );
-  const casePhraseRes = casePhrases.map(
-    (p) => new RegExp("\\b" + p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b"),
-  );
+  // Pre-compile once per search (not once per document). Phrase / case-phrase
+  // matching is a literal substring test — no \b anchors — per the documented
+  // "quoted phrase = literal substring" contract; a \b-anchored regex can never
+  // match a phrase that begins or ends with punctuation (e.g. "(USDS)"), since
+  // \b never holds between two non-word characters. See searchHighlight.ts for
+  // the (boundary-aware, for readable highlighting) highlight-side counterpart.
+  const lowerPhrases = phrases.map((p) => p.toLowerCase());
   // field:term regexes — case-insensitive; doc_no uses simple includes
   const fieldTermRes = new Map<string, RegExp[]>(
     [...fieldScopedTerms.entries()].map(([f, terms]) => [
@@ -257,8 +261,8 @@ function search(q: string): SearchHit[] {
     typeFilters.length > 0 ||
     inPrefix !== null ||
     fieldTermRes.size > 0 ||
-    phraseRes.length > 0 ||
-    casePhraseRes.length > 0 ||
+    lowerPhrases.length > 0 ||
+    casePhrases.length > 0 ||
     excludeTerms.length > 0;
 
   const docFilter = hasFilters
@@ -271,8 +275,12 @@ function search(q: string): SearchHit[] {
           const text = field === "title" ? doc.title : field === "content" ? doc.content : doc.doc_no;
           if (res.some((re) => !re.test(text))) return false;
         }
-        if (phraseRes.some((re) => !re.test(doc.content) && !re.test(doc.title))) return false;
-        if (casePhraseRes.some((re) => !re.test(doc.content) && !re.test(doc.title))) return false;
+        if (lowerPhrases.length > 0) {
+          const contentLower = doc.content.toLowerCase();
+          const titleLower = doc.title.toLowerCase();
+          if (lowerPhrases.some((p) => !contentLower.includes(p) && !titleLower.includes(p))) return false;
+        }
+        if (casePhrases.some((p) => !doc.content.includes(p) && !doc.title.includes(p))) return false;
         if (excludeTerms.length > 0) {
           const haystack = (doc.title + " " + doc.content).toLowerCase();
           if (excludeTerms.some((t) => haystack.includes(t))) return false;

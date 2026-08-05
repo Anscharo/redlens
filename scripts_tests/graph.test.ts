@@ -474,15 +474,23 @@ describe("Pattern 6-bis — process-step Responsible Party", () => {
 });
 
 describe("duty_for — no double-counted core org from a bare+Core pair", () => {
-  it("never emits two duty_for edges from the same doc to the same entity (bare+Core collapse, A.1.6.6)", () => {
+  it("is deduped per (doc, entity, declared role) — a doc with both an Operational and a Core duty keeps both even if they resolve to the same entity (bare+Core collapse, A.1.6.6)", () => {
     // findRoleDuties collapses a bare/universal duty + a same-doc Core-only
     // duty to a single bare result (see graph-duties.mjs) so resolveDutyEntities
-    // doesn't fan the core org out twice for one doc. Mirrors the Pattern
-    // 6-bis process_step_responsible_party_for no-dup check above.
+    // doesn't fan the core org out twice for one doc. That collapse doesn't
+    // apply to GovOps (bareLabel === op.label there, by design — see
+    // graph-duties.mjs), so a doc can legitimately carry both a Core GovOps
+    // and an Operational GovOps duty; when the same org holds both seats
+    // (e.g. Soter Labs holding Core GovOps and being the sole Operational
+    // GovOps org), both edges resolve to that one entity. That's two real,
+    // distinct duties, not a dup — key on declared role too, same as the
+    // Pattern 6-bis process_step_responsible_party_for check above.
     const seen = new Set<string>();
     const dupes: string[] = [];
     for (const e of edgesOfType("duty_for")) {
-      const key = `${e.from_id}:${e.to_id}`;
+      const declared: string = e.meta ? (JSON.parse(e.meta).role_declared ?? "") : "";
+      const role = /core\s*govops|core\s*facilitator|core\s*executor/i.test(declared) ? "core" : "operational";
+      const key = `${e.from_id}:${e.to_id}:${role}`;
       if (seen.has(key)) dupes.push(key);
       seen.add(key);
     }

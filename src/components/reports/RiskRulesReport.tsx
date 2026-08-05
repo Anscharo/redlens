@@ -190,7 +190,7 @@ export function RiskRulesReport({ query, mode, onNavigate }: { query: string; mo
 
         <div className="flex flex-col gap-2 mb-6">
           <CategoryPills label="Risk Type" labelTitle="Broad category of risk assessment" categories={Object.keys(RISK_DOMAIN_LABELS) as RiskDomain[]} active={domains} onToggle={toggleDomain} display={RISK_DOMAIN_LABELS} counts={counts.domain} hint="multi-select" />
-          <CategoryPills label="Precision" labelTitle="How clearly does this section describe a risk-related rule?" categories={SCORES} active={score} onToggle={toggle("precision", score, setScore)} counts={counts.score} hint="1 vague → 5 precise" />
+          <CategoryPills label="Precision" labelTitle="How clearly does this section describe a risk-related rule?" categories={SCORES} active={score} onToggle={toggle("precision", score, setScore)} counts={counts.score} hint={<>1 vague <span className="enlargen">→</span> 5 precise</>} />
           <CategoryPills label="Incentives" labelTitle="Does this section include a consequence or predetermined action?" categories={RATINGS} active={enforce} onToggle={toggle("incentives", enforce, setEnforce)} counts={counts.enforce} />
           <CategoryPills label="Status" labelTitle="Has this section been updated since the report was last refreshed?" categories={STATUSES} active={status} onToggle={toggle("status", status, setStatus)} counts={counts.status} />
         </div>

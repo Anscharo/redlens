@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, type ReactElement } from "re
 import { buildAncestors, type FlatEntry, type LoadedData } from "../../lib/atlasHelpers";
 import { CollapsibleNode } from "./CollapsibleNode";
 import { AtlasActionsContext } from "./AtlasActionsContext";
+import { useSplitHeight } from "./useSplitHeight";
 import { depthColor, realDepth } from "../../lib/depth";
 
 const ViewChildrenFill = ({ docNo, onExpand }: { docNo: string; onExpand: () => void }) => (
@@ -103,6 +104,8 @@ export function JuniorPane({
   const docNo = node?.doc_no ?? "";
   const hasAbove = ancestors.length > 0;
 
+  const { paneRef, scrollerRef, contentRef, height, startResize } = useSplitHeight();
+
   const ctxValue = useMemo(
     () => ({ navigate: onShiftNavigate, toggle: handleToggle, splitNavigate: onShiftNavigate }),
     [onShiftNavigate, handleToggle],
@@ -111,15 +114,27 @@ export function JuniorPane({
   const items = useMemo(() => {
     const result: ReactElement[] = [];
     if (hasAbove) result.push(<TopNote key="top" />);
-    for (const entry of slice) {
+    // slice[0] is always splitId's own entry (see above); everything after it
+    // is that node's descendants. Bound the selected root's position:sticky to
+    // a group spanning it + those descendants — mirrors AtlasReader's
+    // .selection-group — so the sticky root's containing block is just this
+    // node's own slice, not the whole pane. Without it, the pane has no
+    // bounding wrapper at all and a long-bodied root can occlude every
+    // descendant at any scroll position (R2).
+    const rows: ReactElement[] = slice.map((entry) => (
+      <CollapsibleNode
+        key={entry.node.id}
+        entry={entry}
+        idPrefix="junior"
+        isSelected={entry.node.id === splitId}
+        isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
+      />
+    ));
+    if (rows.length) {
       result.push(
-        <CollapsibleNode
-          key={entry.node.id}
-          entry={entry}
-          idPrefix="junior"
-          isSelected={entry.node.id === splitId}
-          isExpanded={autoExpanded.has(entry.node.id) !== userToggles.has(entry.node.id)}
-        />,
+        <div key="__selection-group" className="selection-group">
+          {rows}
+        </div>,
       );
     }
     if (hasMore)
@@ -143,7 +158,30 @@ export function JuniorPane({
   ]);
 
   return (
-    <div className="flex flex-col" style={{ flex: "0 0 45%", minHeight: 0, overflow: "hidden" }}>
+    // junior-pane: index.css suppresses the shift-click split hint in here —
+    // this pane already is the split view.
+    <div
+      ref={paneRef}
+      className="junior-pane flex flex-col"
+      style={{
+        // Falls back to the 45% default until the column has been measured.
+        flex: height == null ? "0 0 45%" : `0 0 ${height}px`,
+        minHeight: 0,
+        overflow: "hidden",
+        // Positioning context for the drag handle — the pane's own overflow
+        // would otherwise clip a handle anchored to an ancestor.
+        position: "relative",
+      }}
+    >
+      {/* Drag the top edge to resize, like the sidebars' vertical handles.
+          Inside the pane (not at top: -3) because overflow: hidden clips it.
+          TODO: mouse-only — not focusable, no role/keyboard resizing. Follow-up
+          PR: make this an accessible separator with arrow-key resize. */}
+      <div
+        onMouseDown={startResize}
+        title="Drag to resize"
+        style={{ position: "absolute", left: 0, right: 0, top: 0, height: 6, cursor: "row-resize", zIndex: 10 }}
+      />
       <div
         className="flex items-center gap-1 px-3 py-1 shrink-0 mono text-xs overflow-hidden"
         style={{
@@ -180,8 +218,8 @@ export function JuniorPane({
           ✕
         </button>
       </div>
-      <div className="overflow-y-auto flex-1">
-        <div className="mx-auto px-3 py-2">
+      <div ref={scrollerRef} className="overflow-y-auto flex-1">
+        <div ref={contentRef} className="mx-auto px-3 py-2">
           <AtlasActionsContext.Provider value={ctxValue}>{items}</AtlasActionsContext.Provider>
         </div>
       </div>

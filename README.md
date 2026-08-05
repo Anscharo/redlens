@@ -67,9 +67,12 @@ Copy `.env.example` to `.env.local` and fill in:
 
 ```
 ETHERSCAN_API_KEY=   # https://etherscan.io/apidashboard — needed for build:addresses
-ETH_RPC_URL=         # optional; defaults to ethereum.publicnode.com
+ETH_RPC_URL=         # optional; overrides the chains.mjs default for snap:chainstate
 ```
 
+RPC endpoints live per chain in `scripts/lib/chains.mjs` (`CHAIN_RPC`, free public
+endpoints) — `pnpm census:chains --rpc` checks each one still answers for the chain
+id the registry claims.
 The Etherscan cache is committed to the repo — if you're not adding new addresses, `build:addresses` completes in under a second with zero API calls.
 
 ### Build and run
@@ -119,7 +122,7 @@ This is not part of `pnpm build` — it's slow and requires GitHub API access fo
 
 RedLens deploys two ways:
 
-- **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires two repository secrets: `ETHERSCAN_API_KEY` and `ETH_RPC_URL`.
+- **GitHub Pages — static reader.** `main` auto-deploys via `.github/workflows/deploy.yml` on every push to `main`, daily on a schedule, and on manual trigger. It serves the SPA reader only — no chat, no live atlas updates — and requires the repository secret `ETHERSCAN_API_KEY` when rebuilding address metadata.
 - **Railway — full app.** A single web service plus a managed Postgres. The web service serves the reader SPA, the MCP endpoint, `api/health`, and the chat/OAuth endpoints, and runs an in-process self-updater that keeps the atlas text fresh between deploys (polls upstream, hot-swaps in memory, no restart). It builds from a `Dockerfile` — the Dockerfile clones the atlas itself, because Railway strips `.git` and doesn't recurse submodules. Step-by-step runbook: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Keeping the atlas up to date

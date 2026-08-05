@@ -143,13 +143,18 @@ export function parse(src) {
 // checks (below) fail the build loudly on any structural disagreement.
 // ===========================================================================
 
-// Inverse of decompose.yaml_quote_name — mirror of compose.py:_unquote_yaml_name.
-// Only the double-quoted form is escaped; bare values pass through. Replace
-// order (\" then \\) matches compose.py exactly for byte-identical names.
-function unquoteYamlName(s) {
+// Inverse of decompose.yaml_quote_name. Handles the two quoting styles
+// decompose.py emits: double-quoted (with `\"` escapes) and single-quoted
+// (with `''` escapes), used when the value contains `:`, leading whitespace,
+// or quote characters. Bare (unquoted) values pass through unchanged. Mirror
+// of build-history.mjs:unquoteYamlScalar — keep the two in sync.
+export function unquoteYamlName(s) {
   s = s.trim();
   if (s.length >= 2 && s[0] === '"' && s[s.length - 1] === '"') {
-    return s.slice(1, -1).replaceAll('\\"', '"').replaceAll("\\\\", "\\");
+    return s.slice(1, -1).replace(/\\(["\\])/g, "$1");
+  }
+  if (s.length >= 2 && s[0] === "'" && s[s.length - 1] === "'") {
+    return s.slice(1, -1).replace(/''/g, "'");
   }
   return s;
 }

@@ -23,7 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
-import { HEADING_RE } from "../lib/atlas-parser.mjs";
+import { HEADING_RE, unquoteYamlName } from "../lib/atlas-parser.mjs";
 import {
   classifyDiff,
   classifyPrTitle,
@@ -40,6 +40,7 @@ import {
   htmlEraRows,
   preEraRows,
   readHistoryCursor,
+  stampMigrationSeam,
   upsertHistory,
 } from "../../src/server/history/history-db.ts";
 
@@ -195,20 +196,9 @@ function extractBody(raw) {
 
 /** Parse the document.md frontmatter for the fields we care about.
  *  Frontmatter is a small subset of YAML (`key: value` per line); a hand
- *  parser is fine here and avoids pulling in a YAML dep. Handles the two
- *  quoting styles `decompose.py` emits: double-quoted (with `\"` escapes)
- *  and single-quoted (with `''` escapes), used when the value contains
- *  `:`, leading whitespace, or quote characters. */
-function unquoteYamlScalar(v) {
-  if (v.length >= 2 && v[0] === '"' && v[v.length - 1] === '"') {
-    return v.slice(1, -1).replace(/\\(["\\])/g, "$1");
-  }
-  if (v.length >= 2 && v[0] === "'" && v[v.length - 1] === "'") {
-    return v.slice(1, -1).replace(/''/g, "'");
-  }
-  return v;
-}
-
+ *  parser is fine here and avoids pulling in a YAML dep. Unquoting (both
+ *  quoting styles `decompose.py` emits) is shared with atlas-parser.mjs's
+ *  parseDocumentMd via unquoteYamlName. */
 function parseFrontmatter(raw) {
   const lines = raw.split("\n");
   if (lines[0] !== "---") return null;
@@ -216,7 +206,7 @@ function parseFrontmatter(raw) {
   for (let i = 1; i < lines.length; i++) {
     if (lines[i] === "---") break;
     const m = lines[i].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
-    if (m) out[m[1]] = unquoteYamlScalar(m[2]);
+    if (m) out[m[1]] = unquoteYamlName(m[2]);
   }
   return out;
 }
@@ -450,8 +440,13 @@ async function main() {
 
   if (commits.length === 0) {
     console.error("no new commits to process");
-    if (!OUT_JSON) await sql.end();
-    return;
+    // The --out-json sink derives everything it writes from these commits, so with none
+    // there is nothing left to do. The DB sink must NOT stop here: the frozen pre-#117
+    // artifacts below are ingested idempotently on every run and change INDEPENDENTLY of
+    // the atlas git log — a re-freeze (htmlhist:apply / prehist:*) ships new rows without
+    // any new upstream commit. Returning here stranded a re-freeze until some unrelated
+    // atlas commit happened to trigger a cycle, which on a current cursor is never.
+    if (OUT_JSON) return;
   }
 
   // nodeId → new entries added in this run only
@@ -618,13 +613,14 @@ async function main() {
     // from atlas_history. Every html-era event's commitHash is a REAL git sha, so its
     // commit_seq always reconciles via seqByCommit; the baked seq is never reached for
     // these rows. Absent (un-applied) → skipped, markdown era unaffected.
-    let htmlEraCount = 0;
+    let htmlEraCount = 0, seamStamped = 0;
     const htmlEraPath = path.join(ROOT, "public/history-html-era.json");
     if (fs.existsSync(htmlEraPath)) {
       const artifact = JSON.parse(fs.readFileSync(htmlEraPath, "utf8"));
       const htmlRows = htmlEraRows(artifact, seqByCommit);
       await upsertHistory(sql, htmlRows);
       htmlEraCount = htmlRows.length;
+      seamStamped = await stampMigrationSeam(sql, artifact);
     }
 
     // ── Pre-git origins (mip / genesis / severed) ─────────────────────────────
@@ -656,6 +652,7 @@ async function main() {
     console.error(
       `\ndone: upserted ${rows.length} markdown-era change entries across ${newHistory.size} nodes` +
       `${htmlEraCount ? ` + ${htmlEraCount} html-era rows from the frozen artifact` : ""}` +
+      `${seamStamped ? ` (seam verdict stamped on ${seamStamped} migration rows)` : ""}` +
       `${preEraCount ? ` + ${preEraCount} pre-git origin rows from the frozen artifact` : ""}` +
       `${supersededCount ? ` (deleted ${supersededCount} superseded row(s) first)` : ""} into atlas_history`,
     );

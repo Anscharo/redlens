@@ -37,7 +37,13 @@ function EvidenceChain({ title, steps }: { title: string; steps: EvidenceStep[] 
       <span className="mono text-[10px] text-tan-3">{title}: </span>
       {steps.map((s, i) => (
         <span key={i}>
-          {i > 0 && <span className="text-tan-3 text-[10px]"> → </span>}
+          {/* the arrow's own span sizes off the 10px caption, not the row */}
+          {i > 0 && (
+            <span className="text-tan-3 text-[10px]">
+              {" "}
+              <span className="enlargen">→</span>{" "}
+            </span>
+          )}
           {s.docId ? (
             <AtlasLink
               to={atlasHref(s.docId)}

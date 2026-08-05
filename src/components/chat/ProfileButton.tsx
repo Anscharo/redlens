@@ -6,8 +6,8 @@ import { Link } from "../Link";
 
 // NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
 // provider choice (GitHub / Google), both routing through the shared openAuth.
-// Signed-in: avatar → dropdown with name, a Preferences sub-panel (tool-traces
-// + reduce-motion switches, persisted to localStorage), and Sign out.
+// Signed-in: avatar → dropdown with name, an Account sub-panel (a reduce-motion
+// switch persisted to localStorage, plus Delete account), and Sign out.
 // Per the FE handoff we omit the GitHub @handle (not returned by /api/auth/me).
 export function ProfileButton() {
   const { user, signOut, deleteAccount } = useAuth();
@@ -65,13 +65,13 @@ export function ProfileButton() {
               </div>
               <div className="border-t border-border" />
               <button className="rlc-menu-item" onClick={() => setShowPrefs(true)}>
-                <span>Preferences</span>
-                <span className="text-tan-3">→</span>
+                <span>Account</span>
+                <span className="text-tan-3 enlargen">→</span>
               </button>
               <div className="border-t border-border" />
               <Link className="rlc-menu-item" to="/collections" onClick={() => setOpen(false)}>
                 <span>Collections</span>
-                <span className="text-tan-3">→</span>
+                <span className="text-tan-3 enlargen">→</span>
               </Link>
               <div className="border-t border-border" />
               <button
@@ -90,10 +90,9 @@ export function ProfileButton() {
                 className="rlc-menu-item mono text-[11px] text-tan-3"
                 onClick={() => setShowPrefs(false)}
               >
-                <span>← preferences</span>
+                <span>← account</span>
               </button>
               <div className="border-t border-border" />
-              <PrefSwitch label="Show tool-call traces" prefKey="traces" prefs={prefs} setPref={setPref} />
               <PrefSwitch label="Reduce motion" prefKey="reduceMotion" prefs={prefs} setPref={setPref} />
               <div className="px-3 pt-2 pb-[11px]">
                 <div className="mono text-[9.5px] text-gray leading-normal">

@@ -10,6 +10,7 @@ import { render, screen, cleanup, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { ActorInstances } from "./ActorInstances";
 import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/actorIndex";
+import { EXPLORER } from "../../lib/explorer";
 
 afterEach(cleanup);
 
@@ -101,11 +102,54 @@ describe("ActorInstances parameter value rendering", () => {
     render(<ActorInstances primitives={[prim({ instances: [inst({ signalParams: [p] })] })]} />);
   }
 
-  it("links an EVM address to a block explorer", () => {
+  it("links an EVM address to a block explorer, defaulting to etherscan with no chain hint", () => {
     const addr = "0x" + "a".repeat(40);
     renderWithParam(param("Vault", addr));
     const link = screen.getByTitle(addr);
-    expect(link).toHaveAttribute("href", expect.stringContaining("0x"));
+    expect(link).toHaveAttribute("href", EXPLORER.ethereum + addr);
+  });
+
+  it("links a Base-hinted address (via instance name) off etherscan, onto basescan (RD1)", () => {
+    const addr = "0x" + "a".repeat(40);
+    render(
+      <ActorInstances
+        primitives={[
+          prim({ instances: [inst({ displayName: "Base - Morpho Blue USDC ERC4626 Vault", signalParams: [param("Vault", addr)] })] }),
+        ]}
+      />,
+    );
+    const link = screen.getByTitle(addr);
+    expect(link).toHaveAttribute("href", EXPLORER.base + addr);
+  });
+
+  it("prefers a param-key chain hint over a conflicting instance-name hint (RD1)", () => {
+    const addr = "0x" + "a".repeat(40);
+    // Real Spark data shape: the instance name says the instance's home chain
+    // is Ethereum Mainnet, but this specific param is a token address that
+    // itself lives on Avalanche — the key-level hint must win.
+    render(
+      <ActorInstances
+        primitives={[
+          prim({
+            instances: [
+              inst({
+                displayName: "Ethereum Mainnet - Galaxy Arch CLOs",
+                signalParams: [param("Token Address (Avalanche)", addr)],
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+    const link = screen.getByTitle(addr);
+    expect(link).toHaveAttribute("href", EXPLORER.avalanche + addr);
+  });
+
+  it("still shape-detects a Solana address when neither the key nor the instance name hints a chain", () => {
+    const addr = "So11111111111111111111111111111111111111112";
+    renderWithParam(param("Owner Address", addr));
+    const link = screen.getByTitle(addr);
+    expect(link).toHaveAttribute("href", EXPLORER.solana + addr);
   });
 
   it("truncates a 32-byte rate-limit hash", () => {

@@ -73,7 +73,7 @@ export const CATEGORY_LABELS: Record<OGResponsibility["category"], string> = {
 const DEFINITION_UUIDS = definitionDocs.map((d) => d.uuid);
 
 const CORE_ROLE_RE = /\bCore\s*GovOps\b/i;
-const ANY_GOVOPS_RE = /gov\s*ops/i;
+const ANY_GOVOPS_RE = /gov[\s-]*ops/i;
 
 const dutySnippet = (content: string) => sharedDutySnippet(content, ANY_GOVOPS_RE);
 

@@ -75,4 +75,39 @@ describe("handlePosthogProxy", () => {
     expect(res.status).toBe(404);
     expect(calls).toHaveLength(0);
   });
+
+  it("502s when the upstream fetch fails", async () => {
+    globalThis.fetch = (() => Promise.reject(new Error("ECONNREFUSED"))) as unknown as typeof fetch;
+    const req = new Request("http://app.example/z/e/", { method: "POST", body: "data" });
+    const res = await handlePosthogProxy(req, "/z/e/");
+    expect(res.status).toBe(502);
+    expect(await res.text()).toBe("analytics proxy unavailable");
+  });
+
+  it("strips content-encoding/length so the browser doesn't double-decode", async () => {
+    globalThis.fetch = (() =>
+      Promise.resolve(
+        new Response("body", {
+          status: 200,
+          headers: { "content-encoding": "gzip", "content-length": "4", "x-keep": "yes" },
+        }),
+      )) as unknown as typeof fetch;
+    const req = new Request("http://app.example/z/e/", { method: "POST", body: "data" });
+    const res = await handlePosthogProxy(req, "/z/e/");
+    expect(res.headers.get("content-encoding")).toBeNull();
+    expect(res.headers.get("content-length")).toBeNull();
+    expect(res.headers.get("x-keep")).toBe("yes"); // unrelated upstream headers pass through
+  });
+
+  it("forwards a GET without a body and mirrors the upstream status", async () => {
+    globalThis.fetch = ((_url: unknown, init: { method?: string; body?: unknown }) => {
+      calls.push({ url: String(_url), headers: new Headers() });
+      expect(init?.body).toBeUndefined(); // GET/HEAD must not forward a body
+      return Promise.resolve(new Response("cfg", { status: 204 }));
+    }) as unknown as typeof fetch;
+    const req = new Request("http://app.example/z/decide/?v=3", { method: "GET" });
+    const res = await handlePosthogProxy(req, "/z/decide/");
+    expect(res.status).toBe(204);
+    expect(calls[0].url).toBe("https://us.i.posthog.com/decide/?v=3");
+  });
 });

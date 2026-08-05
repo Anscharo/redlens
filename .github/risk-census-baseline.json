@@ -13,16 +13,64 @@
       "title": "Fortification Foundation"
     },
     {
+      "taskKey": "u:e9807449-fdc3-4860-8d53-c56181311618",
+      "uuid": "e9807449-fdc3-4860-8d53-c56181311618",
+      "docNo": "A.1.9.1.2.2.0.6.1",
+      "title": "Emergency Response Group Current Membership"
+    },
+    {
+      "taskKey": "u:b41dc314-3bd6-49bb-a454-ef7a964e1a77",
+      "uuid": "b41dc314-3bd6-49bb-a454-ef7a964e1a77",
+      "docNo": "A.1.9.1.2.3.1",
+      "title": "Additional Emergency Response Team Members"
+    },
+    {
       "taskKey": "u:fa9145a8-308c-4732-927d-cb6da4682fcf",
       "uuid": "fa9145a8-308c-4732-927d-cb6da4682fcf",
       "docNo": "A.1.10.1.2",
       "title": "Chainlog"
     },
     {
+      "taskKey": "u:1ab0de04-ea89-473f-b0b5-5c30219dcde8",
+      "uuid": "1ab0de04-ea89-473f-b0b5-5c30219dcde8",
+      "docNo": "A.1.10.2.3.2.1.1.1.1",
+      "title": "Atlas Draft"
+    },
+    {
+      "taskKey": "u:7ac692f1-9829-41d8-83d4-4cb1bd053302",
+      "uuid": "7ac692f1-9829-41d8-83d4-4cb1bd053302",
+      "docNo": "A.1.10.2.3.2.1.1.1.2",
+      "title": "Atlas Edit Review"
+    },
+    {
+      "taskKey": "u:7b41e751-8387-426f-9ff5-e45cc032e172",
+      "uuid": "7b41e751-8387-426f-9ff5-e45cc032e172",
+      "docNo": "A.1.10.2.3.2.1.1.1.3",
+      "title": "Atlas Edit Sign-Off"
+    },
+    {
+      "taskKey": "u:0465a8ef-0ec5-43b7-8b6f-bed778758364",
+      "uuid": "0465a8ef-0ec5-43b7-8b6f-bed778758364",
+      "docNo": "A.1.10.2.3.2.1.1.1.4",
+      "title": "Atlas Edit Proposal"
+    },
+    {
       "taskKey": "u:14954d6a-0b97-45bf-8734-1e50af8f9ca7",
       "uuid": "14954d6a-0b97-45bf-8734-1e50af8f9ca7",
       "docNo": "A.1.10.2.3.2.2.2.1.6",
       "title": "Creation Of Public Information Dashboard"
+    },
+    {
+      "taskKey": "u:0c442b02-f6c9-4bb2-af7f-f73ee31d9b1f",
+      "uuid": "0c442b02-f6c9-4bb2-af7f-f73ee31d9b1f",
+      "docNo": "A.1.10.2.3.2.2.3.2.4",
+      "title": "Atlas Edit Proposal Drafting And Submission"
+    },
+    {
+      "taskKey": "u:6e254deb-fe5d-4345-8916-bce01463fee5",
+      "uuid": "6e254deb-fe5d-4345-8916-bce01463fee5",
+      "docNo": "A.1.10.2.3.2.2.3.3.5",
+      "title": "Vote Outcome And Atlas Or Artifact Update"
     },
     {
       "taskKey": "u:93b1ccb0-ee1e-4e41-8a3b-03520de76ab4",
@@ -67,6 +115,12 @@
       "title": "Operational Reference Materials"
     },
     {
+      "taskKey": "u:a6acd80e-289a-4159-ba51-3399c5d90f3d",
+      "uuid": "a6acd80e-289a-4159-ba51-3399c5d90f3d",
+      "docNo": "A.1.10.2.5.2.1.1",
+      "title": "Technical Scope Template Submission Requirements"
+    },
+    {
       "taskKey": "u:3c374c29-b5c2-4812-bb99-de17f9116fa2",
       "uuid": "3c374c29-b5c2-4812-bb99-de17f9116fa2",
       "docNo": "A.1.10.2.5.2.1.2",
@@ -77,6 +131,18 @@
       "uuid": "d27661ef-2870-4837-819d-992042ceefe0",
       "docNo": "A.1.10.2.5.2.2.2",
       "title": "Deployment Checklist Update Process"
+    },
+    {
+      "taskKey": "u:45adb133-13b4-402c-8c2b-2473d78ff72e",
+      "uuid": "45adb133-13b4-402c-8c2b-2473d78ff72e",
+      "docNo": "A.1.10.2.5.2.3",
+      "title": "Morpho Deployment Verification Guide"
+    },
+    {
+      "taskKey": "u:5df5c86a-7efa-4c04-afda-dd9f3a21e596",
+      "uuid": "5df5c86a-7efa-4c04-afda-dd9f3a21e596",
+      "docNo": "A.1.10.2.5.2.3.1",
+      "title": "Morpho Deployment Verification Guide Update Process"
     },
     {
       "taskKey": "u:b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
@@ -103,10 +169,40 @@
       "title": "Plasma SkyLink Freezer Multisig"
     },
     {
+      "taskKey": "u:4cf98145-079f-44e0-9a2b-1d7b16037f4a",
+      "uuid": "4cf98145-079f-44e0-9a2b-1d7b16037f4a",
+      "docNo": "A.1.10.5.2.3.2.1.1",
+      "title": "Current Entities Authorized To Validate Authenticity of Standby Spell"
+    },
+    {
+      "taskKey": "u:a15e7cd9-ea93-48ac-b53a-afc476ca2d05",
+      "uuid": "a15e7cd9-ea93-48ac-b53a-afc476ca2d05",
+      "docNo": "A.1.10.5.3.2.2.1.1",
+      "title": "Current Entities Authorized To Validate Authenticity of Emergency Drop Spell"
+    },
+    {
       "taskKey": "u:203b8c79-c7cf-4fcc-94e3-5bf42f791619",
       "uuid": "203b8c79-c7cf-4fcc-94e3-5bf42f791619",
       "docNo": "A.2.2.1.5.1",
       "title": "Current Primitives"
+    },
+    {
+      "taskKey": "u:5f368e33-7a82-4244-a9ba-f285193ec043",
+      "uuid": "5f368e33-7a82-4244-a9ba-f285193ec043",
+      "docNo": "A.2.2.10.1.1.1.1.2.0.6.1",
+      "title": "List Of Current Sky Direct Exposures"
+    },
+    {
+      "taskKey": "u:3a495464-c4d7-46e7-82a3-2c321b27ee12",
+      "uuid": "3a495464-c4d7-46e7-82a3-2c321b27ee12",
+      "docNo": "A.2.2.10.1.1.1.1.3",
+      "title": "Previous Sky Direct Exposures"
+    },
+    {
+      "taskKey": "u:86fce840-f7f3-4617-bb58-d04db8731c9d",
+      "uuid": "86fce840-f7f3-4617-bb58-d04db8731c9d",
+      "docNo": "A.2.2.10.1.1.1.1.3.0.6.1",
+      "title": "List Of Previous Sky Direct Exposures"
     },
     {
       "taskKey": "u:b76195f2-7494-43a4-919e-fa823303ad06",
@@ -361,12 +457,6 @@
       "title": "Diamond PAU Controller Functions"
     },
     {
-      "taskKey": "u:d9173f82-6a6b-432a-a6e4-c8f80f70ba35",
-      "uuid": "d9173f82-6a6b-432a-a6e4-c8f80f70ba35",
-      "docNo": "A.2.2.10.1.1.1.5.2.1",
-      "title": "Mint USDS"
-    },
-    {
       "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
       "uuid": "8eea7011-c299-4861-bf2e-0adb78e3ef30",
       "docNo": "A.2.2.10.1.1.1.5.2.1.1",
@@ -376,19 +466,13 @@
       "taskKey": "u:b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
       "uuid": "b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
       "docNo": "A.2.2.10.1.1.1.5.2.1.2",
-      "title": "Check Rate Limits"
+      "title": "Rate Limit"
     },
     {
       "taskKey": "u:1490a13f-c897-4f0d-9ba3-205f40900321",
       "uuid": "1490a13f-c897-4f0d-9ba3-205f40900321",
       "docNo": "A.2.2.10.1.1.1.5.2.1.3",
       "title": "Mint USDS To ALM Proxy"
-    },
-    {
-      "taskKey": "u:f01e63b7-dde7-422a-89a1-6931839d49f5",
-      "uuid": "f01e63b7-dde7-422a-89a1-6931839d49f5",
-      "docNo": "A.2.2.10.1.1.1.5.2.2",
-      "title": "Burn USDS"
     },
     {
       "taskKey": "u:53d3749c-ef45-45ed-9657-373580abe3cf",
@@ -400,19 +484,13 @@
       "taskKey": "u:b900fd43-5f7c-438f-a1dd-0e89db98f4db",
       "uuid": "b900fd43-5f7c-438f-a1dd-0e89db98f4db",
       "docNo": "A.2.2.10.1.1.1.5.2.2.2",
-      "title": "Check Rate Limits"
+      "title": "Rate Limit"
     },
     {
       "taskKey": "u:feace76a-e48a-42da-8732-74bbf55c530f",
       "uuid": "feace76a-e48a-42da-8732-74bbf55c530f",
       "docNo": "A.2.2.10.1.1.1.5.2.2.3",
       "title": "Burn USDS From ALM Proxy"
-    },
-    {
-      "taskKey": "u:5592661d-78e9-4185-9c6e-15ffa47e0aef",
-      "uuid": "5592661d-78e9-4185-9c6e-15ffa47e0aef",
-      "docNo": "A.2.2.10.1.1.1.5.2.3",
-      "title": "Deposit To Aave Market"
     },
     {
       "taskKey": "u:26eec581-240e-4214-85a4-ee9309b986d4",
@@ -424,19 +502,13 @@
       "taskKey": "u:989bca9d-f56a-4965-8684-62de547f605a",
       "uuid": "989bca9d-f56a-4965-8684-62de547f605a",
       "docNo": "A.2.2.10.1.1.1.5.2.3.2",
-      "title": "Check Rate Limits"
+      "title": "Rate Limit"
     },
     {
       "taskKey": "u:d783250a-d160-4f1f-8648-e2c9a6d95816",
       "uuid": "d783250a-d160-4f1f-8648-e2c9a6d95816",
       "docNo": "A.2.2.10.1.1.1.5.2.3.3",
       "title": "Deposit Asset Into Aave Market"
-    },
-    {
-      "taskKey": "u:038eaa5c-d4c0-4a56-8d30-bc3a04508f0e",
-      "uuid": "038eaa5c-d4c0-4a56-8d30-bc3a04508f0e",
-      "docNo": "A.2.2.10.1.1.1.5.2.4",
-      "title": "Withdraw From Aave Market"
     },
     {
       "taskKey": "u:c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
@@ -448,13 +520,85 @@
       "taskKey": "u:ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
       "uuid": "ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
       "docNo": "A.2.2.10.1.1.1.5.2.4.2",
-      "title": "Check Rate Limits"
+      "title": "Rate Limit"
     },
     {
       "taskKey": "u:ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
       "uuid": "ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
       "docNo": "A.2.2.10.1.1.1.5.2.4.3",
       "title": "Withdraw Asset From Aave Market"
+    },
+    {
+      "taskKey": "u:b2e3b84d-acbd-4704-b55e-e2026aa63058",
+      "uuid": "b2e3b84d-acbd-4704-b55e-e2026aa63058",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:34b6d2ab-837c-4fb0-a397-77d776a32bc3",
+      "uuid": "34b6d2ab-837c-4fb0-a397-77d776a32bc3",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:8d3420d5-86a7-4468-8f08-92cc00fed557",
+      "uuid": "8d3420d5-86a7-4468-8f08-92cc00fed557",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.3",
+      "title": "Deposit Asset Into Basin"
+    },
+    {
+      "taskKey": "u:75edeae6-46e4-4761-b2c7-0416038c97cf",
+      "uuid": "75edeae6-46e4-4761-b2c7-0416038c97cf",
+      "docNo": "A.2.2.10.1.1.1.5.2.6.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:d915bc35-e8d8-4d48-a285-92335bd09343",
+      "uuid": "d915bc35-e8d8-4d48-a285-92335bd09343",
+      "docNo": "A.2.2.10.1.1.1.5.2.6.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:25da7163-b052-459f-91b5-8da3aafa61c7",
+      "uuid": "25da7163-b052-459f-91b5-8da3aafa61c7",
+      "docNo": "A.2.2.10.1.1.1.5.2.6.3",
+      "title": "Withdraw Asset From Basin"
+    },
+    {
+      "taskKey": "u:f3c79493-8704-4d20-9eaa-e2e381f3920d",
+      "uuid": "f3c79493-8704-4d20-9eaa-e2e381f3920d",
+      "docNo": "A.2.2.10.1.1.1.5.2.7.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:1a1d74ec-888d-4f0a-93c2-3669fa4efe45",
+      "uuid": "1a1d74ec-888d-4f0a-93c2-3669fa4efe45",
+      "docNo": "A.2.2.10.1.1.1.5.2.7.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:58631630-a9e3-4bd6-a1ea-59b0ef8f5bee",
+      "uuid": "58631630-a9e3-4bd6-a1ea-59b0ef8f5bee",
+      "docNo": "A.2.2.10.1.1.1.5.2.7.3",
+      "title": "Swap USDS For USDC"
+    },
+    {
+      "taskKey": "u:85a2ac37-da60-4a04-96eb-600f635ab388",
+      "uuid": "85a2ac37-da60-4a04-96eb-600f635ab388",
+      "docNo": "A.2.2.10.1.1.1.5.2.8.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:b489a966-f631-429d-85da-cb6258f001c9",
+      "uuid": "b489a966-f631-429d-85da-cb6258f001c9",
+      "docNo": "A.2.2.10.1.1.1.5.2.8.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:fa1364a3-081c-4327-8ef4-637a3fdd1105",
+      "uuid": "fa1364a3-081c-4327-8ef4-637a3fdd1105",
+      "docNo": "A.2.2.10.1.1.1.5.2.8.3",
+      "title": "Swap USDC For USDS"
     },
     {
       "taskKey": "u:6f5bc654-a053-4b1f-9ada-6aa13d0a2109",
@@ -557,6 +701,18 @@
       "uuid": "ac648f96-3b0d-46c6-9501-a3a88da26961",
       "docNo": "A.2.8.2.1.2.9.2",
       "title": "Risk Capital Share"
+    },
+    {
+      "taskKey": "u:130a44af-0715-4aa6-b248-f4a267ebe1a4",
+      "uuid": "130a44af-0715-4aa6-b248-f4a267ebe1a4",
+      "docNo": "A.2.11.1.3.2.1.1.2.2",
+      "title": "Threshold Exceptions"
+    },
+    {
+      "taskKey": "u:55f1c795-0653-4dda-9f05-b3068d2608e3",
+      "uuid": "55f1c795-0653-4dda-9f05-b3068d2608e3",
+      "docNo": "A.2.11.1.3.2.1.1.2.2.1",
+      "title": "Emergency-Response Multisig Threshold Exception"
     },
     {
       "taskKey": "u:d16483ff-b83e-490f-a620-1b58cc679c7f",
@@ -709,6 +865,12 @@
       "title": "Genesis Capital Phase-Out"
     },
     {
+      "taskKey": "u:af5b97be-bf52-431d-8fa9-9b1c6164e328",
+      "uuid": "af5b97be-bf52-431d-8fa9-9b1c6164e328",
+      "docNo": "A.4.2.2.1.5",
+      "title": "Ethereum SkyLink Freezer Multisig Modification"
+    },
+    {
       "taskKey": "u:d70d5580-760f-4441-9f93-7494e0d05808",
       "uuid": "d70d5580-760f-4441-9f93-7494e0d05808",
       "docNo": "A.4.2.2.2.3.1",
@@ -755,6 +917,18 @@
       "uuid": "022bbefc-9a31-4ac0-a14a-5f87ba9739e1",
       "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.6.9.5",
       "title": "Guardian Powers"
+    },
+    {
+      "taskKey": "u:ad9553ca-eada-45d2-a968-aed9bb0e555e",
+      "uuid": "ad9553ca-eada-45d2-a968-aed9bb0e555e",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.7.3",
+      "title": "ALM Freezer Multisig (Robinhood Chain) Address"
+    },
+    {
+      "taskKey": "u:88d4702c-da76-4fe8-a748-65f558953276",
+      "uuid": "88d4702c-da76-4fe8-a748-65f558953276",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.1.1.2.7.4",
+      "title": "ALM Relayer Multisig (Robinhood Chain) Address"
     },
     {
       "taskKey": "u:cd6ad021-80f4-432d-b00f-1d26e7984297",
@@ -925,10 +1099,58 @@
       "title": "Core Operator Relayer Multisig"
     },
     {
+      "taskKey": "u:c805c872-05df-4157-a869-dff28535bf81",
+      "uuid": "c805c872-05df-4157-a869-dff28535bf81",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.3",
+      "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:cf7acab9-9363-402b-b636-395f6bb5f6f7",
+      "uuid": "cf7acab9-9363-402b-b636-395f6bb5f6f7",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.3.2",
+      "title": "Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:f76b5952-9060-4fe6-b64e-5533ef205919",
+      "uuid": "f76b5952-9060-4fe6-b64e-5533ef205919",
+      "docNo": "A.6.1.1.1.2.6.1.2.1.2.2.3.3",
+      "title": "Signers"
+    },
+    {
+      "taskKey": "u:e5b56658-1fe0-4d3f-b911-8e66b9d16a6e",
+      "uuid": "e5b56658-1fe0-4d3f-b911-8e66b9d16a6e",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.2.1.2.4.1.7",
+      "title": "Approve PSM Spend"
+    },
+    {
+      "taskKey": "u:58bd2f3d-0d7e-41e9-a3f1-43e8deedaea9",
+      "uuid": "58bd2f3d-0d7e-41e9-a3f1-43e8deedaea9",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.2.1.2.4.1.8",
+      "title": "Swap DAI To USDC"
+    },
+    {
+      "taskKey": "u:b1d47385-8512-475a-8860-9ae927677785",
+      "uuid": "b1d47385-8512-475a-8860-9ae927677785",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.2.1.2.4.2.4",
+      "title": "Approve Contract Spend"
+    },
+    {
+      "taskKey": "u:f16d98d9-dbba-44ab-8764-445693b81ff5",
+      "uuid": "f16d98d9-dbba-44ab-8764-445693b81ff5",
+      "docNo": "A.6.1.1.1.2.6.1.2.2.1.2.1.2.4.2.5",
+      "title": "Calculate Swap Limit"
+    },
+    {
       "taskKey": "u:36a496db-20c1-4d34-810e-518c4f99a755",
       "uuid": "36a496db-20c1-4d34-810e-518c4f99a755",
       "docNo": "A.6.1.1.1.2.6.1.3.3.3.1.4.2.1",
       "title": "Spark Savings USDT Risk Parameters"
+    },
+    {
+      "taskKey": "u:b5ac41a3-6ea8-453b-9a21-703f14d6a03b",
+      "uuid": "b5ac41a3-6ea8-453b-9a21-703f14d6a03b",
+      "docNo": "A.6.1.1.1.2.6.1.3.5.1.1.4.2.1",
+      "title": "Spark Savings USDG Risk Parameters"
     },
     {
       "taskKey": "t:risk capital rental primitive|risk",
@@ -1093,10 +1315,58 @@
       "title": "ALM Relayer Multisig Addresses"
     },
     {
+      "taskKey": "u:6823cc5a-6667-4754-a030-9ac7126b006e",
+      "uuid": "6823cc5a-6667-4754-a030-9ac7126b006e",
+      "docNo": "A.6.1.1.2.2.6.1.2.1.1.4.2",
+      "title": "Whitelisting Of ALM Proxy"
+    },
+    {
       "taskKey": "u:99bc2dd5-5573-4bb9-9210-5af299d058d9",
       "uuid": "99bc2dd5-5573-4bb9-9210-5af299d058d9",
       "docNo": "A.6.1.1.2.2.6.1.2.1.2.2.4",
       "title": "Freezer Multisig"
+    },
+    {
+      "taskKey": "u:97c2db26-16e7-4aee-a257-86bef4189fa7",
+      "uuid": "97c2db26-16e7-4aee-a257-86bef4189fa7",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.3.1.6",
+      "title": "Approve PSM Spend"
+    },
+    {
+      "taskKey": "u:0e02d0f4-a9b1-4f2f-8016-274c26db9fa2",
+      "uuid": "0e02d0f4-a9b1-4f2f-8016-274c26db9fa2",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.3.1.7",
+      "title": "Swap DAI To USDC"
+    },
+    {
+      "taskKey": "u:f5d1b5d7-3968-4b49-99ff-21d7e3a5d2b7",
+      "uuid": "f5d1b5d7-3968-4b49-99ff-21d7e3a5d2b7",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.3.2.3",
+      "title": "Approve PSM Spend"
+    },
+    {
+      "taskKey": "u:2c2b3e9a-5135-4379-bd4f-9f52884bd8da",
+      "uuid": "2c2b3e9a-5135-4379-bd4f-9f52884bd8da",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.3.2.4",
+      "title": "Swap USDC To DAI"
+    },
+    {
+      "taskKey": "u:0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
+      "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
+      "title": "PSM Facet"
+    },
+    {
+      "taskKey": "u:41cdf6f8-78c7-4aa0-8675-060fecf24d42",
+      "uuid": "41cdf6f8-78c7-4aa0-8675-060fecf24d42",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.3.3.1.1",
+      "title": "Deposit To PSM"
+    },
+    {
+      "taskKey": "u:742945a7-1031-483f-873c-6bd229b58b4c",
+      "uuid": "742945a7-1031-483f-873c-6bd229b58b4c",
+      "docNo": "A.6.1.1.2.2.6.1.2.2.1.2.3.3.1.2",
+      "title": "Withdraw From PSM"
     },
     {
       "taskKey": "u:75fef570-0632-4721-91c7-72b904dd7c78",
@@ -1151,6 +1421,18 @@
       "uuid": "a08608f5-a6a7-43dc-ba2f-34c685af073a",
       "docNo": "A.6.1.1.2.2.6.2.4",
       "title": "In Progress Invocations"
+    },
+    {
+      "taskKey": "u:00605e88-27a6-40f1-ae7e-5be7467a2da6",
+      "uuid": "00605e88-27a6-40f1-ae7e-5be7467a2da6",
+      "docNo": "A.6.1.1.2.3.1.4.7",
+      "title": "Security Requirements And Compromise Procedure"
+    },
+    {
+      "taskKey": "u:dfb209e9-8cf2-4c08-9eda-88caf9cb3004",
+      "uuid": "dfb209e9-8cf2-4c08-9eda-88caf9cb3004",
+      "docNo": "A.6.1.1.2.3.1.4.7.2",
+      "title": "Compromised Key Response"
     },
     {
       "taskKey": "u:9264bed6-21a2-4e39-8546-0ab157380740",

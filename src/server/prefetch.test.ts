@@ -174,3 +174,32 @@ describe("prefetchRound", () => {
     expect((tool as { content: string }).content).toBe(p.content);
   });
 });
+
+describe("census lane (concepts-prefetch)", () => {
+  it("injects a census summary for census-vocabulary questions", () => {
+    const p = buildPrefetch(ix, "how many registries are actually empty?");
+    expect(p).not.toBeNull();
+    const report = JSON.parse(p!.content);
+    expect(p!.censuses).toBe(1);
+    expect(report.censuses[0].slug).toBe("registry-liveness");
+    expect(report.censuses[0].counts).toBeDefined();
+    expect(report.censuses[0].members).toBeUndefined(); // counts only — drill-down is a tool call
+    expect(report.censuses[0].members_hint).toContain('censuses:registry-liveness');
+    expect(report.censuses_note).toContain("our census shows");
+  });
+
+  it("does not fire on ordinary doc-lookup phrasing", () => {
+    for (const q of ["list of prime agents", "what is universal alignment?", "who is keel?"]) {
+      const p = buildPrefetch(ix, q);
+      if (p) {
+        expect(p.censuses).toBe(0);
+        expect(JSON.parse(p.content).censuses).toBeUndefined();
+      }
+    }
+  });
+
+  it("caps a many-vocabulary question at three censuses", () => {
+    const p = buildPrefetch(ix, "do registries, document types, duplicated titles, formulas or prohibitions overlap?");
+    expect(p!.censuses).toBe(3);
+  });
+});

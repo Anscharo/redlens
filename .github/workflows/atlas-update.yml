@@ -60,7 +60,8 @@ jobs:
             echo "Already at latest (${OLD:0:7})."
           fi
 
-      # census:risk runs under bun (imports src/lib/riskRules.ts directly).
+      # census:risk, census:concepts and census:chains run under bun (they import
+      # src/lib/riskRules.ts / conceptsCensus.ts / explorer.ts directly).
       - uses: oven-sh/setup-bun@v2
         if: steps.atlas.outputs.proceed == 'true'
 
@@ -115,6 +116,8 @@ jobs:
           pnpm census:check --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:govops --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm census:risk --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:concepts --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
+          pnpm census:chains --update 2> >(tee -a /tmp/atlas-warnings.log >&2)
           pnpm test:snap:update
           git diff --stat -- graph-snapshots/__snapshots__ > /tmp/snapshot-diff.txt || true
 
@@ -142,7 +145,8 @@ jobs:
           # addresses.json from drifting out of sync with docs.json over time.
           git add vendor/next-gen-atlas graph-snapshots/__snapshots__ \
             .github/atlas-census-baseline.json .github/govops-census-baseline.json \
-            .github/risk-census-baseline.json \
+            .github/risk-census-baseline.json .github/concepts-census-baseline.json \
+            .github/chains-census-baseline.json \
             public/addresses.json .cache/etherscan
           git commit -m "chore: bump atlas submodule → ${SHORT}"
           git push origin "$BRANCH" --force
@@ -189,6 +193,7 @@ jobs:
           WARN=/tmp/atlas-warnings.log SPEC=/tmp/spec-diff.txt SNAP=/tmp/snapshot-diff.txt
           NEW=/tmp/new-warnings.txt
           RISK=/tmp/risk-census-new.txt
+          CONCEPTS=/tmp/concepts-census-new.txt
 
           # Standing benign warnings live in the baseline — only NEW lines
           # count as drift, so recurring known warnings don't re-open issues
@@ -204,6 +209,13 @@ jobs:
           # instructions instead of being lumped in with items 1-3 below.
           grep '^\[drift\] risk-census:' "$NEW" > "$RISK" || true
 
+          # concepts-census lines are analyst-catalog work (docs/crossview/concepts.md
+          # review under the analyst-crossview skill), not an extraction-gap to
+          # classify against the parse-atlas skill — pull them out the same way
+          # risk-census lines are, so they get their own routing instead of
+          # falling into the generic item-1 bucket.
+          grep '^\[drift\] concepts-census:' "$NEW" > "$CONCEPTS" || true
+
           if [ ! -s "$NEW" ] && [ ! -s "$SPEC" ]; then
             echo "No new build warnings, no spec changes — nothing to surface."
             exit 0
@@ -212,16 +224,25 @@ jobs:
           {
             echo "@claude The atlas advanced \`${{ steps.atlas.outputs.old }}\` → \`${{ steps.atlas.outputs.short }}\` and the rebuild surfaced signals. Analyze them using the parse-atlas skill (\`.claude/skills/parse-atlas/SKILL.md\`):"
             echo
-            echo "1. Classify each NEW warning **except the Risk Rules Assessment backlog lines below** (see item 3): **benign** (known limitation — recommend the exact line to append to \`.github/atlas-warnings-baseline.txt\`), **extraction gap** (atlas now encodes a structure no pattern handles — describe the pattern a fix would need), or **atlas content issue** (upstream data problem worth reporting)."
+            echo "1. Classify each NEW warning **except the Risk Rules Assessment backlog lines and the Concepts census lines below** (see items 3-4): **benign** (known limitation — recommend the exact line to append to \`.github/atlas-warnings-baseline.txt\`), **extraction gap** (atlas now encodes a structure no pattern handles — describe the pattern a fix would need), or **atlas content issue** (upstream data problem worth reporting)."
             echo "2. If the syntax spec diff below is non-empty, summarize what changed and which extraction patterns or parser rules it can affect."
             echo "3. If the Risk Rules Assessment backlog section below is non-empty, do NOT run \`pnpm risk:assess\` yourself — it costs real LLM spend, and \`docs/risk-assessment-rubric.md\` requires human review before a rating enters the curated artifact. Just summarize which rows are new/changed in your comment so a human can decide when to run it."
-            echo "4. Post your analysis as a comment. If everything is benign and already documented, say so and close this issue — but leave it open if the risk-census section is non-empty; that item needs a human to run \`pnpm risk:assess\`, not just a comment."
+            echo "4. If the Concepts census drift section below is non-empty, this is analyst-catalog work, not a parser fix — use the analyst-crossview skill (\`.claude/skills/analyst-crossview/SKILL.md\`) to triage each new/changed row against \`docs/crossview/concepts.md\`'s existing censuses, then run \`pnpm census:concepts --update\` once the doc reflects them."
+            echo "5. Post your analysis as a comment. If everything is benign and already documented, say so and close this issue — but leave it open if the risk-census section is non-empty; that item needs a human to run \`pnpm risk:assess\`, not just a comment."
             echo
             if [ -s "$RISK" ]; then
               echo "## Risk Rules Assessment backlog grew"
               echo "New/changed rows since the last accepted baseline — needs \`pnpm risk:assess\`, human review, then \`pnpm census:risk --update\`:"
               echo '```'
               cat "$RISK"
+              echo '```'
+              echo
+            fi
+            if [ -s "$CONCEPTS" ]; then
+              echo "## Concepts census drift"
+              echo "New/changed rows since the last accepted baseline — triage with the analyst-crossview skill against \`docs/crossview/concepts.md\`, then \`pnpm census:concepts --update\`:"
+              echo '```'
+              cat "$CONCEPTS"
               echo '```'
               echo
             fi

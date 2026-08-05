@@ -3,11 +3,23 @@
 // doc, and its descendant slice. We assert the breadcrumb links, the close
 // button, descendant rendering, and that Shift-clicking a row re-targets the pane.
 
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { JuniorPane } from "./JuniorPane";
 import { makeNode, makeFlatEntry, makeAtlasBundle, makeLoadedData } from "../../test/fixtures";
+
+// jsdom has no ResizeObserver; useSplitHeight watches the content box with one
+// to size the pane to a childless doc. Nothing here asserts on the measurement
+// (jsdom reports every box as 0), so an inert stub is enough to let it mount.
+beforeAll(() => {
+  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+    class FakeResizeObserver {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    };
+});
 
 // root(A.1) → mid(A.1.2) → split(A.1.2.3) → child(A.1.2.3.1)
 function data() {
@@ -77,6 +89,45 @@ describe("JuniorPane descendant slice", () => {
     fireEvent.mouseDown(splitHeading, { clientX: 10, clientY: 10 });
     fireEvent.click(splitHeading, { clientX: 10, clientY: 10 });
     expect(container.querySelector(".atlas-node-body")).toBeNull();
+  });
+});
+
+// R2: the selected root's position:sticky (index.css .atlas-node.is-selected)
+// is bounded by the nearest .selection-group ancestor. AtlasReader supplies
+// that wrapper; JuniorPane rendered no such wrapper at all, so the sticky
+// root's containing block was the whole pane — a long-bodied root could
+// occlude every descendant at any scroll position. Assert the wrapper exists
+// and spans exactly the selected root + its descendants (not the breadcrumb
+// note above, nor the bottom fill/note below).
+describe("JuniorPane selection-group wrapper (R2)", () => {
+  it("wraps the selected root and its descendants in a selection-group", () => {
+    const { container } = setup();
+    const group = container.querySelector(".selection-group");
+    expect(group).not.toBeNull();
+    const splitHeading = screen.getByRole("heading", { name: "Split Title" });
+    const childHeading = screen.getByRole("heading", { name: "Child Title" });
+    expect(group!.contains(splitHeading)).toBe(true);
+    expect(group!.contains(childHeading)).toBe(true);
+    // The ancestor breadcrumb note sits above the pane's own header bar, not
+    // inside the group.
+    expect(group!.textContent).not.toContain("SplitView only renders");
+  });
+
+  it("still applies the is-selected marker (red bar + tint) to the root inside the group", () => {
+    const { container } = setup();
+    const group = container.querySelector(".selection-group")!;
+    const selected = group.querySelector(".atlas-node.is-selected");
+    expect(selected).not.toBeNull();
+    // Exactly one selected row (the split root) — its descendant isn't also selected.
+    expect(group.querySelectorAll(".atlas-node.is-selected")).toHaveLength(1);
+  });
+
+  it("renders no selection-group for an unknown splitId (nothing to bound)", () => {
+    const onShiftNavigate = vi.fn();
+    const { container } = render(
+      <JuniorPane splitId="missing" data={data()} onShiftNavigate={onShiftNavigate} onClose={() => {}} />,
+    );
+    expect(container.querySelector(".selection-group")).toBeNull();
   });
 });
 

@@ -31,7 +31,7 @@ export function ToolTrace({ trace, rounds }: { trace: TraceRow[]; rounds: number
           {trace.map((e, i) => (
             <div key={i} className="rlc-trace-row">
               <span className={e.ok === false ? "rlc-trace-arrow-err" : "rlc-trace-arrow-ok"}>
-                {e.ok === false ? "×" : "→"}
+                {e.ok === false ? "×" : <span className="enlargen">→</span>}
               </span>
               <span className="rlc-trace-name">{e.name}</span>
               <span className="rlc-trace-arg">{argSummary(e.args)}</span>

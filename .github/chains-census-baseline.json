@@ -1,0 +1,223 @@
+{
+  "residue": [
+    {
+      "label": "All",
+      "sources": [
+        "prose"
+      ],
+      "count": 5,
+      "examples": [
+        {
+          "uuid": "962b1da7-0f80-4abc-a7a9-ef229b0f1c13",
+          "doc_no": "A.6.1.1.1.2.6.1.2.2.3.2",
+          "title": "Redeem All L2 Positions"
+        },
+        {
+          "uuid": "77067d73-922a-45e1-9f74-2b6947108d3b",
+          "doc_no": "A.6.1.1.1.2.6.1.2.2.3.4",
+          "title": "Redeem All Mainnet Positions"
+        },
+        {
+          "uuid": "550a6aa3-88b8-4b5a-a614-e06099d6898a",
+          "doc_no": "A.6.1.1.2.2.6.1.2.2.3.2",
+          "title": "Redeem All Mainnet Positions"
+        }
+      ]
+    },
+    {
+      "label": "Crafter",
+      "sources": [
+        "prose"
+      ],
+      "count": 9,
+      "examples": [
+        {
+          "uuid": "510651ca-5a9a-4ac1-ba69-f3c160e185d2",
+          "doc_no": "A.1.10.2.4.7.1",
+          "title": "Spell Crafting Workflow"
+        },
+        {
+          "uuid": "59638793-d1ed-4d6c-9d34-d9359ecfd100",
+          "doc_no": "A.1.10.2.4.10.1",
+          "title": "Spell Crafter Performs Pre-Deployment Steps"
+        },
+        {
+          "uuid": "a7e04b56-d754-423d-8ad9-6f1013023a91",
+          "doc_no": "A.1.10.2.4.10.3",
+          "title": "Spell Crafter Conducts Pre-Deployment Setup And Checks"
+        }
+      ]
+    },
+    {
+      "label": "From",
+      "sources": [
+        "prose"
+      ],
+      "count": 1,
+      "examples": [
+        {
+          "uuid": "c4ed7a34-4c1c-43ec-8eb2-7285c9a46184",
+          "doc_no": "A.6.1.1.1.2.6.1.2.2.3.3",
+          "title": "Bridge Liquidity From L2 ALM Proxy To Mainnet"
+        }
+      ]
+    },
+    {
+      "label": "Monolithic",
+      "sources": [
+        "prose"
+      ],
+      "count": 36,
+      "examples": [
+        {
+          "uuid": "1ee14921-5883-4533-aba0-b96d44e3cf6b",
+          "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.1",
+          "title": "Monolithic Mainnet Controller Contract Functions"
+        },
+        {
+          "uuid": "440ae811-4e1f-4f07-9c04-dc6bb32144ae",
+          "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.3.1.1",
+          "title": "Set The Mint Recipient"
+        },
+        {
+          "uuid": "369d145a-04e6-4ab0-a388-a83c870c76f2",
+          "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.3.1.2",
+          "title": "Set The LayerZero Recipient"
+        }
+      ]
+    },
+    {
+      "label": "New",
+      "sources": [
+        "prose"
+      ],
+      "count": 1,
+      "examples": [
+        {
+          "uuid": "c18d8c58-d347-4efd-9c33-4fd89cf40f90",
+          "doc_no": "A.2.2.8.1.1.1.3.2",
+          "title": "Token SkyLink Setup Activation On New Chain"
+        }
+      ]
+    },
+    {
+      "label": "Partner",
+      "sources": [
+        "prose"
+      ],
+      "count": 13,
+      "examples": [
+        {
+          "uuid": "b91d0eb6-fa86-486c-8350-4564bdb5af09",
+          "doc_no": "A.2.2.9.2.2.3.1.3",
+          "title": "Required Primitive Inputs"
+        },
+        {
+          "uuid": "51ca2399-8c7f-4c2a-843a-c85f6c670d13",
+          "doc_no": "A.2.2.9.2.2.3.6.3",
+          "title": "Required Primitive Inputs"
+        },
+        {
+          "uuid": "7b41a7ac-e52d-4b5f-abbd-e7d5a9998195",
+          "doc_no": "A.6.1.1.1.2.5.2.2.1.1.3",
+          "title": "Integration Partner Chain"
+        }
+      ]
+    },
+    {
+      "label": "Pioneer",
+      "sources": [
+        "prose"
+      ],
+      "count": 129,
+      "examples": [
+        {
+          "uuid": "203b8c79-c7cf-4fcc-94e3-5bf42f791619",
+          "doc_no": "A.2.2.1.5.1",
+          "title": "Current Primitives"
+        },
+        {
+          "uuid": "4c7be4c6-44b5-407a-94ae-3d7ca7e8039c",
+          "doc_no": "A.2.2.9.3",
+          "title": "Pioneer Chain Primitive"
+        },
+        {
+          "uuid": "4aab68fd-0e8c-4781-b6f6-f94a89cb22fa",
+          "doc_no": "A.2.2.9.3.1",
+          "title": "Introduction"
+        }
+      ]
+    },
+    {
+      "label": "Reviewer",
+      "sources": [
+        "prose"
+      ],
+      "count": 4,
+      "examples": [
+        {
+          "uuid": "4319b89d-a0e3-4e3c-bf99-0390053bd347",
+          "doc_no": "A.1.10.2.4.9.1",
+          "title": "Spell Reviewing Workflow"
+        },
+        {
+          "uuid": "e31813f6-77ce-438e-a791-4d127e783bc7",
+          "doc_no": "A.1.10.2.4.10.2",
+          "title": "Spell Reviewers Review Pre-Deployment Steps"
+        },
+        {
+          "uuid": "56106653-7764-466a-a5a5-ff6843b100d7",
+          "doc_no": "A.1.10.2.4.10.8",
+          "title": "Spell Reviewers Review Pull Request"
+        }
+      ]
+    },
+    {
+      "label": "Target",
+      "sources": [
+        "prose"
+      ],
+      "count": 1,
+      "examples": [
+        {
+          "uuid": "298ee5be-2f95-46b2-8dc7-8cf68f99c038",
+          "doc_no": "A.2.2.8.1.1.1.1.1",
+          "title": "Token SkyLink Setup Target Chain Identification And Feasibility Analysis"
+        }
+      ]
+    },
+    {
+      "label": "USDC",
+      "sources": [
+        "prose"
+      ],
+      "count": 2,
+      "examples": [
+        {
+          "uuid": "9024c8ce-40a6-4eb7-90c7-62dee7d5e408",
+          "doc_no": "A.6.1.1.1.2.6.1.2.1.1.3.1.4",
+          "title": "USDC Mainnet ALM Proxy Maximum"
+        },
+        {
+          "uuid": "8a462b2a-68dc-4caf-ab26-855552f57d4f",
+          "doc_no": "A.6.1.1.2.2.6.1.2.1.1.3.1.1.4",
+          "title": "USDC Mainnet ALM Proxy Maximum"
+        }
+      ]
+    },
+    {
+      "label": "Voting Portal the Spell address",
+      "sources": [
+        "multisig-prose"
+      ],
+      "count": 1,
+      "examples": [
+        {
+          "uuid": "f57aab8a-efc2-42aa-83e1-367c91907777",
+          "doc_no": "A.1.10.2.4.8.2.1",
+          "title": "Content And Metadata Fields"
+        }
+      ]
+    }
+  ]
+}

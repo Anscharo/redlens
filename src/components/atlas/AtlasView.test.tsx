@@ -98,16 +98,22 @@ const EMPTY_ANNOTATIONS = {
 
 function setupMocks({
   data,
+  shallowError = null,
+  deepError = null,
+  retry = vi.fn(),
   preview = null,
   selectedId = "node-1",
   annotations = EMPTY_ANNOTATIONS,
 }: {
   data: ReturnType<typeof makeLoadedData> | null;
+  shallowError?: Error | null;
+  deepError?: Error | null;
+  retry?: () => void;
   preview?: { id: string; sha: string } | null;
   selectedId?: string | null;
   annotations?: typeof EMPTY_ANNOTATIONS;
 }) {
-  useAtlasDataMock.mockReturnValue(data);
+  useAtlasDataMock.mockReturnValue({ data, shallowError, deepError, retry });
   useLoadedMock.mockReturnValue(null);
   useDataSourceMock.mockReturnValue({ base: "", preview });
   useAtlasSelectionMock.mockReturnValue({ selectedId, handleNavigate: vi.fn() });
@@ -148,6 +154,60 @@ describe("AtlasView loading / not-found branches", () => {
     setupMocks({ data });
     render(<AtlasView {...baseProps({ id: "missing-id" })} />);
     expect(screen.getByText("Node not found: missing-id")).toBeInTheDocument();
+  });
+});
+
+// R3: a rejected loadAtlasShallow/loadAtlas used to leave the caller with an
+// eternal Loading and no way out. useAtlasData now reports which phase failed
+// (shallowError blocking, deepError non-blocking) plus a retry(); AtlasView
+// surfaces both instead of spinning forever.
+describe("AtlasView error / retry states (R3)", () => {
+  it("shows a blocking error with retry (not eternal Loading) when shallow itself failed", () => {
+    const retry = vi.fn();
+    setupMocks({ data: null, shallowError: new Error("no docs-shallow.json"), retry });
+    render(<AtlasView {...baseProps()} />);
+    expect(screen.getByText("Couldn't load the atlas.")).toBeInTheDocument();
+    expect(screen.queryByText("searching the stars")).toBeNull();
+    expect(screen.queryByTestId("atlas-reader")).toBeNull();
+    fireEvent.click(screen.getByText("retry"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a blocking error with retry (not eternal Loading) when a deep-linked id never arrives because deep failed", () => {
+    const retry = vi.fn();
+    const data = makeLoadedData({ complete: false });
+    setupMocks({ data, deepError: new Error("no docs-deep.json"), retry });
+    render(<AtlasView {...baseProps({ id: "missing-id" })} />);
+    expect(screen.getByText(/can't be shown yet/)).toBeInTheDocument();
+    expect(screen.queryByText("searching the stars")).toBeNull();
+    expect(screen.queryByText(/Node not found/)).toBeNull();
+    fireEvent.click(screen.getByText("retry"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps rendering the reader (non-blocking) and shows a dismissible-by-retry banner when deep failed but the current id is already in the shallow tree", () => {
+    const retry = vi.fn();
+    const node = makeNode({ id: "node-1", doc_no: "A.1" });
+    const atlas = makeAtlasBundle([node]);
+    const data = makeLoadedData({ atlas, complete: false });
+    setupMocks({ data, deepError: new Error("no docs-deep.json"), retry });
+    render(<AtlasView {...baseProps()} />);
+    // The reader still renders — this is the whole point of R3 (a deep
+    // failure must not destroy a working shallow view).
+    expect(screen.getByTestId("atlas-reader")).toBeInTheDocument();
+    expect(screen.getByText(/Couldn't finish loading the full atlas/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("retry"));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show the deep-load banner once complete (even with a stale deepError reference)", () => {
+    const node = makeNode({ id: "node-1", doc_no: "A.1" });
+    const atlas = makeAtlasBundle([node]);
+    const data = makeLoadedData({ atlas, complete: true });
+    setupMocks({ data, deepError: new Error("stale") });
+    render(<AtlasView {...baseProps()} />);
+    expect(screen.getByTestId("atlas-reader")).toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't finish loading/)).toBeNull();
   });
 });
 

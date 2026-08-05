@@ -8,10 +8,17 @@ import { renderOgTags } from "./src/server/og.ts";
 
 const commitHash = (() => {
   try {
-    return execSync("git rev-parse --short HEAD").toString().trim();
+    const sha = execSync("git rev-parse --short HEAD").toString().trim();
+    if (sha) return sha;
   } catch {
-    return "dev";
+    // No .git — e.g. the Railway Docker build, which COPYs source without history.
   }
+  // Fall back to the deploy sha injected as a build-time env var (see the
+  // Dockerfile's frontend build stage), mirroring config.ts's appCommit
+  // fallback chain. Short-formed to match the `--short` style above.
+  const envSha =
+    process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.APP_COMMIT ?? process.env.GIT_COMMIT ?? process.env.SOURCE_COMMIT ?? "";
+  return envSha ? envSha.slice(0, 7) : "dev";
 })();
 
 const repoUrl = (() => {

@@ -7,6 +7,7 @@
 
 import { matchNodes, syntheticUuid, isSynthetic } from "./history-identity.mjs";
 import { diffEditsMap } from "./history-diff.mjs";
+import { positionalSeed } from "./seed-positional.mjs";
 
 // ---- seed: assign #117 md uuids onto the last HTML commit's rows -------------
 // The one hard, cross-format hop (plan §4.0). Inverted shingle index → each HTML
@@ -103,8 +104,35 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = n
     }
   }
 
-  const seam = new Map(); // plan §4.1
-  mdNodes.forEach((m, i) => seam.set(m.uuid, primaryByMd.has(i) ? "kept" : containedMd.has(i) ? "split" : "created"));
+  // Tier S2 (seed-positional.mjs): the shingle pass above is blind to docs shorter than
+  // SH words — it skips their rows outright and indexes no shingles for them — so they
+  // could never be matched OR ruled out. Thread those by order between the anchors the
+  // shingle pass established. Operates on a strictly disjoint set (zero-shingle md docs
+  // × zero-shingle unclaimed rows), so nothing decided above can be revised here.
+  const rowIndex = new Map(htmlNodes.map((r, i) => [r, i]));
+  const mdZero = new Set();
+  mdNodes.forEach((_, i) => { if (!mdSh[i].size && !primaryByMd.has(i) && !containedMd.has(i)) mdZero.add(i); });
+  const rowZero = new Set();
+  htmlNodes.forEach((r, i) => { if (!shArr(r.content).length && !uuidByRow.has(r)) rowZero.add(i); });
+  const anchors = [...primaryByMd].map(([mi, { row }]) => [mi, rowIndex.get(row)]);
+  const positional = positionalSeed(mdNodes, htmlNodes, { mdZero, rowZero, anchors, norm });
+  const positionalMd = new Set(), positionalUuids = new Set();
+  for (const [mi, ri] of positional.pairs) {
+    uuidByRow.set(htmlNodes[ri], mdNodes[mi].uuid);
+    positionalMd.add(mi);
+    positionalUuids.add(mdNodes[mi].uuid);
+  }
+
+  // plan §4.1, extended: a doc the seed could not thread is `untraced`, NOT `created`.
+  // The automatic seed never establishes a birth — it only fails to find a predecessor,
+  // which for short/duplicated bodies says more about the matcher than about the doc.
+  // `created` is reserved for the curated verdicts below, where a reviewer actually
+  // looked at the pre-migration HTML and concluded there is no earlier version.
+  const seam = new Map();
+  mdNodes.forEach((m, i) => seam.set(
+    m.uuid,
+    primaryByMd.has(i) || positionalMd.has(i) ? "kept" : containedMd.has(i) ? "split" : "untraced",
+  ));
   const splitCount = [...containedMd].filter((mi) => !primaryByMd.has(mi)).length;
 
   // human-confirmed seed corrections (plan §10.4). Applied last so they win.
@@ -116,14 +144,20 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = n
       const prevRow = rowByUuid.get(mdUuid);
       if (prevRow && prevRow !== chosenRow) uuidByRow.delete(prevRow); // free this uuid from its auto row
       if (chosenRow) {
-        const displaced = uuidByRow.get(chosenRow); // a uuid the chosen row had auto-claimed
-        if (displaced && displaced !== mdUuid) { rowByUuid.delete(displaced); seam.set(displaced, "created"); }
+        // A uuid the chosen row had auto-claimed. Losing the claim tells us nothing about
+        // where that doc came from — only that this row belongs to someone else — so it
+        // goes back to `untraced`, not `created`.
+        const displaced = uuidByRow.get(chosenRow);
+        if (displaced && displaced !== mdUuid) { rowByUuid.delete(displaced); seam.set(displaced, "untraced"); }
         uuidByRow.set(chosenRow, mdUuid);
         rowByUuid.set(mdUuid, chosenRow);
         mergedInto.delete(chosenRow);
         seam.set(mdUuid, "kept");
       } else {
-        rowByUuid.delete(mdUuid); // "none" → md doc created at #117, no html predecessor
+        // "none" → a REVIEWED verdict (deterministic/ai/human, public/history-decisions.json)
+        // that the last HTML holds no earlier version of this doc. The only evidence-backed
+        // birth at the seam, so it's the only thing still called `created`.
+        rowByUuid.delete(mdUuid);
         seam.set(mdUuid, "created");
       }
       overrideCount++;
@@ -131,8 +165,13 @@ export function seedFromMd(mdNodes, htmlNodes, { minOverlap = 0.5, overrides = n
   }
 
   return {
-    uuidByRow, mergedInto, extractedFrom, seam, overrideCount,
-    stats: { rows: htmlNodes.length, seeded: uuidByRow.size, merged: mergedInto.size, kept: primaryByMd.size, split: splitCount, created: mdNodes.length - new Set([...primaryByMd.keys(), ...containedMd]).size },
+    uuidByRow, mergedInto, extractedFrom, seam, overrideCount, positionalUuids,
+    stats: {
+      rows: htmlNodes.length, seeded: uuidByRow.size, merged: mergedInto.size,
+      kept: primaryByMd.size, split: splitCount,
+      positional: positionalMd.size, positionalTiers: positional.stats,
+      untraced: mdNodes.length - new Set([...primaryByMd.keys(), ...containedMd, ...positionalMd]).size,
+    },
   };
 }
 
@@ -237,8 +276,20 @@ export function buildEvents(commits, { lineDiff, era = "html" } = {}) {
         if (lineDiff) ev.diff = lineDiff(p.content, c.content);
         push(ev);
       }
-      const pathChanged = p.doc_no !== c.doc_no || (p.ancestors || []).join(">") !== (c.ancestors || []).join(">") || p.title !== c.title;
-      if (pathChanged) push({ uuid, type: "moved", sha: occ[i].sha, seq: occ[i].seq, movedFrom: p.doc_no, movedTo: c.doc_no, moveKind: "doc_no" });
+      const docNoChanged = p.doc_no !== c.doc_no;
+      const pathChanged = docNoChanged || (p.ancestors || []).join(">") !== (c.ancestors || []).join(">") || p.title !== c.title;
+      if (pathChanged) {
+        // `movedFrom`/`movedTo` are always a doc_no PAIR (moveKind: "doc_no") — only
+        // stamp them when doc_no itself changed. Doing it for a title/ancestor-only
+        // change stamped an identical pair, rendering a nonsense "moved from X to X"
+        // (deep-QA H2, 335 rows). A title/ancestor-only change still surfaces as a
+        // `moved` event (the doc's structural placement changed) but with no doc_no
+        // pair to show; EntryRow/movePaths already render a pathless `moved` event
+        // as a bare "moved", so omitting the fields here is enough.
+        const ev = { uuid, type: "moved", sha: occ[i].sha, seq: occ[i].seq };
+        if (docNoChanged) { ev.movedFrom = p.doc_no; ev.movedTo = c.doc_no; ev.moveKind = "doc_no"; }
+        push(ev);
+      }
     }
     const last = occ[occ.length - 1];
     if (last.idx < lastIdx) push({ uuid, type: "removed", sha: last.sha, seq: last.seq }); // disappeared before the era's end

@@ -67,7 +67,7 @@ export function ActorResponsibilities({ rows }: Props) {
           to={ROUTES.REPORTS_ACTIVE_DATA}
           className="mono text-[11px] text-accent hover:underline"
         >
-          View all in Active Data Report →
+          View all in Active Data Report <span className="enlargen">→</span>
         </Link>
       </div>
     </div>

@@ -21,6 +21,7 @@ Curation is **complete** — `public/history-decisions.json` covers every case, 
 | `pnpm htmlhist:prepare` | Build the frozen pre-#117 history artifact (no curation). Deliberate, reviewed reruns only. | 79 HTML commits + #117 seed → `public/history-html-era.json` |
 | `pnpm htmlhist:curate` | **Build the decision queue AND auto-resolve it** in one shot — forward∩reverse + reverse∩containment (free, deterministic) + LLM∩matcher (≥90%). Add `--frontier` to escalate the uncertain residual to a frontier model (locks on an independent 2nd signal, else writes a hint). | git history → `public/history-curation.json` (queue) + `public/history-auto-decisions.json` (auto baseline) + `public/history-curation-proposals.json` (frontier hints, with `--frontier`) + `public/history-curation-llm-cache.json` (resume cache) |
 | `pnpm htmlhist:resume` | **Continue the frontier in batches** — reuses the existing queue + the resume cache (every prior LLM/frontier ask), so a capped run never re-spends; the `--frontier-limit` is spent only on NOT-yet-asked cases. Run repeatedly to finish the frontier a chunk at a time. | existing queue + cache → grows `history-auto-decisions.json` + `-proposals.json` + the cache |
+| `pnpm htmlhist:structural` | **Structural threading pass** — recover the seam lineage of degenerate template leaves by ORDER rather than content (see "Structural threading" below). Emits forced-only decisions; `--measure` reports without writing, `--merge` folds them into the committed decisions file. | committed decisions + the seam → `public/history-structural-decisions.json` (or merges into `public/history-decisions.json`) |
 | `pnpm htmlhist:apply [decisions.json]` | Bake the human/auto decisions into the frozen artifact. No arg ⇒ applies the committed `public/history-decisions.json`. **Partial-safe**: undecided cases fall back to the automatic threading. | decisions → re-freezes `public/history-html-era.json` |
 | `pnpm htmlhist:audit` | **Pass 1 of the post-curation audit** — independently re-pick the predecessor for **every applied decision** (deterministic, AI, and human) with a cheap second model (`google/gemma-4-31b-it`) and flag every case where it disagrees with the recorded pick. Resumable (caches each ask) + partial-safe (`--limit N`). Then **pass 2** = a reviewer (Claude/human) adjudicates each flagged disagreement and records why. Review report only — never artifact data. | `public/history-decisions.json` + queue → `.cache/audit-html-disagreements.{json,md}` + `.cache/audit-html-decisions.json` (ledger) |
 | `pnpm htmlhist:audit:accuracy` | Measure threading **accuracy** (stratified-samples + LLM-grades → a single headline %). The older statistical audit; complements the per-decision one above. Review report only. | → `.cache/audit-html-report.json` |
@@ -82,6 +83,32 @@ The human-in-the-loop path is the same shape: curate a few commits on the page �
 
 To **re-run the auto-resolution over an existing queue** without rebuilding the 6 MB queue (e.g. after changing `--threshold`), call the standalone tool directly: `bun scripts/htmlhist/auto-curate-html-history.mjs`.
 
+### Seam verdicts: `kept` / `split` / `merged` / `reintroduced` / **`untraced`** / `created`
+
+The seed's verdict for each #117 doc lives in the artifact's `docMeta` (and, for docs that
+have one, on their html-era birth event). Two of them never produce an event at all, so the
+reader learns about them from the seam alone — and they must not be confused:
+
+- **`untraced`** — nothing threaded this doc, and nothing ruled a predecessor out. This is
+  the *automatic* outcome and it asserts nothing about the document: for short or heavily
+  duplicated bodies it says more about the matcher than about the atlas. The reader renders
+  it as "history before the markdown migration could not be traced", explicitly **not** as a
+  creation.
+- **`created`** — a *reviewed* verdict (`"chosenKey": "none"` in
+  `public/history-decisions.json`, method deterministic/ai/human) that the last HTML holds no
+  earlier version. The decisions file carries 12 such verdicts, 11 of which are
+  duplication-split copies `prepare` re-tags `split`, so ~1 doc ships as `created`. This is
+  the only seam value that claims a birth, and the only one the reader shows as one.
+
+Losing a row to a curation override also demotes the displaced doc to `untraced` — it lost a
+claim, which is not evidence of where it came from.
+
+Because neither verdict has an event to hang on, `stampMigrationSeam`
+(`src/server/history/history-db.ts`) writes every doc's verdict onto its #117 `structural`
+row on each sync. It rides the html-era upsert rather than build-history's git walk on
+purpose: that walk is incremental and never re-visits #117, so a verdict written there would
+only reach the DB on a `--full` rebuild.
+
 ### Re-introductions (`history-reintroductions.json`)
 
 Some #117 docs REVIVE a name the live HTML had **already retired** — a migration regression, not new
@@ -101,8 +128,64 @@ find the rename with `git log -S'<name>' -- 'Sky Atlas/*'`, confirm the pre-rena
 last HTML, append an entry, re-run `pnpm htmlhist:prepare`. (Surfacing the `reintroduced` seam in the FE
 history view is a follow-up — like `created`, it currently lives in `docMeta` only, not the event stream.)
 
+### Structural threading (`pnpm htmlhist:structural`)
+
+The same degenerate-sibling failure as re-introductions above, but at scale and without a rename to
+trace. The atlas is full of **template leaves**: `Global Activation Status` is one word of prose
+(`Completed`), repeated once per primitive per agent — 94 rows in the last HTML, 140 docs today.
+`Network`, `Token`, `Target Protocol`, `Triggers`, `Instance Identifiers` are the same shape. Every
+seam signal we had is a CONTENT comparison (reverse shingle matcher, forward tracer, ordered
+containment) or reads a doc's immediate neighbourhood (positional), so on these they are all flat:
+the seed claims a handful of copies and the rest ship `seam:"created"` — "born at #117" — when the
+HTML plainly carried them. That is why e.g. Grove's Agent Creation Primitive activation status had
+no pre-#117 history at all.
+
+What content can't see is **order**, and order here is exact rather than heuristic. The HTML Agent
+Scope Database is a flat ordered `<table>` — no depth markup, no doc_no, hierarchy encoded purely by
+row position — and the #117 markdown is the same documents in the same order. So docs the seed
+already threaded are **anchors**, and a doc strictly between two anchors on one side must correspond
+to a doc strictly between the same two anchors on the other.
+
+`scripts/htmlhist/history-anchored-align.mjs` (pure, unit-tested) reports only assignments those
+bounds **force**, and abstains everywhere else:
+
+- **`gap-exact`** — the unclaimed runs between two adjacent anchors are equal-length and their
+  title+type line up pairwise. Order alone forces the whole run.
+- **`gap-unique`** — otherwise, a title+type occurring exactly once on each side within the bounds
+  has only one possible counterpart.
+- **abstain** — anything else: unequal runs with repeated titles (`unforced`), or a region where one
+  member is already claimed from outside the bounds (`partially-claimed`, i.e. a genuine move).
+  Anchors that cross in order are dropped before gaps are cut, so a moved doc never bounds one.
+
+It never ranks or scores, never overrides an existing decision (the committed decisions are its
+*input*, so curated picks become anchors), and `--merge` skips any subject already decided. Measured
+on the current seam: **823 of 1,203** unthreaded docs forced (813 `gap-exact` + 10 `gap-unique`),
+across 155 distinct titles, 98 gaps abstained; 661 of the 823 also have byte-identical content, which
+is corroboration the rules never asked for.
+
+#### Seed tier S2 — the same idea, inside the seed (`seed-positional.mjs`)
+
+`htmlhist:structural` runs *over* the seam and freezes its findings as decisions, which is
+what makes them auditable. Tier S2 applies the same anchored-order argument *inside*
+`seedFromMd`, over the one population the shingle matcher is structurally blind to: a body
+shorter than the 8-word shingle window produces no shingles at all, and its HTML rows are
+skipped outright (`if (!rSh.length) continue`), so the seed can neither match nor rule them
+out. It buckets the zero-shingle md docs and the zero-shingle *unclaimed* rows inside each
+anchor gap by title (+ body) and pairs a bucket k-th ↔ k-th only when both sides hold the
+same count; unequal buckets stay `untraced` rather than being guessed.
+
+The two are complementary, and both are wanted — measured on the current seam, `kept` is
+7 277 with the structural decisions alone, 7 323 with S2 alone, and **7 482 with both** (S2
+recovers 205 docs the structural rules abstain on; they recover 159 S2's do). They compose
+safely — S2 only
+ever touches rows the shingle pass left untouched, and the committed decisions are applied
+*after* it, so a curated pick always wins over an S2 pairing. Docs S2 threaded are tagged
+`seamTier: "positional"` in `docMeta`.
+
 ### Notes
 
-- The pipeline artifacts (`history-curation.json`, `history-auto-decisions.json`, `history-curation-proposals.json`, `history-decisions.json`, `history-reintroductions.json`, `history-html-era.json`) are **committed** (the reviewed, reproducible reconstruction). The audit + trace write only to `.cache/`. None are on the `pnpm build` path, so frontend-build determinism is untouched.
+- The pipeline artifacts (`history-curation.json`, `history-auto-decisions.json`, `history-curation-proposals.json`, `history-decisions.json`, `history-structural-decisions.json`, `history-reintroductions.json`, `history-html-era.json`) are **committed** (the reviewed, reproducible reconstruction). The audit + trace write only to `.cache/`. None are on the `pnpm build` path, so frontend-build determinism is untouched.
 - **Serving:** `pnpm build:history` upserts the committed `history-html-era.json` into Postgres `atlas_history` (idempotent, via `htmlEraRows`) on every sync, so dev (preflight) and Railway (atlas worker) both serve the applied reconstruction. No separate sync step.
+- **Date canonicalization:** `run-thread.mjs` rewrites a `+00:00` commit-date offset to `Z` (non-UTC offsets untouched). `git %cI` spells UTC as `+00:00` while the frozen artifact has always carried `Z`, so without this a re-freeze on a different machine reformats ~1,545 historical event dates — same instants, pure diff noise against the "historical diffs must not silently change" bar.
+- **Stale rows after a re-freeze:** that sync is upsert-only — unlike the pre-era artifact, the html-era path has no `supersedes` list, so it never deletes. When a re-freeze moves a row from a synthetic tombstone uuid to a real one (which is exactly what `htmlhist:structural` does, ~800 times), the old synthetic-uuid rows stay behind. They're unreachable — no live document has those uuids, so nothing looks them up — but the table carries them until `atlas_history` is rebuilt. Give the html-era artifact a `supersedes` list if that ever needs to be exact.
 - Separate effort: `scripts/aux/atlas-history/` (on-chain polls / edit-proposal enumerators) is the *genesis* pre-history research, not part of this loop.

@@ -37,6 +37,9 @@ export interface PreviewMeta {
   prTitle?: string;
   prAuthor?: string;
   prState?: "open" | "merged" | "closed";
+  /** ISO date of the previewed ref's head commit — the change's real date, shown
+   *  on the preview's history entry. Absent on bundles built before it existed. */
+  headCommitAt?: string;
   resolvedAt: string;
   docCount: number;
   buildMs: number;

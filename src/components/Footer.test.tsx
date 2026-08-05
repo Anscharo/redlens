@@ -53,9 +53,13 @@ afterEach(() => {
 describe("Footer", () => {
   it("renders build info and the app commit link with no status pills when everything is fine", async () => {
     render(<Footer />);
-    // App commit + build date are always present (no async dependency).
+    // App commit + build date are always present (no async dependency). The
+    // src link now carries the build commit: text "src <sha>", href → the commit.
     expect(screen.getByText("test", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("src")).toHaveAttribute("href", "https://github.com/test/test");
+    expect(screen.getByText("src", { exact: false }).closest("a")).toHaveAttribute(
+      "href",
+      "https://github.com/test/test/commit/test",
+    );
     expect(screen.getByText("provenance").closest("a")).toHaveAttribute("href", "/provenance");
     expect(screen.getByText("privacy").closest("a")).toHaveAttribute("href", "/privacy");
     expect(screen.queryByText("offline")).toBeNull();
@@ -73,6 +77,28 @@ describe("Footer", () => {
     (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: true, applyUpdate });
     render(<Footer />);
     const btn = screen.getByText(/update available/);
+    fireEvent.click(btn);
+    expect(applyUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  // applyUpdate waits on the service worker to activate before it reloads, so
+  // without this the click had no visible effect for a second or more and read
+  // as dropped. The spin is the acknowledgement; disabling stops the re-clicks
+  // that produced.
+  it("spins the pill's glyph and locks it once an update is being applied", () => {
+    (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: true, applyUpdate });
+    render(<Footer />);
+    const btn = screen.getByText(/update available/) as HTMLButtonElement;
+    expect(btn.querySelector(".status-pill-glyph")).not.toBeNull();
+    expect(btn).not.toHaveClass("is-applying");
+    expect(btn).not.toBeDisabled();
+
+    fireEvent.click(btn);
+    expect(btn).toHaveClass("is-applying");
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-busy", "true");
+
+    // A second click can't re-enter applyUpdate — the update is already going.
     fireEvent.click(btn);
     expect(applyUpdate).toHaveBeenCalledTimes(1);
   });

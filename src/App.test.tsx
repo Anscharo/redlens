@@ -36,6 +36,9 @@ vi.mock("./components/atlas/AtlasView", () => ({ AtlasView: () => <div data-test
 vi.mock("./components/tree/TreeSidebar", () => ({ TreeSidebar: () => <div data-testid="tree-sidebar" /> }));
 vi.mock("./components/NodeContent", () => ({ prefetchNodeContent: vi.fn() }));
 vi.mock("./components/HomePage", () => ({ HomePage: () => <div data-testid="home-page">home</div> }));
+vi.mock("./components/crossview/CrossViewPage", () => ({
+  CrossViewPage: ({ tab }: { tab: string }) => <div data-testid="crossview-page">crossview:{tab}</div>,
+}));
 vi.mock("./DevPanel", () => ({ DevPanel: () => <div data-testid="dev-panel" /> }));
 vi.mock("./components/Footer", () => ({ Footer: () => <footer data-testid="footer" /> }));
 vi.mock("./components/chat/ChatWidget", () => ({ ChatWidget: () => <div data-testid="chat-widget" /> }));
@@ -93,5 +96,31 @@ describe("App", () => {
     render(<App />, { wrapper: wrap("/privacy") });
     // PrivacyPage is a real (unmocked) lazy route — its h1 proves the Route mounts.
     expect(await screen.findByRole("heading", { level: 1, name: /privacy policy/i })).toBeInTheDocument();
+  });
+
+  it("renders the crossview shape tab at /reports/crossview", async () => {
+    render(<App />, { wrapper: wrap("/reports/crossview") });
+    expect(await screen.findByTestId("crossview-page")).toHaveTextContent("crossview:shape");
+  });
+
+  it("redirects the legacy /library/:tab* URL to /reports/crossview/:tab", async () => {
+    const { hook, history } = memoryLocation({ path: "/library/glossary", record: true });
+    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
+    await screen.findByTestId("crossview-page");
+    expect(history?.at(-1)).toBe("/reports/crossview/glossary");
+  });
+
+  it("redirects the legacy bare /library URL to /reports/crossview", async () => {
+    const { hook, history } = memoryLocation({ path: "/library", record: true });
+    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
+    await screen.findByTestId("crossview-page");
+    expect(history?.at(-1)).toBe("/reports/crossview");
+  });
+
+  it("redirects the former /reports/library URL to /reports/crossview", async () => {
+    const { hook, history } = memoryLocation({ path: "/reports/library/concepts", record: true });
+    render(<App />, { wrapper: ({ children }) => <Router hook={hook}>{children}</Router> });
+    await screen.findByTestId("crossview-page");
+    expect(history?.at(-1)).toBe("/reports/crossview/concepts");
   });
 });

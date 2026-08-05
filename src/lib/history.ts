@@ -56,6 +56,15 @@ export interface HistoryEntry {
    *  or the genesis IPFS gateway URL. Absent for git-derived eras (those link their
    *  real commit instead). */
   sourceUrl?: string;
+  /** How this document crossed the HTML→markdown seam (scripts/htmlhist/). On an
+   *  html-era `added` row it labels the doc's birth; on the #117 `moved` row it is the
+   *  reconstruction's verdict for the doc as a whole:
+   *   · "kept"/"split"/"merged"/"reintroduced" — lineage traced, pre-#117 entries exist;
+   *   · "untraced" — no pre-migration entry could be matched to it. NOT a claim that the
+   *     doc was created at the migration; its earlier history is simply unknown;
+   *   · "created" — a reviewed verdict that the pre-migration HTML holds no earlier
+   *     version (public/history-decisions.json). */
+  seam?: string;
 }
 
 /** Reconstructed (non-git-native) history eras — every era whose entries carry a
@@ -63,11 +72,51 @@ export interface HistoryEntry {
  *  opposed to a real markdown-era commit. */
 export const RECONSTRUCTED_ERAS = new Set(["html", "mip", "genesis", "severed"]);
 
+/** The atlas repo every commit / PR link points at. */
+export const ATLAS_REPO = "https://github.com/sky-ecosystem/next-gen-atlas";
+
+/** URL of an entry's Atlas PR. Reconstructed (HTML-era) rows carry a PR number but
+ *  no stored `pr_url` — those PRs predate the `atlas_prs` metadata the git-era rows
+ *  get their URL from — so derive it from the number rather than rendering a dead
+ *  <a> with no href. */
+export function prHref(e: { pr?: number; prUrl?: string }): string | undefined {
+  return e.prUrl ?? (e.pr ? `${ATLAS_REPO}/pull/${e.pr}` : undefined);
+}
+
 /** A real git commit sha (7–40 lowercase hex), as opposed to a synthetic pre-git tag
  *  (`mip:104:14.3`, `genesis:bafkreih7…`, `severed:…`). Gates the "view on GitHub"
  *  commit link, which is meaningless for a synthetic tag. */
 export function isGitSha(s: string | undefined | null): boolean {
   return !!s && /^[0-9a-f]{7,40}$/i.test(s);
+}
+
+/** 'Migrate To Markdown File' (2025-11-21) — the PR that turned the single HTML
+ *  atlas into markdown. Every doc alive at the time carries a `moved` row for it. */
+export const PRE_MD_PR = 117;
+// git records that migration as a whole-file rewrite rather than a rename, so the
+// per-doc rows carry no paths — name the one path every doc took instead.
+const PRE_MD_MOVE = { from: "Sky Atlas.html", to: "Sky Atlas.md" } as const;
+
+/** A severed-era birth has no date — only the window it happened in, encoded in
+ *  its synthetic tag (`severed:2024-09-02..2025-05-28`). Render that window as a
+ *  month range so the entry still carries a when. Null if it isn't one. */
+export function severedRange(commitHash: string): string | null {
+  const m = /^severed:(\d{4}-\d{2})-\d{2}\.\.(\d{4}-\d{2})-\d{2}$/.exec(commitHash);
+  return m && `${m[1]} ~ ${m[2]}`;
+}
+
+/** The from/to paths to render for a `moved` entry, or null if it isn't a move
+ *  (or is one with no paths to show — including a self-move, see below). */
+export function movePaths(e: HistoryEntry): { from?: string; to: string } | null {
+  if (e.changeType !== "moved") return null;
+  // Self-move: movedFrom and movedTo are identical. The html-era generator
+  // (history-html-era.mjs) used to fire `moved` and stamp both with the same
+  // doc_no whenever only a doc's title/ancestors changed (doc_no itself did
+  // not) — rendering a nonsense "moved from X to X" (335 frozen rows, deep-QA
+  // H2). Treat it as having nothing to show, same as any other pathless move.
+  if (e.movedTo && e.movedTo === e.movedFrom) return null;
+  if (e.movedTo) return { from: e.movedFrom, to: e.movedTo };
+  return e.pr === PRE_MD_PR ? PRE_MD_MOVE : null;
 }
 
 /** Single source of truth for change-type → CSS color, shared by the atlas
@@ -78,7 +127,10 @@ export const CHANGE_COLOR: Record<string, string> = {
   added: "var(--diff-added-fg)",
   modified: "var(--tan-3)",
   removed: "var(--diff-removed-fg)",
-  moved: "var(--accent)",
+  // Blue from the decorative depth cycle — deliberately NOT --accent (the link
+  // color) nor --warn/--error-text (which carry their own meaning); it just has to
+  // be distinct from added-green, removed-pink and modified-tan. 6.1:1 on --bg.
+  moved: "var(--depth-4)",
 };
 
 // Module-level cache: nodeId → promise
@@ -90,12 +142,18 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
     // /api/history/:nodeId — absolute path, same-origin on Railway.
     // On GitHub Pages (no backend) the 404 resolves to null, which the UI
     // already handles gracefully — that outcome IS cached (it's a stable
-    // property of the deploy, not a blip). A real rejection (network error,
-    // offline) is transient, so it evicts the cache entry instead of being
-    // cached as permanent "no history" — mirroring loadHistoryBatch below,
+    // property of the deploy, not a blip). Any OTHER non-ok status — e.g. the
+    // 503 the server returns on a DB hiccup (src/server/history/history.ts) —
+    // is transient, so — like a real fetch rejection (network error, offline)
+    // — it must NOT be cached as permanent "no history": throw so the `catch`
+    // below evicts the cache entry instead, mirroring loadHistoryBatch below,
     // which already only seeds the cache on a real response.
     p = fetch(`/api/history/${nodeId}`)
-      .then((r) => (r.ok ? (r.json() as Promise<HistoryEntry[]>) : null))
+      .then((r) => {
+        if (r.ok) return r.json() as Promise<HistoryEntry[]>;
+        if (r.status === 404) return null; // stable: no backend, or no such doc
+        throw new Error(`history fetch failed with status ${r.status}`); // transient
+      })
       .catch((err) => {
         cache.delete(nodeId);
         throw err;

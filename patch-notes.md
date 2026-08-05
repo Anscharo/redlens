@@ -33,6 +33,36 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-04
+- Refreshed on-chain contract values automatically each week
+- Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
+
+
+## 2026-08-03
+- Recovered pre-migration history for 1,005 documents that previously showed nothing before the Atlas moved to Markdown
+- Added a note saying when a document's history before the markdown migration couldn't be traced
+- Improved keyboard navigation and loading reliability in the reader and sidebar
+- Fixed search issues with scroll position, excluded terms, and quoted phrases
+- Fixed history and radar to show structural and renumbering changes, recover from temporary errors, and link addresses to the correct networks
+
+## 2026-07-31
+- Reader documents now start collapsed and open one level at a time
+- Shift-click a sidebar chevron (now to right of doc number) to unfold three levels at once, or to fold a whole open branch back in
+- Drag the top edge of the split view to resize it, up to 60% of the reader — it now defaults to the size of the document shown, capped at 50%
+- Expanded the provenance page with current data sources and explanations of reconstructed and pre-git history
+
+## 2026-07-30
+- Enlarged the text in history diffs and set prose lines in the body typeface, keeping document fields and code blocks in monospace
+- Fixed pull request links not opening on reconstructed history entries
+
+## 2026-07-29
+- Added a reader control to expand, collapse, or hide a whole section and everything nested beneath it
+- Redesigned the history tab as a timeline: each change is a node reading as a unit — date and pull request first, then the title and the type of edit — with preview changes shown as a not-yet-cemented break in the line
+- Opened the document panel on the History tab by default
+
+## 2026-07-27
+- Added an Atlas CrossView report with a visual chunk map of the Atlas, weight bars, a concept catalog with live re-computed data blocks and CSV export, a glossary of defined terms, and CSV export of the chunk breakdown
+- The chatbot can now answer cross-cutting questions from the concept censuses, like how many registries are empty or which document types are unused
 
 ## 2026-08-04
 - Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
