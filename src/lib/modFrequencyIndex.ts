@@ -254,6 +254,13 @@ export function matchesFrequency(count: number, comparator: FrequencyComparator,
   return comparator === "lte" ? count <= threshold : count > threshold;
 }
 
+export function modFrequencySummaryToCSV(summary: readonly ModFrequencySummaryRow[]): string {
+  return toCSV(
+    ["Category", "Total Documents", "Matching Documents", "% Matching"],
+    summary.map((s) => [s.label, s.total, s.matchCount, `${s.matchPercent.toFixed(1)}%`]),
+  );
+}
+
 /** Haystack for the header-box filter — the same fields the table renders. */
 export function modFrequencySearchFields(r: ModFrequencyRow): SearchField[] {
   return [

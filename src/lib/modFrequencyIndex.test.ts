@@ -9,6 +9,7 @@ import {
   matchesFrequency,
   modFrequencyRowsToCSV,
   modFrequencySearchFields,
+  modFrequencySummaryToCSV,
   sectionOf,
   summarizeModFrequencyMatches,
 } from "./modFrequencyIndex";
@@ -294,5 +295,22 @@ describe("modFrequencyRowsToCSV", () => {
     expect(lines[1]).toContain('"scope2"');
     expect(lines[2]).toContain('"2026-01-05"');
     expect(lines[2]).toContain("/atlas?id=deep");
+  });
+});
+
+describe("modFrequencySummaryToCSV", () => {
+  it("emits one row per category with total, match count, and percent", () => {
+    const rows = buildModFrequencyRows(DOCS, [count("deep", 2, "2026-01-05")]);
+    const summary = summarizeModFrequencyMatches(rows, "section", (r) => r.count === 0);
+    const csv = modFrequencySummaryToCSV(summary);
+    const lines = csv.split("\r\n");
+    expect(lines[0]).toBe('"Category","Total Documents","Matching Documents","% Matching"');
+    expect(lines).toContain('"A.2 — Accessibility Scope","2","1","50.0%"');
+  });
+
+  it("emits only the header for an empty summary", () => {
+    expect(modFrequencySummaryToCSV([]).split("\r\n")).toEqual([
+      '"Category","Total Documents","Matching Documents","% Matching"',
+    ]);
   });
 });

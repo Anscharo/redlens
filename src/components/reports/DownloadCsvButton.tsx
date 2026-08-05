@@ -6,7 +6,9 @@ import { useDataSource } from "../../lib/dataSource";
 
 type FilterVal = string | false | null | undefined;
 
-const BTN_CLASS =
+// Shared with SingleDownloadButton.tsx, for the same look on a page with a
+// second, filtered/full-duality-free download (e.g. a category rollup).
+export const BTN_CLASS =
   "mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap";
 
 // CSV downloads for the /reports/* pages. Two controls:

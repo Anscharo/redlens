@@ -52,7 +52,7 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
       ),
       card(
         "mod-frequency",
-        "A distribution chart of edit counts, a monthly edit timeline, a per-category share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent), and the matching document list.",
+        "A monthly edit timeline, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
       ),
       card(
         "processes",

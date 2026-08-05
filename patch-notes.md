@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-05
-- Added a Modification Frequency report showing a chart of how many documents fall at each edit count, a timeline of edits by month, and the share of documents per section or document type matching a typed edit-count filter, with the Agent Scope broken out by agent
+- Added a Modification Frequency report with three tabs — a timeline of edits by month, a share of documents per section and per document type matching a typed edit-count filter (with the Agent Scope broken out by agent, each downloadable separately), and the matching document list with its own chart and download
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week

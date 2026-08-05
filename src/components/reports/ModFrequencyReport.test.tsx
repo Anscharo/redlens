@@ -12,6 +12,17 @@ function node(id: string, doc_no: string, title: string, type = "Section"): Atla
   return { id, doc_no, title, type, depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };
 }
 
+// Waits for the page-level (tab-agnostic) filter controls to mount — they sit
+// outside the tab bodies and appear as soon as `rows` has loaded, regardless
+// of which tab is active, so this is a reliable tab-agnostic "loaded" signal.
+function waitLoaded() {
+  return screen.findByRole("spinbutton");
+}
+
+function clickTab(name: "timeline" | "sum by" | "list") {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
 const DOCS: Record<string, AtlasNode> = {
   scope: node("scope", "A.2", "Accessibility Scope", "Scope"),
   // Excluded from the default (≤1) doc-level list but still counted in the
@@ -76,22 +87,94 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("ModFrequencyReport", () => {
-  it("summarizes docs matching the active filter per category against the category's full total", async () => {
+describe("ModFrequencyReport tabs", () => {
+  it("defaults to the timeline tab", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    expect(screen.getByRole("tab", { name: "timeline" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("switches tab content when a different tab is clicked", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText("Never Touched Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
+
+    clickTab("sum by");
+    expect(await screen.findByText("By section")).toBeInTheDocument();
+    expect(screen.getByText("By document type")).toBeInTheDocument();
+    expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport timeline tab", () => {
+  it("renders a timeline of semantic edits by month, zero-filling the gap", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText("Semantic edits by month")).toBeInTheDocument();
+    // TIMELINE has Jan and Mar 2026 — Feb should be zero-filled in between.
+    expect(screen.getByText("Jan '26")).toBeInTheDocument();
+    expect(screen.getByText("Feb '26")).toBeInTheDocument();
+    expect(screen.getByText("Mar '26")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when the timeline endpoint is unreachable", async () => {
+    timelineImpl = () => Promise.resolve(null);
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText("No edit timeline available.")).toBeInTheDocument();
+    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport sum-by tab", () => {
+  it("summarizes docs matching the active filter per category against the category's full total, for both section and type", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
     expect(screen.getByText("loading…")).toBeInTheDocument();
+    clickTab("sum by");
 
     // A.2 category: scope, edited, fresh, once = 4 docs; default filter is
     // ≤1 modification, matching scope(0)/fresh(0)/once(1) = 3/4 = 75%.
     // "edited" (count 3) still counts toward the total even though it's
     // excluded from the doc-level list below.
     expect(await screen.findByText("75.0%")).toBeInTheDocument();
-    expect(screen.getByText("100.0%")).toBeInTheDocument(); // NR: nr(0) matches, 1/1
-    expect(screen.getByText("≤1 modification")).toBeInTheDocument(); // column header names the filter
+    // NR (section table) and Needed Research + Scope (type table) all hit 1/1.
+    expect(screen.getAllByText("100.0%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("≤1 modification").length).toBeGreaterThan(0); // column header names the filter
+    // Both tables render together, not toggled.
+    expect(screen.getByText("By section")).toBeInTheDocument();
+    expect(screen.getByText("By document type")).toBeInTheDocument();
   });
 
+  it("updates both summary tables when the comparator/threshold changes", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("sum by");
+    await screen.findByText("By section");
+
+    fireEvent.click(screen.getByText("Most Frequent (>1 edit)"));
+    expect(await screen.findAllByText(">1 modification")).not.toHaveLength(0);
+  });
+
+  it("downloads the section and type summaries as separate CSVs", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("sum by");
+    await screen.findByText("By section");
+
+    fireEvent.click(screen.getByRole("button", { name: "Download by section (CSV)" }));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Download by type (CSV)" }));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ModFrequencyReport list tab", () => {
   it("shows only docs with ≤1 modification in the doc-level list, excluding more-edited docs", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     expect(await screen.findByText("Never Touched Doc")).toBeInTheDocument();
     expect(screen.getByText("Once Edited Doc")).toBeInTheDocument();
     expect(screen.queryByText("Edited Doc")).not.toBeInTheDocument();
@@ -100,32 +183,19 @@ describe("ModFrequencyReport", () => {
 
   it("renders a distribution histogram of documents by edit count", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
-    await screen.findByText("Never Touched Doc");
-    expect(screen.getByText("Documents by number of edits")).toBeInTheDocument();
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText("Documents by number of edits")).toBeInTheDocument();
     // Buckets 0..8 (max count is busy2's 8), well under the 20-bucket tail cap.
     expect(screen.getByText("8")).toBeInTheDocument();
   });
 
-  it("renders a timeline of semantic edits by month, zero-filling the gap", async () => {
+  it("switches to 'Most Frequent' and lists docs above the typed threshold", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     await screen.findByText("Never Touched Doc");
-    expect(screen.getByText("Semantic edits by month")).toBeInTheDocument();
-    // TIMELINE has Jan and Mar 2026 — Feb should be zero-filled in between.
-    expect(screen.getByText("Jan '26")).toBeInTheDocument();
-    expect(screen.getByText("Feb '26")).toBeInTheDocument();
-    expect(screen.getByText("Mar '26")).toBeInTheDocument();
-  });
 
-  it("doesn't render the timeline chart when the endpoint is unreachable", async () => {
-    timelineImpl = () => Promise.resolve(null);
-    render(<ModFrequencyReport query="" mode="broad" />);
-    await screen.findByText("Never Touched Doc");
-    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
-  });
-
-  it("switches to 'Most Frequent' and lists docs above the typed threshold, updating the summary table too", async () => {
-    render(<ModFrequencyReport query="" mode="broad" />);
-    await screen.findByText("Never Touched Doc");
     fireEvent.click(screen.getByText("Most Frequent (>1 edit)"));
     // Default threshold is still 1: count > 1 keeps edited(3), busy1(5), busy2(8).
     expect(await screen.findByText("Busy Doc Two")).toBeInTheDocument();
@@ -133,7 +203,6 @@ describe("ModFrequencyReport", () => {
     expect(screen.getByText("Edited Doc")).toBeInTheDocument();
     expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
     expect(screen.getByText(/documents with >1 modification/)).toBeInTheDocument();
-    expect(screen.getByText(">1 modification")).toBeInTheDocument(); // summary column header follows the filter
     // Pill label bakes in the live threshold too.
     expect(screen.getByText("Least Frequent (≤1 edit)")).toBeInTheDocument();
 
@@ -149,8 +218,7 @@ describe("ModFrequencyReport", () => {
 
   it("clamps the threshold input to [0, 12] and reverts on invalid entry", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
-    await screen.findByText("Never Touched Doc");
-    const input = screen.getByRole("spinbutton");
+    const input = await waitLoaded();
 
     fireEvent.change(input, { target: { value: "50" } });
     fireEvent.blur(input);
@@ -167,8 +235,8 @@ describe("ModFrequencyReport", () => {
 
   it("allows a threshold of 0 to isolate never-modified docs", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
-    await screen.findByText("Never Touched Doc");
-    const input = screen.getByRole("spinbutton");
+    const input = await waitLoaded();
+    clickTab("list");
 
     fireEvent.change(input, { target: { value: "0" } });
     fireEvent.blur(input);
@@ -180,6 +248,8 @@ describe("ModFrequencyReport", () => {
 
   it("switches grouping via the pills (section/type only, no flat list)", async () => {
     render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     await screen.findByText("Never Touched Doc");
     expect(screen.queryByText("flat list")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("doc type"));
@@ -188,6 +258,8 @@ describe("ModFrequencyReport", () => {
 
   it("filters the doc-level list by the query prop", async () => {
     render(<ModFrequencyReport query="never touched" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     // The title gets split across <mark> nodes once highlighted, so match on
     // the row's doc no (unaffected by this query) instead.
     expect(await screen.findByText("A.2.2")).toBeInTheDocument();
@@ -196,19 +268,17 @@ describe("ModFrequencyReport", () => {
 
   it("shows NoRowsMatch when a query matches nothing", async () => {
     render(<ModFrequencyReport query="zzz-no-match-at-all" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     expect(await screen.findByText(/No rows match/)).toBeInTheDocument();
-  });
-
-  it("shows a warning when the history DB is unreachable on this deploy", async () => {
-    countsImpl = () => Promise.resolve(null);
-    render(<ModFrequencyReport query="" mode="broad" />);
-    expect(await screen.findByText(/isn't reachable on this deploy/)).toBeInTheDocument();
   });
 
   it("builds and downloads a CSV when the download button is clicked", async () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
     render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     await screen.findByText("Never Touched Doc");
     fireEvent.click(screen.getByText("Download full report"));
     expect(URL.createObjectURL).toHaveBeenCalled();
@@ -218,9 +288,23 @@ describe("ModFrequencyReport", () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
     render(<ModFrequencyReport query="never touched" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     await screen.findByText("A.2.2");
     fireEvent.click(screen.getByText("Download filtered report"));
     expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it("shows the filtered download once the threshold moves off its default, even with no search query", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    const input = await waitLoaded();
+    clickTab("list");
+    await screen.findByText("Never Touched Doc");
+    expect(screen.queryByText("Download filtered report")).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText("Download filtered report")).toBeInTheDocument();
   });
 
   it("sub-splits the A.6 Agent Scope by owning agent when the graph resolves one", async () => {
@@ -246,6 +330,8 @@ describe("ModFrequencyReport", () => {
       });
 
     render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
     // agentScope, sparkRoot, and groveRoot are self-excluded (an agent's own
     // root doc isn't "under" the agent) and stay in the plain A.6 bucket;
     // sparkChild/groveChild are the ones that resolve to an owning agent.
@@ -277,8 +363,18 @@ describe("ModFrequencyReport", () => {
         <ModFrequencyReport query="" mode="broad" />
       </DataSourceContext.Provider>,
     );
+    await waitLoaded();
+    clickTab("list");
     expect(await screen.findByRole("heading", { name: /A\.6 — The Agent Scope \(3\)/ })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /A\.6 — Spark/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport data source", () => {
+  it("shows a warning when the history DB is unreachable on this deploy", async () => {
+    countsImpl = () => Promise.resolve(null);
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText(/isn't reachable on this deploy/)).toBeInTheDocument();
   });
 
   it("loads docs from the active preview base, not the live atlas base", async () => {
@@ -288,7 +384,7 @@ describe("ModFrequencyReport", () => {
         <ModFrequencyReport query="" mode="broad" />
       </DataSourceContext.Provider>,
     );
-    await screen.findByText("Never Touched Doc");
+    await waitLoaded();
     expect(capturedBase).toBe("/api/preview/abc123/");
   });
 });
