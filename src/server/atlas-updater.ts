@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
+import { groupAddrRowsToAtlas, type AddrReadRow } from "./retrieval/doc-rows.ts";
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
@@ -169,7 +170,7 @@ export async function getDbAtlasSha(): Promise<string | null> {
   }
 }
 
-interface AddrRow { address: string; chain: string; entity_label: string | null; roles: string[] | null; aliases: string[] | null; expected_tokens: string[] | null; }
+
 
 // public/search-index.json is stale-by-construction after a DB refresh (it
 // still reflects the PREVIOUS atlas sha): the happy path (refreshInPlaceFromDisk)
@@ -196,7 +197,7 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     //    content we read (the worker can't commit a newer sha mid-read). ──
     let dbSha: string | null = null;
     let docRows: DocMetaRow[] = [];
-    let addrRows: AddrRow[] = [];
+    let addrRows: AddrReadRow[] = [];
     await sql.begin(async (tx) => {
       const st = await tx`SELECT atlas_sha FROM sync_state WHERE id = 1`;
       dbSha = (st[0] as { atlas_sha?: string } | undefined)?.atlas_sha ?? null;
@@ -209,7 +210,7 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
       addrRows = (await tx`
         SELECT address, chain, label AS entity_label, roles, aliases, expected_tokens
         FROM atlas_addresses
-      `) as unknown as AddrRow[];
+      `) as unknown as AddrReadRow[];
     });
     if (!dbSha) {
       log("refuse: sync_state has no atlas_sha");
@@ -231,26 +232,7 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     log(`refresh-from-db: ${docRows.length} docs → public/docs.json (+meta/content split)`);
 
     // 2. atlas_addresses → public/addresses.atlas.json (seed for build-graph)
-    // atlas_addresses is keyed (address, chain), so a multi-chain address
-    // arrives as several rows. Fold them back into the artifact's one-entry-per
-    // -address shape, rebuilding `chains` from the row set — dropping it here
-    // would silently re-collapse what build-index detected.
-    const addrAtlas: Record<string, { chain: string; chains: string[] } & Record<string, unknown>> = {};
-    for (const r of addrRows) {
-      const existing = addrAtlas[r.address];
-      if (existing) {
-        if (!existing.chains.includes(r.chain)) existing.chains.push(r.chain);
-        continue;
-      }
-      addrAtlas[r.address] = {
-        chain: r.chain,
-        chains: [r.chain],
-        entityLabel: r.entity_label,
-        roles: r.roles ?? [],
-        aliases: r.aliases ?? [],
-        expectedTokens: r.expected_tokens ?? [],
-      };
-    }
+    const addrAtlas = groupAddrRowsToAtlas(addrRows);
     writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
     // 3. build-graph subprocess (reads docs.json → graph.json, relations.json; enriches addresses.atlas.json)

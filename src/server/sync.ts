@@ -67,7 +67,7 @@ async function main() {
     chain?: string; chains?: string[]; roles?: string[]; entityLabel?: string; aliases?: string[]; expectedTokens?: string[];
   }> }>("addresses.atlas.json").addresses ?? {};
   const addrOnChain = existsSync(pub("addresses.json"))
-    ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; codeByChain?: Record<string, boolean>; isProxy?: boolean; implementation?: string }>>("addresses.json")
+    ? readJson<Record<string, { chainlogId?: string; etherscanName?: string; isContract?: boolean; codeByChain?: Record<string, boolean>; presentOnChains?: string[]; isProxy?: boolean; implementation?: string }>>("addresses.json")
     : {};
   const chainStateRaw = readJson<{ chains?: Record<string, { block?: number; slot?: number; values?: Record<string, unknown> }>; block?: number; values?: Record<string, unknown> }>("chain-state.json");
   const chainStateByAddr = buildChainStateByAddr(chainStateRaw);

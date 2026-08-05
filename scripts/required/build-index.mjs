@@ -53,9 +53,18 @@ function extractAddresses(content, titleChain) {
     // Prose first, then the doc's heading context, then the ethereum default.
     // `detected` records whether anything actually named a chain, so the
     // cross-doc merge below can tell a stated ethereum from a defaulted one.
+    //
+    // When prose and heading name DIFFERENT chains the doc is genuinely
+    // ambiguous — "Grove Arbitrum governance relay receiver on Robinhood
+    // Chain" is titled for one and bodied for the other. Both become
+    // candidates and build-addresses settles it on-chain; guessing here just
+    // moves the coin flip earlier.
     if (!result[key]) {
-      const detected = detectChainOrNull(content, m.index) ?? titleChain;
-      result[key] = { chain: detected ?? "ethereum", detected: detected != null };
+      const prose = detectChainOrNull(content, m.index);
+      const detected = prose ?? titleChain;
+      const candidates =
+        prose && titleChain && titleChain !== prose ? [prose, titleChain] : detected ? [detected] : [];
+      result[key] = { chain: detected ?? "ethereum", candidates, detected: detected != null };
     }
   }
 
@@ -63,7 +72,7 @@ function extractAddresses(content, titleChain) {
   while ((m = SOL_ADDR_RE.exec(content)) !== null) {
     const key = normalizeAddress(m[0]);
     // The base58 shape is itself the signal, so this counts as detected.
-    if (!result[key]) result[key] = { chain: "solana", detected: true };
+    if (!result[key]) result[key] = { chain: "solana", candidates: ["solana"], detected: true };
   }
 
   return result;
@@ -193,9 +202,11 @@ for (const node of nodes) {
     // doc that merely filed it under another chain's heading.
     const existing = chainMap[addr];
     if (!existing) {
-      chainMap[addr] = { ...info, chains: info.detected ? [info.chain] : [] };
+      chainMap[addr] = { ...info, chains: info.detected ? [...info.candidates] : [] };
     } else {
-      if (info.detected && !existing.chains.includes(info.chain)) existing.chains.push(info.chain);
+      if (info.detected) {
+        for (const c of info.candidates) if (!existing.chains.includes(c)) existing.chains.push(c);
+      }
       if (!existing.detected && info.detected) {
         existing.chain = info.chain;
         existing.detected = true;

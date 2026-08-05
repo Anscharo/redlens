@@ -1,12 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { planCodeChecks, applyCodeResults, applyOnchainCode } from "./address-code.mjs";
+import { planCodeChecks, applyCodeResults, applyOnchainCode, resolvePresentChains } from "./address-code.mjs";
 
 // Stands in for the RPC, injected via applyOnchainCode's `clientFor`. Built
 // fresh per test — a shared spy reset in beforeEach leaks a pending rejection
 // from one test into the next.
-function fakeRpc(impl) {
+function fakeRpc(impl, nonceImpl = () => Promise.resolve(0)) {
   const getCode = vi.fn(impl);
-  return { getCode, clientFor: () => ({ getCode }) };
+  const getTransactionCount = vi.fn(nonceImpl);
+  return { getCode, getTransactionCount, clientFor: () => ({ getCode, getTransactionCount }) };
 }
 
 describe("planCodeChecks", () => {
@@ -44,7 +45,7 @@ describe("applyCodeResults", () => {
     const a = addrs();
     const s = applyCodeResults(a, "ethereum", ["0xaaa"], [{ ok: true, code: "0x60806040" }]);
     expect(a["0xaaa"].isContract).toBe(true);
-    expect(s).toEqual({ checked: 1, failed: 0, corrected: 1 });
+    expect(s).toEqual({ checked: 1, failed: 0, corrected: 1, present: 1 });
   });
 
   it("treats '0x' and undefined code as a real EOA answer", () => {
@@ -61,7 +62,7 @@ describe("applyCodeResults", () => {
     const a = addrs();
     const s = applyCodeResults(a, "ethereum", ["0xbbb"], [{ ok: false }]);
     expect(a["0xbbb"].isContract).toBe(true);
-    expect(s).toEqual({ checked: 0, failed: 1, corrected: 0 });
+    expect(s).toEqual({ checked: 0, failed: 1, corrected: 0, present: 0 });
   });
 
   it("counts a correction only when getCode disagrees with the explorer", () => {
@@ -92,7 +93,7 @@ describe("applyOnchainCode", () => {
     expect(addresses["0xbbb"].isContract).toBe(true);
     expect(addresses["0xccc"].isContract).toBe(false);
     expect(addresses.SoLaNaAddr.isContract).toBe(false);
-    expect(totals).toEqual({ checked: 3, failed: 0, corrected: 1, skipped: 1 });
+    expect(totals).toEqual({ checked: 3, failed: 0, corrected: 1, skipped: 1, resolved: 0 });
     // One line per chain checked.
     expect(log).toHaveBeenCalledTimes(2);
   });
@@ -106,7 +107,7 @@ describe("applyOnchainCode", () => {
     const totals = await applyOnchainCode(addresses, { log: vi.fn(), clientFor });
 
     expect(addresses["0xaaa"].isContract).toBe(true);
-    expect(totals).toEqual({ checked: 0, failed: 1, corrected: 0, skipped: 0 });
+    expect(totals).toEqual({ checked: 0, failed: 1, corrected: 0, skipped: 0, resolved: 0 });
   });
 
   it("batches a list longer than one request's worth", async () => {
@@ -132,6 +133,79 @@ describe("applyOnchainCode", () => {
     const totals = await applyOnchainCode({ SoLaNaAddr: { chain: "solana" } }, { log, clientFor });
     expect(getCode).not.toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
-    expect(totals).toEqual({ checked: 0, failed: 0, corrected: 0, skipped: 1 });
+    expect(totals).toEqual({ checked: 0, failed: 0, corrected: 0, skipped: 1, resolved: 0 });
+  });
+});
+
+describe("resolvePresentChains", () => {
+  it("keeps the atlas chain when the chain data confirms it, and orders it first", () => {
+    const a = { "0xaaa": { chain: "base", chains: ["base", "ethereum"], presentOnChains: ["ethereum", "base"] } };
+    expect(resolvePresentChains(a)).toBe(0);
+    expect(a["0xaaa"].chain).toBe("base");
+    expect(a["0xaaa"].presentOnChains).toEqual(["base", "ethereum"]);
+  });
+
+  it("moves to the chain the address actually exists on when the atlas guessed wrong", () => {
+    // The Grove case: doc titled for one chain, body naming another. Only one
+    // candidate comes back with code, so that one is real.
+    const a = {
+      "0xaaa": {
+        chain: "arbitrum",
+        chains: ["arbitrum", "robinhood"],
+        presentOnChains: ["robinhood"],
+        codeByChain: { arbitrum: false, robinhood: true },
+        isContract: false,
+      },
+    };
+    expect(resolvePresentChains(a)).toBe(1);
+    expect(a["0xaaa"].chain).toBe("robinhood");
+    expect(a["0xaaa"].isContract).toBe(true); // follows the resolved chain
+  });
+
+  it("keeps every chain when the address exists on more than one", () => {
+    const a = { "0xaaa": { chain: "ethereum", presentOnChains: ["base", "ethereum"] } };
+    resolvePresentChains(a);
+    expect(a["0xaaa"].presentOnChains).toEqual(["ethereum", "base"]);
+  });
+
+  it("leaves the atlas answer alone when no chain shows any presence", () => {
+    const a = { "0xaaa": { chain: "arbitrum", chains: ["arbitrum", "robinhood"], isContract: false } };
+    expect(resolvePresentChains(a)).toBe(0);
+    expect(a["0xaaa"].chain).toBe("arbitrum");
+  });
+});
+
+describe("applyOnchainCode presence probing", () => {
+  it("counts an EOA with a non-zero nonce as present on that chain", async () => {
+    const addresses = { "0xaaa": { chain: "ethereum", isContract: false } };
+    const { clientFor } = fakeRpc(
+      () => Promise.resolve(undefined), // no bytecode
+      () => Promise.resolve(4), // but it has transacted
+    );
+    await applyOnchainCode(addresses, { log: vi.fn(), clientFor });
+    expect(addresses["0xaaa"].presentOnChains).toEqual(["ethereum"]);
+    expect(addresses["0xaaa"].isContract).toBe(false);
+  });
+
+  it("treats a never-used address as present nowhere", async () => {
+    const addresses = { "0xaaa": { chain: "ethereum", isContract: false } };
+    const { clientFor } = fakeRpc(() => Promise.resolve("0x"), () => Promise.resolve(0));
+    await applyOnchainCode(addresses, { log: vi.fn(), clientFor });
+    expect(addresses["0xaaa"].presentOnChains).toBeUndefined();
+  });
+
+  it("resolves an ambiguous address end to end", async () => {
+    const addresses = {
+      "0xaaa": { chain: "arbitrum", chains: ["arbitrum", "base"], isContract: false },
+    };
+    // Code on base only — the atlas primary (arbitrum) is unsupported.
+    const perChain = (chain: string) => ({
+      getCode: () => Promise.resolve(chain === "base" ? "0x60806040" : "0x"),
+      getTransactionCount: () => Promise.resolve(0),
+    });
+    const totals = await applyOnchainCode(addresses, { log: vi.fn(), clientFor: perChain });
+    expect(addresses["0xaaa"].chain).toBe("base");
+    expect(addresses["0xaaa"].isContract).toBe(true);
+    expect(totals.resolved).toBe(1);
   });
 });

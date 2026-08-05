@@ -72,8 +72,10 @@ const { misses = 0, errors = 0, proxyRefreshed = 0 } = out.__stats ?? {};
 await fetchImplABIs(out, API_KEY);
 
 // isContract is decided by eth_getCode, not by whether the explorer had
-// verified source — an unverified contract is still a contract.
-console.log("\nChecking on-chain bytecode (eth_getCode)…");
+// verified source — an unverified contract is still a contract. The probe also
+// settles addresses whose doc was ambiguous about the chain, by checking every
+// candidate and keeping the ones the address actually exists on.
+console.log("\nChecking on-chain bytecode + nonce (eth_getCode / eth_getTransactionCount)…");
 const code = await applyOnchainCode(out);
 
 await fs.writeFile(OUT_PATH, JSON.stringify(out, null, 2) + "\n");
@@ -106,6 +108,7 @@ console.log(`Proxies:            ${proxies}`);
 console.log(`EOAs (no bytecode): ${eoas}`);
 console.log(`Contracts, unverified source: ${unverifiedContracts}`);
 console.log(`getCode:            ${code.checked} checked, ${code.corrected} corrected, ${code.failed} failed, ${code.skipped} skipped (no RPC)`);
+console.log(`Ambiguous chains resolved on-chain: ${code.resolved}`);
 console.log("By chain:");
 for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1])) {
   console.log(`  ${c.padEnd(12)} ${n}`);

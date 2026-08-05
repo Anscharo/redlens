@@ -82,6 +82,16 @@ Overall precedence, strongest first:
 
 `build-graph` Phase 2.6 deliberately does **not** recompute chain: it can't see headings, and its "prefer any non-ethereum detection" aggregation let a single stray mention win globally (a doc whose prose said "Gnosis **Protocol**" pinned the address to Gnosis **Chain**).
 
+### Ambiguous docs are settled on-chain, not by guessing
+
+When the prose and the heading name **different** chains, the doc is genuinely ambiguous — `A.6.1.1.2.2.6.1.2.1.1.1.1.4.2` is titled "Grove **Arbitrum** Governance Relay Receiver" and bodied "on **Robinhood Chain**". Picking one in `build-index` is a coin flip either way, so both become candidates in `chains` (prose first, as the provisional primary) and `build-addresses` settles it against the chains themselves:
+
+- `applyOnchainCode` probes **every** candidate with `eth_getCode` **and** `eth_getTransactionCount`. An address is *present* on a chain if it has bytecode, or is an EOA that has sent at least one transaction. A zero nonce with no code is no evidence — an unused address is identical on every EVM chain.
+- `resolvePresentChains` then keeps the candidates that came back present. One → that's the chain. Several → the address really is on several, and all are kept. None → the atlas's own answer stands.
+- The atlas primary wins ties, so a reading the chain confirms is never reshuffled. When the primary turns out to be unsupported, `isContract` moves with the resolved chain.
+
+`presentOnChains` (in `addresses.json`, primary first) therefore outranks `chains` in `buildAddrRows`. If the probe never ran — no `ETHERSCAN_API_KEY`, or an unreachable RPC — the field is absent and every candidate still gets a row, which degrades to "possibly one row too many" rather than to a wrong single answer.
+
 ### Multi-chain addresses
 
 Safes and the deterministically-deployed ALM contracts sit at the same address on several chains, and the storage layer was built for it: `atlas_addresses`' PK is `(address, chain)`, balances are keyed `address|chain`, and `has_address` edges are `${addr}:${chain}`.

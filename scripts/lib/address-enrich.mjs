@@ -292,6 +292,10 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
     // an EOA.
     out[addr] = {
       chain: info.chain,
+      // Chain identity carried through from the atlas, exactly as `chain`
+      // already is — the candidate chains applyOnchainCode probes. Not atlas
+      // *annotation* (roles/entityLabel/expectedTokens), which stays out.
+      ...(info.chains?.length ? { chains: info.chains } : {}),
       ...(chainlogId ? { chainlogId } : {}),
       ...(etherscanName ? { etherscanName } : {}),
       isContract: Boolean(etherscanName),

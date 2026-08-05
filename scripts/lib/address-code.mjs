@@ -56,6 +56,7 @@ export function applyCodeResults(addresses, chain, addrList, results) {
   let checked = 0;
   let failed = 0;
   let corrected = 0;
+  let present = 0;
   for (let i = 0; i < addrList.length; i++) {
     const r = results[i];
     if (!r?.ok) {
@@ -67,6 +68,13 @@ export function applyCodeResults(addresses, chain, addrList, results) {
     // Per-chain truth. `isContract` stays a single value for the artifact's
     // existing consumers and tracks the address's primary chain.
     (entry.codeByChain ??= {})[chain] = hasCode;
+    // "The address really exists here": bytecode, or an EOA that has sent at
+    // least one transaction. A nonce of 0 with no code is no evidence — the
+    // address is identical on every EVM chain until something happens at it.
+    if (hasCode || (r.nonce ?? 0) > 0) {
+      (entry.presentOnChains ??= []).push(chain);
+      present++;
+    }
     const isPrimary = chain === (entry.chain ?? "ethereum");
     if (isPrimary) {
       if (entry.isContract !== hasCode) corrected++;
@@ -74,7 +82,35 @@ export function applyCodeResults(addresses, chain, addrList, results) {
     }
     checked++;
   }
-  return { checked, failed, corrected };
+  return { checked, failed, corrected, present };
+}
+
+/**
+ * Pure: settle each address on the chain the chain data supports.
+ *
+ * Candidate chains come from ambiguous atlas text — a doc titled for one chain
+ * whose body names another. Whichever candidate the address actually exists on
+ * is the real one; if several, it is genuinely on several and all are kept. No
+ * evidence anywhere leaves the atlas's own answer alone.
+ *
+ * The atlas primary wins ties so a confirmed reading is never reshuffled.
+ */
+export function resolvePresentChains(addresses) {
+  let resolved = 0;
+  for (const info of Object.values(addresses)) {
+    const present = info.presentOnChains;
+    if (!present?.length) continue;
+    if (present.includes(info.chain)) {
+      info.presentOnChains = [info.chain, ...present.filter((c) => c !== info.chain)];
+    } else {
+      // Every candidate the atlas offered is unsupported by chain data, but
+      // some other candidate is — take it, and move isContract with it.
+      info.chain = present[0];
+      info.isContract = info.codeByChain?.[present[0]] ?? info.isContract;
+      resolved++;
+    }
+  }
+  return resolved;
 }
 
 /** A viem client for one chain's public RPC. */
@@ -90,18 +126,20 @@ function defaultClientFor(chain) {
 }
 
 /**
- * Replace every EVM address's `isContract` with the on-chain getCode answer.
+ * Probe every candidate chain for each address: `isContract` becomes the
+ * eth_getCode answer, and the chains the address demonstrably exists on are
+ * recorded so `resolvePresentChains` can settle an ambiguous attribution.
  * Mutates `addresses` in place and returns aggregate stats.
  *
  * `clientFor` is injectable so tests can supply a fake without mocking the viem
- * module — only `getCode` is used.
+ * module — only `getCode` and `getTransactionCount` are used.
  */
 export async function applyOnchainCode(
   addresses,
   { log = console.log, clientFor = defaultClientFor } = {},
 ) {
   const byChain = planCodeChecks(addresses);
-  const totals = { checked: 0, failed: 0, corrected: 0, skipped: 0 };
+  const totals = { checked: 0, failed: 0, corrected: 0, skipped: 0, resolved: 0 };
 
   for (const [addr, info] of Object.entries(addresses)) {
     const chains = info.chains?.length ? info.chains : [info.chain];
@@ -116,9 +154,14 @@ export async function applyOnchainCode(
       results.push(
         ...(await Promise.all(
           slice.map((a) =>
-            client
-              .getCode({ address: a })
-              .then((code) => ({ ok: true, code }))
+            // Nonce alongside code so a plain EOA that has transacted still
+            // counts as present on the chain. A nonce failure alone is not
+            // fatal — code is the primary signal.
+            Promise.all([
+              client.getCode({ address: a }),
+              client.getTransactionCount({ address: a }).catch(() => 0),
+            ])
+              .then(([code, nonce]) => ({ ok: true, code, nonce: Number(nonce) || 0 }))
               .catch(() => ({ ok: false })),
           ),
         )),
@@ -129,10 +172,11 @@ export async function applyOnchainCode(
     totals.failed += s.failed;
     totals.corrected += s.corrected;
     log(
-      `  ${chain.padEnd(12)} ${s.checked} checked` +
+      `  ${chain.padEnd(12)} ${s.checked} checked, ${s.present} present` +
       (s.corrected ? `, ${s.corrected} corrected` : "") +
       (s.failed ? `, ${s.failed} RPC failures (kept explorer value)` : ""),
     );
   }
+  totals.resolved = resolvePresentChains(addresses);
   return totals;
 }
