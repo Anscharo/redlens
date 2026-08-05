@@ -32,6 +32,7 @@ const SEARCHES =
 function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseReportQuery> }) {
   return (
     <tr className="border-t border-[var(--border)] hover:bg-[var(--hover)] transition-colors align-top">
+      <td className="py-2 px-3"><span className="mono text-xs text-tan-3"><Highlight text={r.chain} rq={rq} /></span></td>
       <td className="py-2 px-3 relative">
         <MatchAside matches={hiddenMatches(addrSearchFields(r), rq)} rq={rq} />
         <a
@@ -44,23 +45,21 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseRepor
           <Highlight text={shortAddr(r.address, 10, 8)} rq={rq} />
         </a>
       </td>
-      <td className="py-2 px-3">
+      <td className="py-2 px-3 max-w-[8rem]">
         {r.registryName ? (
-          <span className="mono text-xs text-tan-2">
-            <Highlight text={r.registryName} rq={rq} />
-            {r.registrySource === "onchain" && (
-              <span
-                className="mono text-[9px] text-tan-3 ml-1"
-                title="verified on-chain (Etherscan) name — not a Sky chainlog key"
-              >
-                (on-chain)
-              </span>
-            )}
-          </span>
+          <div className="flex flex-col">
+            <span className="mono text-xs text-tan-2 truncate block" title={r.registryName}>
+              <Highlight text={r.registryName} rq={rq} />
+            </span>
+            <span className="mono text-[9px] text-tan-3">
+              {r.registrySource === "onchain" ? "on-chain" : "chainlog"}
+            </span>
+          </div>
         ) : (
           <span className="mono text-[10px] text-tan-3">—</span>
         )}
       </td>
+      <td className="py-2 px-3"><TypePill t={r.type} /></td>
       <td className="py-2 px-3">
         {r.implementation ? (
           <a
@@ -83,10 +82,8 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseRepor
           <span className="mono text-[10px] text-tan-3">—</span>
         )}
       </td>
-      <td className="py-2 px-3"><span className="mono text-xs text-tan-3"><Highlight text={r.chain} rq={rq} /></span></td>
-      <td className="py-2 px-3"><TypePill t={r.type} /></td>
-      <BalanceCells row={r} />
       <td className="py-2 px-3"><DocsCell row={r} rq={rq} /></td>
+      <BalanceCells row={r} />
     </tr>
   );
 }
@@ -268,18 +265,17 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           <table className="w-full text-left" style={{ minWidth: "1500px" }}>
             <thead>
               <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
+                <th className="py-2 px-3 font-normal w-24">Chain</th>
                 <th className="py-2 px-3 font-normal w-44">Address</th>
-                <th className="py-2 px-3 font-normal w-44">Chainlog / On-Chain Name</th>
+                <th className="py-2 px-3 font-normal w-32">Name</th>
+                <th className="py-2 px-3 font-normal w-40">Type</th>
                 <th className="py-2 px-3 font-normal w-32">Implementation</th>
                 <th className="py-2 px-3 font-normal w-44">Owner</th>
-                <th className="py-2 px-3 font-normal w-24">Chain</th>
-                <th className="py-2 px-3 font-normal w-40">Type</th>
+                <th className="py-2 px-3 font-normal">Docs Mentioned In</th>
                 <th className="py-2 px-3 font-normal text-right">ETH</th>
                 <th className="py-2 px-3 font-normal text-right">USDS</th>
                 <th className="py-2 px-3 font-normal text-right">SKY</th>
                 <th className="py-2 px-3 font-normal">Other Balances</th>
-                <th className="py-2 px-3 font-normal w-24">Updated</th>
-                <th className="py-2 px-3 font-normal">Docs Mentioned In</th>
               </tr>
             </thead>
             <tbody>

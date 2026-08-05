@@ -17,9 +17,11 @@ const TYPE_STYLE: Record<AddressType, string> = {
   "Other Contract": "bg-transparent text-tan-3 border border-[var(--border)]",
 };
 
-// The five balance columns: ETH / USDS / SKY, an "Other" cell folding every
-// other fetched token, and the per-address last-updated date. Rendered as a
-// fragment of <td>s so the report's Row keeps a flat cell list.
+// The four balance columns: ETH / USDS / SKY, plus an "Other" cell folding
+// every other fetched token. Rendered as a fragment of <td>s so the report's
+// Row keeps a flat cell list. The last-checked date isn't shown in the UI
+// (see onchainAddressRowsToCSV's "Balances Updated" column for that) but stays
+// available on the row for the CSV export.
 function bal(row: OnchainAddressRow, sym: string): string {
   const b = row.balances[sym];
   return b ? compactAmount(b.raw, b.decimals) : "—";
@@ -43,9 +45,6 @@ export function BalanceCells({ row }: { row: OnchainAddressRow }) {
         ) : (
           <span className="mono text-[10px] text-tan-3">—</span>
         )}
-      </td>
-      <td className="py-2 px-3 mono text-[10px] text-tan-3 whitespace-nowrap">
-        {row.balancesCheckedAt ? row.balancesCheckedAt.slice(0, 10) : "—"}
       </td>
     </>
   );
