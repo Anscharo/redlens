@@ -166,6 +166,42 @@ export function loadHistory(nodeId: string): Promise<HistoryEntry[] | null> {
   return p.catch(() => null);
 }
 
+/** One doc's strict-modification tally from GET /api/history/mod-counts —
+ *  content edits only (no moves/renames/renumbers), and of those only semantic
+ *  ones. Docs with no content history at all are absent from the response;
+ *  the Modification Frequency report zero-fills them from docs.json. */
+export interface ModCount {
+  docId: string;
+  /** Semantic content edits (the report's "modifications"). */
+  count: number;
+  /** YYYY-MM-DD of the latest counted edit; null when count is 0. */
+  lastModified: string | null;
+  /** All content rows incl. lint/typo/unclassified — context, not the metric. */
+  contentCount: number;
+}
+
+let modCountsCache: Promise<ModCount[] | null> | null = null;
+
+/** Fetch the all-docs modification tallies. Same contract as loadHistory:
+ *  404 (no backend on this deploy) resolves null and IS cached; any other
+ *  failure (503 DB hiccup, network) resolves null for this call but evicts the
+ *  cache so the next visit retries. Callers never see a rejection. */
+export function loadModCounts(): Promise<ModCount[] | null> {
+  if (!modCountsCache) {
+    modCountsCache = fetch("/api/history/mod-counts")
+      .then((r) => {
+        if (r.ok) return r.json() as Promise<ModCount[]>;
+        if (r.status === 404) return null; // stable: no backend
+        throw new Error(`mod-counts fetch failed with status ${r.status}`); // transient
+      })
+      .catch((err) => {
+        modCountsCache = null;
+        throw err;
+      });
+  }
+  return modCountsCache.catch(() => null);
+}
+
 /** Max ids per /api/history/batch request — shared by the server (hard cap on
  *  a hostile payload) and the client (chunk size). Comfortably above the
  *  largest real actor doc-set (~1.2k for Spark). */

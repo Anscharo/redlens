@@ -40,8 +40,9 @@ interface HistoryQueryRow {
 }
 
 /** committed_at is a TIMESTAMPTZ — Bun.sql hands it back as a Date (or an ISO
- *  string). The frontend renders/sorts on a plain `YYYY-MM-DD`, so normalise. */
-function toIsoDate(v: HistoryQueryRow["committed_at"]): string {
+ *  string). The frontend renders/sorts on a plain `YYYY-MM-DD`, so normalise.
+ *  Shared with the mod-counts aggregate (mod-counts.ts). */
+export function toIsoDate(v: HistoryQueryRow["committed_at"]): string {
   if (!v) return "";
   const d = v instanceof Date ? v : new Date(v);
   return Number.isNaN(d.getTime()) ? String(v).slice(0, 10) : d.toISOString().slice(0, 10);

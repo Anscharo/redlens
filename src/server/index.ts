@@ -21,6 +21,7 @@ import { handleChat } from "./chat/chat.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
+import { handleModCounts } from "./history/mod-counts.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
@@ -185,8 +186,9 @@ const server = Bun.serve({
       });
     },
 
-    // Static segment wins over the `:id` param route, so this matches first.
+    // Static segments win over the `:id` param route, so these match first.
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
+    "/api/history/mod-counts": () => handleModCounts(),
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +

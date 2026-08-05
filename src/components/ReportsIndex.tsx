@@ -51,6 +51,10 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
         "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
       ),
       card(
+        "mod-frequency",
+        "Every atlas document ranked by how rarely its content has been edited — semantic edits only, never moves or renumbers — groupable by section or document type.",
+      ),
+      card(
         "processes",
         "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
       ),
