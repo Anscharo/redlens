@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import {
+  classifyAddress,
+  buildOnchainAddressRows,
+  onchainAddressRowsToCSV,
+  onchainCsvRowCount,
+  docsSummary,
+  addrSearchFields,
+  ADDRESS_TYPES,
+} from "./onchainAddressesIndex";
+import type { AtlasNode, AddressInfo } from "../types";
+
+const node = (over: Partial<AtlasNode> & { id: string; doc_no: string }): AtlasNode => ({
+  title: "T",
+  type: "Core",
+  depth: 3,
+  parentId: null,
+  content: "",
+  order: 0,
+  addressRefs: [],
+  ...over,
+});
+
+const info = (over: Partial<AddressInfo> = {}): AddressInfo => ({
+  chain: "ethereum",
+  explorerUrl: "https://etherscan.io/address/0x",
+  label: null,
+  isContract: false,
+  isProxy: false,
+  roles: [],
+  aliases: [],
+  expectedTokens: [],
+  ...over,
+});
+
+describe("classifyAddress", () => {
+  it("tags multisig by role or Safe proxy", () => {
+    expect(classifyAddress(info({ roles: ["multisig"] }))).toBe("Multisig");
+    expect(classifyAddress(info({ etherscanName: "SafeProxy", isContract: true }))).toBe("Multisig");
+  });
+  it("multisig wins over other roles", () => {
+    expect(classifyAddress(info({ roles: ["foundation", "multisig"] }))).toBe("Multisig");
+  });
+  it("tags token by token or underlying-asset role", () => {
+    expect(classifyAddress(info({ roles: ["token"], isContract: true }))).toBe("Token");
+    expect(classifyAddress(info({ roles: ["underlying-asset"], isContract: true }))).toBe("Token");
+  });
+  it("tags Sky internal by chainlog id or system role", () => {
+    expect(classifyAddress(info({ chainlogId: "MCD_PAUSE_PROXY", isContract: true }))).toBe(
+      "Sky Internal Contract",
+    );
+    expect(classifyAddress(info({ roles: ["buffer"], isContract: true }))).toBe("Sky Internal Contract");
+  });
+  it("tags a non-contract as EOA", () => {
+    expect(classifyAddress(info({ roles: ["delegate"], isContract: false }))).toBe("EOA");
+  });
+  it("falls back to Other Contract for an unplaced contract", () => {
+    expect(classifyAddress(info({ roles: ["delegate"], etherscanName: "VoteDelegate", isContract: true }))).toBe(
+      "Other Contract",
+    );
+  });
+});
+
+describe("buildOnchainAddressRows", () => {
+  const docs: Record<string, AtlasNode> = {
+    d1: node({ id: "d1", doc_no: "A.2.1", title: "Alpha", addressRefs: ["0xAAA"] }),
+    d2: node({ id: "d2", doc_no: "A.1.1", title: "Beta", addressRefs: ["0xaaa", "0xBBB"] }),
+  };
+  const addrMap: Record<string, AddressInfo> = {
+    "0xaaa": info({ chain: "ethereum", roles: ["token"], entityLabel: "USDS", isContract: true, chainlogId: "USDS" }),
+    "0xbbb": info({ chain: "base", roles: ["multisig"], entityLabel: "Base Safe", isContract: true }),
+  };
+
+  it("collects mentioning docs (case-insensitive), sorted by doc_no", () => {
+    const rows = buildOnchainAddressRows(docs, addrMap);
+    const a = rows.find((r) => r.address === "0xaaa")!;
+    // Both d1 (A.2.1) and d2 (A.1.1) mention 0xAAA/0xaaa; sorted numerically.
+    expect(a.docs.map((d) => d.docNo)).toEqual(["A.1.1", "A.2.1"]);
+    expect(a.owner).toBe("USDS");
+    expect(a.chainlogId).toBe("USDS");
+    expect(a.type).toBe("Multisig" === a.type ? a.type : "Token"); // token role → Token
+    expect(a.type).toBe("Token");
+  });
+
+  it("keys rows by address|chain and sorts by chain then type", () => {
+    const rows = buildOnchainAddressRows(docs, addrMap);
+    expect(rows.map((r) => r.rowKey)).toContain("0xbbb|base");
+    // base sorts before ethereum
+    expect(rows[0].chain).toBe("base");
+  });
+
+  it("dedupes a doc that refs the same address twice", () => {
+    const dd = { x: node({ id: "x", doc_no: "A.9", title: "Dup", addressRefs: ["0xCCC", "0xccc"] }) };
+    const rows = buildOnchainAddressRows(dd, { "0xccc": info() });
+    expect(rows[0].docs).toHaveLength(1);
+  });
+});
+
+describe("CSV export (long format)", () => {
+  const docs: Record<string, AtlasNode> = {
+    d1: node({ id: "d1", doc_no: "A.2.1", title: "Al, pha", addressRefs: ["0xAAA"] }),
+    d2: node({ id: "d2", doc_no: "A.1.1", title: "Beta", addressRefs: ["0xAAA"] }),
+  };
+  const addrMap: Record<string, AddressInfo> = {
+    "0xaaa": info({ roles: ["delegate"], entityLabel: "Del", isContract: true, etherscanName: "VoteDelegate" }),
+  };
+
+  it("emits one row per address × doc, each with its own UUID + link", () => {
+    const rows = buildOnchainAddressRows(docs, addrMap);
+    expect(onchainCsvRowCount(rows)).toBe(2);
+    const csv = onchainAddressRowsToCSV(rows);
+    const lines = csv.split("\r\n");
+    expect(lines).toHaveLength(3); // header + 2 doc rows
+    // Each data row carries exactly one doc UUID.
+    expect(lines[1]).toContain("d2"); // A.1.1 sorts first
+    expect(lines[2]).toContain("d1");
+    // RFC-4180 escaping of the comma in the title.
+    expect(csv).toContain('"Al, pha"');
+  });
+
+  it("emits one row with empty doc columns for a zero-mention address", () => {
+    const rows = buildOnchainAddressRows({}, { "0xzzz": info() });
+    expect(onchainCsvRowCount(rows)).toBe(1);
+    expect(onchainAddressRowsToCSV(rows).split("\r\n")).toHaveLength(2);
+  });
+});
+
+describe("helpers", () => {
+  it("docsSummary joins docNo : title with a pipe", () => {
+    const rows = buildOnchainAddressRows(
+      { d1: node({ id: "d1", doc_no: "A.1", title: "One", addressRefs: ["0xAAA"] }) },
+      { "0xaaa": info() },
+    );
+    expect(docsSummary(rows[0])).toBe("A.1 : One");
+  });
+  it("search fields expose address, owner, chain, type, doc nos", () => {
+    const r = buildOnchainAddressRows(
+      { d1: node({ id: "d1", doc_no: "A.1", title: "One", addressRefs: ["0xAAA"] }) },
+      { "0xaaa": info({ entityLabel: "Owner X", roles: ["token"] }) },
+    )[0];
+    const labels = addrSearchFields(r).map((f) => f.label);
+    expect(labels).toEqual(
+      expect.arrayContaining(["address", "owner", "chain", "type", "doc nos"]),
+    );
+  });
+  it("ADDRESS_TYPES lists all five buckets", () => {
+    expect(ADDRESS_TYPES).toHaveLength(5);
+  });
+});

@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-05
+- Added an On-Chain Addresses report listing every address the Atlas mentions, with its chainlog name, owner, chain, type, and linked documents
+
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
 - Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan

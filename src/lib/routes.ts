@@ -25,6 +25,7 @@ export const ROUTES = {
   REPORTS_OEA_ASSESSMENT: "/reports/oea-assessment",
   REPORTS_RISK_RULES: "/reports/risk-rules",
   REPORTS_RISK_RUBRIC: "/reports/risk-rules/rubric",
+  REPORTS_ONCHAIN_ADDRESSES: "/reports/onchain-addresses",
 } as const;
 
 export type NavPage = "atlas" | "constellations" | "radar" | "reports";
@@ -63,6 +64,7 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
   [ROUTES.REPORTS_STALE_DATES]:             { label: "stale",   placeholder: "Filter claims — date, doc, text" },
   [ROUTES.REPORTS_OEA_ASSESSMENT]:          { label: "oea",     placeholder: "Filter tasks — title, agent, text" },
   [ROUTES.REPORTS_RISK_RULES]:              { label: "risk",    placeholder: "Filter rules — title, doc no, text" },
+  [ROUTES.REPORTS_ONCHAIN_ADDRESSES]:       { label: "addrs",   placeholder: "Filter addresses — address, owner, chainlog, chain, doc" },
 };
 
 // Reports whose data is also exposed to the chat agent as a one-call
@@ -92,6 +94,7 @@ export const REPORT_TITLES: Record<string, string> = {
   "risk-rules": "Risk Rules Assessment",
   "stale-dates": "Stale Dates",
   processes: "Atlas Processes",
+  "onchain-addresses": "On-Chain Addresses",
   crossview: "Atlas CrossView",
 };
 

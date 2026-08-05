@@ -7,6 +7,7 @@ export type ReportId =
   | "stale-dates"
   | "oea-assessment"
   | "risk-rules"
+  | "onchain-addresses"
   | "crossview";
 
 export interface AtlasNode {
