@@ -1,11 +1,26 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { atlasHref, atlasUrl, ROUTES, REPORT_TITLES } from "./routes";
+import { absolutizeAtlasLinks, atlasHref, atlasUrl, ROUTES, REPORT_TITLES } from "./routes";
 
 describe("atlasUrl", () => {
   it("builds an absolute link off window.location.origin in a browser context", () => {
     expect(atlasUrl("abc-123")).toBe(`${window.location.origin}${atlasHref("abc-123")}`);
     expect(atlasUrl("abc-123")).toMatch(/^https?:\/\/.+\/atlas\?id=abc-123$/);
+  });
+});
+
+describe("absolutizeAtlasLinks", () => {
+  it("rewrites in-app /atlas/<id> citation links to absolute /atlas?id=<id> URLs", () => {
+    const md = "See [Scope A](/atlas/11111111-2222-3333-4444-555555555555) and [B](/atlas/abc).";
+    const out = absolutizeAtlasLinks(md);
+    expect(out).toBe(
+      `See [Scope A](${window.location.origin}/atlas?id=11111111-2222-3333-4444-555555555555) and [B](${window.location.origin}/atlas?id=abc).`,
+    );
+  });
+
+  it("leaves non-atlas links and plain text untouched", () => {
+    const md = "A [real link](https://example.com/x) and text with /atlas/ inline.";
+    expect(absolutizeAtlasLinks(md)).toBe(md);
   });
 });
 

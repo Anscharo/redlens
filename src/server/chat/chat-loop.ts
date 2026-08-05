@@ -13,7 +13,7 @@ import type OpenAI from "openai";
 import { execToolDetailed } from "./tools/llm-tools.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
-import { EXPORT_TOOL_NAME, buildExportArtifact } from "./tools/export-tool.ts";
+import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -183,7 +183,14 @@ export async function* runChat(opts: {
       msgs.push({
         role: "assistant",
         content: content || null,
-        tool_calls: calls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args } })),
+        // The export tool's args carry the whole file body — redact it from the
+        // retained transcript (it's already delivered to the user) so it isn't
+        // re-sent every turn or fed unbudgeted into the verifier evidence.
+        tool_calls: calls.map((c) => ({
+          id: c.id,
+          type: "function",
+          function: { name: c.name, arguments: c.name === EXPORT_TOOL_NAME ? redactExportArgs(c.args) : c.args },
+        })),
       });
       const parsedCalls = calls.map((c) => ({ id: c.id, name: c.name, raw: c.args, args: safeParseArgs(c.args) }));
       for (const c of parsedCalls) yield { type: "tool_call", name: c.name, args: c.args };

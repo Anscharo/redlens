@@ -95,6 +95,40 @@ export function buildExportArtifact(args: ExportArgs): ExportArtifact {
   if (!Array.isArray(rows)) {
     throw new Error("format 'csv' requires a `rows` array (each row an array of cells aligned to columns).");
   }
+  // Every row must have exactly one cell per column — a ragged row would make
+  // toCSV emit a record with a different field count from the header, silently
+  // shifting/dropping columns for downstream spreadsheet consumers. Reject it so
+  // the model retries with aligned data instead.
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    if (!Array.isArray(row) || row.length !== columns.length) {
+      throw new Error(
+        `csv row ${r} has ${Array.isArray(row) ? row.length : "a non-array value"} instead of ${columns.length} cell(s) — every row must have exactly one cell per column.`,
+      );
+    }
+  }
   const content = capContent(toCSV(columns, rows as CsvCell[][]));
   return { format: "csv", filename: `${base}.csv`, mime: "text/csv;charset=utf-8", content, bytes: content.length };
+}
+
+// Compact the export tool-call arguments kept in the retained transcript. The
+// full markdown/csv body has already been delivered to the user as a file, so
+// it must not linger in the assistant's tool-call args: otherwise every
+// subsequent completion re-sends the whole payload, and evidenceFromTranscript
+// interpolates it into the verifier prompt with no size budget — large exports
+// would balloon input cost and could exhaust a context window. Keep only the
+// small descriptive fields so the transcript still reads as a real call.
+export function redactExportArgs(raw: string): string {
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(raw || "{}") as Record<string, unknown>;
+  } catch {
+    return raw;
+  }
+  const kept: Record<string, unknown> = {};
+  for (const k of ["format", "filename", "title"] as const) {
+    if (parsed[k] != null) kept[k] = parsed[k];
+  }
+  kept.note = "[export content delivered to the user; body omitted from transcript]";
+  return JSON.stringify(kept);
 }

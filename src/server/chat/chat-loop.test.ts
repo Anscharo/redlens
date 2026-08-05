@@ -258,6 +258,13 @@ test("export_findings: yields an export event and feeds the model only a small a
     expect(typeof toolMsg?.content === "string" && (toolMsg!.content as string).includes('"ok":true')).toBe(true);
     expect(typeof toolMsg?.content === "string" && (toolMsg!.content as string).includes('"Doc"')).toBe(false);
     expect(done.content).toBe("Your file is downloading.");
+    // The retained assistant tool-call args are redacted too — the file body
+    // must not linger in context (re-sent every turn, fed to the verifier).
+    const asst = done.transcript.find((m) => m.role === "assistant" && "tool_calls" in m && m.tool_calls);
+    const argStr = asst && "tool_calls" in asst ? (asst.tool_calls?.[0] as { function: { arguments: string } }).function.arguments : "";
+    expect(argStr).not.toContain("A.1");
+    expect(argStr).not.toContain("rows");
+    expect(argStr).toContain("duties"); // filename kept
   }
 });
 

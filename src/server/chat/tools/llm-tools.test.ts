@@ -5,8 +5,9 @@ import { TOOLS_BY_NAME } from "./tool-registry.ts";
 import { EXPORT_TOOL_NAME } from "./export-tool.ts";
 
 test("export_findings is a chat-only tool: in CHAT_TOOLS but NOT the shared MCP registry", () => {
-  // Present on the chat transport…
-  expect(CHAT_TOOLS.some((t) => t.function.name === EXPORT_TOOL_NAME)).toBe(true);
+  // Present on the chat transport… (ChatCompletionTool is a union; narrow to the
+  // function variant, which is what the whole chat surface uses)
+  expect(CHAT_TOOLS.some((t) => t.type === "function" && t.function.name === EXPORT_TOOL_NAME)).toBe(true);
   // …and absent from ATLAS_TOOLS (TOOLS_BY_NAME), which the MCP server consumes,
   // so it can never surface as an MCP tool (there's no browser to download to).
   expect(TOOLS_BY_NAME.has(EXPORT_TOOL_NAME)).toBe(false);

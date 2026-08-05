@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 import { downloadFile } from "../../lib/csvDownload";
+import { absolutizeAtlasLinks } from "../../lib/routes";
 import { track } from "../../lib/analytics";
 
 export interface TraceRow {
@@ -158,12 +159,16 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           // BOM; markdown doesn't). A gesture-strict browser (Safari) may block
           // this async download — the persistent button rendered from
           // m.exports is the gesture-safe fallback + re-download.
+          // Markdown leaves the app, so rewrite the in-app citation links
+          // (`/atlas/<id>`) to absolute URLs that resolve outside it. CSV is
+          // left byte-for-byte as built server-side.
+          const content = ev.format === "markdown" ? absolutizeAtlasLinks(ev.content) : ev.content;
           const artifact: ExportArtifact = {
             format: ev.format,
             filename: ev.filename,
             mime: ev.mime,
-            content: ev.content,
-            bytes: ev.bytes,
+            content,
+            bytes: content.length,
           };
           try {
             downloadFile(artifact.filename, artifact.content, artifact.mime, artifact.format === "csv");

@@ -117,6 +117,16 @@ export const atlasUrl = (id: string) =>
 // link) — every report with an optional reference should reach for this
 // instead of repeating the `id ? atlasUrl(id) : ""` ternary by hand.
 export const atlasUrlOrEmpty = (id?: string | null) => (id ? atlasUrl(id) : "");
+
+// Rewrite the chatbot's in-app citation form `[Title](/atlas/<id>)` — which only
+// works because the in-app markdown renderer intercepts that path — into an
+// absolute, portable URL (`<origin>/atlas?id=<id>`) for content that leaves the
+// app, e.g. a downloaded Markdown export opened locally or on another host.
+// Reuses atlasUrl, so it degrades to the relative `/atlas?id=<id>` in a DOM-free
+// context (still the correct route shape, just not origin-qualified).
+export function absolutizeAtlasLinks(markdown: string): string {
+  return markdown.replace(/\]\(\/atlas\/([^)\s]+)\)/g, (_m, id: string) => `](${atlasUrl(id)})`);
+}
 export const actorHref = (slug: string, fragment?: string) =>
   `${ROUTES.RADAR}/${slug}${fragment ? `#${fragment}` : ""}`;
 export const reportHref = (id: string) => `${ROUTES.REPORTS}/${id}`;
