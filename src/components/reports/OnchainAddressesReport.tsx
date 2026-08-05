@@ -60,7 +60,20 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseRepor
           <span className="mono text-[10px] text-tan-3">—</span>
         )}
       </td>
-      <td className="py-2 px-3"><TypePill t={r.type} /></td>
+      <td className="py-2 px-3">
+        <TypePill t={r.type} />
+        {/* Solana only: the pill's bucket is coarse, so the exact account kind
+            and the program that owns it sit under it. */}
+        {r.accountType && (
+          <div
+            className="mono text-[9px] text-tan-3 truncate mt-0.5"
+            title={`${r.accountType}${r.programOwner ? ` · owned by ${r.programOwnerName ?? "program"} ${r.programOwner}` : ""}`}
+          >
+            <Highlight text={r.accountType} rq={rq} />
+            {r.programOwner && ` · ${r.programOwnerName ?? shortAddr(r.programOwner, 4, 4)}`}
+          </div>
+        )}
+      </td>
       <td className="py-2 px-3">
         {r.implementation ? (
           <a

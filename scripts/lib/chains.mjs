@@ -27,7 +27,11 @@ export const CHAINS = [
   { chain: "base", chainId: 8453, aliases: ["base"], rpcUrl: "https://base-rpc.publicnode.com" },
   { chain: "arbitrum", chainId: 42161, aliases: ["arbitrum"], rpcUrl: "https://arbitrum-one-rpc.publicnode.com" },
   { chain: "optimism", chainId: 10, aliases: ["optimism"], rpcUrl: "https://optimism-rpc.publicnode.com" },
-  { chain: "solana", aliases: ["solana"] },
+  // Solana is the one non-EVM chain: no chainId, and its JSON-RPC is a
+  // different protocol, so its endpoint is `solanaRpcUrl` rather than `rpcUrl`
+  // — the EVM passes (eth_getCode, balances) key off `rpcUrl` and must not pick
+  // it up. census:chains asserts exactly that split.
+  { chain: "solana", aliases: ["solana"], solanaRpcUrl: "https://solana-rpc.publicnode.com" },
   { chain: "avalanche", chainId: 43114, aliases: ["avalanche", "avax"], rpcUrl: "https://avalanche-c-chain-rpc.publicnode.com" },
   { chain: "polygon", chainId: 137, aliases: ["polygon"], rpcUrl: "https://polygon-bor-rpc.publicnode.com" },
   { chain: "gnosis", chainId: 100, aliases: ["gnosis"], rpcUrl: "https://gnosis-rpc.publicnode.com" },
@@ -96,6 +100,9 @@ export const CHAIN_ID = Object.fromEntries(
 export const CHAIN_RPC = Object.fromEntries(
   CHAINS.filter((c) => c.rpcUrl).map((c) => [c.chain, c.rpcUrl]),
 );
+
+/** Solana's JSON-RPC endpoint — a different protocol, so deliberately not in CHAIN_RPC. */
+export const SOLANA_RPC = CHAINS.find((c) => c.chain === "solana")?.solanaRpcUrl;
 
 /**
  * Blockscout Etherscan-compatible `/api` base per chain. Used by address-enrich

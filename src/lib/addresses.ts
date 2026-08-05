@@ -20,6 +20,10 @@ type OnChainAddr = {
   isContract: boolean;
   isProxy: boolean;
   implementation?: string;
+  // Solana only — see scripts/lib/solana-accounts.mjs.
+  accountType?: string;
+  programOwner?: string;
+  programOwnerName?: string;
 };
 
 // Keyed by data-source base: addresses.atlas.json is atlas-versioned (sha-keyed
@@ -74,6 +78,9 @@ export function loadAddresses(base: string = liveAtlasBase()): Promise<Record<st
           isContract: o.isContract,
           isProxy: o.isProxy,
           ...(o.implementation ? { implementation: o.implementation } : {}),
+          ...(o.accountType ? { accountType: o.accountType } : {}),
+          ...(o.programOwner ? { programOwner: o.programOwner } : {}),
+          ...(o.programOwnerName ? { programOwnerName: o.programOwnerName } : {}),
           roles: a.roles ?? [],
           aliases,
           expectedTokens: a.expectedTokens ?? [],

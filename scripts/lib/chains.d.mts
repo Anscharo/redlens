@@ -5,6 +5,7 @@ export interface ChainEntry {
   chainId?: number;
   aliases: string[];
   rpcUrl?: string;
+  solanaRpcUrl?: string;
   blockscoutApi?: string;
   etherscan?: boolean;
 }
@@ -16,5 +17,6 @@ export function classifyChainLabel(
 export function normalizeChainLabel(raw: unknown, warnCtx?: string): string;
 export const CHAIN_ID: Record<string, number>;
 export const CHAIN_RPC: Record<string, string>;
+export const SOLANA_RPC: string | undefined;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
 export const CHAIN_SUPPORTS_ETHERSCAN: Set<string>;

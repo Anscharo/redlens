@@ -15,6 +15,10 @@ const TYPE_STYLE: Record<AddressType, string> = {
   Token: "bg-[color-mix(in_srgb,var(--red)_16%,transparent)] text-tan-2",
   "Sky Internal Contract": "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-tan-2",
   "Other Contract": "bg-transparent text-tan-3 border border-[var(--border)]",
+  // Solana. A program is executable code, so it borrows the Sky-contract
+  // treatment; a program-owned data account gets the plain outline.
+  Program: "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-tan-2",
+  "Program Account": "bg-transparent text-tan-3 border border-[var(--border)]",
 };
 
 // The four balance columns: ETH / USDS / SKY, plus an "Other" cell folding

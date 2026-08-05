@@ -144,14 +144,37 @@ Two separate artifacts — never mix their fields:
 | Artifact | Owner | Fields |
 |---|---|---|
 | `public/addresses.atlas.json` | `build-index` (initial), `build-graph` Phase 4.5 (enrichment) | `chain`, `explorerUrl`, `roles`, `entityLabel`, `aliases`, `expectedTokens` |
-| `public/addresses.json` | `build-addresses` | `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?` |
+| `public/addresses.json` | `build-addresses` | `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?`, and for Solana `accountType`, `programOwner?`, `programOwnerName?` |
 
 **`isContract` is the `eth_getCode` answer**, not "the explorer verified it". `address-enrich` sets a provisional value from `Boolean(etherscanName)`, then `build-addresses` overwrites every EVM entry via `address-code.mjs` (`applyOnchainCode`, public RPC from `CHAIN_RPC`, no API key). Verified source is strictly narrower than having code, so the provisional value alone reads every deployed-but-unverified contract as an EOA.
 
 Two things that pass through `address-code.mjs` are load-bearing:
 
 - A failed RPC call is signalled as `{ ok: false }`, never as an undefined code — viem's `getCode` resolves to `undefined` for an address with *no* bytecode, so the two are otherwise indistinguishable and a network blip would downgrade real contracts to EOAs.
-- Chains with no `rpcUrl` (solana) are skipped entirely and keep the explorer's value. Solana addresses are consequently still hardcoded `isContract: false` in `address-enrich`, so they classify as "EOA" in the On-Chain Addresses report — a known wart, not a checked fact.
+- Chains with no `rpcUrl` are skipped entirely and keep the explorer's value. Solana has no `rpcUrl` by design (see below) and is handled by its own pass.
+
+### Solana — `scripts/lib/solana-accounts.mjs`
+
+`eth_getCode` has no Solana equivalent, and the contract/EOA split does not describe Solana at all: every address is an *account*, and what it is comes from `getAccountInfo`'s `executable` flag plus its `owner` — the program allowed to write to it. Reading them through the EVM question mislabelled all 40 of the atlas's Solana addresses as EOAs, the ALM Controller program included.
+
+`applySolanaAccounts` (called from `build-addresses` right after `applyOnchainCode`) sets:
+
+| `accountType` | condition |
+|---|---|
+| `program` | `executable` — `isContract: true`; `isProxy` when owned by the BPF Upgradeable Loader, with the ProgramData account as `implementation` |
+| `wallet` | owner is the System Program — the only true EOA analogue |
+| `mint` / `token-account` / `token-multisig` | owner is SPL Token or Token-2022; classic sizes are 82 / 165 / 355, and Token-2022 accounts longer than 165 carry an AccountType byte at offset 165 |
+| `program-account` | any other owner — a PDA (controller state, relayer permission configs) |
+| `missing` | the RPC answered `null` — the atlas names an address Solana has never seen |
+
+Conventions worth keeping:
+
+- **The RPC lives in `solanaRpcUrl`, not `rpcUrl`.** Solana's JSON-RPC is a different protocol, and every EVM pass keys off `rpcUrl`. `census:chains` asserts that a non-EVM chain declares no `rpcUrl`.
+- **One `getMultipleAccounts` call per 100 keys, with a 166-byte `dataSlice`** — enough for the upgradeable-loader pointer (bytes 4..36) and the Token-2022 discriminator (byte 165), never enough to pull down an ELF. Sizes come from `space`, which is the *account's* length, not the slice's.
+- **A failed batch omits its pubkeys from the result map**, the same discipline as `{ ok: false }` above: "the RPC is down" and "this account does not exist" are otherwise indistinguishable, and conflating them would rewrite every Solana row on a blip.
+- `PROGRAM_NAMES` holds only fixed runtime program ids. Anything else is named from the atlas's own `entityLabel` for that pubkey when it has one (so a PDA reads "owned by Solana ALM Controller Program"), else shown raw — a wrong friendly name is worse than none.
+
+The report's `classifyAddress` reads `accountType` ahead of the EVM fallthrough, mapping it to the `Program` / `Program Account` / `Token` / `EOA` buckets. An atlas `multisig` / `token` role still outranks it.
 
 `build-addresses` must never write atlas annotation fields into `addresses.json`.
 

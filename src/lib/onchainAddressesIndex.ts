@@ -19,13 +19,18 @@ import { formatUnits } from "./tokens";
 // folds into "Other Token Balances".
 export const PRIMARY_BALANCE_SYMBOLS = ["ETH", "USDS", "SKY"] as const;
 
-// The five buckets the report classifies every address into.
+// The buckets the report classifies every address into. The last two are
+// Solana-only: an account there is either executable code (Program) or data a
+// program owns (Program Account) — neither is an EVM-style contract, and
+// neither is an EOA.
 export type AddressType =
   | "EOA"
   | "Multisig"
   | "Token"
   | "Sky Internal Contract"
-  | "Other Contract";
+  | "Other Contract"
+  | "Program"
+  | "Program Account";
 
 // Stable pill order (also the table's secondary sort key).
 export const ADDRESS_TYPES: AddressType[] = [
@@ -34,6 +39,8 @@ export const ADDRESS_TYPES: AddressType[] = [
   "Token",
   "Sky Internal Contract",
   "Other Contract",
+  "Program",
+  "Program Account",
 ];
 
 // Structural roles that mark an address as part of the Sky protocol's own
@@ -56,9 +63,26 @@ const SKY_SYSTEM_ROLES = new Set([
   "vesting",
 ]);
 
+// Solana accountType (getAccountInfo, see scripts/lib/solana-accounts.mjs) →
+// report bucket. Only a System-Program-owned keypair is an EOA; everything else
+// non-executable is data some program owns, which is why reading Solana through
+// the EVM contract/EOA split labelled all 40 of these addresses "EOA".
+// An account the RPC has never seen is as unused as a bare EVM keypair, so it
+// files as EOA too — `accountType` on the row still says "missing".
+const SOLANA_TYPE: Record<string, AddressType> = {
+  program: "Program",
+  mint: "Token",
+  wallet: "EOA",
+  missing: "EOA",
+  "token-account": "Program Account",
+  "token-multisig": "Program Account",
+  "program-account": "Program Account",
+};
+
 // Priority-ordered classifier. Most specific signal wins:
 //   Multisig  — the Atlas tags it, or it's a Gnosis Safe proxy.
 //   Token     — the Atlas tags it a token / underlying collateral asset.
+//   Solana    — accountType settles it outright (SOLANA_TYPE above).
 //   Sky        — it's in the Sky chainlog, or a contract holding a Sky-system role.
 //   EOA       — no on-chain bytecode.
 //   Other      — a contract we can't place more precisely (e.g. a VoteDelegate).
@@ -72,6 +96,7 @@ export function classifyAddress(info: AddressInfo, hasCode?: boolean | null): Ad
   const has = (r: string) => roles.includes(r);
   if (has("multisig") || info.etherscanName === "SafeProxy") return "Multisig";
   if (has("token") || has("underlying-asset")) return "Token";
+  if (info.accountType) return SOLANA_TYPE[info.accountType] ?? "Program Account";
   if (info.chainlogId || (info.isContract && roles.some((r) => SKY_SYSTEM_ROLES.has(r))))
     return "Sky Internal Contract";
   const isContract = hasCode ?? info.isContract;
@@ -127,6 +152,12 @@ export interface OnchainAddressRow {
   isContract: boolean;
   isProxy: boolean;
   implementation: string | null; // proxy implementation address (isProxy only)
+  // Solana only: the raw getAccountInfo answer behind `type`. Kept alongside it
+  // because the bucket is deliberately coarse — "Program Account" covers a PDA,
+  // a token account and an SPL multisig alike, and the CSV should not.
+  accountType: string | null;
+  programOwner: string | null; // owning program's pubkey
+  programOwnerName: string | null; // its friendly name, when known
   explorerUrl: string;
   roles: string[];
   aliases: string[];
@@ -258,6 +289,9 @@ export function buildOnchainAddressRows(
       isContract: info.isContract,
       isProxy: info.isProxy,
       implementation: info.implementation ?? null,
+      accountType: info.accountType ?? null,
+      programOwner: info.programOwner ?? null,
+      programOwnerName: info.programOwnerName ?? null,
       explorerUrl: info.explorerUrl,
       roles: info.roles ?? [],
       aliases: info.aliases ?? [],
@@ -303,6 +337,8 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
     "Associated Owner",
     "Chain",
     "Type",
+    "Account Type",
+    "Program Owner",
     "Roles",
     "Etherscan Name",
     "Is Contract",
@@ -328,6 +364,8 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
       r.owner ?? "",
       r.chain,
       r.type,
+      r.accountType ?? "",
+      r.programOwnerName ? `${r.programOwnerName} (${r.programOwner})` : (r.programOwner ?? ""),
       r.roles.join(", "),
       r.etherscanName ?? "",
       r.isContract ? "yes" : "no",
@@ -360,6 +398,8 @@ export function addrSearchFields(r: OnchainAddressRow): SearchField[] {
     { label: "owner", value: r.owner ?? "", despace: true },
     { label: "chain", value: r.chain },
     { label: "type", value: r.type },
+    { label: "account type", value: r.accountType ?? "" },
+    { label: "program owner", value: [r.programOwnerName, r.programOwner].filter(Boolean).join(" "), hidden: true },
     { label: "implementation", value: r.implementation ?? "", hidden: true },
     { label: "roles", value: r.roles.join(" "), hidden: true },
     { label: "aliases", value: r.aliases.join(" "), hidden: true },

@@ -221,9 +221,11 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
   for (const [addr, info] of Object.entries(atlas)) {
     processed++;
 
-    // Solana — no on-chain enrichment available (Etherscan is EVM-only;
-    // chainlog is mainnet ETH only). Emit minimal on-chain entry; atlas file
-    // carries all meaningful annotation for Solana addresses.
+    // Solana — no *explorer* enrichment available (Etherscan is EVM-only;
+    // chainlog is mainnet ETH only). Emit a minimal entry; build-addresses'
+    // applySolanaAccounts pass then fills in accountType / programOwner /
+    // isContract from getAccountInfo, so these placeholder flags are only what
+    // an address the RPC never answered for falls back to.
     if (info.chain === "solana") {
       out[addr] = { chain: "solana", isContract: false, isProxy: false };
       continue;

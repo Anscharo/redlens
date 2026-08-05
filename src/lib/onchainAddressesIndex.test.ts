@@ -71,6 +71,43 @@ describe("classifyAddress", () => {
   it("hasCode=null (not yet checked) falls back to isContract", () => {
     expect(classifyAddress(info({ roles: ["delegate"], isContract: false }), null)).toBe("EOA");
   });
+
+  // Solana. Every one of these used to read "EOA", because the pipeline only
+  // ever asked the EVM question ("does it have bytecode?") of them.
+  const sol = (accountType: string, over: Partial<AddressInfo> = {}) =>
+    classifyAddress(info({ chain: "solana", accountType, ...over }));
+
+  it("reads a Solana program as a Program, not an EOA", () => {
+    expect(sol("program", { isContract: true })).toBe("Program");
+  });
+
+  it("reads program-owned data accounts as Program Accounts", () => {
+    expect(sol("program-account")).toBe("Program Account");
+    expect(sol("token-account")).toBe("Program Account");
+    expect(sol("token-multisig")).toBe("Program Account");
+  });
+
+  it("reads a mint as a Token even when the atlas tagged no role", () => {
+    expect(sol("mint")).toBe("Token");
+  });
+
+  it("keeps EOA for the one Solana account that really is a keypair wallet", () => {
+    expect(sol("wallet")).toBe("EOA");
+  });
+
+  it("files an account the chain has never seen as EOA", () => {
+    expect(sol("missing")).toBe("EOA");
+  });
+
+  it("lets an atlas multisig/token tag outrank the account type", () => {
+    // The Squads multisigs are PDAs; the atlas's own tag is the better answer.
+    expect(sol("program-account", { roles: ["multisig"] })).toBe("Multisig");
+    expect(sol("program-account", { roles: ["token"] })).toBe("Token");
+  });
+
+  it("falls back to Program Account for an account kind it doesn't know", () => {
+    expect(sol("something-new")).toBe("Program Account");
+  });
 });
 
 describe("buildOnchainAddressRows", () => {
@@ -216,6 +253,25 @@ describe("CSV export (long format)", () => {
     expect(csv).toContain('"Al, pha"');
   });
 
+  it("carries the Solana account type and owning program", () => {
+    const rows = buildOnchainAddressRows(
+      {},
+      {
+        SoLPDA: info({
+          chain: "solana",
+          accountType: "token-account",
+          programOwner: "Tokenkeg",
+          programOwnerName: "SPL Token",
+        }),
+      },
+    );
+    expect(rows[0]).toMatchObject({ type: "Program Account", accountType: "token-account" });
+    const csv = onchainAddressRowsToCSV(rows);
+    expect(csv).toContain("Account Type");
+    expect(csv).toContain("token-account");
+    expect(csv).toContain("SPL Token (Tokenkeg)");
+  });
+
   it("emits one row with empty doc columns for a zero-mention address", () => {
     const rows = buildOnchainAddressRows({}, { "0xzzz": info() });
     expect(onchainCsvRowCount(rows)).toBe(1);
@@ -287,7 +343,17 @@ describe("helpers", () => {
       expect.arrayContaining(["address", "owner", "chain", "type", "doc nos"]),
     );
   });
-  it("ADDRESS_TYPES lists all five buckets", () => {
-    expect(ADDRESS_TYPES).toHaveLength(5);
+  // The pill row and the table's secondary sort both read this list, and
+  // TYPE_STYLE (OnchainAddressCells) must have an entry for every member.
+  it("ADDRESS_TYPES lists every bucket, in pill order", () => {
+    expect(ADDRESS_TYPES).toEqual([
+      "EOA",
+      "Multisig",
+      "Token",
+      "Sky Internal Contract",
+      "Other Contract",
+      "Program",
+      "Program Account",
+    ]);
   });
 });
