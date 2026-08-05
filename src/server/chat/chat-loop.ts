@@ -14,6 +14,7 @@ import { execToolDetailed } from "./tools/llm-tools.ts";
 import { CHAT_TOOLS } from "./tools/llm-tools.ts";
 import { safeParseArgs } from "./tools/llm-tools.ts";
 import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools/export-tool.ts";
+import { checkExportArtifact } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -212,8 +213,23 @@ export async function* runChat(opts: {
           let ack: Record<string, unknown>;
           try {
             const art = buildExportArtifact(c.args as Parameters<typeof buildExportArtifact>[0]);
-            yield { type: "export", format: art.format, filename: art.filename, mime: art.mime, content: art.content, bytes: art.bytes };
-            ack = { ok: true, filename: art.filename, bytes: art.bytes, note: "Delivered to the user as a download." };
+            // Deterministically verify the file body against this turn's evidence
+            // (tool results + prior answers) BEFORE it downloads — the harness
+            // only audits the chat answer, so an unchecked file could carry a
+            // fabricated citation/quote/address. Withhold + tell the model to fix.
+            const evidenceTexts = msgs
+              .filter((m) => (m.role === "tool" || m.role === "assistant") && typeof m.content === "string")
+              .map((m) => m.content as string);
+            const check = checkExportArtifact(art, evidenceTexts, opts.ix);
+            if (check.ok) {
+              const bytes = check.content.length;
+              yield { type: "export", format: art.format, filename: art.filename, mime: art.mime, content: check.content, bytes };
+              ack = { ok: true, filename: art.filename, bytes, note: "Delivered to the user as a download." };
+            } else {
+              ack = {
+                error: `export withheld — the file content failed verification: ${check.problems.join("; ")}. Correct these using only evidence retrieved this turn, then call export_findings again.`,
+              };
+            }
           } catch (e) {
             ack = { error: (e as Error).message };
           }
