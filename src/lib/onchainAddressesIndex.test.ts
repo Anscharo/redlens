@@ -7,6 +7,8 @@ import {
   docsSummary,
   addrSearchFields,
   isContractKey,
+  balanceExact,
+  otherBalances,
   ADDRESS_TYPES,
 } from "./onchainAddressesIndex";
 import type { AtlasNode, AddressInfo } from "../types";
@@ -209,6 +211,51 @@ describe("CSV export (long format)", () => {
     const rows = buildOnchainAddressRows({}, { "0xzzz": info() });
     expect(onchainCsvRowCount(rows)).toBe(1);
     expect(onchainAddressRowsToCSV(rows).split("\r\n")).toHaveLength(2);
+  });
+});
+
+describe("balances", () => {
+  const docs = { d1: node({ id: "d1", doc_no: "A.1", title: "T", addressRefs: ["0xAAA"] }) };
+  const addrMap = { "0xaaa": info({ chain: "ethereum", entityLabel: "X" }) };
+  const balances = {
+    "0xaaa": {
+      chain: "ethereum",
+      checkedAt: "2026-08-05T09:00:00.000Z",
+      balances: {
+        ETH: { raw: "1000000000000000000", decimals: 18 },
+        USDS: { raw: "2500000000000000000000", decimals: 18 },
+        USDC: { raw: "5000000", decimals: 6 },
+      },
+    },
+  };
+
+  it("attaches balances + checkedAt to the row", () => {
+    const r = buildOnchainAddressRows(docs, addrMap, balances)[0];
+    expect(r.balancesCheckedAt).toBe("2026-08-05T09:00:00.000Z");
+    expect(balanceExact(r, "ETH")).toBe("1");
+    expect(balanceExact(r, "USDS")).toBe("2500");
+    expect(balanceExact(r, "SKY")).toBe(""); // not held
+  });
+
+  it("otherBalances excludes ETH/USDS/SKY, keeps USDC", () => {
+    const r = buildOnchainAddressRows(docs, addrMap, balances)[0];
+    expect(otherBalances(r)).toEqual([{ symbol: "USDC", amount: "5" }]);
+  });
+
+  it("defaults to empty balances when none provided", () => {
+    const r = buildOnchainAddressRows(docs, addrMap)[0];
+    expect(r.balances).toEqual({});
+    expect(r.balancesCheckedAt).toBeNull();
+  });
+
+  it("CSV includes the balance columns and values", () => {
+    const csv = onchainAddressRowsToCSV(buildOnchainAddressRows(docs, addrMap, balances));
+    const header = csv.split("\r\n")[0];
+    expect(header).toContain("ETH Balance");
+    expect(header).toContain("Other Token Balances");
+    expect(header).toContain("Balances Updated");
+    expect(csv).toContain('"USDC=5"');
+    expect(csv).toContain('"2026-08-05"');
   });
 });
 

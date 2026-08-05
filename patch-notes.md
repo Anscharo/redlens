@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-05
-- Added an On-Chain Addresses report listing every address the Atlas mentions — with its chainlog name, owner, chain, type, and every document it appears in, including documents that reference a contract only by its chainlog key
+- Added an On-Chain Addresses report listing every address the Atlas mentions — with its chainlog or on-chain name, owner, chain, type, proxy implementation, on-demand ETH/USDS/SKY and token balances, and every document it appears in, including documents that reference a contract only by its chainlog key
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week

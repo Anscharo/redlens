@@ -12,6 +12,12 @@ import type { AtlasNode, AddressInfo } from "../types";
 import { toCSV } from "./csv";
 import { atlasUrl } from "./routes";
 import type { SearchField } from "./reportFilter";
+import type { AddressBalances, BalanceMap } from "./balances";
+import { formatUnits } from "./tokens";
+
+// Dedicated balance columns in the report + CSV; every other fetched token
+// folds into "Other Token Balances".
+export const PRIMARY_BALANCE_SYMBOLS = ["ETH", "USDS", "SKY"] as const;
 
 // The five buckets the report classifies every address into.
 export type AddressType =
@@ -119,7 +125,23 @@ export interface OnchainAddressRow {
   roles: string[];
   aliases: string[];
   expectedTokens: string[];
+  balances: BalanceMap; // symbol -> { raw, decimals }, from the last refresh
+  balancesCheckedAt: string | null; // ISO time this address was last priced
   docs: AddressDocRef[]; // every mentioning doc, sorted by doc_no
+}
+
+// Exact decimal string for one token symbol on a row ("" if not held/fetched).
+export function balanceExact(row: OnchainAddressRow, symbol: string): string {
+  const b = row.balances[symbol];
+  return b ? formatUnits(b.raw, b.decimals) : "";
+}
+
+// Non-primary token balances on a row (e.g. USDC, DAI, WETH), symbol asc.
+export function otherBalances(row: OnchainAddressRow): { symbol: string; amount: string }[] {
+  return Object.entries(row.balances)
+    .filter(([s]) => !(PRIMARY_BALANCE_SYMBOLS as readonly string[]).includes(s))
+    .map(([symbol, b]) => ({ symbol, amount: formatUnits(b.raw, b.decimals) }))
+    .sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
 const meta = (d: AtlasNode): DocMeta => ({ id: d.id, docNo: d.doc_no, title: d.title, type: d.type });
@@ -194,6 +216,7 @@ function sortLabel(r: OnchainAddressRow): string {
 export function buildOnchainAddressRows(
   docs: Record<string, AtlasNode>,
   addrMap: Record<string, AddressInfo>,
+  balancesByAddress: Record<string, AddressBalances> = {},
 ): OnchainAddressRow[] {
   const addrToDocs = buildAddrToDocs(docs);
   const typeRank = new Map(ADDRESS_TYPES.map((t, i) => [t, i]));
@@ -214,6 +237,7 @@ export function buildOnchainAddressRows(
       info.chainlogId && isContractKey(info.chainlogId)
         ? (nameToDocs.get(info.chainlogId) ?? [])
         : [];
+    const bal = balancesByAddress[key] ?? balancesByAddress[address];
     return {
       address,
       rowKey: `${address}|${info.chain}`,
@@ -231,6 +255,8 @@ export function buildOnchainAddressRows(
       roles: info.roles ?? [],
       aliases: info.aliases ?? [],
       expectedTokens: info.expectedTokens ?? [],
+      balances: bal?.balances ?? {},
+      balancesCheckedAt: bal?.checkedAt ?? null,
       docs: mergeDocRefs(addrDocs, nameDocs),
     };
   });
@@ -275,6 +301,11 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
     "Is Contract",
     "Implementation",
     "Explorer URL",
+    "ETH Balance",
+    "USDS Balance",
+    "SKY Balance",
+    "Other Token Balances",
+    "Balances Updated",
     "Doc No",
     "Doc Title",
     "Doc Type",
@@ -295,6 +326,11 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
       r.isContract ? "yes" : "no",
       r.implementation ?? "",
       r.explorerUrl,
+      balanceExact(r, "ETH"),
+      balanceExact(r, "USDS"),
+      balanceExact(r, "SKY"),
+      otherBalances(r).map((b) => `${b.symbol}=${b.amount}`).join("; "),
+      r.balancesCheckedAt ? r.balancesCheckedAt.slice(0, 10) : "",
     ];
     if (r.docs.length === 0) {
       body.push([...base, "", "", "", "", "", ""]);

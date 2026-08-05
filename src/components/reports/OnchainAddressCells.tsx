@@ -1,8 +1,13 @@
 import { AtlasLink } from "../AtlasLink";
 import { atlasHref } from "../../lib/routes";
 import { Highlight } from "./Highlight";
+import { compactAmount } from "../../lib/tokens";
 import type { ReportQuery } from "../../lib/reportFilter";
-import type { AddressType, OnchainAddressRow } from "../../lib/onchainAddressesIndex";
+import {
+  PRIMARY_BALANCE_SYMBOLS,
+  type AddressType,
+  type OnchainAddressRow,
+} from "../../lib/onchainAddressesIndex";
 
 const TYPE_STYLE: Record<AddressType, string> = {
   EOA: "bg-[var(--hover)] text-tan-3",
@@ -11,6 +16,40 @@ const TYPE_STYLE: Record<AddressType, string> = {
   "Sky Internal Contract": "bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-tan-2",
   "Other Contract": "bg-transparent text-tan-3 border border-[var(--border)]",
 };
+
+// The five balance columns: ETH / USDS / SKY, an "Other" cell folding every
+// other fetched token, and the per-address last-updated date. Rendered as a
+// fragment of <td>s so the report's Row keeps a flat cell list.
+function bal(row: OnchainAddressRow, sym: string): string {
+  const b = row.balances[sym];
+  return b ? compactAmount(b.raw, b.decimals) : "—";
+}
+export function BalanceCells({ row }: { row: OnchainAddressRow }) {
+  const others = Object.entries(row.balances)
+    .filter(([s]) => !(PRIMARY_BALANCE_SYMBOLS as readonly string[]).includes(s))
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  return (
+    <>
+      {PRIMARY_BALANCE_SYMBOLS.map((sym) => (
+        <td key={sym} className="py-2 px-3 mono text-xs text-tan-2 text-right whitespace-nowrap">
+          {bal(row, sym)}
+        </td>
+      ))}
+      <td className="py-2 px-3">
+        {others.length ? (
+          <span className="mono text-[10px] text-tan-3">
+            {others.map(([s, b]) => `${s} ${compactAmount(b.raw, b.decimals)}`).join(" · ")}
+          </span>
+        ) : (
+          <span className="mono text-[10px] text-tan-3">—</span>
+        )}
+      </td>
+      <td className="py-2 px-3 mono text-[10px] text-tan-3 whitespace-nowrap">
+        {row.balancesCheckedAt ? row.balancesCheckedAt.slice(0, 10) : "—"}
+      </td>
+    </>
+  );
+}
 
 export function TypePill({ t }: { t: AddressType }) {
   return (

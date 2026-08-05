@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
+import { loadBalances, requestBalancesRefresh, type BalancesResponse } from "../../lib/balances";
 import { shortAddr } from "../../lib/format";
 import { explorerUrl } from "../../lib/explorer";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
@@ -20,7 +21,7 @@ import { NoRowsMatch } from "./NoRowsMatch";
 import { FilterSummary } from "./FilterSummary";
 import { Highlight, MatchAside } from "./Highlight";
 import { DownloadCsvButton } from "./DownloadCsvButton";
-import { TypePill, DocsCell } from "./OnchainAddressCells";
+import { TypePill, DocsCell, BalanceCells } from "./OnchainAddressCells";
 
 const chainCodec = urlString(null);
 const typeCodec = urlString(null);
@@ -84,6 +85,7 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseRepor
       </td>
       <td className="py-2 px-3"><span className="mono text-xs text-tan-3"><Highlight text={r.chain} rq={rq} /></span></td>
       <td className="py-2 px-3"><TypePill t={r.type} /></td>
+      <BalanceCells row={r} />
       <td className="py-2 px-3"><DocsCell row={r} rq={rq} /></td>
     </tr>
   );
@@ -93,10 +95,38 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
   useDocumentTitle("On-Chain Addresses: Sky Atlas by Redline");
   const docs = useLoaded(loadDocs);
   const addrMap = useLoaded(loadAddresses);
+
+  // Balances are dynamic (server /api/balances), not a build artifact. Load the
+  // cache on mount; the Refresh button re-fetches. A missing server (e.g. dev
+  // without the API) just leaves balances empty — the report still renders.
+  const [bal, setBal] = useState<BalancesResponse | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [balError, setBalError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadBalances().then((b) => live && setBal(b)).catch(() => live && setBal(null));
+    return () => { live = false; };
+  }, []);
+
   const rows = useMemo(
-    () => (docs && addrMap ? buildOnchainAddressRows(docs, addrMap) : []),
-    [docs, addrMap],
+    () => (docs && addrMap ? buildOnchainAddressRows(docs, addrMap, bal?.addresses ?? {}) : []),
+    [docs, addrMap, bal],
   );
+
+  const nextRefreshMs = bal?.nextRefreshAt ? Date.parse(bal.nextRefreshAt) : 0;
+  const canRefresh = !refreshing && Date.now() >= nextRefreshMs;
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setBalError(null);
+    track("balances_refresh", { report: "onchain-addresses" });
+    try {
+      setBal(await requestBalancesRefresh());
+    } catch (e) {
+      setBalError(String(e));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const [chainFilter, setChainFilter] = useUrlState("chain", chainCodec);
   const [typeFilter, setTypeFilter] = useUrlState("type", typeCodec);
@@ -136,7 +166,8 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           chain, type, and the docs it appears in, including docs that name a contract only by its
           chainlog key (tagged <span className="mono text-tan-3">chainlog name</span>) without its
           address. The Atlas assigns each address a single canonical chain, so an address used on
-          more than one chain lists all its mentions on one row.
+          more than one chain lists all its mentions on one row. On-chain ETH, USDS, SKY and
+          expected-token balances are fetched on demand (Refresh, max once per hour).
           {rows.length > 0 && (
             <span className="mono text-[11px] ml-2">{rows.length} addresses</span>
           )}
@@ -180,8 +211,32 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
 
         <FilterSummary query={query} filters={[chainFilter, typeFilter]} searches={SEARCHES} />
 
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-tan-3">{shown.length} addresses</p>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
+            <p className="text-xs text-tan-3">{shown.length} addresses</p>
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={!canRefresh}
+              className="mono text-xs px-3 py-1 rounded border border-[var(--border)] text-tan-3 hover:text-tan hover:border-[var(--accent)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              title={
+                canRefresh
+                  ? "Fetch current on-chain balances (max once per hour)"
+                  : bal?.nextRefreshAt
+                    ? `Next refresh available ${new Date(bal.nextRefreshAt).toLocaleString()}`
+                    : undefined
+              }
+            >
+              {refreshing ? "Refreshing balances…" : "Refresh balances"}
+            </button>
+            <span className="mono text-[10px] text-tan-3">
+              {balError
+                ? "balances unavailable"
+                : bal?.lastCheckedAt
+                  ? `balances updated ${new Date(bal.lastCheckedAt).toLocaleString()}`
+                  : "balances not yet fetched"}
+            </span>
+          </div>
           <DownloadCsvButton
             report="onchain-addresses"
             filename="onchain-addresses.csv"
@@ -200,7 +255,7 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           <>
             {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
             <div className="overflow-x-auto">
-              <table className="w-full text-left" style={{ minWidth: "1140px" }}>
+              <table className="w-full text-left" style={{ minWidth: "1500px" }}>
                 <thead>
                   <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
                     <th className="py-2 px-3 font-normal w-44">Address</th>
@@ -209,6 +264,11 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
                     <th className="py-2 px-3 font-normal w-44">Owner</th>
                     <th className="py-2 px-3 font-normal w-24">Chain</th>
                     <th className="py-2 px-3 font-normal w-40">Type</th>
+                    <th className="py-2 px-3 font-normal text-right">ETH</th>
+                    <th className="py-2 px-3 font-normal text-right">USDS</th>
+                    <th className="py-2 px-3 font-normal text-right">SKY</th>
+                    <th className="py-2 px-3 font-normal">Other Balances</th>
+                    <th className="py-2 px-3 font-normal w-24">Updated</th>
                     <th className="py-2 px-3 font-normal">Docs Mentioned In</th>
                   </tr>
                 </thead>
