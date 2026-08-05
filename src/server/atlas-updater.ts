@@ -17,7 +17,6 @@ import { join } from "node:path";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
-import { groupAddrRowsToAtlas, type AddrReadRow } from "./retrieval/doc-rows.ts";
 import { refreshInPlaceFromDisk, writeSearchIndex } from "./atlas-refresh.ts";
 import { broadcastAtlasUpdate } from "./sse.ts";
 import { MAIN_STORE, publishBundle } from "./bundle-store.ts";
@@ -182,6 +181,46 @@ export function dropStaleSearchIndex(publicDir: string): boolean {
   if (!existsSync(p)) return false;
   unlinkSync(p);
   return true;
+}
+
+export interface AddrReadRow {
+  address: string;
+  chain: string;
+  entity_label: string | null;
+  roles: string[] | null;
+  aliases: string[] | null;
+  expected_tokens: string[] | null;
+}
+
+/**
+ * Inverse of buildAddrRows: fold atlas_addresses rows back into the artifact's
+ * one-entry-per-address shape for the updater's DB→addresses.atlas.json
+ * rebuild.
+ *
+ * A multi-chain address arrives as several rows, so `chains` is rebuilt from
+ * the row set — dropping it here would silently re-collapse what build-index
+ * detected, on the first in-process refresh after a sync.
+ */
+export function groupAddrRowsToAtlas(
+  rows: AddrReadRow[],
+): Record<string, { chain: string; chains: string[] } & Record<string, unknown>> {
+  const out: Record<string, { chain: string; chains: string[] } & Record<string, unknown>> = {};
+  for (const r of rows) {
+    const existing = out[r.address];
+    if (existing) {
+      if (!existing.chains.includes(r.chain)) existing.chains.push(r.chain);
+      continue;
+    }
+    out[r.address] = {
+      chain: r.chain,
+      chains: [r.chain],
+      entityLabel: r.entity_label,
+      roles: r.roles ?? [],
+      aliases: r.aliases ?? [],
+      expectedTokens: r.expected_tokens ?? [],
+    };
+  }
+  return out;
 }
 
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then

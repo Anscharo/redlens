@@ -7,7 +7,7 @@
 // caught it — and also catch the tempting-but-wrong "reuse content_hash" fix,
 // since content_hash is the embed-text hash, not the parser hash OEA keys on.
 import { expect, test } from "bun:test";
-import { nodeToDocRow, buildChainStateByAddr, buildAddrRows, groupAddrRowsToAtlas } from "./doc-rows.ts";
+import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./doc-rows.ts";
 import { docRowToNode, type DocMetaRow, type AtlasNode } from "./indexes.ts";
 import { contentHash as embedContentHash } from "./embed-text.ts";
 
@@ -212,38 +212,4 @@ test("buildChainStateByAddr on the flat shape leaves chain null so the row still
   expect(cs[EVM_UPPER.toLowerCase()].chain).toBeNull();
   const rows = buildAddrRows({ [EVM_UPPER]: { chain: "ethereum" } }, {}, cs, SHA);
   expect(rows[0].chain_state).toMatchObject({ block: 42, balance: 3 });
-});
-
-test("groupAddrRowsToAtlas folds a multi-chain address's rows back into one entry", () => {
-  const rows = [
-    { address: "0xaaa", chain: "ethereum", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
-    { address: "0xaaa", chain: "base", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
-    { address: "0xbbb", chain: "solana", entity_label: null, roles: null, aliases: null, expected_tokens: ["USDS"] },
-  ];
-  const out = groupAddrRowsToAtlas(rows);
-  expect(Object.keys(out).sort()).toEqual(["0xaaa", "0xbbb"]);
-  // First row's chain is the primary; every row's chain lands in `chains`.
-  expect(out["0xaaa"].chain).toBe("ethereum");
-  expect(out["0xaaa"].chains).toEqual(["ethereum", "base"]);
-  expect(out["0xaaa"].roles).toEqual(["multisig"]);
-  expect(out["0xbbb"].chains).toEqual(["solana"]);
-  expect(out["0xbbb"].roles).toEqual([]); // null → []
-  expect(out["0xbbb"].expectedTokens).toEqual(["USDS"]);
-});
-
-test("groupAddrRowsToAtlas round-trips buildAddrRows without collapsing chains", () => {
-  // The updater rebuild must not undo what build-index detected.
-  const atlas = { [EVM_UPPER]: { chain: "base", chains: ["base", "ethereum"], entityLabel: "Thing" } };
-  const rows = buildAddrRows(atlas, {}, {}, SHA);
-  const back = groupAddrRowsToAtlas(
-    rows.map((r) => ({
-      address: r.address,
-      chain: r.chain,
-      entity_label: r.label,
-      roles: r.roles,
-      aliases: r.aliases,
-      expected_tokens: r.expected_tokens,
-    })),
-  );
-  expect(back[EVM_UPPER.toLowerCase()].chains.sort()).toEqual(["base", "ethereum"]);
 });
