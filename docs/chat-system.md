@@ -62,9 +62,15 @@ must stay in sync.
 
 The per-request system prompt (`system-prompt.ts`) injects today's date + atlas
 commit, the doc-type taxonomy with counts, the live entity-traversal graph, the
-tool guide, and strict citation rules (every claim → `[Title](/atlas/<uuid>)`
-with a verbatim UUID from this turn's tool results). History is windowed to a
-hard char budget (`chat-history.ts`). A deterministic **prefetch**
+tool guide, and strict citation rules (every claim → a link with a verbatim UUID
+from this turn's tool results). The citation FORMAT those rules ask for is
+per-model: inline `[Title](/atlas/<uuid>)` by default, reference-style (a
+`[label]: /atlas/<uuid>` definition block at the top, `[text][label]` in prose)
+only for models listed in `CHAT_REFERENCE_CITATION_MODELS` — which defaults to
+the strong chain, the only tier where the format measured clean. The pipeline
+accepts both from every model regardless; see
+`docs/plans/reference-citations.md`. History is windowed to a hard char budget
+(`chat-history.ts`). A deterministic **prefetch**
 (`prefetch.ts`) matches the message against the glossary and entity roster and,
 on a hit, injects a synthetic `atlas_prefetch` tool round so definitional
 questions can answer in one pass. **Tier routing** (`model-router.ts`)
@@ -74,12 +80,16 @@ free, no pre-flight LLM call; with no env config it's a no-op.
 ## 4. The agentic loop (`chat-loop.ts`)
 
 `runChat` is a pure async generator (the LLM is injected as `ChatStream`, so it
-unit-tests with no network/DB). Each iteration (max `chatMaxIterations = 6`)
+unit-tests with no network/DB). Each iteration (max `chatMaxIterations = 4`)
 streams a completion and accumulates content, tool-call deltas, `finish_reason`,
-and usage (accumulated across rounds — load-bearing for rate limiting). If
-`finish_reason` is `tool_calls`, it emits `clear`, executes all calls in
+and usage (accumulated across rounds — load-bearing for rate limiting). If any
+tool-call deltas accumulated, it emits `clear`, executes all calls in
 parallel via `execToolDetailed`, appends results, and continues; otherwise the
-content is the final answer and it emits `done`. The last allowed iteration
+content is the final answer and it emits `done`. The round is keyed on the
+accumulated calls rather than `finish_reason == "tool_calls"`, because providers
+differ on which reason they report alongside tool calls — but a `"length"`
+finish still falls through to the answer path, since its call arguments were
+cut off mid-JSON and must not be executed. The last allowed iteration
 flips `tool_choice: "none"` and injects a final-turn instruction so no dangling
 tool round is left open.
 
@@ -108,11 +118,17 @@ tool result is budget-capped (`chatToolResultMaxChars = 30k`).
    that cross-checks each claim against evidence assembled from the transcript,
    producing supported/unsupported/contradicted claims → pass/warn/fail/
    unverified. Emits `verify_result` — it drives the badge but **never gates**
-   the already-streamed answer.
-4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — on fail/warn (or
-   unverified with retrieval trouble), `adviseRecovery` returns
-   requery/rewrite/decline, triggering exactly one revision + re-verify cycle.
-   On failure or abort, the original answer stands.
+   the already-streamed answer. `invented_facts` is a severity *upgrade* only
+   (warn → fail): it cannot fail an otherwise-clean claim table, because a real
+   fabrication always also surfaces as an unsupported/contradicted claim, while
+   a lone entry there is usually a wording critique.
+4. **Advisor escalation** (if `CHAT_ADVISOR_MODEL` set) — on fail, on warn once
+   `chatAdvisorTriggerUnsupportedClaims` (default 3) unsupported claims
+   accumulate, or on non-pass with retrieval trouble / an exhausted loop.
+   `adviseRecovery` returns requery/rewrite/decline, triggering exactly one
+   revision + re-verify cycle. The revision replays the whole transcript, which
+   is why a single unsupported claim no longer triggers it. On failure or abort,
+   the original answer stands.
 
 All harness activity is recorded to `message_checks`; every stage degrades
 gracefully so harness flakiness never breaks a turn.

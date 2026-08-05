@@ -5,6 +5,7 @@ import { Composer } from "./Composer";
 import { SignInButtons } from "./SignInButtons";
 import { useChatStream } from "./useChatStream";
 import { useUsage } from "./useUsage";
+import { useRateLimitLock } from "./useRateLimitLock";
 import { usePrefs } from "./usePrefs";
 import { useAuth } from "./auth";
 import { track } from "../../lib/analytics";
@@ -44,8 +45,8 @@ export function ChatPanel({
   const authed = !!user;
   const { prefs } = usePrefs();
   const { usage, commons, refresh } = useUsage(authed);
-  const [rateLimited, setRateLimited] = useState(false);
-  const { messages, streaming, send, stop } = useChatStream({
+  const [rateLimit, setRateLimit] = useRateLimitLock(commons, refresh);
+  const { messages, streaming, error, send, stop } = useChatStream({
     onDone: () => void refresh(),
     onAuthError: openAuth,
   });
@@ -82,8 +83,9 @@ export function ChatPanel({
       reportTool: context.reportTool,
       reportFilter: context.reportFilter,
     });
-    if (rl) setRateLimited(true);
-    else setRateLimited(false);
+    // send() (useChatStream) always sets `kind` for a real 429; this fallback
+    // only guards a caller that omits it (defense in depth, not the normal path).
+    setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);
   };
 
   const empty = messages.length === 0;
@@ -185,7 +187,9 @@ export function ChatPanel({
           onSend={() => void doSend(draft)}
           onStop={stop}
           streaming={streaming}
-          disabled={rateLimited && !streaming}
+          rateLimit={rateLimit}
+          onRecheckUsage={() => void refresh()}
+          error={error}
           placeholder={context.placeholder}
           chip={context.chip}
           usage={usage}

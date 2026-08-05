@@ -195,6 +195,10 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 /* assistant turn */
 .rlc-agent-label { font: 400 11px/1 "Source Code Pro", monospace; color: var(--tan-3); letter-spacing: 0.05em; }
 .rlc-thinking { display: flex; align-items: center; gap: 7px; color: var(--tan-3); font: 400 12.5px/1 "Source Code Pro", monospace; }
+/* Failed turn (broke before any content streamed) — deliberately not
+   AtlasMarkdown output, so it reads as chrome, never as an answer. */
+.rlc-turn-error { display: flex; align-items: center; gap: 7px; color: var(--error-text); font: 400 13.5px/1.5 var(--serif, "Lora", serif); }
+.rlc-turn-error-icon { color: var(--red); }
 
 /* ── Sources cluster ───────────────────────────────────────────────────── */
 .rlc-sources { border-top: 1px solid var(--border); padding-top: 10px; margin-top: 4px; }
@@ -388,6 +392,51 @@ body.rlc-anchored .app-footer { right: var(--rlc-anchored-w); }
 }
 .rlc-stop:hover { background: var(--hover); }
 .rlc-stop-glyph { width: 9px; height: 9px; background: var(--accent); border-radius: 1px; display: block; }
+
+/* ── Failed-turn notice (panel-level, above the input) ─────────────────── */
+.rlc-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--red) 12%, var(--surface));
+}
+.rlc-error-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+.rlc-error-text { font: 400 12.5px/1.4 "Source Code Pro", monospace; color: var(--error-text); }
+
+/* ── Rate-limit lock notice (429 — token window or shared commons pool) ── */
+.rlc-ratelimit {
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warn) 10%, var(--surface));
+}
+.rlc-ratelimit-head { display: flex; align-items: center; gap: 7px; }
+.rlc-ratelimit-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex-shrink: 0; }
+.rlc-ratelimit-text { font: 400 12.5px/1.4 "Source Code Pro", monospace; color: var(--tan-2); }
+.rlc-ratelimit-sub {
+  margin-top: 4px;
+  padding-left: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 11.5px/1.4 "Source Code Pro", monospace;
+  color: var(--tan-3);
+}
+.rlc-ratelimit-recheck {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--tan-2);
+  cursor: pointer;
+  font: 400 11px/1.4 "Source Code Pro", monospace;
+}
+.rlc-ratelimit-recheck:hover { background: var(--hover); border-color: var(--accent); color: var(--tan); }
 
 /* ── Usage note ────────────────────────────────────────────────────────── */
 .rlc-usage { display: flex; align-items: center; gap: 6px; padding: 8px 4px 0; }

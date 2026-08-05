@@ -4,7 +4,7 @@
 // intersected. Ports the CF worker's logic with D1 recursive CTEs replaced by
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
-import { runLexical, runSemantic, rrfMerge, buildSnippet, extractPhrases, matchesPhrases } from "./search.ts";
+import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases } from "./search.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
@@ -307,7 +307,8 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     // snippet when enrich already returned full content (it'd just duplicate it).
     return {
       ...enrichNode(ix, n, a.enrich, !!a.include_params),
-      ...(a.enrich ? {} : { snippet: buildSnippet(n.content, a.q ?? "") }),
+      // Verbatim: this is a tool result an agent quotes from and is graded on.
+      ...(a.enrich ? {} : { snippet: buildAgentSnippet(n.content, a.q ?? "") }),
       score: h.rrf_score || h.score,
       sources: h.sources,
     };

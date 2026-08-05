@@ -23,6 +23,9 @@ function edge(id: number, from_id: string, to_id: string, edge_type: string): Ed
 function entity(id: string, slug: string, entity_type: string, subtype: string | null, defining_doc_id: string): Entity {
   return { id, slug, name: slug, entity_type, subtype, defining_doc_id, is_active: 1, meta: null };
 }
+const ADDR_SELF = "0x1111111111111111111111111111111111111111";
+const ADDR_OUT = "0x2222222222222222222222222222222222222222";
+const ADDR_IN = "So11111111111111111111111111111111111111112"; // base58 — no colon of its own
 
 function makeIx(): Indexes {
   const docs = [
@@ -58,11 +61,25 @@ function makeIx(): Indexes {
       source_doc_nos: JSON.stringify(["A.1.1"]),
       meta: JSON.stringify({ role: "partner" }),
     },
+    // On-chain addresses hang off the entity that HOLDS them. Three shapes:
+    // the queried entity's own, one held by an entity it points AT, and one
+    // held by an entity that points at IT (instances link inbound via
+    // invoked_by — an outbound-only walk would miss every instance address).
+    { ...edge(9, "E", `${ADDR_SELF}:ethereum`, "has_address"), from_type: "entity", to_type: "address" },
+    {
+      ...edge(10, "IE1", `${ADDR_OUT}:ethereum`, "has_address"),
+      from_type: "entity",
+      to_type: "address",
+      source_doc_nos: JSON.stringify(["A.1.1"]),
+    },
+    { ...edge(11, "IE2", "E", "invoked_by"), from_type: "entity", to_type: "entity" },
+    { ...edge(12, "IE2", `${ADDR_IN}:solana`, "has_address"), from_type: "entity", to_type: "address" },
   ];
   const entities: Entity[] = [
     entity("E", "ent", "agent", "prime", "D0"),
     entity("IE1", "ent-distribution-reward", "instance", "distribution-reward", "D1"),
     entity("IE2", "ent-allocation-system", "instance", "allocation-system", "D2"),
+    entity("IE3", "ent-orphan", "ecosystem_actor", null, "P3"),
   ];
   return {
     docMap,
@@ -109,6 +126,63 @@ test("atlas_entity paginates nodes and reports node_count + node_types", () => {
   expect((typed.nodes as Array<{ id: string }>)[0].id).toBe("D2");
 
   expect((atlasEntity(ix, "missing", { limit: 50, offset: 0, include_content: false }) as { error?: string }).error).toBeDefined();
+});
+
+// ── atlas_entity: the addresses block (both edge directions) ─────────────────
+test("atlas_entity returns addresses it holds AND those held by entities linked either way", () => {
+  const ix = makeIx();
+  const res = atlasEntity(ix, "ent", { limit: 50, offset: 0, include_content: false }) as {
+    addresses: { count: number; groups: Array<Record<string, unknown>>; truncated?: true };
+  };
+  expect(res.addresses.count).toBe(3);
+  expect(res.addresses.truncated).toBeUndefined();
+  const by = new Map(res.addresses.groups.map((g) => [g.owner as string, g]));
+
+  expect(by.get("ent")).toMatchObject({ via: "self", direction: "self", addresses: [{ address: ADDR_SELF, chain: "ethereum" }] });
+  // Outbound hop (entity → instance), with the has_address edge's provenance.
+  expect(by.get("ent-distribution-reward")).toMatchObject({
+    via: "integration_partner_of",
+    direction: "out",
+    addresses: [{ address: ADDR_OUT, chain: "ethereum" }],
+    source_doc_nos: ["A.1.1"],
+  });
+  // Inbound hop (instance → entity via invoked_by) — the direction an
+  // outbound-only walk drops. Base58 keeps its case and carries no colon.
+  expect(by.get("ent-allocation-system")).toMatchObject({
+    via: "invoked_by",
+    direction: "in",
+    addresses: [{ address: ADDR_IN, chain: "solana" }],
+  });
+});
+
+test("atlas_entity reports an empty addresses block rather than omitting it", () => {
+  const ix = makeIx();
+  const res = atlasEntity(ix, "ent-orphan", { limit: 50, offset: 0, include_content: false }) as {
+    addresses: { count: number; groups: unknown[] };
+  };
+  expect(res.addresses).toEqual({ count: 0, groups: [] });
+});
+
+// ── atlas_traverse: entity-slug start + address nodes ────────────────────────
+test("atlas_traverse starts from an entity slug and returns address nodes", () => {
+  const ix = makeIx();
+  const res = atlasTraverse(ix, "ent", "has_address", 1, "out") as { count: number; results: Array<Record<string, unknown>> };
+  expect(res.count).toBe(1);
+  expect(res.results[0]).toMatchObject({
+    id: `${ADDR_SELF}:ethereum`,
+    node_type: "address",
+    address: ADDR_SELF,
+    chain: "ethereum",
+    hops: 1,
+    edge_type: "has_address",
+  });
+  // An instance's address is two hops out and changes direction on the way
+  // (instance→entity inbound, then instance→address outbound), so it is
+  // reachable only with direction "both" and no edge_type filter.
+  const two = atlasTraverse(ix, "ent", undefined, 2, "both") as { results: Array<{ id: string; hops: number }> };
+  expect(two.results.some((r) => r.id === `${ADDR_IN}:solana` && r.hops === 2)).toBe(true);
+  // A name that resolves to no doc and no entity is still an error.
+  expect((atlasTraverse(ix, "nonexistent", undefined, 1, "out") as { error?: string }).error).toBe("Not found");
 });
 
 // ── atlas_entity_params: instance selection + subtype filter ─────────────────

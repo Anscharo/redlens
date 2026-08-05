@@ -3,13 +3,13 @@
 import { test, expect } from "bun:test";
 import type OpenAI from "openai";
 import type { JsonCall } from "../llm.ts";
-import { parseVerdict, computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type Verdict } from "./verifier.ts";
+import { parseVerdict, computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, buildVerifierPrompt, type Verdict } from "./verifier.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { RoundTelemetry } from "./round-checks.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
-const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], untracedNumbers: [], lengthCapped: false, failed: false };
+const cleanChecks: CheckReport = { citations: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], bareAtlasLinks: [], uncitedParagraphs: 0, ungroundedQuotes: [], ungroundedAddresses: [], ungroundedCitationValues: [], untracedNumbers: [], lowOverlapCitations: [], lengthCapped: false, failed: false };
 const failedChecks: CheckReport = { ...cleanChecks, invalidCitations: ["00000000-dead-beef-0000-000000000000"], failed: true };
 const telemetry: RoundTelemetry = { rounds: 1, toolCalls: 1, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
 
@@ -30,10 +30,36 @@ test("computeOverall: model can add severity, never remove a deterministic failu
   expect(computeOverall(cleanChecks, null)).toBe("unverified");
   expect(computeOverall(cleanChecks, { ...passVerdict, claims: [{ claim: "y", status: "unsupported", evidence: [], cited_uuid: null, note: null }] })).toBe("warn");
   expect(computeOverall(cleanChecks, { ...passVerdict, claims: [{ claim: "y", status: "contradicted", evidence: [], cited_uuid: null, note: null }] })).toBe("fail");
-  expect(computeOverall(cleanChecks, { ...passVerdict, invented_facts: ["z"] })).toBe("fail");
   expect(computeOverall(cleanChecks, { ...passVerdict, ruling_issued: true })).toBe("fail");
   // An empty audit (JSON-degraded `{}` → claims:[]) is unverified, not a green pass.
   expect(computeOverall(cleanChecks, { ...passVerdict, claims: [] })).toBe("unverified");
+});
+
+test("invented_facts upgrades severity but never fails a clean claim table", () => {
+  const supported = { claim: "x", status: "supported" as const, evidence: [], cited_uuid: null, note: null };
+  const unsupported = { claim: "y", status: "unsupported" as const, evidence: [], cited_uuid: null, note: null };
+  const base: Verdict = { claims: [supported], invented_facts: [], ruling_issued: false, confidence: 0.9, feedback: "" };
+  // The production false failure: every claim supported, but the auditor wrote a
+  // wording critique into the free-text channel. That is not a fabrication.
+  const nitpick = ["the phrasing conflates role with authorization mechanism", "the phrasing is slightly stronger than the evidence warrants"];
+  expect(computeOverall(cleanChecks, { ...base, invented_facts: nitpick })).toBe("pass");
+  // With a claim-level counterpart it IS a fabrication report: warn → fail.
+  expect(computeOverall(cleanChecks, { ...base, claims: [supported, unsupported] })).toBe("warn");
+  expect(computeOverall(cleanChecks, { ...base, claims: [supported, unsupported], invented_facts: ["a retainer of 250,000 USDS appears in no source"] })).toBe("fail");
+  // A contradicted claim still fails on its own, invented_facts or not.
+  expect(computeOverall(cleanChecks, { ...base, claims: [{ ...supported, status: "contradicted" }], invented_facts: [] })).toBe("fail");
+});
+
+test("the checks block carries the soft wrong-doc signal to the judge", () => {
+  const prompt = buildVerifierPrompt({
+    question: "q", answer: "a", evidence: [], telemetry,
+    checks: { ...cleanChecks, lowOverlapCitations: ['A.1.6 Some Doc ← "an unrelated sentence"'] },
+  });
+  const user = prompt[1].content as string;
+  expect(user).toContain('claims_with_low_word_overlap_vs_cited_doc=A.1.6 Some Doc ← "an unrelated sentence"');
+  // Absent → explicitly "none", so the judge never reads silence as a signal.
+  expect(buildVerifierPrompt({ question: "q", answer: "a", evidence: [], telemetry, checks: cleanChecks })[1].content as string)
+    .toContain("claims_with_low_word_overlap_vs_cited_doc=none");
 });
 
 test("evidenceFromTranscript labels tool results in order and budgets newest-first", () => {

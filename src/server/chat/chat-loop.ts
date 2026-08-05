@@ -17,7 +17,7 @@ import { EXPORT_TOOL_NAME, buildExportArtifact, redactExportArgs } from "./tools
 import { checkExportArtifact } from "./tools/export-verify.ts";
 import { config } from "../config.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
-import { captureError, type ErrorContext } from "../posthog-node.ts";
+import { captureError, captureEvent, type ErrorContext } from "../posthog-node.ts";
 
 type Msg = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 type Chunk = OpenAI.Chat.Completions.ChatCompletionChunk;
@@ -176,11 +176,42 @@ export async function* runChat(opts: {
 
     if (opts.signal?.aborted) break;
 
-    // A tool round (never on the forced-text final iteration).
-    if (finishReason === "tool_calls" && pending.size > 0 && !last) {
+    // A tool round. Trust the accumulated `pending` map directly rather than
+    // gating on finish_reason === "tool_calls": OpenRouter fans a tier out
+    // across several providers (model-router.ts — gemma, glm, haiku, gpt-5-mini),
+    // and not all of them report finish_reason:"tool_calls" for a round that
+    // streamed tool_calls deltas — some report "stop". Gating on finish_reason
+    // silently dropped those accumulated calls, and whatever (usually empty)
+    // content had streamed became the final answer instead — an empty answer
+    // that then gets persisted and filtered out by windowHistory, so the turn
+    // vanishes. Still excluded on `last`, the forced-text final iteration
+    // (toolChoice:"none"), where a tool round is never valid.
+    //
+    // A pending slot can be unusable — empty/missing id or name — if a stream
+    // is cut short or a provider emits a malformed delta for an index that
+    // never receives its function name. There is no tool to call and no id to
+    // attach a "tool" result message to, so such slots are filtered out before
+    // execution rather than sent to execToolDetailed. If that empties the round
+    // entirely, this falls through to the plain-answer path below exactly as if
+    // no tool_calls had streamed at all.
+    const rawCalls = [...pending.values()];
+    const calls = rawCalls.filter((c) => c.id && c.name);
+    if (calls.length < rawCalls.length) {
+      captureEvent("chat_loop_malformed_tool_call", opts.obs, {
+        iter,
+        dropped: rawCalls.length - calls.length,
+        finishReason,
+      });
+    }
+    // finish_reason:"length" means the stream was cut mid-generation — any
+    // pending tool call has truncated `arguments` JSON, so executing it would
+    // run the tool with wrong/empty args and hide the truncation from the
+    // caller. Fall through to the answer path instead, which reports
+    // lengthCapped: true (a hard failure) exactly as it did before pending
+    // calls were trusted over finish_reason.
+    if (calls.length > 0 && !last && finishReason !== "length") {
       // This round's streamed content was pre-tool noise — tell the client to drop it.
       if (content) yield { type: "clear" };
-      const calls = [...pending.values()];
       msgs.push({
         role: "assistant",
         content: content || null,

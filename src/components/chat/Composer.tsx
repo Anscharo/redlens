@@ -2,7 +2,10 @@ import { useRef, type ChangeEvent, type KeyboardEvent } from "react";
 import { PinIcon, SendIcon } from "./glyphs";
 import { UsageNote } from "./UsageNote";
 import { CommonsNote } from "./CommonsNote";
+import { ErrorNote } from "./ErrorNote";
+import { RateLimitNote } from "./RateLimitNote";
 import type { UsageWindow, CommonsPool } from "./api";
+import type { RateLimitState } from "./types";
 
 interface ComposerProps {
   draft: string;
@@ -10,7 +13,9 @@ interface ComposerProps {
   onSend: () => void;
   onStop: () => void;
   streaming: boolean;
-  disabled: boolean; // rate-limited
+  rateLimit: RateLimitState | null; // non-null while a 429 lock is in force
+  onRecheckUsage: () => void; // "Check now" on the commons lock — hits /api/usage, never /api/chat
+  error: string | null; // last failed-turn message (suppressed while rateLimit is set)
   placeholder: string;
   chip: string;
   usage: UsageWindow | null;
@@ -19,8 +24,22 @@ interface ComposerProps {
 
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
 // newlines. While streaming the send button becomes a stop button.
-export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disabled, placeholder, chip, usage, commons }: ComposerProps) {
+export function Composer({
+  draft,
+  onDraftChange,
+  onSend,
+  onStop,
+  streaming,
+  rateLimit,
+  onRecheckUsage,
+  error,
+  placeholder,
+  chip,
+  usage,
+  commons,
+}: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const locked = !!rateLimit;
 
   const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const ta = e.target;
@@ -32,7 +51,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!streaming && draft.trim() && !disabled) {
+      if (!streaming && draft.trim() && !locked) {
         onSend();
         if (taRef.current) taRef.current.style.height = "auto";
       }
@@ -41,6 +60,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
 
   return (
     <div className="rlc-composer">
+      {rateLimit ? <RateLimitNote rateLimit={rateLimit} onRecheck={onRecheckUsage} /> : <ErrorNote message={error} />}
       <div className="rlc-inputwrap">
         <textarea
           ref={taRef}
@@ -50,7 +70,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
           value={draft}
           onChange={autoGrow}
           onKeyDown={onKey}
-          disabled={disabled}
+          disabled={locked}
         />
         <div className="rlc-composer-row">
           <span className="rlc-chip">
@@ -59,7 +79,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
             </span>
             <span className="rlc-chip-label">{chip}</span>
           </span>
-          <span className="rlc-hint">{streaming ? "streaming…" : "↵ to send"}</span>
+          <span className="rlc-hint">{streaming ? "streaming…" : locked ? "locked" : "↵ to send"}</span>
           {streaming ? (
             <button className="rlc-stop" onClick={onStop} title="Stop generating" aria-label="Stop">
               <span className="rlc-stop-glyph" />
@@ -71,7 +91,7 @@ export function Composer({ draft, onDraftChange, onSend, onStop, streaming, disa
                 onSend();
                 if (taRef.current) taRef.current.style.height = "auto";
               }}
-              disabled={!draft.trim() || disabled}
+              disabled={!draft.trim() || locked}
               title="Send"
               aria-label="Send"
             >

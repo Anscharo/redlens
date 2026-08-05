@@ -231,6 +231,64 @@ test("multi-call round: parallel execution keeps call order; onRoundEnd sees cal
   expect(roundEnds[0].results.every((r) => r.ok)).toBe(true);
 });
 
+test("tool round executes even when finish_reason is 'stop' instead of 'tool_calls'", async () => {
+  // Some providers behind model-router.ts's OpenRouter fallback chain report
+  // finish_reason:"stop" for a round that still streamed tool_calls deltas.
+  // The loop must trust the accumulated pending calls, not the finish_reason.
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("stop")],
+    [textChunk("Done."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 3 }));
+
+  const call = events.find((e) => e.type === "tool_call");
+  const result = events.find((e) => e.type === "tool_result");
+  expect(call && call.type === "tool_call" && call.name).toBe("atlas_describe");
+  expect(result && result.type === "tool_result" && result.ok).toBe(true);
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("Done.");
+  expect(done.type === "done" && done.toolCalls).toHaveLength(1);
+  if (done.type === "done") {
+    expect(done.transcript.map((m) => m.role)).toEqual(["user", "assistant", "tool", "assistant"]);
+  }
+});
+
+test("finish_reason 'length' never executes a pending tool call — falls through to lengthCapped", async () => {
+  // A cut-off stream leaves pending.arguments as truncated JSON. Executing it
+  // would run the tool with wrong/empty args and hide the truncation, so this
+  // must fall through to the answer path and report lengthCapped, not silently
+  // treat the truncated call as a normal tool round.
+  const rounds = [[toolChunk("atlas_describe", '{"sec'), finishChunk("length")]];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 3 }));
+
+  expect(events.some((e) => e.type === "tool_call")).toBe(false);
+  expect(events.some((e) => e.type === "tool_result")).toBe(false);
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  expect(done.type === "done" && done.lengthCapped).toBe(true);
+  expect(done.type === "done" && done.toolCalls).toHaveLength(0);
+});
+
+test("a pending slot with no id/name is not executed and the round falls through to a plain answer", async () => {
+  // A malformed delta: an index that streams arguments but never gets a
+  // function name or call id (e.g. stream cut short). It must not reach
+  // execToolDetailed (no tool to call, no id for a "tool" message) — the
+  // round should behave as if no tool_calls had streamed at all.
+  const malformedToolChunk: Chunk = {
+    id: "gen-abc",
+    choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: "{}" } }] }, finish_reason: null }],
+  } as unknown as Chunk;
+  const rounds = [[malformedToolChunk, finishChunk("stop")]];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 3 }));
+
+  expect(events.some((e) => e.type === "tool_call")).toBe(false);
+  expect(events.some((e) => e.type === "tool_result")).toBe(false);
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  expect(done.type === "done" && done.content).toBe("");
+  expect(done.type === "done" && done.toolCalls).toHaveLength(0);
+});
+
 test("export_findings: yields an export event and feeds the model only a small ack", async () => {
   // Verification-safe data: no doc-no/citation/address-like strings to ground.
   const csvArgs = JSON.stringify({ format: "csv", filename: "duties", columns: ["Item", "Note"], rows: [["Alpha", "hello world"]] });

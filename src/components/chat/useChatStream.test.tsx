@@ -156,7 +156,7 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("real answer");
   });
 
-  it("applies an 'error' SSE event: sets error state and finalizes the message", async () => {
+  it("applies an 'error' SSE event: sets error state, finalizes, and marks the message failed", async () => {
     mockChat([{ type: "error", message: "the model errored" }]);
     const { result } = renderHook(() => useChatStream());
     await act(async () => {
@@ -164,6 +164,8 @@ describe("useChatStream event dispatch", () => {
     });
     expect(result.current.error).toBe("the model errored");
     expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
+    expect(result.current.messages.at(-1)?.content).toBe("");
   });
 
   it("skips a heartbeat/comment frame with no data: line", async () => {
@@ -270,21 +272,56 @@ describe("useChatStream HTTP status handling", () => {
     expect(result.current.streaming).toBe(false);
   });
 
-  it("429 sets the rate-limit message and returns resetsAt", async () => {
-    mockStatus(429, { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" });
+  it("429 rate_limited sets the message, resetsAt, and kind: 'token'", async () => {
+    mockStatus(429, {
+      error: "rate_limited",
+      message: "Usage limit reached, come back later",
+      resetsAt: "2026-01-01T00:00:00Z",
+    });
     const { result } = renderHook(() => useChatStream());
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
     await act(async () => {
       sendResult = await result.current.send("question");
     });
     expect(sendResult).toEqual({
-      rateLimited: { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" },
+      rateLimited: { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z", kind: "token" },
     });
-    expect(result.current.error).toBe("Usage limit reached, come back later");
+    // Deliberately not surfaced as `error` — a 429 is fully explained by the
+    // returned `rateLimited` (drives RateLimitNote) and the thread content
+    // below, so `error` (which drives the separate ErrorNote) stays clear.
+    // Otherwise the stale 429 text would resurface as an "error" banner the
+    // instant the rate-limit lock lifts.
+    expect(result.current.error).toBeNull();
     expect(result.current.messages.at(-1)?.content).toBe("Usage limit reached, come back later");
   });
 
-  it("429 falls back to a default message when the body has none", async () => {
+  it("429 commons_exhausted has no resetsAt and reports kind: 'commons'", async () => {
+    mockStatus(429, {
+      error: "commons_exhausted",
+      message: "The shared usage pool is out of credits.",
+    });
+    const { result } = renderHook(() => useChatStream());
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send("question");
+    });
+    expect(sendResult).toEqual({
+      rateLimited: { message: "The shared usage pool is out of credits.", resetsAt: undefined, kind: "commons" },
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("429 falls back to kind: 'token' from resetsAt presence when the error discriminator is missing", async () => {
+    mockStatus(429, { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" });
+    const { result } = renderHook(() => useChatStream());
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send("question");
+    });
+    expect(sendResult?.rateLimited?.kind).toBe("token");
+  });
+
+  it("429 falls back to a default message and kind: 'commons' when the body has none", async () => {
     mockStatus(429, {});
     const { result } = renderHook(() => useChatStream());
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
@@ -292,6 +329,7 @@ describe("useChatStream HTTP status handling", () => {
       sendResult = await result.current.send("question");
     });
     expect(sendResult?.rateLimited?.message).toBe("Usage limit reached.");
+    expect(sendResult?.rateLimited?.kind).toBe("commons");
   });
 
   it("a non-ok, non-401/429 response is thrown and caught as a generic error", async () => {
@@ -315,7 +353,7 @@ describe("useChatStream HTTP status handling", () => {
 });
 
 describe("useChatStream network/abort error handling", () => {
-  it("a network error sets the error state and finalizes the message", async () => {
+  it("a network error sets the error state, finalizes, and marks the message failed", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
     const { result } = renderHook(() => useChatStream());
     await act(async () => {
@@ -323,7 +361,23 @@ describe("useChatStream network/abort error handling", () => {
     });
     expect(result.current.error).toBe("network down");
     expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
     expect(result.current.streaming).toBe(false);
+  });
+
+  it("clears a previous error as soon as a new send is attempted", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.error).toBe("network down");
+
+    mockChat([{ type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] }]);
+    await act(async () => {
+      await result.current.send("question two");
+    });
+    expect(result.current.error).toBeNull();
   });
 
   it("an AbortError is treated as expected (no error surfaced)", async () => {

@@ -132,6 +132,49 @@ export function createLinkJudge(evidenceTexts: string[], ix: Indexes): LinkJudge
   };
 }
 
+// A markdown reference-link definition `[label]: /atlas/<uuid>` (optional title).
+// Only /atlas/ destinations are our citations; anything else is left untouched.
+const DEF_LINE_RE = /^([ \t]{0,3}\[)([^[\]\n]{1,120})(\]:[ \t]*)(<[^>\s]*>|\S+)([ \t]*(?:"[^"]*"|'[^']*'|\([^)\s]*\))?[ \t]*)$/;
+
+// Slugs are the model's handle for a doc; un-slugified they feed the judge's
+// text-resolution ladder exactly as inline link text does (`spark-rate` →
+// `spark rate`). Underscores and repeated dashes collapse the same way.
+export const unslugifyLabel = (label: string): string => label.replace(/[-_]+/g, " ").trim();
+
+// Repair a reference-style DEFINITION BLOCK — the citation table, not each use.
+// One garbled UUID in a definition is fixed once here and every `[text][label]`
+// that points at it is corrected wholesale (the streaming gate releases this
+// repaired block before any prose). An unrepairable definition is DROPPED, never
+// emitted with a dead target; its uses then fall to the undefined-label path.
+export function repairDefinitionBlock(block: string, judge: LinkJudge): CitationRepair {
+  const repaired: CitationRepair["repaired"] = [];
+  const stripped: CitationRepair["stripped"] = [];
+  const kept = block.split("\n").map((line): string | null => {
+    const m = DEF_LINE_RE.exec(line);
+    if (!m) return line; // not a definition line — pass through verbatim
+    const dest = m[4].replace(/^<|>$/g, "");
+    const v = judge(unslugifyLabel(m[2]), dest);
+    if (v.action === "keep") return line;
+    if (v.action === "repair") {
+      repaired.push({ title: m[2], from: v.from, to: v.to });
+      return `${m[1]}${m[2]}${m[3]}/atlas/${v.to}${m[5]}`;
+    }
+    stripped.push({ title: m[2], target: v.target });
+    return null;
+  });
+  return { content: kept.filter((l): l is string => l !== null).join("\n"), repaired, stripped };
+}
+
+// Resolve a bare reference LABEL (used but never defined) to a doc UUID via the
+// same text-resolution ladder inline repair uses: a non-atlas placeholder target
+// drives the judge to `resolveByText`, so a label unique among this turn's
+// retrieved docs (else unique across the atlas) yields its UUID. Powers the
+// undefined-label degradation — synthesize the definition when it resolves.
+export function resolveLabelToUuid(label: string, judge: LinkJudge): string | null {
+  const v = judge(unslugifyLabel(label), "unresolved-reference-label");
+  return v.action === "repair" ? v.to : null;
+}
+
 export function repairCitations(answer: string, evidenceTexts: string[], ix: Indexes): CitationRepair {
   const judge = createLinkJudge(evidenceTexts, ix);
   const repaired: CitationRepair["repaired"] = [];
