@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
 import { loadAddresses } from "../../lib/addresses";
 import { shortAddr } from "../../lib/format";
+import { explorerUrl } from "../../lib/explorer";
 import { useUrlState, urlString } from "../../hooks/useUrlState";
 import { track } from "../../lib/analytics";
 import { useLoaded } from "../../hooks/useAtlasData";
@@ -25,7 +26,7 @@ const chainCodec = urlString(null);
 const typeCodec = urlString(null);
 
 const SEARCHES =
-  "address · chainlog name · owner · chain · type · roles · etherscan name · aliases · expected tokens · doc nos · doc titles";
+  "address · chainlog name · on-chain name · implementation · owner · chain · type · roles · aliases · expected tokens · doc nos · doc titles";
 
 function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseReportQuery> }) {
   return (
@@ -43,8 +44,33 @@ function Row({ r, rq }: { r: OnchainAddressRow; rq: ReturnType<typeof parseRepor
         </a>
       </td>
       <td className="py-2 px-3">
-        {r.chainlogId ? (
-          <span className="mono text-xs text-tan-2"><Highlight text={r.chainlogId} rq={rq} /></span>
+        {r.registryName ? (
+          <span className="mono text-xs text-tan-2">
+            <Highlight text={r.registryName} rq={rq} />
+            {r.registrySource === "onchain" && (
+              <span
+                className="mono text-[9px] text-tan-3 ml-1"
+                title="verified on-chain (Etherscan) name — not a Sky chainlog key"
+              >
+                (on-chain)
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="mono text-[10px] text-tan-3">—</span>
+        )}
+      </td>
+      <td className="py-2 px-3">
+        {r.implementation ? (
+          <a
+            href={explorerUrl(r.implementation, { chain: r.chain })}
+            target="_blank"
+            rel="noopener"
+            className="mono text-[11px] text-accent hover:underline"
+            title={`implementation: ${r.implementation}`}
+          >
+            <Highlight text={shortAddr(r.implementation, 6, 4)} rq={rq} />
+          </a>
         ) : (
           <span className="mono text-[10px] text-tan-3">—</span>
         )}
@@ -174,11 +200,12 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
           <>
             {rows.length > 0 && shown.length === 0 && <NoRowsMatch query={query} />}
             <div className="overflow-x-auto">
-              <table className="w-full text-left" style={{ minWidth: "980px" }}>
+              <table className="w-full text-left" style={{ minWidth: "1140px" }}>
                 <thead>
                   <tr className="text-xs mono text-tan-3 border-b border-[var(--border)]">
                     <th className="py-2 px-3 font-normal w-44">Address</th>
-                    <th className="py-2 px-3 font-normal w-40">Chainlog Name</th>
+                    <th className="py-2 px-3 font-normal w-44">Chainlog / On-Chain Name</th>
+                    <th className="py-2 px-3 font-normal w-32">Implementation</th>
                     <th className="py-2 px-3 font-normal w-44">Owner</th>
                     <th className="py-2 px-3 font-normal w-24">Chain</th>
                     <th className="py-2 px-3 font-normal w-40">Type</th>

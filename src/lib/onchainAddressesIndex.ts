@@ -107,9 +107,14 @@ export interface OnchainAddressRow {
   type: AddressType;
   chainlogId: string | null; // CHAIN_LOG name, mainnet only
   owner: string | null; // Associated Owner — atlas-derived entityLabel
-  etherscanName: string | null;
+  etherscanName: string | null; // verified on-chain contract name
+  // Display name for the "Chainlog / On-Chain Name" column: the chainlog key if
+  // the address is in the Sky chainlog, else the verified Etherscan name.
+  registryName: string | null;
+  registrySource: "chainlog" | "onchain" | null;
   isContract: boolean;
   isProxy: boolean;
+  implementation: string | null; // proxy implementation address (isProxy only)
   explorerUrl: string;
   roles: string[];
   aliases: string[];
@@ -183,7 +188,7 @@ function mergeDocRefs(addrDocs: DocMeta[], nameDocs: DocMeta[]): AddressDocRef[]
 
 // Sort key: chain, then type (by ADDRESS_TYPES order), then the human label.
 function sortLabel(r: OnchainAddressRow): string {
-  return r.chainlogId ?? r.owner ?? r.address;
+  return r.registryName ?? r.owner ?? r.address;
 }
 
 export function buildOnchainAddressRows(
@@ -217,8 +222,11 @@ export function buildOnchainAddressRows(
       chainlogId: info.chainlogId ?? null,
       owner: info.entityLabel ?? null,
       etherscanName: info.etherscanName ?? null,
+      registryName: info.chainlogId ?? info.etherscanName ?? null,
+      registrySource: info.chainlogId ? "chainlog" : info.etherscanName ? "onchain" : null,
       isContract: info.isContract,
       isProxy: info.isProxy,
+      implementation: info.implementation ?? null,
       explorerUrl: info.explorerUrl,
       roles: info.roles ?? [],
       aliases: info.aliases ?? [],
@@ -265,6 +273,7 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
     "Roles",
     "Etherscan Name",
     "Is Contract",
+    "Implementation",
     "Explorer URL",
     "Doc No",
     "Doc Title",
@@ -284,6 +293,7 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
       r.roles.join(", "),
       r.etherscanName ?? "",
       r.isContract ? "yes" : "no",
+      r.implementation ?? "",
       r.explorerUrl,
     ];
     if (r.docs.length === 0) {
@@ -303,11 +313,12 @@ export function addrSearchFields(r: OnchainAddressRow): SearchField[] {
   return [
     { label: "address", value: r.address },
     { label: "chainlog", value: r.chainlogId ?? "" },
+    { label: "on-chain name", value: r.etherscanName ?? "" },
     { label: "owner", value: r.owner ?? "", despace: true },
     { label: "chain", value: r.chain },
     { label: "type", value: r.type },
+    { label: "implementation", value: r.implementation ?? "", hidden: true },
     { label: "roles", value: r.roles.join(" "), hidden: true },
-    { label: "etherscan", value: r.etherscanName ?? "", hidden: true },
     { label: "aliases", value: r.aliases.join(" "), hidden: true },
     { label: "tokens", value: r.expectedTokens.join(" "), hidden: true },
     { label: "doc nos", value: r.docs.map((d) => d.docNo).join(" ") },

@@ -141,6 +141,48 @@ describe("chainlog-name mentions", () => {
   });
 });
 
+describe("registry name + implementation", () => {
+  const docs = { d1: node({ id: "d1", doc_no: "A.1", title: "T", addressRefs: ["0xAAA"] }) };
+
+  it("uses chainlog id as registry name when present", () => {
+    const r = buildOnchainAddressRows(docs, {
+      "0xaaa": info({ chainlogId: "MCD_VAT", etherscanName: "Vat", isContract: true }),
+    })[0];
+    expect(r.registryName).toBe("MCD_VAT");
+    expect(r.registrySource).toBe("chainlog");
+  });
+
+  it("falls back to the on-chain etherscan name when no chainlog id", () => {
+    const r = buildOnchainAddressRows(docs, {
+      "0xaaa": info({ etherscanName: "VoteDelegate", isContract: true }),
+    })[0];
+    expect(r.registryName).toBe("VoteDelegate");
+    expect(r.registrySource).toBe("onchain");
+  });
+
+  it("registryName is null and source null when neither is present", () => {
+    const r = buildOnchainAddressRows(docs, { "0xaaa": info() })[0];
+    expect(r.registryName).toBeNull();
+    expect(r.registrySource).toBeNull();
+  });
+
+  it("carries the proxy implementation address", () => {
+    const r = buildOnchainAddressRows(docs, {
+      "0xaaa": info({ isContract: true, isProxy: true, implementation: "0ximpl" }),
+    })[0];
+    expect(r.implementation).toBe("0ximpl");
+  });
+
+  it("CSV has an Implementation column carrying the impl address", () => {
+    const rows = buildOnchainAddressRows(docs, {
+      "0xaaa": info({ isContract: true, isProxy: true, implementation: "0xdeadbeef" }),
+    });
+    const csv = onchainAddressRowsToCSV(rows);
+    expect(csv.split("\r\n")[0]).toContain("Implementation");
+    expect(csv).toContain("0xdeadbeef");
+  });
+});
+
 describe("CSV export (long format)", () => {
   const docs: Record<string, AtlasNode> = {
     d1: node({ id: "d1", doc_no: "A.2.1", title: "Al, pha", addressRefs: ["0xAAA"] }),
