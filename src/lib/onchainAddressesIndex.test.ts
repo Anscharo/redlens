@@ -6,6 +6,7 @@ import {
   onchainCsvRowCount,
   docsSummary,
   addrSearchFields,
+  isContractKey,
   ADDRESS_TYPES,
 } from "./onchainAddressesIndex";
 import type { AtlasNode, AddressInfo } from "../types";
@@ -93,6 +94,50 @@ describe("buildOnchainAddressRows", () => {
     const dd = { x: node({ id: "x", doc_no: "A.9", title: "Dup", addressRefs: ["0xCCC", "0xccc"] }) };
     const rows = buildOnchainAddressRows(dd, { "0xccc": info() });
     expect(rows[0].docs).toHaveLength(1);
+  });
+});
+
+describe("chainlog-name mentions", () => {
+  it("isContractKey accepts SCREAMING_SNAKE keys, rejects bare symbols", () => {
+    expect(isContractKey("MCD_PAUSE_PROXY")).toBe(true);
+    expect(isContractKey("USDS")).toBe(false);
+  });
+
+  it("adds docs that name the chainlog key without the address, tagged via name", () => {
+    const docs: Record<string, AtlasNode> = {
+      // Direct-address mention.
+      d1: node({ id: "d1", doc_no: "A.1", title: "Def", addressRefs: ["0xAAA"] }),
+      // Names MCD_PAUSE_PROXY in prose, no address.
+      d2: node({ id: "d2", doc_no: "A.2", title: "Uses key", content: "delegated to MCD_PAUSE_PROXY here" }),
+      // Both the address and the key.
+      d3: node({ id: "d3", doc_no: "A.3", title: "Both", addressRefs: ["0xAAA"], content: "the MCD_PAUSE_PROXY at" }),
+    };
+    const addrMap = { "0xaaa": info({ chainlogId: "MCD_PAUSE_PROXY", isContract: true }) };
+    const row = buildOnchainAddressRows(docs, addrMap)[0];
+    const byId = Object.fromEntries(row.docs.map((d) => [d.id, d.via]));
+    expect(byId).toEqual({ d1: "address", d2: "name", d3: "both" });
+    // Whole-word only: a longer key isn't matched by a shorter one's scan.
+    expect(row.docs).toHaveLength(3);
+  });
+
+  it("does not scan bare token symbols (no underscore) as chainlog names", () => {
+    const docs = {
+      d1: node({ id: "d1", doc_no: "A.1", title: "Prose", content: "lots of USDS flowing to USDS holders" }),
+    };
+    // USDS address itself is mentioned nowhere by address; the prose USDS must
+    // NOT pull d1 in as a name mention.
+    const row = buildOnchainAddressRows(docs, { "0xusds": info({ chainlogId: "USDS", isContract: true }) })[0];
+    expect(row.docs).toHaveLength(0);
+  });
+
+  it("CSV carries a Mention Via column", () => {
+    const docs = {
+      d2: node({ id: "d2", doc_no: "A.2", title: "K", content: "MCD_VAT lives here" }),
+    };
+    const rows = buildOnchainAddressRows(docs, { "0xv": info({ chainlogId: "MCD_VAT", isContract: true }) });
+    const csv = onchainAddressRowsToCSV(rows);
+    expect(csv.split("\r\n")[0]).toContain("Mention Via");
+    expect(csv).toContain('"chainlog name"');
   });
 });
 

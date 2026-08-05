@@ -67,13 +67,38 @@ export function classifyAddress(info: AddressInfo): AddressType {
   return "Other Contract";
 }
 
+// How a doc refers to the address:
+//   address — the doc writes the 0x/base58 address literally (addressRefs).
+//   name    — the doc names the contract by its CHAIN_LOG key (e.g.
+//             MCD_PAUSE_PROXY) but not the address itself.
+//   both    — the doc does both.
+export type MentionVia = "address" | "name" | "both";
+
 // A single Atlas doc that mentions the address.
 export interface AddressDocRef {
   id: string; // doc UUID — the stable identity, used for the app link
   docNo: string;
   title: string;
   type: string;
+  via: MentionVia;
 }
+
+// A doc reference before its `via` is resolved (same fields, minus via).
+type DocMeta = Omit<AddressDocRef, "via">;
+
+// A CHAIN_LOG key worth scanning prose for is a SCREAMING_SNAKE registry key
+// (MCD_PAUSE_PROXY, OPTIMISM_DAI_BRIDGE, ALLOCATOR_SPARK_A_VAULT). Bare token
+// symbols (USDS, DAI, ETH, USDC) are excluded — they appear throughout the
+// Atlas as prose and would flood the report with non-contract mentions.
+export function isContractKey(chainlogId: string): boolean {
+  return chainlogId.includes("_");
+}
+
+export const MENTION_VIA_LABEL: Record<MentionVia, string> = {
+  address: "address",
+  name: "chainlog name",
+  both: "address + name",
+};
 
 export interface OnchainAddressRow {
   address: string; // normalized key (lowercase EVM / base58 Solana)
@@ -92,24 +117,68 @@ export interface OnchainAddressRow {
   docs: AddressDocRef[]; // every mentioning doc, sorted by doc_no
 }
 
+const meta = (d: AtlasNode): DocMeta => ({ id: d.id, docNo: d.doc_no, title: d.title, type: d.type });
+const byDocNo = (a: DocMeta, b: DocMeta) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true });
+
 // address (lowercased) → the docs whose addressRefs include it.
-function buildAddrToDocs(docs: Record<string, AtlasNode>): Map<string, AddressDocRef[]> {
-  const map = new Map<string, AddressDocRef[]>();
+function buildAddrToDocs(docs: Record<string, AtlasNode>): Map<string, DocMeta[]> {
+  const map = new Map<string, DocMeta[]>();
   for (const d of Object.values(docs)) {
     for (const raw of d.addressRefs ?? []) {
       const key = raw.toLowerCase();
       const list = map.get(key) ?? [];
       // A doc lists each address once in addressRefs, but guard against dupes.
-      if (!list.some((r) => r.id === d.id)) {
-        list.push({ id: d.id, docNo: d.doc_no, title: d.title, type: d.type });
-      }
+      if (!list.some((r) => r.id === d.id)) list.push(meta(d));
       map.set(key, list);
     }
   }
-  for (const list of map.values()) {
-    list.sort((a, b) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true }));
+  return map;
+}
+
+const RE_ESCAPE = /[.*+?^${}()|[\]\\]/g;
+
+// CHAIN_LOG key → the docs whose content names that key as a whole word. One
+// combined-regex pass over all doc content (word boundaries treat the
+// underscores inside a key as internal, so MCD_VAT never matches MCD_VAT_X).
+function buildNameToDocs(
+  docs: Record<string, AtlasNode>,
+  names: Set<string>,
+): Map<string, DocMeta[]> {
+  const map = new Map<string, DocMeta[]>();
+  if (names.size === 0) return map;
+  const re = new RegExp(
+    `\\b(${[...names].map((n) => n.replace(RE_ESCAPE, "\\$&")).join("|")})\\b`,
+    "g",
+  );
+  for (const d of Object.values(docs)) {
+    const content = d.content ?? "";
+    if (!content) continue;
+    re.lastIndex = 0;
+    const hits = new Set<string>();
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(content))) hits.add(m[1]);
+    for (const name of hits) {
+      const list = map.get(name) ?? [];
+      list.push(meta(d));
+      map.set(name, list);
+    }
   }
   return map;
+}
+
+// Merge the address-referenced docs and the chainlog-name-referenced docs for a
+// single address into one `via`-tagged, doc_no-sorted list.
+function mergeDocRefs(addrDocs: DocMeta[], nameDocs: DocMeta[]): AddressDocRef[] {
+  const byId = new Map<string, { m: DocMeta; addr: boolean; name: boolean }>();
+  for (const m of addrDocs) byId.set(m.id, { m, addr: true, name: false });
+  for (const m of nameDocs) {
+    const e = byId.get(m.id);
+    if (e) e.name = true;
+    else byId.set(m.id, { m, addr: false, name: true });
+  }
+  return [...byId.values()]
+    .map(({ m, addr, name }) => ({ ...m, via: (addr && name ? "both" : addr ? "address" : "name") as MentionVia }))
+    .sort(byDocNo);
 }
 
 // Sort key: chain, then type (by ADDRESS_TYPES order), then the human label.
@@ -124,8 +193,22 @@ export function buildOnchainAddressRows(
   const addrToDocs = buildAddrToDocs(docs);
   const typeRank = new Map(ADDRESS_TYPES.map((t, i) => [t, i]));
 
+  // Scan prose for the contract-key-shaped chainlog names present in the map,
+  // so a doc that names MCD_PAUSE_PROXY without its address is still counted.
+  const contractKeys = new Set(
+    Object.values(addrMap)
+      .map((i) => i.chainlogId)
+      .filter((id): id is string => !!id && isContractKey(id)),
+  );
+  const nameToDocs = buildNameToDocs(docs, contractKeys);
+
   const rows: OnchainAddressRow[] = Object.entries(addrMap).map(([address, info]) => {
     const key = address.toLowerCase();
+    const addrDocs = addrToDocs.get(key) ?? addrToDocs.get(address) ?? [];
+    const nameDocs =
+      info.chainlogId && isContractKey(info.chainlogId)
+        ? (nameToDocs.get(info.chainlogId) ?? [])
+        : [];
     return {
       address,
       rowKey: `${address}|${info.chain}`,
@@ -140,7 +223,7 @@ export function buildOnchainAddressRows(
       roles: info.roles ?? [],
       aliases: info.aliases ?? [],
       expectedTokens: info.expectedTokens ?? [],
-      docs: addrToDocs.get(key) ?? addrToDocs.get(address) ?? [],
+      docs: mergeDocRefs(addrDocs, nameDocs),
     };
   });
 
@@ -186,6 +269,7 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
     "Doc No",
     "Doc Title",
     "Doc Type",
+    "Mention Via",
     "Doc UUID",
     "Atlas Link",
   ];
@@ -203,11 +287,11 @@ export function onchainAddressRowsToCSV(rows: readonly OnchainAddressRow[]): str
       r.explorerUrl,
     ];
     if (r.docs.length === 0) {
-      body.push([...base, "", "", "", "", ""]);
+      body.push([...base, "", "", "", "", "", ""]);
       continue;
     }
     for (const d of r.docs) {
-      body.push([...base, d.docNo, d.title, d.type, d.id, atlasUrl(d.id)]);
+      body.push([...base, d.docNo, d.title, d.type, MENTION_VIA_LABEL[d.via], d.id, atlasUrl(d.id)]);
     }
   }
   return toCSV(headers, body);

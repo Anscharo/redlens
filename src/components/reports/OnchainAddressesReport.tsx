@@ -107,8 +107,10 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
         </h1>
         <p className="text-sm text-tan-3 mb-5">
           Every on-chain address the Atlas mentions — with its CHAIN_LOG name, associated owner,
-          chain, type, and the docs it appears in. The Atlas assigns each address a single canonical
-          chain, so an address used on more than one chain lists all its mentions on one row.
+          chain, type, and the docs it appears in, including docs that name a contract only by its
+          chainlog key (tagged <span className="mono text-tan-3">chainlog name</span>) without its
+          address. The Atlas assigns each address a single canonical chain, so an address used on
+          more than one chain lists all its mentions on one row.
           {rows.length > 0 && (
             <span className="mono text-[11px] ml-2">{rows.length} addresses</span>
           )}

@@ -20,8 +20,29 @@ export function TypePill({ t }: { t: AddressType }) {
   );
 }
 
+// Marker beside a doc that references the address only by its CHAIN_LOG name
+// (or by both name and address) rather than the raw address literal.
+function ViaTag({ via }: { via: OnchainAddressRow["docs"][number]["via"] }) {
+  if (via === "address") return null;
+  const label = via === "name" ? "chainlog name" : "+ name";
+  return (
+    <span
+      className="mono text-[9px] text-tan-3 border border-dashed border-[var(--border)] rounded px-1 ml-1 align-middle whitespace-nowrap"
+      title={
+        via === "name"
+          ? "This doc names the contract by its chainlog key, not the address itself"
+          : "This doc references both the address and its chainlog key"
+      }
+    >
+      {label}
+    </span>
+  );
+}
+
 // The "Docs mentioned in" cell — one app link per mentioning doc, rendered as
 // `A.1.2 — Title`. Each link targets the doc by UUID (atlasHref), never doc_no.
+// A doc that only names the contract by its chainlog key carries a "chainlog
+// name" tag.
 export function DocsCell({ row, rq }: { row: OnchainAddressRow; rq: ReportQuery }) {
   if (row.docs.length === 0) {
     return <span className="mono text-[10px] text-tan-3">(no mentions)</span>;
@@ -40,6 +61,7 @@ export function DocsCell({ row, rq }: { row: OnchainAddressRow; rq: ReportQuery 
             </span>{" "}
             <Highlight text={d.title} rq={rq} />
           </AtlasLink>
+          <ViaTag via={d.via} />
         </li>
       ))}
     </ul>
