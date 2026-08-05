@@ -62,6 +62,15 @@ describe("classifyAddress", () => {
       "Other Contract",
     );
   });
+  it("hasCode overrides isContract=false to Other Contract for an unverified contract", () => {
+    expect(classifyAddress(info({ roles: ["delegate"], isContract: false }), true)).toBe("Other Contract");
+  });
+  it("hasCode=false confirms EOA even without a checked isContract flag", () => {
+    expect(classifyAddress(info({ roles: ["delegate"], isContract: false }), false)).toBe("EOA");
+  });
+  it("hasCode=null (not yet checked) falls back to isContract", () => {
+    expect(classifyAddress(info({ roles: ["delegate"], isContract: false }), null)).toBe("EOA");
+  });
 });
 
 describe("buildOnchainAddressRows", () => {
@@ -221,6 +230,7 @@ describe("balances", () => {
     "0xaaa|ethereum": {
       chain: "ethereum",
       checkedAt: "2026-08-05T09:00:00.000Z",
+      hasCode: null,
       balances: {
         ETH: { raw: "1000000000000000000", decimals: 18 },
         USDS: { raw: "2500000000000000000000", decimals: 18 },

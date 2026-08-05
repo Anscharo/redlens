@@ -60,16 +60,23 @@ const SKY_SYSTEM_ROLES = new Set([
 //   Multisig  — the Atlas tags it, or it's a Gnosis Safe proxy.
 //   Token     — the Atlas tags it a token / underlying collateral asset.
 //   Sky        — it's in the Sky chainlog, or a contract holding a Sky-system role.
-//   EOA       — not a contract on-chain.
+//   EOA       — no on-chain bytecode.
 //   Other      — a contract we can't place more precisely (e.g. a VoteDelegate).
-export function classifyAddress(info: AddressInfo): AddressType {
+//
+// info.isContract actually means "Etherscan-verified contract" (build-addresses.mjs:
+// isContract = Boolean(etherscanName)) — an unverified contract reads `false` there
+// too. hasCode is the real eth_getCode signal from the balances refresh (null before
+// the first refresh, or for addresses the atlas already had verified); it overrides
+// isContract when present so an unverified contract lands in "Other", not "EOA".
+export function classifyAddress(info: AddressInfo, hasCode?: boolean | null): AddressType {
   const roles = info.roles ?? [];
   const has = (r: string) => roles.includes(r);
   if (has("multisig") || info.etherscanName === "SafeProxy") return "Multisig";
   if (has("token") || has("underlying-asset")) return "Token";
   if (info.chainlogId || (info.isContract && roles.some((r) => SKY_SYSTEM_ROLES.has(r))))
     return "Sky Internal Contract";
-  if (!info.isContract) return "EOA";
+  const isContract = hasCode ?? info.isContract;
+  if (!isContract) return "EOA";
   return "Other Contract";
 }
 
@@ -243,7 +250,7 @@ export function buildOnchainAddressRows(
       address,
       rowKey: `${address}|${info.chain}`,
       chain: info.chain,
-      type: classifyAddress(info),
+      type: classifyAddress(info, bal?.hasCode),
       chainlogId: info.chainlogId ?? null,
       owner: info.entityLabel ?? null,
       etherscanName: info.etherscanName ?? null,

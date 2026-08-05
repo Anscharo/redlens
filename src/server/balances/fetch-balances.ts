@@ -34,12 +34,19 @@ export interface AddressInput {
   address: string;
   chain: string;
   expectedTokens: string[];
+  // Etherscan-verified-contract flag (atlas_addresses.is_contract). Verified
+  // contracts skip the eth_getCode check below — only addresses this reads as
+  // `false` are ambiguous (could be a real EOA, or an unverified contract).
+  isContract?: boolean;
 }
 
 export interface BalanceResult {
   address: string;
   chain: string;
   balances: BalanceMap;
+  // Ground-truth eth_getCode result, only present when isContract was false
+  // (see planCodeChecks) — undefined means "not checked this sweep".
+  hasCode?: boolean;
 }
 
 // Per-chain RPC override: RPC_URL_<CHAIN> (e.g. RPC_URL_BASE), ETH_RPC_URL for
@@ -110,12 +117,46 @@ export function assembleBalances(
   return out;
 }
 
-// Fetch every balance for the addresses on ONE chain via a batched multicall.
-async function fetchChain(chain: string, inputs: AddressInput[]): Promise<Map<string, BalanceMap>> {
-  const rpc = rpcFor(chain);
-  if (!rpc || !NATIVE_TOKEN[chain]) return new Map(); // unsupported chain — skip
+// Pure: addresses on this chain worth an eth_getCode check — those Etherscan
+// didn't verify (isContract false/undefined), deduplicated and lowercased.
+// Verified contracts don't need it; unsupported chains yield nothing.
+export function planCodeChecks(chain: string, inputs: AddressInput[]): string[] {
+  if (!NATIVE_TOKEN[chain]) return [];
+  const out = new Set<string>();
+  for (const inp of inputs) {
+    if (inp.isContract) continue;
+    out.add(inp.address.toLowerCase());
+  }
+  return [...out];
+}
 
-  const client = createPublicClient({ transport: http(rpc, { timeout: 20_000, retryCount: 3, retryDelay: 400 }) });
+// Pure: zip eth_getCode results back onto their addresses. Empty/absent code
+// ("0x", null, a failed call) means no bytecode — a real EOA.
+export function assembleCodeResults(
+  addresses: string[],
+  codes: (string | null | undefined)[],
+): Map<string, boolean> {
+  const out = new Map<string, boolean>();
+  for (let i = 0; i < addresses.length; i++) {
+    out.set(addresses[i], !!codes[i] && codes[i] !== "0x");
+  }
+  return out;
+}
+
+// Fetch every balance for the addresses on ONE chain via a batched multicall,
+// plus an eth_getCode check for addresses Etherscan didn't verify (batched via
+// the transport's JSON-RPC batching — multicall3 can't carry getCode, it's a
+// state query, not a contract call).
+async function fetchChain(
+  chain: string,
+  inputs: AddressInput[],
+): Promise<{ balances: Map<string, BalanceMap>; codeResults: Map<string, boolean> }> {
+  const rpc = rpcFor(chain);
+  if (!rpc || !NATIVE_TOKEN[chain]) return { balances: new Map(), codeResults: new Map() }; // unsupported chain — skip
+
+  const client = createPublicClient({
+    transport: http(rpc, { timeout: 20_000, retryCount: 3, retryDelay: 400, batch: { batchSize: BATCH, wait: 16 } }),
+  });
   const { calls, meta } = planChainCalls(chain, inputs);
 
   const results: MulticallResult[] = [];
@@ -125,7 +166,18 @@ async function fetchChain(chain: string, inputs: AddressInput[]): Promise<Map<st
     const r = await client.multicall({ contracts: slice as any, allowFailure: true, multicallAddress: MULTICALL3 });
     results.push(...(r as MulticallResult[]));
   }
-  return assembleBalances(meta, results);
+  const balances = assembleBalances(meta, results);
+
+  const codeAddrs = planCodeChecks(chain, inputs);
+  let codeResults = new Map<string, boolean>();
+  if (codeAddrs.length > 0) {
+    const codes = await Promise.all(
+      codeAddrs.map((a) => client.getCode({ address: a as `0x${string}` }).catch(() => undefined)),
+    );
+    codeResults = assembleCodeResults(codeAddrs, codes);
+  }
+
+  return { balances, codeResults };
 }
 
 // Fetch balances for many addresses across chains (one multicall per chain).
@@ -147,9 +199,11 @@ export async function fetchBalances(
   const out: BalanceResult[] = [];
   for (const [chain, list] of byChain) {
     try {
-      const res = await fetchChain(chain, list);
-      for (const [address, balances] of res) {
-        if (Object.keys(balances).length > 0) out.push({ address, chain, balances });
+      const { balances, codeResults } = await fetchChain(chain, list);
+      for (const [address, bal] of balances) {
+        if (Object.keys(bal).length === 0) continue;
+        const hasCode = codeResults.get(address);
+        out.push({ address, chain, balances: bal, ...(hasCode !== undefined ? { hasCode } : {}) });
       }
     } catch (e) {
       console.warn(`balances: chain ${chain} failed (${(e as Error).message}) — skipped`);

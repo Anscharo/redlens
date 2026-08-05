@@ -15,6 +15,10 @@ export interface AddressBalances {
   chain: string;
   checkedAt: string | null; // ISO timestamp this address was last fetched
   balances: BalanceMap;
+  // Ground-truth eth_getCode check, only run for addresses Etherscan didn't
+  // verify (see classifyAddress in onchainAddressesIndex.ts). null = not
+  // checked yet — the report falls back to the atlas's isContract flag.
+  hasCode: boolean | null;
 }
 
 export interface BalancesResponse {

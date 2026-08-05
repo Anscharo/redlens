@@ -13,6 +13,7 @@ interface CachedRow {
   chain: string;
   balances: BalanceMap | string | null;
   balances_checked_at: string | Date | null;
+  has_code: boolean | null;
 }
 
 // A prior version of doRefresh() double-JSON-encoded balances before the
@@ -46,7 +47,7 @@ function toMs(v: string | null): number | null {
 // Read the stored balances and shape the wire response. `refreshed` is caller-set.
 async function readCache(refreshed: boolean): Promise<BalancesResponse> {
   const rows = await sql<CachedRow[]>`
-    SELECT address, chain, balances, balances_checked_at
+    SELECT address, chain, balances, balances_checked_at, has_code
     FROM atlas_addresses
     WHERE balances IS NOT NULL
   `;
@@ -62,6 +63,7 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
       chain: r.chain,
       checkedAt,
       balances: normalizeBalances(r.balances),
+      hasCode: r.has_code,
     };
   }
   const lastCheckedAt = lastMs != null ? new Date(lastMs).toISOString() : null;
@@ -82,13 +84,16 @@ async function doRefresh(): Promise<BalancesResponse> {
   if (!refreshAllowed(lastMs, Date.now())) return readCache(false);
 
   // Load every address to price. expected_tokens is jsonb (parsed to an array).
-  const rows = await sql<{ address: string; chain: string; expected_tokens: string[] | null }[]>`
-    SELECT address, chain, expected_tokens FROM atlas_addresses
+  const rows = await sql<
+    { address: string; chain: string; expected_tokens: string[] | null; is_contract: boolean | null }[]
+  >`
+    SELECT address, chain, expected_tokens, is_contract FROM atlas_addresses
   `;
   const inputs: AddressInput[] = rows.map((r) => ({
     address: r.address,
     chain: r.chain,
     expectedTokens: Array.isArray(r.expected_tokens) ? r.expected_tokens : [],
+    isContract: r.is_contract ?? false,
   }));
 
   const results = await fetchBalances(inputs);
@@ -96,9 +101,13 @@ async function doRefresh(): Promise<BalancesResponse> {
     const now = new Date().toISOString();
     await sql.begin(async (tx) => {
       for (const r of results) {
+        // has_code: COALESCE onto the existing value when this sweep didn't check
+        // this address (r.hasCode undefined → null placeholder) — a verified
+        // contract's has_code stays whatever it was rather than being cleared.
         await tx`
           UPDATE atlas_addresses
-          SET balances = ${r.balances}::jsonb, balances_checked_at = ${now}
+          SET balances = ${r.balances}::jsonb, balances_checked_at = ${now},
+              has_code = COALESCE(${r.hasCode ?? null}, has_code)
           WHERE address = ${r.address} AND chain = ${r.chain}
         `;
       }
