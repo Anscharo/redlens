@@ -17,26 +17,26 @@ import { ModFrequencyTimeline } from "./ModFrequencyTimeline";
 afterEach(cleanup);
 
 const BUCKETS: ModTimelineBucket[] = [
-  { month: "2026-01", label: "Jan '26", count: 4 },
-  { month: "2026-02", label: "Feb '26", count: 0 },
-  { month: "2026-03", label: "Mar '26", count: 9 },
+  { key: "2026-01", label: "Jan '26", count: 4 },
+  { key: "2026-02", label: "Feb '26", count: 0 },
+  { key: "2026-03", label: "Mar '26", count: 9 },
 ];
 
 describe("ModFrequencyTimeline", () => {
-  it("renders one bar column per month with its label", () => {
-    render(<ModFrequencyTimeline buckets={BUCKETS} />);
+  it("renders one bar column per bucket with its label", () => {
+    render(<ModFrequencyTimeline buckets={BUCKETS} title="Semantic edits by month" />);
     expect(screen.getByText("Jan '26")).toBeInTheDocument();
     expect(screen.getByText("Feb '26")).toBeInTheDocument();
     expect(screen.getByText("Mar '26")).toBeInTheDocument();
   });
 
   it("renders nothing for an empty bucket list", () => {
-    const { container } = render(<ModFrequencyTimeline buckets={[]} />);
+    const { container } = render(<ModFrequencyTimeline buckets={[]} title="Semantic edits by month" />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders the chart heading", () => {
-    render(<ModFrequencyTimeline buckets={BUCKETS} />);
-    expect(screen.getByText("Semantic edits by month")).toBeInTheDocument();
+  it("renders the given title", () => {
+    render(<ModFrequencyTimeline buckets={BUCKETS} title="Semantic edits by week" />);
+    expect(screen.getByText("Semantic edits by week")).toBeInTheDocument();
   });
 });

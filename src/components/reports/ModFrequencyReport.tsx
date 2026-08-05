@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
-import { loadModCounts, loadModTimeline } from "../../lib/history";
+import {
+  loadModCounts,
+  loadModTimeline,
+  type TimelineGranularity,
+  type ModTimelinePeriodRow,
+  type ModTimelineCommitRow,
+} from "../../lib/history";
 import { loadGraph } from "../../lib/graph";
 import { buildOwningAgentMap } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
@@ -12,7 +18,9 @@ import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportF
 import {
   buildModFrequencyRows,
   buildModCountHistogram,
-  buildModTimelineBuckets,
+  buildModTimelineMonthBuckets,
+  buildModTimelineWeekBuckets,
+  buildModTimelineCommitBuckets,
   groupModFrequencyRows,
   matchesFrequency,
   modFrequencyRowsToCSV,
@@ -49,6 +57,15 @@ const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATOR
 const thresholdCodec = urlInt(FREQUENCY_DEFAULT);
 const tabCodec = urlEnum<ModFrequencyTab>("timeline", MOD_FREQUENCY_TABS);
 
+const TIMELINE_GRANULARITIES: readonly TimelineGranularity[] = ["month", "week", "commit"];
+const granularityCodec = urlEnum<TimelineGranularity>("month", TIMELINE_GRANULARITIES);
+const GRANULARITY_DISPLAY: Record<TimelineGranularity, string> = { month: "month", week: "week", commit: "commit" };
+const GRANULARITY_TITLE: Record<TimelineGranularity, string> = {
+  month: "Semantic edits by month",
+  week: "Semantic edits by week",
+  commit: "Semantic edits by commit",
+};
+
 // Pill text bakes in the live threshold — "Least Frequent (≤1 edit)" reads as
 // a preview of what the pill currently selects, not just a static label.
 function comparatorDisplay(threshold: number): Record<FrequencyComparator, string> {
@@ -67,14 +84,48 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   // on this deploy" ({ value: null }) — loadModCounts resolves null for both a
   // backend-less deploy and a transient failure, never rejects.
   const counts = useLoaded(() => loadModCounts().then((value) => ({ value })));
-  // soft: the timeline chart is a supplementary view (when edits happened, not
-  // which docs match the filter) — unlike counts, its absence has no warning
-  // banner, it just shows an empty-state message on its tab.
-  const timelineRows = useLoaded(loadModTimeline, { soft: true });
-  const timelineBuckets = useMemo(
-    () => (timelineRows ? buildModTimelineBuckets(timelineRows) : null),
-    [timelineRows],
-  );
+  const [granularity, setGranularity] = useUrlState("tgran", granularityCodec);
+  // Manual fetch (not useLoaded, which only ever loads once on mount) so
+  // switching granularity re-fetches — loadModTimeline caches per granularity,
+  // so flipping back to one already seen resolves instantly, no refetch.
+  // soft-equivalent: the timeline chart is a supplementary view (when edits
+  // happened, not which docs match the filter) — unlike counts, its absence
+  // has no warning banner, it just shows an empty-state message on its tab.
+  //
+  // Rows are tagged with the granularity they were fetched for, not just
+  // stored bare: `granularity` (state) flips to its new value on the render
+  // right after a pill click, one render before this effect's fetch resolves
+  // and updates the rows — during that gap, bare stale rows would carry the
+  // OLD granularity's shape (e.g. period rows with no `sha`/`seq`) while
+  // `timelineBuckets` below reads the NEW granularity, calling the wrong
+  // builder on mismatched data. Comparing `data.granularity` against the
+  // live `granularity` closes that window instead of racing it.
+  const [timelineData, setTimelineData] = useState<{
+    granularity: TimelineGranularity;
+    rows: (ModTimelinePeriodRow | ModTimelineCommitRow)[] | null;
+  } | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadModTimeline(granularity).then((rows) => {
+      if (live) setTimelineData({ granularity, rows });
+    });
+    return () => {
+      live = false;
+    };
+  }, [granularity]);
+  const timelineBuckets = useMemo(() => {
+    if (!timelineData || timelineData.granularity !== granularity || !timelineData.rows) return null;
+    const { rows } = timelineData;
+    // Cast is safe by construction: `rows` was fetched for this exact
+    // granularity (the check above), which determines the server's row shape.
+    if (granularity === "week") return buildModTimelineWeekBuckets(rows as ModTimelinePeriodRow[]);
+    if (granularity === "commit") return buildModTimelineCommitBuckets(rows as ModTimelineCommitRow[]);
+    return buildModTimelineMonthBuckets(rows as ModTimelinePeriodRow[]);
+  }, [timelineData, granularity]);
+  const onGranularity = (g: TimelineGranularity) => {
+    setGranularity(g);
+    track("report_filter", { report: "mod-frequency", filter_type: "timeline_granularity", value: g, active: g !== "month" });
+  };
   // soft: the A.6-by-agent sub-split is an enrichment, not core to the report —
   // a graph load failure shouldn't block the rest of the page. Always reads the
   // live-atlas base (like AtlasView's cousins/relations), so hide it in preview
@@ -228,12 +279,24 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
           <p className="mono text-base text-tan-3">loading…</p>
         ) : (
           <>
-            {tab === "timeline" &&
-              (timelineBuckets ? (
-                <ModFrequencyTimeline buckets={timelineBuckets} />
-              ) : (
-                <p className="mono text-xs text-tan-3">No edit timeline available.</p>
-              ))}
+            {tab === "timeline" && (
+              <>
+                <div className="mb-4">
+                  <CategoryPills
+                    categories={TIMELINE_GRANULARITIES}
+                    active={granularity}
+                    onToggle={onGranularity}
+                    label="Group by"
+                    display={GRANULARITY_DISPLAY}
+                  />
+                </div>
+                {timelineBuckets ? (
+                  <ModFrequencyTimeline buckets={timelineBuckets} title={GRANULARITY_TITLE[granularity]} />
+                ) : (
+                  <p className="mono text-xs text-tan-3">No edit timeline available.</p>
+                )}
+              </>
+            )}
 
             {tab === "sum-by" && (
               <>

@@ -191,7 +191,7 @@ const server = Bun.serve({
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
     /* v8 ignore start -- request glue; handleModCounts/handleModTimeline are unit-tested in mod-counts.test.ts/mod-timeline.test.ts */
     "/api/history/mod-counts": () => handleModCounts(),
-    "/api/history/mod-timeline": () => handleModTimeline(),
+    "/api/history/mod-timeline": (req) => handleModTimeline(req as Request),
     /* v8 ignore stop */
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
 

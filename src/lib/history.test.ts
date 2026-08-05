@@ -259,7 +259,7 @@ describe("loadModTimeline", () => {
 
   it("resolves the parsed rows and caches on success", async () => {
     let calls = 0;
-    const data = [{ month: "2026-01", count: 5 }];
+    const data = [{ period: "2026-01", count: 5 }];
     globalThis.fetch = vi.fn(async () => {
       calls++;
       return { ok: true, status: 200, json: async () => data } as Response;
@@ -271,6 +271,39 @@ describe("loadModTimeline", () => {
     expect(first).toEqual(data);
     expect(second).toBe(first);
     expect(calls).toBe(1);
+  });
+
+  it("defaults to granularity=month and fetches a distinct URL per granularity", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return { ok: true, status: 200, json: async () => [] } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    await loadModTimeline();
+    await loadModTimeline("week");
+    await loadModTimeline("commit");
+    expect(urls).toEqual([
+      "/api/history/mod-timeline?granularity=month",
+      "/api/history/mod-timeline?granularity=week",
+      "/api/history/mod-timeline?granularity=commit",
+    ]);
+  });
+
+  it("caches each granularity independently — switching and back doesn't refetch", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => [] } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    await loadModTimeline("month");
+    await loadModTimeline("week");
+    await loadModTimeline("month"); // cached — no new fetch
+    await loadModTimeline("week"); // cached — no new fetch
+    expect(calls).toBe(2);
   });
 
   it("a 404 (no history DB on this deploy) resolves null and IS cached", async () => {

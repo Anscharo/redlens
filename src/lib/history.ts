@@ -202,35 +202,60 @@ export function loadModCounts(): Promise<ModCount[] | null> {
   return modCountsCache.catch(() => null);
 }
 
-/** One calendar month's semantic-edit tally from GET /api/history/mod-timeline.
- *  Months with no matching edit are absent — the Modification Frequency
- *  report's timeline chart zero-fills the gaps client-side. */
-export interface ModTimelineRow {
-  /** "YYYY-MM". */
-  month: string;
+export type TimelineGranularity = "month" | "week" | "commit";
+
+/** One time bucket's semantic-edit tally from GET /api/history/mod-timeline
+ *  (granularity=month|week). Periods with no matching edit are absent — the
+ *  Modification Frequency report's timeline chart zero-fills the gaps
+ *  client-side. */
+export interface ModTimelinePeriodRow {
+  /** "YYYY-MM" (month) or the Monday-start date of the week, "YYYY-MM-DD". */
+  period: string;
   count: number;
 }
 
-let modTimelineCache: Promise<ModTimelineRow[] | null> | null = null;
+/** One commit's semantic-edit tally from GET /api/history/mod-timeline
+ *  (granularity=commit). No zero-fill — an absent commit touched no matching
+ *  content, not a gap in a continuous axis. */
+export interface ModTimelineCommitRow {
+  seq: number;
+  sha: string;
+  /** null for a severed-era commit, which carries only a date window. */
+  date: string | null;
+  count: number;
+}
 
-/** Fetch the semantic-edits-per-month timeline. Same contract as
- *  loadModCounts: 404 (no backend) resolves null and IS cached; any other
- *  failure resolves null for this call but evicts the cache so the next
- *  visit retries. Callers never see a rejection. */
-export function loadModTimeline(): Promise<ModTimelineRow[] | null> {
-  if (!modTimelineCache) {
-    modTimelineCache = fetch("/api/history/mod-timeline")
+// Cached per granularity (like loadGraph's per-base cache in ./graph.ts) —
+// each mode is a genuinely different dataset, not a filtered view of one.
+const modTimelineCache = new Map<
+  TimelineGranularity,
+  Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null>
+>();
+
+/** Fetch the semantic-edits timeline at the given granularity. Same contract
+ *  as loadModCounts: 404 (no backend) resolves null and IS cached; any other
+ *  failure resolves null for this call but evicts that granularity's cache
+ *  entry so the next visit retries. Callers never see a rejection. Returns the
+ *  row shape matching the requested granularity — narrow with the granularity
+ *  value at the call site (see ModFrequencyReport's timelineBuckets). */
+export function loadModTimeline(
+  granularity: TimelineGranularity = "month",
+): Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null> {
+  let p = modTimelineCache.get(granularity);
+  if (!p) {
+    p = fetch(`/api/history/mod-timeline?granularity=${granularity}`)
       .then((r) => {
-        if (r.ok) return r.json() as Promise<ModTimelineRow[]>;
+        if (r.ok) return r.json() as Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[]>;
         if (r.status === 404) return null; // stable: no backend
         throw new Error(`mod-timeline fetch failed with status ${r.status}`); // transient
       })
       .catch((err) => {
-        modTimelineCache = null;
+        modTimelineCache.delete(granularity);
         throw err;
       });
+    modTimelineCache.set(granularity, p);
   }
-  return modTimelineCache.catch(() => null);
+  return p.catch(() => null);
 }
 
 /** Max ids per /api/history/batch request — shared by the server (hard cap on

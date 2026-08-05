@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 import type { AtlasNode } from "../../types";
-import type { ModCount, ModTimelineRow } from "../../lib/history";
+import type { ModCount, ModTimelinePeriodRow, ModTimelineCommitRow, TimelineGranularity } from "../../lib/history";
 import type { GraphData } from "../../lib/graphData";
 import { DataSourceContext, type DataSource } from "../../lib/dataSource";
 
@@ -47,16 +47,30 @@ const COUNTS: ModCount[] = [
   { docId: "busy2", count: 8, lastModified: "2026-03-01", contentCount: 8 },
 ];
 
-const TIMELINE: ModTimelineRow[] = [
-  { month: "2026-01", count: 3 },
-  { month: "2026-03", count: 6 },
+const TIMELINE_MONTH: ModTimelinePeriodRow[] = [
+  { period: "2026-01", count: 3 },
+  { period: "2026-03", count: 6 },
+];
+const TIMELINE_WEEK: ModTimelinePeriodRow[] = [
+  { period: "2026-01-05", count: 2 },
+  { period: "2026-01-19", count: 1 },
+];
+const TIMELINE_COMMIT: ModTimelineCommitRow[] = [
+  { seq: 10, sha: "abc1234def5", date: "2026-01-05", count: 2 },
+  { seq: 11, sha: "def5678abc1", date: "2026-01-06", count: 1 },
 ];
 
 const EMPTY_GRAPH: GraphData = { participants: [], instances: [], invocations: [], primitives: [], edges: [] };
 
 let docsImpl = () => Promise.resolve(DOCS);
 let countsImpl = (): Promise<ModCount[] | null> => Promise.resolve(COUNTS);
-let timelineImpl = (): Promise<ModTimelineRow[] | null> => Promise.resolve(TIMELINE);
+let timelineImpl = (
+  granularity?: TimelineGranularity,
+): Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null> => {
+  if (granularity === "week") return Promise.resolve(TIMELINE_WEEK);
+  if (granularity === "commit") return Promise.resolve(TIMELINE_COMMIT);
+  return Promise.resolve(TIMELINE_MONTH);
+};
 let graphImpl = (): Promise<GraphData> => Promise.resolve(EMPTY_GRAPH);
 let capturedBase: string | null = null;
 
@@ -68,7 +82,7 @@ vi.mock("../../lib/docs", () => ({
 }));
 vi.mock("../../lib/history", () => ({
   loadModCounts: () => countsImpl(),
-  loadModTimeline: () => timelineImpl(),
+  loadModTimeline: (granularity?: TimelineGranularity) => timelineImpl(granularity),
 }));
 vi.mock("../../lib/graph", () => ({
   loadGraph: () => graphImpl(),
@@ -81,7 +95,11 @@ afterEach(() => {
   window.history.pushState({}, "", "/");
   docsImpl = () => Promise.resolve(DOCS);
   countsImpl = () => Promise.resolve(COUNTS);
-  timelineImpl = () => Promise.resolve(TIMELINE);
+  timelineImpl = (granularity) => {
+    if (granularity === "week") return Promise.resolve(TIMELINE_WEEK);
+    if (granularity === "commit") return Promise.resolve(TIMELINE_COMMIT);
+    return Promise.resolve(TIMELINE_MONTH);
+  };
   graphImpl = () => Promise.resolve(EMPTY_GRAPH);
   capturedBase = null;
   vi.restoreAllMocks();
@@ -123,6 +141,37 @@ describe("ModFrequencyReport timeline tab", () => {
     render(<ModFrequencyReport query="" mode="broad" />);
     expect(await screen.findByText("No edit timeline available.")).toBeInTheDocument();
     expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
+  });
+
+  it("switches to week granularity and re-fetches", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("week"));
+    expect(await screen.findByText("Semantic edits by week")).toBeInTheDocument();
+    // TIMELINE_WEEK has Jan 5 and Jan 19 2026 — Jan 12 should be zero-filled.
+    expect(screen.getByText("Jan 5 '26")).toBeInTheDocument();
+    expect(screen.getByText("Jan 12 '26")).toBeInTheDocument();
+    expect(screen.getByText("Jan 19 '26")).toBeInTheDocument();
+  });
+
+  it("switches to commit granularity and re-fetches, with no zero-fill", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("commit"));
+    expect(await screen.findByText("Semantic edits by commit")).toBeInTheDocument();
+    expect(screen.getByText("2026-01-05")).toBeInTheDocument();
+    expect(screen.getByText("2026-01-06")).toBeInTheDocument();
+  });
+
+  it("caches per granularity — switching back to month doesn't show stale week data", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("week"));
+    await screen.findByText("Semantic edits by week");
+    fireEvent.click(screen.getByText("month"));
+    expect(await screen.findByText("Semantic edits by month")).toBeInTheDocument();
+    expect(screen.getByText("Jan '26")).toBeInTheDocument();
+    expect(screen.queryByText("Jan 5 '26")).not.toBeInTheDocument();
   });
 });
 
