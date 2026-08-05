@@ -237,7 +237,8 @@ export function buildOnchainAddressRows(
       info.chainlogId && isContractKey(info.chainlogId)
         ? (nameToDocs.get(info.chainlogId) ?? [])
         : [];
-    const bal = balancesByAddress[key] ?? balancesByAddress[address];
+    // Keyed by address|chain, matching atlas_addresses' PRIMARY KEY (address, chain) — see balances.ts.
+    const bal = balancesByAddress[`${key}|${info.chain}`] ?? balancesByAddress[`${address}|${info.chain}`];
     return {
       address,
       rowKey: `${address}|${info.chain}`,

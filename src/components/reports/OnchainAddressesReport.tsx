@@ -114,7 +114,17 @@ export function OnchainAddressesReport({ query, mode }: { query: string; mode: R
   );
 
   const nextRefreshMs = bal?.nextRefreshAt ? Date.parse(bal.nextRefreshAt) : 0;
-  const canRefresh = !refreshing && Date.now() >= nextRefreshMs;
+  // Re-render once the cooldown boundary passes — canRefresh otherwise only
+  // updates on the next unrelated render (a tab left open would never re-enable
+  // the button on its own).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const delay = nextRefreshMs - Date.now();
+    if (delay <= 0) return;
+    const t = setTimeout(() => setNow(Date.now()), delay);
+    return () => clearTimeout(t);
+  }, [nextRefreshMs]);
+  const canRefresh = !refreshing && now >= nextRefreshMs;
   const onRefresh = async () => {
     setRefreshing(true);
     setBalError(null);

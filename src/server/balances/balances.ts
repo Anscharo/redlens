@@ -11,8 +11,24 @@ import { fetchBalances, type AddressInput } from "./fetch-balances.ts";
 interface CachedRow {
   address: string;
   chain: string;
-  balances: BalanceMap | null;
+  balances: BalanceMap | string | null;
   balances_checked_at: string | Date | null;
+}
+
+// A prior version of doRefresh() double-JSON-encoded balances before the
+// ::jsonb cast, storing a JSON *string* scalar instead of an object. Parse it
+// transparently on read so already-corrupted rows self-heal without a manual
+// DB fix — the next successful refresh overwrites them with a real object.
+function normalizeBalances(v: BalanceMap | string | null): BalanceMap {
+  if (!v) return {};
+  if (typeof v === "string") {
+    try {
+      return JSON.parse(v) as BalanceMap;
+    } catch {
+      return {};
+    }
+  }
+  return v;
 }
 
 function toIso(v: string | Date | null): string | null {
@@ -40,10 +56,12 @@ async function readCache(refreshed: boolean): Promise<BalancesResponse> {
     const checkedAt = toIso(r.balances_checked_at);
     const ms = toMs(checkedAt);
     if (ms != null && (lastMs == null || ms > lastMs)) lastMs = ms;
-    addresses[r.address.toLowerCase()] = {
+    // Keyed by address|chain, matching atlas_addresses' PRIMARY KEY (address, chain) —
+    // the same address can be cached with different balances on different chains.
+    addresses[`${r.address.toLowerCase()}|${r.chain}`] = {
       chain: r.chain,
       checkedAt,
-      balances: r.balances ?? {},
+      balances: normalizeBalances(r.balances),
     };
   }
   const lastCheckedAt = lastMs != null ? new Date(lastMs).toISOString() : null;
@@ -80,7 +98,7 @@ async function doRefresh(): Promise<BalancesResponse> {
       for (const r of results) {
         await tx`
           UPDATE atlas_addresses
-          SET balances = ${JSON.stringify(r.balances)}::jsonb, balances_checked_at = ${now}
+          SET balances = ${r.balances}::jsonb, balances_checked_at = ${now}
           WHERE address = ${r.address} AND chain = ${r.chain}
         `;
       }

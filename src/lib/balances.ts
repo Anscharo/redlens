@@ -25,7 +25,9 @@ export interface BalancesResponse {
   // Whether the request that produced this response actually fetched fresh data
   // (POST only; false when the hourly gate short-circuited or on GET).
   refreshed: boolean;
-  // address(lowercase) → its balances. Absent addresses have no cached balances.
+  // "address(lowercase)|chain" → its balances (see atlas_addresses' PRIMARY KEY
+  // (address, chain) — the same address can be cached per-chain). Absent
+  // address|chain pairs have no cached balances.
   addresses: Record<string, AddressBalances>;
 }
 

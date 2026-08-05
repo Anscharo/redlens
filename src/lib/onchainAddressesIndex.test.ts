@@ -218,7 +218,7 @@ describe("balances", () => {
   const docs = { d1: node({ id: "d1", doc_no: "A.1", title: "T", addressRefs: ["0xAAA"] }) };
   const addrMap = { "0xaaa": info({ chain: "ethereum", entityLabel: "X" }) };
   const balances = {
-    "0xaaa": {
+    "0xaaa|ethereum": {
       chain: "ethereum",
       checkedAt: "2026-08-05T09:00:00.000Z",
       balances: {
