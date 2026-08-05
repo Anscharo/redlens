@@ -1,5 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { planCodeChecks, applyCodeResults } from "./address-code.mjs";
+import { describe, it, expect, vi } from "vitest";
+import { planCodeChecks, applyCodeResults, applyOnchainCode } from "./address-code.mjs";
+
+// Stands in for the RPC, injected via applyOnchainCode's `clientFor`. Built
+// fresh per test — a shared spy reset in beforeEach leaks a pending rejection
+// from one test into the next.
+function fakeRpc(impl) {
+  const getCode = vi.fn(impl);
+  return { getCode, clientFor: () => ({ getCode }) };
+}
 
 describe("planCodeChecks", () => {
   it("groups EVM addresses by chain", () => {
@@ -61,5 +69,69 @@ describe("applyCodeResults", () => {
     const s = applyCodeResults(a, ["0xbbb"], [{ ok: true, code: "0x60806040" }]);
     expect(s.corrected).toBe(0);
     expect(a["0xbbb"].isContract).toBe(true);
+  });
+});
+
+describe("applyOnchainCode", () => {
+  it("checks every chain, rewrites isContract, and counts non-EVM addresses as skipped", async () => {
+    const addresses = {
+      "0xaaa": { chain: "ethereum", isContract: false }, // unverified contract
+      "0xbbb": { chain: "ethereum", isContract: true }, // agrees
+      "0xccc": { chain: "base", isContract: false }, // genuinely an EOA
+      SoLaNaAddr: { chain: "solana", isContract: false }, // no RPC → untouched
+    };
+    const { getCode, clientFor } = fakeRpc(({ address }) =>
+      Promise.resolve(address === "0xccc" ? undefined : "0x60806040"),
+    );
+
+    const log = vi.fn();
+    const totals = await applyOnchainCode(addresses, { log, clientFor });
+
+    expect(getCode).toHaveBeenCalledTimes(3); // solana never queried
+    expect(addresses["0xaaa"].isContract).toBe(true);
+    expect(addresses["0xbbb"].isContract).toBe(true);
+    expect(addresses["0xccc"].isContract).toBe(false);
+    expect(addresses.SoLaNaAddr.isContract).toBe(false);
+    expect(totals).toEqual({ checked: 3, failed: 0, corrected: 1, skipped: 1 });
+    // One line per chain checked.
+    expect(log).toHaveBeenCalledTimes(2);
+  });
+
+  it("survives an RPC rejection, leaving that address on its explorer value", async () => {
+    const addresses = { "0xaaa": { chain: "ethereum", isContract: true } };
+    // Lazy: mockRejectedValue builds the rejected promise up front, which reads
+    // as an unhandled rejection before applyOnchainCode ever attaches .catch.
+    const { clientFor } = fakeRpc(() => Promise.reject(new Error("rpc down")));
+
+    const totals = await applyOnchainCode(addresses, { log: vi.fn(), clientFor });
+
+    expect(addresses["0xaaa"].isContract).toBe(true);
+    expect(totals).toEqual({ checked: 0, failed: 1, corrected: 0, skipped: 0 });
+  });
+
+  it("batches a list longer than one request's worth", async () => {
+    // BATCH is 50 internally; 120 addresses must all still be checked.
+    const addresses = Object.fromEntries(
+      Array.from({ length: 120 }, (_, i) => [
+        `0x${i.toString(16).padStart(40, "0")}`,
+        { chain: "ethereum", isContract: false },
+      ]),
+    );
+    const { getCode, clientFor } = fakeRpc(() => Promise.resolve("0x60806040"));
+
+    const totals = await applyOnchainCode(addresses, { log: vi.fn(), clientFor });
+
+    expect(getCode).toHaveBeenCalledTimes(120);
+    expect(totals.checked).toBe(120);
+    expect(totals.corrected).toBe(120);
+  });
+
+  it("does nothing and logs nothing when no address has a usable chain", async () => {
+    const log = vi.fn();
+    const { getCode, clientFor } = fakeRpc(() => Promise.resolve("0x60806040"));
+    const totals = await applyOnchainCode({ SoLaNaAddr: { chain: "solana" } }, { log, clientFor });
+    expect(getCode).not.toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    expect(totals).toEqual({ checked: 0, failed: 0, corrected: 0, skipped: 1 });
   });
 });

@@ -66,11 +66,29 @@ export function applyCodeResults(addresses, addrList, results) {
   return { checked, failed, corrected };
 }
 
+/** A viem client for one chain's public RPC. */
+function defaultClientFor(chain) {
+  return createPublicClient({
+    transport: http(CHAIN_RPC[chain], {
+      timeout: 20_000,
+      retryCount: 3,
+      retryDelay: 400,
+      batch: { batchSize: BATCH, wait: 16 },
+    }),
+  });
+}
+
 /**
  * Replace every EVM address's `isContract` with the on-chain getCode answer.
  * Mutates `addresses` in place and returns aggregate stats.
+ *
+ * `clientFor` is injectable so tests can supply a fake without mocking the viem
+ * module — only `getCode` is used.
  */
-export async function applyOnchainCode(addresses, { log = console.log } = {}) {
+export async function applyOnchainCode(
+  addresses,
+  { log = console.log, clientFor = defaultClientFor } = {},
+) {
   const byChain = planCodeChecks(addresses);
   const totals = { checked: 0, failed: 0, corrected: 0, skipped: 0 };
 
@@ -79,14 +97,7 @@ export async function applyOnchainCode(addresses, { log = console.log } = {}) {
   }
 
   for (const [chain, addrList] of byChain) {
-    const client = createPublicClient({
-      transport: http(CHAIN_RPC[chain], {
-        timeout: 20_000,
-        retryCount: 3,
-        retryDelay: 400,
-        batch: { batchSize: BATCH, wait: 16 },
-      }),
-    });
+    const client = clientFor(chain);
     const results = [];
     for (let i = 0; i < addrList.length; i += BATCH) {
       const slice = addrList.slice(i, i + BATCH);
