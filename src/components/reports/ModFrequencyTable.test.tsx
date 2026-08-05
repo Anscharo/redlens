@@ -18,6 +18,7 @@ function row(over: Partial<ModFrequencyRow>): ModFrequencyRow {
     sectionTitle: "A Scope",
     count: 3,
     lastModified: "2026-01-05",
+    agent: null,
     ...over,
   };
 }
