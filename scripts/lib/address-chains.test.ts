@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectChain, detectChainOrNull, chainFromLabel } from "./address-chains.mjs";
+import { detectChain, detectChainOrNull, detectChainSignal, chainFromLabel } from "./address-chains.mjs";
 
 // Helper: place the address in `text` and detect at its offset, the way the
 // build passes call it.
@@ -110,5 +110,24 @@ describe("chainFromLabel", () => {
 
   it("matches on word boundaries, so 'Database' is not the Base chain", () => {
     expect(chainFromLabel("Database Migration Parameters")).toBeNull();
+  });
+});
+
+describe("detectChainSignal — how firmly the chain was named", () => {
+  it("reports an 'on <chain> is' clause as explicit", () => {
+    const text = `The address of the Grove Arbitrum governance relay receiver on Robinhood Chain is: \`${A}\`.`;
+    expect(detectChainSignal(text, text.indexOf(A))).toEqual({ chain: "robinhood", explicit: true });
+  });
+
+  it("reports a bare nearby keyword as not explicit", () => {
+    // "between Ethereum Mainnet and Base is" states no single chain, so the
+    // heading is still allowed to offer a rival candidate.
+    const text = `The CCTP TokenMessenger for transferring USDC between Ethereum Mainnet and Base is: \`${A}\``;
+    expect(detectChainSignal(text, text.indexOf(A))).toEqual({ chain: "ethereum", explicit: false });
+  });
+
+  it("is null when nothing names a chain", () => {
+    const text = `The address of the ALM_PROXY contract is: \`${A}\``;
+    expect(detectChainSignal(text, text.indexOf(A))).toBeNull();
   });
 });

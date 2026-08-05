@@ -21,7 +21,7 @@ import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
   normalizeAddress,
-  detectChainOrNull,
+  detectChainSignal,
   chainFromLabel,
 } from "../lib/address-chains.mjs";
 
@@ -53,17 +53,25 @@ function extractAddresses(content, titleChain) {
     // Prose first, then the doc's heading context, then the ethereum default.
     // `detected` records whether anything actually named a chain, so the
     // cross-doc merge below can tell a stated ethereum from a defaulted one.
-    //
-    // When prose and heading name DIFFERENT chains the doc is genuinely
-    // ambiguous — "Grove Arbitrum governance relay receiver on Robinhood
-    // Chain" is titled for one and bodied for the other. Both become
-    // candidates and build-addresses settles it on-chain; guessing here just
-    // moves the coin flip earlier.
     if (!result[key]) {
-      const prose = detectChainOrNull(content, m.index);
-      const detected = prose ?? titleChain;
-      const candidates =
-        prose && titleChain && titleChain !== prose ? [prose, titleChain] : detected ? [detected] : [];
+      const sig = detectChainSignal(content, m.index);
+      const detected = sig?.chain ?? titleChain;
+      // An explicit "on <chain> is" clause settles it outright — the heading is
+      // then just the entity's name, and a name may well contain a different
+      // chain word: the "Grove Arbitrum governance relay receiver on Robinhood
+      // Chain" is named for the governance it relays, and only exists on
+      // Robinhood. Offering arbitrum as a rival candidate there re-creates
+      // exactly the confusion the clause was written to prevent.
+      //
+      // Absent an explicit clause, prose and heading are both guesses. Keep
+      // both and let build-addresses settle it against the chains themselves.
+      const candidates = sig?.explicit
+        ? [sig.chain]
+        : sig?.chain && titleChain && titleChain !== sig.chain
+          ? [sig.chain, titleChain]
+          : detected
+            ? [detected]
+            : [];
       result[key] = { chain: detected ?? "ethereum", candidates, detected: detected != null };
     }
   }

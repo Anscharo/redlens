@@ -200,19 +200,24 @@ export function chainFromLabel(label) {
 }
 
 /**
- * The chain named in the prose around an address, or null when the prose names
- * none. Callers supply the fallback — build-index walks the doc's own title and
- * its doc_no ancestors before defaulting, because atomized docs routinely put
- * the chain in the heading ("ALM Proxy (Optimism) Contract") and never repeat it
- * in the one-line body.
+ * The chain named in the prose around an address plus how firmly it was named,
+ * or null when the prose names none.
+ *
+ * `explicit` means the author wrote an "on <chain> is" clause about this exact
+ * address, which settles the question outright. Anything else is a keyword that
+ * merely appeared nearby, which a heading may legitimately override or rival.
+ * Callers supply the fallback — build-index walks the doc's own title and its
+ * doc_no ancestors before defaulting, because atomized docs routinely put the
+ * chain in the heading ("ALM Proxy (Optimism) Contract") and never repeat it in
+ * the one-line body.
  */
-export function detectChainOrNull(content, matchIndex) {
+export function detectChainSignal(content, matchIndex) {
   // Pass 1: explicit "on X is" clause in the 120 chars immediately before.
   const tight = content.slice(Math.max(0, matchIndex - 120), matchIndex);
   const phrase = explicitChainPhrase(tight);
   if (phrase) {
     const hit = firstChainIn(phrase);
-    if (hit) return hit;
+    if (hit) return { chain: hit, explicit: true };
   }
 
   // Pass 2/3: first chain keyword (registry order) in the tight (120 chars) then
@@ -224,10 +229,14 @@ export function detectChainOrNull(content, matchIndex) {
     const w = content.slice(Math.max(0, matchIndex - win), matchIndex);
     const scoped = afterLastAddress(w);
     const hit = (scoped !== null ? firstChainIn(scoped) : null) ?? firstChainIn(w);
-    if (hit) return hit;
+    if (hit) return { chain: hit, explicit: false };
   }
 
   return null;
+}
+
+export function detectChainOrNull(content, matchIndex) {
+  return detectChainSignal(content, matchIndex)?.chain ?? null;
 }
 
 export function detectChain(content, matchIndex) {

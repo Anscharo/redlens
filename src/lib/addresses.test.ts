@@ -29,10 +29,10 @@ function serve(atlas: Record<string, unknown>, onChain: Record<string, unknown>)
 describe("loadAddresses chain resolution", () => {
 
   it("prefers the on-chain resolved chain over the atlas's reading", async () => {
-    // The atlas guessed arbitrum from the doc title; build-addresses probed both
-    // candidates and found the address only on robinhood.
+    // The atlas offered both readings of an ambiguous doc; build-addresses
+    // probed them and found the address only on robinhood.
     serve(
-      { [ADDR]: { chain: "arbitrum", roles: [], aliases: [], expectedTokens: [] } },
+      { [ADDR]: { chain: "arbitrum", chains: ["arbitrum", "robinhood"], roles: [], aliases: [], expectedTokens: [] } },
       { [ADDR]: { chain: "robinhood", isContract: true, isProxy: false } },
     );
     const out = await loadAddresses("/b1/");
@@ -78,5 +78,18 @@ describe("loadAddresses chain resolution", () => {
     expect(out[ADDR].roles).toEqual([]);
     expect(out[ADDR].aliases).toEqual([]);
     expect(out[ADDR].expectedTokens).toEqual([]);
+  });
+
+  it("ignores a stale addresses.json chain the atlas no longer claims", async () => {
+    // addresses.json is not atlas-versioned, so it lags a rebuild. Here the
+    // atlas has since settled on robinhood alone (the doc's "on Robinhood Chain
+    // is" clause), and the lagging arbitrum value must not resurrect it.
+    serve(
+      { [ADDR]: { chain: "robinhood", chains: ["robinhood"], roles: [], aliases: [], expectedTokens: [] } },
+      { [ADDR]: { chain: "arbitrum", isContract: false, isProxy: false } },
+    );
+    const out = await loadAddresses("/b6/");
+    expect(out[ADDR].chain).toBe("robinhood");
+    expect(out[ADDR].explorerUrl).not.toContain("arbiscan");
   });
 });

@@ -5,6 +5,8 @@ import { EXPLORER } from "./explorer";
 
 type AtlasAddr = {
   chain: string;
+  /** Every chain the atlas places this address on; always contains `chain`. */
+  chains?: string[];
   roles: string[];
   entityLabel?: string;
   aliases: string[];
@@ -51,12 +53,17 @@ export function loadAddresses(base: string = liveAtlasBase()): Promise<Record<st
         // build-graph enriches it). Default to empty arrays so a partial build
         // still renders without throwing.
         const aliases = [...new Set([...(a.aliases ?? []), ...aliasCandidates])].sort();
-        // The on-chain chain wins over the atlas's reading of it. build-addresses
+        // The on-chain chain wins over the atlas's reading of it: build-addresses
         // probes every chain an ambiguous doc could mean and settles on the one
-        // the address actually exists on (address-code.mjs
-        // resolvePresentChains), so `a.chain` may still be the pre-probe guess.
-        // Falls back to the atlas when the address isn't in addresses.json yet.
-        const chain = o.chain ?? a.chain;
+        // the address actually exists on (address-code.mjs resolvePresentChains),
+        // so `a.chain` may still be the pre-probe guess.
+        //
+        // But only while the atlas still offers it. addresses.json is NOT
+        // atlas-versioned, so it lags a rebuild — and a lagging value would
+        // resurrect a chain the atlas has since stopped claiming, which is the
+        // exact confusion the probe exists to remove.
+        const atlasChains = a.chains?.length ? a.chains : [a.chain];
+        const chain = o.chain && atlasChains.includes(o.chain) ? o.chain : a.chain;
         out[addr] = {
           chain,
           explorerUrl: (EXPLORER[chain] ?? EXPLORER.ethereum) + addr,
