@@ -103,11 +103,12 @@ async function renameConversation(
 }
 
 // DELETE cascades messages (and via messages, message_checks) with the
-// conversation. Known tradeoff, accepted for v1: getWindowUsage
-// (rate-limit.ts) sums exactly those cascaded rows, so a rate-limited user
-// can delete conversations to reclaim quota. Inherent to exposing delete at
-// all; the real fix is a separate append-only usage ledger that delete
-// doesn't touch — out of scope here.
+// conversation. That deliberately does NOT refund rate-limit quota: usage is
+// accounted in the append-only `usage_events` ledger (017_usage_events.sql),
+// whose conversation_id is ON DELETE SET NULL, so the row survives this
+// delete and getWindowUsage still counts it. Do not add explicit
+// usage_events cleanup here — that would hand a throttled user a way to
+// reclaim quota by deleting conversations.
 async function deleteConversation(userId: string, id: string): Promise<boolean> {
   const deleted = (await sql`
     DELETE FROM conversations WHERE id = ${id} AND user_id = ${userId} RETURNING id

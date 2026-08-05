@@ -54,7 +54,7 @@ mock.module("../db.ts", () => ({
 // Dynamic imports: everything that (transitively) reaches "../db.ts" must be
 // imported AFTER the mock.module registration above, or it captures the real
 // module (static imports are hoisted before any module-body code runs).
-const { messageExceedsLimit, MAX_MESSAGE_BYTES, handleChat } = await import("./chat.ts");
+const { messageExceedsLimit, MAX_MESSAGE_BYTES, handleChat, persistAssistant } = await import("./chat.ts");
 const { config } = await import("../config.ts");
 const { signSession, SESSION_COOKIE } = await import("../session.ts");
 const { loadIndexes, setIndexes } = await import("../retrieval/indexes.ts");
@@ -168,7 +168,7 @@ describe("handleChat", () => {
       ...Array.from({ length: opts.priorAssistants ?? 0 }, () => ({ role: "assistant", content: "prior answer" })),
     ];
     sqlHandlers.push((text) => {
-      if (text.includes("SUM(COALESCE")) return [{ tokens: opts.tokens ?? 0 }];
+      if (text.includes("FROM usage_events")) return [{ tokens: opts.tokens ?? 0 }];
       if (text.includes("conversations WHERE id")) return [{ id: convId }];
       if (text.includes("INSERT INTO conversations")) return [{ id: convId }];
       if (text.includes("SELECT role, content FROM messages")) return history;
@@ -222,7 +222,7 @@ describe("handleChat", () => {
 
   it("429s with rate_limited when the user's token window is exceeded", async () => {
     sqlHandlers.push((text) => {
-      if (text.includes("SUM(COALESCE")) return [{ tokens: config.rateLimitTokensPerWindow }];
+      if (text.includes("FROM usage_events")) return [{ tokens: config.rateLimitTokensPerWindow }];
       return undefined;
     });
     const res = await handleChat(await authedRequest({ message: "hi" }));
@@ -235,7 +235,7 @@ describe("handleChat", () => {
 
   it("404s conversation_not_found when the given conversationId isn't owned by the caller", async () => {
     sqlHandlers.push((text) => {
-      if (text.includes("SUM(COALESCE")) return [{ tokens: 0 }];
+      if (text.includes("FROM usage_events")) return [{ tokens: 0 }];
       if (text.includes("conversations WHERE id")) return []; // not found / not owned
       return undefined;
     });
@@ -439,5 +439,79 @@ describe("handleChat", () => {
     // positional argument, or stuffing a signal into `obs` (typed
     // ErrorContext, which has no signal field), is a compile error, not
     // something that needs a runtime test.
+  });
+});
+
+// Quota-reclaim exploit fix (migration 017_usage_events.sql): a rate-limited
+// user used to be able to DELETE /api/chat/conversations/:id to cascade away
+// the messages/message_checks rows getWindowUsage SUMmed, resetting their
+// window. usage_events is the append-only ledger that delete can't touch.
+// persistAssistant is called directly here (not through the full HTTP +
+// streaming + harness path handleChat exercises above) — getting a non-null
+// checksMeta token count out of the real verifier/advisor flow would require
+// standing up the same kind of network-mock machinery as the "titling" block,
+// just to prove a one-line summation; a direct call is the precise tool.
+describe("persistAssistant — usage ledger", () => {
+  afterEach(() => {
+    queryLog = [];
+    sqlHandlers = [];
+  });
+
+  function installPersistHandlers() {
+    sqlHandlers.push((text) => {
+      if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) return [{ id: "msg-1" }];
+      if (text.includes("UPDATE conversations")) return [];
+      if (text.includes("INSERT INTO message_checks")) return [];
+      if (text.includes("INSERT INTO usage_events")) return [];
+      return undefined;
+    });
+  }
+
+  it("inserts exactly one usage_events row per turn, summing done.usage AND the harness (checksMeta) tokens", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done",
+      content: "answer",
+      usage: { input: 100, output: 40 },
+      generationId: "gen-1",
+      toolCalls: [],
+      lengthCapped: false,
+      transcript: [],
+      checksMeta: [
+        // A verifier row (real tokens) — this is the harness spend that must
+        // NOT be dropped by only summing done.usage.
+        {
+          kind: "verify", model: "verifier/model", action: null, verdict: null,
+          overall: "pass", inputTokens: 30, outputTokens: 10,
+          generationId: "gen-verify", latencyMs: 50,
+        },
+        // A deterministic round_checks row — always present, always
+        // null-tokened; must contribute 0, not NaN/throw.
+        {
+          kind: "round_checks", model: null, action: null, verdict: null,
+          overall: null, inputTokens: null, outputTokens: null,
+          generationId: null, latencyMs: null,
+        },
+      ],
+    };
+
+    await persistAssistant("user-1", "conv-1", done as any, 123);
+
+    const usageInserts = queryLog.filter((q) => q.text.includes("INSERT INTO usage_events"));
+    expect(usageInserts).toHaveLength(1);
+    // (input: 100 + 30 = 130, output: 40 + 10 = 50) — not just done.usage's 100/40.
+    expect(usageInserts[0].values).toEqual(["user-1", "conv-1", 130, 50]);
+  });
+
+  it("still inserts a usage_events row (zero harness tokens) when checksMeta is empty", async () => {
+    installPersistHandlers();
+    const done = {
+      type: "done", content: "answer", usage: { input: 7, output: 3 },
+      generationId: "gen-2", toolCalls: [], lengthCapped: false, transcript: [], checksMeta: [],
+    };
+    await persistAssistant("user-1", "conv-2", done as any, 10);
+    const usageInserts = queryLog.filter((q) => q.text.includes("INSERT INTO usage_events"));
+    expect(usageInserts).toHaveLength(1);
+    expect(usageInserts[0].values).toEqual(["user-1", "conv-2", 7, 3]);
   });
 });

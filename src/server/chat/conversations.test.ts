@@ -309,6 +309,24 @@ describe("DELETE /api/chat/conversations/:id", () => {
     const again = await handleConversations(req("/api/chat/conversations/c-1", { method: "DELETE", cookie: token }));
     expect(again.status).toBe(404);
   });
+
+  // Quota-reclaim exploit fix (migration 017_usage_events.sql): delete used
+  // to be able to reset a rate-limited user's quota by cascading away the
+  // messages/message_checks rows getWindowUsage summed. deleteConversation
+  // (conversations.ts) issues exactly one statement — DELETE FROM
+  // conversations — and never reaches into usage_events itself; the ledger's
+  // safety comes from its schema (conversation_id is ON DELETE SET NULL,
+  // never CASCADE — see the migration), not from application code. This
+  // guards against a regression where someone "helpfully" adds explicit
+  // usage_events cleanup to deleteConversation, which would reopen the hole.
+  it("emits no query touching usage_events — the ledger's safety is the FK, not app code", async () => {
+    const token = await authed();
+    seedConversation({ id: "c-1", user_id: "user-1" });
+    seedMessage({ conversation_id: "c-1", role: "assistant" });
+
+    await handleConversations(req("/api/chat/conversations/c-1", { method: "DELETE", cookie: token }));
+    expect(queryLog.some((q) => q.text.includes("usage_events"))).toBe(false);
+  });
 });
 
 describe("unmatched method", () => {

@@ -202,7 +202,7 @@ export async function handleChat(req: Request): Promise<Response> {
         }
         // Don't persist an empty assistant row for an aborted turn.
         if (done && !req.signal.aborted) {
-          await persistAssistant(convId, done, Date.now() - startedAt, obs);
+          await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
           // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
           // total; see title.ts). Unawaited + .catch()'d so it can never
           // surface as an unhandled rejection or delay the stream's own
@@ -237,7 +237,14 @@ export async function handleChat(req: Request): Promise<Response> {
   return new Response(stream, { headers });
 }
 
-async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext): Promise<void> {
+// Exported for direct unit testing (chat.test.ts) — constructing a full
+// HarnessDone via the real HTTP+streaming+harness path just to exercise the
+// usage_events summation would require standing up the verifier/advisor
+// network flow the "titling" describe block below already shows is a heavy
+// lift; this function's persistence logic is worth testing directly instead.
+export async function persistAssistant(
+  userId: string, convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext,
+): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
   const inserted = (await sql`
@@ -248,18 +255,29 @@ async function persistAssistant(convId: string, done: HarnessDone, latencyMs: nu
   `) as { id: string }[];
 
   // Harness (verifier/advisor) tokens count toward the conversation totals and
-  // the rate-limit window (via message_checks) — never toward the messages row,
-  // which stays conversationalist-only so the two sums don't double-count.
+  // the rate-limit window (via the usage_events row below) — never toward the
+  // messages row, which stays conversationalist-only so the sums don't
+  // double-count.
   const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
   const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
 
-  // The checks rows and the conversations totals update are independent
-  // writes (neither depends on the other's result) — run them concurrently
-  // instead of stacking round trips on the client's already-completed answer.
-  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time race
-  // against the message_checks migration): the assistant message above is
-  // already durably persisted, so a telemetry-row failure must never surface
-  // as a turn-level error to a client that already has the complete answer.
+  // The checks rows, the conversations totals update, and the usage ledger
+  // write are independent writes (none depends on another's result) — run
+  // them concurrently instead of stacking round trips on the client's
+  // already-completed answer. persistChecks degrades to a logged no-op on
+  // failure (e.g. a boot-time race against the message_checks migration): the
+  // assistant message above is already durably persisted, so a telemetry-row
+  // failure must never surface as a turn-level error to a client that already
+  // has the complete answer.
+  //
+  // The usage_events insert is deliberately in THIS awaited Promise.all, NOT
+  // inside persistChecks' .catch()-wrapped, fire-and-forget path — that path
+  // exists so a telemetry failure can't surface after the answer shipped, but
+  // usage_events is quota accounting (see rate-limit.ts), not telemetry. If it
+  // lived there, a telemetry failure would silently drop the quota write and
+  // the reclaim-by-delete exploit would come back in a different form (this
+  // turn's tokens just never counted). One row per turn, same two sums the
+  // conversations totals UPDATE below already computes.
   await Promise.all([
     persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
       captureError(err, obs, { stage: "persist_checks" });
@@ -271,6 +289,10 @@ async function persistAssistant(convId: string, done: HarnessDone, latencyMs: nu
           query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
           updated_at = now()
       WHERE id = ${convId}
+    `,
+    sql`
+      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
+      VALUES (${userId}, ${convId}, ${done.usage.input + checkIn}, ${done.usage.output + checkOut})
     `,
   ]);
 }

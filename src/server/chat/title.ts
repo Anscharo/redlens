@@ -129,10 +129,11 @@ export async function titleConversation(
       UPDATE conversations SET title = ${title}, title_source = 'auto'
       WHERE id = ${convId} AND title_source <> 'user'
     `;
-    // Deliberately NO message_checks row: rate-limit.ts's getWindowUsage sums
-    // that table into the caller's token window. Titling is a system-
-    // initiated call, not part of the user's turn — a row here would
-    // silently charge the user's rate-limit budget for it.
+    // Deliberately NO usage_events row (nor a message_checks one): titling is
+    // a system-initiated call, not part of the user's turn, so it must not
+    // charge the caller's rate-limit budget. getWindowUsage (rate-limit.ts)
+    // reads only usage_events, and persistAssistant is the sole writer —
+    // staying out of both is what keeps this call off the user's tab.
   } catch (err) {
     // On ANY failure (transport error, timeout, a provider 400 on
     // response_format) the existing title is left untouched. This path is
