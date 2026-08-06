@@ -82,6 +82,37 @@ describe("Modal", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  // Regression: React applies a child's autoFocus during commit, before
+  // effects run. Capturing "previously focused" in an effect therefore
+  // captured the autoFocused child itself, and restoring to an element that
+  // was about to unmount left focus stranded on <body>. The real feedback
+  // modal autofocuses its textarea, so only a fixture with autoFocus catches
+  // this — the plain-button case above passes either way.
+  it("restores focus to the trigger even when a child autofocuses", () => {
+    function Harness() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div>
+          <button onClick={() => setOpen(true)}>Trigger</button>
+          {open && (
+            <Modal label="L" onClose={() => setOpen(false)}>
+              <textarea autoFocus placeholder="msg" />
+            </Modal>
+          )}
+        </div>
+      );
+    }
+    render(<Harness />);
+    const trigger = screen.getByText("Trigger");
+    trigger.focus();
+
+    fireEvent.click(trigger);
+    expect(screen.getByPlaceholderText("msg")).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("focuses an element inside the card on mount", () => {
     render(
       <Modal label="L" onClose={() => {}}>

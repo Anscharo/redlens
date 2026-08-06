@@ -18,12 +18,20 @@ const FOCUSABLE_SELECTOR =
 // that's 40+ lines and needs its own tests; deferred until it's needed.
 export function Modal({ label, onClose, width, children }: ModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const restoreRef = useRef<HTMLElement | null>(null);
+
+  // Capture the to-restore element during RENDER, not in the effect below.
+  // React applies a child's autoFocus during commit, which is before effects
+  // run — so by effect time document.activeElement is already that child, and
+  // capturing there would "restore" focus to an element we're about to unmount
+  // (leaving focus on <body>). Render happens before any of that.
+  if (restoreRef.current === null) {
+    restoreRef.current = document.activeElement as HTMLElement | null;
+  }
 
   // Initial focus + focus restore. Runs once on mount so it doesn't refire
-  // (and re-capture "previously focused") if onClose's identity changes.
+  // if onClose's identity changes.
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-
     const card = cardRef.current;
     // Skip if a child already focused itself (e.g. via autoFocus) — don't steal it.
     if (card && !card.contains(document.activeElement)) {
@@ -35,6 +43,7 @@ export function Modal({ label, onClose, width, children }: ModalProps) {
     }
 
     return () => {
+      const previouslyFocused = restoreRef.current;
       if (previouslyFocused && document.body.contains(previouslyFocused)) {
         previouslyFocused.focus();
       }
