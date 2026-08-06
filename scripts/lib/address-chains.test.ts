@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectChain, detectChainOrNull, detectChainSignal, chainFromLabel } from "./address-chains.mjs";
+import { detectChain, detectChainOrNull, detectChainSignal, chainFromLabel, normalizeAddress, annotationWindow, findTableContext } from "./address-chains.mjs";
 
 // Helper: place the address in `text` and detect at its offset, the way the
 // build passes call it.
@@ -129,5 +129,73 @@ describe("detectChainSignal — how firmly the chain was named", () => {
   it("is null when nothing names a chain", () => {
     const text = `The address of the ALM_PROXY contract is: \`${A}\``;
     expect(detectChainSignal(text, text.indexOf(A))).toBeNull();
+  });
+});
+
+describe("normalizeAddress", () => {
+  it("lowercases an EVM address", () => {
+    expect(normalizeAddress(A)).toBe(A.toLowerCase());
+  });
+
+  it("leaves a Solana address's casing alone", () => {
+    const sol = "7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs";
+    expect(normalizeAddress(sol)).toBe(sol);
+  });
+});
+
+describe("annotationWindow", () => {
+  it("slices 300 chars on each side of the address, clamped to content bounds", () => {
+    const content = `${"x".repeat(400)}${A}${"y".repeat(400)}`;
+    const i = content.indexOf(A);
+    const win = annotationWindow(content, i, A.length);
+    expect(win.startsWith("x".repeat(300))).toBe(true);
+    expect(win.endsWith("y".repeat(300))).toBe(true);
+    expect(win).toContain(A);
+  });
+
+  it("clamps at the start/end of content instead of slicing past it", () => {
+    const content = `${A} tail`;
+    const win = annotationWindow(content, 0, A.length);
+    expect(win).toBe(content);
+  });
+});
+
+describe("findTableContext", () => {
+  it("returns null when the address is not inside a pipe-delimited row", () => {
+    const content = `The address is \`${A}\` in prose.`;
+    expect(findTableContext(content, content.indexOf(A))).toBeNull();
+  });
+
+  it("returns null when the matched index sits on a separator row", () => {
+    const content = "| --- | --- |";
+    expect(findTableContext(content, 2)).toBeNull();
+  });
+
+  it("finds the row's cells, header cells, and the address's column index", () => {
+    const content = `| Name | Chain | Address |\n| --- | --- | --- |\n| ALM Proxy | Ethereum | ${A} |`;
+    const ctx = findTableContext(content, content.indexOf(A));
+    expect(ctx).not.toBeNull();
+    expect(ctx.cells).toEqual(["ALM Proxy", "Ethereum", A]);
+    expect(ctx.headers).toEqual(["Name", "Chain", "Address"]);
+    expect(ctx.columnIndex).toBe(2);
+  });
+
+  it("returns empty headers when there's no separator row above (no real header)", () => {
+    const content = `| ALM Proxy | Ethereum | ${A} |`;
+    const ctx = findTableContext(content, content.indexOf(A));
+    expect(ctx.headers).toEqual([]);
+  });
+
+  it("stops walking upward once a non-table line breaks the run", () => {
+    const content = `Some prose above.\n| Name | Address |\n| --- | --- |\n| ALM Proxy | ${A} |`;
+    const ctx = findTableContext(content, content.indexOf(A));
+    expect(ctx.headers).toEqual(["Name", "Address"]);
+  });
+
+  it("walks past multiple prior data rows to find the header above the separator", () => {
+    const content = `| Name | Address |\n| --- | --- |\n| ALM Proxy | ${B} |\n| ALM Vault | ${A} |`;
+    const ctx = findTableContext(content, content.indexOf(A));
+    expect(ctx.headers).toEqual(["Name", "Address"]);
+    expect(ctx.cells).toEqual(["ALM Vault", A]);
   });
 });

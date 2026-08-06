@@ -3,10 +3,22 @@
 // oeaAssessmentIndex.test.ts — oeaAssessmentIndex.ts was a dead re-export
 // shim with no production importers (see FIX 5).
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import type { AtlasNode } from "../types";
 import type { OeaTask } from "./oeaTasks";
 import type { OeaAssessmentArtifact, OeaAssessmentEntry } from "./oeaAssessment";
-import { joinAssessments, summarize, oeaRowsToCSV } from "./oeaReport";
+
+const served = vi.hoisted(() => ({ artifact: null as unknown, fail: null as Error | null }));
+vi.mock("./verify", () => ({
+  fetchJson: () => (served.fail ? Promise.reject(served.fail) : Promise.resolve(served.artifact)),
+  StaleAtlasError: class extends Error {},
+}));
+vi.mock("./atlasBase", () => ({
+  liveAtlasBase: () => "/base/",
+  handledStale: (err: unknown) => err instanceof Error && err.name === "StaleAtlasError",
+}));
+
+import { joinAssessments, summarize, oeaRowsToCSV, createOeaReport, loadOeaReport, oeaCsvRowCount } from "./oeaReport";
 
 const task = (taskKey: string, assessedText: string): OeaTask => ({
   taskKey, uuid: "u1", docNo: "A.1", title: "T", assessedText,
@@ -121,5 +133,93 @@ describe("oeaRowsToCSV", () => {
     const lines = oeaRowsToCSV(rows).split("\r\n");
     expect(lines[1]).toContain("reviews Spark's calculation");
     expect(lines[2]).toContain("reviews Grove's calculation");
+  });
+});
+
+function docsOf(...pairs: [string, string, string][]): Record<string, AtlasNode> {
+  return Object.fromEntries(
+    pairs.map(([uuid, title, docNo]) => [uuid, { id: uuid, title, doc_no: docNo } as AtlasNode]),
+  );
+}
+
+describe("oeaCsvRowCount", () => {
+  it("sums post-expansion row counts across tasks, including collapsed copies", () => {
+    const collapsed: OeaTask = {
+      ...task("t:x|op-duty", "x"),
+      uuid: "rep",
+      docNo: "A.1",
+      copies: [
+        { docNo: "A.1", uuid: "rep", agent: "Spark" },
+        { docNo: "A.2", uuid: "copy2", agent: "Hoku" },
+      ],
+    };
+    const rows = joinAssessments([task("u:u1", "solo"), collapsed], artifact([]));
+    expect(oeaCsvRowCount(rows)).toBe(3);
+  });
+});
+
+describe("createOeaReport", () => {
+  it("collects mechanism uuids from incentives across rows, sorted and deduped", () => {
+    const e1 = { ...entry("u:u1", "Do the thing."), incentives: { rating: "strong" as const, mechanismUuids: ["m2", "m1"], reasoning: "r" } };
+    const e2 = { ...entry("u:u2", "Other"), incentives: { rating: "strong" as const, mechanismUuids: ["m1"], reasoning: "r" } };
+    const report = createOeaReport(
+      [task("u:u1", "Do the thing."), task("u:u2", "Other")],
+      artifact([e1, e2]),
+      docsOf(["m1", "Mechanism One", "A.1.1"], ["m2", "Mechanism Two", "A.1.2"]),
+    );
+    expect(Object.keys(report.mechanisms)).toEqual(["m1", "m2"]);
+    expect(report.mechanisms.m1).toEqual({ uuid: "m1", title: "Mechanism One", docNo: "A.1.1" });
+  });
+
+  it("skips a mechanism uuid that has no matching doc", () => {
+    const e1 = { ...entry("u:u1", "Do the thing."), incentives: { rating: "strong" as const, mechanismUuids: ["missing"], reasoning: "r" } };
+    const report = createOeaReport([task("u:u1", "Do the thing.")], artifact([e1]), {});
+    expect(report.mechanisms).toEqual({});
+  });
+
+  it("carries artifact metadata through and defaults generatedAt to null", () => {
+    const report = createOeaReport([task("u:u1", "x")], artifact([]), {});
+    expect(report.rubricVersion).toBe("r1");
+    expect(report.model).toBe("m");
+    expect(report.generatedAt).toBeNull();
+  });
+
+  it("falls back to null metadata when the artifact itself is null", () => {
+    const report = createOeaReport([task("u:u1", "x")], null, {}, "2026-01-01");
+    expect(report.atlasCommit).toBeNull();
+    expect(report.rubricVersion).toBeNull();
+    expect(report.model).toBeNull();
+    expect(report.generatedAt).toBe("2026-01-01");
+  });
+});
+
+describe("loadOeaReport", () => {
+  it("fetches and caches per base — a second call for the same base doesn't refetch", async () => {
+    served.artifact = artifact([]);
+    served.fail = null;
+    const a = await loadOeaReport("/base-a/");
+    const b = await loadOeaReport("/base-a/");
+    expect(a).toBe(b);
+  });
+
+  it("evicts the cache entry and rethrows on a non-stale error", async () => {
+    served.fail = new Error("boom");
+    await expect(loadOeaReport("/base-b/")).rejects.toThrow("boom");
+    // Cache was evicted, so a follow-up call retries the fetch instead of
+    // replaying the same rejection.
+    served.fail = null;
+    served.artifact = artifact([]);
+    await expect(loadOeaReport("/base-b/")).resolves.toEqual(artifact([]));
+  });
+
+  it("on a stale-atlas error, returns a promise that never settles instead of rejecting", async () => {
+    const stale = new Error("StaleAtlasError: /api/atlas/deadbeef/oea-report.json");
+    stale.name = "StaleAtlasError";
+    served.fail = stale;
+    const raced = await Promise.race([
+      loadOeaReport("/base-c/").then(() => "resolved", () => "rejected"),
+      new Promise((resolve) => setTimeout(() => resolve("pending"), 20)),
+    ]);
+    expect(raced).toBe("pending");
   });
 });
