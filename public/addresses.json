@@ -157,7 +157,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -358,7 +358,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -456,7 +456,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -513,7 +513,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -1951,7 +1951,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -1967,7 +1967,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -1983,7 +1983,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -2102,7 +2102,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -2118,7 +2118,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },
@@ -2158,7 +2158,7 @@
     "chain": "solana",
     "isContract": false,
     "isProxy": false,
-    "accountType": "wallet",
+    "accountType": "pda",
     "programOwner": "11111111111111111111111111111111",
     "programOwnerName": "System Program"
   },

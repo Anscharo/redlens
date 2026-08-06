@@ -162,7 +162,8 @@ Two things that pass through `address-code.mjs` are load-bearing:
 | `accountType` | condition |
 |---|---|
 | `program` | `executable` — `isContract: true`; `isProxy` when owned by the BPF Upgradeable Loader, with the ProgramData account as `implementation` |
-| `wallet` | owner is the System Program — the only true EOA analogue |
+| `wallet` | System-Program-owned **and on-curve** — a real keypair, the only true EOA analogue |
+| `pda` | System-Program-owned but **off-curve**, so no private key can exist for it: a program-derived vault (a Squads vault is one). 10 of the atlas's 13 System-owned addresses are these — only 3 are really keypairs — and calling them EOAs was the original mislabel |
 | `mint` / `token-account` / `token-multisig` | owner is SPL Token or Token-2022; classic sizes are 82 / 165 / 355, and Token-2022 accounts longer than 165 carry an AccountType byte at offset 165 |
 | `program-account` | any other owner — a PDA (controller state, relayer permission configs) |
 | `missing` | the RPC answered `null` — the atlas names an address Solana has never seen |
@@ -176,6 +177,16 @@ Conventions worth keeping:
 - `PROGRAM_NAMES` holds only fixed runtime program ids. Anything else is named from the atlas's own `entityLabel` for that pubkey when it has one (so a PDA reads "owned by Solana ALM Controller Program"), else shown raw — a wrong friendly name is worse than none.
 
 The report's `classifyAddress` reads `accountType` ahead of the EVM fallthrough, mapping it to the `Program` / `Program Account` / `Token` / `EOA` buckets. An atlas `multisig` / `token` role still outranks it.
+
+### Solana balances — `src/server/balances/solana-balances.ts`
+
+SOL plus the SPL mints in `SOLANA_TOKENS` (`src/lib/tokens.ts`), returned in the same `BalanceResult` shape as the EVM path. USDS lands in the report's existing USDS column; SOL, USDT and USDC fall into "Other Balances" simply by not being in `PRIMARY_BALANCE_SYMBOLS`.
+
+- **Token accounts are derived, not looked up.** `getTokenAccountsByOwner` and `getTokenLargestAccounts` are indexed scans PublicNode does not serve — measured, they hang. An associated token account's address is a pure function of (owner, token program, mint), so `scripts/lib/solana-pda.mjs` derives it (base58 + ed25519 curve membership + `findProgramAddress`) and `getMultipleAccounts` reads it like any other account.
+- **`tokenProgram` is a derivation seed**, so a Token-2022 mint's account sits at a different address than a classic SPL one's. Getting it wrong yields a plausible address that simply never exists — silently zero, not an error.
+- **A derived account is only credited once its own data agrees on owner *and* mint.** The derivation is deterministic, so a mismatch means the assumption is wrong, and crediting a balance to the wrong address is the one failure here that is invisible in the report.
+- **An address can itself be a token account** (the atlas documents the ALM Controller's USDC one). Its balance is on the account, not on anything derived from it — hence the `self.owner !== address` branch.
+- `NATIVE_TOKEN` stays EVM-only: it gates the multicall path, and putting SOL in it would route Solana addresses through viem. `SOLANA_NATIVE` is separate for that reason.
 
 `build-addresses` must never write atlas annotation fields into `addresses.json`.
 

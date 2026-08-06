@@ -8,6 +8,7 @@ export type ReportId =
   | "oea-assessment"
   | "risk-rules"
   | "onchain-addresses"
+  | "mod-frequency"
   | "crossview";
 
 export interface AtlasNode {

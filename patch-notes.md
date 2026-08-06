@@ -33,12 +33,16 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-08-05
+## 2026-08-06
 - Added an On-Chain Addresses report listing every address the Atlas mentions — with its chainlog or on-chain name, owner, chain, type, proxy implementation, on-demand ETH/USDS/SKY and token balances, and every document it appears in, including documents that reference a contract only by its chainlog key
+
+## 2026-08-05
+- Added a Modification Frequency report showing semantic edit stats by time, type, and section
 
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
 - Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
+- Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
 
 
 ## 2026-08-03

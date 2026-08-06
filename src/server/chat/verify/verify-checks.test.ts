@@ -13,8 +13,10 @@ import {
   extractQuotedSpans,
   normalizeForMatch,
   findUngroundedAddresses,
+  findUngroundedCitationValues,
   findUntracedNumbers,
   findUngroundedQuotes,
+  findLowOverlapCitations,
   runDeterministicChecks,
 } from "./verify-checks.ts";
 
@@ -131,6 +133,38 @@ test("a standalone attribution line is authoring, not quotation", () => {
   expect(findUngroundedQuotes(listItem, evidence, ix)).toHaveLength(1);
 });
 
+test("a fully-bolded blockquote callout is the model's own words, not a quotation", () => {
+  // The live false positive: an entirely honest answer rendered its bottom line
+  // as a bolded blockquote. A self-authored callout can never appear in the
+  // evidence, so it hard-failed the turn.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  const answer = [
+    "**Short answer:** the atlas defines this in one place.",
+    "",
+    "> The Stability Scope governs the protocol rates",
+    "",
+    `— [Stability Scope](/atlas/${realUuid})`,
+    "",
+    "> **Bottom line: this is my own one-sentence synthesis of the material above, written as a callout rather than a quotation.**",
+  ].join("\n");
+  expect(findUngroundedQuotes(answer, evidence, ix)).toEqual([]);
+});
+
+test("bold does NOT excuse a blockquote that presents itself as source text", () => {
+  // The exemption is a conjunction: fully bold AND no quote marks AND no
+  // citation link. Either marker means the model is presenting source text, so
+  // a genuine invented quote is still caught however it is styled.
+  const evidence = ['{"content":"The Stability Scope governs the protocol rates for all instances."}'];
+  // Quote marks inside the bold → still a quotation claim.
+  expect(findUngroundedQuotes('> **"Facilitators may unilaterally seize treasury funds whenever convenient."**', evidence, ix)).toHaveLength(1);
+  // A citation link on the line → still a quotation claim (attribution path).
+  expect(findUngroundedQuotes(`> **Facilitators may unilaterally seize treasury funds whenever convenient.** — [X](/atlas/${realUuid})`, evidence, ix)).toHaveLength(1);
+  // Only partially bolded → a quotation with emphasis, not a callout.
+  expect(findUngroundedQuotes("> **Note:** facilitators may unilaterally seize treasury funds whenever convenient.", evidence, ix)).toHaveLength(1);
+  // Unbolded prose is untouched by the exemption.
+  expect(findUngroundedQuotes("> Facilitators may unilaterally seize treasury funds whenever convenient.", evidence, ix)).toHaveLength(1);
+});
+
 test("evidence markdown links and JSON escapes match a faithful quote", () => {
   // Live false positives: the source carries a markdown link and JSON-escaped
   // newlines; the model quotes the RENDERED text with a real line break.
@@ -227,6 +261,68 @@ test("untraced numbers: soft signal, tolerant of identifiers and small counts", 
   expect(findUntracedNumbers("The retainer is 250,000 USDS.", evidence)).toEqual(["250000"]);
 });
 
+test("low-overlap citations: soft wrong-doc assist, quiet on prose drawn from the cited doc", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  // One segment: links stripped, sentence terminators removed so the claim and
+  // its citation stay in the same claim unit.
+  const fromDoc = doc.content
+    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
+    .split(" ").slice(0, 25).join(" ");
+  const cite = `[${doc.title}](/atlas/${doc.id})`;
+  expect(findLowOverlapCitations(`${fromDoc}, per ${cite}.`, ix)).toEqual([]);
+
+  // Same shape, same citation — vocabulary that occurs nowhere in the cited doc.
+  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
+  const flagged = findLowOverlapCitations(`${offTopic}, per ${cite}.`, ix);
+  expect(flagged).toHaveLength(1);
+  expect(flagged[0]).toContain(doc.title);
+
+  // Too few distinctive words to judge → skipped, not guessed at.
+  expect(findLowOverlapCitations(`See ${cite}.`, ix)).toEqual([]);
+  // A nonexistent uuid belongs to the hard citation check, not this one.
+  expect(findLowOverlapCitations(`${offTopic}, per [X](/atlas/${FAKE_UUID}).`, ix)).toEqual([]);
+  // Blockquotes are quotations, not claims — the quote check owns them.
+  expect(findLowOverlapCitations(`> ${offTopic}, per ${cite}.`, ix)).toEqual([]);
+});
+
+test("low-overlap citations: a citation trailing its sentence is still scored", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  const cite = `[${doc.title}](/atlas/${doc.id})`;
+  const offTopic = "The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone before the meteorite auction closes";
+
+  // The shape the system prompt actually asks for — link AFTER the period.
+  // Splitting at sentence ends leaves the prose citation-less and the citation
+  // prose-less, so before the fold-back both halves escaped the check.
+  expect(findLowOverlapCitations(`${offTopic}. ${cite}`, ix)).toHaveLength(1);
+  // Attribution on its own line, the convention models use under a quote.
+  expect(findLowOverlapCitations(`${offTopic}.\n— ${cite}`, ix)).toHaveLength(1);
+  // Inline, mid-sentence, prose continuing after it.
+  expect(findLowOverlapCitations(`${offTopic} ${cite} and it applies broadly.`, ix)).toHaveLength(1);
+
+  // Prose drawn from the cited doc stays quiet in the trailing shape too —
+  // the fold-back must not manufacture false positives.
+  const fromDoc = doc.content
+    .replace(/\[[^\]]*\]\([^)]*\)/g, " ").replace(/[.!?|#>]/g, " ").replace(/\s+/g, " ").trim()
+    .split(" ").slice(0, 25).join(" ");
+  expect(findLowOverlapCitations(`${fromDoc}. ${cite}`, ix)).toEqual([]);
+
+  // A trailing SOURCES LIST is a bibliography, not a claim about the sentence
+  // above it: folding those bullets in would flag every entry. Plain `-` bullets
+  // are therefore never folded (unlike an em/en-dash attribution).
+  expect(findLowOverlapCitations(`${offTopic}.\n\n- ${cite}`, ix)).toEqual([]);
+});
+
+test("low-overlap citations never fail a turn — paraphrase legitimately depresses overlap", () => {
+  const doc = [...ix.docMap.values()].find((d) => (d.content ?? "").replace(/\s+/g, " ").trim().length > 400)!;
+  const report = runDeterministicChecks(
+    `The quarterly submarine inspection roster obliges every harbour warden to photograph each trombone, per [${doc.title}](/atlas/${doc.id}).`,
+    [],
+    ix,
+  );
+  expect(report.lowOverlapCitations).toHaveLength(1);
+  expect(report.failed).toBe(false);
+});
+
 test("untraced numbers never fail a turn; ungrounded addresses always do", () => {
   const evidence = ['{"content":"The standard rate is set at 0.2%."}'];
   const numeric = runDeterministicChecks("A converted rate of 50bps applies.", evidence, ix);
@@ -283,4 +379,86 @@ test("runDeterministicChecks: fabricated or misattributed doc numbers are hard f
   const misattributed = runDeterministicChecks(`Per [${other.doc_no} - X](/atlas/${realUuid}).`, [], ix);
   expect(misattributed.failed).toBe(true);
   expect(misattributed.docNoMismatches).toHaveLength(1);
+});
+
+// ── per-doc value grounding: findUngroundedCitationValues ──────────────────
+// A real doc whose content carries a distinctive standalone percentage — the
+// "value used as link text, cited to the doc that actually contains it" case.
+// Found dynamically so the test survives atlas renumbering.
+function docWithPercent(): { doc: typeof realDoc; value: string } {
+  for (const d of ix.docMap.values()) {
+    const m = d.content.match(/(?<![\w.])(\d{2,3}%)/);
+    if (m) return { doc: d, value: m[1] };
+  }
+  throw new Error("no doc with a standalone percentage in the atlas");
+}
+
+// A distinctive figure no single doc is expected to contain, so each test
+// controls grounding purely via the evidence it passes.
+const EXOTIC = "48.73%";
+
+test("value grounding: a value used as link text that IS in the cited doc passes", () => {
+  const { doc, value } = docWithPercent();
+  expect(findUngroundedCitationValues(`The threshold is [${value}](/atlas/${doc.id}).`, [], ix)).toEqual([]);
+});
+
+test("value grounding: a value in this turn's evidence but NOT the cited doc is a hard failure", () => {
+  expect(realDoc.content).not.toContain(EXOTIC);
+  const answer = `The rate is [${EXOTIC}](/atlas/${realUuid}).`;
+  const evidence = [`A different retrieved doc states ${EXOTIC} explicitly.`];
+  expect(findUngroundedCitationValues(answer, evidence, ix)).toHaveLength(1);
+  const report = runDeterministicChecks(answer, evidence, ix);
+  expect(report.ungroundedCitationValues).toHaveLength(1);
+  expect(report.failed).toBe(true);
+});
+
+test("value grounding: a value in NO evidence at all is left to the soft check, not hard-failed", () => {
+  // The plainly-computed / paraphrased escape hatch — a figure that appears in
+  // no tool result lives in findUntracedNumbers (soft), never here. This is
+  // what protects a correct answer whose cited doc spells the figure out
+  // ("five percent") while the digit form appears nowhere in the evidence.
+  expect(realDoc.content).not.toContain(EXOTIC);
+  expect(findUngroundedCitationValues(`A derived total of [${EXOTIC}](/atlas/${realUuid}).`, [], ix)).toEqual([]);
+});
+
+test("value grounding: a cited value matches on token boundaries, not as a digit-substring", () => {
+  // `[8.73%]` cited to a doc that lacks it, with evidence that only ever says
+  // `48.73%`. A bare substring check reads "8.73%" inside "48.73%" and (a) treats
+  // the figure as present in evidence and (b) would treat it as present in any
+  // doc that says 48.73% — both mask the real wrong-doc signal. With boundary
+  // matching "8.73%" is grounded in neither "48.73%" text, so it drops to the
+  // soft check (present in no evidence at all) and is not hard-failed here.
+  const sub = "8.73%"; // a proper digit-substring of EXOTIC ("48.73%")
+  expect(realDoc.content).not.toContain(sub);
+  const answer = `The rate is [${sub}](/atlas/${realUuid}).`;
+  expect(findUngroundedCitationValues(answer, [`Another doc states ${EXOTIC} and nothing else.`], ix)).toEqual([]);
+  // And a genuine standalone `8.73%` in the evidence is still caught as wrong-doc.
+  expect(findUngroundedCitationValues(answer, [`the pool takes ${sub} of rewards`], ix)).toHaveLength(1);
+});
+
+test("value grounding: a mistyped EVM address cited to the wrong doc is caught, case-insensitively", () => {
+  const addr = "0x" + "aB".repeat(20); // 40 hex chars, EIP-55-ish mixed case
+  expect(realDoc.content.toLowerCase()).not.toContain(addr.toLowerCase());
+  const answer = `Held at [${addr}](/atlas/${realUuid}).`;
+  const evidence = [`{"address":"${addr.toLowerCase()}"}`]; // present, lowercased
+  expect(findUngroundedCitationValues(answer, evidence, ix)).toHaveLength(1);
+});
+
+test("value grounding: non-value link text, small counts, and leading doc_nos carry no value", () => {
+  const evidence = ["unrelated evidence mentioning 3 signers under A.2.2.9"];
+  for (const text of ["Keel Accord", "3 signers", "A.2.2.9 - Reward Rate"]) {
+    expect(findUngroundedCitationValues(`Cited [${text}](/atlas/${realUuid}).`, evidence, ix)).toEqual([]);
+  }
+});
+
+// The default-tier model links a doc by its own uuid. Its digit runs (692, 9829,
+// 41 …) are short enough to occur in some other retrieved doc, so mining them
+// manufactured 36 spurious hard failures in one bakeoff run.
+test("value grounding: a uuid used as link text is an identifier, not a figure", () => {
+  const uuidText = "7ac692f1-9829-41d8-83d4-4cb1bd053302";
+  const evidence = [`unrelated doc mentioning 692 and 9829 and 053302 elsewhere`];
+  expect(findUngroundedCitationValues(`See [${uuidText}](/atlas/${realUuid}).`, evidence, ix)).toEqual([]);
+  // …but a real figure sitting beside the uuid is still mined.
+  const answer = `See [${uuidText} — ${EXOTIC}](/atlas/${realUuid}).`;
+  expect(findUngroundedCitationValues(answer, [`the rate is ${EXOTIC}`], ix)).toHaveLength(1);
 });

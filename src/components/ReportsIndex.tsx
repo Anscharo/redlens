@@ -55,6 +55,10 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
         "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
       ),
       card(
+        "mod-frequency",
+        "An edit timeline by month, week, or commit, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
+      ),
+      card(
         "processes",
         "The curated inventory of governance, settlement, lifecycle, and operational processes — title, doc number, step count, status, responsible party.",
       ),

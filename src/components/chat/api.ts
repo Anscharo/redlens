@@ -22,6 +22,10 @@ export type ChatEvent =
   | { type: "clear" }
   | { type: "tool_call"; name: string; args: Record<string, unknown> }
   | { type: "tool_result"; name: string; ok: boolean; bytes: number; truncated?: boolean; originalBytes?: number }
+  // A downloadable file the agent produced via the export_findings tool.
+  // `content` is the whole file; the client auto-downloads it and keeps a
+  // button to re-download (see useChatStream `export` case).
+  | { type: "export"; format: "markdown" | "csv"; filename: string; mime: string; content: string; bytes: number }
   | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
   | {
       type: "verify_result";

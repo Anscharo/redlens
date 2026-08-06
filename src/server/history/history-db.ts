@@ -12,6 +12,15 @@ import { config } from "../config.ts";
 // content/structural. added/removed pass through unchanged.
 export const CHANGE_TYPE_MAP: Record<string, string> = { modified: "content", moved: "structural" };
 
+// A "modified" row is strict: change_kind = 'semantic', or — for rows with no
+// change_kind yet (reconstructed-era rows, or markdown-era rows written before
+// migration 006's `pnpm build:history --full` backfill reached them) — a real
+// stored diff, so an un-backfilled edit undercounts instead of reading as
+// "never modified". Shared by mod-counts.ts and mod-timeline.ts so the two
+// endpoints' definition of "modified" can't drift apart.
+export const COUNTED_CONTENT_EDIT = `change_kind = 'semantic'
+                 OR (change_kind IS NULL AND diff IS NOT NULL)`;
+
 export const HISTORY_COLS = [
   "doc_id", "commit_sha", "committed_at", "commit_seq", "pr_number", "pr_title", "pr_url",
   "pr_author", "summary", "description", "moved_from", "moved_to", "change_type", "diff",

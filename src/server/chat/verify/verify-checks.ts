@@ -138,6 +138,29 @@ const ATTRIBUTION_DASH = /^\s*[—–-]{1,2}\s*\S/;
 const CITATION_MARKER = /\[[^\]]*\]\([^)]*\)|\b(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)\b/;
 const isAttributionLine = (line: string) => ATTRIBUTION_DASH.test(line) && CITATION_MARKER.test(line);
 
+// A blockquote line the model wrote ABOUT the material rather than FROM it —
+// `> **Bottom line: …**`. Models routinely render their own summary as a bolded
+// blockquote callout, and a self-authored callout can never appear in the
+// evidence, so scoring it as a quotation hard-fails otherwise honest answers.
+// The discriminator is a CONJUNCTION, deliberately: essentially the whole line
+// is bold AND it carries no quotation marks AND no citation link. Either of
+// those two markers means the model is presenting the line as source text
+// (`> **"…"**`, or a bolded quote closed by its attribution), so a genuine
+// invented quote is still caught. The system prompt reserves blockquotes for
+// verbatim quotation, which is the other half of this fix.
+const BOLD_RUN = /\*\*([^*]+)\*\*/g;
+const MD_LINK_ANY = /\[[^\]]*\]\([^)]*\)/;
+const BOLD_LINE_MIN = 0.9;
+
+function isSelfAuthoredCallout(line: string): boolean {
+  if (/["“”]/.test(line) || MD_LINK_ANY.test(line)) return false;
+  const plain = line.replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  if (plain.length === 0) return false;
+  let bold = 0;
+  for (const m of line.matchAll(BOLD_RUN)) bold += m[1].replace(/\s+/g, " ").trim().length;
+  return bold / plain.length >= BOLD_LINE_MIN;
+}
+
 // A quoted TERM the answer denies is a mention, not a quotation: `the atlas
 // does not contain an organization called "X"`. Such a term can never appear
 // in the evidence — its absence IS the claim — so demanding grounding fires
@@ -174,7 +197,7 @@ export function extractQuotedSpans(answer: string): string[] {
   const spans: string[] = [];
   for (const line of answer.split("\n")) {
     const bq = line.match(/^\s*>\s?(.+)$/);
-    if (bq && !isAttributionLine(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
+    if (bq && !isAttributionLine(bq[1]) && !isSelfAuthoredCallout(bq[1])) spans.push(stripQuoteDecoration(bq[1]));
   }
   // Inline pass: collapse markdown links to their text FIRST — a quote inside
   // one link's title otherwise pairs with the quote in the next link's title,
@@ -268,6 +291,222 @@ export function findUntracedNumbers(answer: string, evidenceTexts: string[]): st
   return [...new Set(out)];
 }
 
+// A citation whose LINK TEXT is a value — a number, percentage, date, or
+// on-chain address — is the sharpest wrong-doc signal available in pure code.
+// A value cannot be paraphrased, so if the answer writes `[5%][spark-rate]` the
+// figure 5% must literally occur in the spark-rate doc; citing a doc that does
+// not contain it is misattribution, a HARD failure on the same reasoning as
+// `findUngroundedAddresses`. The escape hatch for "plainly computed" values
+// (a total the answer derives from cited parts, which lives in no single doc):
+// a value that appears in NO tool evidence at all is left to
+// `findUntracedNumbers` (soft) and never hard-failed here — only a value that
+// IS in this turn's evidence but NOT in the cited doc is flagged, which is
+// exactly a real figure attributed to the wrong document. Percentages and
+// decimals are examined even when small — unlike `findUntracedNumbers`'s ≤20
+// integer skip — because a bare `5%` is precisely the gap this closes.
+// Complements `findLowOverlapCitations`: overlap scores prose sentences, this
+// scores citations whose text IS the claim.
+const PERCENT_RE = /\d[\d,]*(?:\.\d+)?\s*%/g;
+const ISO_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b/g;
+const SLASH_DATE_RE = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g;
+
+// Comma/percent-form-insensitive numeric key: thousands separators drop on both
+// sides (`10,782` ↔ `10782`) and `5 %` collapses to `5%`, so a normalized value
+// matches the same figure however the doc spells its separators.
+const numKey = (s: string) => s.replace(/,(?=\d{3}\b)/g, "").replace(/\s+%/g, "%").toLowerCase();
+
+// Whether a normalized numeric key occurs in `hayNum` as a whole figure rather
+// than a digit-substring of a larger one. A plain `includes` treats `[5%]` cited
+// to a doc that only says `15%` as grounded — suppressing the wrong-doc HARD
+// failure this check exists to raise — because "15%" contains "5%". Guard both
+// ends against an adjacent digit or decimal point so `5%`≠`15%`, `48.73`≠`148.73`
+// or `48.731`, and a date's components don't collide with a longer run.
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const numTokenInHay = (hayNum: string, key: string): boolean =>
+  key.length > 0 && new RegExp(String.raw`(?<![\d.])${escapeRe(key)}(?![\d.])`).test(hayNum);
+
+interface LinkValue {
+  literal: string;
+  address: "evm" | "sol" | null;
+}
+
+// Values carried by a citation's link text, most-distinctive-first (addresses,
+// then percentages, then dates, then remaining figures), each span blanked out
+// before the next scan so a percentage's or address's own digits are never
+// re-mined as a bare number.
+// Exported so the model bakeoff can measure the prompt-compliance rate for
+// "make the value the link text" — the behaviour findUngroundedCitationValues
+// depends on, and which one measured tier ignored entirely (see
+// docs/plans/reference-citations.md).
+export function citationValues(text: string): LinkValue[] {
+  const out: LinkValue[] = [];
+  const seen = new Set<string>();
+  const push = (literal: string, address: LinkValue["address"]) => {
+    const key = address ? literal : numKey(literal);
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      out.push({ literal, address });
+    }
+  };
+  // A leading real/structural doc_no in the link text ("A.2.2.9 - Rate") is an
+  // identifier, not a value — drop it before mining.
+  let rest = text.replace(new RegExp(String.raw`^\s*${DOC_NO_CORE}\b`), "");
+  // So is a UUID. The default-tier model writes a doc's own uuid as link text
+  // (`[7ac692f1-9829-41d8-…](/atlas/7ac692f1-…)`, measured in the 2026-08-03
+  // bakeoff), and mining that yields digit runs — 692, 9829, 41 — which are
+  // short enough to occur incidentally in some other retrieved doc and are then
+  // reported as figures misattributed to the doc they link. That accounted for
+  // 36 of the 42 hard value failures in that run, every one of them spurious.
+  rest = rest.replace(new RegExp(UUID_RE.source.slice(1, -1), "gi"), " ");
+  for (const m of rest.match(new RegExp(EVM_ADDRESS_SRC, "g")) ?? []) push(m, "evm");
+  for (const m of rest.match(new RegExp(SOL_ADDRESS_SRC, "g")) ?? []) push(m, "sol");
+  rest = rest.replace(new RegExp(EVM_ADDRESS_SRC, "g"), " ").replace(new RegExp(SOL_ADDRESS_SRC, "g"), " ");
+  for (const m of rest.match(PERCENT_RE) ?? []) push(m, null);
+  for (const m of rest.match(ISO_DATE_RE) ?? []) push(m, null);
+  for (const m of rest.match(SLASH_DATE_RE) ?? []) push(m, null);
+  rest = rest.replace(PERCENT_RE, " ").replace(ISO_DATE_RE, " ").replace(SLASH_DATE_RE, " ");
+  for (const m of rest.match(NUMBER_RE) ?? []) {
+    const n = Number(m.replace(/,/g, ""));
+    if (!Number.isFinite(n)) continue;
+    if (Number.isInteger(n) && Math.abs(n) <= SMALL_COUNT_MAX) continue;
+    push(m, null);
+  }
+  return out;
+}
+
+interface Hay {
+  raw: string;
+  lower: string;
+  num: string;
+}
+const mkHay = (s: string): Hay => ({ raw: s, lower: s.toLowerCase(), num: numKey(s) });
+
+// EVM matching is case-insensitive (checksum casing is cosmetic); base58 Solana
+// is case-sensitive; numeric values compare on the comma/percent-normalized key.
+function valueInHay(v: LinkValue, hay: Hay): boolean {
+  if (v.address === "evm") return hay.lower.includes(v.literal.toLowerCase());
+  if (v.address === "sol") return hay.raw.includes(v.literal);
+  return numTokenInHay(hay.num, numKey(v.literal));
+}
+
+export function findUngroundedCitationValues(answer: string, evidenceTexts: string[], ix: Indexes): string[] {
+  const cites = extractCitations(answer);
+  if (cites.length === 0) return [];
+  const evidence = mkHay(evidenceTexts.join("\n"));
+  const out: string[] = [];
+  for (const c of cites) {
+    const doc = ix.docMap.get(c.uuid);
+    if (!doc) continue; // an unknown uuid is already a hard failure
+    const docHay = mkHay(`${doc.title}\n${doc.content}`);
+    for (const v of citationValues(c.title)) {
+      if (valueInHay(v, docHay)) continue; // grounded in the cited doc — fine
+      if (!valueInHay(v, evidence)) continue; // in no evidence at all → computed/soft, skip
+      out.push(`${v.literal} cited to ${doc.doc_no} (${doc.title}) but absent from it`);
+    }
+  }
+  return [...new Set(out)];
+}
+
+// A citation whose UUID is real but points at the WRONG document passes every
+// other deterministic check (`findInvalidCitationUuids` only asks whether the
+// uuid exists; `findDocNoMismatches` only fires when the link TEXT leads with a
+// doc_no). It is the worst-caught failure class across models, so this is a free
+// lexical assist: how much of the claim sentence's distinctive vocabulary
+// actually occurs in the cited doc. Deliberately a SOFT signal — paraphrase,
+// synthesis, and pronoun-carrying prose all legitimately depress overlap, so the
+// verifier adjudicates rather than the answer failing outright.
+const OVERLAP_STOPWORDS = new Set(
+  ("the and are was were for from with without into over under about that this these those which who whom whose " +
+    "what when where why how all any both each few more most other some such only own same too very per also " +
+    "within across between during after before above below out off again further once its their his her they " +
+    "them you your our not nor but then than there here can could may might must shall should will would has " +
+    "have had having does did done being been").split(" "),
+);
+// Plural/possessive folding so `facilitators` matches `Facilitator`. Crude on
+// purpose: the check is a ratio over many words, not a parser.
+const foldWord = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+
+function contentWords(text: string): string[] {
+  const words = text.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
+  return [...new Set(words.filter((w) => !OVERLAP_STOPWORDS.has(w)).map(foldWord))];
+}
+
+// A segment carrying citations but no prose of its own — `[Title](/atlas/…)`
+// sitting after a sentence's period, or an attribution line. It is an
+// attachment to the sentence before it, not a claim in its own right.
+const isCitationOnly = (seg: string): boolean =>
+  extractCitations(seg).length > 0 && contentWords(seg.replace(new RegExp(MD_LINK_SRC, "g"), " ")).length === 0;
+
+// Claim units: one line of markdown, split further at sentence ends. A citation
+// belongs to the sentence it closes, not to the whole paragraph.
+//
+// Splitting at sentence ends alone loses every trailing citation: `Foo is bar.
+// [Doc](/atlas/x)` becomes a prose segment with no citation (nothing to check)
+// plus a citation segment with no prose (dropped by MIN_CLAIM_WORDS), so the
+// claim escapes from both sides. Since the system prompt asks for exactly that
+// shape ("Quote at most 1–2 sentences … always followed by its link"), a
+// citation-only segment is folded back onto the sentence it follows.
+function claimSegments(answer: string): string[] {
+  const out: string[] = [];
+  for (const line of answer.split("\n")) {
+    // Headings carry no claim; blockquotes (content AND their attribution line)
+    // are skipped because findUngroundedQuotes already checks quoted text against
+    // the cited doc's content — checking them here too would double-report the
+    // same misattribution.
+    if (/^\s*(?:#{1,6}\s|>)/.test(line)) continue;
+    const segs = line.split(/(?<=[.!?])\s+/).filter((s) => s.trim());
+    for (let i = 0; i < segs.length; i++) {
+      const seg = segs[i];
+      // Same-line trailing citation, or an em/en-dash attribution on its own
+      // line. A plain `-` lead is deliberately NOT folded: that is a markdown
+      // bullet, and a trailing source LIST would otherwise be scored against
+      // the last sentence of the prose above it — every entry a false flag.
+      const attaches = i > 0 || /^\s*[—–]/.test(seg);
+      if (isCitationOnly(seg) && attaches && out.length > 0) {
+        out[out.length - 1] += ` ${seg}`;
+        continue;
+      }
+      out.push(seg);
+    }
+  }
+  return out;
+}
+
+// Below this many distinctive words the ratio is noise (a bare "See [Doc](…)"
+// would flag every time), so short segments are skipped outright — that is where
+// the false positives would come from. Tuned against the real index over 400
+// sampled docs: correctly-cited sentences 0% flagged (verbatim AND with half
+// their words dropped to simulate paraphrase), wrong-doc citations 86.5%
+// flagged, bare "See [Doc](…)." never flagged. A sentence citing its own doc's
+// PARENT flags ~60% of the time — intended, not noise: since atomization a
+// parent's content does not contain its children's text, so that IS a
+// misattribution worth the verifier's attention.
+const MIN_CLAIM_WORDS = 6;
+const MIN_CITATION_OVERLAP = 0.25;
+
+export function findLowOverlapCitations(answer: string, ix: Indexes): string[] {
+  const out: string[] = [];
+  for (const seg of claimSegments(answer)) {
+    const cites = extractCitations(seg);
+    if (cites.length === 0) continue;
+    // Strip the links first: the link TEXT is normally the cited doc's own
+    // title, which would guarantee overlap and make the check inert.
+    const prose = seg.replace(new RegExp(MD_LINK_SRC, "g"), " ");
+    const words = contentWords(prose);
+    if (words.length < MIN_CLAIM_WORDS) continue;
+    for (const c of cites) {
+      const doc = ix.docMap.get(c.uuid);
+      if (!doc) continue; // an unknown uuid is already a hard failure
+      const hay = new Set(contentWords(`${doc.title}\n${doc.content}`));
+      const hits = words.filter((w) => hay.has(w)).length;
+      if (hits / words.length < MIN_CITATION_OVERLAP) {
+        out.push(`${doc.doc_no} ${doc.title} ← "${prose.replace(/\s+/g, " ").trim().slice(0, 100)}"`);
+      }
+    }
+  }
+  return [...new Set(out)];
+}
+
 export interface CheckReport {
   citations: Citation[];
   invalidCitations: string[];
@@ -277,14 +516,22 @@ export interface CheckReport {
   uncitedParagraphs: number;
   ungroundedQuotes: string[];
   ungroundedAddresses: string[];
+  // Values used as citation link text (a number, percentage, date, or address)
+  // that occur in this turn's evidence but NOT in the specific doc they cite —
+  // a real figure attributed to the wrong document. A HARD failure.
+  ungroundedCitationValues: string[];
   untracedNumbers: string[];
+  // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
+  // doc they cite. Informs the verifier prompt; never fails a turn.
+  lowOverlapCitations: string[];
   // True when the answer was cut off by the output-token cap (chat-loop.ts's
   // finish_reason "length") rather than ending on its own. Not derivable from
   // the answer text — set by the caller, defaults false here.
   lengthCapped: boolean;
   // Hard deterministic failure — invented citation targets, invented/misattributed
   // doc numbers, invented quotes, invented addresses, or a length-capped answer.
-  // Soft signals (bare links, uncited paragraphs, untraced numbers) inform, they don't fail.
+  // Soft signals (bare links, uncited paragraphs, untraced numbers, low-overlap
+  // citations) inform, they don't fail.
   failed: boolean;
 }
 
@@ -295,6 +542,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
   const docNoMismatches = findDocNoMismatches(citations, ix);
   const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
+  const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
   return {
     citations,
     invalidCitations,
@@ -304,13 +552,16 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     uncitedParagraphs: countUncitedParagraphs(answer),
     ungroundedQuotes,
     ungroundedAddresses,
+    ungroundedCitationValues,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
+    lowOverlapCitations: findLowOverlapCitations(answer, ix),
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
       invalidDocNos.length > 0 ||
       docNoMismatches.length > 0 ||
       ungroundedQuotes.length > 0 ||
-      ungroundedAddresses.length > 0,
+      ungroundedAddresses.length > 0 ||
+      ungroundedCitationValues.length > 0,
   };
 }

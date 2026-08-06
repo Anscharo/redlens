@@ -10,7 +10,7 @@ import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
-import { routeTier, resolveTierModels } from "./model-router.ts";
+import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { buildPrefetch, prefetchRound } from "../prefetch.ts";
@@ -128,11 +128,20 @@ export async function handleChat(req: Request): Promise<Response> {
   `) as { role: string; content: string }[];
 
   const ix = getIndexes();
+
+  // Per-turn tier routing (rules-based, free): pick the model chain before any
+  // LLM work. Follow-up turns (an assistant reply already in history) never
+  // route fast on brevity alone — see model-router.ts. This runs BEFORE the
+  // system prompt is built because the citation format the prompt asks for
+  // depends on which model will read it.
+  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
+  const models = resolveTierModels(route.tier);
+
   // The DB keeps the full conversation; the model gets a windowed replay
   // (recent turns verbatim, older ones truncated, hard char budget) so long
   // conversations never grow the per-round context without bound.
   const messages: Msg[] = [
-    { role: "system", content: buildSystemPrompt(ix, body.pageContext) },
+    { role: "system", content: buildSystemPrompt(ix, body.pageContext, citationStyleFor(models[0])) },
     ...windowHistory(history).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
   ];
 
@@ -142,12 +151,6 @@ export async function handleChat(req: Request): Promise<Response> {
   // nothing on a miss; the harness treats it as ordinary turn evidence.
   const prefetch = config.chatPrefetch ? buildPrefetch(ix, body.message) : null;
   if (prefetch) messages.push(...prefetchRound(body.message, prefetch));
-
-  // Per-turn tier routing (rules-based, free): pick the model chain before any
-  // LLM work. Follow-up turns (an assistant reply already in history) never
-  // route fast on brevity alone — see model-router.ts.
-  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
-  const models = resolveTierModels(route.tier);
 
   const startedAt = Date.now();
   const encoder = new TextEncoder();

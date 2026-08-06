@@ -92,8 +92,8 @@ describe("classifySolanaAccount", () => {
 
   it("reads a System-Program-owned off-curve address as a PDA, not a wallet", () => {
     // A Squads vault is System-owned too. Off-curve means no private key can
-    // exist, so "EOA" would be flatly wrong — 30 of the atlas's 40 Solana
-    // addresses are in this bucket.
+    // exist, so "EOA" would be flatly wrong — 10 of the atlas's 13 System-owned
+    // Solana addresses land in this bucket.
     expect(
       classifySolanaAccount(account({ owner: SYSTEM_PROGRAM, space: 0 }), OFF_CURVE),
     ).toMatchObject({ accountType: "pda", isContract: false });

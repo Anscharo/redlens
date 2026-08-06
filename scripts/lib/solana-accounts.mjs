@@ -142,7 +142,8 @@ export function classifySolanaAccount(acc, address) {
     // only ever holds SOL. The curve settles it: an off-curve value cannot be
     // an ed25519 public key, so no private key for it can exist — it is
     // program-derived, and calling it an EOA is exactly the mislabel this pass
-    // exists to remove. 30 of the atlas's 40 Solana addresses are off-curve.
+    // exists to remove. Measured: 10 of the atlas's 13 System-owned Solana
+    // addresses are off-curve, so only 3 are really keypairs.
     const keypair = address == null || isOnCurveAddress(address);
     return { ...base, accountType: keypair ? "wallet" : "pda", isContract: false, isProxy: false };
   }

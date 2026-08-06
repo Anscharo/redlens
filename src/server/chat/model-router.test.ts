@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { routeTier, resolveTierModels } from "./model-router.ts";
+import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
 import { config } from "../config.ts";
 
 describe("routeTier", () => {
@@ -60,6 +60,23 @@ describe("resolveTierModels", () => {
       expect(resolveTierModels("strong")).toEqual(["m/strong", "m/strong-fallback"]);
     } finally {
       Object.assign(config, saved);
+    }
+  });
+});
+
+describe("citationStyleFor", () => {
+  test("only allowlisted models are asked for reference style; everything else is inline", () => {
+    const saved = config.chatReferenceCitationModels;
+    try {
+      config.chatReferenceCitationModels = ["m/strong"];
+      expect(citationStyleFor("m/strong")).toBe("reference");
+      expect(citationStyleFor("m/default")).toBe("inline");
+      // Unconfigured (no strong tier, no override) means inline for everyone —
+      // the format every measured model follows.
+      config.chatReferenceCitationModels = [];
+      expect(citationStyleFor("m/strong")).toBe("inline");
+    } finally {
+      config.chatReferenceCitationModels = saved;
     }
   });
 });
