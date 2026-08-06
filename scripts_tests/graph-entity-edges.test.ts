@@ -481,7 +481,6 @@ describe("extractEntityEdges — realistic corpus", () => {
 
   it("emits aligned_delegate_for and ranked_delegate_for with meta.level", () => {
     const blue = e("blue")!;
-    const cloaky = e("cloaky")!;
     const skyGov = e("sky-governance")!;
     expect(byType("aligned_delegate_for")).toContainEqual(expect.objectContaining({ fromId: blue.id, toId: skyGov.id }));
     expect(byType("aligned_delegate_for")).toHaveLength(2);
