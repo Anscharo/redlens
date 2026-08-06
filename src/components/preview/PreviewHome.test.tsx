@@ -135,3 +135,37 @@ describe("PreviewHome input parsing", () => {
     expect(screen.getByRole("button", { name: "Preview" })).toBeDisabled();
   });
 });
+
+describe("PreviewHome private repo form", () => {
+  it("disables the private-preview button until owner/repo@branch parses", () => {
+    render(<PreviewHome />);
+    const button = screen.getByRole("button", { name: "Preview private repo" });
+    expect(button).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), {
+      target: { value: "acme/secret-atlas@main" },
+    });
+    expect(button).not.toBeDisabled();
+  });
+
+  it("shows a hint for input that doesn't match owner/repo@branch", () => {
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), { target: { value: "not-a-valid-input" } });
+    expect(screen.getByText("Use owner/repo@branch.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Preview private repo" })).toBeDisabled();
+  });
+
+  it("encodes a branch with a slash as ~ and navigates to the owner:repo:branch preview id on submit", () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", { value: { ...originalLocation, href: "" }, writable: true });
+
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), {
+      target: { value: "acme/secret-atlas@feature/foo" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Preview private repo" }));
+
+    expect(window.location.href).toContain(encodeURIComponent("acme:secret-atlas:feature~foo"));
+    Object.defineProperty(window, "location", { value: originalLocation, writable: true });
+  });
+});

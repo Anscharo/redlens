@@ -14,19 +14,23 @@ import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../retrieval/indexes.ts";
 import { CANONICAL_REPO, decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
-import { previewPaths, artifactPath, bundleReady, touch, remove as removeBundle } from "./cache.ts";
+import { previewPaths, artifactPath, bundleReady, readMeta, touch, remove as removeBundle } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
+import { authorizePreviewAccess } from "./access.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 // noindex on every preview response: unreviewed (possibly fork) content must
 // never be search-indexed under our domain (SEO-laundering defense).
 const CORS = { "access-control-allow-origin": "*", "x-robots-tag": "noindex" };
+// Private-preview responses: NO access-control-allow-origin — a shared
+// CDN/proxy must not cache one user's private docs for the next visitor (G6).
+const PRIVATE_HEADERS = { "cache-control": "private, no-store", "x-robots-tag": "noindex" };
 const gh = makeGhClient(config.githubToken);
 
 // Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
 // is picked up within ~60s without re-hitting GitHub on every request.
-type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" };
+type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed" };
 const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
 const RESOLVE_TTL_MS = 60_000;
 const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
@@ -100,6 +104,7 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
           pr: row.pr_number
             ? { number: row.pr_number, title: row.pr_title ?? "", author: row.pr_author ?? "", state: (row.pr_state as any) ?? "open" }
             : undefined,
+          private: row.private,
         }
       : { error: "not-found" };
   } else if (gateError(parsed)) {
@@ -147,7 +152,7 @@ export function makeUnsubGate(): { resolve: (u: () => void) => void; cancel: () 
   };
 }
 
-function eventsResponse(rawId: string, ip: string): Response {
+function eventsResponse(req: Request, rawId: string, ip: string): Response {
   const gate = makeUnsubGate();
   const stream = new ReadableStream({
     start(controller) {
@@ -171,7 +176,7 @@ function eventsResponse(rawId: string, ip: string): Response {
         }
         if (ev.phase === "ready" || ev.phase === "failed") close();
       };
-      void drive(rawId, ip, send).then((u) => gate.resolve(u));
+      void drive(req, rawId, ip, send).then((u) => gate.resolve(u));
     },
     cancel() {
       gate.cancel();
@@ -181,7 +186,7 @@ function eventsResponse(rawId: string, ip: string): Response {
 }
 
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).
-async function drive(rawId: string, ip: string, send: (ev: PreviewEvent) => void): Promise<() => void> {
+async function drive(req: Request, rawId: string, ip: string, send: (ev: PreviewEvent) => void): Promise<() => void> {
   if (rateLimited(ip)) {
     send({ phase: "failed", code: "rate-limited", message: "Too many preview requests — try again shortly." });
     return () => {};
@@ -191,6 +196,17 @@ async function drive(rawId: string, ip: string, send: (ev: PreviewEvent) => void
   if ("error" in r) {
     send({ phase: "failed", code: r.error });
     return () => {};
+  }
+  // G3: authorize BEFORE any sha-bearing event (isBlockedSha/bundleReady/build)
+  // reaches an unauthorized caller — the resolve cache may still hold a private
+  // Resolved (incl. sha), but the authorization decision itself is never cached
+  // here; it's re-run per request against the live session/collaborator state.
+  if (r.private) {
+    const d = await authorizePreviewAccess(req, r.repo);
+    if (d !== "ok") {
+      send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
+      return () => {};
+    }
   }
   const sha = r.sha;
   // Admin takedown: a blocked sha neither serves its cached bundle nor rebuilds.
@@ -209,16 +225,34 @@ async function drive(rawId: string, ip: string, send: (ev: PreviewEvent) => void
   return subscribeBuild(sha, send);
 }
 
-function diffResponse(sha: string): Response {
-  if (!bundleReady(sha)) return json({ error: "not-found" }, 404);
+// Resolve serveability + privacy for a sha-keyed response. Gating on bundleReady
+// FIRST is load-bearing (G1): artifact files exist on disk before meta.json is
+// written, so "no meta yet" MUST read as not-serveable, never as public.
+async function gateSha(req: Request, sha: string): Promise<{ ok: true; headers: Record<string, string> } | { deny: Response }> {
+  if (!bundleReady(sha)) return { deny: json({ error: "not-found" }, 404) };
+  const meta = readMeta(sha);
+  if (meta?.private) {
+    const d = await authorizePreviewAccess(req, meta.repo);
+    if (d === "ok") return { ok: true, headers: PRIVATE_HEADERS };
+    if (d === "login-required") return { deny: json({ error: "auth-required" }, 401, PRIVATE_HEADERS) };
+    if (d === "forbidden") return { deny: json({ error: "forbidden" }, 403, PRIVATE_HEADERS) };
+    return { deny: json({ error: "unavailable" }, 503, PRIVATE_HEADERS) };
+  }
+  return { ok: true, headers: CORS };
+}
+
+async function diffResponse(req: Request, sha: string): Promise<Response> {
+  const gated = await gateSha(req, sha);
+  if ("deny" in gated) return gated.deny;
+  const { headers } = gated;
   // PR previews ship an accurate diff.json in the bundle (GitHub PR files);
   // serve it directly. Branch/sha previews fall through to the vs-main hash diff.
   const bundleDiff = path.join(previewPaths(sha).outDir, "diff.json");
   if (fs.existsSync(bundleDiff)) {
-    return new Response(Bun.file(bundleDiff), { headers: { "Content-Type": "application/json", ...CORS } });
+    return new Response(Bun.file(bundleDiff), { headers: { "Content-Type": "application/json", ...headers } });
   }
   const ix = getIndexes();
-  if (ix.docMap.size === 0) return json({ error: "main-not-ready" }, 503);
+  if (ix.docMap.size === 0) return json({ error: "main-not-ready" }, 503, headers);
   const mainSha = ix.meta.atlasCommit ?? "unknown";
   const key = `${sha}:${mainSha}`;
   let diff = diffCache.get(key);
@@ -235,31 +269,34 @@ function diffResponse(sha: string): Response {
       if (diffCache.size > DIFF_CACHE_MAX) diffCache.delete(diffCache.keys().next().value!);
     }
   }
-  return json(diff, 200);
+  return json(diff, 200, headers);
 }
 
 async function artifactResponse(req: Request, sha: string, name: string): Promise<Response> {
+  const gated = await gateSha(req, sha);
+  if ("deny" in gated) return gated.deny;
+  const { headers } = gated;
   // meta.json: overlay the live pr_state from the DB (the PR-state worker keeps
   // it current) so banners flip to merged/closed without a rebuild. Computed,
   // not served raw — handled here before the shared bundle reader.
   if (name === "meta.json") {
     const p = artifactPath(sha, name);
-    if (!p || !fs.existsSync(p)) return json({ error: "not-found" }, 404);
+    if (!p || !fs.existsSync(p)) return json({ error: "not-found" }, 404, headers);
     touch(sha);
     const meta = JSON.parse(fs.readFileSync(p, "utf8"));
     const row = await getPreviewRow(sha).catch(() => null);
     if (row?.pr_state) meta.prState = row.pr_state;
-    return json(meta, 200);
+    return json(meta, 200, headers);
   }
   // Plain artifacts go through the shared bundle reader (path + gzip + 404).
-  const res = await serveBundleArtifact(PREVIEW_STORE, sha, name, req, CORS);
-  if (!res) return json({ error: "not-found" }, 404);
+  const res = await serveBundleArtifact(PREVIEW_STORE, sha, name, req, headers);
+  if (!res) return json({ error: "not-found" }, 404, headers);
   touch(sha);
   return res;
 }
 
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...CORS } });
+function json(body: unknown, status: number, headers: Record<string, string> = CORS): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 }
 
 /** Dispatch /api/preview/* . pathname includes the leading "/api/preview/". */
@@ -291,10 +328,10 @@ export function handlePreview(req: Request, server: Server<unknown>, pathname: s
       return json({ error: "not-found" }, 404);
     }
     const ip = server.requestIP(req)?.address ?? "unknown";
-    return eventsResponse(decoded, ip);
+    return eventsResponse(req, decoded, ip);
   }
   // artifact + diff endpoints are sha-keyed
   if (!SHA_RE.test(a)) return json({ error: "not-found" }, 404);
-  if (b === "diff.json") return diffResponse(a.toLowerCase());
+  if (b === "diff.json") return diffResponse(req, a.toLowerCase());
   return artifactResponse(req, a.toLowerCase(), b);
 }

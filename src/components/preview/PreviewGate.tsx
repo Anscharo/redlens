@@ -8,6 +8,8 @@ import { PreviewViewProvider } from "../../lib/previewView";
 import { PreviewInterstitial } from "./PreviewInterstitial";
 import { recordLocalPreview, previewLabel } from "../../lib/previewLocal";
 import { BuildErrorDetail } from "./BuildErrorDetail";
+import { stashAuthReturn } from "../../lib/authReturn";
+import { apiUrl } from "../chat/api";
 
 // Preview is NOT a separate view: the gate builds the bundle (SSE), then mounts
 // the normal <App/> under a /preview/:id router base with the preview data
@@ -35,6 +37,12 @@ const ERROR_TEXT: Record<string, string> = {
   "build-failed": "This proposal could not be built into a preview.",
   "rate-limited": "Too many preview requests — try again shortly.",
   "quota-exceeded": "The daily preview limit is reached — try again tomorrow.",
+  unavailable: "The access check is temporarily unavailable — try again shortly.",
+  // Neutral fallbacks — dedicated screens below handle these codes, but a
+  // harmless entry here keeps the generic fallback sane if that ever changes.
+  "auth-required": "Sign in with GitHub to view this private preview.",
+  forbidden: "You don't have access to this repository.",
+  "app-not-installed": "The RedLens app isn't installed on this repository.",
 };
 
 export function usePreviewBuild(id: string) {
@@ -71,6 +79,59 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
   }, [phase, sha, id]);
 
   if (phase === "failed") {
+    if (code === "auth-required") {
+      return (
+        <Centered>
+          <p className="text-red">This is a private preview — sign in with GitHub to view it.</p>
+          <button
+            type="button"
+            className="px-4 py-2 rounded mono text-sm"
+            style={{ background: "var(--hover)", border: "1px solid var(--accent)", color: "var(--tan)" }}
+            onClick={() => {
+              stashAuthReturn(window.location.pathname + window.location.search);
+              window.location.href = apiUrl("auth/github");
+            }}
+          >
+            Sign in with GitHub
+          </button>
+          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to the live atlas
+          </a>
+        </Centered>
+      );
+    }
+
+    if (code === "forbidden") {
+      return (
+        <Centered>
+          <p className="text-red">You don't have access to this repository.</p>
+          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to the live atlas
+          </a>
+        </Centered>
+      );
+    }
+
+    if (code === "app-not-installed") {
+      const installUrl = message && /^https?:\/\//.test(message) ? message : null;
+      return (
+        <Centered>
+          <p className="text-red">
+            The RedLens app isn't installed on this repository. Ask the repo owner/admin to install it, then reopen
+            this link.
+          </p>
+          {installUrl && (
+            <a href={installUrl} target="_blank" rel="noreferrer" className="text-sm" style={{ color: "var(--accent)" }}>
+              Install the app ↗
+            </a>
+          )}
+          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to the live atlas
+          </a>
+        </Centered>
+      );
+    }
+
     return (
       <Centered>
         <p className="text-red">{(code && ERROR_TEXT[code]) ?? "Preview failed."}</p>

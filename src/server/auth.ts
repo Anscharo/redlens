@@ -75,18 +75,25 @@ async function resolveEmail(gh: GithubUser, token: string): Promise<string | nul
 
 // provider+provider_id is the identity key (UNIQUE) — the same human signing in
 // with GitHub and with Google gets two distinct rows. No email-based linking.
+// `login` (GitHub username) is separate from that identity key — it's mutable
+// upstream (a user can rename), so it's refreshed on every login rather than
+// only backfilled, to keep the private-preview collaborator check (which is
+// keyed on login, see github-app.ts userRepoPermission) from going stale.
+// Google logins pass null; there's no equivalent concept for that provider.
 export async function upsertUser(
   provider: string,
   providerId: string,
   email: string | null,
   name: string | null,
   avatar: string | null,
+  login: string | null = null,
 ): Promise<SessionUser> {
   const rows = (await sql`
-    INSERT INTO users (provider, provider_id, email, name, avatar_url)
-    VALUES (${provider}, ${providerId}, ${email}, ${name}, ${avatar})
+    INSERT INTO users (provider, provider_id, email, name, avatar_url, github_login)
+    VALUES (${provider}, ${providerId}, ${email}, ${name}, ${avatar}, ${login})
     ON CONFLICT (provider, provider_id)
-    DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, avatar_url = EXCLUDED.avatar_url
+    DO UPDATE SET email = EXCLUDED.email, name = EXCLUDED.name, avatar_url = EXCLUDED.avatar_url,
+      github_login = EXCLUDED.github_login
     RETURNING id
   `) as { id: string }[];
   return { id: rows[0].id, provider };
@@ -121,7 +128,7 @@ export async function handleAuth(req: Request, pathname: string): Promise<Respon
       const token = tokens.accessToken();
       const gh = await ghFetch<GithubUser>("/user", token);
       const email = await resolveEmail(gh, token);
-      const user = await upsertUser("github", String(gh.id), email, gh.name ?? gh.login, gh.avatar_url);
+      const user = await upsertUser("github", String(gh.id), email, gh.name ?? gh.login, gh.avatar_url, gh.login);
       return redirect(`${config.appUrl}/`, [sessionCookie(await signSession(user)), clearStateCookie()]);
     } catch (err) {
       // Log the real cause — otherwise the opaque 400 hides redirect-URI /

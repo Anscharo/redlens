@@ -92,14 +92,14 @@ describe("upsertUser", () => {
     );
 
     expect(user).toEqual({ id: "user-1", provider: "github" });
-    expect(inserted).toEqual(["github", "123", "ada@example.com", "Ada", "https://avatar.example/ada.png"]);
+    expect(inserted).toEqual(["github", "123", "ada@example.com", "Ada", "https://avatar.example/ada.png", null]);
   });
 
   it("passes nullable OAuth profile fields through to SQL", async () => {
     const user = await upsertUser("google", "sub-1", null, null, null);
 
     expect(user).toEqual({ id: "user-1", provider: "google" });
-    expect(inserted).toEqual(["google", "sub-1", null, null, null]);
+    expect(inserted).toEqual(["google", "sub-1", null, null, null, null]);
   });
 });
 
@@ -227,7 +227,7 @@ describe("OAuth callbacks", () => {
       );
       expect(res.status).toBe(302);
       expect(res.headers.get("location")).toBe("https://atlas.example/");
-      expect(inserted).toEqual(["github", "42", "ada@github.example", "Ada Lovelace", "https://a/ada.png"]);
+      expect(inserted).toEqual(["github", "42", "ada@github.example", "Ada Lovelace", "https://a/ada.png", "ada"]);
       const cookies = res.headers.getSetCookie();
       expect(cookies.some((c) => c.startsWith(`${SESSION_COOKIE}=`))).toBe(true);
       expect(cookies.some((c) => c.startsWith(`${STATE_COOKIE}=`) && c.includes("Max-Age=0"))).toBe(true);
@@ -254,7 +254,7 @@ describe("OAuth callbacks", () => {
       );
       expect(res.status).toBe(302);
       // email resolved from /user/emails; name fell back to the login (name was null).
-      expect(inserted).toEqual(["github", "7", "grace@primary.example", "grace", "https://a/g.png"]);
+      expect(inserted).toEqual(["github", "7", "grace@primary.example", "grace", "https://a/g.png", "grace"]);
     });
 
     it("upserts a null email when the profile is private and /user/emails errors", async () => {
@@ -272,7 +272,7 @@ describe("OAuth callbacks", () => {
         "/api/auth/github/callback",
       );
       expect(res.status).toBe(302);
-      expect(inserted).toEqual(["github", "9", null, "Priv", "https://a/p.png"]);
+      expect(inserted).toEqual(["github", "9", null, "Priv", "https://a/p.png", "priv"]);
     });
 
     it("400s oauth_exchange_failed when the code exchange throws", async () => {
@@ -304,7 +304,14 @@ describe("OAuth callbacks", () => {
       );
       expect(res.status).toBe(302);
       expect(res.headers.get("location")).toBe("https://atlas.example/");
-      expect(inserted).toEqual(["google", "google-sub-1", "grace@example.com", "Grace Hopper", "https://avatar.example/grace.png"]);
+      expect(inserted).toEqual([
+        "google",
+        "google-sub-1",
+        "grace@example.com",
+        "Grace Hopper",
+        "https://avatar.example/grace.png",
+        null,
+      ]);
       const cookies = res.headers.getSetCookie();
       expect(cookies.some((c) => c.startsWith(`${SESSION_COOKIE}=`))).toBe(true);
       // Both OAuth round-trip cookies are cleared on success.

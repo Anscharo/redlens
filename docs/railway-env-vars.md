@@ -14,10 +14,21 @@ Quick reference — variable names and which service they go on. For the full st
 | `GITHUB_CLIENT_ID` | from your GitHub OAuth App | For logins/chat |
 | `GITHUB_CLIENT_SECRET` | from your GitHub OAuth App | For logins/chat |
 | `GITHUB_TOKEN` | a PAT with public-repo read access | For Preview (PR/branch resolution + fork previews) |
+| `GITHUB_APP_ID` | App ID from your GitHub App | For private atlas previews |
+| `GITHUB_APP_PRIVATE_KEY` | the App's private key PEM, pasted in full | For private atlas previews |
+| `PREVIEW_PRIVATE_DAILY_QUOTA` | `20` (default) | Optional — per-repo daily cap on new private-preview analyses |
 
 Without `GITHUB_TOKEN` on the **web** service, `/preview` can still build canonical
 branches, but PR/fork resolution is rate-limited or rejected — fork URLs come back as
 `not-derived`. It's the same kind of token the worker uses; one PAT can serve both services.
+
+`GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` are a SEPARATE credential from the OAuth
+app above — a GitHub App the *owner of a private atlas repo* installs, granting the
+server Contents:read + Metadata:read on just that repo. Both must be set (alongside
+`USERS_ENABLED=1` and GitHub login) to turn the private-preview feature on at all;
+either one missing leaves it completely inert and public previews unaffected. Paste
+the full private key PEM into `GITHUB_APP_PRIVATE_KEY` — Railway may store its
+newlines as literal `\n`, which the server normalizes at read time.
 
 `CHAT_ENABLED` is AND-gated by `USERS_ENABLED` — chat requires a logged-in session, so enabling chat means setting **both** `USERS_ENABLED=1` and `CHAT_ENABLED=1` (plus the matching `VITE_USERS_ENABLED=1` / `VITE_CHAT_ENABLED=1` build args).
 

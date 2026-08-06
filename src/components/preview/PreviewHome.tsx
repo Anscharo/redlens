@@ -46,10 +46,22 @@ function mergeEntries(rows: DbRow[]): Entry[] {
   return [...out.values()].sort((a, b) => b.at - a.at);
 }
 
+// `owner/repo@branch` → the `owner:repo:branch` preview-id grammar, with `/`
+// in the branch encoded as `~` (mirrors the private encoding previewLocal.ts
+// uses for public refs — kept local since that helper isn't exported).
+function parsePrivateInput(raw: string): string | null {
+  const m = raw.trim().match(/^([\w.-]+)\/([\w.-]+)@(.+)$/);
+  if (!m) return null;
+  const [, owner, repo, branch] = m;
+  return `${owner}:${repo}:${branch.replaceAll("/", "~")}`;
+}
+
 export function PreviewHome() {
   const [input, setInput] = useState("");
+  const [privateInput, setPrivateInput] = useState("");
   const [rows, setRows] = useState<DbRow[]>([]);
   const id = useMemo(() => parsePreviewInput(input), [input]);
+  const privateId = useMemo(() => parsePrivateInput(privateInput), [privateInput]);
 
   // PreviewHome renders outside App/Router, so usePageAnalytics never runs here —
   // initialise analytics and tag this surface as the "preview" product ourselves.
@@ -116,6 +128,50 @@ export function PreviewHome() {
           Can't parse that — try a github.com/…/next-gen-atlas URL, pull-N, owner:branch, or a 40-hex sha.
         </p>
       )}
+
+      <section className="w-full max-w-xl mt-8 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+        <h2 className="text-sm font-semibold mb-1" style={{ color: "var(--tan)" }}>
+          Preview a private repo
+        </h2>
+        <p className="mono text-xs mb-3" style={{ color: "var(--tan-3)" }}>
+          You'll need GitHub access to the repo, and the RedLens app installed on it.
+        </p>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            track("preview_submit", {
+              product: "preview",
+              input: privateInput,
+              parsed_id: privateId,
+              parsed: !!privateId,
+              private: true,
+            });
+            if (privateId) window.location.href = `${import.meta.env.BASE_URL}preview/${encodeURIComponent(privateId)}`;
+          }}
+        >
+          <input
+            value={privateInput}
+            onChange={(e) => setPrivateInput(e.target.value)}
+            placeholder="owner/repo@branch"
+            className="flex-1 px-3 py-2 rounded mono text-sm"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--tan)" }}
+          />
+          <button
+            type="submit"
+            disabled={!privateId}
+            className="px-4 py-2 rounded mono text-sm disabled:opacity-40"
+            style={{ background: "var(--hover)", border: "1px solid var(--accent)", color: "var(--tan)" }}
+          >
+            Preview private repo
+          </button>
+        </form>
+        {privateInput && !privateId && (
+          <p className="mono text-xs mt-2" style={{ color: "var(--red)" }}>
+            Use owner/repo@branch.
+          </p>
+        )}
+      </section>
 
       <PreviewPrTabs entries={entries} />
       <a href={import.meta.env.BASE_URL} className="mono text-xs mt-10" style={{ color: "var(--tan-3)" }}>

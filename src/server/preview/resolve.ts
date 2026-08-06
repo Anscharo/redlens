@@ -19,6 +19,9 @@
 // repos merely *named* next-gen-atlas. Shared-history and trust screening
 // happen downstream (build.ts).
 
+import { config } from "../config.ts";
+import { installationIdForRepo, installationToken } from "./github-app.ts";
+
 export const CANONICAL_OWNER = "sky-ecosystem";
 export const ATLAS_REPO_NAME = "next-gen-atlas";
 export const CANONICAL_REPO = `${CANONICAL_OWNER}/${ATLAS_REPO_NAME}`;
@@ -119,6 +122,11 @@ export interface Resolved {
    *  the preview, so its entry can carry a date like a live history entry does.
    *  Absent when GitHub didn't return one (the preview still builds). */
   date?: string;
+  /** True only for a private, non-canonical BRANCH preview resolved through the
+   *  GitHub App installation path (see resolvePrivacy). PRs and the canonical
+   *  repo are always public — this field is explicit `false` there too so the
+   *  contract is obvious at every return site. */
+  private?: boolean;
 }
 
 /** Head-commit date from a GitHub commit-ish payload (branches and commits both
@@ -128,7 +136,30 @@ function commitDate(json: any): string | undefined {
   return c?.committer?.date ?? c?.author?.date ?? undefined;
 }
 
-export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork";
+export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed";
+
+/**
+ * Is `repo` public, private, or does the private-preview GitHub App simply not
+ * cover it? Uses the passed (service-token) `gh` client first — a plain public
+ * repo never needs the App at all. Only on a 404 (repo invisible to the
+ * service token — the common shape for a private repo the service token can't
+ * see) do we fall back to asking whether the App is installed on it: if it is,
+ * the repo is private (and reachable via the installation token downstream);
+ * if not, the App simply isn't set up for it.
+ */
+export async function resolvePrivacy(
+  repo: string,
+  gh: GhClient,
+): Promise<"public" | "private" | "app-not-installed" | "not-found"> {
+  const r = await gh.fetchJson(`/repos/${repo}`);
+  if (r.ok && r.json?.private === false) return "public";
+  if (r.ok && r.json?.private === true) return "private";
+  if (r.status === 404) {
+    const installationId = await installationIdForRepo(repo);
+    return installationId !== null ? "private" : "app-not-installed";
+  }
+  return "not-found";
+}
 
 /** Network screen for non-canonical owners: the repo must be a TRUE GitHub fork
  *  of the canonical atlas. This is a CAPABILITY check, not a trust check — only
@@ -172,19 +203,37 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
       ref: `pull-${p.prNumber}`,
       pr: { number: p.prNumber, title: r.json.title ?? "", author: r.json.user?.login ?? "", state },
       date: c.ok ? commitDate(c.json) : undefined,
+      private: false,
     };
   }
 
   // sha ids are resolved upstream via the previews table, not here.
   if (p.kind === "sha") return { error: "not-found" };
 
-  // branch — canonical or fork. Forks get the lineage screen first.
+  // branch — canonical or fork. Non-canonical repos are screened for privacy
+  // first (private-preview grammar is branch-only — PRs above are always
+  // public), then either routed through the installation-token path or fall
+  // through to the existing public fork-lineage screen unchanged.
   if (p.repo !== CANONICAL_REPO) {
+    if (config.privatePreviewsEnabled) {
+      const privacy = await resolvePrivacy(p.repo, gh);
+      if (privacy === "app-not-installed") return { error: "app-not-installed" };
+      if (privacy === "private") {
+        const tok = await installationToken(p.repo);
+        if (!tok) return { error: "app-not-installed" };
+        const igh = makeGhClient(tok);
+        const r = await igh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
+        const sha = r.json?.commit?.sha;
+        if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
+        return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json), private: true };
+      }
+      // "public" or "not-found" — fall through to the existing public path below.
+    }
     const lineage = await checkForkLineage(p.repo, gh);
     if (lineage !== "ok") return { error: lineage === "not-found" ? "not-found" : "not-a-fork" };
   }
   const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
-  return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json) };
+  return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json), private: false };
 }
