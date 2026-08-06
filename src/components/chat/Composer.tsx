@@ -20,6 +20,13 @@ interface ComposerProps {
   chip: string;
   usage: UsageWindow | null;
   commons: CommonsPool | null;
+  // True while useChatSession's openConversation() is awaiting its GET — the
+  // panel already shows "Loading conversation…" in the thread, but nothing
+  // upstream stopped the composer itself from accepting input during that
+  // window. Without this, a send fired before hydrate() lands still carries
+  // the PREVIOUS conversationId (or none), so it's posted to the wrong
+  // conversation instead of the one the user just opened.
+  historyLoading?: boolean;
 }
 
 // Auto-growing textarea + context chip + send/stop. Enter sends, Shift+Enter
@@ -37,9 +44,10 @@ export function Composer({
   chip,
   usage,
   commons,
+  historyLoading,
 }: ComposerProps) {
   const taRef = useRef<HTMLTextAreaElement>(null);
-  const locked = !!rateLimit;
+  const locked = !!rateLimit || !!historyLoading;
 
   const autoGrow = (e: ChangeEvent<HTMLTextAreaElement>) => {
     const ta = e.target;
@@ -79,7 +87,9 @@ export function Composer({
             </span>
             <span className="rlc-chip-label">{chip}</span>
           </span>
-          <span className="rlc-hint">{streaming ? "streaming…" : locked ? "locked" : "↵ to send"}</span>
+          <span className="rlc-hint">
+            {streaming ? "streaming…" : historyLoading ? "loading…" : locked ? "locked" : "↵ to send"}
+          </span>
           {streaming ? (
             <button className="rlc-stop" onClick={onStop} title="Stop generating" aria-label="Stop">
               <span className="rlc-stop-glyph" />

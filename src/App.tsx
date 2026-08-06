@@ -412,8 +412,15 @@ export default function App() {
                 branch (and the ConversationsPage chunk) dead and strip it out
                 of chat-off builds. chatEnabled() alone is a function call the
                 minifier can't evaluate at build time, so chat would ship even
-                when disabled. Do not "simplify" this to chatEnabled() alone. */}
-            {__CHAT_ENABLED__ && chatEnabled() && (
+                when disabled. Do not "simplify" this to chatEnabled() alone.
+                `!preview` is also load-bearing: ConversationsPage calls the
+                non-optional useChatOpen(), and the preview shell
+                (PreviewGate.tsx) mounts <App/> without a ChatOpenProvider —
+                same reasoning as the ChatWidget/ProfileButton `!preview`
+                guards below, just needed one route earlier since this one is
+                reachable by direct URL even though nothing links to it in
+                preview. */}
+            {__CHAT_ENABLED__ && chatEnabled() && !preview && (
               <Route path={ROUTES.CONVERSATIONS}>
                 <Suspense fallback={<Loading />}>
                   <ConversationsPage />

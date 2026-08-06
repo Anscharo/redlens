@@ -188,6 +188,14 @@ describe("ChatPanel loading a restored conversation", () => {
     expect(screen.getByText("Loading conversation…")).toBeInTheDocument();
     expect(screen.queryByText("Ask the Atlas")).toBeNull();
   });
+
+  // Regression: the composer used to stay live during this window, so a quick
+  // send before hydrate() landed was posted to the previous conversation.
+  it("disables the composer while a conversation is being fetched", () => {
+    renderPanel({ session: { loadingHistory: true } });
+    expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled();
+    expect(screen.getByLabelText("Send")).toBeDisabled();
+  });
 });
 
 describe("ChatPanel rate limiting", () => {

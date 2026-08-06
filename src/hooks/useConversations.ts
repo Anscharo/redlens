@@ -31,6 +31,14 @@ export function useConversations(): {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const aliveRef = useRef(true);
+  // Invalidates a stale in-flight listConversations() fetch when a newer
+  // account switch supersedes it before the fetch resolves — aliveRef alone
+  // only guards against post-unmount setState, not against an older
+  // request's response landing AFTER a new user is already active (a shared
+  // browser / account-switch race), which would otherwise display the
+  // previous user's conversation titles under the new session. Mirrors
+  // useChatSession.ts's openConversation() requestIdRef guard.
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     aliveRef.current = true;
@@ -40,6 +48,7 @@ export function useConversations(): {
   }, []);
 
   useEffect(() => {
+    const reqId = ++requestIdRef.current;
     if (!user) {
       setConversations([]);
       setLoading(false);
@@ -49,13 +58,13 @@ export function useConversations(): {
     setError(null);
     listConversations()
       .then((cs) => {
-        if (aliveRef.current) setConversations(cs);
+        if (aliveRef.current && requestIdRef.current === reqId) setConversations(cs);
       })
       .catch((err) => {
-        if (aliveRef.current) setError(err instanceof Error ? err.message : String(err));
+        if (aliveRef.current && requestIdRef.current === reqId) setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
-        if (aliveRef.current) setLoading(false);
+        if (aliveRef.current && requestIdRef.current === reqId) setLoading(false);
       });
   }, [user]);
 

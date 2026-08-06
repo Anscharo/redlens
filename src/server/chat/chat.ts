@@ -247,12 +247,6 @@ export async function persistAssistant(
 ): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
-  const inserted = (await sql`
-    INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
-    VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
-            ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
-    RETURNING id
-  `) as { id: string }[];
 
   // Harness (verifier/advisor) tokens count toward the conversation totals and
   // the rate-limit window (via the usage_events row below) — never toward the
@@ -260,39 +254,69 @@ export async function persistAssistant(
   // double-count.
   const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
   const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
+  const usageInput = done.usage.input + checkIn;
+  const usageOutput = done.usage.output + checkOut;
 
-  // The checks rows, the conversations totals update, and the usage ledger
-  // write are independent writes (none depends on another's result) — run
-  // them concurrently instead of stacking round trips on the client's
-  // already-completed answer. persistChecks degrades to a logged no-op on
-  // failure (e.g. a boot-time race against the message_checks migration): the
-  // assistant message above is already durably persisted, so a telemetry-row
-  // failure must never surface as a turn-level error to a client that already
-  // has the complete answer.
-  //
-  // The usage_events insert is deliberately in THIS awaited Promise.all, NOT
-  // inside persistChecks' .catch()-wrapped, fire-and-forget path — that path
-  // exists so a telemetry failure can't surface after the answer shipped, but
-  // usage_events is quota accounting (see rate-limit.ts), not telemetry. If it
-  // lived there, a telemetry failure would silently drop the quota write and
-  // the reclaim-by-delete exploit would come back in a different form (this
-  // turn's tokens just never counted). One row per turn, same two sums the
-  // conversations totals UPDATE below already computes.
+  // Quota accounting happens FIRST, ahead of and independent from persisting
+  // the message. The `meta` SSE event ships convId back to the client before
+  // any model work starts (see the `send` call above), so a client can DELETE
+  // /api/chat/conversations/:id while this turn is still streaming — by the
+  // time this function runs, the conversation row may already be gone.
+  // messages.conversation_id is NOT NULL + ON DELETE CASCADE, so inserting
+  // against a deleted conversation FK-fails; if usage_events were only
+  // written after that insert succeeded, a well-timed delete would skip
+  // quota accounting entirely — the same reclaim-by-delete hole migration 017
+  // closed, just relocated into this race window instead of the cascade.
+  // usage_events.conversation_id is nullable (ON DELETE SET NULL, provenance
+  // only — see migration 017) precisely so this can degrade to an
+  // orphaned-but-counted row instead of failing outright.
+  try {
+    await sql`
+      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
+      VALUES (${userId}, ${convId}, ${usageInput}, ${usageOutput})
+    `;
+  } catch (err) {
+    captureError(err, obs, { stage: "usage_events_insert", conversationId: convId });
+    await sql`
+      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
+      VALUES (${userId}, ${null}, ${usageInput}, ${usageOutput})
+    `;
+  }
+
+  let inserted: { id: string }[];
+  try {
+    inserted = (await sql`
+      INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
+      VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
+              ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
+      RETURNING id
+    `) as { id: string }[];
+  } catch (err) {
+    // Conversation deleted mid-turn: quota is already accounted for above;
+    // there's nowhere left to save the answer or bump conversation totals.
+    captureError(err, obs, { stage: "persist_assistant_message", conversationId: convId });
+    return;
+  }
+
+  // The checks rows and the conversations totals update are independent
+  // writes (neither depends on the other's result) — run them concurrently
+  // instead of stacking round trips on the client's already-completed
+  // answer. persistChecks degrades to a logged no-op on failure (e.g. a
+  // boot-time race against the message_checks migration): the assistant
+  // message above is already durably persisted, so a telemetry-row failure
+  // must never surface as a turn-level error to a client that already has
+  // the complete answer.
   await Promise.all([
     persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
       captureError(err, obs, { stage: "persist_checks" });
     }),
     sql`
       UPDATE conversations
-      SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
-          total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
+      SET total_input_tokens = total_input_tokens + ${usageInput},
+          total_output_tokens = total_output_tokens + ${usageOutput},
           query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
           updated_at = now()
       WHERE id = ${convId}
-    `,
-    sql`
-      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
-      VALUES (${userId}, ${convId}, ${done.usage.input + checkIn}, ${done.usage.output + checkOut})
     `,
   ]);
 }

@@ -114,6 +114,38 @@ describe("useConversations", () => {
     expect(result.current.conversations.map((c) => c.id)).toEqual(["c2"]);
   });
 
+  // Regression: a slow response for user A used to be able to land AFTER
+  // user B is already active (shared browser / account-switch race) and
+  // overwrite B's list with A's — aliveRef alone only guards post-unmount
+  // setState, not a stale-but-still-mounted response.
+  it("discards a stale response from a previous user after switching accounts", async () => {
+    currentUser = { id: "u1" };
+    let resolveA: (v: unknown) => void;
+    listConversations.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveA = resolve;
+      }),
+    );
+    const { useConversations } = await import("./useConversations");
+    const { result, rerender } = renderHook(() => useConversations());
+    expect(result.current.loading).toBe(true);
+
+    // Switch to a different user before A's fetch resolves.
+    currentUser = { id: "u2" };
+    listConversations.mockResolvedValueOnce([{ id: "c-u2", title: "B's chat", updatedAt: "t", messageCount: 1 }]);
+    rerender();
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+    expect(result.current.conversations[0].id).toBe("c-u2");
+
+    // A's stale response now lands — must not clobber u2's already-loaded list.
+    await act(async () => {
+      resolveA!([{ id: "c-u1", title: "A's chat", updatedAt: "t", messageCount: 1 }]);
+      await Promise.resolve();
+    });
+    expect(result.current.conversations).toHaveLength(1);
+    expect(result.current.conversations[0].id).toBe("c-u2");
+  });
+
   it("does not update state after unmount (guarded by aliveRef)", async () => {
     currentUser = { id: "u1" };
     let resolveFn: (v: unknown) => void;

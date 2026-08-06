@@ -43,7 +43,13 @@ for (const { id } of candidates) {
     skipped++; // guarded by the EXISTS above; defensive only
     continue;
   }
-  await titleConversation(id, buildTitleTranscript(history, lastAssistant.content));
+  // buildTitleTranscript's `history` param must NOT include the just-produced
+  // answer (it's appended separately as the second arg) — unlike chat.ts's
+  // pre-persist window, this row set is the FULL conversation, so the
+  // duplicate has to be filtered out here or the last answer is repeated
+  // (once windowed in full, once truncated) in the titling prompt.
+  const priorHistory = history.filter((m) => m !== lastAssistant);
+  await titleConversation(id, buildTitleTranscript(priorHistory, lastAssistant.content));
   const [row] = (await sql`SELECT title_source FROM conversations WHERE id = ${id}`) as { title_source: string }[];
   if (row?.title_source === "auto") retitled++;
   else skipped++; // LLM/timeout failure, or renamed to 'user' mid-run

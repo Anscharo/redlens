@@ -184,8 +184,10 @@ const server = Bun.serve({
     /* v8 ignore stop */
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleConversations is unit-tested directly in conversations.test.ts */
     "/api/chat/conversations":     (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
     "/api/chat/conversations/:id": (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
+    /* v8 ignore stop */
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),

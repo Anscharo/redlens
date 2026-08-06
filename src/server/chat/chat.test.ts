@@ -514,4 +514,64 @@ describe("persistAssistant — usage ledger", () => {
     expect(usageInserts).toHaveLength(1);
     expect(usageInserts[0].values).toEqual(["user-1", "conv-2", 7, 3]);
   });
+
+  // Regression for the mid-turn-delete race: DELETE /api/chat/conversations/:id
+  // can land between the `meta` SSE event (which ships convId immediately) and
+  // this function running. messages.conversation_id is NOT NULL + ON DELETE
+  // CASCADE, so once the conversation is gone the messages insert FK-fails.
+  // usage_events must still be written — and written BEFORE that failing
+  // insert is even attempted — or the delete becomes a way to dodge the
+  // token charge for the turn that was just streamed to the client.
+  it("still records usage_events when the conversation was deleted mid-turn (messages insert FK-fails)", async () => {
+    sqlHandlers.push((text) => {
+      if (text.includes("INSERT INTO usage_events")) return [];
+      if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) {
+        throw new Error("insert or update on table \"messages\" violates foreign key constraint");
+      }
+      return undefined;
+    });
+    const done = {
+      type: "done", content: "answer", usage: { input: 50, output: 20 },
+      generationId: "gen-3", toolCalls: [], lengthCapped: false, transcript: [], checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-deleted", done as any, 10);
+
+    const usageInserts = queryLog.filter((q) => q.text.includes("INSERT INTO usage_events"));
+    expect(usageInserts).toHaveLength(1);
+    expect(usageInserts[0].values).toEqual(["user-1", "conv-deleted", 50, 20]);
+    // No checks/UPDATE writes — there's no messages row to hang them off.
+    expect(queryLog.some((q) => q.text.includes("UPDATE conversations"))).toBe(false);
+  });
+
+  // Tighter race: the conversation is already gone by the time even the
+  // usage_events insert runs (its own conv_id FK fails). Falls back to a
+  // conversation_id=NULL row — provenance-only field, see migration 017 —
+  // rather than losing the quota charge entirely.
+  it("falls back to a conversation_id=NULL usage_events row when even that insert FK-fails", async () => {
+    let usageAttempts = 0;
+    sqlHandlers.push((text) => {
+      if (text.includes("INSERT INTO usage_events")) {
+        usageAttempts++;
+        if (usageAttempts === 1) {
+          throw new Error("insert or update on table \"usage_events\" violates foreign key constraint");
+        }
+        return [];
+      }
+      if (text.includes("INSERT INTO messages") && text.includes("RETURNING id")) {
+        throw new Error("insert or update on table \"messages\" violates foreign key constraint");
+      }
+      return undefined;
+    });
+    const done = {
+      type: "done", content: "answer", usage: { input: 12, output: 8 },
+      generationId: "gen-4", toolCalls: [], lengthCapped: false, transcript: [], checksMeta: [],
+    };
+
+    await persistAssistant("user-1", "conv-gone", done as any, 10);
+
+    const usageInserts = queryLog.filter((q) => q.text.includes("INSERT INTO usage_events"));
+    expect(usageInserts).toHaveLength(2);
+    expect(usageInserts[1].values).toEqual(["user-1", null, 12, 8]);
+  });
 });

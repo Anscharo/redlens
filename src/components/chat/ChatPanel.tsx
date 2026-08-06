@@ -139,6 +139,7 @@ export function ChatPanel({
           chip={context.chip}
           usage={session.usage}
           commons={session.commons}
+          historyLoading={session.loadingHistory}
         />
       )}
     </section>
