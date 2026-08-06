@@ -1,14 +1,31 @@
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { Tooltip } from "./Tooltip";
-import { useLoaded } from "../hooks/useAtlasData";
 import { getAddressMap } from "../lib/addressMap";
-import { loadBalancesCached } from "../lib/balances";
+import { loadBalancesCached, peekCachedBalances, type BalancesResponse } from "../lib/balances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
 
+// Tooltip mounts/unmounts this component fresh on every hover, so it seeds
+// from the already-resolved shared cache (peekCachedBalances) instead of
+// always starting at "loading" — a plain useLoaded(loadBalancesCached) reset
+// to null on every hover-after-the-first would flash empty-then-filled even
+// once the cache was warm. Only fetches (once, shared across every address on
+// the page) the first time any tooltip opens; a fetch failure just leaves
+// balances out of the tooltip rather than throwing through it.
+function useBalances(): BalancesResponse | null {
+  const [bal, setBal] = useState(peekCachedBalances);
+  useEffect(() => {
+    if (bal) return;
+    let live = true;
+    loadBalancesCached()
+      .then((res) => { if (live) setBal(res); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [bal]);
+  return bal;
+}
+
 function AddressTooltipContent({ address }: { address: string }) {
-  // soft: a missing/erroring /api/balances (e.g. dev without a DB) just
-  // leaves balances out of the tooltip rather than throwing through it.
-  const bal = useLoaded(loadBalancesCached, { soft: true });
+  const bal = useBalances();
   const { name, held } = resolveAddressTooltip(address, getAddressMap(), bal?.addresses ?? {});
   return (
     <div className="min-w-[8rem] max-w-[16rem]">

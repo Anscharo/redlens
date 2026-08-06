@@ -13,13 +13,7 @@ const TX_LABEL_RE = /Transaction\s+Hash:\s*$/i;
 function splitTextByPattern(
   text: string,
   re: RegExp,
-  onMatch: (match: RegExpExecArray) => {
-    linkText: string;
-    url: string;
-    // Extra hast properties merged onto the generated <a> — e.g. data-address,
-    // read back by NodeContentInner's MarkdownLink to trigger the hover tooltip.
-    extraProperties?: Record<string, string>;
-  },
+  onMatch: (match: RegExpExecArray) => { linkText: string; url: string },
 ): ElementContent[] | null {
   re.lastIndex = 0;
   if (!re.test(text)) return null;
@@ -32,7 +26,7 @@ function splitTextByPattern(
     if (match.index > last) {
       parts.push({ type: "text", value: text.slice(last, match.index) });
     }
-    const { linkText, url, extraProperties } = onMatch(match);
+    const { linkText, url } = onMatch(match);
     const linkStart = text.indexOf(linkText, match.index);
     if (linkStart > match.index + (last === match.index ? 0 : 0)) {
       parts.push({ type: "text", value: text.slice(match.index, linkStart) });
@@ -40,13 +34,28 @@ function splitTextByPattern(
     parts.push({
       type: "element",
       tagName: "a",
-      properties: { href: url, target: "_blank", rel: "noopener noreferrer", ...extraProperties },
+      properties: { href: url, target: "_blank", rel: "noopener noreferrer" },
       children: [{ type: "text", value: linkText }],
     });
     last = linkStart + linkText.length;
   }
   if (last < text.length) {
     parts.push({ type: "text", value: text.slice(last) });
+  }
+  return parts;
+}
+
+// Stamps data-address on every <a> produced by an ONCHAIN_RE split — read back
+// by NodeContentInner's MarkdownLink to attach the hover tooltip. Kept local to
+// the address call sites below rather than threaded through splitTextByPattern
+// (also used for plain tx-hash links, which aren't addresses).
+function tagAddressLinks(parts: ElementContent[] | null): ElementContent[] | null {
+  if (!parts) return null;
+  for (const part of parts) {
+    const [child] = part.type === "element" ? part.children : [];
+    if (part.type === "element" && part.tagName === "a" && child?.type === "text") {
+      part.properties = { ...part.properties, "data-address": child.value };
+    }
   }
   return parts;
 }
@@ -105,14 +114,12 @@ export function rehypeEthAddresses() {
         const finalParts: ElementContent[] = [];
         for (const part of txParts) {
           if (part.type === "text") {
-            const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
-              const addr = m[0];
-              return {
-                linkText: addr,
-                url: explorerUrl(addr, { addrMap: addresses }),
-                extraProperties: { "data-address": addr },
-              };
-            });
+            const addrParts = tagAddressLinks(
+              splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
+                const addr = m[0];
+                return { linkText: addr, url: explorerUrl(addr, { addrMap: addresses }) };
+              }),
+            );
             if (addrParts) finalParts.push(...addrParts);
             else finalParts.push(part);
           } else {
@@ -123,14 +130,12 @@ export function rehypeEthAddresses() {
         return;
       }
 
-      const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
-        const addr = m[0];
-        return {
-          linkText: addr,
-          url: explorerUrl(addr, { addrMap: getAddressMap() }),
-          extraProperties: { "data-address": addr },
-        };
-      });
+      const addrParts = tagAddressLinks(
+        splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
+          const addr = m[0];
+          return { linkText: addr, url: explorerUrl(addr, { addrMap: getAddressMap() }) };
+        }),
+      );
       if (addrParts) {
         replacements.push({ parent: parent as Element, index, nodes: addrParts });
       }

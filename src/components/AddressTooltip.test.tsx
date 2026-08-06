@@ -3,8 +3,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { act } from "react";
-import type { AddressInfo } from "../types";
 import { setAddressMap } from "../lib/addressMap";
+import { makeAddressInfo } from "../test/fixtures";
 import { AddressTooltip } from "./AddressTooltip";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -14,20 +14,6 @@ vi.mock("../lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   loadBalancesCached: () => loadBalancesCached(),
 }));
-
-function addrInfo(overrides: Partial<AddressInfo> = {}): AddressInfo {
-  return {
-    chain: "ethereum",
-    explorerUrl: `https://etherscan.io/address/${EVM}`,
-    label: "Test Multisig",
-    isContract: true,
-    isProxy: false,
-    roles: [],
-    aliases: [],
-    expectedTokens: [],
-    ...overrides,
-  };
-}
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -55,7 +41,7 @@ async function hover(text: string) {
 
 describe("AddressTooltip", () => {
   it("shows the resolved name and only non-zero balances on hover", async () => {
-    setAddressMap({ [EVM]: addrInfo() });
+    setAddressMap({ [EVM]: makeAddressInfo({ label: "Test Multisig" }) });
     loadBalancesCached.mockResolvedValue({
       lastCheckedAt: null,
       nextRefreshAt: null,
@@ -108,7 +94,7 @@ describe("AddressTooltip", () => {
   });
 
   it("still shows the name when the balances fetch fails", async () => {
-    setAddressMap({ [EVM]: addrInfo() });
+    setAddressMap({ [EVM]: makeAddressInfo({ label: "Test Multisig" }) });
     loadBalancesCached.mockRejectedValue(new Error("network down"));
 
     render(

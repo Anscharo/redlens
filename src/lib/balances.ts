@@ -55,14 +55,29 @@ export function loadBalances(): Promise<BalancesResponse> {
 // Never refreshed automatically — OnchainAddressesReport's Refresh button is
 // the only path that fetches fresh data (server-gated to once/hour anyway).
 let cachedBalances: Promise<BalancesResponse> | null = null;
+// Synchronous mirror of the cache's resolved value, so a component that
+// mounts/unmounts per interaction (the address tooltip, opened fresh on every
+// hover) can render already-cached balances on its very first paint instead
+// of always starting from "loading" and flashing in once the shared promise
+// resolves again.
+let resolvedBalances: BalancesResponse | null = null;
 export function loadBalancesCached(): Promise<BalancesResponse> {
   if (!cachedBalances) {
-    cachedBalances = loadBalances().catch((err) => {
-      cachedBalances = null;
-      throw err;
-    });
+    cachedBalances = loadBalances()
+      .then((res) => {
+        resolvedBalances = res;
+        return res;
+      })
+      .catch((err) => {
+        cachedBalances = null;
+        throw err;
+      });
   }
   return cachedBalances;
+}
+
+export function peekCachedBalances(): BalancesResponse | null {
+  return resolvedBalances;
 }
 
 // POST triggers a server-side refresh, gated to once per hour globally. Returns

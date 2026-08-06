@@ -10,24 +10,11 @@ import "@testing-library/jest-dom/vitest";
 import { act } from "react";
 import NodeContentInner from "./NodeContentInner";
 import { setAddressMap } from "../lib/addressMap";
-import type { AddressInfo } from "../types";
+import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const UUID = "1ce24b08-84ff-4524-9710-49bba429c6ef";
 const DOC_NO = "A.3.7.1.2.2";
-
-function addrInfo(overrides: Partial<AddressInfo> & { explorerUrl: string }): AddressInfo {
-  return {
-    chain: "ethereum",
-    label: null,
-    isContract: false,
-    isProxy: false,
-    roles: [],
-    aliases: [],
-    expectedTokens: [],
-    ...overrides,
-  };
-}
 
 // resolveAtlasRef is fed by loaded atlas bundles at runtime; stub it so the
 // renderer sees UUID/doc_no -> internal-id only for nodes we "host".
@@ -57,7 +44,7 @@ describe("EVM address rendering", () => {
   });
 
   it("uses explorerUrl from the address map when set", async () => {
-    setAddressMap({ [EVM.toLowerCase()]: addrInfo({ explorerUrl: "https://custom.io/addr" }) });
+    setAddressMap({ [EVM.toLowerCase()]: makeAddressInfo({ explorerUrl: "https://custom.io/addr" }) });
     render(<NodeContentInner content={EVM} />);
     const link = await screen.findByRole("link", { name: EVM });
     expect(link).toHaveAttribute("href", "https://custom.io/addr");
@@ -82,7 +69,7 @@ describe("address hover tooltip", () => {
 
   it("wraps a linkified address so hovering it reveals the resolved name", async () => {
     setAddressMap({
-      [EVM.toLowerCase()]: addrInfo({
+      [EVM.toLowerCase()]: makeAddressInfo({
         explorerUrl: `https://etherscan.io/address/${EVM}`,
         label: "Test Multisig",
       }),
