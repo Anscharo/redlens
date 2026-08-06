@@ -8,4 +8,5 @@ export interface CoverageArea {
 export const areas: CoverageArea[];
 export const reactAreaIds: string[];
 export const backendAreaIds: string[];
+export const libAreaIds: string[];
 export function areaFor(file: string): string;
