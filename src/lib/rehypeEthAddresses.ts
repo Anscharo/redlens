@@ -13,7 +13,13 @@ const TX_LABEL_RE = /Transaction\s+Hash:\s*$/i;
 function splitTextByPattern(
   text: string,
   re: RegExp,
-  onMatch: (match: RegExpExecArray) => { linkText: string; url: string },
+  onMatch: (match: RegExpExecArray) => {
+    linkText: string;
+    url: string;
+    // Extra hast properties merged onto the generated <a> — e.g. data-address,
+    // read back by NodeContentInner's MarkdownLink to trigger the hover tooltip.
+    extraProperties?: Record<string, string>;
+  },
 ): ElementContent[] | null {
   re.lastIndex = 0;
   if (!re.test(text)) return null;
@@ -26,7 +32,7 @@ function splitTextByPattern(
     if (match.index > last) {
       parts.push({ type: "text", value: text.slice(last, match.index) });
     }
-    const { linkText, url } = onMatch(match);
+    const { linkText, url, extraProperties } = onMatch(match);
     const linkStart = text.indexOf(linkText, match.index);
     if (linkStart > match.index + (last === match.index ? 0 : 0)) {
       parts.push({ type: "text", value: text.slice(match.index, linkStart) });
@@ -34,7 +40,7 @@ function splitTextByPattern(
     parts.push({
       type: "element",
       tagName: "a",
-      properties: { href: url, target: "_blank", rel: "noopener noreferrer" },
+      properties: { href: url, target: "_blank", rel: "noopener noreferrer", ...extraProperties },
       children: [{ type: "text", value: linkText }],
     });
     last = linkStart + linkText.length;
@@ -101,7 +107,11 @@ export function rehypeEthAddresses() {
           if (part.type === "text") {
             const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
               const addr = m[0];
-              return { linkText: addr, url: explorerUrl(addr, { addrMap: addresses }) };
+              return {
+                linkText: addr,
+                url: explorerUrl(addr, { addrMap: addresses }),
+                extraProperties: { "data-address": addr },
+              };
             });
             if (addrParts) finalParts.push(...addrParts);
             else finalParts.push(part);
@@ -115,7 +125,11 @@ export function rehypeEthAddresses() {
 
       const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
         const addr = m[0];
-        return { linkText: addr, url: explorerUrl(addr, { addrMap: getAddressMap() }) };
+        return {
+          linkText: addr,
+          url: explorerUrl(addr, { addrMap: getAddressMap() }),
+          extraProperties: { "data-address": addr },
+        };
       });
       if (addrParts) {
         replacements.push({ parent: parent as Element, index, nodes: addrParts });

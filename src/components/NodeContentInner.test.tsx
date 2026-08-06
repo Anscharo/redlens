@@ -4,21 +4,45 @@
 // UUID navigation links, and basic markdown output.
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
+import { act } from "react";
 import NodeContentInner from "./NodeContentInner";
 import { setAddressMap } from "../lib/addressMap";
+import type { AddressInfo } from "../types";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
 const UUID = "1ce24b08-84ff-4524-9710-49bba429c6ef";
 const DOC_NO = "A.3.7.1.2.2";
+
+function addrInfo(overrides: Partial<AddressInfo> & { explorerUrl: string }): AddressInfo {
+  return {
+    chain: "ethereum",
+    label: null,
+    isContract: false,
+    isProxy: false,
+    roles: [],
+    aliases: [],
+    expectedTokens: [],
+    ...overrides,
+  };
+}
 
 // resolveAtlasRef is fed by loaded atlas bundles at runtime; stub it so the
 // renderer sees UUID/doc_no -> internal-id only for nodes we "host".
 vi.mock("../lib/docs", () => ({
   resolveAtlasRef: (_base: string, fragment: string) =>
     fragment === UUID || fragment === DOC_NO ? UUID : undefined,
+}));
+
+// AddressTooltip's balances fetch is exercised in its own unit test
+// (AddressTooltip.test.tsx); here it's stubbed so the hover-tooltip
+// integration test below only has to assert the resolved name shows up.
+const loadBalancesCached = vi.fn();
+vi.mock("../lib/balances", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  loadBalancesCached: () => loadBalancesCached(),
 }));
 
 beforeEach(() => setAddressMap({}));
@@ -33,10 +57,53 @@ describe("EVM address rendering", () => {
   });
 
   it("uses explorerUrl from the address map when set", async () => {
-    setAddressMap({ [EVM.toLowerCase()]: { explorerUrl: "https://custom.io/addr" } });
+    setAddressMap({ [EVM.toLowerCase()]: addrInfo({ explorerUrl: "https://custom.io/addr" }) });
     render(<NodeContentInner content={EVM} />);
     const link = await screen.findByRole("link", { name: EVM });
     expect(link).toHaveAttribute("href", "https://custom.io/addr");
+  });
+});
+
+describe("address hover tooltip", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    loadBalancesCached.mockReset();
+    loadBalancesCached.mockResolvedValue({
+      lastCheckedAt: null,
+      nextRefreshAt: null,
+      refreshed: false,
+      addresses: {},
+    });
+  });
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it("wraps a linkified address so hovering it reveals the resolved name", async () => {
+    setAddressMap({
+      [EVM.toLowerCase()]: addrInfo({
+        explorerUrl: `https://etherscan.io/address/${EVM}`,
+        label: "Test Multisig",
+      }),
+    });
+    render(<NodeContentInner content={`See ${EVM} for details.`} />);
+    // getByRole, not findByRole: content is synchronous here (no KaTeX lazy
+    // import in play), and findByRole's polling needs real timers, which
+    // this block replaces with fake ones for the tooltip's show-delay timer.
+    const link = screen.getByRole("link", { name: EVM });
+
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.mouseEnter(link);
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+    });
+    // Flush the microtask queue so loadBalancesCached()'s resolved promise
+    // (fake timers don't drive microtasks) lands before the assertion.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Test Multisig");
   });
 });
 

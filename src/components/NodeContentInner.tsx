@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import type { AnchorHTMLAttributes } from "react";
+import type { Element } from "hast";
 import { ethAddressesPlugin, rehypeEthAddresses } from "../lib/rehypeEthAddresses";
 import { remarkDeMathProse } from "../lib/mathGuard";
 import { UUID_RE } from "../lib/patterns";
@@ -11,6 +12,7 @@ import { resolveAtlasRef } from "../lib/docs";
 import { useDataSource } from "../lib/dataSource";
 import { track } from "../lib/analytics";
 import { rehypeHighlightMarks } from "../lib/rehypeHighlightMarks";
+import { AddressTooltip } from "./AddressTooltip";
 import type { ReportQuery } from "../lib/reportFilter";
 
 interface Props {
@@ -53,9 +55,9 @@ function internalTargetId(base: string, href: string): string | null {
 function MarkdownLink({
   href,
   children,
-  node: _node,
+  node,
   ...props
-}: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: unknown }) {
+}: AnchorHTMLAttributes<HTMLAnchorElement> & { children?: React.ReactNode; node?: Element }) {
   const onNavigate = useNavigateContext();
   const { base } = useDataSource();
   const targetId = href ? internalTargetId(base, href) : null;
@@ -74,11 +76,17 @@ function MarkdownLink({
       </a>
     );
   }
-  return (
+  const link = (
     <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
       {children}
     </a>
   );
+  // rehypeEthAddresses tags on-chain address links with data-address — the
+  // signal MarkdownLink uses to attach the name/balances hover tooltip
+  // (tx-hash and other external links carry no such property).
+  const addrProp = node?.properties?.["data-address"];
+  const address = typeof addrProp === "string" ? addrProp : null;
+  return address ? <AddressTooltip address={address}>{link}</AddressTooltip> : link;
 }
 
 const components: Components = {

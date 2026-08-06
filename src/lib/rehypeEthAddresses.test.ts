@@ -4,8 +4,22 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Root, Element, Text } from "hast";
+import type { AddressInfo } from "../types";
 import { rehypeEthAddresses } from "./rehypeEthAddresses";
 import { setAddressMap } from "./addressMap";
+
+function addrInfo(explorerUrl: string): AddressInfo {
+  return {
+    chain: "ethereum",
+    explorerUrl,
+    label: null,
+    isContract: false,
+    isProxy: false,
+    roles: [],
+    aliases: [],
+    expectedTokens: [],
+  };
+}
 
 function makeTree(...texts: string[]): Root {
   return {
@@ -54,7 +68,7 @@ describe("EVM address linkification", () => {
   });
 
   it("uses explorerUrl from address map when present", () => {
-    setAddressMap({ [EVM.toLowerCase()]: { explorerUrl: "https://custom.io/addr" } });
+    setAddressMap({ [EVM.toLowerCase()]: addrInfo("https://custom.io/addr") });
     const tree = makeTree(EVM);
     transform(tree);
     expect(links(tree)[0]?.href).toBe("https://custom.io/addr");

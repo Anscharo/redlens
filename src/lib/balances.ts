@@ -50,6 +50,21 @@ export function loadBalances(): Promise<BalancesResponse> {
   return fetchJson<BalancesResponse>("/api/balances", "balances");
 }
 
+// Session-cached GET, shared by every address hover tooltip so hovering many
+// addresses on a page fetches /api/balances once instead of once per hover.
+// Never refreshed automatically — OnchainAddressesReport's Refresh button is
+// the only path that fetches fresh data (server-gated to once/hour anyway).
+let cachedBalances: Promise<BalancesResponse> | null = null;
+export function loadBalancesCached(): Promise<BalancesResponse> {
+  if (!cachedBalances) {
+    cachedBalances = loadBalances().catch((err) => {
+      cachedBalances = null;
+      throw err;
+    });
+  }
+  return cachedBalances;
+}
+
 // POST triggers a server-side refresh, gated to once per hour globally. Returns
 // the same shape; `refreshed` says whether new data was actually fetched.
 export async function requestBalancesRefresh(): Promise<BalancesResponse> {
