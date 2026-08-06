@@ -70,6 +70,7 @@ export function loadAddresses(base: string = liveAtlasBase()): Promise<Record<st
         const chain = o.chain && atlasChains.includes(o.chain) ? o.chain : a.chain;
         out[addr] = {
           chain,
+          chains: atlasChains,
           explorerUrl: (EXPLORER[chain] ?? EXPLORER.ethereum) + addr,
           label,
           ...(a.entityLabel ? { entityLabel: a.entityLabel } : {}),

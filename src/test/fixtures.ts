@@ -101,8 +101,10 @@ export function makeSearchHit(overrides: Partial<SearchHit> = {}): SearchHit {
 }
 
 export function makeAddressInfo(overrides: Partial<AddressInfo> = {}): AddressInfo {
+  const chain = overrides.chain ?? "ethereum";
   return {
-    chain: "ethereum",
+    chain,
+    chains: [chain],
     explorerUrl: "https://etherscan.io/address/0x0",
     label: null,
     isContract: true,

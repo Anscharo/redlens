@@ -41,7 +41,7 @@ async function hover(text: string) {
 
 describe("AddressTooltip", () => {
   it("shows the resolved name and only non-zero balances on hover", async () => {
-    setAddressMap({ [EVM]: makeAddressInfo({ label: "Test Multisig" }) });
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Test Multisig" }) });
     loadBalancesCached.mockResolvedValue({
       lastCheckedAt: null,
       nextRefreshAt: null,
@@ -94,7 +94,7 @@ describe("AddressTooltip", () => {
   });
 
   it("still shows the name when the balances fetch fails", async () => {
-    setAddressMap({ [EVM]: makeAddressInfo({ label: "Test Multisig" }) });
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Test Multisig" }) });
     loadBalancesCached.mockRejectedValue(new Error("network down"));
 
     render(
@@ -106,5 +106,78 @@ describe("AddressTooltip", () => {
 
     const tip = screen.getByRole("tooltip");
     expect(tip).toHaveTextContent("Test Multisig");
+  });
+
+  it("shows a loading state before the balances fetch resolves, then replaces it", async () => {
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Test Multisig" }) });
+    let resolveFetch!: (v: unknown) => void;
+    loadBalancesCached.mockReturnValue(new Promise((r) => { resolveFetch = r; }));
+
+    render(
+      <AddressTooltip address={EVM}>
+        <a href="#">{EVM}</a>
+      </AddressTooltip>,
+    );
+    fireEvent.mouseEnter(screen.getByText(EVM));
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+    });
+
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent("Test Multisig");
+    expect(tip).toHaveTextContent("Loading balances");
+
+    await act(async () => {
+      resolveFetch({
+        lastCheckedAt: null,
+        nextRefreshAt: null,
+        refreshed: false,
+        addresses: {
+          [`${EVM}|ethereum`]: {
+            chain: "ethereum",
+            checkedAt: null,
+            hasCode: null,
+            balances: { ETH: { raw: "1000000000000000000", decimals: 18 } },
+          },
+        },
+      });
+    });
+
+    expect(tip).not.toHaveTextContent("Loading balances");
+    expect(tip).toHaveTextContent("ETH");
+  });
+
+  it("tags each balance row with its chain for a multi-chain address", async () => {
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "ALM Proxy", chains: ["ethereum", "base"] }) });
+    loadBalancesCached.mockResolvedValue({
+      lastCheckedAt: null,
+      nextRefreshAt: null,
+      refreshed: false,
+      addresses: {
+        [`${EVM}|ethereum`]: {
+          chain: "ethereum",
+          checkedAt: null,
+          hasCode: null,
+          balances: { ETH: { raw: "1000000000000000000", decimals: 18 } },
+        },
+        [`${EVM}|base`]: {
+          chain: "base",
+          checkedAt: null,
+          hasCode: null,
+          balances: { ETH: { raw: "2000000000000000000", decimals: 18 } },
+        },
+      },
+    });
+
+    render(
+      <AddressTooltip address={EVM}>
+        <a href="#">{EVM}</a>
+      </AddressTooltip>,
+    );
+    await hover(EVM);
+
+    const tip = screen.getByRole("tooltip");
+    expect(tip).toHaveTextContent("ETH (ethereum)");
+    expect(tip).toHaveTextContent("ETH (base)");
   });
 });

@@ -10,16 +10,26 @@ import { PRIMARY_BALANCE_SYMBOLS } from "./onchainAddressesIndex";
 export interface HeldBalance {
   symbol: string;
   amount: string;
+  // Present only when the address holds balances on more than one chain —
+  // see resolveAddressTooltip's multi-chain aggregation below.
+  chain?: string;
 }
 
-// Balances held (> 0), primary symbols (ETH/USDS/SKY) first in that order,
-// then everything else alphabetically.
-export function heldBalances(balances: BalanceMap): HeldBalance[] {
+interface RawHeld {
+  symbol: string;
+  raw: string;
+  decimals: number;
+  chain?: string;
+}
+
+function rank(symbol: string): number {
   const order = PRIMARY_BALANCE_SYMBOLS as readonly string[];
-  const rank = (symbol: string) => {
-    const i = order.indexOf(symbol);
-    return i === -1 ? order.length : i;
-  };
+  const i = order.indexOf(symbol);
+  return i === -1 ? order.length : i;
+}
+
+// Non-zero entries from a single chain's balance map, unsorted, unformatted.
+function nonZero(balances: BalanceMap, chain?: string): RawHeld[] {
   return Object.entries(balances)
     .filter(([, b]) => {
       try {
@@ -28,14 +38,34 @@ export function heldBalances(balances: BalanceMap): HeldBalance[] {
         return false;
       }
     })
-    .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b))
-    .map(([symbol, b]) => ({ symbol, amount: compactAmount(b.raw, b.decimals) }));
+    .map(([symbol, b]) => ({ symbol, raw: b.raw, decimals: b.decimals, chain }));
+}
+
+// Primary symbols (ETH/USDS/SKY) first in that order, then alphabetical; ties
+// on symbol (only possible once chain-tagged, i.e. multi-chain) break by chain.
+function sortHeld(items: RawHeld[]): RawHeld[] {
+  return [...items].sort(
+    (a, b) =>
+      rank(a.symbol) - rank(b.symbol) ||
+      a.symbol.localeCompare(b.symbol) ||
+      (a.chain ?? "").localeCompare(b.chain ?? ""),
+  );
+}
+
+// Balances held (> 0) on a single chain, primary symbols (ETH/USDS/SKY) first
+// in that order, then everything else alphabetically.
+export function heldBalances(balances: BalanceMap): HeldBalance[] {
+  return sortHeld(nonZero(balances)).map((h) => ({ symbol: h.symbol, amount: compactAmount(h.raw, h.decimals) }));
 }
 
 // address (lowercased, falling back to as-written for case-sensitive Solana
-// addresses) → its display name and held balances. Mirrors the addrMap lookup
-// in explorerUrl() (explorer.ts). balancesByAddress needs no such fallback —
-// balances.ts's readCache always lowercases the address half of its keys.
+// addresses) → its display name and held balances across every chain the
+// atlas places it on (a Safe or deterministically-deployed contract can sit
+// at the same address on several chains). Mirrors the addrMap lookup in
+// explorerUrl() (explorer.ts) and the registryName the On-Chain Addresses
+// report shows: chainlogId or the verified on-chain name only, never the
+// heuristic entityLabel (a best-effort proper-noun extraction from
+// surrounding prose — too often a stray phrase, not a real name).
 export function resolveAddressTooltip(
   address: string,
   addrMap: Record<string, AddressInfo>,
@@ -43,8 +73,19 @@ export function resolveAddressTooltip(
 ): { name: string; held: HeldBalance[] } {
   const key = address.toLowerCase();
   const info = addrMap[key] ?? addrMap[address];
-  const name = info?.label ?? shortAddr(address);
+  const name = info?.chainlogId ?? info?.etherscanName ?? shortAddr(address);
   if (!info) return { name, held: [] };
-  const bal = balancesByAddress[`${key}|${info.chain}`];
-  return { name, held: bal ? heldBalances(bal.balances) : [] };
+
+  const chains = info.chains.length ? info.chains : [info.chain];
+  const multiChain = chains.length > 1;
+  const raw = chains.flatMap((chain) => {
+    const bal = balancesByAddress[`${key}|${chain}`];
+    return bal ? nonZero(bal.balances, multiChain ? chain : undefined) : [];
+  });
+  const held = sortHeld(raw).map((h) => ({
+    symbol: h.symbol,
+    amount: compactAmount(h.raw, h.decimals),
+    chain: h.chain,
+  }));
+  return { name, held };
 }

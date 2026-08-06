@@ -72,7 +72,7 @@ describe("address hover tooltip", () => {
     setAddressMap({
       [EVM.toLowerCase()]: makeAddressInfo({
         explorerUrl: `https://etherscan.io/address/${EVM}`,
-        label: "Test Multisig",
+        chainlogId: "Test Multisig",
       }),
     });
     render(<NodeContentInner content={`See ${EVM} for details.`} />);
