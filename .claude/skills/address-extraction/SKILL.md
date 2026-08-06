@@ -170,7 +170,8 @@ Two things that pass through `address-code.mjs` are load-bearing:
 Conventions worth keeping:
 
 - **The RPC lives in `solanaRpcUrl`, not `rpcUrl`.** Solana's JSON-RPC is a different protocol, and every EVM pass keys off `rpcUrl`. `census:chains` asserts that a non-EVM chain declares no `rpcUrl`.
-- **One `getMultipleAccounts` call per 100 keys, with a 166-byte `dataSlice`** — enough for the upgradeable-loader pointer (bytes 4..36) and the Token-2022 discriminator (byte 165), never enough to pull down an ELF. Sizes come from `space`, which is the *account's* length, not the slice's.
+- **One `getMultipleAccounts` call per 10 keys, with a 166-byte `dataSlice`** — enough for the upgradeable-loader pointer (bytes 4..36) and the Token-2022 discriminator (byte 165), never enough to pull down an ELF. Sizes come from `space`, which is the *account's* length, not the slice's. The batch is 10 because PublicNode refuses 11+ with an HTTP 403 carrying JSON-RPC `-32602 "blocked parameter: params.0.#"` (measured; Solana's own cap is 100). Raise it only against an endpoint you've re-measured.
+- **A rejected request's reason lives in the JSON-RPC body even on a 4xx**, so the body is parsed before the status is checked — reporting a bare "HTTP 403" makes an endpoint's parameter limit look identical to an egress-policy denial.
 - **A failed batch omits its pubkeys from the result map**, the same discipline as `{ ok: false }` above: "the RPC is down" and "this account does not exist" are otherwise indistinguishable, and conflating them would rewrite every Solana row on a blip.
 - `PROGRAM_NAMES` holds only fixed runtime program ids. Anything else is named from the atlas's own `entityLabel` for that pubkey when it has one (so a PDA reads "owned by Solana ALM Controller Program"), else shown raw — a wrong friendly name is worse than none.
 

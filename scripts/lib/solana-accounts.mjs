@@ -18,8 +18,11 @@
 
 import { SOLANA_RPC } from "./chains.mjs";
 
-// Accounts per getMultipleAccounts call. The RPC's own cap is 100.
-const BATCH = 100;
+// Accounts per getMultipleAccounts call. Solana's own cap is 100, but
+// PublicNode rejects anything over 10 with an HTTP 403 carrying a JSON-RPC
+// -32602 "blocked parameter: params.0.#" — measured, not documented, so treat
+// this as the endpoint's limit rather than the protocol's.
+const BATCH = 10;
 // Covers byte 165 (Token-2022 AccountType) inclusive.
 const DATA_SLICE = 166;
 
@@ -194,10 +197,13 @@ export async function fetchSolanaAccounts(
           params: [slice, { encoding: "base64", commitment: "confirmed", dataSlice: { offset: 0, length: DATA_SLICE } }],
         }),
       });
+      // Parse before checking status: a rejected request carries its reason in
+      // a JSON-RPC error body even when the HTTP status is 4xx, and "HTTP 403"
+      // alone is indistinguishable from an egress-policy denial.
+      const body = await res.json().catch(() => null);
+      if (body?.error) throw new Error(`${body.error.message ?? "RPC error"} (HTTP ${res.status})`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = await res.json();
-      if (body.error) throw new Error(body.error.message ?? "RPC error");
-      const value = body.result?.value;
+      const value = body?.result?.value;
       if (!Array.isArray(value)) throw new Error("malformed result");
       slice.forEach((key, j) => accounts.set(key, value[j] ?? null));
     } catch (err) {

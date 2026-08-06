@@ -156,7 +156,10 @@
   "7Gf8AqAtmYkkVhQbbJr18RxVUuoGjA8ZEw3Af4NauyaY": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "0x829dc2b7e94b1954f0764e573f2e0d45afa28199": {
     "chain": "ethereum",
@@ -354,7 +357,10 @@
   "8JmDPG5BFQ6gpUPJV9xBixYJLqTKCSNotkXksTmNsQfj": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "0x64a2b7cfa832fe83be6a7c1a67521b350519b9c1": {
     "chain": "ethereum",
@@ -449,7 +455,10 @@
   "AYPtjx4Hc8us1ikULUedkmZ3wtiD6tmL7gK3qe4V3oHt": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "0x483413cccd796deddee88e4d3e202425d5e891c6": {
     "chain": "ethereum",
@@ -503,7 +512,10 @@
   "5hARLsT1VA2AmuGL2AXUeSyyFG6o2Fcpb9S6aKXNsbeK": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "0x4deb1b5372dd3271691a9e80bcbfd98f5aa27f30": {
     "chain": "avalanche",
@@ -1938,27 +1950,42 @@
   "AU4GkzA4G9rRX3hS8QCNTiVGAtt5MNUAfK5L5Q57BAC4": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "5hMjmxexWu954pX9gB9jkHxMqdjpxArQS2XdvkaevRax": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "5QbRL9MU5QakL5Fx2He9YaiUzB3TQpVAUBR2ARKN1NrM": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "71hhezkHQ2dhmPySsHVCCkLggfWzPFEBdfEjbn4NCXMG": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "AZtUUe9GvTFq9kfseu9jxTioSgdSfjgmZfGQBmhVpTj1": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "0x065e5de3d3a08c9d14bf79ce5a6d3d0e8794640c": {
     "chain": "ethereum",
@@ -1994,23 +2021,34 @@
   },
   "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd": {
     "chain": "solana",
-    "isContract": false,
-    "isProxy": false
+    "isContract": true,
+    "isProxy": true,
+    "accountType": "program",
+    "programOwner": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "programOwnerName": "BPF Upgradeable Loader",
+    "implementation": "93qn8rcvZPXGaHmetHrPEd6E5KuzGYEDV7bBgiyC31zj"
   },
   "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "EeWDutgcKNTdQGJkGRrWYmTXXuKnPUZNvXepbLkQrxW4": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "missing"
   },
   "4UA2CC9fQDTbX1SnJcanYn2QU5PtyB1MGfezDvGFPVwd": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "token-account",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "0xa4f39daae4dc86c27c46b9a0605ae2c911451f95": {
     "chain": "ethereum",
@@ -2033,137 +2071,210 @@
   "99J5Vcf3tav2dorWmB1qxdXtD4MKk6pyayQwS8RCXZKc": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "2MeJkkKPfHs6qJgTKZJGnrpq8jBRsvty6zB5iA8SkoVU": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "2gDBGyhU8M96JDMWzCfiGb3Pw2HvrEvdL5MkfwosBYnh": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "missing"
   },
   "6TdcW3qX25JcN9nMgSkFka5wXTXBFhb5J2tVRdG3pw3w": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "7JvfSy4mWcw1EAy7vjvsHnKeC28UZeAURhVi4nQjUM6h": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "2YLLgUuWHwf8hFnWXWUL9V5Vk68yBswVtJED1h4vnPjX": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "AUAJeXgLDNoDbBZ1uRguj9hWDZJSQkmoy4xk9U5zJF8h": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "B24DtbKAV25fcZ6e3buqfB8CSuuiFLRsHHojBGigntff": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "6nnt6N4Ay9tBeMWnVWKS24hDtE6R3fshi5TteUcSKJcQ": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "H5Vix4RGchYq1cemoe61y7J4j4v3XgWPGLBeqvPEgvzr": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "9DrvZvyWh1HuAoZxvYWMvkf2XCzryCpGgHqrMjyDWpmo": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "wallet",
+    "programOwner": "11111111111111111111111111111111",
+    "programOwnerName": "System Program"
   },
   "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "GZ6vUcBZk4QiaBUhhn1TpX6S7FiXK71Pogke1RnBc3zA": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "B8zf4kojJbwgCRKA7rLaLhRCZBGhgAJp8wPBVZZHMhSv": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "ArpjQUCqHvtDQZFR2tFbPPEKYiQHuaJkcFQBdW5NQC4U": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "BG6gsv8goyoJguEbLquUZFNiZ8aGTXgo4DyH9h8z9qao": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+    "programOwnerName": "SPL Token-2022"
   },
   "5JYk4vbZTFcBiHK5HzQTmYcT6kosEKJV62tYTCTpT6xy": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "missing"
   },
   "2dQkXr1e9LBvT2QcfKrzZaWY6gGAAVoCjLgkWFk3Mhkj": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "programOwnerName": "SPL Token"
   },
   "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "mint",
+    "programOwner": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+    "programOwnerName": "SPL Token-2022"
   },
   "9DULRsF4Cfj2BbYZp9n6deLf16yYnR5EcFicvzLNMC2s": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "missing"
   },
   "DFrV1Nyfvoucz3nofVRGFmhWAxV1qz1xQxz5rQi4MNot": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "ET3k7uBeXLmeVQW5Tm8xBnLte9FgUSRebgneT57wjuqL": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "Gb8TLtzWtUVVm5VaEXeZS7hdeXMc675PBvWimeep6aU1": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "program-account",
+    "programOwner": "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd",
+    "programOwnerName": "Solana ALM Controller Program"
   },
   "5rqJu2NrbMBnW2B2mejSPUV589gb7pvHSGrWQyQqnQz5": {
     "chain": "solana",
     "isContract": false,
-    "isProxy": false
+    "isProxy": false,
+    "accountType": "missing"
   },
   "0x08978e3700859e476201c1d7438b3427e3c81140": {
     "chain": "ethereum",

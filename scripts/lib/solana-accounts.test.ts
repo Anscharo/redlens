@@ -175,6 +175,21 @@ describe("fetchSolanaAccounts", () => {
     expect(body.params[1].dataSlice).toEqual({ offset: 0, length: 166 });
   });
 
+  it("defaults to batches of 10, the measured PublicNode cap", async () => {
+    // Measured against solana-rpc.publicnode.com: 10 keys answers 200, 11 is
+    // refused with an HTTP 403 carrying JSON-RPC -32602 "blocked parameter:
+    // params.0.#". Solana's own protocol cap is 100, so nothing but this test
+    // records why the batch is small.
+    const fetchImpl = vi.fn(() => ok([]));
+    await fetchSolanaAccounts(Array.from({ length: 11 }, (_, i) => `K${i}`), {
+      rpcUrl: "https://rpc.test",
+      fetchImpl: fetchImpl as never,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const first = JSON.parse((fetchImpl.mock.calls[0] as never[])[1]!["body" as never]);
+    expect(first.params[0]).toHaveLength(10);
+  });
+
   it("splits into batches", async () => {
     const fetchImpl = vi.fn(() => ok([null, null]));
     const { accounts } = await fetchSolanaAccounts(["A", "B", "C"], {
@@ -189,7 +204,11 @@ describe("fetchSolanaAccounts", () => {
   it("omits a failed batch's pubkeys rather than reporting them as missing accounts", async () => {
     // Conflating "the RPC is down" with "this account does not exist" would
     // silently rewrite every Solana row on a network blip.
-    const fetchImpl = vi.fn(() => Promise.resolve({ ok: false, status: 502 }));
+    // A gateway 502 answers with an HTML error page, so json() rejects — the
+    // status is then the only thing left to report.
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve({ ok: false, status: 502, json: () => Promise.reject(new SyntaxError("Unexpected token <")) }),
+    );
     const { accounts, failed, error } = await fetchSolanaAccounts(["A"], {
       rpcUrl: "https://rpc.test",
       fetchImpl: fetchImpl as never,
@@ -203,12 +222,33 @@ describe("fetchSolanaAccounts", () => {
     const fetchImpl = vi.fn(() =>
       Promise.resolve({ ok: true, json: () => Promise.resolve({ error: { message: "rate limited" } }) }),
     );
-    const { accounts, failed } = await fetchSolanaAccounts(["A"], {
+    const { accounts, failed, error } = await fetchSolanaAccounts(["A"], {
       rpcUrl: "https://rpc.test",
       fetchImpl: fetchImpl as never,
     });
     expect(accounts.size).toBe(0);
     expect(failed).toBe(1);
+    expect(error).toContain("rate limited");
+  });
+
+  it("reports the JSON-RPC reason carried by a 4xx, not just the status", async () => {
+    // How PublicNode refuses an oversized batch. Reporting only "HTTP 403"
+    // makes it indistinguishable from an egress-policy denial, which is a
+    // completely different thing to go fix.
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 403,
+        json: () => Promise.resolve({ error: { code: -32602, message: "blocked parameter: params.0.#" } }),
+      }),
+    );
+    const { failed, error } = await fetchSolanaAccounts(["A"], {
+      rpcUrl: "https://rpc.test",
+      fetchImpl: fetchImpl as never,
+    });
+    expect(failed).toBe(1);
+    expect(error).toContain("blocked parameter");
+    expect(error).toContain("403");
   });
 
   it("fails cleanly when the registry has no Solana RPC", async () => {
