@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nrChiclets, nrSidebarChiclets } from "./depth";
+import { nrChiclets, nrSidebarChiclets, realDepth, segmentDepths, depthColor, chicletColor } from "./depth";
 
 describe("nrChiclets (reader)", () => {
   it("renders the bare token per-character with a neutral 'NR-' prefix", () => {
@@ -56,5 +56,104 @@ describe("nrSidebarChiclets", () => {
   it("falls back to a normal dash when the parent doc_no is missing", () => {
     const { slots } = nrSidebarChiclets("NR-7", undefined, 3);
     expect(slots).toEqual([1, 1, 1, 1]);
+  });
+
+  it("renders a dashless token per-character at the given depth (defensive fallback)", () => {
+    const result = nrSidebarChiclets("NR7", "A.1", 4);
+    expect(result.parts).toEqual(["N", "R", "7"]);
+    expect(result.depths).toEqual([4, 4, 4]);
+    expect(result.slots).toEqual([1, 1, 1]);
+    expect(result.gradients).toEqual([undefined, undefined, undefined]);
+  });
+});
+
+describe("realDepth", () => {
+  it("returns segment count minus one for a plain doc_no", () => {
+    expect(realDepth("A.1.6.4")).toBe(3);
+    expect(realDepth("A")).toBe(0);
+  });
+
+  it("gives an NR with no parent depth 1", () => {
+    expect(realDepth("NR-5")).toBe(1);
+  });
+
+  it("nests an NR one deeper than its parent", () => {
+    expect(realDepth("NR-5", "A.1.6.4")).toBe(4);
+  });
+
+  it("treats a Scenario Variation (.varX) as one deeper than its base scenario", () => {
+    expect(realDepth("A.1.6.4.var1")).toBe(realDepth("A.1.6.4") + 1);
+    expect(realDepth("A.1.6.4.var1")).toBe(4);
+  });
+
+  it("collapses an Annotation's .0.3.X marker to one past its target's depth", () => {
+    // Target "A.1.6" sits at depth 2; the Annotation marker (.0.3.1) adds no
+    // extra depth of its own beyond the target + 1.
+    expect(realDepth("A.1.6.0.3.1")).toBe(3);
+  });
+
+  it("adds one more level for a nested Action Tenet clause (.0.4.X.1.Y) after the marker", () => {
+    expect(realDepth("A.1.6.0.4.2.1.3")).toBe(4);
+  });
+
+  it("adds one level per trailing segment when the tail isn't a 1.Y pair", () => {
+    // After the .0.6.X (Active Data) marker, a single trailing non-pair segment
+    // still counts as one extra level.
+    expect(realDepth("A.1.6.0.6.2.5")).toBe(4);
+  });
+});
+
+describe("segmentDepths", () => {
+  it("returns [1] for an NR doc_no regardless of content", () => {
+    expect(segmentDepths("NR-5")).toEqual([1]);
+  });
+
+  it("assigns depth 0 to the root segment and increments for each plain segment after", () => {
+    expect(segmentDepths("A.1.6.4")).toEqual([0, 1, 2, 3]);
+  });
+
+  it("treats a .varX segment as one deeper, matching realDepth", () => {
+    expect(segmentDepths("A.1.6.4.var1")).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it("holds the whole .0.3.X Annotation marker group at one shared depth", () => {
+    expect(segmentDepths("A.1.6.0.3.1")).toEqual([0, 1, 2, 3, 3, 3]);
+  });
+
+  it("gives a nested Action Tenet clause (.0.4.X.1.Y) one more depth than the marker group", () => {
+    expect(segmentDepths("A.1.6.0.4.2.1.3")).toEqual([0, 1, 2, 3, 3, 3, 4, 4]);
+  });
+
+  it("agrees with realDepth's value on the final segment", () => {
+    for (const docNo of ["A.1.6.4", "A.1.6.0.3.1", "A.1.6.0.4.2.1.3"]) {
+      const depths = segmentDepths(docNo);
+      expect(depths[depths.length - 1]).toBe(realDepth(docNo));
+    }
+  });
+});
+
+describe("depthColor", () => {
+  it("maps a depth to its CSS variable", () => {
+    expect(depthColor(5)).toBe("var(--depth-5)");
+  });
+
+  it("clamps below 1 up to 1", () => {
+    expect(depthColor(0)).toBe("var(--depth-1)");
+    expect(depthColor(-3)).toBe("var(--depth-1)");
+  });
+
+  it("clamps above 17 down to 17", () => {
+    expect(depthColor(20)).toBe("var(--depth-17)");
+  });
+});
+
+describe("chicletColor", () => {
+  it("gives depth 0 the neutral tan color, not a depth color", () => {
+    expect(chicletColor(0)).toBe("var(--tan-2)");
+  });
+
+  it("delegates to the depth palette for depth >= 1, clamped the same as depthColor", () => {
+    expect(chicletColor(5)).toBe("var(--depth-5)");
+    expect(chicletColor(30)).toBe("var(--depth-17)");
   });
 });
