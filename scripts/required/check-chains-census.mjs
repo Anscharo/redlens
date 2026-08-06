@@ -366,6 +366,10 @@ for (const d of deferred) {
 // ---------------------------------------------------------------------------
 if (checkRpc) {
   console.log("chains-census: verifying rpcUrl endpoints (eth_chainId)…");
+  const mismatched = [];
+  const unreachable = [];
+  let reached = 0;
+
   for (const c of CHAINS) {
     if (!c.rpcUrl) continue;
     try {
@@ -376,12 +380,34 @@ if (checkRpc) {
         signal: AbortSignal.timeout(15000),
       });
       const got = parseInt((await res.json()).result, 16);
+      reached++;
       if (got === c.chainId) console.log(`  ok   ${c.chain} → ${got} (${c.rpcUrl})`);
-      else registryWarn(`rpcUrl for "${c.chain}" reports chainId ${got}, registry says ${c.chainId} — ${c.rpcUrl}`);
+      else mismatched.push(`rpcUrl for "${c.chain}" reports chainId ${got}, registry says ${c.chainId} — ${c.rpcUrl}`);
     } catch (err) {
-      registryWarn(`rpcUrl for "${c.chain}" is unreachable (${err.message}) — ${c.rpcUrl}`);
+      unreachable.push({ chain: c.chain, rpcUrl: c.rpcUrl, message: err.message });
     }
   }
+
+  // A wrong chainId is a real defect wherever it is observed, so it always warns.
+  for (const m of mismatched) registryWarn(m);
+
+  // Unreachability is not. Reaching *nothing* means the environment has no
+  // outbound path to these hosts — this census runs under bun, whose fetch
+  // ignores the HTTPS_PROXY that node's honours, so a proxied sandbox fails
+  // every chain including ethereum. Reporting that as a dozen broken endpoints
+  // sends the reader chasing phantoms, so say it once and plainly instead.
+  if (unreachable.length && reached === 0) {
+    console.warn(
+      `[chains-census] could not reach ANY of the ${unreachable.length} rpcUrl(s) — that is an environment ` +
+        `limitation (no outbound access, or a proxy this runtime does not use), not a registry problem. ` +
+        `No chainId was verified. First error: ${unreachable[0].message}`,
+    );
+  } else {
+    for (const u of unreachable) {
+      registryWarn(`rpcUrl for "${u.chain}" is unreachable (${u.message}) — ${u.rpcUrl}`);
+    }
+  }
+  console.log(`chains-census: ${reached} rpcUrl(s) reached, ${mismatched.length} mismatched, ${unreachable.length} unreachable`);
 }
 
 if (update) {
