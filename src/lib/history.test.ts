@@ -181,6 +181,169 @@ describe("loadHistory", () => {
   });
 });
 
+describe("loadModCounts", () => {
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.resetModules(); // fresh module-level modCountsCache per test
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("resolves the parsed rows and caches on success", async () => {
+    let calls = 0;
+    const data = [{ docId: "a", count: 3, lastModified: "2026-01-05", contentCount: 5 }];
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => data } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    const first = await loadModCounts();
+    const second = await loadModCounts();
+    expect(first).toEqual(data);
+    expect(second).toBe(first);
+    expect(calls).toBe(1);
+  });
+
+  it("a 404 (no history DB on this deploy) resolves null and IS cached", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 404, json: async () => null } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    expect(await loadModCounts()).toBeNull();
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(1); // second call reused the cached settled promise
+  });
+
+  it("a non-404 failure (503 DB hiccup) resolves null but evicts the cache — retries next time", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 503, json: async () => null } as Response;
+    });
+
+    const { loadModCounts } = await import("./history");
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(1);
+
+    expect(await loadModCounts()).toBeNull();
+    expect(calls).toBe(2); // not cached — retried
+  });
+
+  it("a thrown network error resolves null, never a rejection", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    const { loadModCounts } = await import("./history");
+    await expect(loadModCounts()).resolves.toBeNull();
+  });
+});
+
+describe("loadModTimeline", () => {
+  const realFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    vi.resetModules(); // fresh module-level modTimelineCache per test
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("resolves the parsed rows and caches on success", async () => {
+    let calls = 0;
+    const data = [{ period: "2026-01", count: 5 }];
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => data } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    const first = await loadModTimeline();
+    const second = await loadModTimeline();
+    expect(first).toEqual(data);
+    expect(second).toBe(first);
+    expect(calls).toBe(1);
+  });
+
+  it("defaults to granularity=month and fetches a distinct URL per granularity", async () => {
+    const urls: string[] = [];
+    globalThis.fetch = vi.fn(async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return { ok: true, status: 200, json: async () => [] } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    await loadModTimeline();
+    await loadModTimeline("week");
+    await loadModTimeline("commit");
+    expect(urls).toEqual([
+      "/api/history/mod-timeline?granularity=month",
+      "/api/history/mod-timeline?granularity=week",
+      "/api/history/mod-timeline?granularity=commit",
+    ]);
+  });
+
+  it("caches each granularity independently — switching and back doesn't refetch", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: true, status: 200, json: async () => [] } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    await loadModTimeline("month");
+    await loadModTimeline("week");
+    await loadModTimeline("month"); // cached — no new fetch
+    await loadModTimeline("week"); // cached — no new fetch
+    expect(calls).toBe(2);
+  });
+
+  it("a 404 (no history DB on this deploy) resolves null and IS cached", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 404, json: async () => null } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    expect(await loadModTimeline()).toBeNull();
+    expect(await loadModTimeline()).toBeNull();
+    expect(calls).toBe(1); // second call reused the cached settled promise
+  });
+
+  it("a non-404 failure (503 DB hiccup) resolves null but evicts the cache — retries next time", async () => {
+    let calls = 0;
+    globalThis.fetch = vi.fn(async () => {
+      calls++;
+      return { ok: false, status: 503, json: async () => null } as Response;
+    });
+
+    const { loadModTimeline } = await import("./history");
+    expect(await loadModTimeline()).toBeNull();
+    expect(calls).toBe(1);
+
+    expect(await loadModTimeline()).toBeNull();
+    expect(calls).toBe(2); // not cached — retried
+  });
+
+  it("a thrown network error resolves null, never a rejection", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    const { loadModTimeline } = await import("./history");
+    await expect(loadModTimeline()).resolves.toBeNull();
+  });
+});
+
 describe("movePaths", () => {
   const moved = (e: Partial<HistoryEntry>): HistoryEntry => ({
     date: "2024-01-01",

@@ -1,0 +1,439 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import "@testing-library/jest-dom/vitest";
+
+import type { AtlasNode } from "../../types";
+import type { ModCount, ModTimelinePeriodRow, ModTimelineCommitRow, TimelineGranularity } from "../../lib/history";
+import type { GraphData } from "../../lib/graphData";
+import { DataSourceContext, type DataSource } from "../../lib/dataSource";
+
+function node(id: string, doc_no: string, title: string, type = "Section"): AtlasNode {
+  return { id, doc_no, title, type, depth: 1, parentId: null, content: "", order: 0, addressRefs: [] };
+}
+
+// Waits for the page-level (tab-agnostic) filter controls to mount — they sit
+// outside the tab bodies and appear as soon as `rows` has loaded, regardless
+// of which tab is active, so this is a reliable tab-agnostic "loaded" signal.
+function waitLoaded() {
+  return screen.findByRole("spinbutton");
+}
+
+function clickTab(name: "timeline" | "sum by" | "list") {
+  fireEvent.click(screen.getByRole("tab", { name }));
+}
+
+const DOCS: Record<string, AtlasNode> = {
+  scope: node("scope", "A.2", "Accessibility Scope", "Scope"),
+  // Excluded from the default (≤1) doc-level list but still counted in the
+  // A.2 category's summary total.
+  edited: node("edited", "A.2.1", "Edited Doc", "Article"),
+  fresh: node("fresh", "A.2.2", "Never Touched Doc", "Article"),
+  // Boundary case: count === 1 stays in the default (≤1) doc-level list.
+  once: node("once", "A.2.3", "Once Edited Doc", "Article"),
+  // No scope node for "NR", so sectionTitle falls back to the section itself —
+  // exercises the sectionTitle === section branch in ModFrequencyTable's Section cell.
+  nr: node("nr", "NR-1", "Open Question", "Needed Research"),
+  // Heavily-edited docs, isolated in their own section so they don't disturb
+  // the A.2/NR summary percentages above. Only used by the ">" comparator tests.
+  busy1: node("busy1", "A.9.1", "Busy Doc One", "Article"),
+  busy2: node("busy2", "A.9.2", "Busy Doc Two", "Article"),
+};
+
+const COUNTS: ModCount[] = [
+  { docId: "edited", count: 3, lastModified: "2026-01-05", contentCount: 5 },
+  { docId: "once", count: 1, lastModified: "2025-11-01", contentCount: 1 },
+  { docId: "busy1", count: 5, lastModified: "2026-02-01", contentCount: 5 },
+  { docId: "busy2", count: 8, lastModified: "2026-03-01", contentCount: 8 },
+];
+
+const TIMELINE_MONTH: ModTimelinePeriodRow[] = [
+  { period: "2026-01", count: 3 },
+  { period: "2026-03", count: 6 },
+];
+const TIMELINE_WEEK: ModTimelinePeriodRow[] = [
+  { period: "2026-01-05", count: 2 },
+  { period: "2026-01-19", count: 1 },
+];
+const TIMELINE_COMMIT: ModTimelineCommitRow[] = [
+  { seq: 10, sha: "abc1234def5", date: "2026-01-05", count: 2 },
+  { seq: 11, sha: "def5678abc1", date: "2026-01-06", count: 1 },
+];
+
+const EMPTY_GRAPH: GraphData = { participants: [], instances: [], invocations: [], primitives: [], edges: [] };
+
+let docsImpl = () => Promise.resolve(DOCS);
+let countsImpl = (): Promise<ModCount[] | null> => Promise.resolve(COUNTS);
+let timelineImpl = (
+  granularity?: TimelineGranularity,
+): Promise<(ModTimelinePeriodRow | ModTimelineCommitRow)[] | null> => {
+  if (granularity === "week") return Promise.resolve(TIMELINE_WEEK);
+  if (granularity === "commit") return Promise.resolve(TIMELINE_COMMIT);
+  return Promise.resolve(TIMELINE_MONTH);
+};
+let graphImpl = (): Promise<GraphData> => Promise.resolve(EMPTY_GRAPH);
+let capturedBase: string | null = null;
+
+vi.mock("../../lib/docs", () => ({
+  loadDocs: (base?: string) => {
+    capturedBase = base ?? null;
+    return docsImpl();
+  },
+}));
+vi.mock("../../lib/history", () => ({
+  loadModCounts: () => countsImpl(),
+  loadModTimeline: (granularity?: TimelineGranularity) => timelineImpl(granularity),
+}));
+vi.mock("../../lib/graph", () => ({
+  loadGraph: () => graphImpl(),
+}));
+
+import { ModFrequencyReport } from "./ModFrequencyReport";
+
+afterEach(() => {
+  cleanup();
+  window.history.pushState({}, "", "/");
+  docsImpl = () => Promise.resolve(DOCS);
+  countsImpl = () => Promise.resolve(COUNTS);
+  timelineImpl = (granularity) => {
+    if (granularity === "week") return Promise.resolve(TIMELINE_WEEK);
+    if (granularity === "commit") return Promise.resolve(TIMELINE_COMMIT);
+    return Promise.resolve(TIMELINE_MONTH);
+  };
+  graphImpl = () => Promise.resolve(EMPTY_GRAPH);
+  capturedBase = null;
+  vi.restoreAllMocks();
+});
+
+describe("ModFrequencyReport tabs", () => {
+  it("defaults to the timeline tab", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    expect(screen.getByRole("tab", { name: "timeline" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("switches tab content when a different tab is clicked", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText("Never Touched Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
+
+    clickTab("sum by");
+    expect(await screen.findByText("By section")).toBeInTheDocument();
+    expect(screen.getByText("By document type")).toBeInTheDocument();
+    expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport timeline tab", () => {
+  it("renders a timeline of semantic edits by month, zero-filling the gap", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText("Semantic edits by month")).toBeInTheDocument();
+    // TIMELINE has Jan and Mar 2026 — Feb should be zero-filled in between.
+    expect(screen.getByText("Jan '26")).toBeInTheDocument();
+    expect(screen.getByText("Feb '26")).toBeInTheDocument();
+    expect(screen.getByText("Mar '26")).toBeInTheDocument();
+  });
+
+  it("shows an empty state when the timeline endpoint is unreachable", async () => {
+    timelineImpl = () => Promise.resolve(null);
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText("No edit timeline available.")).toBeInTheDocument();
+    expect(screen.queryByText("Semantic edits by month")).not.toBeInTheDocument();
+  });
+
+  it("switches to week granularity and re-fetches", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("week"));
+    expect(await screen.findByText("Semantic edits by week")).toBeInTheDocument();
+    // TIMELINE_WEEK has Jan 5 and Jan 19 2026 — Jan 12 should be zero-filled.
+    expect(screen.getByText("Jan 5 '26")).toBeInTheDocument();
+    expect(screen.getByText("Jan 12 '26")).toBeInTheDocument();
+    expect(screen.getByText("Jan 19 '26")).toBeInTheDocument();
+  });
+
+  it("switches to commit granularity and re-fetches, with no zero-fill", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("commit"));
+    expect(await screen.findByText("Semantic edits by commit")).toBeInTheDocument();
+    expect(screen.getByText("2026-01-05")).toBeInTheDocument();
+    expect(screen.getByText("2026-01-06")).toBeInTheDocument();
+  });
+
+  it("caches per granularity — switching back to month doesn't show stale week data", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await screen.findByText("Semantic edits by month");
+    fireEvent.click(screen.getByText("week"));
+    await screen.findByText("Semantic edits by week");
+    fireEvent.click(screen.getByText("month"));
+    expect(await screen.findByText("Semantic edits by month")).toBeInTheDocument();
+    expect(screen.getByText("Jan '26")).toBeInTheDocument();
+    expect(screen.queryByText("Jan 5 '26")).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport sum-by tab", () => {
+  it("summarizes docs matching the active filter per category against the category's full total, for both section and type", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(screen.getByText("loading…")).toBeInTheDocument();
+    clickTab("sum by");
+
+    // A.2 category: scope, edited, fresh, once = 4 docs; default filter is
+    // ≤1 modification, matching scope(0)/fresh(0)/once(1) = 3/4 = 75%.
+    // "edited" (count 3) still counts toward the total even though it's
+    // excluded from the doc-level list below.
+    expect(await screen.findByText("75.0%")).toBeInTheDocument();
+    // NR (section table) and Needed Research + Scope (type table) all hit 1/1.
+    expect(screen.getAllByText("100.0%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("≤1 modification").length).toBeGreaterThan(0); // column header names the filter
+    // Both tables render together, not toggled.
+    expect(screen.getByText("By section")).toBeInTheDocument();
+    expect(screen.getByText("By document type")).toBeInTheDocument();
+  });
+
+  it("updates both summary tables when the comparator/threshold changes", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("sum by");
+    await screen.findByText("By section");
+
+    fireEvent.click(screen.getByText("Most Frequent (>1 edit)"));
+    expect(await screen.findAllByText(">1 modification")).not.toHaveLength(0);
+  });
+
+  it("downloads the section and type summaries as separate CSVs", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("sum by");
+    await screen.findByText("By section");
+
+    fireEvent.click(screen.getByRole("button", { name: "Download by section (CSV)" }));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Download by type (CSV)" }));
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("ModFrequencyReport list tab", () => {
+  it("shows only docs with ≤1 modification in the doc-level list, excluding more-edited docs", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText("Never Touched Doc")).toBeInTheDocument();
+    expect(screen.getByText("Once Edited Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Edited Doc")).not.toBeInTheDocument();
+    expect(screen.getByText("4 documents with ≤1 modification")).toBeInTheDocument();
+  });
+
+  it("renders a distribution histogram of documents by edit count", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText("Documents by number of edits")).toBeInTheDocument();
+    // Buckets 0..8 (max count is busy2's 8), well under the 20-bucket tail cap.
+    expect(screen.getByText("8")).toBeInTheDocument();
+  });
+
+  it("switches to 'Most Frequent' and lists docs above the typed threshold", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    await screen.findByText("Never Touched Doc");
+
+    fireEvent.click(screen.getByText("Most Frequent (>1 edit)"));
+    // Default threshold is still 1: count > 1 keeps edited(3), busy1(5), busy2(8).
+    expect(await screen.findByText("Busy Doc Two")).toBeInTheDocument();
+    expect(screen.getByText("Busy Doc One")).toBeInTheDocument();
+    expect(screen.getByText("Edited Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Never Touched Doc")).not.toBeInTheDocument();
+    expect(screen.getByText(/documents with >1 modification/)).toBeInTheDocument();
+    // Pill label bakes in the live threshold too.
+    expect(screen.getByText("Least Frequent (≤1 edit)")).toBeInTheDocument();
+
+    // Raise the threshold via the number input: only busy1/busy2 (>4) remain.
+    const input = screen.getByRole("spinbutton");
+    fireEvent.change(input, { target: { value: "4" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText(/documents with >4 modifications/)).toBeInTheDocument();
+    expect(screen.queryByText("Edited Doc")).not.toBeInTheDocument();
+    expect(screen.getByText("Busy Doc One")).toBeInTheDocument();
+    expect(screen.getByText("Most Frequent (>4 edits)")).toBeInTheDocument();
+  });
+
+  it("clamps the threshold input to [0, 12] and reverts on invalid entry", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    const input = await waitLoaded();
+
+    fireEvent.change(input, { target: { value: "50" } });
+    fireEvent.blur(input);
+    expect(await screen.findByDisplayValue("12")).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "-3" } });
+    fireEvent.blur(input);
+    expect(await screen.findByDisplayValue("0")).toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(await screen.findByDisplayValue("0")).toBeInTheDocument(); // reverts to last committed value
+  });
+
+  it("allows a threshold of 0 to isolate never-modified docs", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    const input = await waitLoaded();
+    clickTab("list");
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText("Least Frequent (≤0 edits)")).toBeInTheDocument();
+    expect(screen.getByText("Never Touched Doc")).toBeInTheDocument();
+    expect(screen.queryByText("Once Edited Doc")).not.toBeInTheDocument(); // count 1, excluded now
+    expect(screen.getByText(/documents with ≤0 modification/)).toBeInTheDocument();
+  });
+
+  it("switches grouping via the pills (section/type only, no flat list)", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    await screen.findByText("Never Touched Doc");
+    expect(screen.queryByText("flat list")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("doc type"));
+    expect(await screen.findByRole("heading", { name: /Article \(2\)/ })).toBeInTheDocument();
+  });
+
+  it("filters the doc-level list by the query prop", async () => {
+    render(<ModFrequencyReport query="never touched" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    // The title gets split across <mark> nodes once highlighted, so match on
+    // the row's doc no (unaffected by this query) instead.
+    expect(await screen.findByText("A.2.2")).toBeInTheDocument();
+    expect(screen.queryByText("A.2.3")).not.toBeInTheDocument();
+  });
+
+  it("shows NoRowsMatch when a query matches nothing", async () => {
+    render(<ModFrequencyReport query="zzz-no-match-at-all" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByText(/No rows match/)).toBeInTheDocument();
+  });
+
+  it("builds and downloads a CSV when the download button is clicked", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    await screen.findByText("Never Touched Doc");
+    fireEvent.click(screen.getByText("Download full report"));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it("builds the filtered CSV when the filtered download button is clicked", async () => {
+    URL.createObjectURL = vi.fn(() => "blob:x");
+    URL.revokeObjectURL = vi.fn();
+    render(<ModFrequencyReport query="never touched" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    await screen.findByText("A.2.2");
+    fireEvent.click(screen.getByText("Download filtered report"));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it("shows the filtered download once the threshold moves off its default, even with no search query", async () => {
+    render(<ModFrequencyReport query="" mode="broad" />);
+    const input = await waitLoaded();
+    clickTab("list");
+    await screen.findByText("Never Touched Doc");
+    expect(screen.queryByText("Download filtered report")).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(await screen.findByText("Download filtered report")).toBeInTheDocument();
+  });
+
+  it("sub-splits the A.6 Agent Scope by owning agent when the graph resolves one", async () => {
+    const agentDocs: Record<string, AtlasNode> = {
+      ...DOCS,
+      agentScope: node("agentScope", "A.6", "The Agent Scope", "Scope"),
+      sparkRoot: node("sparkRoot", "A.6.1.1.1", "Spark", "Core"),
+      sparkChild: node("sparkChild", "A.6.1.1.1.2", "Spark ICD", "Section"),
+      groveRoot: node("groveRoot", "A.6.1.1.2", "Grove", "Core"),
+      groveChild: node("groveChild", "A.6.1.1.2.5", "Grove ICD", "Section"),
+    };
+    docsImpl = () => Promise.resolve(agentDocs);
+    graphImpl = () =>
+      Promise.resolve({
+        participants: [
+          { id: "e-spark", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "sparkRoot" },
+          { id: "e-grove", slug: "grove", name: "Grove", et: "agent", st: "prime", did: "groveRoot" },
+        ],
+        instances: [],
+        invocations: [],
+        primitives: [],
+        edges: [],
+      });
+
+    render(<ModFrequencyReport query="" mode="broad" />);
+    await waitLoaded();
+    clickTab("list");
+    // agentScope, sparkRoot, and groveRoot are self-excluded (an agent's own
+    // root doc isn't "under" the agent) and stay in the plain A.6 bucket;
+    // sparkChild/groveChild are the ones that resolve to an owning agent.
+    expect(await screen.findByRole("heading", { name: /A\.6 — The Agent Scope \(3\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /A\.6 — Spark \(1\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /A\.6 — Grove \(1\)/ })).toBeInTheDocument();
+  });
+
+  it("doesn't sub-split A.6 by agent in preview mode (graph describes the live atlas, not the preview)", async () => {
+    const agentDocs: Record<string, AtlasNode> = {
+      ...DOCS,
+      agentScope: node("agentScope", "A.6", "The Agent Scope", "Scope"),
+      sparkRoot: node("sparkRoot", "A.6.1.1.1", "Spark", "Core"),
+      sparkChild: node("sparkChild", "A.6.1.1.1.2", "Spark ICD", "Section"),
+    };
+    docsImpl = () => Promise.resolve(agentDocs);
+    graphImpl = () =>
+      Promise.resolve({
+        participants: [{ id: "e-spark", slug: "spark", name: "Spark", et: "agent", st: "prime", did: "sparkRoot" }],
+        instances: [],
+        invocations: [],
+        primitives: [],
+        edges: [],
+      });
+
+    const previewSource: DataSource = { base: "/api/preview/abc123/", preview: { id: "abc123", sha: "abc123" } };
+    render(
+      <DataSourceContext.Provider value={previewSource}>
+        <ModFrequencyReport query="" mode="broad" />
+      </DataSourceContext.Provider>,
+    );
+    await waitLoaded();
+    clickTab("list");
+    expect(await screen.findByRole("heading", { name: /A\.6 — The Agent Scope \(3\)/ })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /A\.6 — Spark/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("ModFrequencyReport data source", () => {
+  it("shows a warning when the history DB is unreachable on this deploy", async () => {
+    countsImpl = () => Promise.resolve(null);
+    render(<ModFrequencyReport query="" mode="broad" />);
+    expect(await screen.findByText(/isn't reachable on this deploy/)).toBeInTheDocument();
+  });
+
+  it("loads docs from the active preview base, not the live atlas base", async () => {
+    const previewSource: DataSource = { base: "/api/preview/abc123/", preview: { id: "abc123", sha: "abc123" } };
+    render(
+      <DataSourceContext.Provider value={previewSource}>
+        <ModFrequencyReport query="" mode="broad" />
+      </DataSourceContext.Provider>,
+    );
+    await waitLoaded();
+    expect(capturedBase).toBe("/api/preview/abc123/");
+  });
+});

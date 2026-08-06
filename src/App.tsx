@@ -53,6 +53,9 @@ const ProcessesReport = lazy(() =>
 const StaleDatesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/StaleDatesReport")).then((m) => ({ default: m.StaleDatesReport })),
 );
+const ModFrequencyReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/ModFrequencyReport")).then((m) => ({ default: m.ModFrequencyReport })),
+);
 const OeaAssessmentReport = lazy(() =>
   lazyRetry(() => import("./components/reports/OeaAssessmentReport")).then((m) => ({ default: m.OeaAssessmentReport })),
 );
@@ -327,6 +330,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
                 <StaleDatesReport query={query} mode={activeMode} />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_MOD_FREQUENCY}>
+              <Suspense fallback={<Loading />}>
+                <ModFrequencyReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
