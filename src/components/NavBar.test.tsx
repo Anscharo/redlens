@@ -47,4 +47,18 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: "Reader" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Reports" })).toBeNull();
   });
+
+  it("renders the feedback button as the first child of the link row, with an accessible name", () => {
+    render(<NavBar activePage="atlas" />, { wrapper: wrap() });
+    const row = screen.getByRole("link", { name: "Reader" }).parentElement!;
+    expect(row.firstElementChild).toHaveAccessibleName("Feedback and shortcuts");
+    expect(row.firstElementChild?.tagName).toBe("BUTTON");
+  });
+
+  it("still renders the feedback button in preview mode (unlike Reports)", () => {
+    render(<NavBar activePage="atlas" />, {
+      wrapper: wrap({ base: "/api/preview/abc/", preview: { id: "abc", sha: "deadbeef" } }),
+    });
+    expect(screen.getByRole("button", { name: "Feedback and shortcuts" })).toBeInTheDocument();
+  });
 });
