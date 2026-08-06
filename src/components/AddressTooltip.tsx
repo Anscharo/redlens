@@ -1,13 +1,13 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Tooltip } from "./Tooltip";
 import { getAddressMap } from "../lib/addressMap";
-import { loadBalancesCached, peekCachedBalances, type BalancesResponse } from "../lib/balances";
+import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "../lib/balances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
 
-// "loading" until the shared fetch settles, then either the response or null
-// (a failed fetch resolves to null — same as "no balances known" — rather
-// than leaving the tooltip spinning forever).
-type BalState = "loading" | BalancesResponse | null;
+// undefined until the shared fetch settles (loading); a failed fetch settles
+// to {} — same as "no balances known" — rather than leaving the tooltip
+// spinning forever, since nothing downstream distinguishes the two.
+type AddressBalanceMap = Record<string, AddressBalances>;
 
 // Tooltip mounts/unmounts this component fresh on every hover. Fetching is
 // deliberately lazy — the first hover of any address on the page triggers the
@@ -16,17 +16,19 @@ type BalState = "loading" | BalancesResponse | null;
 // loading spinner. Seeding from the already-resolved cache
 // (peekCachedBalances) means every hover *after* that first one paints with
 // balances already in place instead of spinning again.
-function useBalances(): BalState {
-  const [state, setState] = useState<BalState>(() => peekCachedBalances() ?? "loading");
+function useBalances(): AddressBalanceMap | undefined {
+  const [addresses, setAddresses] = useState<AddressBalanceMap | undefined>(
+    () => peekCachedBalances()?.addresses,
+  );
   useEffect(() => {
-    if (state !== "loading") return;
+    if (addresses) return;
     let live = true;
     loadBalancesCached()
-      .then((res) => { if (live) setState(res); })
-      .catch(() => { if (live) setState(null); });
+      .then((res) => { if (live) setAddresses(res.addresses); })
+      .catch(() => { if (live) setAddresses({}); });
     return () => { live = false; };
-  }, [state]);
-  return state;
+  }, [addresses]);
+  return addresses;
 }
 
 function Spinner() {
@@ -40,9 +42,9 @@ function Spinner() {
 }
 
 function AddressTooltipContent({ address }: { address: string }) {
-  const bal = useBalances();
-  const loading = bal === "loading";
-  const { name, held } = resolveAddressTooltip(address, getAddressMap(), loading ? {} : (bal?.addresses ?? {}));
+  const addresses = useBalances();
+  const loading = addresses === undefined;
+  const { name, held } = resolveAddressTooltip(address, getAddressMap(), addresses ?? {});
   return (
     <div className="min-w-[8rem] max-w-[16rem]">
       <div className="font-medium text-tan truncate">{name}</div>

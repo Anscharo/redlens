@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AddressBalances } from "./balances";
-import { heldBalances, resolveAddressTooltip } from "./addressTooltip";
+import { resolveAddressTooltip } from "./addressTooltip";
 import { makeAddressInfo } from "../test/fixtures";
 
 const EVM = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84";
@@ -9,30 +9,6 @@ function bal(balances: AddressBalances["balances"]): AddressBalances {
   return { chain: "ethereum", checkedAt: null, hasCode: null, balances };
 }
 
-describe("heldBalances", () => {
-  it("drops zero balances and orders primary symbols before the rest, alphabetically", () => {
-    const held = heldBalances({
-      ETH: { raw: "0", decimals: 18 },
-      SKY: { raw: "1000000000000000000", decimals: 18 },
-      USDS: { raw: "2500000000000000000", decimals: 18 },
-      WETH: { raw: "100000000000000000", decimals: 18 },
-      DAI: { raw: "500000000000000000", decimals: 18 },
-    });
-    // USDS/SKY keep PRIMARY_BALANCE_SYMBOLS order; DAI/WETH (both unranked)
-    // fall back to alphabetical.
-    expect(held.map((h) => h.symbol)).toEqual(["USDS", "SKY", "DAI", "WETH"]);
-    expect(held.find((h) => h.symbol === "USDS")?.amount).toBe("2.50");
-  });
-
-  it("treats an unparseable raw value as zero (not held)", () => {
-    expect(heldBalances({ ETH: { raw: "not-a-number", decimals: 18 } })).toEqual([]);
-  });
-
-  it("returns an empty list when nothing is held", () => {
-    expect(heldBalances({ ETH: { raw: "0", decimals: 18 } })).toEqual([]);
-  });
-});
-
 describe("resolveAddressTooltip", () => {
   it("resolves the chainlog name and the matching chain-keyed balance row", () => {
     const addrMap = { [EVM]: makeAddressInfo({ chainlogId: "MCD_VAT" }) };
@@ -40,6 +16,30 @@ describe("resolveAddressTooltip", () => {
     const result = resolveAddressTooltip(EVM, addrMap, balancesByAddress);
     expect(result.name).toBe("MCD_VAT");
     expect(result.held).toEqual([{ symbol: "ETH", amount: "2.00" }]);
+  });
+
+  it("drops zero balances and orders primary symbols before the rest, alphabetically", () => {
+    const addrMap = { [EVM]: makeAddressInfo({ chainlogId: "MCD_VAT" }) };
+    const balancesByAddress = {
+      [`${EVM}|ethereum`]: bal({
+        ETH: { raw: "0", decimals: 18 },
+        SKY: { raw: "1000000000000000000", decimals: 18 },
+        USDS: { raw: "2500000000000000000", decimals: 18 },
+        WETH: { raw: "100000000000000000", decimals: 18 },
+        DAI: { raw: "500000000000000000", decimals: 18 },
+      }),
+    };
+    const result = resolveAddressTooltip(EVM, addrMap, balancesByAddress);
+    // USDS/SKY keep PRIMARY_BALANCE_SYMBOLS order; DAI/WETH (both unranked)
+    // fall back to alphabetical; ETH's zero balance is dropped entirely.
+    expect(result.held.map((h) => h.symbol)).toEqual(["USDS", "SKY", "DAI", "WETH"]);
+    expect(result.held.find((h) => h.symbol === "USDS")?.amount).toBe("2.50");
+  });
+
+  it("treats an unparseable raw value as zero (not held)", () => {
+    const addrMap = { [EVM]: makeAddressInfo({ chainlogId: "MCD_VAT" }) };
+    const balancesByAddress = { [`${EVM}|ethereum`]: bal({ ETH: { raw: "not-a-number", decimals: 18 } }) };
+    expect(resolveAddressTooltip(EVM, addrMap, balancesByAddress).held).toEqual([]);
   });
 
   it("falls back to the verified on-chain name when there's no chainlog entry", () => {

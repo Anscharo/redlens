@@ -52,12 +52,6 @@ function sortHeld(items: RawHeld[]): RawHeld[] {
   );
 }
 
-// Balances held (> 0) on a single chain, primary symbols (ETH/USDS/SKY) first
-// in that order, then everything else alphabetically.
-export function heldBalances(balances: BalanceMap): HeldBalance[] {
-  return sortHeld(nonZero(balances)).map((h) => ({ symbol: h.symbol, amount: compactAmount(h.raw, h.decimals) }));
-}
-
 // address (lowercased, falling back to as-written for case-sensitive Solana
 // addresses) → its display name and held balances across every chain the
 // atlas places it on (a Safe or deterministically-deployed contract can sit
@@ -76,7 +70,8 @@ export function resolveAddressTooltip(
   const name = info?.chainlogId ?? info?.etherscanName ?? shortAddr(address);
   if (!info) return { name, held: [] };
 
-  const chains = info.chains.length ? info.chains : [info.chain];
+  // chains always contains at least info.chain — see AddressInfo's own comment.
+  const chains = info.chains;
   const multiChain = chains.length > 1;
   const raw = chains.flatMap((chain) => {
     const bal = balancesByAddress[`${key}|${chain}`];
