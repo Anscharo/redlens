@@ -1,8 +1,15 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { refreshAllowed, REFRESH_INTERVAL_MS, loadBalances, requestBalancesRefresh } from "./balances";
+import {
+  refreshAllowed,
+  REFRESH_INTERVAL_MS,
+  loadBalances,
+  requestBalancesRefresh,
+  type BalancesResponse,
+} from "./balances";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.resetModules();
 });
 
 describe("refreshAllowed", () => {
@@ -33,9 +40,12 @@ function jsonResponse(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 500, json: async () => body } as Response;
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.resetModules();
+describe("loadBalances", () => {
+  it("GETs /api/balances and returns the parsed response", async () => {
+    const body = { lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} };
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))));
+    await expect(loadBalances()).resolves.toEqual(body);
+  });
 });
 
 describe("loadBalancesCached", () => {
@@ -66,15 +76,23 @@ describe("loadBalancesCached", () => {
     await expect(fresh()).resolves.toEqual(makeResponse());
     expect(peek()).toEqual(makeResponse());
     expect(calls).toBe(2);
-describe("loadBalances", () => {
-  it("GETs /api/balances and returns the parsed response", async () => {
-    const body = { lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} };
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))));
-    await expect(loadBalances()).resolves.toEqual(body);
   });
 });
 
 describe("requestBalancesRefresh", () => {
+  it("POSTs /api/balances and returns the parsed response", async () => {
+    const body = { lastCheckedAt: "t", nextRefreshAt: "t2", refreshed: true, addresses: {} };
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(requestBalancesRefresh()).resolves.toEqual(body);
+    expect(fetchMock).toHaveBeenCalledWith("/api/balances", { method: "POST" });
+  });
+
+  it("throws with the response status on a non-ok response", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("", { status: 503 }))));
+    await expect(requestBalancesRefresh()).rejects.toThrow(/503/);
+  });
+
   it("updates the loadBalancesCached()/peekCachedBalances() cache with the POST response", async () => {
     vi.resetModules();
     const {
@@ -102,16 +120,5 @@ describe("requestBalancesRefresh", () => {
     const { requestBalancesRefresh: refresh } = await import("./balances");
     installFetch(() => jsonResponse(null, false));
     await expect(refresh()).rejects.toThrow("balances refresh: 500");
-  it("POSTs /api/balances and returns the parsed response", async () => {
-    const body = { lastCheckedAt: "t", nextRefreshAt: "t2", refreshed: true, addresses: {} };
-    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify(body), { status: 200 })));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(requestBalancesRefresh()).resolves.toEqual(body);
-    expect(fetchMock).toHaveBeenCalledWith("/api/balances", { method: "POST" });
-  });
-
-  it("throws with the response status on a non-ok response", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("", { status: 503 }))));
-    await expect(requestBalancesRefresh()).rejects.toThrow(/503/);
   });
 });

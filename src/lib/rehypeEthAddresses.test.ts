@@ -153,6 +153,8 @@ describe("transaction hash linkification", () => {
     const addrLink = found.find((l) => l.text === EVM);
     expect(addrLink?.href).toBe(`https://etherscan.io/address/${EVM}`);
     expect(addrLink?.dataAddress).toBe(EVM);
+  });
+
   it("stops at a non-text sibling before finding the label, leaving the hash unlinked", () => {
     const hash = "0x" + "c".repeat(64);
     const tree: Root = {
