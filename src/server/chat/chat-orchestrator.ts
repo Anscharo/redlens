@@ -20,7 +20,8 @@ import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
+import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -211,6 +212,35 @@ function retrievalTrouble(t: RoundTelemetry): boolean {
   return t.emptyResults + t.errorResults >= config.chatAdvisorTriggerEmptyResults || t.repeatedQueries >= 2;
 }
 
+// One model audit of an answer, dispatched on config.chatVerifierMode: the
+// sliced path (four concurrent narrow auditors, verify/sliced-verifier.ts) or
+// the legacy single-prompt verifier. Same VerifierRun shape either way;
+// `modelLabel` is what the check row records as `model`.
+async function runAudit(params: {
+  jsonCall: JsonCall;
+  question: string;
+  answer: string;
+  evidence: EvidenceEntry[];
+  checks: CheckReport;
+  telemetry: RoundTelemetry;
+  signal?: AbortSignal;
+  obs?: ErrorContext;
+}): Promise<{ run: VerifierRun; modelLabel: string }> {
+  if (config.chatVerifierMode === "sliced") {
+    const models = sliceModels();
+    const run = await runSlicedVerifier({
+      call: params.jsonCall, models, question: params.question, answer: params.answer,
+      evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
+    });
+    return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
+  }
+  const run = await runVerifier({
+    call: params.jsonCall, model: config.chatVerifierModel, question: params.question, answer: params.answer,
+    evidence: params.evidence, checks: params.checks, telemetry: params.telemetry, signal: params.signal, obs: params.obs,
+  });
+  return { run, modelLabel: config.chatVerifierModel };
+}
+
 // Corrective-run steering per advisor action. The revision run's base is the
 // full turn transcript (incl. the flagged answer), so the model sees all
 // evidence gathered; `requery` gets one extra tool round, others get none.
@@ -375,13 +405,13 @@ export async function* runVerifiedChat(opts: {
       type: "status", stage: "checking",
       detail: `Cross-checking ${checks.citations.length || "the"} cited claim${checks.citations.length === 1 ? "" : "s"} against ${evidence.length} source${evidence.length === 1 ? "" : "s"}…`,
     };
-    const run = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
+    const { run, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal, obs: opts.obs,
     });
     verdict = run.verdict;
     checksMeta.push({
-      kind: "verify", model: verifierModel, action: null, verdict: run.verdict,
+      kind: "verify", model: modelLabel, action: null, verdict: run.verdict,
       overall: computeOverall(checks, run.verdict),
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
@@ -489,13 +519,13 @@ export async function* runVerifiedChat(opts: {
   let revVerdict: Verdict | null = null;
   if (verifierModel && !opts.signal?.aborted) {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
-    const rerun = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
+    const { run: rerun, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, question: opts.question,
       answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({
-      kind: "verify_recheck", model: verifierModel, action: "revised", verdict: rerun.verdict,
+      kind: "verify_recheck", model: modelLabel, action: "revised", verdict: rerun.verdict,
       overall: computeOverall(revChecks, rerun.verdict),
       inputTokens: rerun.usage?.input ?? null, outputTokens: rerun.usage?.output ?? null,
       generationId: rerun.generationId, latencyMs: rerun.latencyMs,

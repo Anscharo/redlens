@@ -239,6 +239,13 @@ export const config = {
   // chatModel (cross-family independence, same rationale as curationClusterModels).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
+  // How the model audit runs: "sliced" (default) = four concurrent narrow
+  // auditors with code-validated evidence spans (verify/sliced-verifier.ts);
+  // "single" = the legacy one-prompt verifier.ts path (escape hatch).
+  chatVerifierMode: (process.env.CHAT_VERIFIER_MODE || "sliced") as "sliced" | "single",
+  // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
+  // named fall back to chatVerifierModel. Lets roles use different models.
+  chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
   // Escalation-only recovery model; chat-tier is fine (recovery planning is
   // easier than verification). Empty = advisor off.
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
@@ -254,6 +261,11 @@ export const config = {
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Per-slice deadline for the sliced path. Slices run CONCURRENTLY (the turn
+  // pays ~one slice latency, post-stream), so this can sit well above the
+  // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50
+  // at 23.6s — a 20s deadline would kill over half of them.
+  chatVerifierSliceTimeoutMs: Number(process.env.CHAT_VERIFIER_SLICE_TIMEOUT_MS ?? 45_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
   // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE

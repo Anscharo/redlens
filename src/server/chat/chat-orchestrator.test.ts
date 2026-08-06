@@ -62,14 +62,19 @@ const warn = (n: number) =>
     invented_facts: [], ruling_issued: false, confidence: 0.6, feedback: "some claims unsupported",
   });
 
-function withModels(verifier: string, advisor: string, fn: () => Promise<void>): Promise<void> {
+// Existing tests script exact single-call verifier sequences, so they pin
+// mode "single"; sliced-mode coverage passes "sliced" explicitly.
+function withModels(verifier: string, advisor: string, fn: () => Promise<void>, mode: "single" | "sliced" = "single"): Promise<void> {
   const pv = config.chatVerifierModel;
   const pa = config.chatAdvisorModel;
+  const pm = config.chatVerifierMode;
   config.chatVerifierModel = verifier;
   config.chatAdvisorModel = advisor;
+  config.chatVerifierMode = mode;
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatAdvisorModel = pa;
+    config.chatVerifierMode = pm;
   });
 }
 
@@ -219,6 +224,26 @@ test("verifier pass: checking status, verify_result pass, no advisor call", () =
     expect(jsonCalls).toEqual([{ model: "strong/verifier" }]); // advisor never ran
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
+
+test("sliced mode: four concurrent slice audits merge into one verdict + pass badge", () =>
+  withModels("strong/verifier", "", async () => {
+    // Same scripted text for all four slices: one supported absence claim
+    // (span-exempt, so validation can't demote it) and no ruling.
+    const SLICE_OK = '{"claims":[{"claim":"x","status":"supported","span":"","absence":true}],"ruling_issued":false,"notes":""}';
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        jsonCall: fakeJson([SLICE_OK], jsonCalls),
+      }),
+    );
+    expect(jsonCalls.map((c) => c.model)).toEqual(Array(4).fill({ model: "strong/verifier" }).map((c) => c.model));
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("pass");
+    const meta = lastDone(events).checksMeta.find((m) => m.kind === "verify")!;
+    expect(meta.model).toBe("sliced(strong/verifier)");
+  }, "sliced"));
 
 test("verifier fail → advisor rewrite → revision replaces answer → re-verify once", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
