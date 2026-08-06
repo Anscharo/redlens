@@ -221,9 +221,11 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
   for (const [addr, info] of Object.entries(atlas)) {
     processed++;
 
-    // Solana — no on-chain enrichment available (Etherscan is EVM-only;
-    // chainlog is mainnet ETH only). Emit minimal on-chain entry; atlas file
-    // carries all meaningful annotation for Solana addresses.
+    // Solana — no *explorer* enrichment available (Etherscan is EVM-only;
+    // chainlog is mainnet ETH only). Emit a minimal entry; build-addresses'
+    // applySolanaAccounts pass then fills in accountType / programOwner /
+    // isContract from getAccountInfo, so these placeholder flags are only what
+    // an address the RPC never answered for falls back to.
     if (info.chain === "solana") {
       out[addr] = { chain: "solana", isContract: false, isProxy: false };
       continue;
@@ -284,8 +286,18 @@ export async function enrichAddresses(atlas, chainlog, apiKey) {
     // expectedTokens) stay in addresses.atlas.json and are never written here.
     // label and aliases are derived at read time by loadAddresses() in the
     // frontend (chainlogId ?? entityLabel ?? etherscanName).
+    //
+    // isContract starts from "has verified source" only as a provisional value;
+    // build-addresses then overwrites every EVM entry with the eth_getCode
+    // answer (address-code.mjs). Verified source is a strictly narrower thing
+    // than having code, so this alone would read every unverified contract as
+    // an EOA.
     out[addr] = {
       chain: info.chain,
+      // Chain identity carried through from the atlas, exactly as `chain`
+      // already is — the candidate chains applyOnchainCode probes. Not atlas
+      // *annotation* (roles/entityLabel/expectedTokens), which stays out.
+      ...(info.chains?.length ? { chains: info.chains } : {}),
       ...(chainlogId ? { chainlogId } : {}),
       ...(etherscanName ? { etherscanName } : {}),
       isContract: Boolean(etherscanName),

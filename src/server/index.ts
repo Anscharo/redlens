@@ -21,6 +21,7 @@ import { handleChat } from "./chat/chat.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
+import { handleBalances } from "./balances/balances.ts";
 import { handleModCounts } from "./history/mod-counts.ts";
 import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient } from "./sse.ts";
@@ -194,6 +195,11 @@ const server = Bun.serve({
     "/api/history/mod-timeline": (req) => handleModTimeline(req as Request),
     /* v8 ignore stop */
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
+
+    // On-chain token balances for the addresses report (GET cached, POST refresh).
+    /* v8 ignore start -- request glue; handleBalances is unit-tested in balances.test.ts */
+    "/api/balances": { GET: (req) => handleBalances(req as Request), POST: (req) => handleBalances(req as Request) },
+    /* v8 ignore stop */
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).

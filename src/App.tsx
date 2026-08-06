@@ -47,6 +47,9 @@ const ActiveDataReport = lazy(() =>
 const RewardsReport = lazy(() =>
   lazyRetry(() => import("./components/reports/RewardsReport")).then((m) => ({ default: m.RewardsReport })),
 );
+const OnchainAddressesReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/OnchainAddressesReport")).then((m) => ({ default: m.OnchainAddressesReport })),
+);
 const ProcessesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/ProcessesReport")).then((m) => ({ default: m.ProcessesReport })),
 );
@@ -325,6 +328,11 @@ export default function App() {
             <Route path={ROUTES.REPORTS_REWARDS}>
               <Suspense fallback={<Loading />}>
                 <RewardsReport query={query} mode={activeMode} />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_ONCHAIN_ADDRESSES}>
+              <Suspense fallback={<Loading />}>
+                <OnchainAddressesReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_STALE_DATES}>

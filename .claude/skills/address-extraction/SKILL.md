@@ -51,14 +51,64 @@ This ships phantom addresses into `addresses.json` that don't correspond to real
  
 ---
 
-## Chain detection (`detectChain`)
+## Chain detection
 
-Three-pass priority — first match wins:
+`detectChainOrNull(content, matchIndex)` reads the prose around an address and returns `null` when nothing names a chain; `detectChain` is the same thing defaulting to `ethereum`. Priority — first match wins:
 
-1. **Explicit phrase** — `address on [the] CHAIN is` in the 120 chars before the address. Most reliable: the author stated the chain explicitly.
-2. **Tight-window keyword scan** — chain-name keywords in the 120 chars before.
-3. **Wide-window keyword scan** — chain-name keywords in the 300 chars before.
-4. **Fallback** — `ethereum`.
+1. **Explicit clause** — `on <phrase> is` immediately before the address (the last such clause, tolerating the `:` / backtick the atlas writes before the literal). Most reliable: the author stated the chain outright. Deliberately *not* anchored on `address on …` — atlas prose reads "The address of the `<long entity name>` on `<Chain>` is:", and requiring `address` adjacent to `on` matched almost nothing, so the entity name's own chain word won instead ("Grove **Arbitrum** … receiver on **Robinhood Chain**" → arbitrum).
+2. **Tight-window keyword scan** — chain keywords in the 120 chars before.
+3. **Wide-window keyword scan** — chain keywords in the 300 chars before.
+
+Each keyword window is scanned **from the last address literal in it onward** first, falling back to the whole window when that segment names no chain. A chain named before some *other* address belongs to that address — without this, every row of a per-chain list (`- Ethereum Mainnet - 0x… - Arbitrum - 0x…`) inherited the first row's chain. The fallback means trimming can only add a signal, never remove the only one.
+
+An enumeration (`on the Ethereum Mainnet, Base, and Arbitrum is` — one address deployed to all three) resolves by `CHAIN_HINTS` registry order, which puts ethereum first.
+
+### Chain from a heading (`chainFromLabel`)
+
+Atomized docs routinely put the chain in a **heading** and never repeat it in the one-line body — either inline (`ALM Proxy (Optimism) Contract`) or as a bare per-chain grouping heading (`Monolithic ALM Contracts` > `Robinhood Chain` > `ALM Proxy Contract`). `build-index` therefore falls back to the node's own title, then its **doc_no** ancestors' titles (`titleChainFor`). It walks doc_no rather than `parentId` because heading depth is capped at 6, which collapses the parent chain exactly in the deeply nested artifact subtrees where this pattern lives.
+
+A title is a **label**, not prose, so `chainFromLabel` checks specific chains before ethereum — otherwise `Base Mainnet - …` resolves to ethereum on the `\bmainnet\b` hint. It keeps word-boundary matching (unlike `normalizeChainLabel`'s substring test) because a doc title is free text where "Database" must not read as base. A deferred chain (`FUTURE_TO_ETHEREUM`) resolves to ethereum rather than null, so the ancestor walk stops at the heading that named it.
+
+### Cross-doc merge and precedence
+
+`build-index` keeps the **first detected** chain per address; a defaulted ethereum (nothing named a chain) stays replaceable, a detected one does not. The older "anything beats ethereum" rule could not tell the two apart, so an address the atlas placed on `(Mainnet)` outright was re-pointed by any later doc that merely filed it under another chain's heading.
+
+Overall precedence, strongest first:
+
+1. **ICD-stated chain** — `build-graph` Phase 4.5a, from a `Token Address (<Chain>)` param key or a `Network` / `Integration Partner Chain` param. Structured data about this exact address. `icdParamChain` returns `null` (not `ethereum`) when the ICD names nothing, so an unlabelled ICD can't reset a chain detected from prose.
+2. **Prose** — `detectChainOrNull`.
+3. **Heading** — `chainFromLabel` over the doc's own title, then doc_no ancestors.
+4. **Default** — `ethereum`.
+
+`build-graph` Phase 2.6 deliberately does **not** recompute chain: it can't see headings, and its "prefer any non-ethereum detection" aggregation let a single stray mention win globally (a doc whose prose said "Gnosis **Protocol**" pinned the address to Gnosis **Chain**).
+
+### Ambiguous docs are settled on-chain, not by guessing
+
+When the prose and the heading name **different** chains, the doc is genuinely ambiguous — `A.6.1.1.2.2.6.1.2.1.1.1.1.4.2` is titled "Grove **Arbitrum** Governance Relay Receiver" and bodied "on **Robinhood Chain**". Picking one in `build-index` is a coin flip either way, so both become candidates in `chains` (prose first, as the provisional primary) and `build-addresses` settles it against the chains themselves:
+
+- `applyOnchainCode` probes **every** candidate with `eth_getCode` **and** `eth_getTransactionCount`. An address is *present* on a chain if it has bytecode, or is an EOA that has sent at least one transaction. A zero nonce with no code is no evidence — an unused address is identical on every EVM chain.
+- `resolvePresentChains` then keeps the candidates that came back present. One → that's the chain. Several → the address really is on several, and all are kept. None → the atlas's own answer stands.
+- The atlas primary wins ties, so a reading the chain confirms is never reshuffled. When the primary turns out to be unsupported, `isContract` moves with the resolved chain.
+
+`presentOnChains` (in `addresses.json`, primary first) therefore outranks `chains` in `buildAddrRows`. If the probe never ran — no `ETHERSCAN_API_KEY`, or an unreachable RPC — the field is absent and every candidate still gets a row, which degrades to "possibly one row too many" rather than to a wrong single answer.
+
+### Multi-chain addresses
+
+Safes and the deterministically-deployed ALM contracts sit at the same address on several chains, and the storage layer was built for it: `atlas_addresses`' PK is `(address, chain)`, balances are keyed `address|chain`, and `has_address` edges are `${addr}:${chain}`.
+
+So `addresses.atlas.json` carries **both**:
+
+- `chain` — the single primary (first detected, else ethereum). Every existing consumer reads this and is unaffected.
+- `chains` — every chain the atlas names for the address; always contains `chain`.
+
+`buildAddrRows` emits **one DB row per entry in `chains`**. Writing only the primary was what hid multi-chain deployments from the DB and from the balances refresh.
+
+Two things follow from one address having several rows:
+
+- `is_contract` comes from `addresses.json`'s `codeByChain[chain]` (written by `applyOnchainCode`, which checks every chain in `chains`), falling back to the primary-chain `isContract`. An address can hold code on one chain and be an EOA on another — a single value stamped onto every row would be wrong.
+- `chain_state` attaches only to the chain it was snapshotted on (`ChainStateEntry.chain`). The legacy flat `chain-state.json` shape has no chain, so it carries `chain: null` and still joins.
+
+`atlas-updater`'s DB→artifact rebuild regroups those rows back into one entry per address, restoring `chains` — dropping it there would silently re-collapse what build-index detected.
 
 **Supported chains and their block explorers:**
 
@@ -94,7 +144,49 @@ Two separate artifacts — never mix their fields:
 | Artifact | Owner | Fields |
 |---|---|---|
 | `public/addresses.atlas.json` | `build-index` (initial), `build-graph` Phase 4.5 (enrichment) | `chain`, `explorerUrl`, `roles`, `entityLabel`, `aliases`, `expectedTokens` |
-| `public/addresses.json` | `build-addresses` | `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?` |
+| `public/addresses.json` | `build-addresses` | `chain`, `chainlogId?`, `etherscanName?`, `isContract`, `isProxy`, `implementation?`, and for Solana `accountType`, `programOwner?`, `programOwnerName?` |
+
+**`isContract` is the `eth_getCode` answer**, not "the explorer verified it". `address-enrich` sets a provisional value from `Boolean(etherscanName)`, then `build-addresses` overwrites every EVM entry via `address-code.mjs` (`applyOnchainCode`, public RPC from `CHAIN_RPC`, no API key). Verified source is strictly narrower than having code, so the provisional value alone reads every deployed-but-unverified contract as an EOA.
+
+Two things that pass through `address-code.mjs` are load-bearing:
+
+- A failed RPC call is signalled as `{ ok: false }`, never as an undefined code — viem's `getCode` resolves to `undefined` for an address with *no* bytecode, so the two are otherwise indistinguishable and a network blip would downgrade real contracts to EOAs.
+- Chains with no `rpcUrl` are skipped entirely and keep the explorer's value. Solana has no `rpcUrl` by design (see below) and is handled by its own pass.
+
+### Solana — `scripts/lib/solana-accounts.mjs`
+
+`eth_getCode` has no Solana equivalent, and the contract/EOA split does not describe Solana at all: every address is an *account*, and what it is comes from `getAccountInfo`'s `executable` flag plus its `owner` — the program allowed to write to it. Reading them through the EVM question mislabelled all 40 of the atlas's Solana addresses as EOAs, the ALM Controller program included.
+
+`applySolanaAccounts` (called from `build-addresses` right after `applyOnchainCode`) sets:
+
+| `accountType` | condition |
+|---|---|
+| `program` | `executable` — `isContract: true`; `isProxy` when owned by the BPF Upgradeable Loader, with the ProgramData account as `implementation` |
+| `wallet` | System-Program-owned **and on-curve** — a real keypair, the only true EOA analogue |
+| `pda` | System-Program-owned but **off-curve**, so no private key can exist for it: a program-derived vault (a Squads vault is one). 10 of the atlas's 13 System-owned addresses are these — only 3 are really keypairs — and calling them EOAs was the original mislabel |
+| `mint` / `token-account` / `token-multisig` | owner is SPL Token or Token-2022; classic sizes are 82 / 165 / 355, and Token-2022 accounts longer than 165 carry an AccountType byte at offset 165 |
+| `program-account` | any other owner — a PDA (controller state, relayer permission configs) |
+| `missing` | the RPC answered `null` — the atlas names an address Solana has never seen |
+
+Conventions worth keeping:
+
+- **The RPC lives in `solanaRpcUrl`, not `rpcUrl`.** Solana's JSON-RPC is a different protocol, and every EVM pass keys off `rpcUrl`. `census:chains` asserts that a non-EVM chain declares no `rpcUrl`.
+- **One `getMultipleAccounts` call per 10 keys, with a 166-byte `dataSlice`** — enough for the upgradeable-loader pointer (bytes 4..36) and the Token-2022 discriminator (byte 165), never enough to pull down an ELF. Sizes come from `space`, which is the *account's* length, not the slice's. The batch is 10 because PublicNode refuses 11+ with an HTTP 403 carrying JSON-RPC `-32602 "blocked parameter: params.0.#"` (measured; Solana's own cap is 100). Raise it only against an endpoint you've re-measured.
+- **A rejected request's reason lives in the JSON-RPC body even on a 4xx**, so the body is parsed before the status is checked — reporting a bare "HTTP 403" makes an endpoint's parameter limit look identical to an egress-policy denial.
+- **A failed batch omits its pubkeys from the result map**, the same discipline as `{ ok: false }` above: "the RPC is down" and "this account does not exist" are otherwise indistinguishable, and conflating them would rewrite every Solana row on a blip.
+- `PROGRAM_NAMES` holds only fixed runtime program ids. Anything else is named from the atlas's own `entityLabel` for that pubkey when it has one (so a PDA reads "owned by Solana ALM Controller Program"), else shown raw — a wrong friendly name is worse than none.
+
+The report's `classifyAddress` reads `accountType` ahead of the EVM fallthrough, mapping it to the `Program` / `Program Account` / `Token` / `EOA` buckets. An atlas `multisig` / `token` role still outranks it.
+
+### Solana balances — `src/server/balances/solana-balances.ts`
+
+SOL plus the SPL mints in `SOLANA_TOKENS` (`src/lib/tokens.ts`), returned in the same `BalanceResult` shape as the EVM path. USDS lands in the report's existing USDS column; SOL, USDT and USDC fall into "Other Balances" simply by not being in `PRIMARY_BALANCE_SYMBOLS`.
+
+- **Token accounts are derived, not looked up.** `getTokenAccountsByOwner` and `getTokenLargestAccounts` are indexed scans PublicNode does not serve — measured, they hang. An associated token account's address is a pure function of (owner, token program, mint), so `scripts/lib/solana-pda.mjs` derives it (base58 + ed25519 curve membership + `findProgramAddress`) and `getMultipleAccounts` reads it like any other account.
+- **`tokenProgram` is a derivation seed**, so a Token-2022 mint's account sits at a different address than a classic SPL one's. Getting it wrong yields a plausible address that simply never exists — silently zero, not an error.
+- **A derived account is only credited once its own data agrees on owner *and* mint.** The derivation is deterministic, so a mismatch means the assumption is wrong, and crediting a balance to the wrong address is the one failure here that is invisible in the report.
+- **An address can itself be a token account** (the atlas documents the ALM Controller's USDC one). Its balance is on the account, not on anything derived from it — hence the `self.owner !== address` branch.
+- `NATIVE_TOKEN` stays EVM-only: it gates the multicall path, and putting SOL in it would route Solana addresses through viem. `SOLANA_NATIVE` is separate for that reason.
 
 `build-addresses` must never write atlas annotation fields into `addresses.json`.
 

@@ -43,9 +43,16 @@ vi.mock("./DevPanel", () => ({ DevPanel: () => <div data-testid="dev-panel" /> }
 vi.mock("./components/Footer", () => ({ Footer: () => <footer data-testid="footer" /> }));
 vi.mock("./components/chat/ChatWidget", () => ({ ChatWidget: () => <div data-testid="chat-widget" /> }));
 vi.mock("./components/preview/PreviewBanner", () => ({ PreviewBanner: () => null }));
-// ModFrequencyReport is a real (unmocked) lazy route (see below) — stub its
-// data so it doesn't hit the network.
+// OnchainAddressesReport and ModFrequencyReport (unlike the other report routes
+// above) are left real — they're the route-mount smoke tests below — so their
+// data loaders need a resolved value; empty is enough to clear the loading state
+// and reach the real component. loadDocs serves both.
 vi.mock("./lib/docs", () => ({ loadDocs: () => Promise.resolve({}) }));
+vi.mock("./lib/addresses", () => ({ loadAddresses: () => Promise.resolve({}) }));
+vi.mock("./lib/balances", () => ({
+  loadBalances: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
+  requestBalancesRefresh: () => Promise.resolve({ lastCheckedAt: null, nextRefreshAt: null, refreshed: false, addresses: {} }),
+}));
 vi.mock("./lib/history", () => ({
   loadModCounts: () => Promise.resolve([]),
   loadModTimeline: () => Promise.resolve([]),
@@ -103,6 +110,12 @@ describe("App", () => {
     render(<App />, { wrapper: wrap("/privacy") });
     // PrivacyPage is a real (unmocked) lazy route — its h1 proves the Route mounts.
     expect(await screen.findByRole("heading", { level: 1, name: /privacy policy/i })).toBeInTheDocument();
+  });
+
+  it("renders the on-chain addresses report route", async () => {
+    render(<App />, { wrapper: wrap("/reports/onchain-addresses") });
+    // OnchainAddressesReport is a real (unmocked) lazy route — its h1 proves the Route mounts.
+    expect(await screen.findByRole("heading", { level: 1, name: "On-Chain Addresses" })).toBeInTheDocument();
   });
 
   it("renders the modification frequency report route", async () => {

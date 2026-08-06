@@ -21,6 +21,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { enrichAddresses, fetchImplABIs, fetchChainlog } from "../lib/address-enrich.mjs";
+import { applyOnchainCode } from "../lib/address-code.mjs";
+import { applySolanaAccounts } from "../lib/solana-accounts.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -70,6 +72,26 @@ const { misses = 0, errors = 0, proxyRefreshed = 0 } = out.__stats ?? {};
 
 await fetchImplABIs(out, API_KEY);
 
+// isContract is decided by eth_getCode, not by whether the explorer had
+// verified source — an unverified contract is still a contract. The probe also
+// settles addresses whose doc was ambiguous about the chain, by checking every
+// candidate and keeping the ones the address actually exists on.
+console.log("\nChecking on-chain bytecode + nonce (eth_getCode / eth_getTransactionCount)…");
+const code = await applyOnchainCode(out);
+
+// Solana's equivalent question. getCode has no meaning there — an account's
+// owner program and executable flag are what say whether it is a program, a
+// program-owned data account, a mint, or a keypair wallet. The atlas labels
+// several of these as programs and PDAs, so reading them all as EOAs (which is
+// what a missing pass amounts to) is a visible error in the report.
+console.log("\nChecking Solana accounts (getMultipleAccounts)…");
+const solanaLabels = Object.fromEntries(
+  Object.entries(atlas)
+    .filter(([, a]) => a.chain === "solana" && a.entityLabel)
+    .map(([addr, a]) => [addr, a.entityLabel]),
+);
+const solana = await applySolanaAccounts(out, { names: solanaLabels });
+
 await fs.writeFile(OUT_PATH, JSON.stringify(out, null, 2) + "\n");
 // addresses.atlas.json is kept as a permanent artifact — not deleted.
 
@@ -80,7 +102,10 @@ const all = Object.values(out);
 const withChainlog = all.filter((a) => a.chainlogId).length;
 const withEtherscan = all.filter((a) => a.etherscanName).length;
 const proxies = all.filter((a) => a.isProxy).length;
-const unverified = all.filter((a) => !a.isContract && a.chain !== "solana").length;
+const eoas = all.filter((a) => !a.isContract && a.chain !== "solana").length;
+// Deployed but with no verified source — invisible to the explorer pass, which
+// is why isContract can't be derived from it.
+const unverifiedContracts = all.filter((a) => a.isContract && !a.etherscanName).length;
 const withLabel = all.filter((a) => a.label).length;
 const byChain = {};
 for (const a of all) byChain[a.chain] = (byChain[a.chain] ?? 0) + 1;
@@ -94,7 +119,17 @@ console.log(`With label:         ${withLabel}`);
 console.log(`  via chainlog:     ${withChainlog}`);
 console.log(`  via etherscan:    ${withEtherscan}`);
 console.log(`Proxies:            ${proxies}`);
-console.log(`Unverified/EOA:     ${unverified}`);
+console.log(`EOAs (no bytecode): ${eoas}`);
+console.log(`Contracts, unverified source: ${unverifiedContracts}`);
+console.log(`getCode:            ${code.checked} checked, ${code.corrected} corrected, ${code.failed} failed, ${code.skipped} skipped (no RPC)`);
+console.log(`Ambiguous chains resolved on-chain: ${code.resolved}`);
+console.log(
+  `Solana accounts:    ${solana.checked} checked` +
+  (solana.failed ? `, ${solana.failed} batch failures (kept previous values)` : ""),
+);
+for (const [t, n] of Object.entries(solana.byType).sort((a, b) => b[1] - a[1])) {
+  console.log(`  ${t.padEnd(16)} ${n}`);
+}
 console.log("By chain:");
 for (const [c, n] of Object.entries(byChain).sort((a, b) => b[1] - a[1])) {
   console.log(`  ${c.padEnd(12)} ${n}`);

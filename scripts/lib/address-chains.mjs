@@ -2,6 +2,7 @@
  * Onchain address regex, normalization, chain detection, and table-context
  * detection for addresses sitting inside markdown tables.
  */
+import { FUTURE_TO_ETHEREUM } from "./chains.mjs";
 
 // EVM addresses are exactly 40 hex chars. The negative lookbehind/lookahead
 // stop us from matching the leading 40 hex of a longer hex blob like a 64-hex
@@ -32,12 +33,70 @@ export const CHAIN_HINTS = [
   { chain: "optimism", patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
   { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
   { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
-  { chain: "gnosis", patterns: [/\bgnosis\b/i, /\bxdai\b/i] },
+  // "Gnosis Safe" (the multisig, on any chain) and "Gnosis Protocol" (the DEX)
+  // are not Gnosis Chain — without the lookahead they pinned mainnet Safes and
+  // the Distribution Reward instances to gnosis.
+  { chain: "gnosis", patterns: [/\bgnosis\b(?!\s+(?:safe|protocol))/i, /\bxdai\b/i] },
   { chain: "robinhood", patterns: [/\brobinhood\b/i] },
 ];
 
-// "address on [the] CHAIN is 0x..." — most reliable signal
-const EXPLICIT_RE = /\baddress\s+on\s+(?:the\s+)?(.{3,30}?)\s+is\s*$/i;
+// Trailing punctuation between the "... is" clause and the address literal:
+// atlas prose writes "is: `0x…`", "is - 0x…", "is (0x…)".
+const TRAILING_JUNK_RE = /[\s:,\-–`'"*([]+$/;
+
+/**
+ * The chain named by the "on <phrase> is" clause immediately before the address
+ * — the most reliable signal, because the author stated it explicitly.
+ *
+ * Deliberately anchored on "on ... is", NOT "address on ... is": atlas prose
+ * overwhelmingly reads "The address of the <long entity name> on <Chain> is:",
+ * so requiring `address` adjacent to `on` missed nearly every real sentence and
+ * left those addresses to the keyword scan, which picks by registry order and
+ * so returns whichever chain the *entity name* happens to mention first (a
+ * "Grove Arbitrum governance relay receiver on Robinhood Chain" landed on
+ * arbitrum).
+ *
+ * Takes the LAST "on" so the nearest clause wins, and returns the phrase for
+ * the caller to keyword-match — an enumeration ("on the Ethereum Mainnet, Base,
+ * and Arbitrum is", one address deployed to all three) still resolves by
+ * registry order, which puts ethereum first.
+ *
+ * Written procedurally rather than as one regex: the equivalent pattern needs a
+ * whitespace-inclusive non-greedy phrase class next to `\s+is`, whose overlap
+ * backtracks catastrophically on the many windows that never match.
+ */
+function explicitChainPhrase(tight) {
+  const trimmed = tight.replace(TRAILING_JUNK_RE, "");
+  if (!/\bis$/i.test(trimmed)) return null;
+  const head = trimmed.slice(0, -2);
+  const onIdx = head.toLowerCase().lastIndexOf(" on ");
+  if (onIdx === -1) return null;
+  const phrase = head.slice(onIdx + 4).trim().replace(/^the\s+/i, "");
+  return phrase.length >= 2 && phrase.length <= 60 ? phrase : null;
+}
+
+function firstChainIn(text) {
+  for (const { chain, patterns } of CHAIN_HINTS) {
+    if (patterns.some((p) => p.test(text))) return chain;
+  }
+  return null;
+}
+
+/**
+ * The window segment after the last address literal in it. A chain named before
+ * some *other* address belongs to that address, not this one — without this, a
+ * per-chain list ("- Ethereum Mainnet - `0x…` - Arbitrum - `0x…`") attributes
+ * every entry to whichever chain the first row named.
+ */
+function afterLastAddress(w) {
+  // Fresh regex object: ETH_ADDR_RE is a shared /g regex, and mutating its
+  // lastIndex would corrupt any caller mid-iteration over the same object.
+  const re = new RegExp(ETH_ADDR_RE.source, "g");
+  let last = -1;
+  let m;
+  while ((m = re.exec(w)) !== null) last = m.index + m[0].length;
+  return last === -1 ? null : w.slice(last);
+}
 
 export function annotationWindow(content, matchIndex, addrLength) {
   // Uses ANNOT_WINDOW from address-annotate (300). Kept separate from WINDOW
@@ -116,27 +175,70 @@ export function findTableContext(content, matchIndex) {
   return { cells, headers, columnIndex };
 }
 
-export function detectChain(content, matchIndex) {
-  // Pass 1: explicit "address on X is" pattern in the 120 chars immediately before
+/**
+ * The chain a *label* names, or null when it names none.
+ *
+ * A doc/ancestor title is a label, not prose, so — like chains.mjs
+ * `normalizeChainLabel` and unlike the prose scan — specific chains are checked
+ * before ethereum, otherwise a "Base Mainnet - …" heading resolves to ethereum
+ * on the `\bmainnet\b` hint. Matching stays word-boundary (CHAIN_HINTS) rather
+ * than `normalizeChainLabel`'s substring test, because a doc title is free text
+ * where "Database"/"Baserate" must not read as base.
+ *
+ * A deferred chain (FUTURE_TO_ETHEREUM) resolves to ethereum rather than null,
+ * so an ancestor walk stops at the heading that named it instead of continuing
+ * up to a grandparent that names something else.
+ */
+export function chainFromLabel(label) {
+  if (!label) return null;
+  for (const { chain, patterns } of CHAIN_HINTS) {
+    if (chain === "ethereum") continue;
+    if (patterns.some((p) => p.test(label))) return chain;
+  }
+  if (FUTURE_TO_ETHEREUM.some((c) => new RegExp(`\\b${c}\\b`, "i").test(label))) return "ethereum";
+  return firstChainIn(label);
+}
+
+/**
+ * The chain named in the prose around an address plus how firmly it was named,
+ * or null when the prose names none.
+ *
+ * `explicit` means the author wrote an "on <chain> is" clause about this exact
+ * address, which settles the question outright. Anything else is a keyword that
+ * merely appeared nearby, which a heading may legitimately override or rival.
+ * Callers supply the fallback — build-index walks the doc's own title and its
+ * doc_no ancestors before defaulting, because atomized docs routinely put the
+ * chain in the heading ("ALM Proxy (Optimism) Contract") and never repeat it in
+ * the one-line body.
+ */
+export function detectChainSignal(content, matchIndex) {
+  // Pass 1: explicit "on X is" clause in the 120 chars immediately before.
   const tight = content.slice(Math.max(0, matchIndex - 120), matchIndex);
-  const explicit = tight.match(EXPLICIT_RE);
-  if (explicit) {
-    const phrase = explicit[1].toLowerCase();
-    for (const { chain, patterns } of CHAIN_HINTS) {
-      if (patterns.some((p) => p.test(phrase))) return chain;
-    }
+  const phrase = explicitChainPhrase(tight);
+  if (phrase) {
+    const hit = firstChainIn(phrase);
+    if (hit) return { chain: hit, explicit: true };
   }
 
-  // Pass 2: first chain keyword found in tight window (100 chars)
-  for (const { chain, patterns } of CHAIN_HINTS) {
-    if (patterns.some((p) => p.test(tight))) return chain;
+  // Pass 2/3: first chain keyword (registry order) in the tight (120 chars) then
+  // wide (300 chars) window. Each window is scanned from the last address
+  // literal onward first, falling back to the whole window when that segment
+  // names no chain — so trimming another address's context can only ever add a
+  // signal, never remove the only one.
+  for (const win of [120, WINDOW]) {
+    const w = content.slice(Math.max(0, matchIndex - win), matchIndex);
+    const scoped = afterLastAddress(w);
+    const hit = (scoped !== null ? firstChainIn(scoped) : null) ?? firstChainIn(w);
+    if (hit) return { chain: hit, explicit: false };
   }
 
-  // Pass 3: first chain keyword found in wide window (300 chars)
-  const wide = content.slice(Math.max(0, matchIndex - WINDOW), matchIndex);
-  for (const { chain, patterns } of CHAIN_HINTS) {
-    if (patterns.some((p) => p.test(wide))) return chain;
-  }
+  return null;
+}
 
-  return "ethereum";
+export function detectChainOrNull(content, matchIndex) {
+  return detectChainSignal(content, matchIndex)?.chain ?? null;
+}
+
+export function detectChain(content, matchIndex) {
+  return detectChainOrNull(content, matchIndex) ?? "ethereum";
 }

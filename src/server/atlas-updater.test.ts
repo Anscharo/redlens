@@ -1,5 +1,5 @@
 // Run under `bun test` (NOT vitest) — see vitest.config.ts exclude of src/server.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -14,10 +14,12 @@ import {
   makeTickDeps,
   isUpdaterEnabled,
   startUpdater,
+  groupAddrRowsToAtlas,
   type TickDeps,
   type UpdaterState,
 } from "./atlas-updater.ts";
 import { getIndexes } from "./retrieval/indexes.ts";
+import { buildAddrRows } from "./retrieval/doc-rows.ts";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -406,4 +408,45 @@ describe("isUpdaterEnabled + startUpdater (module state — keep last)", () => {
       else process.env.ATLAS_UPDATE_INTERVAL_MS = prev;
     }
   });
+});
+
+// ── groupAddrRowsToAtlas ─────────────────────────────────────────────────────
+// The DB→artifact direction of the address round trip. buildAddrRows (its
+// inverse, in retrieval/doc-rows.ts) is imported here so the pair is asserted
+// against each other rather than each against its own fixture.
+const EVM_UPPER = "0xABCDEF0000000000000000000000000000000001";
+const SHA40 = "a".repeat(40);
+
+test("groupAddrRowsToAtlas folds a multi-chain address's rows back into one entry", () => {
+  const rows = [
+    { address: "0xaaa", chain: "ethereum", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
+    { address: "0xaaa", chain: "base", entity_label: "Freezer Multisig", roles: ["multisig"], aliases: null, expected_tokens: null },
+    { address: "0xbbb", chain: "solana", entity_label: null, roles: null, aliases: null, expected_tokens: ["USDS"] },
+  ];
+  const out = groupAddrRowsToAtlas(rows);
+  expect(Object.keys(out).sort()).toEqual(["0xaaa", "0xbbb"]);
+  // First row's chain is the primary; every row's chain lands in `chains`.
+  expect(out["0xaaa"].chain).toBe("ethereum");
+  expect(out["0xaaa"].chains).toEqual(["ethereum", "base"]);
+  expect(out["0xaaa"].roles).toEqual(["multisig"]);
+  expect(out["0xbbb"].chains).toEqual(["solana"]);
+  expect(out["0xbbb"].roles).toEqual([]); // null → []
+  expect(out["0xbbb"].expectedTokens).toEqual(["USDS"]);
+});
+
+test("groupAddrRowsToAtlas round-trips buildAddrRows without collapsing chains", () => {
+  // The updater rebuild must not undo what build-index detected.
+  const atlas = { [EVM_UPPER]: { chain: "base", chains: ["base", "ethereum"], entityLabel: "Thing" } };
+  const rows = buildAddrRows(atlas, {}, {}, SHA40);
+  const back = groupAddrRowsToAtlas(
+    rows.map((r) => ({
+      address: r.address,
+      chain: r.chain,
+      entity_label: r.label,
+      roles: r.roles,
+      aliases: r.aliases,
+      expected_tokens: r.expected_tokens,
+    })),
+  );
+  expect(back[EVM_UPPER.toLowerCase()].chains.sort()).toEqual(["base", "ethereum"]);
 });
