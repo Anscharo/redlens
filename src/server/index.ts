@@ -20,6 +20,7 @@ import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
 import { handleConversations } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
@@ -221,6 +222,7 @@ const server = Bun.serve({
     "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
     "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
     "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    "/api/feedback": (req) => config.feedbackEnabled ? handleFeedback(req as Request) : NOT_FOUND(),
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
