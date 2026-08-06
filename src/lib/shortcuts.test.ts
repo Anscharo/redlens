@@ -1,25 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { isTypingTarget, SHORTCUTS, SLASH_COMMANDS } from "./shortcuts";
 
+// isTypingTarget only reads tagName/isContentEditable off the event target, so
+// plain object stand-ins exercise it without jsdom. They aren't real
+// EventTargets, hence the cast.
+const asTarget = (o: object): EventTarget => o as unknown as EventTarget;
+
 describe("isTypingTarget", () => {
   it("returns true for an input", () => {
-    expect(isTypingTarget({ tagName: "INPUT" })).toBe(true);
+    expect(isTypingTarget(asTarget({ tagName: "INPUT" }))).toBe(true);
   });
 
   it("returns true for a textarea", () => {
-    expect(isTypingTarget({ tagName: "TEXTAREA" })).toBe(true);
+    expect(isTypingTarget(asTarget({ tagName: "TEXTAREA" }))).toBe(true);
   });
 
   it("returns true for a select", () => {
-    expect(isTypingTarget({ tagName: "SELECT" })).toBe(true);
+    expect(isTypingTarget(asTarget({ tagName: "SELECT" }))).toBe(true);
   });
 
   it("returns true for a contentEditable element", () => {
-    expect(isTypingTarget({ tagName: "DIV", isContentEditable: true })).toBe(true);
+    expect(isTypingTarget(asTarget({ tagName: "DIV", isContentEditable: true }))).toBe(true);
   });
 
   it("returns false for a plain div", () => {
-    expect(isTypingTarget({ tagName: "DIV" })).toBe(false);
+    expect(isTypingTarget(asTarget({ tagName: "DIV" }))).toBe(false);
   });
 
   it("returns false for null", () => {
@@ -27,7 +32,7 @@ describe("isTypingTarget", () => {
   });
 
   it("returns false for a non-Element object", () => {
-    expect(isTypingTarget({ foo: "bar" })).toBe(false);
+    expect(isTypingTarget(asTarget({ foo: "bar" }))).toBe(false);
   });
 });
 
