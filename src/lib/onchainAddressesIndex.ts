@@ -74,6 +74,9 @@ const SOLANA_TYPE: Record<string, AddressType> = {
   mint: "Token",
   wallet: "EOA",
   missing: "EOA",
+  // System-owned but off-curve: no private key can exist for it, so it is a
+  // program-derived vault, not a keypair.
+  pda: "Program Account",
   "token-account": "Program Account",
   "token-multisig": "Program Account",
   "program-account": "Program Account",

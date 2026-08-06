@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { encodeBase58 } from "./solana-pda.mjs";
 import {
-  encodeBase58,
   programDataAddress,
   classifySolanaAccount,
   fetchSolanaAccounts,
@@ -10,6 +10,11 @@ import {
   TOKEN_2022_PROGRAM,
   BPF_UPGRADEABLE_LOADER,
 } from "./solana-accounts.mjs";
+
+// Real mainnet addresses: the first is a keypair (on-curve), the second is the
+// atlas's "Pioneer Incentive Pool wallet", which is System-owned yet off-curve.
+const KEYPAIR = "99J5Vcf3tav2dorWmB1qxdXtD4MKk6pyayQwS8RCXZKc";
+const OFF_CURVE = "8JmDPG5BFQ6gpUPJV9xBixYJLqTKCSNotkXksTmNsQfj";
 
 const hex = (h: string) => Uint8Array.from(Buffer.from(h, "hex"));
 const b64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
@@ -27,28 +32,6 @@ function programAccountData(programDataBytes: Uint8Array) {
   b.set(programDataBytes, 4);
   return b64(b);
 }
-
-describe("encodeBase58", () => {
-  // The standard Bitcoin base58 vectors — the same alphabet Solana pubkeys use.
-  it.each([
-    ["", ""],
-    ["61", "2g"],
-    ["626262", "a3gV"],
-    ["636363", "aPEr"],
-    ["73696d706c792061206c6f6e6720737472696e67", "2cFupjhnEsSn59qHXstmK2ffpLv2"],
-    ["00eb15231dfceb60925886b67d065299925915aeb172c06647", "1NS17iag9jJgTHD1VXjvLCEnZuQ3rJDE9L"],
-    ["516b6fcd0f", "ABnLTmg"],
-  ])("encodes %s", (input, expected) => {
-    expect(encodeBase58(hex(input))).toBe(expected);
-  });
-
-  it("emits leading zero bytes as '1' without an extra digit", () => {
-    // The all-zero pubkey is the System Program id — exactly 32 characters. A
-    // naive implementation seeded with digits=[0] emits 33.
-    expect(encodeBase58(new Uint8Array(32))).toBe(SYSTEM_PROGRAM);
-    expect(encodeBase58(new Uint8Array(32))).toHaveLength(32);
-  });
-});
 
 describe("programDataAddress", () => {
   it("reads the programdata pubkey out of an upgradeable program account", () => {
@@ -100,11 +83,25 @@ describe("classifySolanaAccount", () => {
     expect(c).toMatchObject({ accountType: "program", isProxy: false });
   });
 
-  it("reads a System-Program-owned account as a wallet", () => {
-    expect(classifySolanaAccount(account({ owner: SYSTEM_PROGRAM, space: 0 }))).toMatchObject({
-      accountType: "wallet",
-      isContract: false,
-    });
+  it("reads a System-Program-owned keypair as a wallet", () => {
+    // On-curve, so a private key for it exists — a real EOA.
+    expect(
+      classifySolanaAccount(account({ owner: SYSTEM_PROGRAM, space: 0 }), KEYPAIR),
+    ).toMatchObject({ accountType: "wallet", isContract: false });
+  });
+
+  it("reads a System-Program-owned off-curve address as a PDA, not a wallet", () => {
+    // A Squads vault is System-owned too. Off-curve means no private key can
+    // exist, so "EOA" would be flatly wrong — 30 of the atlas's 40 Solana
+    // addresses are in this bucket.
+    expect(
+      classifySolanaAccount(account({ owner: SYSTEM_PROGRAM, space: 0 }), OFF_CURVE),
+    ).toMatchObject({ accountType: "pda", isContract: false });
+  });
+
+  it("does not downgrade to PDA when the address is absent or unparseable", () => {
+    expect(classifySolanaAccount(account({ owner: SYSTEM_PROGRAM })).accountType).toBe("wallet");
+    expect(classifySolanaAccount(account({ owner: SYSTEM_PROGRAM }), "not-base58-0OIl").accountType).toBe("wallet");
   });
 
   it("distinguishes classic SPL Token layouts by size", () => {
@@ -264,13 +261,16 @@ describe("fetchSolanaAccounts", () => {
 
 describe("applySolanaAccounts", () => {
   const PROGRAM = "ALM1JSnEhc5PkNecbSZotgprBuJujL5objTbwGtpTgTd";
+  // Real pubkeys throughout: curve membership is part of the classification, so
+  // a placeholder like "WALLET" decodes to the wrong length and reads as a PDA.
+  const STATE = "EeobZr57FSmNvw8Hs719iULJNqv3XLrTB5uPezvC2ND3";
 
   function addresses() {
     return {
       "0xabc": { chain: "ethereum", isContract: true, isProxy: false },
       [PROGRAM]: { chain: "solana", isContract: false, isProxy: false },
-      STATE: { chain: "solana", isContract: false, isProxy: false },
-      WALLET: { chain: "solana", isContract: false, isProxy: false },
+      [STATE]: { chain: "solana", isContract: false, isProxy: false },
+      [KEYPAIR]: { chain: "solana", isContract: false, isProxy: false },
     } as Record<string, Record<string, unknown>>;
   }
 
@@ -285,14 +285,14 @@ describe("applySolanaAccounts", () => {
       log: () => {},
       fetchAccounts: fetchAccounts({
         [PROGRAM]: account({ owner: BPF_UPGRADEABLE_LOADER, executable: true, space: 36 }),
-        STATE: account({ owner: PROGRAM, space: 300 }),
-        WALLET: account({ owner: SYSTEM_PROGRAM, space: 0 }),
+        [STATE]: account({ owner: PROGRAM, space: 300 }),
+        [KEYPAIR]: account({ owner: SYSTEM_PROGRAM, space: 0 }),
       }) as never,
     });
 
     expect(addrs[PROGRAM]).toMatchObject({ accountType: "program", isContract: true });
-    expect(addrs.STATE).toMatchObject({ accountType: "program-account", isContract: false });
-    expect(addrs.WALLET).toMatchObject({ accountType: "wallet", isContract: false });
+    expect(addrs[STATE]).toMatchObject({ accountType: "program-account", isContract: false });
+    expect(addrs[KEYPAIR]).toMatchObject({ accountType: "wallet", isContract: false });
     expect(addrs["0xabc"]).toEqual({ chain: "ethereum", isContract: true, isProxy: false });
     expect(stats).toMatchObject({ checked: 3, failed: 0 });
     expect(stats.byType).toEqual({ program: 1, "program-account": 1, wallet: 1 });
@@ -304,25 +304,25 @@ describe("applySolanaAccounts", () => {
       log: () => {},
       names: { [PROGRAM]: "Solana ALM Controller Program" },
       fetchAccounts: fetchAccounts({
-        STATE: account({ owner: PROGRAM, space: 300 }),
-        WALLET: account({ owner: SYSTEM_PROGRAM, space: 0 }),
+        [STATE]: account({ owner: PROGRAM, space: 300 }),
+        [KEYPAIR]: account({ owner: SYSTEM_PROGRAM, space: 0 }),
       }) as never,
     });
     // The atlas documents this program, so its own label beats a raw pubkey.
-    expect(addrs.STATE).toMatchObject({
+    expect(addrs[STATE]).toMatchObject({
       programOwner: PROGRAM,
       programOwnerName: "Solana ALM Controller Program",
     });
-    expect(addrs.WALLET.programOwnerName).toBe("System Program");
+    expect(addrs[KEYPAIR].programOwnerName).toBe("System Program");
   });
 
   it("leaves an address the RPC never answered for untouched", async () => {
     const addrs = addresses();
     const stats = await applySolanaAccounts(addrs, {
       log: () => {},
-      fetchAccounts: fetchAccounts({ WALLET: account() }, 1) as never,
+      fetchAccounts: fetchAccounts({ [KEYPAIR]: account() }, 1) as never,
     });
-    expect(addrs.STATE.accountType).toBeUndefined();
+    expect(addrs[STATE].accountType).toBeUndefined();
     expect(stats).toMatchObject({ checked: 1, failed: 1 });
   });
 

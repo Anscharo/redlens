@@ -17,6 +17,7 @@
  */
 
 import { SOLANA_RPC } from "./chains.mjs";
+import { encodeBase58, decodeBase58, isOnCurve } from "./solana-pda.mjs";
 
 // Accounts per getMultipleAccounts call. Solana's own cap is 100, but
 // PublicNode rejects anything over 10 with an HTTP 403 carrying a JSON-RPC
@@ -47,37 +48,6 @@ export const PROGRAM_NAMES = {
   Vote111111111111111111111111111111111111111: "Vote Program",
   Config1111111111111111111111111111111111111: "Config Program",
 };
-
-const B58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-
-/**
- * Base58 (Bitcoin alphabet) for a byte array — the encoding Solana pubkeys use.
- * Hand-rolled rather than pulled in as a dependency: it is one big-endian base
- * conversion, and the pipeline needs it in exactly one place (turning the
- * upgradeable loader's raw 32-byte program-data pointer into an address).
- *
- * Leading zero bytes are not part of the number, so they are emitted separately
- * as '1's — that is what makes the all-zero System Program id 32 characters and
- * not 33.
- */
-export function encodeBase58(bytes) {
-  let zeros = 0;
-  while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
-  const digits = [];
-  for (let i = zeros; i < bytes.length; i++) {
-    let carry = bytes[i];
-    for (let j = 0; j < digits.length; j++) {
-      carry += digits[j] << 8;
-      digits[j] = carry % 58;
-      carry = (carry / 58) | 0;
-    }
-    while (carry > 0) {
-      digits.push(carry % 58);
-      carry = (carry / 58) | 0;
-    }
-  }
-  return "1".repeat(zeros) + digits.reverse().map((d) => B58_ALPHABET[d]).join("");
-}
 
 /** The account's sliced data as bytes, or null when the RPC returned none. */
 function dataBytes(acc) {
@@ -126,6 +96,15 @@ function tokenAccountKind(acc, space) {
   return "program-account";
 }
 
+/** Curve membership for a base58 address, tolerating an unparseable one. */
+function isOnCurveAddress(address) {
+  try {
+    return isOnCurve(decodeBase58(address));
+  } catch {
+    return true; // can't tell — don't upgrade the claim
+  }
+}
+
 /**
  * What an account is, from its owner and executable flag.
  *
@@ -138,7 +117,7 @@ function tokenAccountKind(acc, space) {
  * than guessed at: the atlas naming an address Solana has never seen is a
  * data-quality signal in its own right.
  */
-export function classifySolanaAccount(acc) {
+export function classifySolanaAccount(acc, address) {
   if (!acc) {
     return { accountType: "missing", programOwner: null, executable: false, space: null, isContract: false, isProxy: false };
   }
@@ -158,7 +137,14 @@ export function classifySolanaAccount(acc) {
     };
   }
   if (programOwner === SYSTEM_PROGRAM) {
-    return { ...base, accountType: "wallet", isContract: false, isProxy: false };
+    // System-owned is not the same as "somebody holds the key". A Squads vault
+    // is System-owned too, and so is any other program-derived address that
+    // only ever holds SOL. The curve settles it: an off-curve value cannot be
+    // an ed25519 public key, so no private key for it can exist — it is
+    // program-derived, and calling it an EOA is exactly the mislabel this pass
+    // exists to remove. 30 of the atlas's 40 Solana addresses are off-curve.
+    const keypair = address == null || isOnCurveAddress(address);
+    return { ...base, accountType: keypair ? "wallet" : "pda", isContract: false, isProxy: false };
   }
   if (programOwner === TOKEN_PROGRAM || programOwner === TOKEN_2022_PROGRAM) {
     return { ...base, accountType: tokenAccountKind(acc, space), isContract: false, isProxy: false };
@@ -177,7 +163,7 @@ export function classifySolanaAccount(acc) {
  */
 export async function fetchSolanaAccounts(
   pubkeys,
-  { rpcUrl = SOLANA_RPC, fetchImpl = fetch, batch = BATCH } = {},
+  { rpcUrl = SOLANA_RPC, fetchImpl = fetch, batch = BATCH, dataSlice = { offset: 0, length: DATA_SLICE } } = {},
 ) {
   const accounts = new Map();
   let failed = 0;
@@ -194,7 +180,7 @@ export async function fetchSolanaAccounts(
           jsonrpc: "2.0",
           id: 1,
           method: "getMultipleAccounts",
-          params: [slice, { encoding: "base64", commitment: "confirmed", dataSlice: { offset: 0, length: DATA_SLICE } }],
+          params: [slice, { encoding: "base64", commitment: "confirmed", dataSlice }],
         }),
       });
       // Parse before checking status: a rejected request carries its reason in
@@ -243,7 +229,7 @@ export async function applySolanaAccounts(
   for (const [key, acc] of accounts) {
     const info = addresses[key];
     if (!info) continue;
-    const c = classifySolanaAccount(acc);
+    const c = classifySolanaAccount(acc, key);
     info.accountType = c.accountType;
     info.isContract = c.isContract;
     info.isProxy = c.isProxy;

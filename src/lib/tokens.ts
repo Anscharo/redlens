@@ -34,6 +34,32 @@ export const TOKEN_REGISTRY: Record<string, Record<string, TokenOnChain>> = {
 // Checked for every address on top of its expected_tokens.
 export const ALWAYS_TOKENS = ["USDS", "SKY"] as const;
 
+// Solana SPL mints, keyed by mint address. Separate from TOKEN_REGISTRY because
+// the lookup runs the other way: an EVM balance is fetched *from* a known token
+// contract, whereas a Solana token account carries its mint in its data and has
+// to be resolved back to a symbol.
+//
+// `tokenProgram` is part of an associated token account's derivation, so it has
+// to be right — a Token-2022 mint's account sits at a different address than a
+// classic SPL one's.
+export const SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+export interface SolanaToken {
+  symbol: string;
+  decimals: number;
+  tokenProgram: string;
+}
+
+export const SOLANA_TOKENS: Record<string, SolanaToken> = {
+  USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA: { symbol: "USDS", decimals: 6, tokenProgram: SPL_TOKEN_PROGRAM },
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: { symbol: "USDT", decimals: 6, tokenProgram: SPL_TOKEN_PROGRAM },
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: { symbol: "USDC", decimals: 6, tokenProgram: SPL_TOKEN_PROGRAM },
+};
+
+// Solana's native token. Deliberately not in NATIVE_TOKEN, which gates the EVM
+// multicall path — adding it there would send Solana addresses through viem.
+export const SOLANA_NATIVE = { symbol: "SOL", decimals: 9 } as const;
+
 // Native gas token per chain — balance via multicall3 getEthBalance, no ERC20.
 export const NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }> = {
   ethereum: { symbol: "ETH", decimals: 18 },

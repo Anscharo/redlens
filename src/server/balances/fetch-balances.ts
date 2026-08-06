@@ -4,11 +4,13 @@
 // balanceOf into a handful of RPC round-trips). Mirrors the viem/multicall setup
 // in scripts/required/fetch-chain-state.mjs.
 //
-// Chains with no EVM RPC (solana) or no NATIVE_TOKEN entry are skipped. A failed
-// chain is logged and omitted rather than failing the whole sweep.
+// Solana is handled by solana-balances.ts, which needs neither. Chains with no
+// NATIVE_TOKEN entry are skipped. A failed chain is logged and omitted rather
+// than failing the whole sweep.
 import { createPublicClient, http, erc20Abi } from "viem";
 import { CHAIN_RPC } from "../../../scripts/lib/chains.mjs";
 import { NATIVE_TOKEN, tokensForAddress } from "../../lib/tokens.ts";
+import { fetchSolanaBalances } from "./solana-balances.ts";
 
 // Same address on every supported chain (canonical multicall3 deployment).
 const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11" as const;
@@ -218,13 +220,23 @@ export async function fetchBalances(
   const byChain = new Map<string, AddressInput[]>();
   for (const inp of inputs) {
     if (chains && !chains.includes(inp.chain)) continue;
-    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) continue; // skip solana/unsupported
+    if (!NATIVE_TOKEN[inp.chain] || !rpcFor(inp.chain)) continue; // non-EVM/unsupported
     const list = byChain.get(inp.chain) ?? [];
     list.push(inp);
     byChain.set(inp.chain, list);
   }
 
   const out: BalanceResult[] = [];
+
+  // Solana takes its own path: no multicall, and its token accounts are derived
+  // rather than looked up (see solana-balances.ts).
+  if (!chains || chains.includes("solana")) {
+    try {
+      out.push(...(await fetchSolanaBalances(inputs)));
+    } catch (e) {
+      console.warn(`balances: chain solana failed (${(e as Error).message}) — skipped`);
+    }
+  }
   for (const [chain, list] of byChain) {
     try {
       const { balances, codeResults } = await fetchChain(chain, list);
