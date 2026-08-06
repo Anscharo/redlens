@@ -65,8 +65,13 @@ export function resolveAddressTooltip(
   addrMap: Record<string, AddressInfo>,
   balancesByAddress: Record<string, AddressBalances>,
 ): { name: string; held: HeldBalance[] } {
+  // Exact case first: addressMap keys EVM addresses lowercased but leaves
+  // case-sensitive Solana base58 keys as-written (address-chains.mjs), so an
+  // exact match is always correct and a lowercased fallback is only needed to
+  // find a mixed-case EVM address (e.g. checksummed in markdown) — never for
+  // Solana, where lowercasing first risked resolving a different real pubkey.
   const key = address.toLowerCase();
-  const info = addrMap[key] ?? addrMap[address];
+  const info = addrMap[address] ?? addrMap[key];
   const name = info?.chainlogId ?? info?.etherscanName ?? shortAddr(address);
   if (!info) return { name, held: [] };
 

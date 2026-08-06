@@ -147,6 +147,47 @@ describe("AddressTooltip", () => {
     expect(tip).toHaveTextContent("ETH");
   });
 
+  it("re-measures the tooltip's placement once balances arrive after it's already open", async () => {
+    setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "Test Multisig" }) });
+    let resolveFetch!: (v: unknown) => void;
+    loadBalancesCached.mockReturnValue(new Promise((r) => { resolveFetch = r; }));
+    // Tooltip.tsx's place() reads the trigger's getBoundingClientRect() on
+    // every placement pass — a second call after the first proves the
+    // placement effect re-ran (see Tooltip.tsx's useLayoutEffect keyed on the
+    // `content` prop's reference), not just that the DOM text changed.
+    const rectSpy = vi.spyOn(Element.prototype, "getBoundingClientRect");
+
+    render(
+      <AddressTooltip address={EVM}>
+        <a href="#">{EVM}</a>
+      </AddressTooltip>,
+    );
+    fireEvent.mouseEnter(screen.getByText(EVM));
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+    });
+    const callsWhileLoading = rectSpy.mock.calls.length;
+    expect(callsWhileLoading).toBeGreaterThan(0);
+
+    await act(async () => {
+      resolveFetch({
+        lastCheckedAt: null,
+        nextRefreshAt: null,
+        refreshed: false,
+        addresses: {
+          [`${EVM}|ethereum`]: {
+            chain: "ethereum",
+            checkedAt: null,
+            hasCode: null,
+            balances: { ETH: { raw: "1000000000000000000", decimals: 18 } },
+          },
+        },
+      });
+    });
+
+    expect(rectSpy.mock.calls.length).toBeGreaterThan(callsWhileLoading);
+  });
+
   it("tags each balance row with its chain for a multi-chain address", async () => {
     setAddressMap({ [EVM]: makeAddressInfo({ chainlogId: "ALM Proxy", chains: ["ethereum", "base"] }) });
     loadBalancesCached.mockResolvedValue({

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useReducer, useState, type ReactElement } from "react";
 import { Tooltip } from "./Tooltip";
 import { getAddressMap } from "../lib/addressMap";
 import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "../lib/balances";
@@ -41,9 +41,20 @@ function Spinner() {
   );
 }
 
-function AddressTooltipContent({ address }: { address: string }) {
+function AddressTooltipContent({ address, onSettled }: { address: string; onSettled: () => void }) {
   const addresses = useBalances();
   const loading = addresses === undefined;
+  // Tooltip only re-measures/repositions when its `content` prop's element
+  // *reference* changes (see Tooltip.tsx's placement effect), and that
+  // reference is created once by AddressTooltip below — so on its own, this
+  // component's balances arriving asynchronously wouldn't reposition an
+  // already-open tooltip. onSettled tells AddressTooltip to re-render once
+  // loading finishes, producing a fresh reference, without re-triggering the
+  // fetch itself (only the very first hover of a session hits this — after
+  // that the shared cache is warm and loading starts out false).
+  useEffect(() => {
+    if (!loading) onSettled();
+  }, [loading, onSettled]);
   const { name, held } = resolveAddressTooltip(address, getAddressMap(), addresses ?? {});
   return (
     <div className="min-w-[8rem] max-w-[16rem]">
@@ -78,5 +89,10 @@ function AddressTooltipContent({ address }: { address: string }) {
 /** Wraps an on-chain address link with the shared Tooltip, showing the
  *  address's resolved name and any non-zero token balances on hover. */
 export function AddressTooltip({ address, children }: { address: string; children: ReactElement }) {
-  return <Tooltip content={<AddressTooltipContent address={address} />}>{children}</Tooltip>;
+  const [, bump] = useReducer((n: number) => n + 1, 0);
+  return (
+    <Tooltip content={<AddressTooltipContent address={address} onSettled={bump} />}>
+      {children}
+    </Tooltip>
+  );
 }

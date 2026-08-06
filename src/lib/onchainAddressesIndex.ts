@@ -3,10 +3,12 @@
 // addresses.atlas.json + addresses.json (the merged loadAddresses() view).
 //
 // One row per on-chain address the Atlas mentions. The Atlas assigns each
-// address a single canonical chain (build-index's detectChain), so an address
-// used on more than one chain still resolves to one row here — the report notes
-// this and lists every mentioning doc on that row. If a future build ever keys
-// an address per-chain, rowKey (address|chain) already splits them cleanly.
+// address a single canonical chain (build-index's detectChain) for display,
+// sorting, and its explorer link — an address used on more than one chain
+// (AddressInfo.chains) still resolves to one row here, but that row's
+// `balances` sums every chain it's deployed on (see mergeChainBalances), not
+// just the primary. If a future build ever keys an address per-chain for
+// display too, rowKey (address|chain) already splits them cleanly.
 
 import type { AtlasNode, AddressInfo } from "../types";
 import { toCSV } from "./csv";
@@ -184,6 +186,26 @@ export function otherBalances(row: OnchainAddressRow): { symbol: string; amount:
     .sort((a, b) => a.symbol.localeCompare(b.symbol));
 }
 
+// Sums same-symbol balances across every chain an address is deployed on into
+// one flat map. Safe to sum raw amounts as-is: a native gas symbol is chain-
+// specific (ETH vs POL vs AVAX — see NATIVE_TOKEN in tokens.ts), and every
+// ERC20 symbol in TOKEN_REGISTRY is currently priced on exactly one chain, so
+// today's data never puts the same symbol on two chains with different
+// decimals. Keeps the first-seen decimals if that ever changes.
+function mergeChainBalances(rows: (AddressBalances | undefined)[]): BalanceMap {
+  const merged: BalanceMap = {};
+  for (const row of rows) {
+    if (!row) continue;
+    for (const [symbol, b] of Object.entries(row.balances)) {
+      const existing = merged[symbol];
+      merged[symbol] = existing
+        ? { raw: (BigInt(existing.raw) + BigInt(b.raw)).toString(), decimals: existing.decimals }
+        : { ...b };
+    }
+  }
+  return merged;
+}
+
 const meta = (d: AtlasNode): DocMeta => ({ id: d.id, docNo: d.doc_no, title: d.title, type: d.type });
 const byDocNo = (a: DocMeta, b: DocMeta) => a.docNo.localeCompare(b.docNo, undefined, { numeric: true });
 
@@ -278,12 +300,17 @@ export function buildOnchainAddressRows(
         ? (nameToDocs.get(info.chainlogId) ?? [])
         : [];
     // Keyed by address|chain, matching atlas_addresses' PRIMARY KEY (address, chain) — see balances.ts.
-    const bal = balancesByAddress[`${key}|${info.chain}`] ?? balancesByAddress[`${address}|${info.chain}`];
+    // hasCode/checkedAt come from the primary chain's row specifically (a
+    // per-chain fact); the row's balances sum every chain (mergeChainBalances).
+    const primaryBal = balancesByAddress[`${key}|${info.chain}`] ?? balancesByAddress[`${address}|${info.chain}`];
+    const chainBals = info.chains.map(
+      (chain) => balancesByAddress[`${key}|${chain}`] ?? balancesByAddress[`${address}|${chain}`],
+    );
     return {
       address,
       rowKey: `${address}|${info.chain}`,
       chain: info.chain,
-      type: classifyAddress(info, bal?.hasCode),
+      type: classifyAddress(info, primaryBal?.hasCode),
       chainlogId: info.chainlogId ?? null,
       owner: info.entityLabel ?? null,
       etherscanName: info.etherscanName ?? null,
@@ -299,8 +326,8 @@ export function buildOnchainAddressRows(
       roles: info.roles ?? [],
       aliases: info.aliases ?? [],
       expectedTokens: info.expectedTokens ?? [],
-      balances: bal?.balances ?? {},
-      balancesCheckedAt: bal?.checkedAt ?? null,
+      balances: mergeChainBalances(chainBals),
+      balancesCheckedAt: primaryBal?.checkedAt ?? null,
       docs: mergeDocRefs(addrDocs, nameDocs),
     };
   });
