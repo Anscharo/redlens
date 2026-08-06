@@ -52,8 +52,10 @@ export function loadBalances(): Promise<BalancesResponse> {
 
 // Session-cached GET, shared by every address hover tooltip so hovering many
 // addresses on a page fetches /api/balances once instead of once per hover.
-// Never refreshed automatically — OnchainAddressesReport's Refresh button is
-// the only path that fetches fresh data (server-gated to once/hour anyway).
+// Lazy on purpose: the first fetch only starts on the first hover of any
+// address tooltip, not on page load — a startup fetch nobody may need is not
+// worth it, so the very first hover in a session can show the name only for
+// a moment before its balances arrive.
 let cachedBalances: Promise<BalancesResponse> | null = null;
 // Synchronous mirror of the cache's resolved value, so a component that
 // mounts/unmounts per interaction (the address tooltip, opened fresh on every
@@ -81,9 +83,16 @@ export function peekCachedBalances(): BalancesResponse | null {
 }
 
 // POST triggers a server-side refresh, gated to once per hour globally. Returns
-// the same shape; `refreshed` says whether new data was actually fetched.
+// the same shape; `refreshed` says whether new data was actually fetched. Also
+// updates the loadBalancesCached()/peekCachedBalances() cache, so the next
+// time any address tooltip opens (AddressTooltipContent re-seeds from the
+// peek on every mount) it shows the fresh data instead of the pre-refresh
+// snapshot for the rest of the session.
 export async function requestBalancesRefresh(): Promise<BalancesResponse> {
   const res = await fetch("/api/balances", { method: "POST" });
   if (!res.ok) throw new Error(`balances refresh: ${res.status}`);
-  return (await res.json()) as BalancesResponse;
+  const data = (await res.json()) as BalancesResponse;
+  resolvedBalances = data;
+  cachedBalances = Promise.resolve(data);
+  return data;
 }

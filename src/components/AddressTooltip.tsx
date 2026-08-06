@@ -4,13 +4,13 @@ import { getAddressMap } from "../lib/addressMap";
 import { loadBalancesCached, peekCachedBalances, type BalancesResponse } from "../lib/balances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
 
-// Tooltip mounts/unmounts this component fresh on every hover, so it seeds
-// from the already-resolved shared cache (peekCachedBalances) instead of
-// always starting at "loading" — a plain useLoaded(loadBalancesCached) reset
-// to null on every hover-after-the-first would flash empty-then-filled even
-// once the cache was warm. Only fetches (once, shared across every address on
-// the page) the first time any tooltip opens; a fetch failure just leaves
-// balances out of the tooltip rather than throwing through it.
+// Tooltip mounts/unmounts this component fresh on every hover. Fetching is
+// deliberately lazy — the first hover of any address on the page triggers the
+// one shared /api/balances request (loadBalancesCached), so a session where
+// nothing is ever hovered costs nothing; that first hover can show the name
+// only for a moment before balances arrive. Seeding from the already-resolved
+// cache (peekCachedBalances) means every hover *after* that first one paints
+// with balances already in place instead of flashing empty-then-filled.
 function useBalances(): BalancesResponse | null {
   const [bal, setBal] = useState(peekCachedBalances);
   useEffect(() => {

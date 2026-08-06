@@ -25,7 +25,8 @@ vi.mock("../lib/docs", () => ({
 
 // AddressTooltip's balances fetch is exercised in its own unit test
 // (AddressTooltip.test.tsx); here it's stubbed so the hover-tooltip
-// integration test below only has to assert the resolved name shows up.
+// integration test below only has to assert the resolved name shows up. Fetch
+// is lazy (only on hover), so tests that never hover an address never call it.
 const loadBalancesCached = vi.fn();
 vi.mock("../lib/balances", async (importOriginal) => ({
   ...(await importOriginal<object>()),

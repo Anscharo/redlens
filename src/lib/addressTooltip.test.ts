@@ -15,9 +15,12 @@ describe("heldBalances", () => {
       ETH: { raw: "0", decimals: 18 },
       SKY: { raw: "1000000000000000000", decimals: 18 },
       USDS: { raw: "2500000000000000000", decimals: 18 },
+      WETH: { raw: "100000000000000000", decimals: 18 },
       DAI: { raw: "500000000000000000", decimals: 18 },
     });
-    expect(held.map((h) => h.symbol)).toEqual(["USDS", "SKY", "DAI"]);
+    // USDS/SKY keep PRIMARY_BALANCE_SYMBOLS order; DAI/WETH (both unranked)
+    // fall back to alphabetical.
+    expect(held.map((h) => h.symbol)).toEqual(["USDS", "SKY", "DAI", "WETH"]);
     expect(held.find((h) => h.symbol === "USDS")?.amount).toBe("2.50");
   });
 
