@@ -36,6 +36,31 @@ before signing. See `docs/github-app-setup.md` §3 for the full recipe.
 
 `USERS_ENABLED` further requires `CHAT_JWT_SECRET` to be set — without a secret to sign sessions the login surface stays **off** (routes 404, and the profile/Collections UI is hidden even if `VITE_USERS_ENABLED=1` was baked in). The server logs a loud warning at boot if `USERS_ENABLED` is set without the secret.
 
+### Feedback (optional)
+
+The `?` feedback button posts to `/api/feedback`, which is **on by default** and needs
+only `DATABASE_URL` — set nothing here and it works. Every var below is an override;
+the full list with defaults lives in `.env.example` and `src/server/config.ts`.
+
+| Variable | Value | Required |
+|----------|-------|----------|
+| `FEEDBACK_ENABLED` | `0` to turn the endpoint off | No (defaults on) |
+| `FEEDBACK_ANON_PER_HOUR` / `_PER_DAY` | `3` / `10` | No — anonymous rate limit |
+| `FEEDBACK_USER_PER_HOUR` / `_PER_DAY` | `15` / `50` | No — signed-in rate limit |
+| `FEEDBACK_GLOBAL_PER_DAY` | `500` | No — flood circuit breaker |
+| `FEEDBACK_SURVEY_ID` | a PostHog survey uuid | For the PostHog Surveys mirror |
+| `FEEDBACK_SURVEY_QUESTION_ID` | the question uuid inside that survey | With `FEEDBACK_SURVEY_ID` |
+
+Rate limits are keyed on the user id when signed in, otherwise on the random `rl_fb`
+cookie minted on first submission — **never on IP**, because Railway's load balancer
+collapses every client into a single address (the same limitation documented for
+`/preview` in `docs/reviews/2026-07-09-deep-code-review.md`).
+
+Setting both `FEEDBACK_SURVEY_*` vars makes the server forward each accepted submission
+to PostHog as a `survey sent` event, so responses show up in the Surveys UI. It fires
+*after* validation and rate limiting, so spam never reaches PostHog or burns the response
+quota. Requires `POSTHOG_KEY` on the web service. Leave unset and Postgres is the only sink.
+
 ## Atlas Worker service
 
 | Variable | Value | Required |
