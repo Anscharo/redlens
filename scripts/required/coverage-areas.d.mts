@@ -10,3 +10,5 @@ export const reactAreaIds: string[];
 export const backendAreaIds: string[];
 export const libAreaIds: string[];
 export function areaFor(file: string): string;
+/** Whether a repo-relative file's 1-indexed line counts toward a coverage meter. */
+export function isLogicLine(file: string, lineNo: number): boolean;

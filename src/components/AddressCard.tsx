@@ -83,7 +83,7 @@ export function AddressCard({
                   <span className="chain-key mono text-[10px] shrink-0">{key}</span>
                   {isAddr ? (
                     <a
-                      href={explorerUrl(display)}
+                      href={explorerUrl(display, { chain: info.chain })}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="link-accent mono text-[10px] break-all"

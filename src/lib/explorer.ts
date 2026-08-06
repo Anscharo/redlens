@@ -16,6 +16,15 @@ export const EXPLORER: Record<string, string> = {
 
 const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
 
+// Word-boundary matcher per chain key, built once. A hint is free text — a doc
+// title, a param key, an instance name — so a bare substring test reads "base"
+// out of "Database" and "Baserate". Mirrors the word-boundary discipline the
+// build pipeline's CHAIN_HINTS uses for the same reason.
+const CHAIN_KEY_RE: Array<[string, RegExp]> = Object.keys(EXPLORER).map((key) => [
+  key,
+  new RegExp(`\\b${key}\\b`, "i"),
+]);
+
 // Resolve a chain key from a free-text hint (e.g. "Base", "OP Mainnet") or,
 // failing that, from the address shape. Defaults to ethereum. `hint` may be a
 // single string or a priority list of hints (most specific first — e.g.
@@ -26,9 +35,9 @@ const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
 function resolveChain(hint: string | undefined | Array<string | undefined>, addr: string): string {
   const hints = Array.isArray(hint) ? hint : [hint];
   for (const h of hints) {
-    const lower = (h ?? "").toLowerCase();
-    for (const key of Object.keys(EXPLORER)) {
-      if (lower.includes(key)) return key;
+    if (!h) continue;
+    for (const [key, re] of CHAIN_KEY_RE) {
+      if (re.test(h)) return key;
     }
   }
   if (SOL_RE.test(addr)) return "solana";

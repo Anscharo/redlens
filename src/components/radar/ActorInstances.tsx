@@ -5,6 +5,8 @@ import type { RadarInstance, RadarPrimitive, InstanceParam } from "../../lib/act
 import { toAnchorId } from "../../lib/anchorId";
 import { atlasHref } from "../../lib/routes";
 import { explorerUrl } from "../../lib/explorer";
+import { useAddressMap } from "../../hooks/useAddressMap";
+import type { AddressInfo } from "../../types";
 import { shortAddr } from "../../lib/format";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
@@ -23,10 +25,19 @@ function measureKeyPx(key: string): number {
   catch { return key.length * 6; }
 }
 
-function renderValue(value: string, chainHint?: Array<string | undefined>): React.ReactNode {
+function renderValue(
+  value: string,
+  chainHint?: Array<string | undefined>,
+  addrMap?: Record<string, AddressInfo>,
+): React.ReactNode {
   if (EVM_RE.test(value) || SOL_RE.test(value)) {
     const short = shortAddr(value);
-    return <a href={explorerUrl(value, { chain: chainHint })} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
+    // addrMap is the build pipeline's resolved chain and outranks every hint —
+    // an instance's *name* is not evidence of where it is deployed. The "Grove
+    // Arbitrum Governance Relay Receiver" lives on Robinhood Chain, and naming
+    // it after the governance it relays sent its address to arbiscan for as
+    // long as the name was the only thing consulted.
+    return <a href={explorerUrl(value, { chain: chainHint, addrMap })} target="_blank" rel="noopener" title={value} className="text-accent hover:underline">{short}</a>;
   }
   if (RATE_LIMIT_HASH_RE.test(value.trim())) {
     const v = value.trim();
@@ -54,7 +65,7 @@ function renderValue(value: string, chainHint?: Array<string | undefined>): Reac
   return value;
 }
 
-function ParamLine({ p, colWidth, instanceHint }: { p: InstanceParam; colWidth: number; instanceHint: string }) {
+function ParamLine({ p, colWidth, instanceHint, addrMap }: { p: InstanceParam; colWidth: number; instanceHint: string; addrMap: Record<string, AddressInfo> }) {
   return (
     <div className="flex py-0.5 w-full items-baseline">
       <span className="mono text-[10px] shrink-0" style={{ color: "var(--tan-3)" }}>
@@ -69,13 +80,16 @@ function ParamLine({ p, colWidth, instanceHint }: { p: InstanceParam; colWidth: 
             (Avalanche)" on an instance whose name says "Ethereum Mainnet - …"
             names the token's own chain, not the instance's home chain). Falls
             back to the instance name when the key carries no chain hint. */}
-        {renderValue(p.value, [p.key, instanceHint])}
+        {renderValue(p.value, [p.key, instanceHint], addrMap)}
       </span>
     </div>
   );
 }
 
 function InstanceCard({ inst }: { inst: RadarInstance }) {
+  // Loaded here rather than drilled from ActorInstances: loadAddresses() is
+  // module-cached, so every card resolves from the one in-flight request.
+  const addrMap = useAddressMap();
   const colWidth = useMemo(() => {
     if (inst.signalParams.length === 0) return MIN_DOTS_PX;
     return Math.max(...inst.signalParams.map((p) => measureKeyPx(p.key))) + MIN_DOTS_PX;
@@ -95,7 +109,7 @@ function InstanceCard({ inst }: { inst: RadarInstance }) {
       </div>
       {inst.signalParams.length > 0 && (
         <div>
-          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} />)}
+          {inst.signalParams.map((p) => <ParamLine key={p.key} p={p} colWidth={colWidth} instanceHint={inst.displayName} addrMap={addrMap} />)}
         </div>
       )}
     </div>
