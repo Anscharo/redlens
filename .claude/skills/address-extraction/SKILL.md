@@ -110,18 +110,24 @@ Two things follow from one address having several rows:
 
 `atlas-updater`'s DB→artifact rebuild regroups those rows back into one entry per address, restoring `chains` — dropping it there would silently re-collapse what build-index detected.
 
-**Supported chains and their block explorers:**
+### Adding a chain
 
-| Chain     | Explorer                    |
-|-----------|-----------------------------|
-| ethereum  | etherscan.io                |
-| base      | basescan.org                |
-| arbitrum  | arbiscan.io                 |
-| optimism  | optimistic.etherscan.io     |
-| polygon   | polygonscan.com             |
-| avalanche | snowtrace.io                |
-| gnosis    | gnosisscan.io               |
-| solana    | solscan.io                  |
+The registry is four parallel structures across three files, and **every one of them fails silently when missed** — that is why they get a checklist and a census rather than trust:
+
+| Where | Field | Silent failure if omitted |
+|---|---|---|
+| `scripts/lib/chains.mjs` | `CHAINS` entry (`chainId`, `aliases`, `rpcUrl`) | label normalization collapses the chain to ethereum; no on-chain queries |
+| `scripts/lib/address-chains.mjs` | `CHAIN_HINTS` entry | `detectChain` can *never* attribute prose to it — its addresses inherit whichever chain a neighbouring line names |
+| `src/lib/explorer.ts` | `EXPLORER` entry | addresses link to etherscan.io, pointing at the wrong chain's explorer |
+| `src/lib/tokens.ts` | `NATIVE_TOKEN` entry | `fetch-balances` skips the chain as unsupported — no balances at all |
+
+A chain that is named but not live yet goes in `FUTURE_TO_ETHEREUM` instead, which collapses it to ethereum deliberately and is tracked as `deferred` rather than `unknown`.
+
+Run `pnpm census:chains` after any registry edit: its registry-consistency pass names each structure you missed, and those warnings are never baselined (a half-added chain is a code bug, not atlas drift). The current explorer list is `EXPLORER` in `src/lib/explorer.ts` — read it there rather than from a copy that can go stale.
+
+### Catching a chain the atlas added
+
+`census:chains` is the alarm for a chain the registry has never heard of, in three independent halves — see the docblock in `scripts/required/check-chains-census.mjs`. The one worth knowing about is the third: the label and prose halves both need the chain's name to appear in a shape they recognize, and a **single-word chain name in a plain bullet row** (`- Unichain - \`0x…\``) fits neither. `scripts/lib/chain-candidates.mjs` covers that case by reasoning about the list instead of the name — in an address list whose siblings name two or more distinct known chains, a row naming none is a candidate. That needs no advance knowledge of the missing chain's name, which is the only way a drift detector can actually detect drift.
 
 ---
 
