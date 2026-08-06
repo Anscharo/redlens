@@ -132,6 +132,22 @@ describe("Composer", () => {
     expect(screen.getByText("↵ to send")).toBeInTheDocument();
   });
 
+  // Regression: a conversation switch keeps the composer live during
+  // useChatSession's openConversation() GET, so a quick send before hydrate()
+  // lands used to post to the wrong (previous) conversation.
+  it("disables the send button and textarea while a conversation is loading", () => {
+    setup({ draft: "hi", historyLoading: true });
+    expect(screen.getByLabelText("Send")).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask…")).toBeDisabled();
+    expect(screen.getByText("loading…")).toBeInTheDocument();
+  });
+
+  it("does not send on Enter while a conversation is loading", () => {
+    const { onSend } = setup({ draft: "hi", historyLoading: true });
+    fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Enter", shiftKey: false });
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
   it("renders UsageNote and CommonsNote when data is present", () => {
     setup({
       usage: { tokens: 10, limit: 100, resetsAt: new Date(Date.now() + 60000).toISOString(), exceeded: false, windowMinutes: 60 },

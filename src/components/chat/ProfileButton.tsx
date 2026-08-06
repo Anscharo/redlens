@@ -3,6 +3,8 @@ import { useAuth } from "./auth";
 import { usePrefs, type ChatPrefs } from "./usePrefs";
 import { SignInButtons } from "./SignInButtons";
 import { Link } from "../Link";
+import { chatEnabled } from "../../lib/chatEnabled";
+import { ROUTES } from "../../lib/routes";
 
 // NavBar profile control. Signed-out: a mono "sign in" pill → dropdown with a
 // provider choice (GitHub / Google), both routing through the shared openAuth.
@@ -73,6 +75,15 @@ export function ProfileButton() {
                 <span>Collections</span>
                 <span className="text-tan-3 enlargen">→</span>
               </Link>
+              {chatEnabled() && (
+                <>
+                  <div className="border-t border-border" />
+                  <Link className="rlc-menu-item" to={ROUTES.CONVERSATIONS} onClick={() => setOpen(false)}>
+                    <span>Conversations</span>
+                    <span className="text-tan-3">→</span>
+                  </Link>
+                </>
+              )}
               <div className="border-t border-border" />
               <button
                 className="rlc-menu-item"

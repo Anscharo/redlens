@@ -149,6 +149,23 @@ export const config = {
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
+  // Cheap LLM call that titles a conversation after assistant turns 1, 4, and
+  // 10 (title.ts). Unlike chatVerifierModel/chatAdvisorModel (empty = feature
+  // OFF, opt-in reliability-harness extras), this is chatModel-style
+  // DEFAULTS-ON — titling is requested core behavior. An operator can still
+  // disable it with CHAT_TITLE_MODEL="".
+  chatTitleModel: process.env.CHAT_TITLE_MODEL ?? "google/gemma-4-31b-it",
+  // Hard cap on the titling call; on timeout the existing title is kept —
+  // titleConversation is fire-and-forget from chat.ts and must never block or
+  // fail the turn.
+  //
+  // Generous on purpose. This fires AFTER the SSE response has closed, so the
+  // budget costs the user no latency — its only job is to bound a hung
+  // request. Measured against google/gemma-4-31b-it: median ~670ms, but tail
+  // calls hit ~4.7s, and an earlier 6s budget intermittently timed out. A miss
+  // isn't free: titling only re-fires at turns 4 and 10, so a conversation
+  // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
+  chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by

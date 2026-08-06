@@ -15,6 +15,7 @@ import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } fr
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { buildPrefetch, prefetchRound } from "../prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
+import { titleConversation, buildTitleTranscript } from "./title.ts";
 import { config } from "../config.ts";
 import { getWindowUsage } from "../rate-limit.ts";
 import { json } from "../http.ts";
@@ -122,10 +123,18 @@ export async function handleChat(req: Request): Promise<Response> {
   if (!convId) return json({ error: "conversation_not_found" }, 404);
 
   // Persist the user message before streaming, then load history (includes it).
+  // The updated_at bump runs alongside the history SELECT — independent
+  // writes, no added latency — so a conversation whose stream later aborts or
+  // 429s still sorts by its real last-activity time. Today only
+  // persistAssistant bumps updated_at, so an aborted-turn conversation sorts
+  // stale until (if ever) it gets a reply. With rename (conversations.ts)
+  // deliberately NOT touching updated_at, the invariant `updated_at ≡ last
+  // message time` holds exactly, served by the existing conversations_user index.
   await sql`INSERT INTO messages (conversation_id, role, content) VALUES (${convId}, 'user', ${body.message})`;
-  const history = (await sql`
-    SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at
-  `) as { role: string; content: string }[];
+  const [history] = (await Promise.all([
+    sql`SELECT role, content FROM messages WHERE conversation_id = ${convId} ORDER BY created_at`,
+    sql`UPDATE conversations SET updated_at = now() WHERE id = ${convId}`,
+  ])) as [{ role: string; content: string }[], unknown];
 
   const ix = getIndexes();
 
@@ -134,7 +143,8 @@ export async function handleChat(req: Request): Promise<Response> {
   // route fast on brevity alone — see model-router.ts. This runs BEFORE the
   // system prompt is built because the citation format the prompt asks for
   // depends on which model will read it.
-  const route = routeTier(body.message, { followUp: history.some((m) => m.role === "assistant") });
+  const priorAssistants = history.filter((m) => m.role === "assistant").length;
+  const route = routeTier(body.message, { followUp: priorAssistants > 0 });
   const models = resolveTierModels(route.tier);
 
   // The DB keeps the full conversation; the model gets a windowed replay
@@ -191,7 +201,22 @@ export async function handleChat(req: Request): Promise<Response> {
           }
         }
         // Don't persist an empty assistant row for an aborted turn.
-        if (done && !req.signal.aborted) await persistAssistant(convId, done, Date.now() - startedAt, obs);
+        if (done && !req.signal.aborted) {
+          await persistAssistant(userId, convId, done, Date.now() - startedAt, obs);
+          // Cheap LLM titling on turns 1/4/10 only (≤3 calls per conversation
+          // total; see title.ts). Unawaited + .catch()'d so it can never
+          // surface as an unhandled rejection or delay the stream's own
+          // teardown — the answer has already been sent to the client.
+          // Deliberately NOT passed req.signal: the SSE response (and thus
+          // the signal) is already closing/closed here, so forwarding it
+          // would make titling a silent no-op on every turn (see title.ts).
+          const TITLE_AT_TURNS = new Set([1, 4, 10]);
+          if (TITLE_AT_TURNS.has(priorAssistants + 1)) {
+            void titleConversation(convId, buildTitleTranscript(history, done.content), obs).catch((err) =>
+              captureError(err, obs, { stage: "title" }),
+            );
+          }
+        }
       } catch (err) {
         if (!req.signal.aborted) {
           captureError(err, obs, { stage: "stream_handler" });
@@ -212,37 +237,89 @@ export async function handleChat(req: Request): Promise<Response> {
   return new Response(stream, { headers });
 }
 
-async function persistAssistant(convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext): Promise<void> {
+// Exported for direct unit testing (chat.test.ts) — constructing a full
+// HarnessDone via the real HTTP+streaming+harness path just to exercise the
+// usage_events summation would require standing up the verifier/advisor
+// network flow the "titling" describe block below already shows is a heavy
+// lift; this function's persistence logic is worth testing directly instead.
+export async function persistAssistant(
+  userId: string, convId: string, done: HarnessDone, latencyMs: number, obs?: ErrorContext,
+): Promise<void> {
   // Raw array + ::jsonb (see resolveConversation note) — not JSON.stringify'd.
   const toolCalls = done.toolCalls.length ? done.toolCalls : null;
-  const inserted = (await sql`
-    INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
-    VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
-            ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
-    RETURNING id
-  `) as { id: string }[];
 
   // Harness (verifier/advisor) tokens count toward the conversation totals and
-  // the rate-limit window (via message_checks) — never toward the messages row,
-  // which stays conversationalist-only so the two sums don't double-count.
+  // the rate-limit window (via the usage_events row below) — never toward the
+  // messages row, which stays conversationalist-only so the sums don't
+  // double-count.
   const checkIn = (done.checksMeta ?? []).reduce((s, c) => s + (c.inputTokens ?? 0), 0);
   const checkOut = (done.checksMeta ?? []).reduce((s, c) => s + (c.outputTokens ?? 0), 0);
+  const usageInput = done.usage.input + checkIn;
+  const usageOutput = done.usage.output + checkOut;
+
+  const insertUsageEvent = (conversationId: string | null) => sql`
+    INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
+    VALUES (${userId}, ${conversationId}, ${usageInput}, ${usageOutput})
+  `;
+
+  // Fired concurrently with the messages insert below, not awaited yet — the
+  // two are mutually independent (usage_events doesn't need the message
+  // row's id, and quota accounting must be attempted regardless of whether
+  // the message insert itself succeeds), so serializing them would add a
+  // full extra DB round trip to every turn's tail latency for no benefit.
+  //
+  // The `meta` SSE event ships convId back to the client before any model
+  // work starts (see the `send` call above), so a client can DELETE
+  // /api/chat/conversations/:id while this turn is still streaming — by the
+  // time this function runs, the conversation row may already be gone.
+  // messages.conversation_id is NOT NULL + ON DELETE CASCADE, so inserting
+  // against a deleted conversation FK-fails; if usage_events were only
+  // written after that insert succeeded, a well-timed delete would skip
+  // quota accounting entirely — the same reclaim-by-delete hole migration 017
+  // closed, just relocated into this race window instead of the cascade.
+  // usage_events.conversation_id is nullable (ON DELETE SET NULL, provenance
+  // only — see migration 017) precisely so this can degrade to an
+  // orphaned-but-counted row instead of failing outright.
+  const usageEventDone = insertUsageEvent(convId).catch((err) => {
+    captureError(err, obs, { stage: "usage_events_insert", conversationId: convId });
+    return insertUsageEvent(null);
+  });
+
+  let inserted: { id: string }[];
+  try {
+    inserted = (await sql`
+      INSERT INTO messages (conversation_id, role, content, tool_calls, input_tokens, output_tokens, generation_id, latency_ms)
+      VALUES (${convId}, 'assistant', ${done.content}, ${toolCalls}::jsonb,
+              ${done.usage.input}, ${done.usage.output}, ${done.generationId}, ${latencyMs})
+      RETURNING id
+    `) as { id: string }[];
+  } catch (err) {
+    // Conversation deleted mid-turn: there's nowhere left to save the answer
+    // or bump conversation totals. Still wait for quota accounting to land —
+    // it's already in flight above, not skipped.
+    captureError(err, obs, { stage: "persist_assistant_message", conversationId: convId });
+    await usageEventDone;
+    return;
+  }
 
   // The checks rows and the conversations totals update are independent
-  // writes (neither depends on the other's result) — run them concurrently
-  // instead of stacking round trips on the client's already-completed answer.
-  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time race
-  // against the message_checks migration): the assistant message above is
-  // already durably persisted, so a telemetry-row failure must never surface
-  // as a turn-level error to a client that already has the complete answer.
+  // writes (neither depends on the other's result, nor on the still-in-flight
+  // usage_events write above) — run all three concurrently instead of
+  // stacking round trips on the client's already-completed answer.
+  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time
+  // race against the message_checks migration): the assistant message above
+  // is already durably persisted, so a telemetry-row failure must never
+  // surface as a turn-level error to a client that already has the complete
+  // answer.
   await Promise.all([
+    usageEventDone,
     persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
       captureError(err, obs, { stage: "persist_checks" });
     }),
     sql`
       UPDATE conversations
-      SET total_input_tokens = total_input_tokens + ${done.usage.input + checkIn},
-          total_output_tokens = total_output_tokens + ${done.usage.output + checkOut},
+      SET total_input_tokens = total_input_tokens + ${usageInput},
+          total_output_tokens = total_output_tokens + ${usageOutput},
           query_atlas_calls = query_atlas_calls + ${done.toolCalls.length},
           updated_at = now()
       WHERE id = ${convId}

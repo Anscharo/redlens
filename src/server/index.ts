@@ -18,6 +18,7 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
+import { handleConversations } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
@@ -211,6 +212,10 @@ const server = Bun.serve({
     /* v8 ignore stop */
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleConversations is unit-tested directly in conversations.test.ts */
+    "/api/chat/conversations":     (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
+    "/api/chat/conversations/:id": (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
+    /* v8 ignore stop */
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
@@ -354,6 +359,7 @@ const server = Bun.serve({
     const html = (await Bun.file(config.distDir + "/index.html").text())
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
+      .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
       .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };

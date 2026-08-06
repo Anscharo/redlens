@@ -11,6 +11,7 @@ export const ROUTES = {
   CONNECT: "/connect",
   COLLECTIONS: "/collections",
   SHARED_COLLECTION: "/c/:id",
+  CONVERSATIONS: "/conversations",
   REPORTS: "/reports",
   REPORTS_CROSSVIEW: "/reports/crossview",
   REPORTS_CROSSVIEW_CONCEPTS: "/reports/crossview/concepts",

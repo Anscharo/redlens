@@ -444,6 +444,117 @@ describe("useChatStream send guards", () => {
   });
 });
 
+describe("useChatStream hydrate", () => {
+  it("seeds messages + conversationId, clearing error/streaming", () => {
+    const { result } = renderHook(() => useChatStream());
+    const seeded = [
+      { role: "user" as const, content: "hi", trace: [], rounds: 0, sources: [], done: true },
+      { role: "assistant" as const, content: "hello", trace: [], rounds: 0, sources: [], done: true },
+    ];
+    act(() => {
+      result.current.hydrate("conv-1", seeded);
+    });
+    expect(result.current.conversationId).toBe("conv-1");
+    expect(result.current.messages).toEqual(seeded);
+    expect(result.current.error).toBeNull();
+    expect(result.current.streaming).toBe(false);
+  });
+
+  it("hydrate(null, []) clears to a fresh chat", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+    });
+    act(() => {
+      result.current.hydrate(null, []);
+    });
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it("aborts an in-flight stream first, so a late (already-inflight) event cannot corrupt the newly hydrated array", async () => {
+    const encoder = new TextEncoder();
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
+    let signalRef: AbortSignal | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller;
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) => {
+        signalRef = init?.signal ?? undefined;
+        // Mirror real fetch/undici: aborting after the response begins errors
+        // the body stream, which is what actually stops the read loop below —
+        // this is the behavior hydrate's "abort first" depends on.
+        signalRef?.addEventListener("abort", () => {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          controllerRef!.error(err);
+        });
+        return Promise.resolve(new Response(stream, { status: 200 }));
+      }),
+    );
+
+    const { result } = renderHook(() => useChatStream());
+    let sendPromise: Promise<unknown> | undefined;
+    act(() => {
+      sendPromise = result.current.send("question");
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(true));
+
+    // Real content streams in first, so there's something to corrupt.
+    await act(async () => {
+      controllerRef!.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", text: "partial" })}\n\n`));
+    });
+    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe("partial"));
+
+    const restored = [{ role: "user" as const, content: "restored", trace: [], rounds: 0, sources: [], done: true }];
+    act(() => {
+      result.current.hydrate("other-conv", restored);
+    });
+    expect(result.current.conversationId).toBe("other-conv");
+    expect(result.current.messages).toEqual(restored);
+
+    // Let the old stream's now-erroring read() reject and its catch/finally run.
+    await act(async () => {
+      await sendPromise;
+    });
+
+    // The old stream's rejection must not have touched the hydrated array.
+    expect(result.current.messages).toEqual(restored);
+    expect(result.current.streaming).toBe(false);
+  });
+});
+
+describe("useChatStream 404 conversation_not_found", () => {
+  it("clears the conversation id and finalizes as failed, without setting the generic error banner", async () => {
+    mockStatus(404, { error: "conversation_not_found" });
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("dead-conv", []);
+    });
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.streaming).toBe(false);
+  });
+
+  it("a 404 with a different/no error body still surfaces as the generic error", async () => {
+    mockStatus(404, { error: "not_found" });
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.error).toMatch(/chat request failed \(404\)/);
+  });
+});
+
 describe("useChatStream stop/reset", () => {
   it("stop() aborts the in-flight request and finalizes the last message", async () => {
     // Mimic real fetch's abort-signal behavior: reject with an AbortError as
