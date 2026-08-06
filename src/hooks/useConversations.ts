@@ -49,6 +49,7 @@ export function useConversations(): {
 
   useEffect(() => {
     const reqId = ++requestIdRef.current;
+    const isCurrent = () => aliveRef.current && requestIdRef.current === reqId;
     if (!user) {
       setConversations([]);
       setLoading(false);
@@ -58,13 +59,13 @@ export function useConversations(): {
     setError(null);
     listConversations()
       .then((cs) => {
-        if (aliveRef.current && requestIdRef.current === reqId) setConversations(cs);
+        if (isCurrent()) setConversations(cs);
       })
       .catch((err) => {
-        if (aliveRef.current && requestIdRef.current === reqId) setError(err instanceof Error ? err.message : String(err));
+        if (isCurrent()) setError(err instanceof Error ? err.message : String(err));
       })
       .finally(() => {
-        if (aliveRef.current && requestIdRef.current === reqId) setLoading(false);
+        if (isCurrent()) setLoading(false);
       });
   }, [user]);
 

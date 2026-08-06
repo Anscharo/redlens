@@ -18,14 +18,20 @@ type SqlHandler = (text: string, values: unknown[]) => Row[] | undefined;
 let queryLog: { text: string; values: unknown[] }[] = [];
 let sqlHandlers: SqlHandler[] = [];
 
-function sqlMockFn(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
+// async, not just Promise-returning: the real driver's query failures always
+// surface as a rejected promise (the round trip is inherently async), never
+// a synchronous throw. Declaring this `async` gives a handler's `throw`
+// (the shorthand tests use for "this query fails") the same rejection
+// semantics, so a bare `.catch()` on the call site behaves like production —
+// a plain function here would let the throw escape synchronously instead.
+async function sqlMockFn(strings: TemplateStringsArray, ...values: unknown[]): Promise<Row[]> {
   const text = strings.join("¶");
   queryLog.push({ text, values });
   for (const h of sqlHandlers) {
     const r = h(text, values);
-    if (r !== undefined) return Promise.resolve(r);
+    if (r !== undefined) return r;
   }
-  return Promise.resolve([]);
+  return [];
 }
 
 mock.module("../db.ts", () => ({

@@ -257,9 +257,19 @@ export async function persistAssistant(
   const usageInput = done.usage.input + checkIn;
   const usageOutput = done.usage.output + checkOut;
 
-  // Quota accounting happens FIRST, ahead of and independent from persisting
-  // the message. The `meta` SSE event ships convId back to the client before
-  // any model work starts (see the `send` call above), so a client can DELETE
+  const insertUsageEvent = (conversationId: string | null) => sql`
+    INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
+    VALUES (${userId}, ${conversationId}, ${usageInput}, ${usageOutput})
+  `;
+
+  // Fired concurrently with the messages insert below, not awaited yet — the
+  // two are mutually independent (usage_events doesn't need the message
+  // row's id, and quota accounting must be attempted regardless of whether
+  // the message insert itself succeeds), so serializing them would add a
+  // full extra DB round trip to every turn's tail latency for no benefit.
+  //
+  // The `meta` SSE event ships convId back to the client before any model
+  // work starts (see the `send` call above), so a client can DELETE
   // /api/chat/conversations/:id while this turn is still streaming — by the
   // time this function runs, the conversation row may already be gone.
   // messages.conversation_id is NOT NULL + ON DELETE CASCADE, so inserting
@@ -270,18 +280,10 @@ export async function persistAssistant(
   // usage_events.conversation_id is nullable (ON DELETE SET NULL, provenance
   // only — see migration 017) precisely so this can degrade to an
   // orphaned-but-counted row instead of failing outright.
-  try {
-    await sql`
-      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
-      VALUES (${userId}, ${convId}, ${usageInput}, ${usageOutput})
-    `;
-  } catch (err) {
+  const usageEventDone = insertUsageEvent(convId).catch((err) => {
     captureError(err, obs, { stage: "usage_events_insert", conversationId: convId });
-    await sql`
-      INSERT INTO usage_events (user_id, conversation_id, input_tokens, output_tokens)
-      VALUES (${userId}, ${null}, ${usageInput}, ${usageOutput})
-    `;
-  }
+    return insertUsageEvent(null);
+  });
 
   let inserted: { id: string }[];
   try {
@@ -292,21 +294,25 @@ export async function persistAssistant(
       RETURNING id
     `) as { id: string }[];
   } catch (err) {
-    // Conversation deleted mid-turn: quota is already accounted for above;
-    // there's nowhere left to save the answer or bump conversation totals.
+    // Conversation deleted mid-turn: there's nowhere left to save the answer
+    // or bump conversation totals. Still wait for quota accounting to land —
+    // it's already in flight above, not skipped.
     captureError(err, obs, { stage: "persist_assistant_message", conversationId: convId });
+    await usageEventDone;
     return;
   }
 
   // The checks rows and the conversations totals update are independent
-  // writes (neither depends on the other's result) — run them concurrently
-  // instead of stacking round trips on the client's already-completed
-  // answer. persistChecks degrades to a logged no-op on failure (e.g. a
-  // boot-time race against the message_checks migration): the assistant
-  // message above is already durably persisted, so a telemetry-row failure
-  // must never surface as a turn-level error to a client that already has
-  // the complete answer.
+  // writes (neither depends on the other's result, nor on the still-in-flight
+  // usage_events write above) — run all three concurrently instead of
+  // stacking round trips on the client's already-completed answer.
+  // persistChecks degrades to a logged no-op on failure (e.g. a boot-time
+  // race against the message_checks migration): the assistant message above
+  // is already durably persisted, so a telemetry-row failure must never
+  // surface as a turn-level error to a client that already has the complete
+  // answer.
   await Promise.all([
+    usageEventDone,
     persistChecks(inserted[0].id, done.checksMeta ?? []).catch((err) => {
       captureError(err, obs, { stage: "persist_checks" });
     }),
