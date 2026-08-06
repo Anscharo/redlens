@@ -13,7 +13,7 @@ Mapping onto events the orchestrator already emits: `querying` → "Looking for 
 - **Token events stop rendering in-flight.** Server keeps generating as today; a mode switch (env + per-conversation flag) suppresses/buffers token events on the SSE route; status events become the primary in-flight UI. Frontend (`src/components/chat/`) renders stages instead of a growing draft.
 - **Revision UX becomes strictly better**: today a revised answer visibly replaces already-streamed content (`clear` event); staged mode never shows the draft at all.
 - **stream-link-gate becomes unnecessary in staged mode** — post-answer citation repair suffices when nothing streams. Keep the gate for streaming mode while both modes exist.
-- **Empty final answers become impossible**: "Preparing final report" includes the loop-exhaustion compose guard (wave-1 item — both eval A/B arms shipped `""` after burning maxIterations).
+- **Empty final answers become impossible**: the loop-exhaustion compose guard (**landed 2026-08-06**, `chat-loop.ts` `composeFinal`) buys one no-tools answer-or-abstain attempt whenever a round ends with empty content — both eval A/B arms had shipped `""` after burning maxIterations.
 - **Optional polish**: display-stream the final answer (typewriter over already-verified text) so the reveal still feels alive — display streaming, not generation streaming.
 
 ## Costs / risks
