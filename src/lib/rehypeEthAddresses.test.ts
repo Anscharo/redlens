@@ -153,5 +153,39 @@ describe("transaction hash linkification", () => {
     const addrLink = found.find((l) => l.text === EVM);
     expect(addrLink?.href).toBe(`https://etherscan.io/address/${EVM}`);
     expect(addrLink?.dataAddress).toBe(EVM);
+  it("stops at a non-text sibling before finding the label, leaving the hash unlinked", () => {
+    const hash = "0x" + "c".repeat(64);
+    const tree: Root = {
+      type: "root",
+      children: [
+        {
+          type: "element",
+          tagName: "p",
+          properties: {},
+          children: [
+            {
+              type: "element",
+              tagName: "strong",
+              properties: {},
+              children: [{ type: "text", value: "Note:" }],
+            },
+            { type: "element", tagName: "code", properties: {}, children: [{ type: "text", value: hash }] },
+          ],
+        },
+      ],
+    };
+    transform(tree);
+    expect(links(tree)).toHaveLength(0);
+  });
+
+  it("links a 'Transaction Hash:' tx hash written as plain text (not <code>-wrapped), and still links a bare address elsewhere in the same text node", () => {
+    const hash = "0x" + "d".repeat(64);
+    const tree = makeTree(`Sent from ${EVM}. Transaction Hash: ${hash} confirmed.`);
+    transform(tree);
+    const found = links(tree);
+    const txLink = found.find((l) => l.text === hash);
+    expect(txLink?.href).toBe(`https://etherscan.io/tx/${hash}`);
+    const addrLink = found.find((l) => l.text === EVM);
+    expect(addrLink?.href).toBe(`https://etherscan.io/address/${EVM}`);
   });
 });
