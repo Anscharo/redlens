@@ -71,12 +71,12 @@ describe("detectChain — a preceding address ends the previous chain's context"
     expect(chainOf(list, A)).toBe("unichain");
   });
 
-  it("resolves a deferred chain's own list row to ethereum instead of a neighboring chain", () => {
-    // Regression: Plasma names no CHAIN_HINTS entry, so its row fell through
-    // to the wider window and picked up the preceding row's chain (e.g.
-    // avalanche) instead of its documented FUTURE_TO_ETHEREUM collapse.
+  it("resolves a promoted chain's own list row to itself, not a neighboring chain", () => {
+    // Regression: Plasma named no CHAIN_HINTS entry, so its row fell through to
+    // the wider window and picked up the preceding row's chain (e.g.
+    // avalanche). It is a registered chain now, so its row resolves to plasma.
     const list = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
-    expect(chainOf(list, A)).toBe("ethereum");
+    expect(chainOf(list, A)).toBe("plasma");
   });
 });
 
@@ -111,9 +111,9 @@ describe("chainFromLabel", () => {
     expect(chainFromLabel("Ethereum Mainnet - Morpho USDS Instance")).toBe("ethereum");
   });
 
-  it("resolves a deferred chain to ethereum so an ancestor walk stops there", () => {
-    expect(chainFromLabel("Plume")).toBe("ethereum");
-    expect(chainFromLabel("Plasma")).toBe("ethereum");
+  it("resolves a promoted chain to itself so an ancestor walk stops there", () => {
+    expect(chainFromLabel("Plume")).toBe("plume");
+    expect(chainFromLabel("Plasma")).toBe("plasma");
   });
 
   it("returns null for a label naming no chain", () => {
@@ -146,12 +146,11 @@ describe("detectChainSignal — how firmly the chain was named", () => {
     expect(detectChainSignal(text, text.indexOf(A))).toBeNull();
   });
 
-  it("reports a deferred chain's own row with the deferred name attached", () => {
+  it("reports a promoted chain's own row as that chain, with no deferred marker", () => {
     const text = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
     expect(detectChainSignal(text, text.indexOf(A))).toEqual({
-      chain: "ethereum",
+      chain: "plasma",
       explicit: false,
-      deferred: "plasma",
     });
   });
 });

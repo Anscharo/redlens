@@ -112,18 +112,27 @@ Two things follow from one address having several rows:
 
 ### Adding a chain
 
-The registry is four parallel structures across three files, and **every one of them fails silently when missed** — that is why they get a checklist and a census rather than trust:
+```bash
+pnpm chains:add <name>        # resolve from the public registry and write the entry
+pnpm chains:add <name> --dry-run   # see what it would write
+```
 
-| Where | Field | Silent failure if omitted |
-|---|---|---|
-| `scripts/lib/chains.mjs` | `CHAINS` entry (`chainId`, `aliases`, `rpcUrl`) | label normalization collapses the chain to ethereum; no on-chain queries |
-| `scripts/lib/address-chains.mjs` | `CHAIN_HINTS` entry | `detectChain` can *never* attribute prose to it — its addresses inherit whichever chain a neighbouring line names |
-| `src/lib/explorer.ts` | `EXPLORER` entry | addresses link to etherscan.io, pointing at the wrong chain's explorer |
-| `src/lib/tokens.ts` | `NATIVE_TOKEN` entry | `fetch-balances` skips the chain as unsupported — no balances at all |
+**`src/data/chain-registry.json` is the single source of truth.** All four structures derive from it — `CHAINS` + `FUTURE_TO_ETHEREUM` (`scripts/lib/chains.mjs`), `CHAIN_HINTS` (`scripts/lib/address-chains.mjs`), `EXPLORER` (`src/lib/explorer.ts`), `NATIVE_TOKEN` (`src/lib/tokens.ts`). Never hand-maintain any of them; edit the registry (or let `chains:add` edit it) and they follow.
 
-A chain that is named but not live yet goes in `FUTURE_TO_ETHEREUM` instead, which collapses it to ethereum deliberately and is tracked as `deferred` rather than `unknown`.
+They used to be four hand-kept lists, and **every omission failed silently**:
 
-Run `pnpm census:chains` after any registry edit: its registry-consistency pass names each structure you missed, and those warnings are never baselined (a half-added chain is a code bug, not atlas drift). The current explorer list is `EXPLORER` in `src/lib/explorer.ts` — read it there rather than from a copy that can go stale.
+| Registry field | Silent failure if omitted |
+|---|---|
+| `chainId`, `rpcUrl` | label normalization collapses the chain to ethereum; no on-chain queries |
+| `proseHints` | `detectChain` can *never* attribute prose to it — its addresses inherit whichever chain a neighbouring line names |
+| `explorer` | addresses link to etherscan.io, pointing at another chain's explorer |
+| `nativeToken` | `fetch-balances` skips the chain as unsupported — no balances at all |
+
+`chains:add` resolves a chain from ethereum-lists/chains (the dataset behind chainid.network, read from its gh-pages mirror because chainid.network is not reachable everywhere), verifies the chainId with an `eth_chainId` round-trip, and refuses to write a half-entry when the source lists no explorer or no key-free RPC. **It is deliberately not part of `pnpm build`** — the build is offline and deterministic (`REPRO=1` asserts two builds at one atlas SHA are byte-identical), so the fetch happens here and the result is committed as data.
+
+A chain the atlas names but that is not live yet goes in the registry's `deferred` list instead: it collapses to ethereum deliberately and is bucketed `deferred` rather than `unknown` by the census.
+
+Run `pnpm census:chains` after any registry edit — its completeness pass names any hole you left, and those warnings are never baselined (an incomplete entry is a code bug, not atlas drift). `pnpm census:chains --rpc` additionally round-trips every registry `rpcUrl` against its declared `chainId`.
 
 ### Catching a chain the atlas added
 

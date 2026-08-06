@@ -10,11 +10,21 @@
  * context wins), whereas label normalization checks specific chains first so a
  * label like "Base Mainnet" resolves to base, not ethereum. Don't merge them.
  */
+import { readFileSync } from "node:fs";
+
+// The registry is data, not code: src/data/chain-registry.json is the single
+// source of truth, and CHAINS / CHAIN_HINTS / EXPLORER / NATIVE_TOKEN all
+// derive from it. Read with fs rather than an import assertion so this module
+// loads identically under node, bun and vitest; it is never bundled for the
+// browser (src/ does not import scripts/), so there is no cost to that.
+const REGISTRY = JSON.parse(
+  readFileSync(new URL("../../src/data/chain-registry.json", import.meta.url), "utf8"),
+);
 
 // Ordered specific → generic: ethereum is last so a label mentioning both a
 // specific chain and "mainnet" resolves to the specific chain. Solana has no
-// EVM chainId. Keep aliases as lowercase substrings safe to match inside a
-// short chain-label string.
+// EVM chainId. Aliases are lowercase substrings safe to match inside a short
+// chain-label string.
 //
 // rpcUrl: free public HTTPS endpoints — no API key. PublicNode where available;
 // Robinhood uses the official public RPC (not on PublicNode yet).
@@ -23,42 +33,51 @@
 // address-enrich as the *primary* contract-metadata source for chains Etherscan
 // v2 doesn't cover (robinhood, flagged `etherscan: false`), and as a *fallback*
 // for chains that do (ethereum) when the Etherscan call hard-fails.
-export const CHAINS = [
-  { chain: "base", chainId: 8453, aliases: ["base"], rpcUrl: "https://base-rpc.publicnode.com" },
-  { chain: "arbitrum", chainId: 42161, aliases: ["arbitrum"], rpcUrl: "https://arbitrum-one-rpc.publicnode.com" },
-  { chain: "optimism", chainId: 10, aliases: ["optimism"], rpcUrl: "https://optimism-rpc.publicnode.com" },
-  { chain: "unichain", chainId: 130, aliases: ["unichain"], rpcUrl: "https://unichain-rpc.publicnode.com" },
-  // Solana is the one non-EVM chain: no chainId, and its JSON-RPC is a
-  // different protocol, so its endpoint is `solanaRpcUrl` rather than `rpcUrl`
-  // — the EVM passes (eth_getCode, balances) key off `rpcUrl` and must not pick
-  // it up. census:chains asserts exactly that split.
-  { chain: "solana", aliases: ["solana"], solanaRpcUrl: "https://solana-rpc.publicnode.com" },
-  { chain: "avalanche", chainId: 43114, aliases: ["avalanche", "avax"], rpcUrl: "https://avalanche-c-chain-rpc.publicnode.com" },
-  { chain: "polygon", chainId: 137, aliases: ["polygon"], rpcUrl: "https://polygon-bor-rpc.publicnode.com" },
-  { chain: "gnosis", chainId: 100, aliases: ["gnosis"], rpcUrl: "https://gnosis-rpc.publicnode.com" },
-  // Robinhood Chain — Arbitrum Orbit L2, chain id 4663 (0x1237). Not on
-  // Etherscan v2, so contract metadata comes from its Blockscout instance.
-  {
-    chain: "robinhood",
-    chainId: 4663,
-    aliases: ["robinhood"],
-    rpcUrl: "https://rpc.mainnet.chain.robinhood.com",
-    blockscoutApi: "https://robinhoodchain.blockscout.com/api",
-    etherscan: false,
-  },
-  {
-    chain: "ethereum",
-    chainId: 1,
-    aliases: ["ethereum", "mainnet"],
-    rpcUrl: "https://ethereum-rpc.publicnode.com",
-    blockscoutApi: "https://eth.blockscout.com/api",
-  },
-];
+//
+// Shaped to the historical object so every existing consumer is unchanged:
+// optional keys stay absent rather than becoming explicit undefined.
+export const CHAINS = REGISTRY.chains.map((c) => ({
+  chain: c.chain,
+  ...(c.chainId != null && { chainId: c.chainId }),
+  aliases: c.aliases,
+  ...(c.rpcUrl && { rpcUrl: c.rpcUrl }),
+  ...(c.solanaRpcUrl && { solanaRpcUrl: c.solanaRpcUrl }),
+  ...(c.blockscoutApi && { blockscoutApi: c.blockscoutApi }),
+  ...(c.etherscan === false && { etherscan: false }),
+}));
 
 // Future / testnet chains with no explorer or full support yet — collapse to
 // ethereum so every address still resolves to a valid explorer + network id.
 // Tracked as `deferred` by classifyChainLabel / census:chains (not "unknown").
-export const FUTURE_TO_ETHEREUM = ["monad", "plume", "plasma"];
+export const FUTURE_TO_ETHEREUM = REGISTRY.deferred;
+
+/**
+ * Prose chain-hint specs, ethereum FIRST — the opposite of CHAINS' ordering,
+ * because a prose window mentioning "ethereum mainnet" should resolve there
+ * while a *label* naming a specific chain should not. Consumed by
+ * address-chains.mjs, which compiles them to word-boundary regexes.
+ * A chain with no proseHints (solana) is deliberately omitted.
+ */
+export const CHAIN_HINT_SPECS = [
+  ...REGISTRY.chains.filter((c) => c.chain === "ethereum"),
+  ...REGISTRY.chains.filter((c) => c.chain !== "ethereum"),
+]
+  .filter((c) => c.proseHints?.length)
+  .map((c) => ({
+    chain: c.chain,
+    hints: c.proseHints,
+    exclusions: c.proseHintExclusions ?? {},
+  }));
+
+/** Block-explorer base per chain, including the trailing path segment. */
+export const CHAIN_EXPLORER = Object.fromEntries(
+  REGISTRY.chains.filter((c) => c.explorer).map((c) => [c.chain, c.explorer]),
+);
+
+/** Native gas token per chain. Absent for solana, which has no EVM path. */
+export const CHAIN_NATIVE_TOKEN = Object.fromEntries(
+  REGISTRY.chains.filter((c) => c.nativeToken).map((c) => [c.chain, c.nativeToken]),
+);
 
 const DEFAULT_CHAIN = "ethereum";
 

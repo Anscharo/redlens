@@ -1,0 +1,238 @@
+{
+  "$comment": "Single source of truth for chain identity. Four structures derive from this file and must never be hand-maintained separately: CHAINS + FUTURE_TO_ETHEREUM (scripts/lib/chains.mjs), CHAIN_HINTS (scripts/lib/address-chains.mjs), EXPLORER (src/lib/explorer.ts), NATIVE_TOKEN (src/lib/tokens.ts). Each used to be its own list, and every omission failed silently: no explorer sent an address to the wrong chain's block explorer, no hint meant prose was never attributed, no native token made the balances fetcher skip the chain. Add a chain with `pnpm chains:add <name>` rather than by hand. ORDER IS LOAD-BEARING: see the `order` note below.",
+  "$order": "Listed specific -> generic with ethereum LAST, because label matching (normalizeChainLabel) is a substring test and a label like 'Base Mainnet' must resolve to base, not ethereum. CHAIN_HINTS derives the opposite ordering (ethereum FIRST), because prose scanning should let an 'ethereum mainnet' context win. Order only decides text naming two chains at once. polygon precedes avalanche so the derived CHAIN_HINTS matches the prose scan's historical order exactly; that leaves CHAINS with those two swapped relative to its own history, which was verified inert by rebuilding addresses.atlas.json under both orders and diffing (identical).",
+  "$fields": {
+    "chain": "Canonical key used everywhere as the chain's identity.",
+    "aliases": "Substring-matched against short chain LABELS (normalizeChainLabel). Keep these unambiguous — 'arb' would match 'Arbitrage'.",
+    "proseHints": "Word-boundary-matched against free PROSE (detectChain). Safe to include short forms like 'arb' that aliases cannot. An empty array means the chain is deliberately absent from CHAIN_HINTS.",
+    "proseHintExclusions": "Per-hint negative lookahead words, e.g. gnosis must not match 'Gnosis Safe' (the multisig, on any chain) or 'Gnosis Protocol' (the DEX).",
+    "explorer": "Block-explorer base including the trailing path segment, so `explorer + address` is a complete URL.",
+    "nativeToken": "Gas token. Its presence is what enables the EVM balances path; omitting it makes fetch-balances treat the chain as unsupported.",
+    "blockscoutApi": "Etherscan-compatible Blockscout /api base. Primary contract-metadata source when `etherscan` is false, fallback otherwise.",
+    "etherscan": "False when Etherscan v2 has no endpoint for this chainId, so Blockscout is the only source."
+  },
+  "deferred": [],
+  "$deferred": "Chains the atlas names that are not registered yet. They collapse to ethereum deliberately and are bucketed `deferred` (not `unknown`) by census:chains. Promote with `pnpm chains:add <name>`.",
+  "chains": [
+    {
+      "chain": "base",
+      "chainId": 8453,
+      "aliases": [
+        "base"
+      ],
+      "proseHints": [
+        "base"
+      ],
+      "rpcUrl": "https://base-rpc.publicnode.com",
+      "explorer": "https://basescan.org/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "arbitrum",
+      "chainId": 42161,
+      "aliases": [
+        "arbitrum"
+      ],
+      "proseHints": [
+        "arbitrum",
+        "arb"
+      ],
+      "rpcUrl": "https://arbitrum-one-rpc.publicnode.com",
+      "explorer": "https://arbiscan.io/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "optimism",
+      "chainId": 10,
+      "aliases": [
+        "optimism"
+      ],
+      "proseHints": [
+        "optimism",
+        "op mainnet"
+      ],
+      "rpcUrl": "https://optimism-rpc.publicnode.com",
+      "explorer": "https://optimistic.etherscan.io/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "unichain",
+      "chainId": 130,
+      "aliases": [
+        "unichain"
+      ],
+      "proseHints": [
+        "unichain"
+      ],
+      "rpcUrl": "https://unichain-rpc.publicnode.com",
+      "explorer": "https://unichain.blockscout.com/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "solana",
+      "note": "The one non-EVM chain: no chainId, and its JSON-RPC is a different protocol, so its endpoint is solanaRpcUrl and the EVM passes (eth_getCode, balances) must not pick it up. proseHints is empty on purpose — detectChain only ever runs on EVM matches, and solana addresses are attributed by their base58 shape instead. nativeToken is omitted for the same reason: adding one would send solana addresses through the EVM multicall.",
+      "aliases": [
+        "solana"
+      ],
+      "proseHints": [],
+      "solanaRpcUrl": "https://solana-rpc.publicnode.com",
+      "explorer": "https://solscan.io/account/"
+    },
+    {
+      "chain": "polygon",
+      "chainId": 137,
+      "aliases": [
+        "polygon"
+      ],
+      "proseHints": [
+        "polygon",
+        "matic"
+      ],
+      "rpcUrl": "https://polygon-bor-rpc.publicnode.com",
+      "explorer": "https://polygonscan.com/address/",
+      "nativeToken": {
+        "symbol": "POL",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "avalanche",
+      "chainId": 43114,
+      "aliases": [
+        "avalanche",
+        "avax"
+      ],
+      "proseHints": [
+        "avalanche",
+        "avax"
+      ],
+      "rpcUrl": "https://avalanche-c-chain-rpc.publicnode.com",
+      "explorer": "https://snowtrace.io/address/",
+      "nativeToken": {
+        "symbol": "AVAX",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "gnosis",
+      "chainId": 100,
+      "aliases": [
+        "gnosis"
+      ],
+      "proseHints": [
+        "gnosis",
+        "xdai"
+      ],
+      "proseHintExclusions": {
+        "gnosis": [
+          "safe",
+          "protocol"
+        ]
+      },
+      "rpcUrl": "https://gnosis-rpc.publicnode.com",
+      "explorer": "https://gnosisscan.io/address/",
+      "nativeToken": {
+        "symbol": "xDAI",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "robinhood",
+      "note": "Arbitrum Orbit L2, chain id 4663 (0x1237). Not on Etherscan v2, so contract metadata comes from its Blockscout instance.",
+      "chainId": 4663,
+      "aliases": [
+        "robinhood"
+      ],
+      "proseHints": [
+        "robinhood"
+      ],
+      "rpcUrl": "https://rpc.mainnet.chain.robinhood.com",
+      "explorer": "https://robinhoodchain.blockscout.com/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "blockscoutApi": "https://robinhoodchain.blockscout.com/api",
+      "etherscan": false
+    },
+    {
+      "chain": "plasma",
+      "chainId": 9745,
+      "aliases": [
+        "plasma"
+      ],
+      "proseHints": [
+        "plasma"
+      ],
+      "rpcUrl": "https://rpc.plasma.to",
+      "explorer": "https://plasmascan.to/address/",
+      "nativeToken": {
+        "symbol": "XPL",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "monad",
+      "chainId": 143,
+      "aliases": [
+        "monad"
+      ],
+      "proseHints": [
+        "monad"
+      ],
+      "rpcUrl": "https://rpc.monad.xyz",
+      "explorer": "https://monadvision.com/address/",
+      "nativeToken": {
+        "symbol": "MON",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "plume",
+      "chainId": 98866,
+      "aliases": [
+        "plume"
+      ],
+      "proseHints": [
+        "plume"
+      ],
+      "rpcUrl": "https://rpc.plume.org",
+      "explorer": "https://explorer.plume.org/address/",
+      "nativeToken": {
+        "symbol": "PLUME",
+        "decimals": 18
+      }
+    },
+    {
+      "chain": "ethereum",
+      "chainId": 1,
+      "aliases": [
+        "ethereum",
+        "mainnet"
+      ],
+      "proseHints": [
+        "ethereum",
+        "mainnet"
+      ],
+      "rpcUrl": "https://ethereum-rpc.publicnode.com",
+      "explorer": "https://etherscan.io/address/",
+      "nativeToken": {
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "blockscoutApi": "https://eth.blockscout.com/api"
+    }
+  ]
+}

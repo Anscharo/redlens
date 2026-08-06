@@ -2,7 +2,7 @@
  * Onchain address regex, normalization, chain detection, and table-context
  * detection for addresses sitting inside markdown tables.
  */
-import { FUTURE_TO_ETHEREUM } from "./chains.mjs";
+import { CHAIN_HINT_SPECS, FUTURE_TO_ETHEREUM } from "./chains.mjs";
 
 // EVM addresses are exactly 40 hex chars. The negative lookbehind/lookahead
 // stop us from matching the leading 40 hex of a longer hex blob like a 64-hex
@@ -19,27 +19,26 @@ export function normalizeAddress(addr) {
 }
 const WINDOW = 300; // chars before the address to scan for chain hints
 
-// Prose chain-hint patterns for detectChain. Deliberately separate from the
-// canonical chains.mjs registry / normalizeChainLabel: this scans free prose
-// with word-boundary regexes (so "base" inside "database" doesn't match) and
-// orders ethereum FIRST (an "ethereum mainnet" context should win), the opposite
-// of label normalization. Keep the two in step when adding a chain.
-// Ordered by specificity — more specific patterns first within each entry.
-// Exported so census:chains can assert it stays in step with CHAINS.
-export const CHAIN_HINTS = [
-  { chain: "ethereum", patterns: [/\bethereum\b/i, /\bmainnet\b/i] },
-  { chain: "base", patterns: [/\bbase\b/i] },
-  { chain: "arbitrum", patterns: [/\barbitrum\b/i, /\barb\b/i] },
-  { chain: "optimism", patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
-  { chain: "unichain", patterns: [/\bunichain\b/i] },
-  { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
-  { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
-  // "Gnosis Safe" (the multisig, on any chain) and "Gnosis Protocol" (the DEX)
-  // are not Gnosis Chain — without the lookahead they pinned mainnet Safes and
-  // the Distribution Reward instances to gnosis.
-  { chain: "gnosis", patterns: [/\bgnosis\b(?!\s+(?:safe|protocol))/i, /\bxdai\b/i] },
-  { chain: "robinhood", patterns: [/\brobinhood\b/i] },
-];
+// Prose chain-hint patterns for detectChain, compiled from the canonical
+// registry (src/data/chain-registry.json via chains.mjs CHAIN_HINT_SPECS).
+// Deliberately a separate *algorithm* from normalizeChainLabel — it scans free
+// prose with word-boundary regexes (so "base" inside "database" doesn't match)
+// and orders ethereum FIRST (an "ethereum mainnet" context should win), the
+// opposite of label normalization — but no longer a separately maintained
+// *list*: a chain added to the registry gets its hints automatically.
+//
+// An exclusion becomes a negative lookahead. The one in use: "Gnosis Safe" (the
+// multisig, on any chain) and "Gnosis Protocol" (the DEX) are not Gnosis Chain
+// — without it they pinned mainnet Safes and the Distribution Reward instances
+// to gnosis.
+export const CHAIN_HINTS = CHAIN_HINT_SPECS.map(({ chain, hints, exclusions }) => ({
+  chain,
+  patterns: hints.map((h) => {
+    const excl = exclusions[h];
+    const tail = excl?.length ? `(?!\\s+(?:${excl.join("|")}))` : "";
+    return new RegExp(`\\b${h}\\b${tail}`, "i");
+  }),
+}));
 
 // Trailing punctuation between the "... is" clause and the address literal:
 // atlas prose writes "is: `0x…`", "is - 0x…", "is (0x…)".

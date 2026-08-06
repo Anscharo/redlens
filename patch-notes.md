@@ -35,7 +35,8 @@
 
 ## 2026-08-06
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
-- Added Unichain support, and fixed addresses shown or linked under the wrong chain — unsupported chains like Plasma showing under a neighboring chain, and entity pages linking to whichever chain the entity's own name mentioned
+- Added Unichain, Plasma, Monad and Plume support, so addresses on those chains now link to their own block explorer instead of Etherscan
+- Fixed addresses shown or linked under the wrong chain, including entity pages that followed whichever chain the entity's own name mentioned
 
 ## 2026-08-05
 - Added a Modification Frequency report showing semantic edit stats by time, type, and section

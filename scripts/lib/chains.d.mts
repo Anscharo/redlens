@@ -20,3 +20,12 @@ export const CHAIN_RPC: Record<string, string>;
 export const SOLANA_RPC: string | undefined;
 export const CHAIN_BLOCKSCOUT: Record<string, string>;
 export const CHAIN_SUPPORTS_ETHERSCAN: Set<string>;
+/** Prose hint specs, ethereum FIRST — address-chains.mjs compiles them to regexes. */
+export interface ChainHintSpec {
+  chain: string;
+  hints: string[];
+  exclusions: Record<string, string[]>;
+}
+export const CHAIN_HINT_SPECS: ChainHintSpec[];
+export const CHAIN_EXPLORER: Record<string, string>;
+export const CHAIN_NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }>;

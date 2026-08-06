@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Chain coverage census — drift detector for the canonical chain registry
- * (scripts/lib/chains.mjs `CHAINS`).
+ * (src/data/chain-registry.json).
  *
  * The pipeline silently defaults every unrecognized chain to ethereum:
  * `normalizeChainLabel` collapses unknown labels, and `detectChain` is
@@ -40,22 +40,27 @@
  * on the first --update and stays absorbed; that is the design working, not a
  * bug.
  *
- * Also asserts the registry's parallel lists stay in step — CHAINS, CHAIN_HINTS
- * (address-chains.mjs), EXPLORER (src/lib/explorer.ts), NATIVE_TOKEN
- * (src/lib/tokens.ts), and the chainId/rpcUrl/blockscout fields. Each is a
- * silent failure on its own: no EXPLORER means etherscan.io links for another
- * chain's addresses, no CHAIN_HINTS means prose on that chain is never
- * attributed to it, no NATIVE_TOKEN means the balances fetcher skips it as
- * unsupported. A half-added chain is a code bug, not atlas drift, so those
+ * Also asserts every registry entry is complete — explorer, proseHints,
+ * chainId, rpcUrl, nativeToken, and the etherscan/blockscout pairing. Each hole
+ * is its own silent failure: no explorer means etherscan.io links for another
+ * chain's addresses, no proseHints means prose on that chain is never
+ * attributed to it, no nativeToken means the balances fetcher skips it as
+ * unsupported. CHAINS / CHAIN_HINTS / EXPLORER / NATIVE_TOKEN all derive from
+ * the one registry now, so those four can no longer drift apart — but they are
+ * still read through their real modules here, so a broken *derivation* is
+ * caught too. An incomplete entry is a code bug, not atlas drift, so those
  * warnings are never baselined.
  *
- * Runs under bun (not node) so it can import EXPLORER straight from the
- * TypeScript module the frontend uses, rather than re-declaring it.
+ * Fix a missing chain with `pnpm chains:add <name>` rather than by hand.
+ *
+ * Runs under bun (not node) so it can import EXPLORER and NATIVE_TOKEN straight
+ * from the TypeScript modules the frontend and balances fetcher use, rather
+ * than re-deriving them from the registry and proving nothing.
  *
  * Warnings (stderr, picked up by atlas-update.yml's drift-issue step):
  *   - [drift] a chain string entered the residue that isn't in the committed
  *     baseline (.github/chains-census-baseline.json)
- *   - [drift] a registry inconsistency (never baselined)
+ *   - [drift] an incomplete registry entry or a broken derivation (never baselined)
  *
  * Always exits 0 — like the other censuses, it must never block a build.
  * `--update` rewrites the baseline (atlas-update.yml does this in the same
@@ -213,7 +218,13 @@ const known = rows
   .sort((a, b) => naturalCompare(a.label, b.label));
 
 // ---------------------------------------------------------------------------
-// Registry consistency — the four parallel lists must stay in step
+// Registry completeness — every entry in src/data/chain-registry.json must be
+// whole. These used to guard four hand-maintained lists against drifting apart;
+// the lists now derive from the registry, so cross-file drift is structurally
+// impossible and what remains to check is a registry entry with a hole in it.
+// The derived maps (EXPLORER, NATIVE_TOKEN, CHAIN_HINTS) are still read through
+// their real modules rather than from the JSON, so a broken derivation shows up
+// here too.
 // ---------------------------------------------------------------------------
 let registryDrift = 0;
 const registryWarn = (msg) => {
@@ -226,7 +237,7 @@ const hintChains = new Set(CHAIN_HINTS.map((h) => h.chain));
 
 for (const c of CHAINS) {
   if (!EXPLORER[c.chain]) {
-    registryWarn(`chain "${c.chain}" is in CHAINS but has no EXPLORER entry (src/lib/explorer.ts) — its addresses would link to etherscan.io.`);
+    registryWarn(`chain "${c.chain}" has no explorer in the registry (src/data/chain-registry.json) — its addresses would link to etherscan.io, another chain’s explorer.`);
   }
   // Solana is the one intentional non-EVM entry: no chainId, no EVM rpcUrl,
   // and no CHAIN_HINTS entry either — detectChain only ever runs on EVM
@@ -234,17 +245,17 @@ for (const c of CHAINS) {
   // shape (SOL_ADDR_RE) instead. Every EVM chain does need a hint.
   const isEvm = c.chain !== "solana";
   if (isEvm && !hintChains.has(c.chain)) {
-    registryWarn(`chain "${c.chain}" is in CHAINS but has no CHAIN_HINTS entry (scripts/lib/address-chains.mjs) — detectChain can never attribute a prose address to it.`);
+    registryWarn(`chain "${c.chain}" has no proseHints in the registry (src/data/chain-registry.json) — detectChain can never attribute a prose address to it.`);
   }
-  if (isEvm && c.chainId == null) registryWarn(`chain "${c.chain}" has no chainId in CHAINS.`);
-  if (isEvm && !c.rpcUrl) registryWarn(`chain "${c.chain}" has no rpcUrl in CHAINS — it cannot be queried on-chain.`);
+  if (isEvm && c.chainId == null) registryWarn(`chain "${c.chain}" has no chainId in the registry (src/data/chain-registry.json).`);
+  if (isEvm && !c.rpcUrl) registryWarn(`chain "${c.chain}" has no rpcUrl in the registry (src/data/chain-registry.json) — it cannot be queried on-chain.`);
   if (!isEvm && c.rpcUrl) registryWarn(`chain "${c.chain}" is non-EVM but declares an rpcUrl.`);
   // NATIVE_TOKEN is a hard gate in src/server/balances/fetch-balances.ts: a
   // chain missing from it is skipped as "unsupported" and reports no balances
   // at all — silently, like every other half-added-chain failure. Solana is the
   // deliberate omission (adding it would push Solana addresses through viem).
   if (isEvm && !NATIVE_TOKEN[c.chain]) {
-    registryWarn(`chain "${c.chain}" is in CHAINS but has no NATIVE_TOKEN entry (src/lib/tokens.ts) — fetch-balances treats it as unsupported and returns no balances for it.`);
+    registryWarn(`chain "${c.chain}" has no nativeToken in the registry (src/data/chain-registry.json) — fetch-balances treats it as unsupported and returns no balances for it.`);
   }
   if (!isEvm && NATIVE_TOKEN[c.chain]) {
     registryWarn(`chain "${c.chain}" is non-EVM but has a NATIVE_TOKEN entry — that would send its addresses through the EVM multicall path.`);
@@ -255,17 +266,19 @@ for (const c of CHAINS) {
     registryWarn(`chain "${c.chain}" is flagged etherscan:false but declares no blockscoutApi — address-enrich has no contract-metadata source for it.`);
   }
 }
-for (const key of Object.keys(NATIVE_TOKEN)) {
-  if (!chainKeys.has(key)) registryWarn(`NATIVE_TOKEN has "${key}" but CHAINS does not — the balances fetcher knows a chain the build pipeline doesn't.`);
-}
-for (const key of Object.keys(EXPLORER)) {
-  if (!chainKeys.has(key)) registryWarn(`EXPLORER has "${key}" but CHAINS does not — the frontend knows a chain the build pipeline doesn't.`);
+// A derived map naming a chain the registry does not is no longer reachable
+// from the data alone — it would mean the derivation itself broke, which is
+// worth catching precisely because nothing else would notice.
+for (const [label, map] of [["EXPLORER (src/lib/explorer.ts)", EXPLORER], ["NATIVE_TOKEN (src/lib/tokens.ts)", NATIVE_TOKEN]]) {
+  for (const key of Object.keys(map)) {
+    if (!chainKeys.has(key)) registryWarn(`${label} has "${key}" but the registry does not — the derivation is out of step with its source.`);
+  }
 }
 for (const h of hintChains) {
-  if (!chainKeys.has(h)) registryWarn(`CHAIN_HINTS has "${h}" but CHAINS does not — detectChain can emit a chain with no chainId or explorer.`);
+  if (!chainKeys.has(h)) registryWarn(`CHAIN_HINTS has "${h}" but the registry does not — the derivation is out of step with its source.`);
 }
 for (const f of FUTURE_TO_ETHEREUM) {
-  if (chainKeys.has(f)) registryWarn(`"${f}" is in both CHAINS and FUTURE_TO_ETHEREUM — remove it from FUTURE_TO_ETHEREUM now that it is fully supported.`);
+  if (chainKeys.has(f)) registryWarn(`"${f}" is both a registered chain and listed under "deferred" — drop it from deferred now that it is fully supported.`);
 }
 
 // ---------------------------------------------------------------------------

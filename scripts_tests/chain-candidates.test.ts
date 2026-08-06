@@ -37,8 +37,10 @@ describe("chainNamedIn", () => {
     expect(chainNamedIn("Solana")).toBe("solana");
   });
 
-  it("counts deferred chains as named, not missing", () => {
-    for (const c of ["Plasma", "Monad", "Plume"]) expect(chainNamedIn(c)).toBe("ethereum");
+  it("counts the promoted chains as naming themselves", () => {
+    expect(chainNamedIn("Plasma")).toBe("plasma");
+    expect(chainNamedIn("Monad")).toBe("monad");
+    expect(chainNamedIn("Plume")).toBe("plume");
   });
 
   it("inherits the gnosis exclusion rather than re-deriving it", () => {

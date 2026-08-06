@@ -10,6 +10,9 @@
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    /* src/data/chain-registry.json is the single source of truth for chain
+       identity; explorer.ts and tokens.ts derive their maps from it. */
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

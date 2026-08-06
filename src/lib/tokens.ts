@@ -1,3 +1,5 @@
+import registry from "../data/chain-registry.json";
+
 // Token registry for the on-chain balances feature. Pure + DOM-free so both the
 // server balance fetcher (src/server/balances) and the frontend report can
 // import it. Addresses are lowercased.
@@ -61,17 +63,16 @@ export const SOLANA_TOKENS: Record<string, SolanaToken> = {
 export const SOLANA_NATIVE = { symbol: "SOL", decimals: 9 } as const;
 
 // Native gas token per chain — balance via multicall3 getEthBalance, no ERC20.
-export const NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }> = {
-  ethereum: { symbol: "ETH", decimals: 18 },
-  base: { symbol: "ETH", decimals: 18 },
-  arbitrum: { symbol: "ETH", decimals: 18 },
-  optimism: { symbol: "ETH", decimals: 18 },
-  unichain: { symbol: "ETH", decimals: 18 },
-  polygon: { symbol: "POL", decimals: 18 },
-  avalanche: { symbol: "AVAX", decimals: 18 },
-  gnosis: { symbol: "xDAI", decimals: 18 },
-  robinhood: { symbol: "ETH", decimals: 18 },
-};
+// Derived from the single-source chain registry: its presence is what gates the
+// EVM balances path, so a chain missing here is silently skipped as unsupported
+// and reports no balances at all. Solana has no entry by design (see above).
+export const NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }> =
+  Object.fromEntries(
+    // flatMap, not filter().map(): filter does not narrow the optional away.
+    registry.chains.flatMap((c) =>
+      c.nativeToken ? [[c.chain, c.nativeToken] as [string, { symbol: string; decimals: number }]] : [],
+    ),
+  );
 
 // Canonical uppercase symbol. "sUSDS" → "SUSDS", " eth " → "ETH".
 export function normalizeSymbol(s: string): string {
