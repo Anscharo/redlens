@@ -27,6 +27,7 @@ export const CHAINS = [
   { chain: "base", chainId: 8453, aliases: ["base"], rpcUrl: "https://base-rpc.publicnode.com" },
   { chain: "arbitrum", chainId: 42161, aliases: ["arbitrum"], rpcUrl: "https://arbitrum-one-rpc.publicnode.com" },
   { chain: "optimism", chainId: 10, aliases: ["optimism"], rpcUrl: "https://optimism-rpc.publicnode.com" },
+  { chain: "unichain", chainId: 130, aliases: ["unichain"], rpcUrl: "https://unichain-rpc.publicnode.com" },
   // Solana is the one non-EVM chain: no chainId, and its JSON-RPC is a
   // different protocol, so its endpoint is `solanaRpcUrl` rather than `rpcUrl`
   // — the EVM passes (eth_getCode, balances) key off `rpcUrl` and must not pick

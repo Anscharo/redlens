@@ -66,6 +66,7 @@ export const NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }> 
   base: { symbol: "ETH", decimals: 18 },
   arbitrum: { symbol: "ETH", decimals: 18 },
   optimism: { symbol: "ETH", decimals: 18 },
+  unichain: { symbol: "ETH", decimals: 18 },
   polygon: { symbol: "POL", decimals: 18 },
   avalanche: { symbol: "AVAX", decimals: 18 },
   gnosis: { symbol: "xDAI", decimals: 18 },

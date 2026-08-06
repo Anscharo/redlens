@@ -63,6 +63,21 @@ describe("detectChain — a preceding address ends the previous chain's context"
     // nothing — the untrimmed window must still be consulted.
     expect(chainOf(`On Base: \`${B}\` and \`${A}\``, A)).toBe("base");
   });
+
+  it("attributes a Unichain row to unichain instead of a neighboring chain", () => {
+    // Regression: Unichain was unregistered in CHAIN_HINTS, so its row fell
+    // through to the wider window and picked up the preceding row's chain.
+    const list = `- Base - \`${B}\`\n- Unichain - \`${A}\``;
+    expect(chainOf(list, A)).toBe("unichain");
+  });
+
+  it("resolves a deferred chain's own list row to ethereum instead of a neighboring chain", () => {
+    // Regression: Plasma names no CHAIN_HINTS entry, so its row fell through
+    // to the wider window and picked up the preceding row's chain (e.g.
+    // avalanche) instead of its documented FUTURE_TO_ETHEREUM collapse.
+    const list = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
+    expect(chainOf(list, A)).toBe("ethereum");
+  });
 });
 
 describe("detectChain — fallback", () => {
@@ -129,6 +144,15 @@ describe("detectChainSignal — how firmly the chain was named", () => {
   it("is null when nothing names a chain", () => {
     const text = `The address of the ALM_PROXY contract is: \`${A}\``;
     expect(detectChainSignal(text, text.indexOf(A))).toBeNull();
+  });
+
+  it("reports a deferred chain's own row with the deferred name attached", () => {
+    const text = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
+    expect(detectChainSignal(text, text.indexOf(A))).toEqual({
+      chain: "ethereum",
+      explicit: false,
+      deferred: "plasma",
+    });
   });
 });
 

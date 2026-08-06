@@ -31,6 +31,7 @@ export const CHAIN_HINTS = [
   { chain: "base", patterns: [/\bbase\b/i] },
   { chain: "arbitrum", patterns: [/\barbitrum\b/i, /\barb\b/i] },
   { chain: "optimism", patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
+  { chain: "unichain", patterns: [/\bunichain\b/i] },
   { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
   { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
   // "Gnosis Safe" (the multisig, on any chain) and "Gnosis Protocol" (the DEX)
@@ -80,6 +81,18 @@ function firstChainIn(text) {
     if (patterns.some((p) => p.test(text))) return chain;
   }
   return null;
+}
+
+// A known chain in `text`, or — failing that — a FUTURE_TO_ETHEREUM chain
+// named in it (e.g. "Plasma"), reported as ethereum with the deferred name
+// attached. Used by detectChainSignal so a deferred chain's own list row
+// resolves to its documented ethereum collapse instead of falling through to
+// whatever chain a neighboring row happens to name.
+function firstSignalIn(text) {
+  const chain = firstChainIn(text);
+  if (chain) return { chain };
+  const deferred = FUTURE_TO_ETHEREUM.find((c) => new RegExp(`\\b${c}\\b`, "i").test(text));
+  return deferred ? { chain: "ethereum", deferred } : null;
 }
 
 /**
@@ -224,12 +237,15 @@ export function detectChainSignal(content, matchIndex) {
   // wide (300 chars) window. Each window is scanned from the last address
   // literal onward first, falling back to the whole window when that segment
   // names no chain — so trimming another address's context can only ever add a
-  // signal, never remove the only one.
+  // signal, never remove the only one. A deferred chain (FUTURE_TO_ETHEREUM)
+  // named in the scoped segment is checked before falling back to the whole
+  // window, so e.g. "- Plasma - `0x…`" resolves to its own ethereum collapse
+  // rather than to a preceding row's unrelated chain name.
   for (const win of [120, WINDOW]) {
     const w = content.slice(Math.max(0, matchIndex - win), matchIndex);
     const scoped = afterLastAddress(w);
-    const hit = (scoped !== null ? firstChainIn(scoped) : null) ?? firstChainIn(w);
-    if (hit) return { chain: hit, explicit: false };
+    const hit = (scoped !== null ? firstSignalIn(scoped) : null) ?? firstSignalIn(w);
+    if (hit) return { chain: hit.chain, explicit: false, ...(hit.deferred && { deferred: hit.deferred }) };
   }
 
   return null;

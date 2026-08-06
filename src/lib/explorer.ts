@@ -6,6 +6,7 @@ export const EXPLORER: Record<string, string> = {
   base: "https://basescan.org/address/",
   arbitrum: "https://arbiscan.io/address/",
   optimism: "https://optimistic.etherscan.io/address/",
+  unichain: "https://unichain.blockscout.com/address/",
   polygon: "https://polygonscan.com/address/",
   avalanche: "https://snowtrace.io/address/",
   gnosis: "https://gnosisscan.io/address/",

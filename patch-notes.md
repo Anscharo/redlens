@@ -35,6 +35,7 @@
 
 ## 2026-08-06
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
+- Added Unichain support, and fixed some addresses on other unsupported chains (like Plasma) showing under the wrong neighboring chain
 
 ## 2026-08-05
 - Added a Modification Frequency report showing semantic edit stats by time, type, and section
