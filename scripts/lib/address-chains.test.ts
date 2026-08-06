@@ -63,6 +63,21 @@ describe("detectChain — a preceding address ends the previous chain's context"
     // nothing — the untrimmed window must still be consulted.
     expect(chainOf(`On Base: \`${B}\` and \`${A}\``, A)).toBe("base");
   });
+
+  it("attributes a Unichain row to unichain instead of a neighboring chain", () => {
+    // Regression: Unichain was unregistered in CHAIN_HINTS, so its row fell
+    // through to the wider window and picked up the preceding row's chain.
+    const list = `- Base - \`${B}\`\n- Unichain - \`${A}\``;
+    expect(chainOf(list, A)).toBe("unichain");
+  });
+
+  it("resolves a promoted chain's own list row to itself, not a neighboring chain", () => {
+    // Regression: Plasma named no CHAIN_HINTS entry, so its row fell through to
+    // the wider window and picked up the preceding row's chain (e.g.
+    // avalanche). It is a registered chain now, so its row resolves to plasma.
+    const list = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
+    expect(chainOf(list, A)).toBe("plasma");
+  });
 });
 
 describe("detectChain — fallback", () => {
@@ -96,9 +111,9 @@ describe("chainFromLabel", () => {
     expect(chainFromLabel("Ethereum Mainnet - Morpho USDS Instance")).toBe("ethereum");
   });
 
-  it("resolves a deferred chain to ethereum so an ancestor walk stops there", () => {
-    expect(chainFromLabel("Plume")).toBe("ethereum");
-    expect(chainFromLabel("Plasma")).toBe("ethereum");
+  it("resolves a promoted chain to itself so an ancestor walk stops there", () => {
+    expect(chainFromLabel("Plume")).toBe("plume");
+    expect(chainFromLabel("Plasma")).toBe("plasma");
   });
 
   it("returns null for a label naming no chain", () => {
@@ -129,6 +144,14 @@ describe("detectChainSignal — how firmly the chain was named", () => {
   it("is null when nothing names a chain", () => {
     const text = `The address of the ALM_PROXY contract is: \`${A}\``;
     expect(detectChainSignal(text, text.indexOf(A))).toBeNull();
+  });
+
+  it("reports a promoted chain's own row as that chain, with no deferred marker", () => {
+    const text = `- Avalanche - \`${B}\`\n- Plasma - \`${A}\``;
+    expect(detectChainSignal(text, text.indexOf(A))).toEqual({
+      chain: "plasma",
+      explicit: false,
+    });
   });
 });
 

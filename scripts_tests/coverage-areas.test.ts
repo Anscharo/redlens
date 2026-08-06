@@ -1,7 +1,7 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { areaFor, backendAreaIds, libAreaIds, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
+import { areaFor, backendAreaIds, isLogicLine, libAreaIds, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
 
 // The scope of "React code" the coverage meters must partition: components,
 // hooks, and context providers — .ts and .tsx, minus test files. If this set
@@ -165,3 +165,63 @@ describe("coverage areas — lib partition", () => {
     expect(areaFor("scripts/lib/atlas-parser.mjs")).toBe("scripts-lib-core");
   });
 });
+
+// isLogicLine decides what lands in a meter's numerator AND denominator. Its
+// job is to measure tested logic, so anything that carries no logic — blank
+// lines, brace-only structure, comments — must be excluded from both.
+//
+// The comment rule is load-bearing rather than cosmetic. bun's LCOV emits DA
+// records for comment lines where v8's does not, and for a scripts/lib module
+// that a src/server test merely imports, every one of those records is 0.
+// Because the two reports are merged by line number, without this rule an
+// added comment block counts as uncovered code and can fail the changed-code
+// gate on a change whose statements are fully tested.
+describe("isLogicLine", () => {
+  // Uses this test file itself as the fixture, so the line numbers are real.
+  const self = "scripts_tests/coverage-areas.test.ts";
+  // Last occurrence: the fixtures sit at the end of the file, so this skips the
+  // assertion above that names the same marker.
+  const lineOf = (needle: string): number => {
+    const src = readFileSync(path.join(repo, self), "utf8").split("\n");
+    const i = src.map((l, n) => (l.includes(needle) ? n : -1)).filter((n) => n !== -1).pop();
+    if (i === undefined) throw new Error(`fixture line not found: ${needle}`);
+    return i + 1;
+  };
+
+  it("counts a line carrying an identifier or literal", () => {
+    expect(isLogicLine(self, lineOf("const MARKER_LOGIC ="))).toBe(true);
+  });
+
+  it("excludes comment lines", () => {
+    expect(isLogicLine(self, lineOf("// MARKER_LINE_COMMENT"))).toBe(false);
+    expect(isLogicLine(self, lineOf("/* MARKER_BLOCK_COMMENT"))).toBe(false);
+    expect(isLogicLine(self, lineOf("* MARKER_BLOCK_CONTINUATION"))).toBe(false);
+  });
+
+  it("still counts code that carries a trailing comment", () => {
+    expect(isLogicLine(self, lineOf("const MARKER_TRAILING ="))).toBe(true);
+  });
+
+  it("excludes blank and brace-only structural lines", () => {
+    // The line after the marker is the object literal's closing `};`.
+    expect(isLogicLine(self, lineOf("MARKER_BEFORE_BRACE") + 1)).toBe(false);
+    // A line past the end of the file is not logic.
+    expect(isLogicLine(self, 100000)).toBe(false);
+  });
+
+  it("counts every line of an unreadable file, conservatively", () => {
+    expect(isLogicLine("scripts/lib/does-not-exist.mjs", 1)).toBe(true);
+  });
+});
+
+// --- fixtures for the assertions above (kept last; line content matters) ---
+const MARKER_LOGIC = 1;
+// MARKER_LINE_COMMENT
+/* MARKER_BLOCK_COMMENT
+ * MARKER_BLOCK_CONTINUATION
+ */
+const MARKER_TRAILING = 2; // a trailing comment must not hide the code
+const markerObj = {
+  a: "MARKER_BEFORE_BRACE",
+};
+void [MARKER_LOGIC, MARKER_TRAILING, markerObj];

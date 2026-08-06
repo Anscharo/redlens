@@ -110,18 +110,33 @@ Two things follow from one address having several rows:
 
 `atlas-updater`'s DB→artifact rebuild regroups those rows back into one entry per address, restoring `chains` — dropping it there would silently re-collapse what build-index detected.
 
-**Supported chains and their block explorers:**
+### Adding a chain
 
-| Chain     | Explorer                    |
-|-----------|-----------------------------|
-| ethereum  | etherscan.io                |
-| base      | basescan.org                |
-| arbitrum  | arbiscan.io                 |
-| optimism  | optimistic.etherscan.io     |
-| polygon   | polygonscan.com             |
-| avalanche | snowtrace.io                |
-| gnosis    | gnosisscan.io               |
-| solana    | solscan.io                  |
+```bash
+pnpm chains:add <name>        # resolve from the public registry and write the entry
+pnpm chains:add <name> --dry-run   # see what it would write
+```
+
+**`src/data/chain-registry.json` is the single source of truth.** All four structures derive from it — `CHAINS` + `FUTURE_TO_ETHEREUM` (`scripts/lib/chains.mjs`), `CHAIN_HINTS` (`scripts/lib/address-chains.mjs`), `EXPLORER` (`src/lib/explorer.ts`), `NATIVE_TOKEN` (`src/lib/tokens.ts`). Never hand-maintain any of them; edit the registry (or let `chains:add` edit it) and they follow.
+
+They used to be four hand-kept lists, and **every omission failed silently**:
+
+| Registry field | Silent failure if omitted |
+|---|---|
+| `chainId`, `rpcUrl` | label normalization collapses the chain to ethereum; no on-chain queries |
+| `proseHints` | `detectChain` can *never* attribute prose to it — its addresses inherit whichever chain a neighbouring line names |
+| `explorer` | addresses link to etherscan.io, pointing at another chain's explorer |
+| `nativeToken` | `fetch-balances` skips the chain as unsupported — no balances at all |
+
+`chains:add` resolves a chain from ethereum-lists/chains (the dataset behind chainid.network, read from its gh-pages mirror because chainid.network is not reachable everywhere), verifies the chainId with an `eth_chainId` round-trip, and refuses to write a half-entry when the source lists no explorer or no key-free RPC. **It is deliberately not part of `pnpm build`** — the build is offline and deterministic (`REPRO=1` asserts two builds at one atlas SHA are byte-identical), so the fetch happens here and the result is committed as data.
+
+A chain the atlas names but that is not live yet goes in the registry's `deferred` list instead: it collapses to ethereum deliberately and is bucketed `deferred` rather than `unknown` by the census.
+
+Run `pnpm census:chains` after any registry edit — its completeness pass names any hole you left, and those warnings are never baselined (an incomplete entry is a code bug, not atlas drift). `pnpm census:chains --rpc` additionally round-trips every registry `rpcUrl` against its declared `chainId`.
+
+### Catching a chain the atlas added
+
+`census:chains` is the alarm for a chain the registry has never heard of, in three independent halves — see the docblock in `scripts/required/check-chains-census.mjs`. The one worth knowing about is the third: the label and prose halves both need the chain's name to appear in a shape they recognize, and a **single-word chain name in a plain bullet row** (`- Unichain - \`0x…\``) fits neither. `scripts/lib/chain-candidates.mjs` covers that case by reasoning about the list instead of the name — in an address list whose siblings name two or more distinct known chains, a row naming none is a candidate. That needs no advance knowledge of the missing chain's name, which is the only way a drift detector can actually detect drift.
 
 ---
 

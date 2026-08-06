@@ -269,7 +269,7 @@ function changedLines() {
 // when the block is fully tested. Excluding these from both the numerator and
 // denominator keeps a meter honest: it reflects tested logic, not brace noise.
 const srcCache = new Map();
-function isLogicLine(file, lineNo) {
+export function isLogicLine(file, lineNo) {
   if (!srcCache.has(file)) {
     try {
       srcCache.set(file, readFileSync(path.resolve(repo, file), "utf8").split(/\r?\n/));
@@ -281,6 +281,13 @@ function isLogicLine(file, lineNo) {
   if (!lines) return true; // unreadable → count it (conservative)
   const t = (lines[lineNo - 1] ?? "").trim();
   if (!t) return false; // blank
+  // A comment is documentation, not logic. This is not hypothetical tidiness:
+  // bun's LCOV emits DA records for comment lines where v8's does not, and for
+  // a scripts/lib module that a src/server test merely imports, every one of
+  // those records is 0. Since the two reports are merged by line number, an
+  // added comment block then lands in the denominator as uncovered code —
+  // penalising a change whose actual statements are fully tested.
+  if (t.startsWith("//") || t.startsWith("/*") || t.startsWith("*")) return false;
   // A logic line carries an identifier, keyword, or literal. A line that is only
   // braces / brackets / parens / semicolons / commas / operators is structural.
   return /[A-Za-z0-9_$"'`]/.test(t);

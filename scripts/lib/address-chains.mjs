@@ -2,7 +2,7 @@
  * Onchain address regex, normalization, chain detection, and table-context
  * detection for addresses sitting inside markdown tables.
  */
-import { FUTURE_TO_ETHEREUM } from "./chains.mjs";
+import { CHAIN_HINT_SPECS, FUTURE_TO_ETHEREUM } from "./chains.mjs";
 
 // EVM addresses are exactly 40 hex chars. The negative lookbehind/lookahead
 // stop us from matching the leading 40 hex of a longer hex blob like a 64-hex
@@ -19,26 +19,26 @@ export function normalizeAddress(addr) {
 }
 const WINDOW = 300; // chars before the address to scan for chain hints
 
-// Prose chain-hint patterns for detectChain. Deliberately separate from the
-// canonical chains.mjs registry / normalizeChainLabel: this scans free prose
-// with word-boundary regexes (so "base" inside "database" doesn't match) and
-// orders ethereum FIRST (an "ethereum mainnet" context should win), the opposite
-// of label normalization. Keep the two in step when adding a chain.
-// Ordered by specificity — more specific patterns first within each entry.
-// Exported so census:chains can assert it stays in step with CHAINS.
-export const CHAIN_HINTS = [
-  { chain: "ethereum", patterns: [/\bethereum\b/i, /\bmainnet\b/i] },
-  { chain: "base", patterns: [/\bbase\b/i] },
-  { chain: "arbitrum", patterns: [/\barbitrum\b/i, /\barb\b/i] },
-  { chain: "optimism", patterns: [/\boptimism\b/i, /\bop mainnet\b/i] },
-  { chain: "polygon", patterns: [/\bpolygon\b/i, /\bmatic\b/i] },
-  { chain: "avalanche", patterns: [/\bavalanche\b/i, /\bavax\b/i] },
-  // "Gnosis Safe" (the multisig, on any chain) and "Gnosis Protocol" (the DEX)
-  // are not Gnosis Chain — without the lookahead they pinned mainnet Safes and
-  // the Distribution Reward instances to gnosis.
-  { chain: "gnosis", patterns: [/\bgnosis\b(?!\s+(?:safe|protocol))/i, /\bxdai\b/i] },
-  { chain: "robinhood", patterns: [/\brobinhood\b/i] },
-];
+// Prose chain-hint patterns for detectChain, compiled from the canonical
+// registry (src/data/chain-registry.json via chains.mjs CHAIN_HINT_SPECS).
+// Deliberately a separate *algorithm* from normalizeChainLabel — it scans free
+// prose with word-boundary regexes (so "base" inside "database" doesn't match)
+// and orders ethereum FIRST (an "ethereum mainnet" context should win), the
+// opposite of label normalization — but no longer a separately maintained
+// *list*: a chain added to the registry gets its hints automatically.
+//
+// An exclusion becomes a negative lookahead. The one in use: "Gnosis Safe" (the
+// multisig, on any chain) and "Gnosis Protocol" (the DEX) are not Gnosis Chain
+// — without it they pinned mainnet Safes and the Distribution Reward instances
+// to gnosis.
+export const CHAIN_HINTS = CHAIN_HINT_SPECS.map(({ chain, hints, exclusions }) => ({
+  chain,
+  patterns: hints.map((h) => {
+    const excl = exclusions[h];
+    const tail = excl?.length ? `(?!\\s+(?:${excl.join("|")}))` : "";
+    return new RegExp(`\\b${h}\\b${tail}`, "i");
+  }),
+}));
 
 // Trailing punctuation between the "... is" clause and the address literal:
 // atlas prose writes "is: `0x…`", "is - 0x…", "is (0x…)".
@@ -80,6 +80,18 @@ function firstChainIn(text) {
     if (patterns.some((p) => p.test(text))) return chain;
   }
   return null;
+}
+
+// A known chain in `text`, or — failing that — a FUTURE_TO_ETHEREUM chain
+// named in it (e.g. "Plasma"), reported as ethereum with the deferred name
+// attached. Used by detectChainSignal so a deferred chain's own list row
+// resolves to its documented ethereum collapse instead of falling through to
+// whatever chain a neighboring row happens to name.
+function firstSignalIn(text) {
+  const chain = firstChainIn(text);
+  if (chain) return { chain };
+  const deferred = FUTURE_TO_ETHEREUM.find((c) => new RegExp(`\\b${c}\\b`, "i").test(text));
+  return deferred ? { chain: "ethereum", deferred } : null;
 }
 
 /**
@@ -224,12 +236,15 @@ export function detectChainSignal(content, matchIndex) {
   // wide (300 chars) window. Each window is scanned from the last address
   // literal onward first, falling back to the whole window when that segment
   // names no chain — so trimming another address's context can only ever add a
-  // signal, never remove the only one.
+  // signal, never remove the only one. A deferred chain (FUTURE_TO_ETHEREUM)
+  // named in the scoped segment is checked before falling back to the whole
+  // window, so e.g. "- Plasma - `0x…`" resolves to its own ethereum collapse
+  // rather than to a preceding row's unrelated chain name.
   for (const win of [120, WINDOW]) {
     const w = content.slice(Math.max(0, matchIndex - win), matchIndex);
     const scoped = afterLastAddress(w);
-    const hit = (scoped !== null ? firstChainIn(scoped) : null) ?? firstChainIn(w);
-    if (hit) return { chain: hit, explicit: false };
+    const hit = (scoped !== null ? firstSignalIn(scoped) : null) ?? firstSignalIn(w);
+    if (hit) return { chain: hit.chain, explicit: false, ...(hit.deferred && { deferred: hit.deferred }) };
   }
 
   return null;

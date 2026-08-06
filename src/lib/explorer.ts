@@ -1,19 +1,27 @@
-// Canonical chain → block-explorer base. Values include the trailing path
-// segment so `EXPLORER[chain] + addr` works for both EVM (/address/) and
-// Solana (/account/).
-export const EXPLORER: Record<string, string> = {
-  ethereum: "https://etherscan.io/address/",
-  base: "https://basescan.org/address/",
-  arbitrum: "https://arbiscan.io/address/",
-  optimism: "https://optimistic.etherscan.io/address/",
-  polygon: "https://polygonscan.com/address/",
-  avalanche: "https://snowtrace.io/address/",
-  gnosis: "https://gnosisscan.io/address/",
-  robinhood: "https://robinhoodchain.blockscout.com/address/",
-  solana: "https://solscan.io/account/",
-};
+import registry from "../data/chain-registry.json";
+
+// Canonical chain → block-explorer base, derived from the single-source chain
+// registry. Values include the trailing path segment so `EXPLORER[chain] + addr`
+// works for both EVM (/address/) and Solana (/account/).
+//
+// Derived rather than hand-listed because a chain missing here silently links
+// its addresses to etherscan.io — i.e. to a different chain's explorer, showing
+// "not a contract" for something that plainly is one.
+export const EXPLORER: Record<string, string> = Object.fromEntries(
+  // flatMap, not filter().map(): filter does not narrow the optional away.
+  registry.chains.flatMap((c) => (c.explorer ? [[c.chain, c.explorer] as [string, string]] : [])),
+);
 
 const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+
+// Word-boundary matcher per chain key, built once. A hint is free text — a doc
+// title, a param key, an instance name — so a bare substring test reads "base"
+// out of "Database" and "Baserate". Mirrors the word-boundary discipline the
+// build pipeline's CHAIN_HINTS uses for the same reason.
+const CHAIN_KEY_RE: Array<[string, RegExp]> = Object.keys(EXPLORER).map((key) => [
+  key,
+  new RegExp(`\\b${key}\\b`, "i"),
+]);
 
 // Resolve a chain key from a free-text hint (e.g. "Base", "OP Mainnet") or,
 // failing that, from the address shape. Defaults to ethereum. `hint` may be a
@@ -25,9 +33,9 @@ const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
 function resolveChain(hint: string | undefined | Array<string | undefined>, addr: string): string {
   const hints = Array.isArray(hint) ? hint : [hint];
   for (const h of hints) {
-    const lower = (h ?? "").toLowerCase();
-    for (const key of Object.keys(EXPLORER)) {
-      if (lower.includes(key)) return key;
+    if (!h) continue;
+    for (const [key, re] of CHAIN_KEY_RE) {
+      if (re.test(h)) return key;
     }
   }
   if (SOL_RE.test(addr)) return "solana";
