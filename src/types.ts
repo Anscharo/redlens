@@ -28,6 +28,11 @@ export interface AtlasNode {
 
 export interface AddressInfo {
   chain: string;
+  // Every chain the atlas places this address on; always contains `chain`.
+  // Safes and deterministically-deployed contracts can sit at the same
+  // address on several chains — see addressTooltip.ts's multi-chain balance
+  // lookup for why this needs to be a list, not just the primary `chain`.
+  chains: string[];
   explorerUrl: string;
   // label is resolved at load time: chainlogId ?? entityLabel ?? etherscanName
   label: string | null;

@@ -34,6 +34,7 @@
 -->
 
 ## 2026-08-06
+- Hovering an on-chain address now shows its name and any token balances it holds
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
 
 ## 2026-08-05

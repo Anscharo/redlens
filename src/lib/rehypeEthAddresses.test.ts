@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { Root, Element, Text } from "hast";
 import { rehypeEthAddresses } from "./rehypeEthAddresses";
 import { setAddressMap } from "./addressMap";
+import { makeAddressInfo } from "../test/fixtures";
 
 function makeTree(...texts: string[]): Root {
   return {
@@ -19,8 +20,8 @@ function makeTree(...texts: string[]): Root {
   };
 }
 
-function links(tree: Root): { text: string; href: string }[] {
-  const out: { text: string; href: string }[] = [];
+function links(tree: Root): { text: string; href: string; dataAddress: string | null }[] {
+  const out: { text: string; href: string; dataAddress: string | null }[] = [];
   function walk(nodes: Root["children"]) {
     for (const node of nodes) {
       if (node.type === "element") {
@@ -29,7 +30,12 @@ function links(tree: Root): { text: string; href: string }[] {
             .filter((c): c is Text => c.type === "text")
             .map((c) => c.value)
             .join("");
-          out.push({ text, href: String(node.properties?.href ?? "") });
+          const addr = node.properties?.["data-address"];
+          out.push({
+            text,
+            href: String(node.properties?.href ?? ""),
+            dataAddress: typeof addr === "string" ? addr : null,
+          });
         }
         walk((node as Element).children);
       }
@@ -46,15 +52,16 @@ const SOL = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 beforeEach(() => setAddressMap({}));
 
 describe("EVM address linkification", () => {
-  it("links a bare EVM address to etherscan", () => {
+  it("links a bare EVM address to etherscan and tags it data-address for the hover tooltip", () => {
     const tree = makeTree(`Check ${EVM} now`);
     transform(tree);
     const found = links(tree).find((l) => l.text === EVM);
     expect(found?.href).toBe(`https://etherscan.io/address/${EVM}`);
+    expect(found?.dataAddress).toBe(EVM);
   });
 
   it("uses explorerUrl from address map when present", () => {
-    setAddressMap({ [EVM.toLowerCase()]: { explorerUrl: "https://custom.io/addr" } });
+    setAddressMap({ [EVM.toLowerCase()]: makeAddressInfo({ explorerUrl: "https://custom.io/addr" }) });
     const tree = makeTree(EVM);
     transform(tree);
     expect(links(tree)[0]?.href).toBe("https://custom.io/addr");
@@ -131,6 +138,21 @@ describe("transaction hash linkification", () => {
     const tree = makeTree(hash);
     transform(tree);
     expect(links(tree)).toHaveLength(0);
+  });
+
+  it("links both an inline tx hash and a separate address in the same text node", () => {
+    const hash = "0x" + "c".repeat(64);
+    const tree = makeTree(`Transaction Hash: ${hash} sent from ${EVM}`);
+    transform(tree);
+    const found = links(tree);
+
+    const txLink = found.find((l) => l.text === hash);
+    expect(txLink?.href).toBe(`https://etherscan.io/tx/${hash}`);
+    expect(txLink?.dataAddress).toBeNull(); // a tx hash is not an address
+
+    const addrLink = found.find((l) => l.text === EVM);
+    expect(addrLink?.href).toBe(`https://etherscan.io/address/${EVM}`);
+    expect(addrLink?.dataAddress).toBe(EVM);
   });
 
   it("stops at a non-text sibling before finding the label, leaving the hash unlinked", () => {

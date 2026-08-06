@@ -26,6 +26,7 @@ const node = (over: Partial<AtlasNode> & { id: string; doc_no: string }): AtlasN
 
 const info = (over: Partial<AddressInfo> = {}): AddressInfo => ({
   chain: "ethereum",
+  chains: [over.chain ?? "ethereum"],
   explorerUrl: "https://etherscan.io/address/0x",
   label: null,
   isContract: false,
@@ -322,6 +323,34 @@ describe("balances", () => {
     expect(header).toContain("Balances Updated");
     expect(csv).toContain('"USDC=5"');
     expect(csv).toContain('"2026-08-05"');
+  });
+
+  it("sums balances across every chain a multi-chain address is on", () => {
+    const multiAddrMap = {
+      "0xaaa": info({ chain: "ethereum", chains: ["ethereum", "base"], entityLabel: "X" }),
+    };
+    const multiChainBalances = {
+      "0xaaa|ethereum": {
+        chain: "ethereum",
+        checkedAt: "2026-08-05T09:00:00.000Z",
+        hasCode: true,
+        balances: { ETH: { raw: "1000000000000000000", decimals: 18 } },
+      },
+      "0xaaa|base": {
+        chain: "base",
+        checkedAt: "2026-08-06T09:00:00.000Z",
+        hasCode: null,
+        balances: { ETH: { raw: "2000000000000000000", decimals: 18 }, USDC: { raw: "3000000", decimals: 6 } },
+      },
+    };
+    const r = buildOnchainAddressRows(docs, multiAddrMap, multiChainBalances)[0];
+    // ETH sums across both chains; USDC (base-only) is kept as-is.
+    expect(balanceExact(r, "ETH")).toBe("3");
+    expect(otherBalances(r)).toEqual([{ symbol: "USDC", amount: "3" }]);
+    // hasCode/checkedAt come from the primary chain (ethereum) specifically,
+    // not the base row — they're per-chain facts, unlike the summed balance.
+    expect(r.balancesCheckedAt).toBe("2026-08-05T09:00:00.000Z");
+    expect(r.type).not.toBe("EOA"); // hasCode: true on the primary chain
   });
 });
 

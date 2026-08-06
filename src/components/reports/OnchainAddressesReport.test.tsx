@@ -25,6 +25,7 @@ const node = (over: Partial<AtlasNode> & { id: string; doc_no: string }): AtlasN
 
 const info = (over: Partial<AddressInfo> = {}): AddressInfo => ({
   chain: "ethereum",
+  chains: [over.chain ?? "ethereum"],
   explorerUrl: "https://etherscan.io/address/0x",
   label: null,
   isContract: false,
