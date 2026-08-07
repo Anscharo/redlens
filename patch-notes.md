@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-07
+- Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
+
 ## 2026-08-06
 - Hovering an on-chain address now shows its name and any token balances it holds
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 

@@ -94,8 +94,8 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
           >
             Sign in with GitHub
           </button>
-          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
-            ← back to the live atlas
+          <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to previews
           </a>
         </Centered>
       );
@@ -105,8 +105,8 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
       return (
         <Centered>
           <p className="text-red">You don't have access to this repository.</p>
-          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
-            ← back to the live atlas
+          <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to previews
           </a>
         </Centered>
       );
@@ -125,8 +125,8 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
               Install the app ↗
             </a>
           )}
-          <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
-            ← back to the live atlas
+          <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>
+            ← back to previews
           </a>
         </Centered>
       );
@@ -136,8 +136,8 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
       <Centered>
         <p className="text-red">{(code && ERROR_TEXT[code]) ?? "Preview failed."}</p>
         {message && <BuildErrorDetail message={message} />}
-        <a href={import.meta.env.BASE_URL} className="text-sm" style={{ color: "var(--accent)" }}>
-          ← back to the live atlas
+        <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>
+          ← back to previews
         </a>
       </Centered>
     );

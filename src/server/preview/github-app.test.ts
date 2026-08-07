@@ -10,6 +10,7 @@ import {
   appJwt,
   installationIdForRepo,
   userRepoPermission,
+  normalizePem,
   __resetCachesForTest,
 } from "./github-app.ts";
 
@@ -85,6 +86,37 @@ test("appJwt: normalizes literal \\n escapes in the PEM (Railway-style env value
   const verifier = crypto.createVerify("RSA-SHA256");
   verifier.update(`${h}.${p}`);
   expect(verifier.verify(publicPem, b64urlDecode(s!))).toBe(true);
+});
+
+test("normalizePem: every env-mangled form of a key still signs (Railway paste shapes)", () => {
+  const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pkcs1 = privateKey.export({ type: "pkcs1", format: "pem" }).toString();
+  const pkcs8 = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+  const publicPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+  const b64 = Buffer.from(pkcs1, "utf8").toString("base64"); // `base64 -w0 key.pem`
+
+  const forms: [string, string][] = [
+    ["pristine PKCS#1", pkcs1],
+    ["pristine PKCS#8", pkcs8],
+    ["escaped \\n", pkcs1.replace(/\n/g, "\\n")],
+    ["escaped \\r\\n", pkcs1.replace(/\n/g, "\\r\\n")],
+    ["CRLF", pkcs1.replace(/\n/g, "\r\n")],
+    ["quoted + escaped", `"${pkcs1.replace(/\n/g, "\\n")}"`],
+    ["no trailing newline", pkcs1.trimEnd()],
+    ["newlines collapsed to spaces", pkcs1.replace(/\n/g, " ")],
+    ["base64 single line", b64],
+    ["base64 wrapped", b64.match(/.{1,76}/g)!.join("\n")],
+  ];
+
+  for (const [name, mangled] of forms) {
+    const sig = crypto.createSign("RSA-SHA256").update("payload").sign(normalizePem(mangled));
+    const ok = crypto.createVerify("RSA-SHA256").update("payload").verify(publicPem, sig);
+    expect(ok, name).toBe(true);
+  }
+});
+
+test("normalizePem: a non-PEM, non-base64 value is returned untouched so signing fails loudly", () => {
+  expect(normalizePem("not a key")).toBe("not a key");
 });
 
 // ---------------------------------------------------------------------------

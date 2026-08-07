@@ -21,7 +21,14 @@ const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
 function Root() {
   const { pathname } = window.location;
   if (pathname === `${baseNoSlash}/preview` || pathname === `${baseNoSlash}/preview/`) {
-    return <PreviewHome />;
+    // AuthProvider so the index can show the same account/sign-in control the
+    // live app has (needed to view private previews). apiUrl is absolute
+    // (`/api/…`), so no DataSource/Router context is required here.
+    return (
+      <AuthProvider>
+        <PreviewHome />
+      </AuthProvider>
+    );
   }
   const m = pathname.match(new RegExp(`^${baseNoSlash}/preview/([^/]+)`));
   if (m) {

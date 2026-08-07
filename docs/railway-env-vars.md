@@ -15,7 +15,7 @@ Quick reference — variable names and which service they go on. For the full st
 | `GITHUB_CLIENT_SECRET` | from your GitHub OAuth App | For logins/chat |
 | `GITHUB_TOKEN` | a PAT with public-repo read access | For Preview (PR/branch resolution + fork previews) |
 | `GITHUB_APP_ID` | App ID from your GitHub App | For private atlas previews |
-| `GITHUB_APP_PRIVATE_KEY` | the App's private key PEM, pasted in full | For private atlas previews |
+| `GITHUB_APP_PRIVATE_KEY` | the App's private key PEM, **base64-encoded** (`base64 -w0 key.pem`) | For private atlas previews |
 | `PREVIEW_PRIVATE_DAILY_QUOTA` | `20` (default) | Optional — per-repo daily cap on new private-preview analyses |
 
 Without `GITHUB_TOKEN` on the **web** service, `/preview` can still build canonical
@@ -26,9 +26,11 @@ branches, but PR/fork resolution is rate-limited or rejected — fork URLs come 
 app above — a GitHub App the *owner of a private atlas repo* installs, granting the
 server Contents:read + Metadata:read on just that repo. Both must be set (alongside
 `USERS_ENABLED=1` and GitHub login) to turn the private-preview feature on at all;
-either one missing leaves it completely inert and public previews unaffected. Paste
-the full private key PEM into `GITHUB_APP_PRIVATE_KEY` — Railway may store its
-newlines as literal `\n`, which the server normalizes at read time.
+either one missing leaves it completely inert and public previews unaffected.
+Railway splits a multi-line paste into one variable per line, so store the key as a
+**single line**: base64-encode it (`base64 -w0 key.pem`) and paste that. The server
+base64-decodes it (and also accepts `\n`-escaped, quoted, or space-collapsed PEMs)
+before signing. See `docs/github-app-setup.md` §3 for the full recipe.
 
 `CHAT_ENABLED` is AND-gated by `USERS_ENABLED` — chat requires a logged-in session, so enabling chat means setting **both** `USERS_ENABLED=1` and `CHAT_ENABLED=1` (plus the matching `VITE_USERS_ENABLED=1` / `VITE_CHAT_ENABLED=1` build args).
 

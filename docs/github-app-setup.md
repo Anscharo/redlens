@@ -89,15 +89,27 @@ Set these on the server (Railway → the web service → Variables, or your loca
 | Variable | Value |
 |---|---|
 | `GITHUB_APP_ID` | the numeric App ID from §2.11 |
-| `GITHUB_APP_PRIVATE_KEY` | the full PEM from §2.12 |
+| `GITHUB_APP_PRIVATE_KEY` | the PEM from §2.12 — **base64-encoded** (see below) |
 | `PREVIEW_PRIVATE_DAILY_QUOTA` | *(optional)* max new private-preview builds per repo per UTC day (default `20`) |
 
 Notes on the PEM:
 
-- Paste the **entire** key including the header/footer lines.
-- Railway (and many env systems) store multi-line values with literal `\n`
-  escapes instead of real newlines — that's fine, the code normalizes `\n` →
-  newline before signing. A real multi-line value works too.
+- **Railway splits a multi-line paste into one variable per line**, which mangles
+  the PEM. Give it a **single-line** value instead. The most reliable single-line
+  form is base64 — no quotes, escapes, or newlines to mangle:
+
+  ```bash
+  base64 -w0 your-app-name.private-key.pem   # Linux
+  base64 -i  your-app-name.private-key.pem | tr -d '\n'   # macOS
+  ```
+
+  Paste that one line as `GITHUB_APP_PRIVATE_KEY`. The server base64-decodes it
+  back to the PEM before signing.
+- Other single-line forms also work (the server normalizes all of them): the PEM
+  with literal `\n` escapes, wrapped in quotes, or with newlines collapsed to
+  spaces. A genuinely multi-line value works too where the env store preserves it
+  (e.g. a local `.env`, or Railway's **Raw Editor**). Base64 is just the one form
+  nothing downstream can break.
 - Treat it as a secret. Rotating it later = generate a new private key on the
   App page, swap the env var, delete the old key.
 
