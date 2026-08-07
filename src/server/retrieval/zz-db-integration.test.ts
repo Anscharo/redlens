@@ -36,10 +36,12 @@ import type { AtlasNode } from "./indexes.ts";
 // so "whatever is currently there" is the real module unless an earlier file
 // already mock.module'd it — in which case delegating to the earlier mock is
 // still the correct no-trace behaviour: we change nothing except while armed.
-// EAGER snapshot into plain consts. A module namespace object is LIVE: once
-// mock.module("../db.ts") lands, `ns.sql` resolves to the replacement — i.e. to
-// our own dispatcher — so a delegation path that reads `ns.sql` at call time
-// recurses into itself until the stack blows (`sql.reserve` did exactly that).
+//
+// The snapshot must be EAGER, into plain consts. A module namespace object is
+// LIVE: once mock.module("../db.ts") lands, `ns.sql` resolves to the
+// replacement — i.e. to our own dispatcher — so any delegation path that reads
+// `ns.sql` at call time recurses into itself until the stack blows. `sql.reserve`
+// did exactly that, and only a probe file loaded after this one caught it.
 const baseNs = await import("../db.ts");
 const baseExports: Record<string, unknown> = { ...baseNs };
 const baseSql = baseNs.sql as unknown as Record<PropertyKey, unknown> | undefined;
@@ -50,22 +52,21 @@ type UnsafeImpl = (query: string, params?: unknown[]) => Promise<unknown[]>;
 let unsafeImpl: UnsafeImpl | null = null;
 let lastParams: unknown[] = [];
 
-// The dispatcher is a REAL function rather than a Proxy over `baseDb.sql`: some
+// The dispatcher is a REAL function rather than a Proxy over `baseSql`: some
 // test files (migrate.test.ts) replace `sql` with a plain non-callable object,
 // and a Proxy over a non-callable target is itself non-callable — which would
 // break the tagged-template form for every file loaded after this one.
 function sqlCall(...args: unknown[]): unknown {
-  const base: unknown = baseDb.sql;
-  if (typeof base !== "function") {
+  if (typeof baseSql !== "function") {
     throw new Error("db.ts `sql` is not callable — an earlier test file replaced it with a non-callable stub");
   }
-  return (base as (...a: unknown[]) => unknown)(...args);
+  return (baseSql as (...a: unknown[]) => unknown)(...args);
 }
 
 const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
 const sqlDispatch = new Proxy(sqlCall, {
   get(target, prop, receiver) {
-    const base = baseDb.sql as unknown as Record<PropertyKey, unknown> | undefined;
+    const base = baseSql;
     if (prop === "unsafe") {
       return (query: string, params?: unknown[]) => {
         if (unsafeImpl) {
@@ -87,7 +88,7 @@ const sqlDispatch = new Proxy(sqlCall, {
   },
 });
 
-mock.module("../db.ts", () => ({ ...baseDb, sql: sqlDispatch }));
+mock.module("../db.ts", () => ({ ...baseExports, sql: sqlDispatch }));
 
 const { buildIndexes } = await import("./indexes.ts");
 const { atlasQuery } = await import("./query.ts");
