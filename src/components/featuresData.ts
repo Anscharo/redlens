@@ -34,6 +34,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
           "Open the Reader, or click any search result to jump to that document.",
           "Use the left tree to navigate; arrow keys move between rows.",
           "Expand a branch, or use expand-all / expand-children; depth is colour-coded.",
+          "The panel to the right of the reader has three tabs for the selected document: annotations, glossary, and history.",
         ],
       },
       {
@@ -50,7 +51,8 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           "Tick the checkbox on any document in the Reader or search results.",
           "Shift-click a checkbox to grab that document and all of its descendants.",
-          "Filter the tree to only your selection, then Save as a Collection and share the public link.",
+          'In the bar at the top of the tree sidebar (left of the reader), click the "Selected · N" pill to switch the tree from "All" down to just your checked docs.',
+          'To save, click the save (disk) icon at the right end of that same bar — its tooltip reads "Save as collection" — then share the public link.',
         ],
         note: "Saving requires sign-in (GitHub or Google).",
       },

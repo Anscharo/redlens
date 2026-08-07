@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-07
+- Added a Features page — a guide to everything you can do in Sky Atlas by Redline, with a short how-to for each feature
+
 ## 2026-08-06
 - Hovering an on-chain address now shows its name and any token balances it holds
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
