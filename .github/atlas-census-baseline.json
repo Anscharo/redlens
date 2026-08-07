@@ -87,7 +87,7 @@
       "samples": []
     },
     "Core|addr,s:addr-of-is": {
-      "total": 174,
+      "total": 175,
       "uncovered": 0,
       "samples": []
     },
@@ -133,8 +133,8 @@
       "samples": []
     },
     "Core|plain": {
-      "total": 7964,
-      "uncovered": 6168,
+      "total": 7992,
+      "uncovered": 6192,
       "samples": [
         "A.0.1.1.1",
         "A.0.1.1.10",
@@ -165,7 +165,7 @@
       "samples": []
     },
     "Core|s:modify-signers": {
-      "total": 23,
+      "total": 24,
       "uncovered": 0,
       "samples": []
     },
@@ -231,7 +231,7 @@
       "samples": []
     },
     "Core|s:signing-req": {
-      "total": 31,
+      "total": 32,
       "uncovered": 0,
       "samples": []
     },
@@ -267,7 +267,7 @@
       "samples": []
     },
     "Core|uuid-link": {
-      "total": 1529,
+      "total": 1545,
       "uncovered": 0,
       "samples": []
     },
@@ -329,7 +329,7 @@
       ]
     },
     "Section|uuid-link": {
-      "total": 11,
+      "total": 12,
       "uncovered": 0,
       "samples": []
     },

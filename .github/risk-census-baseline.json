@@ -145,6 +145,12 @@
       "title": "Morpho Deployment Verification Guide Update Process"
     },
     {
+      "taskKey": "u:103a2e8f-fcc4-4044-ba46-21f7e8351bac",
+      "uuid": "103a2e8f-fcc4-4044-ba46-21f7e8351bac",
+      "docNo": "A.1.10.3.2.10.4",
+      "title": "Smart Burn Engine Bounded External Access Module Exception"
+    },
+    {
       "taskKey": "u:b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
       "uuid": "b7820ec3-dbe5-43bc-99b9-c7168c53c8fe",
       "docNo": "A.1.10.3.2.14",
@@ -268,7 +274,7 @@
       "taskKey": "u:c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
       "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
       "docNo": "A.2.2.10.1.1.1.4.2.1",
-      "title": "Aave Facet"
+      "title": "Aave v3 Facet"
     },
     {
       "taskKey": "u:d9cbf883-119e-403d-8efa-125997cd8897",
@@ -459,146 +465,206 @@
     {
       "taskKey": "u:8eea7011-c299-4861-bf2e-0adb78e3ef30",
       "uuid": "8eea7011-c299-4861-bf2e-0adb78e3ef30",
-      "docNo": "A.2.2.10.1.1.1.5.2.1.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.1.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
       "uuid": "b6d5f36b-3832-4cb7-b9e3-ea2543fc7d4e",
-      "docNo": "A.2.2.10.1.1.1.5.2.1.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.1.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:1490a13f-c897-4f0d-9ba3-205f40900321",
       "uuid": "1490a13f-c897-4f0d-9ba3-205f40900321",
-      "docNo": "A.2.2.10.1.1.1.5.2.1.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.1.3",
       "title": "Mint USDS To ALM Proxy"
     },
     {
       "taskKey": "u:53d3749c-ef45-45ed-9657-373580abe3cf",
       "uuid": "53d3749c-ef45-45ed-9657-373580abe3cf",
-      "docNo": "A.2.2.10.1.1.1.5.2.2.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.2.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:b900fd43-5f7c-438f-a1dd-0e89db98f4db",
       "uuid": "b900fd43-5f7c-438f-a1dd-0e89db98f4db",
-      "docNo": "A.2.2.10.1.1.1.5.2.2.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.2.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:feace76a-e48a-42da-8732-74bbf55c530f",
       "uuid": "feace76a-e48a-42da-8732-74bbf55c530f",
-      "docNo": "A.2.2.10.1.1.1.5.2.2.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.1.2.3",
       "title": "Burn USDS From ALM Proxy"
     },
     {
       "taskKey": "u:26eec581-240e-4214-85a4-ee9309b986d4",
       "uuid": "26eec581-240e-4214-85a4-ee9309b986d4",
-      "docNo": "A.2.2.10.1.1.1.5.2.3.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.1.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:989bca9d-f56a-4965-8684-62de547f605a",
       "uuid": "989bca9d-f56a-4965-8684-62de547f605a",
-      "docNo": "A.2.2.10.1.1.1.5.2.3.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.1.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:d783250a-d160-4f1f-8648-e2c9a6d95816",
       "uuid": "d783250a-d160-4f1f-8648-e2c9a6d95816",
-      "docNo": "A.2.2.10.1.1.1.5.2.3.3",
-      "title": "Deposit Asset Into Aave Market"
+      "docNo": "A.2.2.10.1.1.1.5.2.2.1.3",
+      "title": "Deposit Asset Into Aave v3 Market"
     },
     {
       "taskKey": "u:c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
       "uuid": "c5a30d6c-6f3a-48a1-af35-39c0ee0bece4",
-      "docNo": "A.2.2.10.1.1.1.5.2.4.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.2.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
       "uuid": "ef6077eb-1cd4-4c17-bbf5-ce98c2cc1b92",
-      "docNo": "A.2.2.10.1.1.1.5.2.4.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.2.2.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
       "uuid": "ee2933f7-b7c6-4002-92f1-8b69c063a4a8",
-      "docNo": "A.2.2.10.1.1.1.5.2.4.3",
-      "title": "Withdraw Asset From Aave Market"
+      "docNo": "A.2.2.10.1.1.1.5.2.2.2.3",
+      "title": "Withdraw Asset From Aave v3 Market"
     },
     {
       "taskKey": "u:b2e3b84d-acbd-4704-b55e-e2026aa63058",
       "uuid": "b2e3b84d-acbd-4704-b55e-e2026aa63058",
-      "docNo": "A.2.2.10.1.1.1.5.2.5.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.1.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:34b6d2ab-837c-4fb0-a397-77d776a32bc3",
       "uuid": "34b6d2ab-837c-4fb0-a397-77d776a32bc3",
-      "docNo": "A.2.2.10.1.1.1.5.2.5.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.1.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:8d3420d5-86a7-4468-8f08-92cc00fed557",
       "uuid": "8d3420d5-86a7-4468-8f08-92cc00fed557",
-      "docNo": "A.2.2.10.1.1.1.5.2.5.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.1.3",
       "title": "Deposit Asset Into Basin"
     },
     {
       "taskKey": "u:75edeae6-46e4-4761-b2c7-0416038c97cf",
       "uuid": "75edeae6-46e4-4761-b2c7-0416038c97cf",
-      "docNo": "A.2.2.10.1.1.1.5.2.6.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.2.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:d915bc35-e8d8-4d48-a285-92335bd09343",
       "uuid": "d915bc35-e8d8-4d48-a285-92335bd09343",
-      "docNo": "A.2.2.10.1.1.1.5.2.6.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.2.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:25da7163-b052-459f-91b5-8da3aafa61c7",
       "uuid": "25da7163-b052-459f-91b5-8da3aafa61c7",
-      "docNo": "A.2.2.10.1.1.1.5.2.6.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.3.2.3",
       "title": "Withdraw Asset From Basin"
     },
     {
       "taskKey": "u:f3c79493-8704-4d20-9eaa-e2e381f3920d",
       "uuid": "f3c79493-8704-4d20-9eaa-e2e381f3920d",
-      "docNo": "A.2.2.10.1.1.1.5.2.7.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.1.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:1a1d74ec-888d-4f0a-93c2-3669fa4efe45",
       "uuid": "1a1d74ec-888d-4f0a-93c2-3669fa4efe45",
-      "docNo": "A.2.2.10.1.1.1.5.2.7.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.1.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:58631630-a9e3-4bd6-a1ea-59b0ef8f5bee",
       "uuid": "58631630-a9e3-4bd6-a1ea-59b0ef8f5bee",
-      "docNo": "A.2.2.10.1.1.1.5.2.7.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.1.3",
       "title": "Swap USDS For USDC"
     },
     {
       "taskKey": "u:85a2ac37-da60-4a04-96eb-600f635ab388",
       "uuid": "85a2ac37-da60-4a04-96eb-600f635ab388",
-      "docNo": "A.2.2.10.1.1.1.5.2.8.1",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.2.1",
       "title": "Allocator Role"
     },
     {
       "taskKey": "u:b489a966-f631-429d-85da-cb6258f001c9",
       "uuid": "b489a966-f631-429d-85da-cb6258f001c9",
-      "docNo": "A.2.2.10.1.1.1.5.2.8.2",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.2.2",
       "title": "Rate Limit"
     },
     {
       "taskKey": "u:fa1364a3-081c-4327-8ef4-637a3fdd1105",
       "uuid": "fa1364a3-081c-4327-8ef4-637a3fdd1105",
-      "docNo": "A.2.2.10.1.1.1.5.2.8.3",
+      "docNo": "A.2.2.10.1.1.1.5.2.4.2.3",
       "title": "Swap USDC For USDS"
+    },
+    {
+      "taskKey": "u:417edcc0-3d50-48ba-8fc2-38b361dbc297",
+      "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
+      "docNo": "A.2.2.10.1.1.1.5.2.5",
+      "title": "Uniswap v3 Facet"
+    },
+    {
+      "taskKey": "u:955f7809-40e6-43a3-900d-6992a6e1d2ef",
+      "uuid": "955f7809-40e6-43a3-900d-6992a6e1d2ef",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.1.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:7e771c08-d37b-4e44-b5d2-b21aabde6a3a",
+      "uuid": "7e771c08-d37b-4e44-b5d2-b21aabde6a3a",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.1.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:164268cf-b6e5-4c1a-83e5-d199f453cc1b",
+      "uuid": "164268cf-b6e5-4c1a-83e5-d199f453cc1b",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.1.3",
+      "title": "Add Liquidity To Uniswap v3 Position"
+    },
+    {
+      "taskKey": "u:6cfcbc24-2d8d-40fe-bc90-ec679c084ef0",
+      "uuid": "6cfcbc24-2d8d-40fe-bc90-ec679c084ef0",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.2.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:a60193f3-3af2-4a50-a42d-4b2dad8adc6a",
+      "uuid": "a60193f3-3af2-4a50-a42d-4b2dad8adc6a",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.2.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:315b3614-18bb-4ca0-b1c7-3459fd449ad8",
+      "uuid": "315b3614-18bb-4ca0-b1c7-3459fd449ad8",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.2.3",
+      "title": "Remove Liquidity From Uniswap v3 Position"
+    },
+    {
+      "taskKey": "u:9b0217c7-8617-42c3-9e2e-b0b377607f50",
+      "uuid": "9b0217c7-8617-42c3-9e2e-b0b377607f50",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.3.1",
+      "title": "Allocator Role"
+    },
+    {
+      "taskKey": "u:d2bd2910-494c-4a4e-b276-8f325c69e36b",
+      "uuid": "d2bd2910-494c-4a4e-b276-8f325c69e36b",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.3.2",
+      "title": "Rate Limit"
+    },
+    {
+      "taskKey": "u:3986fe17-e84d-407a-9192-61e6b842426a",
+      "uuid": "3986fe17-e84d-407a-9192-61e6b842426a",
+      "docNo": "A.2.2.10.1.1.1.5.2.5.3.3",
+      "title": "Swap Tokens Through Uniswap v3 Pool"
     },
     {
       "taskKey": "u:6f5bc654-a053-4b1f-9ada-6aa13d0a2109",
@@ -691,6 +757,12 @@
       "title": "Collection Of Amounts Due From Prime Agents"
     },
     {
+      "taskKey": "u:adbe704f-9c50-4ee1-b632-398cdd87598a",
+      "uuid": "adbe704f-9c50-4ee1-b632-398cdd87598a",
+      "docNo": "A.2.4.2.1.2",
+      "title": "Calculation Of Applicable Balance"
+    },
+    {
       "taskKey": "u:25743b88-dead-47fe-bd81-b709e69f5949",
       "uuid": "25743b88-dead-47fe-bd81-b709e69f5949",
       "docNo": "A.2.8.2.1.2.1",
@@ -715,6 +787,12 @@
       "title": "Emergency-Response Multisig Threshold Exception"
     },
     {
+      "taskKey": "u:228f9955-6bba-4252-a101-5529e7a300b9",
+      "uuid": "228f9955-6bba-4252-a101-5529e7a300b9",
+      "docNo": "A.3.1.2.1",
+      "title": "Base Rate"
+    },
+    {
       "taskKey": "u:d16483ff-b83e-490f-a620-1b58cc679c7f",
       "uuid": "d16483ff-b83e-490f-a620-1b58cc679c7f",
       "docNo": "A.3.1.2.2.1",
@@ -733,10 +811,22 @@
       "title": "Spark"
     },
     {
+      "taskKey": "u:6b2b7302-e63b-457e-afeb-daab5ca7a7de",
+      "uuid": "6b2b7302-e63b-457e-afeb-daab5ca7a7de",
+      "docNo": "A.3.1.2.5",
+      "title": "Agent Credit Line Borrow Rate"
+    },
+    {
       "taskKey": "u:e1b694de-1ee3-4502-a9c9-52eea9539804",
       "uuid": "e1b694de-1ee3-4502-a9c9-52eea9539804",
       "docNo": "A.3.1.2.6",
       "title": "Sky Spread"
+    },
+    {
+      "taskKey": "u:154c3b5d-7a87-4dae-85f3-7d26deab9a31",
+      "uuid": "154c3b5d-7a87-4dae-85f3-7d26deab9a31",
+      "docNo": "A.3.1.2.7",
+      "title": "Rate Conventions"
     },
     {
       "taskKey": "u:268af0e9-be3d-458e-9ccd-5a560abc7540",
@@ -851,6 +941,132 @@
       "uuid": "816e01d2-76a7-45ea-a770-22e4d3bc1247",
       "docNo": "A.3.3.2.4.2",
       "title": "Peg Defense Obligations"
+    },
+    {
+      "taskKey": "u:499570de-9fae-4009-be34-c3330266030a",
+      "uuid": "499570de-9fae-4009-be34-c3330266030a",
+      "docNo": "A.3.5.2.3",
+      "title": "Modification"
+    },
+    {
+      "taskKey": "u:b57ac61b-f6b1-4025-bd44-569d0f2afe2f",
+      "uuid": "b57ac61b-f6b1-4025-bd44-569d0f2afe2f",
+      "docNo": "A.3.5.2.4",
+      "title": "Smart Burn Engine Bounded External Access Module"
+    },
+    {
+      "taskKey": "u:53370eb5-8fc7-4600-8f52-46615e03801e",
+      "uuid": "53370eb5-8fc7-4600-8f52-46615e03801e",
+      "docNo": "A.3.5.2.4.1.1",
+      "title": "Max Kbump Definition"
+    },
+    {
+      "taskKey": "u:b1cbaeb4-4e7f-45f4-a033-e338c6855499",
+      "uuid": "b1cbaeb4-4e7f-45f4-a033-e338c6855499",
+      "docNo": "A.3.5.2.4.1.2",
+      "title": "Min Hop Definition"
+    },
+    {
+      "taskKey": "u:f700ba6e-7aa4-4d47-addf-981c32f3c49d",
+      "uuid": "f700ba6e-7aa4-4d47-addf-981c32f3c49d",
+      "docNo": "A.3.5.2.4.1.3",
+      "title": "Max Rate Definition"
+    },
+    {
+      "taskKey": "u:6c389eb2-8f50-4b6b-ad77-deb27c9f9fb0",
+      "uuid": "6c389eb2-8f50-4b6b-ad77-deb27c9f9fb0",
+      "docNo": "A.3.5.2.4.1.4",
+      "title": "Tau Definition"
+    },
+    {
+      "taskKey": "u:18e80e4a-ce0f-4dc4-87f1-d58252935860",
+      "uuid": "18e80e4a-ce0f-4dc4-87f1-d58252935860",
+      "docNo": "A.3.5.2.4.2",
+      "title": "Parameters"
+    },
+    {
+      "taskKey": "u:335c6d95-56ac-46b8-a15a-7bfc748fb5e7",
+      "uuid": "335c6d95-56ac-46b8-a15a-7bfc748fb5e7",
+      "docNo": "A.3.5.2.4.3",
+      "title": "Parameter Adjustments"
+    },
+    {
+      "taskKey": "u:42ea8a7b-fb28-455e-8038-5fcf25250f17",
+      "uuid": "42ea8a7b-fb28-455e-8038-5fcf25250f17",
+      "docNo": "A.3.5.2.4.4",
+      "title": "Technical Limitations"
+    },
+    {
+      "taskKey": "u:2674da52-7a73-447f-811e-7dd40d23559f",
+      "uuid": "2674da52-7a73-447f-811e-7dd40d23559f",
+      "docNo": "A.3.5.2.4.5",
+      "title": "Operators"
+    },
+    {
+      "taskKey": "u:adf22311-1610-4da8-881e-29e00c590497",
+      "uuid": "adf22311-1610-4da8-881e-29e00c590497",
+      "docNo": "A.3.5.2.4.5.1",
+      "title": "Operator Multisig"
+    },
+    {
+      "taskKey": "u:3bd78b59-47da-4c65-b07c-9d19936d40ac",
+      "uuid": "3bd78b59-47da-4c65-b07c-9d19936d40ac",
+      "docNo": "A.3.5.2.4.5.1.1",
+      "title": "Operator Multisig Address"
+    },
+    {
+      "taskKey": "u:7ac2cb75-152e-45dc-8303-62e4fbc1b4f3",
+      "uuid": "7ac2cb75-152e-45dc-8303-62e4fbc1b4f3",
+      "docNo": "A.3.5.2.4.5.1.2",
+      "title": "Operator Multisig Required Number Of Signers"
+    },
+    {
+      "taskKey": "u:91992754-8cef-4f78-9ac1-21e6abe6dc5d",
+      "uuid": "91992754-8cef-4f78-9ac1-21e6abe6dc5d",
+      "docNo": "A.3.5.2.4.5.1.3",
+      "title": "Operator Multisig Signers"
+    },
+    {
+      "taskKey": "u:573251d9-8d1a-417d-a113-74c327eb88c2",
+      "uuid": "573251d9-8d1a-417d-a113-74c327eb88c2",
+      "docNo": "A.3.5.2.4.5.1.4",
+      "title": "Operator Multisig Usage Standards"
+    },
+    {
+      "taskKey": "u:5c65c1e4-b03a-4f5c-b665-6dc4abcec1be",
+      "uuid": "5c65c1e4-b03a-4f5c-b665-6dc4abcec1be",
+      "docNo": "A.3.5.2.4.5.1.5",
+      "title": "Operator Multisig Modification"
+    },
+    {
+      "taskKey": "u:859e8e2f-61da-453f-91bb-f50f701149c8",
+      "uuid": "859e8e2f-61da-453f-91bb-f50f701149c8",
+      "docNo": "A.3.5.2.4.6",
+      "title": "Update Process"
+    },
+    {
+      "taskKey": "u:bda72e6a-195a-454d-8f18-a71b359c668f",
+      "uuid": "bda72e6a-195a-454d-8f18-a71b359c668f",
+      "docNo": "A.3.5.2.4.6.1",
+      "title": "Recommendation By Core Council Risk Advisor"
+    },
+    {
+      "taskKey": "u:e2feece4-ec13-4270-87c6-a783262de558",
+      "uuid": "e2feece4-ec13-4270-87c6-a783262de558",
+      "docNo": "A.3.5.2.4.6.2",
+      "title": "Agreement By Core Facilitator"
+    },
+    {
+      "taskKey": "u:5a5b2774-4c67-4c24-b040-f844da58c91c",
+      "uuid": "5a5b2774-4c67-4c24-b040-f844da58c91c",
+      "docNo": "A.3.5.2.4.6.3",
+      "title": "Execution By Operator"
+    },
+    {
+      "taskKey": "u:af8ff5da-704a-4404-a882-8ba52c98e205",
+      "uuid": "af8ff5da-704a-4404-a882-8ba52c98e205",
+      "docNo": "A.3.5.2.4.6.4",
+      "title": "Public Communication"
     },
     {
       "taskKey": "u:17630a67-b287-4f44-bc60-f2a4f5d16cfa",
