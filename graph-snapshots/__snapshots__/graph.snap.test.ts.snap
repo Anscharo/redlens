@@ -2650,6 +2650,146 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Galaxy W
 ]
 `;
 
+exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove Diamond PAU Uniswap v3 AUSD/USDC 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation Coverage",
+  },
+  {
+    "content": "The documents herein define the Instance parameters.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers.",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Uniswap v3 AUSD/USDC",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDC and AUSD",
+    "title": "Asset Supplied By Grove Liquidity Layer",
+  },
+  {
+    "content": "Uniswap V3 AUSD/USDC Pool",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Underlying Asset Address (USDC)",
+  },
+  {
+    "content": "\`0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a\`",
+    "title": "Underlying Asset Address (AUSD)",
+  },
+  {
+    "content": "\`0xbAFeAd7c60Ea473758ED6c6021505E8BBd7e8E5d\`",
+    "title": "Pool Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this Instance's deposit, withdrawal, and swap operations are defined in the subdocuments herein.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The aggregate deposit RateLimitID is: \`0xd3384d5424cd179640223010fed859f38b86b26e5e0b9ee88b87321b98882f57\`.",
+    "title": "Aggregate Deposit RateLimitID",
+  },
+  {
+    "content": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
+    "title": "Deposit RateLimitID (AUSD)",
+  },
+  {
+    "content": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
+    "title": "Deposit RateLimitID (USDC)",
+  },
+  {
+    "content": "The aggregate withdrawal RateLimitID is: \`0xbe8cbf4b779bbe60101d88f64a8afcc8fdf78863df4303da9047b66fcf427734\`.",
+    "title": "Aggregate Withdrawal RateLimitID",
+  },
+  {
+    "content": "The withdrawal RateLimitID for AUSD is: \`0xf353a8cb19089be9c21260f788c98069b2cef6a8a4bf9d061b3e5e7629a85671\`.",
+    "title": "Withdrawal RateLimitID (AUSD)",
+  },
+  {
+    "content": "The withdrawal RateLimitID for USDC is: \`0x17c7a2da0785bd1ad67b8207080dbc243cfc4e573cbac18a68d0bd4b788a1dfc\`.",
+    "title": "Withdrawal RateLimitID (USDC)",
+  },
+  {
+    "content": "The swap RateLimitID for AUSD is: \`0x7dd93dac252469b97c259284118454a6a09efd0e5f781dec59acc240f8f88402\`.",
+    "title": "Swap RateLimitID (AUSD)",
+  },
+  {
+    "content": "The swap RateLimitID for USDC is: \`0x6e850dcb18bea10055c82d1e3753f551b1228d04b81350ba117235de19f9a0da\`.",
+    "title": "Swap RateLimitID (USDC)",
+  },
+  {
+    "content": "The current \`maxAmount\` and \`slope\` for this Instance's deposit, withdrawal, and swap operations are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The deposit rate limits are:
+
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 0
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 0
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 0",
+    "title": "Deposit Rate Limits",
+  },
+  {
+    "content": "The withdrawal rate limits are:
+
+- Aggregate: \`maxAmount\`: Unlimited
+- AUSD: \`maxAmount\`: Unlimited
+- USDC: \`maxAmount\`: Unlimited",
+    "title": "Withdrawal Rate Limits",
+  },
+  {
+    "content": "The swap rate limits are:
+
+- AUSD: \`maxAmount\`: 1,000,000 AUSD, \`slope\`: 5,000,000 AUSD per day
+- USDC: \`maxAmount\`: 1,000,000 USDC, \`slope\`: 5,000,000 USDC per day
+- \`maxSlippage\`: 0.1%",
+    "title": "Swap Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "Total exposure through this Instance may not exceed 5,000,000 USDS.",
+    "title": "Maximum Exposure",
+  },
+  {
+    "content": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+    "title": "CRR",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer parameters.",
+    "title": "Instance-specific Operational Parameters",
+  },
+  {
+    "content": "- \`twapSecondsAgo\`: 600
+- \`maxTickDelta\`: 200
+- \`lowerTickBound\`: -10
+- \`upperTickBound\`: +10",
+    "title": "Parameters For Stable Stable Pools",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Grove x Steakhouse AUSD Morpho Vault V2 1`] = `
 [
   {
@@ -2983,8 +3123,8 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Maple sy
   {
     "content": "The deposit rate limits are:
 
-- \`maxAmount\`: 50,000,000 USDC
-- \`slope\`: 50,000,000 USDC per day",
+- \`maxAmount\`: 0
+- \`slope\`: 0",
     "title": "Deposit Rate Limits",
   },
   {
@@ -4050,6 +4190,10 @@ exports[`allocation-system sub-doc content > Grove > Ethereum Mainnet - Uniswap 
   {
     "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer processes.",
     "title": "Instance-specific Operational Processes",
+  },
+  {
+    "content": "Grove is authorized to execute a one-time collect of all fees accrued on this Instance's Uniswap V3 position (tokenId 1192575 in the Uniswap V3 \`NonfungiblePositionManager\`), with proceeds received by the ALM Proxy.",
+    "title": "Fee Collection",
   },
   {
     "content": "The documents herein contain operational parameters or configuration details unique to this Instance that deviate from or otherwise supplement the general Grove Liquidity Layer parameters.",
@@ -7597,6 +7741,97 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve py
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve rlUSD/USDC for Swaps 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Curve rlUSD/USDC for Swaps Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Curve",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "N/A - swap only",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "crv2pool",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0xD001aE433f254283FeCE51d4ACcE8c53263aa186\`",
+    "title": "Token Address",
+  },
+  {
+    "content": "\`0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\`",
+    "title": "Underlying Asset Address",
+  },
+  {
+    "content": "\`0xD001aE433f254283FeCE51d4ACcE8c53263aa186\`",
+    "title": "Pool Address",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current \`maxAmount\`, \`slope\` and slippage for this conduit’s inflow/outflow/swap are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The inflow rate limits are:
+
+- maxAmount: N/A - swap only
+- slope: N/A - swap only",
+    "title": "Inflow Rate Limits",
+  },
+  {
+    "content": "The outflow rate limits are:
+
+- maxAmount: N/A - swap only
+- slope: N/A - swap only",
+    "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The swap rate limits are:
+
+- \`maxAmount\`: 5,000,000
+- \`slope\`: 25,000,000 per day
+- \`Max slippage\`: 0.1%",
+    "title": "Swap Rate Limits",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Curve sUSDS/USDT Pool 1`] = `
 [
   {
@@ -10643,6 +10878,96 @@ exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap 
 ]
 `;
 
+exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap v4 USDG/USDS Pool 1`] = `
+[
+  {
+    "content": "**\`Pending\`**",
+    "title": "RRC Framework Full Implementation",
+  },
+  {
+    "content": "The documents herein define the parameters of the Uniswap v4 USDG/USDS Pool Instance of the Allocation System Primitive.",
+    "title": "Parameters",
+  },
+  {
+    "content": "The documents herein define the Instance identifiers",
+    "title": "Instance Identifiers",
+  },
+  {
+    "content": "Ethereum Mainnet",
+    "title": "Network",
+  },
+  {
+    "content": "Uniswap v4",
+    "title": "Target Protocol",
+  },
+  {
+    "content": "USDS and USDG",
+    "title": "Asset Supplied By Spark Liquidity Layer",
+  },
+  {
+    "content": "USDGUSDS",
+    "title": "Token",
+  },
+  {
+    "content": "The documents herein define the Instance contract addresses.",
+    "title": "Contract Addresses",
+  },
+  {
+    "content": "\`0x28adc7179a8a83c3379955d59563c0fec33eadfa83946b447af289190ff5fcff\`",
+    "title": "Pool ID",
+  },
+  {
+    "content": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+    "title": "Rate Limit IDs",
+  },
+  {
+    "content": "The current \`maxAmount,\` \`slope\`, slippage, ticks, and fee for this conduit’s inflow/outflow/swap are defined in the subdocuments herein.",
+    "title": "Rate Limits",
+  },
+  {
+    "content": "The inflow rate limits are:
+
+- \`maxAmount\`: 10,000,000
+- \`slope\`: 100,000,000 per day",
+    "title": "Inflow Rate Limits",
+  },
+  {
+    "content": "The outflow rate limits are:
+
+- \`maxAmount\`: Unlimited",
+    "title": "Outflow Rate Limits",
+  },
+  {
+    "content": "The swap rate limits are:
+
+- \`maxAmount\`: 5,000,000
+- \`slope\`: 200,000,000 per day",
+    "title": "Swap Rate Limits",
+  },
+  {
+    "content": "Max slippage: 0.1%",
+    "title": "Maximum Slippage",
+  },
+  {
+    "content": "- Min lower tick limit: -276,334 (-0.1%)
+- Max upper tick limit: -276,314 (+0.1%)",
+    "title": "Tick Range and Width",
+  },
+  {
+    "content": "0.0005%",
+    "title": "Swap Fee",
+  },
+  {
+    "content": "The documents herein contain specific off-chain parameters for this Instance.",
+    "title": "Off-chain Operational Parameters",
+  },
+  {
+    "content": "The documents herein contain operational procedures or monitoring requirements unique to this Instance that deviate from or otherwise supplement the general Spark Liquidity Layer processes.",
+    "title": "Instance-specific Operational Processes",
+  },
+]
+`;
+
 exports[`allocation-system sub-doc content > Spark > Ethereum Mainnet - Uniswap v4 USDT/USDS Pool 1`] = `
 [
   {
@@ -10858,27 +11183,27 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 12,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 2101,
+  "cites": 2107,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
-  "defines_entity": 405,
+  "defines_entity": 408,
   "duty_for": 865,
   "ecosystem_accord": 20,
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 281,
+  "has_address": 285,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
-  "instance_of": 197,
+  "instance_of": 200,
   "integration_partner_of": 10,
   "invocation_of": 5,
-  "invoked_by": 202,
+  "invoked_by": 205,
   "listed_in": 51,
-  "located_at": 194,
-  "mentions": 662,
+  "located_at": 198,
+  "mentions": 669,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -12037,6 +12362,34 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Curve rlUSD/USDC for Swaps",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "N/A - swap only",
+      "Contract Addresses / Underlying Asset Address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "Inflow Rate Limits": "The inflow rate limits are:
+
+- maxAmount: N/A - swap only
+- slope: N/A - swap only",
+      "Network": "Ethereum Mainnet",
+      "Outflow Rate Limits": "The outflow rate limits are:
+
+- maxAmount: N/A - swap only
+- slope: N/A - swap only",
+      "Pool Address": "0xD001aE433f254283FeCE51d4ACcE8c53263aa186",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Swap Rate Limits / Max slippage": "0.1%",
+      "Swap Rate Limits / maxAmount": "5,000,000",
+      "Swap Rate Limits / slope": "25,000,000 per day",
+      "Target Protocol": "Curve",
+      "Token": "crv2pool",
+      "Token Address": "0xD001aE433f254283FeCE51d4ACcE8c53263aa186",
+      "Underlying Asset Address": "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-curve-rlusd-usdc-for-swaps",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
     "name": "Ethereum Mainnet - Curve sUSDS/USDT Pool",
     "params": {
       "Asset Supplied By Spark Liquidity Layer": "USDT",
@@ -12602,6 +12955,29 @@ exports[`instances > allocation-system instances 1`] = `
       "Token Address": "0xa632d59b9b804a956bfaa9b48af3a1b74808fc1f",
     },
     "slug": "spark-allocation-system-ethereum-mainnet-uniswap-v4-pyusd-usds-pool",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.1",
+    "name": "Ethereum Mainnet - Uniswap v4 USDG/USDS Pool",
+    "params": {
+      "Asset Supplied By Spark Liquidity Layer": "USDS and USDG",
+      "Inflow Rate Limits / maxAmount": "10,000,000",
+      "Inflow Rate Limits / slope": "100,000,000 per day",
+      "Maximum Slippage": "Max slippage: 0.1%",
+      "Network": "Ethereum Mainnet",
+      "Outflow Rate Limits / maxAmount": "Unlimited",
+      "Pool ID": "0x28adc7179a8a83c3379955d59563c0fec33eadfa83946b447af289190ff5fcff",
+      "Rate Limit IDs": "The specific \`RateLimitID\`(s) for this conduit’s inflow and outflow will be specified in a future iteration of the Spark Artifact.",
+      "Swap Fee": "0.0005%",
+      "Swap Rate Limits / maxAmount": "5,000,000",
+      "Swap Rate Limits / slope": "200,000,000 per day",
+      "Target Protocol": "Uniswap v4",
+      "Tick Range and Width": "- Min lower tick limit: -276,334 (-0.1%)
+- Max upper tick limit: -276,314 (+0.1%)",
+      "Token": "USDGUSDS",
+    },
+    "slug": "spark-allocation-system-ethereum-mainnet-uniswap-v4-usdg-usds-pool",
     "status": "Active",
   },
   {
@@ -13261,6 +13637,42 @@ exports[`instances > allocation-system instances 1`] = `
   },
   {
     "agent": "A.6.1.1.2",
+    "name": "Ethereum Mainnet - Grove Diamond PAU Uniswap v3 AUSD/USDC",
+    "params": {
+      "Aggregate Deposit RateLimitID": "The aggregate deposit RateLimitID is: \`0xd3384d5424cd179640223010fed859f38b86b26e5e0b9ee88b87321b98882f57\`.",
+      "Aggregate Withdrawal RateLimitID": "The aggregate withdrawal RateLimitID is: \`0xbe8cbf4b779bbe60101d88f64a8afcc8fdf78863df4303da9047b66fcf427734\`.",
+      "Asset Supplied By Grove Liquidity Layer": "USDC and AUSD",
+      "CRR": "The CRR for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+      "Deposit Rate Limits": "The deposit rate limits are:
+
+- Aggregate: \`maxAmount\`: 5,000,000 (normalized), \`slope\`: 0
+- AUSD: \`maxAmount\`: 5,000,000 AUSD, \`slope\`: 0
+- USDC: \`maxAmount\`: 5,000,000 USDC, \`slope\`: 0",
+      "Deposit RateLimitID (AUSD)": "The deposit RateLimitID for AUSD is: \`0x89c0cb8c17898781d7c1776eafcf73fd0b570659ad5c3791ddcbefe66b001541\`.",
+      "Deposit RateLimitID (USDC)": "The deposit RateLimitID for USDC is: \`0x71efb11b03476e40dcc1ade629d360114fcbf838d70a3211270f69414ba9a187\`.",
+      "Maximum Exposure": "Total exposure through this Instance may not exceed 5,000,000 USDS.",
+      "Network": "Ethereum Mainnet",
+      "Pool Address": "0xbAFeAd7c60Ea473758ED6c6021505E8BBd7e8E5d",
+      "Swap Rate Limits / maxSlippage": "0.1%",
+      "Swap RateLimitID (AUSD)": "0x7dd93dac252469b97c259284118454a6a09efd0e5f781dec59acc240f8f88402",
+      "Swap RateLimitID (USDC)": "0x6e850dcb18bea10055c82d1e3753f551b1228d04b81350ba117235de19f9a0da",
+      "Target Protocol": "Uniswap v3 AUSD/USDC",
+      "Token": "Uniswap V3 AUSD/USDC Pool",
+      "Underlying Asset Address (AUSD)": "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a",
+      "Underlying Asset Address (USDC)": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "Withdrawal Rate Limits": "The withdrawal rate limits are:
+
+- Aggregate: \`maxAmount\`: Unlimited
+- AUSD: \`maxAmount\`: Unlimited
+- USDC: \`maxAmount\`: Unlimited",
+      "Withdrawal RateLimitID (AUSD)": "The withdrawal RateLimitID for AUSD is: \`0xf353a8cb19089be9c21260f788c98069b2cef6a8a4bf9d061b3e5e7629a85671\`.",
+      "Withdrawal RateLimitID (USDC)": "The withdrawal RateLimitID for USDC is: \`0x17c7a2da0785bd1ad67b8207080dbc243cfc4e573cbac18a68d0bd4b788a1dfc\`.",
+    },
+    "slug": "grove-allocation-system-ethereum-mainnet-grove-diamond-pau-uniswap-v3-ausd-usdc",
+    "status": "Active",
+  },
+  {
+    "agent": "A.6.1.1.2",
     "name": "Ethereum Mainnet - Grove x Steakhouse AUSD Morpho Vault V2",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "AUSD",
@@ -13324,8 +13736,8 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - Maple syrupUSDC",
     "params": {
       "Asset Supplied By Grove Liquidity Layer": "USDC",
-      "Deposit Rate Limits / maxAmount": "50,000,000 USDC",
-      "Deposit Rate Limits / slope": "50,000,000 USDC per day",
+      "Deposit Rate Limits / maxAmount": "0",
+      "Deposit Rate Limits / slope": "0",
       "Inflow RateLimitID": "0x99a69e57b2f387f999d6adff6eb2e707b59fdb54f06ca6211b4f20956e9bfe10",
       "Max Exchange Rate": "setMaxExchangeRate(MAPLE_SYRUP_USDC, 1e6, 3e6)",
       "Maximum Exposure": "The Maximum Exposure for this Instance is 0 USD.",
@@ -14160,7 +14572,7 @@ exports[`instances > instance counts by type 1`] = `
 {
   "agent-creation": 8,
   "agent-token": 8,
-  "allocation-system": 115,
+  "allocation-system": 118,
   "core-governance-reward": 1,
   "distribution-reward": 13,
   "ecosystem-upkeep-fee": 8,
