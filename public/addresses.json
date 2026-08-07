@@ -2473,6 +2473,37 @@
       "ethereum"
     ]
   },
+  "0xd001ae433f254283fece51d4acce8c53263aa186": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "CurveStableSwapNG",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "StablecoinProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0x73e65dbd630f90604062f6e02fab9138e713edd9": {
     "chain": "ethereum",
     "chains": [
@@ -3870,6 +3901,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3884,6 +3916,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "RateLimits",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -4140,22 +4173,6 @@
       "ethereum"
     ]
   },
-  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "StablecoinProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x68215b6533c47ff9f7125ac95adf00fe4a62f79e": {
     "chain": "ethereum",
     "chains": [
@@ -4181,21 +4198,6 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x9eb507147b99d3cde32a53bd5cd12bdeeac26e5c",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xd001ae433f254283fece51d4acce8c53263aa186": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "CurveStableSwapNG",
-    "isContract": true,
-    "isProxy": false,
     "codeByChain": {
       "ethereum": true
     },
@@ -4836,6 +4838,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "VaultV2",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
