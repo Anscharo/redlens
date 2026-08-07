@@ -34,7 +34,7 @@
 -->
 
 ## 2026-08-07
-- Added a Features page — a guide to everything you can do in Sky Atlas by Redline, with a short how-to for each feature
+- Added a Features page, reachable from the help (?) icon in the top bar, guiding you through everything you can do with a short how-to for each feature
 
 ## 2026-08-06
 - Hovering an on-chain address now shows its name and any token balances it holds
