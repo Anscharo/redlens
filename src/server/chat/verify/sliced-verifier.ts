@@ -10,9 +10,11 @@
 import { callWithTimeout, type JsonCall } from "../llm.ts";
 import { config } from "../../config.ts";
 import { captureEvent, type ErrorContext } from "../../posthog-node.ts";
+import type { Indexes } from "../../retrieval/indexes.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { EvidenceEntry, Verdict, VerifierRun } from "./verifier.ts";
 import { runSlice, type SliceName, type SliceResult } from "./verifier-slices.ts";
+import { auditAbsenceClaim } from "./absence.ts";
 
 export const SLICES: SliceName[] = ["claims", "figures", "sets", "overreach"];
 
@@ -28,21 +30,52 @@ export function sliceModels(): Record<SliceName, string> {
   return { claims: of("claims"), figures: of("figures"), sets: of("sets"), overreach: of("overreach") };
 }
 
-export function mergeSlices(results: SliceResult[]): Verdict | null {
+// Absence contract, applied inline while flattening slice claims into the
+// Verdict shape (docs/research/synlang-wiki.md §3.1, verify/absence.ts): a
+// claim marked `absence: true` and `supported` by its slice no longer gets a
+// free pass — it is checked against the parameter table and the turn's raw
+// evidence. Only `absence && supported` claims are touched; contradicted/
+// unsupported absence claims (the model already flagged trouble) pass through
+// untouched, and non-absence claims are never in scope.
+function auditedClaim(
+  c: SliceResult["claims"][number],
+  ix: Indexes,
+  evidenceTexts: string[],
+): { status: SliceResult["claims"][number]["status"]; note: string | null } {
+  if (!c.absence || c.status !== "supported") return { status: c.status, note: null };
+  const audit = auditAbsenceClaim(c.claim, evidenceTexts, ix);
+  if (audit.outcome === "refuted") return { status: "contradicted", note: `absence-refuted: ${audit.detail}` };
+  if (audit.outcome === "unverified") return { status: "unsupported", note: "absence-unverified" };
+  return { status: c.status, note: `absence-grounded(${audit.detail.replace(/^grounded:\s*/, "")})` };
+}
+
+export function mergeSlices(results: SliceResult[], ix: Indexes, evidenceTexts: string[]): Verdict | null {
   const parsed = results.filter((r) => r.parsed);
   if (parsed.length === 0) return null;
+  let absenceRefuted = 0;
+  let absenceUnverified = 0;
+  let firstRefutedDetail = "";
   const claims: Verdict["claims"] = parsed
     .filter((r) => r.slice !== "overreach")
     .flatMap((r) =>
-      r.claims.map((c) => ({
-        claim: c.claim,
-        status: c.status,
-        evidence: c.span ? [c.span.slice(0, 160)] : [],
-        cited_uuid: null,
-        note: [r.slice, c.absence ? "absence" : null, c.spanValid === false ? `span-invalid(${(c.spanScore ?? 0).toFixed(2)})` : null]
-          .filter(Boolean)
-          .join(" · "),
-      })),
+      r.claims.map((c) => {
+        const audited = auditedClaim(c, ix, evidenceTexts);
+        if (audited.note?.startsWith("absence-refuted: ")) {
+          absenceRefuted++;
+          firstRefutedDetail ||= audited.note.slice("absence-refuted: ".length);
+        } else if (audited.note === "absence-unverified") {
+          absenceUnverified++;
+        }
+        return {
+          claim: c.claim,
+          status: audited.status,
+          evidence: c.span ? [c.span.slice(0, 160)] : [],
+          cited_uuid: null,
+          note: [r.slice, c.absence ? "absence" : null, c.spanValid === false ? `span-invalid(${(c.spanScore ?? 0).toFixed(2)})` : null, audited.note]
+            .filter(Boolean)
+            .join(" · "),
+        };
+      }),
     );
   const rulingIssued = parsed.find((r) => r.slice === "overreach")?.rulingIssued ?? false;
   const anyBad = rulingIssued || claims.some((c) => c.status !== "supported");
@@ -51,6 +84,12 @@ export function mergeSlices(results: SliceResult[]): Verdict | null {
   const feedback = [
     ...parsed.filter((r) => r.notes).map((r) => `${r.slice}: ${r.notes}`),
     spanKilled ? `${spanKilled} claim(s) demoted to unsupported: their quoted evidence spans were not found in the evidence.` : "",
+    absenceRefuted
+      ? `${absenceRefuted} absence claim${absenceRefuted === 1 ? "" : "s"} refuted by the parameter table (${firstRefutedDetail}) — the answer must state the real value.`
+      : "",
+    absenceUnverified
+      ? `${absenceUnverified} absence claim${absenceUnverified === 1 ? "" : "s"} unverified — requery (atlas_params or atlas_search) to confirm the gap before asserting it.`
+      : "",
   ]
     .filter(Boolean)
     .join(" ")
@@ -61,6 +100,7 @@ export function mergeSlices(results: SliceResult[]): Verdict | null {
 export async function runSlicedVerifier(params: {
   call: JsonCall;
   models: Record<SliceName, string>;
+  ix: Indexes;
   question: string;
   answer: string;
   evidence: EvidenceEntry[];
@@ -92,7 +132,7 @@ export async function runSlicedVerifier(params: {
   }
   const used = results.filter((r) => r.usage);
   return {
-    verdict: mergeSlices(results),
+    verdict: mergeSlices(results, params.ix, params.evidence.map((e) => e.content)),
     usage: used.length
       ? { input: used.reduce((s, r) => s + (r.usage?.input ?? 0), 0), output: used.reduce((s, r) => s + (r.usage?.output ?? 0), 0) }
       : null,

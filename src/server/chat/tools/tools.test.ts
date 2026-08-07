@@ -5,6 +5,7 @@
 // mode/phrase-filter branches, and atlasGetAddress's DB + graph-edge path.
 import { test, expect, mock, beforeEach } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity, type Edge, type Indexes } from "../../retrieval/indexes.ts";
+import { config } from "../../config.ts";
 
 function mockDb(rows: unknown[] = []) {
   const fn = Object.assign(
@@ -36,6 +37,10 @@ function makeIx(): Indexes {
     doc("D0", "A.1", "Core", 1, null, "Sky Atlas governance root document about the USDS token and PSM facilitator duties."),
     doc("D1", "A.1.1", "Core", 2, "D0", 'A quoted phrase test: "USDS PSM" appears here verbatim.'),
     doc("D2", "A.1.2", "Core", 2, "D0", "unrelated content about oracles"),
+    // Empty, childless doc — buildLivenessMap's childless-empty-stub rule tags
+    // it "placeholder" with no extra fixture machinery (no need to fake a
+    // conceptsCensus registry to exercise "scaffold").
+    doc("D3", "A.2", "Core", 1, null, ""),
   ];
   const edges: Edge[] = [
     edge(1, "D0", "doc", "D1", "doc", "parent_of"),
@@ -69,6 +74,30 @@ test("atlasGet(single) returns {error} for an unresolvable id", async () => {
   const { atlasGet } = await import("./tools.ts");
   const ix = makeIx();
   expect(atlasGet(ix, "nope")).toEqual({ error: "Not found" });
+});
+
+// ── liveness tagging (docs/research/synlang-wiki.md §3.2) ────────────────────
+test("atlasGet tags a liveness-flagged doc and adds the envelope hint; a settled doc carries neither", async () => {
+  mockDb([]);
+  const { atlasGet } = await import("./tools.ts");
+  const ix = makeIx();
+  const tagged = atlasGet(ix, "D3") as Record<string, unknown>;
+  expect(tagged.liveness).toBe("placeholder");
+  expect(tagged.liveness_hint).toContain("liveness:placeholder = content not yet specified.");
+
+  const settled = atlasGet(ix, "D1") as Record<string, unknown>;
+  expect(settled.liveness).toBeUndefined();
+  expect(settled.liveness_hint).toBeUndefined();
+});
+
+test("atlasGet(bulk) tags flagged results and adds one envelope-level hint covering the batch", async () => {
+  mockDb([]);
+  const { atlasGet } = await import("./tools.ts");
+  const ix = makeIx();
+  const res = atlasGet(ix, ["D1", "D3"]) as { results: Array<Record<string, unknown>>; liveness_hint?: string };
+  expect(res.results[0].liveness).toBeUndefined();
+  expect(res.results[1].liveness).toBe("placeholder");
+  expect(res.liveness_hint).toBeDefined();
 });
 
 // ── atlas_search: modes + phrase filter ──────────────────────────────────────
@@ -113,9 +142,67 @@ test("atlasSearch mode=semantic returns no results with no embedding API key con
   mockDb([]);
   const { atlasSearch } = await import("./tools.ts");
   const ix = makeIx();
-  const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "semantic" })) as { mode: string; count: number };
+  const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "semantic" })) as {
+    mode: string;
+    count: number;
+    semantic_skipped?: string;
+  };
   expect(res.mode).toBe("semantic");
   expect(res.count).toBe(0);
+  // Missing key is a permanent config state, not a runtime degradation — the
+  // field must be absent, not present-with-null, or every keyless dev result
+  // would carry a spurious "skipped" note.
+  expect(res.semantic_skipped).toBeUndefined();
+});
+
+// ── atlas_search: semantic_skipped envelope field ────────────────────────────
+test("atlasSearch surfaces semantic_skipped when a hybrid search's embed leg times out at runtime", async () => {
+  mockDb([]);
+  const prevKey = config.openrouterApiKey;
+  const prevTimeout = config.semanticEmbedTimeoutMs;
+  const prevFetch = globalThis.fetch;
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 20;
+  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch; // hangs → timeout
+  try {
+    const { atlasSearch } = await import("./tools.ts");
+    const ix = makeIx();
+    const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "hybrid" })) as {
+      mode: string;
+      semantic_skipped?: string;
+      results: Array<{ id: string }>;
+    };
+    expect(res.semantic_skipped).toMatch(/embed timed out after 20ms/);
+    // Degrades to lexical-only rather than losing the whole search.
+    expect(res.results.some((r) => r.id === "D0")).toBe(true);
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.semanticEmbedTimeoutMs = prevTimeout;
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test("atlasSearch mode=lexical never surfaces semantic_skipped, even if the semantic leg would have failed", async () => {
+  mockDb([]);
+  const prevKey = config.openrouterApiKey;
+  const prevTimeout = config.semanticEmbedTimeoutMs;
+  const prevFetch = globalThis.fetch;
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 20;
+  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+  try {
+    const { atlasSearch } = await import("./tools.ts");
+    const ix = makeIx();
+    const res = (await atlasSearch(ix, { query: "governance", k: 5, mode: "lexical" })) as {
+      semantic_skipped?: string;
+    };
+    // mode=lexical never runs the semantic leg at all, so there's nothing to report.
+    expect(res.semantic_skipped).toBeUndefined();
+  } finally {
+    config.openrouterApiKey = prevKey;
+    config.semanticEmbedTimeoutMs = prevTimeout;
+    globalThis.fetch = prevFetch;
+  }
 });
 
 test("atlasSearch supports a type filter", async () => {
@@ -124,6 +211,22 @@ test("atlasSearch supports a type filter", async () => {
   const ix = makeIx();
   const res = (await atlasSearch(ix, { query: "governance", k: 5, type: "Core", mode: "lexical" })) as { count: number };
   expect(res.count).toBeGreaterThan(0);
+});
+
+test("atlasSearch tags a liveness-flagged hit and adds ONE envelope-level hint, not one per row", async () => {
+  mockDb([]);
+  const { atlasSearch } = await import("./tools.ts");
+  const ix = makeIx();
+  const res = (await atlasSearch(ix, { query: "D3", k: 10, mode: "lexical" })) as {
+    results: Array<{ id: string; liveness?: string }>;
+    liveness_hint?: string;
+  };
+  expect(res.results.some((r) => r.id === "D3" && r.liveness === "placeholder")).toBe(true);
+  expect(res.liveness_hint).toBeDefined();
+
+  // No tagged hits in the result set → no hint at all.
+  const clean = (await atlasSearch(ix, { query: "governance", k: 10, mode: "lexical" })) as { liveness_hint?: string };
+  expect(clean.liveness_hint).toBeUndefined();
 });
 
 // ── atlas_get_address ──────────────────────────────────────────────────────

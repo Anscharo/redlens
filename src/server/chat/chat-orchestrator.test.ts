@@ -225,16 +225,59 @@ test("verifier pass: checking status, verify_result pass, no advisor call", () =
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
 
+test("[E-const] standing evidence: included when the answer mentions a known parameter, absent otherwise", () =>
+  withModels("strong/verifier", "", async () => {
+    const captured: string[] = [];
+    const jsonCall: JsonCall = async ({ messages }) => {
+      captured.push((messages as Msg[]).map((m) => m.content as string).join("\n"));
+      return { text: PASS, usage: { input: 10, output: 5 }, generationId: "g", latencyMs: 5 };
+    };
+    // Keel's "USDS Mint Maximum" doc (verified real-corpus ground truth, see
+    // docs/research/synlang-wiki.md §3.1 background) — a known, safely
+    // title-matchable parameter (verify-checks.ts's findParamsMentioned).
+    const withParam = "Keel's USDS mint maximum is 10,000 USDS.";
+    await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk(withParam), finishChunk("stop")]]),
+        jsonCall,
+      }),
+    );
+    expect(captured[0]).toContain("[E-const]");
+    expect(captured[0]).toContain("atlas_param_table");
+    expect(captured[0]).toContain("maxamount");
+
+    captured.length = 0;
+    const withoutParam = "The weather report has nothing to do with atlas governance parameters.";
+    await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk(withoutParam), finishChunk("stop")]]),
+        jsonCall,
+      }),
+    );
+    expect(captured[0]).not.toContain("[E-const]");
+  }));
+
 test("sliced mode: four concurrent slice audits merge into one verdict + pass badge", () =>
   withModels("strong/verifier", "", async () => {
     // Same scripted text for all four slices: one supported absence claim
-    // (span-exempt, so validation can't demote it) and no ruling.
+    // (span-exempt, so validation can't demote it) and no ruling. Grounded via
+    // a real scaffold-tagged doc fetched this turn (src/lib/liveness.ts,
+    // surfaced by tools.ts's withLivenessHint) so the absence contract
+    // (verify/absence.ts, wired in sliced-verifier.ts's mergeSlices) doesn't
+    // downgrade it to unverified — a bare "x" claim with no grounding at all
+    // now correctly lands as unverified/warn, see the dedicated absence tests.
+    const [scaffoldUuid] = [...ix.liveness.entries()].find(([, v]) => v === "scaffold")!;
     const SLICE_OK = '{"claims":[{"claim":"x","status":"supported","span":"","absence":true}],"ruling_issued":false,"notes":""}';
     const jsonCalls: { model: string }[] = [];
     const events = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
-        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        stream: fakeStream([
+          [toolChunk("atlas_get", JSON.stringify({ id: scaffoldUuid })), finishChunk("tool_calls")],
+          [textChunk("Answer."), finishChunk("stop")],
+        ]),
         jsonCall: fakeJson([SLICE_OK], jsonCalls),
       }),
     );

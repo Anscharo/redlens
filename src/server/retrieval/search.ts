@@ -25,6 +25,17 @@ export interface Hit {
   source: "lexical" | "semantic";
 }
 
+// `skipped` carries a short reason when the semantic leg failed at RUNTIME
+// (embed timeout, provider error, pgvector error) — callers surface it to the
+// chat harness so degraded retrieval is visible instead of vanishing into a
+// console.warn. A missing OPENROUTER_API_KEY is a permanent config state, not
+// degradation, so it reports `skipped: null` (else every keyless dev result
+// would carry a "skipped" note).
+export interface SemanticResult {
+  hits: Hit[];
+  skipped: string | null;
+}
+
 export interface MergedHit {
   id: string;
   sources: string[];
@@ -55,42 +66,47 @@ export async function runSemantic(
   query: string,
   type: string | undefined,
   k: number,
-): Promise<Hit[]> {
-  if (!config.openrouterApiKey) return []; // no key → semantic leg silently empty
+): Promise<SemanticResult> {
+  if (!config.openrouterApiKey) return { hits: [], skipped: null }; // no key → permanent config state, not degradation
   // Bound the embed: on timeout or provider failure, degrade to lexical-only
   // instead of hanging the whole retrieve (embedBatch's backoff can reach ~15s,
   // which blew the e2e atlas_query timeout). Lexical hits still answer the query.
   // The AbortController makes the timeout real — it cancels the in-flight fetch +
   // retry loop, not just the wrapper promise, so a slow provider doesn't leave
   // background embed work piling up per query.
+  //
+  // The try covers the embed AND the pgvector query: either can fail at
+  // runtime, and both must degrade to lexical-only with a reported reason
+  // instead of throwing into the caller (a bare pgvector error used to escape
+  // uncaught, silently swallowed by the caller's own `.catch(() => [])`).
   const ac = new AbortController();
-  let vec: number[];
   try {
-    vec = await withTimeout(embedQuery(query, ac.signal), config.semanticEmbedTimeoutMs, "embed");
-  } catch (err) {
-    ac.abort();
-    console.warn(`  semantic leg skipped: ${(err as Error).message}`);
-    return [];
-  }
-  const lit = toVectorLiteral(vec);
-  const overFetch = type ? Math.min(k * 4, 200) : k;
-  const rows = (await sql.unsafe(
-    `SELECT m.id, m.type, 1 - (e.embedding <=> $1::vector) AS score
-     FROM atlas_doc_embeddings e JOIN atlas_doc_meta m ON m.id = e.doc_id
-     ORDER BY e.embedding <=> $1::vector LIMIT $2`,
-    [lit, overFetch],
-  )) as { id: string; type: string; score: number }[];
+    const vec = await withTimeout(embedQuery(query, ac.signal), config.semanticEmbedTimeoutMs, "embed");
+    const lit = toVectorLiteral(vec);
+    const overFetch = type ? Math.min(k * 4, 200) : k;
+    const rows = (await sql.unsafe(
+      `SELECT m.id, m.type, 1 - (e.embedding <=> $1::vector) AS score
+       FROM atlas_doc_embeddings e JOIN atlas_doc_meta m ON m.id = e.doc_id
+       ORDER BY e.embedding <=> $1::vector LIMIT $2`,
+      [lit, overFetch],
+    )) as { id: string; type: string; score: number }[];
 
-  const out: Hit[] = [];
-  for (const r of rows) {
-    // Rows are ordered by ascending distance (descending cosine), so once one
-    // falls below the relevance floor, every later row does too — stop.
-    if (r.score < config.semanticMinScore) break;
-    if (type && r.type !== type) continue;
-    out.push({ id: r.id, rank: out.length, score: r.score, source: "semantic" });
-    if (out.length >= k) break;
+    const out: Hit[] = [];
+    for (const r of rows) {
+      // Rows are ordered by ascending distance (descending cosine), so once one
+      // falls below the relevance floor, every later row does too — stop.
+      if (r.score < config.semanticMinScore) break;
+      if (type && r.type !== type) continue;
+      out.push({ id: r.id, rank: out.length, score: r.score, source: "semantic" });
+      if (out.length >= k) break;
+    }
+    return { hits: out, skipped: null };
+  } catch (err) {
+    ac.abort(); // no-op if the failure was past the embed stage
+    const reason = (err as Error).message;
+    console.warn(`  semantic leg skipped: ${reason}`);
+    return { hits: [], skipped: reason };
   }
-  return out;
 }
 
 export function rrfMerge(lex: Hit[], sem: Hit[]): MergedHit[] {

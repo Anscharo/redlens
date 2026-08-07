@@ -65,9 +65,13 @@ Uses, in ascending ambition:
 
 Effort: one pure extraction module in `src/lib/` + a check in `verify-checks.ts`. No model in the loop, reproducible, testable.
 
+**STATUS: BUILT 2026-08-07.** `src/lib/paramIndex.ts` (1,019 rows on the live corpus, 27ms build, in `buildIndexes()`); `findParamMismatches` hard check + absence-claim contract (`verify/absence.ts`: refuted → contradicted, grounded via scaffold/empty evidence, else unverified → requery steer) replacing the sliced verifier's blanket absence exemption; filtered `[E-const]` verifier evidence; `atlas_params` lookup tool. One implementation finding worth keeping: raw kv-key names (`maxamount`) never appear in natural answer phrasing — matching needed a doc-title fallback plus three ambiguity gates (kv-key reuse across per-token docs, multi-param title docs, subset-name shadowing), swept to 0 false positives across all 1,019 rows phrased as correct-value sentences. Cost: only ~⅓ of (title,owner) keys are unambiguously checkable — precision over recall, as designed.
+
 ### 3.2 Settled/abandoned tags in retrieval (reliability, not tokens)
 
 The clearest reliability lesson from the corpus itself: half the frozen layer is scaffolding, and a chatbot that retrieves a "Lawyer Registry" doc without knowing the registry is empty overclaims. The censuses already compute liveness; surfacing a `settled | scaffold | placeholder` tag on retrieved docs (in tool results, so both the answerer and the verifier see it) attacks a real failure mode the system prompt currently handles only by exhortation ("a document existing FOR an entity does NOT mean…").
+
+**STATUS: BUILT 2026-08-07.** `src/lib/liveness.ts` (1,224 tagged of 11,149 docs: 962 scaffold from the two structural censuses, 262 placeholder from tuned stub phrases with a 200-char remainder gate), in `buildIndexes()`; tags + one neutral envelope hint ride atlas_get/search/query/neighbors/filter/entity rows; the absence contract reads the tags as grounding. Known gap: prose-declared emptiness ("There are no active legal counsels") is untagged — the structural rule doesn't see it; candidate future heuristic. Inactive Global Activation stays untagged by design (38% steady-state rate = real configuration, not scaffolding).
 
 ### 3.3 A system-prompt "constitutional card" (worth an experiment, strictly bounded)
 

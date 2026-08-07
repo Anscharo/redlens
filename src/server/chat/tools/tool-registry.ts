@@ -10,6 +10,7 @@ import { atlasDescribe, atlasGet, atlasSearch, atlasGetAddress, type ToolResult,
 import { atlasQuery, type QueryArgs } from "../../retrieval/query.ts";
 import { atlasQueryShape } from "../../retrieval/query-schema.ts";
 import { atlasNeighbors, atlasTraverse, atlasEntity, atlasEntities, atlasEdges, atlasFilter, atlasEntityParams } from "./tools-graph.ts";
+import { atlasParams } from "./tools-params.ts";
 import { atlasHistory, atlasRecentChanges, atlasHistoryStats, atlasPr, atlasChangedBetween } from "./tools-history.ts";
 import {
   buildMultisigsReport,
@@ -306,6 +307,23 @@ export const ATLAS_TOOLS: AtlasTool[] = [
       limit: z.number().int().min(1).max(200).default(50),
     },
     handler: (ix, a) => atlasEntityParams(ix, a as Parameters<typeof atlasEntityParams>[1]),
+  },
+  {
+    name: "atlas_params",
+    whenToUse:
+      "You need a configured governance/instance parameter VALUE by name (rate limit, cap, ratio, threshold, quorum) and don't know which doc holds it. Deterministic table lookup — prefer it over searching prose for numbers.",
+    annotations: readOnlyAtlasTool("Atlas Params"),
+    description:
+      "Deterministic parameter table extracted from doc content at index build time (docs/research/synlang-wiki.md " +
+      "§3.1) — name/value/unit/owner rows with source doc UUIDs, for rate limits, ratios, quorums, thresholds, and " +
+      "other configured numeric constants. Matches `q` against each row's name + owner + doc_no (every query token " +
+      "of 3+ characters must appear somewhere in that combined text). Returns `{ count, truncated?, rows }`; each " +
+      "row: `{ uuid, doc_no, name, value, unit, owner, context }`.",
+    shape: {
+      q: z.string().describe("Search text matched against parameter name, owner, and doc_no (e.g. 'keel maxAmount', 'liquidation ratio')."),
+      limit: z.number().int().min(1).max(100).default(25),
+    },
+    handler: (ix, a) => atlasParams(ix, { q: a.q as string, limit: (a.limit as number | undefined) ?? 25 }),
   },
   {
     name: "atlas_history",
