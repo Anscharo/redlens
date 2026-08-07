@@ -14,6 +14,7 @@ import { test, expect, mock, afterAll, beforeEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { PreviewMeta } from "./cache.ts";
 
 type AccessDecision = "ok" | "login-required" | "forbidden" | "unavailable";
 let accessDecision: AccessDecision = "ok";
@@ -160,7 +161,7 @@ async function freshHandler() {
 
 function makeReadyBundle(
   previewPaths: (sha: string) => { outDir: string },
-  writeMeta: (sha: string, meta: Record<string, unknown>) => void,
+  writeMeta: (sha: string, meta: PreviewMeta, root?: string) => void,
   sha: string,
   opts: { private?: boolean; repo?: string } = {},
 ): void {

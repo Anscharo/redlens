@@ -81,7 +81,7 @@ export async function authorizePreviewAccess(req: Request, repo: string): Promis
   // only (a stray/legacy row) — no Google-specific UX to build here.
   if (row.provider !== "github") return "forbidden";
 
-  // A GitHub user who logged in before migration 015 has a NULL
+  // A GitHub user who logged in before migration 018 has a NULL
   // github_login. That's not a permission denial — it's a stale row a fresh
   // login repopulates, so prompt re-login rather than a dead-end "forbidden".
   if (!row.github_login) return "login-required";

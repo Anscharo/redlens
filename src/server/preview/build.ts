@@ -299,7 +299,10 @@ async function runBuild(f: Inflight, resolved: Resolved): Promise<void> {
     // the existing service-token path. Checked before acquiring the build slot
     // so a dead installation never occupies a concurrency slot.
     const token = priv ? await installationToken(resolved.repo) : config.githubToken;
-    if (priv && !token) {
+    // Only the private path can yield null here (installationToken failed);
+    // the public path is config.githubToken, always a string. Narrowing on
+    // `== null` proves `token: string` below without a non-null assertion.
+    if (token == null) {
       fail(f, sha, "app-not-installed");
       return;
     }

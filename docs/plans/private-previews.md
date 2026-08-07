@@ -93,7 +93,7 @@ Gaps found in review (all closed in the implementation):
 | `previews.private`; exclude private from `/list`; `ON CONFLICT` | `src/server/preview/db.ts` |
 | Three fail-closed enforcement points + private headers | `src/server/preview/handler.ts` |
 | `auth-required` / `forbidden` / `app-not-installed` screens; PRIVATE chip | `src/components/preview/*` |
-| Columns `users.github_login`, `previews.private` | `src/server/migrations/015_private_previews.sql` |
+| Columns `users.github_login`, `previews.private` | `src/server/migrations/018_private_previews.sql` |
 
 ### The GitHub App permission check
 
@@ -114,7 +114,7 @@ installation) â€” our Contents+Metadata grant is more than enough. Rate limit â‰
 ## Rollout
 
 The feature is inert until the GitHub App is registered and `GITHUB_APP_ID` +
-`GITHUB_APP_PRIVATE_KEY` are set (`privatePreviewsEnabled`). Migration `015` is additive and
+`GITHUB_APP_PRIVATE_KEY` are set (`privatePreviewsEnabled`). Migration `018` is additive and
 safe to ship ahead of that. Public previews are entirely unaffected on every path.
 
 **Registering + installing the App:** see `docs/github-app-setup.md` for the step-by-step
