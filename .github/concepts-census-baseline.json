@@ -140,13 +140,13 @@
       },
       {
         "uuid": "1d0e0165-719b-4899-af1c-8a0366a058af",
-        "doc_no": "A.6.1.1.3.2.5.1.2.1.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.4.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
       {
         "uuid": "f7274663-4447-4ed3-9fb5-30c72e23802b",
-        "doc_no": "A.6.1.1.3.2.5.1.2.2.3.4.0.6.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.4.0.6.1",
         "title": "List Of Distribution Reward Payments",
         "bucket": "empty"
       },
@@ -2419,13 +2419,13 @@
         "uuid": "cc24f926-2163-46e6-a480-8d6365911553",
         "doc_no": "A.6.1.1.3.2.5.1.1.2",
         "title": "Active Instances Directory",
-        "bucket": "populated"
+        "bucket": "empty"
       },
       {
         "uuid": "7e800a1b-d86b-43f7-a227-a7ba94d264ef",
         "doc_no": "A.6.1.1.3.2.5.1.1.3",
         "title": "Completed Instances Directory",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "63d5ec68-45da-4146-b672-6b7bae2e9c21",
@@ -2449,13 +2449,13 @@
         "uuid": "4da74767-8e45-420c-9477-89b810654ab4",
         "doc_no": "A.6.1.1.3.2.5.1.2",
         "title": "Active Instances",
-        "bucket": "populated"
+        "bucket": "empty"
       },
       {
         "uuid": "15a011c4-a0bb-4fd4-bf9d-ff8b5ebc74a6",
         "doc_no": "A.6.1.1.3.2.5.1.3",
         "title": "Completed Instances",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "8aa73f62-1589-4f34-a14b-c95a4701eebc",
@@ -2515,13 +2515,13 @@
         "uuid": "0596e4e7-880f-42ce-96b8-00e8482837fb",
         "doc_no": "A.6.1.1.3.2.5.3.1.2",
         "title": "Active Instances Directory",
-        "bucket": "populated"
+        "bucket": "empty"
       },
       {
         "uuid": "e7dd62af-a742-4518-97a6-70b885ad67f6",
         "doc_no": "A.6.1.1.3.2.5.3.1.3",
         "title": "Completed Instances Directory",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "6b836e0a-37cd-4e54-9479-1cf54ee4088c",
@@ -2545,13 +2545,13 @@
         "uuid": "5d043c09-1d78-456d-b356-c72a13fe46c8",
         "doc_no": "A.6.1.1.3.2.5.3.2",
         "title": "Active Instances",
-        "bucket": "populated"
+        "bucket": "empty"
       },
       {
         "uuid": "4ddfaa41-e902-4d6a-a915-6d999c502a34",
         "doc_no": "A.6.1.1.3.2.5.3.3",
         "title": "Completed Instances",
-        "bucket": "empty"
+        "bucket": "populated"
       },
       {
         "uuid": "079d3d3d-2549-4216-bc56-84af879ef929",
@@ -7948,12 +7948,12 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1059,
+      "total": 1060,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 211,
+      "Parameters": 212,
       "Rate Limits": 131,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
@@ -7994,6 +7994,12 @@
       {
         "uuid": "86c75c9c-3803-48c1-a897-88d2be7aeb0e",
         "doc_no": "A.3.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "18e80e4a-ce0f-4dc4-87f1-d58252935860",
+        "doc_no": "A.3.5.2.4.2",
         "title": "Parameters",
         "bucket": "Parameters"
       },
@@ -10867,49 +10873,49 @@
       },
       {
         "uuid": "70bdfca7-9103-47a8-91eb-47c5eb727933",
-        "doc_no": "A.6.1.1.3.2.5.1.2.1.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "764fdbd7-a8a6-4da5-bd3e-c6f5471afd91",
-        "doc_no": "A.6.1.1.3.2.5.1.2.1.3.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.1",
         "title": "Initial Planning",
         "bucket": "Initial Planning"
       },
       {
         "uuid": "634e03bc-fc80-4b2c-9182-0b3ae4386f0e",
-        "doc_no": "A.6.1.1.3.2.5.1.2.1.3.2",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.2",
         "title": "Operational GovOps Review",
         "bucket": "Operational GovOps Review"
       },
       {
         "uuid": "a2eeb79e-bb70-4f25-a106-18bacd69b5ab",
-        "doc_no": "A.6.1.1.3.2.5.1.2.1.3.3",
+        "doc_no": "A.6.1.1.3.2.5.1.3.1.3.3",
         "title": "Artifact Edit Proposal",
         "bucket": "Artifact Edit Proposal"
       },
       {
         "uuid": "4fcd06bc-72fd-4cce-83fd-5b1a7dda3a4a",
-        "doc_no": "A.6.1.1.3.2.5.1.2.2.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.1",
         "title": "Parameters",
         "bucket": "Parameters"
       },
       {
         "uuid": "90352ea8-67ed-4148-8594-bb66826b2ad9",
-        "doc_no": "A.6.1.1.3.2.5.1.2.2.3.1",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.1",
         "title": "Initial Planning",
         "bucket": "Initial Planning"
       },
       {
         "uuid": "1f8b494d-a550-4fb7-adff-8afe9301b006",
-        "doc_no": "A.6.1.1.3.2.5.1.2.2.3.2",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.2",
         "title": "Operational GovOps Review",
         "bucket": "Operational GovOps Review"
       },
       {
         "uuid": "4da0eb19-7721-4249-994e-91c86695b785",
-        "doc_no": "A.6.1.1.3.2.5.1.2.2.3.3",
+        "doc_no": "A.6.1.1.3.2.5.1.3.2.3.3",
         "title": "Artifact Edit Proposal",
         "bucket": "Artifact Edit Proposal"
       },
@@ -11071,7 +11077,7 @@
       },
       {
         "uuid": "c4a101cc-2c82-4fba-8811-bf84829eead1",
-        "doc_no": "A.6.1.1.3.2.5.3.2.1.1",
+        "doc_no": "A.6.1.1.3.2.5.3.3.1.1",
         "title": "Parameters",
         "bucket": "Parameters"
       },
@@ -14820,8 +14826,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 138,
-      "groups": 62
+      "total": 153,
+      "groups": 63
     },
     "members": [
       {
@@ -14959,8 +14965,8 @@
       {
         "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
         "doc_no": "A.2.2.10.1.1.1.4.2.1",
-        "title": "Aave Facet",
-        "bucket": "aave facet"
+        "title": "Aave v3 Facet",
+        "bucket": "aave v3 facet"
       },
       {
         "uuid": "d9cbf883-119e-403d-8efa-125997cd8897",
@@ -14975,16 +14981,40 @@
         "bucket": "psm facet"
       },
       {
-        "uuid": "917e1162-3c06-4508-b0e9-02c5eefc1346",
-        "doc_no": "A.2.2.10.1.1.1.4.2.22",
-        "title": "USDS Facet",
-        "bucket": "usds facet"
-      },
-      {
         "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
         "doc_no": "A.2.2.10.1.1.1.5.2",
         "title": "Diamond PAU Controller Functions",
         "bucket": "diamond pau controller functions"
+      },
+      {
+        "uuid": "e679e470-17f3-40ef-b455-dd424a498992",
+        "doc_no": "A.2.2.10.1.1.1.5.2.2",
+        "title": "Aave v3 Facet",
+        "bucket": "aave v3 facet"
+      },
+      {
+        "uuid": "7ab0c0f2-fc41-4b3f-9dc8-e62463bb3e62",
+        "doc_no": "A.2.2.10.1.1.1.5.2.3",
+        "title": "Basin Facet",
+        "bucket": "basin facet"
+      },
+      {
+        "uuid": "6d22c2b8-bc80-4248-a690-7b858c925014",
+        "doc_no": "A.2.2.10.1.1.1.5.2.4",
+        "title": "PSM Facet",
+        "bucket": "psm facet"
+      },
+      {
+        "uuid": "32d3213a-e40a-4169-94d7-e65bb6c23c19",
+        "doc_no": "A.2.2.10.1.1.1.5.2.5.1",
+        "title": "Add Liquidity To Uniswap v3",
+        "bucket": "add liquidity to uniswap v3"
+      },
+      {
+        "uuid": "e37d1163-b801-4cba-ab3a-2440a1f36ae6",
+        "doc_no": "A.2.2.10.1.1.1.5.2.5.2",
+        "title": "Remove Liquidity From Uniswap v3",
+        "bucket": "remove liquidity from uniswap v3"
       },
       {
         "uuid": "1cb17b82-a294-4942-8183-4d90b224a79d",
@@ -15207,6 +15237,60 @@
         "doc_no": "A.3.5.1.1.1",
         "title": "Current Value",
         "bucket": "current value"
+      },
+      {
+        "uuid": "6c389eb2-8f50-4b6b-ad77-deb27c9f9fb0",
+        "doc_no": "A.3.5.2.4.1.4",
+        "title": "Tau Definition",
+        "bucket": "tau definition"
+      },
+      {
+        "uuid": "335c6d95-56ac-46b8-a15a-7bfc748fb5e7",
+        "doc_no": "A.3.5.2.4.3",
+        "title": "Parameter Adjustments",
+        "bucket": "parameter adjustments"
+      },
+      {
+        "uuid": "2674da52-7a73-447f-811e-7dd40d23559f",
+        "doc_no": "A.3.5.2.4.5",
+        "title": "Operators",
+        "bucket": "operators"
+      },
+      {
+        "uuid": "adf22311-1610-4da8-881e-29e00c590497",
+        "doc_no": "A.3.5.2.4.5.1",
+        "title": "Operator Multisig",
+        "bucket": "operator multisig"
+      },
+      {
+        "uuid": "3bd78b59-47da-4c65-b07c-9d19936d40ac",
+        "doc_no": "A.3.5.2.4.5.1.1",
+        "title": "Operator Multisig Address",
+        "bucket": "operator multisig address"
+      },
+      {
+        "uuid": "7ac2cb75-152e-45dc-8303-62e4fbc1b4f3",
+        "doc_no": "A.3.5.2.4.5.1.2",
+        "title": "Operator Multisig Required Number Of Signers",
+        "bucket": "operator multisig required number of signers"
+      },
+      {
+        "uuid": "91992754-8cef-4f78-9ac1-21e6abe6dc5d",
+        "doc_no": "A.3.5.2.4.5.1.3",
+        "title": "Operator Multisig Signers",
+        "bucket": "operator multisig signers"
+      },
+      {
+        "uuid": "573251d9-8d1a-417d-a113-74c327eb88c2",
+        "doc_no": "A.3.5.2.4.5.1.4",
+        "title": "Operator Multisig Usage Standards",
+        "bucket": "operator multisig usage standards"
+      },
+      {
+        "uuid": "5c65c1e4-b03a-4f5c-b665-6dc4abcec1be",
+        "doc_no": "A.3.5.2.4.5.1.5",
+        "title": "Operator Multisig Modification",
+        "bucket": "operator multisig modification"
       },
       {
         "uuid": "1896350c-5f87-4be5-b32f-f1114dc2c271",
@@ -15533,6 +15617,18 @@
         "bucket": "controller role"
       },
       {
+        "uuid": "222d77a8-3cd1-46da-a720-1c474b760cfa",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.9.2",
+        "title": "Add Liquidity To Uniswap V3",
+        "bucket": "add liquidity to uniswap v3"
+      },
+      {
+        "uuid": "2ed22524-d397-4239-bc35-d4c2e13bf0c2",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.1.2.9.3",
+        "title": "Remove Liquidity From Uniswap V3",
+        "bucket": "remove liquidity from uniswap v3"
+      },
+      {
         "uuid": "6c060c28-5619-48f4-8536-b74c153b1641",
         "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2",
         "title": "Diamond PAU Controller Functions",
@@ -15545,16 +15641,22 @@
         "bucket": "basin facet"
       },
       {
-        "uuid": "bdf5ef63-d436-4ffb-bf37-2c1790d1a68d",
-        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.2",
-        "title": "USDS Facet",
-        "bucket": "usds facet"
-      },
-      {
         "uuid": "0cf2ffe0-cb0b-4c3c-bd11-349cad3d4c98",
         "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
         "title": "PSM Facet",
         "bucket": "psm facet"
+      },
+      {
+        "uuid": "ea4269f3-de42-4b27-8041-e48b85282664",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.3.3.12.2",
+        "title": "Add Liquidity To Uniswap V3",
+        "bucket": "add liquidity to uniswap v3"
+      },
+      {
+        "uuid": "ae1fb5ac-9be7-4b42-a883-3417b8988ce5",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.3.3.12.3",
+        "title": "Remove Liquidity From Uniswap V3",
+        "bucket": "remove liquidity from uniswap v3"
       },
       {
         "uuid": "5aea6114-5e7e-4bb1-86fa-c54135015397",
@@ -15629,16 +15731,10 @@
         "bucket": "term"
       },
       {
-        "uuid": "9b35cae7-b629-4bf8-b2d1-472bedebae14",
-        "doc_no": "A.6.1.1.7.2.6.1.2.2.1.2.1",
-        "title": "USDS Facet",
-        "bucket": "usds facet"
-      },
-      {
         "uuid": "f983e134-c97d-4e90-94d6-4cad14d0702f",
         "doc_no": "A.6.1.1.7.2.6.1.2.2.1.2.2",
-        "title": "Aave Facet",
-        "bucket": "aave facet"
+        "title": "Aave v3 Facet",
+        "bucket": "aave v3 facet"
       },
       {
         "uuid": "771b1a44-5bb6-4c9b-92de-e45485c5a11f",
