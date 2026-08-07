@@ -41,15 +41,16 @@ mock.module("../db.ts", () => ({
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
 }));
 
-// NOTE on title.ts: deliberately NOT mocked via mock.module here. bun:test
-// imports every test file's module-level code (running mock.module calls
-// immediately) before running any file's hooks/tests, so a mock.module("./
-// title.ts", ...) registered here would permanently replace the module for
-// the REST OF THE PROCESS — including title.test.ts's own `await
-// import("./title.ts")`, which needs the real thing since title.ts is what
-// IT tests. (Confirmed empirically: mock.restore() does not undo
-// mock.module — that's only for mock.fn()/spyOn — so there is no way to
-// "unmock" it later in this file either.) Instead, titling is controlled via
+// NOTE on title.ts: deliberately NOT mocked via mock.module here. A
+// mock.module("./title.ts", ...) registered here would permanently replace the
+// module for every test file bun loads AFTER this one — potentially including
+// title.test.ts's own `await import("./title.ts")`, which needs the real thing
+// since title.ts is what IT tests. Two things verified empirically on bun
+// 1.3.11: mock.restore() does NOT undo mock.module (that's only for
+// mock.fn()/spyOn), so there is no way to "unmock" it later in this file; and
+// bun does not order test files alphabetically — it walks them in directory
+// order, which differs between checkouts — so "title.test.ts happens to run
+// first here" is luck, not a guarantee. Instead, titling is controlled via
 // config.chatTitleModel: left at "" (see beforeAll below) for every
 // pre-existing test, which makes titleConversation an immediate no-op (its
 // first line is `if (!model) return;`) — zero network calls, so there's
@@ -167,10 +168,16 @@ describe("handleChat", () => {
   // history is just the just-inserted user message (plus `priorAssistants`
   // synthetic prior assistant rows, for the turn-count titling tests), rate
   // window has headroom.
-  function installHappyHandlers(opts: { convId?: string; tokens?: number; priorAssistants?: number } = {}) {
+  function installHappyHandlers(
+    opts: { convId?: string; tokens?: number; priorAssistants?: number; userText?: string } = {},
+  ) {
     const convId = opts.convId ?? "conv-1";
     const history = [
-      { role: "user", content: "hi" },
+      // userText lets the titling suite stamp a per-turn marker into the first
+      // user row: buildTitleTranscript carries that row through verbatim, so
+      // the marker reaches the titling request body and a captured call can be
+      // attributed to the exact turn that produced it (see runTurn below).
+      { role: "user", content: opts.userText ?? "hi" },
       ...Array.from({ length: opts.priorAssistants ?? 0 }, () => ({ role: "assistant", content: "prior answer" })),
     ];
     sqlHandlers.push((text) => {
@@ -323,21 +330,33 @@ describe("handleChat", () => {
   // OpenAI's non-streaming JSON mode) and answers each appropriately,
   // capturing the titling call's request body for assertions.
   describe("titling", () => {
+    type TitleCall = { model: string; messages: unknown[] };
+
+    // ONE cumulative capture for the whole block, installed for the block's
+    // lifetime rather than swapped per turn. The previous per-turn swap was
+    // the source of a real flake: titling is fire-and-forget, so a turn that
+    // DID fire could have its call land after its own runTurn() returned and
+    // be recorded against the NEXT turn's freshly-installed array — turning
+    // "turn 4 fires" into "turn 5 also fired". Under CPU contention that
+    // reproduced on ~10/12 full-suite runs. Every call now lands in one list
+    // and is attributed by the per-turn marker it carries, so a late arrival
+    // can only ever be credited to the turn that actually produced it.
+    const allTitleCalls: TitleCall[] = [];
+    let prevImpl: typeof fetch | undefined;
+    let turnSeq = 0;
+
     beforeAll(() => {
       config.chatTitleModel = "test/title-model";
-    });
-    afterAll(() => {
-      config.chatTitleModel = "";
-    });
-
-    function titlingFetchImpl(answerText: string, titleCalls: { model: string; messages: unknown[] }[]): typeof fetch {
-      return (async (_url: unknown, init?: RequestInit) => {
-        const parsed = init?.body ? (JSON.parse(init.body as string) as { stream?: boolean; model: string; messages: unknown[] }) : ({} as any);
-        if (parsed.stream) return sseResponse(answerText);
+      prevImpl = g.__llmFetchCurrentImpl;
+      g.__llmFetchCurrentImpl = (async (_url: unknown, init?: RequestInit) => {
+        const parsed = init?.body
+          ? (JSON.parse(init.body as string) as { stream?: boolean; model: string; messages: unknown[] })
+          : ({} as any);
+        if (parsed.stream) return sseResponse("An answer.");
         // Non-streaming JSON-mode call — the titling call (the verifier is
         // the only other JSON-mode caller in chat.ts, and it stays off here
         // since config.chatVerifierModel defaults to "").
-        titleCalls.push(parsed);
+        allTitleCalls.push(parsed);
         return new Response(
           JSON.stringify({
             id: "gen-title-1",
@@ -347,61 +366,88 @@ describe("handleChat", () => {
           { status: 200, headers: { "content-type": "application/json" } },
         );
       }) as unknown as typeof fetch;
+    });
+    afterAll(() => {
+      config.chatTitleModel = "";
+      g.__llmFetchCurrentImpl = prevImpl;
+    });
+
+    function callsFor(marker: string): TitleCall[] {
+      return allTitleCalls.filter((c) => JSON.stringify(c.messages).includes(marker));
     }
 
-    async function runTurn(priorAssistants: number): Promise<{ model: string; messages: unknown[] }[]> {
+    // Drive one turn and return its marker. The marker is stamped into the
+    // first user row of the mocked history, which buildTitleTranscript carries
+    // verbatim into the titling request body.
+    async function runTurn(priorAssistants: number): Promise<string> {
+      const marker = `turn-marker-${++turnSeq}`;
       // sqlHandlers is a shared queue with no per-call scoping (afterEach only
       // resets it BETWEEN it() blocks) — reset it explicitly here so a test
       // that calls runTurn more than once (e.g. "does not fire on turn 2 or
       // 3") doesn't have its second call still matched by the first call's
       // stale handler.
       sqlHandlers = [];
-      installHappyHandlers({ priorAssistants });
-      const prevImpl = g.__llmFetchCurrentImpl!;
-      const titleCalls: { model: string; messages: unknown[] }[] = [];
-      g.__llmFetchCurrentImpl = titlingFetchImpl("An answer.", titleCalls);
-      try {
-        const res = await handleChat(await authedRequest({ message: "a question" }));
-        await res.text(); // drains the SSE stream itself
-        // The titling call is genuinely fire-and-forget, several real async
-        // ticks deep (callWithTimeout → the JsonCall → the openai SDK's own
-        // internal awaits before it calls fetch) — unlike a directly-injected
-        // stub, those ticks aren't guaranteed to have all resolved by the time
-        // res.text() settles. Flush a macrotask so they do.
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        return titleCalls;
-      } finally {
-        g.__llmFetchCurrentImpl = prevImpl;
+      installHappyHandlers({ priorAssistants, userText: marker, convId: `conv-${marker}` });
+      const res = await handleChat(await authedRequest({ message: "a question" }));
+      await res.text(); // drains the SSE stream itself
+      return marker;
+    }
+
+    // Poll (no fixed sleep) until this turn's titling call shows up. The call
+    // is several real async ticks deep — callWithTimeout → the JsonCall → the
+    // openai SDK's own internal awaits before it reaches fetch — and on a
+    // loaded runner those ticks can take far longer than any constant we'd
+    // hardcode, so wait on the condition instead of on the clock.
+    async function awaitTitleCall(marker: string, timeoutMs = 10_000): Promise<TitleCall[]> {
+      const deadline = Date.now() + timeoutMs;
+      while (callsFor(marker).length === 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 2));
       }
+      return callsFor(marker);
+    }
+
+    // Proving a turn did NOT title can't be done by waiting a fixed interval —
+    // that only proves "not yet". Instead use a barrier: run a control turn
+    // that MUST title and wait for its call. chat.ts invokes
+    // `void titleConversation(...)` synchronously before the SSE stream
+    // closes, so a titling chain for the turn under test would already have
+    // started before res.text() resolved — strictly before the control turn
+    // began. Both chains are the same shape, so once the control's call has
+    // landed, the turn's would have landed too if it were ever coming.
+    async function expectNoTitle(priorAssistants: number) {
+      const marker = await runTurn(priorAssistants);
+      const control = await runTurn(0);
+      expect(await awaitTitleCall(control)).toHaveLength(1);
+      expect(callsFor(marker)).toHaveLength(0);
     }
 
     it("fires on turn 1 (priorAssistants=0)", async () => {
-      const calls = await runTurn(0);
+      const calls = await awaitTitleCall(await runTurn(0));
       expect(calls.length).toBe(1);
       expect(calls[0].model).toBe("test/title-model");
     });
 
     it("does not fire on turn 2 or 3", async () => {
-      expect((await runTurn(1)).length).toBe(0);
-      expect((await runTurn(2)).length).toBe(0);
+      await expectNoTitle(1);
+      await expectNoTitle(2);
     });
 
     it("fires on turn 4 (priorAssistants=3)", async () => {
-      expect((await runTurn(3)).length).toBe(1);
+      expect(await awaitTitleCall(await runTurn(3))).toHaveLength(1);
     });
 
     it("does not fire on turns 5 through 9", async () => {
       for (const priorAssistants of [4, 5, 6, 7, 8]) {
-        expect((await runTurn(priorAssistants)).length).toBe(0);
+        await expectNoTitle(priorAssistants);
       }
     });
 
     it("fires on turn 10 (priorAssistants=9)", async () => {
-      expect((await runTurn(9)).length).toBe(1);
+      expect(await awaitTitleCall(await runTurn(9))).toHaveLength(1);
     });
 
     it("does not fire on turn 11 or later", async () => {
-      expect((await runTurn(10)).length).toBe(0);
+      await expectNoTitle(10);
     });
 
     it("is unawaited — a real provider failure on the titling call doesn't affect the SSE stream", async () => {

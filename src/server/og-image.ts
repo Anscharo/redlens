@@ -233,6 +233,13 @@ async function cached(key: string, render: () => Promise<Buffer | null>): Promis
   return png;
 }
 
+// Test seam: the cache is module-level, so tests that assert on memoization
+// (identical Buffer instance in, identical instance out) would otherwise depend
+// on whatever earlier tests left behind. Never called by the server.
+export function __resetOgCache(): void {
+  cache.clear();
+}
+
 // Doc card key = UUID prefix + doc number + title (+ preview label), so a doc
 // keeps a stable identity but a title/number/preview edit (UUID unchanged)
 // yields a fresh card rather than serving the stale one.

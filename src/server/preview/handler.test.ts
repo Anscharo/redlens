@@ -1,8 +1,9 @@
 // Handler dispatch + diff + artifact serving. Needs built main artifacts
 // (public/docs.json etc.) so diff has an in-memory baseline; skips otherwise.
-// Run via `bun test`. PREVIEW_DIR is set before a dynamic import so cache picks it up.
+// Run via `bun test`. PREVIEW_DIR is set before cache.ts is (dynamically) imported
+// so it picks the scratch dir up — cache.ts freezes the value at import time.
 
-import { test, expect } from "bun:test";
+import { test, expect, afterAll } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -10,13 +11,30 @@ import path from "node:path";
 const SHA = "a".repeat(40);
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
 
+// PREVIEW_DIR is process-global and cache.ts freezes it at import time, so it
+// must be put back: config.test.ts's ENV_KEYS snapshot doesn't cover it, and a
+// leaked value would redirect every later file's preview paths at our scratch dir.
+// One scratch root for the whole file (cache.ts only ever reads the value it saw
+// at import time, so a per-test dir would be ignored anyway).
+const origPreviewDir = process.env.PREVIEW_DIR;
+const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h-"));
+process.env.PREVIEW_DIR = scratchDir;
+afterAll(() => {
+  if (origPreviewDir === undefined) delete process.env.PREVIEW_DIR;
+  else process.env.PREVIEW_DIR = origPreviewDir;
+  fs.rmSync(scratchDir, { recursive: true, force: true });
+});
+
+// Whether main artifacts are built decides the whole file (diff needs an
+// in-memory baseline). Resolved once here so the tests can declare an explicit
+// `skipIf` — an early `return` inside the test body reports green while
+// asserting nothing.
+const { loadIndexes, setIndexes, getIndexes } = await import("../retrieval/indexes.ts");
+setIndexes(loadIndexes());
+const NO_ARTIFACTS = getIndexes().docMap.size === 0;
+
 async function setup() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h-"));
-  process.env.PREVIEW_DIR = dir;
-  const { loadIndexes, setIndexes, getIndexes } = await import("../retrieval/indexes.ts");
-  setIndexes(loadIndexes());
   const ix = getIndexes();
-  if (ix.docMap.size === 0) return null; // no built artifacts → skip
   const { handlePreview } = await import("./handler.ts");
   const { previewPaths, writeMeta } = await import("./cache.ts");
 
@@ -44,13 +62,8 @@ async function setup() {
   return { call, someId, newId };
 }
 
-test("handler: artifact + meta served, diff vs main, allowlist + sha validation", async () => {
-  const s = await setup();
-  if (!s) {
-    console.warn("handler.test: no built main artifacts — skipped");
-    return;
-  }
-  const { call, someId, newId } = s;
+test.skipIf(NO_ARTIFACTS)("handler: artifact + meta served, diff vs main, allowlist + sha validation", async () => {
+  const { call, someId, newId } = await setup();
 
   expect((await call(`/api/preview/${SHA}/docs.json`)).status).toBe(200);
   expect(((await (await call(`/api/preview/${SHA}/meta.json`)).json()) as any).docCount).toBe(2);
@@ -67,25 +80,15 @@ test("handler: artifact + meta served, diff vs main, allowlist + sha validation"
   expect((await call(`/api/preview/${"b".repeat(40)}/docs.json`)).status).toBe(404);
 });
 
-test("handler: malformed percent-encoding on the events id returns 404, not a 500", async () => {
-  const s = await setup();
-  if (!s) {
-    console.warn("handler.test: no built main artifacts — skipped");
-    return;
-  }
-  const { call } = s;
+test.skipIf(NO_ARTIFACTS)("handler: malformed percent-encoding on the events id returns 404, not a 500", async () => {
+  const { call } = await setup();
   // A lone "%" or an incomplete escape throws inside decodeURIComponent.
   const res = await call("/api/preview/%E0%A4%A/events");
   expect(res.status).toBe(404);
 });
 
-test("handler: diffCache evicts FIFO once it exceeds DIFF_CACHE_MAX", async () => {
-  const s = await setup();
-  if (!s) {
-    console.warn("handler.test: no built main artifacts — skipped");
-    return;
-  }
-  const { call } = s;
+test.skipIf(NO_ARTIFACTS)("handler: diffCache evicts FIFO once it exceeds DIFF_CACHE_MAX", async () => {
+  const { call } = await setup();
   const { diffCache, DIFF_CACHE_MAX } = await import("./handler.ts");
   const { previewPaths, writeMeta } = await import("./cache.ts");
 

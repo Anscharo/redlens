@@ -3,15 +3,37 @@
 // "genuinely zero new addresses", hiding the swapped-payment-address banner.
 // It now retries once, then returns undefined (not 0) so callers can tell
 // "checked, zero" apart from "couldn't check".
-import { test, expect } from "bun:test";
+import { afterAll, test, expect } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { countNewAddresses, baseMeta } from "./build.ts";
 import type { Resolved } from "./resolve.ts";
 
+const tmpDirs: string[] = [];
 function mkTmp(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "pv-build-"));
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), "pv-build-"));
+  tmpDirs.push(d);
+  return d;
+}
+afterAll(() => {
+  for (const d of tmpDirs) fs.rmSync(d, { recursive: true, force: true });
+});
+
+// The two negative-path tests below drive countNewAddresses into its
+// documented "couldn't check" branch, which console.errors the underlying
+// SyntaxError/ENOENT with a full stack. That's correct in production and pure
+// noise in a passing test run — and multi-line stacks interleaved into the
+// suite output are exactly what makes a genuine CI failure hard to find. Mute
+// it for the duration of those two tests only.
+async function withoutErrorLogging<T>(fn: () => Promise<T>): Promise<T> {
+  const realError = console.error;
+  console.error = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.error = realError;
+  }
 }
 
 function writeAddrs(dir: string, addresses: Record<string, unknown>) {
@@ -40,7 +62,7 @@ test("a torn/corrupt main read returns undefined, not a false 0 (the bug)", asyn
   writeAddrs(previewDir, { "0xaaa": {} });
   // Simulate a mid-rewrite torn read: truncated JSON.
   fs.writeFileSync(path.join(mainDir, "addresses.atlas.json"), '{"atlasCommit":"x","addresse');
-  const result = await countNewAddresses(previewDir, mainDir);
+  const result = await withoutErrorLogging(() => countNewAddresses(previewDir, mainDir));
   expect(result).toBeUndefined();
 });
 
@@ -48,7 +70,7 @@ test("a missing preview file also returns undefined rather than 0", async () => 
   const previewDir = mkTmp(); // no addresses.atlas.json written
   const mainDir = mkTmp();
   writeAddrs(mainDir, { "0xaaa": {} });
-  expect(await countNewAddresses(previewDir, mainDir)).toBeUndefined();
+  expect(await withoutErrorLogging(() => countNewAddresses(previewDir, mainDir))).toBeUndefined();
 });
 
 test("baseMeta maps the resolved ref onto PreviewMeta, incl. headCommitAt from the head-commit date", () => {

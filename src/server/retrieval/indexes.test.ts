@@ -274,17 +274,31 @@ describe("readArtifactsFromDisk", () => {
 });
 
 describe("loadIndexes / setIndexes / getIndexes", () => {
-  // IMPORTANT ORDERING NOTE: `state` in indexes.ts is module-level and shared
-  // across every test file in this `bun test` run. This describe block is
-  // the first (alphabetically-earliest test file's first consumer) to touch
-  // that state, so this first test genuinely exercises the fresh/first-load
-  // path of loadIndexes() (reading real artifacts off disk) before anything
-  // else in the run has called loadIndexes()/setIndexes(). Keep it first.
-  it("loadIndexes() on a fresh module reads real artifacts off disk and memoizes", () => {
-    const first = loadIndexes();
+  // `state` in indexes.ts is module-level and process-global for the whole
+  // `bun test` run. This block used to claim it was the first consumer of that
+  // state and therefore exercised loadIndexes()'s cold path — it was not:
+  // chat/* test files call loadIndexes() at module scope, and `bun test` runs
+  // files in directory-readdir order (filesystem-dependent), not alphabetically,
+  // so by the time we get here the memo is already populated by someone else and
+  // the assertion below was really testing "whatever setIndexes last installed".
+  //
+  // Import a FRESH copy of the module under a cache-busting query instead (the
+  // trick config.test.ts uses) so the cold-load path is genuinely cold no matter
+  // where bun schedules this file. The specifier is a non-literal so tsc doesn't
+  // try to resolve the query string.
+  const COLD_SPEC = "./indexes.ts?fresh=coldload";
+  it("loadIndexes() on a fresh module reads real artifacts off disk and memoizes", async () => {
+    const fresh = await import(COLD_SPEC);
+    const first = fresh.loadIndexes();
     expect(first.docMap.size).toBeGreaterThan(0);
-    const second = loadIndexes();
+    const second = fresh.loadIndexes();
     expect(second).toBe(first); // memoized — no second disk read
+  });
+
+  it("loadIndexes() on the shared singleton returns the already-installed set, not a re-read", () => {
+    const installed = buildIndexes([node({ id: "installed" })], [], [], { atlasCommit: "installed" });
+    setIndexes(installed);
+    expect(loadIndexes()).toBe(installed);
   });
 
   it("getIndexes reflects whatever setIndexes last installed", () => {

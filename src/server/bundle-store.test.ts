@@ -1,10 +1,11 @@
 // bundle-store.ts unit tests. Pure filesystem logic; runs against custom
-// BundleStore objects rooted in the scratchpad tmp dir rather than
-// MAIN_STORE/PREVIEW_STORE (those are tied to real config paths and used by
-// atlas-static.test.ts against the actual public/atlas dir) — keeps the two
-// test files' fixtures independent.
+// BundleStore objects rooted in a throwaway temp dir rather than
+// MAIN_STORE/PREVIEW_STORE (those are tied to real config paths) — keeps this
+// file's fixtures independent of the real public/atlas tree and of every other
+// test file.
 import { test, expect, beforeEach, afterAll } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import {
   artifactPath,
@@ -22,10 +23,10 @@ import {
   PREVIEW_DIR,
 } from "./bundle-store.ts";
 
-const ROOT = path.join(
-  "/tmp/claude-0/-home-user-redlens/a7bb03e6-a312-5c73-91a4-438dea3f7e47/scratchpad",
-  "bundle-store-test",
-);
+// mkdtemp, not a fixed path: two concurrent runs of this file on the same host
+// would otherwise share one ROOT, and beforeEach's recursive rm would delete the
+// other run's fixtures mid-test. The random suffix makes the root per-process.
+const ROOT = fs.mkdtempSync(path.join(os.tmpdir(), "bundle-store-test-"));
 
 function freshStore(overrides: Partial<BundleStore> = {}): BundleStore {
   return {
@@ -38,6 +39,9 @@ function freshStore(overrides: Partial<BundleStore> = {}): BundleStore {
   };
 }
 
+// ROOT is already created by mkdtempSync; this only clears fixtures *between*
+// tests in this file (evictLru cases read the whole root, so leftovers from a
+// previous test would change what they see).
 beforeEach(() => {
   fs.rmSync(ROOT, { recursive: true, force: true });
   fs.mkdirSync(ROOT, { recursive: true });

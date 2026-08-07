@@ -4,37 +4,90 @@
 // neighbor, gated by config.openrouterApiKey). Both are unreachable from
 // query.test.ts / search.test.ts without a live DB, so they're mocked here.
 //
-// FILE NAME: intentionally sorts last (alphabetically "zz-...") among the
-// retrieval test files. bun's mock.module patches the module registry for the
-// rest of the whole `bun test` run, and other retrieval test files already
-// import query.ts/search.ts (and transitively db.ts) with the REAL db module —
-// running this file last means the mock only takes effect after every other
-// retrieval test has already run and asserted against real artifacts. Because
-// `import { sql } from "../db.ts"` in query.ts/search.ts is a live ES module
-// binding, replacing db.ts's `sql` export here is visible to those
+// FILE NAME: the `zz-` prefix is historical. It was chosen on the belief that
+// `bun test` walks files alphabetically and this one would therefore run last,
+// after every other retrieval test had asserted against the real db module.
+// THAT IS NOT TRUE — bun walks a directory in readdir order, which is
+// filesystem-dependent. Dumping the real order here
+// (`bun test src/server/retrieval --reporter=junit`) gives:
+// entity-resolve, doc-rows, embed-text, query-schema, indexes, query, embed,
+// search, zz-db-integration, entity-kind — i.e. a file DOES run after this one,
+// and a fresh CI checkout can order it differently again. The name is kept only
+// so the file keeps its identity in diffs/CI logs; nothing depends on it.
+//
+// So this file is written to be position-independent instead of lucky. bun's
+// mock.module patches the module registry for the rest of the whole `bun test`
+// run and `mock.restore()` does NOT undo it, so the registration below installs
+// a Proxy that DELEGATES to the real db.ts client by default; the fake `unsafe`
+// is only swapped in while this file's own tests run (armed in beforeEach,
+// disarmed in afterEach/afterAll). Whatever runs after this file therefore sees
+// the real client's behaviour, wherever bun decides to schedule it.
+//
+// Because `import { sql } from "../db.ts"` in query.ts/search.ts is a live ES
+// module binding, replacing db.ts's `sql` export here is visible to those
 // already-instantiated modules the next time they call `sql.unsafe(...)` — no
-// dynamic re-import needed.
+// dynamic re-import needed. (The dynamic imports below are kept anyway so the
+// registration is guaranteed to precede first evaluation of query.ts.)
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import type { AtlasNode } from "./indexes.ts";
 
+// Snapshot whatever db.ts currently exports and delegate to THAT. bun loads and
+// runs test files one at a time (it does not preload every module body first),
+// so "whatever is currently there" is the real module unless an earlier file
+// already mock.module'd it — in which case delegating to the earlier mock is
+// still the correct no-trace behaviour: we change nothing except while armed.
+// EAGER snapshot into plain consts. A module namespace object is LIVE: once
+// mock.module("../db.ts") lands, `ns.sql` resolves to the replacement — i.e. to
+// our own dispatcher — so a delegation path that reads `ns.sql` at call time
+// recurses into itself until the stack blows (`sql.reserve` did exactly that).
+const baseNs = await import("../db.ts");
+const baseExports: Record<string, unknown> = { ...baseNs };
+const baseSql = baseNs.sql as unknown as Record<PropertyKey, unknown> | undefined;
+
 type UnsafeImpl = (query: string, params?: unknown[]) => Promise<unknown[]>;
-let unsafeImpl: UnsafeImpl = () => Promise.resolve([]);
+// null = disarmed: `sql.unsafe` falls through to the snapshotted client, so this
+// registration is a behavioural no-op for any file that runs after us.
+let unsafeImpl: UnsafeImpl | null = null;
 let lastParams: unknown[] = [];
 
-mock.module("../db.ts", () => ({
-  sql: Object.assign(
-    () => Promise.resolve([]), // tagged-template call form — unused by these two call sites
-    {
-      unsafe: (query: string, params?: unknown[]) => {
-        lastParams = params ?? [];
-        return unsafeImpl(query, params);
-      },
-    },
-  ),
-  toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
-  dbTarget: () => "mock:0/mock",
-  waitForDb: async () => {},
-}));
+// The dispatcher is a REAL function rather than a Proxy over `baseDb.sql`: some
+// test files (migrate.test.ts) replace `sql` with a plain non-callable object,
+// and a Proxy over a non-callable target is itself non-callable — which would
+// break the tagged-template form for every file loaded after this one.
+function sqlCall(...args: unknown[]): unknown {
+  const base: unknown = baseDb.sql;
+  if (typeof base !== "function") {
+    throw new Error("db.ts `sql` is not callable — an earlier test file replaced it with a non-callable stub");
+  }
+  return (base as (...a: unknown[]) => unknown)(...args);
+}
+
+const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
+const sqlDispatch = new Proxy(sqlCall, {
+  get(target, prop, receiver) {
+    const base = baseDb.sql as unknown as Record<PropertyKey, unknown> | undefined;
+    if (prop === "unsafe") {
+      return (query: string, params?: unknown[]) => {
+        if (unsafeImpl) {
+          lastParams = params ?? [];
+          return unsafeImpl(query, params);
+        }
+        const passthrough = base?.unsafe;
+        if (typeof passthrough !== "function") {
+          throw new Error("db.ts sql.unsafe is unavailable — an earlier test file replaced db.ts without it");
+        }
+        return (passthrough as UnsafeImpl).call(base, query, params);
+      };
+    }
+    if (base && !FN_OWN.has(prop)) {
+      const v = base[prop];
+      if (v !== undefined) return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(base) : v;
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+});
+
+mock.module("../db.ts", () => ({ ...baseDb, sql: sqlDispatch }));
 
 const { buildIndexes } = await import("./indexes.ts");
 const { atlasQuery } = await import("./query.ts");
@@ -55,13 +108,22 @@ function node(over: Partial<AtlasNode> = {}): AtlasNode {
   };
 }
 
-afterAll(() => {
-  mock.restore();
+// Arm the fake for our own cases only. `mock.restore()` cannot unregister the
+// module patch (bun limitation), so disarming the impl is what actually makes
+// this file safe for whatever bun schedules after it.
+beforeEach(() => {
+  unsafeImpl = () => Promise.resolve([]);
+  lastParams = [];
 });
 
 afterEach(() => {
-  unsafeImpl = () => Promise.resolve([]);
+  unsafeImpl = null;
   lastParams = [];
+});
+
+afterAll(() => {
+  unsafeImpl = null;
+  mock.restore();
 });
 
 describe("atlasQuery — history filters (DB-backed, mocked)", () => {

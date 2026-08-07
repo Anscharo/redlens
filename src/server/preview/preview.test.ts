@@ -227,11 +227,21 @@ test("mapChangedDocs: doc identity trumps file status when mainIds is given", ()
 // tarball
 // ---------------------------------------------------------------------------
 
-test("gunzipCapped aborts a decompression bomb mid-stream", async () => {
-  const bomb = Bun.gzipSync(new Uint8Array(40 * 1024 * 1024)); // 40MB of zeros → tiny gz
-  expect(bomb.length).toBeLessThan(200_000);
-  await expect(gunzipCapped(Readable.from(Buffer.from(bomb)), 15 * 1024 * 1024)).rejects.toBeInstanceOf(CapExceededError);
-});
+// The property under test is the expansion ratio, not the absolute size: a
+// tiny gz that decompresses past the cap must reject. Sizes are kept small
+// (8MB expanding from a few KB, 1MB cap) because gzipping tens of megabytes is
+// pure CPU — at 40MB/15MB this test ran close enough to bun's 5s default
+// budget that a loaded CI runner tipped it over. Timeout is also stated
+// explicitly rather than inherited, so the budget doesn't silently shrink.
+test(
+  "gunzipCapped aborts a decompression bomb mid-stream",
+  async () => {
+    const bomb = Bun.gzipSync(new Uint8Array(8 * 1024 * 1024)); // 8MB of zeros → tiny gz
+    expect(bomb.length).toBeLessThan(64_000);
+    await expect(gunzipCapped(Readable.from(Buffer.from(bomb)), 1024 * 1024)).rejects.toBeInstanceOf(CapExceededError);
+  },
+  30_000,
+);
 
 test("gunzipCapped returns small payloads intact", async () => {
   const payload = Buffer.from("hello content tree");
@@ -324,9 +334,12 @@ test("bundleReady + evictLru keep newest, drop unfinished", () => {
   // an unfinished bundle (atlas only, no out/docs.json)
   fs.mkdirSync(previewPaths("partial", root).srcDir, { recursive: true });
 
-  // bump s3 as most-recent, then keep only 1
-  const future = new Date(Date.now() + 10_000);
-  fs.utimesSync(previewPaths("s3", root).dir, future, future);
+  // Make s3 the most-recent, then keep only 1. Age the OTHERS into the past
+  // rather than pushing s3 into the future: some container filesystems
+  // (overlayfs, NFS) clamp or round a future mtime back to now, which would
+  // silently destroy the ordering this test depends on.
+  const past = new Date(Date.now() - 10_000);
+  for (const s of ["s1", "s2", "partial"]) fs.utimesSync(previewPaths(s, root).dir, past, past);
   const evicted = evictLru(1, root);
   expect(evicted).toContain("partial"); // unfinished always dropped
   expect(bundleReady("s3", root)).toBe(true); // newest kept

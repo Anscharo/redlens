@@ -23,7 +23,10 @@ export function dbTarget(): string {
 // CLOSED on its first query and the container restart-loops (never healthy).
 // Retries `SELECT 1` with capped exponential backoff (~45s total), logging the
 // target so a wrong/unset DATABASE_URL (e.g. the localhost default) is obvious.
-export async function waitForDb(attempts = 12): Promise<void> {
+// `sleep` is injectable purely as a test seam: db.test.ts asserts the retry
+// schedule without burning the real backoff on the wall clock (and without the
+// assertion breaking whenever the 500ms base is tuned).
+export async function waitForDb(attempts = 12, sleep: (ms: number) => Promise<unknown> = Bun.sleep): Promise<void> {
   let delay = 500;
   for (let i = 1; i <= attempts; i++) {
     try {
@@ -37,7 +40,7 @@ export async function waitForDb(attempts = 12): Promise<void> {
         throw e;
       }
       console.warn(`db: ${dbTarget()} not ready (attempt ${i}/${attempts}): ${msg}; retrying in ${delay}ms`);
-      await Bun.sleep(delay);
+      await sleep(delay);
       delay = Math.min(delay * 2, 5000);
     }
   }

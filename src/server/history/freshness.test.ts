@@ -2,13 +2,23 @@
 import { describe, it, expect, mock, beforeEach, afterAll } from "bun:test";
 import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds, assembleFreshness, REQUIRED_SCHEMA } from "./freshness.ts";
 import type { UpdaterState } from "../atlas-updater.ts";
-import { buildIndexes, rebuildFromDisk } from "../retrieval/indexes.ts";
+import { buildIndexes, rebuildFromDisk, setIndexes, getIndexes } from "../retrieval/indexes.ts";
 
 // The evaluateFreshness block installs fixture indexes via setIndexes(); restore
 // the real on-disk set afterward so later test files don't inherit a fixture
-// docMap (bun's module state is process-global).
+// docMap (bun's module state is process-global). bun loads and runs test files
+// one at a time, so this afterAll lands before the next file's module body is
+// evaluated — the restore genuinely covers files scheduled after this one.
 afterAll(() => {
-  rebuildFromDisk();
+  const restored = rebuildFromDisk();
+  if (restored.docMap.size === 0) {
+    // Artifacts missing/empty would leave every later file with an empty
+    // docMap and a pile of baffling failures — say so here instead.
+    throw new Error(
+      "freshness.test.ts: rebuildFromDisk() restored an empty docMap — public/ atlas artifacts are missing; later test files would inherit it",
+    );
+  }
+  if (getIndexes() !== restored) throw new Error("freshness.test.ts: index restore did not take effect");
 });
 
 const REQUIRED = "008_preview_trust.sql";
@@ -213,8 +223,12 @@ describe("evaluateFreshness", () => {
       [],
       { atlasCommit },
     );
-    // setIndexes/getIndexes share module-level state — real module, no mocking needed.
-    const { setIndexes } = require("../retrieval/indexes.ts");
+    // setIndexes/getIndexes share module-level state — real module, no mocking
+    // needed. Use the ESM binding imported at the top of this file: a CJS
+    // `require("../retrieval/indexes.ts")` here can resolve to a different
+    // registry entry than the ESM import under bun, in which case the seed
+    // would land on a *different* singleton and evaluateFreshness would read
+    // the untouched one.
     setIndexes(ix);
   }
 
