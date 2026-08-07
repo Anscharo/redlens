@@ -24,6 +24,11 @@ mock.module("./access.ts", () => ({
     accessCalls.push({ repo });
     return Promise.resolve(accessDecision);
   },
+  // Keep the factory COMPLETE: mock.module persists process-globally, so if this
+  // wins at access.test.ts's `await import("./access.ts")` (file-order dependent),
+  // a missing export would leave __resetAccessCacheForTest undefined and crash
+  // that suite's beforeEach. A no-op is safe — the real cache isn't loaded here.
+  __resetAccessCacheForTest: () => {},
 }));
 
 let dbQueued: unknown[] = [];

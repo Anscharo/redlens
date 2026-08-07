@@ -17,10 +17,16 @@ import { __resetCachesForTest } from "./github-app.ts";
 // registry and there's nothing to leak. session + db stay module-mocked (no
 // sibling links their real exports through a partial factory).
 
+// The signed-in user for the current test (null = signed out), applied via a
+// REAL signed session cookie in req() below — deliberately NOT a
+// mock.module("../session.ts"). bun runs every test file's module-level
+// mock.module before any tests, and mock.module persists process-globally, so a
+// PARTIAL session mock (getSessionUser only) would strip signSession /
+// SESSION_COOKIE from sibling files that import them (chat.test.ts /
+// conversations.test.ts build their own auth cookies), breaking those suites
+// depending on file-discovery order. See chat.test.ts's note on mock.module.
 let sessionResult: { user: { id: string; provider: string } } | null = null;
-mock.module("../session.ts", () => ({
-  getSessionUser: (_req: Request) => Promise.resolve(sessionResult),
-}));
+config.jwtSecret ||= "test-jwt-secret";
 
 // Drives the REAL userRepoPermission via fetch. "grant" returns permission+id;
 // "forbidden" is GitHub's 404 for a non-collaborator; "unavailable" is a 5xx.
@@ -62,10 +68,16 @@ mock.module("../db.ts", () => ({
 }));
 
 const { authorizePreviewAccess, __resetAccessCacheForTest } = await import("./access.ts");
+const { signSession, SESSION_COOKIE } = await import("../session.ts");
 
 const REPO = "sky-ecosystem/next-gen-atlas";
-function req(): Request {
-  return new Request("https://example.com/api/preview/deadbeef/docs.json");
+// Attach a real signed session cookie for `sessionResult` (or none when null),
+// so access.ts's real getSessionUser resolves the same user the test intends —
+// without globally mocking ../session.ts.
+async function req(): Promise<Request> {
+  const headers = new Headers();
+  if (sessionResult) headers.set("cookie", `${SESSION_COOKIE}=${await signSession(sessionResult.user)}`);
+  return new Request("https://example.com/api/preview/deadbeef/docs.json", { headers });
 }
 
 // mock.module is process-global in Bun; restore the ../session.ts + ../db.ts
@@ -90,7 +102,7 @@ afterEach(() => {
 
 test("no session -> login-required", async () => {
   sessionResult = null;
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("login-required");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("login-required");
 });
 
 test("github user, matching numeric id, permission granted -> ok", async () => {
@@ -98,32 +110,32 @@ test("github user, matching numeric id, permission granted -> ok", async () => {
   queuedUserRows = [{ provider: "github", provider_id: "42", github_login: "alice" }];
   permMode = "grant";
   grantUserId = 42;
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("ok");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("ok");
 });
 
 test("google user -> forbidden", async () => {
   sessionResult = { user: { id: "u2", provider: "google" } };
   queuedUserRows = [{ provider: "google", provider_id: "99", github_login: null }];
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
 });
 
 test("missing user row -> forbidden", async () => {
   sessionResult = { user: { id: "ghost", provider: "github" } };
   queuedUserRows = [];
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
 });
 
 test("github user with github_login null (pre-migration) -> login-required", async () => {
   sessionResult = { user: { id: "u3", provider: "github" } };
   queuedUserRows = [{ provider: "github", provider_id: "7", github_login: null }];
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("login-required");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("login-required");
 });
 
 test("userRepoPermission forbidden -> forbidden", async () => {
   sessionResult = { user: { id: "u4", provider: "github" } };
   queuedUserRows = [{ provider: "github", provider_id: "8", github_login: "bob" }];
   permMode = "forbidden";
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
 });
 
 test("userRepoPermission unavailable -> unavailable, and is NOT cached", async () => {
@@ -131,8 +143,8 @@ test("userRepoPermission unavailable -> unavailable, and is NOT cached", async (
   queuedUserRows = [{ provider: "github", provider_id: "9", github_login: "carol" }];
   permMode = "unavailable";
 
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("unavailable");
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("unavailable");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("unavailable");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("unavailable");
   expect(permFetches).toBe(2); // no caching -> re-checked both times
 });
 
@@ -141,7 +153,7 @@ test("G4: perm.ok but userId mismatches stored provider_id -> forbidden", async 
   queuedUserRows = [{ provider: "github", provider_id: "10", github_login: "dave" }];
   permMode = "grant";
   grantUserId = 999; // != stored provider_id 10
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
 });
 
 test("negative caching: two consecutive forbidden calls invoke userRepoPermission once", async () => {
@@ -149,7 +161,7 @@ test("negative caching: two consecutive forbidden calls invoke userRepoPermissio
   queuedUserRows = [{ provider: "github", provider_id: "11", github_login: "erin" }];
   permMode = "forbidden";
 
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
-  expect(await authorizePreviewAccess(req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
+  expect(await authorizePreviewAccess(await req(), REPO)).toBe("forbidden");
   expect(permFetches).toBe(1); // second call hit the negative cache
 });

@@ -71,9 +71,18 @@ export async function authorizePreviewAccess(req: Request, repo: string): Promis
   const session = await getSessionUser(req);
   if (!session) return "login-required";
 
-  const rows = (await sql`
-    SELECT provider, provider_id, github_login FROM users WHERE id = ${session.user.id}
-  `) as UserRow[];
+  let rows: UserRow[];
+  try {
+    rows = (await sql`
+      SELECT provider, provider_id, github_login FROM users WHERE id = ${session.user.id}
+    `) as UserRow[];
+  } catch {
+    // A transient Postgres failure must map to the gate's retryable "unavailable"
+    // like the GitHub-side hiccup below — otherwise the rejection propagates to a
+    // 500 for private artifacts (gateSha) or a hung build screen (drive() never
+    // sends a terminal event). Fail closed, but let the caller retry.
+    return "unavailable";
+  }
   const row = rows[0];
   if (!row) return "forbidden";
 

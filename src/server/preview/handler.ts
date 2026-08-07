@@ -231,7 +231,12 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
 async function gateSha(req: Request, sha: string): Promise<{ ok: true; headers: Record<string, string> } | { deny: Response }> {
   if (!bundleReady(sha)) return { deny: json({ error: "not-found" }, 404) };
   const meta = readMeta(sha);
-  if (meta?.private) {
+  // bundleReady passed (docs.json + meta.json exist on disk) but the meta didn't
+  // parse — a torn/corrupt meta.json. We cannot confirm this bundle is public, so
+  // fail closed: serving it with public CORS would leak a private bundle, since
+  // sha-keyed URLs are not secret. Treat an unreadable meta as not-serveable.
+  if (!meta) return { deny: json({ error: "not-found" }, 404) };
+  if (meta.private) {
     const d = await authorizePreviewAccess(req, meta.repo);
     if (d === "ok") return { ok: true, headers: PRIVATE_HEADERS };
     if (d === "login-required") return { deny: json({ error: "auth-required" }, 401, PRIVATE_HEADERS) };
