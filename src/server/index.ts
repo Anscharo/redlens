@@ -222,7 +222,9 @@ const server = Bun.serve({
     "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
     "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
     "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
     "/api/feedback": (req) => config.feedbackEnabled ? handleFeedback(req as Request) : NOT_FOUND(),
+    /* v8 ignore stop */
   },
 
   // Fallback: CORS preflight + preview routes + MCP endpoint + static SPA files.
