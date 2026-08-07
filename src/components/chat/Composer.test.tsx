@@ -10,13 +10,16 @@ function setup(over: Partial<React.ComponentProps<typeof Composer>> = {}) {
   const onDraftChange = vi.fn();
   const onSend = vi.fn();
   const onStop = vi.fn();
+  const onRecheckUsage = vi.fn();
   const props = {
     draft: "",
     onDraftChange,
     onSend,
     onStop,
     streaming: false,
-    disabled: false,
+    rateLimit: null,
+    onRecheckUsage,
+    error: null,
     placeholder: "Ask…",
     chip: "atlas",
     usage: null,
@@ -24,7 +27,7 @@ function setup(over: Partial<React.ComponentProps<typeof Composer>> = {}) {
     ...over,
   };
   const utils = render(<Composer {...props} />);
-  return { ...utils, onDraftChange, onSend, onStop };
+  return { ...utils, onDraftChange, onSend, onStop, onRecheckUsage };
 }
 
 describe("Composer", () => {
@@ -54,9 +57,41 @@ describe("Composer", () => {
   });
 
   it("disables the send button and textarea when rate-limited", () => {
-    setup({ draft: "hi", disabled: true });
+    setup({ draft: "hi", rateLimit: { message: "slow down", kind: "token" } });
     expect(screen.getByLabelText("Send")).toBeDisabled();
     expect(screen.getByPlaceholderText("Ask…")).toBeDisabled();
+    expect(screen.getByText("locked")).toBeInTheDocument();
+  });
+
+  it("does not send on Enter while rate-limited", () => {
+    const { onSend } = setup({ draft: "hi", rateLimit: { message: "slow down", kind: "token" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Enter", shiftKey: false });
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("shows the token-window lock note with a countdown and no recheck button", () => {
+    setup({ rateLimit: { message: "Usage limit reached.", resetsAt: new Date(Date.now() + 5 * 60_000).toISOString(), kind: "token" } });
+    expect(screen.getByText("Usage limit reached.")).toBeInTheDocument();
+    expect(screen.getByText(/You can send again in/)).toBeInTheDocument();
+    expect(screen.queryByText("Check now")).toBeNull();
+  });
+
+  it("shows the commons lock note with a recheck button that calls onRecheckUsage", () => {
+    const { onRecheckUsage } = setup({ rateLimit: { message: "Shared pool is out of credits.", kind: "commons" } });
+    expect(screen.getByText("Shared pool is out of credits.")).toBeInTheDocument();
+    const btn = screen.getByText("Check now");
+    fireEvent.click(btn);
+    expect(onRecheckUsage).toHaveBeenCalled();
+  });
+
+  it("shows the error note (not the lock note) when a turn failed and no lock is active", () => {
+    setup({ error: "the model errored" });
+    expect(screen.getByText(/the model errored/)).toBeInTheDocument();
+  });
+
+  it("suppresses the error note while a rate-limit lock is active", () => {
+    setup({ error: "the model errored", rateLimit: { message: "slow down", kind: "token" } });
+    expect(screen.queryByText(/the model errored/)).toBeNull();
   });
 
   it("sends on Enter (without shift) when not streaming/disabled and has a trimmed draft", () => {
@@ -95,6 +130,22 @@ describe("Composer", () => {
   it("shows the send hint when idle", () => {
     setup({ streaming: false });
     expect(screen.getByText("↵ to send")).toBeInTheDocument();
+  });
+
+  // Regression: a conversation switch keeps the composer live during
+  // useChatSession's openConversation() GET, so a quick send before hydrate()
+  // lands used to post to the wrong (previous) conversation.
+  it("disables the send button and textarea while a conversation is loading", () => {
+    setup({ draft: "hi", historyLoading: true });
+    expect(screen.getByLabelText("Send")).toBeDisabled();
+    expect(screen.getByPlaceholderText("Ask…")).toBeDisabled();
+    expect(screen.getByText("loading…")).toBeInTheDocument();
+  });
+
+  it("does not send on Enter while a conversation is loading", () => {
+    const { onSend } = setup({ draft: "hi", historyLoading: true });
+    fireEvent.keyDown(screen.getByPlaceholderText("Ask…"), { key: "Enter", shiftKey: false });
+    expect(onSend).not.toHaveBeenCalled();
   });
 
   it("renders UsageNote and CommonsNote when data is present", () => {

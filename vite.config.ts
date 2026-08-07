@@ -134,6 +134,7 @@ export default defineConfig(() => {
         return html
           .replaceAll("{{ATLAS_SHA}}", sha)
           .replaceAll("{{USERS_ENABLED}}", String(usersEnabled))
+          .replaceAll("{{CHAT_ENABLED}}", String(chatEnabled))
           .replaceAll("{{AUTH_PROVIDERS}}", devProviders.join(","))
           .replaceAll("{{OG_TAGS}}", ogTags);
       },

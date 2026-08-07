@@ -70,6 +70,11 @@ COPY --from=builder /app/node_modules      ./node_modules
 COPY --from=builder /app/dist             ./dist
 COPY --from=builder /app/src/server       ./src/server
 COPY --from=builder /app/src/lib          ./src/lib
+# The chain registry is read at RUNTIME, not just at build time: src/lib
+# (explorer.ts, tokens.ts) imports it, and scripts/lib/chains.mjs reads it off
+# disk — so the atlas worker and the balances fetcher both need it present.
+# Omitting it leaves the image importing a file that isn't there.
+COPY --from=builder /app/src/data          ./src/data
 COPY --from=builder /app/scripts/required ./scripts/required
 COPY --from=builder /app/scripts/lib      ./scripts/lib
 COPY --from=builder /app/package.json     ./

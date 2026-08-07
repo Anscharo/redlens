@@ -24,6 +24,7 @@ import { isStaleChunkError } from "./lib/staleChunk";
 import { ChatWidget } from "./components/chat/ChatWidget";
 import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { useDataSource } from "./lib/dataSource";
+import { chatEnabled } from "./lib/chatEnabled";
 
 // Retries a failed dynamic import once before propagating the error.
 // Silently handles transient "Failed to fetch dynamically imported module"
@@ -47,11 +48,17 @@ const ActiveDataReport = lazy(() =>
 const RewardsReport = lazy(() =>
   lazyRetry(() => import("./components/reports/RewardsReport")).then((m) => ({ default: m.RewardsReport })),
 );
+const OnchainAddressesReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/OnchainAddressesReport")).then((m) => ({ default: m.OnchainAddressesReport })),
+);
 const ProcessesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/ProcessesReport")).then((m) => ({ default: m.ProcessesReport })),
 );
 const StaleDatesReport = lazy(() =>
   lazyRetry(() => import("./components/reports/StaleDatesReport")).then((m) => ({ default: m.StaleDatesReport })),
+);
+const ModFrequencyReport = lazy(() =>
+  lazyRetry(() => import("./components/reports/ModFrequencyReport")).then((m) => ({ default: m.ModFrequencyReport })),
 );
 const OeaAssessmentReport = lazy(() =>
   lazyRetry(() => import("./components/reports/OeaAssessmentReport")).then((m) => ({ default: m.OeaAssessmentReport })),
@@ -92,6 +99,11 @@ const CollectionsPage = lazy(() =>
 const SharedCollectionOpener = lazy(() =>
   lazyRetry(() => import("./components/collections/SharedCollectionOpener")).then((m) => ({
     default: m.SharedCollectionOpener,
+  })),
+);
+const ConversationsPage = lazy(() =>
+  lazyRetry(() => import("./components/conversations/ConversationsPage")).then((m) => ({
+    default: m.ConversationsPage,
   })),
 );
 
@@ -214,7 +226,8 @@ export default function App() {
   const windowScroll =
     location.startsWith(ROUTES.REPORTS) ||
     location.startsWith(ROUTES.RADAR) ||
-    location === ROUTES.COLLECTIONS;
+    location === ROUTES.COLLECTIONS ||
+    location === ROUTES.CONVERSATIONS;
 
   return (
     <div
@@ -324,9 +337,19 @@ export default function App() {
                 <RewardsReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
+            <Route path={ROUTES.REPORTS_ONCHAIN_ADDRESSES}>
+              <Suspense fallback={<Loading />}>
+                <OnchainAddressesReport query={query} mode={activeMode} />
+              </Suspense>
+            </Route>
             <Route path={ROUTES.REPORTS_STALE_DATES}>
               <Suspense fallback={<Loading />}>
                 <StaleDatesReport query={query} mode={activeMode} />
+              </Suspense>
+            </Route>
+            <Route path={ROUTES.REPORTS_MOD_FREQUENCY}>
+              <Suspense fallback={<Loading />}>
+                <ModFrequencyReport query={query} mode={activeMode} />
               </Suspense>
             </Route>
             <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
@@ -459,6 +482,26 @@ export default function App() {
                 </Suspense>
               )}
             </Route>
+            {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer
+                guard here — it's what lets the minifier prove this whole
+                branch (and the ConversationsPage chunk) dead and strip it out
+                of chat-off builds. chatEnabled() alone is a function call the
+                minifier can't evaluate at build time, so chat would ship even
+                when disabled. Do not "simplify" this to chatEnabled() alone.
+                `!preview` is also load-bearing: ConversationsPage calls the
+                non-optional useChatOpen(), and the preview shell
+                (PreviewGate.tsx) mounts <App/> without a ChatOpenProvider —
+                same reasoning as the ChatWidget/ProfileButton `!preview`
+                guards below, just needed one route earlier since this one is
+                reachable by direct URL even though nothing links to it in
+                preview. */}
+            {__CHAT_ENABLED__ && chatEnabled() && !preview && (
+              <Route path={ROUTES.CONVERSATIONS}>
+                <Suspense fallback={<Loading />}>
+                  <ConversationsPage />
+                </Suspense>
+              </Route>
+            )}
             <Route path="/admin/:rest*">
               <Suspense fallback={<Loading />}>
                 <AdminEntry />
@@ -469,7 +512,10 @@ export default function App() {
         </div>
       </div>
       <Footer />
-      {__CHAT_ENABLED__ && !preview && <ChatWidget />}
+      {/* __CHAT_ENABLED__ (bare, build-time define) MUST stay the outer guard
+          — see the comment on the /conversations route above; same reasoning
+          applies to the widget mount. */}
+      {__CHAT_ENABLED__ && chatEnabled() && !preview && <ChatWidget />}
     </div>
   );
 }

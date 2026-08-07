@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { atlasHref } from "../../lib/routes";
+import { useChatOpenOptional } from "../../lib/chatOpen";
 import { ChatLauncher } from "./ChatLauncher";
 import { ChatPanel } from "./ChatPanel";
+import { useChatSession } from "./useChatSession";
 import { usePageContext } from "./pageContext";
 import { track } from "../../lib/analytics";
 import type { Placement } from "./types";
@@ -18,13 +20,24 @@ function readPlacement(): Placement {
 // shell so it's available on every route. Open via click or ⌘K / Ctrl-K; Esc
 // closes. Two placements (persisted): "float" (docked corner card) and
 // "anchored" (full-height right column that pushes the shell over — see the
-// body.rlc-anchored .app-shell rule in chat.css). The panel unmounts when
-// closed — every open starts fresh (MVP; the v1 history list will change this).
+// body.rlc-anchored .app-shell rule in chat.css).
+//
+// Conversation state (useChatSession) is owned HERE, not by ChatPanel, so
+// closing the panel only unmounts its DOM — the thread, an in-flight stream,
+// and the rate-limit lock all survive minimize/reopen (chat-conversation-
+// memory plan §5: lift the state out, don't wrap the app in a provider).
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement>(readPlacement);
   const [, navigate] = useLocation();
   const context = usePageContext();
+  const session = useChatSession(open);
+  const chatOpen = useChatOpenOptional();
+  const request = chatOpen?.request ?? null;
+  const deleted = chatOpen?.deleted ?? null;
+  const lastHandledNonceRef = useRef(0);
+  const lastHandledDeleteRef = useRef(0);
+  const { openConversation, newChat, conversationId } = session;
 
   // Track each open once (guards ⌘K while already open). product:"chat" overrides
   // the route-derived super property since the widget overlays any page.
@@ -34,6 +47,28 @@ export function ChatWidget() {
       return true;
     });
   }, []);
+
+  // Cross-route command channel (src/lib/chatOpen.tsx): another page (e.g. a
+  // conversation list row) asked to open a specific conversation here.
+  // Compare by `nonce`, not `conversationId` — re-clicking the SAME
+  // conversation after minimizing must still re-fire, which an id-only
+  // comparison would swallow as "no change".
+  useEffect(() => {
+    if (!request || request.nonce === lastHandledNonceRef.current) return;
+    lastHandledNonceRef.current = request.nonce;
+    setOpen(true);
+    void openConversation(request.conversationId, request.title);
+  }, [request, openConversation]);
+
+  // A page deleted a conversation. If it's the one loaded here, reset to a
+  // fresh chat: the row is gone from the DB, so the next send would otherwise
+  // POST a dead id. (useChatStream's conversation_not_found branch is the
+  // second line of defense, for a delete that happened in another tab.)
+  useEffect(() => {
+    if (!deleted || deleted.nonce === lastHandledDeleteRef.current) return;
+    lastHandledDeleteRef.current = deleted.nonce;
+    if (deleted.conversationId === conversationId) newChat();
+  }, [deleted, conversationId, newChat]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,6 +110,7 @@ export function ChatWidget() {
   if (!open) return <ChatLauncher onOpen={openChat} context={context} />;
   return (
     <ChatPanel
+      session={session}
       onClose={() => setOpen(false)}
       context={context}
       onAtlas={onAtlas}

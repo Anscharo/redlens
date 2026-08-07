@@ -23,10 +23,10 @@ const minChanged = Number(process.env.COVERAGE_CHANGED_MIN ?? "85");
 // each product's test coverage is tracked on its own. Ordering is load-bearing:
 // areaFor() returns the FIRST area whose pattern matches, so specific product
 // buckets are listed before the broad `react-general` catch-all, and the React
-// buckets sit before `general-utils` (whose `^src/lib/` would otherwise swallow
-// the lib/*.tsx context providers). The set of React bucket ids below is proved
-// to be a total + disjoint partition of the React file set by
-// scripts_tests/coverage-areas.test.ts — keep the two in sync.
+// buckets sit before the `lib-*` buckets (whose `lib-shared` catch-all uses
+// `^src/lib/` and would otherwise swallow the lib/*.tsx context providers). The
+// set of React bucket ids below is proved to be a total + disjoint partition of
+// the React file set by scripts_tests/coverage-areas.test.ts — keep the two in sync.
 export const areas = [
   // ---- React product meters ----
   { id: "react-radar", label: "React · Radar", match: [/^src\/components\/radar\//] },
@@ -100,7 +100,80 @@ export const areas = [
   // Misc catch-all — everything else at src/server/ root (config, og/og-image, bundle-store,
   // collections, session, rate-limit, migrate, db, posthog-*, atlas-static, stream helpers). Keep last.
   { id: "backend-core", label: "Backend · Core (misc)", match: [/^src\/server\//] },
-  { id: "general-utils", label: "General utils/units", match: [/^src\/lib\//, /^scripts\/lib\//] },
+  // ---- lib product meters ----
+  // `general-utils` used to be a single ~17k-line catch-all over ALL of src/lib/
+  // + scripts/lib/. Split into per-product meters the same way backend-core was,
+  // so each product's lib coverage is tracked on its own instead of one meter
+  // averaging over everything from report math to markdown rendering. Ordering
+  // is load-bearing (areaFor returns the FIRST match): react-general (above)
+  // must precede these so the src/lib/*.tsx context providers stay React; the
+  // specific lib-* buckets below use explicit filename alternations, so their
+  // relative order doesn't matter EXCEPT `lib-shared` and `scripts-lib-core`,
+  // which are trailing catch-alls (`^src/lib/` / `^scripts/lib/`) and MUST stay
+  // last in their respective groups so new/uncategorized files still land
+  // somewhere instead of leaking to `uncategorized`. Proved a total + disjoint
+  // partition of src/lib/ and scripts/lib/ by scripts_tests/coverage-areas.test.ts.
+  {
+    id: "lib-reports-duty",
+    label: "Lib · Reports (duty/risk/OEA)",
+    match: [/^src\/lib\/(oeaAssessment|oeaReport|oeaTasks|riskAssessment|riskAssessmentIndex|riskRules|dutyText|dutyCollapse|facilitatorResponsibilities|govopsResponsibilities)\.ts$/],
+  },
+  {
+    id: "lib-reports-activity",
+    label: "Lib · Reports (activity/rewards)",
+    match: [/^src\/lib\/(rewardsSearch|rewardsTypes|rewardsIndex|modFrequencyCharts|modFrequencyIndex|activeDataIndex|actorIndex|onchainAddressesIndex|processesIndex|primitiveStats|reportChains|treemap|productArea|owningAgent|reportFilter|csv|csvDownload|staleChunk|staleDates|curationStore)\.ts$/],
+  },
+  {
+    id: "lib-crossview",
+    label: "Lib · CrossView",
+    match: [/^src\/lib\/(crossview|crossviewHeadings|crossviewIndex|crossviewShape|conceptsCensus)\.ts$/],
+  },
+  {
+    id: "lib-diff-preview",
+    label: "Lib · Diff/Preview",
+    match: [/^src\/lib\/(diffCore|diffFences|diffIslands|diffProse|diffSentences|diffSubclause|previewLocal|previewFilter)\.ts$/],
+  },
+  {
+    id: "lib-address-chain",
+    label: "Lib · Address/Chain",
+    match: [/^src\/lib\/(addresses|addressMap|balances|chainstate|explorer|tokens|rehypeEthAddresses)\.ts$/],
+  },
+  {
+    id: "lib-search",
+    label: "Lib · Search",
+    match: [/^src\/lib\/(search|searchOptions|searchHighlight|recentSearches|hitLabels|uuidSearch)\.ts$/],
+  },
+  {
+    id: "lib-atlas-core",
+    label: "Lib · Atlas core/render",
+    match: [
+      /^src\/lib\/(docs|docsTypes|atlasHelpers|atlasBase|atlasSubset|depth|breadcrumbs|treeUtils|selectedTree|cousins|anchorId|chevronSettle|scrollMemory|scrollRequestStore|revealStore|animatedScroll|shortenTitle|layout|slug|routes)\.ts$/,
+      /^src\/lib\/(history|visitHistory)\.ts$/,
+      /^src\/lib\/(glossary|glossaryLookup|rehypeHeadingIds|rehypeHighlightMarks|rehypeEvidencePills|rehypeDocRefs|stripMarkdownLinks|patterns|mathGuard)\.ts$/,
+    ],
+  },
+  {
+    id: "lib-graph",
+    label: "Lib · Graph",
+    match: [/^src\/lib\/(graph|graphData|entityGraph|instanceDescendants|roleEdges|docRefResolver)\.ts$/],
+  },
+  // Misc catch-all — auth, collections, analytics, and generic infra (format,
+  // idb, health, patchNotes, verify, tools, etc.) at src/lib root. Keep last.
+  { id: "lib-shared", label: "Lib · Shared/infra", match: [/^src\/lib\//] },
+  {
+    id: "scripts-lib-graph",
+    label: "Scripts lib · Graph extraction",
+    match: [/^scripts\/lib\/(graph-bridges|graph-doc-edges|graph-duties|graph-entities|graph-entity-edges|graph-instances|graph-multisigs|graph-omni|graph-patterns|graph-transfers|graph-transitions|graph-tripwires)\.mjs$/],
+  },
+  {
+    id: "scripts-lib-address",
+    label: "Scripts lib · Address/chain",
+    match: [/^scripts\/lib\/(address-annotate|address-chains|address-code|address-enrich|solana-accounts|solana-pda)\.mjs$/],
+  },
+  // Misc catch-all — atlas/table parsing, history classification, and small
+  // build-pipeline utils (natural-sort, census-fingerprint, patch-notes-validate,
+  // process-keywords, chains, worker-heartbeat). Keep last.
+  { id: "scripts-lib-core", label: "Scripts lib · Core (parsing/misc)", match: [/^scripts\/lib\//] },
 ];
 
 // Ids of the React product meters, in display order. The proof test asserts every
@@ -113,6 +186,13 @@ export const reactAreaIds = areas.filter((a) => a.id.startsWith("react-")).map((
 // to exactly one of these and none leak to general-utils/uncategorized. `backend-core`
 // is the misc catch-all, so totality holds automatically for any new src/server file.
 export const backendAreaIds = areas.filter((a) => a.id.startsWith("backend-")).map((a) => a.id);
+
+// Ids of the lib meters (the product split of the former single `general-utils`
+// bucket), in display order. The proof test asserts every non-React src/lib file
+// and every scripts/lib file maps to exactly one of these. `lib-shared` and
+// `scripts-lib-core` are the misc catch-alls, so totality holds automatically for
+// any new file in either directory.
+export const libAreaIds = areas.filter((a) => a.id.startsWith("lib-") || a.id.startsWith("scripts-lib-")).map((a) => a.id);
 
 // First match wins. Specific areas precede broad ones in `areas`, so a plain
 // ordered scan yields the correct bucket (e.g. backend-routes before backend-core,
@@ -189,7 +269,7 @@ function changedLines() {
 // when the block is fully tested. Excluding these from both the numerator and
 // denominator keeps a meter honest: it reflects tested logic, not brace noise.
 const srcCache = new Map();
-function isLogicLine(file, lineNo) {
+export function isLogicLine(file, lineNo) {
   if (!srcCache.has(file)) {
     try {
       srcCache.set(file, readFileSync(path.resolve(repo, file), "utf8").split(/\r?\n/));
@@ -201,6 +281,13 @@ function isLogicLine(file, lineNo) {
   if (!lines) return true; // unreadable → count it (conservative)
   const t = (lines[lineNo - 1] ?? "").trim();
   if (!t) return false; // blank
+  // A comment is documentation, not logic. This is not hypothetical tidiness:
+  // bun's LCOV emits DA records for comment lines where v8's does not, and for
+  // a scripts/lib module that a src/server test merely imports, every one of
+  // those records is 0. Since the two reports are merged by line number, an
+  // added comment block then lands in the denominator as uncovered code —
+  // penalising a change whose actual statements are fully tested.
+  if (t.startsWith("//") || t.startsWith("/*") || t.startsWith("*")) return false;
   // A logic line carries an identifier, keyword, or literal. A line that is only
   // braces / brackets / parens / semicolons / commas / operators is structural.
   return /[A-Za-z0-9_$"'`]/.test(t);

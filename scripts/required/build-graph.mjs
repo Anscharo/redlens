@@ -45,7 +45,6 @@ import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
   normalizeAddress,
-  detectChain,
   findTableContext,
 } from "../lib/address-chains.mjs";
 import {
@@ -157,7 +156,7 @@ if (chainState.chains) {
   ]);
 
   // Per-address aggregation across all docs
-  const agg = new Map(); // addr → { chains: Set, labels: Set, roles: Set, tokens: Set }
+  const agg = new Map(); // addr → { labels: Set, roles: Set, tokens: Set }
 
   for (const doc of allDocs) {
     const content = doc.content ?? "";
@@ -166,11 +165,9 @@ if (chainState.chains) {
     let m;
     while ((m = ETH_ADDR_RE.exec(content)) !== null) {
       const key = normalizeAddress(m[0]);
-      const chain = detectChain(content, m.index);
       const table = findTableContext(content, m.index);
       let g = agg.get(key);
-      if (!g) { g = { chains: new Set(), labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
-      g.chains.add(chain);
+      if (!g) { g = { labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
       const label = extractEntityLabel(content, m.index, table);
       if (label) g.labels.add(label);
       for (const r of extractRoles(content, m.index, m[0].length, table)) g.roles.add(r);
@@ -182,8 +179,7 @@ if (chainState.chains) {
       const key = normalizeAddress(m[0]);
       const table = findTableContext(content, m.index);
       let g = agg.get(key);
-      if (!g) { g = { chains: new Set(["solana"]), labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
-      g.chains.add("solana");
+      if (!g) { g = { labels: new Set(), roles: new Set(), tokens: new Set() }; agg.set(key, g); }
       const label = extractEntityLabel(content, m.index, table);
       if (label) g.labels.add(label);
       for (const r of extractRoles(content, m.index, m[0].length, table)) g.roles.add(r);
@@ -196,9 +192,14 @@ if (chainState.chains) {
     let entry = addressesAtlas[addr];
     if (!entry) continue; // address not found during build-index (shouldn't happen)
 
-    // Chain: prefer any non-ethereum detection
-    const specific = [...g.chains].find((c) => c !== "ethereum");
-    entry.chain = specific ?? [...g.chains][0] ?? entry.chain ?? "ethereum";
+    // Chain is deliberately NOT recomputed here. build-index owns it: it runs
+    // the same prose detection *plus* the doc-title/ancestor walk this pass
+    // can't see, and applies the same prefer-a-specific-chain aggregation
+    // across docs. Re-deriving it from content alone here both discarded the
+    // heading signal and let a single stray mention win globally — one doc
+    // whose prose says "Gnosis Protocol" pinned the address to Gnosis Chain
+    // however many other docs placed it on ethereum. Phase 4.5a still applies
+    // the ICD-stated chain on top, which outranks both.
 
     // Entity label: pick longest non-generic candidate
     const labelPool = [...g.labels];
@@ -275,14 +276,18 @@ function icdParamRole(key) {
 
 const normalizeChain = (raw) => normalizeChainLabel(raw, "icd-chain");
 
+// Returns the chain the ICD itself names, or null when it names none. The
+// caller supplies the default: "named nothing" must stay distinguishable from
+// "named ethereum", because Phase 4.5a writes this back over the chain
+// build-index detected and would otherwise reset every unlabelled ICD address
+// to ethereum.
 function icdParamChain(key, params) {
   if (key.startsWith("Token Address (")) {
     const m = key.match(/\(([^)]+)\)/);
     if (m && !/ERC4626/i.test(m[1])) return normalizeChain(m[1]);
   }
-  return normalizeChain(
-    params["Integration Partner Chain"]?.[0] ?? params["Network"]?.[0],
-  );
+  const raw = params["Integration Partner Chain"]?.[0] ?? params["Network"]?.[0];
+  return raw ? normalizeChain(raw) : null;
 }
 
 function icdParamLabel(key, params, agentName, instanceName) {
@@ -351,14 +356,16 @@ for (const ent of entityMap.values()) {
     if (!isEvm && !isSol) continue;
 
     const addr = normalizeAddress(value);
-    const chain = isSol ? "solana" : icdParamChain(key, params);
+    const namedChain = isSol ? "solana" : icdParamChain(key, params);
+    const chain = namedChain ?? "ethereum";
     const label = icdParamLabel(key, params, agentName, ent.name);
 
     if (!icdAnnotations.has(addr)) {
-      icdAnnotations.set(addr, { roles: [role], entityLabel: label, chain });
+      icdAnnotations.set(addr, { roles: [role], entityLabel: label, chain: namedChain });
     } else {
       const existing = icdAnnotations.get(addr);
       if (!existing.roles.includes(role)) existing.roles.push(role);
+      existing.chain ??= namedChain;
     }
 
     edges.push({
@@ -498,7 +505,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
           if (!addr) continue;
           if (!addressesAtlas[addr]) {
             const label = role === "ea_address" ? name : `${name} Delegation Contract`;
-            addressesAtlas[addr] = { chain: "ethereum", roles: ["delegate"], entityLabel: label };
+            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["delegate"], entityLabel: label };
             addressesRaw[addr] = { ...addressesAtlas[addr], label, aliases: [] };
           }
           addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role });
@@ -557,7 +564,7 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
       if (govRaw && govRaw !== "N/A") {
         for (const addr of extractEthAddresses(govRaw)) {
           if (!addressesAtlas[addr]) {
-            addressesAtlas[addr] = { chain: "ethereum", roles: ["governance"], entityLabel: name };
+            addressesAtlas[addr] = { chain: "ethereum", chains: ["ethereum"], roles: ["governance"], entityLabel: name };
             addressesRaw[addr] = { ...addressesAtlas[addr], label: name, aliases: [] };
           }
           addTableEdge(ent.id, "entity", `${addr}:ethereum`, "address", "has_address", { role: "governance" });
@@ -984,7 +991,7 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
 //   4.5e — Chainlog/Etherscan fallback: last resort from on-chain data
 // ---------------------------------------------------------------------------
 {
-  let icdUpdated = 0, icdMissing = 0;
+  let icdUpdated = 0, icdMissing = 0, icdRechained = 0;
   let entityLabeled = 0, parentLabeled = 0, titleLabeled = 0, chainlogFallback = 0;
 
   // 4.5a
@@ -993,6 +1000,17 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
     if (!entry) { icdMissing++; continue; }
     entry.roles = [...new Set([...ann.roles, ...(entry.roles ?? [])])];
     if (ann.entityLabel) entry.entityLabel = ann.entityLabel;
+    // A chain the ICD states outright beats build-index's prose/heading
+    // heuristic — a `Token Address (Avalanche)` param key or a `Network` param
+    // is structured data about this exact address. It becomes the primary and
+    // joins `chains` (the address may still be on the others too).
+    if (ann.chain) {
+      entry.chains = [...new Set([ann.chain, ...(entry.chains ?? [entry.chain])])];
+      if (ann.chain !== entry.chain) {
+        entry.chain = ann.chain;
+        icdRechained++;
+      }
+    }
     icdUpdated++;
   }
 
@@ -1049,6 +1067,7 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
     `  Atlas enrichment:` +
     ` ${icdUpdated} ICD` +
     (icdMissing ? ` (${icdMissing} not in prose)` : "") +
+    (icdRechained ? ` [${icdRechained} chain corrected]` : "") +
     `, ${entityLabeled} entity-linked` +
     `, ${parentLabeled} parent-titled` +
     `, ${titleLabeled} doc-titled` +

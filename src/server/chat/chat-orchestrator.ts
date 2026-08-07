@@ -15,8 +15,11 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
-import { createLinkJudge, repairCitations, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
-import { createLinkGate, gatedChat } from "./verify/stream-link-gate.ts";
+import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
+import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
+import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
+import { gatedChat } from "./verify/stream-link-gate.ts";
+import { createCitationGate } from "./verify/definition-block-gate.ts";
 import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
@@ -89,18 +92,88 @@ function verifyEvent(
   };
 }
 
+// Reference-style citations — `[text][label]` plus a `[label]: /atlas/<uuid>`
+// definition block — are expanded to the canonical inline form BEFORE repair
+// and before the deterministic checks, so the whole checking layer keeps
+// keying on one shape (docs/plans/reference-citations.md). Repair remains the
+// authority; it simply operates on the canonical form, which it has to, since
+// a garbled UUID in a reference answer lives in a definition line that is not
+// a `[text](href)` link at all.
+//
+// The repaired result becomes done.content whenever it differs from what the
+// model wrote — the comparison at each call site is against the ORIGINAL, not
+// the normalized string, so a normalization-only fix still ships. That is a
+// deliberate, narrow exception to the "streamed text and done.content must not
+// disagree" guard below:
+//   • today's inline-only answers normalize byte-identically, so this is a
+//     strict no-op and the guard is untouched;
+//   • a well-formed reference answer renders identically either way (remark
+//     resolves reference links to the same <a href="/atlas/…"> and drops the
+//     definition nodes), so the swap is invisible to the user;
+//   • where the swap IS visible it is precisely the repair — the two measured
+//     malformed shapes otherwise ship as literal brackets in the prose;
+//   • and done.content is what the verifier, the advisor digest, the revision
+//     steer, the Sources cluster and the persisted message all read, so one
+//     canonical shape across those consumers beats byte-fidelity to raw model
+//     output.
+// Exported for the offline evals (scripts/aux/eval-bakeoff.ts), which must grade
+// the string production would SHIP: a reference-style answer has no inline
+// citations at all until this runs, so a checker fed the raw model output scores
+// every well-formed reference answer as uncited.
+export function normalizeAndRepair(content: string, toolTexts: string[], ix: Indexes): { refs: ReferenceExpansion; repair: CitationRepair; identifiers: IdentifierRepair } {
+  // A used-but-undeclared label is resolved against this turn's retrieved docs
+  // and synthesized as an inline link when it maps uniquely (undefined-label
+  // degradation); unresolvable ones the normalizer strips to plain text and
+  // reports, and the orchestrator folds those into a hard failure below.
+  const judge = createLinkJudge(toolTexts, ix);
+  const resolveLabel = (label: string): string | null => {
+    const uuid = resolveLabelToUuid(label, judge);
+    return uuid ? `/atlas/${uuid}` : null;
+  };
+  const refs = expandReferenceLinks(content, resolveLabel);
+  const repair = repairCitations(refs.content, toolTexts, ix);
+  // Last: internal machine handles pasted into prose as pseudo-citations
+  // (`(Slug: grove-freezer-multisig)`) become real citations when the handle
+  // names a doc retrieved this turn, and vanish otherwise. Folded into
+  // repair.content because every call site swaps on that one string.
+  const identifiers = repairIdentifierLeaks(repair.content, toolTexts, ix);
+  return { refs, repair: { ...repair, content: identifiers.content }, identifiers };
+}
+
+// Reference bookkeeping for the checks row — observability only, never a
+// verdict. The remaining `undefinedLabels` here are the ones that could NOT be
+// resolved to a retrieved doc (the resolvable ones were already synthesized
+// into inline links by normalizeAndRepair); repairedChecks folds these into a
+// hard failure. `undefined` so the key vanishes from the persisted JSON on the
+// overwhelmingly common turn that uses no reference syntax at all.
+function refsMeta(r: ReferenceExpansion) {
+  if (r.definitions.size + r.undefinedLabels.length + r.unusedLabels.length === 0) return undefined;
+  return { definitions: r.definitions.size, undefinedLabels: r.undefinedLabels, unusedLabels: r.unusedLabels };
+}
+
+// Same bookkeeping shape for leaked machine handles: observability only (the
+// leak is already gone from the shipped text), `undefined` so the key vanishes
+// from the persisted JSON on the turns — nearly all of them — with no leak.
+function identifiersMeta(i: IdentifierRepair) {
+  if (i.linkified.length + i.removed.length === 0) return undefined;
+  return { linkified: i.linkified, removed: i.removed };
+}
+
 // Repair the answer's atlas links in code, then fold unrepairable (stripped)
 // links back into the report as hard failures — the link is gone from the
 // shipped text, but a fabricated citation still means an unsupported claim.
-// A length-capped answer (cut off mid-generation) is folded in the same way:
-// it's not a citation problem, but it must equally force `failed` so the
-// escalation gate below sees it and the harness attempts a recovery.
-function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean): CheckReport {
+// Unresolvable undefined reference labels (de-linkified to plain text by the
+// normalizer) fold in identically: a claim that cited a doc which turned out
+// not to resolve is just as unsupported. A length-capped answer (cut off
+// mid-generation) is folded the same way: it's not a citation problem, but it
+// must equally force `failed` so the escalation gate below sees it and the
+// harness attempts a recovery.
+function repairedChecks(content: string, toolTexts: string[], ix: Indexes, repair: CitationRepair, lengthCapped: boolean, undefinedLabels: string[] = []): CheckReport {
   const checks = runDeterministicChecks(content, toolTexts, ix);
-  if (repair.stripped.length === 0 && !lengthCapped) return checks;
+  if (repair.stripped.length === 0 && undefinedLabels.length === 0 && !lengthCapped) return checks;
   return {
     ...checks,
-    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target)],
+    invalidCitations: [...checks.invalidCitations, ...repair.stripped.map((s) => s.target), ...undefinedLabels],
     lengthCapped,
     failed: true,
   };
@@ -129,6 +202,7 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.docNoMismatches.map((m) => `misattributed citation: ${m}`),
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
+    ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
@@ -197,7 +271,21 @@ export async function* runVerifiedChat(opts: {
     }
     return raw;
   };
-  const makeGate = () => createLinkGate(renderLink);
+  // Reference-style answers stream a definition block first; the gate buffers it
+  // and repairs the whole citation table once (same judge, same evidence) before
+  // releasing it, so a garbled definition never flashes as a live dead link.
+  // A gate failure degrades to emitting the block unrepaired — the post-answer
+  // pass is the safety net.
+  const repairBlock = (block: string): string => {
+    try {
+      judge ??= createLinkJudge(gateEvidence, opts.ix);
+      return repairDefinitionBlock(block, judge).content;
+    } catch (err) {
+      captureError(err, opts.obs, { stage: "stream_link_gate" });
+      return block;
+    }
+  };
+  const makeGate = () => createCitationGate({ render: renderLink, repairBlock });
 
   const onRoundEnd = (info: RoundInfo) => {
     checker.record(info);
@@ -227,9 +315,11 @@ export async function* runVerifiedChat(opts: {
     // stream back to the invalid link at completion (the exact bug this gate
     // exists to prevent). Verification being off must not lose the repair.
     // Aborted/empty answers have nothing meaningful to repair, so skip them.
+    // Normalization runs here too: with checks off this is the only thing
+    // standing between a malformed reference citation and the user.
     if (!opts.signal?.aborted && done.content.trim()) {
       try {
-        const repair = repairCitations(done.content, toolTextsOf(done.transcript), opts.ix);
+        const { repair } = normalizeAndRepair(done.content, toolTextsOf(done.transcript), opts.ix);
         if (repair.content !== done.content) done = { ...done, content: repair.content };
       } catch (err) {
         captureError(err, opts.obs, { stage: "citation_repair_verify_disabled" });
@@ -240,7 +330,7 @@ export async function* runVerifiedChat(opts: {
   }
 
   // ── Verification (deterministic always; model audit when configured) ─────
-  // Citation repair runs first, on the FULL tool texts (the verifier evidence
+  // Reference-link normalization, then citation repair, on the FULL tool texts (the verifier evidence
   // budget doesn't apply to free string scans). The streaming gate already
   // applied the same judge to the token stream, so this pass normally agrees
   // with what streamed — it is the authority and the record (repaired/stripped
@@ -258,12 +348,12 @@ export async function* runVerifiedChat(opts: {
   let checks: CheckReport;
   try {
     toolTexts = toolTextsOf(done.transcript);
-    const repair = repairCitations(done.content, toolTexts, opts.ix);
+    const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
     if (repair.content !== done.content) done = { ...done, content: repair.content };
-    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped);
+    checks = repairedChecks(done.content, toolTexts, opts.ix, repair, done.lengthCapped, refs.undefinedLabels);
     checksMeta.push({
       kind: "round_checks", model: null, action: null,
-      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, checks: { ...checks, citations: checks.citations.length } },
+      verdict: { telemetry, repair: { repaired: repair.repaired, stripped: repair.stripped }, refs: refsMeta(refs), identifiers: identifiersMeta(identifiers), checks: { ...checks, citations: checks.citations.length } },
       overall: null, inputTokens: null, outputTokens: null, generationId: null, latencyMs: null,
     });
   } catch (err) {
@@ -302,7 +392,18 @@ export async function* runVerifiedChat(opts: {
   // ── Escalation gate (all free signals) ────────────────────────────────────
   const exhausted = max > 1 && roundsUsed >= max - 1;
   const advisorModel = opts.jsonCall ? config.chatAdvisorModel : "";
-  const troubled = overall === "fail" || overall === "warn" || (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
+  // A recovery cycle replays the whole turn transcript through the model — the
+  // single most expensive operation here — so it is reserved for `fail`, plus
+  // the two independent trouble signals below (which still admit `warn` via
+  // `overall !== "pass"`). A lone `unsupported` claim used to trigger it: the
+  // mildest signal buying the costliest response. `warn` now escalates on its
+  // own only once enough claims are unsupported that the answer is substantially
+  // ungrounded rather than imprecise in one spot.
+  const unsupportedClaims = (verdict?.claims ?? []).filter((c) => c.status === "unsupported").length;
+  const troubled =
+    overall === "fail" ||
+    (overall === "warn" && unsupportedClaims >= config.chatAdvisorTriggerUnsupportedClaims) ||
+    (overall !== "pass" && (exhausted || retrievalTrouble(telemetry)));
   const escalate = Boolean(advisorModel) && troubled && !opts.signal?.aborted;
 
   // Deterministic-only turns stay quiet unless something actually failed —
@@ -377,9 +478,9 @@ export async function* runVerifiedChat(opts: {
   let revChecks: CheckReport;
   try {
     const revToolTexts = toolTextsOf(revDone.transcript);
-    const revRepair = repairCitations(revDone.content, revToolTexts, opts.ix);
+    const { refs: revRefs, repair: revRepair } = normalizeAndRepair(revDone.content, revToolTexts, opts.ix);
     if (revRepair.content !== revDone.content) revDone = { ...revDone, content: revRepair.content };
-    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped);
+    revChecks = repairedChecks(revDone.content, revToolTexts, opts.ix, revRepair, revDone.lengthCapped, revRefs.undefinedLabels);
   } catch (err) {
     captureError(err, opts.obs, { stage: "revision_citation_repair_or_checks" });
     yield finish(revDone);

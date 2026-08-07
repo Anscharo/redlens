@@ -15,6 +15,10 @@ interface Window {
   // (true only when USERS_ENABLED + CHAT_JWT_SECRET are both set). Read via
   // src/lib/usersEnabled.ts, never directly.
   __USERS_ENABLED__?: boolean;
+  // Server's runtime capability for the chat feature, injected into
+  // index.html at serve time (config.chatEnabled). Read via
+  // src/lib/chatEnabled.ts, never directly.
+  __CHAT_ENABLED__?: boolean;
   // CSV of OAuth providers this environment offers ("github", "google", or
   // "github,google"), injected into index.html at serve time. Read via
   // src/lib/authProviders.ts, never directly.

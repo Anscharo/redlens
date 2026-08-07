@@ -51,6 +51,8 @@ export function nodeToDocRow(d: AtlasNode, atlasSha: string): DocMetaWriteRow {
 // ── addresses ────────────────────────────────────────────────────────────────
 
 export interface ChainStateEntry {
+  /** Chain the snapshot was taken on — null for the legacy flat shape. */
+  chain: string | null;
   block: number | null;
   values: unknown;
 }
@@ -66,27 +68,35 @@ interface ChainStateRaw {
 export function buildChainStateByAddr(raw: ChainStateRaw): Record<string, ChainStateEntry> {
   const out: Record<string, ChainStateEntry> = {};
   if (raw.chains) {
-    for (const data of Object.values(raw.chains)) {
+    for (const [chain, data] of Object.entries(raw.chains)) {
       for (const [addr, values] of Object.entries(data.values ?? {})) {
-        out[normalizeAddress(addr)] = { block: data.block ?? data.slot ?? null, values };
+        out[normalizeAddress(addr)] = { chain, block: data.block ?? data.slot ?? null, values };
       }
     }
   } else {
+    // Legacy flat shape predates per-chain snapshots — it's mainnet-only.
     for (const [addr, values] of Object.entries(raw.values ?? {})) {
-      out[normalizeAddress(addr)] = { block: raw.block ?? null, values };
+      out[normalizeAddress(addr)] = { chain: null, block: raw.block ?? null, values };
     }
   }
   return out;
 }
 
 interface AddrAtlasEntry {
+  /** Primary chain — always present in `chains` too. */
   chain?: string;
+  /** Every chain the atlas places this address on. */
+  chains?: string[];
   roles?: string[];
   entityLabel?: string;
   aliases?: string[];
   expectedTokens?: string[];
 }
 interface AddrOnChainEntry {
+  /** eth_getCode per chain, written by build-addresses (address-code.mjs). */
+  codeByChain?: Record<string, boolean>;
+  /** Chains the address has code or a non-zero nonce on, primary first. */
+  presentOnChains?: string[];
   chainlogId?: string;
   etherscanName?: string;
   isContract?: boolean;
@@ -126,27 +136,48 @@ export function buildAddrRows(
     const norm = normalizeAddress(addr);
     const oc = addrOnChain[addr] ?? addrOnChain[norm] ?? {};
     const label = oc.chainlogId ?? a.entityLabel ?? oc.etherscanName ?? null;
-    const chain = a.chain ?? "ethereum";
     const cs = chainStateByAddr[norm];
-    const record = {
-      address: norm,
-      chain,
-      label,
-      chainlog_id: oc.chainlogId ?? null,
-      etherscan_name: oc.etherscanName ?? null,
-      is_contract: !!oc.isContract,
-      is_proxy: !!oc.isProxy,
-      implementation: oc.implementation ?? null,
-      // Raw JS values: Bun.sql infers jsonb from the ::jsonb cast and encodes
-      // once. Pre-stringifying here double-encodes (stores a JSON string).
-      roles: a.roles ?? [],
-      aliases: a.aliases ?? [],
-      expected_tokens: a.expectedTokens ?? [],
-      // Snapshot block lives inside the JSONB as chain_state->>'block'.
-      chain_state: cs ? { block: cs.block, ...(cs.values as Record<string, unknown>) } : null,
-      atlas_sha: atlasSha,
-    };
-    byKey.set(`${norm}:${chain}`, { ...record, content_hash: Bun.hash(JSON.stringify(record)).toString(16) });
+    // One row per chain the atlas places this address on — the composite PK
+    // (address, chain) exists for exactly this, and writing only the primary
+    // chain hid every multi-chain deployment (Safes, the deterministically
+    // deployed ALM contracts) from the DB and from the balances refresh.
+    // Chains the address demonstrably exists on beat the atlas's candidates:
+    // build-addresses probed both readings of an ambiguous doc and only these
+    // came back with code or a non-zero nonce.
+    const chains = oc.presentOnChains?.length
+      ? oc.presentOnChains
+      : a.chains?.length
+        ? a.chains
+        : [a.chain ?? "ethereum"];
+    for (const chain of chains) {
+      const record = {
+        address: norm,
+        chain,
+        label,
+        chainlog_id: oc.chainlogId ?? null,
+        etherscan_name: oc.etherscanName ?? null,
+        // Per-chain when build-addresses checked this chain; the
+        // primary-chain answer otherwise.
+        is_contract: oc.codeByChain?.[chain] ?? !!oc.isContract,
+        is_proxy: !!oc.isProxy,
+        implementation: oc.implementation ?? null,
+        // Raw JS values: Bun.sql infers jsonb from the ::jsonb cast and encodes
+        // once. Pre-stringifying here double-encodes (stores a JSON string).
+        roles: a.roles ?? [],
+        aliases: a.aliases ?? [],
+        expected_tokens: a.expectedTokens ?? [],
+        // Snapshot block lives inside the JSONB as chain_state->>'block'. Only
+        // attached to the chain it was actually snapshotted on — copying an
+        // ethereum multicall onto this address's base row would assert state
+        // nobody read.
+        chain_state:
+          cs && (cs.chain === null || cs.chain === chain)
+            ? { block: cs.block, ...(cs.values as Record<string, unknown>) }
+            : null,
+        atlas_sha: atlasSha,
+      };
+      byKey.set(`${norm}:${chain}`, { ...record, content_hash: Bun.hash(JSON.stringify(record)).toString(16) });
+    }
   }
   return [...byKey.values()];
 }

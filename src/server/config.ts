@@ -129,7 +129,11 @@ export const config = {
   // OpenRouter embeddings (semantic search). The embedding dimension is a code
   // constant (EMBED_DIM in embed.ts), NOT env — it's locked to the DB migration.
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
-  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1",
+  // `||`, not `??`: an env var that is SET BUT EMPTY (a blank line in .env, a
+  // cleared Railway variable) survives `??` as "", and the OpenAI SDK then
+  // substitutes its OWN default — silently sending every chat call, and the
+  // OpenRouter key, to api.openai.com. Observed locally; fall back on empty too.
+  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1",
   // Management ("provisioning") key for the account-wide credits endpoint
   // (GET /api/v1/credits) that powers the shared "commons" pool meter — one
   // dollar balance shown to all signed-in users. Distinct from openrouterApiKey
@@ -158,6 +162,23 @@ export const config = {
 
   // Chat LLM (OpenRouter via the openai SDK). One model for all users; swap via env.
   chatModel: process.env.CHAT_MODEL ?? "google/gemma-4-31b-it",
+  // Cheap LLM call that titles a conversation after assistant turns 1, 4, and
+  // 10 (title.ts). Unlike chatVerifierModel/chatAdvisorModel (empty = feature
+  // OFF, opt-in reliability-harness extras), this is chatModel-style
+  // DEFAULTS-ON — titling is requested core behavior. An operator can still
+  // disable it with CHAT_TITLE_MODEL="".
+  chatTitleModel: process.env.CHAT_TITLE_MODEL ?? "google/gemma-4-31b-it",
+  // Hard cap on the titling call; on timeout the existing title is kept —
+  // titleConversation is fire-and-forget from chat.ts and must never block or
+  // fail the turn.
+  //
+  // Generous on purpose. This fires AFTER the SSE response has closed, so the
+  // budget costs the user no latency — its only job is to bound a hung
+  // request. Measured against google/gemma-4-31b-it: median ~670ms, but tail
+  // calls hit ~4.7s, and an earlier 6s budget intermittently timed out. A miss
+  // isn't free: titling only re-fires at turns 4 and 10, so a conversation
+  // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
+  chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
@@ -184,7 +205,12 @@ export const config = {
   // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
   curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
-  chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 6),
+  // Every round replays the full context, so round count — not token count — is
+  // the dominant latency driver (a 30-turn in-repo eval measured median 82s, max
+  // 229s). The old default of 6 predates the curated `atlas_report_*` one-call
+  // rollups: questions that used to need four narrow tool calls now need one, so
+  // the extra rounds bought latency rather than evidence.
+  chatMaxIterations: Number(process.env.CHAT_MAX_ITERATIONS ?? 4),
   // Conversationalist sampling temperature. Pinned (provider defaults hover
   // around 0.7) — a grounded citation machine wants low variance, and pinning
   // keeps eval-harness A/B runs comparable. Judges stay at 0 in llm.ts.
@@ -230,6 +256,12 @@ export const config = {
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
+  // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE
+  // turn transcript (every tool result, up to chatToolResultMaxChars each) — the
+  // most expensive thing the harness does — so one `unsupported` claim ("warn")
+  // must not buy it. Amber badges on its own; ≥N unsupported claims means the
+  // answer is substantially ungrounded and is worth the replay.
+  chatAdvisorTriggerUnsupportedClaims: Number(process.env.CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS ?? 3),
   // Hard cap on the advisor call; timeout → null → annotate fallback (chat never
   // blocks on the advisor). Smoke testing showed chat-tier models can need >5s
   // for the recovery JSON, so this is env-tunable per deployed advisor model.
@@ -244,6 +276,14 @@ export const config = {
   chatModelStrong: (process.env.CHAT_MODEL_STRONG ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   // Fallbacks for the default chain (also inherited by unset tiers).
   chatModelFallbacks: (process.env.CHAT_MODEL_FALLBACKS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+  // Models PROMPTED for reference-style citations (system-prompt.ts). Every model
+  // still accepts both formats — this is prompt wording only. Defaults to the
+  // strong chain, since that is where the 2026-08-03 bakeoff measured the format
+  // working (93% adoption, block first, no defects) while the default tier
+  // adopted it in 29% of turns and never led with the block. Empty (no strong
+  // tier configured, no override) = inline everywhere, which is the safe form.
+  chatReferenceCitationModels: (process.env.CHAT_REFERENCE_CITATION_MODELS ?? process.env.CHAT_MODEL_STRONG ?? "")
+    .split(",").map((s) => s.trim()).filter(Boolean),
 
   // Per-user rolling token window — the HARD rate-limit gate. Counts
   // input+output tokens over the trailing `rateLimitWindowMinutes`; once the sum

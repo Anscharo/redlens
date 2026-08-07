@@ -7,6 +7,8 @@ export type ReportId =
   | "stale-dates"
   | "oea-assessment"
   | "risk-rules"
+  | "onchain-addresses"
+  | "mod-frequency"
   | "crossview";
 
 export interface AtlasNode {
@@ -26,15 +28,26 @@ export interface AtlasNode {
 
 export interface AddressInfo {
   chain: string;
+  // Every chain the atlas places this address on; always contains `chain`.
+  // Safes and deterministically-deployed contracts can sit at the same
+  // address on several chains — see addressTooltip.ts's multi-chain balance
+  // lookup for why this needs to be a list, not just the primary `chain`.
+  chains: string[];
   explorerUrl: string;
   // label is resolved at load time: chainlogId ?? entityLabel ?? etherscanName
   label: string | null;
   entityLabel?: string; // atlas-derived label (from graph annotation passes)
   chainlogId?: string; // mainnet only
   etherscanName?: string; // verified contract name
-  isContract: boolean; // false for unverified contracts and EOAs
+  isContract: boolean; // holds executable code (eth_getCode / Solana executable)
   isProxy: boolean;
-  implementation?: string; // lowercase address, only when isProxy
+  implementation?: string; // proxy implementation, or a Solana program's ProgramData account
+  // Solana only — from getAccountInfo. Solana has no contract/EOA split, so
+  // these carry what isContract can't say: what kind of account it is and which
+  // program owns it. See scripts/lib/solana-accounts.mjs.
+  accountType?: string; // program | program-account | mint | token-account | token-multisig | wallet | missing
+  programOwner?: string; // owning program's pubkey
+  programOwnerName?: string; // its friendly name, when known
   roles: string[]; // from addresses.atlas.json (ROLE_VOCAB + ICD-structural)
   aliases: string[]; // non-winning label candidates from both sources
   expectedTokens: string[]; // token symbols from atlas annotation

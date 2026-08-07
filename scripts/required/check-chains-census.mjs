@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Chain coverage census — drift detector for the canonical chain registry
- * (scripts/lib/chains.mjs `CHAINS`).
+ * (src/data/chain-registry.json).
  *
  * The pipeline silently defaults every unrecognized chain to ethereum:
  * `normalizeChainLabel` collapses unknown labels, and `detectChain` is
@@ -11,7 +11,7 @@
  * is the alarm for that. (Robinhood Chain is the worked example: two `Network`
  * params named it while the registry had never heard of it.)
  *
- * Two independent halves:
+ * Three independent halves:
  *
  *   labels     — the explicit chain strings the real extractors read:
  *                `Token Address (X)` titles, `Network` / `Integration Partner
@@ -24,25 +24,43 @@
  *                Mainnet|Rollup|L2|L1`, minus the registry. Deliberately not a
  *                list of chain names someone thought of ahead of time: a drift
  *                detector built from known names cannot detect drift.
+ *   odd rows   — chain-keyed address lists with a row naming no known chain
+ *                (chain-candidates.mjs). Both halves above still need the
+ *                chain's name to appear in a shape they recognize, and a
+ *                single-word name in a plain bullet row fits neither: unichain
+ *                had three attributed addresses while this census called it
+ *                unseen. This half reasons about the *list* instead of the
+ *                name — see chain-candidates.mjs for why that needs no advance
+ *                knowledge of the missing chain.
  *
- * Both halves bucket into known / deferred (FUTURE_TO_ETHEREUM, an intentional
- * collapse) / unknown. Unknown is the residue — the watch list, keyed by the
- * chain string rather than per-doc, since the string is the unit of drift.
- * Atlas prose noise ("Pioneer Chain", "Partner Network") lands there on the
- * first --update and stays absorbed; that is the design working, not a bug.
+ * All three halves bucket into known / deferred (FUTURE_TO_ETHEREUM, an
+ * intentional collapse) / unknown. Unknown is the residue — the watch list,
+ * keyed by the chain string rather than per-doc, since the string is the unit
+ * of drift. Atlas prose noise ("Pioneer Chain", "Partner Network") lands there
+ * on the first --update and stays absorbed; that is the design working, not a
+ * bug.
  *
- * Also asserts the registry's four parallel lists stay in step — CHAINS,
- * CHAIN_HINTS (address-chains.mjs), EXPLORER (src/lib/explorer.ts), and the
- * chainId/rpcUrl fields. A half-added chain is a code bug, not atlas drift, so
- * those warnings are never baselined.
+ * Also asserts every registry entry is complete — explorer, proseHints,
+ * chainId, rpcUrl, nativeToken, and the etherscan/blockscout pairing. Each hole
+ * is its own silent failure: no explorer means etherscan.io links for another
+ * chain's addresses, no proseHints means prose on that chain is never
+ * attributed to it, no nativeToken means the balances fetcher skips it as
+ * unsupported. CHAINS / CHAIN_HINTS / EXPLORER / NATIVE_TOKEN all derive from
+ * the one registry now, so those four can no longer drift apart — but they are
+ * still read through their real modules here, so a broken *derivation* is
+ * caught too. An incomplete entry is a code bug, not atlas drift, so those
+ * warnings are never baselined.
  *
- * Runs under bun (not node) so it can import EXPLORER straight from the
- * TypeScript module the frontend uses, rather than re-declaring it.
+ * Fix a missing chain with `pnpm chains:add <name>` rather than by hand.
+ *
+ * Runs under bun (not node) so it can import EXPLORER and NATIVE_TOKEN straight
+ * from the TypeScript modules the frontend and balances fetcher use, rather
+ * than re-deriving them from the registry and proving nothing.
  *
  * Warnings (stderr, picked up by atlas-update.yml's drift-issue step):
  *   - [drift] a chain string entered the residue that isn't in the committed
  *     baseline (.github/chains-census-baseline.json)
- *   - [drift] a registry inconsistency (never baselined)
+ *   - [drift] an incomplete registry entry or a broken derivation (never baselined)
  *
  * Always exits 0 — like the other censuses, it must never block a build.
  * `--update` rewrites the baseline (atlas-update.yml does this in the same
@@ -56,7 +74,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { CHAINS, FUTURE_TO_ETHEREUM, classifyChainLabel } from "../lib/chains.mjs";
 import { CHAIN_HINTS } from "../lib/address-chains.mjs";
+import { findChainKeyedOddRows } from "../lib/chain-candidates.mjs";
 import { EXPLORER } from "../../src/lib/explorer.ts";
+import { NATIVE_TOKEN } from "../../src/lib/tokens.ts";
 import { naturalCompare } from "../lib/natural-sort.mjs";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
@@ -131,6 +151,23 @@ for (const doc of allDocs) {
   }
 }
 
+// -- Half 3: address-anchored scan -------------------------------------------
+// Halves 1 and 2 both need the chain's name to appear in a shape they can
+// recognize — a structured param, or a two-word `<Noun> Chain` phrase. A
+// single-word chain name in a plain bullet row ("- Unichain - `0x…`") satisfies
+// neither, which is exactly how unichain came to have three attributed
+// addresses while this census reported it unseen. findChainKeyedOddRows closes
+// that by reasoning about the list rather than the name: in an address list
+// whose sibling rows name two or more distinct known chains, a row naming no
+// known chain is a candidate chain — no advance knowledge of its name required.
+let oddRowCount = 0;
+for (const doc of allDocs) {
+  for (const r of findChainKeyedOddRows(doc.content)) {
+    oddRowCount++;
+    observe(r.label, "address-list-row", doc);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Bucket by classification, grouped on the chain string
 // ---------------------------------------------------------------------------
@@ -181,7 +218,13 @@ const known = rows
   .sort((a, b) => naturalCompare(a.label, b.label));
 
 // ---------------------------------------------------------------------------
-// Registry consistency — the four parallel lists must stay in step
+// Registry completeness — every entry in src/data/chain-registry.json must be
+// whole. These used to guard four hand-maintained lists against drifting apart;
+// the lists now derive from the registry, so cross-file drift is structurally
+// impossible and what remains to check is a registry entry with a hole in it.
+// The derived maps (EXPLORER, NATIVE_TOKEN, CHAIN_HINTS) are still read through
+// their real modules rather than from the JSON, so a broken derivation shows up
+// here too.
 // ---------------------------------------------------------------------------
 let registryDrift = 0;
 const registryWarn = (msg) => {
@@ -194,7 +237,7 @@ const hintChains = new Set(CHAIN_HINTS.map((h) => h.chain));
 
 for (const c of CHAINS) {
   if (!EXPLORER[c.chain]) {
-    registryWarn(`chain "${c.chain}" is in CHAINS but has no EXPLORER entry (src/lib/explorer.ts) — its addresses would link to etherscan.io.`);
+    registryWarn(`chain "${c.chain}" has no explorer in the registry (src/data/chain-registry.json) — its addresses would link to etherscan.io, another chain’s explorer.`);
   }
   // Solana is the one intentional non-EVM entry: no chainId, no EVM rpcUrl,
   // and no CHAIN_HINTS entry either — detectChain only ever runs on EVM
@@ -202,20 +245,40 @@ for (const c of CHAINS) {
   // shape (SOL_ADDR_RE) instead. Every EVM chain does need a hint.
   const isEvm = c.chain !== "solana";
   if (isEvm && !hintChains.has(c.chain)) {
-    registryWarn(`chain "${c.chain}" is in CHAINS but has no CHAIN_HINTS entry (scripts/lib/address-chains.mjs) — detectChain can never attribute a prose address to it.`);
+    registryWarn(`chain "${c.chain}" has no proseHints in the registry (src/data/chain-registry.json) — detectChain can never attribute a prose address to it.`);
   }
-  if (isEvm && c.chainId == null) registryWarn(`chain "${c.chain}" has no chainId in CHAINS.`);
-  if (isEvm && !c.rpcUrl) registryWarn(`chain "${c.chain}" has no rpcUrl in CHAINS — it cannot be queried on-chain.`);
+  if (isEvm && c.chainId == null) registryWarn(`chain "${c.chain}" has no chainId in the registry (src/data/chain-registry.json).`);
+  if (isEvm && !c.rpcUrl) registryWarn(`chain "${c.chain}" has no rpcUrl in the registry (src/data/chain-registry.json) — it cannot be queried on-chain.`);
   if (!isEvm && c.rpcUrl) registryWarn(`chain "${c.chain}" is non-EVM but declares an rpcUrl.`);
+  // NATIVE_TOKEN is a hard gate in src/server/balances/fetch-balances.ts: a
+  // chain missing from it is skipped as "unsupported" and reports no balances
+  // at all — silently, like every other half-added-chain failure. Solana is the
+  // deliberate omission (adding it would push Solana addresses through viem).
+  if (isEvm && !NATIVE_TOKEN[c.chain]) {
+    registryWarn(`chain "${c.chain}" has no nativeToken in the registry (src/data/chain-registry.json) — fetch-balances treats it as unsupported and returns no balances for it.`);
+  }
+  if (!isEvm && NATIVE_TOKEN[c.chain]) {
+    registryWarn(`chain "${c.chain}" is non-EVM but has a NATIVE_TOKEN entry — that would send its addresses through the EVM multicall path.`);
+  }
+  // A chain Etherscan v2 cannot serve has no contract-metadata source at all
+  // unless Blockscout fills in (address-enrich's only other backend).
+  if (c.etherscan === false && !c.blockscoutApi) {
+    registryWarn(`chain "${c.chain}" is flagged etherscan:false but declares no blockscoutApi — address-enrich has no contract-metadata source for it.`);
+  }
 }
-for (const key of Object.keys(EXPLORER)) {
-  if (!chainKeys.has(key)) registryWarn(`EXPLORER has "${key}" but CHAINS does not — the frontend knows a chain the build pipeline doesn't.`);
+// A derived map naming a chain the registry does not is no longer reachable
+// from the data alone — it would mean the derivation itself broke, which is
+// worth catching precisely because nothing else would notice.
+for (const [label, map] of [["EXPLORER (src/lib/explorer.ts)", EXPLORER], ["NATIVE_TOKEN (src/lib/tokens.ts)", NATIVE_TOKEN]]) {
+  for (const key of Object.keys(map)) {
+    if (!chainKeys.has(key)) registryWarn(`${label} has "${key}" but the registry does not — the derivation is out of step with its source.`);
+  }
 }
 for (const h of hintChains) {
-  if (!chainKeys.has(h)) registryWarn(`CHAIN_HINTS has "${h}" but CHAINS does not — detectChain can emit a chain with no chainId or explorer.`);
+  if (!chainKeys.has(h)) registryWarn(`CHAIN_HINTS has "${h}" but the registry does not — the derivation is out of step with its source.`);
 }
 for (const f of FUTURE_TO_ETHEREUM) {
-  if (chainKeys.has(f)) registryWarn(`"${f}" is in both CHAINS and FUTURE_TO_ETHEREUM — remove it from FUTURE_TO_ETHEREUM now that it is fully supported.`);
+  if (chainKeys.has(f)) registryWarn(`"${f}" is both a registered chain and listed under "deferred" — drop it from deferred now that it is fully supported.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,8 +302,9 @@ if (baselineLabels) {
         `[drift] chains-census: NEW unrecognized chain string "${r.label}" ` +
           `(${r.count} mention(s), source: ${r.sources.join("+")}, e.g. ${ex?.doc_no} "${ex?.title}" ${ex?.uuid}). ` +
           `If it is a real chain, add it to CHAINS in scripts/lib/chains.mjs (chainId + rpcUrl) plus ` +
-          `CHAIN_HINTS in scripts/lib/address-chains.mjs and EXPLORER in src/lib/explorer.ts; ` +
-          `if it is not yet live, add it to FUTURE_TO_ETHEREUM; otherwise --update the baseline.`,
+          `CHAIN_HINTS in scripts/lib/address-chains.mjs, EXPLORER in src/lib/explorer.ts, and ` +
+          `NATIVE_TOKEN in src/lib/tokens.ts — the registry-consistency check below will name any ` +
+          `you miss; if it is not yet live, add it to FUTURE_TO_ETHEREUM; otherwise --update the baseline.`,
       );
       drift++;
     }
@@ -259,12 +323,40 @@ console.log(
     `${counts.deferred} deferred, ${counts.unknown} unknown, ${counts.empty} empty; ` +
     `${residue.length} residue string(s), ${drift + registryDrift} drift warning(s)`,
 );
+// "Seen" means two different things, and conflating them was itself a bug: a
+// chain can carry attributed addresses while never appearing in a label this
+// census can parse. Reporting only the label view claimed unichain was unseen
+// in a build that had just attributed three addresses to it — precisely the
+// blind spot that let the misattribution stand. Read the attribution straight
+// out of the artifact build-index wrote, so this reflects what the pipeline
+// concluded rather than re-deriving it.
+const attributed = {};
+try {
+  const atlasAddrs = JSON.parse(
+    fs.readFileSync(path.join(ROOT, "public/addresses.atlas.json"), "utf8"),
+  ).addresses;
+  for (const a of Object.values(atlasAddrs)) {
+    if (a.chain) attributed[a.chain] = (attributed[a.chain] ?? 0) + 1;
+  }
+} catch {
+  console.warn("[chains-census] no addresses.atlas.json — run pnpm build:index for the attribution view");
+}
+
 // Many labels can resolve to one chain ("Ethereum Mainnet", "Ethereum") — report
 // the distinct set.
-const seenChains = [...new Set(known.map((k) => k.chain))].sort();
+const labelChains = new Set(known.map((k) => k.chain));
+const seenChains = [...new Set([...labelChains, ...Object.keys(attributed)])].sort();
 console.log(`  registry: ${CHAINS.length} chains — ${seenChains.length} seen in this atlas build (${seenChains.join(", ")})`);
+if (Object.keys(attributed).length) {
+  const byCount = Object.entries(attributed).sort((a, b) => b[1] - a[1] || naturalCompare(a[0], b[0]));
+  console.log(`  addresses attributed: ${byCount.map(([c, n]) => `${c} ${n}`).join(", ")}`);
+}
 const unseen = [...chainKeys].filter((k) => !seenChains.includes(k)).sort();
 if (unseen.length) console.log(`  in registry but not seen in this atlas build: ${unseen.join(", ")}`);
+console.log(
+  `  address-list rows naming an unregistered chain: ${oddRowCount}` +
+    (oddRowCount ? " — see the residue entries sourced address-list-row" : ""),
+);
 for (const d of deferred) {
   console.log(`  deferred → ethereum: "${d.label}" (${d.count} mention(s)) — promote to CHAINS when it goes live`);
 }
@@ -274,6 +366,10 @@ for (const d of deferred) {
 // ---------------------------------------------------------------------------
 if (checkRpc) {
   console.log("chains-census: verifying rpcUrl endpoints (eth_chainId)…");
+  const mismatched = [];
+  const unreachable = [];
+  let reached = 0;
+
   for (const c of CHAINS) {
     if (!c.rpcUrl) continue;
     try {
@@ -284,12 +380,34 @@ if (checkRpc) {
         signal: AbortSignal.timeout(15000),
       });
       const got = parseInt((await res.json()).result, 16);
+      reached++;
       if (got === c.chainId) console.log(`  ok   ${c.chain} → ${got} (${c.rpcUrl})`);
-      else registryWarn(`rpcUrl for "${c.chain}" reports chainId ${got}, registry says ${c.chainId} — ${c.rpcUrl}`);
+      else mismatched.push(`rpcUrl for "${c.chain}" reports chainId ${got}, registry says ${c.chainId} — ${c.rpcUrl}`);
     } catch (err) {
-      registryWarn(`rpcUrl for "${c.chain}" is unreachable (${err.message}) — ${c.rpcUrl}`);
+      unreachable.push({ chain: c.chain, rpcUrl: c.rpcUrl, message: err.message });
     }
   }
+
+  // A wrong chainId is a real defect wherever it is observed, so it always warns.
+  for (const m of mismatched) registryWarn(m);
+
+  // Unreachability is not. Reaching *nothing* means the environment has no
+  // outbound path to these hosts — this census runs under bun, whose fetch
+  // ignores the HTTPS_PROXY that node's honours, so a proxied sandbox fails
+  // every chain including ethereum. Reporting that as a dozen broken endpoints
+  // sends the reader chasing phantoms, so say it once and plainly instead.
+  if (unreachable.length && reached === 0) {
+    console.warn(
+      `[chains-census] could not reach ANY of the ${unreachable.length} rpcUrl(s) — that is an environment ` +
+        `limitation (no outbound access, or a proxy this runtime does not use), not a registry problem. ` +
+        `No chainId was verified. First error: ${unreachable[0].message}`,
+    );
+  } else {
+    for (const u of unreachable) {
+      registryWarn(`rpcUrl for "${u.chain}" is unreachable (${u.message}) — ${u.rpcUrl}`);
+    }
+  }
+  console.log(`chains-census: ${reached} rpcUrl(s) reached, ${mismatched.length} mismatched, ${unreachable.length} unreachable`);
 }
 
 if (update) {

@@ -18,9 +18,13 @@ import { startUpdater, startBootEmbeddings } from "./atlas-updater.ts";
 import { handleAuth } from "./auth.ts";
 import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
+import { handleConversations } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
+import { handleBalances } from "./balances/balances.ts";
+import { handleModCounts } from "./history/mod-counts.ts";
+import { handleModTimeline } from "./history/mod-timeline.ts";
 import { registerSSEClient } from "./sse.ts";
 import { sql, waitForDb } from "./db.ts";
 import { runMigrations } from "./migrate.ts";
@@ -185,9 +189,18 @@ const server = Bun.serve({
       });
     },
 
-    // Static segment wins over the `:id` param route, so this matches first.
+    // Static segments win over the `:id` param route, so these match first.
     "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
+    /* v8 ignore start -- request glue; handleModCounts/handleModTimeline are unit-tested in mod-counts.test.ts/mod-timeline.test.ts */
+    "/api/history/mod-counts": () => handleModCounts(),
+    "/api/history/mod-timeline": (req) => handleModTimeline(req as Request),
+    /* v8 ignore stop */
     "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
+
+    // On-chain token balances for the addresses report (GET cached, POST refresh).
+    /* v8 ignore start -- request glue; handleBalances is unit-tested in balances.test.ts */
+    "/api/balances": { GET: (req) => handleBalances(req as Request), POST: (req) => handleBalances(req as Request) },
+    /* v8 ignore stop */
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
@@ -199,6 +212,10 @@ const server = Bun.serve({
     /* v8 ignore stop */
     "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
     "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleConversations is unit-tested directly in conversations.test.ts */
+    "/api/chat/conversations":     (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
+    "/api/chat/conversations/:id": (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
+    /* v8 ignore stop */
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
     "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
@@ -342,6 +359,7 @@ const server = Bun.serve({
     const html = (await Bun.file(config.distDir + "/index.html").text())
       .replace("{{ATLAS_SHA}}", sha)
       .replace("{{USERS_ENABLED}}", String(config.usersEnabled))
+      .replace("{{CHAT_ENABLED}}", String(config.chatEnabled))
       .replace("{{AUTH_PROVIDERS}}", config.authProvidersCsv)
       .replace("{{OG_TAGS}}", ogTags);
     const headers: Record<string, string> = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" };

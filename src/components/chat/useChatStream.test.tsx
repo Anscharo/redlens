@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, afterEach, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useChatStream } from "./useChatStream";
 import type { ChatEvent } from "./api";
@@ -156,7 +156,7 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("real answer");
   });
 
-  it("applies an 'error' SSE event: sets error state and finalizes the message", async () => {
+  it("applies an 'error' SSE event: sets error state, finalizes, and marks the message failed", async () => {
     mockChat([{ type: "error", message: "the model errored" }]);
     const { result } = renderHook(() => useChatStream());
     await act(async () => {
@@ -164,6 +164,8 @@ describe("useChatStream event dispatch", () => {
     });
     expect(result.current.error).toBe("the model errored");
     expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
+    expect(result.current.messages.at(-1)?.content).toBe("");
   });
 
   it("skips a heartbeat/comment frame with no data: line", async () => {
@@ -203,6 +205,58 @@ describe("useChatStream event dispatch", () => {
   });
 });
 
+describe("useChatStream export events", () => {
+  // jsdom has no URL.createObjectURL/revokeObjectURL — stub them so the
+  // auto-download path in dispatch runs fully instead of throwing.
+  const realCreate = URL.createObjectURL;
+  const realRevoke = URL.revokeObjectURL;
+  beforeEach(() => {
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
+  });
+  afterEach(() => {
+    URL.createObjectURL = realCreate;
+    URL.revokeObjectURL = realRevoke;
+  });
+
+  it("auto-downloads a csv export and records the artifact on the message", async () => {
+    mockChat([
+      { type: "export", format: "csv", filename: "data.csv", mime: "text/csv;charset=utf-8", content: '"A"\r\n"1"', bytes: 8 },
+      { type: "token", text: "Your file is downloading." },
+      { type: "done", content: "Your file is downloading.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("export it");
+    });
+    const exports = result.current.messages.at(-1)?.exports;
+    expect(exports).toHaveLength(1);
+    expect(exports?.[0]).toMatchObject({ format: "csv", filename: "data.csv" });
+    expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  it("rewrites in-app atlas links to absolute URLs in a markdown export", async () => {
+    mockChat([
+      {
+        type: "export",
+        format: "markdown",
+        filename: "report.md",
+        mime: "text/markdown;charset=utf-8",
+        content: "See [Doc](/atlas/11111111-1111-1111-1111-111111111111).",
+        bytes: 10,
+      },
+      { type: "done", content: "Done.", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("export it");
+    });
+    const content = result.current.messages.at(-1)?.exports?.[0].content ?? "";
+    expect(content).toContain("/atlas?id=11111111-1111-1111-1111-111111111111");
+    expect(content).not.toContain("(/atlas/11111111");
+  });
+});
+
 describe("useChatStream HTTP status handling", () => {
   it("401 triggers onAuthError, finalizes the message, and returns no rateLimited", async () => {
     mockStatus(401);
@@ -218,21 +272,56 @@ describe("useChatStream HTTP status handling", () => {
     expect(result.current.streaming).toBe(false);
   });
 
-  it("429 sets the rate-limit message and returns resetsAt", async () => {
-    mockStatus(429, { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" });
+  it("429 rate_limited sets the message, resetsAt, and kind: 'token'", async () => {
+    mockStatus(429, {
+      error: "rate_limited",
+      message: "Usage limit reached, come back later",
+      resetsAt: "2026-01-01T00:00:00Z",
+    });
     const { result } = renderHook(() => useChatStream());
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
     await act(async () => {
       sendResult = await result.current.send("question");
     });
     expect(sendResult).toEqual({
-      rateLimited: { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" },
+      rateLimited: { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z", kind: "token" },
     });
-    expect(result.current.error).toBe("Usage limit reached, come back later");
+    // Deliberately not surfaced as `error` — a 429 is fully explained by the
+    // returned `rateLimited` (drives RateLimitNote) and the thread content
+    // below, so `error` (which drives the separate ErrorNote) stays clear.
+    // Otherwise the stale 429 text would resurface as an "error" banner the
+    // instant the rate-limit lock lifts.
+    expect(result.current.error).toBeNull();
     expect(result.current.messages.at(-1)?.content).toBe("Usage limit reached, come back later");
   });
 
-  it("429 falls back to a default message when the body has none", async () => {
+  it("429 commons_exhausted has no resetsAt and reports kind: 'commons'", async () => {
+    mockStatus(429, {
+      error: "commons_exhausted",
+      message: "The shared usage pool is out of credits.",
+    });
+    const { result } = renderHook(() => useChatStream());
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send("question");
+    });
+    expect(sendResult).toEqual({
+      rateLimited: { message: "The shared usage pool is out of credits.", resetsAt: undefined, kind: "commons" },
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it("429 falls back to kind: 'token' from resetsAt presence when the error discriminator is missing", async () => {
+    mockStatus(429, { message: "Usage limit reached, come back later", resetsAt: "2026-01-01T00:00:00Z" });
+    const { result } = renderHook(() => useChatStream());
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send("question");
+    });
+    expect(sendResult?.rateLimited?.kind).toBe("token");
+  });
+
+  it("429 falls back to a default message and kind: 'commons' when the body has none", async () => {
     mockStatus(429, {});
     const { result } = renderHook(() => useChatStream());
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
@@ -240,6 +329,7 @@ describe("useChatStream HTTP status handling", () => {
       sendResult = await result.current.send("question");
     });
     expect(sendResult?.rateLimited?.message).toBe("Usage limit reached.");
+    expect(sendResult?.rateLimited?.kind).toBe("commons");
   });
 
   it("a non-ok, non-401/429 response is thrown and caught as a generic error", async () => {
@@ -263,7 +353,7 @@ describe("useChatStream HTTP status handling", () => {
 });
 
 describe("useChatStream network/abort error handling", () => {
-  it("a network error sets the error state and finalizes the message", async () => {
+  it("a network error sets the error state, finalizes, and marks the message failed", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
     const { result } = renderHook(() => useChatStream());
     await act(async () => {
@@ -271,7 +361,23 @@ describe("useChatStream network/abort error handling", () => {
     });
     expect(result.current.error).toBe("network down");
     expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
     expect(result.current.streaming).toBe(false);
+  });
+
+  it("clears a previous error as soon as a new send is attempted", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.error).toBe("network down");
+
+    mockChat([{ type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] }]);
+    await act(async () => {
+      await result.current.send("question two");
+    });
+    expect(result.current.error).toBeNull();
   });
 
   it("an AbortError is treated as expected (no error surfaced)", async () => {
@@ -335,6 +441,117 @@ describe("useChatStream send guards", () => {
       controllerRef!.close();
       await firstDone;
     });
+  });
+});
+
+describe("useChatStream hydrate", () => {
+  it("seeds messages + conversationId, clearing error/streaming", () => {
+    const { result } = renderHook(() => useChatStream());
+    const seeded = [
+      { role: "user" as const, content: "hi", trace: [], rounds: 0, sources: [], done: true },
+      { role: "assistant" as const, content: "hello", trace: [], rounds: 0, sources: [], done: true },
+    ];
+    act(() => {
+      result.current.hydrate("conv-1", seeded);
+    });
+    expect(result.current.conversationId).toBe("conv-1");
+    expect(result.current.messages).toEqual(seeded);
+    expect(result.current.error).toBeNull();
+    expect(result.current.streaming).toBe(false);
+  });
+
+  it("hydrate(null, []) clears to a fresh chat", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+    });
+    act(() => {
+      result.current.hydrate(null, []);
+    });
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it("aborts an in-flight stream first, so a late (already-inflight) event cannot corrupt the newly hydrated array", async () => {
+    const encoder = new TextEncoder();
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
+    let signalRef: AbortSignal | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller;
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) => {
+        signalRef = init?.signal ?? undefined;
+        // Mirror real fetch/undici: aborting after the response begins errors
+        // the body stream, which is what actually stops the read loop below —
+        // this is the behavior hydrate's "abort first" depends on.
+        signalRef?.addEventListener("abort", () => {
+          const err = new Error("aborted");
+          err.name = "AbortError";
+          controllerRef!.error(err);
+        });
+        return Promise.resolve(new Response(stream, { status: 200 }));
+      }),
+    );
+
+    const { result } = renderHook(() => useChatStream());
+    let sendPromise: Promise<unknown> | undefined;
+    act(() => {
+      sendPromise = result.current.send("question");
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(true));
+
+    // Real content streams in first, so there's something to corrupt.
+    await act(async () => {
+      controllerRef!.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "token", text: "partial" })}\n\n`));
+    });
+    await waitFor(() => expect(result.current.messages.at(-1)?.content).toBe("partial"));
+
+    const restored = [{ role: "user" as const, content: "restored", trace: [], rounds: 0, sources: [], done: true }];
+    act(() => {
+      result.current.hydrate("other-conv", restored);
+    });
+    expect(result.current.conversationId).toBe("other-conv");
+    expect(result.current.messages).toEqual(restored);
+
+    // Let the old stream's now-erroring read() reject and its catch/finally run.
+    await act(async () => {
+      await sendPromise;
+    });
+
+    // The old stream's rejection must not have touched the hydrated array.
+    expect(result.current.messages).toEqual(restored);
+    expect(result.current.streaming).toBe(false);
+  });
+});
+
+describe("useChatStream 404 conversation_not_found", () => {
+  it("clears the conversation id and finalizes as failed, without setting the generic error banner", async () => {
+    mockStatus(404, { error: "conversation_not_found" });
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("dead-conv", []);
+    });
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.conversationId).toBeNull();
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)?.failed).toBe(true);
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+    expect(result.current.streaming).toBe(false);
+  });
+
+  it("a 404 with a different/no error body still surfaces as the generic error", async () => {
+    mockStatus(404, { error: "not_found" });
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.error).toMatch(/chat request failed \(404\)/);
   });
 });
 

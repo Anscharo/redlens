@@ -135,6 +135,52 @@ export function buildSnippet(content: string, query: string, len = 240): string 
   return (lead ? "…" : "") + text + (trail ? "…" : "");
 }
 
+// The agent-facing counterpart of buildSnippet: same idea, but the text is
+// VERBATIM — no word is dropped, abbreviated, or reordered. The two exist
+// separately because their audiences want opposite things. A human scanning a
+// result list wants density, which is what buildSnippet's compaction buys. An
+// agent needs text it can quote, cite, and be graded on: the system prompt
+// requires identifiers and quotes to be copied from tool results, and the
+// verifier machine-checks quotes against those results.
+//
+// The 2026-08-04 bakeoff measured what compaction costs an agent. Models quoted
+// `Comms.` and `Info.` — strings that appear nowhere in the atlas — straight to
+// users. Models that restored the stripped stopwords produced quotes matching no
+// evidence and were hard-failed as ungrounded, which in production forces a
+// full-transcript recovery replay. And dropping `of`/`for`/`to` silently changes
+// claims: "responsible for the Agent" → "responsible Agent".
+//
+// Only whitespace RUNS collapse, which the verifier's `normalizeForMatch`
+// applies to both sides anyway, so a faithful quote still matches.
+export function buildAgentSnippet(content: string, query: string, len = 240): string {
+  if (!content) return "";
+  const terms = query.toLowerCase().match(/[a-z0-9]+/g) ?? [];
+  const lc = content.toLowerCase();
+  let at = -1;
+  for (const t of terms) {
+    if (t.length < 2) continue;
+    const i = lc.indexOf(t);
+    if (i >= 0 && (at < 0 || i < at)) at = i;
+  }
+  // Open a quarter-length before the hit so it keeps context on both sides, then
+  // pull both ends back to word boundaries. A snippet that starts or ends
+  // mid-word is unquotable — which did not matter when the window was being
+  // rewritten anyway, and does now. The lead search is bounded so a long
+  // unbroken run (an address, a URL) can't swallow the whole window.
+  let start = at < 0 ? 0 : Math.max(0, Math.round(at - len / 4));
+  if (start > 0) {
+    const sp = content.indexOf(" ", start);
+    if (sp !== -1 && sp - start < 40) start = sp + 1;
+  }
+  let end = Math.min(content.length, start + len);
+  if (end < content.length) {
+    const sp = content.lastIndexOf(" ", end);
+    if (sp > start) end = sp;
+  }
+  const text = content.slice(start, end).replace(/\s+/g, " ").trim();
+  return (start > 0 ? "…" : "") + text + (end < content.length ? "…" : "");
+}
+
 // Phrase parsing is shared with the frontend reader (one source of truth):
 // "double" → case-insensitive phrase, 'single' → case-sensitive phrase.
 export { extractPhrases } from "../../lib/searchHighlight.ts";

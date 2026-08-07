@@ -55,6 +55,12 @@ const lastDone = (events: HarnessEvent[]) => events.at(-1) as HarnessDone;
 const userMsg: Msg = { role: "user", content: "hi" };
 const PASS = '{"claims":[{"claim":"x","status":"supported"}],"invented_facts":[],"ruling_issued":false,"confidence":0.9,"feedback":""}';
 const FAIL = '{"claims":[{"claim":"x","status":"contradicted"}],"invented_facts":[],"ruling_issued":false,"confidence":0.3,"feedback":"claim x contradicted"}';
+// n unsupported claims alongside a supported one → overall "warn".
+const warn = (n: number) =>
+  JSON.stringify({
+    claims: [{ claim: "ok", status: "supported" }, ...Array.from({ length: n }, (_, i) => ({ claim: `u${i}`, status: "unsupported" }))],
+    invented_facts: [], ruling_issued: false, confidence: 0.6, feedback: "some claims unsupported",
+  });
 
 function withModels(verifier: string, advisor: string, fn: () => Promise<void>): Promise<void> {
   const pv = config.chatVerifierModel;
@@ -97,6 +103,47 @@ test("deterministic-only mode stays quiet on clean answers, flags invalid citati
     expect(verify && verify.type === "verify_result" && verify.overall).toBe("fail");
     expect(verify && verify.type === "verify_result" && verify.invalidCitations).toEqual(["00000000-dead-beef-0000-000000000000"]);
     expect(verify && verify.type === "verify_result" && verify.action).toBe("annotate");
+  }));
+
+test("reference-style citations are normalized to canonical inline form before repair and checks", () =>
+  withModels("", "", async () => {
+    // The definition block is dropped, the reference link inlines, and the
+    // measured bare-bracket defect is unbracketed — so the checking layer sees
+    // one real citation and the user never sees literal brackets.
+    const uuid = ix.docMap.keys().next().value as string;
+    const answer = [`[the-doc]: /atlas/${uuid}`, "", "The rule is [5%][the-doc] and a range of [20 percentage points] applies."].join("\n");
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toBe(`The rule is [5%](/atlas/${uuid}) and a range of 20 percentage points applies.`);
+    expect(events.some((e) => e.type === "verify_result")).toBe(false);
+    const row = done.checksMeta[0].verdict as { refs?: { definitions: number; undefinedLabels: string[]; unusedLabels: string[] } };
+    expect(row.refs).toEqual({ definitions: 1, undefinedLabels: [], unusedLabels: [] });
+  }));
+
+test("a leaked entity slug never reaches done.content, and is recorded in the checks row", () =>
+  withModels("", "", async () => {
+    // Same shape as the reported turn: an entity row in hand, no document read,
+    // so the handle is deleted (nothing retrieved this turn grounds a link).
+    const ent = [...ix.entityBySlug.values()].find((e) => e.defining_doc_id && ix.docMap.has(e.defining_doc_id))!;
+    const doc = ix.docMap.get(ent.defining_doc_id!)!;
+    const answer = `- **${ent.name}**: (Slug: ${ent.slug})`;
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    const done = lastDone(events);
+    expect(done.content).toBe(`- **${ent.name}**`);
+    const row = done.checksMeta[0].verdict as { identifiers?: { linkified: string[]; removed: string[] } };
+    expect(row.identifiers).toEqual({ linkified: [], removed: [ent.slug] });
+
+    // With the entity's defining doc in this turn's evidence, the same leak
+    // becomes a real citation instead.
+    const toolMsg: Msg = { role: "tool", tool_call_id: "call_1", content: JSON.stringify({ defining_doc_id: doc.id }) };
+    const grounded = await collect(
+      runVerifiedChat({ ix, messages: [userMsg, toolMsg], stream: fakeStream([[textChunk(answer), finishChunk("stop")]]), question: "hi", maxIterations: 3 }),
+    );
+    expect(lastDone(grounded).content).toBe(`- **[${ent.name}](/atlas/${doc.id})**`);
   }));
 
 test("fabricated citation uuid is repaired in code when the title identifies a real doc", () =>
@@ -226,6 +273,66 @@ test("advisor failure (garbage JSON) falls back to annotate — original answer 
     expect(done.content).toBe("Bad answer.");
     const advisorRow = done.checksMeta.find((c) => c.kind === "advisor_recovery")!;
     expect(advisorRow.action).toBe("annotate");
+  }));
+
+test("a lone unsupported claim warns without buying a full transcript replay", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        jsonCall: fakeJson([warn(1)], jsonCalls),
+      }),
+    );
+    expect(kinds(events)).toEqual(["token", "status:checking", "verify_result", "done"]);
+    const verify = events.find((e) => e.type === "verify_result")!;
+    expect(verify.type === "verify_result" && verify.overall).toBe("warn");
+    // Amber badge, no advisor, no revision — the answer stands as written.
+    expect(verify.type === "verify_result" && verify.action).toBe("annotate");
+    expect(jsonCalls).toEqual([{ model: "strong/verifier" }]);
+    expect(lastDone(events).content).toBe("Answer.");
+  }));
+
+test("enough unsupported claims still escalates: warn crosses the threshold", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const jsonCalls: { model: string }[] = [];
+    const rounds = [
+      [textChunk("Thin answer."), finishChunk("stop")],
+      [textChunk("Fixed answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream(rounds),
+        jsonCall: fakeJson([warn(config.chatAdvisorTriggerUnsupportedClaims), '{"action":"rewrite","guidance":"cite the gaps"}', PASS], jsonCalls),
+      }),
+    );
+    expect(events.some((e) => e.type === "status" && e.stage === "advising")).toBe(true);
+    expect(jsonCalls.map((c) => c.model)).toEqual(["strong/verifier", "chat/advisor", "strong/verifier"]);
+    expect(lastDone(events).content).toBe("Fixed answer.");
+  }));
+
+test("a sub-threshold warn still escalates when retrieval was in trouble", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    // The `overall !== "pass"` clause is untouched by the threshold: warn plus
+    // an independent trouble signal (repeated identical queries) still recovers.
+    const jsonCalls: { model: string }[] = [];
+    const same = toolChunk("atlas_search", '{"q":"same"}');
+    const rounds = [
+      [same, finishChunk("tool_calls")],
+      [same, finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+      [textChunk("Fixed answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 4,
+        stream: fakeStream(rounds),
+        jsonCall: fakeJson([warn(1), '{"action":"rewrite","guidance":"widen the search"}', PASS], jsonCalls),
+      }),
+    );
+    expect(events.some((e) => e.type === "status" && e.stage === "advising")).toBe(true);
   }));
 
 test("verifier pass suppresses escalation even when the loop was exhausted", () =>

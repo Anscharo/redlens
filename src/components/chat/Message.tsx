@@ -1,6 +1,7 @@
 import { SparkMark } from "./glyphs";
 import { AtlasMarkdown, balanceFences, extractSources } from "./markdown";
 import { Sources } from "./Sources";
+import { ExportChips } from "./ExportChips";
 import { ToolTrace } from "./ToolTrace";
 import { VerifyBadge } from "./VerifyBadge";
 import type { ChatMsg } from "./useChatStream";
@@ -40,6 +41,17 @@ function AssistantTurn({
         <div className="rlc-thinking">
           <span className="rlc-twinkle">✦</span> {msg.statusLine ?? "searching the stars…"}
         </div>
+      ) : !streaming && empty && msg.failed ? (
+        // The stream broke (SSE "error" event or a fetch/read exception) before
+        // any content arrived — say so plainly instead of leaving a silent,
+        // answer-shaped blank. Not run through AtlasMarkdown so it can never be
+        // mistaken for a real (if terse) assistant reply.
+        <div className="rlc-turn-error">
+          <span className="rlc-turn-error-icon" aria-hidden="true">
+            ⚠
+          </span>{" "}
+          This reply didn’t come through. Send another message to try again.
+        </div>
       ) : (
         <>
           <AtlasMarkdown content={streaming ? balanceFences(msg.content) : msg.content} onAtlas={onAtlas} />
@@ -50,6 +62,7 @@ function AssistantTurn({
             </div>
           )}
           {msg.verify && <VerifyBadge verify={msg.verify} />}
+          {msg.exports?.length ? <ExportChips exports={msg.exports} /> : null}
           {!streaming && msg.done && <Sources sources={sources} onAtlas={onAtlas} />}
         </>
       )}

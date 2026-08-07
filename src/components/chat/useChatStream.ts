@@ -1,6 +1,10 @@
 import { useCallback, useRef, useState } from "react";
 import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
+import type { RateLimitState } from "./types";
+import { downloadFile } from "../../lib/csvDownload";
+import { absolutizeAtlasLinks } from "../../lib/routes";
+import { track } from "../../lib/analytics";
 
 export interface TraceRow {
   name: string;
@@ -21,6 +25,17 @@ export interface VerifyState {
   ungroundedAddresses: string[];
 }
 
+// A downloadable file the agent produced this session via export_findings.
+// Auto-downloaded on arrival; kept on the message so the reply can offer a
+// re-download button. Live-session only — not persisted across reloads.
+export interface ExportArtifact {
+  format: "markdown" | "csv";
+  filename: string;
+  mime: string;
+  content: string;
+  bytes: number;
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -30,13 +45,16 @@ export interface ChatMsg {
   done: boolean;
   verify?: VerifyState;
   statusLine?: string | null; // transient harness status ticker (streaming only)
+  // Set when the turn ended via the SSE "error" event or a fetch/read
+  // exception (never for the 429 path, which finalizes with its message as
+  // `content` instead). Lets the UI distinguish "no answer because it broke"
+  // from a genuinely empty response.
+  failed?: boolean;
+  exports?: ExportArtifact[]; // files handed to the user this session (live only)
 }
 
 export interface SendResult {
-  // resetsAt is absent for the shared commons-pool gate (it has no fixed
-  // reset time — cleared by a manual top-up) but present for the per-user
-  // token-window gate.
-  rateLimited?: { message: string; resetsAt?: string };
+  rateLimited?: RateLimitState;
 }
 
 interface StreamHandlers {
@@ -51,6 +69,10 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Mirrors convIdRef as state so callers (useChatSession, tests) can read it
+  // reactively. The ref stays — send()'s closure over convIdRef.current is
+  // what lets a reply land on the right conversation without re-subscribing.
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const convIdRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -96,7 +118,26 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     abortRef.current?.abort();
     abortRef.current = null;
     convIdRef.current = null;
+    setConversationId(null);
     setMessages([]);
+    setError(null);
+    setStreaming(false);
+  }, []);
+
+  // Seeds the stream with a restored conversation (or clears to a fresh chat
+  // via hydrate(null, [])). Aborts any in-flight stream FIRST: patchLast
+  // mutates whatever array is currently in `messages`, so if the old
+  // stream's next event were dispatched after messages/convIdRef were
+  // already reset but before the abort took effect, it would land on the
+  // newly hydrated array and corrupt it. Aborting first — before the
+  // request even changes — closes that window (see the
+  // chat-conversation-memory plan §6).
+  const hydrate = useCallback((id: string | null, msgs: ChatMsg[]) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    convIdRef.current = id;
+    setConversationId(id);
+    setMessages(msgs);
     setError(null);
     setStreaming(false);
   }, []);
@@ -106,6 +147,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       switch (ev.type) {
         case "meta":
           convIdRef.current = ev.conversationId;
+          setConversationId(ev.conversationId);
           break;
         case "token":
           // Answer is streaming — the status ticker yields to the live text.
@@ -139,6 +181,31 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           // any leaked answer fragments. done.content is authoritative.
           patchLast((m) => ({ ...m, content: "" }));
           break;
+        case "export": {
+          // Auto-download the file the moment it arrives (CSV keeps the Excel
+          // BOM; markdown doesn't). A gesture-strict browser (Safari) may block
+          // this async download — the persistent button rendered from
+          // m.exports is the gesture-safe fallback + re-download.
+          // Markdown leaves the app, so rewrite the in-app citation links
+          // (`/atlas/<id>`) to absolute URLs that resolve outside it. CSV is
+          // left byte-for-byte as built server-side.
+          const content = ev.format === "markdown" ? absolutizeAtlasLinks(ev.content) : ev.content;
+          const artifact: ExportArtifact = {
+            format: ev.format,
+            filename: ev.filename,
+            mime: ev.mime,
+            content,
+            bytes: content.length,
+          };
+          try {
+            downloadFile(artifact.filename, artifact.content, artifact.mime, artifact.format === "csv");
+          } catch {
+            // Blocked/unsupported — the fallback button still lets the user save it.
+          }
+          track("chat_export", { format: artifact.format, bytes: artifact.bytes });
+          patchLast((m) => ({ ...m, exports: [...(m.exports ?? []), artifact] }));
+          break;
+        }
         case "tool_call":
           // rounds is bumped in the send loop (it has the contiguous-run state).
           patchLast((m) => ({
@@ -176,7 +243,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
           break;
         case "error":
           setError(ev.message);
-          finalizeLast();
+          finalizeLast({ failed: true });
           break;
       }
     },
@@ -226,14 +293,44 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         }
         if (res.status === 429) {
           const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
             message?: string;
             resetsAt?: string;
           };
           const message = body.message ?? "Usage limit reached.";
-          setError(message);
+          // chat.ts sends an explicit discriminator ("rate_limited" carries
+          // resetsAt; "commons_exhausted" never does) — fall back to the
+          // resetsAt-presence heuristic only if that field is ever missing.
+          const kind: "token" | "commons" =
+            body.error === "commons_exhausted" ? "commons" : body.resetsAt ? "token" : "commons";
+          // Deliberately not setError(message) here: `error` means "something
+          // broke and we don't have a better explanation" (ChatPanel renders
+          // it via ErrorNote). A 429 already has a full explanation — the
+          // thread content below plus the returned `rateLimited` (which drives
+          // RateLimitNote) — so leaving `error` untouched keeps the two UI
+          // states disjoint. Otherwise the stale 429 text would resurface as
+          // an "error" banner the instant the rate-limit lock lifts.
           finalizeLast({ content: message });
           setStreaming(false);
-          return { rateLimited: { message, resetsAt: body.resetsAt } };
+          return { rateLimited: { message, resetsAt: body.resetsAt, kind } };
+        }
+        if (res.status === 404) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          if (body.error === "conversation_not_found") {
+            // The conversation was deleted elsewhere (another tab, or the
+            // /conversations page) between hydrate and this send. Clear the
+            // stale id so the NEXT send starts a fresh conversation
+            // server-side, and finalize this turn as failed — Message.tsx's
+            // own "didn't come through" copy — rather than routing it through
+            // `error` (ErrorNote's generic banner), which would misrepresent
+            // a stale reference as a real failure.
+            convIdRef.current = null;
+            setConversationId(null);
+            finalizeLast({ failed: true });
+            setStreaming(false);
+            return {};
+          }
+          throw new Error(`chat request failed (404)`);
         }
         if (!res.ok || !res.body) {
           throw new Error(`chat request failed (${res.status})`);
@@ -278,7 +375,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {
           setError((err as Error).message);
-          finalizeLast();
+          finalizeLast({ failed: true });
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
@@ -290,5 +387,5 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     [streaming, dispatch, patchLast, finalizeLast, handlers],
   );
 
-  return { messages, streaming, error, send, stop, reset };
+  return { messages, streaming, error, conversationId, send, stop, reset, hydrate };
 }

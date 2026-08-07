@@ -47,8 +47,16 @@ const SECTIONS: { title: string; reports: ReportCard[] }[] = [
         "Every atlas paragraph defining a risk rule — peg maintenance, allocation risk, smart contract security — scored 1–5 for precision and weak/mid/strong for penalties and incentives, AI-drafted against a fixed rubric and human-reviewed.",
       ),
       card(
+        "onchain-addresses",
+        "Every on-chain address the Atlas mentions — with its CHAIN_LOG name, associated owner, chain, type (EOA, Multisig, Token, Sky internal contract, other), and the docs it appears in, with CSV export.",
+      ),
+      card(
         "stale-dates",
         "Future-tense claims checked against today — dates the atlas still phrases as upcoming but that have already passed, plus claims due within the next week.",
+      ),
+      card(
+        "mod-frequency",
+        "An edit timeline by month, week, or commit, a per-section and per-type share matching a typed ≤/> edit-count filter (with the Agent Scope split out by agent, each downloadable separately), and the matching document list.",
       ),
       card(
         "processes",

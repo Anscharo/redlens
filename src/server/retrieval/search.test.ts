@@ -2,7 +2,7 @@
 // import Bun's `SQL`, which doesn't exist in node-vitest. vitest.config.ts
 // excludes src/server for that reason.
 import { test, expect } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, withTimeout, type Hit } from "./search.ts";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, type Hit } from "./search.ts";
 
 test("withTimeout resolves when the promise beats the deadline", async () => {
   const v = await withTimeout(Promise.resolve(42), 1000, "x");
@@ -21,6 +21,41 @@ test("buildSnippet compacts prose — strips articles and abbreviates known word
   expect(s).toContain("Gov."); // governance → Gov.
   expect(s).toContain("Params."); // parameters → Params.
   expect(s).not.toMatch(/(^|\s)the(\s|$)/i); // articles dropped
+});
+
+// The agent counterpart must NOT do any of that: an agent quotes its tool
+// results and the verifier checks those quotes against them, so a compacted
+// snippet either ships mangled text to the user or gets the answer hard-failed
+// for a quote that faithfully reproduced what the tool returned.
+test("buildAgentSnippet keeps prose verbatim — no words dropped or abbreviated", () => {
+  const src = "The governance of the parameters is defined for the ecosystem.";
+  const s = buildAgentSnippet(src, "governance");
+  expect(s).toBe(src);
+  expect(s).not.toContain("Gov.");
+  expect(s).not.toContain("Params.");
+});
+
+test("buildAgentSnippet windows around the hit and stays a literal substring", () => {
+  const src =
+    "Alpha beta gamma delta epsilon. ".repeat(12) +
+    "Core GovOps manages the overall dispute resolution process, including establishing communication channels. " +
+    "Zeta eta theta iota kappa. ".repeat(12);
+  const s = buildAgentSnippet(src, "dispute");
+  expect(s).toContain("dispute resolution process");
+  expect(s.startsWith("…") && s.endsWith("…")).toBe(true);
+  // The only transform allowed is collapsing whitespace runs, which the
+  // verifier's normalizeForMatch applies to both sides too.
+  const body = s.replace(/^…|…$/g, "");
+  expect(src.replace(/\s+/g, " ")).toContain(body);
+  // Windowed, not the whole document, and never cut mid-word.
+  expect(body.length).toBeLessThanOrEqual(240);
+  expect(body).toMatch(/^\S/);
+  expect(body).toMatch(/\S$/);
+});
+
+test("buildAgentSnippet on a short doc returns it whole with no ellipses", () => {
+  expect(buildAgentSnippet("Short body text.", "body")).toBe("Short body text.");
+  expect(buildAgentSnippet("", "body")).toBe("");
 });
 
 test("rrfMerge fuses ranks, dedups by id, and records both sources", () => {

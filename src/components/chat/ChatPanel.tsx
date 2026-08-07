@@ -1,54 +1,37 @@
 import { useEffect, useRef, useState } from "react";
-import { SparkMark, DockRightIcon, FloatIcon } from "./glyphs";
+import { SparkMark } from "./glyphs";
 import { Message } from "./Message";
 import { Composer } from "./Composer";
 import { SignInButtons } from "./SignInButtons";
-import { useChatStream } from "./useChatStream";
-import { useUsage } from "./useUsage";
+import { ChatHeader } from "./ChatHeader";
+import { ChatEmptyState, STARTERS } from "./ChatEmptyState";
 import { usePrefs } from "./usePrefs";
-import { useAuth } from "./auth";
 import { track } from "../../lib/analytics";
 import type { PageContextView } from "./pageContext";
 import type { Placement } from "./types";
-
-const STARTERS = [
-  "How are Operational Facilitators rewarded, and who signs off on the budget?",
-  "What's the difference between a Prime Agent and an Aligned Delegate?",
-  "Trace the governance path for an Atlas amendment.",
-];
-
-// Starters shown when the chat opens on a report page that has a backing
-// atlas_report_* tool — they steer the user toward querying the report itself.
-const reportStarters = (name: string): string[] => [
-  `Summarize the ${name} report.`,
-  "What are the most notable rows here, and why?",
-  "Where does this report's data come from in the atlas?",
-];
+import type { ChatSession } from "./useChatSession";
 
 const DRAFT_KEY = "rlc-draft";
 
 export function ChatPanel({
+  session,
   onClose,
   context,
   onAtlas,
   placement,
   onTogglePlacement,
 }: {
+  session: ChatSession;
   onClose: () => void;
   context: PageContextView;
   onAtlas: (uuid: string) => void;
   placement: Placement;
   onTogglePlacement: () => void;
 }) {
-  const { user, openAuth } = useAuth();
-  const authed = !!user;
+  // Only the fields read more than once get a local name; everything else
+  // is referenced as session.* at its single call site below.
+  const { authed, messages, streaming } = session;
   const { prefs } = usePrefs();
-  const { usage, commons, refresh } = useUsage(authed);
-  const [rateLimited, setRateLimited] = useState(false);
-  const { messages, streaming, send, stop } = useChatStream({
-    onDone: () => void refresh(),
-    onAuthError: openAuth,
-  });
   const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +55,7 @@ export function ChatPanel({
     track("chat_message_sent", { product: "chat", node_id: context.nodeId, path: context.path });
     setDraft("");
     localStorage.removeItem(DRAFT_KEY);
-    const { rateLimited: rl } = await send(trimmed, {
+    const { rateLimited: rl } = await session.send(trimmed, {
       path: context.path,
       nodeId: context.nodeId,
       nodeTitle: context.nodeTitle,
@@ -82,45 +65,22 @@ export function ChatPanel({
       reportTool: context.reportTool,
       reportFilter: context.reportFilter,
     });
-    if (rl) setRateLimited(true);
-    else setRateLimited(false);
+    // send() (useChatStream) always sets `kind` for a real 429; this fallback
+    // only guards a caller that omits it (defense in depth, not the normal path).
+    session.setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);
   };
 
   const empty = messages.length === 0;
 
-  // On a report page backed by a report tool, greet with the report name and
-  // the fact that the agent can pull/query it; otherwise the generic intro.
-  const onReport = !!context.reportTool && !!context.reportName;
-  const emptyTitle = onReport ? `Viewing the ${context.reportName} report` : "Ask the Atlas";
-  const emptyBody = onReport
-    ? "I can pull this full report in one call and answer questions about it — total it, filter it, or dig into any single row. Ask away."
-    : "A research agent over the Sky Atlas. It already knows the page you're on — answers cite atlas docs you can open inline.";
-  const starters = onReport ? reportStarters(context.reportName!) : STARTERS;
-
-  const anchored = placement === "anchored";
-
   return (
     <section className="rlc-panel" data-place={placement} role="dialog" aria-label="Atlas agent">
-      <header className="rlc-header">
-        <SparkMark size={15} />
-        <div>
-          <div className="rlc-header-title">Atlas</div>
-          <div className="rlc-header-sub">page-aware agent</div>
-        </div>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            className="rlc-iconbtn"
-            onClick={onTogglePlacement}
-            title={anchored ? "Pop out to a floating window" : "Dock to the side"}
-            aria-label={anchored ? "Pop out to a floating window" : "Dock to the side"}
-          >
-            {anchored ? <FloatIcon /> : <DockRightIcon />}
-          </button>
-          <button className="rlc-iconbtn" onClick={onClose} title="Close" aria-label="Close">
-            ×
-          </button>
-        </div>
-      </header>
+      <ChatHeader
+        title={session.title}
+        onNewChat={session.newChat}
+        onClose={onClose}
+        placement={placement}
+        onTogglePlacement={onTogglePlacement}
+      />
 
       <div className="rlc-thread" ref={threadRef}>
         {!authed ? (
@@ -141,28 +101,15 @@ export function ChatPanel({
               ))}
             </div>
           </div>
+        ) : session.loadingHistory ? (
+          <p className="pt-2 rlc-empty-body">Loading conversation…</p>
         ) : empty ? (
-          <div className="pt-2">
-            <div className="flex items-center gap-2 mb-1">
-              <SparkMark size={16} />
-              <span className="rlc-empty-title">{emptyTitle}</span>
-            </div>
-            <p className="rlc-empty-body">{emptyBody}</p>
-            <div className="flex flex-col gap-[7px]">
-              {starters.map((s, i) => (
-                <button
-                  key={s}
-                  className="rlc-starter"
-                  onClick={() => {
-                    track("chat_starter_click", { product: "chat", starter: i });
-                    void doSend(s);
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <ChatEmptyState
+            authed={authed}
+            context={context}
+            onSend={(s) => void doSend(s)}
+            onOpenConversation={session.openConversation}
+          />
         ) : (
           messages.map((m, i) => (
             <Message
@@ -183,13 +130,16 @@ export function ChatPanel({
           draft={draft}
           onDraftChange={setDraft}
           onSend={() => void doSend(draft)}
-          onStop={stop}
+          onStop={session.stop}
           streaming={streaming}
-          disabled={rateLimited && !streaming}
+          rateLimit={session.rateLimit}
+          onRecheckUsage={() => void session.refresh()}
+          error={session.error}
           placeholder={context.placeholder}
           chip={context.chip}
-          usage={usage}
-          commons={commons}
+          usage={session.usage}
+          commons={session.commons}
+          historyLoading={session.loadingHistory}
         />
       )}
     </section>

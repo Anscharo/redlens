@@ -45,6 +45,21 @@ function splitTextByPattern(
   return parts;
 }
 
+// Stamps data-address on every <a> produced by an ONCHAIN_RE split — read back
+// by NodeContentInner's MarkdownLink to attach the hover tooltip. Kept local to
+// the address call sites below rather than threaded through splitTextByPattern
+// (also used for plain tx-hash links, which aren't addresses).
+function tagAddressLinks(parts: ElementContent[] | null): ElementContent[] | null {
+  if (!parts) return null;
+  for (const part of parts) {
+    const [child] = part.type === "element" ? part.children : [];
+    if (part.type === "element" && part.tagName === "a" && child?.type === "text") {
+      part.properties = { ...part.properties, "data-address": child.value };
+    }
+  }
+  return parts;
+}
+
 export function rehypeEthAddresses() {
   return () => (tree: Root) => {
     const addresses = getAddressMap();
@@ -99,10 +114,12 @@ export function rehypeEthAddresses() {
         const finalParts: ElementContent[] = [];
         for (const part of txParts) {
           if (part.type === "text") {
-            const addrParts = splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
-              const addr = m[0];
-              return { linkText: addr, url: explorerUrl(addr, { addrMap: addresses }) };
-            });
+            const addrParts = tagAddressLinks(
+              splitTextByPattern(part.value, ONCHAIN_RE, (m) => {
+                const addr = m[0];
+                return { linkText: addr, url: explorerUrl(addr, { addrMap: addresses }) };
+              }),
+            );
             if (addrParts) finalParts.push(...addrParts);
             else finalParts.push(part);
           } else {
@@ -113,10 +130,12 @@ export function rehypeEthAddresses() {
         return;
       }
 
-      const addrParts = splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
-        const addr = m[0];
-        return { linkText: addr, url: explorerUrl(addr, { addrMap: getAddressMap() }) };
-      });
+      const addrParts = tagAddressLinks(
+        splitTextByPattern(node.value, ONCHAIN_RE, (m) => {
+          const addr = m[0];
+          return { linkText: addr, url: explorerUrl(addr, { addrMap: getAddressMap() }) };
+        }),
+      );
       if (addrParts) {
         replacements.push({ parent: parent as Element, index, nodes: addrParts });
       }

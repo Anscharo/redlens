@@ -33,9 +33,19 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-06
+- Hovering an on-chain address now shows its name and any token balances it holds
+- Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
+- Added Unichain, Plasma, Monad and Plume support, so addresses on those chains now link to their own block explorer instead of Etherscan
+- Fixed addresses shown or linked under the wrong chain, including entity pages that followed whichever chain the entity's own name mentioned
+
+## 2026-08-05
+- Added a Modification Frequency report showing semantic edit stats by time, type, and section
+
 ## 2026-08-04
 - Refreshed on-chain contract values automatically each week
 - Added Robinhood Chain support — its addresses now resolve contract names and link to the Robinhood Chain explorer instead of Etherscan
+- Fixed the chat assistant's message box staying disabled after a rate limit, and added clearer notices when a request fails or the shared usage pool runs out
 
 
 ## 2026-08-03

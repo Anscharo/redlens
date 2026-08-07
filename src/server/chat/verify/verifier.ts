@@ -53,8 +53,21 @@ export function computeOverall(checks: CheckReport | null, verdict: Verdict | nu
   if (checks?.failed) return "fail";
   if (!verdict) return "unverified";
   const contradicted = verdict.claims.some((c) => c.status === "contradicted");
-  if (contradicted || verdict.invented_facts.length > 0 || verdict.ruling_issued) return "fail";
-  if (verdict.claims.some((c) => c.status === "unsupported")) return "warn";
+  if (contradicted || verdict.ruling_issued) return "fail";
+  // `invented_facts` is a FREE-TEXT channel with no threshold, so a strict
+  // auditor writes wording critiques into it ("the phrasing is slightly
+  // stronger than the evidence warrants") and an answer with 13/13 supported
+  // claims got a red badge. It is therefore a severity UPGRADE, never a primary
+  // trigger: a genuine fabrication is by definition also an `unsupported` or
+  // `contradicted` claim, so requiring a claim-level counterpart loses no real
+  // detection — while a pure nuance critique has no counterpart and can no
+  // longer fail on its own. (Considered and rejected: a `severity` field on the
+  // verdict schema — new surface the judge fills unreliably, when the claim
+  // table already discriminates. The VERIFIER_SYSTEM definition of the field is
+  // tightened alongside this so the channel means what it says.)
+  if (verdict.claims.some((c) => c.status === "unsupported")) {
+    return verdict.invented_facts.length > 0 ? "fail" : "warn";
+  }
   // An empty claim list means the audit produced nothing to check — typically a
   // JSON-mode-degraded `{}` verdict, where the schema defaults claims/invented
   // to []. That is NOT a clean pass: don't bless a substantive answer green when
@@ -137,6 +150,8 @@ const VERIFIER_SYSTEM = [
   "[E-prev], when present, holds the assistant's own answers from earlier turns: claims that restate or summarize them are supported (conversation continuity), but NEW specifics absent from both [E-prev] and the tool evidence are not.",
   "Claims include: numbers, dates, rates, role assignments, responsibilities, document identities and statuses, and existence/absence statements.",
   "Hedged statements ('the atlas does not appear to cover X') are SUPPORTED when the evidence pattern matches the hedge (e.g. searches returned nothing relevant).",
+  "'invented_facts' lists ONLY facts the answer asserts with NO basis in the evidence — a fabricated number, date, name, address, role, relationship, or document identity. Each entry must name the specific asserted fact you can find nowhere in the evidence.",
+  "'invented_facts' is NOT a critique channel: wording, nuance, emphasis, hedging strength, conflated terminology, or 'the phrasing is stronger than the evidence warrants' are NOT invented facts. Put every such concern in 'feedback' and leave 'invented_facts' empty.",
   "'ruling_issued' is true only if the answer itself adjudicates an eligibility/payment/dispute outcome instead of reporting what the atlas says.",
   "Do NOT judge style, tone, or citation formatting — code handles that.",
   "Respond with STRICT JSON only:",
@@ -163,9 +178,18 @@ export function buildVerifierPrompt(params: {
     `invalid_doc_numbers=${checks.invalidDocNos.join(",") || "none"} docno_mismatches=${checks.docNoMismatches.join("; ") || "none"}`,
     `uncited_paragraphs=${checks.uncitedParagraphs} ungrounded_quotes=${checks.ungroundedQuotes.length}`,
     `ungrounded_addresses=${checks.ungroundedAddresses.join(",") || "none"}`,
+    // Hard: a value used as citation link text (a figure, percentage, date, or
+    // address) that IS in the evidence but NOT in the doc it was cited to — a
+    // real number attributed to the wrong document.
+    `values_cited_to_wrong_doc=${checks.ungroundedCitationValues.join("; ") || "none"}`,
     // Soft: an untraced figure may be computed, unit-converted, or a schema
     // fact from [E0] — judge each against the evidence rather than assuming.
     `numbers_not_found_verbatim_in_evidence=${checks.untracedNumbers.join(",") || "none"}`,
+    // Soft: the claim's wording barely overlaps the doc it cites. Paraphrase and
+    // synthesis depress overlap legitimately — but so does citing the WRONG
+    // document, which no other deterministic check can see. Read the cited doc
+    // in the evidence and judge whether it actually supports that sentence.
+    `claims_with_low_word_overlap_vs_cited_doc=${checks.lowOverlapCitations.join(" | ") || "none"}`,
     ...(checks.lengthCapped ? ["answer_length_capped=true — the answer was cut off by the output length limit, it is incomplete"] : []),
   ].join("\n");
   return [

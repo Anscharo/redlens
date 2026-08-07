@@ -23,6 +23,26 @@ describe("explorerUrl", () => {
     expect(explorerUrl(EVM)).toBe(EXPLORER.ethereum + EVM);
   });
 
+  it("lets the address map outrank a hint that names a different chain", () => {
+    // The real case: the "Grove Arbitrum Governance Relay Receiver" is deployed
+    // on Robinhood Chain. Its *name* is not evidence of where it lives, so the
+    // resolved map must win over the name hint — otherwise the address links to
+    // arbiscan, where it has no code at all.
+    const addrMap = { [EVM.toLowerCase()]: { explorerUrl: EXPLORER.robinhood + EVM } };
+    expect(
+      explorerUrl(EVM, { chain: ["assetRecoveryAddress", "Grove Arbitrum Governance Relay Receiver"], addrMap }),
+    ).toBe(EXPLORER.robinhood + EVM);
+  });
+
+  it("matches chain hints on word boundaries, not substrings", () => {
+    // "Database"/"Baserate" must not read as base, and "Solanaceae" not as solana.
+    expect(explorerUrl(EVM, { chain: "Database Registry" })).toBe(EXPLORER.ethereum + EVM);
+    expect(explorerUrl(EVM, { chain: "Baserate Parameters" })).toBe(EXPLORER.ethereum + EVM);
+    // A real hint still resolves, including when punctuation forms the boundary.
+    expect(explorerUrl(EVM, { chain: "Token Address (Base)" })).toBe(EXPLORER.base + EVM);
+    expect(explorerUrl(EVM, { chain: "arbitrum-one" })).toBe(EXPLORER.arbitrum + EVM);
+  });
+
   it("accepts a priority list of hints and uses the first one that names a chain", () => {
     // Real Spark data shape: a param key naming the token's own chain
     // ("Token Address (Avalanche)") on an instance whose name says the

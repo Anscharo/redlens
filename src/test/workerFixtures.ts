@@ -152,6 +152,7 @@ export function makeAddresses(): Record<string, AddressInfo> {
   return {
     [ADDR]: {
       chain: "ethereum",
+      chains: ["ethereum"],
       explorerUrl: "https://etherscan.io/address/" + ADDR,
       label: "MCD_VAT",
       chainlogId: "MCD_VAT",

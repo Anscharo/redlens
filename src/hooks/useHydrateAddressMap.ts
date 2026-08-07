@@ -1,6 +1,4 @@
-import { useEffect } from "react";
-import { loadAddresses } from "../lib/addresses";
-import { setAddressMap } from "../lib/addressMap";
+import { useAddressMap } from "./useAddressMap";
 
 /** Hydrate the shared address map that NodeContent's rehypeEthAddresses plugin
  *  reads to resolve curated block-explorer URLs for on-chain addresses.
@@ -12,11 +10,9 @@ import { setAddressMap } from "../lib/addressMap";
  *  such report gives them the curated URLs instead.
  *
  *  Fire-and-forget is safe: every report only mounts NodeContent inside an
- *  expand-on-click body, so the map is hydrated well before a row is opened. */
+ *  expand-on-click body, so the map is hydrated well before a row is opened.
+ *  A component that needs the map during its own render wants `useAddressMap`
+ *  instead — this wrapper drops the returned state deliberately. */
 export function useHydrateAddressMap(): void {
-  useEffect(() => {
-    loadAddresses()
-      .then(setAddressMap)
-      .catch(() => {});
-  }, []);
+  useAddressMap();
 }

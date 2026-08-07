@@ -3,7 +3,6 @@
 // CHAIN_ID). Guards the specific→generic ordering and the future-chain collapse.
 
 import { describe, it, expect, vi } from "vitest";
-// @ts-expect-error — .mjs without types; runtime-only import.
 import { normalizeChainLabel, classifyChainLabel, CHAIN_ID, CHAIN_RPC, CHAIN_BLOCKSCOUT, CHAIN_SUPPORTS_ETHERSCAN } from "../scripts/lib/chains.mjs";
 
 describe("normalizeChainLabel", () => {
@@ -26,10 +25,12 @@ describe("normalizeChainLabel", () => {
     expect(normalizeChainLabel("Gnosis")).toBe("gnosis");
   });
 
-  it("collapses future/testnet chains with no explorer to ethereum", () => {
-    for (const c of ["Plasma", "Monad", "Plume"]) {
-      expect(normalizeChainLabel(c)).toBe("ethereum");
-    }
+  it("resolves the chains promoted out of FUTURE_TO_ETHEREUM to themselves", () => {
+    // These three used to collapse to ethereum, which linked their addresses to
+    // etherscan.io — 11 addresses in the atlas at the time of promotion.
+    expect(normalizeChainLabel("Plasma")).toBe("plasma");
+    expect(normalizeChainLabel("Monad")).toBe("monad");
+    expect(normalizeChainLabel("Plume")).toBe("plume");
   });
 });
 
@@ -52,8 +53,8 @@ describe("classifyChainLabel", () => {
     expect(classifyChainLabel("Base Mainnet")).toMatchObject({ kind: "known", chain: "base" });
     expect(classifyChainLabel("Robinhood Chain")).toMatchObject({ kind: "known", chain: "robinhood" });
   });
-  it("classifies FUTURE_TO_ETHEREUM chains as deferred → ethereum", () => {
-    expect(classifyChainLabel("Plume Network")).toMatchObject({ kind: "deferred", chain: "ethereum", deferred: "plume" });
+  it("classifies a promoted chain as known rather than deferred", () => {
+    expect(classifyChainLabel("Plume Network")).toMatchObject({ kind: "known", chain: "plume" });
   });
   it("classifies an unrecognized non-empty label as unknown → ethereum", () => {
     expect(classifyChainLabel("Wonderland")).toMatchObject({ kind: "unknown", chain: "ethereum", raw: "Wonderland" });
@@ -65,7 +66,7 @@ describe("normalizeChainLabel warnCtx", () => {
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(normalizeChainLabel("Wonderland", "test-ctx")).toBe("ethereum");
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(normalizeChainLabel("Plume", "test-ctx")).toBe("ethereum");
+    expect(normalizeChainLabel("Plume", "test-ctx")).toBe("plume");
     expect(normalizeChainLabel("Base", "test-ctx")).toBe("base");
     expect(spy).toHaveBeenCalledTimes(1);
     spy.mockRestore();

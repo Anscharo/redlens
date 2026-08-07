@@ -16,6 +16,11 @@
       // quoted-compare keeps an UNreplaced placeholder (static/no-server hosting)
       // a safe `false` instead of a syntax error. See src/lib/usersEnabled.ts.
       window.__USERS_ENABLED__ = "{{USERS_ENABLED}}" === "true";
+      // Server's runtime capability for the chat feature (config.chatEnabled),
+      // substituted at serve time like the flag above. Same quoted-compare
+      // safety: an unreplaced placeholder (static/no-server hosting) yields a
+      // safe `false`. See src/lib/chatEnabled.ts.
+      window.__CHAT_ENABLED__ = "{{CHAT_ENABLED}}" === "true";
       // Which OAuth providers this environment offers, substituted at serve time
       // like the flag above (a CSV, e.g. "github" or "github,google"). Lets one
       // environment expose a single provider. An UNreplaced placeholder still

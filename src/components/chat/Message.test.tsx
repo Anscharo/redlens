@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { Message } from "./Message";
 import type { ChatMsg } from "./useChatStream";
@@ -91,6 +91,53 @@ describe("Message", () => {
       />,
     );
     expect(screen.queryByText("looked up 1 thing over the atlas")).toBeNull();
+  });
+
+  it("shows a distinct failed-turn notice for a done, empty, failed assistant message", () => {
+    render(<Message msg={baseMsg({ content: "", done: true, failed: true })} streaming={false} showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText(/This reply didn.t come through/)).toBeInTheDocument();
+    expect(document.querySelector(".rlc-turn-error")).toBeInTheDocument();
+  });
+
+  it("does not show the failed-turn notice once real content has arrived, even if failed lingers", () => {
+    render(
+      <Message msg={baseMsg({ content: "an actual answer", done: true, failed: true })} streaming={false} showTrace={false} onAtlas={vi.fn()} />,
+    );
+    expect(screen.queryByText(/This reply didn.t come through/)).toBeNull();
+    expect(screen.getByText("an actual answer")).toBeInTheDocument();
+  });
+
+  it("prefers the thinking placeholder over the failed notice while still streaming", () => {
+    render(<Message msg={baseMsg({ content: "", failed: true })} streaming showTrace={false} onAtlas={vi.fn()} />);
+    expect(screen.getByText("searching the stars…")).toBeInTheDocument();
+    expect(screen.queryByText(/This reply didn.t come through/)).toBeNull();
+  });
+
+  it("renders a download button per export and downloads on click", () => {
+    const realCreate = URL.createObjectURL;
+    const realRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:mock");
+    URL.revokeObjectURL = vi.fn();
+    try {
+      render(
+        <Message
+          msg={baseMsg({
+            done: true,
+            exports: [{ format: "csv", filename: "data.csv", mime: "text/csv;charset=utf-8", content: "a", bytes: 1 }],
+          })}
+          streaming={false}
+          showTrace={false}
+          onAtlas={vi.fn()}
+        />,
+      );
+      expect(screen.getByText("files · 1")).toBeInTheDocument();
+      const btn = screen.getByRole("button", { name: /data\.csv/ });
+      fireEvent.click(btn);
+      expect(URL.createObjectURL).toHaveBeenCalled();
+    } finally {
+      URL.createObjectURL = realCreate;
+      URL.revokeObjectURL = realRevoke;
+    }
   });
 
   it("shows a VerifyBadge when the message carries a verify state", () => {
