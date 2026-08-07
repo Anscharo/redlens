@@ -152,7 +152,13 @@ export const config = {
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
-  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 4000),
+  // 10s, not lower: measured 2026-08-06 (scripts/aux/measure-embed.ts) the
+  // provider tail is p50 0.3-1.3s but p95 5-10s with no 429s/retries — the old
+  // 4s cap (an e2e-derived number) silently degraded ~1/3 of chat turns to
+  // lexical-only, which reads as "the atlas doesn't say" answers. Waiting
+  // covers both independent outliers AND correlated slow windows; the main
+  // consumer is the chat loop, where retrieval quality outranks a few seconds.
+  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 10_000),
   // In-process LRU for query-time embeddings. Doc embeddings are cached in
   // Postgres by content_hash, but query strings weren't cached at all — every
   // semantic atlas_query/atlas_search paid a fresh OpenRouter round-trip, even

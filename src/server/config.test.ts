@@ -70,7 +70,7 @@ test("defaults when no env is set", async () => {
   expect(config.openrouterBaseUrl).toBe("https://openrouter.ai/api/v1");
   expect(config.embedModel).toBe("qwen/qwen3-embedding-8b");
   expect(config.semanticMinScore).toBe(0.3);
-  expect(config.semanticEmbedTimeoutMs).toBe(4000);
+  expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);
   expect(config.chatModel).toBe("google/gemma-4-31b-it");
   expect(config.curationSelectorModel).toBe("mistralai/mistral-nemo");
