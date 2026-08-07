@@ -117,6 +117,10 @@ The feature is inert until the GitHub App is registered and `GITHUB_APP_ID` +
 `GITHUB_APP_PRIVATE_KEY` are set (`privatePreviewsEnabled`). Migration `015` is additive and
 safe to ship ahead of that. Public previews are entirely unaffected on every path.
 
+**Registering + installing the App:** see `docs/github-app-setup.md` for the step-by-step
+runbook (exact permissions — Contents:read + Metadata:read only — settings, env vars, and how
+repo owners install it).
+
 ## Verification
 
 See the plan's end-to-end checklist: unit suites (`github-app`, `access`, handler private
