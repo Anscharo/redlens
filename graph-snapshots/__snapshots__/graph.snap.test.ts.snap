@@ -11383,7 +11383,7 @@ exports[`allocation-system sub-doc content > Spark > X Layer - Spark Savings v2 
 exports[`edge type counts > all edge types and their counts 1`] = `
 {
   "active_data_for": 78,
-  "aligned_delegate_for": 12,
+  "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 29,
   "cites": 2109,
@@ -11396,7 +11396,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "emergency_response": 16,
   "erg_member_for": 9,
   "governance_channel": 10,
-  "has_address": 287,
+  "has_address": 281,
   "has_status": 136,
   "holds_role_for": 5,
   "implements": 188,
@@ -11406,7 +11406,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "invoked_by": 207,
   "listed_in": 51,
   "located_at": 200,
-  "mentions": 681,
+  "mentions": 675,
   "operational_executor_agent_for": 8,
   "operational_facilitator_for": 2,
   "operational_govops_for": 2,
@@ -11681,14 +11681,11 @@ exports[`governance edges > active_data_for — AD doc → ADC doc 1`] = `
 exports[`governance edges > aligned_delegate_for 1`] = `
 [
   "AegisD → Sky Governance",
-  "AxisLegati → Sky Governance",
   "Blue → Sky Governance",
   "Bonapublica → Sky Governance",
   "Brendan Navigator → Sky Governance",
   "Cloaky → Sky Governance",
-  "Excel → Sky Governance",
   "Max Staking Yield → Sky Governance",
-  "OPEX → Sky Governance",
   "PBG → Sky Governance",
   "Tango → Sky Governance",
   "WBC → Sky Governance",

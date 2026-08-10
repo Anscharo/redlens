@@ -191,35 +191,6 @@
       "ethereum"
     ]
   },
-  "0x0f04a22b62a26e25a29cba5a595623038ef7ace7": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xead02d18529c10eedd995f760fdf5e380ddf3da6": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0xb2b86a130b1ec101e4aed9a88502e08995760307": {
     "chain": "ethereum",
     "chains": [
@@ -264,61 +235,6 @@
     ]
   },
   "0xff7615e05ec1c8d5ded24ab50bf74432666bee2f": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xe3dc949720da42c5c842d06974bcb7b03f4f604f": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x16a5a76904140e01f31c7e7abd9fb81988469ba4": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x9b4af496cc72c432586e85a1d8264a2708c4dcb6": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    }
-  },
-  "0x7bc5a420b6524fa925f1321a01825438369e3c2e": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
