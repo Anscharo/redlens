@@ -56,8 +56,9 @@ const ATLAS_SUBMODULE = "vendor/next-gen-atlas";
 const ATLAS_CONTENT_PATH = "content/";
 const ATLAS_ID_PATTERN = "(^id: [0-9a-f-]{36}$)|(<!-- UUID: [0-9a-f-]{36} -->)";
 const UUID_RE = /^id: ([0-9a-f-]{36})$|<!-- UUID: ([0-9a-f-]{36}) -->/;
-// Below this, treat the grep as broken rather than as a real answer: the atlas
-// has never had fewer than ~7,700 documents.
+// Below this, treat the grep as broken rather than as a real answer. Set far
+// under the real count (~11k, never fewer than ~7,700) so it only fires on a
+// grep that has stopped matching, not on ordinary atlas churn.
 const MIN_ATLAS_UUIDS = 1000;
 
 // ---------------------------------------------------------------------------

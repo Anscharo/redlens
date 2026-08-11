@@ -410,7 +410,6 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         if (filesR.ok) {
           meta.aheadBy = filesR.v.aheadBy;
           meta.behindBy = filesR.v.behindBy;
-          if (filesR.v.truncated) meta.diffTruncated = true;
         }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag

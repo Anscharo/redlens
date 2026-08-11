@@ -40,8 +40,10 @@ const ROOT = path.resolve(__dirname, "../..");
 const SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
 
-// The atlas has never had fewer than ~7,700 documents. Anything under this is a
-// truncated checkout or a parser that stopped understanding the format.
+// Deliberately far below the real atlas (~11k documents today, never fewer than
+// ~7,700): this is a "something is catastrophically wrong" tripwire, not a size
+// assertion. Anything under 1,000 is a truncated checkout or a parser that
+// stopped understanding the format.
 const MIN_DOCS = Number(process.env.ATLAS_MIN_DOCS ?? 1000);
 // Share of documents that may disappear in one bump before a human must look.
 const MAX_DROP = Number(process.env.ATLAS_MAX_DOC_DROP ?? 0.1);
