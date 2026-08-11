@@ -33,6 +33,9 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+## 2026-08-11
+- Atlas PR previews now mark documents removed by a PR, and no longer miss changes in files too large for GitHub to send a diff for
+
 ## 2026-08-06
 - Hovering an on-chain address now shows its name and any token balances it holds
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 

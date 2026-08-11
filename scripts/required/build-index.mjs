@@ -16,7 +16,7 @@ import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import MiniSearch from "minisearch";
 
-import { parse, parseTree } from "../lib/atlas-parser.mjs";
+import { loadAtlasSource } from "../lib/atlas-source.mjs";
 import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
@@ -35,8 +35,8 @@ const ROOT = path.resolve(__dirname, "../..");
 // a preview stamp the known SHA (a tarball extract has no .git to rev-parse).
 const ATLAS_SRC_DIR = process.env.ATLAS_SRC_DIR ?? path.join(ROOT, "vendor/next-gen-atlas");
 const OUT_DIR = process.env.ATLAS_OUT_DIR ?? path.join(ROOT, "public");
-const ATLAS_PATH = path.join(ATLAS_SRC_DIR, "Sky Atlas/Sky Atlas.md");
-const CONTENT_DIR = path.join(ATLAS_SRC_DIR, "content");
+// Layout (monolith / atomized / consolidated) is resolved by atlas-source.mjs —
+// nothing here needs to know which one the checkout is in.
 
 // ---------------------------------------------------------------------------
 // Per-node address extraction — chain detection only.
@@ -142,17 +142,12 @@ function printStats(nodes) {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-// Decomposed tree → parse content/**/document.md directly (no python/compose).
-// Falls back to the legacy composed monolith if content/ is absent (e.g. a
-// pre-decomposition checkout or a pre-composed Sky Atlas.md).
-let nodes;
-if (fs.existsSync(CONTENT_DIR)) {
-  console.log("Parsing Atlas directly from content/ tree…");
-  ({ nodes } = parseTree(CONTENT_DIR));
-} else {
-  console.log("No content/ tree — parsing composed Sky Atlas.md…");
-  ({ nodes } = parse(fs.readFileSync(ATLAS_PATH, "utf8")));
-}
+// One seam for every atlas layout ever shipped (monolith / atomized /
+// consolidated). Throws rather than guessing on an unrecognised or truncated
+// checkout, and refuses to hand back an implausibly small atlas — the failure
+// this replaced built an empty docs.json with no error at all.
+const { layout, nodes } = loadAtlasSource(ATLAS_SRC_DIR);
+console.log(`Parsing Atlas from the ${layout} layout at ${ATLAS_SRC_DIR}…`);
 
 printStats(nodes);
 

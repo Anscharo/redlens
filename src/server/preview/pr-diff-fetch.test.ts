@@ -1,5 +1,6 @@
 // fetchPreviewFiles + the PR-files / compare-with-cap-recovery paths of
-// pr-diff.ts. pathToDocNo/mapChangedDocs (pure) are covered in preview.test.ts.
+// pr-diff.ts. The doc-level diff itself (diffSnapshots, pure) lives in
+// preview.test.ts — this file only covers the GitHub round-trips.
 // Stubs globalThis.fetch (same pattern as open-prs.test.ts), restored in afterAll.
 import { test, expect, afterAll } from "bun:test";
 import { fetchPreviewFiles, CompareError } from "./pr-diff.ts";
@@ -14,21 +15,43 @@ function jsonRes(body: unknown, ok = true, status = 200): Response {
   return { ok, status, json: () => Promise.resolve(body) } as Response;
 }
 
-test("fetchPreviewFiles: PR kind paginates /pulls/{n}/files", async () => {
+test("fetchPreviewFiles: PR kind paginates /pulls/{n}/files and resolves the merge base", async () => {
   const calls: string[] = [];
   const page1 = Array.from({ length: 100 }, (_, i) => ({ filename: `content/A/${i}/document.md`, status: "modified", patch: "p" }));
   const page2 = [{ filename: "content/A/999/document.md", status: "added" }];
   // @ts-expect-error stub
   globalThis.fetch = (url: string) => {
-    calls.push(String(url));
-    if (String(url).includes("page=2")) return Promise.resolve(jsonRes(page2));
+    const u = String(url);
+    calls.push(u);
+    if (u.includes("/compare/")) return Promise.resolve(jsonRes({ merge_base_commit: { sha: "mbsha" } }));
+    if (u.includes("/pulls/1?") || u.endsWith("/pulls/1")) return Promise.resolve(jsonRes({ base: { ref: "release" } }));
+    if (u.includes("page=2")) return Promise.resolve(jsonRes(page2));
     return Promise.resolve(jsonRes(page1));
   };
   const resolved: Resolved = { repo: "r", sha: "s", kind: "pr", ref: "pull-1", pr: { number: 1, title: "t", author: "a", state: "open" } };
   const result = await fetchPreviewFiles(resolved, "tok");
   expect(result.files).toHaveLength(101);
   expect(calls.some((c) => c.includes("/pulls/1/files"))).toBe(true);
-  expect(calls.length).toBe(2); // stopped after a short page
+  expect(calls.filter((c) => c.includes("/files")).length).toBe(2); // stopped after a short page
+  // The merge base is taken against the PR's OWN base branch, not main — a PR
+  // targeting a release branch must not be diffed against main's tip.
+  expect(result.mergeBase).toBe("mbsha");
+  expect(calls.some((c) => c.includes("/compare/release...s"))).toBe(true);
+});
+
+test("fetchPreviewFiles: PR kind still returns files when the merge base can't be resolved", async () => {
+  // No merge base → build.ts skips diff.json rather than diffing against a
+  // guess; the files themselves must still come back for the fork screen.
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string) => {
+    if (String(url).includes("/compare/")) return Promise.resolve(jsonRes(null, false, 404));
+    if (String(url).includes("/files")) return Promise.resolve(jsonRes([{ filename: "content/A/1/document.md", status: "modified" }]));
+    return Promise.resolve(jsonRes({ base: { ref: "main" } }));
+  };
+  const resolved: Resolved = { repo: "r", sha: "s", kind: "pr", ref: "pull-9", pr: { number: 9, title: "t", author: "a", state: "open" } };
+  const result = await fetchPreviewFiles(resolved, "tok");
+  expect(result.files).toHaveLength(1);
+  expect(result.mergeBase).toBeUndefined();
 });
 
 test("fetchPreviewFiles: PR kind stops on a non-ok response", async () => {

@@ -18,9 +18,7 @@
 // unioning files across the branch's ahead-of-merge-base commits (the commit
 // endpoint paginates files properly). Patches stay best-effort from the 300.
 
-import type { DiffLine } from "../../lib/history";
 import { makeGhClient, CANONICAL_REPO, type Resolved, type GhClient } from "./resolve.ts";
-import { patchToDiffLines } from "./patch-diff.ts";
 
 const COMPARE_BASE = "main"; // fragile: update if sky-ecosystem/next-gen-atlas renames its default branch
 const MAX_PAGES = 50; // PR files: 5000; atlas previews never approach this
@@ -50,30 +48,11 @@ export interface PreviewFiles {
   behindBy?: number;
   /** True when the 300-file compare cap hit AND per-commit recovery was also bounded. */
   truncated?: boolean;
+  /** Commit the head actually forked from — the base side of the doc-level diff
+   *  (see snapshot.ts). Absent when GitHub didn't report one. */
+  mergeBase?: string;
 }
 
-export interface PreviewDiff {
-  added: string[];
-  changed: string[];
-}
-
-export interface PreviewDiffFull extends PreviewDiff {
-  /** doc id → rendered line diff (added/changed docs that carried a patch) */
-  patches: Record<string, DiffLine[]>;
-  /** mapped docs whose file had no patch (binary / GitHub-truncated / pure rename) */
-  noPatch: number;
-}
-
-// content/A/2/2/4/document.md → "A.2.2.4"; content/NR/1/document.md → "NR-1".
-// Non-document.md files (e.g. _index.md) → null (not atlas docs).
-export function pathToDocNo(filename: string): string | null {
-  if (!filename.startsWith("content/") || !filename.endsWith("/document.md")) return null;
-  const inner = filename.slice("content/".length, -"/document.md".length);
-  if (!inner) return null;
-  const parts = inner.split("/");
-  if (parts[0] === "NR") return parts.length === 2 ? `NR-${parts[1]}` : null;
-  return parts.join(".");
-}
 
 // Paginate the PR files endpoint (files paginate properly there).
 async function fetchPrFiles(gh: GhClient, prNumber: number): Promise<ChangedFile[]> {
@@ -116,7 +95,8 @@ async function fetchCompareFiles(gh: GhClient, sha: string): Promise<PreviewFile
   }));
   const aheadBy: number = r.json?.ahead_by ?? 0;
   const behindBy: number = r.json?.behind_by ?? 0;
-  if (files.length < COMPARE_FILE_CAP) return { files, aheadBy, behindBy };
+  const mergeBase: string | undefined = r.json?.merge_base_commit?.sha;
+  if (files.length < COMPARE_FILE_CAP) return { files, aheadBy, behindBy, mergeBase };
 
   // Cap hit — the file list may be truncated. Recover ids by unioning the
   // ahead-of-merge-base commits' files; keep the compare patches we do have.
@@ -130,43 +110,31 @@ async function fetchCompareFiles(gh: GhClient, sha: string): Promise<PreviewFile
     else union.set(f.filename, f);
   }
   if (truncated) console.warn(`[preview] compare cap recovery bounded at ${bounded.length}/${aheadBy} commits for ${sha.slice(0, 8)}`);
-  return { files: [...union.values()], aheadBy, behindBy, truncated };
+  return { files: [...union.values()], aheadBy, behindBy, truncated, mergeBase };
+}
+
+// A PR's merge base is against ITS declared base branch, which is not always
+// main. One extra call, and it is what makes the doc-level diff exact rather
+// than "vs whatever main is right now".
+async function fetchPrMergeBase(gh: GhClient, prNumber: number, headSha: string): Promise<string | undefined> {
+  const pr = await gh.fetchJson(`/repos/${CANONICAL_REPO}/pulls/${prNumber}`);
+  const baseRef: string | undefined = pr.ok ? pr.json?.base?.ref : undefined;
+  const cmp = await gh.fetchJson(
+    `/repos/${CANONICAL_REPO}/compare/${baseRef ?? COMPARE_BASE}...${headSha}`,
+  );
+  return cmp.ok ? cmp.json?.merge_base_commit?.sha : undefined;
 }
 
 // PR → merge-base via the PR's own base; branch/sha/fork → merge-base vs main.
 export async function fetchPreviewFiles(resolved: Resolved, token: string): Promise<PreviewFiles> {
   const gh = makeGhClient(token);
-  if (resolved.pr) return { files: await fetchPrFiles(gh, resolved.pr.number) };
+  if (resolved.pr) {
+    const [files, mergeBase] = await Promise.all([
+      fetchPrFiles(gh, resolved.pr.number),
+      fetchPrMergeBase(gh, resolved.pr.number, resolved.sha).catch(() => undefined),
+    ]);
+    return { files, mergeBase };
+  }
   return fetchCompareFiles(gh, resolved.sha);
 }
 
-// Map changed files → doc ids + rendered patches via the preview's doc_no → id
-// index. `removed` files are skipped (the doc isn't in the preview to flag).
-// added-vs-changed is decided by DOC IDENTITY when `mainIds` is provided: a
-// "modified" file can carry a brand-new document (new uuid in an existing
-// path) → that's an ADDED doc, and an "added" file can carry an existing uuid
-// (doc moved to a new number) → that's a CHANGED doc. File status is only the
-// fallback when the caller has no main-atlas id set.
-export function mapChangedDocs(
-  files: ChangedFile[],
-  docNoToId: Map<string, string>,
-  mainIds?: Set<string>,
-): PreviewDiffFull {
-  const added = new Set<string>();
-  const changed = new Set<string>();
-  const patches: Record<string, DiffLine[]> = {};
-  let noPatch = 0;
-  for (const f of files) {
-    const docNo = pathToDocNo(f.filename);
-    if (!docNo) continue;
-    const id = docNoToId.get(docNo);
-    if (!id) continue;
-    if (f.status === "removed") continue;
-    const isNew = mainIds ? !mainIds.has(id) : f.status === "added";
-    (isNew ? added : changed).add(id);
-    const lines = patchToDiffLines(f.patch);
-    if (lines.length) patches[id] = lines;
-    else noPatch++;
-  }
-  return { added: [...added], changed: [...changed], patches, noPatch };
-}

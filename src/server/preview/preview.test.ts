@@ -17,7 +17,7 @@ import {
   archiveUrl,
 } from "./tarball.ts";
 import { previewPaths, artifactPath, bundleReady, writeMeta, evictLru } from "./cache.ts";
-import { pathToDocNo, mapChangedDocs } from "./pr-diff.ts";
+import { diffSnapshots, type Snapshot } from "./snapshot.ts";
 
 // ---------------------------------------------------------------------------
 // resolve
@@ -180,47 +180,56 @@ test("archiveUrl points at the resolved (fork) repo", () => {
 });
 
 // ---------------------------------------------------------------------------
-// pr-diff (accurate diff from GitHub PR files)
+// snapshot diff (layout-agnostic: compares documents by uuid, not by filename)
 // ---------------------------------------------------------------------------
 
-test("pathToDocNo maps content document paths, skips non-docs", () => {
-  expect(pathToDocNo("content/A/2/2/4/document.md")).toBe("A.2.2.4");
-  expect(pathToDocNo("content/NR/1/document.md")).toBe("NR-1");
-  expect(pathToDocNo("content/A/1/_index.md")).toBeNull(); // nav, not a doc
-  expect(pathToDocNo("Sky Atlas/Sky Atlas.md")).toBeNull();
-  expect(pathToDocNo("README.md")).toBeNull();
+function snap(docs: [string, string, string, string?][]): Snapshot {
+  return new Map(
+    docs.map(([id, doc_no, content, title]) => [id, { id, doc_no, content, title: title ?? doc_no }]),
+  );
+}
+
+test("diffSnapshots splits added / changed / removed by document identity", () => {
+  const base = snap([
+    ["id-keep", "A.1", "unchanged"],
+    ["id-edit", "A.2", "before"],
+    ["id-gone", "A.3", "deleted"],
+  ]);
+  const head = snap([
+    ["id-keep", "A.1", "unchanged"],
+    ["id-edit", "A.2", "after"],
+    ["id-new", "A.4", "brand new"],
+  ]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual(["id-new"]);
+  expect(d.changed).toEqual(["id-edit"]);
+  expect(d.removed).toEqual(["id-gone"]);
 });
 
-test("mapChangedDocs: added→added, modified→changed, removed/_index skipped", () => {
-  const docNoToId = new Map([["A.2.2.4", "id-a"], ["A.9", "id-b"], ["NR-1", "id-nr"]]);
-  const diff = mapChangedDocs(
-    [
-      { filename: "content/A/2/2/4/document.md", status: "added" },
-      { filename: "content/A/9/document.md", status: "modified" },
-      { filename: "content/NR/1/document.md", status: "removed" }, // gone → skip
-      { filename: "content/A/1/_index.md", status: "modified" }, // nav → skip
-      { filename: "content/A/unknown/document.md", status: "added" }, // not in index → skip
-    ],
-    docNoToId,
-  );
-  expect(diff.added).toEqual(["id-a"]);
-  expect(diff.changed).toEqual(["id-b"]);
+test("diffSnapshots: a renumbered or renamed doc is CHANGED, not added", () => {
+  const base = snap([["id-a", "A.2", "same body", "Old Title"]]);
+  // same uuid, new doc number and new title, identical body
+  const head = snap([["id-a", "A.7", "same body", "New Title"]]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual([]);
+  expect(d.changed).toEqual(["id-a"]);
+  expect(d.removed).toEqual([]);
 });
 
-test("mapChangedDocs: doc identity trumps file status when mainIds is given", () => {
-  const docNoToId = new Map([["A.1", "new-uuid"], ["A.2", "old-uuid"]]);
-  const diff = mapChangedDocs(
-    [
-      // modified file, but the doc inside carries a uuid main doesn't have → ADDED
-      { filename: "content/A/1/document.md", status: "modified" },
-      // added file, but the uuid exists in main (doc moved/renumbered) → CHANGED
-      { filename: "content/A/2/document.md", status: "added" },
-    ],
-    docNoToId,
-    new Set(["old-uuid", "other-uuid"]),
-  );
-  expect(diff.added).toEqual(["new-uuid"]);
-  expect(diff.changed).toEqual(["old-uuid"]);
+test("diffSnapshots: a new uuid in a reused doc number is ADDED, its occupant REMOVED", () => {
+  const base = snap([["old-uuid", "A.5", "original"]]);
+  const head = snap([["new-uuid", "A.5", "replacement"]]);
+  const d = diffSnapshots(base, head);
+  expect(d.added).toEqual(["new-uuid"]);
+  expect(d.removed).toEqual(["old-uuid"]);
+  expect(d.changed).toEqual([]);
+});
+
+test("diffSnapshots prefers contentHash when present", () => {
+  const base: Snapshot = new Map([["id", { id: "id", doc_no: "A.1", title: "T", content: "x", contentHash: "h1" }]]);
+  // body text differs but the hash is the same → not a change (hash is authoritative)
+  const head: Snapshot = new Map([["id", { id: "id", doc_no: "A.1", title: "T", content: "y", contentHash: "h1" }]]);
+  expect(diffSnapshots(base, head).changed).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
