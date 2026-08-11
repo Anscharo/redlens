@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  diffSnapshots,
   loadBaseSnapshot,
   snapshotFromDocsJson,
   snapshotFromSrcDir,
@@ -175,4 +176,35 @@ test("loadBaseSnapshot still clears the scratch dir when parsing throws", async 
     loadBaseSnapshot("0ldsha", scratch, async () => ({ srcDir: fetchedInto })),
   ).rejects.toThrow(/Refusing to publish an empty atlas/);
   expect(fs.existsSync(scratch)).toBe(false);
+});
+
+test("a preview spanning the layout cutover reports only REAL changes", async () => {
+  // The scenario that has to keep working while upstream migrates: the merge
+  // base is still atomized, the PR head is consolidated. Diffing by uuid means
+  // the regrouping itself is invisible — only edited documents surface.
+  // Verified against the real trees too: atomized main vs the consolidated
+  // #294 head is 11,335 docs on both sides with 0 added/changed/removed.
+  process.env.ATLAS_MIN_NODES = "0";
+  const atomizedBase = mkTmp();
+  const consolidatedHead = mkTmp();
+  writeAtomized(atomizedBase);
+  writeConsolidated(consolidatedHead);
+
+  const base = snapshotFromSrcDir(atomizedBase);
+  expect(diffSnapshots(base, snapshotFromSrcDir(consolidatedHead))).toEqual({
+    added: [],
+    changed: [],
+    removed: [],
+  });
+
+  // Now genuinely edit one document in the consolidated head — it must surface,
+  // and its untouched sibling must not.
+  fs.writeFileSync(
+    path.join(consolidatedHead, "content", "A.0 - Preamble.md"),
+    [heading(1, "A.0", "Preamble", U(1)), "", "intro", "", heading(2, "A.0.1", "First", U(2)), "", "EDITED body", ""].join("\n"),
+  );
+  const d = diffSnapshots(base, snapshotFromSrcDir(consolidatedHead));
+  expect(d.changed).toEqual([U(2)]);
+  expect(d.added).toEqual([]);
+  expect(d.removed).toEqual([]);
 });
