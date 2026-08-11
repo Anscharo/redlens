@@ -21,6 +21,7 @@ export const NodeSelectBox = memo(function NodeSelectBox({
       className="atlas-node-select absolute top-2 right-2"
       aria-label={`Select ${title}`}
       title="shift-click: also select everything beneath"
+      data-mod-hint="subtree"
       onClick={(e) => e.stopPropagation()}
     >
       <input

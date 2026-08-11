@@ -762,7 +762,10 @@ button.atlas-node-toggle:not([data-settling]):hover {
    because a click means something else there: the reader's row handler bails on
    `closest('a, button, [role="button"]')` before it ever reaches the shift
    branch, the selection checkbox's <label> stops propagation (shift there
-   selects the subtree), and the sidebar chevron has a tooltip of its own. */
+   selects the subtree), and the sidebar chevron's shift-click cascades levels
+   rather than opening anything — that one is announced in the footer instead
+   (data-mod-hint, see useContextHints), which is where the more specific hint
+   belongs anyway. */
 [data-shift] .atlas-node:hover:not(:has(a:hover, button:hover, [role="button"]:hover, label:hover, input:hover))::after,
 .tree-row::after {
   position: absolute;
@@ -1684,5 +1687,44 @@ button.atlas-node-expand-all:focus-visible {
   }
   .status-pill.is-applying {
     opacity: 0.6;
+  }
+}
+
+/* ─── Footer contextual hint ─── */
+/* The bottom-left hint line (FooterHint). Absolute inside the fixed footer, so
+   showing one can't shift the build-info row that centers itself beside it.
+   Deliberately quiet: the footer's own background and secondary text, NOT the
+   status pills' light-tan block — this reports an affordance, it doesn't ask
+   for anything. pointer-events: none so the update pill it covers stays
+   clickable underneath. Padding matches FooterItem's px-3. */
+.footer-hint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  /* Long hints truncate rather than run under the centered build info. */
+  max-width: 55%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--bg);
+  color: var(--tan-3);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  animation: footer-hint-in 0.1s ease-out;
+}
+@keyframes footer-hint-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .footer-hint {
+    animation: none;
   }
 }

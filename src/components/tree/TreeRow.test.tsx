@@ -113,6 +113,30 @@ describe("TreeRow ARIA semantics", () => {
   });
 });
 
+// The footer hint (useContextHints) reads these markers off the DOM, so the
+// attribute is the only seam. It answers "what can I do here" WITHOUT the
+// modifier held — the ::after labels in index.css only appear once you already
+// know to press Shift.
+describe("TreeRow footer-hint markers", () => {
+  it("marks the row's shift-click as opening the split view", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: false, treeDepth: 1 }];
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />);
+    expect(screen.getByRole("treeitem")).toHaveAttribute("data-mod-hint", "split");
+  });
+
+  it("marks the chevron by direction, so the hint names the move it will make", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n6" }), hasChildren: true, treeDepth: 1 }];
+    const collapsed = baseData(visibleNodes);
+    const { rerender } = render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} />);
+    expect(screen.getByRole("button")).toHaveAttribute("data-mod-hint", "cascade");
+
+    rerender(
+      <TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} expandedIds={new Set(["n6"])} />,
+    );
+    expect(screen.getByRole("button")).toHaveAttribute("data-mod-hint", "cascade-collapse");
+  });
+});
+
 describe("TreeRow chevron placement", () => {
   it("renders the toggle button after the doc-number chiclets, not before", () => {
     const visibleNodes: VisibleNode[] = [{ node: node({ id: "n4" }), hasChildren: true, treeDepth: 1 }];

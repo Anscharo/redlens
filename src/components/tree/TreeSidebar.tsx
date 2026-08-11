@@ -396,6 +396,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     expandedIds,
     listRef,
     onNavigate,
+    onShiftNavigate,
     setFocusedIndex,
     setExpandedIds,
   });
@@ -454,6 +455,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       onKeyDown={handleKeyDown}
       role="tree"
       aria-label="Atlas tree"
+      // Arrow keys only do something while this container holds focus, so the
+      // footer only advertises them then. useContextHints reads the attribute
+      // off focusin/focusout — nothing to wire up here.
+      data-focus-hint="tree"
     >
       <PreviewTreeToggle />
       <SelectionTreeToggle />

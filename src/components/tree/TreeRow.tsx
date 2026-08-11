@@ -4,7 +4,6 @@ import { segmentDepths, chicletColor, nrSidebarChiclets } from "../../lib/depth"
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
-import { Tooltip } from "../Tooltip";
 import { PreviewMark } from "../preview/PreviewMark";
 import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
@@ -154,6 +153,9 @@ export function TreeRow({
       // Full, untruncated title for the hover hint's `content: attr(data-hint)`
       // (index.css) — the visible span shows displayTitle, which is clipped.
       data-hint={node.title}
+      // Announces shift-click in the footer WITHOUT the modifier held — the
+      // ::after label below only appears once you already know to press Shift.
+      data-mod-hint="split"
       role="treeitem"
       aria-selected={isSelected}
       aria-level={treeDepth}
@@ -181,16 +183,19 @@ export function TreeRow({
         gradients={docNoSegments.gradients}
       />
       {hasChildren ? (
-        <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
-          <button
-            type="button"
-            className="tree-toggle"
-            style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
-            onClick={(e) => onToggle(node.id, e)}
-          >
-            {isExpanded ? "\u25BE" : "\u25B8"}
-          </button>
-        </Tooltip>
+        // No Tooltip: it advertised the tree's arrow-key navigation from the
+        // chevron, after an 800ms delay, whether or not the tree was focused.
+        // The footer now says that when the keys actually work, and says what
+        // THIS control's shift-click does instead (see useContextHints).
+        <button
+          type="button"
+          className="tree-toggle"
+          data-mod-hint={isExpanded ? "cascade-collapse" : "cascade"}
+          style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
+          onClick={(e) => onToggle(node.id, e)}
+        >
+          {isExpanded ? "\u25BE" : "\u25B8"}
+        </button>
       ) : (
         <span
           className="tree-toggle tree-toggle-empty"

@@ -284,6 +284,10 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
+      // Footer hints (useContextHints): shift-click opens the split pane, and
+      // the row is tabIndex={0}, so Enter/Space act on it once focused.
+      data-mod-hint="split"
+      data-focus-hint="reader-row"
       data-exiting={isExiting ? "true" : undefined}
       aria-hidden={isExiting ? true : undefined}
       // `pointer-events: none` (index.css) only blocks the mouse — inert also
@@ -368,6 +372,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             }
             aria-label={`${pendulumVerb[0].toUpperCase()}${pendulumVerb.slice(1)} under ${node.doc_no}`}
             title={`${pendulumVerb} (alt-click: ${reverseVerb})`}
+            data-mod-hint="pendulum"
             onClick={doPendulum}
           >
             »
