@@ -166,6 +166,15 @@ export default defineConfig(() => {
         ],
       },
       workbox: {
+        // Inline the workbox runtime into sw.js instead of emitting a separate
+        // /workbox-<hash>.js that sw.js importScripts()es. The update algorithm
+        // re-fetches an installed worker's stored import URLs, and every deploy
+        // rebuilds dist/ wholesale — so once a hash stops shipping, that URL
+        // 404s (index.ts serves a clean 404 for it by design) and the worker can
+        // never update again. No import, no such failure.
+        inlineWorkboxRuntime: true,
+        // Drop precaches left by superseded builds rather than accumulating them.
+        cleanupOutdatedCaches: true,
         // Don't precache large/dynamic data files — they're handled by runtime caching.
         // index.html is ALSO excluded on purpose: the built HTML carries an unreplaced
         // `window.__ATLAS_SHA__ = "{{ATLAS_SHA}}"` placeholder that the Bun server fills

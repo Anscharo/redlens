@@ -34,6 +34,7 @@
 -->
 
 ## 2026-08-11
+- Fixed long-open tabs getting stuck on an outdated version of the app instead of picking up new releases
 - Added keyboard and mouse hints in the bottom-left corner, showing what the arrow keys and shift-click do wherever you are
 - Added X Layer support, so addresses on X Layer now link to their own block explorer instead of Etherscan
 - Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
