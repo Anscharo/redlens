@@ -10,6 +10,7 @@ import {
   appJwt,
   appInstallUrl,
   installationIdForRepo,
+  installationToken,
   userRepoPermission,
   normalizePem,
   __resetCachesForTest,
@@ -137,6 +138,40 @@ test("installationIdForRepo: 200 -> numeric id", async () => {
     Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 999 }) } as Response);
   const id = await installationIdForRepo("owner/private-repo-2");
   expect(id).toBe(999);
+});
+
+// ---------------------------------------------------------------------------
+// installationToken: reinstall recovery
+// ---------------------------------------------------------------------------
+
+test("installationToken: a mint failure evicts the stale installation id so a reinstall recovers", async () => {
+  let installationLookups = 0;
+  let mintOk = false;
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) {
+      installationLookups++;
+      // A reinstall would mint a new id; the id value itself doesn't matter here.
+      return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 100 + installationLookups }) } as Response);
+    }
+    if (u.endsWith("/access_tokens")) {
+      return Promise.resolve(
+        mintOk
+          ? ({ status: 201, ok: true, json: () => Promise.resolve({ token: "tok" }) } as Response)
+          : ({ status: 404, ok: false, json: () => Promise.resolve({}) } as Response),
+      );
+    }
+    throw new Error(`unexpected url in test stub: ${u}`);
+  };
+
+  // App "uninstalled": the cached id's mint 404s → null, and the stale id is evicted.
+  expect(await installationToken("o/r")).toBeNull();
+  // App reinstalled: mint now succeeds. Because the stale id was evicted, the next
+  // call re-runs the installation lookup instead of retrying the dead id.
+  mintOk = true;
+  expect(await installationToken("o/r")).toBe("tok");
+  expect(installationLookups).toBe(2);
 });
 
 // ---------------------------------------------------------------------------

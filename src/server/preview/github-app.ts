@@ -154,12 +154,18 @@ export async function appInstallUrl(): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 const INSTALLATION_CACHE_MAX = 1000; // FIFO cap — matches handler.ts's RESOLVE_CACHE_MAX pattern
-const installationIdCache = new Map<string, number>();
+// TTL'd (unlike the old permanent cache): an uninstall+reinstall mints a NEW
+// installation id, so a permanently-cached old id would strand the repo on a
+// dead id until process restart. Bounded staleness + eviction-on-mint-failure
+// (see installationToken) recover from a reinstall promptly.
+const INSTALLATION_ID_TTL_MS = 30 * 60_000;
+const installationIdCache = new Map<string, { id: number; exp: number }>();
 
 /** The App's installation id for `repo`, or null if not installed / lookup failed. */
 export async function installationIdForRepo(repo: string): Promise<number | null> {
+  const now = Date.now();
   const cached = installationIdCache.get(repo);
-  if (cached !== undefined) return cached;
+  if (cached && cached.exp > now) return cached.id;
 
   const r = await ghFetch(`https://api.github.com/repos/${repo}/installation`, await appJwt());
   if (!r) return null; // network throw
@@ -173,7 +179,7 @@ export async function installationIdForRepo(repo: string): Promise<number | null
   const id = r.json?.id;
   if (typeof id !== "number") return null;
 
-  installationIdCache.set(repo, id);
+  installationIdCache.set(repo, { id, exp: now + INSTALLATION_ID_TTL_MS });
   if (installationIdCache.size > INSTALLATION_CACHE_MAX) {
     installationIdCache.delete(installationIdCache.keys().next().value!);
   }
@@ -199,7 +205,13 @@ export async function installationToken(repo: string): Promise<string | null> {
   const r = await ghFetch(`https://api.github.com/app/installations/${id}/access_tokens`, await appJwt(), {
     method: "POST",
   });
-  if (!r || !r.ok) return null;
+  if (!r || !r.ok) {
+    // A mint failure against a cached id is the tell-tale of a removed/reinstalled
+    // installation (the id is now dead). Evict it so the next call re-resolves the
+    // current installation id instead of retrying the stale one until it expires.
+    installationIdCache.delete(repo);
+    return null;
+  }
 
   // Treat the token as opaque — GitHub is rolling out a longer stateless
   // format, so no assumption about a "ghs_..." prefix or fixed length.

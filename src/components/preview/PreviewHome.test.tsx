@@ -16,6 +16,14 @@ vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
 // ProfileButton needs an AuthProvider (supplied by main.tsx in production, not in
 // this isolated render); stub it — these tests are about the private form, not it.
 vi.mock("../chat/ProfileButton", () => ({ ProfileButton: () => null }));
+// Capture analytics track() calls to assert the private form doesn't leak the repo id.
+const analytics = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock("../../lib/analytics", () => ({
+  initAnalytics: () => {},
+  register: () => {},
+  pageview: () => {},
+  track: analytics.track,
+}));
 
 import { PreviewHome } from "./PreviewHome";
 
@@ -185,6 +193,8 @@ describe("PreviewHome private repo form", () => {
     ["https://github.com/acme/secret-atlas", "acme:secret-atlas:HEAD"], // full URL, default branch
     ["github.com/acme/secret-atlas.git", "acme:secret-atlas:HEAD"], // URL, .git suffix, default branch
     ["https://github.com/acme/secret-atlas/tree/feature/foo", "acme:secret-atlas:feature~foo"], // URL + branch
+    ["acme/secret-atlas.git", "acme:secret-atlas:HEAD"], // bare owner/repo.git, default branch
+    ["acme/secret-atlas.git@main", "acme:secret-atlas:main"], // bare owner/repo.git@branch
   ];
   for (const [input, id] of cases) {
     it(`parses "${input}" → ${id} and navigates on submit`, () => {
@@ -199,4 +209,23 @@ describe("PreviewHome private repo form", () => {
       Object.defineProperty(window, "location", { value: originalLocation, writable: true });
     });
   }
+
+  it("does not send the private repo/branch identifier to analytics on submit", () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", { value: { ...originalLocation, href: "" }, writable: true });
+    analytics.track.mockClear();
+
+    render(<PreviewHome />);
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
+    fireEvent.click(screen.getByRole("button", { name: "Preview private repo" }));
+
+    const call = analytics.track.mock.calls.find(([ev]) => ev === "preview_submit");
+    expect(call).toBeTruthy();
+    const payload = call![1] as Record<string, unknown>;
+    expect(payload).toMatchObject({ private: true, parsed: true });
+    // The repo identifier must NOT leave the browser for the private form.
+    expect(payload).not.toHaveProperty("input");
+    expect(payload).not.toHaveProperty("parsed_id");
+    Object.defineProperty(window, "location", { value: originalLocation, writable: true });
+  });
 });

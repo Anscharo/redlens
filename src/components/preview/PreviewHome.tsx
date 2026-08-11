@@ -71,9 +71,11 @@ function parsePrivateInput(raw: string): string | null {
   // URL-shaped but not a github.com repo URL — don't fall through to the id forms.
   if (/^https?:\/\/|github\.com/i.test(s)) return null;
 
-  const at = s.match(/^([\w.-]+)\/([\w.-]+)@(.+)$/);
+  // Strip an optional trailing .git (a clone-URL suffix) in these forms too, so
+  // `owner/repo.git` / `owner/repo.git@branch` resolve like the URL form does.
+  const at = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?@(.+)$/);
   if (at) return mk(at[1], at[2], at[3]);
-  const bare = s.match(/^([\w.-]+)\/([\w.-]+)$/);
+  const bare = s.match(/^([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
   if (bare) return mk(bare[1], bare[2], "HEAD");
   return null;
 }
@@ -168,13 +170,10 @@ export function PreviewHome() {
             className="flex gap-2"
             onSubmit={(e) => {
               e.preventDefault();
-              track("preview_submit", {
-                product: "preview",
-                input: privateInput,
-                parsed_id: privateId,
-                parsed: !!privateId,
-                private: true,
-              });
+              // Private path: do NOT send the repo/branch identifier (input,
+              // parsed_id) off-box — for a private repo those are sensitive, and
+              // this fires before any access check. Coarse fields only.
+              track("preview_submit", { product: "preview", parsed: !!privateId, private: true });
               if (privateId) window.location.href = `${import.meta.env.BASE_URL}preview/${encodeURIComponent(privateId)}`;
             }}
           >
