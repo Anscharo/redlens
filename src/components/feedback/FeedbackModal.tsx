@@ -3,6 +3,7 @@ import { Modal } from "../Modal";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
 import { ghostBtn, primaryBtn } from "../modalStyles";
+import { HoneypotField } from "./HoneypotField";
 import { useFeedbackContext } from "../../lib/feedbackContext";
 import { interactionTrail } from "../../lib/lastInteraction";
 import { submitFeedback, type FeedbackApiError } from "../../lib/feedbackApi";
@@ -107,20 +108,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
             {message.length}/{MAX_MESSAGE_LEN}
           </p>
 
-          {/* Honeypot: real users never see or fill this. Off-screen via
-              absolute positioning (NOT display:none / type=hidden — both are
-              trivially detected by bots), tabIndex -1 so keyboard users skip
-              past it entirely. Always sent, empty for a real submitter. */}
-          <input
-            type="text"
-            name="website"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            tabIndex={-1}
-            autoComplete="off"
-            aria-hidden="true"
-            style={{ position: "absolute", left: -9999, width: 1, height: 1, overflow: "hidden" }}
-          />
+          <HoneypotField value={website} onChange={setWebsite} />
 
           {status === "error" && (
             <p aria-live="polite" style={{ fontSize: 11, color: "var(--red)", margin: 0 }}>

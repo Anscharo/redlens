@@ -38,6 +38,11 @@ function execTag(strings: TemplateStringsArray, ...values: unknown[]) {
     return Promise.resolve([{ n }]);
   }
 
+  // rateLimitAndDedupe issues two shapes — `WHERE user_id = $2` when signed in,
+  // `WHERE user_id IS NULL AND submitter_key = $2` when anonymous — so the
+  // existing indexes apply (a COALESCE predicate planned a Seq Scan). Both
+  // carry the same params; the key is a user id in one and a cookie in the
+  // other, which is exactly what rateKeyOf() reconstructs per row.
   if (text.includes("AS hourly") && text.includes("AS daily") && text.includes("AS dupe")) {
     const [hash, rateKey] = values as [string, string];
     const now = Date.now();
@@ -204,7 +209,7 @@ describe("body parsing", () => {
 describe("anonymous submission", () => {
   it("201s, sets rl_fb, and a second POST carrying that cookie does not mint a new one", async () => {
     const res1 = await handleFeedback(
-      req("/api/feedback", { method: "POST", body: body({ message: "the sidebar is broken" }) }),
+      req("/api/feedback", { method: "POST", body: body({ message: "the sidebar is broken", elapsedMs: 9000 }) }),
     );
     expect(res1.status).toBe(201);
     const setCookie1 = res1.headers.getSetCookie().find((c) => c.startsWith("rl_fb="));
@@ -215,7 +220,7 @@ describe("anonymous submission", () => {
       req("/api/feedback", {
         method: "POST",
         fbCookie: value1,
-        body: body({ message: "a second, different report" }),
+        body: body({ message: "a second, different report", elapsedMs: 9000 }),
       }),
     );
     expect(res2.status).toBe(201);
@@ -232,7 +237,7 @@ describe("signed-in submission", () => {
   it("records user_id and reattaches session.refresh — both Set-Cookie headers present", async () => {
     const token = await nearExpiryToken();
     const res = await handleFeedback(
-      req("/api/feedback", { method: "POST", sessionCookie: token, body: body({ message: "chart is off by one" }) }),
+      req("/api/feedback", { method: "POST", sessionCookie: token, body: body({ message: "chart is off by one", elapsedMs: 9000 }) }),
     );
     expect(res.status).toBe(201);
     const cookies = res.headers.getSetCookie();
@@ -265,6 +270,39 @@ describe("timing floor", () => {
     expect(await res.json()).toEqual({ ok: true });
     expect(rows.length).toBe(0);
   });
+
+  // The floor has to FAIL CLOSED. Our own client always computes elapsedMs, so
+  // a request without it is by definition hand-rolled — exactly the traffic
+  // this layer exists to stop. An earlier version guarded on
+  // `typeof === "number"`, which let a bot skip the check by simply omitting
+  // the field.
+  it("200s silently with no insert when elapsedMs is omitted entirely", async () => {
+    const res = await handleFeedback(
+      req("/api/feedback", { method: "POST", body: body({ message: "no elapsed field at all" }) }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(rows.length).toBe(0);
+  });
+
+  it("200s silently for a non-numeric or non-finite elapsedMs", async () => {
+    for (const elapsedMs of ["9000", null, Number.NaN, Number.POSITIVE_INFINITY]) {
+      rows = [];
+      const res = await handleFeedback(
+        req("/api/feedback", { method: "POST", body: body({ message: "forged elapsed", elapsedMs }) }),
+      );
+      expect(res.status).toBe(200);
+      expect(rows.length).toBe(0);
+    }
+  });
+
+  it("still accepts a genuine slow submission", async () => {
+    const res = await handleFeedback(
+      req("/api/feedback", { method: "POST", body: body({ message: "a real human report", elapsedMs: 9000 }) }),
+    );
+    expect(res.status).toBe(201);
+    expect(rows.length).toBe(1);
+  });
 });
 
 describe("rate limiting", () => {
@@ -286,7 +324,7 @@ describe("rate limiting", () => {
       req("/api/feedback", {
         method: "POST",
         fbCookie: "anon-key-1",
-        body: body({ message: "one too many" }),
+        body: body({ message: "one too many", elapsedMs: 9000 }),
       }),
     );
     expect(res.status).toBe(429);
@@ -317,7 +355,7 @@ describe("rate limiting", () => {
         method: "POST",
         sessionCookie: token,
         fbCookie: "anon-key-2", // same cookie the anon rows used — must not matter, user_id wins the key
-        body: body({ message: "signed-in user, different limit" }),
+        body: body({ message: "signed-in user, different limit", elapsedMs: 9000 }),
       }),
     );
     expect(res.status).toBe(201);
@@ -326,7 +364,7 @@ describe("rate limiting", () => {
 
 describe("dedupe", () => {
   it("the same message twice within 10 minutes yields exactly one row", async () => {
-    const payload = body({ message: "duplicate double-click report" });
+    const payload = body({ message: "duplicate double-click report", elapsedMs: 9000 });
     const res1 = await handleFeedback(req("/api/feedback", { method: "POST", fbCookie: "dupe-key", body: payload }));
     expect(res1.status).toBe(201);
     const res2 = await handleFeedback(req("/api/feedback", { method: "POST", fbCookie: "dupe-key", body: payload }));
@@ -355,7 +393,7 @@ describe("server-side clamping", () => {
     const res = await handleFeedback(
       req("/api/feedback", {
         method: "POST",
-        body: body({ message: "console spam report", console: bigConsole }),
+        body: body({ message: "console spam report", console: bigConsole, elapsedMs: 9000 }),
       }),
     );
     expect(res.status).toBe(201);
@@ -370,6 +408,7 @@ describe("server-side clamping", () => {
         method: "POST",
         body: body({
           message: "context allowlist test",
+          elapsedMs: 9000,
           context: { route: "/radar/foo", evilPayload: "x".repeat(100000), theme: "dark" },
         }),
       }),

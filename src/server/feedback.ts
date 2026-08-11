@@ -53,7 +53,15 @@ export async function handleFeedback(req: Request): Promise<Response> {
 
   // Timing floor: no human reads the form and submits inside 1.5s. Same
   // silent-200-no-insert treatment as the honeypot.
-  if (typeof body.elapsedMs === "number" && body.elapsedMs < TIMING_FLOOR_MS) {
+  //
+  // FAILS CLOSED, deliberately: a missing or non-finite elapsedMs counts as
+  // too fast. FeedbackModal always sends Date.now() - openedAt, so a request
+  // without it is by definition hand-rolled — exactly the traffic this layer
+  // exists to stop. Guarding on `typeof === "number"` would let a bot skip the
+  // check by omitting the field. Number.isFinite also rejects NaN, Infinity
+  // (which would pass a bare `<`), and a negative value from a forged clock.
+  // Any future non-browser caller must send it; that is the intended contract.
+  if (!Number.isFinite(body.elapsedMs) || (body.elapsedMs as number) < TIMING_FLOOR_MS) {
     return json({ ok: true }, 200);
   }
 
@@ -67,14 +75,13 @@ export async function handleFeedback(req: Request): Promise<Response> {
   const submitterKey = existingCookie || crypto.randomUUID();
   const cookies = [...(session?.refresh ? [session.refresh] : []), feedbackCookie(submitterKey)];
 
-  const rateKey = userId ?? submitterKey;
   const hash = messageHash(validated.message);
 
   try {
     const globalN = await globalCountToday();
     if (globalN >= config.feedbackGlobalPerDay) return rateLimited(86_400);
 
-    const { hourly, daily, dupe } = await rateLimitAndDedupe(rateKey, hash);
+    const { hourly, daily, dupe } = await rateLimitAndDedupe(userId, submitterKey, hash);
     // Dedupe: same message from the same submitter inside 10 minutes (a
     // double-click, or the dumbest spam loop) — 200, no second insert.
     if (dupe > 0) return json({ ok: true }, 200, cookies);

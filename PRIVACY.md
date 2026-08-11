@@ -28,8 +28,9 @@ anything else traceable back to you.
 - **Feedback you send** — if you use the feedback button you can write to us
   without signing in. We store what you write, plus details about the page you
   were on: its address, the atlas version you were viewing, **a copy of the
-  recent technical messages your browser logged** (the developer console), and
-  **a short list of the last few things you clicked** before opening the form.
+  recent technical messages your browser logged** (the developer console),
+  **a short list of the last few things you clicked** before opening the form,
+  and which browser and device you were using.
   Together those are what let us reproduce the problem. That list records which
   buttons and links you used — never what you typed, and nothing from your
   chatbot conversations or the search box. Anonymous feedback is keyed to a

@@ -28,18 +28,44 @@ export interface LimitCounts {
 }
 
 // One round trip for all three checks (hourly count, daily count, 10-minute
-// dedupe) rather than three. Keyed on COALESCE(user_id::text, submitter_key):
-// a signed-in user's limit follows them across the anonymous cookie they may
-// also carry; an anonymous submitter is keyed purely on the cookie.
-export async function rateLimitAndDedupe(rateKey: string, hash: string): Promise<LimitCounts> {
-  const rows = (await sql`
+// dedupe) rather than three. A signed-in user is keyed on their id, so their
+// limit follows them across whatever anonymous cookie they also carry; an
+// anonymous submitter is keyed purely on the cookie.
+//
+// Deliberately two statements rather than one keyed on
+// COALESCE(user_id::text, submitter_key). That expression is semantically
+// identical — COALESCE picks user_id when non-null and falls through to
+// submitter_key when not — but Postgres cannot use a plain btree index for an
+// expression predicate, so it planned a Seq Scan over the whole table. This
+// query gates EVERY POST, so that scan grows with the table. Branching lets
+// feedback_user and feedback_submitter (019_feedback.sql) actually apply.
+export async function rateLimitAndDedupe(
+  userId: string | null,
+  submitterKey: string,
+  hash: string,
+): Promise<LimitCounts> {
+  // The SELECT list is duplicated rather than interpolated: Bun's sql tag
+  // parameterises values, not SQL fragments, so a shared string would have to
+  // be spliced in unsafely.
+  const rows = (
+    userId
+      ? await sql`
     SELECT
       count(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS hourly,
       count(*) FILTER (WHERE created_at > now() - interval '1 day')::int AS daily,
       count(*) FILTER (WHERE message_hash = ${hash} AND created_at > now() - interval '10 minutes')::int AS dupe
     FROM feedback
-    WHERE COALESCE(user_id::text, submitter_key) = ${rateKey}
-  `) as LimitCounts[];
+    WHERE user_id = ${userId}
+  `
+      : await sql`
+    SELECT
+      count(*) FILTER (WHERE created_at > now() - interval '1 hour')::int AS hourly,
+      count(*) FILTER (WHERE created_at > now() - interval '1 day')::int AS daily,
+      count(*) FILTER (WHERE message_hash = ${hash} AND created_at > now() - interval '10 minutes')::int AS dupe
+    FROM feedback
+    WHERE user_id IS NULL AND submitter_key = ${submitterKey}
+  `
+  ) as LimitCounts[];
   return rows[0] ?? { hourly: 0, daily: 0, dupe: 0 };
 }
 
