@@ -50,6 +50,7 @@ function baseData(visibleNodes: VisibleNode[]): TreeRowData {
     isPreview: false,
     sidebarWidth: 242,
     cradle: null,
+    canCascade: true,
     onNavigate: () => {},
     onToggle: () => {},
     onReveal: () => {},
@@ -139,6 +140,16 @@ describe("TreeRow footer-hint markers", () => {
       <TreeRow index={0} style={{}} ariaAttributes={aria} {...collapsed} expandedIds={new Set(["n6"])} />,
     );
     expect(screen.getByRole("button")).toHaveAttribute("data-mod-hint", "cascade-collapse");
+  });
+
+  // Selected-only view skips the shift branch in toggleExpand, so shift-click
+  // there is a plain one-level toggle — advertising the cascade would promise a
+  // move the chevron won't make. TreeSidebar passes canCascade for that reason.
+  it("offers no chevron hint where shift-click doesn't cascade", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node({ id: "n7" }), hasChildren: true, treeDepth: 1 }];
+    const data = { ...baseData(visibleNodes), canCascade: false };
+    render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...data} />);
+    expect(screen.getByRole("button")).not.toHaveAttribute("data-mod-hint");
   });
 });
 

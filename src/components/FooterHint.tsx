@@ -1,12 +1,8 @@
 import { useHint } from "../lib/hintStore";
 
-// Two or more arrow glyphs in a row name keys you press, and get drawn as
-// keycaps — at the footer's 10px a bare glyph is too fine to read as a key, and
-// a box says "press this" in a way an inline character cannot. A LONE arrow is
-// the "leads to" separator in "Shift-click → open in Splitview" and stays plain
-// text, so the run length is what tells the two apart. Split keeps the captured
-// runs in the output at every odd index.
-const ARROW_KEYS = /([↑↓←→]{2,})/;
+// [Square brackets] in the copy mark a key you press (see hintText). Splitting
+// on a capturing group leaves the key names at every odd index.
+const KEY = /\[([^\]]+)\]/;
 
 /**
  * The footer's contextual hint: what the keys under your fingers, or the thing
@@ -30,17 +26,12 @@ export function FooterHint() {
   if (!hint) return null;
   return (
     <div className="footer-hint mono" aria-hidden="true">
-      {hint.split(ARROW_KEYS).map((part, i) =>
-        i % 2 ? (
-          <span key={i} className="footer-hint-keys">
-            {[...part].map((k, j) => (
-              <kbd key={j}>{k}</kbd>
-            ))}
-          </span>
-        ) : (
-          part
-        ),
-      )}
+      {/* One wrapper, so the flex centering in index.css has a single item to
+          centre. Letting the parts be flex items directly would split the
+          sentence into one item per text run and eat the spaces between them. */}
+      <span className="footer-hint-line">
+        {hint.split(KEY).map((part, i) => (i % 2 ? <kbd key={i}>{part}</kbd> : part))}
+      </span>
     </div>
   );
 }

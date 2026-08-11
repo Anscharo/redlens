@@ -40,6 +40,8 @@ export interface TreeRowData {
   isPreview: boolean;
   sidebarWidth: number;
   cradle: { start: number; end: number; color: string } | null;
+  /** Whether shift-click on a chevron cascades — false in selected-only view. */
+  canCascade: boolean;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
   onReveal: (id: string) => void;
@@ -81,6 +83,7 @@ export function TreeRow({
   isPreview,
   sidebarWidth,
   cradle,
+  canCascade,
   onNavigate,
   onToggle,
   onReveal,
@@ -187,7 +190,9 @@ export function TreeRow({
         <button
           type="button"
           className="tree-toggle"
-          data-mod-hint={isExpanded ? "cascade-collapse" : "cascade"}
+          data-mod-hint={
+            canCascade ? (isExpanded ? "cascade-collapse" : "cascade") : undefined
+          }
           style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
           onClick={(e) => onToggle(node.id, e)}
         >

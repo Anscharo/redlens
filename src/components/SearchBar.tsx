@@ -3,8 +3,6 @@ import { NavBar, type NavBarProps } from "./NavBar";
 import { Tooltip } from "./Tooltip";
 import { RecentSearches } from "./RecentSearches";
 import { useRecentDropdown } from "../hooks/useRecentDropdown";
-import { useSearchFocusHint } from "../hooks/useSearchFocusHint";
-import { SELF_MANAGED } from "../lib/hintText";
 import { SCOPE_CONFIG, type ScopeConfig, type SearchScope } from "../lib/routes";
 import type { SearchMode } from "../hooks/useSearchInput";
 import type { RecentSuggestion } from "../lib/recentSearches";
@@ -86,7 +84,6 @@ export function SearchBar({
     onSelect: onRecentSelect,
   });
   const showRecent = dd.visible && !!onRecentSelect;
-  const hint = useSearchFocusHint(showRecent);
   const activeOptionId =
     showRecent && dd.active >= 0 ? `${RECENT_LISTBOX_ID}-opt-${dd.active}` : undefined;
 
@@ -157,21 +154,17 @@ export function SearchBar({
               aria-autocomplete="list"
               value={query}
               onChange={onChange}
-              // The footer hint is published from here rather than read off the
-              // attribute below — see useSearchFocusHint.
-              data-focus-hint={SELF_MANAGED}
-              onFocus={() => {
-                dd.handlers.onFocus();
-                hint.onFocus();
-              }}
+              // The footer hint changes while focus stays put, as the dropdown
+              // opens and closes under a stationary caret. useContextHints
+              // re-reads this attribute when it changes, so it can just carry
+              // whichever hint is currently true.
+              data-focus-hint={showRecent ? "search-recents" : "search"}
+              onFocus={dd.handlers.onFocus}
               // Also open when clicking an already-focused input (no focus event fires then).
               onPointerDown={dd.handlers.onPointerDown}
               // Delay so a mousedown→click on a suggestion still registers before
               // the dropdown unmounts (the option's own onMouseDown also guards).
-              onBlur={() => {
-                dd.handlers.onBlur();
-                hint.onBlur();
-              }}
+              onBlur={dd.handlers.onBlur}
               onKeyDown={(e) => {
                 dd.handlers.onKeyDown(e);
                 // Enter on a typed query the dropdown didn't consume (no recent

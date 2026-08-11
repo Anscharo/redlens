@@ -1,6 +1,53 @@
 import { useEffect } from "react";
 import { hintStore } from "../lib/hintStore";
-import { FOCUS_HINTS, HOVER_HINTS, SELF_MANAGED } from "../lib/hintText";
+import { FOCUS_HINTS, HOVER_HINTS } from "../lib/hintText";
+
+/**
+ * Follows one marked element at a time and keeps its hint published.
+ *
+ * The marker is re-read on change, not just on arrival, because what a control
+ * offers moves without the user doing anything the listeners would see: click a
+ * collapsed chevron and it becomes a collapse-everything control while the
+ * cursor sits still, and the search box swaps between its two hints when the
+ * recents dropdown opens under a stationary caret. Neither fires a pointer or
+ * focus event, so arrival-time reads alone would leave the footer promising the
+ * wrong thing.
+ */
+function track(
+  attr: string,
+  hints: Readonly<Record<string, string>>,
+  publish: (text: string | null) => void,
+) {
+  const selector = `[${attr}]`;
+  let current: Element | null = null;
+  const read = () => publish(current ? (hints[current.getAttribute(attr)!] ?? null) : null);
+  const watch = new MutationObserver(read);
+  const to = (el: Element | null) => {
+    if (el === current) return;
+    current = el;
+    watch.disconnect();
+    if (el) watch.observe(el, { attributes: true, attributeFilter: [attr] });
+    read();
+  };
+  return {
+    /** Follow the innermost marked ancestor of `target`, if any. */
+    from: (target: EventTarget | null) =>
+      to(target instanceof Element ? target.closest(selector) : null),
+    /** Stop following, if we were. Cheap no-op when we weren't. */
+    clear: () => to(null),
+    /**
+     * Force the tier empty regardless of what is being followed. `clear()`
+     * early-returns when nothing is tracked, which is what keeps sweeping
+     * unmarked space free — but it also means it can't guarantee the tier is
+     * empty, which teardown and window-blur both need.
+     */
+    reset: () => {
+      current = null;
+      watch.disconnect();
+      publish(null);
+    },
+  };
+}
 
 /**
  * Feeds the footer's hint line from the document, via delegation: an element
@@ -18,56 +65,30 @@ import { FOCUS_HINTS, HOVER_HINTS, SELF_MANAGED } from "../lib/hintText";
  */
 export function useContextHints() {
   useEffect(() => {
-    const hintOn = (target: EventTarget | null, attr: string): Element | null =>
-      target instanceof Element ? target.closest(`[${attr}]`) : null;
-
-    const textFor = (el: Element | null) =>
-      el ? (HOVER_HINTS[el.getAttribute("data-mod-hint")!] ?? null) : null;
-
-    // What a control offers can change while the cursor sits still on it: click
-    // a collapsed chevron and it becomes a collapse-everything control, but the
-    // mouse never moved, so no pointerover fires and the hint would still
-    // promise the expand. Watching the one hovered element's marker costs
-    // nothing and keeps the label honest.
-    let hovered: Element | null = null;
-    const markerWatch = new MutationObserver(() => hintStore.setHover(textFor(hovered)));
-    const setHovered = (el: Element | null) => {
-      if (el === hovered) return;
-      hovered = el;
-      markerWatch.disconnect();
-      if (el) markerWatch.observe(el, { attributes: true, attributeFilter: ["data-mod-hint"] });
-      hintStore.setHover(textFor(el));
-    };
+    const hover = track("data-mod-hint", HOVER_HINTS, hintStore.setHover);
+    const focus = track("data-focus-hint", FOCUS_HINTS, hintStore.setFocus);
 
     const onPointerOver = (e: PointerEvent) => {
       // Touch and pen fire pointerover on tap with no matching pointerout, so a
       // tap would strand a hint on screen until the next mouse move. These hints
       // describe modifier-clicks, which need a keyboard anyway.
       if (e.pointerType !== "mouse") return;
-      setHovered(hintOn(e.target, "data-mod-hint"));
+      hover.from(e.target);
     };
     // Leaving the window fires pointerout with no relatedTarget and no
     // follow-up pointerover, so without this the last hint would stick.
     const onPointerOut = (e: PointerEvent) => {
-      if (!e.relatedTarget) setHovered(null);
+      if (!e.relatedTarget) hover.clear();
     };
-
-    const onFocusIn = (e: FocusEvent) => {
-      const el = hintOn(e.target, "data-focus-hint");
-      const key = el?.getAttribute("data-focus-hint");
-      // The element publishes its own hint (see SELF_MANAGED) — don't stomp it.
-      if (key === SELF_MANAGED) return;
-      hintStore.setFocus(key ? (FOCUS_HINTS[key] ?? null) : null);
-    };
+    const onFocusIn = (e: FocusEvent) => focus.from(e.target);
     // focusout fires before the next focusin, so clearing here can't clobber an
     // incoming hint — and it covers focus leaving the document entirely.
-    const onFocusOut = () => hintStore.setFocus(null);
-
+    const onFocusOut = () => focus.clear();
     // A hint held while the window loses focus never gets its matching pointer
     // or focus event back, so it would sit there over a page nobody is on.
     const clear = () => {
-      setHovered(null);
-      hintStore.setFocus(null);
+      hover.reset();
+      focus.reset();
     };
 
     window.addEventListener("pointerover", onPointerOver);
@@ -82,7 +103,6 @@ export function useContextHints() {
       window.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("blur", clear);
       clear();
-      markerWatch.disconnect();
     };
   }, []);
 }

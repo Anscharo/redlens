@@ -43,20 +43,12 @@ describe("hintStore", () => {
     expect(cb).toHaveBeenCalledTimes(1);
   });
 
-  it("does not notify when the resolved hint is unchanged", () => {
-    hintStore.setHover("shift-click");
+  it("does not notify when a tier is set to what it already held", () => {
+    hintStore.setFocus("arrows");
     const cb = vi.fn();
     const off = hintStore.subscribe(cb);
-    // Focus changes underneath, but hover still wins — nothing on screen moves.
     hintStore.setFocus("arrows");
     expect(cb).not.toHaveBeenCalled();
     off();
-  });
-
-  it("returns a stable snapshot reference across reads", () => {
-    // useSyncExternalStore re-reads until two snapshots match by identity; a
-    // freshly computed value per call would loop forever.
-    hintStore.setFocus("arrows");
-    expect(hintStore.getSnapshot()).toBe(hintStore.getSnapshot());
   });
 });

@@ -16,6 +16,3 @@ export const IS_MAC = /mac/i.test(PLATFORM);
 
 /** The Alt/Option key, named the way the user's own keyboard names it. */
 export const ALT_KEY = IS_MAC ? "⌥ Option" : "Alt";
-
-/** The primary chord modifier — Cmd on a Mac, Ctrl everywhere else. */
-export const MOD_KEY = IS_MAC ? "⌘" : "Ctrl";

@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
 import { useContextHints } from "./useContextHints";
 import { hintStore } from "../lib/hintStore";
-import { HOVER_HINTS, FOCUS_HINTS, SELF_MANAGED } from "../lib/hintText";
+import { HOVER_HINTS, FOCUS_HINTS } from "../lib/hintText";
 
 // jsdom has no PointerEvent, and pointerType is what the mouse-only guard reads.
 function pointerOver(target: Element, pointerType = "mouse") {
@@ -126,12 +126,19 @@ describe("useContextHints — focus tier", () => {
     expect(hintStore.getSnapshot()).toBe(null);
   });
 
-  it("leaves a self-managed element's hint alone on focusin", () => {
-    root.innerHTML = `<input id="s" data-focus-hint="${SELF_MANAGED}" />`;
+  // The search box's hint flips between its two forms while the caret sits
+  // still, as the recents dropdown opens under it — the focus-tier twin of the
+  // chevron case above, and the reason the marker is re-read rather than only
+  // read on arrival.
+  it("follows the focused element's marker when it changes under a still caret", async () => {
+    root.innerHTML = `<input id="s" data-focus-hint="search" />`;
     renderHook(() => useContextHints());
-    // Stand in for what useSearchFocusHint publishes just before this fires.
-    hintStore.setFocus(FOCUS_HINTS["search-recents"]);
-    root.querySelector("#s")!.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    const el = root.querySelector("#s")!;
+    el.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(hintStore.getSnapshot()).toBe(FOCUS_HINTS.search);
+
+    el.setAttribute("data-focus-hint", "search-recents");
+    await new Promise((r) => setTimeout(r, 0)); // MutationObserver is async
     expect(hintStore.getSnapshot()).toBe(FOCUS_HINTS["search-recents"]);
   });
 

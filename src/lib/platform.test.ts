@@ -13,18 +13,14 @@ beforeEach(() => vi.resetModules());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("platform", () => {
-  it("names the Mac keys on macOS", async () => {
-    const { IS_MAC, ALT_KEY, MOD_KEY } = await loadWith({ userAgentData: { platform: "macOS" } });
-    expect(IS_MAC).toBe(true);
-    expect(ALT_KEY).toBe("⌥ Option");
-    expect(MOD_KEY).toBe("⌘");
-  });
+  it("names the Alt key the way each platform's keyboard does", async () => {
+    const mac = await loadWith({ userAgentData: { platform: "macOS" } });
+    expect(mac.IS_MAC).toBe(true);
+    expect(mac.ALT_KEY).toBe("⌥ Option");
 
-  it("names the PC keys elsewhere", async () => {
-    const { IS_MAC, ALT_KEY, MOD_KEY } = await loadWith({ userAgentData: { platform: "Windows" } });
-    expect(IS_MAC).toBe(false);
-    expect(ALT_KEY).toBe("Alt");
-    expect(MOD_KEY).toBe("Ctrl");
+    const pc = await loadWith({ userAgentData: { platform: "Windows" } });
+    expect(pc.IS_MAC).toBe(false);
+    expect(pc.ALT_KEY).toBe("Alt");
   });
 
   it("falls back to the deprecated navigator.platform when userAgentData is absent", async () => {

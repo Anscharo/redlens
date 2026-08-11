@@ -46,21 +46,21 @@ describe("FooterHint", () => {
     expect(screen.queryByText("second")).not.toBeInTheDocument();
   });
 
-  it("draws a run of arrow glyphs as one keycap each", () => {
-    act(() => hintStore.setFocus("↑↓←→ Enter (+ Shift) to navigate"));
+  it("draws every bracketed key as its own keycap, and drops the brackets", () => {
+    act(() => hintStore.setFocus("[↑][↓][←][→] [Enter] (+ [Shift]) to navigate"));
     const { container } = render(<FooterHint />);
     expect([...container.querySelectorAll("kbd")].map((k) => k.textContent)).toEqual([
-      "↑", "↓", "←", "→",
+      "↑", "↓", "←", "→", "Enter", "Shift",
     ]);
-    // The sentence around them is untouched, spacing included.
+    // The prose around them survives intact, spacing included.
     expect(container.textContent).toBe("↑↓←→ Enter (+ Shift) to navigate");
   });
 
-  it("leaves a lone arrow as plain text — it separates, it isn't a key", () => {
-    act(() => hintStore.setHover("Shift-click → open in Splitview"));
+  it("leaves an unbracketed arrow as prose — it separates, it isn't a key", () => {
+    act(() => hintStore.setHover("[Enter] → jump to first result"));
     const { container } = render(<FooterHint />);
-    expect(container.querySelector("kbd")).toBeNull();
-    expect(container.textContent).toBe("Shift-click → open in Splitview");
+    expect([...container.querySelectorAll("kbd")].map((k) => k.textContent)).toEqual(["Enter"]);
+    expect(container.textContent).toBe("Enter → jump to first result");
   });
 
   it("is hidden from assistive tech — every gesture it names is reachable another way", () => {
