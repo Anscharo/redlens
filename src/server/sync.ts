@@ -15,20 +15,38 @@ import { runMigrations } from "./migrate.ts";
 import type { AtlasNode } from "./retrieval/indexes.ts";
 import { nodeToDocRow, buildChainStateByAddr, buildAddrRows } from "./retrieval/doc-rows.ts";
 
-const FORCE = process.argv.includes("--force");
-const pub = (f: string) => join(config.publicDir, f);
-const readJson = <T>(f: string): T => JSON.parse(readFileSync(pub(f), "utf8")) as T;
+// Exported (not just a module-level constant) so a test can drive both branches
+// of the --force gate without needing a literal `--force` in the test runner's
+// own argv. Behavior at the real call site is unchanged: realSyncDeps below
+// still reads it from process.argv exactly once, at import time, same as before.
+export function forceFromArgv(argv: string[] = process.argv): boolean {
+  return argv.includes("--force");
+}
+export const pub = (f: string) => join(config.publicDir, f);
+export const readJson = <T>(f: string): T => JSON.parse(readFileSync(pub(f), "utf8")) as T;
 
-async function chunked<T>(rows: T[], size: number, fn: (chunk: T[]) => Promise<void>) {
+export async function chunked<T>(rows: T[], size: number, fn: (chunk: T[]) => Promise<void>) {
   for (let i = 0; i < rows.length; i += size) await fn(rows.slice(i, i + size));
 }
 
-async function main() {
+// Injected so main() is testable without a real Postgres connection or a
+// literal --force argv — mirrors preview/build.ts's BuildDeps/realBuildDeps.
+// `sql` itself deliberately stays OUT of this seam and a direct top-of-file
+// import: every DB-touching *.test.ts in this codebase fakes it via
+// mock.module("./db.ts", …) instead (see db.test.ts / migrate.test.ts), so
+// sync.ts keeps that same convention rather than inventing a second one.
+export interface SyncDeps {
+  runMigrations: () => Promise<string[]>;
+  force: boolean;
+}
+const realSyncDeps: SyncDeps = { runMigrations, force: forceFromArgv() };
+
+export async function main(deps: SyncDeps = realSyncDeps) {
   const startedAt = new Date();
   console.log("sync:atlas — waiting for db…");
   await waitForDb(); // tolerate Railway's private-network / fresh-PG boot lag
   console.log("sync:atlas — running migrations…");
-  await runMigrations();
+  await deps.runMigrations();
 
   console.log("sync:atlas — reading docs.json…");
   const docsFile = readJson<{ atlasCommit?: string; nodes: Record<string, AtlasNode> }>("docs.json");
@@ -37,7 +55,7 @@ async function main() {
 
   const prevState = await sql`SELECT atlas_sha FROM sync_state WHERE id = 1`;
   const prevSha: string | null = prevState[0]?.atlas_sha ?? null;
-  if (!FORCE && prevSha === atlasSha) {
+  if (!deps.force && prevSha === atlasSha) {
     console.log(`sync:atlas — already current at ${atlasSha.slice(0, 12)} (use --force to re-sync)`);
     await sql.end();
     return;
@@ -167,8 +185,22 @@ async function main() {
   await sql.end();
 }
 
-main().catch((err) => {
-  console.error("sync:atlas — fatal error:", err?.message ?? err);
-  console.error(err?.stack ?? "");
-  process.exit(1);
-});
+// Only run when launched directly (`bun src/server/sync.ts`) — every caller
+// (package.json sync:atlas, atlas-worker.mjs, atlas-updater.ts's boot-embeddings
+// spawn, index.ts's post-preview-build spawn) shells out to this file as a
+// subprocess rather than importing it, but without this guard a plain
+// `import "./sync.ts"` (e.g. from a test) would kick off a real DB sync as a
+// side effect of module load. import.meta.main is only ever true for a real
+// `bun src/server/sync.ts` run, never for a module loaded by `bun test` — so
+// this catch handler (the fatal-error → process.exit(1) path) has no unit-test
+// technique that can execute it; main() itself is exercised directly and
+// thoroughly in sync.test.ts.
+/* v8 ignore start -- boot-only; see the comment above */
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error("sync:atlas — fatal error:", err?.message ?? err);
+    console.error(err?.stack ?? "");
+    process.exit(1);
+  });
+}
+/* v8 ignore stop */

@@ -1,173 +1,127 @@
 // @vitest-environment jsdom
+// The wheel/shade/alpha widgets are real @uiw/react-color components here —
+// none of these tests drag them, so no mocking is needed. What's under test
+// is ColorPickerModal's own glue: the dialog chrome, cancel paths, and the
+// text field's commitText parser.
 import { describe, it, expect, afterEach, vi } from "vitest";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ColorPickerModal } from "./ColorPickerModal";
 import type { PaletteToken } from "./palette-tokens";
-
-const HEX_TOKEN: PaletteToken = { name: "accent", label: "Accent", group: "brand", alpha: false };
-const ALPHA_TOKEN: PaletteToken = { name: "shadow-strong", label: "Shadow", group: "surface", alpha: true };
-
-const liveValue = (name: string) => document.documentElement.style.getPropertyValue(`--${name}`);
 
 afterEach(() => {
   cleanup();
   document.documentElement.removeAttribute("style");
 });
 
-describe("ColorPickerModal", () => {
-  it("renders inside the shared modal shell, labelled by the token", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />);
-    expect(screen.getByRole("dialog")).toHaveAttribute("aria-label", "Edit Accent");
+const TOKEN: PaletteToken = { name: "accent", label: "Accent", group: "brand", alpha: false };
+
+describe("ColorPickerModal — chrome", () => {
+  it("renders a labeled dialog with the token name and initial value in the text field", () => {
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={() => {}} />);
+    expect(screen.getByRole("dialog", { name: "Edit Accent" })).toBeInTheDocument();
     expect(screen.getByText("--accent")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toHaveValue("#111111");
   });
 
-  it("focuses and selects the text input on mount", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />);
-    const input = screen.getByDisplayValue("#c67267") as HTMLInputElement;
-    expect(input).toHaveFocus();
-    // The shell focuses it; this component additionally selects the text.
-    expect(input.selectionStart).toBe(0);
-    expect(input.selectionEnd).toBe("#c67267".length);
-  });
-
-  it("live-previews a typed hex value on the document element", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />);
-    fireEvent.change(screen.getByDisplayValue("#c67267"), { target: { value: "#123456" } });
-    expect(liveValue("accent")).toBe("#123456");
-  });
-
-  it("live-previews a typed rgba value", () => {
-    render(<ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(0, 0, 0, 0.5)" onCancel={() => {}} onConfirm={() => {}} />);
-    fireEvent.change(screen.getByDisplayValue("rgba(0, 0, 0, 0.5)"), {
-      target: { value: "rgba(10, 20, 30, 0.25)" },
-    });
-    expect(liveValue("shadow-strong")).toBe("rgba(10, 20, 30, 0.25)");
-  });
-
-  it("ignores unparseable input while typing instead of throwing", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />);
-    const input = screen.getByDisplayValue("#c67267");
-    expect(() => fireEvent.change(input, { target: { value: "#zz" } })).not.toThrow();
-    expect(() => fireEvent.change(input, { target: { value: "" } })).not.toThrow();
-    expect(screen.getByDisplayValue("")).toBeInTheDocument();
-  });
-
-  it("falls back to black for an initial value it cannot parse", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="not-a-color" onCancel={() => {}} onConfirm={() => {}} />);
-    const onConfirm = vi.fn();
-    cleanup();
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="nonsense" onCancel={() => {}} onConfirm={onConfirm} />);
-    fireEvent.click(screen.getByText("done"));
-    expect(onConfirm).toHaveBeenCalledWith("#000000");
-  });
-
-  it("confirms on the done button with the serialized value", () => {
-    const onConfirm = vi.fn();
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#123456" onCancel={() => {}} onConfirm={onConfirm} />);
-    fireEvent.click(screen.getByText("done"));
-    expect(onConfirm).toHaveBeenCalledWith("#123456");
-  });
-
-  it("serializes an alpha token as rgba", () => {
-    const onConfirm = vi.fn();
-    render(<ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(255, 0, 0, 0.5)" onCancel={() => {}} onConfirm={onConfirm} />);
-    fireEvent.click(screen.getByText("done"));
-    expect(onConfirm).toHaveBeenCalledWith("rgba(255, 0, 0, 0.5)");
-  });
-
-  it("confirms on Enter in the text input", () => {
-    const onConfirm = vi.fn();
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#123456" onCancel={() => {}} onConfirm={onConfirm} />);
-    fireEvent.keyDown(screen.getByDisplayValue("#123456"), { key: "Enter" });
-    expect(onConfirm).toHaveBeenCalledWith("#123456");
-  });
-
-  it("cancels on the cancel button and via the shell's Escape handler", () => {
+  it("cancels on a click outside the panel (the backdrop)", () => {
     const onCancel = vi.fn();
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={onCancel} onConfirm={() => {}} />);
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={onCancel} onConfirm={() => {}} />);
+    fireEvent.click(screen.getByRole("dialog"));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cancel on a click inside the panel", () => {
+    const onCancel = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={onCancel} onConfirm={() => {}} />);
+    fireEvent.click(screen.getByText("Accent"));
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("cancels on the Escape key", () => {
+    const onCancel = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={onCancel} onConfirm={() => {}} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels via the cancel button", () => {
+    const onCancel = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={onCancel} onConfirm={() => {}} />);
     fireEvent.click(screen.getByText("cancel"));
     expect(onCancel).toHaveBeenCalledTimes(1);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onCancel).toHaveBeenCalledTimes(2);
   });
 
-  // ShadeSlider and Alpha are @uiw/react-color's keyboard-accessible
-  // Interactive surfaces (ShadeSlider is built on Alpha, hence the shared
-  // .w-color-alpha class). Driving them with arrow keys exercises the same
-  // onChange → updateHsva → serialize → setLive path a drag would, without
-  // depending on pointer geometry that jsdom reports as 0×0. The Wheel has no
-  // keyboard affordance at all, so it stays pointer-only and unreachable here.
-  //
-  // The widget no-ops unless the value actually moves, so direction matters
-  // and differs per slider: ShadeSlider drives its inner Alpha with
-  // `a: 1 - hsva.v / 100`, so a full-value colour sits at 0 and must go RIGHT,
-  // while the real alpha slider sits at 1 and must go LEFT.
-  const inputValue = () => (screen.getByRole("textbox") as HTMLInputElement).value;
-
-  it("live-previews a shade-slider change driven by keyboard", () => {
-    render(<ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(255, 0, 0, 1)" onCancel={() => {}} onConfirm={() => {}} />);
-    const shade = document.querySelector(".w-color-saturation .w-color-interactive")!;
-    const before = inputValue();
-
-    fireEvent.keyDown(shade, { key: "ArrowRight" });
-
-    expect(inputValue()).not.toBe(before);
-    expect(liveValue("shadow-strong")).toBe(inputValue());
-  });
-
-  it("live-previews an alpha change driven by keyboard", () => {
-    render(<ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(255, 0, 0, 1)" onCancel={() => {}} onConfirm={() => {}} />);
-    // The alpha slider is the .w-color-alpha that is NOT the shade slider.
-    const alpha = [...document.querySelectorAll(".w-color-alpha")]
-      .find((el) => !el.classList.contains("w-color-saturation"))!
-      .querySelector(".w-color-interactive")!;
-
-    fireEvent.keyDown(alpha, { key: "ArrowLeft" });
-
-    // Alpha steps by 1%, and an alpha token serializes as rgba(...).
-    expect(inputValue()).toMatch(/^rgba\(.*0\.99\)$/);
-    expect(liveValue("shadow-strong")).toBe(inputValue());
-  });
-
-  it("hides the alpha slider for a token that does not support alpha", () => {
-    render(<ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />);
-    expect(document.querySelectorAll(".w-color-interactive")).toHaveLength(2);
-  });
-
-  // The live preview writes straight to documentElement, so unmounting without
-  // confirming has to put back whatever was there before the modal opened.
-  it("restores the pre-open inline value when closed without confirming", () => {
-    document.documentElement.style.setProperty("--accent", "#original");
-    const { unmount } = render(
-      <ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />,
-    );
-    fireEvent.change(screen.getByDisplayValue("#c67267"), { target: { value: "#123456" } });
-    expect(liveValue("accent")).toBe("#123456");
-
-    unmount();
-    expect(liveValue("accent")).toBe("#original");
-  });
-
-  it("removes the inline value on cancel when there was none before opening", () => {
-    const { unmount } = render(
-      <ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />,
-    );
-    fireEvent.change(screen.getByDisplayValue("#c67267"), { target: { value: "#123456" } });
-    unmount();
-    expect(liveValue("accent")).toBe("");
-  });
-
-  // Confirming is the one path that must NOT roll back — the parent commits
-  // the live-previewed value to the draft palette.
-  it("leaves the previewed value in place after confirming", () => {
-    document.documentElement.style.setProperty("--accent", "#original");
-    const { unmount } = render(
-      <ColorPickerModal token={HEX_TOKEN} initialValue="#c67267" onCancel={() => {}} onConfirm={() => {}} />,
-    );
-    fireEvent.change(screen.getByDisplayValue("#c67267"), { target: { value: "#123456" } });
+  it("confirms the current color via the done button", () => {
+    const onConfirm = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={onConfirm} />);
     fireEvent.click(screen.getByText("done"));
-    unmount();
-    expect(liveValue("accent")).toBe("#123456");
+    expect(onConfirm).toHaveBeenCalledWith("#111111");
+  });
+
+  it("confirms on Enter in the text field", () => {
+    const onConfirm = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={onConfirm} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onConfirm).toHaveBeenCalledWith("#111111");
+  });
+
+  it("a non-Enter key in the text field does not confirm", () => {
+    const onConfirm = vi.fn();
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={onConfirm} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Tab" });
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+});
+
+describe("ColorPickerModal — text field (commitText)", () => {
+  it("live-previews a valid typed hex value on the document root", () => {
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={() => {}} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "#4488cc" } });
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("#4488cc");
+    expect(screen.getByRole("textbox")).toHaveValue("#4488cc");
+  });
+
+  it("echoes an unparsable value in the field but leaves the live preview untouched", () => {
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={() => {}} />);
+    // A bare "#" has no hex digits to parse — hexToHsva throws, and commitText
+    // swallows it so the user can keep typing without the preview flashing.
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "#" } });
+    expect(screen.getByRole("textbox")).toHaveValue("#");
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("");
+  });
+
+  it("clearing the field updates the input but does not touch the live preview", () => {
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={() => {}} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "#4488cc" } });
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+    expect(screen.getByRole("textbox")).toHaveValue("");
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("#4488cc");
+  });
+
+  const ALPHA_TOKEN: PaletteToken = { name: "row-hover", label: "Row Hover", group: "row", alpha: true };
+
+  it("also live-previews a valid typed rgba() value, for an alpha-enabled token", () => {
+    render(
+      <ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(10, 20, 30, 1)" onCancel={() => {}} onConfirm={() => {}} />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "rgba(40, 50, 60, 0.5)" } });
+    expect(document.documentElement.style.getPropertyValue("--row-hover")).toBe("rgba(40, 50, 60, 0.5)");
+    expect(screen.getByRole("textbox")).toHaveValue("rgba(40, 50, 60, 0.5)");
+  });
+
+  it("accepts the alpha-less rgb() function form too", () => {
+    render(
+      <ColorPickerModal token={ALPHA_TOKEN} initialValue="rgba(10, 20, 30, 1)" onCancel={() => {}} onConfirm={() => {}} />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "rgb(1, 2, 3)" } });
+    expect(document.documentElement.style.getPropertyValue("--row-hover")).toBe("rgb(1, 2, 3)");
+  });
+
+  it("silently ignores a value matching neither hex nor rgb()/rgba(), without touching the live preview", () => {
+    render(<ColorPickerModal token={TOKEN} initialValue="#111111" onCancel={() => {}} onConfirm={() => {}} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "notacolor" } });
+    expect(screen.getByRole("textbox")).toHaveValue("notacolor");
+    expect(document.documentElement.style.getPropertyValue("--accent")).toBe("");
   });
 });

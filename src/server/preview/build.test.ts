@@ -11,7 +11,7 @@ import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "
 import { previewPaths, readMeta } from "./cache.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
-import { getIndexes, setIndexes } from "../retrieval/indexes.ts";
+import { rebuildFromDisk, getIndexes, setIndexes, type AtlasNode } from "../retrieval/indexes.ts";
 import { snapshotFromSrcDir } from "./snapshot.ts";
 
 const tmpDirs: string[] = [];
@@ -228,6 +228,30 @@ test("public canonical build: forkGate path, service token, no private flag", as
   expect(meta?.private).toBeUndefined();
 });
 
+test("public build: a fresh sha over the fork-gate's daily quota fails as quota-exceeded (canonical/PR pool, not the private one)", async () => {
+  const sha = "pub00003";
+  builtShas.push(sha);
+  const resolved: Resolved = { repo: "someone/atlas-fork", sha, kind: "branch", ref: "wip", private: false };
+  let countCalled = false;
+  const ev = await __runBuildForTest(resolved, {
+    isBlockedSha: async () => false,
+    isKnownSha: async () => false, // not a known sha → quota applies
+    forkGate: async () => ({
+      tier: "known",
+      count: async () => {
+        countCalled = true;
+        return 7; // at the cap
+      },
+      quota: 7,
+    }),
+    spawnBuild: fakeSpawn(),
+    upsertPreview: async () => {},
+  });
+  expect(ev.phase).toBe("failed");
+  expect(ev.code).toBe("quota-exceeded");
+  expect(countCalled).toBe(true);
+});
+
 test("public build: forkGate refusing an untrusted fork fails as fork-not-trusted", async () => {
   const sha = "pub00002";
   builtShas.push(sha);
@@ -254,6 +278,136 @@ test("build: a blocked sha never rebuilds (admin takedown → not-found)", async
   });
   expect(ev.phase).toBe("failed");
   expect(ev.code).toBe("not-found");
+});
+
+// ---------------------------------------------------------------------------
+// Fork meta-shaping + the diff refinements layered on top of the plain
+// added/changed split: forkOwner/aheadBy/behindBy in meta, plus the
+// renumbered / reused-slot / identity-swap fields of diff.json. The two
+// doc-level diff tests below cover added-vs-changed itself; this one covers
+// the FORK path into it, which they don't — every other test in this file
+// either leaves config.githubToken empty (wantCompare short-circuits false)
+// or is private (never compared at all), so none of them reach a successful
+// fork build with `filesR.ok` true.
+//
+// The merge base is pinned to the LIVE atlas commit, which makes
+// loadBaseSnapshot short-circuit to the real in-memory main snapshot instead
+// of fetching a base tree — so the renumber and reused-slot cases are checked
+// against real doc shapes rather than a synthetic two-document fixture.
+// ---------------------------------------------------------------------------
+
+test("fork build: forkOwner/aheadBy/behindBy land in meta, and diff.json captures a renumber + a reused-slot addition", async () => {
+  const sha = "f".repeat(40);
+  builtShas.push(sha);
+
+  // Real main indexes (already built per CLAUDE.md — never rebuilt here), force-
+  // read fresh so this test doesn't depend on what an earlier file left cached in
+  // the process-global singleton (see retrieval/indexes.test.ts's own comment on
+  // the same hazard). Only ever installs REAL data, so nothing to restore after.
+  rebuildFromDisk();
+  const mainDocs = getIndexes().docMap;
+  // Pinning the merge base to the live atlas commit is what lets
+  // loadBaseSnapshot return the in-memory main snapshot directly (see its
+  // `live.atlasCommit === mergeBase` short-circuit) rather than fetching and
+  // parsing a base tree over the network.
+  const liveCommit = getIndexes().meta.atlasCommit;
+  let mainDoc: AtlasNode | undefined;
+  for (const n of mainDocs.values()) {
+    if (/^[A-Z](\.\d+){1,4}$/.test(n.doc_no) && (n.content ?? "").length > 20) {
+      mainDoc = n;
+      break;
+    }
+  }
+  if (!mainDoc) throw new Error("no suitable doc found in the real atlas for this test's fixtures");
+  const realId = mainDoc.id;
+  // Same uuid, renumbered to a new slot — an ordinary edit-and-move, same title
+  // (so detectIdentitySwaps must NOT flag it — that's a distinct code path).
+  const newDocNo = `${mainDoc.doc_no}.9`;
+  // A brand-new uuid lands in the OLD slot mainDoc vacated — the "reused slot"
+  // case, where the old occupant's move and the new doc's arrival have to be
+  // told apart rather than rendered as one document being edited away.
+  const newId = "99999999-8888-7777-6666-555555555555";
+
+  config.githubToken = "test-token"; // non-empty → wantCompare true (no priv, no empty-token short-circuit)
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.includes("/compare/main...")) {
+      // merge_base_commit is what gates the doc-level diff block; without it
+      // runBuild logs "no merge base" and writes no diff.json at all.
+      return Response.json({
+        ahead_by: 5,
+        behind_by: 2,
+        merge_base_commit: { sha: liveCommit },
+      });
+    }
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  // runBuild warns its way through the fork path (trust tier, quota); muting
+  // keeps a passing run's output readable, which is what makes a real CI
+  // failure findable.
+  const origWarn = console.warn;
+  console.warn = () => {};
+
+  try {
+    const ev = await __runBuildForTest(
+      { repo: "someone/next-gen-atlas", sha, kind: "branch", ref: "feature", private: false },
+      {
+        isBlockedSha: async () => false,
+        isKnownSha: async () => true, // known sha → free rebuild, no quota round-trip
+        forkGate: async () => ({ tier: "known", count: async () => 0, quota: 10 }),
+        fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 2 }),
+        spawnBuild: async (args, env) => {
+          const out = env.ATLAS_OUT_DIR!;
+          fs.mkdirSync(out, { recursive: true });
+          if (args[0].includes("build-index")) {
+            const nodes = {
+              [realId]: { ...mainDoc, doc_no: newDocNo, content: `${mainDoc.content ?? ""} EDITED-AND-MOVED` },
+              [newId]: {
+                id: newId,
+                doc_no: mainDoc.doc_no,
+                title: "Brand New Doc",
+                type: "Core",
+                depth: mainDoc.depth,
+                parentId: mainDoc.parentId,
+                order: 999,
+                content: "totally new content that did not exist before",
+                contentHash: "x",
+              },
+            };
+            fs.writeFileSync(path.join(out, "docs.json"), JSON.stringify({ atlasCommit: env.ATLAS_COMMIT, nodes }));
+          }
+          fs.writeFileSync(path.join(out, "addresses.atlas.json"), JSON.stringify({ atlasCommit: env.ATLAS_COMMIT, addresses: {} }));
+          return { code: 0, stderr: "" };
+        },
+        upsertPreview: async () => {},
+      },
+    );
+    expect(ev.phase).toBe("ready");
+
+    const meta = readMeta(sha);
+    expect(meta?.forkOwner).toBe("someone");
+    expect(meta?.aheadBy).toBe(5);
+    expect(meta?.behindBy).toBe(2);
+
+    const diffJson = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
+    expect(diffJson.added).toEqual([newId]);
+    expect(diffJson.changed).toEqual([realId]);
+    expect(diffJson.renumbered).toEqual({ [realId]: [mainDoc.doc_no, newDocNo] });
+    expect(diffJson.reusedSlot[newId]).toMatchObject({ title: mainDoc.title, movedTo: newDocNo });
+    // Same title on both sides of the renumber → not an identity swap.
+    expect(diffJson.identitySwap).toEqual({});
+
+    // Patches are computed locally from the two snapshots (contentDiff), not
+    // taken from GitHub's per-path patch strings: the added doc renders as pure
+    // additions, the changed one as this uuid's content vs the live atlas.
+    const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
+    expect(Object.keys(patches).sort()).toEqual([realId, newId].sort());
+  } finally {
+    globalThis.fetch = origFetch;
+    console.warn = origWarn;
+  }
 });
 
 // ---------------------------------------------------------------------------
