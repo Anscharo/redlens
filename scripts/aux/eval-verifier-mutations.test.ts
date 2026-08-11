@@ -16,7 +16,13 @@ import { test, expect, beforeAll } from "bun:test";
 import { buildIndexes, readArtifactsFromDisk, type Indexes } from "../../src/server/retrieval/indexes.ts";
 import { extractCitations, findInvalidCitationUuids } from "../../src/server/chat/verify/verify-checks.ts";
 import type { SavedRun } from "./eval-verifier-mutations.ts";
-import { buildMutations, mutateNumber, mutateUnknownUuid, mutateWrongDoc } from "./eval-verifier-mutations.ts";
+import {
+  buildMutations,
+  mutateEnumeration,
+  mutateNumber,
+  mutateUnknownUuid,
+  mutateWrongDoc,
+} from "./eval-verifier-mutations.ts";
 
 let ix: Indexes;
 let realUuid: string;
@@ -66,4 +72,49 @@ test("buildMutations always includes fabrication + ruling, others when applicabl
   expect(classes).toEqual(["unknown_uuid", "wrong_doc", "number", "fabrication", "ruling"]);
   const bare = buildMutations({ ...run, answer: "plain answer" }, ix).map((m) => m.class);
   expect(bare).toEqual(["fabrication", "ruling"]);
+});
+
+test("mutateEnumeration clones a bulleted **Name** line with an unused phantom member", () => {
+  const withBullet: SavedRun = {
+    id: "t2",
+    question: "q",
+    answer: "Members:\n- **RealAgent** does the thing.\n- plain line",
+    evidence: [{ label: "[E1]", tool: "atlas_search", args: "{}", content: "RealAgent is a known agent." }],
+  };
+  const mutated = mutateEnumeration(withBullet)!;
+  const lines = mutated.split("\n");
+  expect(lines[1]).toBe("- **RealAgent** does the thing.");
+  // The clone is inserted immediately after the original, reusing its shape
+  // (so the phantom carries a validly-formatted, just-fabricated member).
+  expect(lines[2]).toBe("- **Halcyon** does the thing.");
+});
+
+test("mutateEnumeration returns null when there's no bulleted **Name** line to clone", () => {
+  const noBullets: SavedRun = { id: "t3", question: "q", answer: "Just prose, no list here.", evidence: [] };
+  expect(mutateEnumeration(noBullets)).toBeNull();
+});
+
+test("mutateEnumeration returns null once every phantom member is already named in evidence", () => {
+  const allMentioned: SavedRun = {
+    id: "t4",
+    question: "q",
+    answer: "- **RealAgent** does the thing.",
+    evidence: [
+      { label: "[E1]", tool: "atlas_search", args: "{}", content: "Halcyon, Meridian, Vantage, Quorra, Larkspur." },
+    ],
+  };
+  expect(mutateEnumeration(allMentioned)).toBeNull();
+});
+
+test("mutateEnumeration returns null rather than a no-op clone identical to the original line", () => {
+  // The chosen phantom name ("Halcyon", first unmentioned) is already what's
+  // bolded on the line, so replacing it with itself would be a pointless
+  // "mutation" — the identical-clone guard must catch this and bail.
+  const noopClone: SavedRun = {
+    id: "t5",
+    question: "q",
+    answer: "- **Halcyon** already appears here.",
+    evidence: [],
+  };
+  expect(mutateEnumeration(noopClone)).toBeNull();
 });
