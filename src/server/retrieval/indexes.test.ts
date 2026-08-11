@@ -6,6 +6,7 @@
 // (loadIndexes/setIndexes/getIndexes), docRowToNode, writeDocsJson/writeDocsSplit,
 // and the small graph-traversal helpers (resolveNode/ancestorChain/descendantIds).
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -282,17 +283,35 @@ describe("loadIndexes / setIndexes / getIndexes", () => {
   // so by the time we get here the memo is already populated by someone else and
   // the assertion below was really testing "whatever setIndexes last installed".
   //
-  // Import a FRESH copy of the module under a cache-busting query instead (the
-  // trick config.test.ts uses) so the cold-load path is genuinely cold no matter
-  // where bun schedules this file. The specifier is a non-literal so tsc doesn't
-  // try to resolve the query string.
-  const COLD_SPEC = "./indexes.ts?fresh=coldload";
-  it("loadIndexes() on a fresh module reads real artifacts off disk and memoizes", async () => {
-    const fresh = await import(COLD_SPEC);
-    const first = fresh.loadIndexes();
-    expect(first.docMap.size).toBeGreaterThan(0);
-    const second = fresh.loadIndexes();
-    expect(second).toBe(first); // memoized — no second disk read
+  // Cold-boot a CHILD PROCESS to exercise the fresh-module path instead.
+  //
+  // The obvious in-process trick is a cache-busting `import("./indexes.ts?x=1")`
+  // (what config.test.ts / db.test.ts do), and this block briefly did that — but
+  // bun's coverage collector keys records by source path with the query STRIPPED,
+  // and the duplicate instance's record replaces the canonical one for the entire
+  // `bun test` run. Every indexes.ts function exercised anywhere in the suite
+  // (docRowToNode, writeDocsJson/Split, resolveNode/ancestorChain/descendantIds,
+  // setIndexes/getIndexes/rebuildFromDisk — ~54 logic lines) then reported zero
+  // hits: a false "uncovered", not a real gap. Verified by flipping the query off
+  // and re-running with --coverage.
+  //
+  // A child process is strictly stronger anyway: the module AND the process
+  // globals are cold, so nothing an earlier test left in `config` can fool it,
+  // and it is position-independent by construction. `config.publicDir` is derived
+  // from the module's own location (not cwd), so the child needs no cwd setup.
+  const COLD_BOOT = `
+    const m = await import(${JSON.stringify(new URL("./indexes.ts", import.meta.url).href)});
+    const first = m.loadIndexes();
+    const second = m.loadIndexes();
+    console.log(JSON.stringify({ docs: first.docMap.size > 0, memoized: second === first }));
+  `;
+  it("loadIndexes() on a cold process reads real artifacts off disk and memoizes", () => {
+    const r = spawnSync(process.execPath, ["-e", COLD_BOOT], { encoding: "utf8" });
+    // Surface the child's stderr on failure rather than asserting it is empty —
+    // a runtime deprecation notice must not turn this into a false red in CI.
+    if (r.status !== 0) throw new Error(`cold-boot child exited ${r.status}:\n${r.stderr}`);
+    // memoized — the second call returns the same object, no second disk read.
+    expect(JSON.parse(r.stdout.trim())).toEqual({ docs: true, memoized: true });
   });
 
   it("loadIndexes() on the shared singleton returns the already-installed set, not a re-read", () => {
