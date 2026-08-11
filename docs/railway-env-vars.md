@@ -49,17 +49,30 @@ the full list with defaults lives in `.env.example` and `src/server/config.ts`.
 | `FEEDBACK_USER_PER_HOUR` / `_PER_DAY` | `15` / `50` | No — signed-in rate limit |
 | `FEEDBACK_GLOBAL_PER_DAY` | `500` | No — flood circuit breaker |
 | `FEEDBACK_SURVEY_ID` | a PostHog survey uuid | For the PostHog Surveys mirror |
-| `FEEDBACK_SURVEY_QUESTION_ID` | the question uuid inside that survey | With `FEEDBACK_SURVEY_ID` |
+| `FEEDBACK_SURVEY_QUESTION_ID` | the question uuid inside that survey | No — see below |
 
 Rate limits are keyed on the user id when signed in, otherwise on the random `rl_fb`
 cookie minted on first submission — **never on IP**, because Railway's load balancer
 collapses every client into a single address (the same limitation documented for
 `/preview` in `docs/reviews/2026-07-09-deep-code-review.md`).
 
-Setting both `FEEDBACK_SURVEY_*` vars makes the server forward each accepted submission
-to PostHog as a `survey sent` event, so responses show up in the Surveys UI. It fires
-*after* validation and rate limiting, so spam never reaches PostHog or burns the response
-quota. Requires `POSTHOG_KEY` on the web service. Leave unset and Postgres is the only sink.
+Setting `FEEDBACK_SURVEY_ID` makes the server forward each accepted submission to PostHog as
+a `survey sent` event, so responses show up in the Surveys UI. It fires *after* validation and
+rate limiting, so spam never reaches PostHog or burns the response quota. Requires
+`POSTHOG_KEY` on the web service — that's the server-side client, distinct from the
+build-time `VITE_POSTHOG_KEY`. Leave unset and Postgres is the only sink.
+
+The survey uuid is visible in the survey's PostHog URL. `FEEDBACK_SURVEY_QUESTION_ID` is
+**optional**: left empty, a single-question survey uses PostHog's legacy un-suffixed
+`$survey_response` property; set it to key the answer by question id, which is required once
+a survey has more than one question. PostHog doesn't surface the question uuid in its UI —
+read it back with the public project key (the same endpoint posthog-js calls; the survey has
+to be enabled):
+
+```bash
+curl -s "https://us.i.posthog.com/api/surveys/?token=<phc_project_key>" \
+  | jq '.surveys[] | select(.id=="<survey-uuid>") | .questions[] | {id, question}'
+```
 
 ## Atlas Worker service
 

@@ -123,11 +123,19 @@ export async function handleFeedback(req: Request): Promise<Response> {
 function forwardToPosthog(id: string, message: string, body: FeedbackBody, submitterKey: string): void {
   if (!config.feedbackSurveyId) return;
   const distinctId = str(body.sessionId) ?? submitterKey;
+  // PostHog keys a survey answer by question id. A single-question survey can
+  // use the legacy un-suffixed property instead, so the question id stays
+  // optional. Never interpolate an empty id: `$survey_response_` is accepted
+  // by PostHog but unreadable in the Responses tab — it fails silently, which
+  // is why this branch exists rather than a template literal.
+  const responseKey = config.feedbackSurveyQuestion
+    ? `$survey_response_${config.feedbackSurveyQuestion}`
+    : "$survey_response";
   void (async () => {
     try {
       captureServerEvent("survey sent", distinctId, {
         $survey_id: config.feedbackSurveyId,
-        [`$survey_response_${config.feedbackSurveyQuestion}`]: message,
+        [responseKey]: message,
         url: str(body.url),
         node_id: str(body.nodeId),
       });

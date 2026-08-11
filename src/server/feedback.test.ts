@@ -3,7 +3,7 @@
 // mocked — a real signed JWT drives the signed-in path, and a near-expiry one
 // (mirrors conversations.test.ts's nearExpiryToken) exercises the sliding-
 // window refresh branch.
-import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { SignJWT } from "jose";
 
 interface FeedbackRow {
@@ -91,6 +91,17 @@ mock.module("./db.ts", () => ({
   toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
 }));
 
+// Captured PostHog survey-mirror events. The real captureServerEvent is a
+// fire-and-forget fetch; here it just records so the emitted property names
+// can be asserted.
+let captured: { event: string; distinctId: string; props: Record<string, unknown> }[] = [];
+mock.module("./posthog-capture.ts", () => ({
+  serverAnalyticsEnabled: true,
+  captureServerEvent: (event: string, distinctId: string, props: Record<string, unknown> = {}) => {
+    captured.push({ event, distinctId, props });
+  },
+}));
+
 const { handleFeedback } = await import("./feedback.ts");
 const { validateFeedback, messageHash, normalizeConsole } = await import("./feedback-validate.ts") as unknown as {
   validateFeedback: (body: { message?: unknown }) => { ok: boolean; error?: string; message?: string };
@@ -115,6 +126,7 @@ afterAll(() => {
 beforeEach(() => {
   rows = [];
   insertParams = [];
+  captured = [];
 });
 
 async function authed(userId = "user-1"): Promise<string> {
@@ -400,5 +412,80 @@ describe("pure helpers", () => {
   it("normalizeConsole returns [] for a non-array", () => {
     expect(normalizeConsole("nope")).toEqual([]);
     expect(normalizeConsole(undefined)).toEqual([]);
+  });
+});
+
+// The survey mirror is fire-and-forget (`void (async () => …)()`), so the 201
+// resolves before the capture runs — yield once before asserting.
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+describe("posthog survey mirror", () => {
+  const origId = config.feedbackSurveyId;
+  const origQuestion = config.feedbackSurveyQuestion;
+  const QUESTION = "7ce5b831-dc71-4648-b6b0-b583d48a0c11";
+
+  afterEach(() => {
+    config.feedbackSurveyId = origId;
+    config.feedbackSurveyQuestion = origQuestion;
+  });
+
+  async function submit(message: string) {
+    const res = await handleFeedback(
+      req("/api/feedback", { method: "POST", body: body({ message, elapsedMs: 9000 }) }),
+    );
+    expect(res.status).toBe(201);
+    await flush();
+  }
+
+  it("keys the response by question id when one is configured", async () => {
+    config.feedbackSurveyId = "survey-uuid";
+    config.feedbackSurveyQuestion = QUESTION;
+
+    await submit("a report that should reach posthog");
+
+    expect(captured).toHaveLength(1);
+    expect(captured[0].event).toBe("survey sent");
+    expect(captured[0].props.$survey_id).toBe("survey-uuid");
+    expect(captured[0].props[`$survey_response_${QUESTION}`]).toBe("a report that should reach posthog");
+  });
+
+  // Regression: the key used to be interpolated unconditionally, so an empty
+  // question id produced a property literally named `$survey_response_`.
+  // PostHog accepts that event, so ph_sent flips true and nothing errors —
+  // but the answer is unreadable in the Responses tab. Silent, and it looks
+  // like it is working.
+  it("never emits a bare `$survey_response_` with an empty question id", async () => {
+    config.feedbackSurveyId = "survey-uuid";
+    config.feedbackSurveyQuestion = "";
+
+    await submit("no question id configured");
+
+    expect(captured).toHaveLength(1);
+    const keys = Object.keys(captured[0].props);
+    expect(keys).not.toContain("$survey_response_");
+    expect(keys.some((k) => k.startsWith("$survey_response_"))).toBe(false);
+    // Falls back to the legacy un-suffixed property, valid for one question.
+    expect(captured[0].props.$survey_response).toBe("no question id configured");
+  });
+
+  it("skips the mirror entirely when no survey is configured, but still writes the row", async () => {
+    config.feedbackSurveyId = "";
+    config.feedbackSurveyQuestion = "";
+
+    await submit("survey off — postgres is still the record");
+
+    expect(captured).toHaveLength(0);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].message).toBe("survey off — postgres is still the record");
+  });
+
+  it("marks the row ph_sent once the mirror has fired", async () => {
+    config.feedbackSurveyId = "survey-uuid";
+    config.feedbackSurveyQuestion = QUESTION;
+
+    await submit("flips ph_sent");
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].ph_sent).toBe(true);
   });
 });
