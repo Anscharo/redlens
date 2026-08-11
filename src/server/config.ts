@@ -185,6 +185,15 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
+  // Chat delivery mode (docs/plans/chat-staged-delivery.md): "streaming" forwards
+  // answer tokens live as today (stream + post-hoc verify badge); "staged"
+  // suppresses tokens behind honest progress stages and reveals the answer only
+  // once, verified (possibly revised), in the terminal `done` event. Default
+  // stays "streaming" until the staged A/B measures perceived latency — an
+  // unrecognized value normalizes to "streaming" rather than throwing, since
+  // this also doubles as the fallback for an invalid per-request override
+  // (ChatBody.delivery in chat.ts).
+  chatDeliveryMode: (process.env.CHAT_DELIVERY_MODE === "staged" ? "staged" : "streaming") as "streaming" | "staged",
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by

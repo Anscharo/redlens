@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { apiUrl, type ChatEvent, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
+import { apiUrl, type ChatEvent, type Delivery, type ToolCallRecord, type VerifyClaim, type VerifyOverall } from "./api";
 import type { PageContext } from "./pageContext";
 import type { RateLimitState } from "./types";
 import { downloadFile } from "../../lib/csvDownload";
@@ -36,6 +36,16 @@ export interface ExportArtifact {
   bytes: number;
 }
 
+// One row per distinct stage the harness has entered, in arrival order. `at`
+// is the entry's position in stageLog, not a wall-clock timestamp — keeps
+// render output deterministic (see CLAUDE.md deterministic-builds convention,
+// which this mirrors for UI state even though it isn't a build artifact).
+export interface StageLogEntry {
+  stage: string;
+  detail: string | null;
+  at: number;
+}
+
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
@@ -51,6 +61,11 @@ export interface ChatMsg {
   // from a genuinely empty response.
   failed?: boolean;
   exports?: ExportArtifact[]; // files handed to the user this session (live only)
+  // Staged-mode progress checklist (populated in both modes; only rendered in
+  // staged). Optional because hydrated/persisted messages (hydrate.ts) predate
+  // it and never need it — send() seeds [] on live turns; readers `?? []`.
+  stageLog?: StageLogEntry[];
+  delivery?: Delivery; // captured from `meta`
 }
 
 export interface SendResult {
@@ -148,19 +163,34 @@ export function useChatStream(handlers: StreamHandlers = {}) {
         case "meta":
           convIdRef.current = ev.conversationId;
           setConversationId(ev.conversationId);
+          if (ev.delivery) patchLast((m) => ({ ...m, delivery: ev.delivery }));
           break;
         case "token":
           // Answer is streaming — the status ticker yields to the live text.
           patchLast((m) => ({ ...m, content: m.content + ev.text, statusLine: null }));
           break;
         case "status":
-          patchLast((m) => ({
-            ...m,
-            statusLine: ev.detail ?? `${ev.stage}…`,
-            ...(ev.stage === "checking" && !m.verify
-              ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
-              : {}),
-          }));
+          patchLast((m) => {
+            // Coalesce consecutive same-stage events into one row (querying
+            // fires once per tool call — the row shows the latest detail); a
+            // different stage appends a new row. `at` is the row's array
+            // index at the moment it's first appended, and never changes on
+            // a later detail-only update.
+            const log = m.stageLog ?? [];
+            const last = log[log.length - 1];
+            const stageLog =
+              last && last.stage === ev.stage
+                ? [...log.slice(0, -1), { ...last, detail: ev.detail ?? null }]
+                : [...log, { stage: ev.stage, detail: ev.detail ?? null, at: log.length }];
+            return {
+              ...m,
+              statusLine: ev.detail ?? `${ev.stage}…`,
+              stageLog,
+              ...(ev.stage === "checking" && !m.verify
+                ? { verify: { status: "checking" as const, claims: [], invalidCitations: [], invalidDocNos: [], docNoMismatches: [], ungroundedQuotes: [], ungroundedAddresses: [] } }
+                : {}),
+            };
+          });
           break;
         case "verify_result":
           patchLast((m) => ({
@@ -251,7 +281,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
   );
 
   const send = useCallback(
-    async (text: string, pageContext?: PageContext): Promise<SendResult> => {
+    async (text: string, pageContext?: PageContext, delivery?: Delivery): Promise<SendResult> => {
       const trimmed = text.trim();
       if (!trimmed || streaming) return {};
       setError(null);
@@ -261,8 +291,8 @@ export function useChatStream(handlers: StreamHandlers = {}) {
 
       setMessages((prev) => [
         ...prev,
-        { role: "user", content: trimmed, trace: [], rounds: 0, sources: [], done: true },
-        { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false },
+        { role: "user", content: trimmed, trace: [], rounds: 0, sources: [], done: true, stageLog: [] },
+        { role: "assistant", content: "", trace: [], rounds: 0, sources: [], done: false, stageLog: [] },
       ]);
       setStreaming(true);
 
@@ -281,6 +311,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
             message: trimmed,
             conversationId: convIdRef.current ?? undefined,
             pageContext,
+            ...(delivery ? { delivery } : {}),
           }),
           signal: ctrl.signal,
         });

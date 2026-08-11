@@ -23,4 +23,11 @@ Mapping onto events the orchestrator already emits: `querying` → "Looking for 
 
 ## Status
 
-Planned, not started. Prereq ordering: land the wave-1 compose guard first (shared machinery), then the mode switch server-side, then the chat client stage UI.
+**Implemented 2026-08-07** (compose guard 2026-08-06; mode switch + stage UI 2026-08-07). Live shape:
+
+- Mode = request body `delivery` override ?? `CHAT_DELIVERY_MODE` env, **default `streaming`** — flip only after the A/B measures (`chat_delivery` rides the PostHog trace properties for exactly that).
+- Staged mode: the SSE route suppresses `token`/`clear`; `meta` carries `delivery`; synthetic stages `synthesizing` (once per generation burst) + `finalizing` (before `done`); orchestrator emits `comparing` before the deterministic checks (both modes — it stays mode-unaware). stream-link-gate kept (it only touches token events, which staged drops; post-answer repair is the authority).
+- Client: stage checklist (`StageList.tsx`) renders while a turn is in flight with empty content — gated `delivery !== "streaming"` so the default mode's pre-token window is visually unchanged; verify badge structurally appears only with the revealed answer (no mid-flight fail→revised flicker); `useRevealOnDone` display-streams the final text ≤ ~1.8s, instant under reduced motion; aborted staged turns show a "Stopped before an answer was ready." row; opt-in via a "staged" toggle (usePrefs `delivery`, null = follow server default).
+- Known cosmetic artifact: a model that leaks pre-tool text produces a `synthesizing` stage before the first `querying` (the discarded burst) — harmless, an honest record of what happened.
+
+Next: run the staged-vs-streaming A/B (eval harness + PostHog `chat_delivery`) before changing the default.

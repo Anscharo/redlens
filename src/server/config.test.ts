@@ -12,6 +12,7 @@ const ENV_KEYS = [
   "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT",
   "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
+  "CHAT_DELIVERY_MODE",
   "CURATION_SELECTOR_MODEL", "CURATION_CLUSTER_MODELS", "CURATION_FRONTIER_MODEL",
   "CURATION_AUDIT_MODEL", "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL", "CHAT_ADVISOR_MODEL",
@@ -73,6 +74,7 @@ test("defaults when no env is set", async () => {
   expect(config.semanticEmbedTimeoutMs).toBe(10_000);
   expect(config.queryEmbedCacheSize).toBe(512);
   expect(config.chatModel).toBe("google/gemma-4-31b-it");
+  expect(config.chatDeliveryMode).toBe("streaming");
   expect(config.curationSelectorModel).toBe("mistralai/mistral-nemo");
   expect(config.curationClusterModels).toEqual(["deepseek/deepseek-v4-flash", "anthropic/claude-haiku-4.5"]);
   expect(config.curationFrontierModel).toBe("deepseek/deepseek-v4-pro");
@@ -132,6 +134,7 @@ test("all env overrides take effect", async () => {
     SEMANTIC_EMBED_TIMEOUT_MS: "1234",
     QUERY_EMBED_CACHE_SIZE: "10",
     CHAT_MODEL: "custom-chat",
+    CHAT_DELIVERY_MODE: "staged",
     CURATION_SELECTOR_MODEL: "custom-selector",
     CURATION_CLUSTER_MODELS: "a, b ,,c",
     CURATION_FRONTIER_MODEL: "custom-frontier",
@@ -191,6 +194,7 @@ test("all env overrides take effect", async () => {
   expect(config.semanticEmbedTimeoutMs).toBe(1234);
   expect(config.queryEmbedCacheSize).toBe(10);
   expect(config.chatModel).toBe("custom-chat");
+  expect(config.chatDeliveryMode).toBe("staged");
   expect(config.curationSelectorModel).toBe("custom-selector");
   expect(config.curationClusterModels).toEqual(["a", "b", "c"]);
   expect(config.curationFrontierModel).toBe("custom-frontier");
@@ -327,6 +331,13 @@ test("authProvidersCsv reflects only the fully-configured provider(s)", async ()
   expect(config.githubAuthEnabled).toBe(false);
   expect(config.googleAuthEnabled).toBe(true);
   expect(config.authProvidersCsv).toBe("google");
+});
+
+test("chatDeliveryMode normalizes an unrecognized value to streaming instead of throwing", async () => {
+  clearAll();
+  process.env.CHAT_DELIVERY_MODE = "yolo";
+  const config = await freshConfig();
+  expect(config.chatDeliveryMode).toBe("streaming");
 });
 
 test("a provider with only one of client id/secret set stays disabled", async () => {

@@ -43,7 +43,12 @@ export interface CheckRowMeta {
 
 export type HarnessEvent =
   | ChatEvent
-  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  // "comparing" is emitted here, by the orchestrator (see the verification
+  // block below). "synthesizing"/"finalizing" are staged-delivery-only stages
+  // synthesized by the SSE route (chat.ts) from token/done events — the
+  // orchestrator never yields them; they're in this union because it's the
+  // wire type both files share.
+  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising" | "comparing" | "synthesizing" | "finalizing"; detail?: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -411,6 +416,12 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
+  // Entering verification is itself progress worth surfacing in staged mode —
+  // the route stays mode-unaware, so this fires unconditionally on every
+  // audited answer (the guard above already confirms checks are on and there's
+  // a non-empty answer to compare); streaming mode just forwards it like any
+  // other status event.
+  yield { type: "status", stage: "comparing", detail: "Comparing the draft against the retrieved sources…" };
   try {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);

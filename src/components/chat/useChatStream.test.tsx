@@ -610,3 +610,138 @@ describe("useChatStream stop/reset", () => {
     expect(result.current.streaming).toBe(false);
   });
 });
+
+describe("useChatStream staged delivery: meta capture + stageLog", () => {
+  it("captures delivery from the meta event onto the message", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.delivery).toBe("staged");
+  });
+
+  it("leaves delivery undefined when meta omits it", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.delivery).toBeUndefined();
+  });
+
+  it("appends a new stageLog row per distinct stage, in order", async () => {
+    mockChat([
+      { type: "status", stage: "querying", detail: "Searching…" },
+      { type: "status", stage: "comparing", detail: "Comparing 2 results…" },
+      { type: "status", stage: "finalizing" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const log = result.current.messages.at(-1)?.stageLog;
+    expect(log).toEqual([
+      { stage: "querying", detail: "Searching…", at: 0 },
+      { stage: "comparing", detail: "Comparing 2 results…", at: 1 },
+      { stage: "finalizing", detail: null, at: 2 },
+    ]);
+  });
+
+  it("coalesces consecutive same-stage events into one row, keeping the latest detail", async () => {
+    mockChat([
+      { type: "status", stage: "querying", detail: "Searching atlas_search…" },
+      { type: "status", stage: "querying", detail: "Searching atlas_get…" },
+      { type: "status", stage: "checking", detail: "Auditing…" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const log = result.current.messages.at(-1)?.stageLog;
+    expect(log).toEqual([
+      { stage: "querying", detail: "Searching atlas_get…", at: 0 },
+      { stage: "checking", detail: "Auditing…", at: 1 },
+    ]);
+  });
+
+  it("a stage recorded before stop() survives finalizeLast — stop() doesn't wipe stageLog", async () => {
+    let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller;
+      },
+    });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(stream, { status: 200 }))));
+    const { result } = renderHook(() => useChatStream());
+
+    let sendPromise: Promise<unknown> | undefined;
+    act(() => {
+      sendPromise = result.current.send("question");
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(true));
+
+    const encoder = new TextEncoder();
+    controllerRef!.enqueue(
+      encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "querying", detail: "Searching…" })}\n\n`),
+    );
+    await waitFor(() =>
+      expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]),
+    );
+
+    act(() => {
+      result.current.stop();
+    });
+    expect(result.current.messages.at(-1)?.stageLog).toEqual([{ stage: "querying", detail: "Searching…", at: 0 }]);
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+
+    // Unblock and finish the stream so nothing leaks into later tests.
+    await act(async () => {
+      controllerRef!.close();
+      await sendPromise;
+    });
+  });
+});
+
+describe("useChatStream send(delivery) → POST body", () => {
+  function fetchMockWithBody() {
+    return vi.fn((_url: string, _init?: RequestInit) =>
+      Promise.resolve(
+        new Response(
+          sse([{ type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] }]),
+          { status: 200 },
+        ),
+      ),
+    );
+  }
+
+  it("includes delivery in the request body when provided", async () => {
+    const fetchMock = fetchMockWithBody();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question", undefined, "staged");
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.delivery).toBe("staged");
+  });
+
+  it("omits delivery from the request body when not provided", async () => {
+    const fetchMock = fetchMockWithBody();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(body.delivery).toBeUndefined();
+  });
+});

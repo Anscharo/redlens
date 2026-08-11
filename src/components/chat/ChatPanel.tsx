@@ -31,7 +31,7 @@ export function ChatPanel({
   // Only the fields read more than once get a local name; everything else
   // is referenced as session.* at its single call site below.
   const { authed, messages, streaming } = session;
-  const { prefs } = usePrefs();
+  const { prefs, setPref } = usePrefs();
   const [draft, setDraft] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -55,16 +55,20 @@ export function ChatPanel({
     track("chat_message_sent", { product: "chat", node_id: context.nodeId, path: context.path });
     setDraft("");
     localStorage.removeItem(DRAFT_KEY);
-    const { rateLimited: rl } = await session.send(trimmed, {
-      path: context.path,
-      nodeId: context.nodeId,
-      nodeTitle: context.nodeTitle,
-      nodeDocNo: context.nodeDocNo,
-      actorSlug: context.actorSlug,
-      reportName: context.reportName,
-      reportTool: context.reportTool,
-      reportFilter: context.reportFilter,
-    });
+    const { rateLimited: rl } = await session.send(
+      trimmed,
+      {
+        path: context.path,
+        nodeId: context.nodeId,
+        nodeTitle: context.nodeTitle,
+        nodeDocNo: context.nodeDocNo,
+        actorSlug: context.actorSlug,
+        reportName: context.reportName,
+        reportTool: context.reportTool,
+        reportFilter: context.reportFilter,
+      },
+      prefs.delivery ?? undefined,
+    );
     // send() (useChatStream) always sets `kind` for a real 429; this fallback
     // only guards a caller that omits it (defense in depth, not the normal path).
     session.setRateLimit(rl ? { ...rl, kind: rl.kind ?? (rl.resetsAt ? "token" : "commons") } : null);
@@ -80,6 +84,8 @@ export function ChatPanel({
         onClose={onClose}
         placement={placement}
         onTogglePlacement={onTogglePlacement}
+        staged={prefs.delivery === "staged"}
+        onToggleStaged={() => setPref("delivery", prefs.delivery === "staged" ? null : "staged")}
       />
 
       <div className="rlc-thread" ref={threadRef}>

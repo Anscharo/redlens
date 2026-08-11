@@ -86,7 +86,7 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
     ];
     const events = await collect(runVerifiedChat({ ix, messages: [userMsg], stream: fakeStream(rounds), question: "hi", maxIterations: 3 }));
 
-    expect(kinds(events)).toEqual(["status:querying", "tool_call", "tool_result", "token", "done"]);
+    expect(kinds(events)).toEqual(["status:querying", "tool_call", "tool_result", "token", "status:comparing", "done"]);
     const done = lastDone(events);
     expect(done.content).toBe("Answer.");
     expect(done.checksMeta.map((c) => c.kind)).toEqual(["round_checks"]);
@@ -218,11 +218,50 @@ test("verifier pass: checking status, verify_result pass, no advisor call", () =
         jsonCall: fakeJson([PASS], jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     expect(jsonCalls).toEqual([{ model: "strong/verifier" }]); // advisor never ran
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+  }));
+
+test("comparing status precedes the audit whenever checks are on and the answer is non-empty", () =>
+  withModels("", "", async () => {
+    // No verifier/advisor model configured — deterministic checks alone still
+    // enter the verification block, so "comparing" fires even without a
+    // "checking" status right behind it.
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+      }),
+    );
+    expect(kinds(events)).toEqual(["token", "status:comparing", "done"]);
+  }));
+
+test("comparing status is absent when the answer is empty or checks are off", () =>
+  withModels("", "", async () => {
+    const emptyEvents = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hi", maxIterations: 3,
+        stream: fakeStream([[finishChunk("stop")]]),
+      }),
+    );
+    expect(emptyEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
+
+    const prev = config.chatVerifyChecks;
+    config.chatVerifyChecks = false;
+    try {
+      const checksOffEvents = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        }),
+      );
+      expect(checksOffEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
+    } finally {
+      config.chatVerifyChecks = prev;
+    }
   }));
 
 test("[E-const] standing evidence: included when the answer mentions a known parameter, absent otherwise", () =>
@@ -303,9 +342,11 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
       }),
     );
 
-    // The plan's revision sequence, in order.
+    // The plan's revision sequence, in order. "comparing" precedes only the
+    // FIRST audit — the re-verify pass after revision is a separate code path
+    // that the orchestrator change in this PR does not touch.
     expect(kinds(events)).toEqual([
-      "token", "status:checking", "verify_result",
+      "token", "status:comparing", "status:checking", "verify_result",
       "status:advising", "status:revising", "clear",
       "token", "status:checking", "verify_result", "done",
     ]);
@@ -353,7 +394,7 @@ test("a lone unsupported claim warns without buying a full transcript replay", (
         jsonCall: fakeJson([warn(1)], jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("warn");
     // Amber badge, no advisor, no revision — the answer stands as written.
