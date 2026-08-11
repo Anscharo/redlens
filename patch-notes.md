@@ -33,7 +33,7 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-08-07
+## 2026-08-11
 - Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
 
 ## 2026-08-06
