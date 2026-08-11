@@ -25,6 +25,18 @@ const githubAuthEnabled =
   usersEnabled && (process.env.GITHUB_CLIENT_ID ?? "") !== "" && (process.env.GITHUB_CLIENT_SECRET ?? "") !== "";
 const googleAuthEnabled =
   usersEnabled && (process.env.GOOGLE_CLIENT_ID ?? "") !== "" && (process.env.GOOGLE_CLIENT_SECRET ?? "") !== "";
+// Master gate for private atlas previews (github-app.ts + downstream). A
+// separate GitHub App (not the OAuth login app) must be installed on the
+// private repo, AND logins must be on (we need an immutable provider user id
+// to bind the permission check to), AND github auth specifically (the
+// permission check is keyed on GitHub login). When false the feature is
+// completely inert: no installation lookups happen, and public previews
+// behave exactly as they did before this feature existed.
+const privatePreviewsEnabled =
+  usersEnabled &&
+  githubAuthEnabled &&
+  !!(process.env.GITHUB_APP_ID) &&
+  !!(process.env.GITHUB_APP_PRIVATE_KEY);
 // CSV of the providers this environment offers, injected into index.html
 // ({{AUTH_PROVIDERS}}) so the frontend renders exactly the configured buttons.
 // Empty when the login surface is off or no provider is configured.
@@ -80,6 +92,7 @@ export const config = {
   githubAuthEnabled,
   googleAuthEnabled,
   authProvidersCsv,
+  privatePreviewsEnabled,
 
   // Public origin used to build the OAuth redirect URI and post-login redirects.
   // Railway sets RAILWAY_PUBLIC_DOMAIN; locally we fall back to the bound port.
@@ -291,6 +304,14 @@ export const config = {
   // GITHUB_TOKEN does PR/branch resolution + tarball downloads (previously only
   // the worker needed GitHub access).
   githubToken: process.env.GITHUB_TOKEN ?? "",
+  // Private atlas previews (github-app.ts): a SEPARATE GitHub App from the
+  // OAuth login app, installed by the owner of a private repo they want
+  // previewable. githubAppPrivateKey is a PEM string; Railway env vars often
+  // carry it with literal "\n" escapes instead of real newlines — that
+  // normalization happens in github-app.ts, NOT here, so this stays a plain
+  // passthrough of whatever the operator pasted.
+  githubAppId: process.env.GITHUB_APP_ID ?? "",
+  githubAppPrivateKey: process.env.GITHUB_APP_PRIVATE_KEY ?? "",
   // Commons limit: max NEW previews analyzed per UTC day (re-builds of known
   // SHAs are exempt). Global cap on concurrent builds, and per-build timeout.
   // Quota pools, all per UTC day (see preview/trust.ts for tiers):
@@ -302,6 +323,10 @@ export const config = {
   previewTrustedForkDailyQuota: Number(process.env.PREVIEW_TRUSTED_FORK_DAILY_QUOTA ?? 10),
   previewForkDailyQuota: Number(process.env.PREVIEW_FORK_DAILY_QUOTA ?? 7),
   previewUnknownForkDailyQuota: Number(process.env.PREVIEW_UNKNOWN_FORK_DAILY_QUOTA ?? 2),
+  // Per-repo daily cap on NEW private-preview analyses. Separate pool from the
+  // fork tiers above: installation is itself the trust grant for a private
+  // repo, so private previews don't share the fork trust pools.
+  previewPrivateDailyQuota: Number(process.env.PREVIEW_PRIVATE_DAILY_QUOTA ?? 20),
   previewMaxConcurrentBuilds: Number(process.env.PREVIEW_MAX_CONCURRENT_BUILDS ?? 2),
   previewBuildTimeoutMs: Number(process.env.PREVIEW_BUILD_TIMEOUT_MS ?? 120_000),
   // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,

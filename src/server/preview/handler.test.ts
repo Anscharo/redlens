@@ -1,15 +1,59 @@
 // Handler dispatch + diff + artifact serving. Needs built main artifacts
 // (public/docs.json etc.) so diff has an in-memory baseline; skips otherwise.
-// Run via `bun test`. PREVIEW_DIR is set before cache.ts is (dynamically) imported
-// so it picks the scratch dir up — cache.ts freezes the value at import time.
+// Run via `bun test`. PREVIEW_DIR is set before a dynamic import so cache picks it up.
+//
+// Private-preview gating (Phase 3): mocks ./access.ts's authorizePreviewAccess
+// (per-test decision, queryable via accessCalls) and ../db.ts's sql tag (same
+// mock shape as db.test.ts / access.test.ts) so the sha-id resolution path in
+// resolveId's "sha" branch (which reads the previews table via getPreviewRow)
+// doesn't need a real Postgres connection. Both mocks are restored in afterAll
+// so they don't leak into sibling test files in a full-directory `bun test
+// src/server` run.
 
-import { test, expect, afterAll } from "bun:test";
+import { test, expect, mock, afterAll, beforeEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
+import { config } from "../config.ts";
+import type { PreviewMeta } from "./cache.ts";
+
+type AccessDecision = "ok" | "login-required" | "forbidden" | "unavailable";
+let accessDecision: AccessDecision = "ok";
+let accessCalls: { repo: string }[] = [];
+mock.module("./access.ts", () => ({
+  authorizePreviewAccess: (_req: Request, repo: string) => {
+    accessCalls.push({ repo });
+    return Promise.resolve(accessDecision);
+  },
+  // Keep the factory COMPLETE: mock.module persists process-globally, so if this
+  // wins at access.test.ts's `await import("./access.ts")` (file-order dependent),
+  // a missing export would leave __resetAccessCacheForTest undefined and crash
+  // that suite's beforeEach. A no-op is safe — the real cache isn't loaded here.
+  __resetAccessCacheForTest: () => {},
+}));
+
+let dbQueued: unknown[] = [];
+mock.module("../db.ts", () => ({
+  sql(_strings: TemplateStringsArray, ..._values: unknown[]) {
+    return Promise.resolve(dbQueued.shift() ?? []);
+  },
+  dbTarget: () => "mock-db",
+  waitForDb: () => Promise.resolve(),
+  toVectorLiteral: (vec: number[]) => `[${vec.join(",")}]`,
+}));
+
+afterAll(() => mock.restore());
+
+beforeEach(() => {
+  accessDecision = "ok";
+  accessCalls = [];
+  dbQueued = [];
+});
 
 const SHA = "a".repeat(40);
 const stubServer = { requestIP: () => ({ address: "1.2.3.4" }) } as any;
+const TEST_REPO = "octocat/private-atlas";
 
 // PREVIEW_DIR is process-global and cache.ts freezes it at import time, so it
 // must be put back: config.test.ts's ENV_KEYS snapshot doesn't cover it, and a
@@ -104,3 +148,221 @@ test.skipIf(NO_ARTIFACTS)("handler: diffCache evicts FIFO once it exceeds DIFF_C
   }
   expect(diffCache.size).toBeLessThanOrEqual(DIFF_CACHE_MAX);
 }, 30_000);
+
+// ---------------------------------------------------------------------------
+// Phase 3: private-preview HTTP enforcement. These don't need built main
+// artifacts (docs.json's diff branch is never reached — every bundle below
+// ships its own diff.json), so they run for real even in an environment where
+// the setup() tests above skip.
+// ---------------------------------------------------------------------------
+
+async function freshHandler() {
+  // Only takes effect on the FIRST import of bundle-store.ts in this process
+  // (PREVIEW_DIR is a module-level const there) — matches setup()'s own
+  // unconditional assignment above; harmless to repeat.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pv-h2-"));
+  process.env.PREVIEW_DIR = dir;
+  const { handlePreview } = await import("./handler.ts");
+  const { previewPaths, writeMeta } = await import("./cache.ts");
+  const call = (pathname: string) => Promise.resolve(handlePreview(new Request("http://x" + pathname), stubServer, pathname));
+  return { call, handlePreview, previewPaths, writeMeta };
+}
+
+function makeReadyBundle(
+  previewPaths: (sha: string) => { outDir: string },
+  writeMeta: (sha: string, meta: PreviewMeta, root?: string) => void,
+  sha: string,
+  opts: { private?: boolean; repo?: string } = {},
+): void {
+  const p = previewPaths(sha);
+  fs.mkdirSync(p.outDir, { recursive: true });
+  fs.writeFileSync(path.join(p.outDir, "docs.json"), JSON.stringify({ atlasCommit: sha, nodes: {} }));
+  // diff.json present so diffResponse serves it directly, without needing
+  // main's in-memory docMap (these privacy tests don't build one up front).
+  fs.writeFileSync(path.join(p.outDir, "diff.json"), JSON.stringify({ added: [], changed: [] }));
+  writeMeta(sha, {
+    sha,
+    repo: opts.repo ?? TEST_REPO,
+    ref: "main",
+    kind: "branch",
+    resolvedAt: "t",
+    docCount: 0,
+    buildMs: 1,
+    private: opts.private,
+  });
+}
+
+async function readSSE(res: Response): Promise<any[]> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+  }
+  return buf
+    .split("\n\n")
+    .map((chunk) => chunk.match(/^data: (.+)$/m)?.[1])
+    .filter((s): s is string => !!s)
+    .map((s) => JSON.parse(s));
+}
+
+const SHA_PUBLIC = "1".repeat(40);
+const SHA_LOGIN = "2".repeat(40);
+const SHA_FORBIDDEN = "3".repeat(40);
+const SHA_UNAVAILABLE = "4".repeat(40);
+const SHA_AUTHORIZED = "5".repeat(40);
+const SHA_G1 = "6".repeat(40);
+const SHA_EVENTS = "7".repeat(40);
+
+test("private preview handler: public bundle unaffected — served with CORS, no private headers, no auth call", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, SHA_PUBLIC, { private: false });
+  const res = await call(`/api/preview/${SHA_PUBLIC}/docs.json`);
+  expect(res.status).toBe(200);
+  expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  expect(res.headers.get("cache-control")).toBeNull();
+  expect(accessCalls.length).toBe(0); // public path never consults authorizePreviewAccess
+});
+
+test("private preview handler: unauthorized visitors are denied on docs.json, diff.json, and meta.json (401/403/503)", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  const cases: [string, AccessDecision, number][] = [
+    [SHA_LOGIN, "login-required", 401],
+    [SHA_FORBIDDEN, "forbidden", 403],
+    [SHA_UNAVAILABLE, "unavailable", 503],
+  ];
+  for (const [sha, decision, status] of cases) {
+    makeReadyBundle(previewPaths, writeMeta, sha, { private: true });
+    accessDecision = decision;
+    for (const suffix of ["docs.json", "diff.json", "meta.json"]) {
+      const res = await call(`/api/preview/${sha}/${suffix}`);
+      expect(res.status).toBe(status);
+      expect(res.status).not.toBe(200);
+      expect(res.headers.get("cache-control")).toBe("private, no-store");
+      expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    }
+  }
+});
+
+test("private preview handler: authorized visitor gets docs.json 200 with PRIVATE_HEADERS", async () => {
+  const { call, previewPaths, writeMeta } = await freshHandler();
+  makeReadyBundle(previewPaths, writeMeta, SHA_AUTHORIZED, { private: true });
+  accessDecision = "ok";
+  const res = await call(`/api/preview/${SHA_AUTHORIZED}/docs.json`);
+  expect(res.status).toBe(200);
+  expect(res.headers.get("cache-control")).toBe("private, no-store");
+  expect(res.headers.get("x-robots-tag")).toBe("noindex");
+  expect(res.headers.get("access-control-allow-origin")).toBeNull();
+});
+
+test("private preview handler: G1 mid-build bundle (meta.json not yet written) 404s — even for a private repo, even with no session", async () => {
+  const { call, previewPaths } = await freshHandler();
+  const p = previewPaths(SHA_G1);
+  fs.mkdirSync(p.outDir, { recursive: true });
+  fs.writeFileSync(path.join(p.outDir, "docs.json"), JSON.stringify({ atlasCommit: SHA_G1, nodes: {} }));
+  // meta.json deliberately absent → bundleReady() is false regardless of privacy;
+  // "no meta yet" must read as not-serveable, never as public (G1).
+  accessDecision = "login-required"; // worst case: no session at all
+  const res = await call(`/api/preview/${SHA_G1}/docs.json`);
+  expect(res.status).toBe(404);
+  expect(accessCalls.length).toBe(0); // gateSha never reached privacy/DB — bundleReady gates first
+});
+
+test("/events: a private repo resolve that authorizePreviewAccess forbids fails closed and never starts a build (G3)", async () => {
+  const { handlePreview } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  // Seed the previews-table row resolveId's "sha" branch reads via getPreviewRow.
+  dbQueued = [
+    [
+      {
+        sha: SHA_EVENTS,
+        repo: TEST_REPO,
+        ref: "main",
+        kind: "branch",
+        pr_number: null,
+        pr_title: null,
+        pr_author: null,
+        pr_state: null,
+        doc_count: 0,
+        build_ms: 0,
+        blocked_at: null,
+        trust_tier: null,
+        private: true,
+      },
+    ],
+  ];
+  accessDecision = "forbidden";
+  const pathname = `/api/preview/${SHA_EVENTS}/events`;
+  const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+  const events = await readSSE(res);
+  expect(events).toContainEqual({ phase: "failed", code: "forbidden" });
+  // No sha-bearing "ready"/"fetching" event was ever sent, and no build started.
+  expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
+  expect(inflightShas().has(SHA_EVENTS)).toBe(false);
+});
+
+test("/events: deferred private-branch id — a forbidden caller is denied and the branch→sha lookup NEVER fires (G7)", async () => {
+  const { handlePreview } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  // Turn the feature on and give the App-JWT signer real credentials.
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  // Stub GitHub: the service token 404s on the repo (it's private) but the App
+  // JWT sees an installation → resolvePrivacy = "private". A branch fetch or a
+  // token mint here would be a BUG (the lookup must stay deferred past auth) —
+  // flag both.
+  let branchFetched = false;
+  let tokenMinted = false;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77 });
+    if (u.endsWith("/access_tokens")) {
+      tokenMinted = true;
+      return Response.json({ token: "inst-tok" });
+    }
+    if (u.includes("/branches/")) {
+      branchFetched = true;
+      return Response.json({ commit: { sha: "e".repeat(40) } });
+    }
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "forbidden";
+    const id = encodeURIComponent("octocat:secret-atlas:hush");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+
+    expect(events).toContainEqual({ phase: "failed", code: "forbidden" });
+    // The G7 guarantee: resolution deferred the branch→sha lookup, and the
+    // forbidden decision short-circuits before the lookup, the token mint, and
+    // any build ever run.
+    expect(branchFetched).toBe(false);
+    expect(tokenMinted).toBe(false);
+    expect(accessCalls.some((c) => c.repo === "octocat/secret-atlas")).toBe(true);
+    expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
+});

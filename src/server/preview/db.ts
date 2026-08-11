@@ -18,6 +18,7 @@ export interface PreviewRow {
   build_ms: number;
   blocked_at: string | null;
   trust_tier: string | null;
+  private: boolean;
 }
 
 /** Upsert on a successful build. created_at is preserved on conflict (re-builds
@@ -25,16 +26,17 @@ export interface PreviewRow {
 export async function upsertPreview(m: PreviewMeta): Promise<void> {
   await sql`
     INSERT INTO previews
-      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, last_access)
+      (sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, build_ms, trust_tier, private, last_access)
     VALUES
       (${m.sha}, ${m.repo}, ${m.ref}, ${m.kind}, ${m.prNumber ?? null}, ${m.prTitle ?? null},
-       ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, ${m.trustTier ?? null}, now())
+       ${m.prAuthor ?? null}, ${m.prState ?? null}, ${m.docCount}, ${m.buildMs}, ${m.trustTier ?? null},
+       ${m.private ?? false}, now())
     ON CONFLICT (sha) DO UPDATE SET
       repo = EXCLUDED.repo, ref = EXCLUDED.ref, kind = EXCLUDED.kind,
       pr_number = EXCLUDED.pr_number, pr_title = EXCLUDED.pr_title,
       pr_author = EXCLUDED.pr_author, pr_state = EXCLUDED.pr_state,
       doc_count = EXCLUDED.doc_count, build_ms = EXCLUDED.build_ms,
-      trust_tier = EXCLUDED.trust_tier, last_access = now()
+      trust_tier = EXCLUDED.trust_tier, private = EXCLUDED.private, last_access = now()
   `;
 }
 
@@ -87,13 +89,27 @@ export async function previewsTodayCountForOwner(owner: string): Promise<number>
   return rows[0]?.n ?? 0;
 }
 
+/** Private previews (branch-only): each REPO gets its own daily pool —
+ *  installation is the trust grant, so there's no owner/tier split like the
+ *  public fork pools above. */
+export async function previewsTodayCountForRepo(repo: string): Promise<number> {
+  const rows = (await sql`
+    SELECT count(*)::int AS n FROM previews
+    WHERE repo = ${repo}
+      AND private = true
+      AND created_at >= date_trunc('day', now() AT TIME ZONE 'utc')
+  `) as { n: number }[];
+  return rows[0]?.n ?? 0;
+}
+
 /** Live previews for the /preview index page, newest-touched first. Blocked
- *  rows are invisible. */
+ *  rows are invisible. Private rows never leave the DB for this public index —
+ *  they're served only through the access-checked sha-keyed routes. */
 export async function listPreviews(limit = 50): Promise<PreviewRow[]> {
   return (await sql`
     SELECT sha, repo, ref, kind, pr_number, pr_title, pr_author, pr_state, doc_count, last_access
     FROM previews
-    WHERE blocked_at IS NULL
+    WHERE blocked_at IS NULL AND private = false
     ORDER BY last_access DESC
     LIMIT ${limit}
   `) as PreviewRow[];
