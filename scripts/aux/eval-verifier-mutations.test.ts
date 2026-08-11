@@ -1,17 +1,42 @@
 // Pure tests for the verifier-eval tamper functions.
-import { test, expect } from "bun:test";
-import { loadIndexes } from "../../src/server/retrieval/indexes.ts";
+//
+// FIXTURES ARE BUILT IN beforeAll, NOT AT MODULE SCOPE. This used to call
+// `loadIndexes()` at module scope, which is wrong twice over: (1) loadIndexes()
+// is a process-global memo, so under a combined `bun test src/server
+// scripts/aux/...` run it hands back whatever the last `setIndexes()` in an
+// earlier file installed — a one-node fixture set, say — rather than the real
+// atlas; and (2) if the public/ artifacts are missing it silently yields an
+// empty docMap, `realUuid` becomes `undefined`, and the failures show up as
+// unrelated assertion noise about mutated strings.
+//
+// Reading the artifacts directly and calling buildIndexes ourselves gives a
+// private index set with no dependence on file order — and, unlike
+// rebuildFromDisk(), no side effect on the shared singleton either.
+import { test, expect, beforeAll } from "bun:test";
+import { buildIndexes, readArtifactsFromDisk, type Indexes } from "../../src/server/retrieval/indexes.ts";
 import { extractCitations, findInvalidCitationUuids } from "../../src/server/chat/verify/verify-checks.ts";
+import type { SavedRun } from "./eval-verifier-mutations.ts";
 import { buildMutations, mutateNumber, mutateUnknownUuid, mutateWrongDoc } from "./eval-verifier-mutations.ts";
 
-const ix = loadIndexes();
-const realUuid = ix.docMap.keys().next().value as string;
-const run = {
-  id: "t1",
-  question: "q",
-  answer: `The rate is 12.5% per [Doc](/atlas/${realUuid}). See also \`code 99\`.`,
-  evidence: [],
-};
+let ix: Indexes;
+let realUuid: string;
+let run: SavedRun;
+
+beforeAll(() => {
+  const art = readArtifactsFromDisk();
+  ix = buildIndexes(art.docs, art.entities, art.edges, art.meta, art.searchIndexJson, art.glossaryTerms);
+  expect(
+    ix.docMap.size,
+    "no atlas docs on disk — run the artifact build (pnpm build:index && pnpm build:graph) before this test",
+  ).toBeGreaterThan(0);
+  realUuid = ix.docMap.keys().next().value as string;
+  run = {
+    id: "t1",
+    question: "q",
+    answer: `The rate is 12.5% per [Doc](/atlas/${realUuid}). See also \`code 99\`.`,
+    evidence: [],
+  };
+});
 
 test("mutateUnknownUuid produces a citation the deterministic check must fail", () => {
   const mutated = mutateUnknownUuid(run.answer)!;

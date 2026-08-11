@@ -65,23 +65,39 @@ test("waitForDb gives up and throws after exhausting attempts against an unreach
   config.databaseUrl = UNREACHABLE_DB;
   try {
     const { waitForDb } = await freshDb(); // fresh `sql` binds to the unreachable URL
-    await expect(waitForDb(1)).rejects.toBeTruthy();
+    const slept: number[] = [];
+    await expect(waitForDb(1, async (ms: number) => void slept.push(ms))).rejects.toBeTruthy();
+    // The last attempt throws instead of sleeping — no backoff after giving up.
+    expect(slept).toEqual([]);
   } finally {
     config.databaseUrl = orig;
   }
 });
 
+// Asserts the retry BEHAVIOUR (a second connect attempt, preceded by one
+// backoff sleep) via waitForDb's injectable sleep, not the wall clock: a
+// Date.now() delta would both burn the real backoff and break whenever the
+// base/cap constants in db.ts are tuned.
 test("waitForDb retries with backoff before giving up (attempts > 1)", async () => {
   const { config } = await import("./config.ts");
   const orig = config.databaseUrl;
   config.databaseUrl = UNREACHABLE_DB;
+  const warnings: string[] = [];
+  const realWarn = console.warn;
+  console.warn = (...args: unknown[]) => void warnings.push(args.join(" "));
   try {
     const { waitForDb } = await freshDb();
-    const start = Date.now();
-    await expect(waitForDb(2)).rejects.toBeTruthy();
-    // One retry sleeps ~500ms between attempts.
-    expect(Date.now() - start).toBeGreaterThanOrEqual(400);
+    const slept: number[] = [];
+    await expect(waitForDb(3, async (ms: number) => void slept.push(ms))).rejects.toBeTruthy();
+    // attempts-1 sleeps, doubling from the base delay — the schedule itself,
+    // whatever the constants are.
+    expect(slept).toHaveLength(2);
+    expect(slept[1]).toBe(slept[0] * 2);
+    // Every retry announces itself, so a stuck boot is diagnosable from logs.
+    expect(warnings.filter((w) => w.includes("not ready"))).toHaveLength(2);
+    expect(warnings[0]).toContain(`retrying in ${slept[0]}ms`);
   } finally {
+    console.warn = realWarn;
     config.databaseUrl = orig;
   }
 });

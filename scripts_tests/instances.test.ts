@@ -52,9 +52,18 @@ const instances = relations.entities.filter((e) => e.et === "instance");
 const instanceOfEdges = relations.edges.filter((e) => e.e === "instance_of");
 
 describe("instance entity emission", () => {
-  it("emits ~170 instance entities across the approved primitive scope", () => {
+  it("emits a plausible number of instance entities across the approved primitive scope", () => {
     expect(instances.length).toBeGreaterThan(150);
-    expect(instances.length).toBeLessThan(200);
+    // This count only ever grows with the atlas — ~170 when this was written,
+    // 202 at atlas c077dc3 — so an absolute ceiling near the current value just
+    // rots into a failing build on some future Tuesday. The only thing an upper
+    // bound genuinely catches is wholesale double-emission, which would land at
+    // ~2x; 400 keeps that tripwire while leaving real growth alone.
+    expect(instances.length).toBeLessThan(400);
+    // The precise form of what the ceiling was proxying for: the historical bug
+    // was ICD "Location" pointer docs being emitted as second copies of an
+    // instance, which shows up here as a duplicate source doc id.
+    expect(new Set(instances.map((e) => e.did)).size).toBe(instances.length);
   });
 
   it("every instance entity has st set to an allowlisted primitive slug", () => {
@@ -207,14 +216,18 @@ describe("instance params (extracted from ICD Parameters subtree)", () => {
     expect(p["Token Address"]).toBeUndefined();
   });
 
-  it("every Allocation System instance has Network + at least one *Address key", () => {
+  it("every Allocation System instance has Network + an on-chain identifier", () => {
     for (const e of instances.filter((x) => x.st === "allocation-system")) {
       const p = paramsOf(e);
       expect(p["Network"]?.[0], `${e.name}: network`).toBeTruthy();
-      const addrKey = Object.keys(p).find((k) => /Address$|Address\s*\(/.test(k));
+      // A Uniswap v4 pool is not a contract — pools live inside the singleton
+      // PoolManager and are keyed by a 32-byte Pool ID — so those ICDs carry
+      // `Pool ID` as the sole child of `Contract Addresses`. There is no
+      // address to extract, and the pipeline is right not to invent one.
+      const idKey = Object.keys(p).find((k) => /Address$|Address\s*\(/.test(k) || k === "Pool ID");
       expect(
-        addrKey,
-        `${e.name}: no *Address key; have [${Object.keys(p).join(", ")}]`,
+        idKey,
+        `${e.name}: no *Address / Pool ID key; have [${Object.keys(p).join(", ")}]`,
       ).toBeTruthy();
     }
   });

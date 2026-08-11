@@ -33,7 +33,10 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
-## 2026-08-07
+
+## 2026-08-11
+- Added X Layer support, so addresses on X Layer now link to their own block explorer instead of Etherscan
+- Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
 - Added a Features page, reachable from the help (?) icon in the top bar, guiding you through everything you can do with a short how-to for each feature
 
 ## 2026-08-06
