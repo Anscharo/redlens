@@ -63,6 +63,12 @@ jobs:
           pnpm build:graph 2> >(tee -a /tmp/healer-warnings.log >&2)
           pnpm build:glossary 2> >(tee -a /tmp/healer-warnings.log >&2)
 
+      # Same gate the hourly bump runs before opening its PR. Here it answers a
+      # different question: is main ITSELF still whole? An auto-merged bump that
+      # slipped through, or an atlas that regrouped between bumps, shows up here.
+      - name: Verify the build read the whole atlas
+        run: pnpm check:atlas 2> >(tee -a /tmp/healer-warnings.log >&2)
+
       - name: Run censuses in verify mode
         run: |
           pnpm census:check 2> >(tee -a /tmp/healer-warnings.log >&2)
