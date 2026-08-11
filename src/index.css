@@ -1298,16 +1298,6 @@ button.atlas-node-expand-all:focus-visible {
 }
 
 /* ─── Keyboard shortcut key caps ─── */
-kbd {
-  font: 500 11.5px/1 "Source Code Pro", monospace;
-  color: var(--tan-3);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 5px;
-  margin-left: 2px;
-}
-
 /* ─── Search hint rows ─── */
 .hint-row {
   background: transparent;

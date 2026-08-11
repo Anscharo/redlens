@@ -26,6 +26,7 @@ function baseInputs(overrides: Partial<FeedbackContextInputs> = {}): FeedbackCon
     theme: undefined,
     sessionId: null,
     consoleEntries: [],
+    interactions: [],
     ...overrides,
   };
 }
@@ -119,14 +120,34 @@ describe("buildFeedbackContext — url", () => {
 });
 
 describe("buildFeedbackContext — context allowlist shape", () => {
-  it("only emits the five allowlisted context keys, matching the server's CONTEXT_KEYS", () => {
+  it("only emits the allowlisted context keys the server accepts", () => {
     const ctx = buildFeedbackContext(baseInputs({ theme: "dark" }));
-    expect(Object.keys(ctx.context).sort()).toEqual(["language", "referrer", "route", "theme", "viewport"]);
+    // Five scalars (server CONTEXT_KEYS) + interactions, the one bounded array.
+    expect(Object.keys(ctx.context).sort()).toEqual([
+      "interactions",
+      "language",
+      "referrer",
+      "route",
+      "theme",
+      "viewport",
+    ]);
     expect(ctx.context.viewport).toBe("1280x800@2");
   });
 
   it("omits theme entirely when not supplied (no accidental 'undefined' string)", () => {
     const ctx = buildFeedbackContext(baseInputs({ theme: undefined }));
     expect(ctx.context.theme).toBeUndefined();
+  });
+});
+
+describe("interaction trail", () => {
+  it("passes the frozen trail through into context untouched", () => {
+    const trail = ["just now: button#send \"send\"", "5s ago: a [href=/reports] \"Reports\""];
+    const ctx = buildFeedbackContext(baseInputs({ interactions: trail }));
+    expect(ctx.context.interactions).toEqual(trail);
+  });
+
+  it("carries an empty trail rather than omitting the field", () => {
+    expect(buildFeedbackContext(baseInputs()).context.interactions).toEqual([]);
   });
 });

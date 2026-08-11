@@ -51,7 +51,7 @@ describe("NavBar", () => {
   it("renders the feedback button as the first child of the link row, with an accessible name", () => {
     render(<NavBar activePage="atlas" />, { wrapper: wrap() });
     const row = screen.getByRole("link", { name: "Reader" }).parentElement!;
-    expect(row.firstElementChild).toHaveAccessibleName("Feedback and shortcuts");
+    expect(row.firstElementChild).toHaveAccessibleName("Send feedback");
     expect(row.firstElementChild?.tagName).toBe("BUTTON");
   });
 
@@ -59,6 +59,6 @@ describe("NavBar", () => {
     render(<NavBar activePage="atlas" />, {
       wrapper: wrap({ base: "/api/preview/abc/", preview: { id: "abc", sha: "deadbeef" } }),
     });
-    expect(screen.getByRole("button", { name: "Feedback and shortcuts" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send feedback" })).toBeInTheDocument();
   });
 });

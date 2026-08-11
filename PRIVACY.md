@@ -1,6 +1,6 @@
 # Privacy Policy
 
-_Last updated: 6 August 2026_
+_Last updated: 11 August 2026_
 
 This is the privacy policy for the Sky Atlas reader at **atlas.redline.support**
 ("the app"). It is written to be short and plain.
@@ -27,10 +27,13 @@ anything else traceable back to you.
   is keyed to a random conversation id, **not** to your account or identity.
 - **Feedback you send** — if you use the feedback button you can write to us
   without signing in. We store what you write, plus details about the page you
-  were on: its address, the atlas version you were viewing, and **a copy of the
-  recent technical messages your browser logged** (the developer console), which
-  is what lets us diagnose the problem. Anonymous feedback is keyed to a random
-  id, not to you. Please don't include anything sensitive in the message.
+  were on: its address, the atlas version you were viewing, **a copy of the
+  recent technical messages your browser logged** (the developer console), and
+  **a short list of the last few things you clicked** before opening the form.
+  Together those are what let us reproduce the problem. That list records which
+  buttons and links you used — never what you typed, and nothing from your
+  chatbot conversations or the search box. Anonymous feedback is keyed to a
+  random id, not to you. Please don't include anything sensitive in the message.
 
 ## 2. Data that IS linked to you
 

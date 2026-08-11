@@ -42,6 +42,9 @@ export interface FeedbackContext {
     route: string;
     referrer: string;
     language: string;
+    // What the user clicked/focused before opening the modal, oldest first.
+    // Frozen at open by the caller — see useFeedbackContext below.
+    interactions: string[];
   };
   console: FeedbackConsoleEntry[];
 }
@@ -62,6 +65,7 @@ export interface FeedbackContextInputs {
   theme?: string;
   sessionId: string | null;
   consoleEntries: LogEntry[]; // raw snapshot — this function does the fit+redact
+  interactions: string[]; // already described + redacted by lastInteraction.ts
 }
 
 /** Pure: shapes a feedback submission's context fields from injected inputs.
@@ -88,6 +92,7 @@ export function buildFeedbackContext(inputs: FeedbackContextInputs): FeedbackCon
       route: inputs.pathname,
       referrer: inputs.referrer,
       language: inputs.language,
+      interactions: inputs.interactions,
     },
     console: fitted.map((e) => ({ level: e.level, text: redact(e.text) })),
   };
@@ -98,12 +103,16 @@ export function buildFeedbackContext(inputs: FeedbackContextInputs): FeedbackCon
  *  invoke it at submit time, not at modal-open time, so the console excerpt
  *  covers everything up to the send. Deliberately collects no cookies,
  *  localStorage, search query text, or user agent (the server reads UA from
- *  the request header). */
-export function useFeedbackContext(): () => FeedbackContext {
+ *  the request header).
+ *
+ *  The interaction trail is the deliberate exception, and is passed IN rather
+ *  than read here: it has to be frozen when the modal opens, or the user's
+ *  clicks inside the form would overwrite the very thing it records. */
+export function useFeedbackContext(): (interactions: string[]) => FeedbackContext {
   const pageContext = usePageContext();
   const dataSource = useDataSource();
 
-  return () =>
+  return (interactions: string[]) =>
     buildFeedbackContext({
       pathname: window.location.pathname,
       search: window.location.search,
@@ -120,5 +129,6 @@ export function useFeedbackContext(): () => FeedbackContext {
       theme: document.documentElement.getAttribute("data-theme") ?? undefined,
       sessionId: sessionId(),
       consoleEntries: consoleSnapshot(),
+      interactions,
     });
 }

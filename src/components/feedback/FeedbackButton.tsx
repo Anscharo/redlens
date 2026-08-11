@@ -4,10 +4,14 @@ import { usePageContext } from "../chat/pageContext";
 import { track } from "../../lib/analytics";
 import { FeedbackModal } from "./FeedbackModal";
 
-// Nav "?" button: opens the feedback + shortcuts modal. Also bound to a
-// global "?" keypress, mirroring ChatWidget's ⌘K handler (ChatWidget.tsx
-// ~L73-84). Note: SearchBar's input has autoFocus, so "?" only fires once
-// focus has left it — accepted, the button is the primary affordance.
+// Nav "?" button: opens the feedback modal. Also bound to a global "?"
+// keypress, mirroring ChatWidget's ⌘K handler (ChatWidget.tsx ~L73-84).
+// Note: SearchBar's input has autoFocus, so "?" only fires once focus has
+// left it — accepted, the button is the primary affordance.
+//
+// data-feedback-ui marks this out of the interaction trail
+// (src/lib/lastInteraction.ts), so the click that opens the modal is never
+// recorded as "what the user was doing beforehand".
 //
 // button { font: inherit } isn't in index.css's global reset, so
 // `font-[inherit]` here keeps the glyph matching the sibling nav links.
@@ -40,8 +44,9 @@ export function FeedbackButton() {
           setOpen(true);
         }}
         className="nav-link shrink-0 px-3 py-1.5 rounded text-sm font-[inherit]"
-        aria-label="Feedback and shortcuts"
-        title="Feedback & shortcuts (?)"
+        data-feedback-ui
+        aria-label="Send feedback"
+        title="Send feedback (?)"
       >
         ?
       </button>

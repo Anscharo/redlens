@@ -13,6 +13,7 @@ import { PreviewGate } from "./components/preview/PreviewGate";
 import { PreviewHome } from "./components/preview/PreviewHome";
 import { restoreAuthReturn } from "./lib/authReturn";
 import { installConsoleCapture } from "./lib/consoleCapture";
+import { installInteractionCapture } from "./lib/lastInteraction";
 
 // Installed here, at module scope, rather than in App.tsx or a React effect:
 // StrictMode double-invokes effects (which would double-patch console
@@ -20,6 +21,7 @@ import { installConsoleCapture } from "./lib/consoleCapture";
 // for every surface. Module scope also means it's live before first render,
 // so boot-time errors are captured for the feedback tool from the start.
 installConsoleCapture();
+installInteractionCapture();
 
 const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
 

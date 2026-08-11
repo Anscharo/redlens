@@ -73,6 +73,13 @@ export function normalizeConsole(entries: unknown): ConsoleEntryOut[] {
 // Extend this list (not the shape below) when a new field is needed.
 const CONTEXT_KEYS = ["viewport", "theme", "route", "referrer", "language"] as const;
 
+// `interactions` is the one allowlisted ARRAY key: the trail of what the user
+// clicked/focused before opening the modal. Bounded on both axes — element
+// count and per-entry length — so it keeps the same size guarantee the scalar
+// keys have. The client applies equivalent caps; these are the ones that count.
+export const MAX_CONTEXT_INTERACTIONS = 5;
+export const MAX_INTERACTION_CHARS = 160;
+
 export function buildContext(raw: unknown): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (!raw || typeof raw !== "object") return out;
@@ -81,8 +88,15 @@ export function buildContext(raw: unknown): Record<string, unknown> {
     const v = obj[k];
     if (typeof v === "string") out[k] = v.slice(0, 500);
     else if (typeof v === "number" || typeof v === "boolean") out[k] = v;
-    // Objects/arrays under an allowlisted key are dropped too — the allowlist
-    // bounds size, not just key names.
+    // Objects/arrays under a SCALAR allowlisted key are dropped — the
+    // allowlist bounds size, not just key names.
+  }
+  if (Array.isArray(obj.interactions)) {
+    const trail = obj.interactions
+      .filter((v): v is string => typeof v === "string")
+      .slice(0, MAX_CONTEXT_INTERACTIONS)
+      .map((s) => s.slice(0, MAX_INTERACTION_CHARS));
+    if (trail.length) out.interactions = trail;
   }
   return out;
 }

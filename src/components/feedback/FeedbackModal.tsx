@@ -1,8 +1,10 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Modal } from "../Modal";
+import { Link } from "../Link";
+import { ROUTES } from "../../lib/routes";
 import { ghostBtn, primaryBtn } from "../modalStyles";
-import { ShortcutsList } from "./ShortcutsList";
 import { useFeedbackContext } from "../../lib/feedbackContext";
+import { interactionTrail } from "../../lib/lastInteraction";
 import { submitFeedback, type FeedbackApiError } from "../../lib/feedbackApi";
 import { track } from "../../lib/analytics";
 
@@ -11,10 +13,10 @@ const MIN_MESSAGE_LEN = 2;
 
 type Status = "form" | "sending" | "done" | "error";
 
-// Free-text feedback form in the shared Modal shell, plus the shortcuts
-// reference (ShortcutsList) so "?" doubles as both. Success swaps the form
-// for a thank-you IN PLACE — deliberately does not auto-close, so the user
-// can still read the shortcuts below.
+// Free-text feedback form in the shared Modal shell, with a link out to the
+// search-syntax reference. Success swaps the form for a thank-you IN PLACE
+// rather than closing, so the confirmation is read rather than flashed past —
+// and the reference link stays reachable in either state.
 export function FeedbackModal({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
   const [website, setWebsite] = useState(""); // honeypot — always sent, real users never fill it
@@ -22,6 +24,12 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
   const openedAtRef = useRef(Date.now());
+  // Frozen at mount, unlike the console snapshot below: everything the user
+  // does inside this form (focusing the textarea, hitting send) happens after
+  // this line, so it can never displace what they were doing beforehand. The
+  // click that opened the modal is excluded at the source, by the button's
+  // data-feedback-ui marker.
+  const trailRef = useRef(interactionTrail());
   const buildContext = useFeedbackContext();
 
   const trimmed = message.trim();
@@ -34,8 +42,9 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
     setErrorCode(null);
 
     // Console snapshot happens HERE, at submit, not at open — it must cover
-    // everything up to the send.
-    const ctx = buildContext();
+    // everything up to the send. The interaction trail is the opposite (see
+    // trailRef above); the two are deliberately asymmetric.
+    const ctx = buildContext(trailRef.current);
     const elapsedMs = Date.now() - openedAtRef.current;
 
     try {
@@ -63,7 +72,7 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Modal label="Feedback & shortcuts" onClose={onClose} width={420}>
+    <Modal label="Feedback" onClose={onClose} width={420}>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>Feedback</h2>
 
       {status === "done" ? (
@@ -137,7 +146,13 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
         </form>
       )}
 
-      <ShortcutsList />
+      {/* Kept when the keyboard-shortcut list came out: the search-syntax
+          reference is the one thing here people actually go looking for. */}
+      <p style={{ margin: "4px 0 0", fontSize: 11 }}>
+        <Link to={ROUTES.SEARCH_HINTS} className="mono" style={{ color: "var(--accent)" }}>
+          Search syntax reference →
+        </Link>
+      </p>
     </Modal>
   );
 }

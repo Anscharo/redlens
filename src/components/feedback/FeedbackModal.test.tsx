@@ -21,6 +21,7 @@ const context: PageContextView = {
 vi.mock("../chat/pageContext", () => ({ usePageContext: () => context }));
 
 import { FeedbackButton } from "./FeedbackButton";
+import { installInteractionCapture, resetInteractions } from "../../lib/lastInteraction";
 
 function mockFetch(response: Response) {
   const fn = vi.fn(() => Promise.resolve(response));
@@ -38,7 +39,7 @@ afterEach(() => {
 });
 
 function openViaButton() {
-  fireEvent.click(screen.getByRole("button", { name: "Feedback and shortcuts" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send feedback" }));
 }
 
 function fillAndSend(text = "the sidebar is broken on mobile") {
@@ -120,13 +121,82 @@ describe("submit", () => {
     await waitFor(() => expect(screen.getByText(/try again in 2 min/i)).toBeInTheDocument());
   });
 
-  it("does not auto-close on success — the shortcuts list stays visible", async () => {
+  it("keeps the search-syntax reference link — the keyboard list went, this stayed", () => {
+    render(<FeedbackButton />);
+    openViaButton();
+    const link = screen.getByRole("link", { name: /search syntax reference/i });
+    expect(link).toHaveAttribute("href", "/search-hints");
+    // No keyboard-shortcut list alongside it.
+    expect(document.querySelectorAll('[role="dialog"] kbd')).toHaveLength(0);
+  });
+
+  it("keeps that link reachable in the thank-you state too", async () => {
+    mockFetch(jsonResponse({ ok: true, id: "f3" }, 201));
+    render(<FeedbackButton />);
+    openViaButton();
+    fillAndSend();
+    await waitFor(() => expect(screen.getByText(/thanks/i)).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /search syntax reference/i })).toBeInTheDocument();
+  });
+
+  it("does not auto-close on success — the thank-you is read, not flashed past", async () => {
     mockFetch(jsonResponse({ ok: true, id: "f2" }, 201));
     render(<FeedbackButton />);
     openViaButton();
     fillAndSend();
     await waitFor(() => expect(screen.getByText(/thanks/i)).toBeInTheDocument());
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Keyboard shortcuts" })).toBeInTheDocument();
+    // The form is replaced in place rather than the dialog closing.
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+});
+
+// The trail records what the user was doing BEFORE the modal opened. Two
+// things must never appear in it: the click that opened it (excluded at the
+// source by the button's data-feedback-ui marker), and anything they do inside
+// the form (excluded by freezing the trail at mount).
+describe("interaction trail", () => {
+  it("sends the pre-open trail, excluding the trigger and everything in the form", async () => {
+    const stop = installInteractionCapture();
+    resetInteractions();
+    try {
+      // Something the user did beforehand.
+      const before = document.createElement("a");
+      before.setAttribute("href", "/reports");
+      before.textContent = "Reports";
+      document.body.appendChild(before);
+      before.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+
+      const fetchMock = mockFetch(jsonResponse({ ok: true, id: "f9" }, 201));
+      render(<FeedbackButton />);
+
+      // Dispatch real pointer/focus events, not just fireEvent.click — which
+      // emits neither, and would let these assertions pass vacuously.
+      const trigger = screen.getByRole("button", { name: "Send feedback" });
+      trigger.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      openViaButton();
+
+      // …and inside the form, after the freeze. Deliberately the cancel
+      // button, NOT the textarea: the textarea carries .ph-no-capture, so it
+      // is excluded for an unrelated reason and would prove nothing here.
+      const cancel = screen.getByRole("button", { name: "cancel" });
+      cancel.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      cancel.dispatchEvent(new Event("focusin", { bubbles: true }));
+
+      fillAndSend();
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+      const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      const sent = JSON.parse(init.body as string);
+      const trail: string[] = sent.context.interactions;
+
+      expect(trail).toHaveLength(1);
+      expect(trail[0]).toContain("[href=/reports]");
+      expect(trail.join(" ")).not.toContain("Send feedback"); // the trigger
+      expect(trail.join(" ")).not.toContain("cancel"); // anything after the freeze
+      before.remove();
+    } finally {
+      stop();
+    }
   });
 });

@@ -489,3 +489,58 @@ describe("posthog survey mirror", () => {
     expect(rows[0].ph_sent).toBe(true);
   });
 });
+
+describe("context.interactions — the one allowlisted array", () => {
+  it("survives the allowlist and reaches the row", async () => {
+    const trail = ["just now: button#send", "5s ago: a [href=/reports]"];
+    const res = await handleFeedback(
+      req("/api/feedback", {
+        method: "POST",
+        body: body({ message: "trail rides along", elapsedMs: 9000, context: { interactions: trail } }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect((rows[0].context as { interactions: string[] }).interactions).toEqual(trail);
+  });
+
+  it("clamps a flood of entries to 5 and each entry to 160 chars", async () => {
+    const res = await handleFeedback(
+      req("/api/feedback", {
+        method: "POST",
+        body: body({
+          message: "oversized trail",
+          elapsedMs: 9000,
+          context: { interactions: Array.from({ length: 20 }, () => "x".repeat(1000)) },
+        }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const trail = (rows[0].context as { interactions: string[] }).interactions;
+    expect(trail).toHaveLength(5);
+    for (const entry of trail) expect(entry.length).toBe(160);
+  });
+
+  it("drops non-string members rather than storing them", async () => {
+    await handleFeedback(
+      req("/api/feedback", {
+        method: "POST",
+        body: body({
+          message: "mixed trail members",
+          elapsedMs: 9000,
+          context: { interactions: ["ok", { evil: "obj" }, 42, null] },
+        }),
+      }),
+    );
+    expect((rows[0].context as { interactions: string[] }).interactions).toEqual(["ok"]);
+  });
+
+  it("drops the key entirely when it isn't an array — scalars must not sneak through", async () => {
+    await handleFeedback(
+      req("/api/feedback", {
+        method: "POST",
+        body: body({ message: "not an array", elapsedMs: 9000, context: { interactions: "nope" } }),
+      }),
+    );
+    expect(rows[0].context).not.toHaveProperty("interactions");
+  });
+});

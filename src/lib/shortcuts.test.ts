@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTypingTarget, SHORTCUTS, SLASH_COMMANDS } from "./shortcuts";
+import { isTypingTarget, SLASH_COMMANDS } from "./shortcuts";
 
 // isTypingTarget only reads tagName/isContentEditable off the event target, so
 // plain object stand-ins exercise it without jsdom. They aren't real
@@ -33,22 +33,6 @@ describe("isTypingTarget", () => {
 
   it("returns false for a non-Element object", () => {
     expect(isTypingTarget(asTarget({ foo: "bar" }))).toBe(false);
-  });
-});
-
-describe("SHORTCUTS", () => {
-  it("every entry has a non-empty keys array and description", () => {
-    for (const s of SHORTCUTS) {
-      expect(s.keys.length).toBeGreaterThan(0);
-      expect(s.description.length).toBeGreaterThan(0);
-    }
-  });
-
-  it("has a non-empty primary subset of roughly 6 entries", () => {
-    const primary = SHORTCUTS.filter((s) => s.primary);
-    expect(primary.length).toBeGreaterThan(0);
-    expect(primary.length).toBeGreaterThanOrEqual(4);
-    expect(primary.length).toBeLessThanOrEqual(8);
   });
 });
 
