@@ -139,7 +139,10 @@ export function isUpdaterEnabled(): boolean {
   return updaterEnabled;
 }
 
-function spawnCollect(
+// Exported so a test can drive it directly with a trivial/fast command (e.g.
+// `bun -e`) instead of only ever reaching it indirectly through a real
+// build-graph/sync-embeddings subprocess spawn.
+export function spawnCollect(
   cmd: string,
   args: string[],
   capture: boolean,
@@ -157,6 +160,17 @@ function spawnCollect(
     child.on("error", () => resolve({ code: 1, stdout }));
   });
 }
+
+// The narrow slice of spawnCollect that runRefreshFromDb/startBootEmbeddings
+// need (always capture=false — both just check the exit code). Injectable so
+// tests can exercise the surrounding control flow (which subprocess ran, in
+// what order, what a failure does) without actually shelling out to
+// build-graph.mjs/sync-embeddings.ts — those write real files under the
+// REAL public/ (this fn doesn't know about a test's config.publicDir override,
+// since it's a separate `bun` process) and, for sync-embeddings.ts, dial a
+// real DB/OpenRouter. Real callers keep using the default (unchanged behavior).
+export type SpawnFn = (cmd: string, args: string[]) => Promise<{ code: number; stdout: string }>;
+const realSpawn: SpawnFn = (cmd, args) => spawnCollect(cmd, args, false);
 
 // Poll sync_state.atlas_sha (fast, same-process DB connection; replaces git ls-remote).
 export async function getDbAtlasSha(): Promise<string | null> {
@@ -226,8 +240,11 @@ export function groupAddrRowsToAtlas(
 // Rebuild public/docs.json + public/addresses.atlas.json from Postgres, then
 // run build-graph and build-glossary subprocesses (they read docs.json), then
 // mirror all public/*.json → dist/. Returns the atlas sha actually built (read
-// inside the snapshot) on success, or null on failure/refusal.
-async function runRefreshFromDb(log: (m: string) => void): Promise<string | null> {
+// inside the snapshot) on success, or null on failure/refusal. Exported (with
+// an injectable spawn, default real) so the refuse/happy-path/subprocess-
+// failure branches are all testable without shelling out for real — see
+// SpawnFn's header comment.
+export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn = realSpawn): Promise<string | null> {
   try {
     // ── ⑥ single consistent snapshot: read the sha AND the rows in ONE
     //    transaction, so the sha we stamp into docs.json always matches the
@@ -273,13 +290,13 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
     writeFileSync(join(config.publicDir, "addresses.atlas.json"), JSON.stringify({ atlasCommit: dbSha, addresses: addrAtlas }));
 
     // 3. build-graph subprocess (reads docs.json → graph.json, relations.json; enriches addresses.atlas.json)
-    const { code: gc } = await spawnCollect("bun", ["scripts/required/build-graph.mjs"], false);
+    const { code: gc } = await spawn("bun", ["scripts/required/build-graph.mjs"]);
     if (gc !== 0) throw new Error(`build-graph exited ${gc}`);
 
     // 4. build-glossary + report views (read docs.json/relations.json)
-    const { code: glc } = await spawnCollect("bun", ["scripts/required/build-glossary.mjs"], false);
+    const { code: glc } = await spawn("bun", ["scripts/required/build-glossary.mjs"]);
     if (glc !== 0) throw new Error(`build-glossary exited ${glc}`);
-    const { code: oea } = await spawnCollect("bun", ["scripts/required/build-oea-report.ts"], false);
+    const { code: oea } = await spawn("bun", ["scripts/required/build-oea-report.ts"]);
     if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
 
     // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
@@ -310,8 +327,11 @@ async function runRefreshFromDb(log: (m: string) => void): Promise<string | null
 
 // Seed embeddings only on first boot (table empty). After that, the atlas
 // worker cron keeps them current. Detached + best-effort so a slow OpenRouter
-// never blocks the health check. Skipped without an API key.
-export function startBootEmbeddings(): void {
+// never blocks the health check. Skipped without an API key. `spawn` injectable
+// (default real) for the same reason as runRefreshFromDb — the real path
+// launches a genuine `bun src/server/sync-embeddings.ts` that dials a real
+// DB/OpenRouter, which a test must never trigger.
+export function startBootEmbeddings(spawn: SpawnFn = realSpawn): void {
   if (!config.openrouterApiKey) {
     console.log("boot-embeddings: skipped (OPENROUTER_API_KEY not set)");
     return;
@@ -325,7 +345,7 @@ export function startBootEmbeddings(): void {
       }
     } catch { /* proceed — table may not exist yet */ }
     console.log("boot-embeddings: seeding empty table (detached, best-effort)");
-    spawnCollect("bun", ["src/server/sync-embeddings.ts"], false)
+    spawn("bun", ["src/server/sync-embeddings.ts"])
       .then(({ code }) => console.log(`boot-embeddings: exited ${code}`))
       .catch((e) => console.warn(`boot-embeddings: spawn error ${(e as Error).message}`));
   })();
