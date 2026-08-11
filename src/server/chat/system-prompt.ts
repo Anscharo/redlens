@@ -68,7 +68,15 @@ const INLINE_CITATION_RULES = [
   "- Link text is normally the document's title, but when a claim IS a number, percentage, date, or on-chain address, make that value the link text instead: write `[6.5%](/atlas/<uuid>)` or `[0x6B17…](/atlas/<uuid>)`, never the bare value in prose beside a title-only link. This binds each figure to the exact document it came from, and each figure is checked against that document.",
 ];
 
-export function buildSystemPrompt(ix: Indexes, ctx?: PageContext, citations: CitationStyle = "inline"): string {
+// `today` (YYYY-MM-DD) defaults to the real current date and is only ever passed
+// explicitly by tests — recomputing "now" on the assertion side races a run that
+// straddles UTC midnight.
+export function buildSystemPrompt(
+  ix: Indexes,
+  ctx?: PageContext,
+  citations: CitationStyle = "inline",
+  today: string = new Date().toISOString().slice(0, 10),
+): string {
   // entity_type_graph is opt-in on atlas_describe (see DEFAULT_SECTIONS in
   // tools.ts) — request it explicitly, and guard defensively so a future
   // schema change can never NPE the whole /api/chat system prompt.
@@ -87,8 +95,6 @@ export function buildSystemPrompt(ix: Indexes, ctx?: PageContext, citations: Cit
   const reportFilter = reportTool
     ? (ctx?.reportFilter ?? "").replace(/[`\r\n]+/g, " ").trim().slice(0, 100)
     : "";
-
-  const today = new Date().toISOString().slice(0, 10);
 
   return [
     "You are the Sky Atlas by Redline assistant — a precise governance research aide for the Sky ecosystem's Sky Atlas.",

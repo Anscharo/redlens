@@ -1,26 +1,36 @@
-// atlas-static.ts unit tests. Exercises the real MAIN_STORE (rooted at
-// config.atlasBundleRoot, i.e. public/atlas) — writes a throwaway per-sha
-// bundle dir under it for the "found" cases and removes it afterward so no
-// test fixture is left behind. The 404 paths (bad segment count, bad sha
+// atlas-static.ts unit tests. handleAtlasStatic hardcodes MAIN_STORE (no store
+// parameter to inject through), so instead of writing fixtures into the REAL
+// bundle root (config.atlasBundleRoot, i.e. public/atlas — where a parallel test
+// run or the updater's LRU sweeper could delete them mid-test) we repoint
+// MAIN_STORE.root at a per-process temp dir for the life of this file and
+// restore it afterward. bundleDir/artifactPath read .root at call time, so the
+// swap is enough; bun runs test files sequentially in a process, so no other
+// file observes the swapped root. The 404 paths (bad segment count, bad sha
 // shape, disallowed/missing artifact) need no filesystem setup at all.
 import { test, expect, beforeAll, afterAll } from "bun:test";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { handleAtlasStatic } from "./atlas-static.ts";
 import { MAIN_STORE, bundleDir } from "./bundle-store.ts";
 
 // A syntactically valid sha (40 hex chars) that will never collide with a real
-// atlas commit in this run.
+// atlas commit.
 const TEST_SHA = "f".repeat(40);
-const DIR = bundleDir(MAIN_STORE, TEST_SHA);
+const REAL_ROOT = MAIN_STORE.root;
+let tmpRoot = "";
 
 beforeAll(() => {
-  fs.mkdirSync(DIR, { recursive: true });
-  fs.writeFileSync(path.join(DIR, "docs.json"), JSON.stringify({ hello: "atlas" }));
+  tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-static-test-"));
+  MAIN_STORE.root = tmpRoot;
+  const dir = bundleDir(MAIN_STORE, TEST_SHA);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "docs.json"), JSON.stringify({ hello: "atlas" }));
 });
 
 afterAll(() => {
-  fs.rmSync(DIR, { recursive: true, force: true });
+  MAIN_STORE.root = REAL_ROOT;
+  fs.rmSync(tmpRoot, { recursive: true, force: true });
 });
 
 function req(pathname: string, headers: Record<string, string> = {}): Request {

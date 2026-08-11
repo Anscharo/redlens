@@ -201,6 +201,20 @@ describe("OAuth callbacks", () => {
     return new Request(`http://x/api/auth/${sub}/callback?${params}`, { method: "GET", headers: { cookie } });
   }
 
+  // The "bad-code" cases below deliberately reject the token exchange, and
+  // auth.ts console.errors the whole stack on that path. Expected, but it reads
+  // like a crash in CI output and buries real failures — so mute console.error
+  // for exactly those tests (auth.ts's logging itself stays untouched).
+  async function withoutErrorLogging<T>(fn: () => Promise<T>): Promise<T> {
+    const realError = console.error;
+    console.error = () => {};
+    try {
+      return await fn();
+    } finally {
+      console.error = realError;
+    }
+  }
+
   describe("github/callback", () => {
     it("400s on a missing/mismatched state without exchanging the code", async () => {
       const res = await handleAuth(
@@ -276,9 +290,8 @@ describe("OAuth callbacks", () => {
     });
 
     it("400s oauth_exchange_failed when the code exchange throws", async () => {
-      const res = await handleAuth(
-        callbackReq("github", "code=bad-code&state=s1", `${STATE_COOKIE}=s1`),
-        "/api/auth/github/callback",
+      const res = await withoutErrorLogging(() =>
+        handleAuth(callbackReq("github", "code=bad-code&state=s1", `${STATE_COOKIE}=s1`), "/api/auth/github/callback"),
       );
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: "oauth_exchange_failed" });
@@ -313,9 +326,11 @@ describe("OAuth callbacks", () => {
     });
 
     it("400s oauth_exchange_failed when the code exchange throws", async () => {
-      const res = await handleAuth(
-        callbackReq("google", "code=bad-code&state=s1", `${STATE_COOKIE}=s1; ${VERIFIER_COOKIE}=v1`),
-        "/api/auth/google/callback",
+      const res = await withoutErrorLogging(() =>
+        handleAuth(
+          callbackReq("google", "code=bad-code&state=s1", `${STATE_COOKIE}=s1; ${VERIFIER_COOKIE}=v1`),
+          "/api/auth/google/callback",
+        ),
       );
       expect(res.status).toBe(400);
       expect(await res.json()).toEqual({ error: "oauth_exchange_failed" });

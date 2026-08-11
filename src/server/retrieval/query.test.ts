@@ -1,13 +1,34 @@
 // atlasQuery integration-ish tests over an in-memory index built with
 // buildIndexes (no DB, no live artifacts) — mirrors entity-resolve.test.ts's
 // fixture style. Every case here deliberately avoids the DB-touching paths
-// (history filters need Postgres; the semantic search leg needs
-// config.openrouterApiKey, which is unset in this test env and short-circuits
-// runSemantic to []), so atlasQuery only exercises pure in-memory logic.
+// (history filters need Postgres) and the semantic search leg.
+//
+// The semantic leg is FORCED off below rather than assumed off. It short-
+// circuits to [] only when `config.openrouterApiKey` is falsy, and that used to
+// be left to ambient env — but bun auto-loads `.env.local`, so any developer
+// with a real OPENROUTER_API_KEY exported turned every `q:` case here into a
+// live embedding request, and on a network hiccup embed.ts retries 4× with
+// 1s/2s/4s/8s of real sleep (~15s per call). beforeAll/afterAll pin the key to
+// "" and put it back, so the file behaves identically with or without a key.
+//
+// config.databaseUrl is deliberately NOT stubbed: no case here reaches a `sql`
+// call site, and db.ts constructs its client once at import time, so mutating
+// the config afterwards would be theatre rather than a guard. The real DB call
+// sites are covered in zz-db-integration.test.ts, which mocks the module.
 // Run under `bun test`.
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { buildIndexes, type AtlasNode, type Entity, type Edge } from "./indexes.ts";
 import { atlasQuery } from "./query.ts";
+import { config } from "../config.ts";
+
+let prevKey: string;
+beforeAll(() => {
+  prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevKey;
+});
 
 function node(over: Partial<AtlasNode> = {}): AtlasNode {
   return {
@@ -160,7 +181,7 @@ describe("atlasQuery — entity_narrow", () => {
 });
 
 describe("atlasQuery — search / hybrid_graph", () => {
-  it("plain q performs lexical search (semantic leg is off — no OPENROUTER_API_KEY)", async () => {
+  it("plain q performs lexical search (semantic leg forced off — see the file header)", async () => {
     const { ix } = buildFixture();
     const res = await atlasQuery(ix, { q: "savings rate", k: 10, enrich: false });
     expect(res.mode).toBe("search");
