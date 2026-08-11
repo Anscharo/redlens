@@ -61,14 +61,27 @@ export function takeResumeSave(): boolean {
 }
 
 // Consume the stashed return path and, if it differs from where the OAuth
-// callback dropped us, rewrite the URL in place before React mounts — so the
-// router reads the restored location and there's no flash of the app root.
-// Skipped for preview surfaces (their own gate owns the URL) and no-ops when
-// the stash matches the current location. Called once at startup from main.tsx.
+// callback dropped us, restore it before React mounts — so the router reads
+// the restored location and there's no flash of the app root. No-ops when the
+// stash matches the current location. Called once at startup from main.tsx.
+//
+// A /preview/... destination needs a FULL navigation, not an in-place rewrite:
+// the OAuth callback always lands on the live-app root, which has already
+// rendered <App/> under Root() — a history.replaceState there just relabels
+// the URL bar, it never mounts PreviewGate. window.location.replace() reloads
+// the page (now carrying the fresh session cookie) so the gate mounts and its
+// access check re-runs — the "single login, straight into the preview" path.
 export function restoreAuthReturn(): void {
   if (typeof window === "undefined") return;
   const dest = takeAuthReturn();
   if (!dest) return;
+
+  const baseNoSlash = import.meta.env.BASE_URL.replace(/\/$/, "");
+  if (dest.startsWith(`${baseNoSlash}/preview/`)) {
+    window.location.replace(dest);
+    return;
+  }
+
   const current = window.location.pathname + window.location.search;
   if (dest === current) return;
   try {

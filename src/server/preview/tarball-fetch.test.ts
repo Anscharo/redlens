@@ -50,6 +50,23 @@ test("fetchArchive: ok → returns the response body stream, request includes au
   expect((capturedInit!.headers as any).authorization).toBe("Bearer my-token");
 });
 
+test("fetchArchive: apiTarball → hits api.github.com/.../tarball/... with a Bearer header", async () => {
+  let capturedInit: RequestInit | undefined;
+  let capturedUrl: string | undefined;
+  const body = new ReadableStream();
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string, init: RequestInit) => {
+    capturedUrl = String(url);
+    capturedInit = init;
+    return Promise.resolve({ status: 200, ok: true, body } as Response);
+  };
+  const result = await fetchArchive("owner/private-repo", "abc123", "inst-token", { apiTarball: true });
+  expect(result).toBe(body);
+  expect(capturedUrl).toBe("https://api.github.com/repos/owner/private-repo/tarball/abc123");
+  expect((capturedInit!.headers as any).authorization).toBe("Bearer inst-token");
+  expect(capturedInit!.redirect).toBe("follow");
+});
+
 test("fetchArchive: no token → no authorization header", async () => {
   let capturedInit: RequestInit | undefined;
   // @ts-expect-error stub

@@ -40,11 +40,37 @@ export function archiveUrl(repo: string, sha: string): string {
   return `https://github.com/${repo}/archive/${sha}.tar.gz`;
 }
 
-export async function fetchArchive(repo: string, sha: string, token: string): Promise<ReadableStream<Uint8Array>> {
-  const res = await fetch(archiveUrl(repo, sha), {
-    headers: { "user-agent": "redlens-preview", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-    redirect: "follow",
-  });
+/** The API tarball endpoint (vs. the web archive host above) — required for
+ *  private repos: an installation-token Bearer isn't honored on
+ *  github.com/.../archive/..., only on api.github.com. GitHub 302s this to a
+ *  signed, unauthenticated codeload URL, hence redirect:"follow". */
+export function apiTarballUrl(repo: string, sha: string): string {
+  return `https://api.github.com/repos/${repo}/tarball/${sha}`;
+}
+
+export interface FetchArchiveOpts {
+  apiTarball?: boolean;
+}
+
+export async function fetchArchive(
+  repo: string,
+  sha: string,
+  token: string,
+  opts?: FetchArchiveOpts,
+): Promise<ReadableStream<Uint8Array>> {
+  const res = opts?.apiTarball
+    ? await fetch(apiTarballUrl(repo, sha), {
+        headers: {
+          "user-agent": "redlens-preview",
+          authorization: `Bearer ${token}`,
+          "x-github-api-version": "2022-11-28",
+        },
+        redirect: "follow",
+      })
+    : await fetch(archiveUrl(repo, sha), {
+        headers: { "user-agent": "redlens-preview", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        redirect: "follow",
+      });
   if (res.status === 404) throw new SourceGoneError(`archive 404 for ${repo}@${sha}`);
   if (!res.ok || !res.body) throw new Error(`archive fetch failed ${res.status} for ${repo}@${sha}`);
   return res.body;
@@ -137,8 +163,9 @@ export async function fetchAndExtract(
   token: string,
   atlasDir: string,
   caps: ExtractCaps = DEFAULT_CAPS,
+  opts?: FetchArchiveOpts,
 ): Promise<{ srcDir: string; docCount: number }> {
-  const body = await fetchArchive(repo, sha, token);
+  const body = await fetchArchive(repo, sha, token, opts);
   const plainTar = await gunzipCapped(Readable.fromWeb(body as any), caps.maxBytes);
   return extractContentArchive(plainTar, atlasDir, caps);
 }
