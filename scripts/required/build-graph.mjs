@@ -421,8 +421,17 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
   const BREACH_REGISTRY_UUID    = "1ddd9cf6-3f93-4a33-8c1d-80405eec1ffb"; // A.1.6.6.1.3.0.6.1
   // Tables we deliberately do not extract (the drift detector skips them):
   // Registered Spell Checklists — external GitHub URLs, no graph value.
+  // Current/Previous Sky Direct Exposures (triaged 2026-08-11, issues #260/#262,
+  // atlas c077dc3) — rows name assets/pools ("Treasury Bills", "Uniswap Pools"),
+  // not actors, and attribution ("Investments by Grove in ... on Ethereum
+  // Mainnet") lives in a free-text Description cell. None of the existing
+  // entity_types fit a designated-exposure row; modeling one (and parsing the
+  // attribution prose) is a deliberate deferral, not a mechanical regex
+  // extension — see parse-atlas SKILL.md Pattern 16 addendum.
   const KNOWN_UNEXTRACTED_TABLES = new Set([
     "93f5b36b-06a7-4282-9fd7-14e0cbafd08e", // A.1.10.2.5.1.3.2.0.6.1
+    "5f368e33-7a82-4244-a9ba-f285193ec043", // A.2.2.10.1.1.1.1.2.0.6.1 List Of Current Sky Direct Exposures
+    "86fce840-f7f3-4617-bb58-d04db8731c9d", // A.2.2.10.1.1.1.1.3.0.6.1 List Of Previous Sky Direct Exposures
   ]);
 
   // Reverse map: address (no chain suffix) → entity id, from existing has_address edges
