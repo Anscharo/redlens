@@ -302,6 +302,27 @@ describe("TreeSidebar keyboard navigation", () => {
     expect(onNavigate).toHaveBeenCalledWith("root");
   });
 
+  // The keyboard twin of shift-clicking a row. The cursor deliberately stays on
+  // the row so you can keep arrowing the tree against the pane you just opened.
+  it("Shift+Enter opens the split pane and keeps the row focused", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    const { onNavigate, onShiftNavigate } = setup();
+    const treeEl = screen.getByRole("tree");
+    fireEvent.keyDown(treeEl, { key: "ArrowDown" });
+    fireEvent.keyDown(treeEl, { key: "Enter", shiftKey: true });
+    expect(onShiftNavigate).toHaveBeenCalledWith("root");
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("treeitem").className).toContain("is-focused");
+  });
+
+  // The arrow keys only work while this container holds focus, so the footer
+  // only advertises them then — useContextHints reads the marker on focusin.
+  it("marks the container so the footer can advertise the arrow keys", () => {
+    mocks.bundle = makeAtlasBundle(tree());
+    setup();
+    expect(screen.getByRole("tree")).toHaveAttribute("data-focus-hint", "tree");
+  });
+
   // S1: mouse-collapsing an ancestor of a keyboard-focused row shrinks
   // visibleNodes out from under focusedIndex. Before the fix this threw
   // (Enter/ArrowRight/ArrowLeft dereferenced visibleNodes[staleIdx].node,

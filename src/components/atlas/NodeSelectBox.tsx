@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { useSelection } from "../../lib/selection";
 import { useAtlasActions } from "./AtlasActionsContext";
+import { HOVER_HINTS, plainHint } from "../../lib/hintText";
 
 // The per-row selection checkbox, split out of CollapsibleNode so that a
 // selection change re-renders only these trivial <input>s — not every full
@@ -20,7 +21,11 @@ export const NodeSelectBox = memo(function NodeSelectBox({
     <label
       className="atlas-node-select absolute top-2 right-2"
       aria-label={`Select ${title}`}
-      title="shift-click: also select everything beneath"
+      // Same sentence the footer hint shows, from the same source — the footer
+      // is aria-hidden and mouse-only, so this stays as the accessible and
+      // touch-reachable copy rather than being dropped as a duplicate.
+      title={plainHint(HOVER_HINTS.subtree)}
+      data-mod-hint="subtree"
       onClick={(e) => e.stopPropagation()}
     >
       <input

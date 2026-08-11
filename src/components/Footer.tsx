@@ -7,6 +7,7 @@ import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
 import { StatusPill } from "./StatusPill";
 import { FooterInfo } from "./FooterInfo";
+import { FooterHint } from "./FooterHint";
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -111,6 +112,10 @@ export function Footer() {
         nodeCount={nodeCount}
         buildDate={buildDate}
       />
+      {/* Overlays the status slot when there's a contextual hint to give — see
+          FooterHint. Deliberately outside `hasStatus` so it can't move the
+          build-info row. */}
+      <FooterHint />
     </footer>
   );
 }

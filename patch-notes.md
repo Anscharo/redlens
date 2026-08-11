@@ -34,6 +34,7 @@
 -->
 
 ## 2026-08-11
+- Added keyboard and mouse hints in the bottom-left corner, showing what the arrow keys and shift-click do wherever you are
 - Added X Layer support, so addresses on X Layer now link to their own block explorer instead of Etherscan
 - Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
 - Atlas PR previews now mark documents removed by a PR, and no longer miss changes in files too large for GitHub to send a diff for

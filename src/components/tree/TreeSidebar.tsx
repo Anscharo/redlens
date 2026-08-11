@@ -5,6 +5,7 @@ import { useTreeKeyboard } from "../../hooks/useTreeKeyboard";
 import { usePulseDom } from "../../hooks/usePulseDom";
 import { useRevealFlash } from "../../hooks/useRevealFlash";
 import { realDepth, segmentDepths, depthColor } from "../../lib/depth";
+import { CASCADE_LEVELS } from "../../lib/treeCascade";
 import { revealStore } from "../../lib/revealStore";
 import { scrollRequestStore } from "../../lib/scrollRequestStore";
 import { usePreviewChangedSet } from "../../lib/previewFilter";
@@ -332,7 +333,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   // Shift-click on a collapsed chevron: unfold the next few levels of the real
   // tree, regardless of rollup membership. The cap is the third argument below.
   const cascadeLevels = useCallback(
-    (id: string) => cascade(id, (cid) => !!bundle?.byParent.has(cid), 3),
+    (id: string) => cascade(id, (cid) => !!bundle?.byParent.has(cid), CASCADE_LEVELS),
     [cascade, bundle],
   );
 
@@ -396,6 +397,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
     expandedIds,
     listRef,
     onNavigate,
+    onShiftNavigate,
     setFocusedIndex,
     setExpandedIds,
   });
@@ -422,6 +424,11 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       isPreview,
       sidebarWidth,
       cradle,
+      // Selected-only view skips the shift branch in toggleExpand, so shift-click
+      // there is a plain one-level toggle. TreeRow can't know that — it has no
+      // selectionSet — and without this it advertised the cascade on a chevron
+      // that wouldn't cascade.
+      canCascade: !selectionSet,
       onNavigate: handleRowClick,
       onToggle: toggleExpand,
       onReveal: revealChanges,
@@ -437,6 +444,7 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       isPreview,
       sidebarWidth,
       cradle,
+      selectionSet,
       handleRowClick,
       toggleExpand,
       revealChanges,
@@ -454,6 +462,10 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
       onKeyDown={handleKeyDown}
       role="tree"
       aria-label="Atlas tree"
+      // Arrow keys only do something while this container holds focus, so the
+      // footer only advertises them then. useContextHints reads the attribute
+      // off focusin/focusout — nothing to wire up here.
+      data-focus-hint="tree"
     >
       <PreviewTreeToggle />
       <SelectionTreeToggle />

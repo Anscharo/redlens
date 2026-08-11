@@ -5,6 +5,7 @@ import { useNavigation } from "./hooks/useNavigation";
 import { usePageAnalytics } from "./hooks/usePageAnalytics";
 import { useReportVisitTracking } from "./hooks/useReportVisitTracking";
 import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
+import { useContextHints } from "./hooks/useContextHints";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
 import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
@@ -122,6 +123,10 @@ export default function App() {
   // shift-click hints. Lives here because the reader and the tree sidebar
   // mount independently.
   useModifierKeyAttrs();
+  // Feeds the footer's hint line from data-mod-hint / data-focus-hint markers
+  // anywhere in the app. Mounted here for the same reason as the line above:
+  // the reader and the tree sidebar mount independently.
+  useContextHints();
 
   const nodeId = location === ROUTES.ATLAS ? searchParams.get("id") : null;
   // History is the default tab, so an absent (or unrecognized) ?view= lands there.
