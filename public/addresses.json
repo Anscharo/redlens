@@ -191,35 +191,6 @@
       "ethereum"
     ]
   },
-  "0x0f04a22b62a26e25a29cba5a595623038ef7ace7": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xead02d18529c10eedd995f760fdf5e380ddf3da6": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0xb2b86a130b1ec101e4aed9a88502e08995760307": {
     "chain": "ethereum",
     "chains": [
@@ -264,61 +235,6 @@
     ]
   },
   "0xff7615e05ec1c8d5ded24ab50bf74432666bee2f": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xe3dc949720da42c5c842d06974bcb7b03f4f604f": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x16a5a76904140e01f31c7e7abd9fb81988469ba4": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "VoteDelegate",
-    "isContract": true,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x9b4af496cc72c432586e85a1d8264a2708c4dcb6": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    }
-  },
-  "0x7bc5a420b6524fa925f1321a01825438369e3c2e": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
@@ -1913,6 +1829,71 @@
       "robinhood"
     ]
   },
+  "0xf9187c99ee842beabe8e2e346d958315bfc9331f": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0x8a25a24ede9482c4fc0738f99611be58f1c839ab": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "SafeProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x83a914c361bb729eb6bebc8c7ba993667a0e6df8": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0x7f7e2286983994c4403cf2b86758ce0e7ba666a8": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
   "0x17c0f5345d1144fdf670d14719077be3842e5087": {
     "chain": "robinhood",
     "chains": [
@@ -1938,39 +1919,7 @@
       "robinhood": false
     }
   },
-  "0x8a25a24ede9482c4fc0738f99611be58f1c839ab": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x8cc0cb0cfb6b7e548cfd395b833c05c346534795": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "SafeProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x41675c099f32341bf84bfc5382af534df5c7461a",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0x90d8c80c028b4c09c0d8dcaab9bbb057f0513431": {
     "chain": "ethereum",
     "chains": [
       "ethereum"
@@ -2466,6 +2415,37 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0xa6ca0607190d03cf16fe6f2865cf40c3d160ccf3",
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0xd001ae433f254283fece51d4acce8c53263aa186": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "CurveStableSwapNG",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
+  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "StablecoinProxy",
+    "isContract": true,
+    "isProxy": true,
+    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
     "codeByChain": {
       "ethereum": true
     },
@@ -3085,6 +3065,61 @@
       "robinhood"
     ]
   },
+  "0xc358c90d32375721cb3924320fdc2f8b694347ca": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0x779ded0c9e1022225f8e0630b35a9b54be713736": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0xdce929a335c75a1676ef5957a4d7a3b928c48820": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0xcf5af6f53cec74b791cb4182ac778ca9cd323510": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
+  "0x9449ed367c60ea757544fd990b57e1c2d0ec3a94": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "isContract": false,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": false
+    }
+  },
   "0x6a9da2d710bb9b700acde7cb81f10f1ff8c89041": {
     "chain": "ethereum",
     "chains": [
@@ -3207,6 +3242,21 @@
       "ethereum"
     ]
   },
+  "0xfdfd9c85ad200c506cf9e21f1fd8dd01932fbb23": {
+    "chain": "ethereum",
+    "chains": [
+      "ethereum"
+    ],
+    "etherscanName": "EACAggregatorProxy",
+    "isContract": true,
+    "isProxy": false,
+    "codeByChain": {
+      "ethereum": true
+    },
+    "presentOnChains": [
+      "ethereum"
+    ]
+  },
   "0xeff097c5cc7f63e9537188fe381d1360158c1511": {
     "chain": "ethereum",
     "chains": [
@@ -3281,39 +3331,6 @@
     "presentOnChains": [
       "arbitrum"
     ]
-  },
-  "0xcf5af6f53cec74b791cb4182ac778ca9cd323510": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    }
-  },
-  "0x9449ed367c60ea757544fd990b57e1c2d0ec3a94": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    }
-  },
-  "0x83a914c361bb729eb6bebc8c7ba993667a0e6df8": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "isContract": false,
-    "isProxy": false,
-    "codeByChain": {
-      "ethereum": false
-    }
   },
   "0xd5ff8bdef23fc3c8ff6815c6b4051f9809c877a5": {
     "chain": "ethereum",
@@ -3870,6 +3887,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "ALMProxy",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -3884,6 +3902,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "RateLimits",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {
@@ -4140,22 +4159,6 @@
       "ethereum"
     ]
   },
-  "0x8292bb45bf1ee4d140127049757c2e0ff06317ed": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "StablecoinProxy",
-    "isContract": true,
-    "isProxy": true,
-    "implementation": "0x9747a0d261c2d56eb93f542068e5d1e23170fa9e",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
   "0x68215b6533c47ff9f7125ac95adf00fe4a62f79e": {
     "chain": "ethereum",
     "chains": [
@@ -4181,21 +4184,6 @@
     "isContract": true,
     "isProxy": true,
     "implementation": "0x9eb507147b99d3cde32a53bd5cd12bdeeac26e5c",
-    "codeByChain": {
-      "ethereum": true
-    },
-    "presentOnChains": [
-      "ethereum"
-    ]
-  },
-  "0xd001ae433f254283fece51d4acce8c53263aa186": {
-    "chain": "ethereum",
-    "chains": [
-      "ethereum"
-    ],
-    "etherscanName": "CurveStableSwapNG",
-    "isContract": true,
-    "isProxy": false,
     "codeByChain": {
       "ethereum": true
     },
@@ -4836,6 +4824,7 @@
     "chains": [
       "robinhood"
     ],
+    "etherscanName": "VaultV2",
     "isContract": true,
     "isProxy": false,
     "codeByChain": {

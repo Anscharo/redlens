@@ -7681,7 +7681,7 @@
   },
   "prohibition-language": {
     "counts": {
-      "total": 52
+      "total": 53
     },
     "members": [
       {
@@ -7925,6 +7925,11 @@
         "title": "Maximum Exposure"
       },
       {
+        "uuid": "8cf235df-5cf8-42d3-8a10-8d408a90f56d",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.12.3.2.5.1",
+        "title": "Maximum Exposure"
+      },
+      {
         "uuid": "689ed5dc-1843-4a75-bc7a-a4147caa062e",
         "doc_no": "A.6.1.1.2.2.6.1.3.7.1.1.2.5.1",
         "title": "Maximum Exposure"
@@ -7948,13 +7953,13 @@
   },
   "title-templates": {
     "counts": {
-      "total": 1060,
+      "total": 1071,
       "Primitive Hub Document": 136,
       "Global Activation Status": 140,
       "Hub Data Repository": 136,
       "Single Instance Configuration Document": 48,
-      "Parameters": 212,
-      "Rate Limits": 131,
+      "Parameters": 217,
+      "Rate Limits": 137,
       "Initial Planning": 83,
       "Operational GovOps Review": 83,
       "Artifact Edit Proposal": 83,
@@ -8790,6 +8795,18 @@
         "bucket": "Rate Limits"
       },
       {
+        "uuid": "57e0e7b0-dd77-4634-810c-53d4e371a3dc",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.6.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "7de1e41d-c8b5-4ec6-931b-ae3ee2f3f4a3",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.7.6.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
         "uuid": "b0ae7680-7179-4fd6-93f0-56c03d6f91eb",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.8.1.2",
         "title": "Parameters",
@@ -8942,6 +8959,30 @@
       {
         "uuid": "91ad3746-e58c-43b3-a53d-0430b5e20a4c",
         "doc_no": "A.6.1.1.1.2.6.1.3.1.11.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "07d562e8-9e1a-41d8-9229-02b4e5a448e1",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.3.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "415920c5-b4d8-476f-b550-62ebfd4d821c",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.3.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "92466f64-08ea-44bf-b319-6f43e8bd7021",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.4.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "448c87f5-4bc3-41c5-995d-353717d0fbd3",
+        "doc_no": "A.6.1.1.1.2.6.1.3.1.11.4.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -9176,6 +9217,24 @@
       {
         "uuid": "f052e1ed-e2ff-4eaa-8cc4-8ecaabe0bcb4",
         "doc_no": "A.6.1.1.1.2.6.1.3.5.1.1.4.2.2",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "00682222-1a8c-4d61-afeb-3dec35a407ff",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.1.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "eeb497f8-b2eb-407a-99a2-d13c1331639f",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.1.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "36204d14-11b1-439d-91b0-1dfc2a381a0d",
+        "doc_no": "A.6.1.1.1.2.6.1.3.6.1.1.4.2.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -10202,6 +10261,18 @@
       {
         "uuid": "fe6667c8-268e-4f3b-9d08-0538d47df313",
         "doc_no": "A.6.1.1.2.2.6.1.3.1.12.2.2.4",
+        "title": "Rate Limits",
+        "bucket": "Rate Limits"
+      },
+      {
+        "uuid": "92028aef-8300-4f70-8f36-05c9f7d2efb9",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.12.3.2",
+        "title": "Parameters",
+        "bucket": "Parameters"
+      },
+      {
+        "uuid": "df218aec-13d6-4238-bff9-a0eda5eb11a7",
+        "doc_no": "A.6.1.1.2.2.6.1.3.1.12.3.2.4",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -14826,8 +14897,8 @@
   },
   "cross-scope-duplication": {
     "counts": {
-      "total": 153,
-      "groups": 63
+      "total": 156,
+      "groups": 64
     },
     "members": [
       {
@@ -14981,6 +15052,12 @@
         "bucket": "psm facet"
       },
       {
+        "uuid": "b808a829-2f31-42f1-ac9f-6801d3eb8437",
+        "doc_no": "A.2.2.10.1.1.1.4.2.20",
+        "title": "Uniswap v3 Facet",
+        "bucket": "uniswap v3 facet"
+      },
+      {
         "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
         "doc_no": "A.2.2.10.1.1.1.5.2",
         "title": "Diamond PAU Controller Functions",
@@ -15003,6 +15080,12 @@
         "doc_no": "A.2.2.10.1.1.1.5.2.4",
         "title": "PSM Facet",
         "bucket": "psm facet"
+      },
+      {
+        "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
+        "doc_no": "A.2.2.10.1.1.1.5.2.5",
+        "title": "Uniswap v3 Facet",
+        "bucket": "uniswap v3 facet"
       },
       {
         "uuid": "32d3213a-e40a-4169-94d7-e65bb6c23c19",
@@ -15645,6 +15728,12 @@
         "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.3",
         "title": "PSM Facet",
         "bucket": "psm facet"
+      },
+      {
+        "uuid": "5b6d7110-3662-4ee5-a339-43e6bb8e4517",
+        "doc_no": "A.6.1.1.2.2.6.1.2.2.1.2.2.4",
+        "title": "Uniswap v3 Facet",
+        "bucket": "uniswap v3 facet"
       },
       {
         "uuid": "ea4269f3-de42-4b27-8041-e48b85282664",

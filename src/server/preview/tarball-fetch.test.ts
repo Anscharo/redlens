@@ -1,16 +1,18 @@
 // fetchArchive + fetchAndExtract: the network half of tarball.ts. Pure parts
 // (archiveUrl, gunzipCapped, extractContentArchive) are covered in
-// preview.test.ts. Stubs globalThis.fetch the same way open-prs.test.ts does,
-// restored in afterAll.
-import { test, expect, afterAll } from "bun:test";
+// preview.test.ts. Stubs globalThis.fetch the same way open-prs.test.ts does.
+import { test, expect, afterEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fetchArchive, fetchAndExtract, SourceGoneError } from "./tarball.ts";
 
+// Restored after EVERY test, not just at the end of the file: today each test
+// installs its own stub first, but a future test that forgets would silently
+// inherit the previous one.
 const realFetch = globalThis.fetch;
-afterAll(() => {
+afterEach(() => {
   globalThis.fetch = realFetch;
 });
 

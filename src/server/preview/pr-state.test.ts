@@ -1,12 +1,15 @@
 // sweepPrStates: PR-state sweep. The sql param is injected directly (a fake
 // SqlTag), so no DB mocking needed. GitHub is reached through resolve.ts's
 // makeGhClient, which calls the global fetch — stubbed here the same way
-// open-prs.test.ts drives handler.ts's GitHub calls, restored in afterAll.
-import { test, expect, afterAll } from "bun:test";
+// open-prs.test.ts drives handler.ts's GitHub calls.
+import { test, expect, afterEach } from "bun:test";
 import { sweepPrStates } from "./pr-state.ts";
 
+// Restored after EVERY test, not just at the end of the file: today each test
+// installs its own stub first, but a future test that forgets would silently
+// inherit the previous one.
 const realFetch = globalThis.fetch;
-afterAll(() => {
+afterEach(() => {
   globalThis.fetch = realFetch;
 });
 

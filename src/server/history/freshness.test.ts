@@ -1,14 +1,71 @@
 // Run under `bun test` (NOT vitest) — imports Bun SQL transitively via ./db.ts.
-import { describe, it, expect, mock, beforeEach, afterAll } from "bun:test";
+//
+// DB MOCKING SHAPE — see history.test.ts's header for the full write-up; the
+// short version is that bun's `mock.module` patches the module registry for the
+// REST OF THE PROCESS and `mock.restore()` does not undo it. The evaluateFreshness
+// block used to register four separate `mock.module("../db.ts", …)` calls inside
+// `it()` bodies, each supplying ONLY `sql` — so once this file had run, db.ts had
+// permanently lost `toVectorLiteral`/`dbTarget`/`waitForDb`, and any later-loaded
+// file importing those hit a hard link error ("Export named 'toVectorLiteral' not
+// found in module …/db.ts"). Since `bun test` walks files in readdir order, which
+// file got hit varied by machine.
+//
+// There is now ONE module-scope registration whose `sql` dispatches to a swappable
+// `sqlImpl`, defaulting to the snapshotted real client so this file is a no-op for
+// everything scheduled after it.
+import { describe, it, expect, mock, beforeEach, afterEach, afterAll } from "bun:test";
 import { deriveFreshnessStatus, freshnessHttpStatus, msAgeSeconds, assembleFreshness, REQUIRED_SCHEMA } from "./freshness.ts";
 import type { UpdaterState } from "../atlas-updater.ts";
-import { buildIndexes, rebuildFromDisk } from "../retrieval/indexes.ts";
+import { buildIndexes, rebuildFromDisk, setIndexes, getIndexes } from "../retrieval/indexes.ts";
+
+// EAGER snapshot: a module namespace is live, so reading `ns.sql` after the
+// mock lands would resolve to our own dispatcher and recurse forever.
+const baseNs = await import("../db.ts");
+const baseExports: Record<string, unknown> = { ...baseNs };
+const baseSql = baseNs.sql as unknown as Record<PropertyKey, unknown> | undefined;
+
+type SqlImpl = (...args: unknown[]) => unknown;
+let sqlImpl: SqlImpl | null = null;
+
+// A real function, not `new Proxy(baseSql, {apply})`: migrate.test.ts replaces
+// `sql` with a non-callable object, and a Proxy over a non-callable target is
+// itself not callable, which would kill the tagged-template form.
+function sqlCall(...args: unknown[]): unknown {
+  if (sqlImpl) return sqlImpl(...args);
+  if (typeof baseSql !== "function") {
+    throw new Error("db.ts `sql` is not callable — an earlier test file replaced it with a non-callable stub");
+  }
+  return (baseSql as SqlImpl)(...args);
+}
+
+const FN_OWN = new Set<PropertyKey>(["length", "name", "prototype", "constructor", "call", "apply", "bind"]);
+const sqlDispatch = new Proxy(sqlCall, {
+  get(target, prop, receiver) {
+    if (baseSql && !FN_OWN.has(prop)) {
+      const v = baseSql[prop];
+      if (v !== undefined) return typeof v === "function" ? (v as SqlImpl).bind(baseSql) : v;
+    }
+    return Reflect.get(target, prop, receiver);
+  },
+});
+
+mock.module("../db.ts", () => ({ ...baseExports, sql: sqlDispatch }));
 
 // The evaluateFreshness block installs fixture indexes via setIndexes(); restore
 // the real on-disk set afterward so later test files don't inherit a fixture
-// docMap (bun's module state is process-global).
+// docMap (bun's module state is process-global). bun loads and runs test files
+// one at a time, so this afterAll lands before the next file's module body is
+// evaluated — the restore genuinely covers files scheduled after this one.
 afterAll(() => {
-  rebuildFromDisk();
+  const restored = rebuildFromDisk();
+  if (restored.docMap.size === 0) {
+    // Artifacts missing/empty would leave every later file with an empty
+    // docMap and a pile of baffling failures — say so here instead.
+    throw new Error(
+      "freshness.test.ts: rebuildFromDisk() restored an empty docMap — public/ atlas artifacts are missing; later test files would inherit it",
+    );
+  }
+  if (getIndexes() !== restored) throw new Error("freshness.test.ts: index restore did not take effect");
 });
 
 const REQUIRED = "008_preview_trust.sql";
@@ -202,9 +259,8 @@ describe("freshnessHttpStatus", () => {
 });
 
 describe("evaluateFreshness", () => {
-  beforeEach(() => {
-    mock.restore();
-  });
+  beforeEach(() => { sqlImpl = null; });
+  afterEach(() => { sqlImpl = null; });
 
   function seedIndexes(atlasCommit: string) {
     const ix = buildIndexes(
@@ -213,25 +269,27 @@ describe("evaluateFreshness", () => {
       [],
       { atlasCommit },
     );
-    // setIndexes/getIndexes share module-level state — real module, no mocking needed.
-    const { setIndexes } = require("../retrieval/indexes.ts");
+    // setIndexes/getIndexes share module-level state — real module, no mocking
+    // needed. Use the ESM binding imported at the top of this file: a CJS
+    // `require("../retrieval/indexes.ts")` here can resolve to a different
+    // registry entry than the ESM import under bun, in which case the seed
+    // would land on a *different* singleton and evaluateFreshness would read
+    // the untouched one.
     setIndexes(ix);
   }
 
   it("queries sync_state + schema_migrations and reports ok when converged", async () => {
     seedIndexes(REQUIRED_SCHEMA);
-    mock.module("../db.ts", () => ({
-      sql: Object.assign((strings: TemplateStringsArray) => {
-        const q = strings[0] ?? "";
-        if (q.includes("sync_state")) {
-          return Promise.resolve([{ atlas_sha: REQUIRED_SCHEMA, synced_at: new Date().toISOString() }]);
-        }
-        if (q.includes("schema_migrations")) {
-          return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
-        }
-        return Promise.resolve([]);
-      }, { mock: true }),
-    }));
+    sqlImpl = (strings) => {
+      const q = (strings as TemplateStringsArray)[0] ?? "";
+      if (q.includes("sync_state")) {
+        return Promise.resolve([{ atlas_sha: REQUIRED_SCHEMA, synced_at: new Date().toISOString() }]);
+      }
+      if (q.includes("schema_migrations")) {
+        return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
+      }
+      return Promise.resolve([]);
+    };
     const { evaluateFreshness } = await import("./freshness.ts");
     const snap = await evaluateFreshness(Date.now());
     expect(snap.dbReachable).toBe(true);
@@ -243,9 +301,7 @@ describe("evaluateFreshness", () => {
 
   it("marks dbReachable false and status degraded when the sync_state query throws", async () => {
     seedIndexes("abc");
-    mock.module("../db.ts", () => ({
-      sql: Object.assign(() => Promise.reject(new Error("connection refused")), { mock: true }),
-    }));
+    sqlImpl = () => Promise.reject(new Error("connection refused"));
     const { evaluateFreshness } = await import("./freshness.ts");
     const snap = await evaluateFreshness(Date.now());
     expect(snap.dbReachable).toBe(false);
@@ -255,15 +311,13 @@ describe("evaluateFreshness", () => {
 
   it("leaves schemaVersion null (not degraded) when only the schema_migrations query throws", async () => {
     seedIndexes("abc");
-    mock.module("../db.ts", () => ({
-      sql: Object.assign((strings: TemplateStringsArray) => {
-        const q = strings[0] ?? "";
-        if (q.includes("sync_state")) {
-          return Promise.resolve([{ atlas_sha: "abc", synced_at: new Date().toISOString() }]);
-        }
-        return Promise.reject(new Error("no such table"));
-      }, { mock: true }),
-    }));
+    sqlImpl = (strings) => {
+      const q = (strings as TemplateStringsArray)[0] ?? "";
+      if (q.includes("sync_state")) {
+        return Promise.resolve([{ atlas_sha: "abc", synced_at: new Date().toISOString() }]);
+      }
+      return Promise.reject(new Error("no such table"));
+    };
     const { evaluateFreshness } = await import("./freshness.ts");
     const snap = await evaluateFreshness(Date.now());
     expect(snap.dbReachable).toBe(true);
@@ -272,14 +326,12 @@ describe("evaluateFreshness", () => {
 
   it("handles an empty sync_state row (never synced) without throwing", async () => {
     seedIndexes("abc");
-    mock.module("../db.ts", () => ({
-      sql: Object.assign((strings: TemplateStringsArray) => {
-        const q = strings[0] ?? "";
-        if (q.includes("sync_state")) return Promise.resolve([]);
-        if (q.includes("schema_migrations")) return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
-        return Promise.resolve([]);
-      }, { mock: true }),
-    }));
+    sqlImpl = (strings) => {
+      const q = (strings as TemplateStringsArray)[0] ?? "";
+      if (q.includes("sync_state")) return Promise.resolve([]);
+      if (q.includes("schema_migrations")) return Promise.resolve([{ v: REQUIRED_SCHEMA }]);
+      return Promise.resolve([]);
+    };
     const { evaluateFreshness } = await import("./freshness.ts");
     const snap = await evaluateFreshness(Date.now());
     expect(snap.dbSha).toBeNull();

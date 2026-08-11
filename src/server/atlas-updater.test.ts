@@ -1,5 +1,5 @@
 // Run under `bun test` (NOT vitest) — see vitest.config.ts exclude of src/server.
-import { describe, it, expect, test } from "bun:test";
+import { describe, it, expect, test, afterAll } from "bun:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -391,21 +391,43 @@ describe("makeTickDeps", () => {
   });
 });
 
-// NOTE: this test mutates module-level state (isUpdaterEnabled's backing
-// flag via startUpdater) and must stay LAST in this file — no test after it
-// may assume isUpdaterEnabled() === false.
-describe("isUpdaterEnabled + startUpdater (module state — keep last)", () => {
-  it("flips from disabled to enabled after startUpdater()", () => {
+// startUpdater mutates module-level state (isUpdaterEnabled's backing flag) and
+// arms a self-scheduling timer. Both are undone via the returned stop handle in
+// afterAll, so nothing here depends on this block running last — bun does not
+// order test files (or guarantee anything about a "keep last" convention).
+describe("isUpdaterEnabled + startUpdater (module state)", () => {
+  let handle: { stop: () => void } | null = null;
+  afterAll(() => {
+    handle?.stop();
+    expect(isUpdaterEnabled()).toBe(false); // flag restored for the rest of the process
+  });
+
+  it("flips from disabled to enabled after startUpdater(), and back after stop()", () => {
     expect(isUpdaterEnabled()).toBe(false);
 
     const prev = process.env.ATLAS_UPDATE_INTERVAL_MS;
     process.env.ATLAS_UPDATE_INTERVAL_MS = "3600000"; // 1h — unref'd timer never fires in test process
     try {
-      startUpdater();
+      handle = startUpdater();
       expect(isUpdaterEnabled()).toBe(true);
     } finally {
       if (prev === undefined) delete process.env.ATLAS_UPDATE_INTERVAL_MS;
       else process.env.ATLAS_UPDATE_INTERVAL_MS = prev;
+    }
+  });
+
+  it("the kill switch returns a no-op handle and leaves the flag alone", () => {
+    handle?.stop();
+    handle = null;
+    const prev = process.env.ATLAS_UPDATE_ENABLED;
+    process.env.ATLAS_UPDATE_ENABLED = "0";
+    try {
+      const killed = startUpdater();
+      expect(isUpdaterEnabled()).toBe(false);
+      expect(() => killed.stop()).not.toThrow();
+    } finally {
+      if (prev === undefined) delete process.env.ATLAS_UPDATE_ENABLED;
+      else process.env.ATLAS_UPDATE_ENABLED = prev;
     }
   });
 });

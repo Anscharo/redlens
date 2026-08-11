@@ -1,8 +1,25 @@
 // Pure tool-layer unit tests. Run under `bun test` (NOT vitest) — these modules
 // import Bun's `SQL`, which doesn't exist in node-vitest. vitest.config.ts
 // excludes src/server for that reason.
-import { test, expect } from "bun:test";
+//
+// Nothing below calls runSemantic, but the semantic leg is pinned off anyway so
+// that stays true by construction: runSemantic is only inert while
+// `config.openrouterApiKey` is falsy, and that was previously left to ambient
+// env — bun auto-loads `.env.local`, so a developer with a real key would turn
+// the first runSemantic-touching case added here into a live embedding request
+// (embed.ts then retries 4× with 1s/2s/4s/8s of real sleep on any hiccup).
+import { test, expect, beforeAll, afterAll } from "bun:test";
 import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, type Hit } from "./search.ts";
+import { config } from "../config.ts";
+
+let prevKey: string;
+beforeAll(() => {
+  prevKey = config.openrouterApiKey;
+  config.openrouterApiKey = "";
+});
+afterAll(() => {
+  config.openrouterApiKey = prevKey;
+});
 
 test("withTimeout resolves when the promise beats the deadline", async () => {
   const v = await withTimeout(Promise.resolve(42), 1000, "x");
