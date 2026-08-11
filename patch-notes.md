@@ -41,6 +41,7 @@
 - Atlas PR previews now mark documents removed by a PR, and no longer miss changes in files too large for GitHub to send a diff for
 
 ## 2026-08-06
+- Added a feedback button to the top bar for reporting bugs
 - Hovering an on-chain address now shows its name and any token balances it holds
 - Added an On-Chain Addresses report listing every address in Atlas, it meta data and balances. 
 - Added Unichain, Plasma, Monad and Plume support, so addresses on those chains now link to their own block explorer instead of Etherscan

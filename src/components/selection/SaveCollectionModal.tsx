@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../chat/auth";
 import { SignInButtons } from "../chat/SignInButtons";
 import { useSelection } from "../../lib/selection";
@@ -7,20 +6,18 @@ import { createCollection, updateCollectionItems, MAX_COLLECTION_NAME_LEN } from
 import { MAX_COLLECTION_DOCS } from "../../lib/collectionsLimits";
 import { stashResumeSave } from "../../lib/authReturn";
 import { track } from "../../lib/analytics";
+import { Modal } from "../Modal";
+import { ghostBtn, primaryBtn } from "../modalStyles";
 
 interface SaveCollectionModalProps {
   ids: string[];
   onClose: () => void;
 }
 
-const btnBase: CSSProperties = { fontSize: 11, padding: "6px 12px", borderRadius: 4, cursor: "pointer" };
-const ghostBtn: CSSProperties = { ...btnBase, background: "transparent", color: "var(--tan-3)", border: "1px solid var(--border)" };
-const primaryBtn: CSSProperties = { ...btnBase, background: "var(--accent)", color: "var(--bg)", border: "1px solid var(--accent)", fontWeight: 600 };
-
-// Save the current selection as a collection. Cloned from the ColorPickerModal
-// shell (portal + backdrop/Esc to cancel). When a saved collection is already
-// open (activeCollectionId), first offer Update-in-place vs. Save-as-new; a
-// successful save sets the active collection so its name shows in the pill.
+// Save the current selection as a collection, in the shared Modal shell.
+// When a saved collection is already open (activeCollectionId), first offer
+// Update-in-place vs. Save-as-new; a successful save sets the active
+// collection so its name shows in the pill.
 export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) {
   const { user } = useAuth();
   const { activeCollectionId, activeCollectionName, setActiveCollectionId, setActiveCollectionName } = useSelection();
@@ -32,17 +29,12 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
   const [naming, setNaming] = useState(!activeCollectionId);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // The shell focuses the first focusable element on mount (which is this
+  // input when `naming` starts true); this additionally focuses it when the
+  // user later switches into the naming view from the Update/Save-as-new choice.
   useEffect(() => {
     if (naming) inputRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, naming]);
+  }, [naming]);
 
   async function run(fn: () => Promise<void>) {
     if (pending) return;
@@ -90,82 +82,69 @@ export function SaveCollectionModal({ ids, onClose }: SaveCollectionModalProps) 
     </p>
   );
 
-  const modal = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Save as collection"
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, background: "var(--shadow-strong)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 20, width: 320, maxWidth: "calc(100vw - 32px)", display: "flex", flexDirection: "column", gap: 12 }}
-      >
-        {!user ? (
-          <>
+  return (
+    <Modal label="Save as collection" onClose={onClose}>
+      {!user ? (
+        <>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
+            Sign in to save this selection as a collection
+          </h2>
+          <SignInButtons variant="menu" source="collections" sansSerif onBeforeSignIn={stashResumeSave} />
+        </>
+      ) : !naming ? (
+        <>
+          <div>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>Save changes</h2>
+            {count}
+          </div>
+          {errorLine}
+          <button onClick={handleUpdate} disabled={pending || over} className="mono" style={{ ...primaryBtn, opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {pending ? "saving…" : `Update “${activeCollectionName ?? "collection"}”`}
+          </button>
+          <button onClick={() => setNaming(true)} disabled={pending} className="mono" style={ghostBtn}>
+            Save as new collection
+          </button>
+        </>
+      ) : (
+        <>
+          <div>
             <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
-              Sign in to save this selection as a collection
+              {activeCollectionId ? "Save as new collection" : "Save as collection"}
             </h2>
-            <SignInButtons variant="menu" source="collections" sansSerif onBeforeSignIn={stashResumeSave} />
-          </>
-        ) : !naming ? (
-          <>
-            <div>
-              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>Save changes</h2>
-              {count}
-            </div>
-            {errorLine}
-            <button onClick={handleUpdate} disabled={pending || over} className="mono" style={{ ...primaryBtn, opacity: pending || over ? 0.6 : 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {pending ? "saving…" : `Update “${activeCollectionName ?? "collection"}”`}
+            {count}
+          </div>
+          <input
+            ref={inputRef}
+            className="mono"
+            type="text"
+            placeholder="Collection name"
+            maxLength={MAX_COLLECTION_NAME_LEN}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleCreate();
+              }
+            }}
+            style={{ background: "var(--bg)", color: "var(--tan)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none" }}
+          />
+          {errorLine}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={onClose} className="mono" style={ghostBtn}>
+              cancel
             </button>
-            <button onClick={() => setNaming(true)} disabled={pending} className="mono" style={ghostBtn}>
-              Save as new collection
-            </button>
-          </>
-        ) : (
-          <>
-            <div>
-              <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>
-                {activeCollectionId ? "Save as new collection" : "Save as collection"}
-              </h2>
-              {count}
-            </div>
-            <input
-              ref={inputRef}
+            <button
+              onClick={handleCreate}
+              disabled={pending || !name.trim() || over}
               className="mono"
-              type="text"
-              placeholder="Collection name"
-              maxLength={MAX_COLLECTION_NAME_LEN}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleCreate();
-                }
-              }}
-              style={{ background: "var(--bg)", color: "var(--tan)", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 8px", fontSize: 12, outline: "none" }}
-            />
-            {errorLine}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={onClose} className="mono" style={ghostBtn}>
-                cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={pending || !name.trim() || over}
-                className="mono"
-                style={{ ...primaryBtn, cursor: pending || !name.trim() || over ? "default" : "pointer", opacity: pending || !name.trim() || over ? 0.6 : 1 }}
-              >
-                {pending ? "saving…" : "save"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+              style={{ ...primaryBtn, cursor: pending || !name.trim() || over ? "default" : "pointer", opacity: pending || !name.trim() || over ? 0.6 : 1 }}
+            >
+              {pending ? "saving…" : "save"}
+            </button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
-
-  return createPortal(modal, document.body);
 }

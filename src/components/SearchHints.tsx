@@ -1,4 +1,5 @@
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { SLASH_COMMANDS } from "../lib/shortcuts";
 
 const HINTS: { label: string; query: string; description: string }[] = [
   {
@@ -67,12 +68,6 @@ const HINTS: { label: string; query: string; description: string }[] = [
   },
 ];
 
-const SLASH: { cmd: string; description: string }[] = [
-  { cmd: "/reports", description: "Open the reports index" },
-  { cmd: "/radar", description: "Open the radar actor index" },
-  { cmd: "/h", description: "Open the search syntax reference" },
-];
-
 export function SearchHintsPage({ onHintClick }: { onHintClick: (q: string) => void }) {
   useDocumentTitle("Search Hints: Sky Atlas by Redline");
   return (
@@ -90,7 +85,7 @@ export function SearchHints({
   slashFilter?: string | null;
 }) {
   if (slashFilter !== null && slashFilter !== undefined) {
-    const matches = SLASH.filter((s) => s.cmd.startsWith(slashFilter));
+    const matches = SLASH_COMMANDS.filter((s) => s.cmd.startsWith(slashFilter));
     return (
       <div className="px-4 py-8 max-w-4xl mx-auto">
         <p className="text-xs mono mb-3 text-tan-3">shortcuts</p>

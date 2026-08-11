@@ -146,3 +146,8 @@ export function pageview(path: string): void {
   if (!analyticsEnabled) return;
   posthog.capture("$pageview", { $current_url: path });
 }
+
+/** PostHog session id, for joining a feedback row to its analytics session. */
+export function sessionId(): string | null {
+  return analyticsEnabled ? (posthog.get_session_id() ?? null) : null;
+}

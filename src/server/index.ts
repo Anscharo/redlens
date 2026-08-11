@@ -21,6 +21,7 @@ import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
 import { handleConversations } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
@@ -378,6 +379,9 @@ export function buildRoutes() {
     "/api/collections/:id/shared": (req: Request) => config.usersEnabled ? handleSharedCollection(req) : NOT_FOUND(),
     "/api/collections":     (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
     "/api/collections/:id": (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
+    "/api/feedback": (req: Request) => config.feedbackEnabled ? handleFeedback(req) : NOT_FOUND(),
+    /* v8 ignore stop */
   };
 }
 
