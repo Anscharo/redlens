@@ -110,9 +110,14 @@ export function diffSnapshots(base: Snapshot, head: Snapshot): SnapshotDiff {
       added.push(id);
       continue;
     }
-    const hHash = h.contentHash ?? h.content ?? "";
-    const bHash = b.contentHash ?? b.content ?? "";
-    if (hHash !== bHash || h.title !== b.title || h.doc_no !== b.doc_no) changed.push(id);
+    // Compare like with like: hashes when BOTH sides have one (the production
+    // case — docs.json carries it and loadAtlasSource computes it), else the
+    // bodies. Mixing a hash against raw content would report every doc changed.
+    const bodyDiffers =
+      h.contentHash && b.contentHash
+        ? h.contentHash !== b.contentHash
+        : (h.content ?? "") !== (b.content ?? "");
+    if (bodyDiffers || h.title !== b.title || h.doc_no !== b.doc_no) changed.push(id);
   }
   for (const id of base.keys()) if (!head.has(id)) removed.push(id);
 

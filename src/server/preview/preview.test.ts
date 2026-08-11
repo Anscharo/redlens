@@ -294,6 +294,19 @@ test("extractContentArchive: extracts content/**, ignores junk, counts docs", as
   fs.rmSync(atlasDir, { recursive: true, force: true });
 });
 
+test("extractContentArchive: counts documents in the consolidated layout too", async () => {
+  // Counting `document.md` files alone returned 0 here, which made the maxDocs
+  // cap inert and reported docCount: 0 on every preview after upstream #294.
+  const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const bucket = [1, 2, 3].map((n) => `## A.${n} - Doc${n} [Core]  <!-- UUID: ${uuid(n)} -->\n\nbody\n`).join("\n");
+  const gz = makeAtlasTarGz({ "A.1 - The-Governance-Scope.md": bucket, "README.md": "not a bucket" });
+  const plain = Buffer.from(Bun.gunzipSync(gz as unknown as Uint8Array<ArrayBuffer>));
+  const atlasDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-"));
+  const { docCount } = await extractContentArchive(plain, atlasDir);
+  expect(docCount).toBe(3); // one file, three documents
+  fs.rmSync(atlasDir, { recursive: true, force: true });
+});
+
 test("extractContentArchive: doc cap aborts and cleans up", async () => {
   const gz = makeAtlasTarGz({ "A/0/document.md": "x", "A/1/document.md": "y" });
   const plain = Buffer.from(Bun.gunzipSync(gz as unknown as Uint8Array<ArrayBuffer>));

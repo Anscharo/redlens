@@ -13,7 +13,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 // @ts-expect-error — .mjs sibling, no type declarations needed for this test
-import { makeAtlasGitSource } from "./atlas-git-source.mjs";
+import { makeAtlasGitSource, parseMonolithic, extractBody } from "./atlas-git-source.mjs";
 
 let repo: string;
 let src: ReturnType<typeof makeAtlasGitSource>;
@@ -168,5 +168,25 @@ describe("loadSnapshot", () => {
     expect(src.loadSnapshot(sha).size).toBe(1); // the intact tree reads fine…
     expect(src.detectFormat(broken)).toBe("atomized"); // …and the gutted one still looks atomized
     expect(() => src.loadSnapshot(broken)).toThrow(/no content\/\*\*\/document\.md blobs/);
+  });
+});
+
+describe("parseMonolithic / extractBody", () => {
+  it("returns an empty map for empty text", () => {
+    expect(parseMonolithic("").size).toBe(0);
+    expect(parseMonolithic(null as unknown as string).size).toBe(0);
+  });
+
+  it("defaults every node's path to the monolith when none is given", () => {
+    const nodes = parseMonolithic(MONOLITH);
+    expect(nodes.get(U(1))!.path).toBe("Sky Atlas/Sky Atlas.md");
+  });
+
+  it("extractBody strips frontmatter and the heading, and trims", () => {
+    expect(extractBody(["---", "id: x", "---", "", "## A.0 - T [Core]", "", "body", "", ""].join("\n"))).toBe("body");
+    // No frontmatter and no heading: the whole text is the body.
+    expect(extractBody("just a body\n")).toBe("just a body");
+    // Heading with no frontmatter is still dropped.
+    expect(extractBody("# H\n\nbody\n")).toBe("body");
   });
 });

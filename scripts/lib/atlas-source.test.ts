@@ -168,3 +168,61 @@ describe("loadAtlasSource", () => {
     expect(() => loadAtlasSource(dir)).toThrow(/Refusing to publish an empty atlas/);
   });
 });
+
+describe("loadAtlasSource across layouts", () => {
+  // The consolidated case is covered above. These are the two older layouts,
+  // which still have to work: build-history replays them, build-at rebuilds at
+  // an old atlas commit, and a preview of a pre-cutover PR parses one.
+  it("reads an atomized checkout", () => {
+    const doc = (rel: string, id: string, docNo: string, name: string, body: string) => {
+      write(`content/${rel}/document.md`,
+        ["---", `id: ${id}`, `docNo: ${docNo}`, `name: ${name}`, "type: Core", "---", "", "# h", "", body, ""].join("\n"));
+    };
+    // `content/A/0/document.md` is the atomized layout's marker (mirroring
+    // upstream's detect_layout), so the fixture has to carry a real A/0.
+    doc("A", U(1), "A", "Root", "root body");
+    doc("A/0", U(2), "A.0", "Preamble", "preamble body");
+    doc("A/0/1", U(3), "A.0.1", "Child", "child body");
+
+    const { layout, nodes } = loadAtlasSource(dir, { minNodes: 0 });
+    expect(layout).toBe(LAYOUT.ATOMIZED);
+    expect(nodes.map((n: { doc_no: string }) => n.doc_no)).toEqual(["A", "A.0", "A.0.1"]);
+    expect(nodes.map((n: { depth: number }) => n.depth)).toEqual([1, 2, 3]);
+    expect(nodes[1].parentId).toBe(U(1));
+    expect(nodes[2].parentId).toBe(U(2));
+  });
+
+  it("reads a pre-decomposition monolith", () => {
+    write("Sky Atlas/Sky Atlas.md",
+      [heading(1, "A.0", "Preamble", U(1)), "", "intro", "", heading(2, "A.0.1", "First", U(2)), "", "body", ""].join("\n"));
+
+    const { layout, nodes } = loadAtlasSource(dir, { minNodes: 0 });
+    expect(layout).toBe(LAYOUT.MONOLITH);
+    expect(nodes.map((n: { doc_no: string }) => n.doc_no)).toEqual(["A.0", "A.0.1"]);
+    expect(nodes[1].parentId).toBe(U(1));
+  });
+
+  it("honours the ATLAS_MIN_NODES floor override", () => {
+    write("content/A.0 - Preamble.md", heading(1, "A.0", "Preamble", U(1)));
+    const prev = process.env.ATLAS_MIN_NODES;
+    try {
+      process.env.ATLAS_MIN_NODES = "0";
+      expect(loadAtlasSource(dir).nodes).toHaveLength(1);
+      process.env.ATLAS_MIN_NODES = "5";
+      expect(() => loadAtlasSource(dir)).toThrow(/floor 5/);
+    } finally {
+      if (prev === undefined) delete process.env.ATLAS_MIN_NODES;
+      else process.env.ATLAS_MIN_NODES = prev;
+    }
+  });
+});
+
+describe("listBuckets edge cases", () => {
+  it("ignores a DIRECTORY whose name matches the bucket pattern", () => {
+    // Only files are buckets. A directory named like one would otherwise be
+    // read as a bucket and blow up on readFileSync.
+    write("content/A.1 - Real.md", "x\n");
+    fs.mkdirSync(path.join(dir, "content", "A.2 - NotAFile.md"), { recursive: true });
+    expect(listBuckets(path.join(dir, "content")).map((b: { bucket: string }) => b.bucket)).toEqual(["A.1"]);
+  });
+});
