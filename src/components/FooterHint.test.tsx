@@ -1,17 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach, beforeEach, vi, type Mock } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { FooterHint } from "./FooterHint";
 import { hintStore } from "../lib/hintStore";
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
-
-vi.mock("../hooks/useOnlineStatus", () => ({ useOnlineStatus: vi.fn() }));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  (useOnlineStatus as unknown as Mock).mockReturnValue(true);
-});
 
 afterEach(() => {
   cleanup();
@@ -27,10 +19,12 @@ describe("FooterHint", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // textContent, not getByText: arrow runs are wrapped in their own span (see
+  // the enlargement tests below), so the hint is several nodes, not one.
   it("renders the focus hint", () => {
     act(() => hintStore.setFocus("↑↓ to navigate"));
-    render(<FooterHint />);
-    expect(screen.getByText("↑↓ to navigate")).toBeInTheDocument();
+    const { container } = render(<FooterHint />);
+    expect(container.textContent).toBe("↑↓ to navigate");
   });
 
   it("shows the hovered hint over the focused one", () => {
@@ -38,9 +32,8 @@ describe("FooterHint", () => {
       hintStore.setFocus("↑↓ to navigate");
       hintStore.setHover("Shift-click → open in Splitview");
     });
-    render(<FooterHint />);
-    expect(screen.getByText("Shift-click → open in Splitview")).toBeInTheDocument();
-    expect(screen.queryByText("↑↓ to navigate")).not.toBeInTheDocument();
+    const { container } = render(<FooterHint />);
+    expect(container.textContent).toBe("Shift-click → open in Splitview");
   });
 
   it("updates live as the hint changes", () => {
@@ -53,13 +46,21 @@ describe("FooterHint", () => {
     expect(screen.queryByText("second")).not.toBeInTheDocument();
   });
 
-  it("yields the slot to the offline pill", () => {
-    // Offline is a live fault the user cannot dismiss, and tree focus is sticky
-    // enough to bury it for a whole session.
-    (useOnlineStatus as unknown as Mock).mockReturnValue(false);
-    act(() => hintStore.setFocus("↑↓ to navigate"));
+  it("draws a run of arrow glyphs as one keycap each", () => {
+    act(() => hintStore.setFocus("↑↓←→ Enter (+ Shift) to navigate"));
     const { container } = render(<FooterHint />);
-    expect(container).toBeEmptyDOMElement();
+    expect([...container.querySelectorAll("kbd")].map((k) => k.textContent)).toEqual([
+      "↑", "↓", "←", "→",
+    ]);
+    // The sentence around them is untouched, spacing included.
+    expect(container.textContent).toBe("↑↓←→ Enter (+ Shift) to navigate");
+  });
+
+  it("leaves a lone arrow as plain text — it separates, it isn't a key", () => {
+    act(() => hintStore.setHover("Shift-click → open in Splitview"));
+    const { container } = render(<FooterHint />);
+    expect(container.querySelector("kbd")).toBeNull();
+    expect(container.textContent).toBe("Shift-click → open in Splitview");
   });
 
   it("is hidden from assistive tech — every gesture it names is reachable another way", () => {

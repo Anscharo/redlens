@@ -118,10 +118,15 @@ describe("TreeRow ARIA semantics", () => {
 // modifier held — the ::after labels in index.css only appear once you already
 // know to press Shift.
 describe("TreeRow footer-hint markers", () => {
-  it("marks the row's shift-click as opening the split view", () => {
-    const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: false, treeDepth: 1 }];
+  // On the title alone. Shift-click works anywhere on the row, but marking the
+  // row itself fired the hint while crossing the chiclets and the chevron too,
+  // so it was up almost constantly.
+  it("marks the title — not the whole row — as the shift-click surface", () => {
+    const visibleNodes: VisibleNode[] = [{ node: node(), hasChildren: true, treeDepth: 1 }];
     render(<TreeRow index={0} style={{}} ariaAttributes={aria} {...baseData(visibleNodes)} />);
-    expect(screen.getByRole("treeitem")).toHaveAttribute("data-mod-hint", "split");
+    const row = screen.getByRole("treeitem");
+    expect(row).not.toHaveAttribute("data-mod-hint");
+    expect(row.querySelector('[data-mod-hint="split"]')?.textContent).toBe("A Title");
   });
 
   it("marks the chevron by direction, so the hint names the move it will make", () => {

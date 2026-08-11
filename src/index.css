@@ -1703,8 +1703,11 @@ button.atlas-node-expand-all:focus-visible {
   top: 0;
   bottom: 0;
   z-index: 1;
-  display: flex;
-  align-items: center;
+  /* NOT flex: the hint is one sentence with an inline span around its arrow
+     keys, and flex would make each text run its own item — which ate the space
+     between "↑↓←→" and the word after it. Centred by line-height against the
+     24px bar instead, the same way FooterItem does it. */
+  line-height: 24px;
   padding: 0 12px;
   /* Long hints truncate rather than run under the centered build info. */
   max-width: 55%;
@@ -1717,6 +1720,30 @@ button.atlas-node-expand-all:focus-visible {
   letter-spacing: 0.02em;
   pointer-events: none;
   animation: footer-hint-in 0.1s ease-out;
+}
+/* Arrow keys, drawn as keycaps. At the bar's 10px a bare glyph is too fine to
+   read as a key at a glance — which is the one thing this line exists to say —
+   and set inline they also ran together: ←→ met at the heads and looked like a
+   single double-headed arrow. One box each fixes both. */
+.footer-hint-keys {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+.footer-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  /* Line-height 1 against the bar's 24px: the caps must not grow the line box. */
+  line-height: 1;
+  font: inherit;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--tan-2);
 }
 @keyframes footer-hint-in {
   from {

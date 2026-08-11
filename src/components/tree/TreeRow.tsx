@@ -153,9 +153,6 @@ export function TreeRow({
       // Full, untruncated title for the hover hint's `content: attr(data-hint)`
       // (index.css) — the visible span shows displayTitle, which is clipped.
       data-hint={node.title}
-      // Announces shift-click in the footer WITHOUT the modifier held — the
-      // ::after label below only appears once you already know to press Shift.
-      data-mod-hint="split"
       role="treeitem"
       aria-selected={isSelected}
       aria-level={treeDepth}
@@ -219,7 +216,14 @@ export function TreeRow({
       {/* No native title= here: the row's own ::after hint (index.css) carries
           the full untruncated title, so a browser tooltip would be a second,
           slower, differently-worded copy of it. */}
-      <span style={{ ...TITLE_BASE, color: titleColor }}>{displayTitle}</span>
+      {/* Announces shift-click in the footer WITHOUT the modifier held — the
+          ::after label above only appears once you already know to press Shift.
+          On the title alone, not the whole row: shift-click works anywhere on
+          the row, but a marker there fired while crossing the chiclets and the
+          chevron too, so the hint was up almost constantly. */}
+      <span data-mod-hint="split" style={{ ...TITLE_BASE, color: titleColor }}>
+        {displayTitle}
+      </span>
     </div>
   );
 }

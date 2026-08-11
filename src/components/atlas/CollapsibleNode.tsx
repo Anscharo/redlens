@@ -284,9 +284,9 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
-      // Footer hints (useContextHints): shift-click opens the split pane, and
-      // the row is tabIndex={0}, so Enter/Space act on it once focused.
-      data-mod-hint="split"
+      // Footer hint (useContextHints): the row is tabIndex={0}, so Enter/Space
+      // act on it once focused. The shift-click marker sits on the title alone
+      // — see the note there.
       data-focus-hint="reader-row"
       data-exiting={isExiting ? "true" : undefined}
       aria-hidden={isExiting ? true : undefined}
@@ -383,7 +383,14 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </span>
         )}
         {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
-        <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
+        {/* Shift-click works anywhere on the row, but marking the whole row put
+            the hint up while crossing the chiclets, the pendulum chevron and
+            the body text as well — near-constantly. The title is where the
+            gesture is worth offering. */}
+        <div
+          data-mod-hint="split"
+          className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0"
+        >
           <HeadingTag className={TITLE_CLASS}>
             {node.title}
           </HeadingTag>

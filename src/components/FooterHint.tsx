@@ -1,13 +1,18 @@
 import { useHint } from "../lib/hintStore";
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
+
+// Two or more arrow glyphs in a row name keys you press, and get drawn as
+// keycaps — at the footer's 10px a bare glyph is too fine to read as a key, and
+// a box says "press this" in a way an inline character cannot. A LONE arrow is
+// the "leads to" separator in "Shift-click → open in Splitview" and stays plain
+// text, so the run length is what tells the two apart. Split keeps the captured
+// runs in the output at every odd index.
+const ARROW_KEYS = /([↑↓←→]{2,})/;
 
 /**
  * The footer's contextual hint: what the keys under your fingers, or the thing
  * under your cursor, will do right now. It takes the corner the status pills
- * use — a hint outranks "update available" and "atlas updated" (both stay
- * clickable underneath, and both survive a reload), but never "offline", which
- * is a live fault the user cannot dismiss and tree focus is sticky enough to
- * bury it for a whole session.
+ * use and outranks all of them — including "offline", which stays one reload
+ * away from being seen again.
  *
  * Absolutely positioned rather than a flow child. FooterInfo centers itself
  * with mx-auto whenever no status pill leads it, so a hint in the flow would
@@ -22,11 +27,20 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
  */
 export function FooterHint() {
   const hint = useHint();
-  const online = useOnlineStatus();
-  if (!hint || !online) return null;
+  if (!hint) return null;
   return (
     <div className="footer-hint mono" aria-hidden="true">
-      {hint}
+      {hint.split(ARROW_KEYS).map((part, i) =>
+        i % 2 ? (
+          <span key={i} className="footer-hint-keys">
+            {[...part].map((k, j) => (
+              <kbd key={j}>{k}</kbd>
+            ))}
+          </span>
+        ) : (
+          part
+        ),
+      )}
     </div>
   );
 }
