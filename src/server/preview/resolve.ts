@@ -138,6 +138,16 @@ function commitDate(json: any): string | undefined {
 
 export type ResolveError = "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed";
 
+/** Interim result for a private, non-canonical branch preview: the repo is known
+ *  and confirmed private (the App is installed), but the branch→sha lookup is
+ *  deliberately withheld until the handler has authorized the caller (G7).
+ *  resolvePrivateBranch(repo, ref) finishes the resolution once authorized. */
+export interface PendingPrivate {
+  authRequired: true;
+  repo: string;
+  ref: string;
+}
+
 /**
  * Is `repo` public, private, or does the private-preview GitHub App simply not
  * cover it? Uses the passed (service-token) `gh` client first — a plain public
@@ -193,7 +203,10 @@ async function resolveDefaultBranch(gh: GhClient, repo: string, ref: string): Pr
   return r.ok && typeof def === "string" && def ? def : null;
 }
 
-export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | { error: ResolveError }> {
+export async function resolveRef(
+  p: ParsedId,
+  gh: GhClient,
+): Promise<Resolved | { error: ResolveError } | PendingPrivate> {
   const ge = gateError(p);
   if (ge) return { error: ge };
 
@@ -232,15 +245,13 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
       const privacy = await resolvePrivacy(p.repo, gh);
       if (privacy === "app-not-installed") return { error: "app-not-installed" };
       if (privacy === "private") {
-        const tok = await installationToken(p.repo);
-        if (!tok) return { error: "app-not-installed" };
-        const igh = makeGhClient(tok);
-        const ref = await resolveDefaultBranch(igh, p.repo, p.ref);
-        if (!ref) return { error: "not-found" };
-        const r = await igh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(ref)}`);
-        const sha = r.json?.commit?.sha;
-        if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
-        return { repo: p.repo, sha, kind: "branch", ref, date: commitDate(r.json), private: true };
+        // G7: defer the branch→sha lookup (and the installation-token mint it
+        // needs) until AFTER authorizePreviewAccess runs in the handler. Doing
+        // it here would answer "does this branch exist?" to an unauthorized
+        // caller — a real branch resolves (then 'auth-required') while a missing
+        // one 404s to 'not-found', a branch-existence oracle on a private repo.
+        // Hand back repo+ref only; resolvePrivateBranch finishes once authorized.
+        return { authRequired: true, repo: p.repo, ref: p.ref };
       }
       // "public" or "not-found" — fall through to the existing public path below.
     }
@@ -253,4 +264,25 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
   return { repo: p.repo, sha, kind: "branch", ref, date: commitDate(r.json), private: false };
+}
+
+/**
+ * Second half of resolveRef's private branch path (see PendingPrivate), split
+ * out so it runs ONLY after authorizePreviewAccess has granted the caller (G7).
+ * Mints the installation token, resolves the ref (incl. the "HEAD" default-
+ * branch sentinel), and looks up the branch tip. Withholding this until
+ * post-auth is what keeps a private repo's branch existence from leaking to an
+ * unauthorized caller. App-not-installed here means the token could not be
+ * minted (e.g. the App was uninstalled between resolve and this call).
+ */
+export async function resolvePrivateBranch(repo: string, ref: string): Promise<Resolved | { error: ResolveError }> {
+  const tok = await installationToken(repo);
+  if (!tok) return { error: "app-not-installed" };
+  const igh = makeGhClient(tok);
+  const real = await resolveDefaultBranch(igh, repo, ref);
+  if (!real) return { error: "not-found" };
+  const r = await igh.fetchJson(`/repos/${repo}/branches/${encodeURIComponent(real)}`);
+  const sha = r.json?.commit?.sha;
+  if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
+  return { repo, sha, kind: "branch", ref: real, date: commitDate(r.json), private: true };
 }

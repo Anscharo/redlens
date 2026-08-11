@@ -14,6 +14,8 @@ import { test, expect, mock, afterAll, beforeEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
+import { config } from "../config.ts";
 import type { PreviewMeta } from "./cache.ts";
 
 type AccessDecision = "ok" | "login-required" | "forbidden" | "unavailable";
@@ -299,4 +301,68 @@ test("/events: a private repo resolve that authorizePreviewAccess forbids fails 
   // No sha-bearing "ready"/"fetching" event was ever sent, and no build started.
   expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
   expect(inflightShas().has(SHA_EVENTS)).toBe(false);
+});
+
+test("/events: deferred private-branch id — a forbidden caller is denied and the branch→sha lookup NEVER fires (G7)", async () => {
+  const { handlePreview } = await freshHandler();
+  const { inflightShas } = await import("./build.ts");
+  const { __resetCachesForTest } = await import("./github-app.ts");
+  __resetCachesForTest();
+
+  // Turn the feature on and give the App-JWT signer real credentials.
+  const orig = {
+    enabled: config.privatePreviewsEnabled,
+    appId: config.githubAppId,
+    key: config.githubAppPrivateKey,
+    fetch: globalThis.fetch,
+  };
+  const { privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
+  config.privatePreviewsEnabled = true;
+  config.githubAppId = "123";
+  config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" }) as string;
+
+  // Stub GitHub: the service token 404s on the repo (it's private) but the App
+  // JWT sees an installation → resolvePrivacy = "private". A branch fetch or a
+  // token mint here would be a BUG (the lookup must stay deferred past auth) —
+  // flag both.
+  let branchFetched = false;
+  let tokenMinted = false;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.endsWith("/installation")) return Response.json({ id: 77 });
+    if (u.endsWith("/access_tokens")) {
+      tokenMinted = true;
+      return Response.json({ token: "inst-tok" });
+    }
+    if (u.includes("/branches/")) {
+      branchFetched = true;
+      return Response.json({ commit: { sha: "e".repeat(40) } });
+    }
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) return new Response("no", { status: 404 });
+    return new Response("no", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  try {
+    accessDecision = "forbidden";
+    const id = encodeURIComponent("octocat:secret-atlas:hush");
+    const pathname = `/api/preview/${id}/events`;
+    const res = handlePreview(new Request("http://x" + pathname), stubServer, pathname) as Response;
+    const events = await readSSE(res);
+
+    expect(events).toContainEqual({ phase: "failed", code: "forbidden" });
+    // The G7 guarantee: resolution deferred the branch→sha lookup, and the
+    // forbidden decision short-circuits before the lookup, the token mint, and
+    // any build ever run.
+    expect(branchFetched).toBe(false);
+    expect(tokenMinted).toBe(false);
+    expect(accessCalls.some((c) => c.repo === "octocat/secret-atlas")).toBe(true);
+    expect(events.some((e) => e.phase === "ready" || e.phase === "fetching")).toBe(false);
+    expect(inflightShas().size).toBe(0);
+  } finally {
+    globalThis.fetch = orig.fetch;
+    config.privatePreviewsEnabled = orig.enabled;
+    config.githubAppId = orig.appId;
+    config.githubAppPrivateKey = orig.key;
+    accessDecision = "ok";
+  }
 });

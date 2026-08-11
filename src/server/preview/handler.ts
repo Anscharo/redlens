@@ -12,7 +12,16 @@ import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../retrieval/indexes.ts";
-import { CANONICAL_REPO, decodeId, gateError, makeGhClient, resolveRef, type Resolved } from "./resolve.ts";
+import {
+  CANONICAL_REPO,
+  decodeId,
+  gateError,
+  makeGhClient,
+  resolveRef,
+  resolvePrivateBranch,
+  type Resolved,
+  type PendingPrivate,
+} from "./resolve.ts";
 import { getOrStartBuild, subscribeBuild, type PreviewEvent } from "./build.ts";
 import { previewPaths, artifactPath, bundleReady, readMeta, touch, remove as removeBundle } from "./cache.ts";
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
@@ -31,7 +40,7 @@ const gh = makeGhClient(config.githubToken);
 
 // Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
 // is picked up within ~60s without re-hitting GitHub on every request.
-type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed" };
+type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed" } | PendingPrivate;
 const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
 const RESOLVE_TTL_MS = 60_000;
 const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
@@ -192,6 +201,13 @@ function eventsResponse(req: Request, rawId: string, ip: string): Response {
   return new Response(stream, { headers: SSE_HEADERS });
 }
 
+// An app-not-installed failure carries the App's install URL so the client can
+// offer a one-click "Install the RedLens app" action instead of dead-end copy;
+// every other failure code has no attached message.
+async function failInstallMessage(code: string): Promise<string | undefined> {
+  return code === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;
+}
+
 // Returns the unsubscribe fn for the SSE stream (noop if it terminated synchronously).
 async function drive(req: Request, rawId: string, ip: string, send: (ev: PreviewEvent) => void): Promise<() => void> {
   if (rateLimited(ip)) {
@@ -199,23 +215,39 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
     return () => {};
   }
   send({ phase: "resolving" });
-  const r = await resolveId(rawId);
-  if ("error" in r) {
-    // For app-not-installed, carry the App's install URL so the client can offer
-    // a one-click "Install the RedLens app" action instead of dead-end copy.
-    const message = r.error === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;
-    send({ phase: "failed", code: r.error, message });
+  const resolved = await resolveId(rawId);
+  if ("error" in resolved) {
+    send({ phase: "failed", code: resolved.error, message: await failInstallMessage(resolved.error) });
     return () => {};
   }
-  // G3: authorize BEFORE any sha-bearing event (isBlockedSha/bundleReady/build)
-  // reaches an unauthorized caller — the resolve cache may still hold a private
-  // Resolved (incl. sha), but the authorization decision itself is never cached
-  // here; it's re-run per request against the live session/collaborator state.
-  if (r.private) {
-    const d = await authorizePreviewAccess(req, r.repo);
+  // G3/G7: for a private repo, authorize BEFORE any sha-bearing event
+  // (isBlockedSha/bundleReady/build) reaches an unauthorized caller — and, for a
+  // deferred-private resolution, before the branch→sha lookup itself, so an
+  // unauthorized caller can never probe branch existence. The resolve cache may
+  // hold a private Resolved (incl. sha) or the PendingPrivate marker, but the
+  // authorization decision is never cached; it's re-run per request against the
+  // live session/collaborator state.
+  let r: Resolved;
+  if ("authRequired" in resolved) {
+    const d = await authorizePreviewAccess(req, resolved.repo);
     if (d !== "ok") {
       send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
       return () => {};
+    }
+    const done = await resolvePrivateBranch(resolved.repo, resolved.ref);
+    if ("error" in done) {
+      send({ phase: "failed", code: done.error, message: await failInstallMessage(done.error) });
+      return () => {};
+    }
+    r = done;
+  } else {
+    r = resolved;
+    if (r.private) {
+      const d = await authorizePreviewAccess(req, r.repo);
+      if (d !== "ok") {
+        send({ phase: "failed", code: d === "login-required" ? "auth-required" : d });
+        return () => {};
+      }
     }
   }
   const sha = r.sha;

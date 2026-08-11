@@ -12,7 +12,7 @@ import crypto from "node:crypto";
 // real github-app runs and its installation-lookup / token-mint calls are driven
 // through a stubbed global fetch (installedId / mintedToken below). config.ts is
 // a plain object; privatePreviewsEnabled is toggled directly, restored per test.
-import { resolveRef, resolvePrivacy, decodeId } from "./resolve.ts";
+import { resolveRef, resolvePrivateBranch, resolvePrivacy, decodeId } from "./resolve.ts";
 import { __resetCachesForTest } from "./github-app.ts";
 import { config } from "../config.ts";
 
@@ -109,16 +109,53 @@ test("resolvePrivacy: other non-ok status -> not-found", async () => {
 // resolveRef: branch-path privacy routing
 // ---------------------------------------------------------------------------
 
-test("resolveRef: gate ON, private repo, App installed -> private:true via installation token", async () => {
+test("resolveRef: gate ON, private repo, App installed -> authRequired (branch lookup DEFERRED past auth)", async () => {
   config.privatePreviewsEnabled = true;
   installedId = 42;
   mintedToken = "inst-tok";
-  // resolveRef builds its own GhClient from the installation token (real
-  // makeGhClient -> real fetch); installFetch serves the branch lookup.
-  branchJson = { commit: { sha: "privtip", commit: { committer: { date: "2026-07-01T00:00:00Z" } } } };
+  // Seed a branch tip too — the whole point is that resolveRef must NOT fetch
+  // it. The branch→sha lookup is withheld (G7) so an unauthorized caller can't
+  // distinguish "branch exists" from "no access"; resolvePrivateBranch (below)
+  // performs it only after the handler has authorized the caller.
+  branchJson = { commit: { sha: "privtip" } };
   const gh = fakeGh({}); // service token can't see the repo -> 404
 
   const r = await resolveRef(decodeId("acme:secret-atlas:main")!, gh);
+  expect(r).toEqual({ authRequired: true, repo: "acme/secret-atlas", ref: "main" });
+  // Load-bearing: NO branch lookup happened during resolution — the oracle is closed.
+  expect(lastBranchReq).toBeNull();
+});
+
+test("resolveRef: gate ON, private repo, HEAD ref -> authRequired carrying the raw HEAD sentinel (resolved later)", async () => {
+  config.privatePreviewsEnabled = true;
+  installedId = 42;
+  const gh = fakeGh({}); // service token can't see the repo -> 404
+  const r = await resolveRef(decodeId("acme:secret-atlas:HEAD")!, gh);
+  // The HEAD→default-branch resolution is part of the deferred step, so the
+  // sentinel passes through untouched here.
+  expect(r).toEqual({ authRequired: true, repo: "acme/secret-atlas", ref: "HEAD" });
+  expect(lastBranchReq).toBeNull();
+});
+
+test("resolveRef: gate ON, private repo, App not installed -> app-not-installed error", async () => {
+  config.privatePreviewsEnabled = true;
+  installedId = null; // App not installed
+  const gh = fakeGh({}); // 404 on the service-token repo lookup
+  const r = await resolveRef(decodeId("acme:secret-atlas:main")!, gh);
+  expect(r).toEqual({ error: "app-not-installed" });
+});
+
+// ---------------------------------------------------------------------------
+// resolvePrivateBranch: the deferred second half, run ONLY after the handler
+// authorizes the caller (G7). This is where the installation token is minted
+// and the branch tip is actually looked up.
+// ---------------------------------------------------------------------------
+
+test("resolvePrivateBranch: mints the installation token and resolves the branch tip -> private:true", async () => {
+  installedId = 42;
+  mintedToken = "inst-tok";
+  branchJson = { commit: { sha: "privtip", commit: { committer: { date: "2026-07-01T00:00:00Z" } } } };
+  const r = await resolvePrivateBranch("acme/secret-atlas", "main");
   expect(r).toMatchObject({
     repo: "acme/secret-atlas",
     sha: "privtip",
@@ -132,45 +169,38 @@ test("resolveRef: gate ON, private repo, App installed -> private:true via insta
   expect((lastBranchReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
 });
 
-test("resolveRef: private repo, HEAD ref resolves the repo's default branch", async () => {
-  config.privatePreviewsEnabled = true;
+test("resolvePrivateBranch: HEAD ref resolves the repo's default branch", async () => {
   installedId = 42;
   mintedToken = "inst-tok";
   repoJson = { default_branch: "trunk" }; // GET /repos/acme/secret-atlas via installation token
   branchJson = { commit: { sha: "deftip", commit: { committer: { date: "2026-08-01T00:00:00Z" } } } };
-  const gh = fakeGh({}); // service token can't see the repo -> 404
-
-  const r = await resolveRef(decodeId("acme:secret-atlas:HEAD")!, gh);
+  const r = await resolvePrivateBranch("acme/secret-atlas", "HEAD");
   expect(r).toMatchObject({ repo: "acme/secret-atlas", sha: "deftip", ref: "trunk", private: true });
   // The branch lookup targets the RESOLVED default branch, not the "HEAD" sentinel.
   expect(lastBranchReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/branches/trunk");
 });
 
-test("resolveRef: private repo, HEAD ref but default-branch lookup fails -> not-found", async () => {
-  config.privatePreviewsEnabled = true;
+test("resolvePrivateBranch: HEAD ref but default-branch lookup fails -> not-found", async () => {
   installedId = 42;
   mintedToken = "inst-tok";
   repoJson = null; // repo metadata unavailable
-  const gh = fakeGh({});
-  const r = await resolveRef(decodeId("acme:secret-atlas:HEAD")!, gh);
+  const r = await resolvePrivateBranch("acme/secret-atlas", "HEAD");
   expect(r).toEqual({ error: "not-found" });
 });
 
-test("resolveRef: gate ON, private repo, App not installed -> app-not-installed error", async () => {
-  config.privatePreviewsEnabled = true;
-  installedId = null; // App not installed
-  const gh = fakeGh({}); // 404 on the service-token repo lookup
-  const r = await resolveRef(decodeId("acme:secret-atlas:main")!, gh);
+test("resolvePrivateBranch: token mint fails -> app-not-installed", async () => {
+  installedId = 42;
+  mintedToken = null; // mint failure (e.g. App uninstalled between resolve and this call)
+  const r = await resolvePrivateBranch("acme/secret-atlas", "main");
   expect(r).toEqual({ error: "app-not-installed" });
 });
 
-test("resolveRef: gate ON, private repo, App installed but token mint fails -> app-not-installed", async () => {
-  config.privatePreviewsEnabled = true;
+test("resolvePrivateBranch: branch does not exist -> not-found (only reachable post-auth)", async () => {
   installedId = 42;
-  mintedToken = null; // mint failure
-  const gh = fakeGh({}); // 404
-  const r = await resolveRef(decodeId("acme:secret-atlas:main")!, gh);
-  expect(r).toEqual({ error: "app-not-installed" });
+  mintedToken = "inst-tok";
+  branchJson = null; // GET …/branches/<ref> 404s
+  const r = await resolvePrivateBranch("acme/secret-atlas", "ghost");
+  expect(r).toEqual({ error: "not-found" });
 });
 
 test("resolveRef: gate ON, PUBLIC non-canonical repo falls through to the existing fork-lineage path unchanged", async () => {
