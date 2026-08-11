@@ -501,3 +501,19 @@ describe("handleRequest — /mcp", () => {
     expect(sid).not.toBe("client-supplied-id");
   });
 });
+
+describe("/z PostHog reverse proxy dispatch", () => {
+  // The proxy is lazy-imported inside handleRequest to keep it off the static
+  // hot path, so this also proves that dynamic import resolves. Driven with an
+  // endpoint root the proxy does not allow: it rejects at its own allowlist
+  // before any outbound fetch, so the dispatch is exercised with no network.
+  it("routes /z/<unknown-root> into the proxy, which rejects it", async () => {
+    const res = await handleRequest(new Request("http://localhost/z/not-a-posthog-endpoint"), stubServer);
+    expect(res.status).toBe(404);
+  });
+
+  it("routes bare /z too, not only /z/*", async () => {
+    const res = await handleRequest(new Request("http://localhost/z"), stubServer);
+    expect(res.status).toBe(404);
+  });
+});

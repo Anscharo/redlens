@@ -325,18 +325,138 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
 // the module importable without booting a live server, touching Postgres, or
 // spawning a subprocess.
 //
-// v8-ignored in full: every line below only runs when the process is truly
-// booted, which by construction never happens inside a test process (import
-// meta.main is false for an imported module) — there is no unit-test
-// technique that can execute it, only a real `bun src/server/index.ts` run.
-// That real run is exactly how this block is verified: a before/after boot
-// log diff (see the PR description / this restructure's own verification),
-// not `bun test`. Individual pieces that ARE independently unit-tested
-// elsewhere are named inline as each one comes up.
-/* v8 ignore start -- boot-only; see the comment above */
-if (import.meta.main) {
+// Bun's own `routes` table. These match BEFORE `fetch` (handleRequest) and use
+// Bun's dynamic :id / wildcard patterns, which handleRequest does not reproduce
+// — so they are only reachable through a live Bun.serve(). Built by a function
+// rather than an inline literal so the gating each entry applies (usersEnabled /
+// chatEnabled, and the auth path's canonical redirect) is assertable without
+// binding a socket: every handler here is an ordinary callable.
+//
+// The delegated handlers themselves are unit-tested in their own files
+// (history.test.ts, mod-counts.test.ts, balances.test.ts, chat.test.ts,
+// collections.test.ts, …); what this table adds on top is the gating.
+export function buildRoutes() {
+  return {
+    // Static segments win over the `:id` param route, so these match first.
+    "/api/history/batch": { POST: (req: Request) => handleHistoryBatch(req) },
+    "/api/history/mod-counts": () => handleModCounts(),
+    "/api/history/mod-timeline": (req: Request) => handleModTimeline(req),
+    "/api/history/:id": (req: Request) => handleHistory(req, new URL(req.url).pathname),
+
+    // On-chain token balances for the addresses report (GET cached, POST refresh).
+    "/api/balances": { GET: (req: Request) => handleBalances(req), POST: (req: Request) => handleBalances(req) },
+
+    // Auth + collections need only a logged-in session (usersEnabled); chat +
+    // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
+    // OAuth must run on the canonical host (registered callback + host-only
+    // state cookie), so a sign-in started on any other attached domain is
+    // bounced to appUrl before the flow begins — see canonical.ts.
+    "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? (config.usersEnabled ? handleAuth(req, new URL(req.url).pathname) : NOT_FOUND()),
+    "/api/chat":   (req: Request) => config.chatEnabled ? handleChat(req) : NOT_FOUND(),
+    "/api/usage":  (req: Request) => config.chatEnabled ? handleUsage(req) : NOT_FOUND(),
+    "/api/chat/conversations":     (req: Request) => config.chatEnabled ? handleConversations(req) : NOT_FOUND(),
+    "/api/chat/conversations/:id": (req: Request) => config.chatEnabled ? handleConversations(req) : NOT_FOUND(),
+    // Public share read is unauthenticated (anyone with the link) — declared
+    // before the auth-gated :id route so the more specific path wins.
+    "/api/collections/:id/shared": (req: Request) => config.usersEnabled ? handleSharedCollection(req) : NOT_FOUND(),
+    "/api/collections":     (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
+    "/api/collections/:id": (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
+  };
+}
+
+// Everything boot needs from the outside world. Injected so the boot sequence
+// is exercisable without binding a real socket, reaching Postgres, or spawning
+// a subprocess — the same BuildDeps/SyncDeps pattern used by preview/build.ts
+// and sync.ts. Real defaults below; only tests ever pass anything else.
+export interface BootDeps {
+  loadIndexes: () => { docMap: Map<string, unknown>; entities: unknown[]; edges: unknown[] };
+  serve: (opts: { port: number; idleTimeout: number; routes: ReturnType<typeof buildRoutes>; fetch: typeof handleRequest }) => { port: number | string };
+  onSignal: (sig: NodeJS.Signals, handler: () => void) => void;
+  waitForDb: () => Promise<void>;
+  runMigrations: () => Promise<string[]>;
+  query: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<Array<Record<string, unknown>>>;
+  spawnSync: () => { exited: Promise<number> };
+  startBootEmbeddings: () => void;
+  startUpdater: () => void;
+  startPreviewSweeper: () => Promise<void>;
+}
+
+const realBootDeps: BootDeps = {
+  loadIndexes,
+  serve: (opts) => Bun.serve(opts as Parameters<typeof Bun.serve>[0]) as unknown as { port: number | string },
+  onSignal: (sig, handler) => void process.once(sig, handler),
+  waitForDb,
+  runMigrations,
+  query: (strings, ...values) => sql(strings, ...values) as unknown as Promise<Array<Record<string, unknown>>>,
+  spawnSync: () => Bun.spawn(["bun", "src/server/sync.ts"], { stdout: "inherit", stderr: "inherit", env: { ...process.env } }),
+  startBootEmbeddings,
+  startUpdater,
+  // Left unexercised on purpose: running this for real would register a live
+  // sweep interval in the test process. That boot() *calls* it is asserted in
+  // index-boot.test.ts; startPreviewSweeper itself is covered in sweeper.test.ts.
+  startPreviewSweeper: async () => {
+    const { startPreviewSweeper } = await import("./preview/sweeper.ts");
+    startPreviewSweeper();
+  },
+};
+
+/** What seedDbIfEmpty decided — returned (not just logged) so it's assertable. */
+export type SeedOutcome = "seeded" | "already-seeded" | "undetermined";
+
+// Seed Postgres from the baked-in atlas artifacts ONLY when the DB has never
+// been initialized (no sync_state row). After the first seed the atlas worker
+// is the sole authoritative writer and may have advanced the atlas past this
+// image's snapshot — re-syncing on every boot would roll the DB (and every
+// reader, via the in-process updater) back to this image's older atlas. The
+// updater keeps in-memory indexes fresh from the DB regardless, so the web
+// service never needs to write after the initial seed.
+export async function seedDbIfEmpty(deps: BootDeps): Promise<SeedOutcome> {
+  try {
+    await deps.waitForDb();
+    // Apply migrations at boot, race-safe (advisory lock) against the worker
+    // cron and the seed spawn below. Critical: a redeploy that ships a new
+    // migration applies it HERE even on an already-seeded DB — otherwise the
+    // schema would only advance on the worker's next cron and DB-backed routes
+    // would error against missing columns until then. Failure is non-fatal: the
+    // atlas reader serves from disk artifacts without a DB, and the skew shows
+    // up at /api/freshness as schema_behind/degraded rather than crash-looping.
+    try {
+      const ran = await deps.runMigrations();
+      if (ran.length) console.log(`migrations: applied ${ran.length} → ${ran.join(", ")}`);
+    } catch (e) {
+      console.error(`migrations: boot run failed (${(e as Error).message}) — serving on existing schema; see /api/freshness`);
+    }
+    // to_regclass returns NULL (not an error) when the table doesn't exist yet,
+    // so a genuinely fresh DB is distinguishable from a transient query failure.
+    const reg = await deps.query`SELECT to_regclass('public.sync_state') AS t`;
+    if (reg[0]?.t != null) {
+      const seeded = await deps.query`SELECT 1 FROM sync_state WHERE id = 1`;
+      if (seeded.length > 0) {
+        console.log("sync:atlas — skipped (DB already seeded; atlas worker owns updates)");
+        return "already-seeded";
+      }
+    }
+    // Fresh DB (no sync_state table) or table present but unseeded → seed once.
+  } catch {
+    // Fail closed: an error here means we can't confirm the DB is empty, and a
+    // regressive write would roll every reader back to this image's atlas. The
+    // worker seeds/advances the DB on its next cron, so skipping is safe.
+    console.warn("sync:atlas — skipped (could not determine seed state)");
+    return "undetermined";
+  }
+  void deps.spawnSync().exited.then((code) => {
+    if (code !== 0) console.warn(`sync:atlas exited ${code} — server continues with baked-in data`);
+  });
+  return "seeded";
+}
+
+// The full boot sequence, in order. Extracted from the import.meta.main block
+// below so it can be driven with fakes: this is what actually runs on Railway,
+// and "the server came up correctly" is worth a test rather than only a manual
+// log read. The DB seed is deliberately NOT awaited — it must not delay serving.
+export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   const t0 = performance.now();
-  const ix = loadIndexes();
+  const ix = deps.loadIndexes();
   console.log(
     `indexes: ${ix.docMap.size} docs, ${ix.entities.length} entities, ${ix.edges.length} edges ` +
       `(${Math.round(performance.now() - t0)}ms)`,
@@ -349,54 +469,14 @@ if (import.meta.main) {
   // canonical.test.ts). Dynamic import: canonical.ts is already loaded via
   // the static import above, so this just reads the cached module rather
   // than adding a new top-level import.
-  {
-    const { canonicalRedirectBootLog } = await import("./history/canonical.ts");
-    const bootLine = canonicalRedirectBootLog(config);
-    if (bootLine) console.warn(bootLine);
-  }
+  const { canonicalRedirectBootLog } = await import("./history/canonical.ts");
+  const bootLine = canonicalRedirectBootLog(config);
+  if (bootLine) console.warn(bootLine);
 
-  const server = Bun.serve({
+  const server = deps.serve({
     port: config.port,
     idleTimeout: 120,
-
-    routes: {
-      // Static segments win over the `:id` param route, so these match first.
-      // request glue; handleHistoryBatch/handleModCounts/handleModTimeline/
-      // handleHistory are unit-tested directly in history.test.ts /
-      // mod-counts.test.ts / mod-timeline.test.ts. Only reachable via Bun's
-      // own `routes` dispatch inside a live Bun.serve() — see handleRequest
-      // above for the routes that WERE moved into fetch specifically to make
-      // them testable without one.
-      "/api/history/batch": { POST: (req) => handleHistoryBatch(req as Request) },
-      "/api/history/mod-counts": () => handleModCounts(),
-      "/api/history/mod-timeline": (req) => handleModTimeline(req as Request),
-      "/api/history/:id": (req) => handleHistory(req as Request, new URL(req.url).pathname),
-
-      // On-chain token balances for the addresses report (GET cached, POST
-      // refresh). request glue; handleBalances is unit-tested in balances.test.ts
-      "/api/balances": { GET: (req) => handleBalances(req as Request), POST: (req) => handleBalances(req as Request) },
-
-      // Auth + collections need only a logged-in session (usersEnabled); chat +
-      // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
-      // OAuth must run on the canonical host (registered callback + host-only
-      // state cookie), so a sign-in started on any other attached domain is
-      // bounced to appUrl before the flow begins — see canonical.ts.
-      // request glue; canonicalRedirect is unit-tested in canonical.test.ts
-      "/api/auth/*": (req) => canonicalRedirect(req as Request) ?? (config.usersEnabled ? handleAuth(req as Request, new URL(req.url).pathname) : NOT_FOUND()),
-      // request glue; handleChat/handleUsage/handleConversations are
-      // unit-tested directly in chat.test.ts / rate-limit.test.ts / conversations.test.ts
-      "/api/chat":   (req) => config.chatEnabled ? handleChat(req as Request) : NOT_FOUND(),
-      "/api/usage":  (req) => config.chatEnabled ? handleUsage(req as Request) : NOT_FOUND(),
-      "/api/chat/conversations":     (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
-      "/api/chat/conversations/:id": (req) => config.chatEnabled ? handleConversations(req as Request) : NOT_FOUND(),
-      // Public share read is unauthenticated (anyone with the link) — declared
-      // before the auth-gated :id route so the more specific path wins.
-      // request glue; handleCollections/handleSharedCollection are unit-tested in collections.test.ts
-      "/api/collections/:id/shared": (req) => config.usersEnabled ? handleSharedCollection(req as Request) : NOT_FOUND(),
-      "/api/collections":     (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
-      "/api/collections/:id": (req) => config.usersEnabled ? handleCollections(req as Request) : NOT_FOUND(),
-    },
-
+    routes: buildRoutes(),
     fetch: handleRequest,
   });
 
@@ -406,74 +486,28 @@ if (import.meta.main) {
   // Railway redeploy (SIGTERM) doesn't drop the last window of chat observability.
   // No-op when POSTHOG_KEY is unset. once:true so a double-signal can't re-enter.
   for (const sig of ["SIGTERM", "SIGINT"] as const) {
-    process.once(sig, () => {
+    deps.onSignal(sig, () => {
       void shutdownPosthog().finally(() => process.exit(0));
     });
   }
 
-  // Seed Postgres from the baked-in atlas artifacts ONLY when the DB has never
-  // been initialized (no sync_state row). After the first seed the atlas worker
-  // is the sole authoritative writer and may have advanced the atlas past this
-  // image's snapshot — re-syncing on every boot would roll the DB (and every
-  // reader, via the in-process updater) back to this image's older atlas. The
-  // updater keeps in-memory indexes fresh from the DB regardless, so the web
-  // service never needs to write after the initial seed.
-  void (async () => {
-    try {
-      await waitForDb();
-      // Apply migrations at boot, race-safe (advisory lock) against the worker
-      // cron and the seed spawn below. Critical: a redeploy that ships a new
-      // migration applies it HERE even on an already-seeded DB — otherwise the
-      // schema would only advance on the worker's next cron and DB-backed routes
-      // would error against missing columns until then. Failure is non-fatal: the
-      // atlas reader serves from disk artifacts without a DB, and the skew shows
-      // up at /api/freshness as schema_behind/degraded rather than crash-looping.
-      try {
-        const ran = await runMigrations();
-        if (ran.length) console.log(`migrations: applied ${ran.length} → ${ran.join(", ")}`);
-      } catch (e) {
-        console.error(`migrations: boot run failed (${(e as Error).message}) — serving on existing schema; see /api/freshness`);
-      }
-      // to_regclass returns NULL (not an error) when the table doesn't exist yet,
-      // so a genuinely fresh DB is distinguishable from a transient query failure.
-      const reg = await sql`SELECT to_regclass('public.sync_state') AS t`;
-      if (reg[0]?.t != null) {
-        const seeded = await sql`SELECT 1 FROM sync_state WHERE id = 1`;
-        if (seeded.length > 0) {
-          console.log("sync:atlas — skipped (DB already seeded; atlas worker owns updates)");
-          return;
-        }
-      }
-      // Fresh DB (no sync_state table) or table present but unseeded → seed once.
-    } catch {
-      // Fail closed: an error here means we can't confirm the DB is empty, and a
-      // regressive write would roll every reader back to this image's atlas. The
-      // worker seeds/advances the DB on its next cron, so skipping is safe.
-      console.warn("sync:atlas — skipped (could not determine seed state)");
-      return;
-    }
-    Bun.spawn(["bun", "src/server/sync.ts"], {
-      stdout: "inherit",
-      stderr: "inherit",
-      env: { ...process.env },
-    }).exited.then((code) => {
-      if (code !== 0) console.warn(`sync:atlas exited ${code} — server continues with baked-in data`);
-    });
-  })();
+  void seedDbIfEmpty(deps);
 
   // Refresh embeddings on boot (first deploy + every redeploy), detached + best-effort.
-  startBootEmbeddings();
+  deps.startBootEmbeddings();
 
   // In-process atlas freshness updater (on by default; ATLAS_UPDATE_ENABLED=0 disables).
-  startUpdater();
+  deps.startUpdater();
 
   // Preview feature: start the background bundle sweeper (blocked-sha takedowns,
   // stale-vs-main eviction after the updater hot-swaps main, LRU/orphan
   // collection). The previews migrations are applied by the always-on boot
   // runMigrations() above — no preview-specific migration call is needed.
-  void (async () => {
-    const { startPreviewSweeper } = await import("./preview/sweeper.ts");
-    startPreviewSweeper();
-  })();
+  void deps.startPreviewSweeper();
 }
+
+/* v8 ignore start -- the guard itself: import.meta.main is false for an imported
+   module, so no test process can execute this line. boot() above is what it
+   calls, and that IS tested. */
+if (import.meta.main) await boot();
 /* v8 ignore stop */
