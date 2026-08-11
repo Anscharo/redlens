@@ -1,16 +1,18 @@
 // fetchArchive + fetchAndExtract: the network half of tarball.ts. Pure parts
 // (archiveUrl, gunzipCapped, extractContentArchive) are covered in
-// preview.test.ts. Stubs globalThis.fetch the same way open-prs.test.ts does,
-// restored in afterAll.
-import { test, expect, afterAll } from "bun:test";
+// preview.test.ts. Stubs globalThis.fetch the same way open-prs.test.ts does.
+import { test, expect, afterEach } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fetchArchive, fetchAndExtract, SourceGoneError } from "./tarball.ts";
 
+// Restored after EVERY test, not just at the end of the file: today each test
+// installs its own stub first, but a future test that forgets would silently
+// inherit the previous one.
 const realFetch = globalThis.fetch;
-afterAll(() => {
+afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
@@ -46,6 +48,23 @@ test("fetchArchive: ok → returns the response body stream, request includes au
   expect(result).toBe(body);
   expect(capturedUrl).toBe("https://github.com/owner/repo/archive/abc123.tar.gz");
   expect((capturedInit!.headers as any).authorization).toBe("Bearer my-token");
+});
+
+test("fetchArchive: apiTarball → hits api.github.com/.../tarball/... with a Bearer header", async () => {
+  let capturedInit: RequestInit | undefined;
+  let capturedUrl: string | undefined;
+  const body = new ReadableStream();
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string, init: RequestInit) => {
+    capturedUrl = String(url);
+    capturedInit = init;
+    return Promise.resolve({ status: 200, ok: true, body } as Response);
+  };
+  const result = await fetchArchive("owner/private-repo", "abc123", "inst-token", { apiTarball: true });
+  expect(result).toBe(body);
+  expect(capturedUrl).toBe("https://api.github.com/repos/owner/private-repo/tarball/abc123");
+  expect((capturedInit!.headers as any).authorization).toBe("Bearer inst-token");
+  expect(capturedInit!.redirect).toBe("follow");
 });
 
 test("fetchArchive: no token → no authorization header", async () => {

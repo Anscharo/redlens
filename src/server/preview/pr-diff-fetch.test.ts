@@ -1,13 +1,16 @@
 // fetchPreviewFiles + the PR-files / compare-with-cap-recovery paths of
 // pr-diff.ts. The doc-level diff itself (diffSnapshots, pure) lives in
 // preview.test.ts — this file only covers the GitHub round-trips.
-// Stubs globalThis.fetch (same pattern as open-prs.test.ts), restored in afterAll.
-import { test, expect, afterAll } from "bun:test";
+// Stubs globalThis.fetch (same pattern as open-prs.test.ts).
+import { test, expect, afterEach } from "bun:test";
 import { fetchPreviewFiles, CompareError } from "./pr-diff.ts";
 import type { Resolved } from "./resolve.ts";
 
+// Restored after EVERY test, not just at the end of the file: today each test
+// installs its own stub first, but a future test that forgets would silently
+// inherit the previous one.
 const realFetch = globalThis.fetch;
-afterAll(() => {
+afterEach(() => {
   globalThis.fetch = realFetch;
 });
 

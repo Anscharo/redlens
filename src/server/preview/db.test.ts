@@ -2,7 +2,7 @@
 // sql tag — same pattern as src/server/auth.test.ts — so no real Postgres
 // connection is attempted. The stub records every query call so assertions can
 // check which branch ran, and returns a queued response per call.
-import { test, expect, mock, beforeEach } from "bun:test";
+import { test, expect, mock, beforeEach, afterAll } from "bun:test";
 
 let queued: unknown[] = [];
 let calls: { strings: readonly string[]; values: unknown[] }[] = [];
@@ -24,10 +24,15 @@ const {
   touchPreview,
   previewsTodayCount,
   previewsTodayCountForOwner,
+  previewsTodayCountForRepo,
   listPreviews,
   isBlockedSha,
   blockedShas,
 } = await import("./db.ts");
+
+// Restore mock.module (../db.ts) so it doesn't leak into sibling test files
+// sharing the single `bun test src/server` process.
+afterAll(() => mock.restore());
 
 beforeEach(() => {
   queued = [];
@@ -116,11 +121,29 @@ test("previewsTodayCountForOwner scopes to trusted fork previews for that owner"
   expect(calls[0]!.values).toContain("blimpa/");
 });
 
+test("previewsTodayCountForRepo scopes to that repo's private previews today", async () => {
+  queued.push([{ n: 4 }]);
+  expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(4);
+  expect(calls[0]!.values).toContain("acme/atlas-fork");
+  expect(calls[0]!.strings.join("")).toContain("private = true");
+});
+
+test("previewsTodayCountForRepo defaults to 0 when no row comes back", async () => {
+  queued.push([]);
+  expect(await previewsTodayCountForRepo("acme/atlas-fork")).toBe(0);
+});
+
 test("listPreviews returns rows, limit defaults to 50", async () => {
   queued.push([{ sha: "s1" }, { sha: "s2" }]);
   const rows = await listPreviews();
   expect(rows).toHaveLength(2);
   expect(calls[0]!.values).toContain(50);
+});
+
+test("listPreviews excludes private rows", async () => {
+  queued.push([]);
+  await listPreviews();
+  expect(calls[0]!.strings.join("")).toContain("private = false");
 });
 
 test("listPreviews respects an explicit limit", async () => {

@@ -90,15 +90,19 @@ describe("buildSystemPrompt", () => {
     }
   });
 
+  // The date is injected rather than recomputed after the call: a run that
+  // straddles UTC midnight would otherwise compare two different days.
   it("includes today's date and the atlas commit when present", () => {
-    const prompt = buildSystemPrompt(ix);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = "2026-02-14";
+    const prompt = buildSystemPrompt(ix, undefined, "inline", today);
     expect(prompt).toContain(`Today's date is ${today}`);
     if (ix.meta?.atlasCommit) {
       expect(prompt).toContain(`commit ${ix.meta.atlasCommit.slice(0, 7)}`);
     } else {
       expect(prompt).toContain("(unknown commit)");
     }
+    // …and the default (no injection) still stamps a real ISO date.
+    expect(buildSystemPrompt(ix)).toMatch(/Today's date is \d{4}-\d{2}-\d{2}\./);
   });
 
   it("appends a Current page section when ctx has a page context", () => {

@@ -6,6 +6,7 @@
 // (loadIndexes/setIndexes/getIndexes), docRowToNode, writeDocsJson/writeDocsSplit,
 // and the small graph-traversal helpers (resolveNode/ancestorChain/descendantIds).
 import { describe, it, expect, beforeEach, afterAll } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -274,17 +275,49 @@ describe("readArtifactsFromDisk", () => {
 });
 
 describe("loadIndexes / setIndexes / getIndexes", () => {
-  // IMPORTANT ORDERING NOTE: `state` in indexes.ts is module-level and shared
-  // across every test file in this `bun test` run. This describe block is
-  // the first (alphabetically-earliest test file's first consumer) to touch
-  // that state, so this first test genuinely exercises the fresh/first-load
-  // path of loadIndexes() (reading real artifacts off disk) before anything
-  // else in the run has called loadIndexes()/setIndexes(). Keep it first.
-  it("loadIndexes() on a fresh module reads real artifacts off disk and memoizes", () => {
-    const first = loadIndexes();
-    expect(first.docMap.size).toBeGreaterThan(0);
-    const second = loadIndexes();
-    expect(second).toBe(first); // memoized — no second disk read
+  // `state` in indexes.ts is module-level and process-global for the whole
+  // `bun test` run. This block used to claim it was the first consumer of that
+  // state and therefore exercised loadIndexes()'s cold path — it was not:
+  // chat/* test files call loadIndexes() at module scope, and `bun test` runs
+  // files in directory-readdir order (filesystem-dependent), not alphabetically,
+  // so by the time we get here the memo is already populated by someone else and
+  // the assertion below was really testing "whatever setIndexes last installed".
+  //
+  // Cold-boot a CHILD PROCESS to exercise the fresh-module path instead.
+  //
+  // The obvious in-process trick is a cache-busting `import("./indexes.ts?x=1")`
+  // (what config.test.ts / db.test.ts do), and this block briefly did that — but
+  // bun's coverage collector keys records by source path with the query STRIPPED,
+  // and the duplicate instance's record replaces the canonical one for the entire
+  // `bun test` run. Every indexes.ts function exercised anywhere in the suite
+  // (docRowToNode, writeDocsJson/Split, resolveNode/ancestorChain/descendantIds,
+  // setIndexes/getIndexes/rebuildFromDisk — ~54 logic lines) then reported zero
+  // hits: a false "uncovered", not a real gap. Verified by flipping the query off
+  // and re-running with --coverage.
+  //
+  // A child process is strictly stronger anyway: the module AND the process
+  // globals are cold, so nothing an earlier test left in `config` can fool it,
+  // and it is position-independent by construction. `config.publicDir` is derived
+  // from the module's own location (not cwd), so the child needs no cwd setup.
+  const COLD_BOOT = `
+    const m = await import(${JSON.stringify(new URL("./indexes.ts", import.meta.url).href)});
+    const first = m.loadIndexes();
+    const second = m.loadIndexes();
+    console.log(JSON.stringify({ docs: first.docMap.size > 0, memoized: second === first }));
+  `;
+  it("loadIndexes() on a cold process reads real artifacts off disk and memoizes", () => {
+    const r = spawnSync(process.execPath, ["-e", COLD_BOOT], { encoding: "utf8" });
+    // Surface the child's stderr on failure rather than asserting it is empty —
+    // a runtime deprecation notice must not turn this into a false red in CI.
+    if (r.status !== 0) throw new Error(`cold-boot child exited ${r.status}:\n${r.stderr}`);
+    // memoized — the second call returns the same object, no second disk read.
+    expect(JSON.parse(r.stdout.trim())).toEqual({ docs: true, memoized: true });
+  });
+
+  it("loadIndexes() on the shared singleton returns the already-installed set, not a re-read", () => {
+    const installed = buildIndexes([node({ id: "installed" })], [], [], { atlasCommit: "installed" });
+    setIndexes(installed);
+    expect(loadIndexes()).toBe(installed);
   });
 
   it("getIndexes reflects whatever setIndexes last installed", () => {

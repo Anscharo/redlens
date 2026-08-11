@@ -34,6 +34,8 @@
 -->
 
 ## 2026-08-11
+- Added X Layer support, so addresses on X Layer now link to their own block explorer instead of Etherscan
+- Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
 - Atlas PR previews now mark documents removed by a PR, and no longer miss changes in files too large for GitHub to send a diff for
 
 ## 2026-08-06

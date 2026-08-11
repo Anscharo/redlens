@@ -490,11 +490,15 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
   };
 }
 
-export function startUpdater(): void {
+// Returns a stop handle. The server never calls it (the loop runs for the life
+// of the process), but a test that starts the updater must be able to cancel the
+// pending timer and clear `updaterEnabled` again — otherwise the flag leaks into
+// every later test file, and bun does not order test files predictably.
+export function startUpdater(): { stop: () => void } {
   const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
   if (disabled) {
     console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");
-    return;
+    return { stop: () => {} };
   }
   updaterEnabled = true;
 
@@ -510,8 +514,13 @@ export function startUpdater(): void {
   // loop can NEVER surface an unhandled rejection or die: tick() is fully
   // try/catch/finally today, but passing it bare to setTimeout would drop a
   // rejected promise on the floor if a future edit ever threw outside that guard.
-  const schedule = () =>
-    setTimeout(() => void tick().catch((e) => log(`tick rejected: ${(e as Error).message}`)), intervalMs).unref?.();
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
+  const schedule = () => {
+    if (stopped) return;
+    timer = setTimeout(() => void tick().catch((e) => log(`tick rejected: ${(e as Error).message}`)), intervalMs);
+    timer.unref?.();
+  };
 
   async function tick(): Promise<void> {
     try {
@@ -525,6 +534,15 @@ export function startUpdater(): void {
   }
 
   schedule();
+
+  return {
+    stop: () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      updaterEnabled = false;
+    },
+  };
 }
 
 function short(sha: string | null): string {
