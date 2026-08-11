@@ -1,11 +1,23 @@
 [
   {
+    "uuid": "00605e88-27a6-40f1-ae7e-5be7467a2da6",
+    "reason": "category container (bundles Operational Security requirements, Compromised Key Response, and Non-Compliance consequences under one heading; not a single sequence)"
+  },
+  {
     "uuid": "03d32549-1da5-4a9c-902f-196641370eaf",
     "reason": "category container"
   },
   {
     "uuid": "07d1ed44-c457-49b9-a054-50e26aa70acc",
     "reason": "other (individual step under A.2.2.5.2.3.2)"
+  },
+  {
+    "uuid": "128f71a4-ad1c-4efa-a1da-706f85d7c89a",
+    "reason": "requirement spec (single consent-timing rule under Modification And Termination Of Ecosystem Accords)"
+  },
+  {
+    "uuid": "12f5afad-4622-4536-bb28-a71c391126ae",
+    "reason": "category container (groups the actual Delegate Onboarding Process doc plus Application Requirements/Minimum Term/Delegate Record; not itself sequential)"
   },
   {
     "uuid": "1a1f4bef-d19d-42ff-8ac4-746498df9fbc",
@@ -64,6 +76,14 @@
     "reason": "requirement spec"
   },
   {
+    "uuid": "5028d29a-e1cb-4340-944c-2026e25416b6",
+    "reason": "other (cross-reference stub: 'process is the same as' the already-defined Redeem From ERC-4626 Vault doc; no independent content)"
+  },
+  {
+    "uuid": "593de1c8-261c-4828-8fa7-c933d393770b",
+    "reason": "other (describes when Module Onboarding Checklists get created; not itself a sequential process)"
+  },
+  {
     "uuid": "5d0649b9-c4ce-4a8a-bd2c-c6c0cc3de322",
     "reason": "other (parameter config)"
   },
@@ -74,6 +94,10 @@
   {
     "uuid": "64d7e377-9870-4563-a073-768bb7d259a4",
     "reason": "requirement spec"
+  },
+  {
+    "uuid": "66c7fcb2-1936-49b4-886e-922b38144d24",
+    "reason": "other (content is a bare on-chain address; false positive on the 'redemption' keyword, not a process)"
   },
   {
     "uuid": "6857396f-f0ce-4471-8e48-ed5f06b86830",
@@ -92,6 +116,10 @@
     "reason": "requirement spec"
   },
   {
+    "uuid": "76e2717b-c65a-436e-88db-d9c8c19ea1e5",
+    "reason": "category container (Section splitting mutual-consent vs without-consent cases into two child docs; not itself sequential)"
+  },
+  {
     "uuid": "7bc96051-ce11-4e29-aa30-b535183aeaa7",
     "reason": "requirement spec"
   },
@@ -102,6 +130,10 @@
   {
     "uuid": "847092ba-eb97-47ee-a121-6c8e505bc480",
     "reason": "requirement spec"
+  },
+  {
+    "uuid": "859e8e2f-61da-453f-91bb-f50f701149c8",
+    "reason": "other (describes the SBE-BEAM Operator's authority to manage parameters; no ordered step sequence)"
   },
   {
     "uuid": "92dcb95c-5a3d-45a4-a1e6-865686909c64",
@@ -118,6 +150,10 @@
   {
     "uuid": "a227491c-903f-4571-aad0-b76422a5ea7f",
     "reason": "requirement spec"
+  },
+  {
+    "uuid": "abd8ac0d-1265-4a71-aaea-2fff6670eac5",
+    "reason": "role definition (defines the Executive Process Liaison role, no ordered steps)"
   },
   {
     "uuid": "ae2b5d27-b666-4796-8791-b59d151daf41",
@@ -148,12 +184,20 @@
     "reason": "requirement spec"
   },
   {
+    "uuid": "c916719b-99d5-4725-868a-8c40cfa64d79",
+    "reason": "category container (groups three alternative offboarding paths — Voluntary/Non-Performance/Emergency — plus status update; not a single sequence)"
+  },
+  {
     "uuid": "ca876157-5518-4bf3-9e87-7c4a07a13d36",
     "reason": "requirement spec"
   },
   {
     "uuid": "cb4d28ac-6d54-4d57-99b2-ed80cea73139",
     "reason": "requirement spec"
+  },
+  {
+    "uuid": "d275f766-a5d6-4356-a5b8-55ae17d651e0",
+    "reason": "other (cross-reference stub: 'process is the same as' the already-defined Withdraw From ERC-4626 Vault doc; no independent content)"
   },
   {
     "uuid": "d537c3df-287c-45a5-aa69-2b4242b2259f",
@@ -180,6 +224,10 @@
     "reason": "role definition"
   },
   {
+    "uuid": "e55cfedb-546b-47ba-bc46-e07764f44527",
+    "reason": "other (individual step under A.1.10.2.3.2.2.3.1.2 — part of the curated Prime Spell Process Breakdown, not a process itself)"
+  },
+  {
     "uuid": "ef1ad0bf-069c-4199-8620-a508b34c2348",
     "reason": "category container"
   },
@@ -198,6 +246,10 @@
   {
     "uuid": "f88d568e-bf5b-46f4-9adf-5299854de709",
     "reason": "requirement spec"
+  },
+  {
+    "uuid": "fae8a2cd-0ae7-4c80-838d-48d11b9451f0",
+    "reason": "other (cross-reference stub: 'process is the same as' the already-defined Deposit To ERC-4626 Vault doc; no independent content)"
   },
   {
     "uuid": "fb57a48c-5c33-45a4-a49b-2547234129c0",
