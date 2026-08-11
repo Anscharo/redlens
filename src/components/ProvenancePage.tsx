@@ -8,7 +8,7 @@ const STAGES: Stage[] = [
   {
     label: "parse atlas",
     description:
-      "Reads the atomized document.md files in the upstream next-gen-atlas repository and turns their headings, UUIDs, types, links, and content into structured records.",
+      "Reads the markdown source files in the upstream next-gen-atlas repository — whichever way it currently groups them — and turns their headings, UUIDs, types, links, and content into structured records.",
     powers: [
       "Atlas reader and breadcrumbs",
       "Full-content MiniSearch index",

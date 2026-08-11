@@ -10,14 +10,16 @@
 //      which keeps every extracted path inside the target dir (verified: `../`
 //      traversal entries are collapsed in-bounds, never escape).
 //
-// Only the archive's `<top>/content/**` is used by the build (parseTree reads
-// ATLAS_SRC_DIR/content); other top-level files (README, sync/, …) are extracted
-// alongside but ignored. ATLAS_SRC_DIR is the single top-level dir.
+// Only the archive's `<top>/content/**` is used by the build (atlas-source.mjs
+// reads ATLAS_SRC_DIR and detects the layout there); other top-level files
+// (README, sync/, …) are extracted alongside but ignored. ATLAS_SRC_DIR is the
+// single top-level dir.
 
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
+import { bucketFromFilename } from "../../../scripts/lib/atlas-source.mjs";
 
 export interface ExtractCaps {
   maxBytes: number;
@@ -104,6 +106,11 @@ export async function gunzipCapped(input: Readable, maxBytes: number): Promise<B
   return Buffer.concat(chunks);
 }
 
+// Documents in an extracted content/ tree, whichever layout it is in. Counting
+// `document.md` files alone silently returned 0 for the consolidated layout —
+// which made the maxDocs cap inert and reported docCount: 0 on every preview.
+const HEADING_UUID_RE = /<!-- UUID: [0-9a-f-]{36} -->/g;
+
 function countDocs(dir: string): number {
   let n = 0;
   const stack = [dir];
@@ -116,8 +123,15 @@ function countDocs(dir: string): number {
       continue;
     }
     for (const e of entries) {
-      if (e.isDirectory()) stack.push(path.join(d, e.name));
-      else if (e.name === "document.md") n++;
+      if (e.isDirectory()) {
+        stack.push(path.join(d, e.name));
+      } else if (e.name === "document.md") {
+        n++; // atomized: one file, one document
+      } else if (bucketFromFilename(e.name)) {
+        // consolidated: one composed file, many documents — count the headings.
+        const text = fs.readFileSync(path.join(d, e.name), "utf8");
+        n += text.match(HEADING_UUID_RE)?.length ?? 0;
+      }
     }
   }
   return n;

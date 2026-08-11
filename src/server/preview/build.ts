@@ -14,8 +14,15 @@ import { spawn } from "node:child_process";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
-import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
+import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
 import { contentDiff } from "./patch-diff.ts";
+import {
+  diffSnapshots,
+  loadBaseSnapshot,
+  snapshotFromDocsJson,
+  type Snapshot,
+} from "./snapshot.ts";
+import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps } from "./identity.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
@@ -421,7 +428,6 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         if (filesR.ok) {
           meta.aheadBy = filesR.v.aheadBy;
           meta.behindBy = filesR.v.behindBy;
-          if (filesR.v.truncated) meta.diffTruncated = true;
         }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
@@ -447,21 +453,37 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // canonical previews a failure is non-fatal: no diff.json → serve-time
       // vs-main fallback.
       try {
-        if (filesR.ok) {
-          const nodes = Object.values(
-            JSON.parse(fs.readFileSync(path.join(paths.outDir, "docs.json"), "utf8")).nodes,
-          ) as { doc_no: string; id: string; title?: string; content?: string }[];
-          const byId = new Map(nodes.map((n) => [n.id, n]));
-          const docNoToId = new Map(nodes.map((n) => [n.doc_no, n.id]));
-          // Identity-aware added/changed split: a doc uuid absent from the live
-          // atlas is NEW even if its file was "modified" (and vice versa).
+        if (filesR.ok && filesR.v.mergeBase) {
+          const byId = snapshotFromDocsJson(paths.outDir);
           const mainDocs = getIndexes().docMap;
-          const mainIds = mainDocs.size > 0 ? new Set(mainDocs.keys()) : undefined;
-          const { added, changed, patches, noPatch } = mapChangedDocs(filesR.v.files, docNoToId, mainIds);
-          // For CHANGED docs, GitHub's per-path patch can cross doc identities
-          // (renumbering moves docs between paths). Replace it with an identity
-          // diff — this uuid's content here vs on the live atlas — and record
-          // renumberings explicitly.
+          // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather
+          // than by changed filename. Filenames stopped identifying documents
+          // when the atlas consolidated ~11k document.md files into ~16 composed
+          // files (upstream #294) — one changed file now spans a whole Scope.
+          // Comparing uuid-keyed snapshots is layout-blind, so it survives that
+          // regrouping and the next one.
+          const base = await loadBaseSnapshot(
+            filesR.v.mergeBase,
+            path.join(paths.dir, "base"),
+            // Same injected fetcher, token, and tarball route the head build used
+            // — only reachable on the public path (private previews set
+            // wantCompare = false), but it must not diverge if that ever changes.
+            (s, dir) =>
+              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
+            { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
+          );
+          const { added, changed } = diffSnapshots(base, byId);
+          // An ADDED doc has no prior content anywhere — render its body as pure
+          // additions. CHANGED docs get their patch from the vs-main identity
+          // diff below.
+          const patches: Record<string, DiffLine[]> = {};
+          for (const id of added) {
+            const dl = contentDiff("", byId.get(id)?.content ?? "");
+            if (dl.length) patches[id] = dl;
+          }
+          // For CHANGED docs the rendered redline is this uuid's content here vs
+          // on the LIVE atlas (what the reader is comparing against on screen),
+          // and renumberings are recorded explicitly.
           const renumbered: Record<string, [string, string]> = {};
           for (const id of changed) {
             const mainNode = mainDocs.get(id);
@@ -508,7 +530,10 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
             JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
           );
           fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
-          if (noPatch > 0) console.warn(`[preview] ${sha.slice(0, 8)}: ${noPatch} changed doc(s) had no patch (binary/truncated/rename)`);
+        } else if (filesR.ok) {
+          // No merge base from GitHub → no trustworthy base side. Skip diff.json
+          // rather than guess; the reader falls back to the serve-time vs-main diff.
+          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — skipping doc-level diff`);
         }
       } catch {
         /* diff endpoint falls back to vs-main */
