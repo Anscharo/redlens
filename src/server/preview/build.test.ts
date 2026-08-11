@@ -11,7 +11,7 @@ import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "
 import { previewPaths, readMeta } from "./cache.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
-import { setIndexes } from "../retrieval/indexes.ts";
+import { getIndexes, setIndexes } from "../retrieval/indexes.ts";
 import { snapshotFromSrcDir } from "./snapshot.ts";
 
 const tmpDirs: string[] = [];
@@ -328,6 +328,17 @@ test("doc-level diff: added/changed split by uuid against the merge base, not by
   // redline is against). Unset, it throws and the outer catch silently skips the
   // whole block — so seed a minimal one. atlasCommit deliberately differs from
   // the merge base, which is what forces the base tree to be fetched.
+  //
+  // `bun test` shares module state across every file in the run, so this MUST be
+  // restored: leaving a 1-document atlas installed globally breaks any later
+  // file that reads getIndexes() (it broke 31 chat/verify tests). Captured here
+  // rather than at module scope so it doesn't depend on file execution order.
+  let prevIndexes: unknown;
+  try {
+    prevIndexes = getIndexes();
+  } catch {
+    prevIndexes = undefined; // nothing loaded yet — restore that same condition
+  }
   setIndexes({
     docMap: new Map([[U(1), { id: U(1), doc_no: "A.1", title: "One", content: "live" }]]),
     meta: { atlasCommit: "live-sha" },
@@ -365,6 +376,7 @@ test("doc-level diff: added/changed split by uuid against the merge base, not by
     expect(patches[U(3)].every((l: [string, ...unknown[]]) => l[0] === "+")).toBe(true);
     expect(patches[U(3)].map((l: [string, string]) => l[1])).toContain("brand new");
   } finally {
+    setIndexes(prevIndexes as never);
     if (prevMin === undefined) delete process.env.ATLAS_MIN_NODES;
     else process.env.ATLAS_MIN_NODES = prevMin;
   }
