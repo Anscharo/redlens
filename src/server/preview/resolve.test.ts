@@ -41,6 +41,7 @@ config.githubAppPrivateKey = privateKey.export({ type: "pkcs8", format: "pem" })
 let installedId: number | null = null;
 let mintedToken: string | null = null;
 let branchJson: any = null;
+let repoJson: any = null; // GET /repos/<owner>/<repo> (default_branch lookup for HEAD)
 let lastBranchReq: { url: string; headers: any } | null = null;
 function installFetch(): void {
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
@@ -51,6 +52,9 @@ function installFetch(): void {
       lastBranchReq = { url: u, headers: init?.headers };
       return branchJson == null ? new Response("no", { status: 404 }) : Response.json(branchJson);
     }
+    if (/\/repos\/[^/]+\/[^/]+$/.test(u)) {
+      return repoJson == null ? new Response("no", { status: 404 }) : Response.json(repoJson);
+    }
     return new Response("nope", { status: 404 });
   }) as unknown as typeof fetch;
 }
@@ -60,6 +64,7 @@ beforeEach(() => {
   installedId = null;
   mintedToken = null;
   branchJson = null;
+  repoJson = null;
   lastBranchReq = null;
   config.privatePreviewsEnabled = false;
   installFetch();
@@ -125,6 +130,30 @@ test("resolveRef: gate ON, private repo, App installed -> private:true via insta
   // The branch lookup went through the installation token, to the right URL.
   expect(lastBranchReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/branches/main");
   expect((lastBranchReq?.headers as any)?.authorization).toBe("Bearer inst-tok");
+});
+
+test("resolveRef: private repo, HEAD ref resolves the repo's default branch", async () => {
+  config.privatePreviewsEnabled = true;
+  installedId = 42;
+  mintedToken = "inst-tok";
+  repoJson = { default_branch: "trunk" }; // GET /repos/acme/secret-atlas via installation token
+  branchJson = { commit: { sha: "deftip", commit: { committer: { date: "2026-08-01T00:00:00Z" } } } };
+  const gh = fakeGh({}); // service token can't see the repo -> 404
+
+  const r = await resolveRef(decodeId("acme:secret-atlas:HEAD")!, gh);
+  expect(r).toMatchObject({ repo: "acme/secret-atlas", sha: "deftip", ref: "trunk", private: true });
+  // The branch lookup targets the RESOLVED default branch, not the "HEAD" sentinel.
+  expect(lastBranchReq?.url).toBe("https://api.github.com/repos/acme/secret-atlas/branches/trunk");
+});
+
+test("resolveRef: private repo, HEAD ref but default-branch lookup fails -> not-found", async () => {
+  config.privatePreviewsEnabled = true;
+  installedId = 42;
+  mintedToken = "inst-tok";
+  repoJson = null; // repo metadata unavailable
+  const gh = fakeGh({});
+  const r = await resolveRef(decodeId("acme:secret-atlas:HEAD")!, gh);
+  expect(r).toEqual({ error: "not-found" });
 });
 
 test("resolveRef: gate ON, private repo, App not installed -> app-not-installed error", async () => {

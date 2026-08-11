@@ -180,6 +180,19 @@ export async function checkForkLineage(repo: string, gh: GhClient): Promise<"ok"
  * Resolve a parsed pr/branch id to its head SHA via the GitHub API. `sha` ids are
  * resolved upstream (repo comes from the previews table), not here.
  */
+// "HEAD" is the frontend's sentinel for "this repo's default branch" — emitted
+// when a bare repo URL (no /tree/<branch>) is pasted. Resolve it to the real
+// branch name via repo metadata so the preview's ref/label reads correctly and
+// the /branches/<ref> fetch has a concrete branch to hit. A real branch literally
+// named "HEAD" (essentially nonexistent — git tooling forbids it) would be
+// shadowed; accepted edge case. Every other ref passes through untouched.
+async function resolveDefaultBranch(gh: GhClient, repo: string, ref: string): Promise<string | null> {
+  if (ref !== "HEAD") return ref;
+  const r = await gh.fetchJson(`/repos/${repo}`);
+  const def = r.json?.default_branch;
+  return r.ok && typeof def === "string" && def ? def : null;
+}
+
 export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | { error: ResolveError }> {
   const ge = gateError(p);
   if (ge) return { error: ge };
@@ -222,18 +235,22 @@ export async function resolveRef(p: ParsedId, gh: GhClient): Promise<Resolved | 
         const tok = await installationToken(p.repo);
         if (!tok) return { error: "app-not-installed" };
         const igh = makeGhClient(tok);
-        const r = await igh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
+        const ref = await resolveDefaultBranch(igh, p.repo, p.ref);
+        if (!ref) return { error: "not-found" };
+        const r = await igh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(ref)}`);
         const sha = r.json?.commit?.sha;
         if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
-        return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json), private: true };
+        return { repo: p.repo, sha, kind: "branch", ref, date: commitDate(r.json), private: true };
       }
       // "public" or "not-found" — fall through to the existing public path below.
     }
     const lineage = await checkForkLineage(p.repo, gh);
     if (lineage !== "ok") return { error: lineage === "not-found" ? "not-found" : "not-a-fork" };
   }
-  const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(p.ref)}`);
+  const ref = await resolveDefaultBranch(gh, p.repo, p.ref);
+  if (!ref) return { error: "not-found" };
+  const r = await gh.fetchJson(`/repos/${p.repo}/branches/${encodeURIComponent(ref)}`);
   const sha = r.json?.commit?.sha;
   if (r.status === 404 || !r.ok || !sha) return { error: "not-found" };
-  return { repo: p.repo, sha, kind: "branch", ref: p.ref, date: commitDate(r.json), private: false };
+  return { repo: p.repo, sha, kind: "branch", ref, date: commitDate(r.json), private: false };
 }

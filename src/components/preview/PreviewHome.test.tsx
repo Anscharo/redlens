@@ -7,6 +7,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+
+// The private-repo form (and the profile button) are gated on usersEnabled(),
+// which is compiled off in the vitest build (__USERS_ENABLED__ = false). Mock it
+// so we can drive both states: `h.usersOn` toggles it per test.
+const h = vi.hoisted(() => ({ usersOn: false }));
+vi.mock("../../lib/usersEnabled", () => ({ usersEnabled: () => h.usersOn }));
+// ProfileButton needs an AuthProvider (supplied by main.tsx in production, not in
+// this isolated render); stub it — these tests are about the private form, not it.
+vi.mock("../chat/ProfileButton", () => ({ ProfileButton: () => null }));
+
 import { PreviewHome } from "./PreviewHome";
 
 function dbRow(over: Record<string, unknown>) {
@@ -26,12 +36,14 @@ function mockList(rows: unknown[]) {
 
 beforeEach(() => {
   localStorage.clear();
+  h.usersOn = false;
   mockList([]);
 });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
+  h.usersOn = false;
 });
 
 describe("PreviewHome recent list (AND-semantics)", () => {
@@ -137,35 +149,54 @@ describe("PreviewHome input parsing", () => {
 });
 
 describe("PreviewHome private repo form", () => {
-  it("disables the private-preview button until owner/repo@branch parses", () => {
+  const PLACEHOLDER = /github\.com\/owner\/repo/;
+
+  beforeEach(() => {
+    h.usersOn = true; // logins enabled → the private form renders
+  });
+
+  it("is hidden entirely when logins are disabled for the environment", () => {
+    h.usersOn = false;
+    render(<PreviewHome />);
+    expect(screen.queryByText("Preview a private repo")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Preview private repo" })).toBeNull();
+  });
+
+  it("disables the private-preview button until the input parses", () => {
     render(<PreviewHome />);
     const button = screen.getByRole("button", { name: "Preview private repo" });
     expect(button).toBeDisabled();
 
-    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), {
-      target: { value: "acme/secret-atlas@main" },
-    });
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "acme/secret-atlas@main" } });
     expect(button).not.toBeDisabled();
   });
 
-  it("shows a hint for input that doesn't match owner/repo@branch", () => {
+  it("shows a hint for input that doesn't parse", () => {
     render(<PreviewHome />);
-    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), { target: { value: "not-a-valid-input" } });
-    expect(screen.getByText("Use owner/repo@branch.")).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "not a valid input" } });
+    expect(screen.getByText(/Paste a github\.com\/owner\/repo URL/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preview private repo" })).toBeDisabled();
   });
 
-  it("encodes a branch with a slash as ~ and navigates to the owner:repo:branch preview id on submit", () => {
-    const originalLocation = window.location;
-    Object.defineProperty(window, "location", { value: { ...originalLocation, href: "" }, writable: true });
+  // (input, expected preview-id) — covers every accepted private-input shape.
+  const cases: [string, string][] = [
+    ["acme/secret-atlas@feature/foo", "acme:secret-atlas:feature~foo"], // owner/repo@branch, slash → ~
+    ["acme/secret-atlas", "acme:secret-atlas:HEAD"], // owner/repo, default branch
+    ["https://github.com/acme/secret-atlas", "acme:secret-atlas:HEAD"], // full URL, default branch
+    ["github.com/acme/secret-atlas.git", "acme:secret-atlas:HEAD"], // URL, .git suffix, default branch
+    ["https://github.com/acme/secret-atlas/tree/feature/foo", "acme:secret-atlas:feature~foo"], // URL + branch
+  ];
+  for (const [input, id] of cases) {
+    it(`parses "${input}" → ${id} and navigates on submit`, () => {
+      const originalLocation = window.location;
+      Object.defineProperty(window, "location", { value: { ...originalLocation, href: "" }, writable: true });
 
-    render(<PreviewHome />);
-    fireEvent.change(screen.getByPlaceholderText("owner/repo@branch"), {
-      target: { value: "acme/secret-atlas@feature/foo" },
+      render(<PreviewHome />);
+      fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: input } });
+      fireEvent.click(screen.getByRole("button", { name: "Preview private repo" }));
+
+      expect(window.location.href).toContain(encodeURIComponent(id));
+      Object.defineProperty(window, "location", { value: originalLocation, writable: true });
     });
-    fireEvent.click(screen.getByRole("button", { name: "Preview private repo" }));
-
-    expect(window.location.href).toContain(encodeURIComponent("acme:secret-atlas:feature~foo"));
-    Object.defineProperty(window, "location", { value: originalLocation, writable: true });
-  });
+  }
 });
