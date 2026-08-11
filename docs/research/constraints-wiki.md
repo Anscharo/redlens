@@ -2,6 +2,24 @@
 
 *Research report + proof of concept, 2026-08-06. Companion reports: [frozen-constraints.md](frozen-constraints.md) (the constraint catalog this builds on), [synlang-wiki.md](synlang-wiki.md) (why formal re-encoding failed and what survived). Seed entries below were authored by Fable and verified against the live atlas at commit `441313ab`.*
 
+## Status (2026-08-07)
+
+**Done — the deterministic siblings this plan pointed at shipped instead of (not as) wiki prose.** The Phase 0 verdict said the biggest measured problems needed code, not commentary; that code landed as harness waves 1–2 (STATUS details in synlang-wiki.md §3.1/§3.2):
+
+- The **parameter table** (W7's "exact value + UUID or don't state it" made mechanical): `src/lib/paramIndex.ts`, wrong-value hard fail, `[E-const]` verifier evidence, `atlas_params` tool.
+- **Scaffolding liveness** (W9's machine-checkable half): `src/lib/liveness.ts`, scaffold/placeholder tags on tool results — grounded abstention now has evidence to cite.
+- The **false-absence hole**: the absence-claim contract (`verify/absence.ts`) — the failure Phase 0 caught pass-badged three times.
+- The **empty-answer bug** and **embed degradation** from the Phase 0 run: compose guard + timeout fix (wave 1).
+
+**Remaining — deliberately NOT started; investigate/think through before applying** (decision 2026-08-07):
+
+- **v2 card rerun** — trim to W1/W8/W9/W11 + track pointers, mandated `[Title](/atlas/uuid)` citation syntax, rerun the A/B on the now-fixed harness. Open question: waves 1–2 may have eaten enough of the card's value (absence + liveness are now code) that only the navigational wins remain — measure whether those alone justify +tokens.
+- **Phase 1 attach-on-hit** — gated on the v2 rerun measuring well; design below is still the reference.
+- **Phase 2 searchable commentary** — gated on Phase 1.
+- **Second-family review of W1–W11** — entries are still single-author drafts.
+- **W8's data twin** (A.6 template schema + 8-agent matrix, synlang-wiki §3.4) — only if `atlas_params` leaves a measurable gap.
+- **Prose-declared emptiness** — new gap found in wave 2: "There are no active legal counsels" is real prose, not structural emptiness, so liveness doesn't tag it; candidate heuristic, W9 covers it in commentary meanwhile.
+
 ## The idea, sharpened
 
 Have a frontier model (Fable, GPT Sol) write **commentary** on the atlas — not a re-encoding of its text, but the layer a good annotated legal code adds on top of statutes: what connects to what, which numbers govern which questions, where the traps are, what an empty registry means. The chatbot consumes the commentary as a **map**; the atlas stays the only ground truth it cites.

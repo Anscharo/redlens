@@ -75,9 +75,13 @@ The clearest reliability lesson from the corpus itself: half the frozen layer is
 
 ### 3.3 A system-prompt "constitutional card" (worth an experiment, strictly bounded)
 
+**STATUS: DEFERRED 2026-08-07** — Phase 0 (constraints-wiki.md) measured the full-card version: navigational wins, +35% input tokens, no help on false absences (now solved in code by §3.1/§3.2). A trimmed v2 rerun on the fixed harness is the open experiment; investigate before applying.
+
 The system prompt today injects structure (doc counts, type vocabularies, entity chains) but zero substantive rules. A ~1–2K-token card of the top settled constraints (companion report §1.1–1.3: hierarchy, amendment formulas, entrenchments, separation-of-powers) would give every turn standing knowledge of the constitution — plausibly fewer retrieval rounds on common "who can change what" questions and better-grounded follow-ups. Costs are real (every-turn tokens, a second source of truth the verifier must treat as evidence like `[E0]`), so this one should be A/B-measured with the existing eval harness before adoption, not assumed. Prose bullets with UUIDs will do; no notation needed.
 
 ### 3.4 Template schema + parameter table for A.6 (perf, opportunistic)
+
+**STATUS: DEFERRED 2026-08-07** — build only if the shipped `atlas_params` tool (§3.1) leaves a measurable gap on template-class questions.
 
 For "what are Spark's rate limits"-class questions, retrieval currently pulls many near-identical template leaves. A schema-plus-table artifact (one template description + 8-agent × parameter matrix) answers in one compact tool result. This is the only place the "wiki" framing genuinely pays for itself in tokens — and it's a data-shape change (a curated rollup, like the existing `atlas_report_*` tools), not a notation change. Natural fit: an `atlas_report_agent_template` or an extension of the primitive-matrix report.
 
