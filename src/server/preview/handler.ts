@@ -40,16 +40,20 @@ const gh = makeGhClient(config.githubToken);
 
 // Resolution TTL cache (per raw id). Tracks the branch/PR tip so a pushed commit
 // is picked up within ~60s without re-hitting GitHub on every request.
+// Exported (with the cap) for the eviction regression test only — not otherwise
+// consumed outside this module. Mirrors the diffCache/DIFF_CACHE_MAX pattern below.
 type ResolveResult = Resolved | { error: "gate-rejected" | "not-found" | "not-a-fork" | "app-not-installed" } | PendingPrivate;
-const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
+export const resolveCache = new Map<string, { at: number; v: ResolveResult }>();
 const RESOLVE_TTL_MS = 60_000;
-const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
+export const RESOLVE_CACHE_MAX = 1000; // FIFO cap — prevents indefinite growth under scanner traffic
 
-// Per-IP fixed window on the build-triggering events endpoint.
-const ipHits = new Map<string, { n: number; reset: number }>();
+// Per-IP fixed window on the build-triggering events endpoint. Exported for
+// direct testing of the threshold + the size>5000 sweep, both otherwise only
+// reachable by driving thousands of real HTTP calls through handlePreview.
+export const ipHits = new Map<string, { n: number; reset: number }>();
 const IP_WINDOW_MS = 10 * 60_000;
-const IP_LIMIT = 30;
-function rateLimited(ip: string): boolean {
+export const IP_LIMIT = 30;
+export function rateLimited(ip: string): boolean {
   const now = Date.now();
   const w = ipHits.get(ip);
   if (!w || now > w.reset) {
@@ -118,7 +122,13 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
         }
       : { error: "not-found" };
   } else if (gateError(parsed)) {
-    // gateError always returns null — reserved for future grammar-level gates
+    // Not unit-tested directly: gateError (resolve.ts, out of scope here) is
+    // hardcoded to always return null ("reserved for future grammar-level
+    // gates"), so no input reaches this branch's body without changing that
+    // file. bun's `/* v8 ignore */` comment did not suppress this line in this
+    // file despite matching the syntax used elsewhere in the codebase — left
+    // as a known, harmless gap rather than a directive that silently doesn't do
+    // what it claims.
     v = { error: "gate-rejected" };
   } else {
     v = await resolveRef(parsed, gh);

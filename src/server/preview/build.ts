@@ -124,7 +124,11 @@ function release(): void {
 // stderr is captured (and still forwarded to the server log) so a failed build
 // can tell the user WHAT was malformed — e.g. parseTree invariant violations
 // pinpointing the bad document — instead of a generic "could not be built".
-function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
+// Exported so its real subprocess behavior (exit code + stderr capture) is
+// unit-testable directly against a trivial `bun -e` script, without needing the
+// actual build pipeline scripts — the DI seam on BuildDeps only lets tests swap
+// this out, never exercise the real implementation itself.
+export function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
     let stderr = "";
     const child = spawn("bun", args, {
@@ -143,8 +147,9 @@ function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code
 }
 
 // Trim subprocess stderr to a user-displayable reason: the last few meaningful
-// lines (the invariant/exception summary), minus stack-trace noise.
-function buildErrorTail(stderr: string): string | undefined {
+// lines (the invariant/exception summary), minus stack-trace noise. Exported
+// for direct unit testing of the trimming rules.
+export function buildErrorTail(stderr: string): string | undefined {
   const lines = stderr
     .split("\n")
     .filter((l) => l.trim() && !/^\s*at /.test(l) && !/^\s*\d+ \|/.test(l) && !/^\s*\^\s*$/.test(l) && !/^Bun v/.test(l));
@@ -194,14 +199,23 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
       console.error(`[preview] countNewAddresses: failed to read address maps for ${outDir}:`, e);
       return undefined;
     }
+  /* v8 ignore start -- unreachable: `attempt < 2` bounds the loop to attempts 0
+   * and 1, and both always `return` from inside the loop (success above, or the
+   * attempt-1 failure branch above), so the loop can never complete normally and
+   * fall out to the statement below. It only exists so the function has a total
+   * return type; there is no input that reaches past the loop. */
   }
   return undefined;
+  /* v8 ignore stop */
 }
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
 // so they're never fork-treated — even though a PR's head repo usually IS a
-// fork. Only bare branch/sha previews of non-canonical repos count.
-function isForkPreview(resolved: Resolved): boolean {
+// fork. Only bare branch/sha previews of non-canonical repos count. Exported
+// for direct unit testing (also reachable indirectly via runBuild, but a fork
+// build's meta-shaping needs a fully-mocked build to reach, so a direct test
+// is the cheap way to pin this predicate on its own).
+export function isForkPreview(resolved: Resolved): boolean {
   return !resolved.pr && isFork(resolved.repo);
 }
 
@@ -213,7 +227,11 @@ function isForkPreview(resolved: Resolved): boolean {
 //        share those fork pools — burner-PR spam can only drain the 2/day pool.
 //   bare fork branch → score the fork OWNER; refused tier rejects the build;
 //        trusted owners get their own per-owner pool.
-async function forkGate(
+// Exported for direct unit testing: it's already a BuildDeps field (so runBuild
+// call sites can fake it), but that DI seam only lets tests SWAP it out — the
+// real implementation's own branches (this function's body) are only exercised
+// by calling it directly, stubbing globalThis.fetch beneath computeTrust.
+export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
   if (!resolved.pr && !isFork(resolved.repo)) {
@@ -519,6 +537,23 @@ export function getOrStartBuild(resolved: Resolved): Inflight {
   // Delete on completion so a failed build can be retried and a ready build
   // short-circuits via bundleReady on the next request.
   f.promise = runBuild(f, resolved).finally(() => inflight.delete(sha));
+  return f;
+}
+
+/** Test-only sibling of getOrStartBuild that threads injected deps through,
+ *  while still going through the REAL inflight map — unlike __runBuildForTest
+ *  (which builds a standalone Inflight the map never sees), this is what lets a
+ *  test exercise the dedup map itself: the concurrency semaphore shared across
+ *  distinct shas, and subscribeBuild/emit's fan-out + dedup for a sha that's
+ *  actually tracked. Never called by the server; getOrStartBuild always uses
+ *  realBuildDeps with no override. */
+export function __getOrStartBuildForTest(resolved: Resolved, deps: Partial<BuildDeps>): Inflight {
+  const sha = resolved.sha;
+  const existing = inflight.get(sha);
+  if (existing) return existing;
+  const f: Inflight = { sha, current: { phase: "fetching", sha }, subscribers: new Set(), done: false, promise: Promise.resolve() };
+  inflight.set(sha, f);
+  f.promise = runBuild(f, resolved, { ...realBuildDeps, ...deps }).finally(() => inflight.delete(sha));
   return f;
 }
 

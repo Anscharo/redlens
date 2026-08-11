@@ -11,6 +11,7 @@ import { countNewAddresses, baseMeta, __runBuildForTest, type BuildDeps } from "
 import { previewPaths, readMeta } from "./cache.ts";
 import { config } from "../config.ts";
 import { CANONICAL_REPO, type Resolved } from "./resolve.ts";
+import { rebuildFromDisk, getIndexes, type AtlasNode } from "../retrieval/indexes.ts";
 
 const tmpDirs: string[] = [];
 function mkTmp(): string {
@@ -226,6 +227,30 @@ test("public canonical build: forkGate path, service token, no private flag", as
   expect(meta?.private).toBeUndefined();
 });
 
+test("public build: a fresh sha over the fork-gate's daily quota fails as quota-exceeded (canonical/PR pool, not the private one)", async () => {
+  const sha = "pub00003";
+  builtShas.push(sha);
+  const resolved: Resolved = { repo: "someone/atlas-fork", sha, kind: "branch", ref: "wip", private: false };
+  let countCalled = false;
+  const ev = await __runBuildForTest(resolved, {
+    isBlockedSha: async () => false,
+    isKnownSha: async () => false, // not a known sha → quota applies
+    forkGate: async () => ({
+      tier: "known",
+      count: async () => {
+        countCalled = true;
+        return 7; // at the cap
+      },
+      quota: 7,
+    }),
+    spawnBuild: fakeSpawn(),
+    upsertPreview: async () => {},
+  });
+  expect(ev.phase).toBe("failed");
+  expect(ev.code).toBe("quota-exceeded");
+  expect(countCalled).toBe(true);
+});
+
 test("public build: forkGate refusing an untrusted fork fails as fork-not-trusted", async () => {
   const sha = "pub00002";
   builtShas.push(sha);
@@ -252,4 +277,127 @@ test("build: a blocked sha never rebuilds (admin takedown → not-found)", async
   });
   expect(ev.phase).toBe("failed");
   expect(ev.code).toBe("not-found");
+});
+
+// ---------------------------------------------------------------------------
+// Fork meta-shaping + accurate-diff generation (runBuild's biggest untested
+// block): forkOwner/aheadBy/behindBy, and the renumbered/reused-slot/patches
+// logic in diff.json + patches.json. No existing test ever gets a successful
+// fork build with `filesR.ok` true, since every other test either has
+// config.githubToken empty (wantCompare short-circuits false) or is private
+// (never compared at all). Builds a real (small, controlled) "main" atlas via
+// the real on-disk artifacts — CLAUDE.md: never rebuild them, just read what's
+// already there — so this stays honest about what mapChangedDocs/contentDiff/
+// detectIdentitySwaps actually do with real doc shapes, not a synthetic stub.
+// ---------------------------------------------------------------------------
+
+test("fork build: forkOwner/aheadBy/behindBy land in meta, and diff.json/patches.json capture a renumber + a reused-slot addition", async () => {
+  const sha = "f".repeat(40);
+  builtShas.push(sha);
+
+  // Real main indexes (already built per CLAUDE.md — never rebuilt here), force-
+  // read fresh so this test doesn't depend on what an earlier file left cached in
+  // the process-global singleton (see retrieval/indexes.test.ts's own comment on
+  // the same hazard). Only ever installs REAL data, so nothing to restore after.
+  rebuildFromDisk();
+  const mainDocs = getIndexes().docMap;
+  let mainDoc: AtlasNode | undefined;
+  for (const n of mainDocs.values()) {
+    if (/^[A-Z](\.\d+){1,4}$/.test(n.doc_no) && (n.content ?? "").length > 20) {
+      mainDoc = n;
+      break;
+    }
+  }
+  if (!mainDoc) throw new Error("no suitable doc found in the real atlas for this test's fixtures");
+  const realId = mainDoc.id;
+  // Same uuid, renumbered to a new slot — an ordinary edit-and-move, same title
+  // (so detectIdentitySwaps must NOT flag it — that's a distinct code path).
+  const newDocNo = `${mainDoc.doc_no}.9`;
+  // A brand-new uuid lands in the OLD slot mainDoc vacated — the "reused slot"
+  // case: GitHub's per-path patch would look like editing mainDoc away, which is
+  // misleading for what is actually a new, unrelated document.
+  const newId = "99999999-8888-7777-6666-555555555555";
+  const renamedFilename = `content/${newDocNo.replaceAll(".", "/")}/document.md`;
+  const reusedFilename = `content/${mainDoc.doc_no.replaceAll(".", "/")}/document.md`;
+
+  config.githubToken = "test-token"; // non-empty → wantCompare true (no priv, no empty-token short-circuit)
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = String(url);
+    if (u.includes("/compare/main...")) {
+      return Response.json({
+        files: [
+          { filename: renamedFilename, status: "modified", patch: "@@ -1 +1 @@\n-old\n+new" },
+          { filename: reusedFilename, status: "modified" }, // no patch → noPatch++ → console.warn
+        ],
+        ahead_by: 5,
+        behind_by: 2,
+      });
+    }
+    return new Response("not found", { status: 404 });
+  }) as unknown as typeof fetch;
+
+  const warnCalls: unknown[][] = [];
+  const origWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnCalls.push(args);
+
+  try {
+    const ev = await __runBuildForTest(
+      { repo: "someone/next-gen-atlas", sha, kind: "branch", ref: "feature", private: false },
+      {
+        isBlockedSha: async () => false,
+        isKnownSha: async () => true, // known sha → free rebuild, no quota round-trip
+        forkGate: async () => ({ tier: "known", count: async () => 0, quota: 10 }),
+        fetchAndExtract: async () => ({ srcDir: previewPaths(sha).srcDir, docCount: 2 }),
+        spawnBuild: async (args, env) => {
+          const out = env.ATLAS_OUT_DIR!;
+          fs.mkdirSync(out, { recursive: true });
+          if (args[0].includes("build-index")) {
+            const nodes = {
+              [realId]: { ...mainDoc, doc_no: newDocNo, content: `${mainDoc.content ?? ""} EDITED-AND-MOVED` },
+              [newId]: {
+                id: newId,
+                doc_no: mainDoc.doc_no,
+                title: "Brand New Doc",
+                type: "Core",
+                depth: mainDoc.depth,
+                parentId: mainDoc.parentId,
+                order: 999,
+                content: "totally new content that did not exist before",
+                contentHash: "x",
+              },
+            };
+            fs.writeFileSync(path.join(out, "docs.json"), JSON.stringify({ atlasCommit: env.ATLAS_COMMIT, nodes }));
+          }
+          fs.writeFileSync(path.join(out, "addresses.atlas.json"), JSON.stringify({ atlasCommit: env.ATLAS_COMMIT, addresses: {} }));
+          return { code: 0, stderr: "" };
+        },
+        upsertPreview: async () => {},
+      },
+    );
+    expect(ev.phase).toBe("ready");
+
+    const meta = readMeta(sha);
+    expect(meta?.forkOwner).toBe("someone");
+    expect(meta?.aheadBy).toBe(5);
+    expect(meta?.behindBy).toBe(2);
+    expect(meta?.diffTruncated).toBeUndefined();
+
+    const diffJson = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "diff.json"), "utf8"));
+    expect(diffJson.added).toEqual([newId]);
+    expect(diffJson.changed).toEqual([realId]);
+    expect(diffJson.renumbered).toEqual({ [realId]: [mainDoc.doc_no, newDocNo] });
+    expect(diffJson.reusedSlot[newId]).toMatchObject({ title: mainDoc.title, movedTo: newDocNo });
+    // Same title on both sides of the renumber → not an identity swap.
+    expect(diffJson.identitySwap).toEqual({});
+
+    const patches = JSON.parse(fs.readFileSync(path.join(previewPaths(sha).outDir, "patches.json"), "utf8"));
+    expect(Object.keys(patches).sort()).toEqual([realId, newId].sort());
+
+    // The reused-slot file's missing patch incremented noPatch → the warning fired.
+    expect(warnCalls.some((a) => String(a[0]).includes("had no patch"))).toBe(true);
+  } finally {
+    globalThis.fetch = origFetch;
+    console.warn = origWarn;
+  }
 });
