@@ -114,8 +114,14 @@ async function resolveId(rawId: string): Promise<ResolveResult> {
   } else {
     v = await resolveRef(parsed, gh);
   }
-  resolveCache.set(rawId, { at: now, v });
-  if (resolveCache.size > RESOLVE_CACHE_MAX) resolveCache.delete(resolveCache.keys().next().value!);
+  // Don't cache app-not-installed: it flips to resolvable the instant the owner
+  // installs the App on the repo, and a stale 60s error would make a fresh
+  // install look like it didn't take — the user reloads and still sees "not
+  // installed". Every other outcome is stable enough for the short TTL.
+  if (!("error" in v) || v.error !== "app-not-installed") {
+    resolveCache.set(rawId, { at: now, v });
+    if (resolveCache.size > RESOLVE_CACHE_MAX) resolveCache.delete(resolveCache.keys().next().value!);
+  }
   return v;
 }
 
