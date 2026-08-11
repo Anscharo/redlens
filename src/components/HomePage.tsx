@@ -1,3 +1,4 @@
+import { HelpIcon } from "./HelpIcon";
 import { Link } from "./Link";
 import { PatchNotes } from "./PatchNotes";
 import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
@@ -40,6 +41,26 @@ const CARDS: { page?: NavPage; to?: string; href?: string; name: string; desc: s
   },
 ];
 
+// Sits above the cards: the first thing a first-time visitor reads, before they
+// have to guess which card is the one they want.
+function HelpBanner() {
+  return (
+    <Link
+      to={ROUTES.FEATURES}
+      className="home-help-banner flex items-center gap-4 mb-6 w-full text-left"
+      style={{ color: "var(--accent)" }}
+    >
+      <HelpIcon size={28} />
+      <span>
+        <span className="block text-sm font-semibold text-tan">New here? See everything you can do</span>
+        <span className="block text-xs text-tan-3 leading-relaxed">
+          A complete guide to Sky Atlas by Redline, with a short how-to for each feature
+        </span>
+      </span>
+    </Link>
+  );
+}
+
 export function HomePage() {
   return (
     <main className="flex-1 overflow-y-auto px-6 py-16">
@@ -65,6 +86,7 @@ export function HomePage() {
             straight from the source.
           </p>
         </div>
+        <HelpBanner />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {CARDS.map((c) => {
             const body = (
@@ -86,31 +108,6 @@ export function HomePage() {
             );
           })}
         </div>
-        <Link to={ROUTES.FEATURES} className="home-help-banner flex items-center gap-4 mt-6 w-full text-left">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className="shrink-0"
-            style={{ color: "var(--accent)" }}
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M9.4 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.4 2.2-2.4 3.4" />
-            <path d="M12 17h.01" />
-          </svg>
-          <span>
-            <span className="block text-sm font-semibold text-tan">New here? See everything you can do</span>
-            <span className="block text-xs text-tan-3 leading-relaxed">
-              A complete guide to Sky Atlas by Redline, with a short how-to for each feature
-            </span>
-          </span>
-        </Link>
         <PatchNotes />
       </div>
     </main>

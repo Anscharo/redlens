@@ -21,10 +21,18 @@ export function FeaturesPage() {
               <h2 className="text-base font-semibold" style={{ color: "var(--tan)" }}>
                 {g.title}
               </h2>
-              {g.route && (
-                <Link to={g.route} className="mono text-xs link-accent">
-                  {g.route}
-                </Link>
+              {g.href ? (
+                // Leaves the router (preview mounts its own shell), so a plain
+                // anchor and a full load — same treatment HomePage's card gets.
+                <a href={g.href} className="mono text-xs link-accent">
+                  {g.href}
+                </a>
+              ) : (
+                g.route && (
+                  <Link to={g.route} className="mono text-xs link-accent">
+                    {g.route}
+                  </Link>
+                )
               )}
             </div>
             <p className="text-xs mb-4" style={{ color: "var(--tan-2)" }}>
