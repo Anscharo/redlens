@@ -19,7 +19,6 @@ import path from "node:path";
 // .mjs from scripts/lib — the same loader the build pipeline uses, so a preview
 // and a real build can never disagree about what a checkout contains.
 import { loadAtlasSource } from "../../../scripts/lib/atlas-source.mjs";
-import { fetchAndExtract } from "./tarball.ts";
 
 export interface SnapshotDoc {
   /** Structurally compatible with identity.ts's SwapNode, so the live atlas's
@@ -66,21 +65,24 @@ export function snapshotFromDocsJson(outDir: string): Snapshot {
 /**
  * The merge-base snapshot for a preview.
  *
- * `liveSnapshot` is the server's in-memory main atlas: when the merge base IS
- * the commit we already serve — the ordinary case for a PR opened against a main
- * we track hourly — that is the exact answer for free, no fetch at all. Only a
- * PR based on some other commit pays for a tarball.
+ * `live` is the server's in-memory main atlas: when the merge base IS the commit
+ * we already serve — the ordinary case for a PR opened against a main we track
+ * hourly — that is the exact answer for free, no fetch at all. Only a PR based on
+ * some other commit pays for a tarball.
+ *
+ * `fetchTree` is passed in rather than imported so this shares runBuild's
+ * injected tarball fetcher: the token differs per preview (service token vs
+ * GitHub-App installation token) and hermetic build tests stub it out.
  */
 export async function loadBaseSnapshot(
   mergeBase: string,
-  repo: string,
-  token: string,
   scratchDir: string,
+  fetchTree: (sha: string, atlasDir: string) => Promise<{ srcDir: string }>,
   live?: { atlasCommit?: string | null; snapshot: () => Snapshot },
 ): Promise<Snapshot> {
   if (live?.atlasCommit && live.atlasCommit === mergeBase) return live.snapshot();
 
-  const { srcDir } = await fetchAndExtract(repo, mergeBase, token, scratchDir);
+  const { srcDir } = await fetchTree(mergeBase, scratchDir);
   try {
     return snapshotFromSrcDir(srcDir);
   } finally {

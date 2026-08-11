@@ -447,9 +447,12 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
           // regrouping and the next one.
           const base = await loadBaseSnapshot(
             filesR.v.mergeBase,
-            resolved.repo,
-            config.githubToken,
             path.join(paths.dir, "base"),
+            // Same injected fetcher, token, and tarball route the head build used
+            // — only reachable on the public path (private previews set
+            // wantCompare = false), but it must not diverge if that ever changes.
+            (s, dir) =>
+              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
             { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
           );
           const { added, changed } = diffSnapshots(base, byId);
