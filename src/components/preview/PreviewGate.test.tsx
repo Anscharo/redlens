@@ -116,7 +116,7 @@ describe("PreviewGate access-failure screens (private previews)", () => {
       message: "https://github.com/apps/redlens/installations/new",
     });
     expect(screen.getByText(/RedLens app isn't installed/)).toBeTruthy();
-    const link = screen.getByRole("link", { name: "Install the app ↗" });
+    const link = screen.getByRole("link", { name: "Install the RedLens app ↗" });
     expect(link.getAttribute("href")).toBe("https://github.com/apps/redlens/installations/new");
   });
 
@@ -124,6 +124,6 @@ describe("PreviewGate access-failure screens (private previews)", () => {
     render(<PreviewGate id="pr-88" routerBase="/preview/pr-88" />);
     emit({ phase: "failed", code: "app-not-installed" });
     expect(screen.getByText(/RedLens app isn't installed/)).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Install the app ↗" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Install the RedLens app ↗" })).toBeNull();
   });
 });

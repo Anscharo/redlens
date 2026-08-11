@@ -129,6 +129,27 @@ async function ghFetch(
 }
 
 // ---------------------------------------------------------------------------
+// App metadata (install URL)
+// ---------------------------------------------------------------------------
+
+// The App's public install page — https://github.com/apps/<slug>/installations/new.
+// We only configure the numeric app id + private key, not the slug, so derive it
+// from GET /app (an app-JWT call). Cached on first success for the process; a
+// failure returns null (and is NOT cached, so the next request retries) so the
+// caller falls back to generic "ask the owner" copy rather than a broken link.
+let cachedInstallUrl: string | null = null;
+
+/** The App's install URL, or null if it couldn't be determined (unconfigured/failed). */
+export async function appInstallUrl(): Promise<string | null> {
+  if (cachedInstallUrl) return cachedInstallUrl;
+  if (!config.githubAppId || !config.githubAppPrivateKey) return null;
+  const r = await ghFetch("https://api.github.com/app", await appJwt());
+  const slug = r?.ok ? r.json?.slug : null;
+  if (typeof slug === "string" && slug) cachedInstallUrl = `https://github.com/apps/${slug}/installations/new`;
+  return cachedInstallUrl;
+}
+
+// ---------------------------------------------------------------------------
 // Installation lookup + token minting
 // ---------------------------------------------------------------------------
 
@@ -261,6 +282,7 @@ export async function userRepoPermission(repo: string, login: string): Promise<P
 /** Clears in-process caches. Test-only — production code never needs this. */
 export function __resetCachesForTest(): void {
   cachedJwt = null;
+  cachedInstallUrl = null;
   installationIdCache.clear();
   installationTokenCache.clear();
 }

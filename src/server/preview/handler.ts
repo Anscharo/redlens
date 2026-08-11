@@ -18,6 +18,7 @@ import { previewPaths, artifactPath, bundleReady, readMeta, touch, remove as rem
 import { PREVIEW_STORE, serveBundleArtifact } from "../bundle-store.ts";
 import { getPreviewRow, touchPreview, isBlockedSha, listPreviews } from "./db.ts";
 import { authorizePreviewAccess } from "./access.ts";
+import { appInstallUrl } from "./github-app.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 // noindex on every preview response: unreviewed (possibly fork) content must
@@ -194,7 +195,10 @@ async function drive(req: Request, rawId: string, ip: string, send: (ev: Preview
   send({ phase: "resolving" });
   const r = await resolveId(rawId);
   if ("error" in r) {
-    send({ phase: "failed", code: r.error });
+    // For app-not-installed, carry the App's install URL so the client can offer
+    // a one-click "Install the RedLens app" action instead of dead-end copy.
+    const message = r.error === "app-not-installed" ? ((await appInstallUrl().catch(() => null)) ?? undefined) : undefined;
+    send({ phase: "failed", code: r.error, message });
     return () => {};
   }
   // G3: authorize BEFORE any sha-bearing event (isBlockedSha/bundleReady/build)

@@ -116,14 +116,35 @@ export function PreviewGate({ id, routerBase }: { id: string; routerBase: string
       const installUrl = message && /^https?:\/\//.test(message) ? message : null;
       return (
         <Centered>
-          <p className="text-red">
-            The RedLens app isn't installed on this repository. Ask the repo owner/admin to install it, then reopen
-            this link.
-          </p>
-          {installUrl && (
-            <a href={installUrl} target="_blank" rel="noreferrer" className="text-sm" style={{ color: "var(--accent)" }}>
-              Install the app ↗
-            </a>
+          <p className="text-red">The RedLens app isn't installed on this repository yet.</p>
+          {installUrl ? (
+            <>
+              <p className="text-sm" style={{ color: "var(--tan-3)" }}>
+                If you own or administer the repo, install the app and choose this repository — then reload. Otherwise,
+                ask the repo owner/admin to install it.
+              </p>
+              <a
+                href={installUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-2 rounded mono text-sm"
+                style={{ background: "var(--hover)", border: "1px solid var(--accent)", color: "var(--tan)" }}
+              >
+                Install the RedLens app ↗
+              </a>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="text-sm"
+                style={{ color: "var(--accent)", background: "none", border: "none", cursor: "pointer" }}
+              >
+                I've installed it — reload
+              </button>
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--tan-3)" }}>
+              Ask the repo owner/admin to install it, then reopen this link.
+            </p>
           )}
           <a href={`${import.meta.env.BASE_URL}preview`} className="text-sm" style={{ color: "var(--accent)" }}>
             ← back to previews

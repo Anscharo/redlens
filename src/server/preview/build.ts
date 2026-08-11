@@ -27,7 +27,7 @@ import {
   previewsTodayCountForRepo,
 } from "./db.ts";
 import { isFork, repoOwner, makeGhClient, type Resolved } from "./resolve.ts";
-import { installationToken } from "./github-app.ts";
+import { installationToken, appInstallUrl } from "./github-app.ts";
 import { computeTrust, effectivePrTier, type TrustTier } from "./trust.ts";
 
 export type PreviewErrorCode =
@@ -332,7 +332,8 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
     // the public path is config.githubToken, always a string. Narrowing on
     // `== null` proves `token: string` below without a non-null assertion.
     if (token == null) {
-      fail(f, sha, "app-not-installed");
+      // Carry the install URL so the client can offer a one-click install action.
+      fail(f, sha, "app-not-installed", (await appInstallUrl().catch(() => null)) ?? undefined);
       return;
     }
     await acquire();

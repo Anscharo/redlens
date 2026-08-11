@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import { config } from "../config.ts";
 import {
   appJwt,
+  appInstallUrl,
   installationIdForRepo,
   userRepoPermission,
   normalizePem,
@@ -136,6 +137,50 @@ test("installationIdForRepo: 200 -> numeric id", async () => {
     Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ id: 999 }) } as Response);
   const id = await installationIdForRepo("owner/private-repo-2");
   expect(id).toBe(999);
+});
+
+// ---------------------------------------------------------------------------
+// appInstallUrl
+// ---------------------------------------------------------------------------
+
+test("appInstallUrl: GET /app slug -> install URL, cached across calls", async () => {
+  let calls = 0;
+  // @ts-expect-error stub
+  globalThis.fetch = (url: string) => {
+    calls++;
+    expect(String(url)).toBe("https://api.github.com/app");
+    return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ slug: "redlens-preview" }) } as Response);
+  };
+  expect(await appInstallUrl()).toBe("https://github.com/apps/redlens-preview/installations/new");
+  // Second call is served from cache — no extra /app fetch.
+  expect(await appInstallUrl()).toBe("https://github.com/apps/redlens-preview/installations/new");
+  expect(calls).toBe(1);
+});
+
+test("appInstallUrl: failed /app -> null, not cached (retries next call)", async () => {
+  let calls = 0;
+  // @ts-expect-error stub
+  globalThis.fetch = () => {
+    calls++;
+    // First call fails (5xx), second returns the slug.
+    if (calls === 1) return Promise.resolve({ status: 500, ok: false, json: () => Promise.resolve({}) } as Response);
+    return Promise.resolve({ status: 200, ok: true, json: () => Promise.resolve({ slug: "later" }) } as Response);
+  };
+  expect(await appInstallUrl()).toBeNull(); // failure is not cached
+  expect(await appInstallUrl()).toBe("https://github.com/apps/later/installations/new");
+  expect(calls).toBe(2);
+});
+
+test("appInstallUrl: unconfigured app -> null without any fetch", async () => {
+  config.githubAppId = "";
+  let calls = 0;
+  // @ts-expect-error stub
+  globalThis.fetch = () => {
+    calls++;
+    throw new Error("should not fetch when unconfigured");
+  };
+  expect(await appInstallUrl()).toBeNull();
+  expect(calls).toBe(0);
 });
 
 // ---------------------------------------------------------------------------
