@@ -143,6 +143,7 @@ fs.mkdirSync(path.join(distDir, "assets"), { recursive: true });
 fs.writeFileSync(path.join(distDir, "assets", "plain.txt"), "plain file, no gzip sibling");
 fs.writeFileSync(path.join(distDir, "assets", "gz.js"), "// uncompressed sibling should never be served here");
 fs.writeFileSync(path.join(distDir, "assets", "gz.js.gz"), zlib.gzipSync(Buffer.from("gzipped-content")));
+fs.writeFileSync(path.join(distDir, "sw.js"), "// service worker");
 
 // Whether the native OG-image toolchain (satori + @resvg/resvg-js) is usable
 // in this environment — mirrors og-image.test.ts's own probe exactly (same
@@ -377,6 +378,34 @@ describe("handleRequest — static file serving", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Encoding")).toBeNull();
     expect(await res.text()).toBe("plain file, no gzip sibling");
+  });
+
+  // Without these the browser falls back to heuristic caching, which caches
+  // /sw.js (and the scripts it imports) for an unbounded window.
+  it("marks content-hashed /assets/* immutable", async () => {
+    const req = new Request("http://localhost/assets/plain.txt");
+    const res = await handleRequest(req, stubServer);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("keeps the immutable header on the pre-compressed branch too", async () => {
+    const req = new Request("http://localhost/assets/gz.js", { headers: { "accept-encoding": "gzip" } });
+    const res = await handleRequest(req, stubServer);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("makes /sw.js revalidate on every fetch", async () => {
+    const req = new Request("http://localhost/sw.js");
+    const res = await handleRequest(req, stubServer);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-cache");
+  });
+
+  it("leaves other static files unpinned", async () => {
+    const req = new Request("http://localhost/icon-mid.png");
+    const res = await handleRequest(req, stubServer);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBeNull();
   });
 });
 
