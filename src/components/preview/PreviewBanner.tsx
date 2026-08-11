@@ -19,7 +19,6 @@ interface PreviewMeta {
   behindBy?: number;
   newAddresses?: number;
   addressCheckFailed?: boolean;
-  diffTruncated?: boolean;
 }
 
 const CANONICAL_REPO = "sky-ecosystem/next-gen-atlas";
@@ -95,11 +94,6 @@ export function PreviewBanner() {
       {(isFork || isPrivate) && meta!.addressCheckFailed && (
         <span className="mono text-xs" style={{ color: "var(--red)" }}>
           ⚠ couldn't verify new on-chain addresses
-        </span>
-      )}
-      {isFork && meta!.diffTruncated && (
-        <span className="mono text-xs" style={{ color: "var(--tan-3)" }}>
-          change markers may be incomplete
         </span>
       )}
       {src && (

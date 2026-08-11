@@ -27,9 +27,15 @@ failures produce no warning anywhere, so absence of warnings is not health.
 Artifacts are gitignored — build first: `pnpm build:index && pnpm build:graph`
 (capture stderr of both) and `pnpm build:glossary`. Then:
 
-1. **What changed upstream** — `git -C vendor/next-gen-atlas log --stat <last-healed-sha>..HEAD`
-   (the workflow puts last week's SHA in the issue body), and
-   `git -C vendor/next-gen-atlas diff <old>..HEAD -- ATLAS_MARKDOWN_SYNTAX.md`.
+1. **What changed upstream** — the `atlas_recent_changes` MCP tool with
+   `since` = 7 days ago (`k` up to 200); the issue header carries last week's
+   and today's atlas SHA if you'd rather bound it exactly with
+   `atlas_changed_between`. Both name every changed document by doc_no, title
+   and UUID with its PR. Do NOT reach for `git log --stat` on the submodule:
+   it only named documents while the atlas stored one per file, and now lists
+   bucket files (`content/A.1 - The-Governance-Scope.md | 1841 +++---`) — the
+   MCP tools read `atlas_history`, so they are layout-blind.
+   Also run `git -C vendor/next-gen-atlas diff <old>..HEAD -- ATLAS_MARKDOWN_SYNTAX.md`.
    A spec diff is the leading indicator of a new structural convention.
 2. **What was silently auto-accepted this week** —
    `git log -p --since='1 week ago' -- .github/atlas-census-baseline.json .github/govops-census-baseline.json .github/risk-census-baseline.json .github/concepts-census-baseline.json .github/atlas-warnings-baseline.txt`
@@ -59,9 +65,11 @@ If any `[drift] tripwire:` line fired, an atlas renumber/rename zeroed a gate.
 The doc_no gates live in `scripts/lib/graph-patterns.mjs` (`isPrimeAgent`,
 `isExecutorAgent`, `isFacilitatorDoc`, `isGovOpsDoc`, `isActiveData`,
 `isEcosystemAccord`, `isPartyDetails`, `isGrantDoc`); consequences cascade to
-Radar, rewards, active-data, and all role edges. If the upstream log shows a
-renumber under A.6 / A.2.8 / A.2.13, check each gate regex against the new
-numbering even if no tripwire fired (partial renumbers shrink, not zero).
+Radar, rewards, active-data, and all role edges. Ask `atlas_recent_changes`
+for `change_type: "moved"` over the week — that is the renumber signal, stated
+directly rather than inferred from file paths. If anything moved under
+A.6 / A.2.8 / A.2.13, check each gate regex against the new numbering even if
+no tripwire fired (partial renumbers shrink, not zero).
 Cross-check entity counts in the snapshot diff (step 1.2) — a large drop in
 any `edge_type` count is the same class of failure.
 
@@ -161,7 +169,8 @@ threatens, and the proposed fix.
 "fix" a snapshot diff by regenerating it without reading it.
 
 **Always end with a health report** (comment on the atlas-health issue):
-what changed upstream this week, what the hourly flow auto-accepted, what
+what changed upstream this week (from `atlas_recent_changes`, cited by doc_no
+— the issue body no longer carries a changed-file list), what the hourly flow auto-accepted, what
 you fixed (PR link), what needs a human, and the trend lines (risk backlog
 size, `[drift-count]` buckets, open drift-issue age). "Nothing to report,
 all signals clean" is a valid, explicit outcome — say it rather than

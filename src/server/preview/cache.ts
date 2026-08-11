@@ -62,7 +62,6 @@ export interface PreviewMeta {
    */
   addressCheckFailed?: boolean;
   /** Diff recovery was bounded — markers may miss docs on very large forks. */
-  diffTruncated?: boolean;
   /** Built from a private repo — gates every sha-keyed response. */
   private?: boolean;
 }
