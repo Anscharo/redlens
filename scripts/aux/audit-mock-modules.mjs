@@ -24,7 +24,45 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 
 const files = execSync('find src/server scripts -name "*.test.ts"').toString().trim().split("\n").filter(Boolean);
-const MOCK_RE = /mock\.module\(\s*["']([^"']+)["']\s*,\s*\(\)\s*=>\s*\(\{([\s\S]*?)\}\)\s*\)/g;
+
+// Matches only up to the factory's opening `({`. The body is then taken by
+// balancing braces rather than by a lazy `}\)` — a factory containing a nested
+// object (`sql: () => ({ … })`) would otherwise be cut at the inner `})`, and a
+// truncated body reads as "export absent", which is the one direction this
+// script must never get wrong: it would report a problem that isn't there, or
+// miss the tail of a body where the export actually appears.
+const MOCK_HEAD_RE = /mock\.module\(\s*["']([^"']+)["']\s*,\s*(?:async\s*)?\(\)\s*=>\s*\(\{/g;
+
+// Brace-balanced slice starting at the `{` index, skipping over strings,
+// template literals and comments so their braces don't shift the depth.
+function objectBodyAt(src, openBrace) {
+  let depth = 0;
+  for (let i = openBrace; i < src.length; i++) {
+    const c = src[i];
+    if (c === "'" || c === '"' || c === "`") {
+      const quote = c;
+      for (i++; i < src.length; i++) {
+        if (src[i] === "\\") i++;
+        else if (src[i] === quote) break;
+      }
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "/") {
+      i = src.indexOf("\n", i);
+      if (i === -1) break;
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "*") {
+      i = src.indexOf("*/", i);
+      if (i === -1) break;
+      i++;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return src.slice(openBrace + 1, i);
+  }
+  return null; // unbalanced — treat as unparseable rather than guessing
+}
 
 function exportsOf(source) {
   const names = new Set();
@@ -40,11 +78,13 @@ function exportsOf(source) {
 const problems = [];
 for (const file of files) {
   const src = fs.readFileSync(file, "utf8");
-  for (const m of src.matchAll(MOCK_RE)) {
-    const [, spec, body] = m;
+  for (const m of src.matchAll(MOCK_HEAD_RE)) {
+    const spec = m[1];
     if (!spec.startsWith(".")) continue; // bare specifiers: not ours to police
     const target = path.resolve(path.dirname(file), spec);
     if (!fs.existsSync(target)) continue;
+    const body = objectBodyAt(src, m.index + m[0].length - 1);
+    if (body === null) continue;
     if (body.includes("...")) continue; // spreads the real namespace — complete by construction
     const missing = [...exportsOf(fs.readFileSync(target, "utf8"))].filter(
       (n) => !new RegExp(`(^|[^\\w.])${n}\\s*[:,}]`).test(body),

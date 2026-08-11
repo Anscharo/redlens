@@ -64,7 +64,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:server": "bun test src/server scripts/aux/eval-verifier-mutations.test.ts",
+    "test:server": "pnpm check:mocks && bun test src/server scripts/aux/eval-verifier-mutations.test.ts",
     "test:snap": "vitest run --config vitest.snap.config.ts",
     "test:snap:update": "vitest run --config vitest.snap.config.ts -u",
     "test:e2e": "playwright test",
@@ -73,7 +73,7 @@
     "knip": "knip",
     "pull-atlas": "git submodule update --init --recursive",
     "test:coverage": "vitest run --coverage",
-    "test:server:coverage": "bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
+    "test:server:coverage": "pnpm check:mocks && bun test src/server scripts/aux/eval-verifier-mutations.test.ts --coverage --coverage-reporter=lcov --coverage-dir=coverage/bun",
     "coverage:areas": "node scripts/required/coverage-areas.mjs"
   },
   "dependencies": {
