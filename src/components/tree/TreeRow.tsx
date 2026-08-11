@@ -4,7 +4,6 @@ import { segmentDepths, chicletColor, nrSidebarChiclets } from "../../lib/depth"
 import type { AtlasNode } from "../../types";
 import { truncateTitle } from "../../lib/treeUtils";
 import { DocNoChiclets } from "../DocNoChiclets";
-import { Tooltip } from "../Tooltip";
 import { PreviewMark } from "../preview/PreviewMark";
 import { PreviewRollupBadge } from "../preview/PreviewRollupBadge";
 import { usePreviewDim } from "../../lib/previewFilter";
@@ -41,6 +40,8 @@ export interface TreeRowData {
   isPreview: boolean;
   sidebarWidth: number;
   cradle: { start: number; end: number; color: string } | null;
+  /** Whether shift-click on a chevron cascades — false in selected-only view. */
+  canCascade: boolean;
   onNavigate: (id: string) => void;
   onToggle: (id: string, e: React.MouseEvent) => void;
   onReveal: (id: string) => void;
@@ -82,6 +83,7 @@ export function TreeRow({
   isPreview,
   sidebarWidth,
   cradle,
+  canCascade,
   onNavigate,
   onToggle,
   onReveal,
@@ -181,16 +183,21 @@ export function TreeRow({
         gradients={docNoSegments.gradients}
       />
       {hasChildren ? (
-        <Tooltip content="TIP: navigate sidebar with keyboard arrow keys">
-          <button
-            type="button"
-            className="tree-toggle"
-            style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
-            onClick={(e) => onToggle(node.id, e)}
-          >
-            {isExpanded ? "\u25BE" : "\u25B8"}
-          </button>
-        </Tooltip>
+        // No Tooltip: it advertised the tree's arrow-key navigation from the
+        // chevron, after an 800ms delay, whether or not the tree was focused.
+        // The footer now says that when the keys actually work, and says what
+        // THIS control's shift-click does instead (see useContextHints).
+        <button
+          type="button"
+          className="tree-toggle"
+          data-mod-hint={
+            canCascade ? (isExpanded ? "cascade-collapse" : "cascade") : undefined
+          }
+          style={{ ...TOGGLE_BASE, color: isExpanded ? titleColor : "var(--tan-3)" }}
+          onClick={(e) => onToggle(node.id, e)}
+        >
+          {isExpanded ? "\u25BE" : "\u25B8"}
+        </button>
       ) : (
         <span
           className="tree-toggle tree-toggle-empty"
@@ -214,7 +221,14 @@ export function TreeRow({
       {/* No native title= here: the row's own ::after hint (index.css) carries
           the full untruncated title, so a browser tooltip would be a second,
           slower, differently-worded copy of it. */}
-      <span style={{ ...TITLE_BASE, color: titleColor }}>{displayTitle}</span>
+      {/* Announces shift-click in the footer WITHOUT the modifier held — the
+          ::after label above only appears once you already know to press Shift.
+          On the title alone, not the whole row: shift-click works anywhere on
+          the row, but a marker there fired while crossing the chiclets and the
+          chevron too, so the hint was up almost constantly. */}
+      <span data-mod-hint="split" style={{ ...TITLE_BASE, color: titleColor }}>
+        {displayTitle}
+      </span>
     </div>
   );
 }

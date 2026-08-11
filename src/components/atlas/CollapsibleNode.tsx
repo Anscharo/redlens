@@ -284,6 +284,17 @@ export const CollapsibleNode = memo(function CollapsibleNode({
         cradle ? ` in-cradle${cradle === "foot" ? " cradle-foot" : ""}` : ""
       }`}
       data-has-hidden={gatedCount > 0 ? "true" : undefined}
+      // Footer hint (useContextHints): the row is tabIndex={0}, so Enter/Space
+      // act on it once focused — but on WHAT depends on the row's state (see the
+      // keydown handler below), so the marker has to say which. The shift-click
+      // marker sits on the title alone — see the note there.
+      data-focus-hint={
+        isSelected && hasContent
+          ? isExpanded
+            ? "reader-row-hide"
+            : "reader-row-show"
+          : "reader-row-open"
+      }
       data-exiting={isExiting ? "true" : undefined}
       aria-hidden={isExiting ? true : undefined}
       // `pointer-events: none` (index.css) only blocks the mouse — inert also
@@ -368,6 +379,7 @@ export const CollapsibleNode = memo(function CollapsibleNode({
             }
             aria-label={`${pendulumVerb[0].toUpperCase()}${pendulumVerb.slice(1)} under ${node.doc_no}`}
             title={`${pendulumVerb} (alt-click: ${reverseVerb})`}
+            data-mod-hint="pendulum"
             onClick={doPendulum}
           >
             »
@@ -378,7 +390,18 @@ export const CollapsibleNode = memo(function CollapsibleNode({
           </span>
         )}
         {isPreview && <PreviewMark nodeId={node.id} className="text-lg" />}
-        <div className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0">
+        {/* Shift-click works anywhere on the row, but marking the whole row put
+            the hint up while crossing the chiclets, the pendulum chevron and
+            the body text as well — near-constantly. The title is where the
+            gesture is worth offering.
+
+            Not inside the split pane: it already IS the split view, so "open in
+            Splitview" is the wrong promise. Same call the CSS hint makes for
+            these rows (--split-hint: none on .junior-pane, index.css). */}
+        <div
+          data-mod-hint={idPrefix === "junior" ? undefined : "split"}
+          className="atlas-node-title flex items-center gap-2 py-1.5 flex-1 min-w-0"
+        >
           <HeadingTag className={TITLE_CLASS}>
             {node.title}
           </HeadingTag>

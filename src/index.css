@@ -762,7 +762,10 @@ button.atlas-node-toggle:not([data-settling]):hover {
    because a click means something else there: the reader's row handler bails on
    `closest('a, button, [role="button"]')` before it ever reaches the shift
    branch, the selection checkbox's <label> stops propagation (shift there
-   selects the subtree), and the sidebar chevron has a tooltip of its own. */
+   selects the subtree), and the sidebar chevron's shift-click cascades levels
+   rather than opening anything — that one is announced in the footer instead
+   (data-mod-hint, see useContextHints), which is where the more specific hint
+   belongs anyway. */
 [data-shift] .atlas-node:hover:not(:has(a:hover, button:hover, [role="button"]:hover, label:hover, input:hover))::after,
 .tree-row::after {
   position: absolute;
@@ -1685,4 +1688,68 @@ button.atlas-node-expand-all:focus-visible {
   .status-pill.is-applying {
     opacity: 0.6;
   }
+}
+
+/* ─── Footer contextual hint ─── */
+/* The bottom-left hint line (FooterHint). Absolute inside the fixed footer, so
+   showing one can't shift the build-info row that centers itself beside it.
+   Deliberately quiet: the footer's own background and secondary text, NOT the
+   status pills' light-tan block — this reports an affordance, it doesn't ask
+   for anything. pointer-events: none so the update pill it covers stays
+   clickable underneath. Padding matches FooterItem's px-3. */
+.footer-hint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  /* Long hints truncate rather than run under the centered build info. */
+  max-width: 55%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--tan-3);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+/* The sentence, as the flex parent's single item — see FooterHint for why it
+   isn't the text runs themselves. Its line-height is set to the keycap height
+   so the line box IS a cap: `align-items: center` then centres that 16px box in
+   the 24px bar exactly, with no dependence on where the font puts its baseline.
+   Truncation lives here rather than on the parent, since this is the box that
+   overflows. */
+.footer-hint-line {
+  min-width: 0;
+  line-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Every key named in the line gets a cap. At the bar's 10px a bare glyph is too
+   fine to read as a key at a glance — which is the one thing this line exists
+   to say — and the arrows also ran together set inline: the heads of ← and →
+   met and read as one double-headed arrow. A box each fixes both, and a word
+   key ("Enter", "Shift") reads as a key rather than as prose.
+
+   vertical-align: top against the 16px line box above, so the cap fills it and
+   inherits its centring instead of hanging off the text baseline. */
+.footer-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  margin: 0 1px;
+  vertical-align: top;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--tan-2);
 }
