@@ -63,6 +63,27 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
+// Env enum resolution, in one place. Every mode-style setting wants the same
+// three things — trim (a stray space in a Railway variable is invisible in the
+// dashboard), match exactly, and SAY SO on an unrecognized value instead of
+// silently falling back. Written per-setting, one of them always ends up as a
+// bare cast that quietly resolves a typo to the wrong mode.
+function envEnum<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
+  const raw = (process.env[name] ?? "").trim();
+  if (!raw) return fallback;
+  const hit = allowed.find((a) => a === raw);
+  if (hit) return hit;
+  console.warn(`[config] ${name}="${raw}" is not one of ${allowed.join(", ")} — using "${fallback}".`);
+  return fallback;
+}
+
+// Deliberately asymmetric: "single" is the legacy, weaker verifier, so ONLY
+// that exact literal selects it and everything else — typo included — keeps
+// the strong default rather than downgrading production's audit unnoticed.
+const chatVerifierMode = envEnum("CHAT_VERIFIER_MODE", ["single", "sliced"] as const, "sliced");
+// See the chatDeliveryMode field below for what the two modes mean.
+const chatDeliveryMode = envEnum("CHAT_DELIVERY_MODE", ["streaming", "staged"] as const, "streaming");
+
 export const config = {
   port,
 
@@ -152,7 +173,13 @@ export const config = {
   // Hard ceiling on the query-time embed call. embedBatch retries with backoff
   // (~15s worst case); the retrieve path must not hang on a flaky provider, so
   // if the embed exceeds this we drop the semantic leg and answer lexical-only.
-  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 4000),
+  // 10s, not lower: measured 2026-08-06 (scripts/aux/measure-embed.ts) the
+  // provider tail is p50 0.3-1.3s but p95 5-10s with no 429s/retries — the old
+  // 4s cap (an e2e-derived number) silently degraded ~1/3 of chat turns to
+  // lexical-only, which reads as "the atlas doesn't say" answers. Waiting
+  // covers both independent outliers AND correlated slow windows; the main
+  // consumer is the chat loop, where retrieval quality outranks a few seconds.
+  semanticEmbedTimeoutMs: Number(process.env.SEMANTIC_EMBED_TIMEOUT_MS ?? 10_000),
   // In-process LRU for query-time embeddings. Doc embeddings are cached in
   // Postgres by content_hash, but query strings weren't cached at all — every
   // semantic atlas_query/atlas_search paid a fresh OpenRouter round-trip, even
@@ -179,6 +206,15 @@ export const config = {
   // isn't free: titling only re-fires at turns 4 and 10, so a conversation
   // that ends at turn 1-3 keeps its truncated slice(0,60) seed title forever.
   chatTitleTimeoutMs: Number(process.env.CHAT_TITLE_TIMEOUT_MS ?? 20_000),
+  // Chat delivery mode (docs/plans/chat-staged-delivery.md): "streaming" forwards
+  // answer tokens live as today (stream + post-hoc verify badge); "staged"
+  // suppresses tokens behind honest progress stages and reveals the answer only
+  // once, verified (possibly revised), in the terminal `done` event. Default
+  // stays "streaming" until the staged A/B measures perceived latency — an
+  // unrecognized value normalizes to "streaming" rather than throwing, since
+  // this also doubles as the fallback for an invalid per-request override
+  // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
+  chatDeliveryMode,
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
@@ -239,6 +275,15 @@ export const config = {
   // chatModel (cross-family independence, same rationale as curationClusterModels).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
+  // How the model audit runs: "sliced" (default) = four concurrent narrow
+  // auditors with code-validated evidence spans (verify/sliced-verifier.ts);
+  // "single" = the legacy one-prompt verifier.ts path (escape hatch).
+  // Resolved + warned about via envEnum above — never a bare cast, so a typo
+  // can't drop production back to the legacy verifier unnoticed.
+  chatVerifierMode,
+  // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
+  // named fall back to chatVerifierModel. Lets roles use different models.
+  chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",
   // Escalation-only recovery model; chat-tier is fine (recovery planning is
   // easier than verification). Empty = advisor off.
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
@@ -254,6 +299,11 @@ export const config = {
   // never blocks on the audit — the answer already streamed). The verifier is a
   // stronger, slower model than the advisor, so its deadline is more generous.
   chatVerifierTimeoutMs: Number(process.env.CHAT_VERIFIER_TIMEOUT_MS ?? 20_000),
+  // Per-slice deadline for the sliced path. Slices run CONCURRENTLY (the turn
+  // pays ~one slice latency, post-stream), so this can sit well above the
+  // single-prompt cap: the 2026-08-06 bakeoff measured gemma claims-slice p50
+  // at 23.6s — a 20s deadline would kill over half of them.
+  chatVerifierSliceTimeoutMs: Number(process.env.CHAT_VERIFIER_SLICE_TIMEOUT_MS ?? 45_000),
   // Retrieval-trouble escalation threshold: ≥N empty/error tool results in a turn.
   chatAdvisorTriggerEmptyResults: Number(process.env.CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS ?? 2),
   // Unsupported-claim escalation threshold. A recovery cycle replays the ENTIRE

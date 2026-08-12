@@ -11,7 +11,7 @@ import { getIndexes } from "../retrieval/indexes.ts";
 import { getSessionUser } from "../session.ts";
 import { getModel, makeOpenrouterStream, makeOpenrouterJson } from "./llm.ts";
 import { routeTier, resolveTierModels, citationStyleFor } from "./model-router.ts";
-import { runVerifiedChat, sanitizeDone, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
+import { runVerifiedChat, sanitizeDone, type HarnessEvent, type HarnessDone, type CheckRowMeta } from "./chat-orchestrator.ts";
 import { buildSystemPrompt, type PageContext } from "./system-prompt.ts";
 import { buildPrefetch, prefetchRound } from "../prefetch.ts";
 import { windowHistory } from "./chat-history.ts";
@@ -28,6 +28,17 @@ interface ChatBody {
   message: string;
   conversationId?: string;
   pageContext?: PageContext;
+  // Per-request override of config.chatDeliveryMode (docs/plans/chat-staged-delivery.md),
+  // e.g. for eval-harness A/B runs. An unrecognized value falls back to the
+  // configured default rather than erroring the request.
+  delivery?: "streaming" | "staged";
+}
+
+// Effective delivery mode for this turn: a valid body override wins, else the
+// configured default. Centralized so an invalid body value normalizes the
+// same way an invalid CHAT_DELIVERY_MODE env value does in config.ts.
+function resolveDeliveryMode(bodyDelivery: unknown, fallback: "streaming" | "staged"): "streaming" | "staged" {
+  return bodyDelivery === "streaming" || bodyDelivery === "staged" ? bodyDelivery : fallback;
 }
 
 // Generous cap on raw user input: well above any real prompt (typical chat
@@ -81,6 +92,10 @@ export async function handleChat(req: Request): Promise<Response> {
   }
 
   const userId = session.user.id;
+  // Staged-delivery mode switch (docs/plans/chat-staged-delivery.md): resolved
+  // once, up front, so it's available to both PostHog properties and the SSE
+  // loop below without re-deriving it.
+  const mode = resolveDeliveryMode(body.delivery, config.chatDeliveryMode);
 
   // Hard rate-limit gate on the user's token window — check BEFORE creating a
   // conversation or spending any LLM tokens. The 429 tells the user exactly how
@@ -175,13 +190,44 @@ export async function handleChat(req: Request): Promise<Response> {
   const obs = {
     distinctId: convId,
     traceId: crypto.randomUUID(),
-    properties: { chat_tier: route.tier, chat_route_reason: route.reason },
+    // chat_delivery is the A/B measurement hinge (docs/plans/chat-staged-delivery.md).
+    properties: { chat_tier: route.tier, chat_route_reason: route.reason, chat_delivery: mode },
   };
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (e: { type: string } & Record<string, unknown>) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
-      send({ type: "meta", conversationId: convId, tier: route.tier });
+      // delivery rides on meta so the client knows staged is active without
+      // guessing from the absence of token events.
+      send({ type: "meta", conversationId: convId, tier: route.tier, delivery: mode });
+
+      // Staged mode never streams the draft: token/clear are swallowed, and a
+      // "synthesizing" status stands in for the first suppressed token of each
+      // generation burst (a burst = the run of tokens since the last tool_call,
+      // or since the stream started). Streaming mode forwards everything
+      // untouched — byte-for-byte today's behavior, zero regression risk.
+      let burstAnnounced = false;
+      const forward = (ev: HarnessEvent) => {
+        if (mode !== "staged") {
+          send(ev);
+          return;
+        }
+        if (ev.type === "tool_call") {
+          burstAnnounced = false; // next generation round re-announces
+          send(ev);
+          return;
+        }
+        if (ev.type === "token") {
+          if (!burstAnnounced) {
+            burstAnnounced = true;
+            send({ type: "status", stage: "synthesizing", detail: "Synthesizing an answer from the evidence…" });
+          }
+          return; // suppressed — the client never sees the draft
+        }
+        if (ev.type === "clear") return; // nothing streamed, nothing to clear
+        send(ev);
+      };
+
       try {
         let done: HarnessDone | null = null;
         const chatStream = makeOpenrouterStream(obs, models);
@@ -195,9 +241,10 @@ export async function handleChat(req: Request): Promise<Response> {
         })) {
           if (ev.type === "done") {
             done = ev as HarnessDone;
+            if (mode === "staged") send({ type: "status", stage: "finalizing", detail: "Preparing the final report…" });
             send(sanitizeDone(done));
           } else {
-            send(ev);
+            forward(ev);
           }
         }
         // Don't persist an empty assistant row for an aborted turn.

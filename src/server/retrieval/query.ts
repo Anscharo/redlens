@@ -4,11 +4,11 @@
 // intersected. Ports the CF worker's logic with D1 recursive CTEs replaced by
 // graphology traversals + the in-memory doc map, and Vectorize by pgvector.
 import { type Indexes, type AtlasNode, ancestorChain, descendantIds, resolveNode } from "./indexes.ts";
-import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases } from "./search.ts";
+import { runLexical, runSemantic, rrfMerge, buildAgentSnippet, extractPhrases, matchesPhrases, type SemanticResult } from "./search.ts";
 import { resolveEntity } from "./entity-resolve.ts";
 import { fitToBudget, TRUNCATION_HINT } from "../chat/output-budget.ts";
 import { sql } from "../db.ts";
-import type { ToolResult } from "../chat/tools/tools.ts";
+import { livenessOf, withLivenessHint, type ToolResult } from "../chat/tools/tools.ts";
 
 export interface QueryArgs {
   q?: string;
@@ -160,6 +160,7 @@ function collectAncestors(ix: Indexes, rows: unknown[]): Record<string, unknown>
 function enrichNode(ix: Indexes, n: AtlasNode, enrich: boolean, includeParams: boolean) {
   const base: Record<string, unknown> = {
     id: n.id, doc_no: n.doc_no, title: n.title, type: n.type, depth: n.depth, parent_id: n.parentId,
+    ...livenessOf(ix, n.id),
   };
   // Emit ancestor IDS only; the full ancestor objects are deduped into one
   // top-level `ancestors` map per response (collectAncestors) so shared chains
@@ -206,13 +207,14 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
   const withBudget = (rows: unknown[], rest: Record<string, unknown>): ToolResult => {
     const { kept, truncated } = fitToBudget(rows);
     const ancestors = collectAncestors(ix, kept);
-    return {
+    const envelope = {
       ...rest,
       count: kept.length,
       ...(truncated ? { truncated: true, hint: TRUNCATION_HINT } : {}),
       ...(ancestors ? { ancestors } : {}),
       results: kept,
     };
+    return withLivenessHint(envelope, kept);
   };
   const dir: Dir = a.direction ?? "both";
 
@@ -244,7 +246,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
     const by_relationship: Record<string, unknown[]> = {};
     for (const [rel, row] of kept) (by_relationship[rel] ??= []).push(row);
     const ancestors = collectAncestors(ix, kept.map(([, row]) => row));
-    return {
+    const envelope = {
       entity: a.entity,
       resolved_entity: resolvedEntity,
       mode: "entity_broad",
@@ -252,6 +254,7 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       ...(ancestors ? { ancestors } : {}),
       by_relationship,
     };
+    return withLivenessHint(envelope, kept.map(([, row]) => row));
   }
 
   // ── type_list ────────────────────────────────────────────────────────────────
@@ -270,13 +273,23 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
 
   // ── search ───────────────────────────────────────────────────────────────────
   let searchHits: { id: string; rrf_score: number; score: number; sources: string[]; snippet?: string }[] = [];
+  // Populated only when a.q ran the search leg; surfaces a degraded-to-
+  // lexical-only semantic leg into the result envelope below.
+  let semSkipped: string | null = null;
   if (a.q) {
     const { phrases, casePhrases } = extractPhrases(a.q);
     const fetchK = Math.min(a.k * 4, 200);
-    const [lex, sem] = await Promise.all([
+    const [lex, semResult] = await Promise.all([
       Promise.resolve(runLexical(ix, a.q, a.target_type, fetchK)),
-      runSemantic(ix, a.q, a.target_type, fetchK).catch(() => []),
+      // runSemantic no longer throws on a normal degraded-leg failure; this
+      // catch is defensive-only, preserving the reason rather than the old
+      // information-destroying `.catch(() => [])`.
+      runSemantic(ix, a.q, a.target_type, fetchK).catch(
+        (err): SemanticResult => ({ hits: [], skipped: (err as Error).message }),
+      ),
     ]);
+    const sem = semResult.hits;
+    semSkipped = semResult.skipped;
     let merged = rrfMerge(lex, sem);
     // Quoted phrases require an exact match — same shared post-filter
     // atlas_search applies, so the two tools agree on phrase queries.
@@ -313,5 +326,9 @@ export async function atlasQuery(ix: Indexes, a: QueryArgs): Promise<ToolResult>
       sources: h.sources,
     };
   });
-  return withBudget(results, resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity, mode } : { mode });
+  return withBudget(results, {
+    ...(resolvedEntity ? { entity: a.entity, resolved_entity: resolvedEntity } : {}),
+    mode,
+    ...(semSkipped ? { semantic_skipped: semSkipped } : {}),
+  });
 }

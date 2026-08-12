@@ -70,12 +70,12 @@ function makeAtlas() {
 
 const call = (name: string, args: Record<string, unknown>) => TOOLS_BY_NAME.get(name)!.handler(makeAtlas(), args);
 
-// ── Registry integrity (all 24 tools) ───────────────────────────────────────
-test("tool registry is well-formed: 24 unique tools, valid shapes + handlers", () => {
-  expect(ATLAS_TOOLS.length).toBe(24);
+// ── Registry integrity (all 25 tools) ───────────────────────────────────────
+test("tool registry is well-formed: 25 unique tools, valid shapes + handlers", () => {
+  expect(ATLAS_TOOLS.length).toBe(25);
   const names = ATLAS_TOOLS.map((t) => t.name);
   expect(new Set(names).size).toBe(names.length); // unique
-  expect(TOOLS_BY_NAME.size).toBe(24);
+  expect(TOOLS_BY_NAME.size).toBe(25);
   for (const t of ATLAS_TOOLS) {
     expect(t.name).toMatch(/^atlas_/);
     expect(typeof t.description).toBe("string");
@@ -174,6 +174,14 @@ test("atlas_entity_params: id path + entity path with subtype filter", () => {
   const byEntity = call("atlas_entity_params", { entity: "spark", type_hint: "reward", limit: 50 }) as { instances: any[]; available_subtypes: string[] };
   expect(byEntity.instances.map((i: any) => i.doc_no)).toEqual(["A.2.1"]);
   expect(byEntity.available_subtypes).toContain("distribution-reward");
+});
+
+// ── atlas_params (wired via TOOLS_BY_NAME; extraction itself is tools-params.test.ts's job) ──
+test("atlas_params: wired end-to-end, errors on an unusable query, returns a well-formed result otherwise", () => {
+  const empty = call("atlas_params", { q: "at" }) as { error?: string };
+  expect(empty.error).toBeDefined();
+  const res = call("atlas_params", { q: "reward rate" }) as { count: number; rows: unknown[] };
+  expect(res.count).toBe(res.rows.length);
 });
 
 // ── filter ───────────────────────────────────────────────────────────────────

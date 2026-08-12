@@ -13,7 +13,7 @@ vi.mock("../../lib/docs", () => ({ loadAtlas: () => Promise.resolve({ docs: {} }
 // this file's concern; keep it a resolved empty list so it never renders.
 vi.mock("../../lib/conversationsApi", () => ({ listConversations: vi.fn(async () => []) }));
 
-const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth } = vi.hoisted(() => ({
+const { track, refresh, send, stop, setRateLimit, newChat, openConversation, openAuth, setPref } = vi.hoisted(() => ({
   track: vi.fn(),
   refresh: vi.fn(),
   send: vi.fn(async (): Promise<SendResult> => ({})),
@@ -22,6 +22,7 @@ const { track, refresh, send, stop, setRateLimit, newChat, openConversation, ope
   newChat: vi.fn(),
   openConversation: vi.fn(),
   openAuth: vi.fn(),
+  setPref: vi.fn(),
 }));
 vi.mock("../../lib/analytics", () => ({ track }));
 // SignInButtons (rendered in the signed-out composer) gates on authProviders();
@@ -32,8 +33,8 @@ vi.mock("../../lib/authProviders", () => ({ authProviders: () => ["github", "goo
 // sibling component still does.
 vi.mock("./auth", () => ({ useAuth: () => ({ openAuth: vi.fn() }) }));
 
-let prefsState = { traces: false, reduceMotion: false };
-vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs: prefsState, setPref: vi.fn() }) }));
+let prefsState: { traces: boolean; reduceMotion: boolean; delivery: "staged" | "streaming" | null } = { traces: false, reduceMotion: false, delivery: null };
+vi.mock("./usePrefs", () => ({ usePrefs: () => ({ prefs: prefsState, setPref }) }));
 
 import { ChatPanel } from "./ChatPanel";
 
@@ -108,7 +109,7 @@ function ReactiveRateLimitPanel() {
 
 beforeEach(() => {
   localStorage.clear();
-  prefsState = { traces: false, reduceMotion: false };
+  prefsState = { traces: false, reduceMotion: false, delivery: null };
   // jsdom doesn't implement Element.scrollTo
   Element.prototype.scrollTo = vi.fn();
 });
@@ -150,6 +151,7 @@ describe("ChatPanel signed in, empty thread", () => {
     expect(send).toHaveBeenCalledWith(
       "Trace the governance path for an Atlas amendment.",
       expect.objectContaining({ path: "/atlas", nodeId: "n1", nodeTitle: "T", nodeDocNo: "A.1" }),
+      undefined,
     );
   });
 
@@ -170,7 +172,7 @@ describe("ChatPanel signed in, empty thread", () => {
     const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
     fireEvent.change(textarea, { target: { value: "my question" } });
     fireEvent.click(screen.getByLabelText("Send"));
-    expect(send).toHaveBeenCalledWith("my question", expect.any(Object));
+    expect(send).toHaveBeenCalledWith("my question", expect.any(Object), undefined);
     await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toHaveValue(""));
     expect(localStorage.getItem("rlc-draft")).toBe("");
   });
@@ -267,7 +269,7 @@ describe("ChatPanel with messages", () => {
   });
 
   it("passes showTrace from prefs down to Message/ToolTrace", () => {
-    prefsState = { traces: true, reduceMotion: false };
+    prefsState = { traces: true, reduceMotion: false, delivery: null };
     renderPanel({
       session: {
         messages: [
@@ -326,5 +328,33 @@ describe("ChatPanel header", () => {
   it("shows a float-out control while anchored", () => {
     renderPanel({ placement: "anchored" });
     expect(screen.getByTitle("Pop out to a floating window")).toBeInTheDocument();
+  });
+});
+
+describe("ChatPanel staged-delivery toggle", () => {
+  it("is unpressed by default (delivery: null) and turns on staged on click", () => {
+    renderPanel();
+    const toggle = screen.getByLabelText("Staged answers (show steps, reveal the final answer once)");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(toggle);
+    expect(setPref).toHaveBeenCalledWith("delivery", "staged");
+  });
+
+  it("shows pressed when the pref is already staged, and clicking clears it back to null", () => {
+    prefsState = { traces: false, reduceMotion: false, delivery: "staged" };
+    renderPanel();
+    const toggle = screen.getByLabelText("Staged answers (show steps, reveal the final answer once)");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(toggle);
+    expect(setPref).toHaveBeenCalledWith("delivery", null);
+  });
+
+  it("threads the delivery pref into send() as the third argument", () => {
+    prefsState = { traces: false, reduceMotion: false, delivery: "staged" };
+    renderPanel();
+    const textarea = screen.getByPlaceholderText("Ask about the Sky Atlas…");
+    fireEvent.change(textarea, { target: { value: "my question" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    expect(send).toHaveBeenCalledWith("my question", expect.any(Object), "staged");
   });
 });

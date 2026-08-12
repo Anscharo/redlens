@@ -30,28 +30,28 @@ describe("usePrefs", () => {
   it("defaults to traces off and reduceMotion off when nothing is stored", async () => {
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
-    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false });
+    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false, delivery: null });
   });
 
   it("reads a previously stored current-schema preference, filling in defaults", async () => {
     localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, v: 2 }));
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
-    expect(result.current.prefs).toEqual({ traces: true, reduceMotion: false });
+    expect(result.current.prefs).toEqual({ traces: true, reduceMotion: false, delivery: null });
   });
 
   it("ignores a pre-migration (unversioned) stored preference, so a restored switch starts from its default", async () => {
     localStorage.setItem("rlc-prefs", JSON.stringify({ traces: true, reduceMotion: true }));
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
-    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false });
+    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false, delivery: null });
   });
 
   it("tolerates corrupt JSON in storage by falling back to defaults", async () => {
     localStorage.setItem("rlc-prefs", "{not json");
     const usePrefs = await freshUsePrefs();
     const { result } = renderHook(() => usePrefs());
-    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false });
+    expect(result.current.prefs).toEqual({ traces: false, reduceMotion: false, delivery: null });
   });
 
   it("setPref persists to localStorage and updates the returned prefs", async () => {
@@ -59,7 +59,12 @@ describe("usePrefs", () => {
     const { result } = renderHook(() => usePrefs());
     act(() => result.current.setPref("traces", true));
     expect(result.current.prefs.traces).toBe(true);
-    expect(JSON.parse(localStorage.getItem("rlc-prefs")!)).toEqual({ traces: true, reduceMotion: false, v: 2 });
+    expect(JSON.parse(localStorage.getItem("rlc-prefs")!)).toEqual({
+      traces: true,
+      reduceMotion: false,
+      delivery: null,
+      v: 2,
+    });
   });
 
   it("toggles the rlc-nomotion body class with reduceMotion", async () => {
@@ -87,6 +92,31 @@ describe("usePrefs", () => {
     act(() => {
       window.dispatchEvent(new Event("storage"));
     });
-    expect(result.current.prefs).toEqual({ traces: true, reduceMotion: true });
+    expect(result.current.prefs).toEqual({ traces: true, reduceMotion: true, delivery: null });
+  });
+
+  it("defaults delivery to null (follow server default)", async () => {
+    const usePrefs = await freshUsePrefs();
+    const { result } = renderHook(() => usePrefs());
+    expect(result.current.prefs.delivery).toBeNull();
+  });
+
+  it("setPref('delivery', 'staged') persists and round-trips through a fresh module load", async () => {
+    const usePrefs = await freshUsePrefs();
+    const { result } = renderHook(() => usePrefs());
+    act(() => result.current.setPref("delivery", "staged"));
+    expect(result.current.prefs.delivery).toBe("staged");
+
+    const reloaded = await freshUsePrefs();
+    const { result: result2 } = renderHook(() => reloaded());
+    expect(result2.current.prefs.delivery).toBe("staged");
+  });
+
+  it("setPref('delivery', null) clears back to following the server default", async () => {
+    const usePrefs = await freshUsePrefs();
+    const { result } = renderHook(() => usePrefs());
+    act(() => result.current.setPref("delivery", "staged"));
+    act(() => result.current.setPref("delivery", null));
+    expect(result.current.prefs.delivery).toBeNull();
   });
 });

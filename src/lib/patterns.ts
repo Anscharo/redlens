@@ -15,3 +15,16 @@ export const UUID_PREFIX_RE = /^[0-9a-f]{8,}(?:-[0-9a-f]{1,12}){0,4}$/i;
 // Source strings, not RegExp: a shared /g regex carries lastIndex between scans.
 export const EVM_ADDRESS_SRC = String.raw`(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])`;
 export const SOL_ADDRESS_SRC = String.raw`\b[1-9A-HJ-NP-Za-km-z]{43,44}\b`;
+
+// Atlas document-number core ("A.2.2.8.1", "A.1.6.1.var2", "NR-7"). A source
+// string for the same lastIndex reason as the address patterns above. Shared by
+// the verify/ checks (which strip doc-no digit noise before scanning an answer
+// for numbers, and validate cited doc numbers) — it lives here rather than in
+// one of them so the two can't import each other in a cycle. Structural, not
+// editorial: per CLAUDE.md the SHAPE of a doc number is stable even though any
+// particular number is not.
+export const DOC_NO_CORE = String.raw`(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)`;
+// Two DELIBERATE dialects of this shape exist and are not drift: docRefResolver.ts
+// accepts only an "A" prefix, and dutyCollapse.ts permits ".var" at any segment.
+// Both are narrower/looser on purpose for their own matching job — don't fold
+// them in without checking those call sites.

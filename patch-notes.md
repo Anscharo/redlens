@@ -35,7 +35,8 @@
 
 
 ## 2026-08-12
-- Fixed the app reloading itself and the reader jumping to a different position within moments of opening it
+- Search result ICD tags now spell out "Instance Configuration Document for X" on hover, instead of repeating the tag
+- Address hover tooltips now show a shortened link to the block explorer page they'll open
 
 ## 2026-08-11
 - Fixed long-open tabs getting stuck on an outdated version of the app instead of picking up new releases

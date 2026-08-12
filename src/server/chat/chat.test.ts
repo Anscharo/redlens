@@ -155,6 +155,181 @@ describe("handleChat", () => {
     return (async () => sseResponse(text)) as unknown as typeof fetch;
   }
 
+  // Chunk-array SSE builder for scripting multi-event rounds (staged-delivery
+  // tests): each entry is one `data:` frame, closed with [DONE].
+  function sseChunksResponse(chunks: unknown[]): Response {
+    const body = chunks.map((c) => `data: ${JSON.stringify(c)}\n\n`).join("") + "data: [DONE]\n\n";
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { "content-type": "text/event-stream" } },
+    );
+  }
+
+  // Each call to fetch returns the NEXT queued round's SSE response (one
+  // round = one HTTP request in chat-loop.ts) — the last round repeats if
+  // fetch is called more times than there are rounds. Lets a test script a
+  // tool round followed by an answer round through the REAL openai client.
+  function multiRoundSse(rounds: unknown[][]): typeof fetch {
+    let i = 0;
+    return (async () => sseChunksResponse(rounds[Math.min(i++, rounds.length - 1)])) as unknown as typeof fetch;
+  }
+
+  describe("delivery mode", () => {
+    async function events(res: Response): Promise<any[]> {
+      const text = await res.text();
+      return text
+        .split("\n\n")
+        .filter((l) => l.startsWith("data: "))
+        .map((l) => JSON.parse(l.slice("data: ".length)));
+    }
+
+    it("meta carries the effective delivery mode, defaulting to streaming", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("streaming");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("body.delivery overrides the configured default", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("staged");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("staged mode, simple turn (no tools): no tokens, exactly one synthesizing status, finalizing right before done", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi there.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "staged" }));
+        const evs = await events(res);
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+        expect(evs.filter((e) => e.type === "status" && e.stage === "synthesizing")).toHaveLength(1);
+        const doneIdx = evs.findIndex((e) => e.type === "done");
+        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
+        expect(evs[doneIdx].content).toBe("Hi there.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("an invalid body.delivery falls back to the configured default instead of erroring", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello", delivery: "yolo" }));
+        expect(res.status).toBe(200);
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("streaming"); // config default, unchanged by the bogus value
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("config.chatDeliveryMode supplies the default when body omits delivery", async () => {
+      installHappyHandlers();
+      const prevMode = config.chatDeliveryMode;
+      config.chatDeliveryMode = "staged";
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hi.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "hello" }));
+        const [meta] = await events(res);
+        expect(meta.delivery).toBe("staged");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+        config.chatDeliveryMode = prevMode;
+      }
+    });
+
+    it("streaming mode (default) emits token events end to end with no synthesizing/finalizing statuses", async () => {
+      installHappyHandlers();
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = sseAnswer("Hello from the atlas.");
+      try {
+        const res = await handleChat(await authedRequest({ message: "What's new?", delivery: "streaming" }));
+        const evs = await events(res);
+        const tokenText = evs.filter((e) => e.type === "token").map((e) => e.text).join("");
+        expect(tokenText).toBe("Hello from the atlas.");
+        expect(evs.some((e) => e.type === "clear")).toBe(false);
+        expect(evs.some((e) => e.type === "status" && (e.stage === "synthesizing" || e.stage === "finalizing"))).toBe(false);
+        expect(evs.find((e) => e.type === "done").content).toBe("Hello from the atlas.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+
+    it("staged mode suppresses token+clear, announces one synthesizing status per generation burst, and finalizes right before done", async () => {
+      installHappyHandlers();
+      // Round 1: pre-tool content ("Thinking...", discarded via `clear`) then a
+      // tool call — a real, no-network tool (see chat-orchestrator.test.ts's
+      // use of the same call). Round 2: the final answer, no more tools.
+      const round1 = [
+        { id: "gen-r1", choices: [{ index: 0, delta: { content: "Thinking..." }, finish_reason: null }] },
+        {
+          id: "gen-r1",
+          choices: [
+            {
+              index: 0,
+              delta: { tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "atlas_describe", arguments: "{}" } }] },
+              finish_reason: null,
+            },
+          ],
+        },
+        { id: "gen-r1", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
+        { id: "gen-r1", choices: [], usage: { prompt_tokens: 10, completion_tokens: 3, total_tokens: 13 } },
+      ];
+      const round2 = [
+        { id: "gen-r2", choices: [{ index: 0, delta: { content: "Final answer." }, finish_reason: null }] },
+        { id: "gen-r2", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] },
+        { id: "gen-r2", choices: [], usage: { prompt_tokens: 20, completion_tokens: 4, total_tokens: 24 } },
+      ];
+      const prevImpl = g.__llmFetchCurrentImpl!;
+      g.__llmFetchCurrentImpl = multiRoundSse([round1, round2]);
+      try {
+        const res = await handleChat(await authedRequest({ message: "Describe the atlas structure using a lookup.", delivery: "staged" }));
+        const evs = await events(res);
+
+        expect(evs.some((e) => e.type === "token")).toBe(false);
+        expect(evs.some((e) => e.type === "clear")).toBe(false);
+
+        const synthIdx = evs.map((e, i) => (e.type === "status" && e.stage === "synthesizing" ? i : -1)).filter((i) => i >= 0);
+        expect(synthIdx).toHaveLength(2); // one per burst: pre-tool noise, then the real answer
+
+        const toolCallIdx = evs.findIndex((e) => e.type === "tool_call");
+        expect(toolCallIdx).toBeGreaterThan(-1);
+        expect(synthIdx[0]).toBeLessThan(toolCallIdx); // burst 1 announced before the tool round
+        expect(synthIdx[1]).toBeGreaterThan(toolCallIdx); // burst 2 announced after it (tool_call reset the burst)
+
+        const doneIdx = evs.findIndex((e) => e.type === "done");
+        expect(doneIdx).toBeGreaterThan(0);
+        expect(evs[doneIdx - 1]).toMatchObject({ type: "status", stage: "finalizing" });
+        expect(evs[doneIdx].content).toBe("Final answer.");
+      } finally {
+        g.__llmFetchCurrentImpl = prevImpl;
+      }
+    });
+  });
+
   async function authedRequest(body: unknown): Promise<Request> {
     const cookie = await signSession({ id: "user-1", provider: "github" });
     return new Request("http://x/api/chat", {

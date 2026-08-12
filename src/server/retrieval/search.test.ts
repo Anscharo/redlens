@@ -2,15 +2,18 @@
 // import Bun's `SQL`, which doesn't exist in node-vitest. vitest.config.ts
 // excludes src/server for that reason.
 //
-// Nothing below calls runSemantic, but the semantic leg is pinned off anyway so
-// that stays true by construction: runSemantic is only inert while
-// `config.openrouterApiKey` is falsy, and that was previously left to ambient
-// env — bun auto-loads `.env.local`, so a developer with a real key would turn
-// the first runSemantic-touching case added here into a live embedding request
-// (embed.ts then retries 4× with 1s/2s/4s/8s of real sleep on any hiccup).
-import { test, expect, beforeAll, afterAll } from "bun:test";
-import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, type Hit } from "./search.ts";
+// The semantic leg is pinned off for the non-runSemantic cases below:
+// runSemantic is only inert while `config.openrouterApiKey` is falsy, and that
+// was previously left to ambient env — bun auto-loads `.env.local`, so a
+// developer with a real key would otherwise turn any runSemantic-touching case
+// into a live embedding request (embed.ts then retries 4x with 1s/2s/4s/8s of
+// real sleep on any hiccup). The runSemantic failure-path tests set the key
+// themselves and restore the PINNED empty state (not ambient) in afterEach,
+// so the pin holds for every case that follows them.
+import { test, expect, beforeAll, afterAll, afterEach } from "bun:test";
+import { rrfMerge, matchesPhrases, buildSnippet, buildAgentSnippet, withTimeout, runSemantic, type Hit } from "./search.ts";
 import { config } from "../config.ts";
+import type { Indexes } from "./indexes.ts";
 
 let prevKey: string;
 beforeAll(() => {
@@ -20,6 +23,52 @@ beforeAll(() => {
 afterAll(() => {
   config.openrouterApiKey = prevKey;
 });
+
+// ── runSemantic — embed-leg failure paths ────────────────────────────────────
+// Stubs config.openrouterApiKey + globalThis.fetch directly (the same pattern
+// as embed.test.ts / zz-db-integration.test.ts's semantic-leg tests) — NOT
+// mock.module. A module.mock of embed.ts here was tried and reverted: it left
+// a delegate wrapper installed in the registry for the rest of this `bun test`
+// process (mock.module has no per-file undo), and a live-binding re-read of
+// its own "unmocked" export inside afterEach ended up resolving back to the
+// mock itself — an infinite call loop that only showed up once this file ran
+// alongside zz-db-integration.test.ts. Plain global stubs carry none of that
+// cross-file registry risk.
+const ix = {} as unknown as Indexes; // runSemantic's ix param is unused
+
+const prevTimeout = config.semanticEmbedTimeoutMs;
+const prevFetch = globalThis.fetch;
+afterEach(() => {
+  config.openrouterApiKey = ""; // back to the beforeAll pin, not ambient env
+  config.semanticEmbedTimeoutMs = prevTimeout;
+  globalThis.fetch = prevFetch;
+});
+
+test("runSemantic returns skipped:null (no reason) when no API key is configured — permanent config state, not degradation", async () => {
+  config.openrouterApiKey = "";
+  const res = await runSemantic(ix, "governance", undefined, 5);
+  expect(res).toEqual({ hits: [], skipped: null });
+});
+
+test("runSemantic reports a skip reason when the embed call times out", async () => {
+  config.openrouterApiKey = "test-key";
+  config.semanticEmbedTimeoutMs = 20;
+  globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch; // never resolves
+  const res = await runSemantic(ix, "governance", undefined, 5);
+  expect(res.hits).toEqual([]);
+  expect(res.skipped).toMatch(/embed timed out after 20ms/);
+});
+
+// A non-timeout runtime failure (embedBatch's provider-error rejection, or a
+// pgvector query error after a successful embed) hits the SAME catch and the
+// SAME `skipped: err.message` passthrough exercised above — there's no
+// separate branch to unit-test here. embedBatch's own retry-exhaustion timing
+// (~15s of backoff before it rejects) is embed.ts's concern, not runSemantic's,
+// and is out of scope (see file header). The passthrough for a fast,
+// non-timeout rejection is covered end-to-end in
+// zz-db-integration.test.ts ("a semantic-leg failure degrades to lexical-only
+// instead of failing the whole query" — pgvector rejects immediately, no
+// retry loop involved).
 
 test("withTimeout resolves when the promise beats the deadline", async () => {
   const v = await withTimeout(Promise.resolve(42), 1000, "x");

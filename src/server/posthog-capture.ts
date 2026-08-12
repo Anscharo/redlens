@@ -10,7 +10,10 @@
 // .env.example). The value is the same non-secret project API key ("phc_...")
 // used client-side; PostHog does not have a separate "server" key for capture.
 const KEY = process.env.POSTHOG_KEY ?? "";
-const CAPTURE_URL = "https://us.i.posthog.com/i/v0/e/";
+// Same POSTHOG_HOST override as posthog-node.ts, so the two server paths can't
+// point at different PostHog regions.
+const HOST = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
+const CAPTURE_URL = `${HOST.replace(/\/$/, "")}/i/v0/e/`;
 
 export const serverAnalyticsEnabled = Boolean(KEY);
 

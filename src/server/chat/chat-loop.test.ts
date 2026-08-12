@@ -136,14 +136,16 @@ test("final turn injects the answer-now instruction, only on the forced-text rou
   expect(hasInstruction(captured[1])).toBe(true);
 });
 
-test("maxIterations=1 forces tool_choice:none on the only call", async () => {
+test("maxIterations=1 forces tool_choice:none; a defiant empty round gets one compose attempt", async () => {
   const captured: Captured[] = [];
-  // Even if the model WANTS a tool, max=1 means the single call is forced to text.
+  // Even if the model WANTS a tool, max=1 means the single call is forced to
+  // text. Its defiant tool_calls leave content empty, so the compose guard
+  // buys exactly one more no-tools request.
   const rounds = [[toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")]];
   const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 1 }));
 
-  expect(captured).toHaveLength(1);
-  expect(captured[0].toolChoice).toBe("none");
+  expect(captured).toHaveLength(2);
+  expect(captured.every((c) => c.toolChoice === "none")).toBe(true);
   // No tool executed; terminal done emitted.
   expect(events.some((e) => e.type === "tool_call")).toBe(false);
   expect(events.at(-1)!.type).toBe("done");
@@ -393,4 +395,47 @@ test("aborted signal short-circuits to a terminal done", async () => {
   expect(events).toHaveLength(1);
   expect(events[0].type).toBe("done");
   expect(events[0].type === "done" && events[0].content).toBe("");
+});
+
+test("compose guard: empty forced-text round buys one no-tools compose attempt", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    // Forced-text final round: model defiantly emits tool calls anyway →
+    // content stays empty (the exact 2026-08-06 A/B empty-answer shape).
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [textChunk("Composed answer."), finishChunk("stop"), usageChunk(80, 12)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(3); // 1 tool round + forced-text + compose
+  expect(captured[1].toolChoice).toBe("none");
+  expect(captured[2].toolChoice).toBe("none");
+  const steer = captured[2].messages?.at(-1);
+  expect(steer?.role).toBe("system");
+  expect(String(steer?.content)).toContain("research budget is exhausted");
+
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  if (done.type === "done") {
+    expect(done.content).toBe("Composed answer.");
+    expect(done.usage.output).toBe(12); // compose usage accumulated
+    expect(done.transcript.at(-1)).toEqual({ role: "assistant", content: "Composed answer." });
+    // The steer must NOT land in the transcript (transient, like FINAL_TURN_INSTRUCTION).
+    expect(done.transcript.some((m) => m.role === "system" && String(m.content).includes("research budget"))).toBe(false);
+  }
+});
+
+test("compose guard: a second empty response ships as-is — exactly one extra attempt", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+    [finishChunk("stop")], // forced-text round: empty
+    [finishChunk("stop")], // compose attempt: also empty
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured), maxIterations: 2 }));
+
+  expect(captured).toHaveLength(3); // no retry loop beyond the single compose
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("");
 });

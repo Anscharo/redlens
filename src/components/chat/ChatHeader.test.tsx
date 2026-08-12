@@ -14,6 +14,8 @@ function renderHeader(over: Partial<React.ComponentProps<typeof ChatHeader>> = {
     onClose,
     placement: "float" as const,
     onTogglePlacement,
+    staged: false,
+    onToggleStaged: vi.fn(),
     ...over,
   };
   const utils = render(<ChatHeader {...props} />);
