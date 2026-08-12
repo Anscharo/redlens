@@ -1,7 +1,8 @@
 // Deterministic answer-check tests. Uses the real disk indexes (like
 // chat-loop.test.ts) so citation-UUID validity runs against actual docs.
 import { test, expect } from "bun:test";
-import { loadIndexes } from "../../retrieval/indexes.ts";
+import { loadIndexes, buildIndexes } from "../../retrieval/indexes.ts";
+import type { AtlasNode } from "../../../types.ts";
 import {
   extractCitations,
   findBareAtlasLinks,
@@ -19,6 +20,7 @@ import {
   findLowOverlapCitations,
   runDeterministicChecks,
 } from "./verify-checks.ts";
+import { findParamMismatches } from "./param-checks.ts";
 
 const ix = loadIndexes();
 const realUuid = ix.docMap.keys().next().value as string;
@@ -461,4 +463,175 @@ test("value grounding: a uuid used as link text is an identifier, not a figure",
   // …but a real figure sitting beside the uuid is still mined.
   const answer = `See [${uuidText} — ${EXOTIC}](/atlas/${realUuid}).`;
   expect(findUngroundedCitationValues(answer, [`the rate is ${EXOTIC}`], ix)).toHaveLength(1);
+});
+
+// ---------------------------------------------------------------------------
+// findParamMismatches — synthetic fixture. Built via buildIndexes rather than
+// the real corpus so every case is deterministic and doesn't drift with atlas
+// content. Mirrors the real shape that motivated the title-fallback matching
+// (see param-checks.ts's findParamsMentioned doc comment): a Keel doc titled
+// "USDS Mint Maximum" whose kv rows are named "maxamount"/"slope" — names a
+// model paraphrasing in prose never repeats verbatim.
+// ---------------------------------------------------------------------------
+function node(p: Partial<AtlasNode> & { id: string; doc_no: string; title: string; content: string }): AtlasNode {
+  return { type: "Core", depth: 3, parentId: null, order: 0, addressRefs: [], ...p };
+}
+
+const keelOwner = node({ id: "keel-owner", doc_no: "T.1", title: "Keel", type: "Instance", depth: 2, content: "" });
+const keelParam = node({
+  id: "keel-param",
+  doc_no: "T.1.1",
+  title: "USDS Mint Maximum",
+  parentId: "keel-owner",
+  content: [
+    "The maximum amount of USDS that can be minted is specified in the document herein.",
+    "",
+    "- `maxAmount`: 10,000 USDS",
+    "- `slope`: 10,000 USDS per day",
+  ].join("\n"),
+});
+const sparkOwner = node({ id: "spark-owner", doc_no: "T.2", title: "Spark", type: "Instance", depth: 2, content: "" });
+const sparkParam = node({
+  id: "spark-param",
+  doc_no: "T.2.1",
+  title: "Collateralization Requirement",
+  parentId: "spark-owner",
+  content: ["The collateralization requirement is specified in the document herein.", "", "- `Liquidation Ratio`: 145%"].join("\n"),
+});
+const groveOwner = node({ id: "grove-owner", doc_no: "T.3", title: "Grove", type: "Instance", depth: 2, content: "" });
+const groveGeneric = node({
+  id: "grove-generic",
+  doc_no: "T.3.1",
+  title: "Fee Cut",
+  parentId: "grove-owner",
+  content: ["The applicable fee is specified in the document herein.", "", "- `cut`: 50 USDS"].join("\n"),
+});
+// Ambiguity-gate regressions (found by a real-corpus precision sweep — see the
+// task report — after the first title-fallback pass alone still produced
+// 7/25 false positives; the corrected two-gate + name-uniqueness +
+// subsumption design brought a full 1019-row sweep to zero):
+// within-doc: one title, two DIFFERENT-valued rows (mirrors "ETH-A" bundling
+// chip/cusp/buf/liquidation-ratio at different values).
+const keelBundle = node({
+  id: "keel-bundle",
+  doc_no: "T.1.2",
+  title: "Test Ilk Bundle",
+  parentId: "keel-owner",
+  content: ["The bundle parameters are specified in the document herein.", "", "- `chip`: 13%", "- `Liquidation Buffer`: 20%"].join("\n"),
+});
+// cross-doc: two DIFFERENT docs share one title+owner (mirrors the many
+// per-token "Inflow Rate Limits" docs sharing one title+owner).
+const keelDup1 = node({
+  id: "keel-dup-1",
+  doc_no: "T.1.3",
+  title: "Duplicate Title Doc",
+  parentId: "keel-owner",
+  content: ["Per-instance parameters are specified in the document herein.", "", "- `Alpha Level`: 7 USDS"].join("\n"),
+});
+const keelDup2 = node({
+  id: "keel-dup-2",
+  doc_no: "T.1.4",
+  title: "Duplicate Title Doc",
+  parentId: "keel-owner",
+  content: ["Per-instance parameters are specified in the document herein.", "", "- `Beta Level`: 15 USDS"].join("\n"),
+});
+// name collision: the SAME kv key reused verbatim across different docs
+// (mirrors "maxamount" appearing in 30 different Keel docs).
+const keelShared1 = node({
+  id: "keel-shared-1",
+  doc_no: "T.1.5",
+  title: "Shared Key Doc One",
+  parentId: "keel-owner",
+  content: ["Content is specified in the document herein.", "", "- `sharedKey`: 7 USDS"].join("\n"),
+});
+const keelShared2 = node({
+  id: "keel-shared-2",
+  doc_no: "T.1.6",
+  title: "Shared Key Doc Two",
+  parentId: "keel-owner",
+  content: ["Content is specified in the document herein.", "", "- `sharedKey`: 15 USDS"].join("\n"),
+});
+// subset/superset name collision: "ceiling" tokens are a proper subset of
+// "debt ceiling" tokens (mirrors "smart contract risk rating" being a subset
+// of the real "...risk rating cap" name).
+const keelCeiling = node({
+  id: "keel-ceiling",
+  doc_no: "T.1.7",
+  title: "Ceiling Parameters",
+  parentId: "keel-owner",
+  content: ["Ceiling parameters are specified in the document herein.", "", "- `Debt Ceiling`: 100 USDS", "- `Ceiling`: 50 USDS"].join("\n"),
+});
+const sIx = buildIndexes(
+  [keelOwner, keelParam, sparkOwner, sparkParam, groveOwner, groveGeneric, keelBundle, keelDup1, keelDup2, keelShared1, keelShared2, keelCeiling],
+  [],
+  [],
+  {},
+);
+
+test("findParamMismatches: wrong value flagged via the doc-title fallback (name 'maxamount' never appears in prose)", () => {
+  const out = findParamMismatches("Keel's USDS mint maximum is 50,000 USDS.", sIx);
+  expect(out).toEqual(["answer states 50,000 for maxamount (keel) but the atlas value is 10,000 USDS — T.1.1"]);
+});
+
+test("findParamMismatches: wrong value flagged via the literal kv-key citation style too", () => {
+  const out = findParamMismatches("Keel's `maxAmount` is 50,000 USDS.", sIx);
+  expect(out).toEqual(["answer states 50,000 for maxamount (keel) but the atlas value is 10,000 USDS — T.1.1"]);
+});
+
+test("findParamMismatches: correct value → clean", () => {
+  expect(findParamMismatches("Keel's USDS mint maximum is 10,000 USDS.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: correct-and-old value in one sentence → clean (num equality, not string containment)", () => {
+  const answer = "Keel's USDS mint maximum was raised from 5,000 to 10,000.";
+  expect(findParamMismatches(answer, sIx)).toEqual([]);
+});
+
+test("findParamMismatches: owner mismatch → clean (Spark named, row is Keel's)", () => {
+  expect(findParamMismatches("Spark's `maxAmount` is 50,000 USDS.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: %-unit gating — a stated non-% number near the name is not flagged", () => {
+  expect(findParamMismatches("Spark's liquidation ratio requires 3 confirmations.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: %-unit real mismatch is still caught", () => {
+  const out = findParamMismatches("Spark's liquidation ratio is 200%.", sIx);
+  expect(out).toEqual(["answer states 200% for liquidation ratio (spark) but the atlas value is 145% — T.2.1"]);
+});
+
+test("findParamMismatches: generic single-token name ('cut', <=4 chars) is skipped even via a matching title", () => {
+  expect(findParamMismatches("Grove's fee cut is 999 USDS.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: dedupes identical messages across sentences", () => {
+  const answer = "Keel's USDS mint maximum is 50,000 USDS. Again, Keel's USDS mint maximum is 50,000 USDS.";
+  expect(findParamMismatches(answer, sIx)).toHaveLength(1);
+});
+
+test("findParamMismatches: within-doc ambiguity (one title, two different-valued rows) suppresses the title-only match", () => {
+  expect(findParamMismatches("Keel's Test Ilk Bundle is 99%.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: cross-doc ambiguity (two docs share one title+owner) suppresses both", () => {
+  expect(findParamMismatches("Keel's Duplicate Title Doc is 999 USDS.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: name collision (same kv key across docs, same owner) suppresses the literal citation", () => {
+  expect(findParamMismatches("Keel's `sharedKey` is 999 USDS.", sIx)).toEqual([]);
+});
+
+test("findParamMismatches: subset/superset name collision — the longer, more specific name wins", () => {
+  const out = findParamMismatches("Keel's Debt Ceiling is 999 USDS.", sIx);
+  expect(out).toEqual(["answer states 999 for debt ceiling (keel) but the atlas value is 100 USDS — T.1.7"]);
+});
+
+test("runDeterministicChecks: a param mismatch is a hard failure", () => {
+  const clean = runDeterministicChecks("Keel's USDS mint maximum is 10,000 USDS.", [], sIx);
+  expect(clean.failed).toBe(false);
+  expect(clean.paramMismatches).toEqual([]);
+
+  const wrong = runDeterministicChecks("Keel's USDS mint maximum is 50,000 USDS.", [], sIx);
+  expect(wrong.failed).toBe(true);
+  expect(wrong.paramMismatches).toHaveLength(1);
 });

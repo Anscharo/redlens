@@ -12,6 +12,8 @@ import { MultiDirectedGraph } from "graphology";
 import { config } from "../config.ts";
 import { MINISEARCH_OPTIONS } from "../../lib/searchOptions.ts";
 import { buildLookup, type Glossary, type GlossaryEntry } from "../../lib/glossaryLookup.ts";
+import { buildParamIndex, type ParamIndex } from "../../lib/paramIndex.ts";
+import { buildLivenessMap, type Liveness } from "../../lib/liveness.ts";
 
 // One canonical AtlasNode (src/types.ts). Re-exported so existing
 // `import { AtlasNode } from "./indexes.ts"` sites keep working, but there is now
@@ -126,6 +128,12 @@ export interface Indexes {
   // from public/glossary.json. Empty when the artifact is missing — consumers
   // (chat prefetch) degrade to no glossary matches.
   glossary: Map<string, GlossaryEntry[]>;
+  // Derived per index build (so they can never be stale against the served
+  // docs — see docs/research/synlang-wiki.md §3.1/§3.2): the deterministic
+  // constraint-parameter table and the scaffold/placeholder liveness tags.
+  // Docs absent from `liveness` are settled.
+  params: ParamIndex;
+  liveness: Map<string, Liveness>;
   meta: Record<string, string | null>;
 }
 
@@ -230,7 +238,12 @@ export function buildIndexes(
     generatedAt: meta.generatedAt ?? new Date().toISOString(),
   };
 
-  return { docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, glossary, meta: stampedMeta };
+  return {
+    docMap, byDocNo, childrenIndex, mini, graph, entities, edges, entityBySlug, entityById, glossary,
+    params: buildParamIndex(docMap),
+    liveness: buildLivenessMap(docMap),
+    meta: stampedMeta,
+  };
 }
 
 // graphology + entity lookup maps from the entity/edge arrays. Extracted so the

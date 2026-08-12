@@ -98,6 +98,15 @@ export function isErrorResult(content: string): boolean {
 const FINAL_TURN_INSTRUCTION =
   "This is your final turn — no more tools are available. Write the complete answer now, using only the evidence already gathered above. Cite sources as instructed. If the gathered evidence does not answer the question, say plainly that the atlas does not appear to cover it and summarize what you did find. Do NOT describe further searches or say you will look something up — just answer.";
 
+// Compose guard steer (one-shot, docs/plans/chat-staged-delivery.md prereq).
+// Even the forced-text final round can come back EMPTY — e.g. a model emitting
+// tool-call deltas despite tool_choice:"none" leaves content blank, and both
+// arms of the 2026-08-06 eval A/B shipped "" that way after burning every
+// round on retrieval. A turn must never end with nothing: this steers one
+// extra no-tools request toward an answer-or-honest-abstention.
+const COMPOSE_STEER =
+  "Your research budget is exhausted — no tools are available. Using ONLY the evidence in the conversation above, write your final answer now. If the evidence does not answer the question, state plainly what you searched for and what was not found; a precise, honest summary of the gap IS the correct answer. Do not mention tools or further searches.";
+
 // Injected transiently on every mid-loop turn after the first tool round. The
 // chat model tends to over-search — simple single-document questions were
 // burning 4–6 rounds before answering. This nudges "answer as soon as the
@@ -121,6 +130,37 @@ export async function* runChat(opts: {
   let usageIn = 0;
   let usageOut = 0;
   let generationId: string | null = null;
+
+  // One-shot compose guard: a no-tools request with the answer-or-abstain
+  // steer. Yields tokens like a normal answer round; tool-call deltas a model
+  // emits anyway are ignored (there is nothing left to execute them with).
+  // The steer rides only the request, never lands in msgs — same policy as
+  // FINAL_TURN_INSTRUCTION.
+  async function* composeFinal(): AsyncGenerator<ChatEvent, { content: string; lengthCapped: boolean }> {
+    let content = "";
+    let finishReason: string | null = null;
+    const stream = opts.stream({
+      messages: [...msgs, { role: "system", content: COMPOSE_STEER }],
+      tools: CHAT_TOOLS,
+      toolChoice: "none",
+      signal: opts.signal,
+    });
+    for await (const chunk of stream) {
+      if (opts.signal?.aborted) break;
+      if (typeof chunk.id === "string" && chunk.id.startsWith("gen-")) generationId = chunk.id;
+      const choice = chunk.choices?.[0];
+      if (choice?.delta?.content) {
+        content += choice.delta.content;
+        yield { type: "token", text: choice.delta.content };
+      }
+      if (choice?.finish_reason) finishReason = choice.finish_reason;
+      if (chunk.usage) {
+        usageIn += chunk.usage.prompt_tokens ?? 0;
+        usageOut += chunk.usage.completion_tokens ?? 0;
+      }
+    }
+    return { content, lengthCapped: finishReason === "length" };
+  }
 
   for (let iter = 0; iter < max; iter++) {
     if (opts.signal?.aborted) break;
@@ -302,15 +342,25 @@ export async function* runChat(opts: {
       continue;
     }
 
-    // Otherwise this streamed content is the final answer.
+    // Otherwise this streamed content is the final answer. If the round came
+    // back EMPTY (not aborted), the compose guard buys exactly one more
+    // no-tools attempt before the turn is allowed to end — an empty second
+    // attempt ships as-is rather than retrying forever.
+    let finalContent = content;
+    let capped = finishReason === "length";
+    if (!finalContent.trim() && !opts.signal?.aborted) {
+      const composed = yield* composeFinal();
+      finalContent = composed.content;
+      capped = composed.lengthCapped;
+    }
     yield {
       type: "done",
-      content,
+      content: finalContent,
       usage: { input: usageIn, output: usageOut },
       generationId,
       toolCalls,
-      lengthCapped: finishReason === "length",
-      transcript: content ? [...msgs, { role: "assistant", content }] : [...msgs],
+      lengthCapped: capped,
+      transcript: finalContent ? [...msgs, { role: "assistant", content: finalContent }] : [...msgs],
     };
     return;
   }

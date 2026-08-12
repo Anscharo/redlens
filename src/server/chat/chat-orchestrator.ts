@@ -15,12 +15,14 @@ import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
 import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
+import { findParamsMentioned } from "./verify/param-checks.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifyOverall } from "./verify/verifier.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
+import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
 import { captureError, type ErrorContext } from "../posthog-node.ts";
@@ -42,7 +44,12 @@ export interface CheckRowMeta {
 
 export type HarnessEvent =
   | ChatEvent
-  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising"; detail?: string }
+  // "comparing" is emitted here, by the orchestrator (see the verification
+  // block below). "synthesizing"/"finalizing" are staged-delivery-only stages
+  // synthesized by the SSE route (chat.ts) from token/done events — the
+  // orchestrator never yields them; they're in this union because it's the
+  // wire type both files share.
+  | { type: "status"; stage: "querying" | "reading" | "checking" | "advising" | "revising" | "comparing" | "synthesizing" | "finalizing"; detail?: string }
   | {
       type: "verify_result";
       overall: VerifyOverall;
@@ -54,6 +61,7 @@ export type HarnessEvent =
       docNoMismatches: string[];
       ungroundedQuotes: string[];
       ungroundedAddresses: string[];
+      paramMismatches: string[];
     };
 
 export type HarnessDone = DoneEvent & { checksMeta: CheckRowMeta[] };
@@ -89,6 +97,7 @@ function verifyEvent(
     docNoMismatches: checks.docNoMismatches,
     ungroundedQuotes: checks.ungroundedQuotes,
     ungroundedAddresses: checks.ungroundedAddresses,
+    paramMismatches: checks.paramMismatches,
   };
 }
 
@@ -193,6 +202,37 @@ const schemaEvidence = (ix: Indexes): EvidenceEntry => ({
   content: JSON.stringify(atlasDescribe(ix)),
 });
 
+// [E-const]: deterministic parameter-table rows the answer text mentions
+// (docs/research/synlang-wiki.md §3.1) — evidence for the VERIFIER only,
+// never the answerer's prompt/loop (a measured ~6x loop-amplification cost is
+// why). Protects a correct answer that states a well-known frozen parameter
+// without re-retrieving it this turn from a false "unsupported" verdict, and
+// gives the absence contract (verify/absence.ts) something to refute a false
+// absence claim against. Uses the same broadened name-or-title matcher as the
+// Task-1 hard check (param-checks.ts's findParamsMentioned) — a false
+// positive here is cheap (one extra evidence row, not a wrongful failure), so
+// the ambiguous-doc suppression the hard check needs is deliberately skipped.
+const CONST_EVIDENCE_CAP = 40;
+function constEvidence(ix: Indexes, answerText: string): EvidenceEntry | null {
+  const matches = findParamsMentioned(answerText, ix);
+  if (matches.length === 0) return null;
+  const ranked = [...matches]
+    .sort((a, b) => {
+      const aOwner = a.row.owner ? 0 : 1;
+      const bOwner = b.row.owner ? 0 : 1;
+      return aOwner !== bOwner ? aOwner - bOwner : b.row.name.length - a.row.name.length;
+    })
+    .slice(0, CONST_EVIDENCE_CAP);
+  return {
+    label: "[E-const]",
+    tool: "atlas_param_table",
+    args: "(deterministic parameter-table rows matching the answer — derived from the served atlas at index build)",
+    content: JSON.stringify(
+      ranked.map(({ row }) => ({ name: row.name, value: row.value, unit: row.unit, owner: row.owner, doc_no: row.doc_no, uuid: row.uuid })),
+    ),
+  };
+}
+
 // One line per hard deterministic failure — fed to the advisor and the revision
 // steer so recovery targets the exact fabrication, not just "audit failed".
 function describeCheckFailures(checks: CheckReport): string[] {
@@ -203,12 +243,43 @@ function describeCheckFailures(checks: CheckReport): string[] {
     ...checks.ungroundedQuotes.map((q) => `quoted text not found in any retrieved source: "${q.slice(0, 80)}"`),
     ...checks.ungroundedAddresses.map((a) => `address ${a} appears in no tool result this turn — remove it or replace it with an address you actually retrieved`),
     ...checks.ungroundedCitationValues.map((v) => `${v} — cite the value to the document that actually contains it, or drop the figure`),
+    ...checks.paramMismatches.map((m) => `${m} — state the correct atlas value instead`),
     ...(checks.lengthCapped ? ["the previous answer was cut off by the output length limit before it finished — write a complete, more concise answer that fits"] : []),
   ];
 }
 
 function retrievalTrouble(t: RoundTelemetry): boolean {
   return t.emptyResults + t.errorResults >= config.chatAdvisorTriggerEmptyResults || t.repeatedQueries >= 2;
+}
+
+// One model audit of an answer, dispatched on config.chatVerifierMode: the
+// sliced path (four concurrent narrow auditors, verify/sliced-verifier.ts) or
+// the legacy single-prompt verifier. Same VerifierRun shape either way;
+// `modelLabel` is what the check row records as `model`.
+async function runAudit(params: {
+  jsonCall: JsonCall;
+  ix: Indexes;
+  question: string;
+  answer: string;
+  evidence: EvidenceEntry[];
+  checks: CheckReport;
+  telemetry: RoundTelemetry;
+  signal?: AbortSignal;
+  obs?: ErrorContext;
+}): Promise<{ run: VerifierRun; modelLabel: string }> {
+  if (config.chatVerifierMode === "sliced") {
+    const models = sliceModels();
+    const run = await runSlicedVerifier({
+      call: params.jsonCall, models, ix: params.ix, question: params.question, answer: params.answer,
+      evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
+    });
+    return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
+  }
+  const run = await runVerifier({
+    call: params.jsonCall, model: config.chatVerifierModel, question: params.question, answer: params.answer,
+    evidence: params.evidence, checks: params.checks, telemetry: params.telemetry, signal: params.signal, obs: params.obs,
+  });
+  return { run, modelLabel: config.chatVerifierModel };
 }
 
 // Corrective-run steering per advisor action. The revision run's base is the
@@ -346,6 +417,12 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
+  // Entering verification is itself progress worth surfacing in staged mode —
+  // the route stays mode-unaware, so this fires unconditionally on every
+  // audited answer (the guard above already confirms checks are on and there's
+  // a non-empty answer to compare); streaming mode just forwards it like any
+  // other status event.
+  yield { type: "status", stage: "comparing", detail: "Comparing the draft against the retrieved sources…" };
   try {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
@@ -367,21 +444,25 @@ export async function* runVerifiedChat(opts: {
   // says so), so the verifier gets them as one [E-prev] entry alongside the
   // schema — otherwise every "summarize what you said" turn flags unsupported.
   const prevEvidence = priorTurnsEvidence(done.transcript);
-  const baseEvidence = (turnEvidence: EvidenceEntry[]) =>
-    [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...turnEvidence];
+  // constEvidence is computed PER audited answer (done.content vs revDone.content
+  // below), not once — the two answers can mention different parameters.
+  const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
+    const ce = constEvidence(opts.ix, answerText);
+    return [schemaEvidence(opts.ix), ...(prevEvidence ? [prevEvidence] : []), ...(ce ? [ce] : []), ...turnEvidence];
+  };
   let verdict: Verdict | null = null;
   if (verifierModel) {
     yield {
       type: "status", stage: "checking",
       detail: `Cross-checking ${checks.citations.length || "the"} cited claim${checks.citations.length === 1 ? "" : "s"} against ${evidence.length} source${evidence.length === 1 ? "" : "s"}…`,
     };
-    const run = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: done.content, evidence: baseEvidence(evidence), checks, telemetry, signal: opts.signal, obs: opts.obs,
+    const { run, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
+      answer: done.content, evidence: baseEvidence(evidence, done.content), checks, telemetry, signal: opts.signal, obs: opts.obs,
     });
     verdict = run.verdict;
     checksMeta.push({
-      kind: "verify", model: verifierModel, action: null, verdict: run.verdict,
+      kind: "verify", model: modelLabel, action: null, verdict: run.verdict,
       overall: computeOverall(checks, run.verdict),
       inputTokens: run.usage?.input ?? null, outputTokens: run.usage?.output ?? null,
       generationId: run.generationId, latencyMs: run.latencyMs,
@@ -489,13 +570,13 @@ export async function* runVerifiedChat(opts: {
   let revVerdict: Verdict | null = null;
   if (verifierModel && !opts.signal?.aborted) {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
-    const rerun = await runVerifier({
-      call: opts.jsonCall!, model: verifierModel, question: opts.question,
-      answer: revDone.content, evidence: baseEvidence(revEvidence), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
+    const { run: rerun, modelLabel } = await runAudit({
+      jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
+      answer: revDone.content, evidence: baseEvidence(revEvidence, revDone.content), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({
-      kind: "verify_recheck", model: verifierModel, action: "revised", verdict: rerun.verdict,
+      kind: "verify_recheck", model: modelLabel, action: "revised", verdict: rerun.verdict,
       overall: computeOverall(revChecks, rerun.verdict),
       inputTokens: rerun.usage?.input ?? null, outputTokens: rerun.usage?.output ?? null,
       generationId: rerun.generationId, latencyMs: rerun.latencyMs,

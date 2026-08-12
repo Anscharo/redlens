@@ -13,6 +13,10 @@ export interface RoundTelemetry {
   emptyResults: number; // tool ran fine but found nothing
   errorResults: number; // tool returned {"error": …}
   repeatedQueries: number; // near-duplicate re-issues of an earlier call (spinning)
+  // Optional (not required): verifier.test.ts / advisor.test.ts build RoundTelemetry
+  // literals directly and live outside this file's ownership — keeping this
+  // optional means adding it here doesn't force an edit across that boundary.
+  semanticSkips?: number; // a tool result carried a semantic_skipped reason (degraded to lexical-only)
   notes: string[]; // human-readable, one per flagged event — fed to verifier/advisor prompts
 }
 
@@ -31,7 +35,12 @@ export function isEmptyResult(content: string): boolean {
   if (obj == null) return true;
   if (Array.isArray(obj)) return obj.length === 0;
   if (typeof obj !== "object") return false;
-  const values = Object.values(obj as Record<string, unknown>);
+  // semantic_skipped describes the search's own health (a degraded leg), not a
+  // finding — a search that found nothing AND skipped semantic must still
+  // count as empty, so it's excluded from the substance scan below.
+  const values = Object.entries(obj as Record<string, unknown>)
+    .filter(([k]) => k !== "semantic_skipped")
+    .map(([, v]) => v);
   const arrays = values.filter(Array.isArray);
   if (arrays.length === 0) return false;
   if (!arrays.every((a) => a.length === 0)) return false;
@@ -47,6 +56,22 @@ export function isEmptyResult(content: string): boolean {
       typeof v === "boolean" ||
       (v !== null && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0),
   );
+}
+
+// Extract a runtime semantic_skipped reason from a tool result body, if
+// present. Independent of isErrorResult/isEmptyResult — a search can find
+// hits AND still have skipped its semantic leg (mode=hybrid degraded to
+// lexical-only), so this runs regardless of which of those two fired.
+function semanticSkipReason(content: string): string | null {
+  let obj: unknown;
+  try {
+    obj = JSON.parse(content);
+  } catch {
+    return null;
+  }
+  if (obj == null || typeof obj !== "object" || Array.isArray(obj)) return null;
+  const v = (obj as Record<string, unknown>).semantic_skipped;
+  return typeof v === "string" && v.length > 0 ? v : null;
 }
 
 // Canonical form of a call for duplicate detection: tool name + sorted args,
@@ -65,7 +90,15 @@ export function createRoundChecker(): {
   telemetry: () => RoundTelemetry;
 } {
   const seen = new Set<string>();
-  const t: RoundTelemetry = { rounds: 0, toolCalls: 0, emptyResults: 0, errorResults: 0, repeatedQueries: 0, notes: [] };
+  const t: RoundTelemetry = {
+    rounds: 0,
+    toolCalls: 0,
+    emptyResults: 0,
+    errorResults: 0,
+    repeatedQueries: 0,
+    semanticSkips: 0,
+    notes: [],
+  };
 
   return {
     record(info: RoundInfo): void {
@@ -86,6 +119,11 @@ export function createRoundChecker(): {
         } else if (isEmptyResult(r.content)) {
           t.emptyResults++;
           t.notes.push(`round ${info.iter + 1}: ${r.name} found nothing`);
+        }
+        const skipReason = semanticSkipReason(r.content);
+        if (skipReason) {
+          t.semanticSkips = (t.semanticSkips ?? 0) + 1;
+          t.notes.push(`round ${info.iter + 1}: semantic search degraded to lexical-only (${skipReason})`);
         }
       }
     },

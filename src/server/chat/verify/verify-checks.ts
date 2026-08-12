@@ -1,10 +1,12 @@
 // Deterministic end-of-turn answer checks for the chat reliability harness —
 // pure code, free, and authoritative: the verifier MODEL can never upgrade a
 // failure found here (overall is computed in code, see verifier.ts).
-// Kept dependency-light (patterns.ts only, plus the Indexes type) so the
-// golden-eval grader can share the citation pattern without dragging in Bun.
-import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC } from "../../../lib/patterns.ts";
+// Kept dependency-light (patterns.ts and the Indexes type, plus the sibling
+// param-checks.ts split out of this file) so the golden-eval grader can share
+// the citation pattern without dragging in Bun.
+import { UUID_RE, EVM_ADDRESS_SRC, SOL_ADDRESS_SRC, DOC_NO_CORE } from "../../../lib/patterns.ts";
 import type { Indexes } from "../../retrieval/indexes.ts";
+import { findParamMismatches } from "./param-checks.ts";
 
 // The system prompt's citation link format: [Title](/atlas/<uuid>). ONE source
 // of truth shared with scripts/aux/eval-golden-grade.ts so grader and runtime
@@ -46,7 +48,6 @@ export function findInvalidCitationUuids(citations: Citation[], ix: Indexes): st
 // doc_nos (A.1.6) plus the spec-invariant structural forms (.varX, NR-X). The
 // letter prefix must lead straight into dotted digits, so prose like "Q1 2026"
 // or "v1.2" never matches. Source string, not RegExp — fresh /g per scan.
-const DOC_NO_CORE = String.raw`(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)`;
 
 export function extractDocNoMentions(answer: string): string[] {
   return [...new Set(answer.match(new RegExp(String.raw`\b${DOC_NO_CORE}\b`, "g")) ?? [])];
@@ -135,7 +136,7 @@ function stripQuoteDecoration(span: string): string {
 // attribution dash and a citation marker (link or doc_no), so a quoted list item
 // like `> - item one` is still treated as quoted content.
 const ATTRIBUTION_DASH = /^\s*[—–-]{1,2}\s*\S/;
-const CITATION_MARKER = /\[[^\]]*\]\([^)]*\)|\b(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)\b/;
+const CITATION_MARKER = new RegExp(String.raw`\[[^\]]*\]\([^)]*\)|\b` + DOC_NO_CORE + String.raw`\b`);
 const isAttributionLine = (line: string) => ATTRIBUTION_DASH.test(line) && CITATION_MARKER.test(line);
 
 // A blockquote line the model wrote ABOUT the material rather than FROM it —
@@ -174,7 +175,9 @@ function isSelfAuthoredCallout(line: string): boolean {
 // states \"…\""). The denial may sit before the quote or after it, but must be
 // in the same clause (no sentence/clause break between).
 const ABSENCE_VERB = "contain|mention|define|include|specify|list|name|exist|appear|say|state|address|cover|prescribe|prohibit|document|record|refer";
-const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*\s*(?:${ABSENCE_VERB})|(?:does|do|did|is|are|was|were)n't\s+\w*\s*(?:${ABSENCE_VERB})|there\s+(?:is|are)\s+no\b|no such\b|nowhere\b|(?:is|are)\s+silent|not\s+(?:available|specified|stated|covered|addressed|found|mentioned|defined|documented)|lacks?\b|lacking\b|absent\b|never\s+\w*\s*(?:${ABSENCE_VERB})s?)`;
+// Exported for absence.ts: the subject of an absence claim is what's LEFT once
+// the denial phrase is removed, so the two must agree on what a denial is.
+export const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*\s*(?:${ABSENCE_VERB})|(?:does|do|did|is|are|was|were)n't\s+\w*\s*(?:${ABSENCE_VERB})|there\s+(?:is|are)\s+no\b|no such\b|nowhere\b|(?:is|are)\s+silent|not\s+(?:available|specified|stated|covered|addressed|found|mentioned|defined|documented)|lacks?\b|lacking\b|absent\b|never\s+\w*\s*(?:${ABSENCE_VERB})s?)`;
 const DENIAL_BEFORE = new RegExp(ABSENCE + String.raw`[^.!?;:]{0,40}$`, "i");
 const DENIAL_AFTER = new RegExp(String.raw`^[^.!?;:]{0,80}?` + ABSENCE, "i");
 const MAX_DENIED_TERM = 60;
@@ -426,7 +429,10 @@ const OVERLAP_STOPWORDS = new Set(
 // purpose: the check is a ratio over many words, not a parser.
 const foldWord = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
 
-function contentWords(text: string): string[] {
+// Exported for absence.ts, which scopes an absence claim to the evidence that
+// is ABOUT it — the same "distinctive words only" notion of aboutness this
+// overlap check uses, so the two can't drift apart.
+export function contentWords(text: string): string[] {
   const words = text.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
   return [...new Set(words.filter((w) => !OVERLAP_STOPWORDS.has(w)).map(foldWord))];
 }
@@ -521,6 +527,10 @@ export interface CheckReport {
   // a real figure attributed to the wrong document. A HARD failure.
   ungroundedCitationValues: string[];
   untracedNumbers: string[];
+  // Wrong stated value for a KNOWN atlas parameter (the derived param table,
+  // param-checks.ts's findParamMismatches) — a HARD failure like the other
+  // invented facts.
+  paramMismatches: string[];
   // Soft wrong-doc assist: claim sentences whose vocabulary barely occurs in the
   // doc they cite. Informs the verifier prompt; never fails a turn.
   lowOverlapCitations: string[];
@@ -543,6 +553,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
   const ungroundedQuotes = findUngroundedQuotes(answer, evidenceTexts, ix);
   const ungroundedAddresses = findUngroundedAddresses(answer, evidenceTexts);
   const ungroundedCitationValues = findUngroundedCitationValues(answer, evidenceTexts, ix);
+  const paramMismatches = findParamMismatches(answer, ix);
   return {
     citations,
     invalidCitations,
@@ -555,6 +566,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
     ungroundedCitationValues,
     untracedNumbers: findUntracedNumbers(answer, evidenceTexts),
     lowOverlapCitations: findLowOverlapCitations(answer, ix),
+    paramMismatches,
     lengthCapped: false,
     failed:
       invalidCitations.length > 0 ||
@@ -562,6 +574,7 @@ export function runDeterministicChecks(answer: string, evidenceTexts: string[], 
       docNoMismatches.length > 0 ||
       ungroundedQuotes.length > 0 ||
       ungroundedAddresses.length > 0 ||
-      ungroundedCitationValues.length > 0,
+      ungroundedCitationValues.length > 0 ||
+      paramMismatches.length > 0,
   };
 }
