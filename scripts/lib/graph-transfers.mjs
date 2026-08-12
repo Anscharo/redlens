@@ -44,10 +44,11 @@ import {
   makeWarn,
   createProseParty,
 } from "./graph-patterns.mjs";
+import { ETH_ADDR_SRC } from "./address-chains.mjs";
 
 const AMOUNT_LINE_RE = bulletField(String.raw`(.+?)\s+amount`, String.raw`([\d,.]+)`, "gim");
 const RECIPIENT_RE = bulletField("Recipient", String.raw`(.+?)`);
-const RECIPIENT_ADDR_RE = bulletField("Recipient Address", "`?(0x[0-9a-fA-F]{40})`?");
+const RECIPIENT_ADDR_RE = bulletField("Recipient Address", `\`?(${ETH_ADDR_SRC})\`?`);
 const TX_HASH_RE = bulletField("Transaction Hash", "`?(0x[0-9a-fA-F]{64})`?");
 
 // "X transferred 6.5 billion SPK tokens from … to the Y." / "X will transfer

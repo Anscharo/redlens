@@ -310,3 +310,56 @@ describe("extractInstanceParams", () => {
     expect(Object.keys(paramsResult).some((k) => k.includes("Should Not Appear"))).toBe(false);
   });
 });
+
+// The *Address param formatters go through address-chains' canonical patterns.
+// The load-bearing property (see the address-extraction skill) is the hex
+// boundary: a 64-hex value — tx hash, bytes32, RateLimitID, all of which the
+// atlas writes in the same backtick style — must never be truncated into a
+// plausible-looking 40-hex "address".
+describe("extractInstanceParams — address values", () => {
+  const ICD_NO = "A.6.1.1.9.2.1.2.2";
+  const P = `${ICD_NO}.1`;
+  const HASH = `0x${"ab".repeat(32)}`; // 64 hex
+  const ADDR = "0x1234567890abcdef1234567890abcdef12345678"; // 40 hex
+  const SOL = "So11111111111111111111111111111111111111112"; // 43 base58
+  const SHORT_B58 = "AaBbCcDdEeFfGgHhJjKkMmNnPpQqRrSs"; // 32 base58 chars — too short for a pubkey
+
+  const docs = [
+    mkDoc("p", P, "Parameters"),
+    mkDoc("hash", `${P}.1`, "Address", { content: `The transaction hash is \`${HASH}\`.` }),
+    mkDoc("bare", `${P}.2`, "Pool Address", { content: `The pool address is \`${ADDR}\`.` }),
+    mkDoc("sol", `${P}.3`, "Allocator Role Address", { content: `The role address is \`${SOL}\`.` }),
+    mkDoc("short", `${P}.4`, "Underlying Asset Address", { content: `The asset is \`${SHORT_B58}\`.` }),
+    mkDoc("prose", `${P}.5`, "Integration Partner Reward Address", {
+      content: `The reward address for the Aave Integration Boost is ${ADDR}.`,
+    }),
+  ];
+  const idx = buildChildrenIndex(docs);
+  const res = extractInstanceParams({ doc_no: ICD_NO }, idx) as Record<string, [string, string, string]>;
+
+  it("never truncates a 64-hex value into a 40-hex address", () => {
+    // Regression: the fallback used to be an un-anchored /0x[0-9a-fA-F]{40}/,
+    // which matched the leading 40 hex of the hash and shipped it as an address.
+    // Asserts the SHAPE, not one string: any 40-hex truncation must fail here.
+    expect(res["Address"][0]).not.toMatch(/^0x[0-9a-fA-F]{40}$/);
+    expect(res["Address"][0]).toContain(HASH);
+  });
+
+  it("keeps a backticked EVM address", () => {
+    expect(res["Pool Address"][0]).toBe(ADDR);
+  });
+
+  it("keeps a backticked Solana pubkey", () => {
+    expect(res["Allocator Role Address"][0]).toBe(SOL);
+  });
+
+  it("does not read a short base58-shaped token as an address", () => {
+    // The Solana quantifier is the canonical {43,44}, not {32,44}: a 32-char
+    // backticked word is a label or an identifier, never a pubkey.
+    expect(res["Underlying Asset Address"][0]).not.toBe(SHORT_B58);
+  });
+
+  it("still finds a bare address in prose", () => {
+    expect(res["Integration Partner Reward Address"][0]).toBe(ADDR);
+  });
+});

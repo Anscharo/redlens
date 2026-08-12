@@ -51,6 +51,8 @@ import { extractEntityEdges } from "../lib/graph-entity-edges.mjs";
 import {
   ETH_ADDR_RE,
   SOL_ADDR_RE,
+  ETH_ADDR_EXACT_RE,
+  SOL_ADDR_EXACT_RE,
   normalizeAddress,
   findTableContext,
 } from "../lib/address-chains.mjs";
@@ -358,8 +360,8 @@ for (const ent of entityMap.values()) {
     const role = icdParamRole(key);
     if (!role) continue;
     const [value, , srcDocNo] = tuple;
-    const isEvm = /^0x[0-9a-fA-F]{40}$/.test(value);
-    const isSol = !isEvm && /^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(value);
+    const isEvm = ETH_ADDR_EXACT_RE.test(value);
+    const isSol = !isEvm && SOL_ADDR_EXACT_RE.test(value);
     if (!isEvm && !isSol) continue;
 
     const addr = normalizeAddress(value);
