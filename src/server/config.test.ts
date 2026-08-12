@@ -13,17 +13,19 @@ const ENV_KEYS = [
   "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENROUTER_MANAGEMENT_KEY", "EMBED_MODEL",
   "SEMANTIC_MIN_SCORE", "SEMANTIC_EMBED_TIMEOUT_MS", "QUERY_EMBED_CACHE_SIZE", "CHAT_MODEL",
   "CHAT_DELIVERY_MODE",
-  "CURATION_SELECTOR_MODEL", "CURATION_CLUSTER_MODELS", "CURATION_FRONTIER_MODEL",
-  "CURATION_AUDIT_MODEL", "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
+  "CHAT_MAX_ITERATIONS", "CHAT_TEMPERATURE", "CHAT_MAX_OUTPUT_TOKENS",
   "CHAT_CAPTURE_CONTENT", "CHAT_TOOL_RESULT_MAX_CHARS", "CHAT_VERIFIER_MODEL", "CHAT_ADVISOR_MODEL",
   "CHAT_VERIFY_CHECKS", "CHAT_PREFETCH", "CHAT_VERIFIER_EVIDENCE_MAX_CHARS", "CHAT_VERIFIER_TIMEOUT_MS",
   "CHAT_ADVISOR_TRIGGER_EMPTY_RESULTS", "CHAT_ADVISOR_TRIGGER_UNSUPPORTED_CLAIMS",
   "CHAT_ADVISOR_TIMEOUT_MS", "CHAT_MODEL_FAST",
   "CHAT_MODEL_STRONG", "CHAT_MODEL_FALLBACKS", "RATE_LIMIT_TOKENS_PER_WINDOW",
-  "RATE_LIMIT_WINDOW_MINUTES", "MCP_PATH", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
+  "RATE_LIMIT_WINDOW_MINUTES", "MCP_PATH", "MCP_MAX_RESULT_CHARS", "RAILWAY_GIT_COMMIT_SHA", "APP_COMMIT", "GIT_COMMIT",
   "SOURCE_COMMIT", "GITHUB_TOKEN", "PREVIEW_DAILY_QUOTA", "PREVIEW_TRUSTED_FORK_DAILY_QUOTA",
   "PREVIEW_FORK_DAILY_QUOTA", "PREVIEW_UNKNOWN_FORK_DAILY_QUOTA", "PREVIEW_MAX_CONCURRENT_BUILDS",
-  "PREVIEW_BUILD_TIMEOUT_MS", "PREVIEW_SWEEP_INTERVAL_MS", "ATLAS_BUNDLE_ROOT", "ATLAS_BUNDLE_KEEP",
+  "PREVIEW_BUILD_TIMEOUT_MS", "PREVIEW_SWEEP_INTERVAL_MS", "PREVIEW_SWEEP_GRACE_MS", "PREVIEW_CACHE_KEEP",
+  "PREVIEW_MAX_DECOMPRESSED_BYTES", "PREVIEW_MAX_DOCS", "PREVIEW_MIN_ACCOUNT_AGE_DAYS",
+  "ATLAS_BUNDLE_ROOT", "ATLAS_BUNDLE_KEEP", "ATLAS_UPDATE_ESCALATE_AFTER",
+  "ATLAS_STALE_SECONDS", "ATLAS_STUCK_SECONDS", "ATLAS_UPDATER_DEAD_SECONDS",
 ] as const;
 
 let saved: Record<string, string | undefined> = {};
@@ -75,10 +77,6 @@ test("defaults when no env is set", async () => {
   expect(config.queryEmbedCacheSize).toBe(512);
   expect(config.chatModel).toBe("google/gemma-4-31b-it");
   expect(config.chatDeliveryMode).toBe("streaming");
-  expect(config.curationSelectorModel).toBe("mistralai/mistral-nemo");
-  expect(config.curationClusterModels).toEqual(["deepseek/deepseek-v4-flash", "anthropic/claude-haiku-4.5"]);
-  expect(config.curationFrontierModel).toBe("deepseek/deepseek-v4-pro");
-  expect(config.curationAuditModel).toBe("google/gemma-4-31b-it");
   expect(config.chatMaxIterations).toBe(4);
   expect(config.chatTemperature).toBe(0.3);
   expect(config.chatMaxOutputTokens).toBe(16000);
@@ -99,6 +97,7 @@ test("defaults when no env is set", async () => {
   expect(config.rateLimitTokensPerWindow).toBe(500000);
   expect(config.rateLimitWindowMinutes).toBe(120);
   expect(config.mcpPath).toBe("/mcp");
+  expect(config.mcpMaxResultChars).toBe(200_000);
   expect(config.appCommit).toBe("");
   expect(config.githubToken).toBe("");
   expect(config.previewDailyQuota).toBe(10);
@@ -108,8 +107,17 @@ test("defaults when no env is set", async () => {
   expect(config.previewMaxConcurrentBuilds).toBe(2);
   expect(config.previewBuildTimeoutMs).toBe(120_000);
   expect(config.previewSweepIntervalMs).toBe(600_000);
+  expect(config.previewSweepGraceMs).toBe(600_000);
+  expect(config.previewCacheKeep).toBe(20);
+  expect(config.previewMaxDecompressedBytes).toBe(64 * 1024 * 1024);
+  expect(config.previewMaxDocs).toBe(20_000);
+  expect(config.previewMinAccountAgeDays).toBe(30);
   expect(config.atlasBundleKeep).toBe(4);
   expect(config.atlasBundleRoot.endsWith("public/atlas")).toBe(true);
+  expect(config.atlasUpdateEscalateAfter).toBe(3);
+  expect(config.atlasStaleSeconds).toBe(3600);
+  expect(config.atlasStuckSeconds).toBe(30 * 60);
+  expect(config.atlasUpdaterDeadSeconds).toBe(300);
 });
 
 test("all env overrides take effect", async () => {
@@ -135,10 +143,6 @@ test("all env overrides take effect", async () => {
     QUERY_EMBED_CACHE_SIZE: "10",
     CHAT_MODEL: "custom-chat",
     CHAT_DELIVERY_MODE: "staged",
-    CURATION_SELECTOR_MODEL: "custom-selector",
-    CURATION_CLUSTER_MODELS: "a, b ,,c",
-    CURATION_FRONTIER_MODEL: "custom-frontier",
-    CURATION_AUDIT_MODEL: "custom-audit",
     CHAT_MAX_ITERATIONS: "9",
     CHAT_TEMPERATURE: "0.9",
     CHAT_MAX_OUTPUT_TOKENS: "999",
@@ -159,6 +163,7 @@ test("all env overrides take effect", async () => {
     RATE_LIMIT_TOKENS_PER_WINDOW: "777",
     RATE_LIMIT_WINDOW_MINUTES: "30",
     MCP_PATH: "/custom-mcp",
+    MCP_MAX_RESULT_CHARS: "50000",
     RAILWAY_GIT_COMMIT_SHA: "sha-1",
     APP_COMMIT: "sha-2",
     GIT_COMMIT: "sha-3",
@@ -171,8 +176,17 @@ test("all env overrides take effect", async () => {
     PREVIEW_MAX_CONCURRENT_BUILDS: "24",
     PREVIEW_BUILD_TIMEOUT_MS: "25000",
     PREVIEW_SWEEP_INTERVAL_MS: "26000",
+    PREVIEW_SWEEP_GRACE_MS: "27000",
+    PREVIEW_CACHE_KEEP: "28",
+    PREVIEW_MAX_DECOMPRESSED_BYTES: "29000000",
+    PREVIEW_MAX_DOCS: "30000",
+    PREVIEW_MIN_ACCOUNT_AGE_DAYS: "31",
     ATLAS_BUNDLE_ROOT: "/tmp/atlas-bundle-root",
     ATLAS_BUNDLE_KEEP: "5",
+    ATLAS_UPDATE_ESCALATE_AFTER: "6",
+    ATLAS_STALE_SECONDS: "7000",
+    ATLAS_STUCK_SECONDS: "800",
+    ATLAS_UPDATER_DEAD_SECONDS: "900",
   });
   const config = await freshConfig();
 
@@ -195,10 +209,6 @@ test("all env overrides take effect", async () => {
   expect(config.queryEmbedCacheSize).toBe(10);
   expect(config.chatModel).toBe("custom-chat");
   expect(config.chatDeliveryMode).toBe("staged");
-  expect(config.curationSelectorModel).toBe("custom-selector");
-  expect(config.curationClusterModels).toEqual(["a", "b", "c"]);
-  expect(config.curationFrontierModel).toBe("custom-frontier");
-  expect(config.curationAuditModel).toBe("custom-audit");
   expect(config.chatMaxIterations).toBe(9);
   expect(config.chatTemperature).toBe(0.9);
   expect(config.chatMaxOutputTokens).toBe(999);
@@ -219,6 +229,7 @@ test("all env overrides take effect", async () => {
   expect(config.rateLimitTokensPerWindow).toBe(777);
   expect(config.rateLimitWindowMinutes).toBe(30);
   expect(config.mcpPath).toBe("/custom-mcp");
+  expect(config.mcpMaxResultChars).toBe(50000);
   expect(config.appCommit).toBe("sha-1"); // RAILWAY_GIT_COMMIT_SHA wins over the other 3
   expect(config.githubToken).toBe("gh-token");
   expect(config.previewDailyQuota).toBe(20);
@@ -228,8 +239,17 @@ test("all env overrides take effect", async () => {
   expect(config.previewMaxConcurrentBuilds).toBe(24);
   expect(config.previewBuildTimeoutMs).toBe(25000);
   expect(config.previewSweepIntervalMs).toBe(26000);
+  expect(config.previewSweepGraceMs).toBe(27000);
+  expect(config.previewCacheKeep).toBe(28);
+  expect(config.previewMaxDecompressedBytes).toBe(29000000);
+  expect(config.previewMaxDocs).toBe(30000);
+  expect(config.previewMinAccountAgeDays).toBe(31);
   expect(config.atlasBundleRoot).toBe("/tmp/atlas-bundle-root");
   expect(config.atlasBundleKeep).toBe(5);
+  expect(config.atlasUpdateEscalateAfter).toBe(6);
+  expect(config.atlasStaleSeconds).toBe(7000);
+  expect(config.atlasStuckSeconds).toBe(800);
+  expect(config.atlasUpdaterDeadSeconds).toBe(900);
 });
 
 test("appCommit falls through APP_COMMIT, GIT_COMMIT, SOURCE_COMMIT in order", async () => {

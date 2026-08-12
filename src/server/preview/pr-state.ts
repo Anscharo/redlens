@@ -5,14 +5,17 @@
 // hiccup logs and moves on; it never blocks the atlas build.
 
 import { makeGhClient, CANONICAL_REPO } from "./resolve.ts";
+import { config } from "../config.ts";
 
 // Minimal structural type so the worker can pass its own Bun.sql client without
-// importing the web service's config-bound `sql`.
+// importing the web service's config-bound `sql`. (config.ts itself is fine to
+// import here — it's already in this file's module graph via resolve.ts, has
+// no side effects, and no DB binding of its own.)
 type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
 
 export async function sweepPrStates(
   sql: SqlTag,
-  token = process.env.GITHUB_TOKEN ?? "",
+  token = config.githubToken,
 ): Promise<{ checked: number; updated: number }> {
   const rows = (await sql`
     SELECT DISTINCT pr_number FROM previews WHERE kind = 'pr' AND pr_number IS NOT NULL

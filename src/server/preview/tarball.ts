@@ -20,6 +20,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { createGunzip } from "node:zlib";
 import { bucketFromFilename } from "../../../scripts/lib/atlas-source.mjs";
+import { config } from "../config.ts";
 
 export interface ExtractCaps {
   maxBytes: number;
@@ -31,8 +32,8 @@ export interface ExtractCaps {
 // 3.4MB composed monolith + sync/). 64MB gives ~90% growth headroom and caps a
 // fork's decompression bomb. Tunable via env without a code change.
 export const DEFAULT_CAPS: ExtractCaps = {
-  maxBytes: Number(process.env.PREVIEW_MAX_DECOMPRESSED_BYTES ?? 64 * 1024 * 1024),
-  maxDocs: Number(process.env.PREVIEW_MAX_DOCS ?? 20_000),
+  maxBytes: config.previewMaxDecompressedBytes,
+  maxDocs: config.previewMaxDocs,
 };
 
 export class CapExceededError extends Error {}

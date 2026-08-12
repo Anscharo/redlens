@@ -158,6 +158,12 @@ export const config = {
   // commons meter is simply absent and the shared-pool gate never fires.
   openrouterManagementKey: process.env.OPENROUTER_MANAGEMENT_KEY ?? "",
   embedModel: process.env.EMBED_MODEL ?? "qwen/qwen3-embedding-8b",
+  // NOTE: EMBED_BATCH (sync-embeddings.ts's per-request embedding batch size)
+  // is intentionally NOT a config key — it's parsed by that file's own
+  // `batchSizeFromEnv(env)`, a single named, already-tested function that
+  // takes an injectable env object so tests can assert the parsing directly
+  // without env mutation + reimport. Duplicating the `?? 50` default here
+  // would just create a second place for it to drift.
 
   // Semantic search relevance floor (cosine, 0..1). pgvector's ORDER BY returns
   // the k nearest docs regardless of absolute similarity, so a query with few
@@ -211,31 +217,12 @@ export const config = {
   // this also doubles as the fallback for an invalid per-request override
   // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
   chatDeliveryMode,
-  // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
-  // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
-  // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
-  // the model bakeoff (scripts/htmlhist/curation-model-bakeoff.mjs): mistral-nemo had the best
-  // hard-case accuracy (97%) at the lowest cost. Decoupled from chatModel so live chat and
-  // the curation selector swap independently. Offline tooling only.
-  curationSelectorModel: process.env.CURATION_SELECTOR_MODEL ?? "mistralai/mistral-nemo",
-  // Models for the OFFLINE auto-curator's CLUSTER pass (joint assignment over near-identical
-  // siblings that share candidates). A subject LOCKS only when these DIFFERENT-family models
-  // agree AND the pick is globally conflict-free — a stronger, more independent signal than
-  // LLM∩matcher, since the matcher is exactly what fails on these. CSV, ≥2 distinct families.
-  // Anthropic side is claude-haiku-4.5 (cheap) rather than sonnet: the two-family agreement lock
-  // is a cross-family CHECK on deepseek's pick, so the Anthropic model only needs to be a competent
-  // independent voter — haiku suffices and the cluster pass is the only place it runs. Offline only.
-  curationClusterModels: (process.env.CURATION_CLUSTER_MODELS ?? "deepseek/deepseek-v4-flash,anthropic/claude-haiku-4.5")
-    .split(",").map((s) => s.trim()).filter(Boolean),
-  // Frontier model the OFFLINE HTML-era auto-curator escalates UNCERTAIN cases to
-  // (pass 3, opt-in via --frontier). Pricier than the selector; only the contested residual
-  // is routed here. deepseek-v4-pro won the bakeoff's frontier slot (94% hard-acc, 0 JSON
-  // failures). Never used by the runtime chat/curation page — offline tooling only.
-  curationFrontierModel: process.env.CURATION_FRONTIER_MODEL ?? "deepseek/deepseek-v4-pro",
-  // Cheap second model the OFFLINE decision audit (scripts/htmlhist/audit-html-decisions.mjs) uses to
-  // independently re-pick each curation predecessor; disagreements with the recorded decision are
-  // flagged for pass-2 review. Offline review tooling only — never the runtime chat/curation page.
-  curationAuditModel: process.env.CURATION_AUDIT_MODEL ?? "google/gemma-4-31b-it",
+  // NOTE: the OFFLINE HTML-era curation model knobs (selector/cluster/frontier/audit)
+  // used to live here but had zero runtime readers in src/server — every reader is
+  // one of the scripts/htmlhist/*.mjs offline tools. Moved to
+  // scripts/htmlhist/curation-models.mjs so this module stays scoped to what the
+  // live server actually reads. See that file for the model choices + rationale.
+
   // Hard server-side cap on agentic tool rounds (system-prompt budget is advisory).
   // Every round replays the full context, so round count — not token count — is
   // the dominant latency driver (a 30-turn in-repo eval measured median 82s, max
@@ -268,7 +255,7 @@ export const config = {
 
   // Chat reliability harness (docs/plans/chat-reliability-harness.md).
   // Final claim-audit model — should be a stronger, DIFFERENT-family model than
-  // chatModel (cross-family independence, same rationale as curationClusterModels).
+  // chatModel (cross-family independence).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
   // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
@@ -333,6 +320,12 @@ export const config = {
 
   // MCP transport mount path (streamable HTTP, no auth this phase).
   mcpPath: process.env.MCP_PATH ?? "/mcp",
+  // Per-tool-response byte budget (chat/output-budget.ts fitToBudget). MCP
+  // clients have a bounded context window, so a single 300-600KB tool response
+  // overflows the very assistant that called it (observed on atlas_entity /
+  // atlas_entity_params for Prime Agents). Budget counts chars of JSON (~1
+  // byte each); tune via env.
+  mcpMaxResultChars: Number(process.env.MCP_MAX_RESULT_CHARS ?? 200_000),
 
   // This app's git commit, surfaced in tool response _meta for provenance
   // ("which build answered"). Railway injects RAILWAY_GIT_COMMIT_SHA at deploy;
@@ -372,6 +365,24 @@ export const config = {
   // Background bundle sweeper (preview/sweeper.ts): blocked-sha takedowns,
   // stale-vs-main eviction, LRU cap — all on a timer, not just after builds.
   previewSweepIntervalMs: Number(process.env.PREVIEW_SWEEP_INTERVAL_MS ?? 600_000),
+  // Grace window (preview/sweeper.ts) before a stale-vs-main bundle is swept, so
+  // an actively-browsed preview isn't yanked mid-session — the next visit
+  // rebuilds against current main instead.
+  previewSweepGraceMs: Number(process.env.PREVIEW_SWEEP_GRACE_MS ?? 600_000),
+  // Preview bundle LRU retention count (bundle-store.ts's PREVIEW_STORE) —
+  // distinct from atlasBundleKeep below, which is the MAIN/live-atlas store.
+  previewCacheKeep: Number(process.env.PREVIEW_CACHE_KEEP ?? 20),
+  // Preview tarball extraction caps (preview/tarball.ts). maxBytes bounds the
+  // FULL decompressed archive (the whole tar is gunzipped so Bun.Archive can
+  // parse it safely), not content/ alone. Measured 2026-06: the live atlas
+  // archive is ~33.5MB decompressed (content/ + a 12MB Static/ + the 3.4MB
+  // composed monolith + sync/). 64MB gives ~90% growth headroom and caps a
+  // fork's decompression bomb.
+  previewMaxDecompressedBytes: Number(process.env.PREVIEW_MAX_DECOMPRESSED_BYTES ?? 64 * 1024 * 1024),
+  previewMaxDocs: Number(process.env.PREVIEW_MAX_DOCS ?? 20_000),
+  // Minimum GitHub account age (days) for an unscored fork owner to land in the
+  // "unknown" tier instead of "refused" (preview/trust.ts tierFor).
+  previewMinAccountAgeDays: Number(process.env.PREVIEW_MIN_ACCOUNT_AGE_DAYS ?? 30),
 
   // Artifact + static-bundle locations.
   publicDir: resolve(ROOT, "public"),
@@ -416,4 +427,23 @@ export const config = {
   // 4 (not 2) widens that buffer, shrinking the window where a page pinned to
   // a recent sha 404s after pruning and has to force-reload.
   atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 4),
+
+  // In-process atlas updater (atlas-updater.ts): loud-log + freshness "stuck"
+  // threshold — consecutive failed/non-converged rebuild attempts before
+  // escalating from warn to ERROR logs. NOTE: ATLAS_UPDATE_ENABLED,
+  // ATLAS_UPDATE_INTERVAL_MS, and ATLAS_UPDATE_MAX_BACKOFF_MS deliberately stay
+  // as raw process.env reads in atlas-updater.ts rather than config keys here —
+  // they're read at CALL time (inside startUpdater()/backoffMs()), and
+  // atlas-updater.test.ts mutates process.env then calls those functions
+  // directly without a cache-busting reimport; routing them through config.ts
+  // (frozen at config.ts's own first import) would silently stop tracking
+  // env changes and break that test.
+  atlasUpdateEscalateAfter: Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3),
+
+  // Runtime freshness health thresholds (history/freshness.ts) — see that
+  // file's header comment for the full status-derivation rationale; this is
+  // just the env-parsed defaults.
+  atlasStaleSeconds: Number(process.env.ATLAS_STALE_SECONDS ?? 3600),
+  atlasStuckSeconds: Number(process.env.ATLAS_STUCK_SECONDS ?? 30 * 60),
+  atlasUpdaterDeadSeconds: Number(process.env.ATLAS_UPDATER_DEAD_SECONDS ?? 300),
 };

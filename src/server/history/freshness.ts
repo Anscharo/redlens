@@ -17,18 +17,19 @@ import { sql } from "../db.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { migrationFiles } from "../migrate.ts";
 import { getUpdaterState, isUpdaterEnabled, type UpdaterState } from "../atlas-updater.ts";
+import { config } from "../config.ts";
 
 // The worker cron runs every 12 minutes and (as of the sync_state.synced_at
 // touch-on-every-run change) advances synced_at on every run, including
 // no-ops — not just on structural syncs like it used to. So >1h of silence
 // means the worker is genuinely dead, not just quiet; the old 48h window
 // existed only to tolerate long stretches with no structural sync.
-const STALE_SECONDS = Number(process.env.ATLAS_STALE_SECONDS ?? 3600);
+const STALE_SECONDS = config.atlasStaleSeconds;
 
 // How long live may lag db before the updater is "stuck" (vs benignly syncing).
 // Much shorter than STALE: a live process failing to converge is an active
 // problem, where a quiet worker is not. Covers a poison-commit retry loop.
-const STUCK_SECONDS = Number(process.env.ATLAS_STUCK_SECONDS ?? 30 * 60);
+const STUCK_SECONDS = config.atlasStuckSeconds;
 
 // How long the updater loop may go without a tick before it's treated as dead
 // (vs. just booted). 10 poll intervals at the default 30s cadence. A disabled
@@ -36,7 +37,7 @@ const STUCK_SECONDS = Number(process.env.ATLAS_STUCK_SECONDS ?? 30 * 60);
 // would otherwise leave a later-diverged db sha reporting "syncing" 200
 // forever — nothing ever advances divergedAgeSeconds past STUCK without a
 // live tick loop to run nextDivergedSince.
-const UPDATER_DEAD_SECONDS = Number(process.env.ATLAS_UPDATER_DEAD_SECONDS ?? 300);
+const UPDATER_DEAD_SECONDS = config.atlasUpdaterDeadSeconds;
 
 // The latest migration bundled in this image = the schema the running code
 // requires. Computed once at module load (shares migrate.ts's file listing).
