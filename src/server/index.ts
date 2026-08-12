@@ -32,6 +32,7 @@ import { runMigrations } from "./migrate.ts";
 import { handlePreview } from "./preview/handler.ts";
 import { evaluateFreshness, freshnessHttpStatus } from "./history/freshness.ts";
 import { shutdownPosthog } from "./posthog-node.ts";
+import { serverAnalyticsEnabled } from "./posthog-capture.ts";
 
 // Fail-loud at boot when logins were requested (USERS_ENABLED=1) but a hard
 // prerequisite is missing — so the surface stays OFF (see config.usersEnabled)
@@ -463,6 +464,13 @@ export async function boot(deps: BootDeps = realBootDeps): Promise<void> {
   );
 
   checkAuthConfig();
+
+  // POSTHOG_KEY is a RUNTIME service variable (not the build-time VITE_ one) and
+  // every server-side capture path no-ops silently without it — which once went
+  // unnoticed for six weeks. Say so at boot instead.
+  if (!serverAnalyticsEnabled) {
+    console.warn("⚠️  POSTHOG_KEY unset — server-side analytics disabled (mcp_tool_call, $ai_generation, chat error capture)");
+  }
 
   // Report the canonical-redirect decision at boot (both directions — the
   // decision itself, canonicalRedirectBootLog, is unit-tested in
