@@ -50,6 +50,29 @@ describe("kv pattern", () => {
     ]);
   });
 
+  it("reads a kv line whose VALUE is backticked, not just its key", () => {
+    const n = mk({ id: "n", title: "ETH-C", content: "- `tip`: `250`\n" });
+    const ix = buildParamIndex(map([n]));
+    const tip = ix.rows.find((r) => r.name === "tip")!;
+    expect(tip.value).toBe("250");
+    expect(tip.num).toBe(250);
+    // `context` keeps the line exactly as the atlas wrote it, backticks included.
+    expect(tip.context).toBe("- `tip`: `250`");
+  });
+
+  it("a backticked value with a trailing parenthetical still parses", () => {
+    const n = mk({ id: "n", title: "Vault", content: "- Initial LTV: `80%` (125% collateralization ratio)\n" });
+    const ix = buildParamIndex(map([n]));
+    const ltv = ix.rows.find((r) => r.name === "initial ltv")!;
+    expect(ltv.value).toBe("80%");
+    expect(ltv.num).toBe(80);
+  });
+
+  it("a backticked NON-value is still rejected — unwrapping widens nothing", () => {
+    const n = mk({ id: "n", title: "Pending", content: "- Address: `TBD`\n- Owner: `0xabc`\n" });
+    expect(buildParamIndex(map([n])).rows).toEqual([]);
+  });
+
   it("does not swallow a trailing list-item comma into the number", () => {
     const n = mk({ id: "n", title: "ETH-B", content: "- `tip`: 250,\n- `chop`: 13%,\n" });
     const ix = buildParamIndex(map([n]));
@@ -269,6 +292,24 @@ describe("owner resolution", () => {
     const n = mk({ id: "n", title: "Orphan", content: "- Rate: 5%\n" });
     const ix = buildParamIndex(map([n]));
     expect(ix.rows[0].owner).toBeNull();
+  });
+
+  it("skips an 'X Registry' container rather than returning it as the owner", () => {
+    // "Registry" is a standing container-title family (conceptsCensus.ts's
+    // registry-liveness census) — returning one as `owner` would feed a
+    // non-entity into verify-checks.ts's name/owner disambiguation gates.
+    const registry = mk({ id: "reg", title: "Multisig Registry", content: "x", depth: 4 });
+    const leaf = mk({ id: "leaf", title: "Signer Threshold", content: "- Threshold: 4\n", parentId: "reg" });
+    const ix = buildParamIndex(map([registry, leaf]));
+    expect(ix.rows[0].owner).toBeNull();
+  });
+
+  it("still resolves a real entity sitting above a Registry container", () => {
+    const spark = mk({ id: "spark", title: "Spark", content: "x", depth: 3 });
+    const registry = mk({ id: "reg", title: "Multisig Registry", content: "x", parentId: "spark", depth: 4 });
+    const leaf = mk({ id: "leaf", title: "Signer Threshold", content: "- Threshold: 4\n", parentId: "reg" });
+    const ix = buildParamIndex(map([spark, registry, leaf]));
+    expect(ix.rows[0].owner).toBe("spark");
   });
 });
 

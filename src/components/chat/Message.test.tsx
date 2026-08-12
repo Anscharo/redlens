@@ -168,6 +168,7 @@ describe("Message staged-mode stage checklist", () => {
     render(
       <Message
         msg={baseMsg({
+          delivery: "staged",
           stageLog: [
             { stage: "querying", detail: "Searching the atlas for facilitator rewards…", at: 0 },
           ],
@@ -187,6 +188,7 @@ describe("Message staged-mode stage checklist", () => {
     render(
       <Message
         msg={baseMsg({
+          delivery: "staged",
           stageLog: [
             { stage: "querying", detail: "Searching…", at: 0 },
             { stage: "checking", detail: "Auditing 3 claims…", at: 1 },
@@ -206,6 +208,7 @@ describe("Message staged-mode stage checklist", () => {
 
   it("hides the checklist once content is non-empty, even mid-stream (streaming mode unaffected)", () => {
     const msg = baseMsg({
+      delivery: "staged",
       content: "",
       stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }],
     });
@@ -231,6 +234,23 @@ describe("Message staged-mode stage checklist", () => {
     expect(screen.getByText("searching…")).toBeInTheDocument();
   });
 
+  it("an unstamped delivery falls back to the classic ticker, not the staged checklist", () => {
+    // A degraded/older server that never sends `delivery` on meta. Unknown
+    // mode must degrade to the historical UI, not opt the user into the new
+    // one — chat.ts stamps the field on the first frame, so in-flight staged
+    // turns always have it by the time a stage row exists.
+    render(
+      <Message
+        msg={baseMsg({ content: "", statusLine: "searching…", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
+        streaming
+        showTrace={false}
+        onAtlas={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("Looking for evidence")).toBeNull();
+    expect(screen.getByText("searching…")).toBeInTheDocument();
+  });
+
   it("streaming mode keeps the plain empty bubble on an empty done turn (no stopped row)", () => {
     render(
       <Message
@@ -246,7 +266,7 @@ describe("Message staged-mode stage checklist", () => {
   it("shows a muted stopped row for an aborted staged turn (done, empty content, stages ran)", () => {
     render(
       <Message
-        msg={baseMsg({ done: true, content: "", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
+        msg={baseMsg({ delivery: "staged", done: true, content: "", stageLog: [{ stage: "querying", detail: "Searching…", at: 0 }] })}
         streaming={false}
         showTrace={false}
         onAtlas={vi.fn()}
@@ -258,7 +278,7 @@ describe("Message staged-mode stage checklist", () => {
   it("renders an unrecognized stage's raw name, capitalized", () => {
     render(
       <Message
-        msg={baseMsg({ stageLog: [{ stage: "escalating", detail: null, at: 0 }] })}
+        msg={baseMsg({ delivery: "staged", stageLog: [{ stage: "escalating", detail: null, at: 0 }] })}
         streaming
         showTrace={false}
         onAtlas={vi.fn()}

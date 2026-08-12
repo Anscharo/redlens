@@ -231,6 +231,16 @@ test("atlas_neighbors tags parent/sibling/child rows with liveness and adds the 
   expect(res.liveness_hint).toContain("liveness:scaffold");
 });
 
+test("atlas_neighbors tags the target itself — the one node the call is about", () => {
+  const ix = makeIx();
+  ix.liveness.set("D1", "scaffold");
+  const res = atlasNeighbors(ix, "D1", 8) as { target: Record<string, unknown>; liveness_hint?: string };
+  expect(res.target.liveness).toBe("scaffold");
+  // A scaffold target alone must raise the envelope hint, even when every
+  // neighbour row is settled.
+  expect(res.liveness_hint).toContain("liveness:scaffold");
+});
+
 test("atlas_filter tags result rows with liveness and adds the envelope hint only when a row is flagged", () => {
   const ix = makeIx();
   ix.liveness.set("P1", "scaffold");

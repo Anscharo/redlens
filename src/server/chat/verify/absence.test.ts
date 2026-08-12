@@ -54,28 +54,28 @@ test("owner disambiguation: the same term correctly refutes when the claim names
 });
 
 test("grounded: a scaffold-tagged doc in the turn's evidence honestly explains the gap", () => {
-  const evidence = ['{"id":"x","liveness":"scaffold","title":"Lawyer Registry"}'];
+  const evidence = [{ content: '{"id":"x","liveness":"scaffold","title":"Lawyer Registry"}' }];
   const audit = auditAbsenceClaim("the atlas does not specify a lawyer registry entry for Grove", evidence, ix);
   expect(audit.outcome).toBe("grounded");
   expect(audit.detail).toBe("grounded: liveness:scaffold");
 });
 
 test("grounded: a placeholder-tagged doc also counts", () => {
-  const evidence = ['{"id":"x","liveness":"placeholder"}'];
+  const evidence = [{ content: '{"id":"x","title":"Vesting Cliff","liveness":"placeholder"}' }];
   const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
   expect(audit.outcome).toBe("grounded");
   expect(audit.detail).toBe("grounded: liveness:placeholder");
 });
 
 test("grounded: an empty search result (count:0) counts", () => {
-  const evidence = ['{"count":0,"results":[],"mode":"lexical"}'];
+  const evidence = [{ args: '{"q":"governance token vesting cliff"}', content: '{"count":0,"results":[],"mode":"lexical"}' }];
   const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
   expect(audit.outcome).toBe("grounded");
   expect(audit.detail).toBe("grounded: empty-result");
 });
 
 test("grounded: an empty search result (results:[] with no count field) counts", () => {
-  const evidence = ['{"results":[],"mode":"semantic"}'];
+  const evidence = [{ args: '{"q":"vesting cliff"}', content: '{"results":[],"mode":"semantic"}' }];
   const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
   expect(audit.outcome).toBe("grounded");
 });
@@ -83,7 +83,9 @@ test("grounded: an empty search result (results:[] with no count field) counts",
 test("NOT grounded: a real, populated search envelope (round-checks' isEmptyResult trap) must not pass", () => {
   // The exact envelope shape round-checks.ts's isEmptyResult was fixed to
   // reject (a populated `mode` string, no count:0/results:[] signature).
-  const evidence = ['{"count":3,"mode":"hybrid","results":[{"id":"a"},{"id":"b"},{"id":"c"}]}'];
+  const evidence = [
+    { args: '{"q":"vesting cliff"}', content: '{"count":3,"mode":"hybrid","results":[{"id":"a"},{"id":"b"},{"id":"c"}]}' },
+  ];
   const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
   expect(audit.outcome).toBe("unverified");
 });
@@ -92,12 +94,45 @@ test("unverified: no refutation and no grounding signal", () => {
   const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", [], ix);
   expect(audit).toEqual({
     outcome: "unverified",
-    detail: "could not verify the claimed absence — no empty-result or scaffold evidence, and no parameter-table refutation",
+    detail:
+      "could not verify the claimed absence — no empty-result or scaffold evidence about it, and no parameter-table refutation",
   });
 });
 
 test("precedence: refuted beats grounded when both signals are present", () => {
-  const evidence = ['{"count":0,"results":[]}'];
+  const evidence = [{ args: '{"q":"usds mint maximum keel"}', content: '{"count":0,"results":[]}' }];
   const audit = auditAbsenceClaim("the atlas does not specify a USDS mint maximum for Keel", evidence, ix);
   expect(audit.outcome).toBe("refuted");
+});
+
+// ── evidence scoping ────────────────────────────────────────────────────────
+// A turn makes several tool calls. Grounding must come from evidence about the
+// thing the claim denies, not from any empty result anywhere in the turn.
+test("NOT grounded: an empty result for a DIFFERENT subject cannot ground this claim", () => {
+  const evidence = [{ args: '{"q":"grove multisig signers"}', content: '{"count":0,"results":[],"mode":"lexical"}' }];
+  const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
+  expect(audit.outcome).toBe("unverified");
+});
+
+test("NOT grounded: an unrelated scaffold row elsewhere in the turn cannot ground this claim", () => {
+  const evidence = [{ args: '{"id":"T.9"}', content: '{"id":"y","title":"Completed Invocations","liveness":"scaffold"}' }];
+  const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
+  expect(audit.outcome).toBe("unverified");
+});
+
+test("grounded: the related entry still counts when unrelated evidence sits alongside it", () => {
+  const evidence = [
+    { args: '{"q":"grove multisig signers"}', content: '{"count":2,"results":[{"id":"a"},{"id":"b"}]}' },
+    { args: '{"q":"vesting cliff"}', content: '{"count":0,"results":[]}' },
+  ];
+  const audit = auditAbsenceClaim("the atlas does not specify a governance token vesting cliff", evidence, ix);
+  expect(audit.outcome).toBe("grounded");
+});
+
+test("a subject-less claim falls back to turn-wide grounding rather than failing outright", () => {
+  // "the atlas is silent on this" — every content word is absence vocabulary,
+  // so there is nothing to scope on. Refusing to ground would demote every
+  // anaphoric absence claim.
+  const evidence = [{ args: '{"q":"anything"}', content: '{"count":0,"results":[]}' }];
+  expect(auditAbsenceClaim("the atlas is silent on this", evidence, ix).outcome).toBe("grounded");
 });

@@ -168,6 +168,53 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("");
   });
 
+  it("finalizes a stream that closes cleanly without a terminal event (no forever-pending turn)", async () => {
+    // Proxy cut / server crash mid-turn: stages arrived, "done"/"error" never
+    // did. Staged mode renders its checklist on !done, so an unfinalized
+    // message would pulse forever behind a re-enabled input.
+    mockChat([
+      { type: "meta", conversationId: "c1", delivery: "staged" },
+      { type: "status", stage: "querying", detail: "Searching…" },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    const last = result.current.messages.at(-1);
+    expect(last?.done).toBe(true);
+    expect(last?.failed).toBe(true);
+    expect(last?.statusLine).toBeNull();
+    expect(result.current.streaming).toBe(false);
+    // Not the generic error banner — the turn's own "didn't come through" copy.
+    expect(result.current.error).toBeNull();
+  });
+
+  it("does not mark a normally terminated stream as failed", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.failed).toBeUndefined();
+    expect(result.current.messages.at(-1)?.content).toBe("ok");
+  });
+
+  it("keeps a partially streamed answer when the stream is truncated", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "token", text: "half an ans" },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.messages.at(-1)?.content).toBe("half an ans");
+    expect(result.current.messages.at(-1)?.done).toBe(true);
+  });
+
   it("skips a heartbeat/comment frame with no data: line", async () => {
     mockRaw([
       ": heartbeat\n\n",

@@ -23,6 +23,13 @@ const MULTIPLIERS: Record<string, number> = {
 const UNIT_WORD = "[A-Za-z][\\w/-]*(?:\\.[A-Za-z][\\w/-]*)*";
 const UNIT_TAIL_RE = new RegExp(`^(%|\\s+(?:per\\s+)?${UNIT_WORD}(?:\\s+(?:per\\s+)?${UNIT_WORD}){0,4})?[.,;]?$`);
 
+// "key: value" lines, bullet or bare — "- `maxAmount`: 10,000 USDS",
+// "- Liquidation Ratio: 145%,", "- Slope 1: 9%". Backticks around the KEY are
+// tolerated (group 1 is the name, group 2 the raw value). Lives here rather
+// than in paramExtract.ts because liveness.ts needs the same notion of "this
+// line states a value" and must not re-derive it.
+export const KV_LINE_RE = /^\s*[-*]?\s*`?([A-Za-z][\w .()/-]{0,40}?)`?\s*:\s*(.+?)\s*$/;
+
 export interface ParsedValue {
   value: string; // reconstructed canonical string (number + multiplier-as-written + unit)
   num: number | null;

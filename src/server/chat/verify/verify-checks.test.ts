@@ -18,9 +18,9 @@ import {
   findUntracedNumbers,
   findUngroundedQuotes,
   findLowOverlapCitations,
-  findParamMismatches,
   runDeterministicChecks,
 } from "./verify-checks.ts";
+import { findParamMismatches } from "./param-checks.ts";
 
 const ix = loadIndexes();
 const realUuid = ix.docMap.keys().next().value as string;
@@ -469,7 +469,7 @@ test("value grounding: a uuid used as link text is an identifier, not a figure",
 // findParamMismatches — synthetic fixture. Built via buildIndexes rather than
 // the real corpus so every case is deterministic and doesn't drift with atlas
 // content. Mirrors the real shape that motivated the title-fallback matching
-// (see verify-checks.ts's findParamsMentioned doc comment): a Keel doc titled
+// (see param-checks.ts's findParamsMentioned doc comment): a Keel doc titled
 // "USDS Mint Maximum" whose kv rows are named "maxamount"/"slope" — names a
 // model paraphrasing in prose never repeats verbatim.
 // ---------------------------------------------------------------------------

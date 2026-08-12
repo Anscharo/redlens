@@ -42,13 +42,20 @@ function AssistantTurn({
   // DEFAULT streaming mode visually unchanged pre-first-token (its old
   // placeholder ticker) until the staged A/B measures — stageLog accumulates
   // in both modes, so without the gate the checklist would leak into
-  // streaming's pre-token window. `undefined` (no meta yet / older server)
-  // counts as non-streaming so staged tests and aborts still render stages.
-  const notStreamingMode = msg.delivery !== "streaming";
-  const showChecklist = notStreamingMode && !msg.done && empty && stageLog.length > 0;
+  // streaming's pre-token window.
+  //
+  // Opt-IN on the exact value, not opt-out of "streaming": `undefined` means
+  // the server never stamped the field (a degraded/older server, or a
+  // hydrated message), and the classic ticker is the right fallback for an
+  // unknown mode — treating unknown as staged made the new UI the default for
+  // exactly the servers least able to drive it. Safe because chat.ts sends
+  // `meta` (carrying delivery) as the FIRST frame of every stream, before any
+  // status event that could populate stageLog.
+  const stagedMode = msg.delivery === "staged";
+  const showChecklist = stagedMode && !msg.done && empty && stageLog.length > 0;
   // An aborted staged turn: done, still no answer, but stages ran — a blank
   // bubble would look broken rather than intentionally stopped.
-  const stoppedEmpty = notStreamingMode && msg.done && empty && stageLog.length > 0;
+  const stoppedEmpty = stagedMode && msg.done && empty && stageLog.length > 0;
   const shownContent = !msg.done ? balanceFences(msg.content) : revealing ? balanceFences(display) : display;
 
   return (

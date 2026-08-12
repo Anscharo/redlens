@@ -63,6 +63,18 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
+// Verifier audit path, resolved like chatDeliveryMode: a whitelist, not a cast.
+// Asymmetry is deliberate — "single" is the legacy, weaker escape hatch, so
+// only that exact literal selects it and anything unrecognized falls back to
+// the strong default rather than silently downgrading production's audit on a
+// typo ("Sliced", "slices", a trailing space). A misconfigured value is still
+// operator error, so say so at boot instead of swallowing it.
+const rawVerifierMode = (process.env.CHAT_VERIFIER_MODE ?? "").trim();
+const chatVerifierMode: "sliced" | "single" = rawVerifierMode === "single" ? "single" : "sliced";
+if (rawVerifierMode && rawVerifierMode !== "single" && rawVerifierMode !== "sliced") {
+  console.warn(`[config] CHAT_VERIFIER_MODE="${rawVerifierMode}" is not "sliced" or "single" — using "sliced".`);
+}
+
 export const config = {
   port,
 
@@ -257,7 +269,9 @@ export const config = {
   // How the model audit runs: "sliced" (default) = four concurrent narrow
   // auditors with code-validated evidence spans (verify/sliced-verifier.ts);
   // "single" = the legacy one-prompt verifier.ts path (escape hatch).
-  chatVerifierMode: (process.env.CHAT_VERIFIER_MODE || "sliced") as "sliced" | "single",
+  // Resolved + warned about above — never a bare cast, so a typo can't drop
+  // production back to the legacy verifier unnoticed.
+  chatVerifierMode,
   // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
   // named fall back to chatVerifierModel. Lets roles use different models.
   chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",

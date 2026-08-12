@@ -6,7 +6,7 @@
 // is evidence-backed, not speculative.
 import type { AtlasNode } from "../types";
 import type { ParamRow } from "./paramIndex";
-import { normalizeName, parseValue, stripCodeFences, truncateContext } from "./paramValue";
+import { KV_LINE_RE, normalizeName, parseValue, stripCodeFences, truncateContext } from "./paramValue";
 
 export type ExtractedRow = Omit<ParamRow, "owner">;
 
@@ -17,7 +17,6 @@ export type ExtractedRow = Omit<ParamRow, "owner">;
 // module's test/report for why: ~103 rate-limit docs each carry a maxAmount +
 // slope pair via this exact shape.
 // ---------------------------------------------------------------------------
-const KV_LINE_RE = /^\s*[-*]?\s*`?([A-Za-z][\w .()/-]{0,40}?)`?\s*:\s*(.+?)\s*$/;
 
 export function extractKv(n: AtlasNode): ExtractedRow[] {
   const rows: ExtractedRow[] = [];
@@ -29,11 +28,26 @@ export function extractKv(n: AtlasNode): ExtractedRow[] {
     // sentence-shaped false positives like "The only exceptions ... are if: 1)
     // a signer self-reports ..." (value starts with a digit but the full RHS
     // never validates as number[+multiplier][+unit]).
-    let parsed = parseValue(m[2].trim());
-    if (!parsed) {
-      // "Initial LTV: 80% (125% collateralization ratio)" — a trailing
-      // parenthetical gloss shouldn't sink an otherwise-clean value.
-      parsed = parseValue(m[2].trim().replace(/\s*\([^)]*\)\s*$/, ""));
+    // Two independent bits of decoration the atlas puts around an otherwise
+    // clean value, tried in combination (raw first, so an undecorated value
+    // costs one call):
+    //   unwrap    — the name side of KV_LINE_RE already tolerates backticks;
+    //               the atlas backticks kv KEYS routinely (``- `maxAmount`:
+    //               10,000``) and nothing stops it doing the same to a value.
+    //               Unwrapped here rather than in the regex so `context` keeps
+    //               the line exactly as written. Corpus today: 0 lines change,
+    //               so this closes a silent-underextraction trap rather than
+    //               widening the pattern — a backticked NON-value ("`TBD`",
+    //               "`0xabc`") still fails parseValue exactly as before.
+    //   dropGloss — "Initial LTV: 80% (125% collateralization ratio)": a
+    //               trailing parenthetical gloss shouldn't sink a clean value.
+    const rhs = m[2].trim();
+    const unwrap = (s: string) => s.replace(/^`(.*)`\.?$/, "$1").trim();
+    const dropGloss = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    let parsed = null;
+    for (const candidate of [rhs, unwrap(rhs), dropGloss(rhs), unwrap(dropGloss(rhs))]) {
+      parsed = parseValue(candidate);
+      if (parsed) break;
     }
     if (!parsed) continue;
     const name = normalizeName(m[1]);

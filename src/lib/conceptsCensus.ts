@@ -66,7 +66,10 @@ function hasDescendant(doc_no: string, all: AtlasNode[]): boolean {
 // ---------------------------------------------------------------------------
 // H1. registry-liveness — title prefix "List Of" + emptiness.
 // ---------------------------------------------------------------------------
-function censusRegistryLiveness(all: AtlasNode[]): CensusResult {
+// Exported (unlike its nine siblings) so liveness.ts can run just the two
+// censuses it consumes instead of the whole 10-bucket sweep on every boot and
+// atlas hot-swap — same heuristics, one source of truth, ~2/3 less work.
+export function censusRegistryLiveness(all: AtlasNode[]): CensusResult {
   const regs = all.filter((n) => /^List Of /.test(n.title));
   const members = regs.map((n) => {
     const live = hasDescendant(n.doc_no, all) || hasDataTable(n.content) || BULLET_LINE_RE.test(n.content);
@@ -87,7 +90,8 @@ function censusRegistryLiveness(all: AtlasNode[]): CensusResult {
 // ---------------------------------------------------------------------------
 const STATUS_DIR_RE = /^(Active|Completed|In[- ]Progress|Suspended|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
 
-function censusEmptyScaffolding(all: AtlasNode[]): CensusResult {
+// Exported for liveness.ts alongside censusRegistryLiveness — see the note there.
+export function censusEmptyScaffolding(all: AtlasNode[]): CensusResult {
   const dirs = all.filter((n) => STATUS_DIR_RE.test(n.title));
   const members = dirs.map((n) => ref(n, hasDescendant(n.doc_no, all) ? "populated" : "empty"));
   const empty = members.filter((m) => m.bucket === "empty").length;

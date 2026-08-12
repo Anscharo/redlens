@@ -111,12 +111,23 @@ test("mergeSlices: a grounded absence claim stays supported, with the signal not
   const v = mergeSlices(
     [sr({ slice: "claims", claims: [{ claim: "the atlas does not specify a governance token vesting cliff", status: "supported", span: "", absence: true }] })],
     paramIx,
-    ['{"count":0,"results":[]}'],
+    [{ args: '{"q":"governance token vesting cliff"}', content: '{"count":0,"results":[]}' }],
   );
   expect(v?.claims[0].status).toBe("supported");
   expect(v?.claims[0].note).toContain("absence-grounded(empty-result)");
   expect(v?.feedback).not.toContain("refuted");
   expect(v?.feedback).not.toContain("unverified — requery");
+});
+
+test("mergeSlices: an empty result for a different subject does NOT ground the absence claim", () => {
+  const v = mergeSlices(
+    [sr({ slice: "claims", claims: [{ claim: "the atlas does not specify a governance token vesting cliff", status: "supported", span: "", absence: true }] })],
+    paramIx,
+    [{ args: '{"q":"grove multisig signers"}', content: '{"count":0,"results":[]}' }],
+  );
+  expect(v?.claims[0].status).toBe("unsupported");
+  expect(v?.claims[0].note).toContain("absence-unverified");
+  expect(v?.feedback).toContain("unverified — requery");
 });
 
 test("mergeSlices: non-absence claims and already-flagged absence claims are never audited", () => {

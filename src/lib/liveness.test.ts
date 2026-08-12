@@ -66,6 +66,42 @@ describe("placeholder — future/later iteration phrase", () => {
     expect(buildLivenessMap(toMap(nodes)).has("id-A.9.6")).toBe(false);
   });
 
+  it("does NOT tag a SHORT doc that states a real value and defers only a sub-detail", () => {
+    // Real corpus false positive this regression guards: "Maple"
+    // (A.3.2.2.1.1.1.1.3.1). The non-stub remainder is far under the 200-char
+    // gate, so length alone would tag it — but it states an actual CRR, and a
+    // placeholder tag here is what lets verify/absence.ts ground a false "the
+    // atlas doesn't specify Maple's CRR".
+    const nodes = [
+      mk(
+        "A.9.6.1",
+        "Maple",
+        "The Instance Financial CRR for Maple SyrupUSDC is 3%. The maximum exposure a Prime Agent may have to Maple SyrupUSDC will be specified in a future iteration of the Atlas."
+      ),
+    ];
+    expect(buildLivenessMap(toMap(nodes)).has("id-A.9.6.1")).toBe(false);
+  });
+
+  it("does NOT tag a kv doc where one field is specified and a sibling field is deferred", () => {
+    // Real corpus false positive: the two "Inflow Rate Limits" docs — a stated
+    // `maxAmount` alongside a deferred `slope`.
+    const nodes = [
+      mk(
+        "A.9.6.2",
+        "Inflow Rate Limits",
+        "The inflow rate limits are:\n\n- `maxAmount`: 0\n- `slope`: This parameter will be specified in a future iteration of the Spark Artifact."
+      ),
+    ];
+    expect(buildLivenessMap(toMap(nodes)).has("id-A.9.6.2")).toBe(false);
+  });
+
+  it("still tags a short doc whose only non-stub text is a bare pointer with no value", () => {
+    // The other side of the same line: a thin remainder that states nothing is
+    // exactly the placeholder shape the gate is for.
+    const nodes = [mk("A.9.6.3", "Slope", "The slope for this rate limit is to be determined.")];
+    expect(buildLivenessMap(toMap(nodes)).get("id-A.9.6.3")).toBe("placeholder");
+  });
+
   it("does NOT tag when the deferral shares a bulleted line-tree with fully-specified branches", () => {
     // Real corpus false positive this regression guards: "Sky Core Atlas Updates" —
     // one fully-specified branch plus a sibling bullet that's just "- TBD". Flattening

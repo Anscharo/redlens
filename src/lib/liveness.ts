@@ -10,7 +10,8 @@
 // placeholder is content-pattern-driven and lives entirely in this module.
 
 import type { AtlasNode } from "../types";
-import { computeConceptsCensus } from "./conceptsCensus";
+import { censusEmptyScaffolding, censusRegistryLiveness } from "./conceptsCensus";
+import { KV_LINE_RE, parseValue } from "./paramValue";
 
 export type Liveness = "scaffold" | "placeholder";
 
@@ -72,24 +73,55 @@ function splitUnits(content: string): string[] {
   return units;
 }
 
-function placeholderRemainder(content: string): number {
-  const units = splitUnits(content);
+// A stated VALUE outside every stub sentence settles the doc no matter how thin
+// the rest of it is — the length gate alone can't see the difference between
+// "one short pointer plus deferred fields" (a real placeholder) and "one short
+// SPECIFIED value plus a deferred sub-detail" (not one). Three real corpus docs
+// sit on the wrong side of it: "Maple" (A.3.2.2.1.1.1.1.3.1 — "The Instance
+// Financial CRR for Maple SyrupUSDC is 3%." + a deferred maximum-exposure
+// clause) and two "Inflow Rate Limits" docs (a specified `maxAmount`: 0 + a
+// deferred `slope`). Tagging those placeholder is what would let the absence
+// contract (verify/absence.ts groundedSignal) mark "the atlas doesn't specify
+// Maple's CRR" as GROUNDED — precisely the false-absence hole this whole
+// mechanism exists to close. The three shapes below are paramExtract.ts's own
+// notion of a stated value (kv line with a parseable RHS, backticked numeric,
+// bare percentage); measured against the corpus, they flip exactly those 3
+// docs out of the 266 placeholder tags and nothing else.
+const BACKTICK_NUM_RE = /`\d[\d,]*(?:\.\d+)?%?`/;
+const BARE_PERCENT_RE = /\b\d[\d,]*(?:\.\d+)?\s*%/;
+
+function statesAValue(unit: string): boolean {
+  const kv = KV_LINE_RE.exec(unit);
+  if (kv && parseValue(kv[2].trim())) return true;
+  return BACKTICK_NUM_RE.test(unit) || BARE_PERCENT_RE.test(unit);
+}
+
+// One pass over the non-stub units: how much text they carry, and whether any
+// of them states a value.
+function scanNonStubUnits(content: string): { remainder: number; statesValue: boolean } {
   let remainder = 0;
-  for (const u of units) {
-    const isStub = TBD_RE.test(u) || PLACEHOLDER_PATTERNS.some((re) => re.test(u));
-    if (!isStub) remainder += u.length;
+  let statesValue = false;
+  for (const u of splitUnits(content)) {
+    if (TBD_RE.test(u) || PLACEHOLDER_PATTERNS.some((re) => re.test(u))) continue;
+    remainder += u.length;
+    statesValue ||= statesAValue(u);
   }
-  return remainder;
+  return { remainder, statesValue };
 }
 
 function hasPlaceholderContent(content: string): boolean {
   if (!TBD_RE.test(content) && !PLACEHOLDER_PATTERNS.some((re) => re.test(content))) return false;
-  return placeholderRemainder(content) <= REMAINDER_GATE;
+  const { remainder, statesValue } = scanNonStubUnits(content);
+  return !statesValue && remainder <= REMAINDER_GATE;
 }
 
 // Childless-empty-stub descendant check — doc_no prefix, the same structural
 // (not identity) use conceptsCensus.ts's own hasDescendant makes; sorted
 // binary search keeps the whole-corpus pass O(n log n).
+// fragile: doc_no prefix — this asks "does ANY doc sit under this one", never
+// "is this specific doc X", so a renumbering moves the whole family together
+// and the answer is unchanged. Migrating it to parentId would need a
+// child-count index the census path doesn't build.
 function buildHasDescendant(docNos: string[]): (doc_no: string) => boolean {
   const sorted = [...docNos].sort();
   return (doc_no: string) => {
@@ -106,15 +138,13 @@ function buildHasDescendant(docNos: string[]): (doc_no: string) => boolean {
 }
 
 export function buildLivenessMap(docMap: Map<string, AtlasNode>): Map<string, Liveness> {
-  const docs: Record<string, AtlasNode> = {};
-  for (const [id, node] of docMap) docs[id] = node;
-  const census = computeConceptsCensus(docs);
+  // Only the two censuses this map consumes — computeConceptsCensus would run
+  // all ten, and this rebuilds on every boot, dev preflight, and sha-drift
+  // hot-swap.
+  const all = [...docMap.values()];
 
   const liveness = new Map<string, Liveness>();
-  for (const m of census["registry-liveness"].members) {
-    if (m.bucket === "empty") liveness.set(m.uuid, "scaffold");
-  }
-  for (const m of census["empty-scaffolding"].members) {
+  for (const m of [...censusRegistryLiveness(all).members, ...censusEmptyScaffolding(all).members]) {
     if (m.bucket === "empty") liveness.set(m.uuid, "scaffold");
   }
 

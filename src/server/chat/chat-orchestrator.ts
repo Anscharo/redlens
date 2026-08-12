@@ -14,7 +14,8 @@ import type { JsonCall } from "./llm.ts";
 import type { Indexes } from "../retrieval/indexes.ts";
 import { config } from "../config.ts";
 import { createRoundChecker, type RoundTelemetry } from "./verify/round-checks.ts";
-import { runDeterministicChecks, findParamsMentioned, type CheckReport } from "./verify/verify-checks.ts";
+import { runDeterministicChecks, type CheckReport } from "./verify/verify-checks.ts";
+import { findParamsMentioned } from "./verify/param-checks.ts";
 import { createLinkJudge, repairCitations, repairDefinitionBlock, resolveLabelToUuid, type CitationRepair, type LinkJudge } from "./verify/citation-repair.ts";
 import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation-normalize.ts";
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
@@ -208,7 +209,7 @@ const schemaEvidence = (ix: Indexes): EvidenceEntry => ({
 // without re-retrieving it this turn from a false "unsupported" verdict, and
 // gives the absence contract (verify/absence.ts) something to refute a false
 // absence claim against. Uses the same broadened name-or-title matcher as the
-// Task-1 hard check (verify-checks.ts's findParamsMentioned) — a false
+// Task-1 hard check (param-checks.ts's findParamsMentioned) — a false
 // positive here is cheap (one extra evidence row, not a wrongful failure), so
 // the ambiguous-doc suppression the hard check needs is deliberately skipped.
 const CONST_EVIDENCE_CAP = 40;

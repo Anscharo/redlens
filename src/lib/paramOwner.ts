@@ -25,8 +25,15 @@ const GENERIC_TITLE_PREFIX_RE = /^List Of /i;
 // Trailing generic-category nouns ("Vault Types", "Omni Documents", "Sky
 // Primitives", "Agent Artifacts", "Native Vault Engine", "...Implementation")
 // name a *kind* of container, not a specific owner.
+// "Registry" is here on the same footing even though no param row currently
+// resolves to one: conceptsCensus.ts's registry-liveness census tracks the
+// "X Registry" container family as a standing structural pattern (9 such
+// titles in the corpus — "Multisig Registry", "Lawyer Registry", "Spell
+// Checklists Registry"), so a param doc landing under one is a question of
+// when, not if, and a container returned as `owner` feeds bad disambiguation
+// into verify-checks.ts's name/title gates.
 const GENERIC_TITLE_SUFFIX_RE =
-  / (Types|Documents|Primitives|Parameters|Artifacts|Requirements|Implementation|Calculation|Configuration|Directory|Instances?|Invocations?|Engine|Scope)$/i;
+  / (Types|Documents|Primitives|Parameters|Artifacts|Requirements|Implementation|Calculation|Configuration|Directory|Registry|Instances?|Invocations?|Engine|Scope)$/i;
 const STATUS_DIR_RE = /^(Active|Completed|In[- ]Progress|Suspended|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
 // Bare generic section headers that don't end in a tell-tale suffix above.
 const GENERIC_SINGLE_WORD_TITLES = new Set([

@@ -302,6 +302,12 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       // pending tool_call has received its tool_result.
       let inToolRound = false;
       let pendingToolResults = 0;
+      // A terminal event ("done"/"error") is what finalizes the message. If the
+      // connection instead closes cleanly without one (proxy cut, server crash
+      // mid-turn), nothing else would ever set done — and staged mode's stage
+      // checklist renders on `!done`, so it would pulse forever behind an
+      // already-re-enabled input. Tracked here, honoured after the read loop.
+      let sawTerminal = false;
 
       try {
         const res = await fetch(apiUrl("chat"), {
@@ -399,9 +405,15 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               inToolRound = false;
               pendingToolResults = 0;
             }
+            if (ev.type === "done" || ev.type === "error") sawTerminal = true;
             dispatch(ev);
           }
         }
+        // Truncated stream: finalize as failed so the turn can't stay visually
+        // in-flight. `failed` only surfaces copy when the answer is empty
+        // (Message.tsx) — a partially streamed answer just freezes as-is,
+        // which is what classic streaming mode already degraded to.
+        if (!sawTerminal) finalizeLast({ failed: true });
       } catch (err) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {

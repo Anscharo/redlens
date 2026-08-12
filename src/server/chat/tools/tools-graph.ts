@@ -65,12 +65,17 @@ export function atlasNeighbors(ix: Indexes, id: string, window: number): ToolRes
     .slice(0, window * 2);
   const children = (ix.childrenIndex.get(target.id) ?? []).slice(0, window);
 
+  // The target carries its own liveness tag too — it's the one node the call is
+  // about, so a scaffold there is the most load-bearing signal in the envelope
+  // (an untagged target read as settled is exactly the overclaim liveness
+  // exists to prevent).
+  const targetRow = { ...docRow(target), ...livenessOf(ix, target.id) };
   const parentRow = parent ? { ...docRow(parent), ...livenessOf(ix, parent.id) } : null;
   const siblingRows = siblings.map((s) => ({ ...docRow(s), ...livenessOf(ix, s.id) }));
   const childRows = children.map((c) => ({ ...docRow(c), ...livenessOf(ix, c.id) }));
 
-  const envelope = { target: docRow(target), parent: parentRow, siblings: siblingRows, children: childRows };
-  return withLivenessHint(envelope, [...(parentRow ? [parentRow] : []), ...siblingRows, ...childRows]);
+  const envelope = { target: targetRow, parent: parentRow, siblings: siblingRows, children: childRows };
+  return withLivenessHint(envelope, [targetRow, ...(parentRow ? [parentRow] : []), ...siblingRows, ...childRows]);
 }
 
 // ── atlas_traverse ─────────────────────────────────────────────────────────

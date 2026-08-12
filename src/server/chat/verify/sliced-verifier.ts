@@ -14,7 +14,7 @@ import type { Indexes } from "../../retrieval/indexes.ts";
 import type { CheckReport } from "./verify-checks.ts";
 import type { EvidenceEntry, Verdict, VerifierRun } from "./verifier.ts";
 import { runSlice, type SliceName, type SliceResult } from "./verifier-slices.ts";
-import { auditAbsenceClaim } from "./absence.ts";
+import { auditAbsenceClaim, type AbsenceEvidence } from "./absence.ts";
 
 export const SLICES: SliceName[] = ["claims", "figures", "sets", "overreach"];
 
@@ -40,16 +40,19 @@ export function sliceModels(): Record<SliceName, string> {
 function auditedClaim(
   c: SliceResult["claims"][number],
   ix: Indexes,
-  evidenceTexts: string[],
+  evidence: AbsenceEvidence[],
 ): { status: SliceResult["claims"][number]["status"]; note: string | null } {
   if (!c.absence || c.status !== "supported") return { status: c.status, note: null };
-  const audit = auditAbsenceClaim(c.claim, evidenceTexts, ix);
+  const audit = auditAbsenceClaim(c.claim, evidence, ix);
   if (audit.outcome === "refuted") return { status: "contradicted", note: `absence-refuted: ${audit.detail}` };
   if (audit.outcome === "unverified") return { status: "unsupported", note: "absence-unverified" };
   return { status: c.status, note: `absence-grounded(${audit.detail.replace(/^grounded:\s*/, "")})` };
 }
 
-export function mergeSlices(results: SliceResult[], ix: Indexes, evidenceTexts: string[]): Verdict | null {
+// `evidence` carries each entry's originating call args, not just its text —
+// absence.ts scopes a claim to the evidence about it, and an empty search
+// envelope's only record of what was searched for is the query.
+export function mergeSlices(results: SliceResult[], ix: Indexes, evidence: AbsenceEvidence[]): Verdict | null {
   const parsed = results.filter((r) => r.parsed);
   if (parsed.length === 0) return null;
   let absenceRefuted = 0;
@@ -59,7 +62,7 @@ export function mergeSlices(results: SliceResult[], ix: Indexes, evidenceTexts: 
     .filter((r) => r.slice !== "overreach")
     .flatMap((r) =>
       r.claims.map((c) => {
-        const audited = auditedClaim(c, ix, evidenceTexts);
+        const audited = auditedClaim(c, ix, evidence);
         if (audited.note?.startsWith("absence-refuted: ")) {
           absenceRefuted++;
           firstRefutedDetail ||= audited.note.slice("absence-refuted: ".length);
@@ -132,7 +135,7 @@ export async function runSlicedVerifier(params: {
   }
   const used = results.filter((r) => r.usage);
   return {
-    verdict: mergeSlices(results, params.ix, params.evidence.map((e) => e.content)),
+    verdict: mergeSlices(results, params.ix, params.evidence),
     usage: used.length
       ? { input: used.reduce((s, r) => s + (r.usage?.input ?? 0), 0), output: used.reduce((s, r) => s + (r.usage?.output ?? 0), 0) }
       : null,
