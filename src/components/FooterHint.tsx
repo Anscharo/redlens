@@ -10,10 +10,10 @@ const KEY = /\[([^\]]+)\]/;
  * use and outranks all of them — including "offline", which stays one reload
  * away from being seen again.
  *
- * Absolutely positioned rather than a flow child. FooterInfo centers itself
- * with mx-auto whenever no status pill leads it, so a hint in the flow would
- * flip that centering on and off with every hover and jitter the whole
- * build-info row. Overlaying instead leaves Footer's own layout untouched:
+ * Absolutely positioned rather than a flow child, same as the status pills:
+ * FooterInfo centers itself with mx-auto, so a hint in the flow would shove
+ * the whole build-info row off-center with every hover and jitter it.
+ * Overlaying instead leaves Footer's own layout untouched:
  * `background: var(--bg)` occludes the pills cleanly and `pointer-events: none`
  * (in index.css) keeps whatever is beneath it clickable.
  *

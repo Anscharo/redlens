@@ -88,6 +88,19 @@ describe("Footer", () => {
     expect(applyUpdate).toHaveBeenCalledTimes(1);
   });
 
+  // The pills overlay the footer's left corner (absolute, like FooterHint)
+  // instead of joining the flow, so the build-info row keeps its mx-auto
+  // centering whether or not a pill is up — a raised pill must never shove
+  // the row sideways (that shift used to read as "an older layout loaded").
+  it("keeps the build-info row centered while a status pill is showing", () => {
+    (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: true, applyUpdate });
+    render(<Footer />);
+    const pillSlot = screen.getByText(/update available/).parentElement!;
+    expect(pillSlot).toHaveClass("absolute");
+    const infoRow = screen.getByText("provenance").closest("div")!;
+    expect(infoRow).toHaveClass("mx-auto");
+  });
+
   // applyUpdate waits on the service worker to activate before it reloads, so
   // without this the click had no visible effect for a second or more and read
   // as dropped. The spin is the acknowledgement; disabling stops the re-clicks
