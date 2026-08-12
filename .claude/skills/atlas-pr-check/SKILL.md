@@ -119,6 +119,22 @@ added / reordered a field in the document header.
 4. Update `scripts_tests/parser.test.ts` if any assertion expectations changed
 5. Verify: `pnpm build:index && pnpm test`
 
+**If the PR regroups FILES rather than changing markdown syntax** (upstream has
+done this twice: #236 atomized the monolith, #294 consolidated the tree into ~16
+composed files) the fix belongs in `scripts/lib/atlas-source.mjs` (working
+checkouts) and `scripts/lib/atlas-git-source.mjs` (the per-commit history walk),
+not in the parser. Add a layout arm to `detectLayout` / `detectFormat` — never a
+fallback, since an unreadable checkout and an old layout look identical from an
+empty result. Then prove the regrouping is content-neutral before accepting it:
+
+```
+node scripts/aux/ab-parse-check.mjs vendor/next-gen-atlas <extracted-pr-tree>
+```
+
+Identical output across all 9 node fields means no artifact, contentHash, graph
+snapshot, or history entry should move — and a snapshot diff is then a real
+finding, not migration noise.
+
 ---
 
 ### Category 2 — Structural schema change

@@ -62,6 +62,12 @@ jobs:
       - name: Build index
         run: pnpm build:index
 
+      # Fails the PR check if the build didn't account for every document in the
+      # atlas source — so an atlas bump pushed outside atlas-update.yml (which
+      # gates this before opening its PR) still cannot merge an empty atlas.
+      - name: Verify the build read the whole atlas
+        run: pnpm check:atlas
+
       - name: Build glossary
         run: pnpm build:glossary
 

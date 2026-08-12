@@ -25,6 +25,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import process from "node:process";
 
+import { detectLayout } from "../lib/atlas-source.mjs";
+
 const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const RED = "\x1b[31m";
@@ -152,8 +154,16 @@ function ensureArtifacts() {
     }
     return;
   }
-  if (!existsSync("vendor/next-gen-atlas/content")) {
-    fail("Atlas submodule isn't populated. Run `pnpm pull-atlas` first, then `pnpm dev`.");
+  // Layout-aware: the bare `content/` existence check this replaced stayed true
+  // after upstream #294 emptied the tree of document.md files, so a checkout the
+  // build could not read looked fine here and failed obscurely later.
+  try {
+    log(`Atlas checkout detected as the ${detectLayout("vendor/next-gen-atlas")} layout.`);
+  } catch (e) {
+    fail(
+      `Atlas submodule isn't usable: ${e.message}\n` +
+        "Run `pnpm pull-atlas` first, then `pnpm dev`.",
+    );
   }
   log("Atlas artifacts missing — building (index → graph → glossary → oea-report)…");
   for (const t of ["build:index", "build:graph", "build:glossary", "build:oea-report"]) {

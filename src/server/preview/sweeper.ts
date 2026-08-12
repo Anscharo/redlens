@@ -90,11 +90,18 @@ export async function sweepPreviewBundles(opts: SweepOpts = {}): Promise<SweepRe
 }
 
 /** Periodic sweep, started at boot when previews are enabled. Best-effort —
- *  a failed pass logs and waits for the next tick. Returns a stopper. */
-export function startPreviewSweeper(intervalMs = config.previewSweepIntervalMs): () => void {
+ *  a failed pass logs and waits for the next tick. Returns a stopper.
+ *  `sweepFn` defaults to the real sweepPreviewBundles; overridable so a test can
+ *  drive `tick`'s own success/failure branches without real disk/DB state and
+ *  without waiting on the real interval — the seam is deliberately narrow (just
+ *  the one call `tick` makes), not a rewrite of the scheduling itself. */
+export function startPreviewSweeper(
+  intervalMs = config.previewSweepIntervalMs,
+  sweepFn: () => Promise<SweepResult> = sweepPreviewBundles,
+): () => void {
   const tick = async () => {
     try {
-      const r = await sweepPreviewBundles();
+      const r = await sweepFn();
       if (r.blocked || r.stale || r.evicted)
         console.log(`preview: sweep — ${r.blocked} blocked, ${r.stale} stale vs main, ${r.evicted} lru/orphan`);
     } catch (e) {

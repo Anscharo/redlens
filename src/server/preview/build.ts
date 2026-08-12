@@ -14,8 +14,15 @@ import { spawn } from "node:child_process";
 import { config } from "../config.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { fetchAndExtract, CapExceededError, SourceGoneError } from "./tarball.ts";
-import { fetchPreviewFiles, mapChangedDocs, type PreviewFiles } from "./pr-diff.ts";
+import { fetchPreviewFiles, type PreviewFiles } from "./pr-diff.ts";
 import { contentDiff } from "./patch-diff.ts";
+import {
+  diffSnapshots,
+  loadBaseSnapshot,
+  snapshotFromDocsJson,
+  type Snapshot,
+} from "./snapshot.ts";
+import type { DiffLine } from "../../lib/history";
 import { detectIdentitySwaps } from "./identity.ts";
 import { previewPaths, writeMeta, evictLru, type PreviewMeta } from "./cache.ts";
 import {
@@ -124,7 +131,11 @@ function release(): void {
 // stderr is captured (and still forwarded to the server log) so a failed build
 // can tell the user WHAT was malformed — e.g. parseTree invariant violations
 // pinpointing the bad document — instead of a generic "could not be built".
-function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
+// Exported so its real subprocess behavior (exit code + stderr capture) is
+// unit-testable directly against a trivial `bun -e` script, without needing the
+// actual build pipeline scripts — the DI seam on BuildDeps only lets tests swap
+// this out, never exercise the real implementation itself.
+export function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code: number; stderr: string }> {
   return new Promise((resolve) => {
     let stderr = "";
     const child = spawn("bun", args, {
@@ -143,8 +154,9 @@ function spawnBuild(args: string[], env: Record<string, string>): Promise<{ code
 }
 
 // Trim subprocess stderr to a user-displayable reason: the last few meaningful
-// lines (the invariant/exception summary), minus stack-trace noise.
-function buildErrorTail(stderr: string): string | undefined {
+// lines (the invariant/exception summary), minus stack-trace noise. Exported
+// for direct unit testing of the trimming rules.
+export function buildErrorTail(stderr: string): string | undefined {
   const lines = stderr
     .split("\n")
     .filter((l) => l.trim() && !/^\s*at /.test(l) && !/^\s*\d+ \|/.test(l) && !/^\s*\^\s*$/.test(l) && !/^Bun v/.test(l));
@@ -194,14 +206,23 @@ export async function countNewAddresses(outDir: string, mainDir: string = config
       console.error(`[preview] countNewAddresses: failed to read address maps for ${outDir}:`, e);
       return undefined;
     }
+  /* v8 ignore start -- unreachable: `attempt < 2` bounds the loop to attempts 0
+   * and 1, and both always `return` from inside the loop (success above, or the
+   * attempt-1 failure branch above), so the loop can never complete normally and
+   * fall out to the statement below. It only exists so the function has a total
+   * return type; there is no input that reaches past the loop. */
   }
   return undefined;
+  /* v8 ignore stop */
 }
 
 // Is this preview a FORK preview? PRs are publicly proposed against canonical,
 // so they're never fork-treated — even though a PR's head repo usually IS a
-// fork. Only bare branch/sha previews of non-canonical repos count.
-function isForkPreview(resolved: Resolved): boolean {
+// fork. Only bare branch/sha previews of non-canonical repos count. Exported
+// for direct unit testing (also reachable indirectly via runBuild, but a fork
+// build's meta-shaping needs a fully-mocked build to reach, so a direct test
+// is the cheap way to pin this predicate on its own).
+export function isForkPreview(resolved: Resolved): boolean {
   return !resolved.pr && isFork(resolved.repo);
 }
 
@@ -213,7 +234,11 @@ function isForkPreview(resolved: Resolved): boolean {
 //        share those fork pools — burner-PR spam can only drain the 2/day pool.
 //   bare fork branch → score the fork OWNER; refused tier rejects the build;
 //        trusted owners get their own per-owner pool.
-async function forkGate(
+// Exported for direct unit testing: it's already a BuildDeps field (so runBuild
+// call sites can fake it), but that DI seam only lets tests SWAP it out — the
+// real implementation's own branches (this function's body) are only exercised
+// by calling it directly, stubbing globalThis.fetch beneath computeTrust.
+export async function forkGate(
   resolved: Resolved,
 ): Promise<{ tier?: TrustTier; count: () => Promise<number>; quota: number } | "fork-not-trusted"> {
   if (!resolved.pr && !isFork(resolved.repo)) {
@@ -403,7 +428,6 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
         if (filesR.ok) {
           meta.aheadBy = filesR.v.aheadBy;
           meta.behindBy = filesR.v.behindBy;
-          if (filesR.v.truncated) meta.diffTruncated = true;
         }
         const newAddrs = await countNewAddresses(paths.outDir);
         // Fail closed: an unreadable main map is NOT "zero new addresses" — flag
@@ -429,21 +453,37 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
       // canonical previews a failure is non-fatal: no diff.json → serve-time
       // vs-main fallback.
       try {
-        if (filesR.ok) {
-          const nodes = Object.values(
-            JSON.parse(fs.readFileSync(path.join(paths.outDir, "docs.json"), "utf8")).nodes,
-          ) as { doc_no: string; id: string; title?: string; content?: string }[];
-          const byId = new Map(nodes.map((n) => [n.id, n]));
-          const docNoToId = new Map(nodes.map((n) => [n.doc_no, n.id]));
-          // Identity-aware added/changed split: a doc uuid absent from the live
-          // atlas is NEW even if its file was "modified" (and vice versa).
+        if (filesR.ok && filesR.v.mergeBase) {
+          const byId = snapshotFromDocsJson(paths.outDir);
           const mainDocs = getIndexes().docMap;
-          const mainIds = mainDocs.size > 0 ? new Set(mainDocs.keys()) : undefined;
-          const { added, changed, patches, noPatch } = mapChangedDocs(filesR.v.files, docNoToId, mainIds);
-          // For CHANGED docs, GitHub's per-path patch can cross doc identities
-          // (renumbering moves docs between paths). Replace it with an identity
-          // diff — this uuid's content here vs on the live atlas — and record
-          // renumberings explicitly.
+          // Which docs this preview adds/changes, by DOCUMENT IDENTITY rather
+          // than by changed filename. Filenames stopped identifying documents
+          // when the atlas consolidated ~11k document.md files into ~16 composed
+          // files (upstream #294) — one changed file now spans a whole Scope.
+          // Comparing uuid-keyed snapshots is layout-blind, so it survives that
+          // regrouping and the next one.
+          const base = await loadBaseSnapshot(
+            filesR.v.mergeBase,
+            path.join(paths.dir, "base"),
+            // Same injected fetcher, token, and tarball route the head build used
+            // — only reachable on the public path (private previews set
+            // wantCompare = false), but it must not diverge if that ever changes.
+            (s, dir) =>
+              deps.fetchAndExtract(resolved.repo, s, token, dir, undefined, { apiTarball: priv }),
+            { atlasCommit: getIndexes().meta.atlasCommit, snapshot: () => mainDocs as Snapshot },
+          );
+          const { added, changed } = diffSnapshots(base, byId);
+          // An ADDED doc has no prior content anywhere — render its body as pure
+          // additions. CHANGED docs get their patch from the vs-main identity
+          // diff below.
+          const patches: Record<string, DiffLine[]> = {};
+          for (const id of added) {
+            const dl = contentDiff("", byId.get(id)?.content ?? "");
+            if (dl.length) patches[id] = dl;
+          }
+          // For CHANGED docs the rendered redline is this uuid's content here vs
+          // on the LIVE atlas (what the reader is comparing against on screen),
+          // and renumberings are recorded explicitly.
           const renumbered: Record<string, [string, string]> = {};
           for (const id of changed) {
             const mainNode = mainDocs.get(id);
@@ -490,7 +530,10 @@ async function runBuild(f: Inflight, resolved: Resolved, deps: BuildDeps = realB
             JSON.stringify({ added, changed, renumbered, reusedSlot, identitySwap, formerUuid }),
           );
           fs.writeFileSync(path.join(paths.outDir, "patches.json"), JSON.stringify(patches));
-          if (noPatch > 0) console.warn(`[preview] ${sha.slice(0, 8)}: ${noPatch} changed doc(s) had no patch (binary/truncated/rename)`);
+        } else if (filesR.ok) {
+          // No merge base from GitHub → no trustworthy base side. Skip diff.json
+          // rather than guess; the reader falls back to the serve-time vs-main diff.
+          console.warn(`[preview] ${sha.slice(0, 8)}: no merge base — skipping doc-level diff`);
         }
       } catch {
         /* diff endpoint falls back to vs-main */
@@ -519,6 +562,23 @@ export function getOrStartBuild(resolved: Resolved): Inflight {
   // Delete on completion so a failed build can be retried and a ready build
   // short-circuits via bundleReady on the next request.
   f.promise = runBuild(f, resolved).finally(() => inflight.delete(sha));
+  return f;
+}
+
+/** Test-only sibling of getOrStartBuild that threads injected deps through,
+ *  while still going through the REAL inflight map — unlike __runBuildForTest
+ *  (which builds a standalone Inflight the map never sees), this is what lets a
+ *  test exercise the dedup map itself: the concurrency semaphore shared across
+ *  distinct shas, and subscribeBuild/emit's fan-out + dedup for a sha that's
+ *  actually tracked. Never called by the server; getOrStartBuild always uses
+ *  realBuildDeps with no override. */
+export function __getOrStartBuildForTest(resolved: Resolved, deps: Partial<BuildDeps>): Inflight {
+  const sha = resolved.sha;
+  const existing = inflight.get(sha);
+  if (existing) return existing;
+  const f: Inflight = { sha, current: { phase: "fetching", sha }, subscribers: new Set(), done: false, promise: Promise.resolve() };
+  inflight.set(sha, f);
+  f.promise = runBuild(f, resolved, { ...realBuildDeps, ...deps }).finally(() => inflight.delete(sha));
   return f;
 }
 

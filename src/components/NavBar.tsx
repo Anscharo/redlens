@@ -5,6 +5,7 @@ import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
 import { useDataSource } from "../lib/dataSource";
 import { usersEnabled } from "../lib/usersEnabled";
+import { FeedbackButton } from "./feedback/FeedbackButton";
 
 export interface NavBarProps {
   activePage: NavPage | null;
@@ -12,10 +13,12 @@ export interface NavBarProps {
 
 export function NavBar({ activePage }: NavBarProps) {
   // Reports + chat are disabled in preview mode (they'd read main data / need a
-  // logged-in session); reader + radar stay.
+  // logged-in session); reader + radar stay. Feedback is NOT gated on preview —
+  // a broken preview build is exactly when someone wants to report it.
   const { preview } = useDataSource();
   return (
     <div className="order-2 sm:order-3 flex-1 flex items-center justify-end gap-2">
+      <FeedbackButton />
       <NavLink page="atlas" active={activePage === "atlas"}>
         Reader
       </NavLink>

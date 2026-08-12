@@ -30,8 +30,8 @@ function makeVisibleNodes(ids: string[], childrenIds: Set<string> = new Set()): 
   }));
 }
 
-function key(k: string): KeyboardEvent {
-  return { key: k, preventDefault: vi.fn() } as unknown as KeyboardEvent;
+function key(k: string, shiftKey = false): KeyboardEvent {
+  return { key: k, shiftKey, preventDefault: vi.fn() } as unknown as KeyboardEvent;
 }
 
 function setupParams(overrides: Partial<Parameters<typeof useTreeKeyboard>[0]> = {}) {
@@ -149,6 +149,25 @@ describe("useTreeKeyboard", () => {
     const { params, onNavigate, setFocusedIndex } = setupParams({ focusedIndex: 2 });
     const { result } = renderHook(() => useTreeKeyboard(params));
     act(() => result.current(key("Enter")));
+    expect(onNavigate).toHaveBeenCalledWith("c");
+    expect(setFocusedIndex).toHaveBeenCalledWith(-1);
+  });
+
+  it("Shift+Enter opens the split pane and keeps the cursor where it is", () => {
+    const onShiftNavigate = vi.fn();
+    const { params, onNavigate, setFocusedIndex } = setupParams({ focusedIndex: 2, onShiftNavigate });
+    const { result } = renderHook(() => useTreeKeyboard(params));
+    act(() => result.current(key("Enter", true)));
+    expect(onShiftNavigate).toHaveBeenCalledWith("c");
+    expect(onNavigate).not.toHaveBeenCalled();
+    // The point of the split pane is to keep arrowing against it.
+    expect(setFocusedIndex).not.toHaveBeenCalled();
+  });
+
+  it("Shift+Enter falls back to plain navigation when no split handler is wired", () => {
+    const { params, onNavigate, setFocusedIndex } = setupParams({ focusedIndex: 2 });
+    const { result } = renderHook(() => useTreeKeyboard(params));
+    act(() => result.current(key("Enter", true)));
     expect(onNavigate).toHaveBeenCalledWith("c");
     expect(setFocusedIndex).toHaveBeenCalledWith(-1);
   });

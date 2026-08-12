@@ -21,6 +21,8 @@ metadata:
 **Source of truth for Atlas document structure:** `vendor/next-gen-atlas/ATLAS_MARKDOWN_SYNTAX.md`
 Read that file before making any changes to graph extraction logic. This skill summarises what we've learned and must stay in sync with it.
 
+**File layout is not part of this skill.** How the atlas groups documents into files has changed twice (monolith → one `document.md` per node → ~16 composed files) and is deliberately isolated in `scripts/lib/atlas-source.mjs` + `scripts/lib/atlas-git-source.mjs`. Everything below is about markdown *content*, which those regroupings left byte-identical. Never re-derive a doc's identity, depth, or parentage from a file path.
+
 **This skill should be updated** whenever a new relationship pattern is discovered in the Atlas — through reading the markdown, using the MCP tools, or noticing a structural convention not yet captured here. Add it under the appropriate section with an Atlas source reference (doc_no or UUID).
 
 ---
