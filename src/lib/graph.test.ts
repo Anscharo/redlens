@@ -92,6 +92,19 @@ describe("graph worker init failure recovery", () => {
 
     await expect(p).rejects.toThrow(/load worker/);
   });
+
+  // The real-world shape (PostHog issue 019fa971): an opaque worker-script load
+  // event with NO message. The synthesized message must be a stable non-empty
+  // constant — error tracking fingerprints on it, so it has to group, and it has
+  // to say something. Variable context (atlas base, script url) goes in extras.
+  it("synthesizes a stable message for an opaque (message-less) worker error", async () => {
+    const g = await import("./graph");
+
+    const p = g.getEdges("node-1");
+    MockWorker.instances[0].emit("error", { message: "" });
+
+    await expect(p).rejects.toThrow(/graph worker script failed to load/);
+  });
 });
 
 describe("loadGraph", () => {
