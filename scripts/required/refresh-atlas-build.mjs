@@ -26,7 +26,8 @@ function run(cmd, args, opts = {}) {
 run("git", ["-C", SUBMODULE, "fetch", "origin", "main"]);
 run("git", ["-C", SUBMODULE, "checkout", "origin/main"]);
 
-// 2. Regenerate markdown-derived artifacts (data only; order matches build:railway).
+// 2. Regenerate markdown-derived artifacts (data only; order matches the
+// Dockerfile builder stage's build:* sequence).
 run("bun", ["scripts/required/build-index.mjs"]);
 run("bun", ["scripts/required/build-graph.mjs"]);
 run("bun", ["scripts/required/build-glossary.mjs"]);

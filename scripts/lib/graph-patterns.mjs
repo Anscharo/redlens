@@ -16,7 +16,7 @@ export function slugify(name) {
 // always yields the same id, so entities created in different build phases
 // reconcile to one node. This is the entity-identity primitive for the whole
 // graph — keep it the single definition.
-export function slugToId(slug) {
+function slugToId(slug) {
   const h = crypto.createHash("sha256").update(slug).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
 }

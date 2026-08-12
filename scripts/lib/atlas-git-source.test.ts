@@ -31,12 +31,15 @@ function write(rel: string, body: string): void {
 }
 
 /** Commit everything, returning the sha. Identity is set per-command so the
- *  developer's own git config is never read or written. */
+ *  developer's own git config is never read or written, and commit signing is
+ *  force-disabled so a machine with `commit.gpgsign=true` and no available key
+ *  can't fail the fixture. */
 function commit(message: string): string {
   git("add", "-A");
   git(
     "-c", "user.name=test",
     "-c", "user.email=test@example.com",
+    "-c", "commit.gpgsign=false",
     "commit", "-q", "-m", message,
   );
   return git("rev-parse", "HEAD");

@@ -171,7 +171,6 @@ Setup instructions for common clients live on the in-app **`/connect`** page. Th
 |---|---|
 | `check-atlas-pr.sh` | Build the repo against a next-gen-atlas PR and diff artifacts (`pnpm check:pr`) |
 | `tva.sh` | Full-history build + test sweep |
-| `walk-timeline.sh` | Walks the atlas commit timeline running builds |
 | `test-addresses.mjs` | Ad-hoc dumps from address metadata |
 | `unlabeled-addresses.mjs` | Lists addresses with no resolved label for triage |
 | `processes-triage.sh` | Reconcile the curated process inventory against atlas drift (`pnpm processes:triage`): syncs `main`, creates a branch, runs the `processes-triage` Claude skill interactively, then commits + pushes + opens a PR. Add `--dry-run` to skip git ops. Add `--issue N` to link the PR (`Closes #N`) to the `processes-review` issue opened by atlas-update.yml |

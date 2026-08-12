@@ -432,7 +432,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     }
   }
 
-  // --- 1i. Primitive Instance entities (Pattern: per-agent ICD → entity) ---
+  // --- 1n. Primitive Instance entities (Pattern: per-agent ICD → entity) ---
   const childrenByDocNo = buildChildrenIndex(allDocs);
   const knownPrimitives = buildKnownPrimitives(docById);
 
@@ -477,7 +477,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     ent.id = icd.id;
   }
 
-  // --- 1j. Primitive entities (per-agent primitive root → entity) ---
+  // --- 1o. Primitive entities (per-agent primitive root → entity) ---
   // One entity per (agent, primitive) — emitted whether or not the primitive
   // has instances. Status comes from the Primitive Hub Document's Global
   // Activation Status leaf.
@@ -523,7 +523,5 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     ergMemberNames,
     accordPartyDocsByAccordDocNo,
     resolveAccordMember,
-    childrenByDocNo,
-    roleBindingTitles,
   };
 }

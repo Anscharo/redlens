@@ -9,7 +9,6 @@ import type { Rating } from "./oeaAssessment";
 import type { RiskDomain } from "./riskRules";
 
 export type Preciseness = 1 | 2 | 3 | 4 | 5;
-export const PRECISENESS_VALUES = [1, 2, 3, 4, 5] as const;
 
 // Stage 1 — the model's triage verdict for one candidate.
 export interface RiskTriage {

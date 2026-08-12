@@ -1,5 +1,5 @@
 /**
- * Phase 2 entity + address edges (2i–2w) extraction for build-graph.
+ * Phase 2 entity + address edges (2i–2x) extraction for build-graph.
  *
  * Emits all entity-target relationships: prime_agent_for, executor_agent_for,
  * facilitator_for, govops_for, aligned/ranked delegate, holds_role,
@@ -619,7 +619,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     }
   }
 
-  // --- 2x. Org-to-org prose relations ---
+  // --- 2w. Org-to-org prose relations ---
   // Two conservative sentence shapes; an edge is emitted only when BOTH
   // endpoints resolve to existing entities (unresolved matches are logged,
   // never guessed — these are long-tail color, recall is deliberately low).
@@ -663,7 +663,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     warnDriftCount("org-prose unresolved", skipped);
   }
 
-  // --- 2w. proxies_to (address → implementation address) ---
+  // --- 2x. proxies_to (address → implementation address) ---
   for (const [addr, info] of Object.entries(addressesRaw)) {
     if (info.implementation) {
       const chain = info.chain ?? "ethereum";

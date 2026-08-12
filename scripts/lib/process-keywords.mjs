@@ -92,7 +92,7 @@ export const NEVER_PROCESS_TITLES = new Set([
 const SINGLE_WORD = PROCESS_KEYWORDS.filter((k) => !k.includes(" "));
 const MULTI_WORD = PROCESS_KEYWORDS.filter((k) => k.includes(" "));
 
-const SINGLE_RE = new RegExp(`\\b(${SINGLE_WORD.join("|")})\\b`, "i");
+const SINGLE_RE = new RegExp(`\\b(${SINGLE_WORD.join("|")})\\b`, "gi");
 
 /**
  * @param {string} title
@@ -103,8 +103,7 @@ export function matchKeywords(title) {
   const hits = new Set();
   const lower = title.toLowerCase();
 
-  const m = title.match(SINGLE_RE);
-  if (m) hits.add(m[1].toLowerCase());
+  for (const m of title.matchAll(SINGLE_RE)) hits.add(m[1].toLowerCase());
 
   for (const kw of MULTI_WORD) {
     if (lower.includes(kw)) hits.add(kw);

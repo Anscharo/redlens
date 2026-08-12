@@ -410,8 +410,9 @@ for (const [et, count] of [...edgeTypeCounts.entries()].sort((a, b) => b[1] - a[
 // For existing delegate_org entities (bootstrapped from chainlog addresses),
 // enriches meta with forum_url and updates has_address edge role metadata.
 // Creates new entities for delegates absent from the chainlog (e.g. BLUE,
-// Cloaky) and registers their addresses in addressesAtlas + addressesRaw so
-// Phase 3 picks them up in addressRows.
+// Cloaky) and registers their addresses in addressesAtlas (written to
+// public/addresses.atlas.json, further enriched in Phase 4.5) and
+// addressesRaw (reflected in the Phase 3 address count).
 // ---------------------------------------------------------------------------
 {
   const CURRENT_DELEGATES_UUID  = "5f584db8-f8d8-4118-988c-b2bc3f68ceb7";
@@ -817,40 +818,10 @@ const entityRows = [...entityMap.values()].map((e) => ({
   meta: e.meta ?? null,
 }));
 
-const docRows = allDocs.map((d) => ({
-  id: d.id,
-  doc_no: d.doc_no,
-  title: d.title,
-  type: d.type,
-  depth: d.depth ?? 0,
-  parent_id: d.parentId ?? null,
-  content: (d.content ?? "").slice(0, 50000),
-  ord: d.order ?? 0,
-}));
-
-const addressRows = Object.entries(addressesRaw).map(([addr, info]) => {
-  const chain = info.chain ?? "ethereum";
-  const cs = chainStateByAddr[addr.toLowerCase()];
-  const s = info.label ? slugify(info.label) : null;
-  return {
-    // addr is an addressesRaw key (already normalized); keep it normalized rather
-    // than lowercasing, which would corrupt case-sensitive Solana base58.
-    address: normalizeAddress(addr),
-    chain,
-    label: info.label ?? null,
-    chainlog_id: info.chainlogId ?? null,
-    etherscan_name: info.etherscanName ?? null,
-    is_contract: info.isContract ? 1 : 0,
-    is_proxy: info.isProxy ? 1 : 0,
-    implementation: info.implementation ?? null,
-    roles: JSON.stringify(info.roles ?? []),
-    aliases: JSON.stringify(info.aliases ?? []),
-    expected_tokens: JSON.stringify(info.expectedTokens ?? []),
-    chain_state: cs ? JSON.stringify(cs.values) : null,
-    state_block: cs?.block ?? null,
-    entity_id: s ? (entityMap.get(s)?.id ?? null) : null,
-  };
-});
+// Only the counts are consumed downstream (row-count logging + graph.json
+// meta) — count directly instead of materializing the row objects.
+const docCount = allDocs.length;
+const addressCount = Object.keys(addressesRaw).length;
 
 const edgeRows = edges.map((e, i) => ({
   id: i + 1,
@@ -870,8 +841,8 @@ const edgeRows = edges.map((e, i) => ({
 
 console.log("\nRow counts:");
 console.log(`  entities: ${entityRows.length}`);
-console.log(`  docs:     ${docRows.length}`);
-console.log(`  addresses:${addressRows.length}`);
+console.log(`  docs:     ${docCount}`);
+console.log(`  addresses:${addressCount}`);
 console.log(`  edges:    ${edgeRows.length}`);
 
 // graph.json — full export for local inspection / debugging
@@ -883,8 +854,8 @@ fs.writeFileSync(
       schemaVersion: 4,
       counts: {
         entities: entityRows.length,
-        docs: docRows.length,
-        addresses: addressRows.length,
+        docs: docCount,
+        addresses: addressCount,
         edges: edgeRows.length,
       },
     },
