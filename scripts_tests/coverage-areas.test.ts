@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { areaFor, backendAreaIds, isLogicLine, libAreaIds, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
+import { areaFor, backendAreaIds, isLogicLine, libAreaIds, meetsChangedMin, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
 
 // The scope of "React code" the coverage meters must partition: components,
 // hooks, and context providers — .ts and .tsx, minus test files. If this set
@@ -211,6 +211,55 @@ describe("isLogicLine", () => {
 
   it("counts every line of an unreadable file, conservatively", () => {
     expect(isLogicLine("scripts/lib/does-not-exist.mjs", 1)).toBe(true);
+  });
+});
+
+// The changed-code gate. A raw percentage has no resolution on a small diff:
+// 3 changed logic lines can only score 0/33/67/100, so one uncovered guard
+// fails a gate a 100-line PR clears with 15 uncovered lines. The grace forgives
+// that many uncovered lines outright and fades in weight as the diff grows.
+describe("meetsChangedMin", () => {
+  it("passes when the percentage clears the minimum", () => {
+    expect(meetsChangedMin(90, 100, 85, 1)).toBe(true);
+    expect(meetsChangedMin(17, 20, 85, 1)).toBe(true);
+  });
+
+  it("forgives a single uncovered line on a small diff", () => {
+    // The shape that motivated the grace: a 3-line change scoring 66.67%.
+    expect(meetsChangedMin(2, 3, 85, 1)).toBe(true);
+    expect(meetsChangedMin(1, 2, 85, 1)).toBe(true);
+    expect(meetsChangedMin(4, 5, 85, 1)).toBe(true);
+  });
+
+  it("still fails a small diff with more than one uncovered line", () => {
+    expect(meetsChangedMin(1, 3, 85, 1)).toBe(false);
+    expect(meetsChangedMin(3, 5, 85, 1)).toBe(false);
+  });
+
+  it("does not meaningfully loosen a large diff", () => {
+    // One forgiven line out of 100 cannot rescue a 70%-covered change.
+    expect(meetsChangedMin(70, 100, 85, 1)).toBe(false);
+    expect(meetsChangedMin(84, 100, 85, 1)).toBe(false);
+  });
+
+  it("treats an untouched area as passing", () => {
+    expect(meetsChangedMin(0, 0, 85, 1)).toBe(true);
+  });
+
+  it("waives the gate entirely for a single changed line", () => {
+    // A deliberate consequence of the grace: a one-line diff can't be scored
+    // any finer than 0% or 100%, so it is forgiven rather than gated.
+    expect(meetsChangedMin(0, 1, 85, 1)).toBe(true);
+  });
+
+  it("collapses to a plain percentage gate with the grace disabled", () => {
+    expect(meetsChangedMin(2, 3, 85, 0)).toBe(false);
+    expect(meetsChangedMin(3, 3, 85, 0)).toBe(true);
+  });
+
+  it("passes everything at the baseline producer's minimum of 0", () => {
+    // coverage-baseline.yml runs with COVERAGE_CHANGED_MIN=0 and must never fail.
+    expect(meetsChangedMin(0, 50, 0, 1)).toBe(true);
   });
 });
 

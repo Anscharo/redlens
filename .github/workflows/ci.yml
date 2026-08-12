@@ -281,6 +281,12 @@ jobs:
         run: pnpm coverage:areas
         env:
           COVERAGE_CHANGED_MIN: "85"
+          # 85% of changed logic lines, or all but one of them — whichever is
+          # kinder. A percentage can't resolve a 3-line diff (0/33/67/100), so
+          # one uncovered guard used to score 67% and fail a gate that a
+          # 100-line PR clears with 15 uncovered lines. The same rule is applied
+          # to the whole diff, so the per-area grace can't stack across meters.
+          COVERAGE_CHANGED_GRACE: "1"
           COVERAGE_BASE_REF: origin/${{ github.base_ref || 'main' }}
           COVERAGE_BASELINE_JSON: base-coverage-areas.json
 

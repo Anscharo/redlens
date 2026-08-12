@@ -85,6 +85,9 @@ const UpdatesPage = lazy(() =>
 const ConnectPage = lazy(() =>
   lazyRetry(() => import("./components/ConnectPage")).then((m) => ({ default: m.ConnectPage })),
 );
+const FeaturesPage = lazy(() =>
+  lazyRetry(() => import("./components/FeaturesPage")).then((m) => ({ default: m.FeaturesPage })),
+);
 const RadarPage = lazy(() =>
   lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
 );
@@ -475,6 +478,11 @@ export default function App() {
                 )}
               </Route>
             ))}
+            <Route path={ROUTES.FEATURES}>
+              <Suspense fallback={<Loading />}>
+                <FeaturesPage />
+              </Suspense>
+            </Route>
             <Route path={ROUTES.COLLECTIONS}>
               <Suspense fallback={<Loading />}>
                 <CollectionsPage />

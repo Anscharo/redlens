@@ -338,6 +338,33 @@ export const config = {
   distDir: resolve(ROOT, "dist"),
   root: ROOT,
 
+  // Feedback tool (/api/feedback): free-text bug reports, always usable
+  // regardless of usersEnabled/chatEnabled — anonymous submission is the
+  // common case. Defaults ON; FEEDBACK_ENABLED=0 turns the route 404 without
+  // touching the login/chat gates above.
+  feedbackEnabled: process.env.FEEDBACK_ENABLED !== "0",
+  // Raw-body cap, checked against actual bytes (never Content-Length — see
+  // feedback.ts). Generous for a bug report + console buffer, far below
+  // anything worth worrying about server-side.
+  feedbackMaxBytes: Number(process.env.FEEDBACK_MAX_BYTES ?? 32_768),
+  // Postgres-backed rate limits, keyed on COALESCE(user_id::text,
+  // submitter_key) — see feedback.ts's rateLimitAndDedupe. Two windows
+  // (hour + day) so a burst is stopped without locking an engaged user out
+  // for a week; signed-in users get a higher ceiling than anonymous ones.
+  feedbackAnonPerHour: Number(process.env.FEEDBACK_ANON_PER_HOUR ?? 3),
+  feedbackAnonPerDay: Number(process.env.FEEDBACK_ANON_PER_DAY ?? 10),
+  feedbackUserPerHour: Number(process.env.FEEDBACK_USER_PER_HOUR ?? 15),
+  feedbackUserPerDay: Number(process.env.FEEDBACK_USER_PER_DAY ?? 50),
+  // Global circuit breaker across ALL submitters (cookie-rotating flood
+  // defense) — the one layer per-submitter keying can't stop.
+  feedbackGlobalPerDay: Number(process.env.FEEDBACK_GLOBAL_PER_DAY ?? 500),
+  // PostHog survey forward (feature-flagged OFF by default — empty = skip
+  // entirely, the row is still written). Set both to enable: the survey id
+  // groups responses, the question id is the property PostHog expects
+  // ($survey_response_<questionId>).
+  feedbackSurveyId: process.env.FEEDBACK_SURVEY_ID ?? "",
+  feedbackSurveyQuestion: process.env.FEEDBACK_SURVEY_QUESTION_ID ?? "",
+
   // Per-SHA immutable atlas bundle store (src/server/bundle-store.ts). The live
   // atlas serves artifacts from <atlasBundleRoot>/<sha>/<name>.json, mirroring
   // the preview store under one mechanism. Defaults to public/atlas: in prod

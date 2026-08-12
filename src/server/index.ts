@@ -21,6 +21,7 @@ import { canonicalRedirect } from "./history/canonical.ts";
 import { handleChat } from "./chat/chat.ts";
 import { handleConversations } from "./chat/conversations.ts";
 import { handleCollections, handleSharedCollection } from "./collections.ts";
+import { handleFeedback } from "./feedback.ts";
 import { handleUsage } from "./rate-limit.ts";
 import { handleHistory, handleHistoryBatch } from "./history/history.ts";
 import { handleBalances } from "./balances/balances.ts";
@@ -109,6 +110,22 @@ export async function handleOgImage(url: URL): Promise<Response> {
 export async function handleOgCard(url: URL): Promise<Response> {
   const png = await getCardImage(cardFromQuery(url.searchParams));
   return png ? new Response(png, { headers: OG_HEADERS }) : ogFallback();
+}
+
+// Cache-Control for files served straight out of dist/. Without these the
+// browser falls back to heuristic caching, which is the wrong answer at both
+// ends: /assets/* is content-hashed and could be cached forever, while /sw.js
+// must be revalidated (updateViaCache defaults to "imports", so the worker
+// script itself bypasses the HTTP cache but nothing else does). Everything
+// else — the flat mutable JSON artifacts — is left alone deliberately; pinning
+// those is a separate call about staleness windows, not correctness.
+const IMMUTABLE_ASSET: Record<string, string> = { "Cache-Control": "public, max-age=31536000, immutable" };
+const REVALIDATE: Record<string, string> = { "Cache-Control": "no-cache" };
+
+function staticCacheControl(pathname: string): Record<string, string> {
+  if (pathname.startsWith("/assets/")) return IMMUTABLE_ASSET;
+  if (pathname === "/sw.js" || pathname === "/manifest.webmanifest") return REVALIDATE;
+  return {};
 }
 
 // Router: health/freshness/SSE + CORS preflight + preview routes + MCP
@@ -231,6 +248,7 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
 
   if (pathname !== "/") {
     const filePath = config.distDir + pathname;
+    const cache = staticCacheControl(pathname);
     // Serve pre-compressed .gz if available and client accepts gzip.
     // Content-Type reflects the original file (browser decompresses transparently).
     if (req.headers.get("accept-encoding")?.includes("gzip")) {
@@ -238,12 +256,12 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
       if (await gz.exists()) {
         const mime = contentTypeFor(pathname);
         return new Response(gz, {
-          headers: { "Content-Encoding": "gzip", "Content-Type": mime, "Vary": "Accept-Encoding" },
+          headers: { "Content-Encoding": "gzip", "Content-Type": mime, "Vary": "Accept-Encoding", ...cache },
         });
       }
     }
     const file = Bun.file(filePath);
-    if (await file.exists()) return new Response(file);
+    if (await file.exists()) return new Response(file, { headers: cache });
     // File-like miss (final path segment has an extension): 404, never the
     // SPA-HTML fallthrough — HTML masquerading as the requested file turns a
     // clean miss into a MIME-type import error. This covers hashed assets a
@@ -362,6 +380,9 @@ export function buildRoutes() {
     "/api/collections/:id/shared": (req: Request) => config.usersEnabled ? handleSharedCollection(req) : NOT_FOUND(),
     "/api/collections":     (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
     "/api/collections/:id": (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
+    /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
+    "/api/feedback": (req: Request) => config.feedbackEnabled ? handleFeedback(req) : NOT_FOUND(),
+    /* v8 ignore stop */
   };
 }
 

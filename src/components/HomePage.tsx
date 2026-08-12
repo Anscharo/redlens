@@ -1,3 +1,4 @@
+import { GuideIcon } from "./GuideIcon";
 import { Link } from "./Link";
 import { PatchNotes } from "./PatchNotes";
 import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
@@ -40,6 +41,26 @@ const CARDS: { page?: NavPage; to?: string; href?: string; name: string; desc: s
   },
 ];
 
+// Sits above the cards: the first thing a first-time visitor reads, before they
+// have to guess which card is the one they want.
+function HelpBanner() {
+  return (
+    <Link
+      to={ROUTES.FEATURES}
+      className="home-help-banner flex items-center gap-4 mb-6 w-full text-left"
+      style={{ color: "var(--accent)" }}
+    >
+      <GuideIcon size={28} />
+      <span>
+        <span className="block text-sm font-semibold text-tan">New here? See everything you can do</span>
+        <span className="block text-xs text-tan-3 leading-relaxed">
+          A complete guide to Sky Atlas by Redline, with a short how-to for each feature
+        </span>
+      </span>
+    </Link>
+  );
+}
+
 export function HomePage() {
   return (
     <main className="flex-1 overflow-y-auto px-6 py-16">
@@ -65,6 +86,7 @@ export function HomePage() {
             straight from the source.
           </p>
         </div>
+        <HelpBanner />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {CARDS.map((c) => {
             const body = (
