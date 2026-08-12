@@ -27,6 +27,7 @@
 // nothing else needs to change to keep the two in sync.
 import { sql } from "./db.ts";
 import { config } from "./config.ts";
+import { json } from "./http.ts";
 import { getSessionUser } from "./session.ts";
 import { fetchCommons } from "./chat/credits.ts";
 
@@ -70,9 +71,7 @@ export async function getWindowUsage(userId: string, nowMs: number = Date.now())
 // is off or the credits API is unreachable — the meter just hides its row.
 export async function handleUsage(req: Request): Promise<Response> {
   const session = await getSessionUser(req);
-  if (!session) return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers: { "content-type": "application/json" } });
+  if (!session) return json({ error: "unauthenticated" }, 401);
   const [window, global] = await Promise.all([getWindowUsage(session.user.id), fetchCommons()]);
-  const headers = new Headers({ "content-type": "application/json" });
-  if (session.refresh) headers.append("set-cookie", session.refresh);
-  return new Response(JSON.stringify({ window, ...(global ? { global } : {}) }), { status: 200, headers });
+  return json({ window, ...(global ? { global } : {}) }, 200, session.refresh);
 }

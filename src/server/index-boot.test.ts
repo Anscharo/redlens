@@ -263,6 +263,27 @@ describe("buildRoutes gating", () => {
     expect((await r["/api/auth/*"](req("http://x/api/auth/github"))).status).toBe(404);
   });
 
+  it("never answers a CORS preflight — route-table entries are same-origin only", async () => {
+    // The routes table matches before `fetch` for EVERY method, so
+    // handleRequest's OPTIONS branch is unreachable here. That's deliberate:
+    // these endpoints exist only for the same-origin SPA, so an OPTIONS gets
+    // the ordinary handler/gate answer, never 204 + access-control-allow-origin.
+    config.chatEnabled = false;
+    const r = buildRoutes();
+    const res = await r["/api/chat"](new Request("http://x/api/chat", { method: "OPTIONS" }));
+    expect(res.status).toBe(404);
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  it("gates on every call, so a config flip after boot takes effect without rebuilding the table", async () => {
+    // buildRoutes() runs once at boot; the gate is a thunk read per request.
+    config.chatEnabled = false;
+    const r = buildRoutes();
+    expect((await r["/api/chat"](req("http://x/api/chat"))).status).toBe(404);
+    config.chatEnabled = true;
+    expect((await r["/api/chat"](req("http://x/api/chat"))).status).not.toBe(404);
+  });
+
   it("declares the history/balances routes Bun's dispatcher needs", () => {
     const r = buildRoutes();
     // Static segments must be declared alongside the :id route — Bun matches
