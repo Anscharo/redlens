@@ -53,6 +53,7 @@ const DROP_HEADERS = new Set(["host", "connection", "content-length"]);
 const CREDENTIAL_HEADERS = new Set(["cookie", "authorization"]);
 
 export async function handlePosthogProxy(req: Request, pathname: string): Promise<Response> {
+  console.time("handlePosthogProxy")
   // Strip the "/z" mount: "/z/static/array.js" → "/static/array.js"; "/z" → "/".
   const rest = pathname.slice(MOUNT.length) || "/";
 
@@ -92,7 +93,7 @@ export async function handlePosthogProxy(req: Request, pathname: string): Promis
   } finally {
     clearTimeout(tid);
   }
-
+  console.timeEnd("handlePosthogProxy")
   // Bun's fetch transparently decompresses the upstream body, so the inherited
   // content-encoding/length would make the browser double-decode — strip both.
   const respHeaders = new Headers(upstream.headers);

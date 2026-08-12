@@ -1,8 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
-import { captureException } from "../lib/analytics";
-
-const PAGE_LOAD_TIME = Date.now();
+import { captureException, track } from "../lib/analytics";
 
 // Background update cadence. The visibility re-check shares the same clock via
 // `lastCheck`, so alt-tabbing can't turn every tab focus into a script fetch.
@@ -18,16 +16,6 @@ const MIN_CHECK_GAP_MS = 30 * 60 * 1000;
 // error tracking. Bail after this many consecutive failures.
 const MAX_FAILURES = 3;
 
-function applyUpdateNow() {
-  navigator.serviceWorker?.ready.then((reg) => {
-    if (!reg.waiting) return;
-    navigator.serviceWorker.addEventListener("controllerchange", () => window.location.reload(), {
-      once: true,
-    });
-    reg.waiting.postMessage({ type: "SKIP_WAITING" });
-  });
-}
-
 export function useSWUpdate() {
   const regRef = useRef<ServiceWorkerRegistration | null>(null);
 
@@ -36,10 +24,10 @@ export function useSWUpdate() {
     updateServiceWorker,
   } = useRegisterSW({
     onNeedRefresh() {
-      // Fresh open: auto-apply without prompting. The new SW is waiting and the
-      // user hasn't interacted yet, so a silent reload is safe.
-      if (Date.now() - PAGE_LOAD_TIME < 4000) applyUpdateNow();
-      // Mid-session: let needRefresh=true show the pill (set by the library).
+      // No silent auto-apply — the pill (needRefresh=true, set by the library)
+      // is the only apply path, fresh open or mid-session alike. This is
+      // product policy: an unprompted reload wipes in-progress user state.
+      track("sw_update_available");
     },
     onRegisteredSW(_url, r) {
       // Only stash the registration — the polling lifecycle is owned by the
@@ -105,9 +93,15 @@ export function useSWUpdate() {
   }, []);
 
   function applyUpdate() {
-    navigator.serviceWorker?.addEventListener("controllerchange", () => window.location.reload(), {
-      once: true,
-    });
+    // vite-plugin-pwa registers its own `controlling` listener (in
+    // showSkipWaitingPrompt) that reloads once the new worker takes over — our
+    // onNeedRefresh doesn't pass onNeedReload, so that's the path that fires.
+    // But there's no waiting worker to activate when the pill was raised by
+    // useBuildBehind instead of the SW (stale build, no new SW version) — the
+    // library's listener then never fires. This timeout is the fallback for
+    // that case; if the SW path wins first, the reload it triggers races this
+    // one harmlessly.
+    setTimeout(() => window.location.reload(), 1500);
     updateServiceWorker(true);
   }
 

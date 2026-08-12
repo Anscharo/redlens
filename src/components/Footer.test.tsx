@@ -6,6 +6,7 @@ import { Footer } from "./Footer";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
+import { useBuildBehind } from "../hooks/useBuildBehind";
 import { loadAtlas } from "../lib/docs";
 import { loadHealth } from "../lib/health";
 import { useDataSource } from "../lib/dataSource";
@@ -13,20 +14,25 @@ import { useDataSource } from "../lib/dataSource";
 vi.mock("../hooks/useOnlineStatus", () => ({ useOnlineStatus: vi.fn() }));
 vi.mock("../hooks/useSWUpdate", () => ({ useSWUpdate: vi.fn() }));
 vi.mock("../hooks/useAtlasVersion", () => ({ useAtlasVersion: vi.fn() }));
+vi.mock("../hooks/useBuildBehind", () => ({ useBuildBehind: vi.fn() }));
 vi.mock("../lib/docs", () => ({ loadAtlas: vi.fn() }));
 vi.mock("../lib/health", () => ({ loadHealth: vi.fn() }));
 vi.mock("../lib/dataSource", () => ({ useDataSource: vi.fn() }));
 
 const applyUpdate = vi.fn();
+const LIVE_SHA = "a".repeat(40);
 
 beforeEach(() => {
   vi.clearAllMocks();
   (useOnlineStatus as unknown as Mock).mockReturnValue(true);
   (useSWUpdate as unknown as Mock).mockReturnValue({ needRefresh: false, applyUpdate });
   (useAtlasVersion as unknown as Mock).mockReturnValue(false);
+  (useBuildBehind as unknown as Mock).mockReturnValue(false);
   (useDataSource as unknown as Mock).mockReturnValue({ base: "/", preview: null });
   (loadHealth as unknown as Mock).mockResolvedValue(null);
   (loadAtlas as unknown as Mock).mockResolvedValue({ atlasCommit: "abc123def456", docs: {} });
+  // liveAtlasSha() (real, unmocked — see src/lib/atlasBase.ts) reads this.
+  (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__ = LIVE_SHA;
 
   vi.spyOn(globalThis, "fetch").mockImplementation((url: string | URL | Request) => {
     const u = String(url);
@@ -48,6 +54,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  delete (window as unknown as { __ATLAS_SHA__?: string }).__ATLAS_SHA__;
 });
 
 describe("Footer", () => {
@@ -109,6 +116,21 @@ describe("Footer", () => {
     const btn = screen.getByText(/atlas updated/);
     fireEvent.click(btn);
     expect(window.location.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the update-available pill when the running build is behind the server's, even with no waiting SW", () => {
+    (useBuildBehind as unknown as Mock).mockReturnValue(true);
+    render(<Footer />);
+    const btn = screen.getByText(/update available/);
+    fireEvent.click(btn);
+    // Same pill, same click handler as a waiting SW — applyUpdate's own reload
+    // fallback (useSWUpdate.ts) covers the no-waiting-worker case.
+    expect(applyUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes the live pinned sha (liveAtlasSha), not the fetched atlasCommit state, to useAtlasVersion", () => {
+    render(<Footer />);
+    expect(useAtlasVersion).toHaveBeenCalledWith(LIVE_SHA);
   });
 
   it("renders the chain-state block link once the block is fetched", async () => {

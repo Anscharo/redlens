@@ -106,7 +106,7 @@ test("defaults when no env is set", async () => {
   expect(config.previewMaxConcurrentBuilds).toBe(2);
   expect(config.previewBuildTimeoutMs).toBe(120_000);
   expect(config.previewSweepIntervalMs).toBe(600_000);
-  expect(config.atlasBundleKeep).toBe(2);
+  expect(config.atlasBundleKeep).toBe(4);
   expect(config.atlasBundleRoot.endsWith("public/atlas")).toBe(true);
 });
 

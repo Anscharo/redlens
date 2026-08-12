@@ -158,6 +158,9 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
         required_schema: f.requiredSchema,
         db_reachable: f.dbReachable,
         docs: f.docs,
+        // This image's build commit, so the frontend can compare its own
+        // build-time commit and detect a stale served bundle.
+        app_commit: config.appCommit || null,
       },
       { headers: CORS },
     );
@@ -206,7 +209,9 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
   // No config gate: when VITE_POSTHOG_KEY is unset the client never inits, so this
   // path simply receives no traffic. Lazy-imported to stay off the static hot path.
   if (pathname === "/z" || pathname.startsWith("/z/")) {
+    console.time("import posthog-proxy")
     const { handlePosthogProxy } = await import("./posthog-proxy.ts");
+    console.timeEnd("import posthog-proxy")
     return handlePosthogProxy(req, pathname);
   }
 
@@ -245,6 +250,14 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     return withCors(res);
   }
 
+  // The raw built file still carries un-injected {{ATLAS_SHA}}/{{OG_TAGS}}/…
+  // placeholders and no cache headers — it must never be served directly.
+  // Redirect to "/" (preserving the query string) so the SPA-fallback branch
+  // below serves the real, templated HTML instead.
+  if (pathname === "/index.html") {
+    return new Response(null, { status: 301, headers: { location: "/" + new URL(req.url).search } });
+  }
+
   if (pathname !== "/") {
     const filePath = config.distDir + pathname;
     const cache = staticCacheControl(pathname);
@@ -260,7 +273,11 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
       }
     }
     const file = Bun.file(filePath);
-    if (await file.exists()) return new Response(file, { headers: cache });
+    // Vary: a client that didn't request gzip (or hit the gzip branch above
+    // and found no .gz sibling) still shares this response's cache key with
+    // gzip-accepting clients — without Vary, a shared cache could serve this
+    // identity body to one and the .gz body to the other.
+    if (await file.exists()) return new Response(file, { headers: { Vary: "Accept-Encoding", ...cache } });
     // File-like miss (final path segment has an extension): 404, never the
     // SPA-HTML fallthrough — HTML masquerading as the requested file turns a
     // clean miss into a MIME-type import error. This covers hashed assets a

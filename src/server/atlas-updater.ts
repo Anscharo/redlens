@@ -12,8 +12,9 @@
 // staleness on the few-times-a-week cadence), and escalates to ERROR logs +
 // the freshness "stuck" status after ESCALATE_AFTER consecutive failures.
 import { spawn } from "node:child_process";
-import { writeFileSync, existsSync, readdirSync, copyFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, readFileSync, existsSync, readdirSync, copyFileSync, unlinkSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { config } from "./config.ts";
 import { sql } from "./db.ts";
 import { getIndexes, rebuildFromDisk, docRowToNode, writeDocsJson, writeDocsSplit } from "./retrieval/indexes.ts";
@@ -197,6 +198,19 @@ export function dropStaleSearchIndex(publicDir: string): boolean {
   return true;
 }
 
+// True when `a` and `b` resolve to the same real directory — the Docker image
+// symlinks /app/public → /app/dist (see Dockerfile), so a naive public/*.json
+// → dist/*.json mirror would copy a file onto itself. A path that doesn't
+// exist yet (e.g. a dev checkout with no dist/ build) can't be compared and
+// is treated as "not the same", same as any other realpathSync failure.
+export function sameRealDir(a: string, b: string): boolean {
+  try {
+    return realpathSync(a) === realpathSync(b);
+  } catch {
+    return false;
+  }
+}
+
 export interface AddrReadRow {
   address: string;
   chain: string;
@@ -299,9 +313,18 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
     const { code: oea } = await spawn("bun", ["scripts/required/build-oea-report.ts"]);
     if (oea !== 0) throw new Error(`build-oea-report exited ${oea}`);
 
-    // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk writes it).
+    // 5. Mirror public/*.json → dist/ (skip search-index.json — refreshInPlaceFromDisk
+    //    writes it). /app/public is a SYMLINK to /app/dist in the built image
+    //    (see Dockerfile), so a naive copy would target its own source — skip the
+    //    copy entirely in that case and treat public/ itself as the served dir
+    //    for the .gz refresh below (an in-place refresh, not a mirror).
     const distDir = config.distDir;
-    if (existsSync(distDir)) {
+    const distIsPublicDir = sameRealDir(config.publicDir, distDir);
+    let servedDir: string | null = null;
+    if (distIsPublicDir) {
+      servedDir = config.publicDir;
+      log("refresh-from-db: mirror skipped (dist/ is public/, same directory)");
+    } else if (existsSync(distDir)) {
       let n = 0;
       for (const f of readdirSync(config.publicDir)) {
         if (f.endsWith(".json") && f !== "search-index.json") {
@@ -312,6 +335,36 @@ export async function runRefreshFromDb(log: (m: string) => void, spawn: SpawnFn 
       const si = join(distDir, "search-index.json");
       if (existsSync(si)) unlinkSync(si);
       log(`refresh-from-db: mirrored ${n} json → dist/`);
+      servedDir = distDir;
+    }
+
+    // Regenerate stale .gz siblings: the Dockerfile pre-gzips several flat
+    // artifacts at image build time (docs.json, search-index.json,
+    // relations.json, glossary.json, oea-report.json), but this refresh only
+    // rewrites the flat .json — the request handler prefers `<file>.gz` for
+    // every gzip-accepting client (see index.ts's static handler), so an
+    // un-regenerated .gz would serve image-build-time data forever. Only
+    // refresh a .gz that already exists — never create a new one; and derive
+    // the set from what's actually on disk rather than hardcoding the
+    // Dockerfile's list, so this self-maintains if that list changes.
+    // search-index.json is the one exception: its fresh flat file doesn't
+    // exist yet at this point (dropped by dropStaleSearchIndex below, then
+    // rewritten AFTER this function returns by refreshInPlaceFromDisk), so
+    // there is nothing correct to gzip here — unlink its stale .gz instead so
+    // gzip clients fall through to the identity branch (which now also
+    // carries Vary: Accept-Encoding) until the next successful mirror.
+    if (servedDir) {
+      const siGz = join(servedDir, "search-index.json.gz");
+      if (existsSync(siGz)) unlinkSync(siGz);
+      let regenerated = 0;
+      for (const f of readdirSync(servedDir)) {
+        if (!f.endsWith(".json") || f === "search-index.json") continue;
+        const gz = join(servedDir, `${f}.gz`);
+        if (!existsSync(gz)) continue;
+        writeFileSync(gz, gzipSync(readFileSync(join(servedDir, f)), { level: 9 }));
+        regenerated++;
+      }
+      if (regenerated) log(`refresh-from-db: regenerated ${regenerated} stale .gz sibling(s)`);
     }
 
     // Unconditional (not gated on distDir existing) since it's a public/

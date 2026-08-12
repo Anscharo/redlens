@@ -14,6 +14,7 @@ import { describe, it, expect, test, afterAll, afterEach, beforeEach, mock } fro
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import * as zlib from "node:zlib";
 // Type-only: erased at compile time, so it is unaffected by (and does not
 // participate in) the mock.module("./db.ts", …) registration below — only the
 // VALUE bindings need the dynamic `await import` a few lines down.
@@ -92,6 +93,7 @@ const {
   runRefreshFromDb,
   startBootEmbeddings,
   getUpdaterState,
+  sameRealDir,
 } = await import("./atlas-updater.ts");
 
 const A = "a".repeat(40);
@@ -265,6 +267,35 @@ describe("dropStaleSearchIndex", () => {
     dropStaleSearchIndex(dir);
 
     expect(fs.existsSync(path.join(dir, "docs.json"))).toBe(true);
+  });
+});
+
+describe("sameRealDir", () => {
+  it("is true through a symlink — the prod public→dist shape (Dockerfile: ln -s /app/dist /app/public)", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-symdir-"));
+    const dist = path.join(root, "dist");
+    const pub = path.join(root, "public");
+    fs.mkdirSync(dist);
+    fs.symlinkSync(dist, pub);
+    expect(sameRealDir(pub, dist)).toBe(true);
+    expect(sameRealDir(dist, pub)).toBe(true);
+  });
+
+  it("is true for the literal same path", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-samedir-"));
+    expect(sameRealDir(dir, dir)).toBe(true);
+  });
+
+  it("is false for two distinct real directories", () => {
+    const a = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-dirA-"));
+    const b = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-dirB-"));
+    expect(sameRealDir(a, b)).toBe(false);
+  });
+
+  it("is false (never throws) when one side doesn't exist yet — a dev checkout with no dist/ build", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-onemiss-"));
+    expect(sameRealDir(dir, path.join(dir, "does-not-exist"))).toBe(false);
+    expect(sameRealDir(path.join(dir, "does-not-exist"), dir)).toBe(false);
   });
 });
 
@@ -694,6 +725,77 @@ describe("runRefreshFromDb", () => {
 
     expect(result).toBeNull();
     expect(logs.some((l) => l.includes("refresh-from-db error: connection refused"))).toBe(true);
+  });
+
+  it("regenerates a stale .gz sibling with fresh bytes after mirroring, leaves an artifact with no .gz sibling alone, and unlinks search-index.json.gz (its fresh flat file doesn't exist yet)", async () => {
+    fakeDb.syncStateAtlasSha = A;
+    fakeDb.docMeta = [
+      { id: "d1", doc_no: "A.1", title: "Doc 1", type: "Core", depth: 1, parentId: null, content: "hello", order: 0, contentHash: "h1", addressRefs: [] },
+    ];
+    const distDir = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-gzdist-"));
+    // A pre-existing (stale, image-build-time) .gz for docs.json — must be
+    // regenerated from the FRESH mirrored bytes, not left alone.
+    fs.writeFileSync(path.join(distDir, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale-image-build-bytes")));
+    // No .gz sibling for glossary.json (never gzipped by the Dockerfile in
+    // this fixture) — must NOT be created.
+    fs.writeFileSync(path.join(distDir, "glossary.json"), "{}");
+    // A stale search-index.json.gz — must be unlinked, not regenerated,
+    // since the fresh flat search-index.json doesn't exist at this point in
+    // the sequence (refreshInPlaceFromDisk writes it after this call returns).
+    fs.writeFileSync(path.join(distDir, "search-index.json.gz"), zlib.gzipSync(Buffer.from("stale-search-index")));
+    const prevDist = config.distDir;
+    config.distDir = distDir;
+    try {
+      const logs: string[] = [];
+      const result = await withPublicDir(() => runRefreshFromDb((m) => logs.push(m), noopSpawn()));
+      expect(result).toBe(A);
+
+      const freshDocsJson = fs.readFileSync(path.join(distDir, "docs.json"));
+      const regeneratedGz = zlib.gunzipSync(fs.readFileSync(path.join(distDir, "docs.json.gz")));
+      expect(regeneratedGz.equals(freshDocsJson)).toBe(true);
+
+      expect(fs.existsSync(path.join(distDir, "glossary.json.gz"))).toBe(false); // never created
+
+      expect(fs.existsSync(path.join(distDir, "search-index.json.gz"))).toBe(false); // unlinked, not regenerated
+
+      expect(logs.some((l) => l.includes("regenerated 1 stale .gz sibling"))).toBe(true);
+    } finally {
+      config.distDir = prevDist;
+      fs.rmSync(distDir, { recursive: true, force: true });
+    }
+  });
+
+  it("public/ and dist/ resolving to the same directory (Docker's symlink) skips the mirror copy and regenerates .gz in place instead", async () => {
+    fakeDb.syncStateAtlasSha = A;
+    // Rebind `dir` (the shared publicDir fixture) itself as the "dist" too —
+    // via a symlink, the way the built image does it — rather than the same
+    // literal path twice, so this exercises the realpathSync comparison, not
+    // a string shortcut.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "atlas-updater-samedir-fixture-"));
+    const realPublic = path.join(root, "public");
+    fs.mkdirSync(realPublic);
+    const symlinkedDist = path.join(root, "dist-symlink");
+    fs.symlinkSync(realPublic, symlinkedDist);
+    // Pre-seed a stale .gz sibling directly in the real (only) directory.
+    fs.writeFileSync(path.join(realPublic, "docs.json.gz"), zlib.gzipSync(Buffer.from("stale")));
+    const prevPublic = config.publicDir;
+    const prevDist = config.distDir;
+    config.publicDir = realPublic;
+    config.distDir = symlinkedDist;
+    try {
+      const logs: string[] = [];
+      const result = await runRefreshFromDb((m) => logs.push(m), noopSpawn());
+      expect(result).toBe(A);
+      expect(logs.some((l) => l.includes("mirror skipped (dist/ is public/, same directory)"))).toBe(true);
+
+      const freshDocsJson = fs.readFileSync(path.join(realPublic, "docs.json"));
+      const regeneratedGz = zlib.gunzipSync(fs.readFileSync(path.join(realPublic, "docs.json.gz")));
+      expect(regeneratedGz.equals(freshDocsJson)).toBe(true);
+    } finally {
+      config.publicDir = prevPublic;
+      config.distDir = prevDist;
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

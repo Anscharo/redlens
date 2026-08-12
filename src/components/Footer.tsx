@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useSWUpdate } from "../hooks/useSWUpdate";
 import { useAtlasVersion } from "../hooks/useAtlasVersion";
+import { useBuildBehind } from "../hooks/useBuildBehind";
 import { loadAtlas } from "../lib/docs";
 import { loadHealth } from "../lib/health";
+import { liveAtlasSha } from "../lib/atlasBase";
 import { useDataSource } from "../lib/dataSource";
 import { StatusPill } from "./StatusPill";
 import { FooterInfo } from "./FooterInfo";
@@ -23,13 +25,17 @@ export function Footer() {
   const { base, preview } = useDataSource();
   const online = useOnlineStatus();
   const { needRefresh, applyUpdate } = useSWUpdate();
+  const buildBehind = useBuildBehind();
   const [block, setBlock] = useState<string | null>(null);
   const [atlasCommit, setAtlasCommit] = useState<string | null>(null);
   const [nodeCount, setNodeCount] = useState<number>(0);
   const [previewRepo, setPreviewRepo] = useState<string | null>(null);
   // No "atlas updated" prompt in preview — the bundle is pinned to a SHA, so we
   // pass null (useAtlasVersion no-ops on null), keeping the hook call unconditional.
-  const atlasNeedsUpdate = useAtlasVersion(preview ? null : atlasCommit);
+  // Compared against liveAtlasSha() — the sha this page was actually served/pinned
+  // with — not `atlasCommit` state, which is itself sourced from the same
+  // /api/health call the hook would be comparing it to (see useAtlasVersion.ts).
+  const atlasNeedsUpdate = useAtlasVersion(preview ? null : liveAtlasSha());
 
   useEffect(() => {
     // chain state is reused from main even in preview (on-chain, shared).
@@ -64,7 +70,10 @@ export function Footer() {
   const atlasRepo = previewRepo ?? "sky-ecosystem/next-gen-atlas";
 
   const buildDate = __BUILD_TIME__.slice(0, 19).replace("T", " ");
-  const hasStatus = !online || needRefresh || atlasNeedsUpdate;
+  // buildBehind (this JS build is older than the server's) surfaces through the
+  // same pill as needRefresh (a waiting SW) — both resolve the same way: reload.
+  const swOrBuildStale = needRefresh || buildBehind;
+  const hasStatus = !online || swOrBuildStale || atlasNeedsUpdate;
 
   return (
     // Left-packed: status (the update/offline warning) leads, then build info.
@@ -82,7 +91,7 @@ export function Footer() {
               offline
             </StatusPill>
           )}
-          {needRefresh && (
+          {swOrBuildStale && (
             <StatusPill
               as="button"
               color="var(--magenta)"

@@ -373,5 +373,7 @@ export const config = {
   atlasBundleRoot: resolve(process.env.ATLAS_BUNDLE_ROOT ?? resolve(ROOT, "public/atlas")),
   // Retention is ONLY a swap-window buffer (loads in flight when a bump lands),
   // NOT continuity for stale tabs — open tabs are forced forward on drift/404.
-  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 2),
+  // 4 (not 2) widens that buffer, shrinking the window where a page pinned to
+  // a recent sha 404s after pruning and has to force-reload.
+  atlasBundleKeep: Number(process.env.ATLAS_BUNDLE_KEEP ?? 4),
 };

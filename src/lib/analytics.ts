@@ -8,6 +8,7 @@
 //   host, environment   → one project serves dev + prod; filter dev out in PostHog
 //   app_commit          → our repo commit (__COMMIT_HASH__)
 //   atlas_commit        → the live atlas sha (window.__ATLAS_SHA__)
+//   nav_type            → navigate/reload/back_forward/prerender, from Navigation Timing
 //
 // Data minimisation: autocapture and PostHog's chatty enrichments are OFF, and
 // sanitizeProps() trims each event to a tight allowlist — our own properties plus
@@ -84,6 +85,17 @@ function toRelativeUrl(url: string): string {
   }
 }
 
+// Distinguishes a fresh navigation from a reload / back-forward nav / prerender
+// on every event — cheap and otherwise invisible in PostHog's own properties.
+// Guarded: the Navigation Timing L2 API is unavailable in some embeds/test envs.
+function navType(): string {
+  return performance.getEntriesByType?.("navigation")?.[0]?.type ?? "unknown";
+}
+
+// Deliberately NOT imported from lib/atlasBase.ts — that would create an
+// analytics <-> atlasBase import cycle. Keep in sync with atlasBase.ts's SHA_RE.
+const SHA_RE = /^[0-9a-f]{40}$/i;
+
 export function initAnalytics(): void {
   if (!analyticsEnabled || started) return;
   started = true;
@@ -108,11 +120,13 @@ export function initAnalytics(): void {
   });
 
   const host = window.location.hostname;
+  const nav = navType();
   posthog.register({
     host,
     environment: deriveEnvironment(host),
     app_commit: __COMMIT_HASH__,
     atlas_commit: window.__ATLAS_SHA__ || null,
+    nav_type: nav,
     // Disable PostHog's server-side GeoIP enrichment on every event (no
     // country/city/lat-lon). Also enforced per-event in sanitizeProps.
     $geoip_disable: true,
@@ -120,6 +134,26 @@ export function initAnalytics(): void {
   // Uncaught errors + unhandled promise rejections are autocaptured by
   // capture_exceptions above. We still call captureException() explicitly for
   // *handled* errors (ErrorBoundary, worker onerror) that never go uncaught.
+
+  // Catches a page served from an un-injected HTML shell (the Bun server's
+  // {{ATLAS_SHA}} placeholder substitution didn't run — see lib/atlasBase.ts).
+  const shaRaw = window.__ATLAS_SHA__;
+  if (!shaRaw || !SHA_RE.test(shaRaw)) {
+    track("shell_uninjected", { raw: String(shaRaw ?? "").slice(0, 12), nav_type: nav });
+  }
+
+  // atlasBase.ts's reloadOnce() stashes the sha it reloaded away from here
+  // before forcing a reload; read-and-clear it so the forced reload shows up
+  // as one paired event instead of two unrelated page loads.
+  try {
+    const from = sessionStorage.getItem("rl-forced-reload-from");
+    if (from) {
+      sessionStorage.removeItem("rl-forced-reload-from");
+      track("forced_reload", { from, to: window.__ATLAS_SHA__ || null });
+    }
+  } catch {
+    // private mode / quota — losing this pairing is a soft degradation
+  }
 }
 
 /** Set a super property that auto-attaches to all subsequent events. */

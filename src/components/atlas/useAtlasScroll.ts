@@ -20,13 +20,43 @@ export function useAtlasScroll(
   // disclosure). Reset on every id or view-mode change so we re-check and
   // scroll if needed.
   const scrolledRef = useRef<string | null>(null);
+  // userMovedRef guards against re-scrolling when `data` swaps identity (the
+  // shallow→full bundle swap a few seconds after load — see useAtlasData) or
+  // `rung` gets a new Map after the user has already scrolled elsewhere by
+  // hand. Reset alongside scrolledRef so a fresh id/view still gets its
+  // deep-link glide even if the user had moved around the previous selection.
+  const userMovedRef = useRef(false);
   useEffect(() => {
     scrolledRef.current = null;
+    userMovedRef.current = false;
   }, [id, viewKey]);
+
+  // wheel/touchmove (not scroll) are the signal: `scroll` also fires for our
+  // own programmatic scrollIfOutOfView calls, which would immediately trip
+  // this guard and defeat the auto-glide on the very scroll it's meant to
+  // allow. wheel/touchmove only fire for real user input. Keyboard paging and
+  // scrollbar-drag scrolling aren't covered by either — an accepted gap, not
+  // one to close by adding a `scroll` listener.
+  useEffect(() => {
+    const onUserMove = () => {
+      userMovedRef.current = true;
+    };
+    window.addEventListener("wheel", onUserMove, { passive: true });
+    window.addEventListener("touchmove", onUserMove, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onUserMove);
+      window.removeEventListener("touchmove", onUserMove);
+    };
+  }, []);
 
   useEffect(() => {
     if (!id || !data) return;
     requestAnimationFrame(() => {
+      // Deliberately doesn't touch scrolledRef here: userMovedRef only
+      // clears on the next id/viewKey change, which also clears scrolledRef,
+      // so leaving it unlatched costs nothing and avoids a stale latch
+      // outliving the guard it'd be redundant with.
+      if (userMovedRef.current) return;
       const el = document.getElementById(id);
       if (!el || scrolledRef.current === id) return;
       scrollIfOutOfView(el);

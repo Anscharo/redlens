@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-12
+- Fixed the app reloading itself and the reader jumping to a different position within moments of opening it
+
 ## 2026-08-11
 - Fixed long-open tabs getting stuck on an outdated version of the app instead of picking up new releases
 - Added keyboard and mouse hints in the bottom-left corner, showing what the arrow keys and shift-click do wherever you are
