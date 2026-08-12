@@ -89,7 +89,10 @@ function toRelativeUrl(url: string): string {
 // on every event — cheap and otherwise invisible in PostHog's own properties.
 // Guarded: the Navigation Timing L2 API is unavailable in some embeds/test envs.
 function navType(): string {
-  return performance.getEntriesByType?.("navigation")?.[0]?.type ?? "unknown";
+  // getEntriesByType is typed as PerformanceEntry[]; `type` lives on the
+  // PerformanceNavigationTiming subtype "navigation" entries actually are.
+  const nav = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+  return nav?.type ?? "unknown";
 }
 
 // Deliberately NOT imported from lib/atlasBase.ts — that would create an
