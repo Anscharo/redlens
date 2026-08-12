@@ -46,6 +46,24 @@ describe("useBuildBehind", () => {
     expect(track).not.toHaveBeenCalled();
   });
 
+  it("stays false when the server reports the full sha this short build hash prefixes (Railway: short client vs full RAILWAY_GIT_COMMIT_SHA)", async () => {
+    // vite.config.ts bakes a SHORT sha; the server echoes the FULL 40-hex one.
+    loadHealth.mockResolvedValue({ app_commit: "test" + "0123456789abcdef".repeat(2) });
+    const { useBuildBehind } = await import("./useBuildBehind");
+    const { result } = renderHook(() => useBuildBehind());
+    await waitFor(() => expect(loadHealth).toHaveBeenCalled());
+    expect(result.current).toBe(false);
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it("stays false in the reverse direction too (server sha is a prefix of the build's)", async () => {
+    loadHealth.mockResolvedValue({ app_commit: "tes" });
+    const { useBuildBehind } = await import("./useBuildBehind");
+    const { result } = renderHook(() => useBuildBehind());
+    await waitFor(() => expect(loadHealth).toHaveBeenCalled());
+    expect(result.current).toBe(false);
+  });
+
   it("flips true and tracks once when the server's app_commit differs", async () => {
     loadHealth.mockResolvedValue({ app_commit: "othersha" });
     const { useBuildBehind } = await import("./useBuildBehind");

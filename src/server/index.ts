@@ -210,9 +210,7 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
   // No config gate: when VITE_POSTHOG_KEY is unset the client never inits, so this
   // path simply receives no traffic. Lazy-imported to stay off the static hot path.
   if (pathname === "/z" || pathname.startsWith("/z/")) {
-    console.time("import posthog-proxy")
     const { handlePosthogProxy } = await import("./posthog-proxy.ts");
-    console.timeEnd("import posthog-proxy")
     return handlePosthogProxy(req, pathname);
   }
 

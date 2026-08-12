@@ -59,7 +59,7 @@ export async function handlePosthogProxy(req: Request, pathname: string): Promis
   // Only forward known PostHog endpoint roots (defense in depth; the host is fixed).
   const root = "/" + (rest.split("/")[1] ?? "");
   if (!ALLOWED_ROOTS.has(root)) return new Response("not found", { status: 404 });
-  console.time("handlePosthogProxy")
+
   const upstreamBase = rest.startsWith("/static/") ? PH_ASSETS : PH_INGEST;
   const { search } = new URL(req.url);
   const target = `${upstreamBase}${rest}${search}`;
@@ -90,9 +90,9 @@ export async function handlePosthogProxy(req: Request, pathname: string): Promis
   } catch {
     return new Response("analytics proxy unavailable", { status: 502 });
   } finally {
-    console.timeEnd("handlePosthogProxy")
     clearTimeout(tid);
   }
+
   // Bun's fetch transparently decompresses the upstream body, so the inherited
   // content-encoding/length would make the browser double-decode — strip both.
   const respHeaders = new Headers(upstream.headers);
