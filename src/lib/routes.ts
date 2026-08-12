@@ -40,6 +40,30 @@ export const NAV_PAGE_ROUTES: Record<NavPage, string> = {
   reports: ROUTES.REPORTS,
 };
 
+// Which top-nav section (if any) a location belongs to, for highlighting the
+// active nav item and picking the search scope. Prefix-matched since e.g.
+// every /reports/* sub-route counts as "reports".
+export function activeNavPageFor(location: string): NavPage | null {
+  if (location.startsWith(ROUTES.CONSTELLATIONS)) return "constellations";
+  if (location.startsWith(ROUTES.REPORTS)) return "reports";
+  if (location.startsWith(ROUTES.RADAR)) return "radar";
+  if (location.startsWith(ROUTES.ATLAS)) return "atlas";
+  return null;
+}
+
+// Window-scroll mode: routes that don't need the "fixed shell, inner scroll"
+// layout opt in here. The root grows with content (min-h-dvh) and the
+// overflow-hidden wrappers are dropped, so the browser's native
+// history.scrollRestoration handles back/forward for free.
+export function usesWindowScroll(location: string): boolean {
+  return (
+    location.startsWith(ROUTES.REPORTS) ||
+    location.startsWith(ROUTES.RADAR) ||
+    location === ROUTES.COLLECTIONS ||
+    location === ROUTES.CONVERSATIONS
+  );
+}
+
 export type SearchScope = "atlas" | "constellations" | "radar" | "reports";
 
 export interface ScopeConfig {
