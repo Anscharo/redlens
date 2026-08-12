@@ -25,6 +25,18 @@ describe("FeaturesPage", () => {
     }
   });
 
+  it("gives every group a hash anchor whose heading links to it", () => {
+    const { container } = render(<FeaturesPage />, { wrapper: wrap() });
+    for (const g of FEATURE_GROUPS) {
+      const section = container.querySelector(`section#${g.key}`);
+      expect(section, g.key).not.toBeNull();
+      // Without scroll-margin the deep-linked heading lands under the sticky header.
+      expect(section).toHaveStyle({ scrollMarginTop: "64px" });
+      const link = screen.getByRole("link", { name: g.title });
+      expect(link).toHaveAttribute("href", `#${g.key}`);
+    }
+  });
+
   it("links each group that names a destination to that destination", () => {
     render(<FeaturesPage />, { wrapper: wrap() });
     for (const g of FEATURE_GROUPS) {
@@ -54,6 +66,15 @@ describe("featuresData", () => {
         expect(f.what.length, `${g.title}/${f.name}`).toBeGreaterThan(0);
         expect(f.how.length, `${g.title}/${f.name}`).toBeGreaterThan(0);
       }
+    }
+  });
+
+  // Keys are the public /features#<key> anchors, so they have to survive a URL
+  // round-trip: no spaces, no uppercase, nothing needing percent-encoding.
+  it("uses keys that are valid, stable URL fragments", () => {
+    for (const g of FEATURE_GROUPS) {
+      expect(g.key, g.title).toMatch(/^[a-z0-9][a-z0-9-]*$/);
+      expect(encodeURIComponent(g.key), g.title).toBe(g.key);
     }
   });
 

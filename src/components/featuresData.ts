@@ -24,6 +24,9 @@ export interface Feature {
 }
 
 export interface FeatureGroup {
+  /** Also the section's hash anchor (/features#<key>), so it is a PUBLIC URL —
+   *  renaming one breaks every link anyone saved or shared. Titles are free to
+   *  be reworded; these are not. */
   key: string;
   title: string;
   route?: string; // primary in-SPA route for this area (must exist in ROUTES)
