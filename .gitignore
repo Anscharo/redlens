@@ -122,3 +122,14 @@ docs/ds/
 #   history-pre-era.json             pre-git origins (mip/genesis/severed — docs/plans/
 #                                    pre-git-history.md; scripts/prehist/*, synced by build:history)
 # Regenerated deliberately (reviewed reruns), then committed. The audit/trace write to .cache/.
+.claude/skills/mcp-analytics/.posthog-wizard
+.claude/skills/mcp-analytics/SKILL.md
+.claude/skills/mcp-analytics/references/COMMANDMENTS.md
+.claude/skills/mcp-analytics/references/conversation-id.md
+.claude/skills/mcp-analytics/references/custom-events.md
+.claude/skills/mcp-analytics/references/custom-servers.md
+.claude/skills/mcp-analytics/references/events.md
+.claude/skills/mcp-analytics/references/identifying-users.md
+.claude/skills/mcp-analytics/references/installation.md
+.claude/skills/mcp-analytics/references/intent.md
+.claude/skills/mcp-analytics/references/start-here.md
