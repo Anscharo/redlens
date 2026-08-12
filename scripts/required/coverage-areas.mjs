@@ -18,6 +18,14 @@ const outMd = process.env.COVERAGE_AREAS_MD ?? "coverage/coverage-summary.md";
 const baseRef = process.env.COVERAGE_BASE_REF ?? process.env.GITHUB_BASE_REF ?? "origin/main";
 const baselinePath = process.env.COVERAGE_BASELINE_JSON;
 const minChanged = Number(process.env.COVERAGE_CHANGED_MIN ?? "85");
+// A percentage gate has no resolution on a small diff: change 3 logic lines and
+// the only scores available are 0 / 33 / 67 / 100, so a single uncovered line —
+// often a `console.warn` or an early-return guard — reads as 67% and fails a
+// gate that a 100-line PR clears with 15 uncovered lines. The grace forgives
+// that many uncovered changed lines outright; its proportional weight fades as
+// the diff grows (a whole line out of 100 barely moves the percentage), so the
+// gate only loosens exactly where the percentage was too coarse to be fair.
+const graceLines = Number(process.env.COVERAGE_CHANGED_GRACE ?? "1");
 
 // React code (components / hooks / context) is split into per-product meters so
 // each product's test coverage is tracked on its own. Ordering is load-bearing:
@@ -206,6 +214,19 @@ function pct(covered, total) {
   return total ? (covered / total) * 100 : null;
 }
 
+// The changed-code gate: a bucket passes when its changed-line coverage clears
+// the minimum, OR when at most `grace` of its changed logic lines are uncovered
+// (see graceLines above). Applied twice in runMain — once per area, once to the
+// whole diff. The overall pass is what stops the per-area grace from stacking:
+// a diff spread thin across six meters would otherwise collect six forgiven
+// lines and slip through at 50%, so the same rule over the summed changed lines
+// keeps the grace worth one line per PR, not one per meter it happens to touch.
+export function meetsChangedMin(changedCovered, changedTotal, min = minChanged, grace = graceLines) {
+  if (changedTotal <= 0) return true; // nothing instrumented changed here
+  if (changedTotal - changedCovered <= grace) return true;
+  return (changedCovered / changedTotal) * 100 >= min;
+}
+
 function fmt(value) {
   return value == null ? "n/a" : `${value.toFixed(2)}%`;
 }
@@ -352,21 +373,33 @@ for (const row of rows) {
   row.baseCoverage = base?.coverage ?? null;
   row.coverageDelta = row.coverage == null || row.baseCoverage == null ? null : row.coverage - row.baseCoverage;
 }
-const failed = rows.filter((row) => row.changedTotal > 0 && row.changedCoverage < minChanged);
+const failed = rows.filter((row) => row.changedTotal > 0 && !meetsChangedMin(row.changedCovered, row.changedTotal));
+const overall = {
+  changedCovered: rows.reduce((sum, row) => sum + row.changedCovered, 0),
+  changedTotal: rows.reduce((sum, row) => sum + row.changedTotal, 0),
+};
+overall.changedCoverage = pct(overall.changedCovered, overall.changedTotal);
+overall.passed = meetsChangedMin(overall.changedCovered, overall.changedTotal);
+const gateLabel = `${minChanged}%${graceLines > 0 ? `, or all but ${graceLines} changed line${graceLines === 1 ? "" : "s"}` : ""}`;
 mkdirSync(path.dirname(outJson), { recursive: true });
-writeFileSync(outJson, `${JSON.stringify({ minChanged, baseRef, lcovPaths, rows, failed }, null, 2)}\n`);
+writeFileSync(outJson, `${JSON.stringify({ minChanged, graceLines, baseRef, lcovPaths, rows, failed, overall }, null, 2)}\n`);
 writeFileSync(outMd, [
   "### Coverage by area",
   "",
-  `Changed-code minimum: ${minChanged}%`,
+  `Changed-code minimum: ${gateLabel}`,
   "",
   "| Area | Base total | PR total | Δ | Changed-line coverage |",
   "| --- | ---: | ---: | ---: | ---: |",
   ...rows.filter((r) => r.total || r.changedTotal || r.baseCoverage != null).map((r) => `| ${r.label} | ${fmt(r.baseCoverage)} | ${fmt(r.coverage)} (${r.covered}/${r.total}) | ${fmtDelta(r.coverageDelta)} | ${fmt(r.changedCoverage)} (${r.changedCovered}/${r.changedTotal}) |`),
+  ...(overall.changedTotal ? ["", `All changed lines: ${fmt(overall.changedCoverage)} (${overall.changedCovered}/${overall.changedTotal})`] : []),
   "",
-  failed.length ? `❌ Changed-code coverage is below ${minChanged}% for: ${failed.map((r) => r.label).join(", ")}.` : `✅ Changed-code coverage meets ${minChanged}% for all touched areas with executable lines.`,
+  failed.length
+    ? `❌ Changed-code coverage misses the minimum (${gateLabel}) for: ${failed.map((r) => r.label).join(", ")}.`
+    : overall.passed
+      ? `✅ Every touched area with executable lines meets the changed-code minimum (${gateLabel}).`
+      : `❌ Each area is within its ${graceLines}-line grace, but the diff as a whole misses ${minChanged}% (${overall.changedCovered}/${overall.changedTotal} changed lines covered).`,
   "",
 ].join("\n"));
 console.log(readFileSync(outMd, "utf8"));
-if (failed.length) process.exit(1);
+if (failed.length || !overall.passed) process.exit(1);
 }

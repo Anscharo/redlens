@@ -12,3 +12,9 @@ export const libAreaIds: string[];
 export function areaFor(file: string): string;
 /** Whether a repo-relative file's 1-indexed line counts toward a coverage meter. */
 export function isLogicLine(file: string, lineNo: number): boolean;
+/**
+ * Whether a set of changed lines clears the changed-code gate: the minimum
+ * percentage, or at most `grace` uncovered changed lines. Defaults come from
+ * COVERAGE_CHANGED_MIN / COVERAGE_CHANGED_GRACE.
+ */
+export function meetsChangedMin(changedCovered: number, changedTotal: number, min?: number, grace?: number): boolean;
