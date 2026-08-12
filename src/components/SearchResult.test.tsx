@@ -70,9 +70,10 @@ describe("SearchResult", () => {
     });
     // scope has no tag prefix
     expect(screen.getByTitle("Accessibility Scope")).toBeTruthy();
-    // agent/icd get a "KIND: text" title
+    // agent gets a "KIND: text" title; icd expands to its full name so the
+    // hover tooltip doesn't just repeat the pill's own "ICD NAME" text
     expect(screen.getByTitle("AGENT: Keel")).toBeTruthy();
-    expect(screen.getByTitle("ICD: ICD-42")).toBeTruthy();
+    expect(screen.getByTitle("Instance Configuration Document for ICD-42")).toBeTruthy();
     expect(screen.getByText("AGENT")).toBeTruthy();
     expect(screen.getByText("ICD")).toBeTruthy();
   });

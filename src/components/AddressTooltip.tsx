@@ -3,6 +3,7 @@ import { Tooltip } from "./Tooltip";
 import { getAddressMap } from "../lib/addressMap";
 import { loadBalancesCached, peekCachedBalances, type AddressBalances } from "../lib/balances";
 import { resolveAddressTooltip } from "../lib/addressTooltip";
+import { shortLink } from "../lib/format";
 
 // undefined until the shared fetch settles (loading); a failed fetch settles
 // to {} — same as "no balances known" — rather than leaving the tooltip
@@ -41,7 +42,15 @@ function Spinner() {
   );
 }
 
-function AddressTooltipContent({ address, onSettled }: { address: string; onSettled: () => void }) {
+function AddressTooltipContent({
+  address,
+  href,
+  onSettled,
+}: {
+  address: string;
+  href?: string;
+  onSettled: () => void;
+}) {
   const addresses = useBalances();
   const loading = addresses === undefined;
   // Tooltip only re-measures/repositions when its `content` prop's element
@@ -82,16 +91,35 @@ function AddressTooltipContent({ address, onSettled }: { address: string; onSett
           </div>
         )
       )}
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="link-accent mono text-[10px] block mt-1.5 truncate"
+        >
+          {shortLink(href)}
+        </a>
+      )}
     </div>
   );
 }
 
 /** Wraps an on-chain address link with the shared Tooltip, showing the
- *  address's resolved name and any non-zero token balances on hover. */
-export function AddressTooltip({ address, children }: { address: string; children: ReactElement }) {
+ *  address's resolved name, any non-zero token balances, and a shortened
+ *  link to the explorer page on hover. */
+export function AddressTooltip({
+  address,
+  href,
+  children,
+}: {
+  address: string;
+  href?: string;
+  children: ReactElement;
+}) {
   const [, bump] = useReducer((n: number) => n + 1, 0);
   return (
-    <Tooltip content={<AddressTooltipContent address={address} onSettled={bump} />}>
+    <Tooltip content={<AddressTooltipContent address={address} href={href} onSettled={bump} />}>
       {children}
     </Tooltip>
   );
