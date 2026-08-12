@@ -1,4 +1,4 @@
-import { HelpIcon } from "./HelpIcon";
+import { GuideIcon } from "./GuideIcon";
 import { Link } from "./Link";
 import { PatchNotes } from "./PatchNotes";
 import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
@@ -50,7 +50,7 @@ function HelpBanner() {
       className="home-help-banner flex items-center gap-4 mb-6 w-full text-left"
       style={{ color: "var(--accent)" }}
     >
-      <HelpIcon size={28} />
+      <GuideIcon size={28} />
       <span>
         <span className="block text-sm font-semibold text-tan">New here? See everything you can do</span>
         <span className="block text-xs text-tan-3 leading-relaxed">

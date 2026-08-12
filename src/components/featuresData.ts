@@ -270,6 +270,14 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         ],
       },
       {
+        name: "Sending feedback",
+        what: "Report a bug or tell us what's missing, from wherever you hit it.",
+        how: [
+          'Click the "?" button in the top bar, or just press ? anywhere outside a text box.',
+          "Describe what happened and send — the page you were on goes with it, so you don't have to explain where you were.",
+        ],
+      },
+      {
         name: "Always-current Atlas",
         what: "The app tracks upstream and refreshes itself when the Atlas advances.",
         how: [

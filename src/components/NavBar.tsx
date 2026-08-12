@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { HelpIcon } from "./HelpIcon";
+import { GuideIcon } from "./GuideIcon";
 import { Link } from "./Link";
 import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
@@ -44,10 +44,10 @@ function HelpLink() {
       to={ROUTES.FEATURES}
       className="nav-link shrink-0 flex items-center justify-center w-8 h-8 rounded"
       data-active={active ? "true" : undefined}
-      title="Help & features"
-      aria-label="Help and features"
+      title="Features guide"
+      aria-label="Features guide"
     >
-      <HelpIcon />
+      <GuideIcon />
     </Link>
   );
 }
