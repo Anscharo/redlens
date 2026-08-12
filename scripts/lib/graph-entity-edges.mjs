@@ -20,6 +20,7 @@ import {
   rpRoleAndName,
   isDescriptiveRP,
   ALIGNED_DELEGATES_UUID,
+  UUID_LINK_RE,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
 import { warnDriftCount } from "./graph-tripwires.mjs";
@@ -65,8 +66,6 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // Source: ICD parameter docs titled "Operational/Core Executor Agent" at
   // A.6.1.1.X.2.Z.2.N.1.1.1. Content cites the executor's defining doc. Walk parentId
   // chain to find the prime agent.
-  const UUID_LINK_RE =
-    /\[([^\]]*)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/gi;
   for (const paramDoc of allDocs.filter((d) =>
     /^(operational|core)(?: council)? executor agent$/i.test(d.title),
   )) {

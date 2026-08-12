@@ -23,7 +23,7 @@
 // {resolvable party}" clause in the same doc — and unresolved operational-
 // looking handoffs warn rather than silently dropping.
 
-import { slugify } from "./graph-patterns.mjs";
+import { slugify, makeWarn } from "./graph-patterns.mjs";
 
 const CONTROL_RE =
   /\b(control|controlled|modification|onboarding|offboarding|process|operation|implement|managed?|responsib)\b/i;
@@ -43,13 +43,8 @@ const EST_DATE_RE =
 const SKIP_HOLDERS = new Set(["endgame", "endgame state", "the endgame"]);
 
 export function extractTransitions(allDocs, docById, docByDocNo, entityMap, edges) {
-  let count = 0;
-  let warnings = 0;
-
-  const warn = (msg) => {
-    warnings++;
-    console.warn(`  [transition] ${msg}`);
-  };
+  const stats = { count: 0, warnings: 0 };
+  const warn = makeWarn("  [transition]", stats);
 
   // Resolve a holder name to an agent / bootstrap entity. Agent slugs are the
   // lowercased name (grove, spark, …); "X Governance" falls back to X.
@@ -111,8 +106,8 @@ export function extractTransitions(allDocs, docById, docByDocNo, entityMap, edge
       sourceDocNos: [d.doc_no],
       meta: Object.keys(meta).length ? JSON.stringify(meta) : null,
     });
-    count++;
+    stats.count++;
   }
 
-  return { count, warnings };
+  return stats;
 }

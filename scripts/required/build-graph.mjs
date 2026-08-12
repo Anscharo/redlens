@@ -26,7 +26,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { slugify, normalizeKey, buildNameIndex, resolveAliasedEntity, makeEntity } from "../lib/graph-patterns.mjs";
+import {
+  slugify,
+  normalizeKey,
+  buildNameIndex,
+  resolveAliasedEntity,
+  makeEntity,
+  ancestorByStripping,
+} from "../lib/graph-patterns.mjs";
 import { checkGateTripwires, warnDriftCount } from "../lib/graph-tripwires.mjs";
 import { extractMultisigs } from "../lib/graph-multisigs.mjs";
 import { extractTransfers } from "../lib/graph-transfers.mjs";
@@ -1011,8 +1018,9 @@ console.log(`  relations.json written (${(relSize / 1024).toFixed(0)} KB)`);
   const GENERIC_TITLE = /^address(?:es)?$/i;
   for (const doc of allDocs) {
     if (!GENERIC_TITLE.test(doc.title.trim()) || !doc.addressRefs?.length) continue;
-    const parentDocNo = doc.doc_no.split(".").slice(0, -1).join(".");
-    const parentDoc = docByDocNo.get(parentDocNo);
+    // Parent via doc_no arithmetic, not parentId: heading depth caps at 6, and
+    // these generic "Address" leaves sit well below that in the artifact trees.
+    const parentDoc = ancestorByStripping(doc, 1, docByDocNo);
     if (!parentDoc) continue;
     for (const addr of doc.addressRefs) {
       const entry = addressesAtlas[addr.toLowerCase()] ?? addressesAtlas[addr];
