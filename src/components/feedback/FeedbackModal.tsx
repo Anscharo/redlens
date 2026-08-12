@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type MouseEvent as ReactMouseEvent } from "react";
 import { Modal } from "../Modal";
 import { Link } from "../Link";
 import { ROUTES } from "../../lib/routes";
@@ -72,6 +72,16 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  // Both reference links navigate in place, and the card swallows the click
+  // before the backdrop's close handler sees it — so without this the
+  // destination renders UNDERNEATH a modal the reader then has to dismiss by
+  // hand. Only a plain left click navigates (Link passes modified clicks to the
+  // browser, opening a new tab and leaving this page put), so only that closes.
+  const closeOnNavigate = (e: ReactMouseEvent) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.button !== 0) return;
+    onClose();
+  };
+
   return (
     <Modal label="Feedback" onClose={onClose} width={420}>
       <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--tan)", margin: 0 }}>Feedback</h2>
@@ -134,10 +144,28 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
         </form>
       )}
 
-      {/* Kept when the keyboard-shortcut list came out: the search-syntax
-          reference is the one thing here people actually go looking for. */}
+      {/* The two reference links, and the only entry points to either. "Confusing
+          or missing" is often really "didn't know it was there", so the features
+          guide sits above the search-syntax reference — which was kept when the
+          keyboard-shortcut list came out, being the one thing here people
+          actually go looking for. */}
       <p style={{ margin: "4px 0 0", fontSize: 11 }}>
-        <Link to={ROUTES.SEARCH_HINTS} className="mono" style={{ color: "var(--accent)" }}>
+        <Link
+          to={ROUTES.FEATURES}
+          onClick={closeOnNavigate}
+          className="mono"
+          style={{ color: "var(--accent)" }}
+        >
+          Everything you can do →
+        </Link>
+      </p>
+      <p style={{ margin: 0, fontSize: 11 }}>
+        <Link
+          to={ROUTES.SEARCH_HINTS}
+          onClick={closeOnNavigate}
+          className="mono"
+          style={{ color: "var(--accent)" }}
+        >
           Search syntax reference →
         </Link>
       </p>

@@ -200,3 +200,38 @@ describe("interaction trail", () => {
     }
   });
 });
+
+describe("reference links", () => {
+  it("offers the features guide above the search-syntax reference", () => {
+    render(<FeedbackButton />);
+    openViaButton();
+    const guide = screen.getByRole("link", { name: /Everything you can do/ });
+    const syntax = screen.getByRole("link", { name: /Search syntax reference/ });
+    expect(guide).toHaveAttribute("href", "/features");
+    expect(syntax).toHaveAttribute("href", "/search-hints");
+    // The guide is the broader of the two, and "confusing or missing" is often
+    // really "didn't know it was there" — so it reads first.
+    expect(guide.compareDocumentPosition(syntax)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  // Both links navigate in place. The modal has no close-on-route-change and
+  // the card swallows the click before the backdrop sees it, so without an
+  // explicit close the destination renders under a modal the reader has to
+  // dismiss by hand.
+  it.each([
+    ["Everything you can do", /Everything you can do/],
+    ["Search syntax reference", /Search syntax reference/],
+  ])("closes the modal when %s is followed", (_label, pattern) => {
+    render(<FeedbackButton />);
+    openViaButton();
+    fireEvent.click(screen.getByRole("link", { name: pattern }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("stays open on a modified click, which opens a new tab and leaves this page put", () => {
+    render(<FeedbackButton />);
+    openViaButton();
+    fireEvent.click(screen.getByRole("link", { name: /Everything you can do/ }), { metaKey: true });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+});

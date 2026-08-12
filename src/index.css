@@ -1343,6 +1343,33 @@ button.atlas-node-expand-all:focus-visible {
   border-color: var(--accent);
 }
 
+.home-help-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.home-help-banner:hover,
+.home-help-banner:focus-visible {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+/* Features guide: each section heading doubles as a link to its own anchor.
+   Reads as a plain heading until hovered, so it doesn't clutter the page. */
+.features-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.features-anchor:hover,
+.features-anchor:focus-visible {
+  color: var(--accent);
+}
+
 /* ─── Load more button ─── */
 .load-more-btn {
   color: var(--accent);

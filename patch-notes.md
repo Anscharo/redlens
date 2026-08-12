@@ -33,12 +33,14 @@
   validator (pnpm check:patch-notes) rejects a block with more than 10.
 -->
 
+
 ## 2026-08-11
 - Fixed long-open tabs getting stuck on an outdated version of the app instead of picking up new releases
 - Added keyboard and mouse hints in the bottom-left corner, showing what the arrow keys and shift-click do wherever you are
 - Added X Layer support, so addresses on X Layer now link to their own block explorer instead of Etherscan
 - Added private Atlas previews — preview a private fork you have GitHub access to by signing in with GitHub
 - Atlas PR previews now mark documents removed by a PR, and no longer miss changes in files too large for GitHub to send a diff for
+- Added a Features page guiding you through everything you can do with a short how-to for each feature, linked from the home page and from the feedback box
 
 ## 2026-08-06
 - Added a feedback button to the top bar for reporting bugs

@@ -8,6 +8,7 @@ export const ROUTES = {
   PROVENANCE: "/provenance",
   PRIVACY: "/privacy",
   UPDATES: "/updates",
+  FEATURES: "/features",
   CONNECT: "/connect",
   COLLECTIONS: "/collections",
   SHARED_COLLECTION: "/c/:id",
