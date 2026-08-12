@@ -313,6 +313,21 @@ describe("handleRequest — /api/health", () => {
     expect(body.db_reachable).toBe(false);
     expect(body.status).toBe("degraded");
   });
+
+  it("echoes config.appCommit as app_commit, and null when unset", async () => {
+    const saved = config.appCommit;
+    try {
+      config.appCommit = "deadbeef";
+      const withCommit = (await (await handleRequest(new Request("http://localhost/api/health"), stubServer)).json()) as Record<string, unknown>;
+      expect(withCommit.app_commit).toBe("deadbeef");
+
+      config.appCommit = "";
+      const withoutCommit = (await (await handleRequest(new Request("http://localhost/api/health"), stubServer)).json()) as Record<string, unknown>;
+      expect(withoutCommit.app_commit).toBeNull();
+    } finally {
+      config.appCommit = saved;
+    }
+  });
 });
 
 describe("handleRequest — /api/freshness", () => {
@@ -406,6 +421,32 @@ describe("handleRequest — static file serving", () => {
     const res = await handleRequest(req, stubServer);
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBeNull();
+  });
+
+  // The identity branch shares a cache key with the gzip branch above (both
+  // answer GET /assets/plain.txt) — without Vary, a shared cache could serve
+  // this body to a gzip-accepting client and vice versa.
+  it("sets Vary: Accept-Encoding on the plain (identity) branch too", async () => {
+    const req = new Request("http://localhost/assets/plain.txt");
+    const res = await handleRequest(req, stubServer);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Vary")).toBe("Accept-Encoding");
+  });
+});
+
+describe("handleRequest — literal /index.html", () => {
+  it("301s to / , preserving the query string, instead of serving the raw un-injected file", async () => {
+    const req = new Request("http://localhost/index.html?foo=bar");
+    const res = await handleRequest(req, stubServer);
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/?foo=bar");
+  });
+
+  it("301s to bare / when there is no query string", async () => {
+    const req = new Request("http://localhost/index.html");
+    const res = await handleRequest(req, stubServer);
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("/");
   });
 });
 

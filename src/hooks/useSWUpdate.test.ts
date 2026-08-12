@@ -14,7 +14,11 @@ const mockState: {
 } = { options: null, needRefresh: false, updateSW: vi.fn(async () => {}) };
 
 const captureException = vi.fn();
-vi.mock("../lib/analytics", () => ({ captureException: (...a: unknown[]) => captureException(...a) }));
+const track = vi.fn();
+vi.mock("../lib/analytics", () => ({
+  captureException: (...a: unknown[]) => captureException(...a),
+  track: (...a: unknown[]) => track(...a),
+}));
 
 type UpdateFn = () => Promise<void>;
 
@@ -68,6 +72,7 @@ beforeEach(() => {
   mockState.needRefresh = false;
   mockState.updateSW = vi.fn(async () => {});
   captureException.mockClear();
+  track.mockClear();
 });
 
 afterEach(() => {
@@ -85,34 +90,26 @@ describe("useSWUpdate", () => {
     expect(typeof result.current.applyUpdate).toBe("function");
   });
 
-  it("applyUpdate triggers the service worker update and reloads on controllerchange", () => {
-    const addEventListener = stubServiceWorker({});
+  it("applyUpdate triggers the service worker update and arms a reload fallback", () => {
+    vi.useFakeTimers();
+    const reload = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...window.location, reload } });
     const { result } = renderHook(() => useSWUpdate());
 
     act(() => result.current.applyUpdate());
 
     expect(mockState.updateSW).toHaveBeenCalledWith(true);
-    expect(addEventListener).toHaveBeenCalledWith("controllerchange", expect.any(Function), { once: true });
+    // vite-plugin-pwa's own `controlling` listener normally reloads first (see
+    // showSkipWaitingPrompt) — this is only the fallback for when there's no
+    // waiting worker to activate (e.g. the pill was raised by useBuildBehind).
+    expect(reload).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1500));
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it("auto-applies a waiting worker on a fresh page open (onNeedRefresh within the grace window)", async () => {
+  it("onNeedRefresh tracks the event instead of silently applying the update", async () => {
     const postMessage = vi.fn();
-    const addEventListener = stubServiceWorker({ waiting: { postMessage } as unknown as ServiceWorker });
-    renderHook(() => useSWUpdate());
-
-    await act(async () => {
-      mockState.options?.onNeedRefresh?.();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
-    expect(addEventListener).toHaveBeenCalledWith("controllerchange", expect.any(Function), { once: true });
-  });
-
-  it("does not post SKIP_WAITING when there is no waiting worker", async () => {
-    const postMessage = vi.fn();
-    stubServiceWorker({ waiting: null });
+    stubServiceWorker({ waiting: { postMessage } as unknown as ServiceWorker });
     renderHook(() => useSWUpdate());
 
     await act(async () => {
@@ -120,7 +117,10 @@ describe("useSWUpdate", () => {
       await Promise.resolve();
     });
 
+    // The pill (needRefresh, set by the library) is the only apply path — no
+    // auto-SKIP_WAITING on a fresh page open.
     expect(postMessage).not.toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith("sw_update_available");
   });
 
   it("schedules hourly checks once a registration arrives", async () => {

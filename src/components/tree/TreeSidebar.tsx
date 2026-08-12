@@ -44,6 +44,21 @@ function addAncestors(
 
 const REVEAL_STEP_MS = 180;
 
+const EXPANDED_IDS_KEY = "rl-tree-expanded";
+const EXPANDED_IDS_MAX = 2000;
+
+// sessionStorage (not localStorage): per-tab, survives a reload, dies with the
+// tab — UUID keys are stable across builds so a stale entry is harmless.
+function loadExpandedIds(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(EXPANDED_IDS_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch {
+    return new Set();
+  }
+}
+
 interface Props {
   nodeId: string | null;
   onNavigate: (id: string) => void;
@@ -58,8 +73,19 @@ export function TreeSidebar({ nodeId, onNavigate, onShiftNavigate }: Props) {
   const scrolledForRef = useRef<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useListRef(null);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(loadExpandedIds);
   usePulseDom(nodeId, containerRef);
+
+  // Persist expansion state so reload paths that remain in the app (the footer's
+  // update pill, forced stale reloads) don't wipe the tree back to fully collapsed.
+  useEffect(() => {
+    if (expandedIds.size > EXPANDED_IDS_MAX) return;
+    try {
+      sessionStorage.setItem(EXPANDED_IDS_KEY, JSON.stringify([...expandedIds]));
+    } catch {
+      // ignore (private mode, quota, etc.)
+    }
+  }, [expandedIds]);
 
   // child id → parent id in the *rendered* tree. byParent is built in the worker
   // via resolveParentId (doc_no-aware, incl. the NR-by-id step), so inverting it
