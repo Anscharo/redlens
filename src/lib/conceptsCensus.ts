@@ -58,9 +58,29 @@ export function hasDataTable(content: string): boolean {
 // real entries show up as at least one bullet line.
 const BULLET_LINE_RE = /^\s*[-*]\s+\S/m;
 
-function hasDescendant(doc_no: string, all: AtlasNode[]): boolean {
-  const prefix = `${doc_no}.`;
-  return all.some((n) => n.doc_no.startsWith(prefix));
+// "Does ANY doc sit under this one" — sorted binary search over the doc_no
+// list, built ONCE per sweep and shared by every census that asks. The naive
+// `all.some(startsWith)` per candidate is quadratic and dominated this module:
+// 1,136 candidates x 11,335 docs = 12.9M scans, ~150ms of the census pass.
+// Exported because liveness.ts asks the same question of the same corpus in
+// the same breath and must not build a second index (or a second algorithm).
+// fragile: doc_no prefix — this asks about ANY descendant, never "is this
+// specific doc X", so a renumbering moves a whole family together and the
+// answer is unchanged. A parentId version would need a child-count index
+// neither caller builds.
+export function buildHasDescendant(all: AtlasNode[]): (doc_no: string) => boolean {
+  const sorted = all.map((n) => n.doc_no).sort();
+  return (doc_no: string) => {
+    const prefix = `${doc_no}.`;
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (sorted[mid] < prefix) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo < sorted.length && sorted[lo].startsWith(prefix);
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -69,10 +89,10 @@ function hasDescendant(doc_no: string, all: AtlasNode[]): boolean {
 // Exported (unlike its nine siblings) so liveness.ts can run just the two
 // censuses it consumes instead of the whole 10-bucket sweep on every boot and
 // atlas hot-swap — same heuristics, one source of truth, ~2/3 less work.
-export function censusRegistryLiveness(all: AtlasNode[]): CensusResult {
+export function censusRegistryLiveness(all: AtlasNode[], hasDescendant = buildHasDescendant(all)): CensusResult {
   const regs = all.filter((n) => /^List Of /.test(n.title));
   const members = regs.map((n) => {
-    const live = hasDescendant(n.doc_no, all) || hasDataTable(n.content) || BULLET_LINE_RE.test(n.content);
+    const live = hasDescendant(n.doc_no) || hasDataTable(n.content) || BULLET_LINE_RE.test(n.content);
     return ref(n, live ? "live" : "empty");
   });
   const live = members.filter((m) => m.bucket === "live").length;
@@ -91,9 +111,9 @@ export function censusRegistryLiveness(all: AtlasNode[]): CensusResult {
 const STATUS_DIR_RE = /^(Active|Completed|In[- ]Progress|Suspended|Failed|Archived) (Instances?|Invocations?)( Directory)?$/i;
 
 // Exported for liveness.ts alongside censusRegistryLiveness — see the note there.
-export function censusEmptyScaffolding(all: AtlasNode[]): CensusResult {
+export function censusEmptyScaffolding(all: AtlasNode[], hasDescendant = buildHasDescendant(all)): CensusResult {
   const dirs = all.filter((n) => STATUS_DIR_RE.test(n.title));
-  const members = dirs.map((n) => ref(n, hasDescendant(n.doc_no, all) ? "populated" : "empty"));
+  const members = dirs.map((n) => ref(n, hasDescendant(n.doc_no) ? "populated" : "empty"));
   const empty = members.filter((m) => m.bucket === "empty").length;
   return {
     slug: "empty-scaffolding",
@@ -376,9 +396,10 @@ export type CensusSlug = (typeof CENSUS_SLUGS)[number];
 
 export function computeConceptsCensus(docs: Record<string, AtlasNode>): Record<CensusSlug, CensusResult> {
   const all = Object.values(docs);
+  const hasDescendant = buildHasDescendant(all);
   return {
-    "registry-liveness": censusRegistryLiveness(all),
-    "empty-scaffolding": censusEmptyScaffolding(all),
+    "registry-liveness": censusRegistryLiveness(all, hasDescendant),
+    "empty-scaffolding": censusEmptyScaffolding(all, hasDescendant),
     "ghost-doc-types": censusGhostDocTypes(all),
     "transitionary-measures": censusTransitionaryMeasures(all),
     "formula-docs": censusFormulaDocs(all),

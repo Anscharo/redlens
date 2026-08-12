@@ -51,11 +51,13 @@ function AssistantTurn({
   // exactly the servers least able to drive it. Safe because chat.ts sends
   // `meta` (carrying delivery) as the FIRST frame of every stream, before any
   // status event that could populate stageLog.
-  const stagedMode = msg.delivery === "staged";
-  const showChecklist = stagedMode && !msg.done && empty && stageLog.length > 0;
-  // An aborted staged turn: done, still no answer, but stages ran — a blank
-  // bubble would look broken rather than intentionally stopped.
-  const stoppedEmpty = stagedMode && msg.done && empty && stageLog.length > 0;
+  // One condition — a staged turn with stages run and no answer yet — split by
+  // whether it is still going or has stopped. An aborted staged turn gets a
+  // muted stopped row instead of a blank bubble, which would look broken
+  // rather than intentionally stopped.
+  const stagedBlank = msg.delivery === "staged" && empty && stageLog.length > 0;
+  const showChecklist = stagedBlank && !msg.done;
+  const stoppedEmpty = stagedBlank && msg.done;
   const shownContent = !msg.done ? balanceFences(msg.content) : revealing ? balanceFences(display) : display;
 
   return (

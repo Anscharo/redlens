@@ -63,17 +63,26 @@ const canonicalHostRedirect =
   process.env.CANONICAL_HOST_REDIRECT === "1" ||
   (process.env.CANONICAL_HOST_REDIRECT !== "0" && railwayEnv === "production");
 
-// Verifier audit path, resolved like chatDeliveryMode: a whitelist, not a cast.
-// Asymmetry is deliberate — "single" is the legacy, weaker escape hatch, so
-// only that exact literal selects it and anything unrecognized falls back to
-// the strong default rather than silently downgrading production's audit on a
-// typo ("Sliced", "slices", a trailing space). A misconfigured value is still
-// operator error, so say so at boot instead of swallowing it.
-const rawVerifierMode = (process.env.CHAT_VERIFIER_MODE ?? "").trim();
-const chatVerifierMode: "sliced" | "single" = rawVerifierMode === "single" ? "single" : "sliced";
-if (rawVerifierMode && rawVerifierMode !== "single" && rawVerifierMode !== "sliced") {
-  console.warn(`[config] CHAT_VERIFIER_MODE="${rawVerifierMode}" is not "sliced" or "single" — using "sliced".`);
+// Env enum resolution, in one place. Every mode-style setting wants the same
+// three things — trim (a stray space in a Railway variable is invisible in the
+// dashboard), match exactly, and SAY SO on an unrecognized value instead of
+// silently falling back. Written per-setting, one of them always ends up as a
+// bare cast that quietly resolves a typo to the wrong mode.
+function envEnum<T extends string>(name: string, allowed: readonly T[], fallback: T): T {
+  const raw = (process.env[name] ?? "").trim();
+  if (!raw) return fallback;
+  const hit = allowed.find((a) => a === raw);
+  if (hit) return hit;
+  console.warn(`[config] ${name}="${raw}" is not one of ${allowed.join(", ")} — using "${fallback}".`);
+  return fallback;
 }
+
+// Deliberately asymmetric: "single" is the legacy, weaker verifier, so ONLY
+// that exact literal selects it and everything else — typo included — keeps
+// the strong default rather than downgrading production's audit unnoticed.
+const chatVerifierMode = envEnum("CHAT_VERIFIER_MODE", ["single", "sliced"] as const, "sliced");
+// See the chatDeliveryMode field below for what the two modes mean.
+const chatDeliveryMode = envEnum("CHAT_DELIVERY_MODE", ["streaming", "staged"] as const, "streaming");
 
 export const config = {
   port,
@@ -204,8 +213,8 @@ export const config = {
   // stays "streaming" until the staged A/B measures perceived latency — an
   // unrecognized value normalizes to "streaming" rather than throwing, since
   // this also doubles as the fallback for an invalid per-request override
-  // (ChatBody.delivery in chat.ts).
-  chatDeliveryMode: (process.env.CHAT_DELIVERY_MODE === "staged" ? "staged" : "streaming") as "streaming" | "staged",
+  // (ChatBody.delivery in chat.ts). Resolved via envEnum above.
+  chatDeliveryMode,
   // Selector for the OFFLINE HTML-era auto-curator's pass-2 (LLM∩matcher): proposes a
   // predecessor per case; a case LOCKS only when this pick agrees with the matcher, so a
   // wrong pick / JSON failure just falls through to the human — never a bad lock. Picked by
@@ -269,8 +278,8 @@ export const config = {
   // How the model audit runs: "sliced" (default) = four concurrent narrow
   // auditors with code-validated evidence spans (verify/sliced-verifier.ts);
   // "single" = the legacy one-prompt verifier.ts path (escape hatch).
-  // Resolved + warned about above — never a bare cast, so a typo can't drop
-  // production back to the legacy verifier unnoticed.
+  // Resolved + warned about via envEnum above — never a bare cast, so a typo
+  // can't drop production back to the legacy verifier unnoticed.
   chatVerifierMode,
   // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
   // named fall back to chatVerifierModel. Lets roles use different models.

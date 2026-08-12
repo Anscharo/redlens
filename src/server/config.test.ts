@@ -367,6 +367,13 @@ test("chatVerifierMode tolerates whitespace around a valid value", async () => {
   expect(config.chatVerifierMode).toBe("single");
 });
 
+test("chatDeliveryMode gets the same trim as its sibling — a padded value is not a typo", async () => {
+  clearAll();
+  process.env.CHAT_DELIVERY_MODE = " staged ";
+  const config = await freshConfig();
+  expect(config.chatDeliveryMode).toBe("staged");
+});
+
 test("a provider with only one of client id/secret set stays disabled", async () => {
   clearAll();
   process.env.USERS_ENABLED = "1";

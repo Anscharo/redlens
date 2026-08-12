@@ -129,6 +129,18 @@ test("grounded: the related entry still counts when unrelated evidence sits alon
   expect(audit.outcome).toBe("grounded");
 });
 
+test("a subject noun that is also a denial verb stays in the subject", () => {
+  // "address", "list", "name", "record", "state" and "value" are all denial
+  // verbs AND common atlas subject nouns. Removing the matched denial PHRASE
+  // keeps them; subtracting a verb vocabulary would strip "address" here and
+  // leave the claim subject-less, which falls back to turn-wide grounding.
+  const claim = "the atlas does not contain that address";
+  const unrelated = [{ args: '{"q":"grove multisig signers"}', content: '{"count":0,"results":[]}' }];
+  expect(auditAbsenceClaim(claim, unrelated, ix).outcome).toBe("unverified");
+  const related = [{ args: '{"q":"the address"}', content: '{"count":0,"results":[]}' }];
+  expect(auditAbsenceClaim(claim, related, ix).outcome).toBe("grounded");
+});
+
 test("a subject-less claim falls back to turn-wide grounding rather than failing outright", () => {
   // "the atlas is silent on this" — every content word is absence vocabulary,
   // so there is nothing to scope on. Refusing to ground would demote every

@@ -10,8 +10,8 @@
 // placeholder is content-pattern-driven and lives entirely in this module.
 
 import type { AtlasNode } from "../types";
-import { censusEmptyScaffolding, censusRegistryLiveness } from "./conceptsCensus";
-import { KV_LINE_RE, parseValue } from "./paramValue";
+import { buildHasDescendant, censusEmptyScaffolding, censusRegistryLiveness } from "./conceptsCensus";
+import { statesAValue } from "./paramValue";
 
 export type Liveness = "scaffold" | "placeholder";
 
@@ -38,6 +38,16 @@ const PLACEHOLDER_PATTERNS: RegExp[] = [
 // mark any items as \"TBD\" or \"TBC\"") — the corpus's one false positive
 // among 12 hits is exactly the quoted case, excluded by the lookaround.
 const TBD_RE = /(?<!")\bTBD\b(?!")/;
+
+// One alternation, and a substring guard in front of TBD_RE. The guard is not
+// cosmetic: TBD_RE's negative lookbehind forces a position-by-position walk of
+// every doc, measured at 75ms over the 2.4MB corpus for the 11 docs that
+// actually contain "TBD" — the `includes` prefilter (case-sensitive, so it is
+// a sound necessary condition) takes that to 0.9ms.
+const STUB_ALT_RE = new RegExp(PLACEHOLDER_PATTERNS.map((re) => re.source).join("|"), "i");
+function hasStubPhrase(text: string): boolean {
+  return (text.includes("TBD") && TBD_RE.test(text)) || STUB_ALT_RE.test(text);
+}
 
 // Doc-level gate against clause-level false positives: a real, settled doc
 // that specifies a whole rule and defers only one sub-detail ("Core Council
@@ -83,26 +93,18 @@ function splitUnits(content: string): string[] {
 // deferred `slope`). Tagging those placeholder is what would let the absence
 // contract (verify/absence.ts groundedSignal) mark "the atlas doesn't specify
 // Maple's CRR" as GROUNDED — precisely the false-absence hole this whole
-// mechanism exists to close. The three shapes below are paramExtract.ts's own
-// notion of a stated value (kv line with a parseable RHS, backticked numeric,
-// bare percentage); measured against the corpus, they flip exactly those 3
-// docs out of the 266 placeholder tags and nothing else.
-const BACKTICK_NUM_RE = /`\d[\d,]*(?:\.\d+)?%?`/;
-const BARE_PERCENT_RE = /\b\d[\d,]*(?:\.\d+)?\s*%/;
-
-function statesAValue(unit: string): boolean {
-  const kv = KV_LINE_RE.exec(unit);
-  if (kv && parseValue(kv[2].trim())) return true;
-  return BACKTICK_NUM_RE.test(unit) || BARE_PERCENT_RE.test(unit);
-}
-
+// mechanism exists to close. "States a value" is paramValue.ts's statesAValue,
+// shared with the extractor that turns such lines into param rows so the two
+// can't drift; measured against the corpus, it flips exactly those 3 docs out
+// of the 266 placeholder tags and nothing else.
+//
 // One pass over the non-stub units: how much text they carry, and whether any
 // of them states a value.
 function scanNonStubUnits(content: string): { remainder: number; statesValue: boolean } {
   let remainder = 0;
   let statesValue = false;
   for (const u of splitUnits(content)) {
-    if (TBD_RE.test(u) || PLACEHOLDER_PATTERNS.some((re) => re.test(u))) continue;
+    if (hasStubPhrase(u)) continue;
     remainder += u.length;
     statesValue ||= statesAValue(u);
   }
@@ -110,31 +112,9 @@ function scanNonStubUnits(content: string): { remainder: number; statesValue: bo
 }
 
 function hasPlaceholderContent(content: string): boolean {
-  if (!TBD_RE.test(content) && !PLACEHOLDER_PATTERNS.some((re) => re.test(content))) return false;
+  if (!hasStubPhrase(content)) return false;
   const { remainder, statesValue } = scanNonStubUnits(content);
   return !statesValue && remainder <= REMAINDER_GATE;
-}
-
-// Childless-empty-stub descendant check — doc_no prefix, the same structural
-// (not identity) use conceptsCensus.ts's own hasDescendant makes; sorted
-// binary search keeps the whole-corpus pass O(n log n).
-// fragile: doc_no prefix — this asks "does ANY doc sit under this one", never
-// "is this specific doc X", so a renumbering moves the whole family together
-// and the answer is unchanged. Migrating it to parentId would need a
-// child-count index the census path doesn't build.
-function buildHasDescendant(docNos: string[]): (doc_no: string) => boolean {
-  const sorted = [...docNos].sort();
-  return (doc_no: string) => {
-    const prefix = `${doc_no}.`;
-    let lo = 0;
-    let hi = sorted.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >>> 1;
-      if (sorted[mid] < prefix) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo < sorted.length && sorted[lo].startsWith(prefix);
-  };
 }
 
 export function buildLivenessMap(docMap: Map<string, AtlasNode>): Map<string, Liveness> {
@@ -143,13 +123,20 @@ export function buildLivenessMap(docMap: Map<string, AtlasNode>): Map<string, Li
   // hot-swap.
   const all = [...docMap.values()];
 
+  // ONE descendant index for the whole pass: both censuses ask the question,
+  // and so does the childless-stub check below. Built here and threaded in —
+  // letting each build its own is what made this quadratic.
+  const hasDescendant = buildHasDescendant(all);
+
   const liveness = new Map<string, Liveness>();
-  for (const m of [...censusRegistryLiveness(all).members, ...censusEmptyScaffolding(all).members]) {
+  for (const m of [
+    ...censusRegistryLiveness(all, hasDescendant).members,
+    ...censusEmptyScaffolding(all, hasDescendant).members,
+  ]) {
     if (m.bucket === "empty") liveness.set(m.uuid, "scaffold");
   }
 
-  const hasDescendant = buildHasDescendant([...docMap.values()].map((n) => n.doc_no));
-  for (const node of docMap.values()) {
+  for (const node of all) {
     if (liveness.has(node.id)) continue; // scaffold wins over placeholder
     const childlessEmptyStub = node.content.trim().length === 0 && !hasDescendant(node.doc_no);
     if (childlessEmptyStub || hasPlaceholderContent(node.content)) {

@@ -122,6 +122,11 @@ export function useChatStream(handlers: StreamHandlers = {}) {
     [patchLast],
   );
 
+  // Finalize only a still-running turn — see the call after the read loop.
+  const finalizeIfPending = useCallback(() => {
+    patchLast((m) => (m.role !== "assistant" || m.done ? m : { ...m, done: true, statusLine: null, failed: true }));
+  }, [patchLast]);
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -302,12 +307,6 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       // pending tool_call has received its tool_result.
       let inToolRound = false;
       let pendingToolResults = 0;
-      // A terminal event ("done"/"error") is what finalizes the message. If the
-      // connection instead closes cleanly without one (proxy cut, server crash
-      // mid-turn), nothing else would ever set done — and staged mode's stage
-      // checklist renders on `!done`, so it would pulse forever behind an
-      // already-re-enabled input. Tracked here, honoured after the read loop.
-      let sawTerminal = false;
 
       try {
         const res = await fetch(apiUrl("chat"), {
@@ -405,15 +404,19 @@ export function useChatStream(handlers: StreamHandlers = {}) {
               inToolRound = false;
               pendingToolResults = 0;
             }
-            if (ev.type === "done" || ev.type === "error") sawTerminal = true;
             dispatch(ev);
           }
         }
-        // Truncated stream: finalize as failed so the turn can't stay visually
-        // in-flight. `failed` only surfaces copy when the answer is empty
-        // (Message.tsx) — a partially streamed answer just freezes as-is,
-        // which is what classic streaming mode already degraded to.
-        if (!sawTerminal) finalizeLast({ failed: true });
+        // The stream ended. If a terminal event ("done"/"error") came through
+        // it already marked the message done and this no-ops; if the connection
+        // was simply cut (proxy, server crash mid-turn) nothing else ever
+        // would, and staged mode's checklist — which renders on `!done` —
+        // would pulse forever behind an already-re-enabled input. Asking the
+        // message whether it is still pending beats tracking a second list of
+        // which event types count as terminal. `failed` only surfaces copy when
+        // the answer is empty (Message.tsx); a partially streamed answer just
+        // freezes as-is, which is what streaming mode already degraded to.
+        finalizeIfPending();
       } catch (err) {
         // AbortError (user pressed stop / closed) is expected — not an error.
         if ((err as Error).name !== "AbortError") {
@@ -427,7 +430,7 @@ export function useChatStream(handlers: StreamHandlers = {}) {
       }
       return {};
     },
-    [streaming, dispatch, patchLast, finalizeLast, handlers],
+    [streaming, dispatch, patchLast, finalizeLast, finalizeIfPending, handlers],
   );
 
   return { messages, streaming, error, conversationId, send, stop, reset, hydrate };

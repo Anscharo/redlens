@@ -25,10 +25,16 @@ const UNIT_TAIL_RE = new RegExp(`^(%|\\s+(?:per\\s+)?${UNIT_WORD}(?:\\s+(?:per\\
 
 // "key: value" lines, bullet or bare — "- `maxAmount`: 10,000 USDS",
 // "- Liquidation Ratio: 145%,", "- Slope 1: 9%". Backticks around the KEY are
-// tolerated (group 1 is the name, group 2 the raw value). Lives here rather
-// than in paramExtract.ts because liveness.ts needs the same notion of "this
-// line states a value" and must not re-derive it.
+// tolerated (group 1 is the name, group 2 the raw value).
 export const KV_LINE_RE = /^\s*[-*]?\s*`?([A-Za-z][\w .()/-]{0,40}?)`?\s*:\s*(.+?)\s*$/;
+
+// The bare numeric literal the atlas writes for a value: digits with optional
+// thousands separators, decimals, and a percent sign. A source string, not a
+// RegExp, for the lastIndex reason patterns.ts documents — paramExtract.ts
+// needs a /g scanner over it and statesAValue below needs a one-shot test.
+export const NUM_LITERAL_SRC = String.raw`\d[\d,]*(?:\.\d+)?%?`;
+const BACKTICK_NUM_RE = new RegExp("`" + NUM_LITERAL_SRC + "`");
+const BARE_PERCENT_RE = new RegExp(String.raw`\b\d[\d,]*(?:\.\d+)?\s*%`);
 
 export interface ParsedValue {
   value: string; // reconstructed canonical string (number + multiplier-as-written + unit)
@@ -100,4 +106,34 @@ export function truncateContext(s: string, max = 160): string {
 // contributes a row.
 export function stripCodeFences(content: string): string {
   return content.replace(/```[\s\S]*?```/g, " ");
+}
+
+// Two bits of decoration the atlas puts around an otherwise clean kv value: a
+// trailing parenthetical gloss ("80% (125% collateralization ratio)") and
+// backticks around the value itself, mirroring the backticked KEYS the atlas
+// writes routinely. Gloss first, so "`250` (per day)" survives both strips.
+// One combined strip rather than a candidate ladder: the two decorations are
+// disjoint at the string level (a value cannot both end in ")" and be fully
+// backtick-wrapped), so trying them in combination adds no reach — verified
+// over all 2,182 kv lines in the corpus, 0 differences.
+const stripDecoration = (s: string) => s.replace(/\s*\([^)]*\)\s*$/, "").replace(/^`(.*)`\.?$/, "$1").trim();
+
+// parseValue, tolerant of that decoration. Raw first so an undecorated value
+// (the overwhelming majority) costs one call.
+export function parseDecoratedValue(raw: string): ParsedValue | null {
+  const rhs = raw.trim();
+  return parseValue(rhs) ?? parseValue(stripDecoration(rhs));
+}
+
+// "Does this line state a value?" — ONE definition, shared by the extractor
+// that turns such lines into param rows (paramExtract.ts) and by the liveness
+// gate that must not call a doc unspecified when it states something
+// (liveness.ts). Keeping these in step matters in one direction especially:
+// widening the extractor without widening the gate would drift settled docs
+// back into the `placeholder` set, which verify/absence.ts reads as grounding
+// for a false "the atlas doesn't specify X".
+export function statesAValue(text: string): boolean {
+  const kv = KV_LINE_RE.exec(text);
+  if (kv && parseDecoratedValue(kv[2])) return true;
+  return BACKTICK_NUM_RE.test(text) || BARE_PERCENT_RE.test(text);
 }

@@ -136,7 +136,7 @@ function stripQuoteDecoration(span: string): string {
 // attribution dash and a citation marker (link or doc_no), so a quoted list item
 // like `> - item one` is still treated as quoted content.
 const ATTRIBUTION_DASH = /^\s*[—–-]{1,2}\s*\S/;
-const CITATION_MARKER = /\[[^\]]*\]\([^)]*\)|\b(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)\b/;
+const CITATION_MARKER = new RegExp(String.raw`\[[^\]]*\]\([^)]*\)|\b` + DOC_NO_CORE + String.raw`\b`);
 const isAttributionLine = (line: string) => ATTRIBUTION_DASH.test(line) && CITATION_MARKER.test(line);
 
 // A blockquote line the model wrote ABOUT the material rather than FROM it —
@@ -175,7 +175,9 @@ function isSelfAuthoredCallout(line: string): boolean {
 // states \"…\""). The denial may sit before the quote or after it, but must be
 // in the same clause (no sentence/clause break between).
 const ABSENCE_VERB = "contain|mention|define|include|specify|list|name|exist|appear|say|state|address|cover|prescribe|prohibit|document|record|refer";
-const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*\s*(?:${ABSENCE_VERB})|(?:does|do|did|is|are|was|were)n't\s+\w*\s*(?:${ABSENCE_VERB})|there\s+(?:is|are)\s+no\b|no such\b|nowhere\b|(?:is|are)\s+silent|not\s+(?:available|specified|stated|covered|addressed|found|mentioned|defined|documented)|lacks?\b|lacking\b|absent\b|never\s+\w*\s*(?:${ABSENCE_VERB})s?)`;
+// Exported for absence.ts: the subject of an absence claim is what's LEFT once
+// the denial phrase is removed, so the two must agree on what a denial is.
+export const ABSENCE = String.raw`(?:(?:does|do|did|is|are|was|were)\s+not\s+\w*\s*(?:${ABSENCE_VERB})|(?:does|do|did|is|are|was|were)n't\s+\w*\s*(?:${ABSENCE_VERB})|there\s+(?:is|are)\s+no\b|no such\b|nowhere\b|(?:is|are)\s+silent|not\s+(?:available|specified|stated|covered|addressed|found|mentioned|defined|documented)|lacks?\b|lacking\b|absent\b|never\s+\w*\s*(?:${ABSENCE_VERB})s?)`;
 const DENIAL_BEFORE = new RegExp(ABSENCE + String.raw`[^.!?;:]{0,40}$`, "i");
 const DENIAL_AFTER = new RegExp(String.raw`^[^.!?;:]{0,80}?` + ABSENCE, "i");
 const MAX_DENIED_TERM = 60;

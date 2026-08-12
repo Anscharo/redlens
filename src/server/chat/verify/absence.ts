@@ -16,7 +16,7 @@
 // not touch validateSpans' span exemption, which is still correct — there IS
 // no span to quote for a true gap).
 import type { Indexes } from "../../retrieval/indexes.ts";
-import { contentWords } from "./verify-checks.ts";
+import { ABSENCE, contentWords } from "./verify-checks.ts";
 import { findParamsMentioned, formatParamValue } from "./param-checks.ts";
 
 export interface AbsenceAudit {
@@ -47,21 +47,41 @@ function bestRefutingMatch(claim: string, ix: Indexes) {
   return [...active].sort((a, b) => (a.byTitle !== b.byTitle ? (a.byTitle ? 1 : -1) : b.row.name.length - a.row.name.length))[0];
 }
 
-// The words every absence claim carries regardless of what it denies — the
-// denial vocabulary (verify-checks.ts's ABSENCE_VERB list) plus "atlas". Built
-// by running contentWords over them so the folding/stopword normalization is
-// bit-identical to the matching side. What survives the filter is the claim's
-// SUBJECT: the thing whose absence is being asserted.
-const ABSENCE_VOCAB = new Set(
-  contentWords(
-    "atlas does not contain mention define include specify list name exist appear say state address cover " +
-      "prescribe prohibit document record refer silent lacks lacking absent never available found documented " +
-      "specified stated covered addressed mentioned defined explicit explicitly information detail value",
-  ),
-);
+// The claim's SUBJECT: what is left once the denial phrase itself is removed.
+// Derived from verify-checks.ts's own ABSENCE pattern rather than a parallel
+// word list — that list would be a hand-copy of the same vocabulary, free to
+// drift, and drift here is silent (a verb added to ABSENCE but not to the copy
+// stays in the "subject", so grounding would then demand the EVIDENCE contain
+// that verb, quietly demoting good claims to unverified).
+//
+// Removing the matched phrase rather than subtracting a vocabulary also keeps
+// subject nouns that happen to be denial verbs: "the atlas does not specify the
+// multisig address" keeps "address", its most distinctive token, where
+// subtracting the verb list would have thrown it away.
+const ABSENCE_PHRASE_RE = new RegExp(ABSENCE, "gi");
+// "atlas" survives the phrase strip and names nothing in particular — it is in
+// almost every claim, and in plenty of doc titles, so leaving it in would match
+// evidence about anything at all.
+const CLAIM_STOPWORDS = new Set(contentWords("atlas"));
 
 function claimSubject(claim: string): string[] {
-  return contentWords(claim).filter((w) => !ABSENCE_VOCAB.has(w));
+  return contentWords(claim.replace(ABSENCE_PHRASE_RE, " ")).filter((w) => !CLAIM_STOPWORDS.has(w));
+}
+
+// Tokenized evidence, cached per entry object. mergeSlices audits every absence
+// claim in a turn against the SAME evidence array, and each pass would
+// otherwise re-tokenize up to chatVerifierEvidenceMaxChars (60k) of JSON —
+// measured 1.8ms per claim, 0.01ms warm. Same WeakMap-keyed-on-the-object
+// idiom as param-checks.ts's safety caches; entries are per-turn, so it
+// self-clears by GC.
+const evidenceWords = new WeakMap<AbsenceEvidence, Set<string>>();
+function wordsOf(e: AbsenceEvidence): Set<string> {
+  let words = evidenceWords.get(e);
+  if (!words) {
+    words = new Set(contentWords(`${e.args ?? ""} ${e.content}`));
+    evidenceWords.set(e, words);
+  }
+  return words;
 }
 
 // A tool result that genuinely found nothing (raw JSON signature — NOT
@@ -86,12 +106,7 @@ function groundedSignal(subject: string[], evidence: AbsenceEvidence[]): string 
   // A claim with no subject left after filtering ("the atlas is silent on
   // this") can't be scoped at all — fall back to turn-wide rather than
   // failing every anaphoric claim outright.
-  const scoped = subject.length
-    ? evidence.filter((e) => {
-        const words = new Set(contentWords(`${e.args ?? ""} ${e.content}`));
-        return subject.some((w) => words.has(w));
-      })
-    : evidence;
+  const scoped = subject.length ? evidence.filter((e) => subject.some((w) => wordsOf(e).has(w))) : evidence;
   for (const e of scoped) {
     if (e.content.includes('"liveness":"scaffold"')) return "liveness:scaffold";
     if (e.content.includes('"liveness":"placeholder"')) return "liveness:placeholder";

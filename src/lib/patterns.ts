@@ -24,3 +24,7 @@ export const SOL_ADDRESS_SRC = String.raw`\b[1-9A-HJ-NP-Za-km-z]{43,44}\b`;
 // editorial: per CLAUDE.md the SHAPE of a doc number is stable even though any
 // particular number is not.
 export const DOC_NO_CORE = String.raw`(?:[A-Z]{1,3}(?:\.\d+)+(?:\.var\d+)?|NR-\d+)`;
+// Two DELIBERATE dialects of this shape exist and are not drift: docRefResolver.ts
+// accepts only an "A" prefix, and dutyCollapse.ts permits ".var" at any segment.
+// Both are narrower/looser on purpose for their own matching job — don't fold
+// them in without checking those call sites.
