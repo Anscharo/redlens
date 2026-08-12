@@ -77,10 +77,6 @@ function envEnum<T extends string>(name: string, allowed: readonly T[], fallback
   return fallback;
 }
 
-// Deliberately asymmetric: "single" is the legacy, weaker verifier, so ONLY
-// that exact literal selects it and everything else — typo included — keeps
-// the strong default rather than downgrading production's audit unnoticed.
-const chatVerifierMode = envEnum("CHAT_VERIFIER_MODE", ["single", "sliced"] as const, "sliced");
 // See the chatDeliveryMode field below for what the two modes mean.
 const chatDeliveryMode = envEnum("CHAT_DELIVERY_MODE", ["streaming", "staged"] as const, "streaming");
 
@@ -275,12 +271,6 @@ export const config = {
   // chatModel (cross-family independence, same rationale as curationClusterModels).
   // Empty = model verification off; deterministic checks still run.
   chatVerifierModel: process.env.CHAT_VERIFIER_MODEL ?? "",
-  // How the model audit runs: "sliced" (default) = four concurrent narrow
-  // auditors with code-validated evidence spans (verify/sliced-verifier.ts);
-  // "single" = the legacy one-prompt verifier.ts path (escape hatch).
-  // Resolved + warned about via envEnum above — never a bare cast, so a typo
-  // can't drop production back to the legacy verifier unnoticed.
-  chatVerifierMode,
   // Optional per-slice model overrides, "claims=m1,figures=m2,…" — slices not
   // named fall back to chatVerifierModel. Lets roles use different models.
   chatVerifierSliceModels: process.env.CHAT_VERIFIER_SLICE_MODELS ?? "",

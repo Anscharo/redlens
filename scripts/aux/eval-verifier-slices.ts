@@ -1,7 +1,7 @@
 // Sliced-verifier bakeoff — measures each specialist (src/server/chat/verify/verifier-slices.ts)
 // against the mutation class it is built for, plus the REAL audited defects.
-// Since 2026-08-06 the slices ARE the live audit path (verify/sliced-verifier.ts,
-// config.chatVerifierMode) — this eval now arbitrates which model fills each
+// Since 2026-08-06 the slices ARE the only live audit path
+// (verify/sliced-verifier.ts) — this eval now arbitrates which model fills each
 // slice role (CHAT_VERIFIER_SLICE_MODELS), not whether to wire the slices in.
 //
 // Routing matters for cost AND for honesty: a slice is graded only on the

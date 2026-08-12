@@ -340,33 +340,6 @@ test("chatDeliveryMode normalizes an unrecognized value to streaming instead of 
   expect(config.chatDeliveryMode).toBe("streaming");
 });
 
-test("chatVerifierMode defaults to sliced when unset", async () => {
-  clearAll();
-  const config = await freshConfig();
-  expect(config.chatVerifierMode).toBe("sliced");
-});
-
-test("chatVerifierMode honours the explicit legacy escape hatch", async () => {
-  clearAll();
-  process.env.CHAT_VERIFIER_MODE = "single";
-  const config = await freshConfig();
-  expect(config.chatVerifierMode).toBe("single");
-});
-
-test("a typo'd chatVerifierMode stays on sliced instead of silently downgrading", async () => {
-  clearAll();
-  process.env.CHAT_VERIFIER_MODE = "Single "; // wrong case + trailing space
-  const config = await freshConfig();
-  expect(config.chatVerifierMode).toBe("sliced");
-});
-
-test("chatVerifierMode tolerates whitespace around a valid value", async () => {
-  clearAll();
-  process.env.CHAT_VERIFIER_MODE = " single ";
-  const config = await freshConfig();
-  expect(config.chatVerifierMode).toBe("single");
-});
-
 test("chatDeliveryMode gets the same trim as its sibling — a padded value is not a typo", async () => {
   clearAll();
   process.env.CHAT_DELIVERY_MODE = " staged ";
