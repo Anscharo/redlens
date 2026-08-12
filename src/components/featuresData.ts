@@ -275,6 +275,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
         how: [
           'Click the "?" button in the top bar, or just press ? anywhere outside a text box.',
           "Describe what happened and send — the page you were on goes with it, so you don't have to explain where you were.",
+          'The same box links back to this guide ("Everything you can do") and to the search syntax reference.',
         ],
       },
       {

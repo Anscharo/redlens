@@ -1,7 +1,5 @@
-import { useLocation } from "wouter";
-import { GuideIcon } from "./GuideIcon";
 import { Link } from "./Link";
-import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
+import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
 import { useDataSource } from "../lib/dataSource";
 import { usersEnabled } from "../lib/usersEnabled";
@@ -30,25 +28,8 @@ export function NavBar({ activePage }: NavBarProps) {
           Reports
         </NavLink>
       )}
-      <HelpLink />
       {usersEnabled() && !preview && <ProfileButton />}
     </div>
-  );
-}
-
-function HelpLink() {
-  const [location] = useLocation();
-  const active = location === ROUTES.FEATURES;
-  return (
-    <Link
-      to={ROUTES.FEATURES}
-      className="nav-link shrink-0 flex items-center justify-center w-8 h-8 rounded"
-      data-active={active ? "true" : undefined}
-      title="Features guide"
-      aria-label="Features guide"
-    >
-      <GuideIcon />
-    </Link>
   );
 }
 
