@@ -12,6 +12,16 @@ const RESUME_CHECK_GAP_MS = 5 * 60 * 1000;
 
 const DEV = "dev"; // sentinel __COMMIT_HASH__/app_commit carry outside a real build
 
+// The two sides are different renderings of the same deploy sha: __COMMIT_HASH__
+// is SHORT (git rev-parse --short / envSha.slice(0, 7) — see vite.config.ts)
+// while the server's app_commit is the FULL 40-hex RAILWAY_GIT_COMMIT_SHA
+// (config.ts). Strict equality therefore reads every Railway deploy as "behind"
+// and pins the update pill on permanently. Prefix-compare in either direction so
+// short-vs-full of the same commit never counts as behind.
+function sameCommit(mine: string, server: string): boolean {
+  return mine === server || server.startsWith(mine) || mine.startsWith(server);
+}
+
 export function useBuildBehind(): boolean {
   const [behind, setBehind] = useState(false);
   const trackedRef = useRef(false);
@@ -22,7 +32,7 @@ export function useBuildBehind(): boolean {
     function evaluate(serverCommit: string | null | undefined) {
       const mine = __COMMIT_HASH__;
       if (!mine || !serverCommit || mine === DEV || serverCommit === DEV) return;
-      if (mine === serverCommit) return;
+      if (sameCommit(mine, serverCommit)) return;
       setBehind(true);
       if (!trackedRef.current) {
         trackedRef.current = true;
