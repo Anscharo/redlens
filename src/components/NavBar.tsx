@@ -1,9 +1,9 @@
-import { useLocation } from "wouter";
 import { Link } from "./Link";
-import { NAV_PAGE_ROUTES, ROUTES, type NavPage } from "../lib/routes";
+import { NAV_PAGE_ROUTES, type NavPage } from "../lib/routes";
 import { ProfileButton } from "./chat/ProfileButton";
 import { useDataSource } from "../lib/dataSource";
 import { usersEnabled } from "../lib/usersEnabled";
+import { FeedbackButton } from "./feedback/FeedbackButton";
 
 export interface NavBarProps {
   activePage: NavPage | null;
@@ -11,10 +11,12 @@ export interface NavBarProps {
 
 export function NavBar({ activePage }: NavBarProps) {
   // Reports + chat are disabled in preview mode (they'd read main data / need a
-  // logged-in session); reader + radar stay.
+  // logged-in session); reader + radar stay. Feedback is NOT gated on preview —
+  // a broken preview build is exactly when someone wants to report it.
   const { preview } = useDataSource();
   return (
     <div className="order-2 sm:order-3 flex-1 flex items-center justify-end gap-2">
+      <FeedbackButton />
       <NavLink page="atlas" active={activePage === "atlas"}>
         Reader
       </NavLink>
@@ -26,39 +28,8 @@ export function NavBar({ activePage }: NavBarProps) {
           Reports
         </NavLink>
       )}
-      <HelpLink />
       {usersEnabled() && !preview && <ProfileButton />}
     </div>
-  );
-}
-
-function HelpLink() {
-  const [location] = useLocation();
-  const active = location === ROUTES.FEATURES;
-  return (
-    <Link
-      to={ROUTES.FEATURES}
-      className="nav-link shrink-0 flex items-center justify-center w-8 h-8 rounded"
-      data-active={active ? "true" : undefined}
-      title="Help & features"
-      aria-label="Help &amp; features"
-    >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <circle cx="12" cy="12" r="9" />
-        <path d="M9.4 9.2a2.6 2.6 0 0 1 5 .9c0 1.7-2.4 2.2-2.4 3.4" />
-        <path d="M12 17h.01" />
-      </svg>
-    </Link>
   );
 }
 

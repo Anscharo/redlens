@@ -5,26 +5,24 @@
 // atlas (loses nodes, mangles structure, hashes the wrong bytes) the build
 // fails loudly.
 //
-// Source is read from content/** (decomposed tree) when present; falls back to
-// the composed Sky Atlas.md for pre-decomposition checkouts.
+// Layout (monolith / atomized / consolidated) is resolved by atlas-source.mjs,
+// exactly as build-index does it — so this compares like against like whichever
+// way the atlas currently groups its files.
 
 import { describe, it, expect } from "vitest";
 import fs from "fs";
 import path from "path";
 import type { AtlasNode } from "../src/types";
 // @ts-expect-error — .mjs without types; runtime-only import for parser access
-import { parse, parseTree, KNOWN_DOC_TYPES, unquoteYamlName } from "../scripts/lib/atlas-parser.mjs";
+import { KNOWN_DOC_TYPES, unquoteYamlName } from "../scripts/lib/atlas-parser.mjs";
+import { loadAtlasSource } from "../scripts/lib/atlas-source.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
-const CONTENT_DIR = path.join(ROOT, "vendor/next-gen-atlas/content");
-const ATLAS_PATH = path.join(ROOT, "vendor/next-gen-atlas/Sky Atlas/Sky Atlas.md");
+const ATLAS_SRC_DIR = path.join(ROOT, "vendor/next-gen-atlas");
 const DOCS_PATH = path.join(ROOT, "public/docs.json");
 
-// Mirror build-index.mjs: decomposed tree takes priority.
-const { nodes: sourceNodes }: { nodes: Array<{ id: string; contentHash: string; doc_no: string }> } =
-  fs.existsSync(CONTENT_DIR)
-    ? parseTree(CONTENT_DIR)
-    : parse(fs.readFileSync(ATLAS_PATH, "utf8"));
+// Mirror build-index.mjs exactly — same loader, same layout detection.
+const { layout, nodes: sourceNodes } = loadAtlasSource(ATLAS_SRC_DIR);
 
 const sourceById = new Map(sourceNodes.map((n) => [n.id, n]));
 const docs: Record<string, AtlasNode> = JSON.parse(fs.readFileSync(DOCS_PATH, "utf8")).nodes;
@@ -63,6 +61,14 @@ describe("parser invariants", () => {
 
   it("docs.json contains at least 10 000 nodes", () => {
     expect(Object.keys(docs).length).toBeGreaterThanOrEqual(10_000);
+  });
+
+  it("the checkout resolves to a layout we actually support", () => {
+    // A layout we cannot name is a layout we cannot read. Upstream has regrouped
+    // the atlas twice (#236 atomized the monolith, #294 consolidated the tree);
+    // this fails on the third rather than letting an unreadable checkout build
+    // an empty atlas.
+    expect(["monolith", "atomized", "consolidated"]).toContain(layout);
   });
 
   it("every document type is spec-defined (a new type means extraction review)", () => {

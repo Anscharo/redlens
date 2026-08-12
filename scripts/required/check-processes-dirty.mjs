@@ -46,13 +46,20 @@ const DOCS = path.join(ROOT, "public/docs.json");
 const AUDIT_OUT = path.join(ROOT, ".cache/processes-audit.json");
 const AUDIT_MD = path.join(ROOT, ".cache/processes-audit.md");
 const ATLAS_SUBMODULE = "vendor/next-gen-atlas";
-// Atlas content lives at content/**/document.md after PR #236 decomposed the
-// single Sky Atlas.md into one folder per doc. Each document.md has YAML
-// frontmatter with `id: <uuid>`. We grep that line directly inside the
-// submodule's git tree, no checkout needed.
+// Atlas content lives under content/ in both layouts that have existed there,
+// but a document's uuid is written differently in each: the atomized tree
+// (#236..#294) put `id: <uuid>` in each document.md's YAML frontmatter, while
+// the consolidated files (#294 on) carry `<!-- UUID: <uuid> -->` on the heading
+// line. Match both — grepping only the frontmatter form returned ZERO uuids
+// after the cutover, and the empty set was swallowed into `error`, reporting
+// every curated process as newly added.
 const ATLAS_CONTENT_PATH = "content/";
-const ATLAS_ID_PATTERN = "^id: [0-9a-f-]{36}$";
-const UUID_RE = /^id: ([0-9a-f-]{36})$/m;
+const ATLAS_ID_PATTERN = "(^id: [0-9a-f-]{36}$)|(<!-- UUID: [0-9a-f-]{36} -->)";
+const UUID_RE = /^id: ([0-9a-f-]{36})$|<!-- UUID: ([0-9a-f-]{36}) -->/;
+// Below this, treat the grep as broken rather than as a real answer. Set far
+// under the real count (~11k, never fewer than ~7,700) so it only fires on a
+// grep that has stopped matching, not on ordinary atlas churn.
+const MIN_ATLAS_UUIDS = 1000;
 
 // ---------------------------------------------------------------------------
 
@@ -244,8 +251,8 @@ function computeAtlasDiff() {
   }
 }
 
-// Collect every UUID from frontmatter `id:` lines in content/**/document.md at
-// the given commit. `git grep` scans the tree-ish directly — no checkout.
+// Collect every document uuid under content/ at the given commit, in whichever
+// layout that commit uses. `git grep` scans the tree-ish directly — no checkout.
 function grepAtlasUuids(submodulePath, sha) {
   const out = execFileSync(
     "git",
@@ -255,7 +262,14 @@ function grepAtlasUuids(submodulePath, sha) {
   const set = new Set();
   for (const line of out.split("\n")) {
     const m = line.match(UUID_RE);
-    if (m) set.add(m[1]);
+    if (m) set.add(m[1] ?? m[2]);
+  }
+  if (set.size < MIN_ATLAS_UUIDS) {
+    throw new Error(
+      `only ${set.size} atlas uuids found under ${ATLAS_CONTENT_PATH} at ${sha} — the atlas ` +
+        "layout changed and this grep no longer recognises it. Refusing to report a doc " +
+        "diff computed from an empty set.",
+    );
   }
   return set;
 }

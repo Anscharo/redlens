@@ -3,7 +3,7 @@
 // plain JSON in/out.
 import { sql } from "./db.ts";
 import { getSessionUser } from "./session.ts";
-import { json, isStringArray } from "./http.ts";
+import { json, isStringArray, isNonEmptyString } from "./http.ts";
 import { MAX_COLLECTION_DOCS } from "../lib/collectionsLimits.ts";
 import { UUID_RE } from "../lib/patterns.ts";
 
@@ -40,15 +40,6 @@ interface CollectionBody {
 // statements, not one per doc.
 const MAX_NAME_LEN = 32;
 const MAX_IDS = MAX_COLLECTION_DOCS;
-
-// True when `v` is a string with non-whitespace content. `body` is untyped
-// JSON cast to CollectionBody (`as CollectionBody`), so `body.name` can be any
-// JSON value at runtime — a plain `!body.name?.trim()` check only guards
-// null/undefined; a truthy non-string (42, true, ["a"], {}) reaches `.trim()`
-// and throws a TypeError, which surfaces as an unhandled 500.
-function isNonEmptyString(v: unknown): v is string {
-  return typeof v === "string" && v.trim().length > 0;
-}
 
 async function itemsFor(collectionId: string): Promise<string[]> {
   const rows = (await sql`
