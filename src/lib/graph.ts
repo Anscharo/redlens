@@ -167,16 +167,13 @@ function getWorker(): Worker {
     // (atlas base, which carries the sha) travels as extras, never in the
     // message, where it would fork a fresh issue on every deploy.
     const ev = e as ErrorEvent;
-    const err = new Error(
-      ev.message
-        ? `graph worker script failed to load: ${ev.message}`
-        : "graph worker script failed to load (opaque error event)",
-    );
+    const err = new Error("graph worker script failed to load");
     console.error("[graph]", err.message);
     captureException(err, {
       mechanism: "graph.worker",
       phase: "init",
       atlas_base: liveAtlasBase(),
+      ...(ev.message ? { worker_error: ev.message } : {}),
       ...(ev.filename ? { worker_script: ev.filename } : {}),
       ...(ev.lineno ? { lineno: ev.lineno } : {}),
     });

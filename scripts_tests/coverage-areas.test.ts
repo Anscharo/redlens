@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { areaFor, backendAreaIds, isLogicLine, libAreaIds, meetsChangedMin, reactAreaIds } from "../scripts/aux/coverage-areas.mjs";
+import { areaFor, backendAreaIds, isLogicLine, libAreaIds, meetsChangedMin, mergeLcovReports, reactAreaIds } from "../scripts/aux/coverage-areas.mjs";
 
 // The scope of "React code" the coverage meters must partition: components,
 // hooks, and context providers — .ts and .tsx, minus test files. If this set
@@ -274,3 +274,40 @@ const markerObj = {
   a: "MARKER_BEFORE_BRACE",
 };
 void [MARKER_LOGIC, MARKER_TRAILING, markerObj];
+
+// ── mergeLcovReports ─────────────────────────────────────────────────────────
+// The multi-runner merge must not let an import-only runner's DA:0 rows add
+// phantom "uncovered" lines to a file another runner fully exercises. Bun emits
+// DA records for `export function` headers and multi-line condition
+// continuations that v8 never considers executable; before the authoritative-
+// line-set rule, those rows permanently failed the changed-line gate for any
+// src/lib helper that a src/server module merely imports (routes.ts, PR #279).
+describe("mergeLcovReports", () => {
+  const m = (entries: Array<[number, number]>) => new Map(entries);
+
+  it("drops import-only DA:0 rows for lines the exercising runner never emits", () => {
+    const vitest = new Map([["src/lib/routes.ts", m([[47, 25], [48, 24], [50, 8]])]]);
+    const bun = new Map([["src/lib/routes.ts", m([[46, 0], [47, 0], [48, 0], [50, 0], [58, 0]])]]);
+    const merged = mergeLcovReports([vitest, bun]);
+    const lines = merged.get("src/lib/routes.ts")!;
+    expect([...lines.keys()].sort((a, b) => a - b)).toEqual([47, 48, 50]);
+    expect(lines.get(47)).toBe(25);
+    expect(lines.get(46)).toBeUndefined();
+    expect(lines.get(58)).toBeUndefined();
+  });
+
+  it("sums hits across runners over the authoritative line set", () => {
+    const a = new Map([["f.ts", m([[10, 1]])]]);
+    const b = new Map([["f.ts", m([[10, 2], [11, 0]])]]);
+    const merged = mergeLcovReports([a, b]);
+    // b has the greater total (2 > 1) → its line set {10, 11} wins; hits sum.
+    expect(merged.get("f.ts")!.get(10)).toBe(3);
+    expect(merged.get("f.ts")!.get(11)).toBe(0);
+  });
+
+  it("keeps a single runner's lines untouched, including all-zero files", () => {
+    const only = new Map([["cold.ts", m([[1, 0], [2, 0]])]]);
+    const merged = mergeLcovReports([only, new Map()]);
+    expect([...merged.get("cold.ts")!.entries()]).toEqual([[1, 0], [2, 0]]);
+  });
+});
