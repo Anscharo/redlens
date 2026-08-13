@@ -208,43 +208,96 @@ test("deterministic-only mode flags fabricated doc numbers as hard failures", ()
     expect(verify && verify.type === "verify_result" && verify.invalidDocNos).toEqual(["Q.99.42.7"]);
   }));
 
-test("verifier pass: checking status, verify_result pass, no advisor call", () =>
+test("verifier pass: checking status counts real sources, verify_result pass, no advisor call", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const jsonCalls: { model: string }[] = [];
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+    ];
     const events = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
-        stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        stream: fakeStream(rounds),
         jsonCall: fakeJson([PASS], jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual([
+      "status:querying", "tool_call", "tool_result", "token",
+      "status:comparing", "status:checking", "verify_result", "done",
+    ]);
+    // One tool result → one evidence entry: singular, and never "0 sources".
+    const checking = events.find((e) => e.type === "status" && e.stage === "checking")!;
+    expect(checking.type === "status" && checking.detail).toBe("Cross-checking the answer against 1 source…");
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("pass");
     expect(jsonCalls).toEqual([{ model: "strong/verifier" }]); // advisor never ran
     expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
   }));
 
-test("comparing status precedes the audit whenever checks are on and the answer is non-empty", () =>
+test("comparing status fires on a grounded turn even with no verifier model", () =>
   withModels("", "", async () => {
     // No verifier/advisor model configured — deterministic checks alone still
     // enter the verification block, so "comparing" fires even without a
     // "checking" status right behind it.
+    const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
+      [textChunk("Answer."), finishChunk("stop")],
+    ];
+    const events = await collect(
+      runVerifiedChat({ ix, messages: [userMsg], question: "hi", maxIterations: 3, stream: fakeStream(rounds) }),
+    );
+    expect(kinds(events)).toEqual(["status:querying", "tool_call", "tool_result", "token", "status:comparing", "done"]);
+  }));
+
+test("ungrounded turn: verification stages are suppressed, the audit still runs", () =>
+  withModels("strong/verifier", "", async () => {
+    // Nothing retrieved this turn and no earlier turns to fall back on, so
+    // there is no basis to name — "against 0 sources" must never be announced.
+    // The audit itself is unchanged (a no-retrieval answer is the most
+    // hallucination-prone case); only the ticker goes quiet.
     const events = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
         stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+        jsonCall: fakeJson([PASS]),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "done"]);
+    expect(kinds(events)).toEqual(["token", "verify_result", "done"]);
+    expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+  }));
+
+test("no tools but earlier turns: the stages name the conversation as the basis", () =>
+  withModels("strong/verifier", "", async () => {
+    const history: Msg[] = [
+      { role: "user", content: "what is the stability scope?" },
+      { role: "assistant", content: "The Stability Scope covers…" },
+      { role: "user", content: "summarize that" },
+    ];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: history, question: "summarize that", maxIterations: 3,
+        stream: fakeStream([[textChunk("In short: it covers…"), finishChunk("stop")]]),
+        jsonCall: fakeJson([PASS]),
+      }),
+    );
+    const details = events.filter((e) => e.type === "status").map((e) => (e.type === "status" ? e.detail : ""));
+    expect(details).toEqual([
+      "Comparing the draft against the conversation so far…",
+      "Cross-checking the answer against earlier turns of this conversation…",
+    ]);
   }));
 
 test("comparing status is absent when the answer is empty or checks are off", () =>
   withModels("", "", async () => {
+    // Both turns are grounded (a tool round runs), so an absent "comparing"
+    // here is attributable to the empty answer / checks being off, not to the
+    // ungrounded suppression the tests above cover.
+    const toolRound = [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")];
     const emptyEvents = await collect(
       runVerifiedChat({
         ix, messages: [userMsg], question: "hi", maxIterations: 3,
-        stream: fakeStream([[finishChunk("stop")]]),
+        stream: fakeStream([toolRound, [finishChunk("stop")]]),
       }),
     );
     expect(emptyEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
@@ -255,7 +308,7 @@ test("comparing status is absent when the answer is empty or checks are off", ()
       const checksOffEvents = await collect(
         runVerifiedChat({
           ix, messages: [userMsg], question: "hi", maxIterations: 3,
-          stream: fakeStream([[textChunk("Answer."), finishChunk("stop")]]),
+          stream: fakeStream([toolRound, [textChunk("Answer."), finishChunk("stop")]]),
         }),
       );
       expect(checksOffEvents.some((e) => e.type === "status" && e.stage === "comparing")).toBe(false);
@@ -330,7 +383,11 @@ test("sliced mode: four concurrent slice audits merge into one verdict + pass ba
 test("verifier fail → advisor rewrite → revision replaces answer → re-verify once", () =>
   withModels("strong/verifier", "chat/advisor", async () => {
     const jsonCalls: { model: string }[] = [];
+    // A tool round first so the turn is grounded — the verification stages are
+    // suppressed on a turn with no basis to compare against (see the
+    // ungrounded test above), and this test is about the revision sequence.
     const rounds = [
+      [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls")],
       [textChunk("Bad answer."), finishChunk("stop"), usageChunk(100, 10)],
       [textChunk("Fixed answer."), finishChunk("stop"), usageChunk(50, 5)],
     ];
@@ -346,7 +403,8 @@ test("verifier fail → advisor rewrite → revision replaces answer → re-veri
     // FIRST audit — the re-verify pass after revision is a separate code path
     // that the orchestrator change in this PR does not touch.
     expect(kinds(events)).toEqual([
-      "token", "status:comparing", "status:checking", "verify_result",
+      "status:querying", "tool_call", "tool_result", "token",
+      "status:comparing", "status:checking", "verify_result",
       "status:advising", "status:revising", "clear",
       "token", "status:checking", "verify_result", "done",
     ]);
@@ -394,7 +452,7 @@ test("a lone unsupported claim warns without buying a full transcript replay", (
         jsonCall: fakeJson([warn(1)], jsonCalls),
       }),
     );
-    expect(kinds(events)).toEqual(["token", "status:comparing", "status:checking", "verify_result", "done"]);
+    expect(kinds(events)).toEqual(["token", "verify_result", "done"]); // ungrounded: stages stay quiet
     const verify = events.find((e) => e.type === "verify_result")!;
     expect(verify.type === "verify_result" && verify.overall).toBe("warn");
     // Amber badge, no advisor, no revision — the answer stands as written.

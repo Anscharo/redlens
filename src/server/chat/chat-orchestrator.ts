@@ -80,6 +80,18 @@ function describeCall(name: string, args: Record<string, unknown>): string {
   return `Consulting ${name}…`;
 }
 
+// Copy for the verification stages. A turn can reach the audit with nothing
+// retrieved — a meta-question, or a follow-up answered from the conversation —
+// and "against 0 sources" reads as a broken counter rather than a state. A
+// count is printed only when it is real; the call site suppresses the stage
+// entirely when there is no basis to name at all (see `grounded`), so the
+// sourceless branch here only ever describes conversation grounding.
+function checkingDetail(citations: number, sources: number): string {
+  const subject = citations > 0 ? `${citations} cited claim${citations === 1 ? "" : "s"}` : "the answer";
+  if (sources > 0) return `Cross-checking ${subject} against ${sources} source${sources === 1 ? "" : "s"}…`;
+  return `Cross-checking ${subject} against earlier turns of this conversation…`;
+}
+
 function verifyEvent(
   overall: VerifyOverall,
   verdict: Verdict | null,
@@ -417,12 +429,25 @@ export async function* runVerifiedChat(opts: {
   const evidence = evidenceFromTranscript(done.transcript);
   let toolTexts: string[];
   let checks: CheckReport;
-  // Entering verification is itself progress worth surfacing in staged mode —
-  // the route stays mode-unaware, so this fires unconditionally on every
-  // audited answer (the guard above already confirms checks are on and there's
-  // a non-empty answer to compare); streaming mode just forwards it like any
-  // other status event.
-  yield { type: "status", stage: "comparing", detail: "Comparing the draft against the retrieved sources…" };
+  // Earlier-turn answers count as grounding for follow-ups (the system prompt
+  // says so), so the verifier gets them as one [E-prev] entry alongside the
+  // schema — otherwise every "summarize what you said" turn flags unsupported.
+  // Hoisted above the status events because it is also half of `grounded`.
+  const prevEvidence = priorTurnsEvidence(done.transcript);
+  // Entering verification is progress worth surfacing in staged mode — but only
+  // when there is something to name as the basis: this turn's retrievals, or
+  // earlier turns of the conversation. With neither (a meta-question answered
+  // without tools) the audit still runs, silently — announcing a comparison
+  // against nothing is worse than no ticker at all, and the verdict badge is
+  // the outcome channel either way. The route stays mode-unaware; streaming
+  // mode just forwards these like any other status event.
+  const grounded = evidence.length > 0 || prevEvidence !== null;
+  if (grounded) {
+    yield {
+      type: "status", stage: "comparing",
+      detail: evidence.length > 0 ? "Comparing the draft against the retrieved sources…" : "Comparing the draft against the conversation so far…",
+    };
+  }
   try {
     toolTexts = toolTextsOf(done.transcript);
     const { refs, repair, identifiers } = normalizeAndRepair(done.content, toolTexts, opts.ix);
@@ -440,10 +465,6 @@ export async function* runVerifiedChat(opts: {
   }
 
   const verifierModel = opts.jsonCall ? config.chatVerifierModel : "";
-  // Earlier-turn answers count as grounding for follow-ups (the system prompt
-  // says so), so the verifier gets them as one [E-prev] entry alongside the
-  // schema — otherwise every "summarize what you said" turn flags unsupported.
-  const prevEvidence = priorTurnsEvidence(done.transcript);
   // constEvidence is computed PER audited answer (done.content vs revDone.content
   // below), not once — the two answers can mention different parameters.
   const baseEvidence = (turnEvidence: EvidenceEntry[], answerText: string) => {
@@ -452,10 +473,7 @@ export async function* runVerifiedChat(opts: {
   };
   let verdict: Verdict | null = null;
   if (verifierModel) {
-    yield {
-      type: "status", stage: "checking",
-      detail: `Cross-checking ${checks.citations.length || "the"} cited claim${checks.citations.length === 1 ? "" : "s"} against ${evidence.length} source${evidence.length === 1 ? "" : "s"}…`,
-    };
+    if (grounded) yield { type: "status", stage: "checking", detail: checkingDetail(checks.citations.length, evidence.length) };
     const { run, modelLabel } = await runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
       answer: done.content, evidence: baseEvidence(evidence, done.content), checks, telemetry, signal: opts.signal, obs: opts.obs,
