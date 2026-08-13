@@ -96,10 +96,10 @@ export const REPORT_SCOPE_CONFIG: Partial<Record<string, ScopeConfig>> = {
 };
 
 // Reports whose data is also exposed to the chat agent as a one-call
-// `atlas_report_*` tool. Keyed by report route → tool name. Only these reports
-// get the "I'm viewing this report and can pull/query it" chat treatment; the
-// reports absent here (processes, stale-dates, oea-assessment, risk-rules) have
-// no backing chat tool, so the chat stays in its generic atlas mode there.
+// `atlas_report_*` tool. Keyed by report route → tool name. Every report in
+// REPORT_TITLES is name-aware in chat (launcher + system prompt); only these
+// get the stronger "pull/query this report in one call" treatment. Add a tool
+// here when analytics show a report page is used enough to justify one.
 // The tool names are validated server-side (src/server/chat/system-prompt.ts)
 // against the live tool registry before they ever reach the model.
 export const REPORT_CHAT_TOOLS: Partial<Record<string, string>> = {

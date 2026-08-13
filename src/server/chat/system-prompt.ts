@@ -174,7 +174,9 @@ export function buildSystemPrompt(
                 reportFilter ? ` The user has filtered this page to "${reportFilter}" — pass \`filter: "${reportFilter}"\` (adjusted to their question) so the answer matches what they see.` : ""
               }`
             : ""
-        } Treat references like "this", "here", or "this primitive" as that ${reportTool ? "report" : "node"} unless they say otherwise.`
+        } Treat references like "this", "here", or "this primitive" as that ${
+          reportTool || ctx?.reportName ? "report" : "node"
+        } unless they say otherwise.`
       : "",
   ]
     .filter((s) => s !== "")

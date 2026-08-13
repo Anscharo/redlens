@@ -149,6 +149,13 @@ describe("buildSystemPrompt", () => {
     expect(prompt).not.toContain("This report is backed by");
   });
 
+  it("names a report page without a tool and still treats 'this' as the report", () => {
+    const prompt = buildSystemPrompt(ix, { path: "/reports/stale-dates", reportName: "Stale Dates" });
+    expect(prompt).toContain('Report: Stale Dates');
+    expect(prompt).not.toContain("This report is backed by");
+    expect(prompt).toContain('as that report unless they say otherwise');
+  });
+
   it("truncates a long reportFilter to 100 chars", () => {
     const long = "x".repeat(200);
     const prompt = buildSystemPrompt(ix, { reportTool: "atlas_report_multisigs", reportName: "R", reportFilter: long });
