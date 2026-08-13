@@ -131,11 +131,17 @@ const sliceRound = (model: string) => Array(SLICES.length).fill(model);
 function withModels(verifier: string, advisor: string, fn: () => Promise<void>): Promise<void> {
   const pv = config.chatVerifierModel;
   const pa = config.chatAdvisorModel;
+  const pj = config.chatSmalltalkJudgeModel;
   config.chatVerifierModel = verifier;
   config.chatAdvisorModel = advisor;
+  // The judge slot defaults ON in config — zero it here so every test
+  // exercises the audit path it was written for; bypass tests opt back in
+  // with the nested withJudge wrapper below.
+  config.chatSmalltalkJudgeModel = "";
   return fn().finally(() => {
     config.chatVerifierModel = pv;
     config.chatAdvisorModel = pa;
+    config.chatSmalltalkJudgeModel = pj;
   });
 }
 

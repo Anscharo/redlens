@@ -57,7 +57,7 @@ const JUDGE_PROMPT = [
   "You classify ONE user message from a governance research chat.",
   'Reply with ONLY this JSON: {"smalltalk": true} or {"smalltalk": false}.',
   'smalltalk=true ONLY for pure conversation whose reply needs no factual content: a greeting, thanks, a farewell, a courtesy, an emoji, a connectivity test ("are you there?").',
-  "smalltalk=false for EVERYTHING else — anything that expects facts, definitions, numbers, procedures, opinions, or any information about the Sky ecosystem or atlas. When unsure: false.",
+  'smalltalk=false for EVERYTHING else — anything that expects facts, definitions, numbers, procedures, opinions, or any information about the Sky ecosystem or atlas. Casual phrasings still count: "what\'s new?", "any updates?", or "what changed?" ask about recent changes — facts. When unsure: false.',
 ].join("\n");
 
 export async function judgeSmalltalk(params: {

@@ -93,6 +93,7 @@ describe("handleChat", () => {
   let savedJwtSecret: string;
   let savedOpenrouterKey: string;
   let savedTitleModel: string;
+  let savedJudgeModel: string;
 
   afterAll(() => {
     // Restore config mutations so later files don't inherit a truthy
@@ -100,12 +101,14 @@ describe("handleChat", () => {
     config.jwtSecret = savedJwtSecret;
     config.openrouterApiKey = savedOpenrouterKey;
     config.chatTitleModel = savedTitleModel;
+    config.chatSmalltalkJudgeModel = savedJudgeModel;
   });
 
   beforeAll(() => {
     savedJwtSecret = config.jwtSecret;
     savedOpenrouterKey = config.openrouterApiKey;
     savedTitleModel = config.chatTitleModel;
+    savedJudgeModel = config.chatSmalltalkJudgeModel;
     config.jwtSecret ||= "test-jwt-secret";
     config.openrouterApiKey ||= "test-key";
     // Off by default for every pre-existing test (see the file-header note on
@@ -114,6 +117,11 @@ describe("handleChat", () => {
     // against the per-test fetch mock swaps below. The "titling" describe
     // block turns it back on for its own tests.
     config.chatTitleModel = "";
+    // Same reason, judge slot (defaults ON in config): a concurrent
+    // smalltalk-judge call on a marker-free first message would consume one
+    // of a test's scripted SSE rounds. Bypass behavior is covered in
+    // chat-orchestrator.test.ts, not here.
+    config.chatSmalltalkJudgeModel = "";
     setIndexes(loadIndexes());
     // Same shared-dispatcher install llm.test.ts performs — idempotent,
     // whichever file's beforeAll runs first wins the install.

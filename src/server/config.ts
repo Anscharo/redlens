@@ -273,9 +273,13 @@ export const config = {
   // Small-talk bypass judge — one tiny question-side classification ("does
   // this message expect factual content?") that is the FINAL gate on skipping
   // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
-  // Empty = the bypass is disabled outright (fail-closed: no judge, no skip —
-  // every turn gets the full harness). A fast chat-tier model is plenty.
-  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "",
+  // Defaults ON with the 2026-08-13 bakeoff winner (scripts/aux/
+  // eval-smalltalk-judge.ts: 100% on the 42-case set, 0 dangerous errors,
+  // 0 call failures, p50 722ms — beat gemma-4-31b's 22% timeout rate,
+  // nemotron-lightning's misrulings, and gpt-oss-safeguard's all-greetings-
+  // are-factual). Set CHAT_SMALLTALK_JUDGE_MODEL="" (empty) to disable the
+  // bypass outright — fail-closed: no judge, no skip, every turn audits.
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "google/gemma-4-26b-a4b-it",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)
