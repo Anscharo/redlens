@@ -439,3 +439,59 @@ test("compose guard: a second empty response ships as-is — exactly one extra a
   const done = events.at(-1)!;
   expect(done.type === "done" && done.content).toBe("");
 });
+
+test("repetition handbrake: clears a character loop and rewrites once", async () => {
+  const captured: Captured[] = [];
+  const loop = "a".repeat(120);
+  const rounds = [
+    [textChunk(loop), finishChunk("stop")],
+    [textChunk("Clean answer about the atlas."), finishChunk("stop"), usageChunk(50, 8)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2);
+  const steer = captured[1].messages?.at(-1);
+  expect(steer?.role).toBe("system");
+  expect(String(steer?.content)).toContain("repetitive nonsense");
+  expect(captured[1].toolChoice).toBe("none");
+
+  // Degenerate tokens must not reach the client: the tipping chunk is withheld,
+  // and a clear is emitted before the rewrite tokens.
+  expect(events.some((e) => e.type === "token" && e.text.includes("aaa"))).toBe(false);
+  const clearIdx = events.findIndex((e) => e.type === "clear");
+  const tokenIdx = events.findIndex((e) => e.type === "token");
+  expect(clearIdx).toBeGreaterThanOrEqual(0);
+  expect(tokenIdx).toBeGreaterThan(clearIdx);
+
+  const done = events.at(-1)!;
+  expect(done.type === "done" && done.content).toBe("Clean answer about the atlas.");
+  // Bad draft never lands in the transcript.
+  expect(done.type === "done" && done.transcript.some((m) => typeof m.content === "string" && m.content.includes("aaa"))).toBe(false);
+});
+
+test("repetition handbrake: phrase loop ('the same as') clears and rewrites", async () => {
+  const captured: Captured[] = [];
+  const rounds = [
+    [textChunk("L'atlas is " + "the same as ".repeat(14)), finishChunk("stop")],
+    [textChunk("Rewritten."), finishChunk("stop")],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2);
+  expect(events.some((e) => e.type === "clear")).toBe(true);
+  expect(events.at(-1)).toMatchObject({ type: "done", content: "Rewritten." });
+});
+
+test("repetition handbrake: a second degeneration ships empty — no retry loop", async () => {
+  const captured: Captured[] = [];
+  const loop = "same as the ".repeat(14);
+  const rounds = [
+    [textChunk(loop), finishChunk("stop")],
+    [textChunk(loop), finishChunk("stop")], // rewrite also loops
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, captured) }));
+
+  expect(captured).toHaveLength(2); // exactly one rewrite
+  expect(events.filter((e) => e.type === "clear").length).toBe(2);
+  expect(events.at(-1)).toMatchObject({ type: "done", content: "" });
+});
