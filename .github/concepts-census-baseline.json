@@ -7986,7 +7986,7 @@
       },
       {
         "uuid": "8efb0a11-b798-48eb-af19-f65b38f039b5",
-        "doc_no": "A.2.2.10.1.1.1.2.2",
+        "doc_no": "A.2.2.10.1.1.1.2.1.2",
         "title": "Rate Limits",
         "bucket": "Rate Limits"
       },
@@ -15029,103 +15029,103 @@
       },
       {
         "uuid": "4f77eb6c-4b2f-4fa0-a7c0-d58e9b76ce8e",
-        "doc_no": "A.2.2.10.1.1.1.3.2",
+        "doc_no": "A.2.2.10.1.1.1.2.2.2",
         "title": "Controller Role",
         "bucket": "controller role"
       },
       {
         "uuid": "c9ecd9c2-dd1b-426b-8e52-66a2b1892289",
-        "doc_no": "A.2.2.10.1.1.1.4.2.1",
+        "doc_no": "A.2.2.10.1.1.1.2.3.2.1",
         "title": "Aave v3 Facet",
         "bucket": "aave v3 facet"
       },
       {
         "uuid": "d9cbf883-119e-403d-8efa-125997cd8897",
-        "doc_no": "A.2.2.10.1.1.1.4.2.2",
+        "doc_no": "A.2.2.10.1.1.1.2.3.2.2",
         "title": "Basin Facet",
         "bucket": "basin facet"
       },
       {
         "uuid": "afa3da61-c32a-4efd-900b-16e1c262c842",
-        "doc_no": "A.2.2.10.1.1.1.4.2.16",
+        "doc_no": "A.2.2.10.1.1.1.2.3.2.16",
         "title": "PSM Facet",
         "bucket": "psm facet"
       },
       {
         "uuid": "b808a829-2f31-42f1-ac9f-6801d3eb8437",
-        "doc_no": "A.2.2.10.1.1.1.4.2.20",
+        "doc_no": "A.2.2.10.1.1.1.2.3.2.20",
         "title": "Uniswap v3 Facet",
         "bucket": "uniswap v3 facet"
       },
       {
         "uuid": "5e941add-bf8d-4623-95a1-69795e7f7034",
-        "doc_no": "A.2.2.10.1.1.1.5.2",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2",
         "title": "Diamond PAU Controller Functions",
         "bucket": "diamond pau controller functions"
       },
       {
         "uuid": "e679e470-17f3-40ef-b455-dd424a498992",
-        "doc_no": "A.2.2.10.1.1.1.5.2.2",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.2",
         "title": "Aave v3 Facet",
         "bucket": "aave v3 facet"
       },
       {
         "uuid": "7ab0c0f2-fc41-4b3f-9dc8-e62463bb3e62",
-        "doc_no": "A.2.2.10.1.1.1.5.2.3",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.3",
         "title": "Basin Facet",
         "bucket": "basin facet"
       },
       {
         "uuid": "6d22c2b8-bc80-4248-a690-7b858c925014",
-        "doc_no": "A.2.2.10.1.1.1.5.2.4",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.4",
         "title": "PSM Facet",
         "bucket": "psm facet"
       },
       {
         "uuid": "417edcc0-3d50-48ba-8fc2-38b361dbc297",
-        "doc_no": "A.2.2.10.1.1.1.5.2.5",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.5",
         "title": "Uniswap v3 Facet",
         "bucket": "uniswap v3 facet"
       },
       {
         "uuid": "32d3213a-e40a-4169-94d7-e65bb6c23c19",
-        "doc_no": "A.2.2.10.1.1.1.5.2.5.1",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.5.1",
         "title": "Add Liquidity To Uniswap v3",
         "bucket": "add liquidity to uniswap v3"
       },
       {
         "uuid": "e37d1163-b801-4cba-ab3a-2440a1f36ae6",
-        "doc_no": "A.2.2.10.1.1.1.5.2.5.2",
+        "doc_no": "A.2.2.10.1.1.1.2.5.2.5.2",
         "title": "Remove Liquidity From Uniswap v3",
         "bucket": "remove liquidity from uniswap v3"
       },
       {
         "uuid": "1cb17b82-a294-4942-8183-4d90b224a79d",
-        "doc_no": "A.2.2.10.1.1.1.5.3.1",
+        "doc_no": "A.2.2.10.1.1.1.2.5.3.1",
         "title": "RateLimits Query",
         "bucket": "ratelimits query"
       },
       {
         "uuid": "f671061e-11a0-4d3b-bb6e-9f4ee9a012a9",
-        "doc_no": "A.2.2.10.1.1.1.5.3.2",
+        "doc_no": "A.2.2.10.1.1.1.2.5.3.2",
         "title": "Set RateLimit",
         "bucket": "set ratelimit"
       },
       {
         "uuid": "a85b7e8b-c4e9-44de-b717-efa4c8268d3b",
-        "doc_no": "A.2.2.10.1.1.1.5.3.3",
+        "doc_no": "A.2.2.10.1.1.1.2.5.3.3",
         "title": "Set Unlimited RateLimit",
         "bucket": "set unlimited ratelimit"
       },
       {
         "uuid": "39217368-efa1-4168-a231-b010d6e23dfa",
-        "doc_no": "A.2.2.10.1.1.1.5.3.4",
+        "doc_no": "A.2.2.10.1.1.1.2.5.3.4",
         "title": "Set Trigger For RateLimit Decrease",
         "bucket": "set trigger for ratelimit decrease"
       },
       {
         "uuid": "ee55aa72-1405-49cb-a7fe-3e8adc9ee64c",
-        "doc_no": "A.2.2.10.1.1.1.5.3.5",
+        "doc_no": "A.2.2.10.1.1.1.2.5.3.5",
         "title": "Set Trigger For RateLimit Increase",
         "bucket": "set trigger for ratelimit increase"
       },
