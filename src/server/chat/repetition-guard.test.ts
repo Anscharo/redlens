@@ -39,4 +39,10 @@ describe("isRepetitionLoop", () => {
     const mixed = "the same as ".repeat(8) + "\n-------\n" + ("a ".repeat(40));
     expect(isRepetitionLoop(mixed)).toBe(true);
   });
+
+  it("does not flag wide markdown table rules or dividers", () => {
+    const rule = "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n".repeat(12);
+    expect(isRepetitionLoop(rule)).toBe(false);
+    expect(isRepetitionLoop("-".repeat(120))).toBe(false);
+  });
 });

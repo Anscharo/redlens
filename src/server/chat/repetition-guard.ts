@@ -20,20 +20,22 @@ export function isRepetitionLoop(text: string): boolean {
   return hasDominatingCharRun(text) || hasRepeatingPhrase(text);
 }
 
-// Same glyph (ignoring whitespace) flooding the recent window — covers
-// "aaaaaaaa", "A A A A A", and "a a a a a".
+// Same alphanumeric glyph flooding the recent window — covers "aaaaaaaa",
+// "A A A A A", and "a a a a a". Punctuation-only floods (markdown table
+// rules, dividers) are ignored so a wide `|---|` answer cannot trip the
+// handbrake.
 function hasDominatingCharRun(text: string): boolean {
   const window = text.slice(-CHAR_WINDOW);
-  const compact = window.replace(/\s+/g, "");
-  if (compact.length < CHAR_MIN_RUN) return false;
+  const letters = window.replace(/[^a-zA-Z0-9]/g, "");
+  if (letters.length < CHAR_MIN_RUN) return false;
   const counts = new Map<string, number>();
   let max = 0;
-  for (const ch of compact) {
+  for (const ch of letters) {
     const n = (counts.get(ch) ?? 0) + 1;
     counts.set(ch, n);
     if (n > max) max = n;
   }
-  return max >= CHAR_MIN_RUN && max / compact.length >= CHAR_DOMINANCE;
+  return max >= CHAR_MIN_RUN && max / letters.length >= CHAR_DOMINANCE;
 }
 
 // A short unit repeating consecutively at the end — covers

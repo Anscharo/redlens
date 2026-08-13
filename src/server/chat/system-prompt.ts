@@ -131,7 +131,7 @@ export function buildSystemPrompt(
     "",
     "## Atlas structure",
     `The atlas is a tree of ~${ix.docMap.size} documents. Document types (with counts): ${docTypes}.`,
-    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. Doc UUIDs are the stable identity; doc_no (e.g. A.1.6) follow the tree shape. A doc's number fixed within the current atlas version, but  can be reassigned when the atlas is reorganized, so historical or cross-version references must go by UUID.",
+    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. Doc UUIDs are the stable identity; doc_no (e.g. A.1.6) follow the tree shape — fixed within the current atlas version, but a doc's number can be reassigned when the atlas is reorganized, so historical or cross-version references must go by UUID.",
     agentArtifactRoster(ix) ?? "",
     "",
     "## Entity traversal (live graph)",
