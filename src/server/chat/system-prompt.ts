@@ -32,6 +32,34 @@ interface Describe {
   entity_type_graph: { from_type: string; edge_type: string; to_type: string; count: number }[];
 }
 
+// Live A.6 agent-root roster for the system prompt. Each agent owns one
+// artifact subtree: every doc under that root belongs to that agent (the
+// template is instantiated once per agent, so twin wording elsewhere is not
+// evidence about this agent). Derived from entity → defining_doc so it tracks
+// the served atlas; empty when agents aren't loaded yet.
+export function agentArtifactRoster(ix: Indexes): string | null {
+  type Row = { name: string; doc_no: string; kind: "prime" | "executor" };
+  const rows: Row[] = [];
+  for (const e of ix.entities) {
+    if (e.entity_type !== "agent" || !e.defining_doc_id) continue;
+    const doc = ix.docMap.get(e.defining_doc_id);
+    if (!doc?.doc_no) continue;
+    const kind = e.subtype === "prime" ? "prime" : "executor";
+    rows.push({ name: e.name, doc_no: doc.doc_no, kind });
+  }
+  if (rows.length === 0) return null;
+  rows.sort((a, b) => a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true }));
+  const fmt = (rs: Row[]) => rs.map((r) => `${r.name} @ ${r.doc_no}`).join(", ");
+  const primes = rows.filter((r) => r.kind === "prime");
+  const execs = rows.filter((r) => r.kind === "executor");
+  const parts = [
+    "A.6 holds one artifact subtree per agent. Every document under an agent's root belongs to that agent — never answer a question about agent X from another agent's twin docs.",
+  ];
+  if (primes.length) parts.push(`Prime Agents: ${fmt(primes)}.`);
+  if (execs.length) parts.push(`Executor Agents: ${fmt(execs)}.`);
+  return parts.join(" ");
+}
+
 export function pageContextLine(ctx?: PageContext): string | null {
   if (!ctx) return null;
   if (ctx.nodeId) return `Atlas node "${ctx.nodeTitle ?? ctx.nodeId}"${ctx.nodeDocNo ? ` (${ctx.nodeDocNo})` : ""}, UUID ${ctx.nodeId}`;
@@ -103,7 +131,8 @@ export function buildSystemPrompt(
     "",
     "## Atlas structure",
     `The atlas is a tree of ~${ix.docMap.size} documents. Document types (with counts): ${docTypes}.`,
-    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. Doc UUIDs are the stable identity; doc_no (e.g. A.1.6) are human-readable labels — fixed within the current atlas version, but a doc's number can be reassigned when the atlas is reorganized, so historical or cross-version references must go by UUID.",
+    "Supporting docs (Annotation, Action Tenet, Scenario, Scenario Variation, Active Data, Needed Research) hang off their parents. Doc UUIDs are the stable identity; doc_no (e.g. A.1.6) follow the tree shape. A doc's number fixed within the current atlas version, but  can be reassigned when the atlas is reorganized, so historical or cross-version references must go by UUID.",
+    agentArtifactRoster(ix) ?? "",
     "",
     "## Entity traversal (live graph)",
     "Entities (facilitators, agents, primitives, …) connect via typed edges. Common chains:",

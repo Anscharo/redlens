@@ -3,7 +3,7 @@
 // network/DB), plus the pure helpers pageContextLine / validReportTool.
 import { describe, it, expect } from "bun:test";
 import { loadIndexes } from "../retrieval/indexes.ts";
-import { buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
+import { agentArtifactRoster, buildSystemPrompt, pageContextLine, validReportTool } from "./system-prompt.ts";
 
 const ix = loadIndexes();
 
@@ -55,11 +55,23 @@ describe("validReportTool", () => {
   });
 });
 
+describe("agentArtifactRoster", () => {
+  it("lists each live agent with its A.6 root and the ownership rule", () => {
+    const roster = agentArtifactRoster(ix);
+    expect(roster).not.toBeNull();
+    expect(roster).toContain("Every document under an agent's root belongs to that agent");
+    expect(roster).toMatch(/Prime Agents: .*Spark @ A\.6\.1\.1\.1/);
+    expect(roster).toMatch(/Executor Agents: .*Amatsu @ A\.6\.1\.2\.1/);
+  });
+});
+
 describe("buildSystemPrompt", () => {
   it("builds a prompt with atlas structure, entity chains, tools, and citation rules — no page context", () => {
     const prompt = buildSystemPrompt(ix);
     expect(prompt).toContain("Sky Atlas by Redline assistant");
     expect(prompt).toContain("## Atlas structure");
+    expect(prompt).toContain("The atlas is a tree of");
+    expect(prompt).toContain("Every document under an agent's root belongs to that agent");
     expect(prompt).toContain("## Entity traversal (live graph)");
     expect(prompt).toContain("## Tools");
     expect(prompt).toContain("atlas_query");
