@@ -164,4 +164,5 @@ export function loadHtmlAt(hash, repoDir) {
   return parseHtmlToNodes(raw);
 }
 
+/** @lintignore — test-only seam, not called by any pipeline script. */
 export const _internal = { textOf, norm, DOCNO };

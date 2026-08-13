@@ -101,6 +101,19 @@ describe("Solana address linkification", () => {
     expect(found).toBeDefined();
     expect(found?.href).toContain(SOL);
   });
+
+  it("does not carve a phantom address out of a longer base58 run (proves the \\b boundary, not just the {43,44} body, survives composing SOL_ADDRESS_SRC into ONCHAIN_RE)", () => {
+    // 46 contiguous base58 word chars (no "0"/"O"/"I"/"l", no internal word
+    // boundary). A body-only {43,44} pattern (no \b) would greedily match the
+    // first 44 and link a substring that isn't the real token; \b requires a
+    // boundary right after the match, which doesn't exist mid-run, so nothing
+    // should link at all.
+    const alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const longRun = Array.from({ length: 46 }, (_, i) => alphabet[i % alphabet.length]).join("");
+    const tree = makeTree(`Run: ${longRun} end`);
+    transform(tree);
+    expect(links(tree)).toHaveLength(0);
+  });
 });
 
 describe("transaction hash linkification", () => {

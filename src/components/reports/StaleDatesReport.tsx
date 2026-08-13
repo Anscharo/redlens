@@ -1,26 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
-import type { AtlasNode } from "../../types";
-import { AtlasLink } from "../AtlasLink";
-import { atlasHref } from "../../lib/routes";
+import { useMemo } from "react";
 import { loadDocs } from "../../lib/docs";
+import { useLoaded } from "../../hooks/useAtlasData";
 import { useUTCDay } from "../../hooks/useUTCDay";
-import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS, type DateClaim } from "../../lib/staleDates";
+import { buildStaleDatesReport, staleDatesToCSV, DUE_SOON_DAYS } from "../../lib/staleDates";
+import { filterRows, type ReportMode } from "../../lib/reportFilter";
+import type { ReportId } from "../../types";
 import { DownloadCsvButton } from "./DownloadCsvButton";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { filterRows, hiddenMatches, parseReportQuery, type ReportMode, type ReportQuery } from "../../lib/reportFilter";
-import { NoRowsMatch } from "./NoRowsMatch";
-import { FilterSummary } from "./FilterSummary";
-import { Highlight, MatchAside } from "./Highlight";
+import { ReportShell } from "./ReportShell";
+import { StaleDatesSection } from "./StaleDatesSection";
+import { useReportQuery } from "./useReportQuery";
 import { staleSearchFields, STALE_SEARCHES } from "./staleDatesSearch";
 
-function staleness(c: DateClaim): string {
-  // The viewer's local day and the day the atlas text was written against can
-  // differ by a day either way, so near the boundary hedge with "~1d" rather
-  // than claiming "today".
-  if (Math.abs(c.daysUntilStale) <= 1) return "(~1d)";
-  if (c.daysUntilStale < 0) return `(${-c.daysUntilStale}d overdue)`;
-  return `(in ${c.daysUntilStale}d)`;
-}
+const REPORT: ReportId = "stale-dates";
 
 const SECTIONS: {
   key: "upcoming" | "dueSoon" | "stale";
@@ -50,72 +41,12 @@ const SECTIONS: {
   },
 ];
 
-function ClaimRow({ c, tone, rq }: { c: DateClaim; tone: string; rq: ReportQuery }) {
-  // The tone lives on a left bar (the selected-node idiom) — --red on the
-  // dark background is unreadable as small text, so the date stays tan.
-  // The whole row is one link to the doc; the doc number renders as plain
-  // text on the right (nested anchors are invalid HTML).
-  return (
-    <AtlasLink
-      to={atlasHref(c.docId)}
-      title={c.title}
-      className="relative block py-4 px-3 border-b border-l-2 last:border-b-0 no-underline transition-colors hover:bg-[var(--hover)]"
-      style={{ borderColor: "var(--border)", borderLeftColor: tone }}
-    >
-      <MatchAside matches={hiddenMatches(staleSearchFields(c), rq)} rq={rq} />
-      <div className="flex items-baseline gap-6 flex-wrap">
-        <span className="flex items-baseline gap-2">
-          <span className="mono text-base font-semibold text-tan"><Highlight text={c.dateISO} rq={rq} /></span>
-          <span className="mono text-base text-tan-2">{staleness(c)}</span>
-        </span>
-        <span className="text-lg text-tan"><Highlight text={c.title} rq={rq} /></span>
-        {c.transition && (
-          <span
-            className="mono text-xs px-1.5 py-0.5 rounded"
-            style={{ background: "var(--hover)", color: "var(--accent)" }}
-            title="Operational control handoff — checked against the date the transition was estimated for"
-          >
-            handoff
-          </span>
-        )}
-        <span className="mono text-xs text-accent ml-auto"><Highlight text={c.docNo} rq={rq} /></span>
-      </div>
-      <p className="text-sm mt-1 ml-4 text-tan-2" style={{ maxWidth: "95ch" }}>
-        …<Highlight text={c.contextBefore} rq={rq} />
-        <em><Highlight text={c.raw} rq={rq} /></em>
-        <Highlight text={c.contextAfter} rq={rq} />…
-      </p>
-    </AtlasLink>
-  );
-}
-
-function Section({ title, hint, claims, tone, textTone, rq }: { title: string; hint: string; claims: readonly DateClaim[]; tone: string; textTone?: string; rq: ReportQuery }) {
-  return (
-    <section className="mb-8">
-      <h2 className="text-lg font-semibold mb-0.5" style={{ color: textTone ?? tone }}>
-        {title} <span className="mono text-base text-tan-3">({claims.length})</span>
-      </h2>
-      <p className="text-base text-tan-3 mb-2">{hint}</p>
-      {claims.length === 0 ? (
-        <p className="mono text-base text-tan-3">none</p>
-      ) : (
-        claims.map((c, i) => <ClaimRow key={`${c.docId}:${c.dateISO}:${i}`} c={c} tone={tone} rq={rq} />)
-      )}
-    </section>
-  );
-}
-
 export function StaleDatesReport({ query, mode }: { query: string; mode: ReportMode }) {
-  useDocumentTitle("Stale Dates: Sky Atlas by Redline");
-  const [docs, setDocs] = useState<Record<string, AtlasNode> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  // A load failure re-throws out of useLoaded into the route's ErrorBoundary,
+  // which owns the error + retry UI for every page (the report used to carry
+  // its own copy).
+  const docs = useLoaded(loadDocs);
   const day = useUTCDay();
-
-  useEffect(() => {
-    setError(null);
-    loadDocs().then(setDocs).catch((err) => setError(String(err)));
-  }, [attempt]);
 
   // Recomputed from the loaded atlas + the current UTC day — no build step
   // involved, and the day-keyed memo re-buckets a tab left open past midnight.
@@ -125,12 +56,10 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
   );
 
   // Text filter applies within each bucket; buckets keep their order/heading.
-  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const rq = useReportQuery(query, mode);
   const sections = useMemo(
     () =>
-      report
-        ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, staleSearchFields) }))
-        : null,
+      report ? SECTIONS.map((s) => ({ ...s, claims: filterRows(report[s.key], rq, staleSearchFields) })) : null,
     [report, rq],
   );
   const anyShown = sections?.some((s) => s.claims.length > 0) ?? false;
@@ -146,54 +75,51 @@ export function StaleDatesReport({ query, mode }: { query: string; mode: ReportM
   }, [report, sections]);
 
   return (
-    <div className="px-6 py-6">
-      <div className="max-w-4xl mx-auto">
-        <p className="mono text-base text-tan-3 mb-1">report</p>
-        <h1 className="text-2xl font-semibold mb-1 text-tan">Stale Dates</h1>
-        <p className="text-lg text-tan-3 mb-6">
-          Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked
-          against today's date. An overdue claim means the event happened and the text was never
-          updated — or it slipped.
-          {report && (
-            <span className="mono text-base"> {report.totalDateMentions} dated mentions scanned.</span>
-          )}
-        </p>
-        <FilterSummary query={query} searches={STALE_SEARCHES} />
-        {csvReport && report && (
-          <div className="flex justify-end mb-4">
-            <DownloadCsvButton
-              report="stale-dates"
-              filename="stale-dates.csv"
-              rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
-              build={() => staleDatesToCSV(csvReport)}
-              fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
-              buildFull={() => staleDatesToCSV(report)}
-              query={query}
-            />
-          </div>
-        )}
-        {error ? (
-          <div className="flex items-center gap-3">
-            <p className="text-sm mono" style={{ color: "var(--error-text)" }}>
-              Failed to load report.
-            </p>
-            <button
-              onClick={() => setAttempt((n) => n + 1)}
-              className="text-xs mono text-accent hover:underline"
-            >
-              retry
-            </button>
-          </div>
-        ) : !report || !sections ? (
-          <p className="mono text-base text-tan-3">loading…</p>
-        ) : !anyShown && query.trim() ? (
-          <NoRowsMatch query={query} />
-        ) : (
-          sections.map((s) => (
-            <Section key={s.key} title={s.title} hint={s.hint} claims={s.claims} tone={s.tone} textTone={s.textTone} rq={rq} />
-          ))
-        )}
-      </div>
-    </div>
+    <ReportShell
+      report={REPORT}
+      title="Stale Dates"
+      maxWidth="max-w-4xl"
+      description={
+        <>
+          Future-tense claims in atlas prose ("will be included in the … Executive Vote") checked against
+          today's date. An overdue claim means the event happened and the text was never updated — or it
+          slipped.
+          {report && <span className="mono"> {report.totalDateMentions} dated mentions scanned.</span>}
+        </>
+      }
+      query={query}
+      searches={STALE_SEARCHES}
+      actions={
+        csvReport && report ? (
+          <DownloadCsvButton
+            report={REPORT}
+            filename="stale-dates.csv"
+            rowCount={csvReport.stale.length + csvReport.dueSoon.length + csvReport.upcoming.length}
+            build={() => staleDatesToCSV(csvReport)}
+            fullRowCount={report.stale.length + report.dueSoon.length + report.upcoming.length}
+            buildFull={() => staleDatesToCSV(report)}
+            query={query}
+          />
+        ) : undefined
+      }
+      loading={!report || !sections}
+      viewProps={{ row_count: report?.totalDateMentions ?? 0 }}
+      noRows={!anyShown && !!query.trim()}
+    >
+      {/* A query that clears every bucket shows only the no-rows line — not
+          three empty section headings. */}
+      {(anyShown || !query.trim()) &&
+        sections?.map((s) => (
+          <StaleDatesSection
+            key={s.key}
+            title={s.title}
+            hint={s.hint}
+            claims={s.claims}
+            tone={s.tone}
+            textTone={s.textTone}
+            rq={rq}
+          />
+        ))}
+    </ReportShell>
   );
 }

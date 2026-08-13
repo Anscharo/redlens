@@ -108,12 +108,12 @@ export function rolePills(
 
 // URL-synced filter state. slug = toAnchorId(name) — URL-safe; raw names never
 // enter the URL.
-export type ActiveFilter =
+export type EntityFilter =
   | { kind: "govops"; slug: string }
   | { kind: "facilitator"; slug: string }
   | { kind: "executor"; slug: string }
-  | { kind: "agent"; slug: string }
-  | null;
+  | { kind: "agent"; slug: string };
+export type ActiveFilter = EntityFilter | null;
 
 export function filterEqual(a: ActiveFilter, b: ActiveFilter): boolean {
   if (a === null || b === null) return a === b;

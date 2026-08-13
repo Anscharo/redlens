@@ -12,7 +12,7 @@ import {
   forwardAgrees, llmEligible, llmConfirms, LLM_CONFIRM_THRESHOLD,
   frontierTriggers, frontierCorroborator,
 } from "./auto-curate.mjs";
-import { bestByContainment } from "./ordered-containment.mjs";
+import { bestByContainment } from "../lib/ordered-containment.mjs";
 import { positionalPick, positionalSelfCorroborates } from "./history-positional.mjs";
 import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
 import { buildClusters } from "./curate-clusters.mjs";

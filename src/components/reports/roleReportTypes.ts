@@ -6,10 +6,10 @@ import type { AtlasBundle } from "../../lib/docs";
 import type { ActiveFilter, Chain } from "../../lib/reportChains";
 import type { ReportQuery, SearchField } from "../../lib/reportFilter";
 import type { RoleRow } from "./RoleCategoryTable";
+import type { ReportId } from "../../types";
 
 export interface RoleReportConfig<R extends RoleRow> {
-  reportId: string; // analytics report id + CSV export slug
-  documentTitle: string; // useDocumentTitle
+  reportId: ReportId; // analytics report id + CSV export slug
   heading: string; // h1 text
   introText: string; // sentence before the atlas link ("Every Atlas section mandating...")
   introDocUuid: string; // atlas link target; also the doc_no source (never hardcode the label)

@@ -14,6 +14,7 @@
 // links are /atlas?id=<uuid|doc_no>; other routes get their own card too.
 
 import { ROUTES, REPORT_TITLES } from "../lib/routes.ts";
+import { cardToQuery } from "./og-image.ts";
 
 const SITE_NAME = "Sky Atlas by Redline";
 const SITE_TITLE = "Sky Atlas by Redline";
@@ -156,7 +157,7 @@ function describeRoute(input: OgInput): RouteDesc {
       description: `Previewing a proposed change to the Sky Atlas (${previewLabel}).`,
       ogType: "website",
       canonical,
-      image: ogCardUrl(origin, `kind=preview&label=${encodeURIComponent(previewLabel)}`),
+      image: ogCardUrl(origin, cardToQuery({ kind: "preview", label: previewLabel })),
     };
   }
 
@@ -171,7 +172,7 @@ function describeRoute(input: OgInput): RouteDesc {
         description: `${agent} on the Sky Atlas radar — chain, responsibilities, instances, and governance relationships.`,
         ogType: "profile",
         canonical,
-        image: ogCardUrl(origin, `kind=radar-actor&name=${encodeURIComponent(agent)}`),
+        image: ogCardUrl(origin, cardToQuery({ kind: "radarActor", agent })),
       };
     }
   }
@@ -181,7 +182,7 @@ function describeRoute(input: OgInput): RouteDesc {
       description: "Entity-focused view of the Sky ecosystem — agents, their responsibilities, and governance relationships.",
       ogType: "website",
       canonical,
-      image: ogCardUrl(origin, "kind=radar"),
+      image: ogCardUrl(origin, cardToQuery({ kind: "radar" })),
     };
   }
 
@@ -195,7 +196,7 @@ function describeRoute(input: OgInput): RouteDesc {
         description: `${name} — a structured report over the Sky Atlas.`,
         ogType: "website",
         canonical,
-        image: ogCardUrl(origin, `kind=report&name=${encodeURIComponent(name)}`),
+        image: ogCardUrl(origin, cardToQuery({ kind: "report", name })),
       };
     }
   }
@@ -205,7 +206,7 @@ function describeRoute(input: OgInput): RouteDesc {
       description: "Structured reports over the Sky Atlas — responsibilities, active data, rewards, processes, and more.",
       ogType: "website",
       canonical,
-      image: ogCardUrl(origin, "kind=reports"),
+      image: ogCardUrl(origin, cardToQuery({ kind: "reports" })),
     };
   }
 
@@ -216,12 +217,12 @@ function describeRoute(input: OgInput): RouteDesc {
       description: "Connect to the Redline Sky Atlas MCP server.",
       ogType: "website",
       canonical,
-      image: ogCardUrl(origin, "kind=connect"),
+      image: ogCardUrl(origin, cardToQuery({ kind: "connect" })),
     };
   }
 
   // Everything else: the site-default wordmark card.
-  return { title: SITE_TITLE, description: SITE_DESCRIPTION, ogType: "website", canonical, image: ogCardUrl(origin, "kind=default") };
+  return { title: SITE_TITLE, description: SITE_DESCRIPTION, ogType: "website", canonical, image: ogCardUrl(origin, cardToQuery({ kind: "default" })) };
 }
 
 // Build the full head block: one <title> plus og:* / twitter:* tags. Callers

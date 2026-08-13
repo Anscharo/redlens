@@ -36,10 +36,19 @@ export default defineConfig({
         // Offline one-off eval tooling, not shippable code — explicitly out of
         // coverage even though the include patterns above don't reach it today.
         "scripts/aux/eval-smalltalk-judge.ts",
+        // run-thread.mjs moved here from scripts/htmlhist/ (W3-2, directory-moves) — a
+        // pure relocation, not new coverage scope. Its only importers (prepare-html-
+        // history.mjs, thread-structural.mjs, scripts/prehist/genesis-bridge.mjs) are
+        // offline curation CLIs with no vitest coverage, so joining scripts/lib/**/*.mjs
+        // would newly fail the changed-line gate on its relocated import lines with
+        // 0% coverage it never had (nor needed) at its old path. Its 3 tested siblings
+        // (atlas-html/history-identity/ordered-containment) are deliberately NOT
+        // excluded — they have real scripts_tests/ coverage already.
+        "scripts/lib/run-thread.mjs",
       ],
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).
-    // scripts/aux/eval-verifier-mutations.test.ts is likewise a bun test (imports
+    // scripts/eval/eval-verifier-mutations.test.ts is likewise a bun test (imports
     // bun:test + src/server/indexes) — it runs under `test:server`, not vitest.
     // e2e/** are Playwright specs (browser/API against a live deploy) — never vitest.
     // Component tests that need a DOM opt in individually via a `// @vitest-environment jsdom` pragma.
@@ -49,7 +58,7 @@ export default defineConfig({
       "vendor/**",
       "graph-snapshots/**",
       "src/server/**",
-      "scripts/aux/eval-verifier-mutations.test.ts",
+      "scripts/eval/eval-verifier-mutations.test.ts",
       "e2e/**",
     ],
   },

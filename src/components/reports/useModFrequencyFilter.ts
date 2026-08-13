@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUrlState, urlEnum, urlInt } from "../../hooks/useUrlState";
-import { track } from "../../lib/analytics";
+import { trackReportFilter } from "./useReportQuery";
 import {
   matchesFrequency,
   FREQUENCY_COMPARATORS,
@@ -9,7 +9,9 @@ import {
   FREQUENCY_DEFAULT,
   type FrequencyComparator,
 } from "../../lib/modFrequencyIndex";
+import type { ReportId } from "../../types";
 
+const REPORT: ReportId = "mod-frequency";
 const comparatorCodec = urlEnum<FrequencyComparator>("lte", FREQUENCY_COMPARATORS);
 const thresholdCodec = urlInt(FREQUENCY_DEFAULT);
 
@@ -46,12 +48,12 @@ export function useModFrequencyFilter() {
     const clamped = Math.min(FREQUENCY_MAX, Math.max(FREQUENCY_MIN, Math.round(n)));
     setThreshold(clamped);
     setThresholdInput(String(clamped));
-    track("report_filter", { report: "mod-frequency", filter_type: "threshold", value: clamped, active: clamped !== FREQUENCY_DEFAULT });
+    trackReportFilter(REPORT, "threshold", clamped, clamped !== FREQUENCY_DEFAULT);
   };
 
   const onComparator = (c: FrequencyComparator) => {
     setComparator(c);
-    track("report_filter", { report: "mod-frequency", filter_type: "comparator", value: c, active: c !== "lte" });
+    trackReportFilter(REPORT, "comparator", c, c !== "lte");
   };
 
   const matchesFilter = useCallback((count: number) => matchesFrequency(count, comparator, threshold), [comparator, threshold]);

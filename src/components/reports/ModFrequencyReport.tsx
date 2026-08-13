@@ -1,51 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { loadDocs } from "../../lib/docs";
 import { loadModCounts } from "../../lib/history";
 import { loadGraph } from "../../lib/graph";
 import { buildOwningAgentMap } from "../../lib/owningAgent";
 import { useDataSource } from "../../lib/dataSource";
-import { useDocumentTitle } from "../../hooks/useDocumentTitle";
-import { useUrlState, urlEnum } from "../../hooks/useUrlState";
-import { track } from "../../lib/analytics";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { filterRows, type ReportMode } from "../../lib/reportFilter";
 import {
   buildModFrequencyRows,
   groupModFrequencyRows,
-  modFrequencyRowsToCSV,
   modFrequencySearchFields,
-  modFrequencySummaryToCSV,
   summarizeModFrequencyMatches,
   GROUPINGS,
-  FREQUENCY_COMPARATORS,
-  FREQUENCY_MIN,
-  FREQUENCY_MAX,
   type ModFrequencyGrouping,
 } from "../../lib/modFrequencyIndex";
 import { buildModCountHistogram, type ModCountBucket } from "../../lib/modFrequencyCharts";
-import { CategoryPills } from "./CategoryPills";
-import { FilterSummary } from "./FilterSummary";
-import { NoRowsMatch } from "./NoRowsMatch";
-import { DownloadCsvButton } from "./DownloadCsvButton";
-import { SingleDownloadButton } from "./SingleDownloadButton";
-import { ModFrequencyTable } from "./ModFrequencyTable";
-import { ModFrequencySummaryTable } from "./ModFrequencySummaryTable";
-import { ModFrequencyHistogram } from "./ModFrequencyHistogram";
-import { ModFrequencyTimeline } from "./ModFrequencyTimeline";
-import { ModFrequencyTabs, MOD_FREQUENCY_TABS, type ModFrequencyTab } from "./ModFrequencyTabs";
-import { useModFrequencyFilter, comparatorDisplay } from "./useModFrequencyFilter";
-import { useModFrequencyTimeline, TIMELINE_GRANULARITIES, GRANULARITY_DISPLAY } from "./useModFrequencyTimeline";
+import type { ReportId } from "../../types";
+import { ModFrequencyControls, ModFrequencyTimelinePanel } from "./ModFrequencyControls";
+import { ModFrequencyList } from "./ModFrequencyList";
+import { ModFrequencySumBy } from "./ModFrequencySumBy";
+import { MOD_FREQUENCY_TABS, type ModFrequencyTab } from "./ModFrequencyTabs";
+import { ReportShell } from "./ReportShell";
+import { useModFrequencyFilter } from "./useModFrequencyFilter";
+import { useModFrequencyTimeline } from "./useModFrequencyTimeline";
+import { useReportQuery, useReportSelect } from "./useReportQuery";
 
-const groupCodec = urlEnum<ModFrequencyGrouping>("section", GROUPINGS);
-const GROUP_DISPLAY: Record<ModFrequencyGrouping, string> = {
-  section: "section",
-  type: "doc type",
-};
-
-const tabCodec = urlEnum<ModFrequencyTab>("timeline", MOD_FREQUENCY_TABS);
+const REPORT: ReportId = "mod-frequency";
 
 export function ModFrequencyReport({ query, mode }: { query: string; mode: ReportMode }) {
-  useDocumentTitle("Modification Frequency: Sky Atlas by Redline");
   const { base, preview } = useDataSource();
   const docs = useLoaded(() => loadDocs(base));
   // Wrapped so "still loading" (null) is distinguishable from "no history DB
@@ -67,11 +49,11 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
     if (!docs || !docNoToId) return new Map<string, string>();
     return buildOwningAgentMap({ docs, docNoToId }, preview ? null : graph);
   }, [docs, docNoToId, preview, graph]);
-  const [tab, setTab] = useUrlState("tab", tabCodec);
-  const [group, setGroup] = useUrlState("group", groupCodec);
+  const [tab, setTab] = useReportSelect<ModFrequencyTab>(REPORT, "tab", "timeline", MOD_FREQUENCY_TABS);
+  const [group, setGroup] = useReportSelect<ModFrequencyGrouping>(REPORT, "group", "section", GROUPINGS);
   const filter = useModFrequencyFilter();
 
-  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const rq = useReportQuery(query, mode);
 
   // Every derived value below is a synchronous function of `docs`/`counts` —
   // one guard (`!view`) covers them all, instead of a separate nullable memo
@@ -93,166 +75,61 @@ export function ModFrequencyReport({ query, mode }: { query: string; mode: Repor
   }, [docs, counts, agentByDoc, filter.matchesFilter, rq, group]);
 
   const isBucketIncluded = useCallback((b: ModCountBucket) => filter.matchesFilter(b.count), [filter.matchesFilter]);
-
-  const trackedView = useRef(false);
-  useEffect(() => {
-    if (!view || trackedView.current) return;
-    trackedView.current = true;
-    track("report_view", { report: "mod-frequency", row_count: view.docRows.length });
-  }, [view]);
-
-  const onTab = (t: ModFrequencyTab) => {
-    setTab(t);
-    track("report_filter", { report: "mod-frequency", filter_type: "tab", value: t, active: t !== "timeline" });
-  };
-  const onGroup = (g: ModFrequencyGrouping) => {
-    setGroup(g);
-    track("report_filter", { report: "mod-frequency", filter_type: "group", value: g, active: g !== "section" });
-  };
+  const dbUnreachable = !!counts && counts.value === null;
 
   return (
-    <div className="px-6 py-6">
-      <div className="max-w-4xl mx-auto">
-        <p className="mono text-base text-tan-3 mb-1">report</p>
-        <h1 className="text-2xl font-semibold mb-1 text-tan">Modification Frequency</h1>
-        <p className="text-lg text-tan-3 mb-4" style={{ maxWidth: "80ch" }}>
-          How rarely each category's documents get edited, plus a filterable list of documents by
-          edit frequency — rarely-touched, or flipped to the most heavily revised. Only semantic
-          content edits count: moves, renumbers, renames, and formatting/typo cleanups don't.
-          Counts span the atlas's full recorded history, including the reconstructed pre-markdown
-          eras.
+    <ReportShell
+      report={REPORT}
+      title="Modification Frequency"
+      maxWidth="max-w-4xl"
+      description={
+        <>
+          How rarely each category's documents get edited, plus a filterable list of documents by edit
+          frequency — rarely-touched, or flipped to the most heavily revised. Only semantic content edits
+          count: moves, renumbers, renames, and formatting/typo cleanups don't. Counts span the atlas's full
+          recorded history, including the reconstructed pre-markdown eras.
+        </>
+      }
+      controls={<ModFrequencyControls filter={filter} showFilter={!!view} tab={tab} onTab={setTab} />}
+      query={query}
+      loading={!view && !dbUnreachable}
+      ready={!!view}
+      viewProps={{ row_count: view?.docRows.length ?? 0 }}
+    >
+      {dbUnreachable ? (
+        <p className="text-sm mono" style={{ color: "var(--warn)" }}>
+          Modification counts come from the history database, which isn't reachable on this deploy. Try again
+          later.
         </p>
-        {view && (
-          <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <CategoryPills
-              categories={FREQUENCY_COMPARATORS}
-              active={filter.comparator}
-              onToggle={filter.onComparator}
-              label="Show"
-              display={comparatorDisplay(filter.threshold)}
-            />
-            <label className="flex items-center gap-1.5 text-xs text-tan-3">
-              Edits
-              <input
-                type="number"
-                min={FREQUENCY_MIN}
-                max={FREQUENCY_MAX}
-                value={filter.thresholdInput}
-                onChange={(e) => filter.setThresholdInput(e.target.value)}
-                onBlur={(e) => filter.commitThreshold(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                }}
-                className="w-14 px-1.5 py-0.5 rounded border bg-transparent mono text-xs text-tan"
-                style={{ borderColor: "var(--border)" }}
-              />
-            </label>
-          </div>
-        )}
-
-        <ModFrequencyTabs active={tab} onChange={onTab} />
-
-        {counts && counts.value === null ? (
-          <p className="text-sm mono" style={{ color: "var(--warn)" }}>
-            Modification counts come from the history database, which isn't reachable on this
-            deploy. Try again later.
-          </p>
-        ) : !view ? (
-          <p className="mono text-base text-tan-3">loading…</p>
-        ) : (
+      ) : (
+        view && (
           <>
-            {tab === "timeline" && (
-              <>
-                <div className="mb-4">
-                  <CategoryPills
-                    categories={TIMELINE_GRANULARITIES}
-                    active={timeline.granularity}
-                    onToggle={timeline.onGranularity}
-                    label="Group by"
-                    display={GRANULARITY_DISPLAY}
-                  />
-                </div>
-                {timeline.buckets ? (
-                  <ModFrequencyTimeline buckets={timeline.buckets} title={timeline.title} />
-                ) : (
-                  <p className="mono text-xs text-tan-3">No edit timeline available.</p>
-                )}
-              </>
-            )}
-
+            {tab === "timeline" && <ModFrequencyTimelinePanel timeline={timeline} />}
             {tab === "sum-by" && (
-              <>
-                <section className="mb-8">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xs mono text-tan-3 uppercase tracking-wider">By section</h2>
-                    <SingleDownloadButton
-                      report="mod-frequency-summary-section"
-                      filename="modification-frequency-by-section.csv"
-                      rowCount={view.summaryBySection.length}
-                      build={() => modFrequencySummaryToCSV(view.summaryBySection)}
-                      label="Download by section (CSV)"
-                    />
-                  </div>
-                  <ModFrequencySummaryTable summary={view.summaryBySection} matchLabel={filter.filterLabel} />
-                </section>
-                <section className="mb-8">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xs mono text-tan-3 uppercase tracking-wider">By document type</h2>
-                    <SingleDownloadButton
-                      report="mod-frequency-summary-type"
-                      filename="modification-frequency-by-type.csv"
-                      rowCount={view.summaryByType.length}
-                      build={() => modFrequencySummaryToCSV(view.summaryByType)}
-                      label="Download by type (CSV)"
-                    />
-                  </div>
-                  <ModFrequencySummaryTable summary={view.summaryByType} matchLabel={filter.filterLabel} />
-                </section>
-              </>
+              <ModFrequencySumBy
+                bySection={view.summaryBySection}
+                byType={view.summaryByType}
+                matchLabel={filter.filterLabel}
+              />
             )}
-
             {tab === "list" && (
-              <>
-                <ModFrequencyHistogram buckets={view.histogram} isIncluded={isBucketIncluded} />
-                <div className="mb-4">
-                  <CategoryPills
-                    categories={GROUPINGS}
-                    active={group}
-                    onToggle={onGroup}
-                    label="Group by"
-                    display={GROUP_DISPLAY}
-                  />
-                </div>
-                <FilterSummary query={query} searches="doc no, title, type, section" />
-                <div className="flex items-center justify-between mb-4">
-                  <p className="mono text-xs text-tan-3">
-                    {view.filtered.length === view.docRows.length
-                      ? `${view.docRows.length} documents with ${filter.filterLabel}`
-                      : `${view.filtered.length} of ${view.docRows.length} documents with ${filter.filterLabel}`}
-                  </p>
-                  <DownloadCsvButton
-                    report="mod-frequency"
-                    filename="modification-frequency.csv"
-                    rowCount={view.filtered.length}
-                    build={() => modFrequencyRowsToCSV(view.filtered)}
-                    fullRowCount={view.docRows.length}
-                    buildFull={() => modFrequencyRowsToCSV(view.docRows)}
-                    query={query}
-                    filters={[filter.thresholdActive && filter.filterLabel]}
-                  />
-                </div>
-                {view.filtered.length === 0 ? (
-                  <NoRowsMatch query={query} />
-                ) : (
-                  view.groups.map((g) => (
-                    <ModFrequencyTable key={g.key} group={g} rq={rq} showSection={group !== "section"} />
-                  ))
-                )}
-              </>
+              <ModFrequencyList
+                histogram={view.histogram}
+                isBucketIncluded={isBucketIncluded}
+                group={group}
+                onGroup={setGroup}
+                query={query}
+                rq={rq}
+                docRows={view.docRows}
+                filtered={view.filtered}
+                groups={view.groups}
+                filterLabel={filter.filterLabel}
+                thresholdActive={filter.thresholdActive}
+              />
             )}
           </>
-        )}
-      </div>
-    </div>
+        )
+      )}
+    </ReportShell>
   );
 }

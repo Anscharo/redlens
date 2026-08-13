@@ -6,12 +6,12 @@ import { useMemo } from "react";
 import { loadGraph } from "../../lib/graph";
 import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
-import { useUrlState, type UrlCodec } from "../../hooks/useUrlState";
+import { urlTagged, useUrlState, type UrlCodec } from "../../hooks/useUrlState";
 import { toAnchorId } from "../../lib/anchorId";
-import { track } from "../../lib/analytics";
-import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type Chain } from "../../lib/reportChains";
+import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type EntityFilter, type Chain } from "../../lib/reportChains";
 import { categoryCodec } from "./CategoryPills";
-import { filterRows, parseReportQuery, type ReportMode } from "../../lib/reportFilter";
+import { trackReportFilter, useReportQuery } from "./useReportQuery";
+import { filterRows, type ReportMode } from "../../lib/reportFilter";
 import type { RoleRow } from "./RoleCategoryTable";
 import type { RoleReportConfig } from "./roleReportTypes";
 
@@ -19,18 +19,10 @@ export function useRoleReportState<R extends RoleRow>(config: RoleReportConfig<R
   const graphData = useLoaded(loadGraph);
   const atlas = useLoaded(loadAtlas);
 
-  const filterCodec = useMemo<UrlCodec<ActiveFilter>>(
-    () => ({
-      encode: (v) => (v === null ? null : `${v.kind}.${v.slug}`),
-      decode: (raw) => {
-        if (!raw) return null;
-        const idx = raw.indexOf(".");
-        if (idx === -1) return null;
-        const kind = raw.slice(0, idx);
-        const slug = raw.slice(idx + 1);
-        return kind === config.pillKind || kind === "executor" || kind === "agent" ? { kind, slug } : null;
-      },
-    }),
+  // `kind.slug` in one param — the pill group plus the pill. Kinds outside the
+  // report's own set decode to null (a stale link clears the filter).
+  const filterCodec = useMemo(
+    () => urlTagged([config.pillKind, "executor", "agent"] as const) as UrlCodec<ActiveFilter>,
     [config.pillKind],
   );
   const catCodec = useMemo(() => categoryCodec(config.categoryLabels), [config.categoryLabels]);
@@ -58,23 +50,20 @@ export function useRoleReportState<R extends RoleRow>(config: RoleReportConfig<R
     [graphData, config.edges],
   );
 
-  const toggle = (next: ActiveFilter) => {
-    const cleared = filterEqual(filter, next);
-    track("report_filter", {
-      report: config.reportId,
-      filter_kind: next?.kind ?? null,
-      slug: next && "slug" in next ? next.slug : null,
-      active: !cleared,
-    });
+  // Pills click an entity (never null); re-clicking the active one clears.
+  const toggle = (next: EntityFilter) => {
+    const active = !filterEqual(filter, next);
+    trackReportFilter(config.reportId, next.kind, active ? next.slug : null, active);
     setFilter((cur) => (filterEqual(cur, next) ? null : next));
   };
 
   const toggleCat = (next: R["category"]) => {
-    track("report_filter", { report: config.reportId, filter_kind: "category", slug: next, active: cat !== next });
+    const active = cat !== next;
+    trackReportFilter(config.reportId, "category", active ? next : null, active);
     setCat((cur) => (cur === next ? null : next));
   };
 
-  const rq = useMemo(() => parseReportQuery(query, mode), [query, mode]);
+  const rq = useReportQuery(query, mode);
   const filtered = filterRows(
     responsibilities.filter(
       (r) =>

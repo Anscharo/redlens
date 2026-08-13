@@ -1,4 +1,5 @@
 import registry from "../data/chain-registry.json";
+import { SOL_ADDRESS_EXACT_RE } from "./patterns";
 
 // Canonical chain → block-explorer base, derived from the single-source chain
 // registry. Values include the trailing path segment so `EXPLORER[chain] + addr`
@@ -12,7 +13,9 @@ export const EXPLORER: Record<string, string> = Object.fromEntries(
   registry.chains.flatMap((c) => (c.explorer ? [[c.chain, c.explorer] as [string, string]] : [])),
 );
 
-const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+// Whole-string Solana shape test — sourced from patterns.ts (the src-side
+// home for these forms) so this doesn't drift into its own copy.
+const SOL_RE = SOL_ADDRESS_EXACT_RE;
 
 // Word-boundary matcher per chain key, built once. A hint is free text — a doc
 // title, a param key, an instance name — so a bare substring test reads "base"

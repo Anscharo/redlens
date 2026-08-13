@@ -1,6 +1,6 @@
 // OpenAI tool-calling surface for the chat loop, derived from the SAME registry
 // the MCP server uses (tool-registry.ts) — one definition, two transports, no
-// drift. CHAT_TOOLS is the tool array passed to chat.completions; execTool
+// drift. CHAT_TOOLS is the tool array passed to chat.completions; execToolDetailed
 // bridges a model tool-call back to the registry handler.
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -116,8 +116,4 @@ export async function execToolDetailed(ix: Indexes, name: string, rawArgs: strin
     captureError(e, obs, { tool: name });
     return applyChatToolBudget(JSON.stringify({ error: (e as Error).message }));
   }
-}
-
-export async function execTool(ix: Indexes, name: string, rawArgs: string): Promise<string> {
-  return (await execToolDetailed(ix, name, rawArgs)).content;
 }

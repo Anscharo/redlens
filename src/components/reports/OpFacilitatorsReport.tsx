@@ -57,7 +57,6 @@ function matches(
 
 const facilitatorConfig: RoleReportConfig<OFResponsibility> = {
   reportId: "of-responsibilities",
-  documentTitle: "Operational Facilitator Responsibilities: Sky Atlas by Redline",
   heading: "Operational Facilitator Responsibilities",
   introText: "Every Atlas section mandating action from a Facilitator.",
   introDocUuid: "1ce24b08-84ff-4524-9710-49bba429c6ef",

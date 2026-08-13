@@ -13,10 +13,9 @@ const govopsValue = (r: OGResponsibility) => r.govops ?? "—";
 // Unlike the Facilitator report, the GovOps text column and the Prime column
 // are NOT the same category set: op-duty/core-duty show Prime but not a
 // GovOps text column (the holder is implied); active-data/process-step show
-// both, each reading a different agent source (see primeAgents below).
+// both.
 const OG_ROLE_TEXT_CATS = new Set<OGResponsibility["category"]>(["active-data", "process-step"]);
 const OG_PRIME_CATS = new Set<OGResponsibility["category"]>(["op-duty", "core-duty", "active-data", "process-step"]);
-const OG_SINGLE_AGENT_CATS = new Set<OGResponsibility["category"]>(["active-data", "process-step"]);
 
 const ogConfig: RoleCategoryTableConfig<OGResponsibility> = {
   roleColumnHeader: "GovOps",
@@ -25,8 +24,13 @@ const ogConfig: RoleCategoryTableConfig<OGResponsibility> = {
   showPrimeCol: (cat) => OG_PRIME_CATS.has(cat as OGResponsibility["category"]),
   dutyRoleValue: govopsValue,
   assignmentRoleValue: govopsValue,
-  primeAgents: (r, cat) =>
-    OG_SINGLE_AGENT_CATS.has(cat as OGResponsibility["category"]) ? (r.agent ? [r.agent] : []) : (r.agents ?? []),
+  // Same unified fallback the Facilitator table (and govopsRowsToCSV) uses:
+  // collapsed duty rows carry `agents`, active-data/process-step rows carry a
+  // single `agent`, and either shape resolves here. The old per-category
+  // branch (`r.agents ?? []` for the duty categories) would silently drop a
+  // Prime chip from any duty row that carried only `agent` — data-neutral on
+  // today's derivation, but a trap the moment duty rows gain that field.
+  primeAgents: (r) => r.agents ?? (r.agent ? [r.agent] : []),
   rowKeyRole: (r) => r.govops ?? "",
   searchFields: ogSearchFields,
 };

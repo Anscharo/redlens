@@ -231,16 +231,6 @@ export async function installationToken(repo: string): Promise<string | null> {
 // Repo-scoped calls (installation token)
 // ---------------------------------------------------------------------------
 
-/** Whether `repo` is private, or null if the App isn't installed / the call failed. */
-export async function repoIsPrivate(repo: string): Promise<boolean | null> {
-  const token = await installationToken(repo);
-  if (!token) return null;
-
-  const r = await ghFetch(`https://api.github.com/repos/${repo}`, token);
-  if (!r || !r.ok) return null;
-  return typeof r.json?.private === "boolean" ? r.json.private : null;
-}
-
 export type PermissionResult =
   | { ok: true; userId: number; permission: string }
   | { ok: false; reason: "forbidden" }
