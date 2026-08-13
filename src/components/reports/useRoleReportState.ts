@@ -8,7 +8,7 @@ import { loadAtlas } from "../../lib/docs";
 import { useLoaded } from "../../hooks/useAtlasData";
 import { urlTagged, useUrlState, type UrlCodec } from "../../hooks/useUrlState";
 import { toAnchorId } from "../../lib/anchorId";
-import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type Chain } from "../../lib/reportChains";
+import { buildChains, rolePills, holderExecutorSlugs, filterEqual, type ActiveFilter, type EntityFilter, type Chain } from "../../lib/reportChains";
 import { categoryCodec } from "./CategoryPills";
 import { trackReportFilter, useReportQuery } from "./useReportQuery";
 import { filterRows, type ReportMode } from "../../lib/reportFilter";
@@ -50,9 +50,10 @@ export function useRoleReportState<R extends RoleRow>(config: RoleReportConfig<R
     [graphData, config.edges],
   );
 
-  const toggle = (next: ActiveFilter) => {
+  // Pills click an entity (never null); re-clicking the active one clears.
+  const toggle = (next: EntityFilter) => {
     const active = !filterEqual(filter, next);
-    trackReportFilter(config.reportId, next?.kind ?? "entity", active && next ? next.slug : null, active);
+    trackReportFilter(config.reportId, next.kind, active ? next.slug : null, active);
     setFilter((cur) => (filterEqual(cur, next) ? null : next));
   };
 
