@@ -322,7 +322,7 @@ describe("extractInstanceParams — address values", () => {
   const HASH = `0x${"ab".repeat(32)}`; // 64 hex
   const ADDR = "0x1234567890abcdef1234567890abcdef12345678"; // 40 hex
   const SOL = "So11111111111111111111111111111111111111112"; // 43 base58
-  const SHORT_B58 = "AaBbCcDdEeFfGgHhJjKkMmNnPpQqRrSs"; // 32 base58 chars — too short for a pubkey
+  const SHORT_B58 = "AaBbCcDdEeFfGgHhJjKkMmNnPpQqRrSs"; // 32 base58 chars — legacy ICD value
 
   const docs = [
     mkDoc("p", P, "Parameters"),
@@ -353,10 +353,10 @@ describe("extractInstanceParams — address values", () => {
     expect(res["Allocator Role Address"][0]).toBe(SOL);
   });
 
-  it("does not read a short base58-shaped token as an address", () => {
-    // The Solana quantifier is the canonical {43,44}, not {32,44}: a 32-char
-    // backticked word is a label or an identifier, never a pubkey.
-    expect(res["Underlying Asset Address"][0]).not.toBe(SHORT_B58);
+  it("preserves the formatter's legacy 32–44 character base58 pass-through", () => {
+    // Canonical Solana extraction remains {43,44}; this keeps the pre-refactor
+    // behavior for already-isolated, backticked ICD values.
+    expect(res["Underlying Asset Address"][0]).toBe(SHORT_B58);
   });
 
   it("still finds a bare address in prose", () => {

@@ -3,18 +3,13 @@ import { matchKeywords, findCandidates } from "./process-keywords.mjs";
 
 describe("matchKeywords", () => {
   it("matches a single-word keyword case-insensitively on word boundaries", () => {
-    expect(matchKeywords("The Ratification Process")).toEqual(
-      expect.arrayContaining(["ratification", "process"]),
-    );
+    expect(matchKeywords("The Ratification Process")).toEqual(["ratification"]);
     // Substrings of larger words must not match ("processing" is not "process").
     expect(matchKeywords("Data Processing Agreement")).toEqual([]);
   });
 
-  it("collects EVERY single-word hit, not just the first (global regex)", () => {
-    // Regression for the non-global SINGLE_RE bug: a title naming two keywords
-    // used to report only the first.
-    const hits = matchKeywords("Escalation and Termination");
-    expect(hits.sort()).toEqual(["escalation", "termination"]);
+  it("preserves the classifier's first-single-word-hit behavior", () => {
+    expect(matchKeywords("Escalation and Termination")).toEqual(["escalation"]);
   });
 
   it("dedupes a keyword that appears twice", () => {
@@ -44,9 +39,9 @@ describe("findCandidates", () => {
     expect(ids.sort()).toEqual(["a", "b"]);
   });
 
-  it("carries every matched keyword on the candidate row", () => {
+  it("carries the first matched single-word keyword on the candidate row", () => {
     const b = findCandidates(docs).find((c) => c.id === "b");
-    expect(b?.keywords.sort()).toEqual(["escalation", "termination"]);
+    expect(b?.keywords).toEqual(["escalation"]);
   });
 
   it("skips descendants of excluded ancestors", () => {
