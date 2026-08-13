@@ -100,6 +100,7 @@ export function diffText(older, newer, { max = 40 } = {}) {
 
 // Structured evidence (DiffLine[] with ±context, capped) if a caller wants to render it
 // like the rest of the history UI rather than the plain text block above.
+/** @lintignore — deliberate seam for a future caller, not called by any pipeline script yet. */
 export function diffLines(older, newer, { max = 24 } = {}) {
   return capDiff(lineDiff(older?.content || "", newer?.content || ""), max);
 }

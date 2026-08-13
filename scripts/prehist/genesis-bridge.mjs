@@ -3,7 +3,7 @@
 // bridged genesis doc to its ACTUAL uuid — not a heuristic (docNo|title) join against
 // the frozen JSON artifact (which silently assumes event order matches node order for
 // colliding keys), but the same real backward-threading the html-era pipeline runs
-// (scripts/htmlhist/run-thread.mjs), so root's uuids are byte-identical to what
+// (scripts/lib/run-thread.mjs), so root's uuids are byte-identical to what
 // atlas_history already carries. See docs/plans/pre-git-history.md, "ride-along
 // decisions" and Phase A pre-flight Gates 1/2.
 //
@@ -13,10 +13,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { parseHtmlToNodes } from "../htmlhist/atlas-html.mjs";
-import { matchNodes, uuidv5 } from "../htmlhist/history-identity.mjs";
-import { sameDocScore, findContainer } from "../htmlhist/ordered-containment.mjs";
-import { threadHtmlEra } from "../htmlhist/run-thread.mjs";
+import { parseHtmlToNodes } from "../lib/atlas-html.mjs";
+import { matchNodes, uuidv5 } from "../lib/history-identity.mjs";
+import { sameDocScore, findContainer } from "../lib/ordered-containment.mjs";
+import { threadHtmlEra } from "../lib/run-thread.mjs";
 
 const ROOT = process.cwd();
 export const GENESIS_HTML_PATH = path.join(ROOT, "scripts/aux/atlas-history/recovered/genesis-2024-09-02.html");

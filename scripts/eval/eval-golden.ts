@@ -1,6 +1,6 @@
 // Golden-question regression harness for the in-app chatbot (Phase 4 of
 // docs/plans/chatbot-readiness-remediation-plan.md). Runs each fixture in
-// scripts/aux/eval-golden-questions.ts through the SAME tool-calling loop the
+// scripts/eval/eval-golden-questions.ts through the SAME tool-calling loop the
 // live chat uses (runChat + the real ATLAS_TOOLS registry + a real OpenRouter
 // stream), grades the transcript with the pure rubric in eval-golden-grade.ts,
 // and writes a report capturing model, atlas commit, tool calls, and outcome —
@@ -9,7 +9,7 @@
 //   pnpm eval:golden               run the full set
 //   pnpm eval:golden --only <id>   run one fixture (repeatable)
 //   pnpm eval:golden --json        machine-readable output only (still writes the report file)
-//   pnpm eval:golden --save-evidence   also write scripts/aux/eval-corpora/evidence/<id>.json
+//   pnpm eval:golden --save-evidence   also write scripts/eval/eval-corpora/evidence/<id>.json
 //     ({question, answer, evidence}) per PASSING run — the verifier eval's
 //     input corpus (pnpm eval:verifier mutates these saved turns)
 //
@@ -38,7 +38,7 @@ const REPORT_PATH = path.join(ROOT, ".cache", "eval-golden.json");
 const argv = process.argv.slice(2);
 const JSON_ONLY = argv.includes("--json");
 const SAVE_EVIDENCE = argv.includes("--save-evidence");
-const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "aux", "eval-corpora", "evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "eval", "eval-corpora", "evidence");
 const ONLY = new Set(
   argv.flatMap((a, i) => (a === "--only" && argv[i + 1] ? [argv[i + 1]] : [])),
 );

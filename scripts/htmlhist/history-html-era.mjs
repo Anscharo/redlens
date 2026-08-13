@@ -5,7 +5,7 @@
 //
 // A "commit" is { sha, seq, nodes } where nodes are §3 atlas-html nodes.
 
-import { matchNodes, syntheticUuid, isSynthetic } from "./history-identity.mjs";
+import { matchNodes, syntheticUuid, isSynthetic } from "../lib/history-identity.mjs";
 import { diffEditsMap } from "./history-diff.mjs";
 import { positionalSeed } from "./seed-positional.mjs";
 

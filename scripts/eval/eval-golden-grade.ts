@@ -1,7 +1,7 @@
 // Pure grading logic for the golden-question chatbot eval (Phase 4 of
 // docs/plans/chatbot-readiness-remediation-plan.md). No network/DB/Bun-SQL
 // dependency — this file is imported by both the live runner
-// (scripts/aux/eval-golden.ts) and its unit tests, and runs fine under vitest.
+// (scripts/eval/eval-golden.ts) and its unit tests, and runs fine under vitest.
 import { CITATION_SRC } from "../../src/server/chat/verify/verify-checks.ts";
 
 export type GoldenOutcome = "answered" | "partial" | "honest_decline" | "hallucinated" | "truncated" | "tool_failure";

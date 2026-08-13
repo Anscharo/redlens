@@ -15,8 +15,8 @@
 // the matcher missed (a false birth/death), NOT a lineage event — those are a separate
 // matcher-recall concern, so we don't mislabel them as splits/merges here.
 
-import { matchNodes } from "./history-identity.mjs";
-import { findContainer } from "./ordered-containment.mjs";
+import { matchNodes } from "../lib/history-identity.mjs";
+import { findContainer } from "../lib/ordered-containment.mjs";
 
 const ntitle = (s) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
