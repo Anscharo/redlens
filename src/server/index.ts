@@ -78,8 +78,9 @@ export const NOT_FOUND = () => new Response(null, { status: 404 });
 // Generated OG card images. Two routes:
 //   /api/og/<uuid|doc_no>.png[?preview=<label>] — a document card (resolved
 //     from the in-memory indexes; `preview` marks a doc viewed inside a preview)
-//   /api/og.png?kind=…&…                        — a route card (radar, reports,
-//     report, connect, preview, default) rendered from query params, no lookup
+//   /api/og.png?kind=…&…                        — a route card (radar, radar-actor,
+//     reports, report, connect, preview, default — see QueryCardSpec in
+//     og-image.ts) rendered from query params, no lookup
 // Both memoize via og-image.ts and fall back to the static site icon so
 // og:image always resolves to a real image for the crawler.
 //
