@@ -33,6 +33,9 @@ export default defineConfig({
         "src/test/**",
         "src/vite-env.d.ts",
         "src/server/migrations/**",
+        // Offline one-off eval tooling, not shippable code — explicitly out of
+        // coverage even though the include patterns above don't reach it today.
+        "scripts/aux/eval-smalltalk-judge.ts",
       ],
     },
     // src/server runs under `bun test` (it imports Bun's SQL, absent in node-vitest).

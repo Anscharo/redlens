@@ -5,6 +5,7 @@
   "ignore": [
     "vendor/**",
     "scripts/aux/ab-parse-check.mjs",
+    "scripts/aux/eval-smalltalk-judge.ts",
     "scripts/aux/test-addresses.mjs",
     "scripts/aux/unlabeled-addresses.mjs"
   ],
