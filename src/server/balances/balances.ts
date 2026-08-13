@@ -5,6 +5,7 @@
 //          POST inside the window just returns the cache with refreshed:false.
 // Balances are written only here — never by sync (see migration 015).
 import { sql } from "../db.ts";
+import { json } from "../http.ts";
 import { REFRESH_INTERVAL_MS, refreshAllowed, type BalancesResponse, type BalanceMap } from "../../lib/balances.ts";
 import { fetchBalances, type AddressInput } from "./fetch-balances.ts";
 
@@ -135,9 +136,11 @@ export async function handleBalances(req: Request): Promise<Response> {
       if (!inFlight) inFlight = doRefresh().finally(() => { inFlight = null; });
       return Response.json(await inFlight);
     }
-    return new Response("Method Not Allowed", { status: 405 });
+    // Statuses unchanged; bodies now carry the shared `{ error }` envelope
+    // (http.ts) so a client reads one shape across every API route.
+    return json({ error: "method_not_allowed" }, 405);
   } catch (e) {
     console.error(`balances: ${(e as Error).message}`);
-    return new Response(null, { status: 503 });
+    return json({ error: "unavailable" }, 503);
   }
 }

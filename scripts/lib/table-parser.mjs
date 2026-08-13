@@ -3,6 +3,7 @@
  */
 
 import { ETH_ADDR_RE } from "./address-chains.mjs";
+import { MD_URL_RE } from "./graph-patterns.mjs";
 
 /**
  * Parse a markdown table from Atlas node content.
@@ -51,6 +52,6 @@ export function extractEthAddresses(cell) {
 
 /** Extract the first URL from a markdown cell (from a [text](url) link). */
 export function extractUrl(cell) {
-  const m = cell.match(/\((https?:\/\/[^)]+)\)/);
+  const m = cell.match(MD_URL_RE);
   return m ? m[1] : null;
 }

@@ -8,12 +8,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ATLAS_TOOLS } from "../../src/server/chat/tools/tool-registry.ts";
+import { codeUnitCompare } from "../lib/natural-sort.mjs";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 const OUT = path.join(ROOT, "public", "tools.json");
 
 const tools = ATLAS_TOOLS.map((t) => ({ name: t.name, desc: t.description })).sort((a, b) =>
-  a.name.localeCompare(b.name),
+  codeUnitCompare(a.name, b.name),
 );
 
 fs.writeFileSync(OUT, JSON.stringify(tools, null, 2));

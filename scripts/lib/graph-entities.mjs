@@ -57,27 +57,45 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     return entityMap.get(slugify(name));
   }
 
+  // Doc_nos are editorial labels that move on every atlas renumber, so a
+  // bootstrap's defining_doc_no is derived from its (stable) UUID rather than
+  // written out beside it. Warns rather than silently shipping the field absent
+  // — the UUID going missing means the atlas dropped or replaced the document.
+  function definingDocNo(uuid, what) {
+    const docNo = docById.get(uuid)?.doc_no;
+    if (!docNo) console.warn(`  [drift] ${what}: defining doc ${uuid} not found in atlas`);
+    return docNo;
+  }
+
   // --- 1a. Bootstrap entities (Pattern 13) ---
   // Sky Core / Sky Governance — targets of role edges; no defining doc.
   const skyCore = addEntity("sky-core", "Sky Core", "operational_party", null, null, {
     source: "bootstrap",
   });
+  const SKY_GOVERNANCE_DOC_UUID = "18ac7dd3-c646-4352-9b0d-d01a2932d7d1"; // A.1
   addEntity(
     "sky-governance",
     "Sky Governance",
     "governance_body",
     null,
-    "18ac7dd3-c646-4352-9b0d-d01a2932d7d1",
-    { source: "bootstrap", defining_doc_no: "A.1" },
+    SKY_GOVERNANCE_DOC_UUID,
+    {
+      source: "bootstrap",
+      defining_doc_no: definingDocNo(SKY_GOVERNANCE_DOC_UUID, "sky-governance"),
+    },
   );
   // Support Facilitators — role defined at A.2.10.1.1; no named current holder in Atlas.
+  const SUPPORT_FACILITATORS_DOC_UUID = "aeb75fe3-f52b-4cdf-a206-1e54ef648d88"; // A.2.10.1.1
   addEntity(
     "support-facilitators",
     "Support Facilitators",
     "governance_body",
     null,
-    "aeb75fe3-f52b-4cdf-a206-1e54ef648d88",
-    { source: "bootstrap", defining_doc_no: "A.2.10.1.1" },
+    SUPPORT_FACILITATORS_DOC_UUID,
+    {
+      source: "bootstrap",
+      defining_doc_no: definingDocNo(SUPPORT_FACILITATORS_DOC_UUID, "support-facilitators"),
+    },
   );
 
   // --- 1b. Prime Agents (Pattern 1) ---
@@ -432,10 +450,11 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     }
   }
 
-  // --- 1i. Primitive Instance entities (Pattern: per-agent ICD → entity) ---
+  // --- 1n. Primitive Instance entities (Pattern: per-agent ICD → entity) ---
   const childrenByDocNo = buildChildrenIndex(allDocs);
   const knownPrimitives = buildKnownPrimitives(docById);
 
+  // fragile: doc_no prefix — the Prime Agent artifacts root (A.6.1.1)
   for (const icd of allDocs.filter((d) => isICD(d) && d.doc_no.startsWith("A.6.1.1."))) {
     const primRoot = primitiveRootFor(icd, docByDocNo);
     if (!primRoot) continue;
@@ -477,7 +496,7 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     ent.id = icd.id;
   }
 
-  // --- 1j. Primitive entities (per-agent primitive root → entity) ---
+  // --- 1o. Primitive entities (per-agent primitive root → entity) ---
   // One entity per (agent, primitive) — emitted whether or not the primitive
   // has instances. Status comes from the Primitive Hub Document's Global
   // Activation Status leaf.
@@ -523,7 +542,5 @@ export function extractEntities(allDocs, docById, docByDocNo, addressesRaw) {
     ergMemberNames,
     accordPartyDocsByAccordDocNo,
     resolveAccordMember,
-    childrenByDocNo,
-    roleBindingTitles,
   };
 }

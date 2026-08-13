@@ -287,7 +287,11 @@ describe("ogFallback", () => {
 });
 
 describe("handleRequest — CORS preflight", () => {
-  it("answers OPTIONS with a bare 204 + CORS headers, for any path", async () => {
+  // "Any path that reaches this function" — i.e. everything except the Bun
+  // `routes` entries, which match before `fetch` for every method and are
+  // same-origin only by design (index-boot.test.ts asserts they answer no
+  // preflight; index.ts's OPTIONS branch explains why).
+  it("answers OPTIONS with a bare 204 + CORS headers, for any path handled by the fetch fallback", async () => {
     const req = new Request("http://localhost/anything-at-all", { method: "OPTIONS" });
     const res = await handleRequest(req, stubServer);
     expect(res.status).toBe(204);

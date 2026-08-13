@@ -30,6 +30,14 @@ beforeEach(() => {
 });
 
 describe("analytics (disabled — no VITE_POSTHOG_KEY)", () => {
+  beforeEach(() => {
+    // Hermetic: a developer's .env.local commonly sets a real VITE_POSTHOG_KEY,
+    // which Vite loads into import.meta.env for every test run regardless of
+    // this suite's intent. Force it unset so analyticsEnabled reflects "no key"
+    // on every machine, not just ones with a bare checkout.
+    vi.stubEnv("VITE_POSTHOG_KEY", undefined);
+  });
+
   it("analyticsEnabled is false and every call is a silent no-op", async () => {
     const a = await freshModule();
     expect(a.analyticsEnabled).toBe(false);

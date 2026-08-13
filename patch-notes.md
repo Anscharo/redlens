@@ -34,6 +34,9 @@
 -->
 
 
+## 2026-08-13
+- Fixed the reader's "cited by" and relations lists staying empty for the rest of a session after a failed load
+
 ## 2026-08-12
 - Search result ICD tags now spell out "Instance Configuration Document for X" on hover, instead of repeating the tag
 - Address hover tooltips now show a shortened link to the block explorer page they'll open

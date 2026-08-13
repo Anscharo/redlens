@@ -100,9 +100,32 @@ const rows: OGResponsibility[] = [
   },
 ];
 
+// A.0.1.1.47 is the real GovOps section doc_no as of this writing, but the
+// point of this fixture is to be something ELSE — it proves the intro link's
+// label is resolved from loaded docs data (doc_no), not a hardcoded literal.
+const INTRO_DOC_UUID = "1e73ee4b-823d-406a-af54-223b43bc8e42";
+const INTRO_DOC_NO = "A.9.9";
+
 vi.mock("../../lib/docs", () => ({
   loadAtlas: () =>
-    Promise.resolve({ docs: {}, byParent: new Map(), docNoToId: new Map(), atlasCommit: null }),
+    Promise.resolve({
+      docs: {
+        [INTRO_DOC_UUID]: {
+          id: INTRO_DOC_UUID,
+          doc_no: INTRO_DOC_NO,
+          title: "GovOps",
+          type: "Core",
+          depth: 5,
+          parentId: null,
+          content: "",
+          order: 0,
+          addressRefs: [],
+        },
+      },
+      byParent: new Map(),
+      docNoToId: new Map(),
+      atlasCommit: null,
+    }),
 }));
 vi.mock("../../lib/graph", () => ({ loadGraph: () => Promise.resolve(graphFixture) }));
 vi.mock("../../lib/govopsResponsibilities", async (importOriginal) => {
@@ -243,5 +266,12 @@ describe("OGReport", () => {
     expect(await screen.findByText("3 responsibilities")).toBeInTheDocument();
     const summary = document.querySelector(".filter-summary");
     expect(within(summary as HTMLElement).getByText("Prime One")).toBeInTheDocument();
+  });
+
+  it("resolves the intro link label from loaded docs data, not a hardcoded doc_no", async () => {
+    render(<OGReport query="" mode="broad" />);
+    await screen.findByText("Duty A");
+    const link = screen.getByRole("link", { name: `${INTRO_DOC_NO} GovOps ↗` });
+    expect(link).toHaveAttribute("href", `/atlas?id=${INTRO_DOC_UUID}`);
   });
 });

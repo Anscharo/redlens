@@ -10,13 +10,14 @@
 // SDK's generation-event schema, which the minimal anonymous capture path avoids on
 // purpose — so it gets its own client rather than bending either of those.
 //
-// Same non-secret POSTHOG_KEY as posthog-capture.ts (PostHog has no separate server
-// key). Absent → getPosthog() returns null and llm.ts falls back to the plain,
-// un-instrumented OpenAI client — a silent no-op, never an error.
+// Same non-secret POSTHOG_KEY as posthog-capture.ts (shared parse —
+// posthog-env.ts; PostHog has no separate server key). Absent → getPosthog()
+// returns null and llm.ts falls back to the plain, un-instrumented OpenAI
+// client — a silent no-op, never an error.
 import { PostHog } from "posthog-node";
+import { readPosthogEnv } from "./posthog-env.ts";
 
-const KEY = process.env.POSTHOG_KEY ?? "";
-const HOST = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
+const { key: KEY, host: HOST } = readPosthogEnv();
 
 // undefined = not yet resolved; null = resolved-but-disabled (no key). The tri-state
 // lets a keyless process cache the "off" decision instead of re-checking each call.

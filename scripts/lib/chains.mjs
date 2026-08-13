@@ -69,16 +69,6 @@ export const CHAIN_HINT_SPECS = [
     exclusions: c.proseHintExclusions ?? {},
   }));
 
-/** Block-explorer base per chain, including the trailing path segment. */
-export const CHAIN_EXPLORER = Object.fromEntries(
-  REGISTRY.chains.filter((c) => c.explorer).map((c) => [c.chain, c.explorer]),
-);
-
-/** Native gas token per chain. Absent for solana, which has no EVM path. */
-export const CHAIN_NATIVE_TOKEN = Object.fromEntries(
-  REGISTRY.chains.filter((c) => c.nativeToken).map((c) => [c.chain, c.nativeToken]),
-);
-
 const DEFAULT_CHAIN = "ethereum";
 
 /**

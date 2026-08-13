@@ -27,5 +27,3 @@ export interface ChainHintSpec {
   exclusions: Record<string, string[]>;
 }
 export const CHAIN_HINT_SPECS: ChainHintSpec[];
-export const CHAIN_EXPLORER: Record<string, string>;
-export const CHAIN_NATIVE_TOKEN: Record<string, { symbol: string; decimals: number }>;

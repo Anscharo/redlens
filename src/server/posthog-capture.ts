@@ -4,15 +4,16 @@
 // API, mirroring analytics.ts's philosophy (anonymous, IP-free, minimal payload)
 // rather than pulling in the posthog-node SDK.
 //
+import { readPosthogEnv } from "./posthog-env.ts";
+
 // No-op unless POSTHOG_KEY is set. This is a RUNTIME env var, distinct from the
 // frontend's build-time VITE_POSTHOG_KEY (Vite inlines VITE_* at build time; a
 // long-running Bun service needs it in the actual process env — see
 // .env.example). The value is the same non-secret project API key ("phc_...")
 // used client-side; PostHog does not have a separate "server" key for capture.
-const KEY = process.env.POSTHOG_KEY ?? "";
-// Same POSTHOG_HOST override as posthog-node.ts, so the two server paths can't
-// point at different PostHog regions.
-const HOST = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
+// Same POSTHOG_HOST override as posthog-node.ts (shared parse — posthog-env.ts),
+// so the two server paths can't point at different PostHog regions.
+const { key: KEY, host: HOST } = readPosthogEnv();
 const CAPTURE_URL = `${HOST.replace(/\/$/, "")}/i/v0/e/`;
 
 export const serverAnalyticsEnabled = Boolean(KEY);

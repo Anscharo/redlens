@@ -19,22 +19,17 @@
 // 8) to its canonical A.2.8.2.N accord doc, which is itself linked to the party
 // entity via `ecosystem_accord` (Pattern 4). A new edge would be redundant.
 
+import { MD_URL_RE, makeWarn } from "./graph-patterns.mjs";
+
 const FORUM_CATEGORY_RE = /use the ['"“”]([^'"“”]+)['"“”]\s+category/i;
-const MD_URL_RE = /\((https?:\/\/[^)]+)\)/;
 const PLACEHOLDER_RE = /will be specified in a future iteration/i;
 
 // Direct children of a Governance Information node (A.6.1.1.X.3.1).
 const GOV_INFO_RE = /^A\.6\.1\.1\.\d+\.3\.1\.\d+$/;
 
 export function extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges) {
-  let channels = 0;
-  let emergencies = 0;
-  let warnings = 0;
-
-  const warn = (msg) => {
-    warnings++;
-    console.warn(`  [omni] ${msg}`);
-  };
+  const stats = { channels: 0, emergencies: 0, warnings: 0 };
+  const warn = makeWarn("  [omni]", stats);
 
   // Resolve the Prime Agent entity owning a doc_no under A.6.1.1.X.
   const primeAgentFor = (docNo) => {
@@ -80,7 +75,7 @@ export function extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges) 
         sourceDocNos: [d.doc_no],
         meta: JSON.stringify(meta),
       });
-      channels++;
+      stats.channels++;
     } else {
       const scope = /^Sky Ecosystem/i.test(title) ? "ecosystem" : "agent_specific";
       const status = PLACEHOLDER_RE.test(d.content ?? "") ? "placeholder" : "specified";
@@ -93,9 +88,9 @@ export function extractOmni(allDocs, docById, docByDocNo, entityByDocId, edges) 
         sourceDocNos: [d.doc_no],
         meta: JSON.stringify({ scope, status }),
       });
-      emergencies++;
+      stats.emergencies++;
     }
   }
 
-  return { channels, emergencies, warnings };
+  return stats;
 }

@@ -32,6 +32,12 @@ export interface BundleStore {
   requireMeta: boolean;
 }
 
+// NOT routed through config.ts: preview/handler.test.ts sets
+// process.env.PREVIEW_DIR at its OWN top level (before config.ts, which is
+// imported far earlier by nearly every other server test file, would have any
+// chance to re-observe it) and relies on THIS module's own first-import timing
+// to pick up the override. Going through config.ts would freeze the value at
+// config.ts's own (much earlier) first import instead.
 export const PREVIEW_DIR = process.env.PREVIEW_DIR ?? "/tmp/previews";
 
 // Atlas-derived artifacts only. addresses.json + chain-state.json are on-chain /
@@ -77,7 +83,7 @@ export const MAIN_STORE: BundleStore = {
 export const PREVIEW_STORE: BundleStore = {
   root: PREVIEW_DIR,
   artifactSubdir: "out",
-  keep: Number(process.env.PREVIEW_CACHE_KEEP ?? 20),
+  keep: config.previewCacheKeep,
   allowlist: PREVIEW_ALLOWLIST,
   requireMeta: true,
 };

@@ -1,11 +1,14 @@
+import { config } from "../config.ts";
+
 // Shared output-size guard. MCP clients have a bounded context window, so a
 // single 300–600KB tool response overflows the very assistant that called it
 // (observed on atlas_entity / atlas_entity_params for Prime Agents). Every
 // tool that emits a content-bearing array runs it through fitToBudget, which
 // greedily keeps items while the running serialized size stays under a byte
 // budget, then reports `truncated` so the caller can page or narrow instead of
-// blowing up. Budget counts chars of JSON (~1 byte each); tune via env.
-export const MAX_RESULT_CHARS = Number(process.env.MCP_MAX_RESULT_CHARS ?? 200_000);
+// blowing up. Budget counts chars of JSON (~1 byte each); tune via env
+// (MCP_MAX_RESULT_CHARS, parsed in config.ts).
+export const MAX_RESULT_CHARS = config.mcpMaxResultChars;
 
 export const TRUNCATION_HINT =
   "Results truncated to fit context. Narrow with a type/filter or page with limit/offset (or fetch specific ids).";

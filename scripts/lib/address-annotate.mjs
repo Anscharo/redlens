@@ -11,7 +11,11 @@
  *   3. expectedTokens — text-derived guess at which ERC20s this address holds
  */
 
-import { annotationWindow } from "./address-chains.mjs";
+import {
+  annotationWindow,
+  ETH_ADDR_EXACT_RE,
+  SOL_ADDR_EXACT_RE,
+} from "./address-chains.mjs";
 
 // Closed-vocabulary structural role tags. Each address collects every tag whose
 // pattern fires within the annotation window. Affiliation tags (sky, spark,
@@ -112,7 +116,7 @@ function cleanCellLabel(cell) {
 }
 
 function looksLikeAddress(val) {
-  return /^0x[0-9a-fA-F]{40}$/.test(val) || /^[1-9A-HJ-NP-Za-km-z]{43,44}$/.test(val);
+  return ETH_ADDR_EXACT_RE.test(val) || SOL_ADDR_EXACT_RE.test(val);
 }
 function looksLikeNumber(val) {
   return /^[0-9.,%$]+$/.test(val);

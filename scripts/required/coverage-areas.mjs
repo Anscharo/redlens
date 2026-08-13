@@ -237,6 +237,51 @@ function fmtDelta(value) {
   return `${sign}${value.toFixed(2)} pts`;
 }
 
+// Merge per-runner LCOV reports. For a file that several runners recorded, the
+// runner that actually EXERCISED it (greatest total hits) is authoritative for
+// which lines are executable; hits still sum across every runner, but only over
+// that authoritative line set. The reason is the same failure class isLogicLine()
+// documents for comments: a runner that merely IMPORTED the file (bun reaching
+// src/lib via a src/server import) emits DA:0 rows for lines the exercising
+// runner's instrumentation doesn't consider executable at all — `export function`
+// headers, multi-line condition continuations — and a naive union manufactures
+// permanently-uncovered lines out of fully tested code. A file only one runner
+// recorded keeps that runner's lines untouched.
+export function mergeLcovReports(reports) {
+  const perFile = new Map();
+  for (const report of reports) {
+    for (const [file, lines] of report) {
+      if (!perFile.has(file)) perFile.set(file, []);
+      perFile.get(file).push(lines);
+    }
+  }
+  const merged = new Map();
+  for (const [file, fileReports] of perFile) {
+    if (fileReports.length === 1) {
+      merged.set(file, fileReports[0]);
+      continue;
+    }
+    let authoritative = fileReports[0];
+    let bestTotal = -1;
+    for (const lines of fileReports) {
+      let total = 0;
+      for (const hits of lines.values()) total += hits;
+      if (total > bestTotal) {
+        bestTotal = total;
+        authoritative = lines;
+      }
+    }
+    const out = new Map();
+    for (const lineNo of authoritative.keys()) {
+      let sum = 0;
+      for (const lines of fileReports) sum += lines.get(lineNo) ?? 0;
+      out.set(lineNo, sum);
+    }
+    merged.set(file, out);
+  }
+  return merged;
+}
+
 function parseLcov(text) {
   const byFile = new Map();
   let file = null;
@@ -323,19 +368,9 @@ if (missingLcov.length) {
   process.exit(1);
 }
 
-const lcov = new Map();
-for (const lcovPath of lcovPaths) {
-  for (const [file, lines] of parseLcov(readFileSync(lcovPath, "utf8"))) {
-    if (!lcov.has(file)) {
-      lcov.set(file, lines);
-      continue;
-    }
-    const existing = lcov.get(file);
-    for (const [lineNo, hits] of lines) {
-      existing.set(lineNo, (existing.get(lineNo) ?? 0) + hits);
-    }
-  }
-}
+const lcov = mergeLcovReports(
+  lcovPaths.map((lcovPath) => parseLcov(readFileSync(lcovPath, "utf8"))),
+);
 const changed = changedLines();
 const summary = Object.fromEntries(areas.map((area) => [area.id, { ...area, covered: 0, total: 0, changedCovered: 0, changedTotal: 0 }]));
 summary.uncategorized = { id: "uncategorized", label: "Uncategorized", covered: 0, total: 0, changedCovered: 0, changedTotal: 0 };
