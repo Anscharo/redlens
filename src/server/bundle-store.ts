@@ -40,8 +40,10 @@ export interface BundleStore {
 // config.ts's own (much earlier) first import instead.
 export const PREVIEW_DIR = process.env.PREVIEW_DIR ?? "/tmp/previews";
 
-// Atlas-derived artifacts only. addresses.json + chain-state.json are on-chain /
-// shared (not atlas-versioned) and stay flat under BASE_URL; preview reuses main's.
+// Atlas-derived artifacts only. On-chain data is shared, not atlas-versioned, so
+// it stays outside this store and preview reuses main's: addresses.json is flat
+// under BASE_URL, and the contract-state snapshot is served from /api/chain-state
+// (a Postgres row, not a file — migration 020).
 // docs.json stays bundled as the bundleReady core + diff source; the browser
 // fetches docs-shallow.json (depth ≤ 5, first paint) + docs-deep.json (depth > 5,
 // background) instead — see docs/plans/docs-split.md. Report views that join

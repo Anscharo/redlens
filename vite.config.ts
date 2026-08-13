@@ -190,7 +190,6 @@ export default defineConfig(() => {
           "**/addresses.json",
           "**/addresses.atlas.json",
           "**/relations.json",
-          "**/chain-state.json",
           "**/history/**",
         ],
         // navigateFallback disabled (vite-plugin-pwa defaults it to "index.html").
@@ -218,11 +217,14 @@ export default defineConfig(() => {
             },
           },
           {
-            // Flat, NON-atlas-versioned files (addresses.json, chain-state.json,
-            // manifest.json): network-first (fast to fetch, worth having fresh).
-            // glossary.json is now sha-keyed → caught by the CacheFirst rule above,
-            // so it's deliberately absent here.
-            urlPattern: /\/(addresses(?:\.atlas)?|chain-state|manifest)\.json$/,
+            // Flat, NON-atlas-versioned files (addresses.json, manifest.json):
+            // network-first (fast to fetch, worth having fresh). glossary.json is
+            // now sha-keyed → caught by the CacheFirst rule above, so it's
+            // deliberately absent here. The chain-state snapshot left this rule
+            // when it stopped being a file: /api/chain-state is a DB read, and no
+            // /api/* route is SW-cached (a cached snapshot would be a stale-data
+            // bug, not a speedup).
+            urlPattern: /\/(addresses(?:\.atlas)?|manifest)\.json$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "atlas-data-small",

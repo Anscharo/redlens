@@ -1,9 +1,9 @@
 // Preview build isolation + branch-new-address tolerance (step 2).
 //
 // Exercises the exact path a preview build takes: run build-index then
-// build-graph into a private ATLAS_OUT_DIR, reusing main's on-chain artifacts
-// (addresses.json / chain-state.json) from public/ via ATLAS_ONCHAIN_DIR, and
-// stamping a known SHA via ATLAS_COMMIT. Guards two things at once:
+// build-graph into a private ATLAS_OUT_DIR, reusing main's on-chain artifact
+// (addresses.json) from public/ via ATLAS_ONCHAIN_DIR, and stamping a known SHA
+// via ATLAS_COMMIT. Guards two things at once:
 //
 //   1. Isolation — an isolated build never writes to public/ (the live artifacts
 //      the singleton server serves).
@@ -38,7 +38,6 @@ const haveInputs =
   fs.existsSync(path.join(SRC, "content")) &&
   fs.existsSync(path.join(PUBLIC, "docs.json")) &&
   fs.existsSync(path.join(PUBLIC, "addresses.json")) &&
-  fs.existsSync(path.join(PUBLIC, "chain-state.json")) &&
   fs.existsSync(path.join(PUBLIC, "glossary.json"));
 
 describe.runIf(haveInputs)("preview build isolation", () => {
