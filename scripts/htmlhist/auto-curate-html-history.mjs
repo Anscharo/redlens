@@ -26,6 +26,7 @@ import { runAutoCurate } from "./auto-curate-run.mjs";
 import { writeAutoDecisions, reportAutoCuration, writeProposals, loadLlmCache, writeLlmCache } from "./auto-curate-io.mjs";
 import { proposePredecessor, proposeClusterAssignment } from "../../src/server/history/history-curate.ts";
 import { config } from "../../src/server/config.ts";
+import { CURATION_FRONTIER_MODEL, CURATION_CLUSTER_MODELS, CURATION_SELECTOR_MODEL } from "./curation-models.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");
@@ -36,7 +37,7 @@ const PROPOSALS_OUT = path.resolve(ROOT, arg("--proposals-out") || "public/histo
 const CACHE_OUT = path.resolve(ROOT, arg("--cache") || "public/history-curation-llm-cache.json");
 const NO_CACHE = process.argv.includes("--no-cache");
 const MEASURE = process.argv.includes("--measure");
-const FRONTIER_MODEL = arg("--frontier-model") || config.curationFrontierModel;
+const FRONTIER_MODEL = arg("--frontier-model") || CURATION_FRONTIER_MODEL;
 const opts = {
   noLlm: process.argv.includes("--no-llm"),
   containment: !process.argv.includes("--no-containment"),
@@ -75,7 +76,7 @@ const commits = shas.map((full, i) => {
 
 const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
 if (cache.size) log(`resuming from ${cache.size} cached asks`);
-const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({ data, commits, propose: proposePredecessor, proposeCluster: proposeClusterAssignment, clusterModels: config.curationClusterModels, haveKey: !!config.openrouterApiKey, ...opts, cache, cheapModel: config.curationSelectorModel, log });
+const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({ data, commits, propose: proposePredecessor, proposeCluster: proposeClusterAssignment, clusterModels: CURATION_CLUSTER_MODELS, haveKey: !!config.openrouterApiKey, ...opts, cache, cheapModel: CURATION_SELECTOR_MODEL, log });
 reportAutoCuration(data, decisions, summary);
 if (MEASURE) console.error("\n--measure: decisions NOT written.");
 else {

@@ -21,6 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { proposePredecessor } from "../../src/server/history/history-curate.ts";
 import { config } from "../../src/server/config.ts";
+import { CURATION_AUDIT_MODEL } from "./curation-models.mjs";
 import { loadLlmCache, writeLlmCache } from "./auto-curate-io.mjs";
 import { buildAuditItems, summarizeAudit } from "./audit-decisions.mjs";
 import { buildClaimIndex, enrichSubject, enrichCandidates } from "./curate-context.mjs";
@@ -33,7 +34,7 @@ const CACHE_OUT = path.resolve(ROOT, arg("--cache") || ".cache/audit-html-decisi
 const OUT_JSON = path.join(ROOT, ".cache/audit-html-disagreements.json");
 const OUT_MD = path.join(ROOT, ".cache/audit-html-disagreements.md");
 const LEDGER = path.join(ROOT, ".cache/audit-html-decisions.json");
-const MODEL = arg("--model") || config.curationAuditModel;
+const MODEL = arg("--model") || CURATION_AUDIT_MODEL;
 const LIMIT = arg("--limit") ? Number(arg("--limit")) : Infinity;
 const CONCURRENCY = arg("--concurrency") ? Math.max(1, Number(arg("--concurrency"))) : 6;
 const NO_CACHE = process.argv.includes("--no-cache");

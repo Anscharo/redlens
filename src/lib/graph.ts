@@ -160,9 +160,23 @@ function getWorker(): Worker {
   // message handler above can't see them — listen directly and fail the same way.
   w.addEventListener("error", (e) => {
     if (!isCurrent() || ready) return; // post-init errors surface via per-request timeouts
-    const err = new Error((e as ErrorEvent).message || "graph worker error");
+    // A worker-script load failure arrives as an opaque event with an EMPTY
+    // message (that is what PostHog issue 019fa971 was: an unactionable bare
+    // "graph worker error"). Keep the message a STABLE constant so error
+    // tracking groups every occurrence into one issue — the variable context
+    // (atlas base, which carries the sha) travels as extras, never in the
+    // message, where it would fork a fresh issue on every deploy.
+    const ev = e as ErrorEvent;
+    const err = new Error("graph worker script failed to load");
     console.error("[graph]", err.message);
-    captureException(err, { mechanism: "graph.worker" });
+    captureException(err, {
+      mechanism: "graph.worker",
+      phase: "init",
+      atlas_base: liveAtlasBase(),
+      ...(ev.message ? { worker_error: ev.message } : {}),
+      ...(ev.filename ? { worker_script: ev.filename } : {}),
+      ...(ev.lineno ? { lineno: ev.lineno } : {}),
+    });
     failWorker(err);
   });
 

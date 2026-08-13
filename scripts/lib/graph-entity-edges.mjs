@@ -1,5 +1,5 @@
 /**
- * Phase 2 entity + address edges (2i–2w) extraction for build-graph.
+ * Phase 2 entity + address edges (2i–2x) extraction for build-graph.
  *
  * Emits all entity-target relationships: prime_agent_for, executor_agent_for,
  * facilitator_for, govops_for, aligned/ranked delegate, holds_role,
@@ -20,6 +20,7 @@ import {
   rpRoleAndName,
   isDescriptiveRP,
   ALIGNED_DELEGATES_UUID,
+  UUID_LINK_RE,
 } from "./graph-patterns.mjs";
 import { DUTY_ROLES, findRoleDuties } from "./graph-duties.mjs";
 import { warnDriftCount } from "./graph-tripwires.mjs";
@@ -65,8 +66,6 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
   // Source: ICD parameter docs titled "Operational/Core Executor Agent" at
   // A.6.1.1.X.2.Z.2.N.1.1.1. Content cites the executor's defining doc. Walk parentId
   // chain to find the prime agent.
-  const UUID_LINK_RE =
-    /\[([^\]]*)\]\(([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)/gi;
   for (const paramDoc of allDocs.filter((d) =>
     /^(operational|core)(?: council)? executor agent$/i.test(d.title),
   )) {
@@ -619,7 +618,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     }
   }
 
-  // --- 2x. Org-to-org prose relations ---
+  // --- 2w. Org-to-org prose relations ---
   // Two conservative sentence shapes; an edge is emitted only when BOTH
   // endpoints resolve to existing entities (unresolved matches are logged,
   // never guessed — these are long-tail color, recall is deliberately low).
@@ -663,7 +662,7 @@ export function extractEntityEdges(allDocs, docById, docByDocNo, entityContext, 
     warnDriftCount("org-prose unresolved", skipped);
   }
 
-  // --- 2w. proxies_to (address → implementation address) ---
+  // --- 2x. proxies_to (address → implementation address) ---
   for (const [addr, info] of Object.entries(addressesRaw)) {
     if (info.implementation) {
       const chain = info.chain ?? "ethereum";

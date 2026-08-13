@@ -18,6 +18,7 @@
 // screen, fork banner, interstitial, and address warning.
 
 import { CANONICAL_REPO, type GhClient } from "./resolve.ts";
+import { config } from "../config.ts";
 
 export type TrustTier = "trusted" | "known" | "unknown" | "refused";
 
@@ -30,7 +31,7 @@ export interface Trust {
 
 export const TRUSTED_FORK_OWNERS = new Set(["Endgame-Edge", "Redline-Group"]);
 
-const MIN_ACCOUNT_AGE_DAYS = Number(process.env.PREVIEW_MIN_ACCOUNT_AGE_DAYS ?? 30);
+const MIN_ACCOUNT_AGE_DAYS = config.previewMinAccountAgeDays;
 
 /** Pure tier mapping — testable without GitHub. */
 export function tierFor(

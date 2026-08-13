@@ -2,6 +2,12 @@
  * ICD / primitive instance parameter extraction.
  */
 
+import {
+  ETH_ADDR_EXACT_RE,
+  ETH_ADDR_FIRST_RE,
+  SOL_ADDR_EXACT_RE,
+} from "./address-chains.mjs";
+
 const CURRENT_PRIMITIVES_UUID = "203b8c79-c7cf-4fcc-94e3-5bf42f791619";
 
 /**
@@ -117,10 +123,23 @@ const DIRECTORY_RE =
 // leaf title. Each takes the raw trimmed content and returns a cleaned string.
 // Fallback is backtick-unwrap + trim.
 const unwrapBt = (s) => s.match(/^`([^`\n]+)`\.?$/)?.[1] ?? s;
+// Both patterns come from address-chains, the canonical home: the backtick
+// branch tests the whole literal, and the fallback carries the hex-boundary
+// lookarounds so a 64-hex transaction hash (the atlas writes those in the same
+// backtick style) can no longer yield its leading 40 hex as an "address".
+// Preserve the formatter's historical 32–44 base58 acceptance separately:
+// these isolated ICD values are passed through, not classified as canonical
+// Solana addresses (whose shared pattern correctly remains 43–44 chars).
+const LEGACY_ICD_BASE58_EXACT_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const firstBtOrAddr = (s) => {
   const bt = s.match(/`([^`\n]+)`/)?.[1];
-  if (bt && (/^0x[0-9a-fA-F]{40}$/.test(bt) || /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(bt))) return bt;
-  return s.match(/0x[0-9a-fA-F]{40}/)?.[0] ?? s;
+  if (
+    bt &&
+    (ETH_ADDR_EXACT_RE.test(bt) ||
+      SOL_ADDR_EXACT_RE.test(bt) ||
+      LEGACY_ICD_BASE58_EXACT_RE.test(bt))
+  ) return bt;
+  return s.match(ETH_ADDR_FIRST_RE)?.[0] ?? s;
 };
 const stripSentence =
   (prefixRe, suffixRe = null) =>

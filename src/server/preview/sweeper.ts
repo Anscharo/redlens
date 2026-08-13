@@ -24,7 +24,7 @@ import { PREVIEW_DIR, bundleReady, readMeta, remove, evictLru } from "./cache.ts
 import { blockedShas } from "./db.ts";
 import { inflightShas } from "./build.ts";
 
-const GRACE_MS = Number(process.env.PREVIEW_SWEEP_GRACE_MS ?? 600_000);
+const GRACE_MS = config.previewSweepGraceMs;
 
 export interface SweepResult {
   blocked: number;

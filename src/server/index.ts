@@ -8,6 +8,7 @@
 import type { Server } from "bun";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { config } from "./config.ts";
+import { CORS } from "./http.ts";
 import { loadIndexes, getIndexes, resolveNode } from "./retrieval/indexes.ts";
 import { renderOgTags, defaultOgTags, isUnknownRoute } from "./og.ts";
 import { resolveOrigin } from "./reqOrigin.ts";
@@ -60,12 +61,11 @@ export function checkAuthConfig(): void {
   console.warn(`   redirect URI in use: ${config.appUrl}/api/auth/<provider>/callback`);
 }
 
-export const CORS: Record<string, string> = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "content-type, mcp-session-id, mcp-protocol-version, authorization",
-  "access-control-expose-headers": "mcp-session-id",
-};
+// Re-exported (not redeclared): http.ts is the single home for the header set,
+// which the preview handler and the route handlers share. Kept exported here
+// because this module's own tests — and every reader of the router — expect it
+// next to withCors below.
+export { CORS };
 
 export function withCors(res: Response): Response {
   const headers = new Headers(res.headers);
@@ -195,6 +195,16 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
     });
   }
 
+  // CORS preflight — for everything that reaches this function: the MCP
+  // endpoint (config.mcpPath, the one genuinely cross-origin consumer and the
+  // reason these headers exist at all), /api/preview/*, /api/atlas/*, /api/og*,
+  // and static files. It is NOT reached by the Bun `routes` entries in
+  // buildRoutes() — those match before `fetch`, for every method — and that is
+  // deliberate, not an oversight: history/balances/auth/chat/usage/collections/
+  // feedback are consumed only by the same-origin SPA (one service serves dist/
+  // and /api/*), so answering their preflight would hand cross-origin scripts
+  // an access nothing asks for. Kept AFTER health/freshness/SSE above so a
+  // stray OPTIONS still gets the real health body, as it always has.
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   // Funnel page loads / static GETs on non-canonical attached domains to the
@@ -364,12 +374,37 @@ export async function handleRequest(req: Request, server: Server<unknown>): Prom
 // — so they are only reachable through a live Bun.serve(). Built by a function
 // rather than an inline literal so the gating each entry applies (usersEnabled /
 // chatEnabled, and the auth path's canonical redirect) is assertable without
-// binding a socket: every handler here is an ordinary callable.
+// binding a socket: every handler here is an ordinary callable. Matching before
+// `fetch` for EVERY method also means no entry here ever sees handleRequest's
+// CORS preflight — deliberate: these are same-origin routes (see that branch).
 //
 // The delegated handlers themselves are unit-tested in their own files
 // (history.test.ts, mod-counts.test.ts, balances.test.ts, chat.test.ts,
 // collections.test.ts, …); what this table adds on top is the gating.
+export type RouteHandler = (req: Request) => Response | Promise<Response>;
+
+// Declares a route's feature gate exactly once, next to the handler it guards.
+// The gate is a thunk, not a boolean: config is mutable (tests flip
+// usersEnabled/chatEnabled at runtime) and buildRoutes() is called once at
+// boot, so the flag must be read per request — the same timing the inline
+// ternaries had. A gated route that's off answers 404, never a hint that the
+// endpoint exists. Nothing here answers a CORS preflight; see handleRequest's
+// OPTIONS branch for why that's deliberate.
+export function gated(enabled: () => boolean, handler: RouteHandler): RouteHandler {
+  return (req) => (enabled() ? handler(req) : NOT_FOUND());
+}
+
 export function buildRoutes() {
+  const usersOn = () => config.usersEnabled;
+  const chatOn = () => config.chatEnabled;
+  // OAuth must run on the canonical host (registered callback + host-only state
+  // cookie), so a sign-in started on any other attached domain is bounced to
+  // appUrl before the flow begins — see canonical.ts. The redirect composes
+  // OUTSIDE the gate and short-circuits first: on a non-canonical host the
+  // bounce must happen whether or not logins are enabled here.
+  const auth = gated(usersOn, (req) => handleAuth(req, new URL(req.url).pathname));
+  const collections = gated(usersOn, handleCollections);
+  const conversations = gated(chatOn, handleConversations);
   return {
     // Static segments win over the `:id` param route, so these match first.
     "/api/history/batch": { POST: (req: Request) => handleHistoryBatch(req) },
@@ -382,21 +417,18 @@ export function buildRoutes() {
 
     // Auth + collections need only a logged-in session (usersEnabled); chat +
     // usage additionally need chatEnabled (itself AND-gated by usersEnabled).
-    // OAuth must run on the canonical host (registered callback + host-only
-    // state cookie), so a sign-in started on any other attached domain is
-    // bounced to appUrl before the flow begins — see canonical.ts.
-    "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? (config.usersEnabled ? handleAuth(req, new URL(req.url).pathname) : NOT_FOUND()),
-    "/api/chat":   (req: Request) => config.chatEnabled ? handleChat(req) : NOT_FOUND(),
-    "/api/usage":  (req: Request) => config.chatEnabled ? handleUsage(req) : NOT_FOUND(),
-    "/api/chat/conversations":     (req: Request) => config.chatEnabled ? handleConversations(req) : NOT_FOUND(),
-    "/api/chat/conversations/:id": (req: Request) => config.chatEnabled ? handleConversations(req) : NOT_FOUND(),
+    "/api/auth/*": (req: Request) => canonicalRedirect(req) ?? auth(req),
+    "/api/chat":   gated(chatOn, handleChat),
+    "/api/usage":  gated(chatOn, handleUsage),
+    "/api/chat/conversations":     conversations,
+    "/api/chat/conversations/:id": conversations,
     // Public share read is unauthenticated (anyone with the link) — declared
     // before the auth-gated :id route so the more specific path wins.
-    "/api/collections/:id/shared": (req: Request) => config.usersEnabled ? handleSharedCollection(req) : NOT_FOUND(),
-    "/api/collections":     (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
-    "/api/collections/:id": (req: Request) => config.usersEnabled ? handleCollections(req) : NOT_FOUND(),
+    "/api/collections/:id/shared": gated(usersOn, handleSharedCollection),
+    "/api/collections":     collections,
+    "/api/collections/:id": collections,
     /* v8 ignore start -- request glue; handleFeedback is unit-tested directly in feedback.test.ts */
-    "/api/feedback": (req: Request) => config.feedbackEnabled ? handleFeedback(req) : NOT_FOUND(),
+    "/api/feedback": gated(() => config.feedbackEnabled, handleFeedback),
     /* v8 ignore stop */
   };
 }

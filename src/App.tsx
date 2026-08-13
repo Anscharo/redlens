@@ -8,7 +8,9 @@ import { useModifierKeyAttrs } from "./hooks/useModifierKeyAttrs";
 import { useContextHints } from "./hooks/useContextHints";
 import { track } from "./lib/analytics";
 import { useUrlState, urlString } from "./hooks/useUrlState";
-import { ROUTES, REPORT_SCOPE_CONFIG, type NavPage, type SearchScope } from "./lib/routes";
+import { ROUTES, REPORT_SCOPE_CONFIG, activeNavPageFor, usesWindowScroll, type SearchScope } from "./lib/routes";
+import { SIMPLE_ROUTES, RadarPage, SharedCollectionOpener, AdminEntry, lazyRetry } from "./lib/lazyRoutes";
+import { LEGACY_REDIRECTS, LEGACY_REDIRECT_PREFIXES } from "./lib/legacyRedirects";
 import { SearchBar } from "./components/SearchBar";
 import { SearchResults } from "./components/SearchResults";
 import { AtlasView } from "./components/atlas/AtlasView";
@@ -27,84 +29,10 @@ import { PreviewBanner } from "./components/preview/PreviewBanner";
 import { useDataSource } from "./lib/dataSource";
 import { chatEnabled } from "./lib/chatEnabled";
 
-// Retries a failed dynamic import once before propagating the error.
-// Silently handles transient "Failed to fetch dynamically imported module"
-// errors that occur when a chunk isn't cached yet on first navigation.
-function lazyRetry<T>(factory: () => Promise<T>): Promise<T> {
-  return factory().catch(() => factory());
-}
-
-const ConstellationsPage = lazy(() =>
-  lazyRetry(() => import("./components/ConstellationsPage")).then((m) => ({ default: m.ConstellationsPage })),
-);
-const OpFacilitatorsReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/OpFacilitatorsReport")).then((m) => ({ default: m.OFReport })),
-);
-const OpGovOpsReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/OpGovOpsReport")).then((m) => ({ default: m.OGReport })),
-);
-const ActiveDataReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/ActiveDataReport")).then((m) => ({ default: m.ActiveDataReport })),
-);
-const RewardsReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/RewardsReport")).then((m) => ({ default: m.RewardsReport })),
-);
-const OnchainAddressesReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/OnchainAddressesReport")).then((m) => ({ default: m.OnchainAddressesReport })),
-);
-const ProcessesReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/ProcessesReport")).then((m) => ({ default: m.ProcessesReport })),
-);
-const StaleDatesReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/StaleDatesReport")).then((m) => ({ default: m.StaleDatesReport })),
-);
-const ModFrequencyReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/ModFrequencyReport")).then((m) => ({ default: m.ModFrequencyReport })),
-);
-const OeaAssessmentReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/OeaAssessmentReport")).then((m) => ({ default: m.OeaAssessmentReport })),
-);
-const RiskRulesReport = lazy(() =>
-  lazyRetry(() => import("./components/reports/RiskRulesReport")).then((m) => ({ default: m.RiskRulesReport })),
-);
-const RubricPage = lazy(() =>
-  lazyRetry(() => import("./components/reports/RubricPage")).then((m) => ({ default: m.RubricPage })),
-);
-const ReportsIndex = lazy(() =>
-  lazyRetry(() => import("./components/ReportsIndex")).then((m) => ({ default: m.ReportsIndex })),
-);
-const ProvenancePage = lazy(() =>
-  lazyRetry(() => import("./components/ProvenancePage")).then((m) => ({ default: m.ProvenancePage })),
-);
-const PrivacyPage = lazy(() =>
-  lazyRetry(() => import("./components/PrivacyPage")).then((m) => ({ default: m.PrivacyPage })),
-);
-const UpdatesPage = lazy(() =>
-  lazyRetry(() => import("./components/UpdatesPage")).then((m) => ({ default: m.UpdatesPage })),
-);
-const ConnectPage = lazy(() =>
-  lazyRetry(() => import("./components/ConnectPage")).then((m) => ({ default: m.ConnectPage })),
-);
-const FeaturesPage = lazy(() =>
-  lazyRetry(() => import("./components/FeaturesPage")).then((m) => ({ default: m.FeaturesPage })),
-);
-const RadarPage = lazy(() =>
-  lazyRetry(() => import("./components/radar/RadarPage")).then((m) => ({ default: m.RadarPage })),
-);
-const CrossViewPage = lazy(() =>
-  lazyRetry(() => import("./components/crossview/CrossViewPage")).then((m) => ({ default: m.CrossViewPage })),
-);
-const AdminEntry = lazy(() =>
-  lazyRetry(() => import("./admin/AdminEntry")).then((m) => ({ default: m.AdminEntry })),
-);
-const CollectionsPage = lazy(() =>
-  lazyRetry(() => import("./components/collections/CollectionsPage")).then((m) => ({ default: m.CollectionsPage })),
-);
-const SharedCollectionOpener = lazy(() =>
-  lazyRetry(() => import("./components/collections/SharedCollectionOpener")).then((m) => ({
-    default: m.SharedCollectionOpener,
-  })),
-);
+// Deliberately NOT in lib/lazyRoutes.tsx: this stays local to App.tsx, right
+// next to the __CHAT_ENABLED__ guard it's only ever rendered behind, so that
+// guard's dead-code-elimination proof (chat-off builds strip the whole
+// ConversationsPage chunk) isn't disturbed by crossing a module boundary.
 const ConversationsPage = lazy(() =>
   lazyRetry(() => import("./components/conversations/ConversationsPage")).then((m) => ({
     default: m.ConversationsPage,
@@ -139,15 +67,7 @@ export default function App() {
       : searchParams.get("view") === "glossary"
         ? ("glossary" as const)
         : ("history" as const);
-  const activeNavPage: NavPage | null = location.startsWith(ROUTES.CONSTELLATIONS)
-    ? "constellations"
-    : location.startsWith(ROUTES.REPORTS)
-      ? "reports"
-      : location.startsWith(ROUTES.RADAR)
-        ? "radar"
-        : location.startsWith(ROUTES.ATLAS)
-          ? "atlas"
-          : null;
+  const activeNavPage = activeNavPageFor(location);
 
   const scope: SearchScope = activeNavPage ?? "atlas";
   // On a specific report page the pill shows the report's short name and the
@@ -227,15 +147,11 @@ export default function App() {
     }
   }, [preview, location, searchParams, navigate]);
 
-  // Window-scroll mode: routes that don't need the "fixed shell, inner scroll"
-  // layout opt in here. The root grows with content (min-h-dvh) and the
-  // overflow-hidden wrappers are dropped, so the browser's native
-  // history.scrollRestoration handles back/forward for free.
-  const windowScroll =
-    location.startsWith(ROUTES.REPORTS) ||
-    location.startsWith(ROUTES.RADAR) ||
-    location === ROUTES.COLLECTIONS ||
-    location === ROUTES.CONVERSATIONS;
+  const windowScroll = usesWindowScroll(location);
+
+  // Shared props context for the SIMPLE_ROUTES table (see lib/lazyRoutes.tsx)
+  // — the subset of this render's values any of those routes' props() need.
+  const routeCtx = { query, mode: activeMode, navigateToNode };
 
   return (
     <div
@@ -320,82 +236,19 @@ export default function App() {
                 onOpenTree={() => setTreeOpen(true)}
               />
             </Route>
-            <Route path={ROUTES.REPORTS}>
-              <Suspense fallback={<Loading />}>
-                <ReportsIndex query={query} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_OF_RESPONSIBILITIES}>
-              <Suspense fallback={<Loading />}>
-                <OpFacilitatorsReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_GOVOPS_RESPONSIBILITIES}>
-              <Suspense fallback={<Loading />}>
-                <OpGovOpsReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_ACTIVE_DATA}>
-              <Suspense fallback={<Loading />}>
-                <ActiveDataReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_REWARDS}>
-              <Suspense fallback={<Loading />}>
-                <RewardsReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_ONCHAIN_ADDRESSES}>
-              <Suspense fallback={<Loading />}>
-                <OnchainAddressesReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_STALE_DATES}>
-              <Suspense fallback={<Loading />}>
-                <StaleDatesReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_MOD_FREQUENCY}>
-              <Suspense fallback={<Loading />}>
-                <ModFrequencyReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_OEA_ASSESSMENT}>
-              <Suspense fallback={<Loading />}>
-                <OeaAssessmentReport query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_RISK_RULES}>
-              <Suspense fallback={<Loading />}>
-                <RiskRulesReport query={query} mode={activeMode} onNavigate={navigateToNode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_RISK_RUBRIC}>
-              <Suspense fallback={<Loading />}>
-                <RubricPage />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_PROCESSES}>
-              <Suspense fallback={<Loading />}>
-                <ProcessesReport onNavigate={navigateToNode} query={query} mode={activeMode} />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.CONSTELLATIONS}>
-              <Suspense fallback={<Loading />}>
-                <ConstellationsPage query={query} />
-              </Suspense>
-            </Route>
+            {SIMPLE_ROUTES.map(({ path, Component, props }) => (
+              <Route key={path} path={path}>
+                <Suspense fallback={<Loading />}>
+                  <Component {...(props ? props(routeCtx) : {})} />
+                </Suspense>
+              </Route>
+            ))}
             <Route path={ROUTES.RADAR_ACTOR}>
               {(params: { slug: string }) => (
                 <Suspense fallback={<Loading />}>
                   <RadarPage actorSlug={params.slug} query={query} />
                 </Suspense>
               )}
-            </Route>
-            <Route path={ROUTES.RADAR}>
-              <Suspense fallback={<Loading />}>
-                <RadarPage query={query} />
-              </Suspense>
             </Route>
             <Route path={ROUTES.SEARCH_HINTS}>
               <SearchHintsPage
@@ -408,66 +261,12 @@ export default function App() {
                 }}
               />
             </Route>
-            <Route path={ROUTES.PROVENANCE}>
-              <Suspense fallback={<Loading />}>
-                <ProvenancePage />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.PRIVACY}>
-              <Suspense fallback={<Loading />}>
-                <PrivacyPage />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.UPDATES}>
-              <Suspense fallback={<Loading />}>
-                <UpdatesPage />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.CONNECT}>
-              <Suspense fallback={<Loading />}>
-                <ConnectPage />
-              </Suspense>
-            </Route>
-            {/* Contents tab removed (superseded by Shape's "Doc mass by scope") — keep old links working */}
-            <Route path="/reports/crossview/contents">
-              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
-            </Route>
-            <Route path={ROUTES.REPORTS_CROSSVIEW_CONCEPTS}>
-              <Suspense fallback={<Loading />}>
-                <CrossViewPage tab="concepts" />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_CROSSVIEW_AUDIT}>
-              <Suspense fallback={<Loading />}>
-                <CrossViewPage tab="audit" />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_CROSSVIEW_GLOSSARY}>
-              <Suspense fallback={<Loading />}>
-                <CrossViewPage tab="glossary" />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.REPORTS_CROSSVIEW}>
-              <Suspense fallback={<Loading />}>
-                <CrossViewPage tab="shape" />
-              </Suspense>
-            </Route>
-            {/* Legacy URLs → /reports/crossview. Covers the pre-report /library
-                path and the former /reports/library name (this feature was
-                renamed Library → CrossView). Bare "/library" (no trailing segment)
-                doesn't match "/library/:tab*" in wouter — the pattern requires the
-                literal slash — so each needs its own exact route alongside the
-                wildcard one. */}
-            <Route path="/library">
-              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
-            </Route>
-            <Route path="/reports/library">
-              <Redirect to={ROUTES.REPORTS_CROSSVIEW} replace />
-            </Route>
-            {[
-              "/library/:tab*",
-              "/reports/library/:tab*",
-            ].map((path) => (
+            {LEGACY_REDIRECTS.map(([from, to]) => (
+              <Route key={from} path={from}>
+                <Redirect to={to} replace />
+              </Route>
+            ))}
+            {LEGACY_REDIRECT_PREFIXES.map((path) => (
               <Route key={path} path={path}>
                 {/* wouter names a `:name*` wildcard param literally "tab*" (asterisk
                     included), not "tab" — using params.tab here silently dropped the
@@ -478,16 +277,6 @@ export default function App() {
                 )}
               </Route>
             ))}
-            <Route path={ROUTES.FEATURES}>
-              <Suspense fallback={<Loading />}>
-                <FeaturesPage />
-              </Suspense>
-            </Route>
-            <Route path={ROUTES.COLLECTIONS}>
-              <Suspense fallback={<Loading />}>
-                <CollectionsPage />
-              </Suspense>
-            </Route>
             <Route path={ROUTES.SHARED_COLLECTION}>
               {(params: { id: string }) => (
                 <Suspense fallback={<Loading />}>

@@ -23,7 +23,16 @@
  * Never-silent: every detected root reports parse failures as warnings.
  */
 
-import { slugify, normalizeKey, buildNameIndex, parseNameList } from "./graph-patterns.mjs";
+import {
+  slugify,
+  normalizeKey,
+  buildNameIndex,
+  parseNameList,
+  bulletField,
+  makeWarn,
+  groupChildrenByParent,
+  createProseParty,
+} from "./graph-patterns.mjs";
 import { normalizeChainLabel } from "./chains.mjs";
 import { normalizeAddress } from "./address-chains.mjs";
 
@@ -34,7 +43,7 @@ const ADDRESS_CHAIN_RE = /\baddress of .+? on (?:the )?([A-Z][\w ]*?) is/;
 const SIGNER_GROUP_RE =
   /\((\d+)\)\s*address(?:es)?(?:\s+(?:are|is))?\s+controlled by\s+(.+?)(?=\s*[,;.]|\s+and\s+[a-z]+\s*\(\d+\)|$)/gi;
 // "- Soter Labs: 2 signers"
-const SIGNER_BULLET_COUNT_RE = /^[-*]\s*([^:\n]+?):\s*(\d+)\s*signers?\s*$/gim;
+const SIGNER_BULLET_COUNT_RE = bulletField(String.raw`([^:\n]+?)`, String.raw`(\d+)\s*signers?`, "gim");
 // plain bullet roster ("- VoteWizard") — only read when the prose announces it
 const SIGNER_ROSTER_INTRO_RE = /has the following signers/i;
 const SIGNER_BULLET_PLAIN_RE = /^[-*]\s*([A-Za-z0-9_ .'-]+?)\s*$/gm;
@@ -108,28 +117,16 @@ export function extractMultisigs(allDocs, docById, docByDocNo, entityMap, edges)
     const direct = nameIndex.get(normalizeKey(name));
     if (direct) return { entity: direct, viaRole: null };
 
-    const et = /\bFoundation$/i.test(name) ? "foundation" : "ecosystem_actor";
-    const created = addEntity(slugify(name), name, et, null, null, {
-      source: "multisig_party",
-      source_doc_no: sourceDoc.doc_no,
-    });
-    nameIndex.set(normalizeKey(name), created);
+    const created = createProseParty(addEntity, nameIndex, name, "multisig_party", sourceDoc);
     return { entity: created, viaRole: null, created: true };
   }
 
   // --- Detect roots: group candidate children by parent doc_no ---
-  const byParent = new Map(); // parent doc_no → { threshold?, signers?, address?, usage?, modification? }
-  for (const d of allDocs) {
-    const kind = childSuffix(d.title);
-    if (!kind) continue;
-    const parentDocNo = d.doc_no.split(".").slice(0, -1).join(".");
-    let slot = byParent.get(parentDocNo);
-    if (!slot) { slot = {}; byParent.set(parentDocNo, slot); }
-    if (!slot[kind]) slot[kind] = d;
-  }
+  // slot shape: { threshold?, signers?, address?, usage?, modification? }
+  const byParent = groupChildrenByParent(allDocs, (d) => childSuffix(d.title));
 
   const stats = { roots: 0, signerEdges: 0, modifierEdges: 0, created: 0, warnings: 0 };
-  const warn = (msg) => { stats.warnings++; console.warn(`  multisig: ${msg}`); };
+  const warn = makeWarn("  multisig:", stats);
 
   return {
     run(addEntity) {

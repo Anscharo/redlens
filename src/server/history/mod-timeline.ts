@@ -19,6 +19,7 @@
 // `change_type = 'content'` rows, filtered further by COUNTED_CONTENT_EDIT
 // (history-db.ts) — see that constant's comment for the full rationale.
 import { sql } from "../db.ts";
+import { json } from "../http.ts";
 import { toIsoDate } from "./history.ts";
 import { COUNTED_CONTENT_EDIT as COUNTED } from "./history-db.ts";
 
@@ -76,6 +77,7 @@ export async function handleModTimeline(req: Request): Promise<Response> {
       { headers: { "Cache-Control": "public, max-age=300" } },
     );
   } catch {
-    return new Response(null, { status: 503 });
+    // Same status as before, now with the shared `{ error }` envelope (http.ts).
+    return json({ error: "unavailable" }, 503);
   }
 }

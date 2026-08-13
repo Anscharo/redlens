@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Server } from "bun";
 import { config } from "../config.ts";
+import { json as httpJson, PREVIEW_CORS } from "../http.ts";
 import { getIndexes } from "../retrieval/indexes.ts";
 import { diffDocs } from "../atlas-refresh.ts";
 import type { AtlasNode } from "../retrieval/indexes.ts";
@@ -31,8 +32,11 @@ import { appInstallUrl } from "./github-app.ts";
 
 const SHA_RE = /^[0-9a-f]{40}$/i;
 // noindex on every preview response: unreviewed (possibly fork) content must
-// never be search-indexed under our domain (SEO-laundering defense).
-const CORS = { "access-control-allow-origin": "*", "x-robots-tag": "noindex" };
+// never be search-indexed under our domain (SEO-laundering defense). Defined
+// in http.ts alongside the router's own header set — same home, distinct value:
+// this local `CORS` is PREVIEW_CORS (allow-origin + noindex), NOT http.ts's
+// `CORS` (the wider MCP preflight set). Don't swap the import.
+const CORS = PREVIEW_CORS;
 // Private-preview responses: NO access-control-allow-origin — a shared
 // CDN/proxy must not cache one user's private docs for the next visitor (G6).
 const PRIVATE_HEADERS = { "cache-control": "private, no-store", "x-robots-tag": "noindex" };
@@ -352,8 +356,11 @@ async function artifactResponse(req: Request, sha: string, name: string): Promis
   return res;
 }
 
+// Local shorthand over the shared helper (http.ts): every preview response
+// carries the CORS+noindex pair unless a private bundle swaps in PRIVATE_HEADERS,
+// so the header argument is positional here rather than an options object.
 function json(body: unknown, status: number, headers: Record<string, string> = CORS): Response {
-  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
+  return httpJson(body, status, { headers });
 }
 
 /** Dispatch /api/preview/* . pathname includes the leading "/api/preview/". */

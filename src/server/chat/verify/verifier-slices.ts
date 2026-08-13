@@ -17,10 +17,10 @@
 // unsupported. The model cannot assert support into existence.
 //
 // STATUS: LIVE since 2026-08-06 — verify/sliced-verifier.ts orchestrates these
-// slices as the default chat audit path (config.chatVerifierMode; "single" is
-// the legacy verifier.ts escape hatch). Keep prompt/evidence conventions in
-// sync with verifier.ts, which remains the fallback path. Measured via
-// scripts/aux/eval-verifier-slices.ts.
+// slices as the ONLY chat audit path (the legacy single-prompt verifier.ts is
+// retained solely so scripts/aux/eval-verifier.ts can still grade it, not as a
+// runtime fallback). Keep prompt/evidence conventions in sync with verifier.ts
+// regardless. Measured via scripts/aux/eval-verifier-slices.ts.
 import type OpenAI from "openai";
 import type { JsonCall } from "../llm.ts";
 import type { EvidenceEntry } from "./verifier.ts";

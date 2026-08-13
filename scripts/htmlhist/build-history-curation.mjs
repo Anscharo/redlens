@@ -475,15 +475,16 @@ if (STATS_ONLY) {
 if (AUTO) {
   const { proposePredecessor, proposeClusterAssignment } = await import("../../src/server/history/history-curate.ts");
   const { config } = await import("../../src/server/config.ts");
-  const frontierModel = FRONTIER_MODEL_ARG || config.curationFrontierModel;
-  const clusterModels = config.curationClusterModels;
+  const { CURATION_FRONTIER_MODEL, CURATION_CLUSTER_MODELS, CURATION_SELECTOR_MODEL } = await import("./curation-models.mjs");
+  const frontierModel = FRONTIER_MODEL_ARG || CURATION_FRONTIER_MODEL;
+  const clusterModels = CURATION_CLUSTER_MODELS;
   const cache = NO_CACHE ? new Map() : loadLlmCache(CACHE_OUT);
   const clusterOn = autoOpts.cluster && clusterModels.length >= 2;
   log(`\nauto-curation (forward∩reverse${clusterOn ? ` + cluster ${clusterModels.join("∩")}` : ""} + LLM∩matcher${autoOpts.frontier ? ` + frontier ${frontierModel}` : ""})${cache.size ? `  ·  resuming from ${cache.size} cached asks` : ""}…`);
   const { decisions, proposals, summary, cache: outCache } = await runAutoCurate({
     data: artifact, commits: htmlCommits, propose: proposePredecessor,
     proposeCluster: proposeClusterAssignment, clusterModels,
-    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, cache, cheapModel: config.curationSelectorModel, log,
+    haveKey: !!config.openrouterApiKey, ...autoOpts, frontierModel, cache, cheapModel: CURATION_SELECTOR_MODEL, log,
   });
   reportAutoCuration(artifact, decisions, summary);
   writeAutoDecisions(AUTO_OUT, artifact, decisions, summary, autoOpts.concurrency);

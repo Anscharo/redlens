@@ -61,6 +61,10 @@ export function decide(s: {
 }
 
 // Exponential backoff from the poll interval, capped. failures>=1.
+// ATLAS_UPDATE_MAX_BACKOFF_MS is read here (call time), not via config.ts —
+// this fn is unit-tested directly (see backoffMs tests in atlas-updater.test.ts),
+// and a config.ts field would freeze at config.ts's own first import instead of
+// tracking env at call time.
 export function backoffMs(failures: number, base: number): number {
   const cap = Number(process.env.ATLAS_UPDATE_MAX_BACKOFF_MS ?? 30 * 60_000);
   return Math.min(base * 2 ** Math.min(failures - 1, 20), cap);
@@ -82,7 +86,7 @@ export function nextDivergedSince(
 }
 
 // Loud-log + freshness "stuck" threshold (consecutive failed/non-converged builds).
-const ESCALATE_AFTER = Number(process.env.ATLAS_UPDATE_ESCALATE_AFTER ?? 3);
+const ESCALATE_AFTER = config.atlasUpdateEscalateAfter;
 
 // Single source of truth for updater state — read by freshness.ts (to tell a
 // benign "syncing" from a genuinely "stuck" updater) and mutated only by the
@@ -568,6 +572,11 @@ export function makeTickDeps(log: (m: string) => void, intervalMs: number): Tick
 // pending timer and clear `updaterEnabled` again — otherwise the flag leaks into
 // every later test file, and bun does not order test files predictably.
 export function startUpdater(): { stop: () => void } {
+  // ATLAS_UPDATE_ENABLED and ATLAS_UPDATE_INTERVAL_MS are read here (call time),
+  // not via config.ts — atlas-updater.test.ts mutates process.env then calls
+  // startUpdater() directly without a cache-busting reimport, which requires
+  // these to track live env rather than whatever config.ts froze at its own
+  // first import.
   const disabled = process.env.ATLAS_UPDATE_ENABLED === "0" || process.env.ATLAS_UPDATE_ENABLED === "false";
   if (disabled) {
     console.log("atlas-updater: disabled via ATLAS_UPDATE_ENABLED=0 (kill switch)");

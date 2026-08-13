@@ -37,6 +37,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 import { findCandidates } from "../lib/process-keywords.mjs";
+import { naturalCompare } from "../lib/natural-sort.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "../..");
@@ -100,7 +101,7 @@ const newCandidates = candidates
   .sort((a, b) => {
     // Recently-added first, then by doc_no.
     if (a.recently_added !== b.recently_added) return a.recently_added ? -1 : 1;
-    return a.doc_no.localeCompare(b.doc_no, undefined, { numeric: true });
+    return naturalCompare(a.doc_no, b.doc_no);
   });
 
 // 4. Write audit + markdown summary.

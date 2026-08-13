@@ -21,7 +21,7 @@ import { expandReferenceLinks, type ReferenceExpansion } from "./verify/citation
 import { repairIdentifierLeaks, type IdentifierRepair } from "./verify/identifier-leak.ts";
 import { gatedChat } from "./verify/stream-link-gate.ts";
 import { createCitationGate } from "./verify/definition-block-gate.ts";
-import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, runVerifier, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
+import { computeOverall, evidenceFromTranscript, priorTurnsEvidence, type EvidenceEntry, type Verdict, type VerifierRun, type VerifyOverall } from "./verify/verifier.ts";
 import { runSlicedVerifier, sliceModels } from "./verify/sliced-verifier.ts";
 import { atlasDescribe } from "./tools/tools.ts";
 import { adviseRecovery, type Recovery } from "./verify/advisor.ts";
@@ -264,10 +264,10 @@ function retrievalTrouble(t: RoundTelemetry): boolean {
   return t.emptyResults + t.errorResults >= config.chatAdvisorTriggerEmptyResults || t.repeatedQueries >= 2;
 }
 
-// One model audit of an answer, dispatched on config.chatVerifierMode: the
-// sliced path (four concurrent narrow auditors, verify/sliced-verifier.ts) or
-// the legacy single-prompt verifier. Same VerifierRun shape either way;
-// `modelLabel` is what the check row records as `model`.
+// One model audit of an answer: four concurrent narrow auditors
+// (verify/sliced-verifier.ts), one per failure class (claims/figures/sets/
+// overreach), over the same evidence. `modelLabel` is what the check row
+// records as `model`.
 async function runAudit(params: {
   jsonCall: JsonCall;
   ix: Indexes;
@@ -275,23 +275,15 @@ async function runAudit(params: {
   answer: string;
   evidence: EvidenceEntry[];
   checks: CheckReport;
-  telemetry: RoundTelemetry;
   signal?: AbortSignal;
   obs?: ErrorContext;
 }): Promise<{ run: VerifierRun; modelLabel: string }> {
-  if (config.chatVerifierMode === "sliced") {
-    const models = sliceModels();
-    const run = await runSlicedVerifier({
-      call: params.jsonCall, models, ix: params.ix, question: params.question, answer: params.answer,
-      evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
-    });
-    return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
-  }
-  const run = await runVerifier({
-    call: params.jsonCall, model: config.chatVerifierModel, question: params.question, answer: params.answer,
-    evidence: params.evidence, checks: params.checks, telemetry: params.telemetry, signal: params.signal, obs: params.obs,
+  const models = sliceModels();
+  const run = await runSlicedVerifier({
+    call: params.jsonCall, models, ix: params.ix, question: params.question, answer: params.answer,
+    evidence: params.evidence, checks: params.checks, signal: params.signal, obs: params.obs,
   });
-  return { run, modelLabel: config.chatVerifierModel };
+  return { run, modelLabel: `sliced(${[...new Set(Object.values(models))].join(",")})` };
 }
 
 // Corrective-run steering per advisor action. The revision run's base is the
@@ -476,7 +468,7 @@ export async function* runVerifiedChat(opts: {
     if (grounded) yield { type: "status", stage: "checking", detail: checkingDetail(checks.citations.length, evidence.length) };
     const { run, modelLabel } = await runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
-      answer: done.content, evidence: baseEvidence(evidence, done.content), checks, telemetry, signal: opts.signal, obs: opts.obs,
+      answer: done.content, evidence: baseEvidence(evidence, done.content), checks, signal: opts.signal, obs: opts.obs,
     });
     verdict = run.verdict;
     checksMeta.push({
@@ -590,7 +582,7 @@ export async function* runVerifiedChat(opts: {
     yield { type: "status", stage: "checking", detail: "Re-checking the revised answer…" };
     const { run: rerun, modelLabel } = await runAudit({
       jsonCall: opts.jsonCall!, ix: opts.ix, question: opts.question,
-      answer: revDone.content, evidence: baseEvidence(revEvidence, revDone.content), checks: revChecks, telemetry: checker.telemetry(), signal: opts.signal, obs: opts.obs,
+      answer: revDone.content, evidence: baseEvidence(revEvidence, revDone.content), checks: revChecks, signal: opts.signal, obs: opts.obs,
     });
     revVerdict = rerun.verdict;
     checksMeta.push({

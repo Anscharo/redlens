@@ -4,12 +4,32 @@
  */
 import { CHAIN_HINT_SPECS, FUTURE_TO_ETHEREUM } from "./chains.mjs";
 
+// Address bodies as *source strings*. Exported so a caller that needs an
+// address inside a larger pattern composes this instead of retyping it —
+// retyping is exactly how un-anchored copies that matched the leading 40 hex of
+// a transaction hash got into the pipeline.
+export const ETH_ADDR_SRC = String.raw`0x[0-9a-fA-F]{40}`;
+export const SOL_ADDR_SRC = String.raw`[1-9A-HJ-NP-Za-km-z]{43,44}`;
+
 // EVM addresses are exactly 40 hex chars. The negative lookbehind/lookahead
 // stop us from matching the leading 40 hex of a longer hex blob like a 64-hex
 // transaction hash or raw calldata.
-export const ETH_ADDR_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
+export const ETH_ADDR_RE = new RegExp(
+  String.raw`(?<![0-9a-fA-F])${ETH_ADDR_SRC}(?![0-9a-fA-F])`,
+  "g",
+);
 // Base58, 43-44 chars, word boundary — covers standard Solana pubkeys
-export const SOL_ADDR_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
+export const SOL_ADDR_RE = new RegExp(String.raw`\b${SOL_ADDR_SRC}\b`, "g");
+
+// Non-global sibling for callers that want the FIRST address in a string.
+// Separate object on purpose: the /g regexes carry `lastIndex` state, which
+// this module already treats as a hazard (see afterLastAddress).
+export const ETH_ADDR_FIRST_RE = new RegExp(ETH_ADDR_RE.source);
+
+// Whole-string tests — "is this value, in its entirety, an address?". Used for
+// ICD parameter values and table cells, where the candidate is already isolated.
+export const ETH_ADDR_EXACT_RE = new RegExp(String.raw`^${ETH_ADDR_SRC}$`);
+export const SOL_ADDR_EXACT_RE = new RegExp(String.raw`^${SOL_ADDR_SRC}$`);
 
 // EVM addresses are case-insensitive (EIP-55 is a display checksum, not an
 // identifier). Normalize to lowercase so the same address written in different
