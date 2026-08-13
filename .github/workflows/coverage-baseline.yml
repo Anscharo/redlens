@@ -50,7 +50,7 @@ jobs:
       # the baseline; the changed-line gate is meaningless here (HEAD == origin/main)
       # and must never fail the baseline producer.
       - name: Compute coverage baseline
-        run: node scripts/required/coverage-areas.mjs
+        run: node scripts/aux/coverage-areas.mjs
         env:
           COVERAGE_AREAS_JSON: base-coverage-areas.json
           COVERAGE_CHANGED_MIN: "0"

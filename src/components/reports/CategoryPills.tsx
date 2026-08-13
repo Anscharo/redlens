@@ -17,6 +17,7 @@ export function CategoryPills<T extends string>({
   display,
   counts,
   hint,
+  showSingle = false,
 }: {
   categories: readonly T[];
   /** Single-select (T | null) or multi-select (readonly T[]) active state. */
@@ -32,8 +33,13 @@ export function CategoryPills<T extends string>({
   /** Muted trailing hint, e.g. a scale legend. Takes a node, not just a string,
    *  so a legend can mark up a glyph (the → in a range hint is `.enlargen`). */
   hint?: React.ReactNode;
+  /** Render a one-option group too. A single pill is noise for a fixed facet
+   *  (a rating scale with one value present), but a data-derived facet — the
+   *  chains or scopes actually in this atlas — must stay filterable even when
+   *  today's data has exactly one. Off by default. */
+  showSingle?: boolean;
 }) {
-  if (categories.length < 2) return null;
+  if (categories.length < (showSingle ? 1 : 2)) return null;
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
       <span

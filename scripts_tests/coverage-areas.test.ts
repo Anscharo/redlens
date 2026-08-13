@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { areaFor, backendAreaIds, isLogicLine, libAreaIds, meetsChangedMin, mergeLcovReports, reactAreaIds } from "../scripts/required/coverage-areas.mjs";
+import { areaFor, backendAreaIds, isLogicLine, libAreaIds, meetsChangedMin, mergeLcovReports, reactAreaIds } from "../scripts/aux/coverage-areas.mjs";
 
 // The scope of "React code" the coverage meters must partition: components,
 // hooks, and context providers — .ts and .tsx, minus test files. If this set

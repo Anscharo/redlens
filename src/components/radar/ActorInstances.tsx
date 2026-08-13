@@ -10,9 +10,12 @@ import type { AddressInfo } from "../../types";
 import { shortAddr } from "../../lib/format";
 import { HEADER_OFFSET } from "../../lib/layout";
 import { StatusPill } from "../reports/RewardsCells";
+import { EVM_ADDRESS_EXACT_RE, SOL_ADDRESS_EXACT_RE } from "../../lib/patterns";
 
-const EVM_RE = /^0x[0-9a-fA-F]{40}$/;
-const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+// Whole-string address shape tests — sourced from patterns.ts (the src-side
+// home for these forms) so this doesn't drift into its own copy.
+const EVM_RE = EVM_ADDRESS_EXACT_RE;
+const SOL_RE = SOL_ADDRESS_EXACT_RE;
 const RATE_LIMIT_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MD_LINK_RE = /\[([^\]]+)\]\(([^)]+)\)/g;

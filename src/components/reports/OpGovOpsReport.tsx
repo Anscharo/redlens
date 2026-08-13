@@ -62,7 +62,6 @@ const extraRowFilter = (r: OGResponsibility, filter: ActiveFilter): boolean =>
 
 const govopsConfig: RoleReportConfig<OGResponsibility> = {
   reportId: "gov-ops-responsibilities",
-  documentTitle: "Operational GovOps Responsibilities: Sky Atlas by Redline",
   heading: "Operational GovOps Responsibilities",
   introText: "Every Atlas section mandating action from an Operational or Core GovOps.",
   introDocUuid: "1e73ee4b-823d-406a-af54-223b43bc8e42",

@@ -94,7 +94,18 @@ export function deriveFreshnessStatus(i: FreshnessInput): FreshnessStatus {
   const stale = i.staleSeconds ?? STALE_SECONDS;
   const stuck = i.stuckSeconds ?? STUCK_SECONDS;
   if (!i.dbReachable) return "degraded";
-  // Lexical compare is correct: the zero-padded NNN_ prefix orders filenames.
+  // Lexical compare is correct: the total order migrationFiles() sorts by
+  // (and schema_migrations' max(id)) is the FULL filename, not just the
+  // numeric NNN_ prefix — several prefixes are shared by two files
+  // (014_collections.sql/014_message_checks.sql,
+  // 016_address_has_code.sql/016_chat_titles.sql), grandfathered historically
+  // (migrate.test.ts bans new duplicates); the suffix breaks the tie within a
+  // shared prefix. Zero-padding still matters for the non-duplicate case: a
+  // fixed 3-digit width is what keeps lexical order agreeing with numeric
+  // order across the prefix (so "002_" sorts before "010_"). Both sides here
+  // — this JS `<` and Postgres's max(id) — independently pick the
+  // lexically-greatest applied filename, and the current naming keeps that
+  // unambiguous.
   // Code ahead of the DB = skew we must flag; DB ahead of code (additive
   // migration deployed worker-first) is tolerated.
   if (i.schemaVersion !== null && required !== "" && i.schemaVersion < required) return "schema_behind";

@@ -19,9 +19,9 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execSync } from "node:child_process";
 import { loadHtmlAt } from "./atlas-html.mjs";
-import { seedFromMd, threadBackward } from "./history-html-era.mjs";
-import { mechanismToMethod } from "./auto-curate.mjs";
-import { contentDupCounts, occKey } from "./history-occkey.mjs";
+import { seedFromMd, threadBackward } from "../htmlhist/history-html-era.mjs";
+import { mechanismToMethod } from "../htmlhist/auto-curate.mjs";
+import { contentDupCounts, occKey } from "../htmlhist/history-occkey.mjs";
 
 const ROOT = process.cwd();
 const REPO = path.join(ROOT, "vendor/next-gen-atlas");

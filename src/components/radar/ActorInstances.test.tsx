@@ -152,6 +152,23 @@ describe("ActorInstances parameter value rendering", () => {
     expect(link).toHaveAttribute("href", EXPLORER.solana + addr);
   });
 
+  it("does not classify a 41-hex value as an EVM address (proves EVM_RE stays the ^...$-anchored exact form)", () => {
+    // One hex char short of a phantom-address length check in the other
+    // direction: 41 hex chars after 0x is one MORE than a real address, so a
+    // non-anchored body match would still carve out the first 40 and link it.
+    const notQuiteAddr = "0x" + "a".repeat(41);
+    renderWithParam(param("Vault", notQuiteAddr));
+    expect(screen.queryByTitle(notQuiteAddr)).not.toBeInTheDocument();
+    expect(screen.getByText(notQuiteAddr)).toBeInTheDocument();
+  });
+
+  it("does not classify a 45-char base58 value as a Solana address (proves SOL_RE stays the ^...$-anchored exact form)", () => {
+    const notQuiteAddr = "So1111111111111111111111111111111111111111211";
+    renderWithParam(param("Owner Address", notQuiteAddr));
+    expect(screen.queryByTitle(notQuiteAddr)).not.toBeInTheDocument();
+    expect(screen.getByText(notQuiteAddr)).toBeInTheDocument();
+  });
+
   it("truncates a 32-byte rate-limit hash", () => {
     const hash = "0x" + "b".repeat(64);
     renderWithParam(param("Rate Limit", hash));

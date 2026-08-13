@@ -60,6 +60,7 @@ vi.mock("../../lib/staleDates", async (importOriginal) => {
 });
 
 import { StaleDatesReport } from "./StaleDatesReport";
+import { ErrorBoundary } from "../ErrorBoundary";
 
 afterEach(() => {
   cleanup();
@@ -71,7 +72,7 @@ afterEach(() => {
 describe("StaleDatesReport", () => {
   it("renders the three buckets with their claim titles, counts, and staleness copy", async () => {
     render(<StaleDatesReport query="" mode="broad" />);
-    expect(screen.getByText("loading…")).toBeInTheDocument();
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
 
     expect(await screen.findByText("Future Milestone")).toBeInTheDocument();
     expect(screen.getByText("Imminent Deadline")).toBeInTheDocument();
@@ -138,17 +139,20 @@ describe("StaleDatesReport", () => {
     expect(URL.createObjectURL).toHaveBeenCalled();
   });
 
-  it("shows an error state with a retry button when loading fails, and recovers on retry", async () => {
+  // The page no longer carries its own error + retry UI: useLoaded re-throws a
+  // load failure during render, so the route's ErrorBoundary (App wraps every
+  // route, resetKey={location}) owns the error page for reports too.
+  it("surfaces a load failure to the surrounding ErrorBoundary instead of a spinner", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const docsModule = await import("../../lib/docs");
-    const spy = vi.spyOn(docsModule, "loadDocs").mockImplementationOnce(() =>
-      Promise.reject(new Error("boom")),
+    vi.spyOn(docsModule, "loadDocs").mockImplementationOnce(() => Promise.reject(new Error("boom")));
+
+    render(
+      <ErrorBoundary fallback={(error) => <p>page failed to load: {error.message}</p>}>
+        <StaleDatesReport query="" mode="broad" />
+      </ErrorBoundary>,
     );
-
-    render(<StaleDatesReport query="" mode="broad" />);
-    expect(await screen.findByText("Failed to load report.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("retry"));
-    expect(await screen.findByText("Future Milestone")).toBeInTheDocument();
-    spy.mockRestore();
+    expect(await screen.findByText(/page failed to load: boom/)).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
   });
 });

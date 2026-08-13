@@ -36,6 +36,17 @@ describe("CategoryPills", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // Data-derived facets (the chains/scopes present in this atlas) must stay
+  // filterable even when today's data has exactly one value.
+  it("renders a one-option group when showSingle is set, but still nothing when empty", () => {
+    const { container, rerender } = render(
+      <CategoryPills categories={["ethereum"]} active={null} onToggle={() => {}} label="Chain" showSingle />,
+    );
+    expect(screen.getByRole("button", { name: "ethereum" })).toBeInTheDocument();
+    rerender(<CategoryPills categories={[]} active={null} onToggle={() => {}} label="Chain" showSingle />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("renders nothing for zero categories", () => {
     const { container } = render(
       <CategoryPills categories={[]} active={null} onToggle={() => {}} />,

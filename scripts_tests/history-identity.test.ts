@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 // @ts-expect-error — .mjs without types
-import { matchNodes } from "../scripts/htmlhist/history-identity.mjs";
+import { matchNodes } from "../scripts/lib/history-identity.mjs";
 
 type N = { contentHash: string; structuralKey: string; content: string; order: number; section: string };
 const mk = (o: Partial<N> & { order: number }): N => ({

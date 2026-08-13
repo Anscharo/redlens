@@ -2,7 +2,7 @@
 // given a failed turn (question + retrieval digest + verdict/check failures),
 // pick the right recovery action with guidance that targets the actual defect.
 //
-// Scenarios are built from the verifier corpus (scripts/aux/eval-corpora/evidence/*, from
+// Scenarios are built from the verifier corpus (scripts/eval/eval-corpora/evidence/*, from
 // `pnpm eval:golden --save-evidence`) — no live chat runs, so it's cheap:
 //   - each mutation class (unknown_uuid/wrong_doc/number/fabrication/ruling)
 //     plants a KNOWN defect while the evidence stays sufficient → the right
@@ -27,7 +27,7 @@ import type { RoundTelemetry } from "../../src/server/chat/verify/round-checks.t
 import { buildMutations, type SavedRun } from "./eval-verifier-mutations.ts";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
-const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "aux", "eval-corpora", "evidence");
+const EVIDENCE_DIR = process.env.EVAL_EVIDENCE_DIR ?? path.join(ROOT, "scripts", "eval", "eval-corpora", "evidence");
 const REPORT_PATH = path.join(ROOT, ".cache", "eval-advisor.json");
 const argv = process.argv.slice(2);
 const modelsFlag = argv.flatMap((a, i) => (a === "--models" && argv[i + 1] ? argv[i + 1].split(",").map((m) => m.trim()).filter(Boolean) : []));

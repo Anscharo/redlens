@@ -75,7 +75,7 @@ playwright/.cache/
 .cache/atlas-rag/vectors.bin
 .cache/processes-audit.json
 # Chat/model eval report outputs — regenerable by re-running the evals; the
-# durable corpus they grade against lives in scripts/aux/eval-corpora/ (committed).
+# durable corpus they grade against lives in scripts/eval/eval-corpora/ (committed).
 .cache/eval-*.json
 .cache/audit-run*.log
 .cache/audit-html-cases.json

@@ -2,7 +2,7 @@
 // Same end-to-end stack as eval-harness (runVerifiedChat, exactly as chat.ts drives it),
 // two arms per query, paired within a worker so time-varying drift hits both arms equally:
 //   base — buildSystemPrompt(ix) as shipped
-//   wiki — same + scripts/aux/eval-corpora/wiki-card.md appended to the system prompt
+//   wiki — same + scripts/eval/eval-corpora/wiki-card.md appended to the system prompt
 // Deterministic metrics only (no judge model): retrieval rounds, tool messages,
 // fabrications, verifier verdicts, escalations, latency, tokens. Final answers are
 // saved to the report for manual quality judging.

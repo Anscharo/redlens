@@ -2,9 +2,15 @@ import { visit } from "unist-util-visit";
 import type { Root, Text, Element, ElementContent } from "hast";
 import { getAddressMap } from "./addressMap";
 import { explorerUrl } from "./explorer";
+import { EVM_ADDRESS_SRC, SOL_ADDRESS_SRC } from "./patterns";
 
-const ETH_ADDRESS_RE = /(?<![0-9a-fA-F])0x[0-9a-fA-F]{40}(?![0-9a-fA-F])/g;
-const SOL_ADDRESS_RE = /\b[1-9A-HJ-NP-Za-km-z]{43,44}\b/g;
+// Compiled locally rather than shared /g singletons imported from patterns.ts:
+// a shared /g regex carries lastIndex between scans, so each consumer needs
+// its own instance. patterns.ts is the src-side source of truth for these
+// forms — see its header comment and patterns.sync.test.ts for the
+// pipeline-side (scripts/lib/address-chains.mjs) mirror.
+const ETH_ADDRESS_RE = new RegExp(EVM_ADDRESS_SRC, "g");
+const SOL_ADDRESS_RE = new RegExp(SOL_ADDRESS_SRC, "g");
 const ONCHAIN_RE = new RegExp(`${ETH_ADDRESS_RE.source}|${SOL_ADDRESS_RE.source}`, "g");
 const TX_HASH_RE = /Transaction\s+Hash:\s*(0x[0-9a-fA-F]{64})\b/gi;
 const TX_HASH_BARE_RE = /^0x[0-9a-fA-F]{64}$/;

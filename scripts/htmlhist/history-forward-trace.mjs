@@ -17,7 +17,7 @@
 // It also knows NOTHING of the reverse stitching — no seed, no #117 uuids — and
 // assigns its own quasi-ids (Q1, Q2, …) at the first commit, carried forward.
 
-import { matchNodes, _internal } from "./history-identity.mjs";
+import { matchNodes, _internal } from "../lib/history-identity.mjs";
 import { contentDupCounts, occKey } from "./history-occkey.mjs";
 
 const { shingleSet, jaccard, isShort } = _internal;

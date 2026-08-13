@@ -1,4 +1,4 @@
-// Pure tamper functions over saved passing chat runs (scripts/aux/eval-corpora/evidence/*,
+// Pure tamper functions over saved passing chat runs (scripts/eval/eval-corpora/evidence/*,
 // written by `pnpm eval:golden --save-evidence`). Each mutation plants one
 // known defect class in a known-good answer; eval-verifier.ts then measures
 // whether the harness catches it. No I/O, no model — unit-testable.
