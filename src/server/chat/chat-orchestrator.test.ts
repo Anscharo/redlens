@@ -159,6 +159,137 @@ test("no model slots: pass-through + status ticker; done carries checksMeta; san
     expect(wire.content).toBe("Answer.");
   }));
 
+// ── Small-talk bypass ──────────────────────────────────────────────────────
+// Config-gates the judge slot the same way withModels gates verifier/advisor.
+function withJudge(model: string, fn: () => Promise<void>): Promise<void> {
+  const prev = config.chatSmalltalkJudgeModel;
+  config.chatSmalltalkJudgeModel = model;
+  return fn().finally(() => {
+    config.chatSmalltalkJudgeModel = prev;
+  });
+}
+// Wraps a JsonCall so the judge's distinctive prompt gets a scripted ruling
+// and every other call falls through to the inner fake — content dispatch,
+// same principle as identifySlice.
+function withJudgeRuling(inner: JsonCall, ruling: string, judgeCalls: { model: string }[] = []): JsonCall {
+  return async (params) => {
+    const sys = typeof params.messages[0]?.content === "string" ? params.messages[0].content : "";
+    if (sys.includes('{"smalltalk"')) {
+      judgeCalls.push({ model: params.model });
+      return { text: ruling, usage: { input: 5, output: 2 }, generationId: "gen-judge", latencyMs: 3 };
+    }
+    return inner(params);
+  };
+}
+const GREETING = "Hello! How can I help you with the Sky Atlas?";
+
+test("small-talk bypass: zero tools + uncheckable answer + judge says smalltalk → no audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const sliceCalls: { model: string }[] = [];
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hello", maxIterations: 3,
+          stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }, sliceCalls), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      // Straight to done: no comparing/checking ticker, no verify chip, no
+      // slice calls — only the one judge call, recorded in checksMeta.
+      expect(kinds(events)).toEqual(["token", "done"]);
+      expect(judgeCalls).toEqual([{ model: "fast/judge" }]);
+      expect(sliceCalls).toEqual([]);
+      const done = lastDone(events);
+      expect(done.content).toBe(GREETING);
+      expect(done.checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge"]);
+    })));
+
+test("judge rules the question expects facts → full audit runs despite an uncheckable answer", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "is the fee governance-controlled?", maxIterations: 3,
+          stream: fakeStream([[textChunk("Yes, that is governed."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": false}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["smalltalk_judge", "round_checks", "verify"]);
+    })));
+
+test("a zero-tool answer with groundable content is never bypassed — even a smalltalk ruling can't skip the audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "hi", maxIterations: 3,
+          stream: fakeStream([[textChunk("A.1.6 covers that."), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      // The judge FIRED (concurrently, on the uncheckable first message) but
+      // its favorable ruling is never consulted: the answer cited without
+      // tools — the hallucination case — so the audit runs regardless, and
+      // the unconsumed ruling leaves no checksMeta row.
+      expect(judgeCalls.length).toBe(1);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+      expect(lastDone(events).checksMeta.map((c) => c.kind)).toEqual(["round_checks", "verify"]);
+    })));
+
+test("the judge never fires on a groundable QUESTION — 'what is A.1.6?' needs no model to be ruled factual", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: [userMsg], question: "what is A.1.6?", maxIterations: 3,
+          stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls).toEqual([]);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+    })));
+
+test("the judge never fires past the first user message — later turns always audit", () =>
+  withModels("strong/verifier", "chat/advisor", () =>
+    withJudge("fast/judge", async () => {
+      const judgeCalls: { model: string }[] = [];
+      const history: Msg[] = [
+        { role: "user", content: "what governs the fee?" },
+        { role: "assistant", content: "The fee is governed by A.1.6." },
+        { role: "user", content: "thanks!" },
+      ];
+      const events = await collect(
+        runVerifiedChat({
+          ix, messages: history, question: "thanks!", maxIterations: 3,
+          stream: fakeStream([[textChunk("You're welcome!"), finishChunk("stop")]]),
+          jsonCall: withJudgeRuling(fakeSlicedJson({ claims: [slicePass()] }), '{"smalltalk": true}', judgeCalls),
+        }),
+      );
+      expect(judgeCalls).toEqual([]);
+      expect(events.some((e) => e.type === "verify_result")).toBe(true);
+    })));
+
+test("no judge model configured → bypass disabled outright, greetings get the full audit", () =>
+  withModels("strong/verifier", "chat/advisor", async () => {
+    const sliceCalls: { model: string }[] = [];
+    const events = await collect(
+      runVerifiedChat({
+        ix, messages: [userMsg], question: "hello", maxIterations: 3,
+        stream: fakeStream([[textChunk(GREETING), finishChunk("stop")]]),
+        jsonCall: fakeSlicedJson({ claims: [slicePass()] }, sliceCalls),
+      }),
+    );
+    expect(sliceCalls.map((c) => c.model)).toEqual(sliceRound("strong/verifier"));
+    expect(events.some((e) => e.type === "verify_result")).toBe(true);
+  }));
+
 test("deterministic-only mode stays quiet on clean answers, flags invalid citations", () =>
   withModels("", "", async () => {
     const bad = "See [X](/atlas/00000000-dead-beef-0000-000000000000).";

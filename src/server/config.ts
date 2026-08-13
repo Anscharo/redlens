@@ -270,6 +270,12 @@ export const config = {
   // Escalation-only recovery model; chat-tier is fine (recovery planning is
   // easier than verification). Empty = advisor off.
   chatAdvisorModel: process.env.CHAT_ADVISOR_MODEL ?? "",
+  // Small-talk bypass judge — one tiny question-side classification ("does
+  // this message expect factual content?") that is the FINAL gate on skipping
+  // the audit for pure greetings (chat-orchestrator.ts + verify/smalltalk.ts).
+  // Empty = the bypass is disabled outright (fail-closed: no judge, no skip —
+  // every turn gets the full harness). A fast chat-tier model is plenty.
+  chatSmalltalkJudgeModel: process.env.CHAT_SMALLTALK_JUDGE_MODEL ?? "",
   // Deterministic checks (free, pure code) — independent of the model slots.
   chatVerifyChecks: process.env.CHAT_VERIFY_CHECKS !== "0",
   // Deterministic pre-lookup (glossary + entity match on the user's message)

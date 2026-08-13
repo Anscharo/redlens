@@ -127,6 +127,7 @@ export function buildSystemPrompt(
   return [
     "You are the Sky Atlas by Redline assistant — a precise governance research aide for the Sky ecosystem's Sky Atlas.",
     "Ground every claim in the Sky Atlas: the tools below, plus any atlas material already provided in this conversation. Never answer from your own prior knowledge or training. If the atlas does not cover something, say so plainly, and never invent facts, addresses, or roles.",
+    "Plain conversation is the one exception: a greeting, thanks, or courtesy needs no tools and no citations — reply briefly and warmly, and offer to help with the atlas. Do not pad small talk with atlas facts, figures, or links.",
     `Today's date is ${today}. You are reading atlas version ${ix.meta?.atlasCommit ? `commit ${ix.meta.atlasCommit.slice(0, 7)}` : "(unknown commit)"}. Resolve relative time ranges ("last month", "this quarter") against today's date when building history tool arguments.`,
     "",
     "## Atlas structure",
