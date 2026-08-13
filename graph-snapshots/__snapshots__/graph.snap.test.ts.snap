@@ -5663,7 +5663,7 @@ exports[`allocation-system sub-doc content > Osero > Ethereum Mainnet - SparkLen
     "title": "Maximum Exposure",
   },
   {
-    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+    "content": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 25%.",
     "title": "Capital Ratio Requirement",
   },
   {
@@ -11386,7 +11386,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "aligned_delegate_for": 9,
   "annotates": 101,
   "can_modify_signers_of": 29,
-  "cites": 2109,
+  "cites": 2113,
   "comprises": 22,
   "core_facilitator_for": 1,
   "core_govops_for": 1,
@@ -11414,7 +11414,7 @@ exports[`edge type counts > all edge types and their counts 1`] = `
   "prime_foundation_of": 5,
   "process_step_responsible_party_for": 32,
   "provides_services_to": 2,
-  "proxies_to": 83,
+  "proxies_to": 81,
   "ranked_delegate_for": 3,
   "responsible_party_for": 65,
   "signer_of": 63,
@@ -14558,7 +14558,7 @@ exports[`instances > allocation-system instances 1`] = `
     "name": "Ethereum Mainnet - SparkLend USDS",
     "params": {
       "Asset Supplied By Osero Liquidity Layer": "USDS",
-      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 100%.",
+      "Capital Ratio Requirement": "The Capital Ratio Requirement for this Instance, as specified in [A.3.2.1.1.1 - Capital Ratio Requirement](3828778e-0197-4ce9-a836-6770d04f2ea9), is 25%.",
       "Deposit Rate Limits / maxAmount": "5,000,000 USDS",
       "Deposit Rate Limits / slope": "5,000,000 USDS per day",
       "Inflow RateLimitID": "0x5534da2f28b3dd200cb0042c0876cd6e2beca93d3232c366ec077018c82da73d",
