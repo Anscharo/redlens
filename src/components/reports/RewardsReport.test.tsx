@@ -92,6 +92,7 @@ vi.mock("../../lib/rewardsIndex", async (importOriginal) => {
 });
 
 import { RewardsReport } from "./RewardsReport";
+import { ErrorBoundary } from "../ErrorBoundary";
 
 afterEach(() => {
   cleanup();
@@ -153,18 +154,23 @@ describe("RewardsReport", () => {
     expect(URL.createObjectURL).toHaveBeenCalled();
   });
 
-  it("shows an error state with a retry button when loading fails, and recovers on retry", async () => {
+  // The page no longer carries its own error + retry UI: useLoaded re-throws a
+  // load failure during render, so the route's ErrorBoundary (App wraps every
+  // route, resetKey={location}) owns the error page for reports too.
+  it("surfaces a load failure to the surrounding ErrorBoundary instead of a spinner", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     const graphModule = await import("../../lib/graph");
     const spy = vi.spyOn(graphModule, "loadGraph").mockImplementationOnce(() =>
       Promise.reject(new Error("boom")),
     );
 
-    render(<RewardsReport query="" mode="broad" />);
-    expect(await screen.findByText("Failed to load report.")).toBeInTheDocument();
-
-    const retry = screen.getByText("retry");
-    fireEvent.click(retry);
-    expect(await screen.findByRole("heading", { name: "Spark", level: 2 })).toBeInTheDocument();
+    render(
+      <ErrorBoundary fallback={(error) => <p>page failed to load: {error.message}</p>}>
+        <RewardsReport query="" mode="broad" />
+      </ErrorBoundary>,
+    );
+    expect(await screen.findByText(/page failed to load: boom/)).toBeInTheDocument();
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
     spy.mockRestore();
   });
 });

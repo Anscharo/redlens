@@ -89,15 +89,31 @@ vi.mock("../../lib/oeaReport", async (importOriginal) => {
   };
 });
 
+const trackMock = vi.fn();
+vi.mock("../../lib/analytics", () => ({ track: (...args: unknown[]) => trackMock(...args) }));
+
 import { OeaAssessmentReport } from "./OeaAssessmentReport";
 
 afterEach(() => {
   cleanup();
   window.history.pushState({}, "", "/");
   mockRows = [ROW_STRONG, ROW_ASSIGNMENT, ROW_UNASSESSED];
+  trackMock.mockClear();
 });
 
 describe("OeaAssessmentReport", () => {
+  // ReportShell holds report_view until the artifact lands, then fires it with
+  // the LOADED counts — a zeroed row_count here would mean the shell captured
+  // the pre-load props.
+  it("fires report_view once, with the loaded row count and rubric version", async () => {
+    render(<OeaAssessmentReport query="" mode="broad" />);
+    await screen.findByText("Publish price feed");
+    const views = trackMock.mock.calls.filter(([e]) => e === "report_view");
+    expect(views).toEqual([
+      ["report_view", { report: "oea-assessment", row_count: 3, stale_count: 0, unassessed_count: 0, rubric_version: "rv1" }],
+    ]);
+  });
+
   it("renders rows grouped by category with a summary strip", async () => {
     render(<OeaAssessmentReport query="" mode="broad" />);
     await screen.findByText("Publish price feed");
