@@ -21,6 +21,11 @@ const DEFAULTS: Required<WindowOptions> = {
   budgetChars: 24_000,
 };
 
+// The default history budget, exported for the conversations list's
+// estimated-context fallback (conversations.ts): stored text beyond this
+// many chars can never be replayed into a future turn's context.
+export const HISTORY_BUDGET_CHARS = DEFAULTS.budgetChars;
+
 const TRUNCATION_MARK = "\n…[earlier message truncated]";
 
 // Structural-only line: a heading, a horizontal rule, or a bold-only line

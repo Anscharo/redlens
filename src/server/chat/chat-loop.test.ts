@@ -59,9 +59,36 @@ test("plain answer: streams tokens, no tools, terminal done carries usage + gen 
   if (done.type === "done") {
     expect(done.content).toBe("Hello world");
     expect(done.usage).toEqual({ input: 120, output: 8 });
+    expect(done.contextTokens).toBe(120);
     expect(done.generationId).toBe("gen-abc");
     expect(done.toolCalls).toHaveLength(0);
   }
+});
+
+test("contextTokens is the LAST round's prompt_tokens, not the cumulative usage.input", async () => {
+  // Three rounds, each emitting its own usage chunk. usage.input accumulates
+  // (per include_usage semantics — one request per round); contextTokens must
+  // instead reflect only the round that produced the shipped answer.
+  const rounds = [
+    [toolChunk("atlas_describe", "{}"), finishChunk("tool_calls"), usageChunk(500, 20)],
+    [toolChunk("atlas_describe", '{"sections":["all"]}'), finishChunk("tool_calls"), usageChunk(1_200, 15)],
+    [textChunk("Final answer."), finishChunk("stop"), usageChunk(1_900, 10)],
+  ];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []), maxIterations: 4 }));
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  if (done.type === "done") {
+    expect(done.usage).toEqual({ input: 500 + 1_200 + 1_900, output: 20 + 15 + 10 });
+    expect(done.contextTokens).toBe(1_900); // last round only, not the sum
+  }
+});
+
+test("contextTokens is null when no usage chunk was ever seen", async () => {
+  const rounds = [[textChunk("No usage reported."), finishChunk("stop")]];
+  const events = await collect(runChat({ ix, messages: [userMsg], stream: fakeStream(rounds, []) }));
+  const done = events.at(-1)!;
+  expect(done.type).toBe("done");
+  expect(done.type === "done" && done.contextTokens).toBeNull();
 });
 
 test("tool round: leaked pre-tool content triggers clear, then executes + answers", async () => {
@@ -420,6 +447,9 @@ test("compose guard: empty forced-text round buys one no-tools compose attempt",
   if (done.type === "done") {
     expect(done.content).toBe("Composed answer.");
     expect(done.usage.output).toBe(12); // compose usage accumulated
+    // forcedTextAttempt (the compose guard's no-tools round) must update
+    // contextTokens too — its prompt IS the current context.
+    expect(done.contextTokens).toBe(80);
     expect(done.transcript.at(-1)).toEqual({ role: "assistant", content: "Composed answer." });
     // The steer must NOT land in the transcript (transient, like FINAL_TURN_INSTRUCTION).
     expect(done.transcript.some((m) => m.role === "system" && String(m.content).includes("research budget"))).toBe(false);

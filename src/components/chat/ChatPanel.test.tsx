@@ -55,8 +55,10 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
     send,
     stop,
     conversationId: null,
+    contextTokens: null,
     usage: null,
     commons: null,
+    contextWindow: null,
     refresh,
     rateLimit: null,
     setRateLimit,
@@ -234,6 +236,25 @@ describe("ChatPanel rate limiting", () => {
     fireEvent.click(screen.getByLabelText("Send"));
     await waitFor(() => expect(screen.getByPlaceholderText("Ask about the Sky Atlas…")).toBeDisabled());
     expect(screen.getByText("Shared pool is out of credits.")).toBeInTheDocument();
+  });
+});
+
+describe("ChatPanel context-size indicator", () => {
+  it("does not render the left-edge context line when context is unknown", () => {
+    renderPanel({ session: { contextTokens: null, contextWindow: 128000 } });
+    expect(document.querySelector(".rlc-ctxline")).toBeNull();
+  });
+
+  it("renders the left-edge context line sized to the context percent when known", () => {
+    renderPanel({ session: { contextTokens: 12800, contextWindow: 128000 } });
+    const fill = document.querySelector(".rlc-ctxline-fill") as HTMLElement;
+    expect(fill).not.toBeNull();
+    expect(fill.style.height).toBe("10%");
+  });
+
+  it("passes contextTokens/contextWindow through to the composer's LimitsMeter", () => {
+    renderPanel({ session: { contextTokens: 12800, contextWindow: 128000 } });
+    expect(screen.getByText("context window · 10% · 12.8k / 128k")).toBeInTheDocument();
   });
 });
 

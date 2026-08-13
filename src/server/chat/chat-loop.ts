@@ -56,6 +56,12 @@ export type ChatEvent =
       type: "done";
       content: string;
       usage: { input: number; output: number };
+      // The LAST llm round's usage.prompt_tokens seen this turn — the real
+      // context size of the round that produced the shipped answer. NOT the
+      // same as usage.input above, which ACCUMULATES prompt_tokens across
+      // every tool round and overstates context 2-3x on a multi-round turn.
+      // null if no usage chunk was ever seen (e.g. aborted before one arrived).
+      contextTokens: number | null;
       generationId: string | null;
       toolCalls: ToolCallRecord[];
       // True when the final completion hit config.chatMaxOutputTokens and was
@@ -136,6 +142,7 @@ export async function* runChat(opts: {
   const toolCalls: ToolCallRecord[] = [];
   let usageIn = 0;
   let usageOut = 0;
+  let contextTokens: number | null = null;
   let generationId: string | null = null;
 
   // One-shot no-tools text attempt (compose guard / repetition rewrite). Yields
@@ -174,6 +181,11 @@ export async function* runChat(opts: {
       if (chunk.usage) {
         usageIn += chunk.usage.prompt_tokens ?? 0;
         usageOut += chunk.usage.completion_tokens ?? 0;
+        // A repetition-rewrite/compose request's prompt IS the current
+        // context — this must update contextTokens too, not just the
+        // main-loop site below, or a turn that ends via forcedTextAttempt
+        // reports a stale/null context size.
+        if (chunk.usage.prompt_tokens) contextTokens = chunk.usage.prompt_tokens;
       }
     }
     return { content, lengthCapped: finishReason === "length", degenerated };
@@ -238,6 +250,10 @@ export async function* runChat(opts: {
       if (chunk.usage) {
         usageIn += chunk.usage.prompt_tokens ?? 0;
         usageOut += chunk.usage.completion_tokens ?? 0;
+        // Overwrite (not accumulate) — this is the real per-round context
+        // size, and only the LAST round's value describes the context the
+        // shipped answer was produced against.
+        if (chunk.usage.prompt_tokens) contextTokens = chunk.usage.prompt_tokens;
       }
     }
 
@@ -262,6 +278,7 @@ export async function* runChat(opts: {
         type: "done",
         content: finalContent,
         usage: { input: usageIn, output: usageOut },
+        contextTokens,
         generationId,
         toolCalls,
         lengthCapped: capped,
@@ -419,6 +436,7 @@ export async function* runChat(opts: {
       type: "done",
       content: finalContent,
       usage: { input: usageIn, output: usageOut },
+      contextTokens,
       generationId,
       toolCalls,
       lengthCapped: capped,
@@ -429,5 +447,5 @@ export async function* runChat(opts: {
 
   // Reached only if aborted, or maxIterations somehow exhausted without a text
   // answer. Emit a terminal event so callers can persist + close cleanly.
-  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
+  yield { type: "done", content: "", usage: { input: usageIn, output: usageOut }, contextTokens, generationId, toolCalls, lengthCapped: false, transcript: [...msgs] };
 }

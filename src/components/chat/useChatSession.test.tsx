@@ -9,7 +9,7 @@ const { useUsageSpy } = vi.hoisted(() => ({ useUsageSpy: vi.fn() }));
 vi.mock("./useUsage", () => ({
   useUsage: (enabled: boolean) => {
     useUsageSpy(enabled);
-    return { usage: null, commons: null, refresh: vi.fn() };
+    return { usage: null, commons: null, contextWindow: null, refresh: vi.fn() };
   },
 }));
 
@@ -64,6 +64,39 @@ describe("useChatSession.openConversation", () => {
       { role: "assistant", content: "hi", trace: [], rounds: 0, sources: [], done: true, verify: undefined },
     ]);
     expect(result.current.loadingHistory).toBe(false);
+  });
+
+  it("hydrates session.contextTokens from the conversation detail's contextTokens", async () => {
+    getConversation.mockResolvedValue({
+      id: "conv-1",
+      title: "Server title",
+      updatedAt: "2026-01-01T00:00:00Z",
+      messages: [],
+      contextTokens: 5000,
+    });
+    const { result } = renderHook(() => useChatSession(true));
+
+    await act(async () => {
+      await result.current.openConversation("conv-1");
+    });
+
+    expect(result.current.contextTokens).toBe(5000);
+  });
+
+  it("defaults session.contextTokens to null when the detail omits contextTokens", async () => {
+    getConversation.mockResolvedValue({
+      id: "conv-1",
+      title: "Server title",
+      updatedAt: "2026-01-01T00:00:00Z",
+      messages: [],
+    });
+    const { result } = renderHook(() => useChatSession(true));
+
+    await act(async () => {
+      await result.current.openConversation("conv-1");
+    });
+
+    expect(result.current.contextTokens).toBeNull();
   });
 
   it("falls back to a fresh conversation on failure, without setting an error", async () => {

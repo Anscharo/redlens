@@ -21,7 +21,7 @@ vi.mock("./auth", () => ({ useAuth: () => ({ user: authUser, openAuth: vi.fn() }
 // useChatSession composes the real useUsage — stub it out so tests don't need
 // to mock /api/usage; only /api/chat (and, for hydrate tests, getConversation)
 // are exercised for real.
-vi.mock("./useUsage", () => ({ useUsage: () => ({ usage: null, commons: null, refresh: vi.fn() }) }));
+vi.mock("./useUsage", () => ({ useUsage: () => ({ usage: null, commons: null, contextWindow: null, refresh: vi.fn() }) }));
 
 const { getConversation } = vi.hoisted(() => ({ getConversation: vi.fn() }));
 vi.mock("../../lib/conversationsApi", () => ({ getConversation }));
@@ -352,5 +352,72 @@ describe("ChatWidget conversation memory", () => {
 
     fireEvent.click(screen.getByText("delete-conv"));
     expect(screen.getByTestId("messages")).toHaveTextContent("Restored answer");
+  });
+});
+
+describe("ChatWidget reload-resume", () => {
+  const freshSnapshot = (over: Record<string, unknown> = {}) =>
+    localStorage.setItem("rlc-resume", JSON.stringify({ at: Date.now(), conversationId: null, title: null, ...over }));
+
+  it("reopens immediately (no launcher) from a fresh snapshot and tracks a resumed open", () => {
+    freshSnapshot();
+    renderWidget();
+    expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Open the Atlas agent")).toBeNull();
+    expect(track).toHaveBeenCalledWith("chat_open", { product: "chat", resumed: true });
+  });
+
+  it("rehydrates the snapshot's conversation", async () => {
+    getConversation.mockResolvedValue({
+      id: "conv-7",
+      title: "Resumed thread",
+      updatedAt: "2026-01-01T00:00:00Z",
+      contextTokens: null,
+      messages: [{ role: "assistant", content: "Still here", createdAt: "2026-01-01T00:00:00Z", toolCalls: null }],
+    });
+    freshSnapshot({ conversationId: "conv-7", title: "Resumed thread" });
+    renderWidget();
+    expect(getConversation).toHaveBeenCalledWith("conv-7");
+    await waitFor(() => expect(screen.getByTestId("messages")).toHaveTextContent("Still here"));
+    expect(screen.getByTestId("title")).toHaveTextContent("Resumed thread");
+  });
+
+  it("stays collapsed when the snapshot is older than 30s", () => {
+    localStorage.setItem(
+      "rlc-resume",
+      JSON.stringify({ at: Date.now() - 31_000, conversationId: "conv-7", title: null }),
+    );
+    renderWidget();
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(screen.getByLabelText("Open the Atlas agent")).toBeInTheDocument();
+    expect(getConversation).not.toHaveBeenCalled();
+  });
+
+  it("writes a snapshot while open and re-stamps it on pagehide", () => {
+    renderWidget();
+    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    const first = JSON.parse(localStorage.getItem("rlc-resume")!) as { at: number };
+    expect(first.at).toBeGreaterThan(0);
+    vi.useFakeTimers();
+    vi.setSystemTime(first.at + 5_000);
+    fireEvent(window, new Event("pagehide"));
+    const stamped = JSON.parse(localStorage.getItem("rlc-resume")!) as { at: number };
+    expect(stamped.at).toBe(first.at + 5_000);
+    vi.useRealTimers();
+  });
+
+  it("clears the snapshot on an explicit close, so a reload right after stays collapsed", () => {
+    renderWidget();
+    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    expect(localStorage.getItem("rlc-resume")).not.toBeNull();
+    fireEvent.click(screen.getByText("close-panel"));
+    expect(localStorage.getItem("rlc-resume")).toBeNull();
+  });
+
+  it("clears the snapshot on Escape-close too", () => {
+    renderWidget();
+    fireEvent.click(screen.getByLabelText("Open the Atlas agent"));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(localStorage.getItem("rlc-resume")).toBeNull();
   });
 });

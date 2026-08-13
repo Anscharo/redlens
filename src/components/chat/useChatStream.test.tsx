@@ -202,6 +202,56 @@ describe("useChatStream event dispatch", () => {
     expect(result.current.messages.at(-1)?.content).toBe("ok");
   });
 
+  it("sets contextTokens from the 'done' event's contextTokens field", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "ok",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: 18200,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBe(18200);
+  });
+
+  it("treats a missing contextTokens on 'done' as null (older server)", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      { type: "done", content: "ok", usage: { input: 1, output: 1 }, generationId: null, toolCalls: [] },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
+  it("treats an explicit null contextTokens on 'done' as null", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "ok",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: null,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
   it("keeps a partially streamed answer when the stream is truncated", async () => {
     mockChat([
       { type: "meta", conversationId: "c1" },
@@ -519,6 +569,26 @@ describe("useChatStream hydrate", () => {
     expect(result.current.messages).toEqual([]);
   });
 
+  it("seeds contextTokens from the optional third argument", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate(
+        "conv-1",
+        [{ role: "assistant", content: "hi", trace: [], rounds: 0, sources: [], done: true }],
+        18200,
+      );
+    });
+    expect(result.current.contextTokens).toBe(18200);
+  });
+
+  it("defaults contextTokens to null when the third argument is omitted", () => {
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("conv-1", [{ role: "user", content: "hi", trace: [], rounds: 0, sources: [], done: true }]);
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
   it("aborts an in-flight stream first, so a late (already-inflight) event cannot corrupt the newly hydrated array", async () => {
     const encoder = new TextEncoder();
     let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined;
@@ -592,6 +662,19 @@ describe("useChatStream 404 conversation_not_found", () => {
     expect(result.current.streaming).toBe(false);
   });
 
+  it("also clears contextTokens (the dead conversation's pie must not survive into the fresh chat)", async () => {
+    mockStatus(404, { error: "conversation_not_found" });
+    const { result } = renderHook(() => useChatStream());
+    act(() => {
+      result.current.hydrate("dead-conv", [], 18200);
+    });
+    expect(result.current.contextTokens).toBe(18200);
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBeNull();
+  });
+
   it("a 404 with a different/no error body still surfaces as the generic error", async () => {
     mockStatus(404, { error: "not_found" });
     const { result } = renderHook(() => useChatStream());
@@ -655,6 +738,30 @@ describe("useChatStream stop/reset", () => {
     expect(result.current.messages).toEqual([]);
     expect(result.current.error).toBeNull();
     expect(result.current.streaming).toBe(false);
+  });
+
+  it("reset() clears contextTokens", async () => {
+    mockChat([
+      { type: "meta", conversationId: "c1" },
+      {
+        type: "done",
+        content: "hi",
+        usage: { input: 1, output: 1 },
+        generationId: null,
+        toolCalls: [],
+        contextTokens: 18200,
+      },
+    ]);
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send("question");
+    });
+    expect(result.current.contextTokens).toBe(18200);
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.contextTokens).toBeNull();
   });
 });
 

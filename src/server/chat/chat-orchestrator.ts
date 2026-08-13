@@ -598,6 +598,11 @@ export async function* runVerifiedChat(opts: {
     type: "done",
     content: revDone.content,
     usage: { input: done.usage.input + revDone.usage.input, output: done.usage.output + revDone.usage.output },
+    // The revised run's context is the CURRENT one — it replayed the whole
+    // transcript through a fresh round, so its own contextTokens (falling
+    // back to the original's only if the revision never saw a usage chunk)
+    // describes what the shipped answer was actually produced against.
+    contextTokens: revDone.contextTokens ?? done.contextTokens,
     generationId: revDone.generationId ?? done.generationId,
     toolCalls: [...done.toolCalls, ...revDone.toolCalls],
     lengthCapped: revDone.lengthCapped, // the revised answer is what's finalized

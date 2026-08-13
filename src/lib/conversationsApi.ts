@@ -9,6 +9,12 @@ export interface ConversationSummary {
   title: string | null;
   updatedAt: string;
   messageCount: number;
+  // Newest assistant turn's context size (last llm round's prompt_tokens).
+  // For legacy conversations with no measured value, the server falls back to
+  // an estimate from stored message text and sets contextEstimated — the card
+  // renders those with a "~". Null only when the server sent nothing.
+  contextTokens: number | null;
+  contextEstimated?: boolean;
 }
 
 // The wire shape of one persisted message row (GET .../conversations/:id).
@@ -29,6 +35,12 @@ export interface ConversationDetail {
   title: string | null;
   updatedAt: string;
   messages: StoredMessage[];
+  // MEASURED-only, unlike ConversationSummary's (which falls back to a
+  // flagged estimate): null until a live turn records a real prompt size.
+  // Deliberate — this seeds the panel's context meter, which must never
+  // present an estimate as a near-full warning. So a legacy conversation can
+  // show "~12k context" on its list card yet open with an empty meter.
+  contextTokens: number | null;
 }
 
 // Enforced on the rename input; the server allows up to 120 chars. 48 is the
